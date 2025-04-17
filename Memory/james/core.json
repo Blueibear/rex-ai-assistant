@@ -1,0 +1,21 @@
+{
+  "name": "James",
+  "role": "Owner and primary user",
+  "preferences": {
+    "tone": "direct and insightful",
+    "topics": [
+      "AI",
+      "automation",
+      "t-shirts",
+      "privacy",
+      "voice assistants"
+    ]
+  },
+  "personality_traits": [
+    "curious",
+    "strategic",
+    "creative"
+  ],
+  "user": "james",
+  "voice_sample": "C:\\AI\\CoquiXTTS\\cleaned_jensen.wav"
+}

@@ -1,0 +1,47 @@
+import os
+import json
+import subprocess
+from datetime import datetime
+
+# Path base
+BASE_DIR = "C:\\AI\\Assistant\\memory"
+
+# Choose user
+users = [d for d in os.listdir(BASE_DIR) if os.path.isdir(os.path.join(BASE_DIR, d))]
+print("Choose your user:")
+for i, user in enumerate(users):
+    print(f"{i + 1}. {user.capitalize()}")
+
+choice = input("Enter the number: ")
+selected_user = users[int(choice) - 1]
+user_dir = os.path.join(BASE_DIR, selected_user)
+
+# Load memory
+core_path = os.path.join(user_dir, "core.json")
+notes_path = os.path.join(user_dir, "notes.md")
+history_path = os.path.join(user_dir, "history.log")
+
+with open(core_path, "r") as f:
+    core_memory = json.load(f)
+
+# Display who you're logged in as
+print(f"\n✅ Launching session as {core_memory['name']}...\n")
+print(f"Role: {core_memory['role']}")
+print(f"Preferred topics: {', '.join(core_memory['preferences']['topics'])}")
+
+# Log session start to history
+with open(history_path, "a") as log:
+    log.write(f"\n[{datetime.now().strftime('%Y-%m-%d %I:%M %p')}] Session started for {core_memory['name']}\n")
+
+# Launch KoboldCpp (edit path if needed)
+kobold_path = "C:\\AI\\KoboldCpp\\koboldcpp_cu12.exe"
+model_path = "C:\\AI\\Models\\LLM\\kimiko.gguf"
+
+subprocess.run([
+    kobold_path,
+    "--model", model_path,
+    "--gpu",
+    "--threads", "8",
+    "--smartcontext",
+    "--launch"
+])

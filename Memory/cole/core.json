@@ -1,0 +1,22 @@
+{
+  "name": "Cole",
+  "role": "Secondary user and partner",
+  "preferences": {
+    "tone": "casual and kind",
+    "topics": [
+      "travel",
+      "pets",
+      "photography"
+    ]
+  },
+  "personality_traits": [
+    "thoughtful",
+    "funny",
+    "practical"
+  ],
+  "voice": {
+    "sample_path": "C:\\AI\\CoquiXTTS\\cole_voice.wav",
+    "gender": "male",
+    "style": "friendly and warm"
+  }
+}
