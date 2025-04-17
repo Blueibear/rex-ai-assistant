@@ -1,0 +1,45 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv/
+env/
+venv/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# VSCode settings
+.vscode/
+
+# Logs and debug
+*.log
+*.bak
+*.tmp
+
+# Audio and model outputs
+*.wav
+*.mp3
+*.onnx
+
+# Model training artifacts
+*.pth
+*.ckpt
+
+# Python-specific cache
+*.egg-info/
+dist/
+build/
+
+# Database or stateful files
+*.sqlite3
+*.db
+
+# Custom folders
+rex.onnx
+assets/rex_wake_acknowledgment (1).wav
+Memory/*/history.log
