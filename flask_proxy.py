@@ -23,7 +23,9 @@ def load_user_memory():
     if not user_key:
         abort(403, description="Access denied for this user.")
 
-    user_folder = os.path.join("memory", user_key)
+    # The memory directory is capitalized in this project ("Memory"),
+    # so use the correct case to avoid issues on case-sensitive systems.
+    user_folder = os.path.join("Memory", user_key)
     try:
         with open(os.path.join(user_folder, "core.json"), "r") as f:
             memory = json.load(f)
