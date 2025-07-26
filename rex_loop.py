@@ -1,4 +1,5 @@
 import time
+import os
 import sounddevice as sd
 import numpy as np
 import simpleaudio as sa
@@ -11,11 +12,11 @@ model.load_wakeword(wakeword)
 
 # Audio settings
 sample_rate = 16000
-duration = 1  # seconds
+duration = 1  # second
 block_size = int(sample_rate * duration)
 
 # Wake confirmation sound path
-wake_sound_path = "C:\\AI\\Assistant\\assets\\rex_wake_acknowledgment (1).wav"
+wake_sound_path = os.path.join(os.path.dirname(__file__), "assets", "rex_wake_acknowledgment (1).wav")
 
 # Play the confirmation sound when wakeword is detected
 def play_confirmation_sound():
