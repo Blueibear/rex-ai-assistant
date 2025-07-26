@@ -2,7 +2,7 @@ import openwakeword
 import os
 
 # Path to save the model
-model_save_path = "C:\\AI\\Assistant\\models\\rex.onnx"  # Adjust path as needed
+model_save_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rex.onnx")
 
 # Initialize the OpenWakeWord model with a custom backend
 model = openwakeword.Model(backend="onnx")
