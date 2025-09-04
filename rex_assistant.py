@@ -153,7 +153,9 @@ def handle_command(text: str) -> str:
     return generate_response(text)
 
 
-def speak(text: str, user: str = "james") -> None:
+def speak(
+    tts: "TTS", text: str, user: str = "james"
+) -> None:
     """Convert text to speech and play it.
 
     This uses Coqui’s XTTS model.  If a speaker reference WAV exists
@@ -163,6 +165,8 @@ def speak(text: str, user: str = "james") -> None:
 
     Parameters
     ----------
+    tts: TTS
+        An initialized Coqui TTS instance.
     text: str
         Text to convert to speech.
     user: str, optional
@@ -170,27 +174,22 @@ def speak(text: str, user: str = "james") -> None:
         to "james".
     """
     speaker_wav: Optional[str] = SPEAKER_VOICES.get(user)
-    # Load the XTTS model on demand.  You could load this once at
-    # program start instead to improve performance.
-    tts = TTS(
-        model_name="tts_models/multilingual/multi-dataset/xtts_v2",
-        progress_bar=False,
-        gpu=False,
-    )
     # Create a temporary file for the audio output
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         output_path = tmp.name
-    tts.tts_to_file(
-        text=text,
-        speaker_wav=speaker_wav,
-        language="en",
-        file_path=output_path,
-    )
-    play_sound(output_path)
     try:
-        os.remove(output_path)
-    except OSError:
-        pass
+        tts.tts_to_file(
+            text=text,
+            speaker_wav=speaker_wav,
+            language="en",
+            file_path=output_path,
+        )
+        play_sound(output_path)
+    finally:
+        try:
+            os.remove(output_path)
+        except OSError:
+            pass
 
 
 def main() -> None:
@@ -205,6 +204,15 @@ def main() -> None:
     print(f"[setup] Loading Whisper model '{WHISPER_MODEL_NAME}'…")
     stt_model = whisper.load_model(WHISPER_MODEL_NAME)
     print("[setup] Whisper loaded.")
+
+    # Load the TTS model
+    print("[setup] Loading TTS model...")
+    tts = TTS(
+        model_name="tts_models/multilingual/multi-dataset/xtts_v2",
+        progress_bar=False,
+        gpu=False,
+    )
+    print("[setup] TTS model loaded.")
 
     sample_rate = 16000
     block_size = sample_rate  # 1 second blocks
@@ -229,9 +237,12 @@ def main() -> None:
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
                 sf.write(tmp.name, command_audio, sample_rate)
                 audio_path = tmp.name
-            # Transcribe
-            result = stt_model.transcribe(audio_path)
-            os.remove(audio_path)
+            try:
+                # Transcribe
+                result = stt_model.transcribe(audio_path)
+            finally:
+                os.remove(audio_path)
+
             text = result.get("text", "").strip()
             if not text:
                 print("[stt] No speech detected.")
@@ -241,7 +252,7 @@ def main() -> None:
             reply = handle_command(text)
             print(f"[reply] {reply}")
             # Speak the reply
-            speak(reply)
+            speak(tts, reply)
 
     # Start streaming microphone audio
     print("[info] Rex Assistant is listening.  Say the wake word to begin.")

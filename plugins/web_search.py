@@ -1,14 +1,19 @@
+import os
 import requests
 from bs4 import BeautifulSoup
 
-SERPAPI_KEY = "fcf4910ff42a2366c27241343aabd9d4296534065f7b7688d4303971f6f479b3"
-
 def search_serpapi(query):
+    """Search using SerpAPI."""
+    serpapi_key = os.environ.get("SERPAPI_API_KEY")
+    if not serpapi_key:
+        print("[Search] SerpAPI key not found in environment variables.")
+        return None
+
     print("[Search] Using SerpAPI...")
     url = "https://serpapi.com/search"
     params = {
         "q": query,
-        "api_key": SERPAPI_KEY,
+        "api_key": serpapi_key,
         "engine": "google",
         "num": "3"
     }
