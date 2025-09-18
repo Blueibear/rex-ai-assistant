@@ -1,15 +1,23 @@
+import os
+
 import requests
 from bs4 import BeautifulSoup
 
-SERPAPI_KEY = "fcf4910ff42a2366c27241343aabd9d4296534065f7b7688d4303971f6f479b3"
+SERPAPI_URL = "https://serpapi.com/search"
 
 def search_serpapi(query):
+    api_key = os.getenv("SERPAPI_KEY")
+    if not api_key:
+        print("[Search] SERPAPI_KEY not set; skipping SerpAPI.")
+        return None
+
+    engine = os.getenv("SERPAPI_ENGINE", "google") or "google"
+
     print("[Search] Using SerpAPI...")
-    url = "https://serpapi.com/search"
     params = {
         "q": query,
-        "api_key": SERPAPI_KEY,
-        "engine": "google",
+        "api_key": api_key,
+        "engine": engine,
         "num": "3"
     }
     headers = {
@@ -17,7 +25,7 @@ def search_serpapi(query):
     }
 
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=10)
+        response = requests.get(SERPAPI_URL, params=params, headers=headers, timeout=10)
         response.raise_for_status()
         data = response.json()
         results = data.get("organic_results", [])
