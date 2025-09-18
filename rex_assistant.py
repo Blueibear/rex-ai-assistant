@@ -48,10 +48,32 @@ try:
 except Exception:
     search_web = None  # type: ignore
 
+from memory_utils import (
+    extract_voice_reference,
+    load_all_profiles,
+    load_users_map,
+    resolve_user_key,
+)
+
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
+
+USERS_MAP = load_users_map()
+USER_PROFILES = load_all_profiles()
+ACTIVE_USER = resolve_user_key(os.getenv("REX_ACTIVE_USER"), USERS_MAP, profiles=USER_PROFILES)
+
+if not ACTIVE_USER:
+    if USER_PROFILES:
+        ACTIVE_USER = sorted(USER_PROFILES.keys())[0]
+    else:
+        ACTIVE_USER = "james"
+
+ACTIVE_PROFILE = USER_PROFILES.get(ACTIVE_USER, {})
+ACTIVE_USER_DISPLAY = (
+    ACTIVE_PROFILE.get("name") if isinstance(ACTIVE_PROFILE, dict) else None
+)
 
 # Wake word to listen for.  The default model knows "rex" by name, so we
 # simply specify the string.  If you have a custom ONNX file (e.g.
@@ -66,14 +88,16 @@ WAKE_SOUND_PATH = os.path.join(
     os.path.dirname(__file__), "assets", "rex_wake_acknowledgment (1).wav"
 )
 
-# Mapping of user names to speaker reference WAV files.  If the file
-# doesn’t exist, XTTS will fall back to its default voice.  You can
-# customize these entries or load them dynamically from your ``Memory``
-# directory.
+# Mapping of user names to speaker reference WAV files.  Entries are loaded
+# from the ``Memory`` directory so setting ``REX_ACTIVE_USER`` automatically
+# selects the correct profile when the assistant starts.
 SPEAKER_VOICES = {
-    "james": None,  # e.g. os.path.join("Memory", "james", "voice_sample.wav")
-    "cole": None,
+    user: extract_voice_reference(profile)
+    for user, profile in USER_PROFILES.items()
 }
+
+if ACTIVE_USER not in SPEAKER_VOICES:
+    SPEAKER_VOICES[ACTIVE_USER] = None
 
 # Duration (in seconds) to record the user’s utterance after the wake word
 # triggers.  A real assistant could implement voice activity detection
@@ -153,7 +177,7 @@ def handle_command(text: str) -> str:
     return generate_response(text)
 
 
-def speak(text: str, user: str = "james") -> None:
+def speak(text: str, user: Optional[str] = None) -> None:
     """Convert text to speech and play it.
 
     This uses Coqui’s XTTS model.  If a speaker reference WAV exists
@@ -167,9 +191,13 @@ def speak(text: str, user: str = "james") -> None:
         Text to convert to speech.
     user: str, optional
         Name of the user whose voice sample should be used.  Defaults
-        to "james".
+        to the profile selected via ``REX_ACTIVE_USER``.
     """
-    speaker_wav: Optional[str] = SPEAKER_VOICES.get(user)
+    target_user = (user or ACTIVE_USER).lower()
+    if target_user not in SPEAKER_VOICES:
+        target_user = ACTIVE_USER
+
+    speaker_wav: Optional[str] = SPEAKER_VOICES.get(target_user)
     # Load the XTTS model on demand.  You could load this once at
     # program start instead to improve performance.
     tts = TTS(
@@ -195,6 +223,11 @@ def speak(text: str, user: str = "james") -> None:
 
 def main() -> None:
     """Main event loop for the assistant."""
+    if ACTIVE_USER_DISPLAY:
+        print(f"[config] Active user: {ACTIVE_USER_DISPLAY} ({ACTIVE_USER})")
+    else:
+        print(f"[config] Active user: {ACTIVE_USER}")
+
     # Load wake‑word model
     wake_model = WakeWordModel(backend="onnx")
     # If you have your own ONNX file in the repository, load it via
