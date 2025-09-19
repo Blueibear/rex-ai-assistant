@@ -1,14 +1,14 @@
-"""
+
 rex_assistant.py
 -------------------
 
 This script provides a simple, self contained example of how you might
-tie together wake‑word detection, speech‑to‑text (STT) using OpenAI’s
-Whisper, a placeholder response generator, and text‑to‑speech (TTS)
-using Coqui’s XTTS.  It demonstrates a basic loop where a wake word
-triggers listening for a short command, transcribes the user’s
-utterance, generates a reply, speaks the reply aloud, and then
-continues listening.
+tie together wake‑word detection, speech‐to‑text (STT) using OpenAI’s
+Whisper, transformer‐driven responses via Hugging Face models, and
+text‐to‑speech (TTS) using Coqui’s XTTS. It demonstrates a basic loop
+where a wake word triggers listening for a short command, transcribes
+the user’s utterance, generates a reply, speaks the reply aloud, and
+then continues listening.
 
 To keep the example portable, all file paths are relative to the
 repository root.  The wake confirmation sound comes from the
@@ -28,25 +28,28 @@ Usage::
 Press ``Enter`` in the console to exit the program.
 """
 
+import importlib
+import importlib.util
 import os
 import tempfile
+import textwrap
 from typing import Optional
 
 import numpy as np
 import sounddevice as sd
 import simpleaudio as sa
 import soundfile as sf
-from openwakeword.model import Model as WakeWordModel
 import whisper
 from TTS.api import TTS
 
-try:
-    # Optional import: if the web search plugin exists, we can use it to
-    # handle "search" commands.  If import fails, the assistant will
-    # simply echo the user’s text.
-    from plugins.web_search import search_web  # type: ignore
-except Exception:
-    search_web = None  # type: ignore
+from llm_client import LanguageModel
+from wakeword_utils import detect_wakeword, load_wakeword_model
+
+_WEB_SEARCH_SPEC = importlib.util.find_spec("plugins.web_search")
+if _WEB_SEARCH_SPEC is not None:
+    search_web = getattr(importlib.import_module("plugins.web_search"), "search_web", None)
+else:
+    search_web = None
 
 from memory_utils import (
     extract_voice_reference,
@@ -75,11 +78,10 @@ ACTIVE_USER_DISPLAY = (
     ACTIVE_PROFILE.get("name") if isinstance(ACTIVE_PROFILE, dict) else None
 )
 
-# Wake word to listen for.  The default model knows "rex" by name, so we
-# simply specify the string.  If you have a custom ONNX file (e.g.
-# ``rex.onnx``) you can load it instead by calling ``model.load_wakeword``
-# with a file path.
-WAKEWORD = "rex"
+# Wake word to listen for.  ``wakeword_utils`` falls back to bundled
+# openWakeWord models when a custom ``rex.onnx`` is not present.
+WAKEWORD = os.getenv("REX_WAKEWORD", "rex")
+WAKEWORD_THRESHOLD = float(os.getenv("REX_WAKEWORD_THRESHOLD", "0.5"))
 
 # Relative path to the wake confirmation sound.  This file is provided in
 # the repository’s ``assets`` directory.  If you place the script
@@ -107,21 +109,77 @@ COMMAND_DURATION = 5
 # Whisper model size.  Valid options include "tiny", "base", "small",
 # "medium" and "large".  Larger models yield higher accuracy at the
 # expense of increased memory and compute requirements.
-WHISPER_MODEL_NAME = "base"
+WHISPER_MODEL_NAME = os.getenv("REX_WHISPER_MODEL", "base")
+
+LLM = LanguageModel()
+ASSISTANT_PERSONA = textwrap.dedent(
+    """
+    You are Rex, a focused AI voice assistant that keeps responses concise.
+    Reference the active user's preferences when it helps personalise your
+    answer. Always respond in natural English prose.
+    """
+)
+
 
 
 # ---------------------------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------------------------
 
-def play_sound(path: str) -> None:
-    """Play a WAV file synchronously.
 
-    Parameters
-    ----------
-    path: str
-        Path to the WAV file to play.
-    """
+def _build_profile_context() -> str:
+    lines = []
+    if isinstance(ACTIVE_PROFILE, dict):
+        name = ACTIVE_PROFILE.get("name")
+        if isinstance(name, str):
+            lines.append(f"The active user is {name}.")
+        role = ACTIVE_PROFILE.get("role")
+        if isinstance(role, str):
+            lines.append(f"Their role: {role}.")
+        preferences = ACTIVE_PROFILE.get("preferences")
+        if isinstance(preferences, dict):
+            tone = preferences.get("tone")
+            if isinstance(tone, str):
+                lines.append(f"Preferred tone: {tone}.")
+            topics = preferences.get("topics")
+            if isinstance(topics, list):
+                cleaned = [topic for topic in topics if isinstance(topic, str)]
+                if cleaned:
+                    lines.append(
+                        "They are interested in: " + ", ".join(sorted(set(cleaned))) + "."
+                    )
+    return "\n".join(lines)
+
+
+PROFILE_CONTEXT = _build_profile_context()
+
+
+def _build_prompt(user_text: str) -> str:
+    context = PROFILE_CONTEXT
+    if context:
+        return (
+            f"{ASSISTANT_PERSONA}\n\n{context}\n\nUser: {user_text}\nAssistant:"
+        )
+    return f"{ASSISTANT_PERSONA}\n\nUser: {user_text}\nAssistant:"
+
+
+_TTS_ENGINE: Optional[TTS] = None
+
+
+def _get_tts_engine() -> TTS:
+    global _TTS_ENGINE
+    if _TTS_ENGINE is None:
+        _TTS_ENGINE = TTS(
+            model_name="tts_models/multilingual/multi-dataset/xtts_v2",
+            progress_bar=False,
+            gpu=False,
+        )
+    return _TTS_ENGINE
+
+
+def play_sound(path: str) -> None:
+    """Play a WAV file synchronously."""
+
     try:
         wave_obj = sa.WaveObject.from_wave_file(path)
         play_obj = wave_obj.play()
@@ -131,24 +189,15 @@ def play_sound(path: str) -> None:
 
 
 def generate_response(text: str) -> str:
-    """Placeholder for a real natural‑language response generator.
+    """Generate a natural-language reply using the configured language model."""
 
-    This function simply echoes what the user said.  In a production
-    system, you would integrate your favourite language model here
-    (e.g. via ``transformers`` or a local inference server) and perhaps
-    consult the user’s memory or perform an internet search.
-
-    Parameters
-    ----------
-    text: str
-        The user’s transcribed utterance.
-
-    Returns
-    -------
-    str
-        Assistant’s textual reply.
-    """
-    return f"You said: {text}"
+    prompt = _build_prompt(text)
+    try:
+        completion = LLM.generate(prompt)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        print(f"[llm] Error generating response: {exc}")
+        return f"I heard: {text}. Could you repeat that while I restart my thoughts?"
+    return completion
 
 
 def handle_command(text: str) -> str:
@@ -198,13 +247,9 @@ def speak(text: str, user: Optional[str] = None) -> None:
         target_user = ACTIVE_USER
 
     speaker_wav: Optional[str] = SPEAKER_VOICES.get(target_user)
-    # Load the XTTS model on demand.  You could load this once at
-    # program start instead to improve performance.
-    tts = TTS(
-        model_name="tts_models/multilingual/multi-dataset/xtts_v2",
-        progress_bar=False,
-        gpu=False,
-    )
+    if speaker_wav and not os.path.isfile(speaker_wav):
+        speaker_wav = None
+    tts = _get_tts_engine()
     # Create a temporary file for the audio output
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         output_path = tmp.name
@@ -228,11 +273,9 @@ def main() -> None:
     else:
         print(f"[config] Active user: {ACTIVE_USER}")
 
-    # Load wake‑word model
-    wake_model = WakeWordModel(backend="onnx")
-    # If you have your own ONNX file in the repository, load it via
-    # ``wake_model.load("path/to/rex.onnx")`` instead.
-    wake_model.load_wakeword(WAKEWORD)
+    # Load wake-word model
+    wake_model, wake_keyword = load_wakeword_model(keyword=WAKEWORD)
+    print(f"[setup] Wake word active: {wake_keyword}")
 
     # Load the Whisper STT model
     print(f"[setup] Loading Whisper model '{WHISPER_MODEL_NAME}'…")
@@ -243,11 +286,9 @@ def main() -> None:
     block_size = sample_rate  # 1 second blocks
 
     def audio_callback(indata: np.ndarray, frames: int, time_info, status) -> None:
-        # Flatten multi‑channel audio
+        # Flatten multi-channel audio
         audio_data = np.squeeze(indata)
-        # Score the audio for the wake word
-        score = wake_model.score(audio_data)
-        if score > 0.5:
+        if detect_wakeword(wake_model, audio_data, threshold=WAKEWORD_THRESHOLD):
             print("[wake] Wake word detected.")
             play_sound(WAKE_SOUND_PATH)
 
