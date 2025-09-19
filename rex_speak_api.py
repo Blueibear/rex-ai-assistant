@@ -1,7 +1,8 @@
 import os
-import uuid
+import tempfile
+from typing import Optional
 
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file, jsonify, after_this_request
 from TTS.api import TTS
 
 from memory_utils import (
@@ -24,15 +25,25 @@ if not DEFAULT_USER:
         DEFAULT_USER = "james"
 
 USER_VOICES = {
-    user: extract_voice_reference(profile)
+    user: extract_voice_reference(profile, user_key=user)
     for user, profile in USER_PROFILES.items()
 }
 
 if DEFAULT_USER not in USER_VOICES:
     USER_VOICES[DEFAULT_USER] = None
 
-# Load XTTS model at app startup
-xtts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, gpu=False)
+_TTS_ENGINE: Optional[TTS] = None
+
+
+def _get_tts_engine() -> TTS:
+    global _TTS_ENGINE
+    if _TTS_ENGINE is None:
+        _TTS_ENGINE = TTS(
+            model_name="tts_models/multilingual/multi-dataset/xtts_v2",
+            progress_bar=False,
+            gpu=False,
+        )
+    return _TTS_ENGINE
 
 
 @app.route("/speak", methods=["POST"])
@@ -53,28 +64,38 @@ def speak():
         user = DEFAULT_USER
 
     speaker_wav = USER_VOICES.get(user)
+    if speaker_wav and not os.path.isfile(speaker_wav):
+        speaker_wav = None
 
-    # If a speaker file path is provided but the file doesn't exist, return an error
-    if speaker_wav and not os.path.exists(speaker_wav):
-        return jsonify({"error": f"Speaker reference file not found for user '{user}'"}), 404
+    tts_engine = _get_tts_engine()
 
-    # Generate a unique filename in the current directory for the response audio
-    output_filename = f"rex_response_{uuid.uuid4().hex}.wav"
-    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), output_filename)
+    temp_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+    output_path = temp_file.name
+    temp_file.close()
 
     try:
-        # Generate speech to the file
-        xtts.tts_to_file(
+        tts_engine.tts_to_file(
             text=text,
             speaker_wav=speaker_wav,
             language="en",
             file_path=output_path,
         )
 
-        return send_file(output_path, mimetype="audio/wav", as_attachment=True, download_name="rex_response.wav")
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        # Remove the temporary file
+        @after_this_request
+        def cleanup(response):  # pragma: no cover - exercised in integration
+            try:
+                os.remove(output_path)
+            except OSError:
+                pass
+            return response
+
+        return send_file(
+            output_path,
+            mimetype="audio/wav",
+            as_attachment=True,
+            download_name="rex_response.wav",
+        )
+    except Exception as exc:
         if os.path.exists(output_path):
             os.remove(output_path)
+        return jsonify({"error": str(exc)}), 500

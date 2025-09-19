@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Dict, Optional
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -120,16 +121,73 @@ def load_all_profiles(memory_root: str = MEMORY_ROOT) -> Dict[str, dict]:
     return profiles
 
 
-def extract_voice_reference(profile: dict) -> Optional[str]:
+def _normalise_voice_path(
+    raw_path: str,
+    *,
+    user_key: Optional[str] = None,
+    memory_root: str = MEMORY_ROOT,
+    repo_root: str = REPO_ROOT,
+) -> Optional[str]:
+    """Return an absolute path for ``raw_path`` if it exists on disk."""
+
+    expanded = os.path.expanduser(raw_path)
+    original = Path(expanded)
+
+    candidates = []
+    if original.is_absolute():
+        candidates.append(original)
+    else:
+        if user_key:
+            candidates.append(Path(memory_root) / user_key / raw_path)
+        candidates.append(Path(memory_root) / raw_path)
+        candidates.append(Path(repo_root) / raw_path)
+        candidates.append(Path(expanded))
+
+    # Always check the original path last so existing absolute paths win.
+    candidates.append(original)
+
+    for candidate in candidates:
+        resolved = candidate.expanduser()
+        if resolved.exists():
+            try:
+                return str(resolved.resolve())
+            except OSError:
+                return str(resolved)
+
+    return None
+
+
+def extract_voice_reference(
+    profile: dict,
+    *,
+    user_key: Optional[str] = None,
+    memory_root: str = MEMORY_ROOT,
+    repo_root: str = REPO_ROOT,
+) -> Optional[str]:
     """Return the best available voice reference path from a profile."""
+
     voice_sample = profile.get("voice_sample")
-    if isinstance(voice_sample, str):
-        return voice_sample
+    if isinstance(voice_sample, str) and voice_sample.strip():
+        resolved = _normalise_voice_path(
+            voice_sample.strip(),
+            user_key=user_key,
+            memory_root=memory_root,
+            repo_root=repo_root,
+        )
+        if resolved:
+            return resolved
 
     voice = profile.get("voice") if isinstance(profile, dict) else None
     if isinstance(voice, dict):
         candidate = voice.get("sample_path") or voice.get("sample")
-        if isinstance(candidate, str):
-            return candidate
+        if isinstance(candidate, str) and candidate.strip():
+            resolved = _normalise_voice_path(
+                candidate.strip(),
+                user_key=user_key,
+                memory_root=memory_root,
+                repo_root=repo_root,
+            )
+            if resolved:
+                return resolved
 
     return None

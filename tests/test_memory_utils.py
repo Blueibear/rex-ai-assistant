@@ -19,10 +19,30 @@ def test_resolve_user_key_from_email():
 
 
 def test_extract_voice_reference_handles_missing(monkeypatch, tmp_path):
-    profile = {"voice": {"sample_path": str(tmp_path / "voice.wav")}}
-    (tmp_path / "voice.wav").write_bytes(b"fake")
+    absolute_voice = tmp_path / "voice.wav"
+    absolute_voice.write_bytes(b"fake")
+    profile = {"voice": {"sample_path": str(absolute_voice)}}
 
-    assert extract_voice_reference(profile) == str(tmp_path / "voice.wav")
+    assert extract_voice_reference(profile) == str(absolute_voice.resolve())
+
+    user_dir = tmp_path / "james"
+    user_dir.mkdir()
+    relative_voice = user_dir / "voice.wav"
+    relative_voice.write_bytes(b"demo")
+    profile_relative = {"voice_sample": "voice.wav"}
+
+    assert extract_voice_reference(
+        profile_relative,
+        user_key="james",
+        memory_root=str(tmp_path),
+    ) == str(relative_voice.resolve())
 
     profile_missing = {"voice": {}}
-    assert extract_voice_reference(profile_missing) is None
+    assert (
+        extract_voice_reference(
+            profile_missing,
+            user_key="james",
+            memory_root=str(tmp_path),
+        )
+        is None
+    )

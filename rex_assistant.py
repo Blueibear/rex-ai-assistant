@@ -88,7 +88,7 @@ WAKE_SOUND_PATH = os.path.join(
 # from the ``Memory`` directory so setting ``REX_ACTIVE_USER`` automatically
 # selects the correct profile when the assistant starts.
 SPEAKER_VOICES = {
-    user: extract_voice_reference(profile)
+    user: extract_voice_reference(profile, user_key=user)
     for user, profile in USER_PROFILES.items()
 }
 
