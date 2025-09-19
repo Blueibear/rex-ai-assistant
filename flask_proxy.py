@@ -1,15 +1,51 @@
-import os
+import importlib
+import importlib.util
 import json
+import os
+
 from flask import Flask, request, abort, jsonify
 
 from memory_utils import load_memory_profile, load_users_map, resolve_user_key
-from plugins.web_search import search_web
+
+_WEB_SEARCH_SPEC = importlib.util.find_spec("plugins.web_search")
+if _WEB_SEARCH_SPEC is not None:
+    search_web = getattr(importlib.import_module("plugins.web_search"), "search_web", None)
+else:
+    search_web = None
 
 app = Flask(__name__)
 
 USERS_MAP = load_users_map()
 PROXY_TOKEN = os.getenv("REX_PROXY_TOKEN")
 ALLOW_LOCAL = os.getenv("REX_PROXY_ALLOW_LOCAL") == "1"
+
+
+def _summarize_memory(profile: dict) -> dict:
+    summary: dict = {}
+    if not isinstance(profile, dict):
+        return summary
+
+    name = profile.get("name")
+    if isinstance(name, str):
+        summary["name"] = name
+
+    role = profile.get("role")
+    if isinstance(role, str):
+        summary["role"] = role
+
+    preferences = profile.get("preferences")
+    if isinstance(preferences, dict):
+        pref_summary: dict = {}
+        tone = preferences.get("tone")
+        if isinstance(tone, str):
+            pref_summary["tone"] = tone
+        topics = preferences.get("topics")
+        if isinstance(topics, list):
+            pref_summary["topics"] = [topic for topic in topics if isinstance(topic, str)]
+        if pref_summary:
+            summary["preferences"] = pref_summary
+
+    return summary
 
 
 def _extract_shared_secret() -> str | None:
@@ -88,10 +124,12 @@ def index():
 # ✅ Whoami route: returns active memory profile
 @app.route("/whoami")
 def whoami():
-    return jsonify({
-        "user": user_key,
-        "memory": memory
-    })
+    return jsonify(
+        {
+            "user": user_key,
+            "profile": _summarize_memory(memory),
+        }
+    )
 
 
 # ✅ Search route: performs live web search
@@ -101,11 +139,16 @@ def search():
     if not query:
         return jsonify({"error": "Missing 'q' parameter"}), 400
 
-    result = search_web(query)
-    return jsonify({
-        "query": query,
-        "result": result
-    })
+    if search_web is None:
+        return jsonify({"error": "Web search plugin is not installed."}), 503
+
+    try:
+        result = search_web(query)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        app.logger.exception("Web search provider failed")
+        return jsonify({"error": f"Search provider error: {exc}"}), 502
+
+    return jsonify({"query": query, "result": result})
 
 
 if __name__ == "__main__":
