@@ -47,6 +47,8 @@ def _load_app(monkeypatch, tmp_path):
 def test_speak_requires_api_key(monkeypatch, tmp_path):
     app, module = _load_app(monkeypatch, tmp_path)
 
+    monkeypatch.setattr(module.os.path, "exists", lambda path: True)
+
     with app.test_client() as client:
         response = client.post("/speak", json={"text": "Hello"})
     assert response.status_code == 401
