@@ -1,5 +1,3 @@
-"""Tests for the lightweight transformer wrapper."""
-
 from __future__ import annotations
 
 import types

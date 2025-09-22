@@ -1,27 +1,4 @@
-"""Entry point for the Rex voice assistant demo.
-
-This script provides a simple, self-contained example of how to tie together wake-word detection, speech-to-text
-(STT) using OpenAI Whisper, transformer-driven responses via Hugging Face models, and text-to-speech (TTS) using
-Coqui XTTS. It demonstrates a basic loop where a wake word triggers listening for a short command, transcribes the
-user's utterance, generates a reply, speaks the reply aloud, and then continues listening.
-
-To keep the example portable, all file paths are relative to the repository root.
-The wake confirmation sound is generated on demand into the ``assets`` directory so the repository does not need to
-track binary audio. If you wish to use custom speaker voices for the TTS module,
-you can point the ``SPEAKER_VOICES`` dictionary at your own ``.wav`` files; otherwise Coqui XTTS will fall back to
-its default speaker voice.
-
-Usage::
-
-    # install dependencies
-    pip install -r requirements.txt
-
-    # run the assistant
-    python rex_assistant.py
-
-Press ``Enter`` in the console to exit the program.
-"""
-
+"""Voice assistant loop combining wake-word detection, Whisper STT, transformer replies, and XTTS TTS."""
 
 import importlib
 import importlib.util
@@ -158,7 +135,6 @@ ASSISTANT_PERSONA = textwrap.dedent(
     guessing. If you do not know an answer, say so.
     """
 )
-
 
 
 # ---------------------------------------------------------------------------
@@ -328,23 +304,8 @@ ROUTER.register(lambda text: text.startswith("weather"), _handle_weather_command
 
 
 def handle_command(text: str) -> str:
-    """Handle a transcribed command and return a response.
+    """Handle a transcribed command and return a response."""
 
-    If the command starts with the word "search" and a web search
-    function is available, the assistant performs a search and returns
-    the first result.  Otherwise it simply echoes the user’s input via
-    ``generate_response``.
-
-    Parameters
-    ----------
-    text: str
-        The user’s transcribed utterance.
-
-    Returns
-    -------
-    str
-        The reply to speak.
-    """
     lower = text.strip().lower()
     routed = ROUTER.dispatch(lower, text)
     if routed is not None:
@@ -358,21 +319,8 @@ def handle_command(text: str) -> str:
 
 
 def speak(text: str, user: Optional[str] = None) -> None:
-    """Convert text to speech and play it.
+    """Convert text to speech and play it."""
 
-    This uses Coqui’s XTTS model.  If a speaker reference WAV exists
-    in ``SPEAKER_VOICES`` for the given user, it will be used to
-    condition the voice; otherwise the model’s default speaker is
-    used.
-
-    Parameters
-    ----------
-    text: str
-        Text to convert to speech.
-    user: str, optional
-        Name of the user whose voice sample should be used.  Defaults
-        to the profile selected via ``REX_ACTIVE_USER``.
-    """
     target_user = (user or ACTIVE_USER).lower()
     if target_user not in SPEAKER_VOICES:
         target_user = ACTIVE_USER

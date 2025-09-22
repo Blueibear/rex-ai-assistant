@@ -1,5 +1,3 @@
-"""Tests for the memory utility helpers."""
-
 from __future__ import annotations
 
 from pathlib import Path

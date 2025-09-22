@@ -1,5 +1,3 @@
-"""Helpers for loading wake-word models and evaluating predictions."""
-
 from __future__ import annotations
 
 import os

@@ -14,7 +14,7 @@ to the cloud.
 - 🔉 **Text-to-speech** using [Coqui XTTS v2](https://github.com/coqui-ai/TTS) with optional per-user voice cloning.
 - 🗃️ **Conversation memory** that compresses older exchanges so prompts stay focused while still honouring long-term context.
 - 🌐 **Pluggable web search** that uses SerpAPI when available and gracefully falls back to DuckDuckGo scraping.
-- 🔐 **Hardened APIs** including a rate-limited, API-key protected `/speak` endpoint and a Flask proxy ready for Cloudflare Access.
+- 🔐 **Hardened APIs** including a rate-limited, API-key protected `/speak` endpoint and a Flask proxy ready for Cloudflare Access or shared-secret deployments.
 - ✅ **Automated tests & CI** so regressions are caught early.
 
 ## 🚀 Quick start
@@ -48,27 +48,26 @@ pip install -r requirements.txt
 ### 2. Prepare wake-word & voices
 
 Rex looks for a custom `rex.onnx` wake-word model in the repository root.
-The repository intentionally does **not** ship a binary wake-word file,
-so fresh clones simply fall back to the bundled openWakeWord keyword
-`hey_jarvis` unless you provide your own model. To train or record a
-personal wake-word model, run:
+The repository intentionally does **not** ship a binary wake-word file; if the
+model is missing or empty the assistant automatically falls back to the bundled
+openWakeWord keyword `hey_jarvis`. To train or record a personal wake-word
+model, run:
 
 ```bash
 python record_wakeword.py
 ```
 
 For personalised text-to-speech, add a short WAV sample to your memory
-profile (see `Memory/<user>/core.json`). On first run the assistant
-generates a synthetic placeholder voice at
-`assets/voices/placeholder.wav` so the default profiles work out of the
-box without storing binary assets in Git. Replace that file path with
-your own recording for richer cloning. If the configured sample is
-missing, Rex automatically falls back to the default XTTS speaker.
+profile (see `Memory/<user>/core.json`). On first run the assistant generates a
+synthetic placeholder voice at `assets/voices/placeholder.wav` so the default
+profiles work out of the box without storing binary assets in Git. Replace that
+file path with your own recording for richer cloning. If the configured sample
+is missing, Rex automatically falls back to the default XTTS speaker.
 
 Similarly, the wake-word acknowledgment chirp is generated into
 `assets/wake_acknowledgment.wav` the first time you run either
-`rex_assistant.py` or `wakeword_listener.py`, so fresh clones never need
-to check in binary WAV files just to play the confirmation tone.
+`rex_assistant.py` or `wakeword_listener.py`, so fresh clones never need to
+check in binary WAV files just to play the confirmation tone.
 
 Need a quick transcription test? Supply your own clip to
 `manual_whisper_demo.py`:
@@ -77,8 +76,8 @@ Need a quick transcription test? Supply your own clip to
 python manual_whisper_demo.py path/to/recording.wav
 ```
 
-This keeps the repository free of binary test audio while still letting
-you verify Whisper locally.
+This keeps the repository free of binary test audio while still letting you
+verify Whisper locally.
 
 ### 3. Launch the assistant
 
@@ -87,11 +86,10 @@ python rex_assistant.py
 ```
 
 Say the configured wake word, speak your request, and Rex will transcribe,
-consult memory, generate an answer, and reply out loud. Press **Enter**
-to exit. On startup the assistant lists available microphone devices so
-you can switch inputs without editing configuration files. Set
-`REX_INPUT_DEVICE` to skip the interactive prompt in headless or
-automated environments.
+consult memory, generate an answer, and reply out loud. Press **Enter** to exit.
+On startup the assistant lists available microphone devices so you can switch
+inputs without editing configuration files. Set `REX_INPUT_DEVICE` to skip the
+interactive prompt in headless or automated environments.
 
 ### 4. Run automated tests
 
@@ -119,14 +117,14 @@ assistant to different environments without editing source files.
   (default `0.5`).
 - `REX_WHISPER_MODEL` – Whisper size to load (`tiny`, `base`, `small`, …).
 - `REX_LLM_MODEL`, `REX_LLM_MAX_TOKENS`, `REX_LLM_TEMPERATURE` – tune the
-  transformer-based response generator. Prefix the model with
-  `openai:` (for example `openai:gpt-4o-mini`) to route prompts through
-  the OpenAI Chat Completions API instead of a local transformer. Set
-  `OPENAI_API_KEY` and install the `openai` package to enable this mode.
-- `REX_INPUT_DEVICE` – preset the microphone index when running the
-  assistant non-interactively.
-- `REX_MEMORY_MAX_BYTES` – refuse to load oversized memory profiles to
-  prevent runaway JSON growth (defaults to 128 KiB).
+  transformer-based response generator. Prefix the model with `openai:` (for
+  example `openai:gpt-4o-mini`) to route prompts through the OpenAI Chat
+  Completions API instead of a local transformer. Set `OPENAI_API_KEY` and
+  install the `openai` package to enable this mode.
+- `REX_INPUT_DEVICE` – preset the microphone index when running the assistant
+  non-interactively.
+- `REX_MEMORY_MAX_BYTES` – refuse to load oversized memory profiles to prevent
+  runaway JSON growth (defaults to 128 KiB).
 
 ### Web search plugin
 
@@ -134,7 +132,7 @@ assistant to different environments without editing source files.
 - `SERPAPI_ENGINE` – optional SerpAPI engine override (defaults to `google`).
 
 Without a SerpAPI key, the plugin scrapes DuckDuckGo HTML results. Set
-`Rex`'s environment variables accordingly if you need to disable web
+Rex's environment variables accordingly if you need to disable web
 access entirely.
 
 ### Flask proxy authentication
@@ -152,9 +150,9 @@ leaks.
 ### Speech API security
 
 - `REX_SPEAK_API_KEY` – required shared secret for the `/speak` endpoint.
-- `REX_SPEAK_RATE_LIMIT` / `REX_SPEAK_RATE_WINDOW` – limit how many
-  requests each caller may issue within a rolling window (defaults to 30
-  requests per 60 seconds).
+- `REX_SPEAK_RATE_LIMIT` / `REX_SPEAK_RATE_WINDOW` – limit how many requests
+  each caller may issue within a rolling window (defaults to 30 requests per 60
+  seconds).
 - `REX_SPEAK_MAX_CHARS` – cap the maximum length of accepted text.
 
 ## 🧠 Memory & personalisation
@@ -165,12 +163,11 @@ Each memory profile lives under `Memory/<user>/` and includes:
 - `history.log` – chronological conversation history
 - `notes.md` – free-form notes
 
-Update these files to teach Rex about new preferences or to provide
-voice samples. The helper functions in `memory_utils.py` normalise
-profile paths and email aliases so you can reference a user by folder
-name, email address, or profile display name. Runtime conversations are
-captured by a summarising `ConversationMemory` helper so prompts stay
-succinct even after lengthy chats.
+Update these files to teach Rex about new preferences or to provide voice
+samples. The helper functions in `memory_utils.py` normalise profile paths and
+email aliases so you can reference a user by folder name, email address, or
+profile display name. Runtime conversations are captured by a summarising
+`ConversationMemory` helper so prompts stay succinct even after lengthy chats.
 
 ## 🛠️ Additional tools
 
@@ -183,8 +180,8 @@ succinct even after lengthy chats.
 The repository ships with unit tests covering the language-model wrapper,
 memory utilities, and Flask proxy. A lightweight integrity test also guards
 against accidentally committing regenerated wake-tone or voice WAV files.
-GitHub Actions executes the full matrix on every push so new changes must
-keep the suite green.
+GitHub Actions executes the full matrix on every push so new changes must keep
+the suite green.
 
 ```bash
 pytest

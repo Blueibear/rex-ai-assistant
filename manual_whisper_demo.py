@@ -1,4 +1,4 @@
-"""Manual transcription demo using Whisper."""
+"""Manually transcribe an audio clip using Whisper."""
 
 from __future__ import annotations
 

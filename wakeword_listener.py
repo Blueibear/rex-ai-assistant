@@ -1,5 +1,3 @@
-"""Standalone wake-word listener used for quick manual testing."""
-
 from __future__ import annotations
 
 import os

@@ -130,7 +130,7 @@ class LanguageModel:
             raise ValueError(
                 "Model name may only contain letters, numbers, '-', '_', '.' and '/'."
             )
-        if ".." in model_name or model_name.startswith(('/', '.')):
+        if ".." in model_name or model_name.startswith(("/", ".")):
             raise ValueError("Model name must not contain path traversal segments.")
         return model_name
 

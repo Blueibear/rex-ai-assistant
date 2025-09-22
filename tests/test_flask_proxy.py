@@ -1,5 +1,3 @@
-"""Tests covering the Flask proxy service."""
-
 from __future__ import annotations
 
 import importlib
