@@ -1,16 +1,24 @@
-"""Tests for the lightweight transformer wrapper."""
+"""Tests for the language model abstraction layer."""
 
 from __future__ import annotations
 
+import pytest
+
+pytest.importorskip("torch")
+
+from config import AppConfig
 from llm_client import LanguageModel
 
 
 def test_language_model_generates_text():
-    model = LanguageModel(
-        model_name="sshleifer/tiny-gpt2",
-        max_new_tokens=12,
-        temperature=0.0,
+    cfg = AppConfig(
+        wakeword="rex",
+        llm_model="sshleifer/tiny-gpt2",
+        llm_provider="transformers",
+        llm_max_tokens=12,
+        llm_temperature=0.0,
     )
+    model = LanguageModel(cfg)
     prompt = "User: Hello there!\nAssistant:"
     completion = model.generate(prompt)
 
