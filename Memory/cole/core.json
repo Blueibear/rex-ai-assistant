@@ -15,7 +15,7 @@
     "practical"
   ],
   "voice": {
-    "sample_path": "C:\\AI\\CoquiXTTS\\cole_voice.wav",
+    "sample_path": "assets/voices/placeholder.wav",
     "gender": "male",
     "style": "friendly and warm"
   }

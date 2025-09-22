@@ -25,6 +25,12 @@ Thumbs.db
 *.wav
 *.mp3
 *.onnx
+# Keep documentation for the voices directory without tracking audio files
+assets/voices/*
+!assets/voices/.gitkeep
+!assets/voices/README.md
+# Guard against stray wake acknowledgment artifacts created by some OSes
+assets/rex_wake_acknowledgment*.wav
 
 # Model training artifacts
 *.pth
@@ -41,5 +47,5 @@ build/
 
 # Custom folders
 rex.onnx
-assets/rex_wake_acknowledgment (1).wav
+assets/wake_acknowledgment.wav
 Memory/*/history.log
