@@ -42,6 +42,7 @@ import soundfile as sf
 import whisper
 from TTS.api import TTS
 
+from config import load_config
 from llm_client import LanguageModel
 from wakeword_utils import detect_wakeword, load_wakeword_model
 
@@ -63,9 +64,10 @@ from memory_utils import (
 # Configuration
 # ---------------------------------------------------------------------------
 
+CONFIG = load_config()
 USERS_MAP = load_users_map()
 USER_PROFILES = load_all_profiles()
-ACTIVE_USER = resolve_user_key(os.getenv("REX_ACTIVE_USER"), USERS_MAP, profiles=USER_PROFILES)
+ACTIVE_USER = resolve_user_key(CONFIG.default_user, USERS_MAP, profiles=USER_PROFILES)
 
 if not ACTIVE_USER:
     if USER_PROFILES:
@@ -80,15 +82,18 @@ ACTIVE_USER_DISPLAY = (
 
 # Wake word to listen for.  ``wakeword_utils`` falls back to bundled
 # openWakeWord models when a custom ``rex.onnx`` is not present.
-WAKEWORD = os.getenv("REX_WAKEWORD", "rex")
-WAKEWORD_THRESHOLD = float(os.getenv("REX_WAKEWORD_THRESHOLD", "0.5"))
+WAKEWORD = CONFIG.wakeword
+WAKEWORD_THRESHOLD = CONFIG.wakeword_threshold
 
 # Relative path to the wake confirmation sound.  This file is provided in
 # the repository’s ``assets`` directory.  If you place the script
 # elsewhere, adjust this path accordingly.
-WAKE_SOUND_PATH = os.path.join(
-    os.path.dirname(__file__), "assets", "rex_wake_acknowledgment (1).wav"
-)
+if CONFIG.wake_sound_path:
+    WAKE_SOUND_PATH = CONFIG.wake_sound_path
+else:
+    WAKE_SOUND_PATH = os.path.join(
+        os.path.dirname(__file__), "assets", "rex_wake_acknowledgment (1).wav"
+    )
 
 # Mapping of user names to speaker reference WAV files.  Entries are loaded
 # from the ``Memory`` directory so setting ``REX_ACTIVE_USER`` automatically
@@ -104,14 +109,14 @@ if ACTIVE_USER not in SPEAKER_VOICES:
 # Duration (in seconds) to record the user’s utterance after the wake word
 # triggers.  A real assistant could implement voice activity detection
 # instead of a fixed duration.
-COMMAND_DURATION = 5
+COMMAND_DURATION = CONFIG.command_duration
 
 # Whisper model size.  Valid options include "tiny", "base", "small",
 # "medium" and "large".  Larger models yield higher accuracy at the
 # expense of increased memory and compute requirements.
-WHISPER_MODEL_NAME = os.getenv("REX_WHISPER_MODEL", "base")
+WHISPER_MODEL_NAME = CONFIG.whisper_model
 
-LLM = LanguageModel()
+LLM = LanguageModel(CONFIG)
 ASSISTANT_PERSONA = textwrap.dedent(
     """
     You are Rex, a focused AI voice assistant that keeps responses concise.
