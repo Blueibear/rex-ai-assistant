@@ -5,7 +5,10 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import List, Optional
 
-from pydantic import BaseSettings, Field, validator
+try:  # pragma: no cover - exercised indirectly via import
+    from pydantic import BaseSettings, Field, validator
+except ModuleNotFoundError:  # pragma: no cover - fallback when dependency unavailable
+    from ._pydantic_stub import BaseSettings, Field, validator
 
 
 class Settings(BaseSettings):

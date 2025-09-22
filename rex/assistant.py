@@ -7,7 +7,24 @@ from contextlib import suppress
 from dataclasses import dataclass
 from typing import Dict, Optional
 
-from tqdm import tqdm
+try:  # pragma: no cover - prefer the real dependency when available
+    from tqdm import tqdm
+except ModuleNotFoundError:  # pragma: no cover - fallback in constrained environments
+    class _NullProgress:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def __enter__(self) -> "_NullProgress":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def update(self, *_args, **_kwargs) -> None:
+            return None
+
+    def tqdm(*_args, **_kwargs):  # type: ignore
+        return _NullProgress()
 
 from .config import settings
 from .llm_client import GenerationConfig, LLMClient

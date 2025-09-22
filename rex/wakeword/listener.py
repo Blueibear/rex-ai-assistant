@@ -4,9 +4,25 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
-import simpleaudio as sa
-import sounddevice as sd
+try:  # pragma: no cover - optional heavy dependency
+    import numpy as np
+except ModuleNotFoundError:  # pragma: no cover - fallback for test environments
+    class _NumpyFallback:
+        @staticmethod
+        def squeeze(array):
+            return array
+
+    np = _NumpyFallback()  # type: ignore
+
+try:  # pragma: no cover - optional hardware dependency
+    import simpleaudio as sa
+except ModuleNotFoundError:  # pragma: no cover - degrade gracefully
+    sa = None  # type: ignore
+
+try:  # pragma: no cover - optional hardware dependency
+    import sounddevice as sd
+except ModuleNotFoundError:  # pragma: no cover - degrade gracefully
+    sd = None  # type: ignore
 
 from ..config import settings
 from ..logging_utils import configure_logger
@@ -25,6 +41,10 @@ class WakeWordListener:
 
     def listen(self) -> bool:
         """Block until the wake word is detected or an unrecoverable error occurs."""
+
+        if sd is None:
+            LOGGER.error("sounddevice is not available; wake word detection disabled")
+            return False
 
         LOGGER.info("Listening for wake word '%s'", self._keyword)
 
@@ -56,6 +76,9 @@ class WakeWordListener:
         path = settings.wake_sound_path
         if not path:
             path = str(Path(__file__).resolve().parents[2] / "assets" / "rex_wake_acknowledgment (1).wav")
+        if sa is None:
+            LOGGER.debug("simpleaudio is not available; skipping wake confirmation sound")
+            return
         try:
             wave_obj = sa.WaveObject.from_wave_file(path)
         except FileNotFoundError:
