@@ -12,8 +12,9 @@ import argparse
 import dataclasses
 import logging
 import os
+from collections.abc import Callable
 from functools import lru_cache
-from typing import Any, Callable, Dict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -56,24 +57,26 @@ except ImportError:  # pragma: no cover - minimal fallback
 
 @dataclasses.dataclass
 class Settings:
-    whisper_model: str = "base"
+    whisper_model: str = "medium"
+    whisper_device: str = "cuda"
     temperature: float = 0.8
     user_id: str = "default"
     llm_model: str = "distilgpt2"
     llm_backend: str = "transformers"
     max_memory_items: int = 50
 
-    def dict(self) -> Dict[str, Any]:
+    def dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
 
 
-_ENV_FIELDS: Dict[str, tuple[str, Callable[[str], Any]]] = {
-    "whisper_model": ("REX_WHISPER_MODEL", str),
-    "temperature": ("REX_LLM_TEMPERATURE", float),
-    "user_id": ("REX_ACTIVE_USER", str),
-    "llm_model": ("REX_LLM_MODEL", str),
-    "llm_backend": ("REX_LLM_BACKEND", str),
-    "max_memory_items": ("REX_MEMORY_MAX_ITEMS", int),
+_ENV_FIELDS: dict[str, tuple[tuple[str, ...], Callable[[str], Any]]] = {
+    "whisper_model": (("WHISPER_MODEL", "REX_WHISPER_MODEL"), str),
+    "whisper_device": (("WHISPER_DEVICE", "REX_WHISPER_DEVICE"), str),
+    "temperature": (("REX_LLM_TEMPERATURE",), float),
+    "user_id": (("REX_ACTIVE_USER",), str),
+    "llm_model": (("REX_LLM_MODEL",), str),
+    "llm_backend": (("REX_LLM_BACKEND",), str),
+    "max_memory_items": (("REX_MEMORY_MAX_ITEMS",), int),
 }
 
 
@@ -81,15 +84,19 @@ _ENV_FIELDS: Dict[str, tuple[str, Callable[[str], Any]]] = {
 def _load_settings() -> Settings:
     load_dotenv()
 
-    values: Dict[str, Any] = {}
-    for field_name, (env_var, caster) in _ENV_FIELDS.items():
-        raw = os.getenv(env_var)
-        if raw is None or raw == "":
-            continue
-        try:
-            values[field_name] = caster(raw)
-        except (TypeError, ValueError):
-            logger.warning("Invalid value for %s: %s", env_var, raw)
+    values: dict[str, Any] = {}
+    for field_name, (env_vars, caster) in _ENV_FIELDS.items():
+        for env_var in env_vars:
+            raw = os.getenv(env_var)
+            if raw is None or raw == "":
+                continue
+            try:
+                values[field_name] = caster(raw)
+            except (TypeError, ValueError):
+                logger.warning("Invalid value for %s: %s", env_var, raw)
+                continue
+            else:
+                break
     return Settings(**values)
 
 

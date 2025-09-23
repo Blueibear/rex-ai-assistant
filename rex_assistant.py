@@ -45,6 +45,11 @@ from TTS.api import TTS
 from llm_client import LanguageModel
 from wakeword_utils import detect_wakeword, load_wakeword_model
 
+try:  # pragma: no cover - optional import when package is available
+    from rex.config import settings as _package_settings
+except Exception:  # pragma: no cover - fallback when running standalone
+    _package_settings = None
+
 _WEB_SEARCH_SPEC = importlib.util.find_spec("plugins.web_search")
 if _WEB_SEARCH_SPEC is not None:
     search_web = getattr(importlib.import_module("plugins.web_search"), "search_web", None)
@@ -106,10 +111,21 @@ if ACTIVE_USER not in SPEAKER_VOICES:
 # instead of a fixed duration.
 COMMAND_DURATION = 5
 
-# Whisper model size.  Valid options include "tiny", "base", "small",
+# Whisper configuration.  Valid models include "tiny", "base", "small",
 # "medium" and "large".  Larger models yield higher accuracy at the
 # expense of increased memory and compute requirements.
-WHISPER_MODEL_NAME = os.getenv("REX_WHISPER_MODEL", "base")
+def _resolve_setting(names: tuple[str, ...], attr: str, fallback: str) -> str:
+    for name in names:
+        value = os.getenv(name)
+        if value:
+            return value
+    if _package_settings is not None:
+        return getattr(_package_settings, attr, fallback)
+    return fallback
+
+
+WHISPER_MODEL_NAME = _resolve_setting(("WHISPER_MODEL", "REX_WHISPER_MODEL"), "whisper_model", "medium")
+WHISPER_DEVICE = _resolve_setting(("WHISPER_DEVICE", "REX_WHISPER_DEVICE"), "whisper_device", "cuda")
 
 LLM = LanguageModel()
 ASSISTANT_PERSONA = textwrap.dedent(
@@ -278,8 +294,10 @@ def main() -> None:
     print(f"[setup] Wake word active: {wake_keyword}")
 
     # Load the Whisper STT model
-    print(f"[setup] Loading Whisper model '{WHISPER_MODEL_NAME}'…")
-    stt_model = whisper.load_model(WHISPER_MODEL_NAME)
+    print(
+        f"[setup] Loading Whisper model '{WHISPER_MODEL_NAME}' on device '{WHISPER_DEVICE}'…"
+    )
+    stt_model = whisper.load_model(WHISPER_MODEL_NAME, device=WHISPER_DEVICE)
     print("[setup] Whisper loaded.")
 
     sample_rate = 16000

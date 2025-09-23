@@ -87,7 +87,12 @@ assistant to different environments without editing source files.
   `REX_WAKEWORD_KEYWORD` (defaults to `hey_jarvis`).
 - `REX_WAKEWORD_THRESHOLD` – sensitivity threshold for wake-word detection
   (default `0.5`).
-- `REX_WHISPER_MODEL` – Whisper size to load (`tiny`, `base`, `small`, …).
+- `WHISPER_MODEL` (or legacy `REX_WHISPER_MODEL`) – Whisper size to load
+  (`tiny`, `base`, `small`, `medium`, `large`). The default is `medium` to
+  match GPU-equipped deployments.
+- `WHISPER_DEVICE` (or legacy `REX_WHISPER_DEVICE`) – device for Whisper
+  inference (`cuda`, `cpu`, etc.). Set to `cuda` for GPU acceleration or
+  override with `cpu` on systems without CUDA.
 - `REX_LLM_MODEL`, `REX_LLM_MAX_TOKENS`, `REX_LLM_TEMPERATURE` – tune the
   transformer-based response generator.
 
