@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+.git
+.gitignore
+logs/
+Memory/
+assets/
+TMP/
