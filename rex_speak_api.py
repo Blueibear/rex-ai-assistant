@@ -33,6 +33,7 @@ from memory_utils import (
     load_users_map,
     resolve_user_key,
 )
+from rex.config import settings
 
 
 def _create_app() -> Flask:
@@ -99,7 +100,7 @@ def _create_app() -> Flask:
             xtts.tts_to_file(
                 text=text,
                 speaker_wav=speaker_wav,
-                language="en",
+                language=settings.speak_language,
                 file_path=output_path,
             )
             return send_file(output_path, mimetype="audio/wav", as_attachment=True, download_name="rex_response.wav")

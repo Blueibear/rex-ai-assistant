@@ -34,11 +34,11 @@ async def _run_assistant(assistant):
     return await assistant.generate_reply("hi")
 
 
-def test_assistant_generates_reply(monkeypatch):
+def test_assistant_generates_reply(monkeypatch, tmp_path):
     dummy_strategy = DummyStrategy()
 
     class DummyLanguageModel:
-        def __init__(self):
+        def __init__(self, *args, **kwargs):
             self.strategy = dummy_strategy
 
         def generate(self, prompt, config=None):
@@ -47,7 +47,7 @@ def test_assistant_generates_reply(monkeypatch):
     monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
 
     plugin_spec = assistant_module.PluginSpec(name="dummy", plugin=DummyPlugin())
-    assistant = assistant_module.Assistant(plugins=[plugin_spec])
+    assistant = assistant_module.Assistant(plugins=[plugin_spec], transcripts_dir=tmp_path)
 
     reply = asyncio.run(_run_assistant(assistant))
 

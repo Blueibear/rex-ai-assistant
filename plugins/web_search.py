@@ -18,6 +18,7 @@ try:  # pragma: no cover - optional dependency
 except ImportError:  # pragma: no cover - graceful degradation
     BeautifulSoup = None  # type: ignore[assignment]
 
+from rex.config import settings
 from rex.plugins import Plugin
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,7 @@ class WebSearchPlugin:
         return None
 
     def _provider_order(self) -> list[str]:
-        providers = os.getenv("REX_SEARCH_PROVIDERS", "serpapi,brave,duckduckgo")
+        providers = settings.search_providers
         return [provider.strip() for provider in providers.split(",") if provider.strip()]
 
     def _search_serpapi(self, query: str) -> Optional[str]:
