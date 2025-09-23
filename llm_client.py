@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, Optional
 
 try:  # pragma: no cover - exercised indirectly via fallback
     import torch  # type: ignore[import-not-found]
-except Exception:  # pragma: no cover - torch is optional at runtime
+except (ImportError, OSError):  # pragma: no cover - torch is optional at runtime
     torch = None  # type: ignore[assignment]
 
 try:  # pragma: no cover - exercised indirectly via fallback
@@ -17,7 +17,7 @@ try:  # pragma: no cover - exercised indirectly via fallback
         AutoTokenizer,
         pipeline as hf_pipeline,
     )
-except Exception:  # pragma: no cover - transformers are optional
+except (ImportError, OSError):  # pragma: no cover - transformers are optional
     AutoModelForCausalLM = None  # type: ignore[assignment]
     AutoTokenizer = None  # type: ignore[assignment]
     hf_pipeline = None  # type: ignore[assignment]
@@ -41,7 +41,7 @@ class _EchoPipeline:
         self.model_name = model_name
         self.tokenizer = _EchoTokenizer()
 
-    def __call__(self, prompt: str, **_: Any) -> List[dict[str, str]]:
+    def __call__(self, prompt: str, **_: Any) -> list[dict[str, str]]:
         completion = f"[{self.model_name}] {prompt.strip()}"
         return [{"generated_text": f"{prompt}{' ' if prompt and not prompt.endswith(' ') else ''}{completion}"}]
 
@@ -94,7 +94,7 @@ class LanguageModel:
                 self._tokenizer, "eos_token_id", 0
             )
 
-    def _build_pipeline(self, model_name: str) -> Callable[..., List[dict[str, str]]]:
+    def _build_pipeline(self, model_name: str) -> Callable[..., list[dict[str, str]]]:
         if AutoTokenizer is None or AutoModelForCausalLM is None or hf_pipeline is None:
             return _EchoPipeline(model_name)
 
