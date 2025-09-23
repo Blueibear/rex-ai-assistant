@@ -1,78 +1,48 @@
-"""Flask API that exposes the text-to-speech pipeline."""
-
-from __future__ import annotations
-
 import os
-import secrets
 import uuid
-from contextlib import suppress
-from pathlib import Path
 
-from flask import Flask, jsonify, request, send_file
-from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
+from flask import Flask, request, send_file, jsonify
 from TTS.api import TTS
 
-from assistant_errors import AuthenticationError, TextToSpeechError
-from rex import settings
-from rex.logging_utils import configure_logger
-from rex.memory import extract_voice_reference, load_all_profiles, load_users_map, resolve_user_key
-
-LOGGER = configure_logger(__name__)
+from memory_utils import (
+    extract_voice_reference,
+    load_all_profiles,
+    load_users_map,
+    resolve_user_key,
+)
 
 app = Flask(__name__)
-limiter = Limiter(get_remote_address, app=app, default_limits=[settings.flask_rate_limit])
-CORS(app, resources={r"/*": {"origins": settings.allowed_origins}})
 
 USERS_MAP = load_users_map()
 USER_PROFILES = load_all_profiles()
-DEFAULT_USER = resolve_user_key(settings.user_id, USERS_MAP, profiles=USER_PROFILES) or settings.user_id
-USER_VOICES = {user: extract_voice_reference(profile) for user, profile in USER_PROFILES.items()}
-USER_VOICES.setdefault(DEFAULT_USER, None)
+DEFAULT_USER = resolve_user_key(os.getenv("REX_ACTIVE_USER"), USERS_MAP, profiles=USER_PROFILES)
 
-# Load XTTS model at app startup with defensive logging.
-try:  # pragma: no cover - heavy model load
-    XTTS = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, gpu=False)
-except Exception as exc:  # pragma: no cover - hardware specific
-    LOGGER.error("Failed to load XTTS model: %s", exc)
-    XTTS = None
+if not DEFAULT_USER:
+    if USER_PROFILES:
+        DEFAULT_USER = sorted(USER_PROFILES.keys())[0]
+    else:
+        DEFAULT_USER = "james"
 
+USER_VOICES = {
+    user: extract_voice_reference(profile)
+    for user, profile in USER_PROFILES.items()
+}
 
-def _require_api_key() -> None:
-    expected = os.getenv("REX_SPEAK_API_KEY") or settings.speak_api_key
-    if not expected:
-        return
-    provided = request.headers.get("X-API-Key") or request.headers.get("Authorization")
-    if not provided or not secrets.compare_digest(provided.strip(), expected.strip()):
-        raise AuthenticationError("Missing or invalid API key")
+if DEFAULT_USER not in USER_VOICES:
+    USER_VOICES[DEFAULT_USER] = None
 
-
-@app.errorhandler(AuthenticationError)
-def _handle_auth_error(exc: AuthenticationError):  # pragma: no cover - Flask wiring
-    LOGGER.warning("Authentication failure: %s", exc)
-    return jsonify({"error": str(exc)}), 401
-
-
-@app.errorhandler(TextToSpeechError)
-def _handle_tts_error(exc: TextToSpeechError):  # pragma: no cover - Flask wiring
-    LOGGER.error("TTS failure: %s", exc)
-    return jsonify({"error": str(exc)}), 500
+# Load XTTS model at app startup
+xtts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, gpu=False)
 
 
 @app.route("/speak", methods=["POST"])
-@limiter.limit(lambda: settings.flask_rate_limit)
 def speak():
-    _require_api_key()
-    payload = request.get_json(silent=True) or {}
-    text = payload.get("text")
-    user_param = payload.get("user")
+    data = request.get_json() or {}
+    text = data.get("text")
+    user_param = data.get("user")
 
-    if not isinstance(text, str) or not text.strip():
-        return jsonify({"error": "'text' must be a non-empty string"}), 400
-    text = text.strip()
-    if len(text) > 1_000:
-        return jsonify({"error": "Text input exceeds 1000 characters"}), 400
+    if not text:
+        return jsonify({"error": "Missing text parameter"}), 400
 
     if user_param:
         user = str(user_param).lower()
@@ -83,28 +53,28 @@ def speak():
         user = DEFAULT_USER
 
     speaker_wav = USER_VOICES.get(user)
-    if speaker_wav and not Path(speaker_wav).expanduser().is_file():
+
+    # If a speaker file path is provided but the file doesn't exist, return an error
+    if speaker_wav and not os.path.exists(speaker_wav):
         return jsonify({"error": f"Speaker reference file not found for user '{user}'"}), 404
 
-    if XTTS is None:
-        raise TextToSpeechError("XTTS model unavailable")
-
+    # Generate a unique filename in the current directory for the response audio
     output_filename = f"rex_response_{uuid.uuid4().hex}.wav"
-    output_path = Path(__file__).resolve().parent / output_filename
+    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), output_filename)
 
     try:
-        XTTS.tts_to_file(text=text, speaker_wav=speaker_wav, language="en", file_path=str(output_path))
-        return send_file(
-            output_path,
-            mimetype="audio/wav",
-            as_attachment=True,
-            download_name="rex_response.wav",
+        # Generate speech to the file
+        xtts.tts_to_file(
+            text=text,
+            speaker_wav=speaker_wav,
+            language="en",
+            file_path=output_path,
         )
-    except Exception as exc:  # pragma: no cover - runtime dependent
-        raise TextToSpeechError(str(exc))
+
+        return send_file(output_path, mimetype="audio/wav", as_attachment=True, download_name="rex_response.wav")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     finally:
-        with suppress(FileNotFoundError):
-            output_path.unlink()
-
-
-__all__ = ["app"]
+        # Remove the temporary file
+        if os.path.exists(output_path):
+            os.remove(output_path)
