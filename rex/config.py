@@ -6,11 +6,81 @@ import argparse
 import logging
 import os
 from functools import lru_cache
-from typing import Any
+from typing import Any, Optional
 
-from dotenv import load_dotenv
-from pydantic import BaseSettings, Field, ValidationError
-from dotenv import set_key
+# ``python-dotenv`` is an optional helper; provide a tiny fallback so the
+# configuration module still imports when the dependency is absent (for
+# example in constrained test environments).
+try:  # pragma: no cover - exercised in environments without dotenv
+    from dotenv import load_dotenv, set_key  # type: ignore[import-not-found]
+except Exception:  # pragma: no cover - defensive fallback
+    def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
+        return False
+
+    def set_key(path: str, key: str, value: str) -> tuple[str, str, bool]:
+        lines: list[str] = []
+        updated = False
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as handle:
+                for line in handle:
+                    if line.startswith(f"{key}="):
+                        lines.append(f"{key}={value}\n")
+                        updated = True
+                    else:
+                        lines.append(line)
+        if not updated:
+            lines.append(f"{key}={value}\n")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.writelines(lines)
+        return (key, value, True)
+
+try:  # pragma: no cover - optional dependency
+    from pydantic import BaseSettings, Field, ValidationError  # type: ignore[import-not-found]
+except Exception:  # pragma: no cover - minimal shim for tests
+    class ValidationError(Exception):
+        """Fallback validation error used when pydantic is unavailable."""
+
+    class _FieldInfo:
+        __slots__ = ("default", "env")
+
+        def __init__(self, default: Any, env: str | None = None) -> None:
+            self.default = default
+            self.env = env
+
+    def Field(default: Any, *, env: str | None = None) -> _FieldInfo:
+        return _FieldInfo(default, env)
+
+    class BaseSettings:
+        """Tiny subset of ``pydantic.BaseSettings`` used in tests."""
+
+        def __init__(self, **overrides: Any) -> None:
+            values: dict[str, Any] = {}
+            annotations = getattr(self, "__annotations__", {})
+            for name, annotation in annotations.items():
+                field_info = getattr(self.__class__, name, None)
+                if isinstance(field_info, _FieldInfo):
+                    env_value = os.getenv(field_info.env or "") if field_info.env else None
+                    raw = env_value if env_value not in (None, "") else field_info.default
+                else:
+                    raw = getattr(self.__class__, name, None)
+                if name in overrides:
+                    raw = overrides[name]
+                values[name] = self._coerce(annotation, raw)
+            for name, value in values.items():
+                setattr(self, name, value)
+
+        def _coerce(self, annotation: Any, value: Any) -> Any:
+            try:
+                if annotation in (float, Optional[float]):
+                    return float(value)
+                if annotation in (int, Optional[int]):
+                    return int(value)
+            except (TypeError, ValueError):
+                raise ValidationError(f"Invalid value for {annotation}: {value}")
+            return value
+
+        def dict(self) -> dict[str, Any]:
+            return {name: getattr(self, name) for name in getattr(self, "__annotations__", {})}
 
 load_dotenv()
 

@@ -6,8 +6,17 @@ import logging
 import os
 from typing import Optional
 
-import requests
-from bs4 import BeautifulSoup
+from urllib.parse import quote as url_quote
+
+try:  # pragma: no cover - optional dependency
+    import requests  # type: ignore[import-not-found]
+except Exception:  # pragma: no cover - provide a light-weight shim
+    requests = None  # type: ignore[assignment]
+
+try:  # pragma: no cover - optional dependency
+    from bs4 import BeautifulSoup  # type: ignore[import-not-found]
+except Exception:  # pragma: no cover - fallback parser stub
+    BeautifulSoup = None  # type: ignore[assignment]
 
 from rex.plugins import Plugin
 
@@ -20,13 +29,17 @@ class WebSearchPlugin:
     name = "web_search"
 
     def __init__(self) -> None:
-        self._session = requests.Session()
+        if requests is None:
+            self._session = None
+        else:
+            self._session = requests.Session()
 
     def initialize(self) -> None:  # pragma: no cover - no-op
         pass
 
     def shutdown(self) -> None:
-        self._session.close()
+        if self._session is not None:
+            self._session.close()
 
     def process(self, query: str) -> Optional[str]:
         for provider in self._provider_order():
@@ -43,6 +56,9 @@ class WebSearchPlugin:
     def _search_serpapi(self, query: str) -> Optional[str]:
         api_key = os.getenv("SERPAPI_KEY")
         if not api_key:
+            return None
+        if self._session is None or requests is None:
+            logger.warning("SerpAPI search skipped: requests dependency is missing")
             return None
         params = {
             "q": query,
@@ -68,6 +84,9 @@ class WebSearchPlugin:
         api_key = os.getenv("BRAVE_API_KEY")
         if not api_key:
             return None
+        if self._session is None or requests is None:
+            logger.warning("Brave search skipped: requests dependency is missing")
+            return None
         headers = {"X-Subscription-Token": api_key}
         params = {"q": query, "count": 3}
         try:
@@ -85,8 +104,12 @@ class WebSearchPlugin:
         return f"{top.get('title')} - {top.get('url')}\n{top.get('description', '')}"
 
     def _search_duckduckgo(self, query: str) -> Optional[str]:
+        if self._session is None or BeautifulSoup is None:
+            logger.warning("DuckDuckGo search skipped: required dependencies missing")
+            return None
         try:
-            url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(query)}"
+            quoted = requests.utils.quote(query) if requests else url_quote(query)
+            url = f"https://html.duckduckgo.com/html/?q={quoted}"
             headers = {"User-Agent": "Mozilla/5.0"}
             response = self._session.get(url, headers=headers, timeout=10)
             response.raise_for_status()
