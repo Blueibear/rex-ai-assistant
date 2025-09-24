@@ -54,3 +54,19 @@ def test_speak_requires_api_key(monkeypatch, tmp_path):
             headers={"X-API-Key": "secret"},
         )
     assert response.status_code == 200
+
+
+def test_speak_requires_text_param(monkeypatch, tmp_path):
+    app, module = _load_app(monkeypatch)
+    monkeypatch.setattr(module.os.path, "exists", lambda path: True)
+
+    with app.test_client() as client:
+        response = client.post(
+            "/speak",
+            json={},
+            headers={"X-API-Key": "secret"},
+        )
+
+    assert response.status_code == 400
+    body = response.get_json()
+    assert body == {"error": "Missing text parameter"}
