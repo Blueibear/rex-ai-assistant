@@ -121,7 +121,6 @@ class TransformersStrategy:
         generated = outputs[0]["generated_text"]
         return generated[len(prompt) :].strip() or "(silence)"
 
-
 _STRATEGIES: Dict[str, type[LLMStrategy]] = {
     EchoStrategy.name: EchoStrategy,
     TransformersStrategy.name: TransformersStrategy,
@@ -130,7 +129,6 @@ _STRATEGIES: Dict[str, type[LLMStrategy]] = {
 
 def register_strategy(name: str, factory: type[LLMStrategy]) -> None:
     _STRATEGIES[name] = factory
-
 
 class LanguageModel:
     """Thin wrapper that exposes a deterministic ``generate`` method."""

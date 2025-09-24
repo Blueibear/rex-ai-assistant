@@ -11,6 +11,7 @@ import argparse
 import asyncio
 import logging
 import os
+from pathlib import Path
 from typing import Iterable
 
 import rex
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 def _select_plugins(enabled: Iterable[str] | None) -> list[PluginSpec]:
+    """Select plugins to enable based on CLI arguments."""
     specs = load_plugins()
     if not enabled:
         return specs
@@ -35,11 +37,18 @@ async def _run(args) -> None:
     configure_logging()
     plugin_specs = _select_plugins(args.enable_plugin)
 
+    # Allow CLI override of active user
     if args.user:
         os.environ["REX_ACTIVE_USER"] = args.user
         rex.reload_settings()
 
     assistant = Assistant(history_limit=rex.settings.max_memory_items, plugins=plugin_specs)
+
+    # Ensure fallback wake sound path if unset
+    if not rex.settings.wake_sound_path:
+        fallback_path = Path(__file__).resolve().parent / "assets" / "rex_wake_acknowledgment (1).wav"
+        if fallback_path.is_file():
+            rex.settings.wake_sound_path = str(fallback_path)
 
     try:
         voice_loop = build_voice_loop(assistant)
