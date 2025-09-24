@@ -6,7 +6,8 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Deque, Dict, Iterable, List, Optional
+from collections import deque
 
 from assistant_errors import ConfigurationError
 from config import load_config
@@ -29,19 +30,9 @@ def _history_path(user_key: str, memory_root: Path) -> Path:
 def _metadata_path(user_key: str, memory_root: Path) -> Path:
     return memory_root / user_key / HISTORY_META
 
+
 def load_users_map(users_path: str | Path = USERS_PATH) -> Dict[str, str]:
-    """Return the email-to-user mapping defined in ``users.json``.
-
-    Parameters
-    ----------
-    users_path:
-        Optional override for the location of ``users.json``.
-
-    Returns
-    -------
-    Dict[str, str]
-        Normalised mapping of lowercase email addresses to lowercase user keys.
-    """
+    """Return the email-to-user mapping defined in ``users.json``."""
     try:
         with open(users_path, "r", encoding="utf-8") as handle:
             data = json.load(handle)
@@ -62,27 +53,7 @@ def resolve_user_key(
     memory_root: str | Path = MEMORY_ROOT,
     profiles: Optional[Dict[str, dict]] = None,
 ) -> Optional[str]:
-    """Resolve a user identifier to a memory folder key.
-
-    The identifier can be an email address, an existing memory folder name,
-    or a profile name stored in ``core.json``.
-
-    Parameters
-    ----------
-    identifier:
-        Email address, folder name, or display name to resolve.
-    users_map:
-        Mapping of email addresses to folder names from :func:`load_users_map`.
-    memory_root:
-        Base directory that contains user memory folders.
-    profiles:
-        Optional mapping of folder keys to the parsed ``core.json`` contents.
-
-    Returns
-    -------
-    Optional[str]
-        Lowercase memory key if it can be resolved; otherwise ``None``.
-    """
+    """Resolve a user identifier to a memory folder key."""
     if not identifier:
         return None
 
@@ -154,6 +125,16 @@ def extract_voice_reference(profile: dict) -> Optional[str]:
     return None
 
 
+def trim_history(history: Iterable[dict], *, limit: Optional[int] = None) -> list[dict]:
+    """Return only the most recent ``limit`` entries from ``history``."""
+    cfg = load_config()
+    max_items = limit or cfg.memory_max_turns
+    recent: Deque[dict] = deque(maxlen=max_items)
+    for item in history:
+        recent.append(item)
+    return list(recent)
+
+
 def append_history_entry(
     user_key: str,
     entry: Dict[str, str],
@@ -161,13 +142,7 @@ def append_history_entry(
     memory_root: str | Path = MEMORY_ROOT,
     max_turns: Optional[int] = None,
 ) -> None:
-    """Append a structured conversation entry to ``history.jsonl``.
-
-    Entries are stored as JSON lines with at minimum ``role`` and ``text`` keys.
-    Older entries are trimmed to respect ``max_turns``.  Metadata about the
-    number of stored turns is persisted alongside the history file.
-    """
-
+    """Append a structured conversation entry to ``history.jsonl``."""
     cfg = load_config()
     limit = max_turns or cfg.memory_max_turns
     if limit <= 0:
@@ -203,6 +178,7 @@ def load_recent_history(
     limit: Optional[int] = None,
     memory_root: str | Path = MEMORY_ROOT,
 ) -> List[Dict[str, str]]:
+    """Load the last `limit` number of history entries for a user."""
     history_path = _history_path(user_key, Path(memory_root))
     if not history_path.is_file():
         return []
@@ -228,6 +204,7 @@ def export_transcript(
     *,
     transcripts_dir: Path | None = None,
 ) -> Path:
+    """Write a text transcript of a conversation to a file."""
     cfg = load_config()
     if not cfg.transcripts_enabled:
         raise ConfigurationError("Transcript export is disabled in configuration.")

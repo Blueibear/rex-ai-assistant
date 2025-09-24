@@ -29,7 +29,8 @@ jobs:
       - name: 🧰 Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg libsndfile1 libasound2-dev
+          sudo apt-get install -y ffmpeg libsndfile1 libasound2-dev portaudio19-dev
+
 
       - name: 📥 Install Python dependencies
         run: |
