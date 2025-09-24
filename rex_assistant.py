@@ -1,4 +1,11 @@
-"""Command-line entry point for the Rex assistant."""
+"""Command-line entry point for the Rex assistant.
+
+The script keeps the lightweight interactive loop that originally lived at the
+repository root while delegating the heavy lifting to the refactored
+``rex.assistant`` helpers.  Keeping the documentation here helps developers
+understand how to launch the assistant without digging through historical
+commits.
+"""
 
 from __future__ import annotations
 

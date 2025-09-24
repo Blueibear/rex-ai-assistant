@@ -1,4 +1,9 @@
-"""Async CLI loop driving the full Rex voice experience."""
+"""Async CLI loop driving the full Rex voice experience.
+
+This preserves the semantics of the original ``rex_loop.py`` entry point while
+bridging to the refactored voice loop package introduced during previous
+iterations.
+"""
 
 from __future__ import annotations
 

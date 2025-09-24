@@ -1,4 +1,4 @@
-"""Web search plugin with provider fallbacks."""
+"""Web search helpers and plugin registration."""
 
 from __future__ import annotations
 
@@ -127,5 +127,36 @@ class WebSearchPlugin:
         return None
 
 
+_PLUGIN_SINGLETON: WebSearchPlugin | None = None
+
+
+def _get_plugin() -> WebSearchPlugin:
+    global _PLUGIN_SINGLETON
+    if _PLUGIN_SINGLETON is None:
+        _PLUGIN_SINGLETON = WebSearchPlugin()
+        _PLUGIN_SINGLETON.initialize()
+    return _PLUGIN_SINGLETON
+
+
+def search_serpapi(query: str) -> Optional[str]:
+    """Compatibility wrapper returning the SerpAPI result when possible."""
+
+    return _get_plugin()._search_serpapi(query)
+
+
+def search_duckduckgo(query: str) -> Optional[str]:
+    """Perform a DuckDuckGo HTML scrape, mirroring the legacy helper."""
+
+    return _get_plugin()._search_duckduckgo(query)
+
+
+def search_web(query: str) -> Optional[str]:
+    """Return the first available result from the configured providers."""
+
+    return _get_plugin().process(query)
+
+
 def register() -> Plugin:
+    """Entry point used by :func:`rex.plugins.load_plugins`."""
+
     return WebSearchPlugin()
