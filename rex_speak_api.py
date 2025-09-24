@@ -8,6 +8,12 @@ from contextlib import suppress
 
 from flask import Flask, Response, jsonify, request, send_file
 try:  # pragma: no cover - optional dependency
+    from flask_cors import CORS
+except ImportError:  # pragma: no cover - provide a tiny shim
+    def CORS(app: Flask, **_kwargs):
+        return app
+
+try:  # pragma: no cover - optional dependency
     from flask_limiter import Limiter
     from flask_limiter.util import get_remote_address
 except ImportError:  # pragma: no cover - lightweight stand-ins
@@ -39,6 +45,7 @@ from rex.config import settings
 def _create_app() -> Flask:
     app = Flask(__name__)
     limiter = Limiter(get_remote_address, app=app, default_limits=["30 per minute"])
+    CORS(app, resources={r"/*": {"origins": "*"}})
 
     USERS_MAP = load_users_map()
     USER_PROFILES = load_all_profiles()
@@ -57,12 +64,6 @@ def _create_app() -> Flask:
     xtts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, gpu=False)
 
     required_api_key = os.getenv("REX_SPEAK_API_KEY")
-
-    @app.after_request
-    def _add_security_headers(response: Response) -> Response:  # pragma: no cover - header injection
-        response.headers.setdefault("Access-Control-Allow-Origin", "*")
-        response.headers.setdefault("Access-Control-Allow-Headers", "Content-Type, X-API-Key")
-        return response
 
     @app.route("/speak", methods=["POST"])
     @limiter.limit("15 per minute")

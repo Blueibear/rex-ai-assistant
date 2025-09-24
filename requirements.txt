@@ -1,6 +1,7 @@
 beautifulsoup4>=4.12.0
 flask>=2.3.0
-Flask-Limiter>=3.5.0
+flask-cors>=4.0.0
+flask-limiter>=3.5.0
 numpy>=1.24.0,<2.0.0
 openai-whisper>=20230124
 openwakeword>=0.6.0
