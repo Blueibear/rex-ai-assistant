@@ -31,6 +31,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
+          pip install pytest pytest-cov
 
-      - name: ✅ Run tests
-        run: pytest
+      - name: 🧪 Run tests with coverage
+        run: |
+          pytest --cov=. --cov-report=term-missing
+
+      - name: 📤 Upload coverage report (optional)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: .coverage
