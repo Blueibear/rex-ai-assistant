@@ -18,7 +18,7 @@ from rex.assistant import Assistant
 from rex.assistant_errors import AssistantError, WakeWordError
 from rex.logging_utils import configure_logging
 from rex.plugins import PluginSpec, load_plugins, shutdown_plugins
-from rex.voice_loop import build_voice_loop
+from rex.voice_loop import build_voice_loop  # From resolved `voice_loop.py`
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         asyncio.run(_run(args))
-    except KeyboardInterrupt:  # pragma: no cover - manual termination
+    except KeyboardInterrupt:
         print("\nInterrupted.")
     return 0
 

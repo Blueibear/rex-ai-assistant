@@ -1,28 +1,35 @@
+# Use the Python 3.11 slim base image
 FROM python:3.11-slim
 
-# Set work directory
+# Set working directory
 WORKDIR /app
 
-# Install system dependencies required for audio libraries
-COPY requirements.txt ./
-RUN apt-get update && apt-get install -y \
+# Install system-level dependencies for audio and TTS/ASR
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
         ffmpeg \
         libsndfile1 \
         libasound2-dev \
-        portaudio19-dev && \
-    pip install --no-cache-dir -r requirements.txt && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+        portaudio19-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy source code
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy entire source code into image
 COPY . .
 
-# Environment variables with sensible defaults for the assistant
+# Set environment variables (adjust as needed)
 ENV PYTHONUNBUFFERED=1 \
     REX_WAKEWORD=rex \
     REX_DEVICE=cpu \
     REX_LOG_LEVEL=info
 
-# Optional: mountable volume for logs or user memory
+# Optional: mountable volume for persistent memory or logs
 VOLUME ["/app/Memory"]
 
+# Default entrypoint
 CMD ["python", "rex_assistant.py"]
+
