@@ -5,6 +5,10 @@ from __future__ import annotations
 import importlib
 import sys
 
+import pytest
+
+pytest.importorskip("flask")
+
 
 def _load_app(monkeypatch):
     monkeypatch.setenv("REX_PROXY_ALLOW_LOCAL", "1")
