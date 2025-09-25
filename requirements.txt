@@ -14,7 +14,7 @@ simpleaudio>=1.0.4
 sounddevice>=0.4.6
 soundfile>=0.12.0
 TTS>=0.18.0
-torch==2.6.0
+torch==2.8.0
 torchvision==0.21.0
 torchaudio==2.6.0
 transformers>=4.38.0
