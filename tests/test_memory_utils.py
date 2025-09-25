@@ -11,6 +11,7 @@ from memory_utils import (
     load_recent_history,
     load_users_map,
     resolve_user_key,
+    trim_history,
 )
 
 
@@ -34,6 +35,16 @@ def test_extract_voice_reference_handles_missing(monkeypatch, tmp_path):
 
     profile_none = {}
     assert extract_voice_reference(profile_none) is None, "Absent voice dict should return None"
+
+
+def test_trim_history_limits_entries():
+    history = [{"id": i} for i in range(10)]
+
+    trimmed = trim_history(history, limit=3)
+
+    assert len(trimmed) == 3
+    assert trimmed[0]["id"] == 7
+    assert trimmed[-1]["id"] == 9
 
 
 def test_append_history_trims(monkeypatch, tmp_path):

@@ -1,21 +1,32 @@
-"""CLI helpers for selecting audio devices used by the assistant."""
+"""CLI utilities for inspecting and selecting audio devices."""
 
 from __future__ import annotations
 
 import argparse
+import sys
 from typing import List
 
-import sounddevice as sd
+try:
+    import sounddevice as sd
+except ImportError:
+    sd = None  # sounddevice is optional
+
 from dotenv import set_key
 
 from assistant_errors import AudioDeviceError
 from config import ENV_MAPPING, ENV_PATH, load_config
 from logging_utils import get_logger
 
-LOGGER = get_logger(__name__)
+logger = get_logger(__name__)
+
+
+def _require_sounddevice() -> None:
+    if sd is None:
+        raise AudioDeviceError("The 'sounddevice' package is required for audio device selection.")
 
 
 def list_devices() -> List[dict]:
+    _require_sounddevice()
     try:
         return sd.query_devices()
     except Exception as exc:
@@ -24,7 +35,7 @@ def list_devices() -> List[dict]:
 
 def _set_device(env_key: str, device_id: int) -> None:
     set_key(str(ENV_PATH), env_key, str(device_id))
-    LOGGER.info("Saved %s as %s", device_id, env_key)
+    logger.info("Persisted %s = %s", env_key, device_id)
 
 
 def select_input(device_id: int) -> None:
@@ -35,7 +46,7 @@ def select_input(device_id: int) -> None:
     device = devices[device_id]
     if device["max_input_channels"] < 1:
         raise AudioDeviceError(f"Device {device_id} has no input channels.")
-
+    
     try:
         with sd.InputStream(device=device_id, blocksize=0):
             pass
@@ -53,7 +64,7 @@ def select_output(device_id: int) -> None:
     device = devices[device_id]
     if device["max_output_channels"] < 1:
         raise AudioDeviceError(f"Device {device_id} has no output channels.")
-
+    
     try:
         with sd.OutputStream(device=device_id, blocksize=0):
             pass
@@ -65,7 +76,8 @@ def select_output(device_id: int) -> None:
 
 def _format_devices() -> str:
     devices = list_devices()
-    rows = ["ID | Name                             | In | Out"]
+    rows = [" ID | Name                           | In | Out"]
+    rows.append("-" * 50)
     for idx, device in enumerate(devices):
         rows.append(
             f"{idx:2d} | {device['name'][:30]:<30} | {device['max_input_channels']:2d} | {device['max_output_channels']:2d}"
@@ -74,37 +86,43 @@ def _format_devices() -> str:
 
 
 def cli(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Audio configuration helpers")
-    parser.add_argument("--list", action="store_true", help="List available devices")
-    parser.add_argument("--set-input", type=int, help="Persist the selected input device")
-    parser.add_argument("--set-output", type=int, help="Persist the selected output device")
-    parser.add_argument("--show", action="store_true", help="Show the active configuration values")
+    parser = argparse.ArgumentParser(description="Configure audio devices for Rex.")
+    parser.add_argument("--list", action="store_true", help="List available audio devices")
+    parser.add_argument("--set-input", type=int, metavar="INDEX", help="Persist default input device")
+    parser.add_argument("--set-output", type=int, metavar="INDEX", help="Persist default output device")
+    parser.add_argument("--show", action="store_true", help="Show current configured devices")
+
     args = parser.parse_args(argv)
 
-    if args.list:
-        print(_format_devices())
-
-    if args.set_input is not None:
-        select_input(args.set_input)
-
-    if args.set_output is not None:
-        select_output(args.set_output)
-
-    if args.show:
-        cfg = load_config(reload=True)
-        LOGGER.info(
-            "Active audio configuration → Input: %s | Output: %s",
-            cfg.audio_input_device,
-            cfg.audio_output_device,
-        )
-
-    return 0
-
-
-if __name__ == "__main__":  # pragma: no cover
     try:
-        raise SystemExit(cli())
-    except AudioDeviceError as exc:
-        LOGGER.error("Audio configuration error: %s", exc)
-        raise SystemExit(1) from exc
+        if args.list:
+            print(_format_devices())
+            return 0
 
+        if args.set_input is not None:
+            select_input(args.set_input)
+            print(f"Set input device to index {args.set_input}")
+
+        if args.set_output is not None:
+            select_output(args.set_output)
+            print(f"Set output device to index {args.set_output}")
+
+        if args.show:
+            cfg = load_config(reload=True)
+            print("Configured Audio Devices:")
+            print(f"  Input Device Index : {cfg.audio_input_device}")
+            print(f"  Output Device Index: {cfg.audio_output_device}")
+
+        if not any([args.list, args.set_input is not None, args.set_output is not None, args.show]):
+            parser.print_help()
+            return 1
+
+        return 0
+    except AudioDeviceError as exc:
+        logger.error("Audio error: %s", exc)
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(cli())

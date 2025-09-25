@@ -1,26 +1,30 @@
-"""Utility wrapper around language models used by Rex."""
+"""Language model client with pluggable backends (e.g. Transformers, OpenAI, Echo)."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Protocol, Dict
 
+from config import AppConfig, load_config
+from assistant_errors import ConfigurationError
+from logging_utils import get_logger
+
+logger = get_logger(__name__)
+
+# Optional dependencies
 try:
     import torch
 except ImportError:
     torch = None
 
-from assistant_errors import ConfigurationError
-from config import AppConfig, load_config
-from logging_utils import get_logger
-
-LOGGER = get_logger(__name__)
+try:
+    from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline as hf_pipeline
+except ImportError:
+    AutoTokenizer = AutoModelForCausalLM = hf_pipeline = None
 
 
 @dataclass
 class GenerationConfig:
-    """Configuration options for sampling from the language model."""
-
     max_new_tokens: int
     temperature: float
     top_p: float
@@ -28,129 +32,128 @@ class GenerationConfig:
     seed: int
 
 
-class LanguageModel:
-    """Thin wrapper that exposes a deterministic ``generate`` method."""
+class LLMStrategy(Protocol):
+    name: str
+    def generate(self, prompt: str, config: GenerationConfig) -> str: ...
 
-    def __init__(self, config: Optional[AppConfig] = None, **overrides) -> None:
-        self._config = config or load_config()
-        self._provider = overrides.get("provider", self._config.llm_provider).lower()
-        self.model_name = overrides.get("model", self._config.llm_model)
-        self.model_loaded = False
 
-        self.generation = GenerationConfig(
-            max_new_tokens=overrides.get("max_new_tokens", self._config.llm_max_tokens),
-            temperature=overrides.get("temperature", self._config.llm_temperature),
-            top_p=overrides.get("top_p", self._config.llm_top_p),
-            top_k=overrides.get("top_k", self._config.llm_top_k),
-            seed=overrides.get("seed", self._config.llm_seed),
-        )
+class EchoStrategy:
+    name = "echo"
+    def __init__(self, model_name: str) -> None:
+        self.model_name = model_name
 
-        if self._provider == "transformers":
-            self._initialise_transformers()
-        elif self._provider == "openai":
-            self._initialise_openai()
-        else:
-            raise ConfigurationError(f"Unsupported LLM provider: {self._provider}")
+    def generate(self, prompt: str, _: GenerationConfig) -> str:
+        if not prompt.strip():
+            return "(silence)"
+        return f"[{self.model_name}] {prompt.strip()}"
 
-    def __str__(self):
-        return f"<LanguageModel provider={self._provider}, model={self.model_name}>"
 
-    def _initialise_transformers(self) -> None:
-        if torch is None:
-            raise ConfigurationError("The 'torch' package is required for the transformers provider.")
+class TransformersStrategy:
+    name = "transformers"
 
-        from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+    def __init__(self, model_name: str) -> None:
+        if not (AutoTokenizer and AutoModelForCausalLM and hf_pipeline and torch):
+            raise ConfigurationError("Transformers backend requires `torch` and `transformers`.")
 
-        LOGGER.info("Loading HuggingFace model: %s", self.model_name)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(model_name)
+        device = 0 if torch.cuda.is_available() else -1
 
-        tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        model = AutoModelForCausalLM.from_pretrained(self.model_name)
+        self.pipeline = hf_pipeline("text-generation", model=model, tokenizer=tokenizer, device=device)
+        self.tokenizer = tokenizer
+        if tokenizer.pad_token_id is None:
+            tokenizer.pad_token_id = tokenizer.eos_token_id
 
-        device_index = 0 if torch.cuda.is_available() else -1
-        if device_index == -1:
-            device_index = None  # Use CPU
-
-        self._pipeline = pipeline(
-            "text-generation",
-            model=model,
-            tokenizer=tokenizer,
-            device=device_index,
-        )
-        self._tokenizer = self._pipeline.tokenizer
-        if self._tokenizer.pad_token_id is None:
-            self._tokenizer.pad_token_id = self._tokenizer.eos_token_id
-
-        self.model_loaded = True
-        LOGGER.info("Transformers model ready.")
-
-    def _initialise_openai(self) -> None:
-        try:
-            from openai import OpenAI
-        except ImportError as exc:
-            raise ConfigurationError("The 'openai' package is required for OpenAI provider.") from exc
-
-        api_key = self._config.openai_api_key
-        if not api_key:
-            raise ConfigurationError("OPENAI_API_KEY must be set for the OpenAI provider.")
-
-        self._openai_client = OpenAI(api_key=api_key)
-        self.model_loaded = True
-        LOGGER.info("OpenAI client initialized.")
-
-    def generate(self, prompt: str, *, config: Optional[GenerationConfig] = None) -> str:
-        """Generate text completions for a given prompt."""
-
-        if not prompt or not prompt.strip():
-            raise ValueError("Prompt must not be empty.")
-
-        active_config = config or self.generation
-
-        if self._provider == "transformers":
-            return self._generate_transformers(prompt, active_config)
-        elif self._provider == "openai":
-            return self._generate_openai(prompt, active_config)
-
-        raise ConfigurationError(f"Unknown provider: {self._provider}")
-
-    def _generate_transformers(self, prompt: str, config: GenerationConfig) -> str:
-        if torch is None:
-            raise ConfigurationError("The 'torch' package is required for transformers provider.")
-
+    def generate(self, prompt: str, config: GenerationConfig) -> str:
         torch.manual_seed(config.seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(config.seed)
 
-        outputs = self._pipeline(
+        outputs = self.pipeline(
             prompt,
             max_new_tokens=config.max_new_tokens,
             do_sample=config.temperature > 0,
             temperature=config.temperature,
             top_p=config.top_p,
             top_k=config.top_k,
-            pad_token_id=self._tokenizer.pad_token_id,
+            pad_token_id=self.tokenizer.pad_token_id,
         )
+        text = outputs[0]["generated_text"]
+        return text[len(prompt):].strip() or "(silence)"
 
-        if not outputs:
-            raise RuntimeError("Transformers model returned no candidates.")
 
-        generated = outputs[0]["generated_text"]
-        completion = generated[len(prompt):].strip()
+class OpenAIStrategy:
+    name = "openai"
 
-        return completion or "(silence)"
+    def __init__(self, model_name: str, api_key: Optional[str]) -> None:
+        try:
+            from openai import OpenAI
+        except ImportError:
+            raise ConfigurationError("OpenAI backend requires the `openai` package.")
 
-    def _generate_openai(self, prompt: str, config: GenerationConfig) -> str:
-        response = self._openai_client.chat.completions.create(
+        if not api_key:
+            raise ConfigurationError("Missing OpenAI API key.")
+        self.client = OpenAI(api_key=api_key)
+        self.model_name = model_name
+
+    def generate(self, prompt: str, config: GenerationConfig) -> str:
+        response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[{"role": "user", "content": prompt}],
             temperature=config.temperature,
             max_tokens=config.max_new_tokens,
             top_p=config.top_p,
         )
+        return (response.choices[0].message.content or "").strip() or "(silence)"
 
-        choices = response.choices
-        if not choices:
-            raise RuntimeError("OpenAI returned no candidates.")
 
-        message = choices[0].message
-        return (message.content or "").strip() or "(silence)"
+# Strategy registry
+_STRATEGIES: Dict[str, type[LLMStrategy]] = {
+    EchoStrategy.name: EchoStrategy,
+    TransformersStrategy.name: TransformersStrategy,
+    OpenAIStrategy.name: OpenAIStrategy,
+}
+
+
+def register_strategy(name: str, strategy: type[LLMStrategy]) -> None:
+    _STRATEGIES[name] = strategy
+
+
+class LanguageModel:
+    """LLM wrapper supporting multiple backends (OpenAI, Transformers, Echo)."""
+
+    def __init__(self, config: Optional[AppConfig] = None, **overrides) -> None:
+        self.config = config or load_config()
+        self.provider = (overrides.get("provider") or self.config.llm_provider).lower()
+        self.model_name = overrides.get("model") or self.config.llm_model
+        self.api_key = self.config.openai_api_key if self.provider == "openai" else None
+
+        self.generation = GenerationConfig(
+            max_new_tokens=overrides.get("max_new_tokens", self.config.llm_max_tokens),
+            temperature=overrides.get("temperature", self.config.llm_temperature),
+            top_p=overrides.get("top_p", self.config.llm_top_p),
+            top_k=overrides.get("top_k", self.config.llm_top_k),
+            seed=overrides.get("seed", self.config.llm_seed),
+        )
+
+        self.strategy = self._init_strategy()
+
+    def _init_strategy(self) -> LLMStrategy:
+        strategy_cls = _STRATEGIES.get(self.provider)
+        if not strategy_cls:
+            logger.warning("Unknown LLM provider '%s'. Falling back to echo mode.", self.provider)
+            return EchoStrategy(self.model_name)
+
+        try:
+            if self.provider == "openai":
+                return strategy_cls(self.model_name, self.api_key)
+            return strategy_cls(self.model_name)
+        except Exception as exc:
+            logger.warning("LLM backend init failed (%s). Falling back to echo. (%s)", self.provider, exc)
+            return EchoStrategy(self.model_name)
+
+    def generate(self, prompt: str, *, config: Optional[GenerationConfig] = None) -> str:
+        if not prompt or not prompt.strip():
+            raise ValueError("Prompt must not be empty.")
+        return self.strategy.generate(prompt, config or self.generation)
 

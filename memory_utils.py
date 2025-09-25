@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import os
+from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Deque, Dict, Iterable, List, Optional
 
 from assistant_errors import ConfigurationError
 from config import load_config
@@ -29,19 +30,8 @@ def _history_path(user_key: str, memory_root: Path) -> Path:
 def _metadata_path(user_key: str, memory_root: Path) -> Path:
     return memory_root / user_key / HISTORY_META
 
+
 def load_users_map(users_path: str | Path = USERS_PATH) -> Dict[str, str]:
-    """Return the email-to-user mapping defined in ``users.json``.
-
-    Parameters
-    ----------
-    users_path:
-        Optional override for the location of ``users.json``.
-
-    Returns
-    -------
-    Dict[str, str]
-        Normalised mapping of lowercase email addresses to lowercase user keys.
-    """
     try:
         with open(users_path, "r", encoding="utf-8") as handle:
             data = json.load(handle)
@@ -62,27 +52,6 @@ def resolve_user_key(
     memory_root: str | Path = MEMORY_ROOT,
     profiles: Optional[Dict[str, dict]] = None,
 ) -> Optional[str]:
-    """Resolve a user identifier to a memory folder key.
-
-    The identifier can be an email address, an existing memory folder name,
-    or a profile name stored in ``core.json``.
-
-    Parameters
-    ----------
-    identifier:
-        Email address, folder name, or display name to resolve.
-    users_map:
-        Mapping of email addresses to folder names from :func:`load_users_map`.
-    memory_root:
-        Base directory that contains user memory folders.
-    profiles:
-        Optional mapping of folder keys to the parsed ``core.json`` contents.
-
-    Returns
-    -------
-    Optional[str]
-        Lowercase memory key if it can be resolved; otherwise ``None``.
-    """
     if not identifier:
         return None
 
@@ -110,14 +79,12 @@ def resolve_user_key(
 
 
 def load_memory_profile(user_key: str, memory_root: str | Path = MEMORY_ROOT) -> dict:
-    """Load the ``core.json`` file for a specific user."""
     core_path = Path(memory_root) / user_key / "core.json"
     with open(core_path, "r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
 def load_all_profiles(memory_root: str | Path = MEMORY_ROOT) -> Dict[str, dict]:
-    """Load all user profiles found in the memory directory."""
     profiles: Dict[str, dict] = {}
     memory_root = Path(memory_root)
     if not memory_root.is_dir():
@@ -140,7 +107,6 @@ def load_all_profiles(memory_root: str | Path = MEMORY_ROOT) -> Dict[str, dict]:
 
 
 def extract_voice_reference(profile: dict) -> Optional[str]:
-    """Return the best available voice reference path from a profile."""
     voice_sample = profile.get("voice_sample")
     if isinstance(voice_sample, str):
         return voice_sample
@@ -154,6 +120,16 @@ def extract_voice_reference(profile: dict) -> Optional[str]:
     return None
 
 
+def trim_history(history: Iterable[dict], *, limit: Optional[int] = None) -> List[dict]:
+    """Return only the most recent `limit` entries from a history iterable."""
+    from rex.config import settings
+    max_items = limit or settings.max_memory_items
+    recent: Deque[dict] = deque(maxlen=max_items)
+    for item in history:
+        recent.append(item)
+    return list(recent)
+
+
 def append_history_entry(
     user_key: str,
     entry: Dict[str, str],
@@ -161,13 +137,6 @@ def append_history_entry(
     memory_root: str | Path = MEMORY_ROOT,
     max_turns: Optional[int] = None,
 ) -> None:
-    """Append a structured conversation entry to ``history.jsonl``.
-
-    Entries are stored as JSON lines with at minimum ``role`` and ``text`` keys.
-    Older entries are trimmed to respect ``max_turns``.  Metadata about the
-    number of stored turns is persisted alongside the history file.
-    """
-
     cfg = load_config()
     limit = max_turns or cfg.memory_max_turns
     if limit <= 0:
@@ -244,3 +213,17 @@ def export_transcript(
             handle.write(f"[{timestamp}] {role}: {text}\n")
 
     return file_path
+
+
+__all__ = [
+    "load_users_map",
+    "resolve_user_key",
+    "load_memory_profile",
+    "load_all_profiles",
+    "extract_voice_reference",
+    "trim_history",
+    "append_history_entry",
+    "load_recent_history",
+    "export_transcript",
+]
+
