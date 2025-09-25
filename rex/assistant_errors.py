@@ -1,0 +1,37 @@
+"""Shared exception types for the Rex assistant stack."""
+
+from __future__ import annotations
+
+
+class AssistantError(Exception):
+    """Base class for recoverable assistant errors."""
+
+
+class AudioDeviceError(AssistantError):
+    """Raised when microphone or speaker hardware is unavailable."""
+
+
+class WakeWordError(AssistantError):
+    """Raised when wake-word detection fails."""
+
+
+class SpeechToTextError(AssistantError):
+    """Raised when speech-to-text transcription fails."""
+
+
+class TextToSpeechError(AssistantError):
+    """Raised when text-to-speech synthesis fails."""
+
+
+class PluginExecutionError(AssistantError):
+    """Raised when a plugin misbehaves during processing."""
+
+
+__all__ = [
+    "AssistantError",
+    "AudioDeviceError",
+    "WakeWordError",
+    "SpeechToTextError",
+    "TextToSpeechError",
+    "PluginExecutionError",
+]
