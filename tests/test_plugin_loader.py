@@ -1,13 +1,11 @@
 from __future__ import annotations
-
 import textwrap
-
 import pytest
 
-# Codex-style plugin test (class-based with lifecycle methods)
+# Rex plugin system (Codex branch)
 from rex.plugins import load_plugins as load_rex_plugins, shutdown_plugins
 
-# Master-style plugin loader test (dict-based plugin discovery)
+# Dict-style loader (Master branch)
 from plugin_loader import load_plugins as load_dict_plugins
 
 

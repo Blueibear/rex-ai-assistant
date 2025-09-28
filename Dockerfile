@@ -10,8 +10,8 @@ RUN apt-get update && \
         ffmpeg \
         libsndfile1 \
         libasound2-dev \
-        portaudio19-dev \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+        portaudio19-dev && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy entire source code into image
 COPY . .
 
-# Set environment variables (adjust as needed)
+# Set environment variables (can be overridden at runtime)
 ENV PYTHONUNBUFFERED=1 \
     REX_WAKEWORD=rex \
     REX_DEVICE=cpu \

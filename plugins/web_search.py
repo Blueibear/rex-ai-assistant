@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional, Callable
 from urllib.parse import quote_plus
+from typing import Optional
 
 from rex.config import settings
 from rex.plugins import Plugin
 
+# Optional dependencies
 try:
     import requests
     from requests.adapters import HTTPAdapter, Retry
@@ -23,7 +24,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# API URLs
+# API endpoints
 SERPAPI_URL = "https://serpapi.com/search"
 BRAVE_URL = "https://api.search.brave.com/res/v1/web/search"
 GOOGLE_URL = "https://www.googleapis.com/customsearch/v1"
@@ -56,10 +57,15 @@ class WebSearchPlugin:
     def process(self, query: str) -> Optional[str]:
         for provider in self._provider_order():
             method = getattr(self, f"_search_{provider}", None)
-            if method:
+            if not method:
+                logger.warning("Unknown search provider '%s' – skipping", provider)
+                continue
+            try:
                 result = method(query)
                 if result:
                     return result
+            except Exception as e:
+                logger.warning("Search provider '%s' failed: %s", provider, e)
         logger.warning("All search providers failed")
         return None
 
@@ -68,6 +74,29 @@ class WebSearchPlugin:
 
     def _format_result(self, title: str, url: str, snippet: str) -> str:
         return f"{title} - {url}\n{snippet}"
+
+    def _search_serpapi(self, query: str) -> Optional[str]:
+        api_key = os.getenv("SERPAPI_KEY")
+        if not api_key:
+            return None
+        params = {
+            "q": query,
+            "api_key": api_key,
+            "engine": os.getenv("SERPAPI_ENGINE", "google"),
+            "num": "3",
+        }
+        headers = {"X-Serpapi-Privacy": "true"}
+        try:
+            resp = self._session.get(SERPAPI_URL, params=params, headers=headers, timeout=10)
+            resp.raise_for_status()
+            results = resp.json().get("organic_results", [])
+            if not results:
+                return None
+            top = results[0]
+            return self._format_result(top["title"], top["link"], top.get("snippet", ""))
+        except Exception as e:
+            logger.warning("SerpAPI search failed: %s", e)
+            return None
 
     def _search_brave(self, query: str) -> Optional[str]:
         api_key = os.getenv("BRAVE_API_KEY")
@@ -85,24 +114,6 @@ class WebSearchPlugin:
             return self._format_result(top["title"], top["url"], top.get("description", ""))
         except Exception as e:
             logger.warning("Brave search failed: %s", e)
-            return None
-
-    def _search_serpapi(self, query: str) -> Optional[str]:
-        api_key = os.getenv("SERPAPI_KEY")
-        if not api_key:
-            return None
-        params = {"q": query, "api_key": api_key, "num": "3", "engine": os.getenv("SERPAPI_ENGINE", "google")}
-        headers = {"X-Serpapi-Privacy": "true"}
-        try:
-            resp = self._session.get(SERPAPI_URL, params=params, headers=headers, timeout=10)
-            resp.raise_for_status()
-            results = resp.json().get("organic_results", [])
-            if not results:
-                return None
-            top = results[0]
-            return self._format_result(top["title"], top["link"], top.get("snippet", ""))
-        except Exception as e:
-            logger.warning("SerpAPI search failed: %s", e)
             return None
 
     def _search_google(self, query: str) -> Optional[str]:
@@ -163,7 +174,8 @@ class WebSearchPlugin:
         return None
 
 
-# Singleton to expose helpers
+# ────────────────────────────── Plugin Interface ──────────────────────────────
+
 _PLUGIN_SINGLETON: WebSearchPlugin | None = None
 
 
@@ -175,20 +187,23 @@ def _get_plugin() -> WebSearchPlugin:
     return _PLUGIN_SINGLETON
 
 
-# --- Public API ---
+# ────────────────────────────── Public API ──────────────────────────────
 
 def search_web(query: str) -> Optional[str]:
+    """Run search using configured provider chain (SerpAPI, Brave, etc.)."""
     return _get_plugin().process(query)
 
 
 def search_serpapi(query: str) -> Optional[str]:
+    """Run SerpAPI search directly."""
     return _get_plugin()._search_serpapi(query)
 
 
 def search_duckduckgo(query: str) -> Optional[str]:
+    """Run DuckDuckGo HTML scrape fallback."""
     return _get_plugin()._search_duckduckgo(query)
 
 
 def register() -> Plugin:
+    """Register as Rex plugin."""
     return WebSearchPlugin()
-

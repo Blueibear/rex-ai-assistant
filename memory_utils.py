@@ -9,8 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Deque, Dict, Iterable, List, Optional
 
-from assistant_errors import ConfigurationError
-from config import load_config
+from rex.assistant_errors import ConfigurationError
+from rex.config import load_config, settings
 
 REPO_ROOT = Path(__file__).resolve().parent
 MEMORY_ROOT = REPO_ROOT / "Memory"
@@ -32,6 +32,7 @@ def _metadata_path(user_key: str, memory_root: Path) -> Path:
 
 
 def load_users_map(users_path: str | Path = USERS_PATH) -> Dict[str, str]:
+    """Return the email-to-user mapping defined in users.json."""
     try:
         with open(users_path, "r", encoding="utf-8") as handle:
             data = json.load(handle)
@@ -52,6 +53,7 @@ def resolve_user_key(
     memory_root: str | Path = MEMORY_ROOT,
     profiles: Optional[Dict[str, dict]] = None,
 ) -> Optional[str]:
+    """Resolve a user identifier to a memory folder key."""
     if not identifier:
         return None
 
@@ -79,12 +81,14 @@ def resolve_user_key(
 
 
 def load_memory_profile(user_key: str, memory_root: str | Path = MEMORY_ROOT) -> dict:
+    """Load the core.json file for a given user profile."""
     core_path = Path(memory_root) / user_key / "core.json"
     with open(core_path, "r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
 def load_all_profiles(memory_root: str | Path = MEMORY_ROOT) -> Dict[str, dict]:
+    """Load all available profiles from the Memory/ folder."""
     profiles: Dict[str, dict] = {}
     memory_root = Path(memory_root)
     if not memory_root.is_dir():
@@ -107,6 +111,7 @@ def load_all_profiles(memory_root: str | Path = MEMORY_ROOT) -> Dict[str, dict]:
 
 
 def extract_voice_reference(profile: dict) -> Optional[str]:
+    """Extract voice sample path from a profile dict."""
     voice_sample = profile.get("voice_sample")
     if isinstance(voice_sample, str):
         return voice_sample
@@ -122,7 +127,6 @@ def extract_voice_reference(profile: dict) -> Optional[str]:
 
 def trim_history(history: Iterable[dict], *, limit: Optional[int] = None) -> List[dict]:
     """Return only the most recent `limit` entries from a history iterable."""
-    from rex.config import settings
     max_items = limit or settings.max_memory_items
     recent: Deque[dict] = deque(maxlen=max_items)
     for item in history:
@@ -137,6 +141,7 @@ def append_history_entry(
     memory_root: str | Path = MEMORY_ROOT,
     max_turns: Optional[int] = None,
 ) -> None:
+    """Append an entry to a user's history file, trimming older turns."""
     cfg = load_config()
     limit = max_turns or cfg.memory_max_turns
     if limit <= 0:
@@ -172,6 +177,7 @@ def load_recent_history(
     limit: Optional[int] = None,
     memory_root: str | Path = MEMORY_ROOT,
 ) -> List[Dict[str, str]]:
+    """Load recent turns from a user's history.jsonl"""
     history_path = _history_path(user_key, Path(memory_root))
     if not history_path.is_file():
         return []
@@ -197,6 +203,7 @@ def export_transcript(
     *,
     transcripts_dir: Path | None = None,
 ) -> Path:
+    """Export a conversation as a dated transcript file under /transcripts/<user>/"""
     cfg = load_config()
     if not cfg.transcripts_enabled:
         raise ConfigurationError("Transcript export is disabled in configuration.")
@@ -226,4 +233,3 @@ __all__ = [
     "load_recent_history",
     "export_transcript",
 ]
-

@@ -8,27 +8,23 @@ import uuid
 from contextlib import suppress
 
 from flask import Flask, jsonify, request, send_file, Response
+
 try:
     from flask_cors import CORS
 except ImportError:
-    def CORS(app: Flask, **_kwargs):
-        return app
+    def CORS(app: Flask, **_kwargs): return app
 
 try:
     from flask_limiter import Limiter
     from flask_limiter.util import get_remote_address
 except ImportError:
     class Limiter:
-        def __init__(self, *args, **kwargs):
-            pass
-
+        def __init__(self, *args, **kwargs): pass
         def limit(self, *args, **kwargs):
-            def decorator(func):
-                return func
+            def decorator(func): return func
             return decorator
 
-    def get_remote_address() -> str:
-        return "0.0.0.0"
+    def get_remote_address() -> str: return "0.0.0.0"
 
 from werkzeug.exceptions import BadRequest
 from TTS.api import TTS
@@ -67,7 +63,6 @@ if DEFAULT_USER not in USER_VOICES:
 xtts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, gpu=False)
 REQUIRED_API_KEY = os.getenv("REX_SPEAK_API_KEY")
 
-
 # ---------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------
@@ -78,7 +73,6 @@ def _require_api_key() -> None:
     provided = request.headers.get("X-API-Key") or request.headers.get("Authorization")
     if not provided or not secrets.compare_digest(provided.strip(), REQUIRED_API_KEY.strip()):
         raise AuthenticationError("Missing or invalid API key")
-
 
 # ---------------------------------------------------------------------
 # Routes

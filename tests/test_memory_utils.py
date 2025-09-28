@@ -23,7 +23,7 @@ def test_resolve_user_key_from_email():
     assert result == "james", "Failed to resolve correct user key from email"
 
 
-def test_extract_voice_reference_handles_missing(monkeypatch, tmp_path):
+def test_extract_voice_reference_handles_missing(tmp_path):
     voice_file = tmp_path / "voice.wav"
     voice_file.write_bytes(b"fake")
 
