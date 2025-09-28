@@ -1,11 +1,10 @@
 """Command-line entry point for the Rex assistant.
 
-This module intentionally mirrors the historical top-level script so existing
-documentation that imports :mod:`rex_assistant` continues to work.  A leading
-triple-quoted docstring is required so that Python does not treat the module
-preamble as bare text, which would otherwise raise a :class:`SyntaxError` at
-import time.  The helper functions continue to delegate the heavy lifting to
-``rex.assistant``.
+This module preserves historical behavior of launching Rex via `rex_assistant.py`
+and routes all core logic through the structured `rex.assistant` engine.
+
+A leading docstring prevents Python from misinterpreting early statements
+as bare text during interactive usage.
 """
 
 from __future__ import annotations
@@ -23,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _chat_loop(assistant: Assistant) -> None:
-    print("Rex assistant ready. Type 'exit' or 'quit' to stop.")
+    print("🧠 Rex assistant ready. Type 'exit' or 'quit' to stop.")
     while True:
         try:
             user_input = input("You: ")
@@ -38,7 +37,7 @@ async def _chat_loop(assistant: Assistant) -> None:
 
         try:
             reply = await assistant.generate_reply(user_input)
-        except Exception as exc:  # pragma: no cover - runtime safeguard
+        except Exception as exc:
             logger.exception("Assistant failed to generate a reply: %s", exc)
             print(f"[error] {exc}")
             continue
@@ -49,7 +48,10 @@ async def _chat_loop(assistant: Assistant) -> None:
 async def _run() -> None:
     configure_logging()
     plugin_specs: Iterable[PluginSpec] = load_plugins()
-    assistant = Assistant(history_limit=settings.max_memory_items, plugins=plugin_specs)
+    assistant = Assistant(
+        history_limit=settings.max_memory_items,
+        plugins=plugin_specs,
+    )
     try:
         await _chat_loop(assistant)
     finally:
@@ -59,10 +61,11 @@ async def _run() -> None:
 def main() -> int:
     try:
         asyncio.run(_run())
-    except KeyboardInterrupt:  # pragma: no cover - manual interruption
+    except KeyboardInterrupt:
         print("\nInterrupted.")
     return 0
 
 
-if __name__ == "__main__":  # pragma: no cover - CLI entry point
+if __name__ == "__main__":
     raise SystemExit(main())
+
