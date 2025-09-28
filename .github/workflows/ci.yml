@@ -17,7 +17,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements*.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
@@ -31,7 +31,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install torch --index-url https://download.pytorch.org/whl/cu118
           pip install -r requirements.txt
-          pip install pytest pytest-cov
+          pip install -r requirements-ml.txt
+          pip install -r requirements-dev.txt
 
       - name: 🧪 Run tests with coverage
         run: |

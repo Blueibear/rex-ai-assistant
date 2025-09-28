@@ -35,9 +35,17 @@ python -m venv .venv
 source .venv/bin/activate
 
 pip install --upgrade pip
-# Install PyTorch CPU wheels first for reliable installs on Linux
-pip install torch --index-url https://download.pytorch.org/whl/cpu
+# Core runtime (wake word, Flask API, etc.)
 pip install -r requirements.txt
+
+# Optional: install speech + language model stack (Whisper, Torch, XTTS)
+pip install -r requirements-ml.txt
+
+# Optional: developer tooling (pytest, coverage)
+pip install -r requirements-dev.txt
+
+# Alternatively, you can run the installation helper:
+# python install.py --with-ml --with-dev
 ```
 
 ### 2. Prepare wake-word & voices
