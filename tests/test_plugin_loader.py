@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import textwrap
-
 import pytest
 
 # Codex-style plugin test (class-based with lifecycle methods)
@@ -102,4 +101,3 @@ def test_dict_based_plugin_loader(tmp_path, monkeypatch):
     assert results[f"{plugin_dir.name}.second"]["feature"] == "active"
 
     assert f"{plugin_dir.name}.broken" not in results
-

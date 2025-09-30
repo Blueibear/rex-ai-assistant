@@ -7,6 +7,10 @@ class AssistantError(Exception):
     """Base class for recoverable assistant errors."""
 
 
+class ConfigurationError(AssistantError):
+    """Raised when application configuration is invalid or incomplete."""
+
+
 class AudioDeviceError(AssistantError):
     """Raised when microphone or speaker hardware is unavailable."""
 
@@ -29,6 +33,7 @@ class PluginExecutionError(AssistantError):
 
 __all__ = [
     "AssistantError",
+    "ConfigurationError",
     "AudioDeviceError",
     "WakeWordError",
     "SpeechToTextError",

@@ -32,6 +32,7 @@ def _metadata_path(user_key: str, memory_root: Path) -> Path:
 
 
 def load_users_map(users_path: str | Path = USERS_PATH) -> Dict[str, str]:
+    """Return the email-to-user mapping defined in `users.json`."""
     try:
         with open(users_path, "r", encoding="utf-8") as handle:
             data = json.load(handle)
@@ -52,6 +53,7 @@ def resolve_user_key(
     memory_root: str | Path = MEMORY_ROOT,
     profiles: Optional[Dict[str, dict]] = None,
 ) -> Optional[str]:
+    """Resolve a user identifier to a memory folder key."""
     if not identifier:
         return None
 
@@ -122,7 +124,7 @@ def extract_voice_reference(profile: dict) -> Optional[str]:
 
 def trim_history(history: Iterable[dict], *, limit: Optional[int] = None) -> List[dict]:
     """Return only the most recent `limit` entries from a history iterable."""
-    from rex.config import settings
+    from rex.config import settings  # local import to avoid circular dependency
     max_items = limit or settings.max_memory_items
     recent: Deque[dict] = deque(maxlen=max_items)
     for item in history:
@@ -226,4 +228,3 @@ __all__ = [
     "load_recent_history",
     "export_transcript",
 ]
-

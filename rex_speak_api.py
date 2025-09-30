@@ -8,27 +8,25 @@ import uuid
 from contextlib import suppress
 
 from flask import Flask, jsonify, request, send_file, Response
+
+# Optional: CORS
 try:
     from flask_cors import CORS
 except ImportError:
     def CORS(app: Flask, **_kwargs):
         return app
 
+# Optional: Rate limiting
 try:
     from flask_limiter import Limiter
     from flask_limiter.util import get_remote_address
 except ImportError:
     class Limiter:
-        def __init__(self, *args, **kwargs):
-            pass
-
+        def __init__(self, *args, **kwargs): pass
         def limit(self, *args, **kwargs):
-            def decorator(func):
-                return func
+            def decorator(func): return func
             return decorator
-
-    def get_remote_address() -> str:
-        return "0.0.0.0"
+    def get_remote_address() -> str: return "0.0.0.0"
 
 from werkzeug.exceptions import BadRequest
 from TTS.api import TTS
@@ -64,9 +62,18 @@ USER_VOICES = {
 if DEFAULT_USER not in USER_VOICES:
     USER_VOICES[DEFAULT_USER] = None
 
-xtts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, gpu=False)
-REQUIRED_API_KEY = os.getenv("REX_SPEAK_API_KEY")
+xtts = TTS(
+    model_name="tts_models/multilingual/multi-dataset/xtts_v2",
+    progress_bar=False,
+    gpu=False
+)
 
+REQUIRED_API_KEY = os.getenv("REX_SPEAK_API_KEY")
+if not REQUIRED_API_KEY:
+    raise RuntimeError(
+        "REX_SPEAK_API_KEY must be set before starting the speech API. "
+        "Set a strong key or disable the service to avoid anonymous access."
+    )
 
 # ---------------------------------------------------------------------
 # Helpers
@@ -75,13 +82,15 @@ REQUIRED_API_KEY = os.getenv("REX_SPEAK_API_KEY")
 def _require_api_key() -> None:
     if not REQUIRED_API_KEY:
         return
-    provided = request.headers.get("X-API-Key") or request.headers.get("Authorization")
+    provided = (
+        request.headers.get("X-API-Key")
+        or request.headers.get("Authorization")
+    )
     if not provided or not secrets.compare_digest(provided.strip(), REQUIRED_API_KEY.strip()):
         raise AuthenticationError("Missing or invalid API key")
 
-
 # ---------------------------------------------------------------------
-# Routes
+# Error handlers
 # ---------------------------------------------------------------------
 
 @app.errorhandler(AuthenticationError)
@@ -91,6 +100,10 @@ def _handle_auth_error(exc: AuthenticationError):
 @app.errorhandler(TextToSpeechError)
 def _handle_tts_error(exc: TextToSpeechError):
     return jsonify({"error": str(exc)}), 500
+
+# ---------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------
 
 @app.route("/speak", methods=["POST"])
 @limiter.limit("15 per minute")
@@ -128,7 +141,12 @@ def speak() -> Response:
             language=settings.speak_language,
             file_path=output_path,
         )
-        return send_file(output_path, mimetype="audio/wav", as_attachment=True, download_name="rex_response.wav")
+        return send_file(
+            output_path,
+            mimetype="audio/wav",
+            as_attachment=True,
+            download_name="rex_response.wav"
+        )
     except Exception as exc:
         raise TextToSpeechError(str(exc))
     finally:

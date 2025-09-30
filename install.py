@@ -49,19 +49,23 @@ def check_ffmpeg(install_if_missing: bool = False) -> None:
         raise AssistantError("ffmpeg is not installed. Please install it and retry.")
 
 
-def install_requirements() -> None:
-    requirements = Path("requirements.txt")
-    if not requirements.exists():
-        logger.warning("requirements.txt not found. Skipping pip install.")
-        return
+def install_requirements(include_ml: bool = False, include_dev: bool = False) -> None:
+    def _install_file(path: Path) -> None:
+        if not path.exists():
+            logger.warning("⚠️  %s not found, skipping.", path.name)
+            return
+        logger.info("📦 Installing dependencies from %s…", path.name)
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", str(path)])
 
-    logger.info("📦 Installing Python dependencies…")
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", str(requirements)])
-        logger.info("✅ Dependencies installed successfully.")
-    except subprocess.CalledProcessError as exc:
-        raise AssistantError(f"pip install failed: {exc}") from exc
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+    _install_file(Path("requirements.txt"))
+
+    if include_ml:
+        _install_file(Path("requirements-ml.txt"))
+    if include_dev:
+        _install_file(Path("requirements-dev.txt"))
+
+    logger.info("✅ Python packages installed.")
 
 
 def run_mic_test() -> None:
@@ -77,11 +81,12 @@ def run_mic_test() -> None:
 
     logger.info("🎙️  Available audio devices:")
     for idx, device in enumerate(devices):
-        logger.info("  [%2d] %s (in: %d, out: %d)",
-                    idx,
-                    device["name"],
-                    device["max_input_channels"],
-                    device["max_output_channels"]
+        logger.info(
+            "  [%2d] %s (in: %d, out: %d)",
+            idx,
+            device["name"],
+            device["max_input_channels"],
+            device["max_output_channels"]
         )
 
 
@@ -96,20 +101,23 @@ def show_system_info() -> None:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Rex installation helper")
     parser.add_argument("--no-install", action="store_true", help="Skip Python package installation")
+    parser.add_argument("--with-ml", action="store_true", help="Also install machine learning dependencies")
+    parser.add_argument("--with-dev", action="store_true", help="Also install dev/testing dependencies")
     parser.add_argument("--mic-test", action="store_true", help="List and test audio devices")
-    parser.add_argument("--auto-install-ffmpeg", action="store_true", help="Attempt to auto-install ffmpeg")
+    parser.add_argument("--auto-install-ffmpeg", action="store_true", help="Try to install ffmpeg if missing")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+
     try:
         show_system_info()
         check_python_version()
         check_ffmpeg(install_if_missing=args.auto_install_ffmpeg)
 
         if not args.no_install:
-            install_requirements()
+            install_requirements(include_ml=args.with_ml, include_dev=args.with_dev)
 
         if args.mic_test:
             run_mic_test()
