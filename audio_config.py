@@ -9,10 +9,9 @@ from typing import List
 try:
     import sounddevice as sd
 except ImportError:
-    sd = None  # sounddevice is optional
+    sd = None  # optional dependency
 
 from dotenv import set_key
-
 from assistant_errors import AudioDeviceError
 from config import ENV_MAPPING, ENV_PATH, load_config
 from logging_utils import get_logger
@@ -101,15 +100,15 @@ def cli(argv: list[str] | None = None) -> int:
 
         if args.set_input is not None:
             select_input(args.set_input)
-            print(f"Set input device to index {args.set_input}")
+            print(f"✅ Set input device to index {args.set_input}")
 
         if args.set_output is not None:
             select_output(args.set_output)
-            print(f"Set output device to index {args.set_output}")
+            print(f"✅ Set output device to index {args.set_output}")
 
         if args.show:
             cfg = load_config(reload=True)
-            print("Configured Audio Devices:")
+            print("🎛️ Configured Audio Devices:")
             print(f"  Input Device Index : {cfg.audio_input_device}")
             print(f"  Output Device Index: {cfg.audio_output_device}")
 
@@ -126,3 +125,4 @@ def cli(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(cli())
+

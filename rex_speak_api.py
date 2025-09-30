@@ -7,7 +7,10 @@ import secrets
 import uuid
 from contextlib import suppress
 
-from flask import Flask, jsonify, request, send_file, Response
+from flask import Flask, Response, jsonify, request, send_file
+from werkzeug.exceptions import BadRequest
+
+# Optional dependencies with fallbacks
 try:
     from flask_cors import CORS
 except ImportError:
@@ -19,18 +22,14 @@ try:
     from flask_limiter.util import get_remote_address
 except ImportError:
     class Limiter:
-        def __init__(self, *args, **kwargs):
-            pass
-
+        def __init__(self, *args, **kwargs): pass
         def limit(self, *args, **kwargs):
-            def decorator(func):
-                return func
+            def decorator(func): return func
             return decorator
 
     def get_remote_address() -> str:
         return "0.0.0.0"
 
-from werkzeug.exceptions import BadRequest
 from TTS.api import TTS
 
 from memory_utils import (
@@ -67,6 +66,11 @@ if DEFAULT_USER not in USER_VOICES:
 xtts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, gpu=False)
 REQUIRED_API_KEY = os.getenv("REX_SPEAK_API_KEY")
 
+if not REQUIRED_API_KEY:
+    raise RuntimeError(
+        "REX_SPEAK_API_KEY must be set before starting the speech API. "
+        "Set a strong key or disable the service to avoid anonymous access."
+    )
 
 # ---------------------------------------------------------------------
 # Helpers
@@ -79,9 +83,8 @@ def _require_api_key() -> None:
     if not provided or not secrets.compare_digest(provided.strip(), REQUIRED_API_KEY.strip()):
         raise AuthenticationError("Missing or invalid API key")
 
-
 # ---------------------------------------------------------------------
-# Routes
+# Error handlers
 # ---------------------------------------------------------------------
 
 @app.errorhandler(AuthenticationError)
@@ -91,6 +94,10 @@ def _handle_auth_error(exc: AuthenticationError):
 @app.errorhandler(TextToSpeechError)
 def _handle_tts_error(exc: TextToSpeechError):
     return jsonify({"error": str(exc)}), 500
+
+# ---------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------
 
 @app.route("/speak", methods=["POST"])
 @limiter.limit("15 per minute")
@@ -134,4 +141,3 @@ def speak() -> Response:
     finally:
         with suppress(FileNotFoundError):
             os.remove(output_path)
-

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional, Callable
+from typing import Optional
 from urllib.parse import quote_plus
 
 from rex.config import settings
@@ -44,7 +44,7 @@ class WebSearchPlugin:
 
     def __init__(self) -> None:
         if requests is None:
-            raise RuntimeError("requests must be installed for web search")
+            raise RuntimeError("The 'requests' library is required for web search.")
         self._session = _create_session()
 
     def initialize(self) -> None:
@@ -55,11 +55,16 @@ class WebSearchPlugin:
 
     def process(self, query: str) -> Optional[str]:
         for provider in self._provider_order():
-            method = getattr(self, f"_search_{provider}", None)
-            if method:
-                result = method(query)
+            handler = getattr(self, f"_search_{provider}", None)
+            if not handler:
+                logger.warning("Unknown search provider: %s", provider)
+                continue
+            try:
+                result = handler(query)
                 if result:
                     return result
+            except Exception as exc:
+                logger.warning("Search provider '%s' failed: %s", provider, exc)
         logger.warning("All search providers failed")
         return None
 
@@ -69,6 +74,30 @@ class WebSearchPlugin:
     def _format_result(self, title: str, url: str, snippet: str) -> str:
         return f"{title} - {url}\n{snippet}"
 
+    def _search_serpapi(self, query: str) -> Optional[str]:
+        api_key = os.getenv("SERPAPI_KEY")
+        if not api_key:
+            return None
+        params = {
+            "q": query,
+            "api_key": api_key,
+            "engine": os.getenv("SERPAPI_ENGINE", "google"),
+            "num": "3",
+        }
+        headers = {"X-Serpapi-Privacy": "true"}
+        try:
+            response = self._session.get(SERPAPI_URL, params=params, headers=headers, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            results = data.get("organic_results", [])
+            if not results:
+                return None
+            top = results[0]
+            return self._format_result(top["title"], top["link"], top.get("snippet", ""))
+        except Exception as exc:
+            logger.warning("SerpAPI search failed: %s", exc)
+            return None
+
     def _search_brave(self, query: str) -> Optional[str]:
         api_key = os.getenv("BRAVE_API_KEY")
         if not api_key:
@@ -76,73 +105,17 @@ class WebSearchPlugin:
         headers = {"X-Subscription-Token": api_key}
         params = {"q": query, "count": 3}
         try:
-            resp = self._session.get(BRAVE_URL, headers=headers, params=params, timeout=10)
-            resp.raise_for_status()
-            results = resp.json().get("web", {}).get("results", [])
+            response = self._session.get(BRAVE_URL, headers=headers, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            results = data.get("web", {}).get("results", [])
             if not results:
                 return None
             top = results[0]
             return self._format_result(top["title"], top["url"], top.get("description", ""))
-        except Exception as e:
-            logger.warning("Brave search failed: %s", e)
+        except Exception as exc:
+            logger.warning("Brave search failed: %s", exc)
             return None
-
-    def _search_serpapi(self, query: str) -> Optional[str]:
-        api_key = os.getenv("SERPAPI_KEY")
-        if not api_key:
-            return None
-        params = {"q": query, "api_key": api_key, "num": "3", "engine": os.getenv("SERPAPI_ENGINE", "google")}
-        headers = {"X-Serpapi-Privacy": "true"}
-        try:
-            resp = self._session.get(SERPAPI_URL, params=params, headers=headers, timeout=10)
-            resp.raise_for_status()
-            results = resp.json().get("organic_results", [])
-            if not results:
-                return None
-            top = results[0]
-            return self._format_result(top["title"], top["link"], top.get("snippet", ""))
-        except Exception as e:
-            logger.warning("SerpAPI search failed: %s", e)
-            return None
-
-    def _search_google(self, query: str) -> Optional[str]:
-        api_key = os.getenv("GOOGLE_API_KEY")
-        engine_id = os.getenv("GOOGLE_CSE_ID")
-        if not api_key or not engine_id:
-            return None
-        params = {"q": query, "key": api_key, "cx": engine_id, "num": 3}
-        try:
-            resp = self._session.get(GOOGLE_URL, params=params, timeout=10)
-            resp.raise_for_status()
-            items = resp.json().get("items", [])
-            if not items:
-                return None
-            top = items[0]
-            return self._format_result(top["title"], top["link"], top.get("snippet", ""))
-        except Exception as e:
-            logger.warning("Google search failed: %s", e)
-            return None
-
-    def _search_browserless(self, query: str) -> Optional[str]:
-        token = os.getenv("BROWSERLESS_API_KEY")
-        if not token or BeautifulSoup is None:
-            return None
-        payload = {
-            "url": f"https://duckduckgo.com/?q={quote_plus(query)}",
-            "gotoOptions": {"waitUntil": "networkidle2"},
-        }
-        headers = {"Cache-Control": "no-cache", "Content-Type": "application/json"}
-        try:
-            resp = self._session.post(BROWSERLESS_URL, headers=headers, params={"token": token}, json=payload, timeout=20)
-            resp.raise_for_status()
-            soup = BeautifulSoup(resp.text, "html.parser")
-            result = soup.find("a", class_="result__a")
-            snippet = soup.find("a", class_="result__snippet")
-            if result:
-                return self._format_result(result.text, result["href"], snippet.text if snippet else "")
-        except Exception as e:
-            logger.warning("Browserless search failed: %s", e)
-        return None
 
     def _search_duckduckgo(self, query: str) -> Optional[str]:
         if BeautifulSoup is None:
@@ -151,19 +124,20 @@ class WebSearchPlugin:
         try:
             url = f"https://html.duckduckgo.com/html/?q={quote_plus(query)}"
             headers = {"User-Agent": "Mozilla/5.0"}
-            resp = self._session.get(url, headers=headers, timeout=10)
-            resp.raise_for_status()
-            soup = BeautifulSoup(resp.text, "html.parser")
+            response = self._session.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
             result = soup.find("a", class_="result__a")
             snippet = soup.find("a", class_="result__snippet")
             if result:
                 return self._format_result(result.text, result["href"], snippet.text if snippet else "")
-        except Exception as e:
-            logger.warning("DuckDuckGo search failed: %s", e)
-        return None
+        except Exception as exc:
+            logger.warning("DuckDuckGo search failed: %s", exc)
+            return None
 
 
-# Singleton to expose helpers
+# --- Singleton Plugin Pattern ---
+
 _PLUGIN_SINGLETON: WebSearchPlugin | None = None
 
 
@@ -178,17 +152,21 @@ def _get_plugin() -> WebSearchPlugin:
 # --- Public API ---
 
 def search_web(query: str) -> Optional[str]:
+    """Return the first available result from the configured providers."""
     return _get_plugin().process(query)
 
 
 def search_serpapi(query: str) -> Optional[str]:
+    """Directly query SerpAPI (if configured)."""
     return _get_plugin()._search_serpapi(query)
 
 
 def search_duckduckgo(query: str) -> Optional[str]:
+    """Directly perform a DuckDuckGo HTML scrape."""
     return _get_plugin()._search_duckduckgo(query)
 
 
 def register() -> Plugin:
+    """Plugin registration entry point."""
     return WebSearchPlugin()
 

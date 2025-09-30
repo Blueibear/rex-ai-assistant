@@ -25,6 +25,10 @@ USERS_MAP = load_users_map()
 PROXY_TOKEN = os.getenv("REX_PROXY_TOKEN")
 ALLOW_LOCAL = os.getenv("REX_PROXY_ALLOW_LOCAL") == "1"
 
+user_key: str | None = None
+memory: dict | None = None
+user_folder: str | None = None
+
 
 def _summarize_memory(profile: dict) -> dict:
     summary = {}

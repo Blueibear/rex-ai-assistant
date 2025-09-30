@@ -1,4 +1,4 @@
-"""Interactive installer for the Rex assistant."""
+"""Installation wizard for the Rex assistant."""
 
 from __future__ import annotations
 
@@ -49,19 +49,22 @@ def check_ffmpeg(install_if_missing: bool = False) -> None:
         raise AssistantError("ffmpeg is not installed. Please install it and retry.")
 
 
-def install_requirements() -> None:
-    requirements = Path("requirements.txt")
-    if not requirements.exists():
-        logger.warning("requirements.txt not found. Skipping pip install.")
-        return
+def install_requirements(core: bool = True, ml: bool = False, dev: bool = False) -> None:
+    def _install_file(path: Path) -> None:
+        if not path.exists():
+            logger.warning("%s not found. Skipping.", path.name)
+            return
+        logger.info("📦 Installing %s", path.name)
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", str(path)])
 
-    logger.info("📦 Installing Python dependencies…")
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", str(requirements)])
-        logger.info("✅ Dependencies installed successfully.")
-    except subprocess.CalledProcessError as exc:
-        raise AssistantError(f"pip install failed: {exc}") from exc
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+    if core:
+        _install_file(Path("requirements.txt"))
+    if ml:
+        _install_file(Path("requirements-ml.txt"))
+    if dev:
+        _install_file(Path("requirements-dev.txt"))
+    logger.info("✅ All requested dependencies installed.")
 
 
 def run_mic_test() -> None:
@@ -96,6 +99,8 @@ def show_system_info() -> None:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Rex installation helper")
     parser.add_argument("--no-install", action="store_true", help="Skip Python package installation")
+    parser.add_argument("--with-ml", action="store_true", help="Install ML dependencies (Whisper, Torch, XTTS)")
+    parser.add_argument("--with-dev", action="store_true", help="Install developer tools (e.g. pytest, coverage)")
     parser.add_argument("--mic-test", action="store_true", help="List and test audio devices")
     parser.add_argument("--auto-install-ffmpeg", action="store_true", help="Attempt to auto-install ffmpeg")
     return parser.parse_args(argv)
@@ -109,7 +114,7 @@ def main(argv: list[str] | None = None) -> int:
         check_ffmpeg(install_if_missing=args.auto_install_ffmpeg)
 
         if not args.no_install:
-            install_requirements()
+            install_requirements(core=True, ml=args.with_ml, dev=args.with_dev)
 
         if args.mic_test:
             run_mic_test()

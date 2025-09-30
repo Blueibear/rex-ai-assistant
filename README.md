@@ -48,42 +48,41 @@ cd rex-ai-assistant
 # Create and activate a virtual environment
 python -m venv .venv
 # On Windows PowerShell:
-.\.venv\Scripts\activate
+.\.venv\Scriptsctivate
 # On macOS / Linux:
 # source .venv/bin/activate
 
 pip install --upgrade pip
-
-# Install CPU fallback first (ensures reliable installs)
-pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
+
+# Optional: install speech + language model stack (Whisper, Torch, XTTS)
+pip install -r requirements-ml.txt
+
+# Optional: developer tooling (pytest, coverage)
+pip install -r requirements-dev.txt
 ```
 
 ---
 
-### Enable GPU (CUDA) Support (for your RTX GPU)
-
-Inside the same virtual environment:
+### Enable GPU (CUDA) Support
 
 ```bash
 pip uninstall -y torch torchvision torchaudio
 pip install torch==2.6.0+cu118 torchvision==0.21.0+cu118 torchaudio==2.6.0+cu118 --index-url https://download.pytorch.org/whl/cu118
 ```
 
-Then verify:
+Verify with:
 
 ```python
 import torch
-print(torch.__version__)               # should end in +cu118
-print(torch.cuda.is_available())       # should be True
-print(torch.cuda.get_device_name(0))   # should show your GPU
+print(torch.__version__)               
+print(torch.cuda.is_available())       
+print(torch.cuda.get_device_name(0))   
 ```
 
 ---
 
-### Select Audio Devices (Optional)
-
-If audio devices aren’t automatically detected or you want to change them:
+### Audio Device Setup
 
 ```bash
 python audio_devices.py --list
@@ -93,27 +92,21 @@ python audio_devices.py --set-output <device_id>
 
 ---
 
-### Launch the Assistant
+### Run the Assistant
 
 ```bash
 python rex_loop.py
 ```
 
-Then speak your wake word and interact.  
-
-To stop: type **exit**, **quit**, or press **Ctrl+C**.
-
 ---
 
 ### TTS HTTP API
-
-Run:
 
 ```bash
 python rex_speak_api.py
 ```
 
-You can then send:
+POST to `/speak`:
 
 ```http
 POST /speak
@@ -126,84 +119,65 @@ X-API-Key: your_secret
 }
 ```
 
-It returns a WAV file. Useful for non-voice clients.
+---
+
+## ⚙️ Environment Variables
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `REX_ACTIVE_USER` | Active profile | auto-detected |
+| `REX_WAKEWORD` | Wake phrase | `rex` |
+| `REX_WAKEWORD_THRESHOLD` | Sensitivity | `0.5` |
+| `WHISPER_MODEL` | Whisper size | `medium` |
+| `WHISPER_DEVICE` | CPU/GPU | `cuda` |
+| `REX_LLM_MODEL`, `REX_LLM_MAX_TOKENS`, `REX_LLM_TEMPERATURE` | Language model settings | – |
+| `SERPAPI_KEY` | Enables SerpAPI search | optional |
+| `REX_SPEAK_API_KEY` | Secures `/speak` endpoint | optional |
+| `REX_PROXY_TOKEN`, `REX_PROXY_ALLOW_LOCAL` | Proxy config | – |
 
 ---
 
-## ⚙️ Configuration & Environment Variables
+## 🧠 Memory / Profiles
 
-Rex is configured via environment variables. Some important ones:
+Each user folder under `Memory/` includes:
 
-| Variable | Purpose | Notes / Default |
-|---|---------|-----------------|
-| `REX_ACTIVE_USER` | Select initial user profile | defaults to first profile |
-| `REX_WAKEWORD` | Desired wake phrase | fallback ONNX if no custom model |
-| `REX_WAKEWORD_THRESHOLD` | Sensitivity level | default ~0.5 |
-| `WHISPER_MODEL` / `REX_WHISPER_MODEL` | Whisper model size | e.g. `tiny`, `base`, `small`, `medium`, `large` |
-| `WHISPER_DEVICE` / `REX_WHISPER_DEVICE` | “cpu” or “cuda” | `cuda` recommended if GPU available |
-| `REX_LLM_MODEL`, `REX_LLM_MAX_TOKENS`, `REX_LLM_TEMPERATURE` | Transformer settings | see defaults |
-| `SERPAPI_KEY`, `SERPAPI_ENGINE` | Web search via SerpAPI | if none, uses DuckDuckGo fallback |
-| `REX_SPEAK_API_KEY` | API key for TTS endpoint | optional, for security |
-| `REX_PROXY_TOKEN`, `REX_PROXY_ALLOW_LOCAL` | For Flask proxy or Cloudflare Access use | – |
-
----
-
-## 🧠 Memory & Profiles
-
-Under `Memory/<user>/` you’ll find:
-
-- `core.json` — metadata and default settings  
-- `history.jsonl` — chronologically appended chat entries  
-- (Optional) voice sample file, notes, and others  
-
-Profiles allow Rex to remember preferences, vocabulary, and voice traits.
-
----
-
-## 🛠️ Optional Tools
-
-- `record_wakeword.py` — record or train a custom ONNX wake-word model  
-- `wakeword_listener.py` — script that just listens and beeps on wake detection  
-- `flask_proxy.py` — reverse-proxy wrapper (for use with Cloudflare Access)  
-- `rex_speak_api.py` — TTS-only HTTP interface  
-- `plugin` folder — place plugins (e.g. `web_search`) and they will auto-load  
+- `core.json` — metadata  
+- `history.jsonl` — chat logs  
+- voice samples and notes
 
 ---
 
 ## 🧪 Tests & CI
 
-Run locally:
+Run tests:
 
 ```bash
 pytest
 ```
 
-CI is set up via `.github/workflows/ci.yml` which runs on every `push` and `pull_request`. It installs system dependencies including `nvidia-cuda-toolkit` (for GPU support), then installs Python dependencies and runs tests with coverage.
+GitHub Actions will run tests via `.github/workflows/ci.yml`.
 
 ---
 
-## 🐳 (Optional) Docker Support / GPU Containers
+## 🐳 Docker Notes
 
-If you containerize Rex, ensure your Dockerfile:
+If using Docker:
 
-- Uses a CUDA-enabled base image (e.g. `nvidia/cuda:11.8-runtime`)
-- Installs system dependencies: `ffmpeg`, `libsndfile`, `portaudio`, `nvidia-cuda-toolkit`
-- Installs CUDA PyTorch wheels via the `--index-url https://download.pytorch.org/whl/cu118`
-
-This ensures your container is GPU-ready.
+- Use `nvidia/cuda:11.8-runtime` base image  
+- Install `ffmpeg`, `portaudio`, `libsndfile`  
+- Install PyTorch CUDA wheels via PyPI index URL  
 
 ---
 
 ## ℹ️ Troubleshooting
 
-- **CUDA not detected** → check your GPU driver & CUDA installation  
-- **Audio errors** → run `python audio_devices.py --list` to check device indices  
-- **Missing voice sample** → voice cloning disabled, falls back to default  
-- **Plugin errors** → debug via logging; confirm plugin name in `plugins/`  
+- **CUDA issues** → verify drivers and device availability  
+- **Mic/speaker errors** → use `audio_devices.py` to inspect  
+- **Plugins missing** → check plugin structure and logs  
 
 ---
 
-## 📄 License & Acknowledgments
+## 📄 License
 
-Rex is released under the **MIT License**.  
-Contributions, feedback, and bug reports are welcome via GitHub.
+MIT License  
+Feedback and contributions welcome!

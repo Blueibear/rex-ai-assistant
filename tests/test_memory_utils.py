@@ -39,7 +39,6 @@ def test_extract_voice_reference_handles_missing(monkeypatch, tmp_path):
 
 def test_trim_history_limits_entries():
     history = [{"id": i} for i in range(10)]
-
     trimmed = trim_history(history, limit=3)
 
     assert len(trimmed) == 3

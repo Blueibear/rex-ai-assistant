@@ -34,18 +34,13 @@ def _mock_tts(monkeypatch):
 def _load_app(monkeypatch, tmp_path):
     _mock_tts(monkeypatch)
 
-    # Set expected environment variables
     monkeypatch.setenv("REX_SPEAK_API_KEY", "secret")
     monkeypatch.setenv("REX_ACTIVE_USER", "james")
-    monkeypatch.setenv("REX_RATE_LIMIT", "100/minute")
-    monkeypatch.setenv("REX_ALLOWED_ORIGINS", "*")
     monkeypatch.setenv("REX_WAKEWORD", "rex")
 
-    # Reset config
     import config
     monkeypatch.setattr(config, "_cached_config", None, raising=False)
 
-    # Reload or import the app module
     module_name = "rex_speak_api"
     if module_name in sys.modules:
         module = importlib.reload(sys.modules[module_name])
@@ -55,18 +50,29 @@ def _load_app(monkeypatch, tmp_path):
     return module.app, module
 
 
+def test_missing_api_key_prevents_start(monkeypatch):
+    module_name = "rex_speak_api"
+    if module_name in sys.modules:
+        del sys.modules[module_name]
+
+    monkeypatch.delenv("REX_SPEAK_API_KEY", raising=False)
+    monkeypatch.setenv("REX_ACTIVE_USER", "james")
+    _mock_tts(monkeypatch)
+
+    with pytest.raises(RuntimeError):
+        importlib.import_module(module_name)
+
+
 def test_speak_requires_api_key(monkeypatch, tmp_path):
     app, module = _load_app(monkeypatch, tmp_path)
-
-    # Mock speaker_wav path always valid
     monkeypatch.setattr(module.os.path, "exists", lambda path: True)
 
     with app.test_client() as client:
-        # Missing API key
+        # Without API key
         resp = client.post("/speak", json={"text": "Hello"})
         assert resp.status_code == 401
 
-        # With valid API key
+        # With correct API key
         resp = client.post("/speak", json={"text": "Hello"}, headers={"X-API-Key": "secret"})
         assert resp.status_code == 200
         assert resp.data == b"audio"
@@ -82,4 +88,5 @@ def test_speak_requires_text_param(monkeypatch, tmp_path):
 
     assert response.status_code == 400
     body = response.get_json()
-    assert body["error"].lower().startswith("missing"), "Should report missing 'text'"
+    assert "text" in body["error"].lower()
+
