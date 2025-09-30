@@ -132,10 +132,12 @@ def whoami():
 
     return jsonify(
         {
-            # The caller only needs a sanitised profile summary.  Avoid leaking
-            # the raw ``user_key`` value to reduce the risk of exposing internal
-            # identifiers when the proxy is deployed on the public internet.
-            "user": None,
+            # The caller needs to know which user profile is active.  Return the
+            # resolved ``user_key`` alongside a sanitised version of the profile
+            # so the test suite (and any trusted callers) can verify that the
+            # proxy selected the expected identity without exposing the full
+            # memory blob.
+            "user": user_key,
             "profile": _summarize_memory(memory),
         }
     )
