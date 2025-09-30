@@ -19,6 +19,10 @@ USERS_MAP = load_users_map()
 PROXY_TOKEN = os.getenv("REX_PROXY_TOKEN")
 ALLOW_LOCAL = os.getenv("REX_PROXY_ALLOW_LOCAL") == "1"
 
+user_key: str | None = None
+memory: dict | None = None
+user_folder: str | None = None
+
 
 def _summarize_memory(profile: dict) -> dict:
     summary: dict = {}
@@ -124,9 +128,14 @@ def index():
 # ✅ Whoami route: returns active memory profile
 @app.route("/whoami")
 def whoami():
+    """Return a redacted summary of the active user profile."""
+
     return jsonify(
         {
-            "user": user_key,
+            # The caller only needs a sanitised profile summary.  Avoid leaking
+            # the raw ``user_key`` value to reduce the risk of exposing internal
+            # identifiers when the proxy is deployed on the public internet.
+            "user": None,
             "profile": _summarize_memory(memory),
         }
     )
