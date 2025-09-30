@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Dict, Optional
+from collections import deque
+from typing import Deque, Dict, Iterable, Optional
+
+from rex.config import settings
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 MEMORY_ROOT = os.path.join(REPO_ROOT, "Memory")
@@ -12,18 +15,7 @@ USERS_PATH = os.path.join(REPO_ROOT, "users.json")
 
 
 def load_users_map(users_path: str = USERS_PATH) -> Dict[str, str]:
-    """Return the email-to-user mapping defined in ``users.json``.
-
-    Parameters
-    ----------
-    users_path:
-        Optional override for the location of ``users.json``.
-
-    Returns
-    -------
-    Dict[str, str]
-        Normalised mapping of lowercase email addresses to lowercase user keys.
-    """
+    """Return the email-to-user mapping defined in ``users.json``."""
     try:
         with open(users_path, "r", encoding="utf-8") as handle:
             data = json.load(handle)
@@ -44,27 +36,7 @@ def resolve_user_key(
     memory_root: str = MEMORY_ROOT,
     profiles: Optional[Dict[str, dict]] = None,
 ) -> Optional[str]:
-    """Resolve a user identifier to a memory folder key.
-
-    The identifier can be an email address, an existing memory folder name,
-    or a profile name stored in ``core.json``.
-
-    Parameters
-    ----------
-    identifier:
-        Email address, folder name, or display name to resolve.
-    users_map:
-        Mapping of email addresses to folder names from :func:`load_users_map`.
-    memory_root:
-        Base directory that contains user memory folders.
-    profiles:
-        Optional mapping of folder keys to the parsed ``core.json`` contents.
-
-    Returns
-    -------
-    Optional[str]
-        Lowercase memory key if it can be resolved; otherwise ``None``.
-    """
+    """Resolve a user identifier to a memory folder key."""
     if not identifier:
         return None
 
@@ -133,3 +105,23 @@ def extract_voice_reference(profile: dict) -> Optional[str]:
             return candidate
 
     return None
+
+
+def trim_history(history: Iterable[dict], *, limit: Optional[int] = None) -> list[dict]:
+    """Return only the most recent ``limit`` entries from ``history``."""
+
+    max_items = limit or settings.max_memory_items
+    recent: Deque[dict] = deque(maxlen=max_items)
+    for item in history:
+        recent.append(item)
+    return list(recent)
+
+
+__all__ = [
+    "load_users_map",
+    "resolve_user_key",
+    "load_memory_profile",
+    "load_all_profiles",
+    "extract_voice_reference",
+    "trim_history",
+]
