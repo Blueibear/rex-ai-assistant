@@ -8,21 +8,30 @@ import numpy as np
 import simpleaudio as sa
 import sounddevice as sd
 
+from config import load_config
 from wakeword_utils import detect_wakeword, load_wakeword_model
 
-WAKEWORD = os.getenv("REX_WAKEWORD", "rex")
-THRESHOLD = float(os.getenv("REX_WAKEWORD_THRESHOLD", "0.5"))
+CONFIG = load_config()
+WAKEWORD = os.getenv("REX_WAKEWORD", CONFIG.wakeword)
+THRESHOLD = float(os.getenv("REX_WAKEWORD_THRESHOLD", str(CONFIG.wakeword_threshold)))
 
-wake_model, wake_keyword = load_wakeword_model(keyword=WAKEWORD)
+wake_model, wake_keyword = load_wakeword_model(
+    keyword=WAKEWORD,
+    sensitivity=CONFIG.wakeword_sensitivity,
+)
 
-# Audio settings
-sample_rate = 16000
-block_size = int(sample_rate)
+# Audio settings aligned with Porcupine expectations
+sample_rate = wake_model.sample_rate
+block_size = wake_model.frame_length * 8
 
 # Wake confirmation sound path (use relative path to the assets folder)
-wake_sound_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "rex_wake_acknowledgment (1).wav")
+wake_sound_path = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "assets",
+    "rex_wake_acknowledgment (1).wav",
+)
 
-print(f"🔊 Listening for wake word: '{wake_keyword}'…")
+print(f"Listening for wake word: '{wake_keyword}'")
 
 
 def play_confirmation_sound() -> None:
@@ -40,7 +49,7 @@ def listen_for_wakeword() -> bool:
             print("[!] Audio stream status:", status)
         audio_data = np.squeeze(indata)
         if detect_wakeword(wake_model, audio_data, threshold=THRESHOLD):
-            print(f"✔ Wakeword detected: '{wake_keyword}'")
+            print(f"Wakeword detected: '{wake_keyword}'")
             play_confirmation_sound()
             raise StopIteration  # Exit audio stream when detected
 
@@ -58,3 +67,7 @@ def listen_for_wakeword() -> bool:
     except Exception as exc:  # pragma: no cover - hardware specific
         print("[!] Wakeword listener error:", exc)
         return False
+
+
+if __name__ == "__main__":
+    listen_for_wakeword()

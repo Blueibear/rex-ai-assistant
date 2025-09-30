@@ -76,11 +76,12 @@ def run_mic_test() -> None:
 
     logger.info("🎙️  Available audio devices:")
     for idx, device in enumerate(devices):
-        logger.info("  [%2d] %s (in: %d, out: %d)",
-                    idx,
-                    device["name"],
-                    device["max_input_channels"],
-                    device["max_output_channels"]
+        logger.info(
+            "  [%2d] %s (in: %d, out: %d)",
+            idx,
+            device["name"],
+            device["max_input_channels"],
+            device["max_output_channels"]
         )
 
 
@@ -133,4 +134,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -25,6 +25,8 @@ USERS_MAP = load_users_map()
 PROXY_TOKEN = os.getenv("REX_PROXY_TOKEN")
 ALLOW_LOCAL = os.getenv("REX_PROXY_ALLOW_LOCAL") == "1"
 user_key: str | None = None
+memory: dict | None = None
+user_folder: str | None = None
 
 
 def _summarize_memory(profile: dict) -> dict:
@@ -70,7 +72,7 @@ def load_user_memory():
     token = _extract_shared_secret()
     remote_addr = request.remote_addr
 
-    global user_key
+    global user_key, memory, user_folder
     resolved_user_key: str | None = None
 
     if email:

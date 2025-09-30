@@ -1,78 +1,134 @@
-"""Helpers for loading wake-word models and evaluating predictions."""
+"""Picovoice Porcupine wake-word integration and helpers."""
 
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple
+from typing import Optional
 
 import numpy as np
 
-try:  # pragma: no cover - optional dependency
-    import openwakeword
-    from openwakeword.model import Model as WakeWordModel
-except Exception:  # pragma: no cover - openwakeword optional
-    openwakeword = None  # type: ignore[assignment]
-    WakeWordModel = object  # type: ignore[misc,assignment]
+try:  # pragma: no cover - optional runtime dependency
+    import pvporcupine
+except ImportError:  # pragma: no cover - Porcupine not installed
+    pvporcupine = None  # type: ignore
 
-DEFAULT_KEYWORD = os.getenv("REX_WAKEWORD_KEYWORD", "hey_jarvis")
-DEFAULT_BACKEND = os.getenv("REX_WAKEWORD_BACKEND", "onnx")
-_AVAILABLE_KEYWORDS = (
-    {name.replace("_", " ") for name in getattr(openwakeword, "MODELS", {}).keys()}
-    if openwakeword
-    else set()
-)
+from config import load_config
+from rex.assistant_errors import WakeWordError
+from rex.logging_utils import get_logger
+
+LOGGER = get_logger(__name__)
 
 
-def _resolve_model_path(model_path: str | None = None) -> Path:
-    repo_root = Path(__file__).resolve().parents[1]
-    if model_path:
-        return Path(model_path)
-    return repo_root / "rex.onnx"
+@dataclass
+class PorcupineDetector:
+    """Stateful wrapper that accumulates PCM frames for Porcupine."""
+
+    porcupine: "pvporcupine.Porcupine"
+    keyword: str
+    sensitivity: float
+
+    def __post_init__(self) -> None:
+        self._buffer = np.zeros(0, dtype=np.int16)
+
+    @property
+    def frame_length(self) -> int:
+        return self.porcupine.frame_length
+
+    @property
+    def sample_rate(self) -> int:
+        return self.porcupine.sample_rate
+
+    def push(self, audio_frame: np.ndarray) -> bool:
+        """Ingest audio samples and evaluate for a wake-word hit."""
+
+        if audio_frame.ndim != 1:
+            audio_frame = np.reshape(audio_frame, (-1,))
+
+        if audio_frame.dtype != np.int16:
+            scaled = np.clip(audio_frame, -1.0, 1.0)
+            audio_frame = (scaled * np.iinfo(np.int16).max).astype(np.int16)
+
+        if self._buffer.size:
+            audio_frame = np.concatenate((self._buffer, audio_frame))
+            self._buffer = np.zeros(0, dtype=np.int16)
+
+        frame_length = self.porcupine.frame_length
+        total_samples = audio_frame.shape[0]
+        index = 0
+
+        while index + frame_length <= total_samples:
+            frame = audio_frame[index : index + frame_length]
+            result = self.porcupine.process(frame)
+            if result >= 0:
+                LOGGER.debug("Porcupine detected keyword '%s' (index=%s)", self.keyword, result)
+                return True
+            index += frame_length
+
+        if index < total_samples:
+            self._buffer = audio_frame[index:]
+        return False
+
+    def close(self) -> None:
+        self.porcupine.delete()
+
+
+def _resolve_keyword(keyword: Optional[str]) -> str:
+    cfg = load_config()
+    if keyword:
+        return keyword
+    return cfg.wakeword
 
 
 def load_wakeword_model(
-    *, keyword: str | None = None, model_path: str | None = None
-) -> Tuple[WakeWordModel, str]:
-    if openwakeword is None:
-        raise RuntimeError("openwakeword is not installed")
+    *, keyword: Optional[str] = None, sensitivity: Optional[float] = None, keyword_path: Optional[str] = None
+) -> tuple[PorcupineDetector, str]:
+    """Instantiate a Porcupine detector using config defaults."""
 
-    resolved_path = _resolve_model_path(model_path)
-    requested_keyword = (keyword or DEFAULT_KEYWORD).replace("_", " ")
+    if pvporcupine is None:  # pragma: no cover - ensures helpful runtime message
+        raise WakeWordError("pvporcupine is not installed. Please install it via requirements.txt")
 
-    if resolved_path.is_file() and resolved_path.stat().st_size > 0:
-        models_to_load = [str(resolved_path)]
-        active_label = resolved_path.stem
-    else:
-        if _AVAILABLE_KEYWORDS and requested_keyword not in _AVAILABLE_KEYWORDS:
-            requested_keyword = DEFAULT_KEYWORD.replace("_", " ")
-        models_to_load = [requested_keyword]
-        active_label = requested_keyword
+    cfg = load_config()
+    resolved_keyword = _resolve_keyword(keyword)
+    sensitivity_value = sensitivity if sensitivity is not None else cfg.wakeword_sensitivity
+    sensitivity_value = max(0.1, min(0.99, float(sensitivity_value)))
 
-    wake_model = WakeWordModel(
-        wakeword_models=models_to_load,
-        inference_framework=DEFAULT_BACKEND,
-        enable_speex_noise_suppression=True,
+    access_key = os.getenv("PICOVOICE_ACCESS_KEY")
+
+    kwargs = {
+        "access_key": access_key,
+        "keywords": [resolved_keyword] if keyword_path is None else None,
+        "keyword_paths": [keyword_path] if keyword_path is not None else None,
+        "sensitivities": [sensitivity_value],
+    }
+    try:
+        porcupine = pvporcupine.create(**kwargs)
+    except TypeError:
+        # Older versions do not accept None keyword_paths/keywords simultaneously
+        if keyword_path:
+            porcupine = pvporcupine.create(access_key=access_key, keyword_paths=[keyword_path], sensitivities=[sensitivity_value])
+        else:
+            porcupine = pvporcupine.create(access_key=access_key, keywords=[resolved_keyword], sensitivities=[sensitivity_value])
+    except Exception as exc:  # pragma: no cover - initialization failure depends on runtime
+        raise WakeWordError(f"Failed to initialize Porcupine: {exc}") from exc
+
+    detector = PorcupineDetector(porcupine=porcupine, keyword=resolved_keyword, sensitivity=sensitivity_value)
+    LOGGER.info(
+        "Initialized Porcupine wake-word detector keyword='%s' sensitivity=%.2f sample_rate=%d frame_length=%d",
+        resolved_keyword,
+        sensitivity_value,
+        detector.sample_rate,
+        detector.frame_length,
     )
-
-    return wake_model, active_label
-
-
-def detect_wakeword(
-    model: WakeWordModel,
-    audio_frame: np.ndarray,
-    *,
-    threshold: float = 0.5,
-) -> bool:
-    if audio_frame.ndim != 1:
-        audio_frame = np.reshape(audio_frame, (-1,))
-
-    if audio_frame.dtype != np.int16:
-        scaled = np.clip(audio_frame, -1.0, 1.0)
-        audio_frame = (scaled * np.iinfo(np.int16).max).astype(np.int16)
-
-    predictions = model.predict(audio_frame)
-    return any(score >= threshold for score in predictions.values())
+    return detector, resolved_keyword
 
 
-__all__ = ["load_wakeword_model", "detect_wakeword"]
+def detect_wakeword(model: PorcupineDetector, audio_frame: np.ndarray, *, threshold: float | None = None) -> bool:
+    """Compatibility shim for historical signature. Threshold is unused."""
+
+    _ = threshold  # maintained for backward compatibility
+    return model.push(audio_frame)
+
+
+__all__ = ["PorcupineDetector", "load_wakeword_model", "detect_wakeword"]

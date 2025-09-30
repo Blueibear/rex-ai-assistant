@@ -1,13 +1,9 @@
 from __future__ import annotations
 
 import textwrap
-import pytest
 
-# Codex-style plugin test (class-based with lifecycle methods)
-from rex.plugins import load_plugins as load_rex_plugins, shutdown_plugins
-
-# Master-style plugin loader test (dict-based plugin discovery)
 from plugin_loader import load_plugins as load_dict_plugins
+from rex.plugins import load_plugins as load_rex_plugins, shutdown_plugins
 
 
 def test_class_based_plugin_loads_and_runs(tmp_path, monkeypatch):
@@ -17,6 +13,7 @@ def test_class_based_plugin_loads_and_runs(tmp_path, monkeypatch):
         textwrap.dedent(
             """
             from rex.plugins import Plugin
+
 
             class DemoPlugin:
                 name = "demo"
@@ -34,13 +31,13 @@ def test_class_based_plugin_loads_and_runs(tmp_path, monkeypatch):
                 def shutdown(self):
                     self.shut_down = True
 
+
             def register() -> Plugin:
                 return DemoPlugin()
             """
         )
     )
 
-    monkeypatch.syspath_prepend(str(tmp_path))
     specs = load_rex_plugins(str(plugin_file.parent))
     assert len(specs) == 1
 
@@ -55,9 +52,8 @@ def test_class_based_plugin_loads_and_runs(tmp_path, monkeypatch):
 def test_dict_based_plugin_loader(tmp_path, monkeypatch):
     plugin_dir = tmp_path / "test_plugins"
     plugin_dir.mkdir()
-    (plugin_dir / "__init__.py").write_text("# marker")
+    (plugin_dir / "__init__.py").write_text("# marker", encoding="utf-8")
 
-    # Valid plugin
     (plugin_dir / "example.py").write_text(
         textwrap.dedent(
             """
@@ -68,7 +64,6 @@ def test_dict_based_plugin_loader(tmp_path, monkeypatch):
         encoding="utf-8",
     )
 
-    # Second valid plugin
     (plugin_dir / "second.py").write_text(
         textwrap.dedent(
             """
@@ -79,7 +74,6 @@ def test_dict_based_plugin_loader(tmp_path, monkeypatch):
         encoding="utf-8",
     )
 
-    # Invalid plugin (no register function)
     (plugin_dir / "broken.py").write_text(
         textwrap.dedent(
             """
@@ -90,7 +84,7 @@ def test_dict_based_plugin_loader(tmp_path, monkeypatch):
         encoding="utf-8",
     )
 
-    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.syspath_prepend(str(plugin_dir.parent))
     results = load_dict_plugins(str(plugin_dir))
 
     assert isinstance(results, dict)
@@ -101,4 +95,3 @@ def test_dict_based_plugin_loader(tmp_path, monkeypatch):
     assert results[f"{plugin_dir.name}.second"]["feature"] == "active"
 
     assert f"{plugin_dir.name}.broken" not in results
-

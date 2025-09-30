@@ -47,6 +47,13 @@ app = Flask(__name__)
 limiter = Limiter(get_remote_address, app=app, default_limits=["30 per minute"])
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+REQUIRED_API_KEY = os.getenv("REX_SPEAK_API_KEY")
+if not REQUIRED_API_KEY:
+    raise RuntimeError(
+        "REX_SPEAK_API_KEY must be set before starting the speech API. "
+        "Set a strong key or disable the service to avoid anonymous access."
+    )
+
 USERS_MAP = load_users_map()
 USER_PROFILES = load_all_profiles()
 DEFAULT_USER = resolve_user_key(os.getenv("REX_ACTIVE_USER"), USERS_MAP, profiles=USER_PROFILES)
@@ -61,10 +68,24 @@ USER_VOICES = {
 if DEFAULT_USER not in USER_VOICES:
     USER_VOICES[DEFAULT_USER] = None
 
-xtts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, gpu=False)
-REQUIRED_API_KEY = os.getenv("REX_SPEAK_API_KEY")
-if not REQUIRED_API_KEY:
-    raise RuntimeError("REX_SPEAK_API_KEY is missing.")
+gpu_enabled = bool(getattr(settings, "gpu", False))
+if gpu_enabled:
+    os.environ.setdefault("CUDA_VISIBLE_DEVICES", str(getattr(settings, "cuda_device", 0)))
+    try:
+        import torch  # type: ignore[import-not-found]
+
+        if not torch.cuda.is_available():
+            app.logger.warning("CUDA requested for TTS but not available; using CPU instead.")
+            gpu_enabled = False
+    except ImportError:  # pragma: no cover - defensive
+        app.logger.warning("PyTorch not installed; falling back to CPU-only TTS.")
+        gpu_enabled = False
+
+xtts = TTS(
+    model_name="tts_models/multilingual/multi-dataset/xtts_v2",
+    progress_bar=False,
+    gpu=gpu_enabled,
+)
 
 # ---------------------------------------------------------------------
 # Helpers
@@ -72,8 +93,6 @@ if not REQUIRED_API_KEY:
 
 def _require_api_key() -> None:
     """Check the API key header if required."""
-    if not REQUIRED_API_KEY:
-        return
     provided = request.headers.get("X-API-Key") or request.headers.get("Authorization")
     if not provided or not secrets.compare_digest(provided.strip(), REQUIRED_API_KEY.strip()):
         raise AuthenticationError("Missing or invalid API key")
@@ -138,6 +157,7 @@ def speak() -> Response:
         with suppress(FileNotFoundError):
             os.remove(output_path)
 
+# ---------------------------------------------------------------------
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-

@@ -1,10 +1,10 @@
 """Command-line entry point for the Rex assistant.
 
 This module intentionally mirrors the historical top-level script so existing
-documentation that imports :mod:`rex_assistant` continues to work.  A leading
+documentation that imports :mod:`rex_assistant` continues to work. A leading
 triple-quoted docstring is required so that Python does not treat the module
 preamble as bare text, which would otherwise raise a :class:`SyntaxError` at
-import time.  The helper functions continue to delegate the heavy lifting to
+import time. The helper functions continue to delegate the heavy lifting to
 ``rex.assistant``.
 """
 
@@ -66,4 +66,3 @@ def main() -> int:
 
 if __name__ == "__main__":  # pragma: no cover - CLI entry point
     raise SystemExit(main())
-

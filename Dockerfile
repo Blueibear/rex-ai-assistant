@@ -10,8 +10,8 @@ RUN apt-get update && \
         ffmpeg \
         libsndfile1 \
         libasound2-dev \
-        portaudio19-dev \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+        portaudio19-dev && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt ./
