@@ -13,6 +13,12 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: 🧹 Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost
+          sudo apt-get clean
+          pip cache purge || true
+
       - name: 📦 Cache pip dependencies
         uses: actions/cache@v3
         with:
