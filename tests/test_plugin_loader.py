@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import textwrap
-
 import pytest
 
 # Codex-style plugin test (class-based with lifecycle methods)

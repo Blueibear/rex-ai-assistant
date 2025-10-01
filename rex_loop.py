@@ -18,7 +18,7 @@ from rex.assistant import Assistant
 from rex.assistant_errors import AssistantError, WakeWordError
 from rex.logging_utils import configure_logging
 from rex.plugins import PluginSpec, load_plugins, shutdown_plugins
-from rex.voice_loop import build_voice_loop  # From resolved `voice_loop.py`
+from rex.voice_loop import build_voice_loop
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,10 @@ async def _run(args) -> None:
         os.environ["REX_ACTIVE_USER"] = args.user
         rex.reload_settings()
 
-    assistant = Assistant(history_limit=rex.settings.max_memory_items, plugins=plugin_specs)
+    assistant = Assistant(
+        history_limit=rex.settings.max_memory_items,
+        plugins=plugin_specs
+    )
 
     try:
         voice_loop = build_voice_loop(assistant)
@@ -68,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         asyncio.run(_run(args))
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover - manual interruption
         print("\nInterrupted.")
     return 0
 

@@ -1,7 +1,6 @@
-"""Language model client with pluggable backends (e.g. Transformers, OpenAI, Echo)."""
+"""Language model client with pluggable backends (Transformers, OpenAI, Echo)."""
 
 from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Optional, Protocol, Dict
 
@@ -37,8 +36,10 @@ class LLMStrategy(Protocol):
     def generate(self, prompt: str, config: GenerationConfig) -> str: ...
 
 
+# === Backend: Echo (fallback) ===
 class EchoStrategy:
     name = "echo"
+
     def __init__(self, model_name: str) -> None:
         self.model_name = model_name
 
@@ -48,6 +49,7 @@ class EchoStrategy:
         return f"[{self.model_name}] {prompt.strip()}"
 
 
+# === Backend: Transformers ===
 class TransformersStrategy:
     name = "transformers"
 
@@ -82,6 +84,7 @@ class TransformersStrategy:
         return text[len(prompt):].strip() or "(silence)"
 
 
+# === Backend: OpenAI Chat Completion ===
 class OpenAIStrategy:
     name = "openai"
 
@@ -107,7 +110,7 @@ class OpenAIStrategy:
         return (response.choices[0].message.content or "").strip() or "(silence)"
 
 
-# Strategy registry
+# === Strategy Registry ===
 _STRATEGIES: Dict[str, type[LLMStrategy]] = {
     EchoStrategy.name: EchoStrategy,
     TransformersStrategy.name: TransformersStrategy,
@@ -119,6 +122,7 @@ def register_strategy(name: str, strategy: type[LLMStrategy]) -> None:
     _STRATEGIES[name] = strategy
 
 
+# === LLM Wrapper ===
 class LanguageModel:
     """LLM wrapper supporting multiple backends (OpenAI, Transformers, Echo)."""
 

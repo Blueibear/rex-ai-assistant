@@ -19,12 +19,9 @@ try:
     from flask_limiter.util import get_remote_address
 except ImportError:
     class Limiter:
-        def __init__(self, *args, **kwargs):
-            pass
-
+        def __init__(self, *args, **kwargs): pass
         def limit(self, *args, **kwargs):
-            def decorator(func):
-                return func
+            def decorator(func): return func
             return decorator
 
     def get_remote_address() -> str:
@@ -67,21 +64,20 @@ if DEFAULT_USER not in USER_VOICES:
 xtts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, gpu=False)
 REQUIRED_API_KEY = os.getenv("REX_SPEAK_API_KEY")
 
-
 # ---------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------
 
 def _require_api_key() -> None:
+    """Check the API key header if required."""
     if not REQUIRED_API_KEY:
         return
     provided = request.headers.get("X-API-Key") or request.headers.get("Authorization")
     if not provided or not secrets.compare_digest(provided.strip(), REQUIRED_API_KEY.strip()):
         raise AuthenticationError("Missing or invalid API key")
 
-
 # ---------------------------------------------------------------------
-# Routes
+# Error handlers
 # ---------------------------------------------------------------------
 
 @app.errorhandler(AuthenticationError)
@@ -92,9 +88,14 @@ def _handle_auth_error(exc: AuthenticationError):
 def _handle_tts_error(exc: TextToSpeechError):
     return jsonify({"error": str(exc)}), 500
 
+# ---------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------
+
 @app.route("/speak", methods=["POST"])
 @limiter.limit("15 per minute")
 def speak() -> Response:
+    """Convert text to speech and return a WAV file."""
     _require_api_key()
 
     try:
@@ -134,4 +135,7 @@ def speak() -> Response:
     finally:
         with suppress(FileNotFoundError):
             os.remove(output_path)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
 

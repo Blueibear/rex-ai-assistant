@@ -14,22 +14,21 @@ RUN apt-get update && \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
-COPY requirements.txt .
+COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy entire source code into image
 COPY . .
 
-# Set environment variables (adjust as needed)
+# Environment variables (set sensible defaults)
 ENV PYTHONUNBUFFERED=1 \
     REX_WAKEWORD=rex \
     REX_DEVICE=cpu \
     REX_LOG_LEVEL=info
 
-# Optional: mountable volume for persistent memory or logs
+# Mountable volume for memory or logs
 VOLUME ["/app/Memory"]
 
-# Default entrypoint
+# Default command
 CMD ["python", "rex_assistant.py"]
-

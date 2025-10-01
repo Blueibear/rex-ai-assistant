@@ -53,10 +53,16 @@ python -m venv .venv
 # source .venv/bin/activate
 
 pip install --upgrade pip
-
-# Install CPU fallback first (ensures reliable installs)
-pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
+
+# Optional: install speech + language model stack (Whisper, Torch, XTTS)
+pip install -r requirements-ml.txt
+
+# Optional: developer tooling (pytest, coverage)
+pip install -r requirements-dev.txt
+
+# Alternatively, you can run the installation helper:
+# python install.py --with-ml --with-dev
 ```
 
 ---
@@ -107,15 +113,13 @@ To stop: type **exit**, **quit**, or press **Ctrl+C**.
 
 ### TTS HTTP API
 
-Run:
+Start the API server:
 
-```bash
 python rex_speak_api.py
-```
 
-You can then send:
 
-```http
+Send a request:
+
 POST /speak
 Content-Type: application/json
 X-API-Key: your_secret
@@ -124,7 +128,6 @@ X-API-Key: your_secret
   "text": "Hello Rex",
   "user": "james"
 }
-```
 
 It returns a WAV file. Useful for non-voice clients.
 

@@ -1,0 +1,5 @@
+# Optional machine learning dependencies for speech and language features
+openai-whisper>=20230124
+TTS>=0.18.0
+torch>=2.2.0
+transformers>=4.38.0
