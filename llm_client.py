@@ -1,38 +1,25 @@
-"""Language model utilities with pluggable backends.
-
-Historically this logic lived in :mod:`rex.llm_client`.  During previous
-refactors the root module became a thin re-export, which caused merge
-conflicts and made the original entry point harder to understand.  The
-implementation now lives here again while the package module simply imports
-from this file for backwards compatibility.
-"""
+"""Language model client with pluggable backends (Transformers, OpenAI, Echo)."""
 
 from __future__ import annotations
-
 from dataclasses import dataclass
-from typing import Dict, Optional, Protocol
+from typing import Optional, Protocol, Dict
 
-from rex.config import settings
+from config import AppConfig, load_config
+from assistant_errors import ConfigurationError
+from logging_utils import get_logger
 
-try:  # pragma: no cover - optional dependency
-    import torch  # type: ignore[import-not-found]
-except (ImportError, OSError):  # pragma: no cover - torch is optional
-    torch = None  # type: ignore[assignment]
+logger = get_logger(__name__)
 
-try:  # pragma: no cover - optional dependency
-    from transformers import (  # type: ignore[import-not-found]
-        AutoModelForCausalLM,
-        AutoTokenizer,
-        pipeline as hf_pipeline,
-    )
-except (ImportError, OSError):  # pragma: no cover - transformers optional
-    AutoModelForCausalLM = None  # type: ignore[assignment]
-    AutoTokenizer = None  # type: ignore[assignment]
-    hf_pipeline = None  # type: ignore[assignment]
+# Optional dependencies
+try:
+    import torch
+except ImportError:
+    torch = None
 
-
-class LLMDependencyError(RuntimeError):
-    """Raised when a backend cannot initialise due to missing dependencies."""
+try:
+    from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline as hf_pipeline
+except ImportError:
+    AutoTokenizer = AutoModelForCausalLM = hf_pipeline = None
 
 
 @dataclass
@@ -46,65 +33,42 @@ class GenerationConfig:
 
 class LLMStrategy(Protocol):
     name: str
-
-    def generate(self, prompt: str, config: GenerationConfig) -> str:
-        ...
+    def generate(self, prompt: str, config: GenerationConfig) -> str: ...
 
 
-class _EchoTokenizer:
-    pad_token_id: int | None
-    eos_token_id: int | None
-
-    def __init__(self) -> None:
-        self.pad_token_id = 0
-        self.eos_token_id = 0
-
-
+# === Backend: Echo (fallback) ===
 class EchoStrategy:
     name = "echo"
 
     def __init__(self, model_name: str) -> None:
         self.model_name = model_name
-        self.tokenizer = _EchoTokenizer()
 
     def generate(self, prompt: str, _: GenerationConfig) -> str:
-        completion = (
-            f"[{self.model_name}] {prompt.strip()}" if prompt.strip() else f"[{self.model_name}]"
-        )
-        if prompt and not prompt.endswith(" "):
-            prompt = f"{prompt} "
-        return f"{prompt}{completion}"[len(prompt) :].strip() or "(silence)"
+        if not prompt.strip():
+            return "(silence)"
+        return f"[{self.model_name}] {prompt.strip()}"
 
 
+# === Backend: Transformers ===
 class TransformersStrategy:
     name = "transformers"
 
     def __init__(self, model_name: str) -> None:
-        if AutoTokenizer is None or AutoModelForCausalLM is None or hf_pipeline is None:
-            raise LLMDependencyError("transformers is not available")
-        if torch is None:
-            raise LLMDependencyError("torch is not available")
+        if not (AutoTokenizer and AutoModelForCausalLM and hf_pipeline and torch):
+            raise ConfigurationError("Transformers backend requires `torch` and `transformers`.")
 
-        try:
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            model = AutoModelForCausalLM.from_pretrained(model_name)
-            device_index = 0 if torch.cuda.is_available() else -1
-            self.pipeline = hf_pipeline(
-                "text-generation",
-                model=model,
-                tokenizer=tokenizer,
-                device=device_index,
-            )
-            self.tokenizer = self.pipeline.tokenizer
-        except Exception as exc:  # pragma: no cover - defensive guard
-            raise LLMDependencyError(str(exc)) from exc
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(model_name)
+        device = 0 if torch.cuda.is_available() else -1
 
-        if getattr(self.tokenizer, "pad_token_id", None) is None:
-            self.tokenizer.pad_token_id = getattr(self.tokenizer, "eos_token_id", 0)
+        self.pipeline = hf_pipeline("text-generation", model=model, tokenizer=tokenizer, device=device)
+        self.tokenizer = tokenizer
+        if tokenizer.pad_token_id is None:
+            tokenizer.pad_token_id = tokenizer.eos_token_id
 
     def generate(self, prompt: str, config: GenerationConfig) -> str:
         torch.manual_seed(config.seed)
-        if hasattr(torch, "cuda") and torch.cuda.is_available():
+        if torch.cuda.is_available():
             torch.cuda.manual_seed_all(config.seed)
 
         outputs = self.pipeline(
@@ -114,66 +78,86 @@ class TransformersStrategy:
             temperature=config.temperature,
             top_p=config.top_p,
             top_k=config.top_k,
-            pad_token_id=getattr(self.tokenizer, "pad_token_id", None),
+            pad_token_id=self.tokenizer.pad_token_id,
         )
-        if not outputs:
-            raise RuntimeError("Language model returned no candidates.")
-        generated = outputs[0]["generated_text"]
-        return generated[len(prompt) :].strip() or "(silence)"
+        text = outputs[0]["generated_text"]
+        return text[len(prompt):].strip() or "(silence)"
 
 
+# === Backend: OpenAI Chat Completion ===
+class OpenAIStrategy:
+    name = "openai"
+
+    def __init__(self, model_name: str, api_key: Optional[str]) -> None:
+        try:
+            from openai import OpenAI
+        except ImportError:
+            raise ConfigurationError("OpenAI backend requires the `openai` package.")
+
+        if not api_key:
+            raise ConfigurationError("Missing OpenAI API key.")
+        self.client = OpenAI(api_key=api_key)
+        self.model_name = model_name
+
+    def generate(self, prompt: str, config: GenerationConfig) -> str:
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=config.temperature,
+            max_tokens=config.max_new_tokens,
+            top_p=config.top_p,
+        )
+        return (response.choices[0].message.content or "").strip() or "(silence)"
+
+
+# === Strategy Registry ===
 _STRATEGIES: Dict[str, type[LLMStrategy]] = {
     EchoStrategy.name: EchoStrategy,
     TransformersStrategy.name: TransformersStrategy,
+    OpenAIStrategy.name: OpenAIStrategy,
 }
 
 
-def register_strategy(name: str, factory: type[LLMStrategy]) -> None:
-    _STRATEGIES[name] = factory
+def register_strategy(name: str, strategy: type[LLMStrategy]) -> None:
+    _STRATEGIES[name] = strategy
 
 
+# === LLM Wrapper ===
 class LanguageModel:
-    """Thin wrapper that exposes a deterministic ``generate`` method."""
+    """LLM wrapper supporting multiple backends (OpenAI, Transformers, Echo)."""
 
-    def __init__(
-        self,
-        model_name: str | None = None,
-        *,
-        backend: str | None = None,
-        max_new_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        top_p: Optional[float] = None,
-        top_k: Optional[int] = None,
-        seed: Optional[int] = None,
-    ) -> None:
-        self.model_name = model_name or settings.llm_model
-        self._config = GenerationConfig(
-            max_new_tokens=max_new_tokens or 120,
-            temperature=temperature if temperature is not None else settings.temperature,
-            top_p=top_p or 0.9,
-            top_k=top_k or 50,
-            seed=seed or 42,
+    def __init__(self, config: Optional[AppConfig] = None, **overrides) -> None:
+        self.config = config or load_config()
+        self.provider = (overrides.get("provider") or self.config.llm_provider).lower()
+        self.model_name = overrides.get("model") or self.config.llm_model
+        self.api_key = self.config.openai_api_key if self.provider == "openai" else None
+
+        self.generation = GenerationConfig(
+            max_new_tokens=overrides.get("max_new_tokens", self.config.llm_max_tokens),
+            temperature=overrides.get("temperature", self.config.llm_temperature),
+            top_p=overrides.get("top_p", self.config.llm_top_p),
+            top_k=overrides.get("top_k", self.config.llm_top_k),
+            seed=overrides.get("seed", self.config.llm_seed),
         )
-        self._backend_name = backend or settings.llm_backend
-        self._strategy = self._initialise_strategy(self._backend_name)
 
-    def _initialise_strategy(self, backend: str) -> LLMStrategy:
-        factory = _STRATEGIES.get(backend)
-        if factory is None:
-            raise ValueError(f"Unknown LLM backend '{backend}'")
+        self.strategy = self._init_strategy()
+
+    def _init_strategy(self) -> LLMStrategy:
+        strategy_cls = _STRATEGIES.get(self.provider)
+        if not strategy_cls:
+            logger.warning("Unknown LLM provider '%s'. Falling back to echo mode.", self.provider)
+            return EchoStrategy(self.model_name)
+
         try:
-            return factory(self.model_name)  # type: ignore[call-arg]
-        except LLMDependencyError:
-            if backend != EchoStrategy.name:
-                return self._initialise_strategy(EchoStrategy.name)
-            raise
+            if self.provider == "openai":
+                return strategy_cls(self.model_name, self.api_key)
+            return strategy_cls(self.model_name)
+        except Exception as exc:
+            logger.warning("LLM backend init failed (%s). Falling back to echo. (%s)", self.provider, exc)
+            return EchoStrategy(self.model_name)
 
     def generate(self, prompt: str, *, config: Optional[GenerationConfig] = None) -> str:
         if not prompt or not prompt.strip():
             raise ValueError("Prompt must not be empty.")
+        return self.strategy.generate(prompt, config or self.generation)
 
-        active_config = config or self._config
-        return self._strategy.generate(prompt, active_config)
-
-
-__all__ = ["LanguageModel", "GenerationConfig", "register_strategy", "LLMDependencyError"]
