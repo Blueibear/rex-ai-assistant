@@ -18,27 +18,39 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: 🧹 Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost
+          sudo apt-get clean
+          pip cache purge || true
+
       - name: 📦 Cache pip dependencies
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
       - name: 🧰 Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg libsndfile1 libasound2-dev portaudio19-dev nvidia-cuda-toolkit
+          sudo apt-get install -y \
+            ffmpeg \
+            libsndfile1 \
+            libasound2-dev \
+            portaudio19-dev \
+            nvidia-cuda-toolkit
 
-      - name: 📥 Install Python dependencies (with CUDA support)
+      - name: 📥 Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          # Install CUDA-enabled PyTorch + friends
+          # Install CUDA-enabled PyTorch + ecosystem
           pip install torch==2.6.0+cu118 torchvision==0.21.0+cu118 torchaudio==2.6.0+cu118 --index-url https://download.pytorch.org/whl/cu118
-          # Then install everything else
+          # Install project requirements
           pip install -r requirements.txt
-          pip install pytest pytest-cov
+          pip install -r requirements-ml.txt || true
+          pip install -r requirements-dev.txt || true
 
       - name: 🧪 Run tests with coverage
         run: |

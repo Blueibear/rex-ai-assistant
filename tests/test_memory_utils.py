@@ -23,7 +23,7 @@ def test_resolve_user_key_from_email():
     assert result == "james", "Failed to resolve correct user key from email"
 
 
-def test_extract_voice_reference_handles_missing(monkeypatch, tmp_path):
+def test_extract_voice_reference_handles_missing(tmp_path):
     voice_file = tmp_path / "voice.wav"
     voice_file.write_bytes(b"fake")
 
@@ -81,13 +81,6 @@ def test_export_transcript_appends(monkeypatch, tmp_path):
     assert "assistant: Hi there" in contents
 
 
-def test_load_recent_history_with_missing_file(tmp_path):
-    """Test graceful handling when no history file exists."""
-    entries = load_recent_history("ghost", memory_root=tmp_path)
-    assert isinstance(entries, list)
-    assert len(entries) == 0, "Should return empty list if no memory exists"
-
-
 def test_export_transcript_creates_directory(monkeypatch, tmp_path):
     """Ensure export_transcript creates the transcripts directory if missing."""
     transcripts_dir = tmp_path / "not_yet_there"
@@ -99,4 +92,11 @@ def test_export_transcript_creates_directory(monkeypatch, tmp_path):
 
     assert path.exists(), "Transcript file should be written even if folder was missing"
     assert path.parent.exists(), "Transcript directory should have been created"
+
+
+def test_load_recent_history_with_missing_file(tmp_path):
+    """Test graceful handling when no history file exists."""
+    entries = load_recent_history("ghost", memory_root=tmp_path)
+    assert isinstance(entries, list)
+    assert len(entries) == 0, "Should return empty list if no memory exists"
 

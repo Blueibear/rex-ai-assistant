@@ -121,8 +121,7 @@ def extract_voice_reference(profile: dict) -> Optional[str]:
 
 
 def trim_history(history: Iterable[dict], *, limit: Optional[int] = None) -> List[dict]:
-    """Return only the most recent `limit` entries from a history iterable."""
-    from rex.config import settings
+    from config import settings
     max_items = limit or settings.max_memory_items
     recent: Deque[dict] = deque(maxlen=max_items)
     for item in history:

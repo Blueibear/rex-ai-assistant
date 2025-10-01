@@ -12,21 +12,20 @@ try:
     from dotenv import load_dotenv, set_key
 except ImportError:
     def load_dotenv(*args, **kwargs): return False
-    def set_key(env_path: str, key: str, value: str):  # naive fallback
+    def set_key(env_path: str, key: str, value: str):
         path = Path(env_path)
         lines = [line for line in path.read_text().splitlines() if not line.startswith(f"{key}=")] if path.exists() else []
         lines.append(f"{key}={value}")
         path.write_text("\n".join(lines) + "\n")
         return key, value, True
 
-from assistant_errors import ConfigurationError
-from logging_utils import get_logger, set_global_level
+from rex.assistant_errors import ConfigurationError
+from rex.logging_utils import get_logger, set_global_level
 
 LOGGER = get_logger(__name__)
 
-ENV_PATH = Path(__file__).resolve().parent / ".env"
+ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 REQUIRED_ENV_KEYS = {"REX_WAKEWORD"}
-
 
 @dataclass
 class AppConfig:
@@ -62,13 +61,12 @@ class AppConfig:
 
     brave_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
-    openai_model: Optional[str] = None  # New optional override
+    openai_model: Optional[str] = None
 
     def to_dict(self) -> dict:
         raw = asdict(self)
         raw["transcripts_dir"] = str(self.transcripts_dir)
         return raw
-
 
 _cached_config: Optional[AppConfig] = None
 
@@ -105,7 +103,6 @@ ENV_MAPPING: Dict[str, str] = {
 TRUE_VALUES = {"1", "true", "yes", "on"}
 FALSE_VALUES = {"0", "false", "no", "off"}
 
-
 def _parse_bool(value: Optional[str], *, default: bool = False) -> bool:
     if value is None:
         return default
@@ -116,7 +113,6 @@ def _parse_bool(value: Optional[str], *, default: bool = False) -> bool:
         return False
     raise ConfigurationError(f"Invalid boolean value: {value}")
 
-
 def _parse_optional_int(value: Optional[str]) -> Optional[int]:
     if value in (None, ""):
         return None
@@ -124,7 +120,6 @@ def _parse_optional_int(value: Optional[str]) -> Optional[int]:
         return int(value)
     except ValueError as exc:
         raise ConfigurationError(f"Invalid integer: {value}") from exc
-
 
 def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> AppConfig:
     global _cached_config
@@ -186,7 +181,6 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> App
 
     return config
 
-
 def validate_config(config: AppConfig) -> None:
     if not (0 < config.wakeword_threshold <= 1):
         raise ConfigurationError("wakeword_threshold must be between 0 and 1.")
@@ -196,11 +190,10 @@ def validate_config(config: AppConfig) -> None:
         raise ConfigurationError("wakeword_window must be positive.")
     if config.llm_max_tokens <= 0:
         raise ConfigurationError("llm_max_tokens must be positive.")
-    if config.llm_temperature < 0 or config.llm_temperature > 5.0:
+    if not (0 <= config.llm_temperature <= 5.0):
         raise ConfigurationError("llm_temperature must be between 0 and 5.")
     if config.memory_max_turns <= 0:
         raise ConfigurationError("memory_max_turns must be positive.")
-
 
 def _env_key_for(field_name: str) -> Optional[str]:
     if field_name in ENV_MAPPING:
@@ -209,20 +202,16 @@ def _env_key_for(field_name: str) -> Optional[str]:
         return field_name
     return None
 
-
 def _write_env(key: str, value: str, *, env_path: Path) -> None:
     set_key(str(env_path), key, value)
 
-
 def _iter_config_fields() -> Iterable[str]:
     return ENV_MAPPING.keys()
-
 
 def show_config(config: Optional[AppConfig] = None) -> None:
     cfg = config or load_config()
     for key, value in cfg.to_dict().items():
         LOGGER.info("%s = %s", key, value)
-
 
 def cli(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Configure Rex Assistant")
@@ -252,8 +241,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
 
     return 0
 
-
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     try:
         raise SystemExit(cli())
     except ConfigurationError as exc:

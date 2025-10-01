@@ -94,7 +94,6 @@ def load_user_memory():
     except json.JSONDecodeError:
         abort(500, f"Memory file for user '{user_key}' is invalid JSON.")
 
-    # Store context in Flask `g`
     g.user_key = user_key
     g.memory = memory
     g.user_folder = memory_path
@@ -107,6 +106,7 @@ def index():
 
 @app.route("/whoami")
 def whoami():
+    """Return a redacted summary of the active user profile."""
     return jsonify({
         "user": g.user_key,
         "profile": _summarize_memory(g.memory),
