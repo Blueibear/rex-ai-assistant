@@ -24,6 +24,7 @@ except Exception as e:
 USERS_MAP = load_users_map()
 PROXY_TOKEN = os.getenv("REX_PROXY_TOKEN")
 ALLOW_LOCAL = os.getenv("REX_PROXY_ALLOW_LOCAL") == "1"
+user_key: str | None = None
 
 
 def _summarize_memory(profile: dict) -> dict:
@@ -69,23 +70,27 @@ def load_user_memory():
     token = _extract_shared_secret()
     remote_addr = request.remote_addr
 
+    global user_key
+    resolved_user_key: str | None = None
+
     if email:
-        user_key = resolve_user_key(email, USERS_MAP)
-        if not user_key:
+        resolved_user_key = resolve_user_key(email, USERS_MAP)
+        if not resolved_user_key:
             abort(403, "Access denied for this user.")
     elif token:
         if not PROXY_TOKEN or token != PROXY_TOKEN:
             abort(403, "Invalid or missing proxy token.")
-        user_key = resolve_user_key(os.getenv("REX_ACTIVE_USER"), USERS_MAP)
-        if not user_key:
+        resolved_user_key = resolve_user_key(os.getenv("REX_ACTIVE_USER"), USERS_MAP)
+        if not resolved_user_key:
             abort(403, "REX_ACTIVE_USER is not configured or invalid.")
     elif ALLOW_LOCAL and _is_loopback_address(remote_addr):
-        user_key = resolve_user_key(os.getenv("REX_ACTIVE_USER"), USERS_MAP)
-        if not user_key:
+        resolved_user_key = resolve_user_key(os.getenv("REX_ACTIVE_USER"), USERS_MAP)
+        if not resolved_user_key:
             abort(403, "Local access not permitted: REX_ACTIVE_USER missing.")
     else:
         abort(403, "No authenticated identity provided.")
 
+    user_key = resolved_user_key
     memory_path = os.path.join("Memory", user_key)
     try:
         memory = load_memory_profile(user_key)
