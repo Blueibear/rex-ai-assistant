@@ -44,3 +44,34 @@ def configure_logging(level: int = logging.INFO, handlers: Iterable[logging.Hand
         handlers = (stream_handler, file_handler, error_handler)
 
     logging.basicConfig(level=level, format=LOG_FORMAT, handlers=list(handlers))
+
+
+def get_logger(name: str, *, level: int | None = None) -> logging.Logger:
+    """Return a module-level logger backed by the shared configuration."""
+
+    configure_logging(level=level or logging.getLogger().level or logging.INFO)
+    logger = logging.getLogger(name)
+
+    if level is not None:
+        logger.setLevel(level)
+        for handler in logger.handlers:
+            handler.setLevel(level)
+
+    return logger
+
+
+def set_global_level(level: int) -> None:
+    """Update the configured logging level for all registered handlers."""
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+
+    for handler in root_logger.handlers:
+        handler.setLevel(level)
+
+    manager = logging.Logger.manager
+    for logger in manager.loggerDict.values():
+        if isinstance(logger, logging.Logger):
+            logger.setLevel(level)
+            for handler in logger.handlers:
+                handler.setLevel(level)

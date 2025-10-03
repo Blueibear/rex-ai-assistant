@@ -20,6 +20,13 @@ from logging_utils import get_logger
 logger = get_logger(__name__)
 
 
+def update_env_value(key: str, value: str) -> None:
+    """Persist an environment override to the shared .env file."""
+
+    set_key(str(ENV_PATH), key, value)
+    logger.info("Persisted %s = %s", key, value)
+
+
 def _require_sounddevice() -> None:
     if sd is None:
         raise AudioDeviceError("The 'sounddevice' package is required for audio device selection.")
@@ -34,8 +41,7 @@ def list_devices() -> List[dict]:
 
 
 def _set_device(env_key: str, device_id: int) -> None:
-    set_key(str(ENV_PATH), env_key, str(device_id))
-    logger.info("Persisted %s = %s", env_key, device_id)
+    update_env_value(env_key, str(device_id))
 
 
 def select_input(device_id: int) -> None:
@@ -124,6 +130,12 @@ def cli(argv: list[str] | None = None) -> int:
         return 1
 
 
+def main(argv: list[str] | None = None) -> int:
+    """Entry point used by unit tests to invoke the CLI."""
+
+    return cli(argv)
+
+
 if __name__ == "__main__":
-    raise SystemExit(cli())
+    raise SystemExit(main())
 
