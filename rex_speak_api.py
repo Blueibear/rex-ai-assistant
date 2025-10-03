@@ -63,6 +63,8 @@ if DEFAULT_USER not in USER_VOICES:
 
 xtts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, gpu=False)
 REQUIRED_API_KEY = os.getenv("REX_SPEAK_API_KEY")
+if not REQUIRED_API_KEY:
+    raise RuntimeError("REX_SPEAK_API_KEY is missing.")
 
 # ---------------------------------------------------------------------
 # Helpers
