@@ -1,4 +1,4 @@
-"""Helper utilities for loading Rex memory profiles and metadata."""
+"""Memory utility helpers for user profiles, history, and transcripts."""
 
 from __future__ import annotations
 
@@ -225,4 +225,3 @@ __all__ = [
     "load_recent_history",
     "export_transcript",
 ]
-

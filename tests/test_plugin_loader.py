@@ -3,16 +3,15 @@ from __future__ import annotations
 import textwrap
 import pytest
 
-# Codex-style plugin test (class-based with lifecycle methods)
+# Import both plugin loaders
 from rex.plugins import load_plugins as load_rex_plugins, shutdown_plugins
-
-# Master-style plugin loader test (dict-based plugin discovery)
 from plugin_loader import load_plugins as load_dict_plugins
 
 
 def test_class_based_plugin_loads_and_runs(tmp_path, monkeypatch):
     plugin_file = tmp_path / "plugins" / "demo.py"
     plugin_file.parent.mkdir(parents=True)
+
     plugin_file.write_text(
         textwrap.dedent(
             """

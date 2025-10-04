@@ -12,15 +12,14 @@ LOG_FORMAT = "[%(asctime)s] %(levelname)s - %(message)s"
 DEFAULT_LOG_FILE = Path("logs/rex.log")
 DEFAULT_ERROR_FILE = Path("logs/error.log")
 
-try:  # pragma: no cover - avoid circular imports during package init
+try:  # Avoid circular import issues
     from .config import settings
-except Exception:  # pragma: no cover - fallback when config not initialised
-    settings = None  # type: ignore[assignment]
+except Exception:
+    settings = None  # type: ignore
 
 
 def _resolve_path(candidate: str | os.PathLike[str], default: Path) -> Path:
-    path = Path(candidate) if candidate else default
-    return path
+    return Path(candidate) if candidate else default
 
 
 def configure_logging(level: int = logging.INFO, handlers: Iterable[logging.Handler] | None = None) -> None:
@@ -28,7 +27,7 @@ def configure_logging(level: int = logging.INFO, handlers: Iterable[logging.Hand
 
     root_logger = logging.getLogger()
     if root_logger.handlers:
-        return
+        return  # Already configured
 
     log_path = _resolve_path(getattr(settings, "log_path", DEFAULT_LOG_FILE), DEFAULT_LOG_FILE)
     error_path = _resolve_path(getattr(settings, "error_log_path", DEFAULT_ERROR_FILE), DEFAULT_ERROR_FILE)
@@ -75,3 +74,4 @@ def set_global_level(level: int) -> None:
             logger.setLevel(level)
             for handler in logger.handlers:
                 handler.setLevel(level)
+

@@ -12,9 +12,10 @@ from typing import Any, Dict, Iterable, Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
-try:  # pragma: no cover - optional helper for persisting .env
+# Optional dotenv support
+try:
     from dotenv import load_dotenv, set_key
-except ImportError:  # pragma: no cover - python-dotenv is optional at runtime
+except ImportError:
     def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
         env_path = Path.cwd() / ".env"
         if not env_path.exists():
@@ -40,14 +41,14 @@ except ImportError:  # pragma: no cover - python-dotenv is optional at runtime
             lines.append(f"{prefix}{value}")
         env_file.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
-try:  # pragma: no cover - pydantic may be unavailable in slim environments
+# Optional pydantic support
+try:
     from pydantic import BaseSettings, Field
     _HAS_PYDANTIC = True
-except ImportError:  # pragma: no cover - fallback to dataclass implementation
-    BaseSettings = object  # type: ignore[assignment]
-    Field = None  # type: ignore[assignment]
+except ImportError:
+    BaseSettings = object  # type: ignore
+    Field = None  # type: ignore
     _HAS_PYDANTIC = False
-
 
 _FIELD_DEFAULTS: Dict[str, Any] = {
     "whisper_model": "medium",
@@ -102,33 +103,30 @@ def _cast_value(key: str, raw: str) -> Any:
     if key in {"max_memory_items", "sample_rate"}:
         return int(raw)
     if key in {"input_device", "output_device"}:
-        return int(raw) if raw not in {"", "none", "None"} else None
+        return int(raw) if raw.lower() not in {"", "none"} else None
     return raw
 
 
 if _HAS_PYDANTIC:
-
     class Settings(BaseSettings):
-        """Typed configuration loaded from environment variables."""
-
-        whisper_model: str = Field(_FIELD_DEFAULTS["whisper_model"], env=["WHISPER_MODEL", "REX_WHISPER_MODEL"])
-        whisper_device: str = Field(_FIELD_DEFAULTS["whisper_device"], env=["WHISPER_DEVICE", "REX_WHISPER_DEVICE"])
-        temperature: float = Field(_FIELD_DEFAULTS["temperature"], env="REX_LLM_TEMPERATURE")
-        user_id: str = Field(_FIELD_DEFAULTS["user_id"], env="REX_ACTIVE_USER")
-        llm_model: str = Field(_FIELD_DEFAULTS["llm_model"], env="REX_LLM_MODEL")
-        llm_backend: str = Field(_FIELD_DEFAULTS["llm_backend"], env="REX_LLM_BACKEND")
-        max_memory_items: int = Field(_FIELD_DEFAULTS["max_memory_items"], env="REX_MEMORY_MAX_ITEMS")
-        wakeword_keyword: str = Field(_FIELD_DEFAULTS["wakeword_keyword"], env="REX_WAKEWORD_KEYWORD")
-        wakeword_threshold: float = Field(_FIELD_DEFAULTS["wakeword_threshold"], env="REX_WAKEWORD_THRESHOLD")
-        sample_rate: int = Field(_FIELD_DEFAULTS["sample_rate"], env="REX_SAMPLE_RATE")
-        detection_frame_seconds: float = Field(_FIELD_DEFAULTS["detection_frame_seconds"], env="REX_DETECTION_FRAME_SECONDS")
-        capture_seconds: float = Field(_FIELD_DEFAULTS["capture_seconds"], env="REX_CAPTURE_SECONDS")
-        wakeword_poll_interval: float = Field(_FIELD_DEFAULTS["wakeword_poll_interval"], env="REX_WAKEWORD_POLL_INTERVAL")
-        log_path: str = Field(_FIELD_DEFAULTS["log_path"], env="REX_LOG_PATH")
-        error_log_path: str = Field(_FIELD_DEFAULTS["error_log_path"], env="REX_ERROR_LOG_PATH")
-        transcripts_dir: str = Field(_FIELD_DEFAULTS["transcripts_dir"], env="REX_TRANSCRIPTS_DIR")
-        search_providers: str = Field(_FIELD_DEFAULTS["search_providers"], env="REX_SEARCH_PROVIDERS")
-        speak_language: str = Field(_FIELD_DEFAULTS["speak_language"], env="REX_SPEAK_LANGUAGE")
+        whisper_model: str = Field("medium", env=["WHISPER_MODEL", "REX_WHISPER_MODEL"])
+        whisper_device: str = Field("cuda", env=["WHISPER_DEVICE", "REX_WHISPER_DEVICE"])
+        temperature: float = Field(0.8, env="REX_LLM_TEMPERATURE")
+        user_id: str = Field("default", env="REX_ACTIVE_USER")
+        llm_model: str = Field("distilgpt2", env="REX_LLM_MODEL")
+        llm_backend: str = Field("transformers", env="REX_LLM_BACKEND")
+        max_memory_items: int = Field(50, env="REX_MEMORY_MAX_ITEMS")
+        wakeword_keyword: str = Field("hey_jarvis", env="REX_WAKEWORD_KEYWORD")
+        wakeword_threshold: float = Field(0.5, env="REX_WAKEWORD_THRESHOLD")
+        sample_rate: int = Field(16000, env="REX_SAMPLE_RATE")
+        detection_frame_seconds: float = Field(0.5, env="REX_DETECTION_FRAME_SECONDS")
+        capture_seconds: float = Field(5.0, env="REX_CAPTURE_SECONDS")
+        wakeword_poll_interval: float = Field(0.05, env="REX_WAKEWORD_POLL_INTERVAL")
+        log_path: str = Field("logs/rex.log", env="REX_LOG_PATH")
+        error_log_path: str = Field("logs/error.log", env="REX_ERROR_LOG_PATH")
+        transcripts_dir: str = Field("transcripts", env="REX_TRANSCRIPTS_DIR")
+        search_providers: str = Field("serpapi,brave,duckduckgo", env="REX_SEARCH_PROVIDERS")
+        speak_language: str = Field("en", env="REX_SPEAK_LANGUAGE")
         input_device: Optional[int] = Field(default=None, env="REX_INPUT_DEVICE")
         output_device: Optional[int] = Field(default=None, env="REX_OUTPUT_DEVICE")
 
@@ -137,31 +135,30 @@ if _HAS_PYDANTIC:
             env_file_encoding = "utf-8"
 
 else:
-
     @dataclasses.dataclass
     class Settings:
-        whisper_model: str = _FIELD_DEFAULTS["whisper_model"]
-        whisper_device: str = _FIELD_DEFAULTS["whisper_device"]
-        temperature: float = _FIELD_DEFAULTS["temperature"]
-        user_id: str = _FIELD_DEFAULTS["user_id"]
-        llm_model: str = _FIELD_DEFAULTS["llm_model"]
-        llm_backend: str = _FIELD_DEFAULTS["llm_backend"]
-        max_memory_items: int = _FIELD_DEFAULTS["max_memory_items"]
-        wakeword_keyword: str = _FIELD_DEFAULTS["wakeword_keyword"]
-        wakeword_threshold: float = _FIELD_DEFAULTS["wakeword_threshold"]
-        sample_rate: int = _FIELD_DEFAULTS["sample_rate"]
-        detection_frame_seconds: float = _FIELD_DEFAULTS["detection_frame_seconds"]
-        capture_seconds: float = _FIELD_DEFAULTS["capture_seconds"]
-        wakeword_poll_interval: float = _FIELD_DEFAULTS["wakeword_poll_interval"]
-        log_path: str = _FIELD_DEFAULTS["log_path"]
-        error_log_path: str = _FIELD_DEFAULTS["error_log_path"]
-        transcripts_dir: str = _FIELD_DEFAULTS["transcripts_dir"]
-        search_providers: str = _FIELD_DEFAULTS["search_providers"]
-        speak_language: str = _FIELD_DEFAULTS["speak_language"]
-        input_device: Optional[int] = _FIELD_DEFAULTS["input_device"]
-        output_device: Optional[int] = _FIELD_DEFAULTS["output_device"]
+        whisper_model: str = "medium"
+        whisper_device: str = "cuda"
+        temperature: float = 0.8
+        user_id: str = "default"
+        llm_model: str = "distilgpt2"
+        llm_backend: str = "transformers"
+        max_memory_items: int = 50
+        wakeword_keyword: str = "hey_jarvis"
+        wakeword_threshold: float = 0.5
+        sample_rate: int = 16000
+        detection_frame_seconds: float = 0.5
+        capture_seconds: float = 5.0
+        wakeword_poll_interval: float = 0.05
+        log_path: str = "logs/rex.log"
+        error_log_path: str = "logs/error.log"
+        transcripts_dir: str = "transcripts"
+        search_providers: str = "serpapi,brave,duckduckgo"
+        speak_language: str = "en"
+        input_device: Optional[int] = None
+        output_device: Optional[int] = None
 
-        def dict(self) -> Dict[str, Any]:  # pragma: no cover - simple accessor
+        def dict(self) -> Dict[str, Any]:
             return dataclasses.asdict(self)
 
 
@@ -169,20 +166,16 @@ else:
 def _load_settings() -> Settings:
     load_dotenv()
     if _HAS_PYDANTIC:
-        return Settings()  # type: ignore[call-arg]
-
+        return Settings()
     values: Dict[str, Any] = {}
-    for field, aliases in _ENV_ALIASES.items():
-        for env_var in aliases:
-            raw = os.getenv(env_var)
-            if raw is None or raw == "":
-                continue
-            try:
-                values[field] = _cast_value(field, raw)
-            except (TypeError, ValueError):
-                logger.warning("Invalid value for %s: %s", env_var, raw)
-                continue
-            else:
+    for key, aliases in _ENV_ALIASES.items():
+        for var in aliases:
+            raw = os.getenv(var)
+            if raw:
+                try:
+                    values[key] = _cast_value(key, raw)
+                except Exception:
+                    logger.warning("Invalid value for %s = %s", var, raw)
                 break
     return Settings(**values)
 
@@ -191,31 +184,21 @@ settings = _load_settings()
 
 
 def reload_settings() -> Settings:
-    """Force settings to be reloaded from the environment."""
-
     _load_settings.cache_clear()
     new_settings = _load_settings()
     globals()["settings"] = new_settings
     return new_settings
 
 
-def _env_path() -> Path:
-    return Path.cwd() / ".env"
-
-
 def update_env_value(key: str, value: str) -> None:
-    """Persist a configuration value into the ``.env`` file."""
-
-    env_path = _env_path()
-    env_path.parent.mkdir(parents=True, exist_ok=True)
-    set_key(str(env_path), key, value)
+    path = Path.cwd() / ".env"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    set_key(str(path), key, value)
     reload_settings()
 
 
 def _format_settings() -> Dict[str, Any]:
-    current = settings.dict()
-    current_sorted: Dict[str, Any] = dict(sorted(current.items()))
-    return current_sorted
+    return dict(sorted(settings.dict().items()))
 
 
 def _cli(argv: Iterable[str] | None = None) -> int:
@@ -235,10 +218,7 @@ def _cli(argv: Iterable[str] | None = None) -> int:
     if args.get:
         key = args.get.lower()
         value = settings.dict().get(key)
-        if value is None:
-            print("<unset>")
-        else:
-            print(value)
+        print(value if value is not None else "<unset>")
         return 0
 
     if args.show:
@@ -250,5 +230,6 @@ def _cli(argv: Iterable[str] | None = None) -> int:
     return 0
 
 
-if __name__ == "__main__":  # pragma: no cover - CLI entry point
+if __name__ == "__main__":
     raise SystemExit(_cli())
+

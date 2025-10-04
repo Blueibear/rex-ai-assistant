@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 from urllib.parse import quote_plus
+from typing import Optional
 
 from rex.config import settings
 from rex.plugins import Plugin
@@ -209,3 +209,4 @@ def search_duckduckgo(query: str) -> Optional[str]:
 def register() -> Plugin:
     """Plugin entry point for dynamic loading."""
     return WebSearchPlugin()
+

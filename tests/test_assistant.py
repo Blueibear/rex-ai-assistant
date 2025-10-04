@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-
 import rex.assistant as assistant_module
 
 
@@ -47,10 +46,14 @@ def test_assistant_generates_reply(monkeypatch, tmp_path):
     monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
 
     plugin_spec = assistant_module.PluginSpec(name="dummy", plugin=DummyPlugin())
-    assistant = assistant_module.Assistant(plugins=[plugin_spec], transcripts_dir=tmp_path)
+    assistant = assistant_module.Assistant(
+        plugins=[plugin_spec],
+        transcripts_dir=tmp_path  # Ensures transcript saving works without error
+    )
 
     reply = asyncio.run(_run_assistant(assistant))
 
     assert "hello" in reply
     assert "plugin info" in reply
     assert any("user:" in call for call in dummy_strategy.calls)
+

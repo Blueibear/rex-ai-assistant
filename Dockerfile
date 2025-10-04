@@ -18,17 +18,17 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy entire source code into image
+# Copy entire project
 COPY . .
 
-# Environment variables (set sensible defaults)
+# Environment variables (with sensible defaults)
 ENV PYTHONUNBUFFERED=1 \
     REX_WAKEWORD=rex \
     REX_DEVICE=cpu \
     REX_LOG_LEVEL=info
 
-# Mountable volume for memory or logs
+# Mountable volume for persistent memory (optional)
 VOLUME ["/app/Memory"]
 
-# Default command
+# Default command to run the assistant
 CMD ["python", "rex_assistant.py"]

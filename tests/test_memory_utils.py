@@ -1,8 +1,8 @@
 """Tests for the memory utility helpers."""
 
 from __future__ import annotations
-
 import config
+
 from memory_utils import (
     append_history_entry,
     export_transcript,
@@ -39,7 +39,6 @@ def test_extract_voice_reference_handles_missing(tmp_path):
 
 def test_trim_history_limits_entries():
     history = [{"id": i} for i in range(10)]
-
     trimmed = trim_history(history, limit=3)
 
     assert len(trimmed) == 3
@@ -82,7 +81,6 @@ def test_export_transcript_appends(monkeypatch, tmp_path):
 
 
 def test_export_transcript_creates_directory(monkeypatch, tmp_path):
-    """Ensure export_transcript creates the transcripts directory if missing."""
     transcripts_dir = tmp_path / "not_yet_there"
     cfg = config.AppConfig(transcripts_dir=transcripts_dir)
     monkeypatch.setattr(config, "_cached_config", cfg, raising=False)
@@ -95,7 +93,6 @@ def test_export_transcript_creates_directory(monkeypatch, tmp_path):
 
 
 def test_load_recent_history_with_missing_file(tmp_path):
-    """Test graceful handling when no history file exists."""
     entries = load_recent_history("ghost", memory_root=tmp_path)
     assert isinstance(entries, list)
     assert len(entries) == 0, "Should return empty list if no memory exists"

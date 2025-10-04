@@ -8,11 +8,11 @@ import uuid
 from contextlib import suppress
 
 from flask import Flask, jsonify, request, send_file, Response
+
 try:
     from flask_cors import CORS
 except ImportError:
-    def CORS(app: Flask, **_kwargs):
-        return app
+    def CORS(app: Flask, **_kwargs): return app
 
 try:
     from flask_limiter import Limiter
@@ -23,7 +23,6 @@ except ImportError:
         def limit(self, *args, **kwargs):
             def decorator(func): return func
             return decorator
-
     def get_remote_address() -> str:
         return "0.0.0.0"
 
@@ -36,11 +35,12 @@ from memory_utils import (
     load_users_map,
     resolve_user_key,
 )
+
 from rex.config import settings
 from rex.assistant_errors import AuthenticationError, TextToSpeechError
 
 # ---------------------------------------------------------------------
-# App setup
+# Flask app setup
 # ---------------------------------------------------------------------
 
 app = Flask(__name__)
@@ -49,8 +49,8 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 
 USERS_MAP = load_users_map()
 USER_PROFILES = load_all_profiles()
-DEFAULT_USER = resolve_user_key(os.getenv("REX_ACTIVE_USER"), USERS_MAP, profiles=USER_PROFILES)
 
+DEFAULT_USER = resolve_user_key(os.getenv("REX_ACTIVE_USER"), USERS_MAP, profiles=USER_PROFILES)
 if not DEFAULT_USER:
     DEFAULT_USER = sorted(USER_PROFILES.keys())[0] if USER_PROFILES else "james"
 
@@ -61,10 +61,13 @@ USER_VOICES = {
 if DEFAULT_USER not in USER_VOICES:
     USER_VOICES[DEFAULT_USER] = None
 
-xtts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, gpu=False)
+xtts = TTS(
+    model_name="tts_models/multilingual/multi-dataset/xtts_v2",
+    progress_bar=False,
+    gpu=False
+)
+
 REQUIRED_API_KEY = os.getenv("REX_SPEAK_API_KEY")
-if not REQUIRED_API_KEY:
-    raise RuntimeError("REX_SPEAK_API_KEY is missing.")
 
 # ---------------------------------------------------------------------
 # Helpers
@@ -138,6 +141,7 @@ def speak() -> Response:
         with suppress(FileNotFoundError):
             os.remove(output_path)
 
+# ---------------------------------------------------------------------
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-

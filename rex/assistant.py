@@ -63,6 +63,7 @@ class Assistant:
         plugin_enrichments = await self._run_plugins(transcript)
         if plugin_enrichments:
             completion = f"{completion}\n\nAdditional info:\n" + "\n".join(plugin_enrichments)
+
         self._log_turn(transcript, completion)
         return completion
 
@@ -103,3 +104,4 @@ class Assistant:
 
 
 __all__ = ["Assistant", "ConversationTurn", "PluginSpec"]
+

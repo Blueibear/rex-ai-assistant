@@ -160,4 +160,3 @@ class LanguageModel:
         if not prompt or not prompt.strip():
             raise ValueError("Prompt must not be empty.")
         return self.strategy.generate(prompt, config or self.generation)
-
