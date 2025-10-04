@@ -1,8 +1,15 @@
 {
   "name": "James",
   "role": "Owner and primary user",
+  "user": "james",
+  "personality_traits": [
+    "curious",
+    "strategic",
+    "creative"
+  ],
   "preferences": {
     "tone": "direct and insightful",
+    "conversation_style": "pragmatic",
     "topics": [
       "AI",
       "automation",
@@ -11,11 +18,9 @@
       "voice assistants"
     ]
   },
-  "personality_traits": [
-    "curious",
-    "strategic",
-    "creative"
-  ],
-  "user": "james",
-  "voice_sample": "C:\\AI\\CoquiXTTS\\cleaned_jensen.wav"
+  "voice_sample": "C:/AI/CoquiXTTS/cleaned_jensen.wav",
+  "voice_speaker": "james_xtts",
+  "testing_mode": false,
+  "created_at": "2025-09-23T00:00:00Z",
+  "last_updated": "2025-09-23T00:00:00Z"
 }

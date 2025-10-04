@@ -7,21 +7,17 @@ from typing import Dict, Optional, Protocol
 
 from .config import settings
 
-try:  # pragma: no cover - optional dependency
-    import torch  # type: ignore[import-not-found]
-except (ImportError, OSError):  # pragma: no cover - torch is optional
-    torch = None  # type: ignore[assignment]
+try:
+    import torch
+except (ImportError, OSError):
+    torch = None
 
-try:  # pragma: no cover - optional dependency
-    from transformers import (  # type: ignore[import-not-found]
-        AutoModelForCausalLM,
-        AutoTokenizer,
-        pipeline as hf_pipeline,
-    )
-except (ImportError, OSError):  # pragma: no cover - transformers optional
-    AutoModelForCausalLM = None  # type: ignore[assignment]
-    AutoTokenizer = None  # type: ignore[assignment]
-    hf_pipeline = None  # type: ignore[assignment]
+try:
+    from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline as hf_pipeline
+except (ImportError, OSError):
+    AutoModelForCausalLM = None
+    AutoTokenizer = None
+    hf_pipeline = None
 
 
 class LLMDependencyError(RuntimeError):
@@ -40,8 +36,7 @@ class GenerationConfig:
 class LLMStrategy(Protocol):
     name: str
 
-    def generate(self, prompt: str, config: GenerationConfig) -> str:
-        ...
+    def generate(self, prompt: str, config: GenerationConfig) -> str: ...
 
 
 class _EchoTokenizer:
@@ -64,7 +59,7 @@ class EchoStrategy:
         completion = f"[{self.model_name}] {prompt.strip()}" if prompt.strip() else f"[{self.model_name}]"
         if prompt and not prompt.endswith(" "):
             prompt = f"{prompt} "
-        return f"{prompt}{completion}"[len(prompt) :].strip() or "(silence)"
+        return f"{prompt}{completion}"[len(prompt):].strip() or "(silence)"
 
 
 class TransformersStrategy:
@@ -87,7 +82,7 @@ class TransformersStrategy:
                 device=device_index,
             )
             self.tokenizer = self.pipeline.tokenizer
-        except Exception as exc:  # pragma: no cover - defensive guard
+        except Exception as exc:
             raise LLMDependencyError(str(exc)) from exc
 
         if getattr(self.tokenizer, "pad_token_id", None) is None:
@@ -110,9 +105,10 @@ class TransformersStrategy:
         if not outputs:
             raise RuntimeError("Language model returned no candidates.")
         generated = outputs[0]["generated_text"]
-        return generated[len(prompt) :].strip() or "(silence)"
+        return generated[len(prompt):].strip() or "(silence)"
 
 
+# Registry for plug-and-play backends
 _STRATEGIES: Dict[str, type[LLMStrategy]] = {
     EchoStrategy.name: EchoStrategy,
     TransformersStrategy.name: TransformersStrategy,
@@ -162,9 +158,9 @@ class LanguageModel:
     def generate(self, prompt: str, *, config: Optional[GenerationConfig] = None) -> str:
         if not prompt or not prompt.strip():
             raise ValueError("Prompt must not be empty.")
-
         active_config = config or self._config
         return self._strategy.generate(prompt, active_config)
 
 
 __all__ = ["LanguageModel", "GenerationConfig", "register_strategy", "LLMDependencyError"]
+

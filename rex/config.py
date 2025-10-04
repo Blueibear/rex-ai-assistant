@@ -1,133 +1,213 @@
-"""Configuration management for the Rex assistant."""
+"""Central configuration management for the Rex assistant."""
 
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import logging
 import os
 from functools import lru_cache
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Dict, Iterable, Optional, Sequence
 
-# ``python-dotenv`` is an optional helper; provide a tiny fallback so the
-# configuration module still imports when the dependency is absent (for
-# example in constrained test environments).
-try:  # pragma: no cover - exercised in environments without dotenv
-    from dotenv import load_dotenv, set_key  # type: ignore[import-not-found]
-except Exception:  # pragma: no cover - defensive fallback
+logger = logging.getLogger(__name__)
+
+# Optional dotenv support
+try:
+    from dotenv import load_dotenv, set_key
+except ImportError:
     def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
-        return False
+        env_path = Path.cwd() / ".env"
+        if not env_path.exists():
+            return False
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            if not line or line.lstrip().startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip())
+        return True
 
-    def set_key(path: str, key: str, value: str) -> tuple[str, str, bool]:
+    def set_key(dotenv_path: str, key: str, value: str) -> None:
+        env_file = Path(dotenv_path)
         lines: list[str] = []
-        updated = False
-        if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as handle:
-                for line in handle:
-                    if line.startswith(f"{key}="):
-                        lines.append(f"{key}={value}\n")
-                        updated = True
-                    else:
-                        lines.append(line)
-        if not updated:
-            lines.append(f"{key}={value}\n")
-        with open(path, "w", encoding="utf-8") as handle:
-            handle.writelines(lines)
-        return (key, value, True)
+        if env_file.exists():
+            lines = env_file.read_text(encoding="utf-8").splitlines()
+        prefix = f"{key}="
+        for index, line in enumerate(lines):
+            if line.startswith(prefix):
+                lines[index] = f"{prefix}{value}"
+                break
+        else:
+            lines.append(f"{prefix}{value}")
+        env_file.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
-try:  # pragma: no cover - optional dependency
-    from pydantic import BaseSettings, Field, ValidationError  # type: ignore[import-not-found]
-except Exception:  # pragma: no cover - minimal shim for tests
-    class ValidationError(Exception):
-        """Fallback validation error used when pydantic is unavailable."""
+# Optional pydantic support
+try:
+    from pydantic import BaseSettings, Field
+    _HAS_PYDANTIC = True
+except ImportError:
+    BaseSettings = object  # type: ignore
+    Field = None  # type: ignore
+    _HAS_PYDANTIC = False
 
-    class _FieldInfo:
-        __slots__ = ("default", "env")
+_FIELD_DEFAULTS: Dict[str, Any] = {
+    "whisper_model": "medium",
+    "whisper_device": "cuda",
+    "temperature": 0.8,
+    "user_id": "default",
+    "llm_model": "distilgpt2",
+    "llm_backend": "transformers",
+    "max_memory_items": 50,
+    "wakeword_keyword": "hey_jarvis",
+    "wakeword_threshold": 0.5,
+    "sample_rate": 16000,
+    "detection_frame_seconds": 0.5,
+    "capture_seconds": 5.0,
+    "wakeword_poll_interval": 0.05,
+    "log_path": "logs/rex.log",
+    "error_log_path": "logs/error.log",
+    "transcripts_dir": "transcripts",
+    "search_providers": "serpapi,brave,duckduckgo",
+    "speak_language": "en",
+    "input_device": None,
+    "output_device": None,
+}
 
-        def __init__(self, default: Any, env: str | None = None) -> None:
-            self.default = default
-            self.env = env
-
-    def Field(default: Any, *, env: str | None = None) -> _FieldInfo:
-        return _FieldInfo(default, env)
-
-    class BaseSettings:
-        """Tiny subset of ``pydantic.BaseSettings`` used in tests."""
-
-        def __init__(self, **overrides: Any) -> None:
-            values: dict[str, Any] = {}
-            annotations = getattr(self, "__annotations__", {})
-            for name, annotation in annotations.items():
-                field_info = getattr(self.__class__, name, None)
-                if isinstance(field_info, _FieldInfo):
-                    env_value = os.getenv(field_info.env or "") if field_info.env else None
-                    raw = env_value if env_value not in (None, "") else field_info.default
-                else:
-                    raw = getattr(self.__class__, name, None)
-                if name in overrides:
-                    raw = overrides[name]
-                values[name] = self._coerce(annotation, raw)
-            for name, value in values.items():
-                setattr(self, name, value)
-
-        def _coerce(self, annotation: Any, value: Any) -> Any:
-            try:
-                if annotation in (float, Optional[float]):
-                    return float(value)
-                if annotation in (int, Optional[int]):
-                    return int(value)
-            except (TypeError, ValueError):
-                raise ValidationError(f"Invalid value for {annotation}: {value}")
-            return value
-
-        def dict(self) -> dict[str, Any]:
-            return {name: getattr(self, name) for name in getattr(self, "__annotations__", {})}
-
-load_dotenv()
+_ENV_ALIASES: Dict[str, Sequence[str]] = {
+    "whisper_model": ("WHISPER_MODEL", "REX_WHISPER_MODEL"),
+    "whisper_device": ("WHISPER_DEVICE", "REX_WHISPER_DEVICE"),
+    "temperature": ("REX_LLM_TEMPERATURE",),
+    "user_id": ("REX_ACTIVE_USER",),
+    "llm_model": ("REX_LLM_MODEL",),
+    "llm_backend": ("REX_LLM_BACKEND",),
+    "max_memory_items": ("REX_MEMORY_MAX_ITEMS",),
+    "wakeword_keyword": ("REX_WAKEWORD_KEYWORD",),
+    "wakeword_threshold": ("REX_WAKEWORD_THRESHOLD",),
+    "sample_rate": ("REX_SAMPLE_RATE",),
+    "detection_frame_seconds": ("REX_DETECTION_FRAME_SECONDS",),
+    "capture_seconds": ("REX_CAPTURE_SECONDS",),
+    "wakeword_poll_interval": ("REX_WAKEWORD_POLL_INTERVAL",),
+    "log_path": ("REX_LOG_PATH",),
+    "error_log_path": ("REX_ERROR_LOG_PATH",),
+    "transcripts_dir": ("REX_TRANSCRIPTS_DIR",),
+    "search_providers": ("REX_SEARCH_PROVIDERS",),
+    "speak_language": ("REX_SPEAK_LANGUAGE",),
+    "input_device": ("REX_INPUT_DEVICE",),
+    "output_device": ("REX_OUTPUT_DEVICE",),
+}
 
 
-class Settings(BaseSettings):
-    """Centralised configuration backed by environment variables."""
+def _cast_value(key: str, raw: str) -> Any:
+    if key in {"temperature", "wakeword_threshold", "detection_frame_seconds", "capture_seconds", "wakeword_poll_interval"}:
+        return float(raw)
+    if key in {"max_memory_items", "sample_rate"}:
+        return int(raw)
+    if key in {"input_device", "output_device"}:
+        return int(raw) if raw.lower() not in {"", "none"} else None
+    return raw
 
-    whisper_model: str = Field("base", env="REX_WHISPER_MODEL")
-    temperature: float = Field(0.8, env="REX_LLM_TEMPERATURE")
-    user_id: str = Field("default", env="REX_ACTIVE_USER")
-    llm_model: str = Field("distilgpt2", env="REX_LLM_MODEL")
-    llm_backend: str = Field("transformers", env="REX_LLM_BACKEND")
-    max_memory_items: int = Field(50, env="REX_MEMORY_MAX_ITEMS")
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+if _HAS_PYDANTIC:
+    class Settings(BaseSettings):
+        whisper_model: str = Field("medium", env=["WHISPER_MODEL", "REX_WHISPER_MODEL"])
+        whisper_device: str = Field("cuda", env=["WHISPER_DEVICE", "REX_WHISPER_DEVICE"])
+        temperature: float = Field(0.8, env="REX_LLM_TEMPERATURE")
+        user_id: str = Field("default", env="REX_ACTIVE_USER")
+        llm_model: str = Field("distilgpt2", env="REX_LLM_MODEL")
+        llm_backend: str = Field("transformers", env="REX_LLM_BACKEND")
+        max_memory_items: int = Field(50, env="REX_MEMORY_MAX_ITEMS")
+        wakeword_keyword: str = Field("hey_jarvis", env="REX_WAKEWORD_KEYWORD")
+        wakeword_threshold: float = Field(0.5, env="REX_WAKEWORD_THRESHOLD")
+        sample_rate: int = Field(16000, env="REX_SAMPLE_RATE")
+        detection_frame_seconds: float = Field(0.5, env="REX_DETECTION_FRAME_SECONDS")
+        capture_seconds: float = Field(5.0, env="REX_CAPTURE_SECONDS")
+        wakeword_poll_interval: float = Field(0.05, env="REX_WAKEWORD_POLL_INTERVAL")
+        log_path: str = Field("logs/rex.log", env="REX_LOG_PATH")
+        error_log_path: str = Field("logs/error.log", env="REX_ERROR_LOG_PATH")
+        transcripts_dir: str = Field("transcripts", env="REX_TRANSCRIPTS_DIR")
+        search_providers: str = Field("serpapi,brave,duckduckgo", env="REX_SEARCH_PROVIDERS")
+        speak_language: str = Field("en", env="REX_SPEAK_LANGUAGE")
+        input_device: Optional[int] = Field(default=None, env="REX_INPUT_DEVICE")
+        output_device: Optional[int] = Field(default=None, env="REX_OUTPUT_DEVICE")
+
+        class Config:
+            env_file = ".env"
+            env_file_encoding = "utf-8"
+
+else:
+    @dataclasses.dataclass
+    class Settings:
+        whisper_model: str = "medium"
+        whisper_device: str = "cuda"
+        temperature: float = 0.8
+        user_id: str = "default"
+        llm_model: str = "distilgpt2"
+        llm_backend: str = "transformers"
+        max_memory_items: int = 50
+        wakeword_keyword: str = "hey_jarvis"
+        wakeword_threshold: float = 0.5
+        sample_rate: int = 16000
+        detection_frame_seconds: float = 0.5
+        capture_seconds: float = 5.0
+        wakeword_poll_interval: float = 0.05
+        log_path: str = "logs/rex.log"
+        error_log_path: str = "logs/error.log"
+        transcripts_dir: str = "transcripts"
+        search_providers: str = "serpapi,brave,duckduckgo"
+        speak_language: str = "en"
+        input_device: Optional[int] = None
+        output_device: Optional[int] = None
+
+        def dict(self) -> Dict[str, Any]:
+            return dataclasses.asdict(self)
 
 
 @lru_cache(maxsize=1)
 def _load_settings() -> Settings:
-    try:
+    load_dotenv()
+    if _HAS_PYDANTIC:
         return Settings()
-    except ValidationError as exc:  # pragma: no cover - defensive guard
-        logging.getLogger(__name__).error("Invalid configuration: %s", exc)
-        raise
+    values: Dict[str, Any] = {}
+    for key, aliases in _ENV_ALIASES.items():
+        for var in aliases:
+            raw = os.getenv(var)
+            if raw:
+                try:
+                    values[key] = _cast_value(key, raw)
+                except Exception:
+                    logger.warning("Invalid value for %s = %s", var, raw)
+                break
+    return Settings(**values)
 
 
 settings = _load_settings()
 
 
-def update_env_value(key: str, value: str) -> None:
-    """Persist a configuration value into the ``.env`` file."""
-
-    env_path = os.path.join(os.getcwd(), ".env")
-    set_key(env_path, key, value)
+def reload_settings() -> Settings:
     _load_settings.cache_clear()
-    globals()["settings"] = _load_settings()
+    new_settings = _load_settings()
+    globals()["settings"] = new_settings
+    return new_settings
 
 
-def _cli(argv: list[str] | None = None) -> int:
+def update_env_value(key: str, value: str) -> None:
+    path = Path.cwd() / ".env"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    set_key(str(path), key, value)
+    reload_settings()
+
+
+def _format_settings() -> Dict[str, Any]:
+    return dict(sorted(settings.dict().items()))
+
+
+def _cli(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Manage Rex configuration values.")
     parser.add_argument("--set", nargs=2, metavar=("KEY", "VALUE"), help="Persist a key/value pair to .env")
     parser.add_argument("--get", metavar="KEY", help="Print a single configuration value")
     parser.add_argument("--show", action="store_true", help="Print all resolved configuration values")
 
-    args = parser.parse_args(argv)
+    args = parser.parse_args(list(argv) if argv is not None else None)
 
     if args.set:
         key, value = args.set
@@ -136,15 +216,13 @@ def _cli(argv: list[str] | None = None) -> int:
         return 0
 
     if args.get:
-        current = _load_settings().dict().get(args.get.lower())
-        if current is None:
-            print("<unset>")
-        else:
-            print(current)
+        key = args.get.lower()
+        value = settings.dict().get(key)
+        print(value if value is not None else "<unset>")
         return 0
 
     if args.show:
-        for key, value in _load_settings().dict().items():
+        for key, value in _format_settings().items():
             print(f"{key}: {value}")
         return 0
 
@@ -152,5 +230,6 @@ def _cli(argv: list[str] | None = None) -> int:
     return 0
 
 
-if __name__ == "__main__":  # pragma: no cover - CLI entry point
+if __name__ == "__main__":
     raise SystemExit(_cli())
+
