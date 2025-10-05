@@ -7,7 +7,7 @@ import secrets
 import uuid
 from contextlib import suppress
 
-from flask import Flask, Response, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, Response
 from werkzeug.exceptions import BadRequest
 
 # Optional dependencies with fallbacks
@@ -65,18 +65,16 @@ if DEFAULT_USER not in USER_VOICES:
 
 xtts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, gpu=False)
 REQUIRED_API_KEY = os.getenv("REX_SPEAK_API_KEY")
-
 if not REQUIRED_API_KEY:
-    raise RuntimeError(
-        "REX_SPEAK_API_KEY must be set before starting the speech API. "
-        "Set a strong key or disable the service to avoid anonymous access."
-    )
+    raise RuntimeError("REX_SPEAK_API_KEY must be set before starting the speech API. "
+                       "Set a strong key or disable the service to avoid anonymous access.")
 
 # ---------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------
 
 def _require_api_key() -> None:
+    """Check the API key header if required."""
     if not REQUIRED_API_KEY:
         return
     provided = request.headers.get("X-API-Key") or request.headers.get("Authorization")
@@ -102,6 +100,7 @@ def _handle_tts_error(exc: TextToSpeechError):
 @app.route("/speak", methods=["POST"])
 @limiter.limit("15 per minute")
 def speak() -> Response:
+    """Convert text to speech and return a WAV file."""
     _require_api_key()
 
     try:
@@ -141,3 +140,6 @@ def speak() -> Response:
     finally:
         with suppress(FileNotFoundError):
             os.remove(output_path)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)

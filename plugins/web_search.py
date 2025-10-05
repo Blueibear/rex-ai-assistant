@@ -23,7 +23,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# API URLs
+# API Endpoints
 SERPAPI_URL = "https://serpapi.com/search"
 BRAVE_URL = "https://api.search.brave.com/res/v1/web/search"
 GOOGLE_URL = "https://www.googleapis.com/customsearch/v1"
@@ -135,6 +135,51 @@ class WebSearchPlugin:
             logger.warning("DuckDuckGo search failed: %s", exc)
             return None
 
+    def _search_google(self, query: str) -> Optional[str]:
+        api_key = os.getenv("GOOGLE_API_KEY")
+        engine_id = os.getenv("GOOGLE_CSE_ID")
+        if not api_key or not engine_id:
+            return None
+        params = {"q": query, "key": api_key, "cx": engine_id, "num": 3}
+        try:
+            resp = self._session.get(GOOGLE_URL, params=params, timeout=10)
+            resp.raise_for_status()
+            items = resp.json().get("items", [])
+            if not items:
+                return None
+            top = items[0]
+            return self._format_result(top["title"], top["link"], top.get("snippet", ""))
+        except Exception as e:
+            logger.warning("Google CSE search failed: %s", e)
+            return None
+
+    def _search_browserless(self, query: str) -> Optional[str]:
+        token = os.getenv("BROWSERLESS_API_KEY")
+        if not token or BeautifulSoup is None:
+            return None
+        payload = {
+            "url": f"https://duckduckgo.com/?q={quote_plus(query)}",
+            "gotoOptions": {"waitUntil": "networkidle2"},
+        }
+        headers = {"Cache-Control": "no-cache", "Content-Type": "application/json"}
+        try:
+            resp = self._session.post(
+                BROWSERLESS_URL,
+                headers=headers,
+                params={"token": token},
+                json=payload,
+                timeout=20
+            )
+            resp.raise_for_status()
+            soup = BeautifulSoup(resp.text, "html.parser")
+            result = soup.find("a", class_="result__a")
+            snippet = soup.find("a", class_="result__snippet")
+            if result:
+                return self._format_result(result.text, result["href"], snippet.text if snippet else "")
+        except Exception as e:
+            logger.warning("Browserless search failed: %s", e)
+            return None
+
 
 # --- Singleton Plugin Pattern ---
 
@@ -152,21 +197,20 @@ def _get_plugin() -> WebSearchPlugin:
 # --- Public API ---
 
 def search_web(query: str) -> Optional[str]:
-    """Return the first available result from the configured providers."""
+    """Search the web using the configured fallback order."""
     return _get_plugin().process(query)
 
 
 def search_serpapi(query: str) -> Optional[str]:
-    """Directly query SerpAPI (if configured)."""
+    """Force a SerpAPI search (if available)."""
     return _get_plugin()._search_serpapi(query)
 
 
 def search_duckduckgo(query: str) -> Optional[str]:
-    """Directly perform a DuckDuckGo HTML scrape."""
+    """Perform a DuckDuckGo HTML scrape."""
     return _get_plugin()._search_duckduckgo(query)
 
 
 def register() -> Plugin:
-    """Plugin registration entry point."""
+    """Plugin entry point for dynamic loading."""
     return WebSearchPlugin()
-

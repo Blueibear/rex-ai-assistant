@@ -10,7 +10,7 @@ import llm_client as impl
 
 
 def test_language_model_generates_text():
-    """Test standard generation using a Hugging Face model."""
+    """Test standard generation using a Hugging Face model (tiny GPT-2)."""
     cfg = AppConfig(
         wakeword="rex",
         llm_model="sshleifer/tiny-gpt2",
@@ -27,7 +27,7 @@ def test_language_model_generates_text():
 
 
 def test_language_model_rejects_empty_prompt():
-    """Ensure empty prompts raise ValueError."""
+    """Empty or whitespace prompts should raise a ValueError."""
     cfg = AppConfig(llm_model="sshleifer/tiny-gpt2", llm_provider="transformers")
     model = LanguageModel(cfg)
 

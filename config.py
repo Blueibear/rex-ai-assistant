@@ -12,7 +12,8 @@ try:
     from dotenv import load_dotenv, set_key
 except ImportError:
     def load_dotenv(*args, **kwargs): return False
-    def set_key(env_path: str, key: str, value: str):  # naive fallback
+
+    def set_key(env_path: str, key: str, value: str):
         path = Path(env_path)
         lines = [line for line in path.read_text().splitlines() if not line.startswith(f"{key}=")] if path.exists() else []
         lines.append(f"{key}={value}")
@@ -24,9 +25,8 @@ from logging_utils import get_logger, set_global_level
 
 LOGGER = get_logger(__name__)
 
-ENV_PATH = Path(__file__).resolve().parent / ".env"
+ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 REQUIRED_ENV_KEYS = {"REX_WAKEWORD"}
-
 
 @dataclass
 class AppConfig:
@@ -62,7 +62,7 @@ class AppConfig:
 
     brave_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
-    openai_model: Optional[str] = None  # New optional override
+    openai_model: Optional[str] = None
 
     def to_dict(self) -> dict:
         raw = asdict(self)
@@ -126,6 +126,14 @@ def _parse_optional_int(value: Optional[str]) -> Optional[int]:
         raise ConfigurationError(f"Invalid integer: {value}") from exc
 
 
+def _first_env_value(*keys: str) -> Optional[str]:
+    for key in keys:
+        value = os.getenv(key)
+        if value not in (None, ""):
+            return value
+    return None
+
+
 def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> AppConfig:
     global _cached_config
     if _cached_config is not None and not reload:
@@ -167,8 +175,8 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> App
         default_user=getenv("REX_ACTIVE_USER"),
         wake_sound_path=getenv("REX_WAKE_SOUND"),
 
-        audio_input_device=_parse_optional_int(getenv("REX_AUDIO_INPUT_DEVICE")),
-        audio_output_device=_parse_optional_int(getenv("REX_AUDIO_OUTPUT_DEVICE")),
+        audio_input_device=_parse_optional_int(_first_env_value("REX_INPUT_DEVICE", "REX_AUDIO_INPUT_DEVICE")),
+        audio_output_device=_parse_optional_int(_first_env_value("REX_OUTPUT_DEVICE", "REX_AUDIO_OUTPUT_DEVICE")),
 
         debug_logging=_parse_bool(getenv("REX_DEBUG_LOGGING")),
         conversation_export=_parse_bool(getenv("REX_CONVERSATION_EXPORT"), default=True),
@@ -196,7 +204,7 @@ def validate_config(config: AppConfig) -> None:
         raise ConfigurationError("wakeword_window must be positive.")
     if config.llm_max_tokens <= 0:
         raise ConfigurationError("llm_max_tokens must be positive.")
-    if config.llm_temperature < 0 or config.llm_temperature > 5.0:
+    if not (0 <= config.llm_temperature <= 5.0):
         raise ConfigurationError("llm_temperature must be between 0 and 5.")
     if config.memory_max_turns <= 0:
         raise ConfigurationError("memory_max_turns must be positive.")
@@ -253,7 +261,10 @@ def cli(argv: Optional[List[str]] = None) -> int:
     return 0
 
 
-if __name__ == "__main__":  # pragma: no cover
+# Expose a module-level settings instance
+settings = load_config()
+
+if __name__ == "__main__":
     try:
         raise SystemExit(cli())
     except ConfigurationError as exc:

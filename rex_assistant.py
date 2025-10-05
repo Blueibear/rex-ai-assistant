@@ -38,7 +38,7 @@ async def _chat_loop(assistant: Assistant) -> None:
 
         try:
             reply = await assistant.generate_reply(user_input)
-        except Exception as exc:  # pragma: no cover
+        except Exception as exc:  # pragma: no cover - runtime safeguard
             logger.exception("Assistant failed to generate a reply: %s", exc)
             print(f"[error] {exc}")
             continue
@@ -59,11 +59,11 @@ async def _run() -> None:
 def main() -> int:
     try:
         asyncio.run(_run())
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover - manual interruption
         print("\nInterrupted.")
     return 0
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover - CLI entry point
     raise SystemExit(main())
 

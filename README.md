@@ -45,7 +45,6 @@ All audio processing, inference, and data stay on your machine unless you explic
 git clone https://github.com/Blueibear/rex-ai-assistant.git
 cd rex-ai-assistant
 
-# Create and activate a virtual environment
 python -m venv .venv
 # On Windows PowerShell:
 .\.venv\Scriptsctivate
@@ -54,35 +53,31 @@ python -m venv .venv
 
 pip install --upgrade pip
 pip install -r requirements.txt
-
-# Optional: install speech + language model stack (Whisper, Torch, XTTS)
-pip install -r requirements-ml.txt
-
-# Optional: developer tooling (pytest, coverage)
-pip install -r requirements-dev.txt
+pip install -r requirements-ml.txt  # optional
+pip install -r requirements-dev.txt  # optional
 ```
 
 ---
 
-### Enable GPU (CUDA) Support
+### Enable GPU (CUDA) Support (for your RTX GPU)
 
 ```bash
 pip uninstall -y torch torchvision torchaudio
 pip install torch==2.6.0+cu118 torchvision==0.21.0+cu118 torchaudio==2.6.0+cu118 --index-url https://download.pytorch.org/whl/cu118
 ```
 
-Verify with:
+Verify:
 
 ```python
 import torch
-print(torch.__version__)               
-print(torch.cuda.is_available())       
-print(torch.cuda.get_device_name(0))   
+print(torch.__version__)
+print(torch.cuda.is_available())
+print(torch.cuda.get_device_name(0))
 ```
 
 ---
 
-### Audio Device Setup
+### Select Audio Devices (Optional)
 
 ```bash
 python audio_devices.py --list
@@ -92,21 +87,25 @@ python audio_devices.py --set-output <device_id>
 
 ---
 
-### Run the Assistant
+### Launch the Assistant
 
 ```bash
 python rex_loop.py
 ```
 
+Say your wake word and interact. To exit: Ctrl+C or type "exit".
+
 ---
 
-### TTS HTTP API
+## 🔉 TTS HTTP API
+
+Start the API server:
 
 ```bash
 python rex_speak_api.py
 ```
 
-POST to `/speak`:
+Send a request:
 
 ```http
 POST /speak
@@ -119,65 +118,68 @@ X-API-Key: your_secret
 }
 ```
 
----
-
-## ⚙️ Environment Variables
-
-| Variable | Purpose | Default |
-|---|---|---|
-| `REX_ACTIVE_USER` | Active profile | auto-detected |
-| `REX_WAKEWORD` | Wake phrase | `rex` |
-| `REX_WAKEWORD_THRESHOLD` | Sensitivity | `0.5` |
-| `WHISPER_MODEL` | Whisper size | `medium` |
-| `WHISPER_DEVICE` | CPU/GPU | `cuda` |
-| `REX_LLM_MODEL`, `REX_LLM_MAX_TOKENS`, `REX_LLM_TEMPERATURE` | Language model settings | – |
-| `SERPAPI_KEY` | Enables SerpAPI search | optional |
-| `REX_SPEAK_API_KEY` | Secures `/speak` endpoint | optional |
-| `REX_PROXY_TOKEN`, `REX_PROXY_ALLOW_LOCAL` | Proxy config | – |
+Returns a WAV file.
 
 ---
 
-## 🧠 Memory / Profiles
+## ⚙️ Configuration & Environment Variables
 
-Each user folder under `Memory/` includes:
+| Variable | Purpose | Notes / Default |
+|---|---------|-----------------|
+| `REX_ACTIVE_USER` | Select initial user profile | defaults to first profile |
+| `REX_WAKEWORD` | Desired wake phrase | fallback ONNX if no custom model |
+| `REX_WAKEWORD_THRESHOLD` | Sensitivity level | default ~0.5 |
+| `WHISPER_MODEL` / `REX_WHISPER_MODEL` | Whisper model size | e.g. `tiny`, `base`, `small`, `medium`, `large` |
+| `WHISPER_DEVICE` / `REX_WHISPER_DEVICE` | “cpu” or “cuda” | `cuda` recommended if GPU available |
+| `REX_LLM_MODEL`, `REX_LLM_MAX_TOKENS`, `REX_LLM_TEMPERATURE` | Transformer settings | see defaults |
+| `SERPAPI_KEY`, `SERPAPI_ENGINE` | Web search via SerpAPI | if none, uses DuckDuckGo fallback |
+| `REX_SPEAK_API_KEY` | API key for TTS endpoint | optional, for security |
+| `REX_PROXY_TOKEN`, `REX_PROXY_ALLOW_LOCAL` | For Flask proxy or Cloudflare Access use | – |
 
-- `core.json` — metadata  
-- `history.jsonl` — chat logs  
-- voice samples and notes
+---
+
+## 🧠 Memory & Profiles
+
+Under `Memory/<user>/` you’ll find:
+
+- `core.json` — metadata and default settings  
+- `history.jsonl` — chronologically appended chat entries  
+- (Optional) voice sample file, notes, and others  
+
+Profiles allow Rex to remember preferences, vocabulary, and voice traits.
+
+---
+
+## 🛠️ Optional Tools
+
+- `record_wakeword.py` — record or train a custom ONNX wake-word model  
+- `wakeword_listener.py` — script that just listens and beeps on wake detection  
+- `flask_proxy.py` — reverse-proxy wrapper (for use with Cloudflare Access)  
+- `rex_speak_api.py` — TTS-only HTTP interface  
+- `plugin` folder — place plugins (e.g. `web_search`) and they will auto-load  
 
 ---
 
 ## 🧪 Tests & CI
 
-Run tests:
-
 ```bash
 pytest
 ```
 
-GitHub Actions will run tests via `.github/workflows/ci.yml`.
+CI is handled by GitHub Actions via `.github/workflows/ci.yml`.
 
 ---
 
-## 🐳 Docker Notes
+## 🐳 Docker Support (Optional)
 
-If using Docker:
+If using Docker, your image should:
 
-- Use `nvidia/cuda:11.8-runtime` base image  
-- Install `ffmpeg`, `portaudio`, `libsndfile`  
-- Install PyTorch CUDA wheels via PyPI index URL  
-
----
-
-## ℹ️ Troubleshooting
-
-- **CUDA issues** → verify drivers and device availability  
-- **Mic/speaker errors** → use `audio_devices.py` to inspect  
-- **Plugins missing** → check plugin structure and logs  
+- Use a CUDA-enabled base image (e.g. `nvidia/cuda:11.8-runtime`)
+- Install `ffmpeg`, `libsndfile`, `portaudio`, and `nvidia-cuda-toolkit`
+- Use `--index-url https://download.pytorch.org/whl/cu118` to install PyTorch CUDA wheels
 
 ---
 
 ## 📄 License
 
-MIT License  
-Feedback and contributions welcome!
+MIT License — feedback and contributions welcome!

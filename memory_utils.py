@@ -124,8 +124,8 @@ def extract_voice_reference(profile: dict) -> Optional[str]:
 
 def trim_history(history: Iterable[dict], *, limit: Optional[int] = None) -> List[dict]:
     """Return only the most recent `limit` entries from a history iterable."""
-    from config import settings  # Import here to avoid circular dependency
-    max_items = limit or settings.max_memory_items
+    from config import settings  # Avoid circular import
+    max_items = limit or getattr(settings, "max_memory_items", 50)
     recent: Deque[dict] = deque(maxlen=max_items)
     for item in history:
         recent.append(item)

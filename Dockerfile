@@ -13,7 +13,7 @@ RUN apt-get update && \
         portaudio19-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy Python requirements and install
+# Copy Python requirements and install dependencies
 COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
@@ -27,7 +27,7 @@ ENV PYTHONUNBUFFERED=1 \
     REX_DEVICE=cpu \
     REX_LOG_LEVEL=info
 
-# Optional: mount a persistent volume for memory and logs
+# Mountable volume for memory or logs
 VOLUME ["/app/Memory"]
 
 # Default command
