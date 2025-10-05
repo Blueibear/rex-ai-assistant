@@ -12,7 +12,6 @@ except ImportError:
     sd = None  # sounddevice is optional
 
 from dotenv import set_key
-
 from assistant_errors import AudioDeviceError
 from config import ENV_MAPPING, ENV_PATH, load_config
 from logging_utils import get_logger
@@ -22,7 +21,6 @@ logger = get_logger(__name__)
 
 def update_env_value(key: str, value: str) -> None:
     """Persist an environment override to the shared .env file."""
-
     set_key(str(ENV_PATH), key, value)
     logger.info("Persisted %s = %s", key, value)
 
@@ -86,7 +84,8 @@ def _format_devices() -> str:
     rows.append("-" * 50)
     for idx, device in enumerate(devices):
         rows.append(
-            f"{idx:2d} | {device['name'][:30]:<30} | {device['max_input_channels']:2d} | {device['max_output_channels']:2d}"
+            f"{idx:2d} | {device['name'][:30]:<30} | "
+            f"{device['max_input_channels']:2d} | {device['max_output_channels']:2d}"
         )
     return "\n".join(rows)
 
@@ -115,7 +114,7 @@ def cli(argv: list[str] | None = None) -> int:
 
         if args.show:
             cfg = load_config(reload=True)
-            print("Configured Audio Devices:")
+            print("🎛️ Configured Audio Devices:")
             print(f"  🎤 Input Device Index : {cfg.audio_input_device}")
             print(f"  🔈 Output Device Index: {cfg.audio_output_device}")
 
@@ -130,12 +129,7 @@ def cli(argv: list[str] | None = None) -> int:
         return 1
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Entry point used by unit tests to invoke the CLI."""
-
-    return cli(argv)
-
-
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(cli())
+
 

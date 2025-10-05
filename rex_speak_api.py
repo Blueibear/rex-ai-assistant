@@ -8,6 +8,9 @@ import uuid
 from contextlib import suppress
 
 from flask import Flask, jsonify, request, send_file, Response
+from werkzeug.exceptions import BadRequest
+
+# Optional dependencies with fallbacks
 try:
     from flask_cors import CORS
 except ImportError:
@@ -27,7 +30,6 @@ except ImportError:
     def get_remote_address() -> str:
         return "0.0.0.0"
 
-from werkzeug.exceptions import BadRequest
 from TTS.api import TTS
 
 from memory_utils import (
@@ -64,7 +66,8 @@ if DEFAULT_USER not in USER_VOICES:
 xtts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, gpu=False)
 REQUIRED_API_KEY = os.getenv("REX_SPEAK_API_KEY")
 if not REQUIRED_API_KEY:
-    raise RuntimeError("REX_SPEAK_API_KEY is missing.")
+    raise RuntimeError("REX_SPEAK_API_KEY must be set before starting the speech API. "
+                       "Set a strong key or disable the service to avoid anonymous access.")
 
 # ---------------------------------------------------------------------
 # Helpers
@@ -140,4 +143,3 @@ def speak() -> Response:
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-

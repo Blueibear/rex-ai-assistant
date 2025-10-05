@@ -1,4 +1,4 @@
-# Use the Python 3.11 slim base image
+# Use the official Python 3.11 slim base image
 FROM python:3.11-slim
 
 # Set working directory
@@ -10,18 +10,18 @@ RUN apt-get update && \
         ffmpeg \
         libsndfile1 \
         libasound2-dev \
-        portaudio19-dev \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+        portaudio19-dev && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
+# Copy Python requirements and install dependencies
 COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy entire source code into image
+# Copy the rest of the source code
 COPY . .
 
-# Environment variables (set sensible defaults)
+# Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     REX_WAKEWORD=rex \
     REX_DEVICE=cpu \

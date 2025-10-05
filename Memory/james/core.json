@@ -8,8 +8,8 @@
     "creative"
   ],
   "preferences": {
-    "tone": "casual and kind",
-    "conversation_style": "laid-back",
+    "tone": "direct and insightful",
+    "conversation_style": "pragmatic",
     "topics": [
       "travel",
       "pets",
@@ -22,7 +22,7 @@
     ]
   },
   "voice": {
-    "sample_path": "C:/AI/CoquiXTTS/james_voice.wav",
+    "sample_path": "C:/AI/CoquiXTTS/cleaned_jensen.wav",
     "speaker_name": "james_xtts",
     "gender": "male",
     "style": "friendly and warm"
@@ -32,5 +32,4 @@
   "last_updated": "2025-09-23T00:00:00Z",
   "notes_path": "Memory/james/notes.md"
 }
-
 

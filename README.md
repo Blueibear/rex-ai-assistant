@@ -45,51 +45,39 @@ All audio processing, inference, and data stay on your machine unless you explic
 git clone https://github.com/Blueibear/rex-ai-assistant.git
 cd rex-ai-assistant
 
-# Create and activate a virtual environment
 python -m venv .venv
 # On Windows PowerShell:
-.\.venv\Scripts\activate
+.\.venv\Scriptsctivate
 # On macOS / Linux:
 # source .venv/bin/activate
 
 pip install --upgrade pip
 pip install -r requirements.txt
-
-# Optional: install speech + language model stack (Whisper, Torch, XTTS)
-pip install -r requirements-ml.txt
-
-# Optional: developer tooling (pytest, coverage)
-pip install -r requirements-dev.txt
-
-# Alternatively, you can run the installation helper:
-# python install.py --with-ml --with-dev
+pip install -r requirements-ml.txt  # optional
+pip install -r requirements-dev.txt  # optional
 ```
 
 ---
 
 ### Enable GPU (CUDA) Support (for your RTX GPU)
 
-Inside the same virtual environment:
-
 ```bash
 pip uninstall -y torch torchvision torchaudio
 pip install torch==2.6.0+cu118 torchvision==0.21.0+cu118 torchaudio==2.6.0+cu118 --index-url https://download.pytorch.org/whl/cu118
 ```
 
-Then verify:
+Verify:
 
 ```python
 import torch
-print(torch.__version__)               # should end in +cu118
-print(torch.cuda.is_available())       # should be True
-print(torch.cuda.get_device_name(0))   # should show your GPU
+print(torch.__version__)
+print(torch.cuda.is_available())
+print(torch.cuda.get_device_name(0))
 ```
 
 ---
 
 ### Select Audio Devices (Optional)
-
-If audio devices aren’t automatically detected or you want to change them:
 
 ```bash
 python audio_devices.py --list
@@ -105,21 +93,21 @@ python audio_devices.py --set-output <device_id>
 python rex_loop.py
 ```
 
-Then speak your wake word and interact.  
-
-To stop: type **exit**, **quit**, or press **Ctrl+C**.
+Say your wake word and interact. To exit: Ctrl+C or type "exit".
 
 ---
 
-### TTS HTTP API
+## 🔉 TTS HTTP API
 
 Start the API server:
 
+```bash
 python rex_speak_api.py
-
+```
 
 Send a request:
 
+```http
 POST /speak
 Content-Type: application/json
 X-API-Key: your_secret
@@ -128,14 +116,13 @@ X-API-Key: your_secret
   "text": "Hello Rex",
   "user": "james"
 }
+```
 
-It returns a WAV file. Useful for non-voice clients.
+Returns a WAV file.
 
 ---
 
 ## ⚙️ Configuration & Environment Variables
-
-Rex is configured via environment variables. Some important ones:
 
 | Variable | Purpose | Notes / Default |
 |---|---------|-----------------|
@@ -175,38 +162,24 @@ Profiles allow Rex to remember preferences, vocabulary, and voice traits.
 
 ## 🧪 Tests & CI
 
-Run locally:
-
 ```bash
 pytest
 ```
 
-CI is set up via `.github/workflows/ci.yml` which runs on every `push` and `pull_request`. It installs system dependencies including `nvidia-cuda-toolkit` (for GPU support), then installs Python dependencies and runs tests with coverage.
+CI is handled by GitHub Actions via `.github/workflows/ci.yml`.
 
 ---
 
-## 🐳 (Optional) Docker Support / GPU Containers
+## 🐳 Docker Support (Optional)
 
-If you containerize Rex, ensure your Dockerfile:
+If using Docker, your image should:
 
-- Uses a CUDA-enabled base image (e.g. `nvidia/cuda:11.8-runtime`)
-- Installs system dependencies: `ffmpeg`, `libsndfile`, `portaudio`, `nvidia-cuda-toolkit`
-- Installs CUDA PyTorch wheels via the `--index-url https://download.pytorch.org/whl/cu118`
-
-This ensures your container is GPU-ready.
+- Use a CUDA-enabled base image (e.g. `nvidia/cuda:11.8-runtime`)
+- Install `ffmpeg`, `libsndfile`, `portaudio`, and `nvidia-cuda-toolkit`
+- Use `--index-url https://download.pytorch.org/whl/cu118` to install PyTorch CUDA wheels
 
 ---
 
-## ℹ️ Troubleshooting
+## 📄 License
 
-- **CUDA not detected** → check your GPU driver & CUDA installation  
-- **Audio errors** → run `python audio_devices.py --list` to check device indices  
-- **Missing voice sample** → voice cloning disabled, falls back to default  
-- **Plugin errors** → debug via logging; confirm plugin name in `plugins/`  
-
----
-
-## 📄 License & Acknowledgments
-
-Rex is released under the **MIT License**.  
-Contributions, feedback, and bug reports are welcome via GitHub.
+MIT License — feedback and contributions welcome!

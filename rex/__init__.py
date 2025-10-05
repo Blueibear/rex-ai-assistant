@@ -1,10 +1,11 @@
 """Core package for the Rex voice assistant.
 
-Importing :mod:`rex` used to configure logging immediately, which proved
-problematic for applications that need to install their own handlers before
-any log messages are emitted. The package now exposes the helper functions
-without triggering side effects so callers can opt in to
-:func:`rex.logging_utils.configure_logging` when appropriate.
+Importing :mod:`rex` no longer configures logging immediately,
+which allows applications to install their own handlers before
+any log messages are emitted.
+
+To configure logging manually, call:
+    rex.configure_logging()
 """
 
 from __future__ import annotations

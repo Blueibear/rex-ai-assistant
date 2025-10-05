@@ -1,6 +1,7 @@
 """Language model client with pluggable backends (Transformers, OpenAI, Echo)."""
 
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Optional, Protocol, Dict
 

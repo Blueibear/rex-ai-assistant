@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib
-import os
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -38,11 +37,9 @@ def _load_app(monkeypatch, tmp_path) -> tuple:
 
     _mock_tts(monkeypatch)
 
-    # Set required env vars
     monkeypatch.setenv("REX_SPEAK_API_KEY", "secret")
     monkeypatch.setenv("REX_ACTIVE_USER", "james")
 
-    # Clean config cache if needed
     if "config" in sys.modules:
         monkeypatch.setattr(sys.modules["config"], "_cached_config", None, raising=False)
 

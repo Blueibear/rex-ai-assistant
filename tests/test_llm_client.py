@@ -6,6 +6,7 @@ import pytest
 
 from config import AppConfig
 from llm_client import LanguageModel, register_strategy
+import llm_client as impl
 
 
 def test_language_model_generates_text():
@@ -53,4 +54,17 @@ def test_language_model_custom_strategy():
     )
     result = model.generate("test")
     assert result == "dummy::test::5"
+
+
+def test_language_model_falls_back_when_transformers_missing(monkeypatch):
+    """Simulate missing transformers and test fallback to echo."""
+    monkeypatch.setattr(impl, "AutoTokenizer", None, raising=False)
+    monkeypatch.setattr(impl, "AutoModelForCausalLM", None, raising=False)
+    monkeypatch.setattr(impl, "hf_pipeline", None, raising=False)
+
+    cfg = AppConfig(llm_model="fallback-model", llm_provider="transformers")
+    model = LanguageModel(cfg)
+    completion = model.generate("Prompt")
+
+    assert "[fallback-model]" in completion
 

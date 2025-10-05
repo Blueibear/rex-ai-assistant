@@ -12,6 +12,7 @@ try:
     from dotenv import load_dotenv, set_key
 except ImportError:
     def load_dotenv(*args, **kwargs): return False
+
     def set_key(env_path: str, key: str, value: str):
         path = Path(env_path)
         lines = [line for line in path.read_text().splitlines() if not line.startswith(f"{key}=")] if path.exists() else []
@@ -19,8 +20,8 @@ except ImportError:
         path.write_text("\n".join(lines) + "\n")
         return key, value, True
 
-from rex.assistant_errors import ConfigurationError
-from rex.logging_utils import get_logger, set_global_level
+from assistant_errors import ConfigurationError
+from logging_utils import get_logger, set_global_level
 
 LOGGER = get_logger(__name__)
 
@@ -68,6 +69,7 @@ class AppConfig:
         raw["transcripts_dir"] = str(self.transcripts_dir)
         return raw
 
+
 _cached_config: Optional[AppConfig] = None
 
 ENV_MAPPING: Dict[str, str] = {
@@ -91,8 +93,8 @@ ENV_MAPPING: Dict[str, str] = {
     "transcripts_dir": "REX_TRANSCRIPTS_DIR",
     "default_user": "REX_ACTIVE_USER",
     "wake_sound_path": "REX_WAKE_SOUND",
-    "audio_input_device": "REX_INPUT_DEVICE",
-    "audio_output_device": "REX_OUTPUT_DEVICE",
+    "audio_input_device": "REX_AUDIO_INPUT_DEVICE",
+    "audio_output_device": "REX_AUDIO_OUTPUT_DEVICE",
     "debug_logging": "REX_DEBUG_LOGGING",
     "conversation_export": "REX_CONVERSATION_EXPORT",
     "brave_api_key": "BRAVE_API_KEY",
@@ -102,6 +104,7 @@ ENV_MAPPING: Dict[str, str] = {
 
 TRUE_VALUES = {"1", "true", "yes", "on"}
 FALSE_VALUES = {"0", "false", "no", "off"}
+
 
 def _parse_bool(value: Optional[str], *, default: bool = False) -> bool:
     if value is None:
@@ -113,6 +116,7 @@ def _parse_bool(value: Optional[str], *, default: bool = False) -> bool:
         return False
     raise ConfigurationError(f"Invalid boolean value: {value}")
 
+
 def _parse_optional_int(value: Optional[str]) -> Optional[int]:
     if value in (None, ""):
         return None
@@ -120,6 +124,7 @@ def _parse_optional_int(value: Optional[str]) -> Optional[int]:
         return int(value)
     except ValueError as exc:
         raise ConfigurationError(f"Invalid integer: {value}") from exc
+
 
 def _first_env_value(*keys: str) -> Optional[str]:
     for key in keys:
@@ -170,12 +175,8 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> App
         default_user=getenv("REX_ACTIVE_USER"),
         wake_sound_path=getenv("REX_WAKE_SOUND"),
 
-        audio_input_device=_parse_optional_int(
-            _first_env_value("REX_INPUT_DEVICE", "REX_AUDIO_INPUT_DEVICE")
-        ),
-        audio_output_device=_parse_optional_int(
-            _first_env_value("REX_OUTPUT_DEVICE", "REX_AUDIO_OUTPUT_DEVICE")
-        ),
+        audio_input_device=_parse_optional_int(_first_env_value("REX_INPUT_DEVICE", "REX_AUDIO_INPUT_DEVICE")),
+        audio_output_device=_parse_optional_int(_first_env_value("REX_OUTPUT_DEVICE", "REX_AUDIO_OUTPUT_DEVICE")),
 
         debug_logging=_parse_bool(getenv("REX_DEBUG_LOGGING")),
         conversation_export=_parse_bool(getenv("REX_CONVERSATION_EXPORT"), default=True),
@@ -193,6 +194,7 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> App
 
     return config
 
+
 def validate_config(config: AppConfig) -> None:
     if not (0 < config.wakeword_threshold <= 1):
         raise ConfigurationError("wakeword_threshold must be between 0 and 1.")
@@ -207,6 +209,7 @@ def validate_config(config: AppConfig) -> None:
     if config.memory_max_turns <= 0:
         raise ConfigurationError("memory_max_turns must be positive.")
 
+
 def _env_key_for(field_name: str) -> Optional[str]:
     if field_name in ENV_MAPPING:
         return ENV_MAPPING[field_name]
@@ -214,16 +217,20 @@ def _env_key_for(field_name: str) -> Optional[str]:
         return field_name
     return None
 
+
 def _write_env(key: str, value: str, *, env_path: Path) -> None:
     set_key(str(env_path), key, value)
 
+
 def _iter_config_fields() -> Iterable[str]:
     return ENV_MAPPING.keys()
+
 
 def show_config(config: Optional[AppConfig] = None) -> None:
     cfg = config or load_config()
     for key, value in cfg.to_dict().items():
         LOGGER.info("%s = %s", key, value)
+
 
 def cli(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Configure Rex Assistant")
@@ -254,7 +261,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
     return 0
 
 
-# Expose a module-level settings instance for consumers expecting "config.settings".
+# Expose a module-level settings instance
 settings = load_config()
 
 if __name__ == "__main__":

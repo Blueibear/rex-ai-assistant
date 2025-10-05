@@ -26,7 +26,6 @@ PROXY_TOKEN = os.getenv("REX_PROXY_TOKEN")
 ALLOW_LOCAL = os.getenv("REX_PROXY_ALLOW_LOCAL") == "1"
 user_key: str | None = None
 
-
 def _summarize_memory(profile: dict) -> dict:
     summary = {}
     if not isinstance(profile, dict):
@@ -47,14 +46,11 @@ def _summarize_memory(profile: dict) -> dict:
 
     return summary
 
-
 def _extract_shared_secret() -> str | None:
-    """Return the shared-secret token provided with the request, if any."""
     auth_header = request.headers.get("Authorization", "")
     if auth_header.lower().startswith("bearer "):
         return auth_header[7:].strip() or None
     return request.headers.get("X-Rex-Proxy-Token")
-
 
 def _is_loopback_address(addr: str | None) -> bool:
     if not addr:
@@ -63,14 +59,13 @@ def _is_loopback_address(addr: str | None) -> bool:
         addr = addr.split("::ffff:", 1)[-1]
     return addr in {"127.0.0.1", "::1"}
 
-
 @app.before_request
 def load_user_memory():
+    global user_key
     email = request.headers.get("Cf-Access-Authenticated-User-Email")
     token = _extract_shared_secret()
     remote_addr = request.remote_addr
 
-    global user_key
     resolved_user_key: str | None = None
 
     if email:
@@ -103,20 +98,16 @@ def load_user_memory():
     g.memory = memory
     g.user_folder = memory_path
 
-
 @app.route("/")
 def index():
     return "🧠 Rex is online. Ask away."
 
-
 @app.route("/whoami")
 def whoami():
-    """Return a redacted summary of the active user profile."""
     return jsonify({
         "user": g.user_key,
         "profile": _summarize_memory(g.memory),
     })
-
 
 @app.route("/search")
 def search():
@@ -137,7 +128,6 @@ def search():
         "query": query,
         "result": result
     })
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
