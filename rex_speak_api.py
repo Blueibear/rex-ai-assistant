@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
+import hmac
+import logging
 import os
-import secrets
-import uuid
-from contextlib import suppress
+import re
+import tempfile
+import time
+from collections import defaultdict, deque
+from typing import Optional, Tuple
 
-from flask import Flask, jsonify, request, send_file, Response
-try:
-    from flask_cors import CORS
-except ImportError:
-    def CORS(app: Flask, **_kwargs):
-        return app
+from flask import Flask, request, send_file, jsonify, after_this_request
+from flask_cors import CORS
 
 try:
     from flask_limiter import Limiter
@@ -23,11 +23,9 @@ except ImportError:
         def limit(self, *args, **kwargs):
             def decorator(func): return func
             return decorator
-
     def get_remote_address() -> str:
         return "0.0.0.0"
 
-from werkzeug.exceptions import BadRequest
 from TTS.api import TTS
 
 from memory_utils import (
@@ -39,104 +37,197 @@ from memory_utils import (
 from rex.config import settings
 from rex.assistant_errors import AuthenticationError, TextToSpeechError
 
-# ---------------------------------------------------------------------
-# App setup
-# ---------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# Setup
+# ------------------------------------------------------------------------------
 
 app = Flask(__name__)
-limiter = Limiter(get_remote_address, app=app, default_limits=["30 per minute"])
 CORS(app, resources={r"/*": {"origins": "*"}})
+limiter = Limiter(get_remote_address, app=app, default_limits=["30 per minute"])
+logger = logging.getLogger("rex.speak_api")
+
+if not logger.handlers:
+    logging.basicConfig(
+        level=os.getenv("REX_LOG_LEVEL", "INFO").upper(),
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+
+# ------------------------------------------------------------------------------
+# Config and Globals
+# ------------------------------------------------------------------------------
 
 USERS_MAP = load_users_map()
 USER_PROFILES = load_all_profiles()
-DEFAULT_USER = resolve_user_key(os.getenv("REX_ACTIVE_USER"), USERS_MAP, profiles=USER_PROFILES)
-
-if not DEFAULT_USER:
-    DEFAULT_USER = sorted(USER_PROFILES.keys())[0] if USER_PROFILES else "james"
+DEFAULT_USER = resolve_user_key(
+    os.getenv("REX_ACTIVE_USER"), USERS_MAP, profiles=USER_PROFILES
+) or sorted(USER_PROFILES.keys())[0] if USER_PROFILES else "james"
 
 USER_VOICES = {
-    user: extract_voice_reference(profile)
+    user: extract_voice_reference(profile, user_key=user)
     for user, profile in USER_PROFILES.items()
 }
 if DEFAULT_USER not in USER_VOICES:
     USER_VOICES[DEFAULT_USER] = None
 
-xtts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=False, gpu=False)
-REQUIRED_API_KEY = os.getenv("REX_SPEAK_API_KEY")
-if not REQUIRED_API_KEY:
-    raise RuntimeError("REX_SPEAK_API_KEY is missing.")
+_TTS_ENGINE: Optional[TTS] = None
 
-# ---------------------------------------------------------------------
+DEFAULT_TTS_MODEL = os.getenv(
+    "REX_TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2"
+)
+_MODEL_PATTERN = re.compile(r"^[\w\-./]+(\/[\w\-./]+)*$")
+if not _MODEL_PATTERN.match(DEFAULT_TTS_MODEL):
+    logger.warning("Invalid TTS model name '%s'; using default.", DEFAULT_TTS_MODEL)
+    DEFAULT_TTS_MODEL = "tts_models/multilingual/multi-dataset/xtts_v2"
+
+API_KEY = os.getenv("REX_SPEAK_API_KEY")
+RATE_LIMIT = int(os.getenv("REX_SPEAK_RATE_LIMIT", "30"))
+RATE_LIMIT_WINDOW = int(os.getenv("REX_SPEAK_RATE_WINDOW", "60"))
+MAX_TEXT_LENGTH = int(os.getenv("REX_SPEAK_MAX_CHARS", "800"))
+
+_RATE_STATE: dict[str, deque] = defaultdict(deque)
+
+# ------------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
-def _require_api_key() -> None:
-    """Check the API key header if required."""
-    if not REQUIRED_API_KEY:
-        return
-    provided = request.headers.get("X-API-Key") or request.headers.get("Authorization")
-    if not provided or not secrets.compare_digest(provided.strip(), REQUIRED_API_KEY.strip()):
-        raise AuthenticationError("Missing or invalid API key")
+def _prune_requests(identity: str, now: float) -> deque:
+    entries = _RATE_STATE[identity]
+    while entries and now - entries[0] > RATE_LIMIT_WINDOW:
+        entries.popleft()
+    return entries
 
-# ---------------------------------------------------------------------
-# Error handlers
-# ---------------------------------------------------------------------
+def _check_rate_limit(identity: str) -> Tuple[bool, int]:
+    if RATE_LIMIT <= 0:
+        return True, 0
+    now = time.monotonic()
+    entries = _prune_requests(identity, now)
+    if len(entries) >= RATE_LIMIT:
+        retry = int(max(0, RATE_LIMIT_WINDOW - (now - entries[0])))
+        return False, retry
+    entries.append(now)
+    return True, 0
 
-@app.errorhandler(AuthenticationError)
-def _handle_auth_error(exc: AuthenticationError):
-    return jsonify({"error": str(exc)}), 401
+def _extract_api_key(payload: dict | None) -> Optional[str]:
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        return auth_header[7:].strip()
+    return (
+        request.headers.get("X-API-Key") or
+        request.args.get("api_key") or
+        payload.get("api_key") if payload else None
+    )
 
-@app.errorhandler(TextToSpeechError)
-def _handle_tts_error(exc: TextToSpeechError):
-    return jsonify({"error": str(exc)}), 500
+def _require_api_key(provided_key: Optional[str]) -> bool:
+    if not API_KEY:
+        return True
+    if not provided_key:
+        return False
+    try:
+        return hmac.compare_digest(provided_key, API_KEY)
+    except TypeError:
+        return False
 
-# ---------------------------------------------------------------------
+def _get_request_identity(provided_key: Optional[str]) -> str:
+    if provided_key:
+        return f"key:{provided_key[:8]}"
+    return request.headers.get("X-Forwarded-For") or request.remote_addr or "anonymous"
+
+def _validate_text(text: str) -> Optional[str]:
+    if not isinstance(text, str):
+        return "Text must be a string."
+    normalised = text.strip()
+    if not normalised:
+        return "Text must not be empty."
+    if len(normalised) > MAX_TEXT_LENGTH:
+        return f"Text exceeds maximum length of {MAX_TEXT_LENGTH} characters."
+    return None
+
+def _select_speaker(user: Optional[str]) -> Optional[str]:
+    candidate = str(user).lower() if user else DEFAULT_USER
+    if candidate not in USER_VOICES:
+        candidate = DEFAULT_USER
+    speaker_wav = USER_VOICES.get(candidate)
+    if speaker_wav and not os.path.isfile(speaker_wav):
+        logger.warning("Speaker reference '%s' is missing.", speaker_wav)
+        return None
+    return speaker_wav
+
+def _get_tts_engine() -> TTS:
+    global _TTS_ENGINE
+    if _TTS_ENGINE is None:
+        logger.info("Loading TTS model '%s'", DEFAULT_TTS_MODEL)
+        _TTS_ENGINE = TTS(
+            model_name=DEFAULT_TTS_MODEL,
+            progress_bar=False,
+            gpu=False,
+        )
+    return _TTS_ENGINE
+
+# ------------------------------------------------------------------------------
 # Routes
-# ---------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 @app.route("/speak", methods=["POST"])
-@limiter.limit("15 per minute")
-def speak() -> Response:
-    """Convert text to speech and return a WAV file."""
-    _require_api_key()
+def speak():
+    payload = request.get_json(silent=True) or {}
+    provided_key = _extract_api_key(payload)
 
-    try:
-        payload = request.get_json(force=True)
-    except BadRequest:
-        return jsonify({"error": "Request body must be JSON"}), 400
+    if not _require_api_key(provided_key):
+        logger.warning("Unauthorized request.")
+        return jsonify({"error": "Unauthorized"}), 401
 
-    if not isinstance(payload, dict):
-        return jsonify({"error": "Invalid JSON payload"}), 400
+    identity = _get_request_identity(provided_key)
+    allowed, retry_after = _check_rate_limit(identity)
+    if not allowed:
+        logger.warning("Rate limit exceeded for %s", identity)
+        response = jsonify({"error": "Too many requests"})
+        response.status_code = 429
+        response.headers["Retry-After"] = str(retry_after)
+        return response
 
     text = payload.get("text")
-    if not isinstance(text, str) or not text.strip():
-        return jsonify({"error": "Missing 'text' parameter"}), 400
+    validation_error = _validate_text(text)
+    if validation_error:
+        return jsonify({"error": validation_error}), 400
 
-    user_param = payload.get("user")
-    user = str(user_param).lower() if isinstance(user_param, str) else DEFAULT_USER
-    if user not in USER_VOICES:
-        user = DEFAULT_USER
+    speaker_wav = _select_speaker(payload.get("user"))
+    language = payload.get("language", "en")
 
-    speaker_wav = USER_VOICES.get(user)
-    if speaker_wav and not os.path.exists(speaker_wav):
-        return jsonify({"error": f"Speaker reference file not found for user '{user}'"}), 404
-
-    output_filename = f"rex_response_{uuid.uuid4().hex}.wav"
-    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), output_filename)
+    logger.info("Generating speech for %s (lang=%s)", identity, language)
+    output_path = tempfile.mktemp(suffix=".wav")
 
     try:
-        xtts.tts_to_file(
+        _get_tts_engine().tts_to_file(
             text=text,
             speaker_wav=speaker_wav,
-            language=settings.speak_language,
+            language=language,
             file_path=output_path,
         )
-        return send_file(output_path, mimetype="audio/wav", as_attachment=True, download_name="rex_response.wav")
+
+        @after_this_request
+        def cleanup(response):
+            try:
+                os.remove(output_path)
+            except OSError:
+                logger.debug("Failed to remove temp file %s", output_path)
+            return response
+
+        return send_file(
+            output_path,
+            mimetype="audio/wav",
+            as_attachment=True,
+            download_name="rex_response.wav",
+        )
+
     except Exception as exc:
-        raise TextToSpeechError(str(exc))
-    finally:
-        with suppress(FileNotFoundError):
+        logger.exception("TTS generation failed.")
+        if os.path.exists(output_path):
             os.remove(output_path)
+        return jsonify({"error": str(exc)}), 500
+
+# ------------------------------------------------------------------------------
+# Entry Point
+# ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

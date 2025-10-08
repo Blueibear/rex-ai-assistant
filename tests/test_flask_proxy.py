@@ -34,7 +34,7 @@ def test_whoami_returns_sanitised_profile(monkeypatch):
     payload = response.get_json()
 
     assert "memory" not in payload, "Should not expose memory in /whoami"
-    assert payload.get("user") == module.user_key, "Incorrect user in /whoami response"
+    assert payload.get("user") == module.g.user_key, "Incorrect user in /whoami response"
     assert "profile" in payload, "Missing profile in /whoami"
     assert payload["profile"].get("name"), "Profile name is missing in /whoami"
 
@@ -92,4 +92,3 @@ def test_search_uses_plugin_when_available(monkeypatch):
     payload = response.get_json()
     assert payload["query"] == "python"
     assert payload["result"] == {"summary": "result for python"}
-

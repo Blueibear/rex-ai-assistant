@@ -1,6 +1,3 @@
-# Keep this as rex_assistant.py
-# (from the master branch)
-
 """Command-line entry point for the Rex assistant.
 
 This module intentionally mirrors the historical top-level script so existing
@@ -22,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 async def _chat_loop(assistant: Assistant) -> None:
-    print("Rex assistant ready. Type 'exit' or 'quit' to stop.")
+    """Interactive CLI loop for chatting with Rex."""
+    print("🧠 Rex assistant ready. Type 'exit' or 'quit' to stop.")
     while True:
         try:
             user_input = input("You: ")
@@ -46,6 +44,7 @@ async def _chat_loop(assistant: Assistant) -> None:
 
 
 async def _run() -> None:
+    """Configure logging, load plugins, and run the assistant loop."""
     configure_logging()
     plugin_specs: Iterable[PluginSpec] = load_plugins()
     assistant = Assistant(history_limit=settings.max_memory_items, plugins=plugin_specs)
@@ -56,6 +55,7 @@ async def _run() -> None:
 
 
 def main() -> int:
+    """Main entry point for Rex assistant CLI."""
     try:
         asyncio.run(_run())
     except KeyboardInterrupt:
@@ -65,3 +65,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

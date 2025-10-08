@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+import pytest
 import config
+
 from memory_utils import (
-    append_history_entry,
-    export_transcript,
     extract_voice_reference,
     load_all_profiles,
     load_recent_history,
     load_users_map,
     resolve_user_key,
     trim_history,
+    append_history_entry,
+    export_transcript,
 )
 
 
@@ -24,20 +27,18 @@ def test_resolve_user_key_from_email():
 
 
 def test_extract_voice_reference_handles_absolute_and_relative(tmp_path):
-    # Absolute sample path
+    # Absolute voice path
     absolute_voice = tmp_path / "voice.wav"
     absolute_voice.write_bytes(b"fake")
     profile = {"voice": {"sample_path": str(absolute_voice)}}
-
     assert extract_voice_reference(profile) == str(absolute_voice)
 
-    # Relative path from voice_sample with user directory
+    # Relative voice path in user dir
     user_dir = tmp_path / "james"
     user_dir.mkdir()
     relative_voice = user_dir / "voice.wav"
     relative_voice.write_bytes(b"demo")
     profile_relative = {"voice_sample": "voice.wav"}
-
     result = extract_voice_reference(
         profile_relative,
         user_key="james",
@@ -45,7 +46,7 @@ def test_extract_voice_reference_handles_absolute_and_relative(tmp_path):
     )
     assert result == str(relative_voice.resolve())
 
-    # Missing or invalid profile
+    # Missing or malformed profile
     profile_missing = {"voice": {}}
     assert extract_voice_reference(
         profile_missing,
@@ -57,7 +58,6 @@ def test_extract_voice_reference_handles_absolute_and_relative(tmp_path):
 def test_trim_history_limits_entries():
     history = [{"id": i} for i in range(10)]
     trimmed = trim_history(history, limit=3)
-
     assert len(trimmed) == 3
     assert trimmed[0]["id"] == 7
     assert trimmed[-1]["id"] == 9
@@ -113,4 +113,3 @@ def test_load_recent_history_with_missing_file(tmp_path):
     entries = load_recent_history("ghost", memory_root=tmp_path)
     assert isinstance(entries, list)
     assert len(entries) == 0
-

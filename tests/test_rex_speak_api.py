@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib
-import os
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -35,10 +34,8 @@ def _mock_tts(monkeypatch):
     """Patch TTS.api.TTS with dummy class."""
     fake_api = ModuleType("TTS.api")
     fake_api.TTS = DummyTTS
-
     fake_pkg = ModuleType("TTS")
     fake_pkg.api = fake_api
-
     monkeypatch.setitem(sys.modules, "TTS", fake_pkg)
     monkeypatch.setitem(sys.modules, "TTS.api", fake_api)
 
@@ -51,8 +48,9 @@ def _load_app(monkeypatch, tmp_path) -> tuple:
 
     monkeypatch.setenv("REX_SPEAK_API_KEY", "secret")
     monkeypatch.setenv("REX_ACTIVE_USER", "james")
+    monkeypatch.setenv("REX_SPEAK_RATE_LIMIT", "2")
+    monkeypatch.setenv("REX_SPEAK_RATE_WINDOW", "60")
 
-    # Clean config cache if needed
     if "config" in sys.modules:
         monkeypatch.setattr(sys.modules["config"], "_cached_config", None, raising=False)
 
@@ -60,13 +58,19 @@ def _load_app(monkeypatch, tmp_path) -> tuple:
         del sys.modules[module_name]
 
     module = importlib.import_module(module_name)
-    return module.app, module
+    dummy_engine = DummyTTS()
+    module._TTS_ENGINE = dummy_engine
+    module._get_tts_engine = lambda: dummy_engine
+    module._RATE_STATE.clear()
+
+    app = module.app
+    app.config.update(TESTING=True)
+    return app, module
 
 
 def test_missing_api_key_prevents_start(monkeypatch):
     """Fail fast if REX_SPEAK_API_KEY is missing at app startup."""
     module_name = "rex_speak_api"
-
     monkeypatch.delenv("REX_SPEAK_API_KEY", raising=False)
     monkeypatch.setenv("REX_ACTIVE_USER", "james")
     _mock_tts(monkeypatch)
@@ -82,40 +86,80 @@ def test_speak_requires_api_key(monkeypatch, tmp_path):
     app, module = _load_app(monkeypatch, tmp_path)
 
     with app.test_client() as client:
-        # No API key
+        # Missing key
         resp = client.post("/speak", json={"text": "Hello"})
         assert resp.status_code == 401
 
-        # Valid API key
+        # Valid key
         resp = client.post("/speak", json={"text": "Hello"}, headers={"X-API-Key": "secret"})
         assert resp.status_code == 200
         assert resp.data.startswith(b"FAKEAUDIO")
         assert "audio/wav" in resp.content_type
 
 
-def test_speak_requires_text_param(monkeypatch, tmp_path):
-    app, _module = _load_app(monkeypatch, tmp_path)
+def test_speak_requires_text(monkeypatch, tmp_path):
+    app, _ = _load_app(monkeypatch, tmp_path)
 
     with app.test_client() as client:
-        resp = client.post("/speak", json={}, headers={"X-API-Key": "secret"})
+        resp = client.post("/speak", json={"api_key": "secret"}, headers={"X-API-Key": "secret"})
 
     assert resp.status_code == 400
-    body = resp.get_json()
-    assert "text" in body.get("error", "").lower()
+    assert "text" in resp.get_json()["error"].lower()
+
+
+def test_speak_rejects_long_text(monkeypatch, tmp_path):
+    app, _ = _load_app(monkeypatch, tmp_path)
+
+    payload = {"text": "x" * 2000}
+
+    with app.test_client() as client:
+        response = client.post(
+            "/speak",
+            json=payload,
+            headers={"X-API-Key": "secret"},
+        )
+
+    assert response.status_code == 400
+    assert "maximum length" in response.get_json()["error"]
 
 
 def test_speak_generates_audio_with_missing_voice(monkeypatch, tmp_path):
     app, module = _load_app(monkeypatch, tmp_path)
 
-    # Simulate a profile with a missing speaker file
+    # Simulate profile with non-existent file
     module.USER_VOICES["james"] = str(tmp_path / "missing.wav")
 
     with app.test_client() as client:
-        resp = client.post("/speak", json={"text": "Hi Rex"}, headers={"X-API-Key": "secret"})
+        response = client.post(
+            "/speak",
+            json={"text": "Hello there"},
+            headers={"X-API-Key": "secret"},
+        )
 
-    assert resp.status_code == 200
-    assert module.xtts.calls
-    call = module.xtts.calls[0]
-    assert call["text"] == "Hi Rex"
+    assert response.status_code == 200
+    assert module._TTS_ENGINE.calls
+    call = module._TTS_ENGINE.calls[0]
     assert call["speaker_wav"] is None
+    assert Path(call["file_path"]).suffix == ".wav"
 
+
+def test_speak_rate_limit(monkeypatch, tmp_path):
+    app, module = _load_app(monkeypatch, tmp_path)
+
+    with app.test_client() as client:
+        for _ in range(2):
+            resp = client.post(
+                "/speak",
+                json={"text": "hi"},
+                headers={"X-API-Key": "secret"},
+            )
+            assert resp.status_code == 200
+
+        blocked = client.post(
+            "/speak",
+            json={"text": "hi again"},
+            headers={"X-API-Key": "secret"},
+        )
+
+    assert blocked.status_code == 429
+    assert blocked.get_json()["error"] == "Too many requests"

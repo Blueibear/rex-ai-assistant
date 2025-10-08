@@ -9,18 +9,21 @@ import simpleaudio as sa
 import sounddevice as sd
 
 from wakeword_utils import detect_wakeword, load_wakeword_model
+from wake_acknowledgment import ensure_wake_acknowledgment_sound
 
+# Configuration
 WAKEWORD = os.getenv("REX_WAKEWORD", "rex")
 THRESHOLD = float(os.getenv("REX_WAKEWORD_THRESHOLD", "0.5"))
 
+# Load wake-word detection model
 wake_model, wake_keyword = load_wakeword_model(keyword=WAKEWORD)
 
 # Audio settings
 sample_rate = 16000
-block_size = int(sample_rate)
+block_size = sample_rate  # 1-second blocks
 
-# Wake confirmation sound path (use relative path to the assets folder)
-wake_sound_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "rex_wake_acknowledgment (1).wav")
+# Wake confirmation sound
+wake_sound_path = ensure_wake_acknowledgment_sound()
 
 print(f"🔊 Listening for wake word: '{wake_keyword}'…")
 
@@ -30,7 +33,7 @@ def play_confirmation_sound() -> None:
         wave_obj = sa.WaveObject.from_wave_file(wake_sound_path)
         play_obj = wave_obj.play()
         play_obj.wait_done()
-    except Exception as exc:  # pragma: no cover - best effort logging
+    except Exception as exc:
         print(f"[!] Could not play wake confirmation sound: {exc}")
 
 
@@ -42,7 +45,7 @@ def listen_for_wakeword() -> bool:
         if detect_wakeword(wake_model, audio_data, threshold=THRESHOLD):
             print(f"✔ Wakeword detected: '{wake_keyword}'")
             play_confirmation_sound()
-            raise StopIteration  # Exit audio stream when detected
+            raise StopIteration  # Stop the stream after detection
 
     try:
         with sd.InputStream(
@@ -55,6 +58,14 @@ def listen_for_wakeword() -> bool:
                 sd.sleep(100)
     except StopIteration:
         return True
-    except Exception as exc:  # pragma: no cover - hardware specific
+    except Exception as exc:
         print("[!] Wakeword listener error:", exc)
         return False
+
+
+if __name__ == "__main__":
+    success = listen_for_wakeword()
+    if success:
+        print("✅ Wakeword test completed.")
+    else:
+        print("❌ Wakeword test failed or aborted.")

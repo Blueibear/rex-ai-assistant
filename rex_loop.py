@@ -50,7 +50,7 @@ async def _run(args) -> None:
         logger.error("Unable to initialise voice loop: %s", exc)
         return
 
-    logger.info("Voice loop started. Press Ctrl+C to exit.")
+    logger.info("🎙️ Voice loop started. Press Ctrl+C to exit.")
     try:
         await voice_loop.run()
     finally:
@@ -78,3 +78,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

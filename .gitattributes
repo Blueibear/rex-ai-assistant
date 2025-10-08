@@ -1,0 +1,11 @@
+# Treat generated audio and model binaries as binary files.
+*.wav binary
+*.mp3 binary
+*.onnx binary
+*.pth binary
+*.ckpt binary
+
+# Always favor this branch's deletion of legacy binary artifacts.
+assets/rex_wake_acknowledgment*.wav merge=ours
+test_audio.mp3 merge=ours
+rex.onnx merge=ours

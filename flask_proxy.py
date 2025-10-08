@@ -8,10 +8,11 @@ from flask_cors import CORS
 
 from memory_utils import load_memory_profile, load_users_map, resolve_user_key
 
+# --- Flask Setup ---
 app = Flask(__name__)
 CORS(app)
 
-# Load optional search plugin
+# --- Optional Plugin: Web Search ---
 search_web = None
 try:
     spec = importlib.util.find_spec("plugins.web_search")
@@ -21,12 +22,12 @@ try:
 except Exception as e:
     app.logger.warning("Failed to load search plugin: %s", e)
 
-# Constants & Config
+# --- Constants ---
 USERS_MAP = load_users_map()
 PROXY_TOKEN = os.getenv("REX_PROXY_TOKEN")
 ALLOW_LOCAL = os.getenv("REX_PROXY_ALLOW_LOCAL") == "1"
 
-
+# --- Helpers ---
 def _summarize_memory(profile: dict) -> dict:
     summary = {}
     if not isinstance(profile, dict):
@@ -62,14 +63,14 @@ def _is_loopback_address(addr: str | None) -> bool:
         addr = addr.split("::ffff:", 1)[-1]
     return addr in {"127.0.0.1", "::1"}
 
-
+# --- Request Hooks ---
 @app.before_request
 def load_user_memory():
     email = request.headers.get("Cf-Access-Authenticated-User-Email")
     token = _extract_shared_secret()
     remote_addr = request.remote_addr
 
-    resolved_user_key: str | None = None
+    resolved_user_key = None
 
     if email:
         resolved_user_key = resolve_user_key(email, USERS_MAP)
@@ -98,7 +99,7 @@ def load_user_memory():
     except json.JSONDecodeError:
         abort(500, f"Memory file for user '{g.user_key}' is invalid JSON.")
 
-
+# --- Routes ---
 @app.route("/")
 def index():
     return "🧠 Rex is online. Ask away."
@@ -133,9 +134,7 @@ def search():
     })
 
 
+# --- Entry Point ---
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
 
-
-if __name__ == "__main__":
-    app.run(port=5000, host="0.0.0.0")

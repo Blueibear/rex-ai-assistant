@@ -9,14 +9,21 @@ from datetime import datetime
 from pathlib import Path
 from typing import Deque, Dict, Iterable, List, Optional
 
+# Optional modules
+from placeholder_voice import (
+    DEFAULT_PLACEHOLDER_RELATIVE_PATH,
+    ensure_placeholder_voice,
+)
+
 from assistant_errors import ConfigurationError
-from config import load_config
+from config import load_config, settings
 
 REPO_ROOT = Path(__file__).resolve().parent
 MEMORY_ROOT = REPO_ROOT / "Memory"
 USERS_PATH = REPO_ROOT / "users.json"
 HISTORY_FILENAME = "history.jsonl"
 HISTORY_META = "history_meta.json"
+MAX_MEMORY_FILE_BYTES = int(os.getenv("REX_MEMORY_MAX_BYTES", "131072"))
 
 
 def _ensure_directory(path: Path) -> None:
@@ -80,6 +87,15 @@ def resolve_user_key(
 
 def load_memory_profile(user_key: str, memory_root: str | Path = MEMORY_ROOT) -> dict:
     core_path = Path(memory_root) / user_key / "core.json"
+    if MAX_MEMORY_FILE_BYTES > 0:
+        try:
+            size = core_path.stat().st_size
+        except OSError:
+            size = 0
+        if size > MAX_MEMORY_FILE_BYTES:
+            raise ValueError(
+                f"Memory profile '{core_path}' exceeds {MAX_MEMORY_FILE_BYTES} bytes; refusing to load."
+            )
     with open(core_path, "r", encoding="utf-8") as handle:
         return json.load(handle)
 
@@ -106,6 +122,15 @@ def load_all_profiles(memory_root: str | Path = MEMORY_ROOT) -> Dict[str, dict]:
     return profiles
 
 
+def _looks_like_placeholder(path: str) -> bool:
+    """Return True if the path points to the placeholder voice sample."""
+    norm = path.replace("\\", "/").strip()
+    if not norm:
+        return False
+    placeholder = DEFAULT_PLACEHOLDER_RELATIVE_PATH.replace("\\", "/")
+    return norm.endswith(placeholder) or norm.split("/")[-1] == placeholder.split("/")[-1]
+
+
 def _normalise_voice_path(
     raw_path: str,
     *,
@@ -115,6 +140,9 @@ def _normalise_voice_path(
 ) -> Optional[str]:
     expanded = os.path.expanduser(raw_path)
     original = Path(expanded)
+
+    if _looks_like_placeholder(raw_path):
+        return ensure_placeholder_voice(DEFAULT_PLACEHOLDER_RELATIVE_PATH, repo_root=repo_root)
 
     candidates = []
     if original.is_absolute():
@@ -172,7 +200,6 @@ def extract_voice_reference(
 
 
 def trim_history(history: Iterable[dict], *, limit: Optional[int] = None) -> List[dict]:
-    from config import settings
     max_items = limit or settings.max_memory_items
     recent: Deque[dict] = deque(maxlen=max_items)
     for item in history:

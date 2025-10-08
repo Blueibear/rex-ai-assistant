@@ -21,6 +21,5 @@ os.environ["REX_TESTING"] = "true"
 FIXTURES_DIR = ROOT / "tests" / "fixtures"
 FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
 
-# Optional: Register custom pytest plugins (if any)
+# Optional: Register custom pytest plugins
 # pytest_plugins = ["tests.fixtures.custom_plugin"]
-

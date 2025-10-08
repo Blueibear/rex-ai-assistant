@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from pathlib import Path
 
 import whisper
 
@@ -15,34 +16,37 @@ def transcribe_audio(file_path: str, model_name: str = "base", language: str | N
 
     model = whisper.load_model(model_name)
     result = model.transcribe(file_path, language=language)
-    return result["text"].strip()
+    return result.get("text", "").strip()
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Whisper Transcription Demo")
-    parser.add_argument("audio", help="Path to the audio file (e.g., test_audio.mp3)")
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Transcribe an audio file using Whisper.")
+    parser.add_argument("audio", help="Path to the audio file (WAV, MP3, etc.)")
     parser.add_argument("--model", default="base", help="Whisper model to use (default: base)")
-    parser.add_argument("--lang", help="Language hint (e.g., 'en', 'es', etc.)")
-    parser.add_argument("--output", help="Optional path to save transcription as .txt")
+    parser.add_argument("--lang", help="Optional language hint (e.g., 'en', 'es')")
+    parser.add_argument("--output", help="Optional path to save the transcript as a .txt file")
 
     args = parser.parse_args()
 
     try:
         print(f"🧠 Loading Whisper model: {args.model}")
         transcript = transcribe_audio(args.audio, model_name=args.model, language=args.lang)
+
         print("\n--- Transcript ---\n")
         print(transcript)
 
         if args.output:
-            with open(args.output, "w", encoding="utf-8") as f:
-                f.write(transcript + "\n")
-            print(f"\n📄 Transcript saved to: {args.output}")
+            output_path = Path(args.output)
+            output_path.write_text(transcript + "\n", encoding="utf-8")
+            print(f"\n📄 Transcript saved to: {output_path}")
+
+        return 0
 
     except Exception as exc:
         print(f"❌ Error: {exc}", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
 
