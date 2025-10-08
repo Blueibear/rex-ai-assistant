@@ -1,46 +1,52 @@
-"""Manually transcribe an audio clip using Whisper."""
+"""Manual transcription demo using Whisper."""
 
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 import whisper
 
 
+def transcribe_audio(file_path: str, model_name: str = "base", language: str | None = None) -> str:
+    if not os.path.isfile(file_path):
+        raise FileNotFoundError(f"Audio file not found: {file_path}")
+
+    model = whisper.load_model(model_name)
+    result = model.transcribe(file_path, language=language)
+    return result.get("text", "").strip()
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Transcribe an audio file with Whisper.")
-    parser.add_argument(
-        "audio",
-        nargs="?",
-        help="Path to the audio clip to transcribe (WAV/MP3/etc).",
-    )
-    parser.add_argument(
-        "--model",
-        default="base",
-        help="Whisper model variant to load (default: base).",
-    )
+    parser = argparse.ArgumentParser(description="Transcribe an audio file using Whisper.")
+    parser.add_argument("audio", help="Path to the audio file (WAV, MP3, etc.)")
+    parser.add_argument("--model", default="base", help="Whisper model to use (default: base)")
+    parser.add_argument("--lang", help="Optional language hint (e.g., 'en', 'es')")
+    parser.add_argument("--output", help="Optional path to save the transcript as a .txt file")
+
     args = parser.parse_args()
 
-    if not args.audio:
-        print(
-            "Please provide a path to an audio file, e.g.:\n"
-            "  python manual_whisper_demo.py path/to/clip.wav",
-            file=sys.stderr,
-        )
-        return 1
+    try:
+        print(f"🧠 Loading Whisper model: {args.model}")
+        transcript = transcribe_audio(args.audio, model_name=args.model, language=args.lang)
 
-    audio_path = Path(args.audio)
-    if not audio_path.exists():
-        print(f"Audio file not found: {audio_path}", file=sys.stderr)
-        return 1
+        print("\n--- Transcript ---\n")
+        print(transcript)
 
-    model = whisper.load_model(args.model)
-    result = model.transcribe(str(audio_path))
-    print(result.get("text", "").strip())
-    return 0
+        if args.output:
+            output_path = Path(args.output)
+            output_path.write_text(transcript + "\n", encoding="utf-8")
+            print(f"\n📄 Transcript saved to: {output_path}")
+
+        return 0
+
+    except Exception as exc:
+        print(f"❌ Error: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

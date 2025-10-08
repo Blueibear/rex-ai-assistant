@@ -1,192 +1,215 @@
-# 🧠 Rex AI Assistant
+🧠 Rex AI Assistant
 
-Rex is a local-first, voice-driven AI companion that combines wake-word
-spotting, OpenAI Whisper transcription, transformer-backed text
-responses, and Coqui XTTS speech synthesis. Each user has a dedicated
-memory profile so the assistant can tailor answers without sending data
-to the cloud.
+Rex is a local-first, voice-driven AI companion that runs entirely on your machine. It combines:
 
-## ✨ Highlights
+🔊 Wake-word detection via openWakeWord
 
-- 🔊 **Wake-word detection** via [openWakeWord](https://github.com/dscripka/openWakeWord) with support for custom ONNX models.
-- 🗣️ **Speech-to-text** powered by [Whisper](https://github.com/openai/whisper).
-- 🧠 **Transformer responses** produced with Hugging Face models (defaults to `distilgpt2`).
-- 🔉 **Text-to-speech** using [Coqui XTTS v2](https://github.com/coqui-ai/TTS) with optional per-user voice cloning.
-- 🗃️ **Conversation memory** that compresses older exchanges so prompts stay focused while still honouring long-term context.
-- 🌐 **Pluggable web search** that uses SerpAPI when available and gracefully falls back to DuckDuckGo scraping.
-- 🔐 **Hardened APIs** including a rate-limited, API-key protected `/speak` endpoint and a Flask proxy ready for Cloudflare Access or shared-secret deployments.
-- ✅ **Automated tests & CI** so regressions are caught early.
+🗣️ Speech-to-text using Whisper
 
-## 🚀 Quick start
+🤖 Transformer-based responses via Hugging Face or OpenAI (optional)
 
-### Prerequisites
+🔉 Text-to-speech via Coqui XTTS
+, with voice cloning support
 
-- Python **3.10 or newer**
-- Git
-- FFmpeg (required by Whisper/XTTS for audio conversions)
-- Speakers and a microphone
+🌐 Pluggable web search via SerpAPI or DuckDuckGo
 
-### 1. Clone and install
+🔐 Flask APIs with authentication and rate limiting
 
-```bash
+🧠 Per-user memory profiles for personalization
+
+✅ Built-in tests and GitHub Actions CI
+
+Everything runs offline by default — no cloud access unless explicitly enabled.
+
+✨ Highlights
+
+🔊 Customizable wake-word detection (ONNX or fallback hey_jarvis)
+
+🗣️ Speech transcription via Whisper
+
+🤖 Chat model (local Transformers or OpenAI)
+
+🔉 XTTS TTS with optional voice cloning
+
+🌐 Search plugin with SerpAPI or DuckDuckGo
+
+🔐 HTTP APIs with API key / Cloudflare Access support
+
+🧠 Per-user memory with preferences and history
+
+✅ CI & tests via GitHub Actions
+
+🚀 Quick Start
+🔧 Prerequisites
+
+Python 3.10+
+
+Git
+
+FFmpeg (must be in PATH)
+
+Microphone & speakers
+
+(Optional) NVIDIA GPU with CUDA for performance
+
+🧱 Setup
 git clone https://github.com/Blueibear/rex-ai-assistant.git
 cd rex-ai-assistant
 
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # Windows: .\.venv\Scripts\activate
 
 pip install --upgrade pip
-# Install PyTorch CPU wheels first for reliable installs on Linux
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
-```
+pip install -r requirements-ml.txt || true
+pip install -r requirements-dev.txt || true
 
-> **Note:** If PyTorch or `transformers` cannot be installed on your
-> hardware, Rex falls back to an offline acknowledgement mode so you can
-> still exercise the wake-word, STT, and TTS pipeline.
 
-### 2. Prepare wake-word & voices
+✅ Or use the helper:
 
-Rex looks for a custom `rex.onnx` wake-word model in the repository root.
-The repository intentionally does **not** ship a binary wake-word file; if the
-model is missing or empty the assistant automatically falls back to the bundled
-openWakeWord keyword `hey_jarvis`. To train or record a personal wake-word
-model, run:
+python install.py --with-ml --with-dev
 
-```bash
+⚡ GPU Acceleration (Optional)
+pip uninstall -y torch torchvision torchaudio
+pip install torch==2.6.0+cu118 torchvision==0.21.0+cu118 torchaudio==2.6.0+cu118 \
+  --index-url https://download.pytorch.org/whl/cu118
+
+🔊 Wake-word Setup
+
+If rex.onnx exists at project root, it is used. Otherwise, the default phrase hey_jarvis is activated.
+
+Train or record:
+
 python record_wakeword.py
-```
 
-For personalised text-to-speech, add a short WAV sample to your memory
-profile (see `Memory/<user>/core.json`). On first run the assistant generates a
-synthetic placeholder voice at `assets/voices/placeholder.wav` so the default
-profiles work out of the box without storing binary assets in Git. Replace that
-file path with your own recording for richer cloning. If the configured sample
-is missing, Rex automatically falls back to the default XTTS speaker.
 
-Similarly, the wake-word acknowledgment chirp is generated into
-`assets/wake_acknowledgment.wav` the first time you run either
-`rex_assistant.py` or `wakeword_listener.py`, so fresh clones never need to
-check in binary WAV files just to play the confirmation tone.
+On first run, confirmation tones and placeholder voices are synthesized automatically — no binary WAVs are tracked in Git.
 
-Need a quick transcription test? Supply your own clip to
-`manual_whisper_demo.py`:
+🧠 Personalize Voices
 
-```bash
-python manual_whisper_demo.py path/to/recording.wav
-```
+Update Memory/<user>/core.json:
 
-This keeps the repository free of binary test audio while still letting you
-verify Whisper locally.
+"voice": {
+  "sample_path": "path/to/your_voice.wav",
+  "gender": "male",
+  "style": "friendly and warm"
+}
 
-### 3. Launch the assistant
 
-```bash
+If your voice sample is missing, Rex falls back to the XTTS default.
+
+🎙️ Start the Assistant
 python rex_assistant.py
-```
 
-Say the configured wake word, speak your request, and Rex will transcribe,
-consult memory, generate an answer, and reply out loud. Press **Enter** to exit.
-On startup the assistant lists available microphone devices so you can switch
-inputs without editing configuration files. Set `REX_INPUT_DEVICE` to skip the
-interactive prompt in headless or automated environments.
 
-### 4. Run automated tests
+Say your wake word, speak your request, and Rex will respond out loud. Press Enter or Ctrl+C to exit.
 
-```bash
+🎛 Audio Config
+
+List/select devices:
+
+python audio_devices.py --list
+python audio_devices.py --set-input <device_id>
+python audio_devices.py --set-output <device_id>
+
+🌐 TTS HTTP API (Optional)
+python rex_speak_api.py
+
+
+POST /speak
+
+{
+  "text": "Hello Rex",
+  "user": "james"
+}
+
+
+Headers:
+
+Content-Type: application/json
+
+X-API-Key: your_secret
+
+Returns: WAV audio.
+
+🔒 Environment Variables
+Variable	Purpose
+REX_ACTIVE_USER	Default memory profile
+REX_WAKEWORD, REX_WAKEWORDS	Wake phrase(s)
+REX_WAKEWORD_THRESHOLD	Detection sensitivity
+REX_WHISPER_MODEL	Whisper model (tiny, base, ...)
+REX_LLM_MODEL, REX_LLM_MAX_TOKENS, REX_LLM_TEMPERATURE	LLM config
+OPENAI_API_KEY	Use OpenAI Chat API if REX_LLM_MODEL starts with openai:
+REX_INPUT_DEVICE	Input device ID
+SERPAPI_KEY	Enables SerpAPI search
+REX_SPEAK_API_KEY	Required by /speak endpoint
+REX_PROXY_TOKEN	Auth token for Flask proxy
+REX_PROXY_ALLOW_LOCAL	Allow local dev bypass (1)
+🧠 Memory & Personalization
+
+Each user has:
+
+Memory/<user>/
+├── core.json     # preferences, voice
+├── history.log   # prior chats
+└── notes.md      # general info
+
+
+Profiles support:
+
+Email alias resolution
+
+Freeform notes
+
+Conversation trimming + transcript export
+
+🛠️ Tools
+
+record_wakeword.py — record your own trigger phrase
+
+wakeword_listener.py — test detection
+
+rex_speak_api.py — run standalone TTS server
+
+flask_proxy.py — proxy for Cloudflare Access deployments
+
+manual_whisper_demo.py — test STT with local file
+
+plugins/web_search.py — search backend
+
+🧪 Tests & CI
+
+Run locally:
+
 pytest
-```
 
-Continuous integration runs the same test suite on every push via the
-GitHub Actions workflow defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-## ⚙️ Configuration
+GitHub Actions runs .github/workflows/ci.yml on every push or PR. Includes:
 
-Rex reads configuration from environment variables so you can adapt the
-assistant to different environments without editing source files.
+Linting
 
-### Core options
+Torch compatibility
 
-- `REX_ACTIVE_USER` – selects the default memory folder (for example `james`).
-- `REX_WAKEWORD` – desired wake phrase. If a matching ONNX model is not
-  available, Rex falls back to the keyword specified by
-  `REX_WAKEWORD_KEYWORD` (defaults to `hey_jarvis`).
-- `REX_WAKEWORDS` – optional comma-separated list of wake phrases to
-  monitor simultaneously.
-- `REX_WAKEWORD_THRESHOLD` – sensitivity threshold for wake-word detection
-  (default `0.5`).
-- `REX_WHISPER_MODEL` – Whisper size to load (`tiny`, `base`, `small`, …).
-- `REX_LLM_MODEL`, `REX_LLM_MAX_TOKENS`, `REX_LLM_TEMPERATURE` – tune the
-  transformer-based response generator. Prefix the model with `openai:` (for
-  example `openai:gpt-4o-mini`) to route prompts through the OpenAI Chat
-  Completions API instead of a local transformer. Set `OPENAI_API_KEY` and
-  install the `openai` package to enable this mode.
-- `REX_INPUT_DEVICE` – preset the microphone index when running the assistant
-  non-interactively.
-- `REX_MEMORY_MAX_BYTES` – refuse to load oversized memory profiles to prevent
-  runaway JSON growth (defaults to 128 KiB).
+Memory utils
 
-### Web search plugin
+Flask APIs
 
-- `SERPAPI_KEY` – enables SerpAPI in `plugins/web_search.py`.
-- `SERPAPI_ENGINE` – optional SerpAPI engine override (defaults to `google`).
+Plugin integration
 
-Without a SerpAPI key, the plugin scrapes DuckDuckGo HTML results. Set
-Rex's environment variables accordingly if you need to disable web
-access entirely.
+📦 Docker (Optional)
 
-### Flask proxy authentication
+To containerize Rex:
 
-- `REX_PROXY_TOKEN` – shared secret for clients that cannot use Cloudflare Access.
-- `REX_PROXY_ALLOW_LOCAL` – set to `1` during development to allow
-  unauthenticated requests from `127.0.0.1`.
+Base image: nvidia/cuda:11.8-runtime
 
-When requests arrive with the `Cf-Access-Authenticated-User-Email`
-header, the proxy resolves that email via `users.json` and loads the
-matching memory profile. The `/whoami` route now returns a sanitised
-summary instead of the entire memory object to prevent sensitive data
-leaks.
+Install: ffmpeg, libsndfile, portaudio19-dev, nvidia-cuda-toolkit
 
-### Speech API security
+Use torch via cu118 wheel
 
-- `REX_SPEAK_API_KEY` – required shared secret for the `/speak` endpoint.
-- `REX_SPEAK_RATE_LIMIT` / `REX_SPEAK_RATE_WINDOW` – limit how many requests
-  each caller may issue within a rolling window (defaults to 30 requests per 60
-  seconds).
-- `REX_SPEAK_MAX_CHARS` – cap the maximum length of accepted text.
+Expose TTS and proxy ports
 
-## 🧠 Memory & personalisation
+📄 License
 
-Each memory profile lives under `Memory/<user>/` and includes:
-
-- `core.json` – structured profile metadata
-- `history.log` – chronological conversation history
-- `notes.md` – free-form notes
-
-Update these files to teach Rex about new preferences or to provide voice
-samples. The helper functions in `memory_utils.py` normalise profile paths and
-email aliases so you can reference a user by folder name, email address, or
-profile display name. Runtime conversations are captured by a summarising
-`ConversationMemory` helper so prompts stay succinct even after lengthy chats.
-
-## 🛠️ Additional tools
-
-- `wakeword_listener.py` – standalone script that listens for the wake word and plays a confirmation sound when detected.
-- `rex_speak_api.py` – HTTP API for text-to-speech only workflows.
-- `flask_proxy.py` – reverse proxy suitable for Cloudflare Access deployments.
-
-## 🧪 Test matrix
-
-The repository ships with unit tests covering the language-model wrapper,
-memory utilities, and Flask proxy. A lightweight integrity test also guards
-against accidentally committing regenerated wake-tone or voice WAV files.
-GitHub Actions executes the full matrix on every push so new changes must keep
-the suite green.
-
-```bash
-pytest
-```
-
-## 📄 License
-
-Rex AI Assistant is released under the [MIT License](LICENSE).
+Released under the MIT License
+.

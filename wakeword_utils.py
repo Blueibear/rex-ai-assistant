@@ -1,3 +1,5 @@
+"""Wake-word detection utilities for Rex."""
+
 from __future__ import annotations
 
 import os
@@ -88,3 +90,4 @@ def detect_wakeword(
 
 
 __all__ = ["load_wakeword_model", "detect_wakeword"]
+

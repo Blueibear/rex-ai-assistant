@@ -1,22 +1,30 @@
 {
   "name": "Cole",
+  "user": "cole",
   "role": "Secondary user and partner",
+  "personality_traits": [
+    "thoughtful",
+    "funny",
+    "practical"
+  ],
   "preferences": {
     "tone": "casual and kind",
+    "conversation_style": "laid-back",
     "topics": [
       "travel",
       "pets",
       "photography"
     ]
   },
-  "personality_traits": [
-    "thoughtful",
-    "funny",
-    "practical"
-  ],
   "voice": {
-    "sample_path": "assets/voices/placeholder.wav",
+    "sample_path": "C:/AI/CoquiXTTS/cole_voice.wav",
+    "speaker_name": "cole_xtts",
     "gender": "male",
     "style": "friendly and warm"
-  }
+  },
+  "testing_mode": false,
+  "created_at": "2025-09-23T00:00:00Z",
+  "last_updated": "2025-09-23T00:00:00Z",
+  "notes_path": "Memory/cole/notes.md"
 }
+
