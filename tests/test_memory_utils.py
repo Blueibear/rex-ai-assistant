@@ -23,23 +23,39 @@ def test_resolve_user_key_from_email():
     assert result == "james", "Failed to resolve correct user key from email"
 
 
-def test_extract_voice_reference_handles_missing(tmp_path):
-    voice_file = tmp_path / "voice.wav"
-    voice_file.write_bytes(b"fake")
+def test_extract_voice_reference_handles_absolute_and_relative(tmp_path):
+    # Absolute sample path
+    absolute_voice = tmp_path / "voice.wav"
+    absolute_voice.write_bytes(b"fake")
+    profile = {"voice": {"sample_path": str(absolute_voice)}}
 
-    profile_with_voice = {"voice": {"sample_path": str(voice_file)}}
-    assert extract_voice_reference(profile_with_voice) == str(voice_file), "Voice sample should match full path"
+    assert extract_voice_reference(profile) == str(absolute_voice)
 
+    # Relative path from voice_sample with user directory
+    user_dir = tmp_path / "james"
+    user_dir.mkdir()
+    relative_voice = user_dir / "voice.wav"
+    relative_voice.write_bytes(b"demo")
+    profile_relative = {"voice_sample": "voice.wav"}
+
+    result = extract_voice_reference(
+        profile_relative,
+        user_key="james",
+        memory_root=str(tmp_path),
+    )
+    assert result == str(relative_voice.resolve())
+
+    # Missing or invalid profile
     profile_missing = {"voice": {}}
-    assert extract_voice_reference(profile_missing) is None, "Missing voice sample should return None"
-
-    profile_none = {}
-    assert extract_voice_reference(profile_none) is None, "Absent voice dict should return None"
+    assert extract_voice_reference(
+        profile_missing,
+        user_key="james",
+        memory_root=str(tmp_path),
+    ) is None
 
 
 def test_trim_history_limits_entries():
     history = [{"id": i} for i in range(10)]
-
     trimmed = trim_history(history, limit=3)
 
     assert len(trimmed) == 3
@@ -59,7 +75,7 @@ def test_append_history_trims(monkeypatch, tmp_path):
         )
 
     entries = load_recent_history("tester", memory_root=tmp_path)
-    assert len(entries) == 2, "Should only retain last 2 history items"
+    assert len(entries) == 2
     assert entries[0]["text"] == "utterance 2"
     assert entries[1]["text"] == "utterance 3"
 
@@ -75,14 +91,13 @@ def test_export_transcript_appends(monkeypatch, tmp_path):
     ]
 
     path = export_transcript("tester", conversation, transcripts_dir=transcripts_dir)
-    assert path.exists(), "Transcript file should be created"
+    assert path.exists()
     contents = path.read_text(encoding="utf-8")
     assert "user: Hello" in contents
     assert "assistant: Hi there" in contents
 
 
 def test_export_transcript_creates_directory(monkeypatch, tmp_path):
-    """Ensure export_transcript creates the transcripts directory if missing."""
     transcripts_dir = tmp_path / "not_yet_there"
     cfg = config.AppConfig(transcripts_dir=transcripts_dir)
     monkeypatch.setattr(config, "_cached_config", cfg, raising=False)
@@ -90,13 +105,12 @@ def test_export_transcript_creates_directory(monkeypatch, tmp_path):
     conversation = [{"role": "assistant", "text": "Testing export..."}]
     path = export_transcript("tester", conversation, transcripts_dir=transcripts_dir)
 
-    assert path.exists(), "Transcript file should be written even if folder was missing"
-    assert path.parent.exists(), "Transcript directory should have been created"
+    assert path.exists()
+    assert path.parent.exists()
 
 
 def test_load_recent_history_with_missing_file(tmp_path):
-    """Test graceful handling when no history file exists."""
     entries = load_recent_history("ghost", memory_root=tmp_path)
     assert isinstance(entries, list)
-    assert len(entries) == 0, "Should return empty list if no memory exists"
+    assert len(entries) == 0
 

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Resolve root of the project
@@ -14,12 +14,13 @@ root_str = str(ROOT)
 if root_str not in sys.path:
     sys.path.insert(0, root_str)
 
-# Optional: signal to the app that tests are running
+# Signal that tests are running (some modules might check this)
 os.environ["REX_TESTING"] = "true"
 
-# Optional: directory for test fixtures
+# Optional: Directory for shared test fixtures
 FIXTURES_DIR = ROOT / "tests" / "fixtures"
-os.makedirs(FIXTURES_DIR, exist_ok=True)
+FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
 
-# Optional future usage: dynamically load pytest plugins
-# pytest_plugins = ["tests.fixtures.some_plugin"]
+# Optional: Register custom pytest plugins (if any)
+# pytest_plugins = ["tests.fixtures.custom_plugin"]
+

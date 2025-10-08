@@ -71,10 +71,10 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         asyncio.run(_run(args))
-    except KeyboardInterrupt:  # pragma: no cover - manual interruption
+    except KeyboardInterrupt:
         print("\nInterrupted.")
     return 0
 
 
-if __name__ == "__main__":  # pragma: no cover - CLI entry point
+if __name__ == "__main__":
     raise SystemExit(main())

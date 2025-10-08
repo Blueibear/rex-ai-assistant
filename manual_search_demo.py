@@ -1,8 +1,8 @@
 """Manual demo for the web search plugin."""
 
 from __future__ import annotations
-
 import argparse
+
 from plugins.web_search import search_web
 
 
@@ -11,7 +11,12 @@ def run_search(query: str) -> None:
         print("⚠️  Empty query. Please type something meaningful.")
         return
 
-    result = search_web(query)
+    try:
+        result = search_web(query)
+    except Exception as e:
+        print(f"❌ Search failed: {e}")
+        return
+
     print("\n--- Result ---")
     if result:
         print(result)
@@ -33,7 +38,7 @@ def interactive_loop() -> None:
             break
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Rex Web Search CLI Tester")
     parser.add_argument("--query", "-q", type=str, help="Search query (non-interactive mode)")
     args = parser.parse_args()
@@ -46,3 +51,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

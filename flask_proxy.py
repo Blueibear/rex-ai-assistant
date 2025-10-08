@@ -11,7 +11,7 @@ from memory_utils import load_memory_profile, load_users_map, resolve_user_key
 app = Flask(__name__)
 CORS(app)
 
-# Optional: register search plugin if available
+# Load optional search plugin
 search_web = None
 try:
     spec = importlib.util.find_spec("plugins.web_search")
@@ -21,10 +21,10 @@ try:
 except Exception as e:
     app.logger.warning("Failed to load search plugin: %s", e)
 
+# Constants & Config
 USERS_MAP = load_users_map()
 PROXY_TOKEN = os.getenv("REX_PROXY_TOKEN")
 ALLOW_LOCAL = os.getenv("REX_PROXY_ALLOW_LOCAL") == "1"
-user_key: str | None = None
 
 
 def _summarize_memory(profile: dict) -> dict:
@@ -49,7 +49,6 @@ def _summarize_memory(profile: dict) -> dict:
 
 
 def _extract_shared_secret() -> str | None:
-    """Return the shared-secret token provided with the request, if any."""
     auth_header = request.headers.get("Authorization", "")
     if auth_header.lower().startswith("bearer "):
         return auth_header[7:].strip() or None
@@ -70,7 +69,6 @@ def load_user_memory():
     token = _extract_shared_secret()
     remote_addr = request.remote_addr
 
-    global user_key
     resolved_user_key: str | None = None
 
     if email:
@@ -90,18 +88,15 @@ def load_user_memory():
     else:
         abort(403, "No authenticated identity provided.")
 
-    user_key = resolved_user_key
-    memory_path = os.path.join("Memory", user_key)
-    try:
-        memory = load_memory_profile(user_key)
-    except FileNotFoundError:
-        abort(500, f"Memory file not found for user '{user_key}'.")
-    except json.JSONDecodeError:
-        abort(500, f"Memory file for user '{user_key}' is invalid JSON.")
+    g.user_key = resolved_user_key
+    g.user_folder = os.path.join("Memory", g.user_key)
 
-    g.user_key = user_key
-    g.memory = memory
-    g.user_folder = memory_path
+    try:
+        g.memory = load_memory_profile(g.user_key)
+    except FileNotFoundError:
+        abort(500, f"Memory file not found for user '{g.user_key}'.")
+    except json.JSONDecodeError:
+        abort(500, f"Memory file for user '{g.user_key}' is invalid JSON.")
 
 
 @app.route("/")
@@ -111,7 +106,6 @@ def index():
 
 @app.route("/whoami")
 def whoami():
-    """Return a redacted summary of the active user profile."""
     return jsonify({
         "user": g.user_key,
         "profile": _summarize_memory(g.memory),
@@ -130,8 +124,8 @@ def search():
     try:
         result = search_web(query)
     except Exception as e:
-        app.logger.warning("Search failed: %s", e)
-        result = "Search failed due to internal error."
+        app.logger.exception("Web search failed")
+        return jsonify({"error": f"Search provider error: {e}"}), 502
 
     return jsonify({
         "query": query,
@@ -142,3 +136,6 @@ def search():
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
 
+
+if __name__ == "__main__":
+    app.run(port=5000, host="0.0.0.0")

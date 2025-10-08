@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from config import AppConfig
-from llm_client import LanguageModel, register_strategy
+from llm_client import LanguageModel, register_strategy, TORCH_AVAILABLE, TRANSFORMERS_AVAILABLE
 
 
 def test_language_model_generates_text():
@@ -23,6 +23,10 @@ def test_language_model_generates_text():
 
     assert isinstance(completion, str)
     assert completion.strip() != ""
+
+    # If dependencies are missing, check for fallback text
+    if not (TORCH_AVAILABLE and TRANSFORMERS_AVAILABLE):
+        assert completion.startswith("(offline)")
 
 
 def test_language_model_rejects_empty_prompt():
@@ -53,4 +57,3 @@ def test_language_model_custom_strategy():
     )
     result = model.generate("test")
     assert result == "dummy::test::5"
-

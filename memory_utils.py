@@ -106,16 +106,67 @@ def load_all_profiles(memory_root: str | Path = MEMORY_ROOT) -> Dict[str, dict]:
     return profiles
 
 
-def extract_voice_reference(profile: dict) -> Optional[str]:
+def _normalise_voice_path(
+    raw_path: str,
+    *,
+    user_key: Optional[str] = None,
+    memory_root: str | Path = MEMORY_ROOT,
+    repo_root: str | Path = REPO_ROOT,
+) -> Optional[str]:
+    expanded = os.path.expanduser(raw_path)
+    original = Path(expanded)
+
+    candidates = []
+    if original.is_absolute():
+        candidates.append(original)
+    else:
+        if user_key:
+            candidates.append(Path(memory_root) / user_key / raw_path)
+        candidates.append(Path(memory_root) / raw_path)
+        candidates.append(Path(repo_root) / raw_path)
+        candidates.append(original)
+
+    for candidate in candidates:
+        try:
+            resolved = candidate.expanduser()
+            if resolved.exists():
+                return str(resolved.resolve())
+        except OSError:
+            return str(candidate)
+
+    return None
+
+
+def extract_voice_reference(
+    profile: dict,
+    *,
+    user_key: Optional[str] = None,
+    memory_root: str | Path = MEMORY_ROOT,
+    repo_root: str | Path = REPO_ROOT,
+) -> Optional[str]:
     voice_sample = profile.get("voice_sample")
-    if isinstance(voice_sample, str):
-        return voice_sample
+    if isinstance(voice_sample, str) and voice_sample.strip():
+        resolved = _normalise_voice_path(
+            voice_sample.strip(),
+            user_key=user_key,
+            memory_root=memory_root,
+            repo_root=repo_root,
+        )
+        if resolved:
+            return resolved
 
     voice = profile.get("voice") if isinstance(profile, dict) else None
     if isinstance(voice, dict):
         candidate = voice.get("sample_path") or voice.get("sample")
-        if isinstance(candidate, str):
-            return candidate
+        if isinstance(candidate, str) and candidate.strip():
+            resolved = _normalise_voice_path(
+                candidate.strip(),
+                user_key=user_key,
+                memory_root=memory_root,
+                repo_root=repo_root,
+            )
+            if resolved:
+                return resolved
 
     return None
 
@@ -225,4 +276,3 @@ __all__ = [
     "load_recent_history",
     "export_transcript",
 ]
-
