@@ -1,44 +1,80 @@
-import time
+"""Async CLI loop driving the full Rex voice experience.
+
+This preserves the semantics of the original ``rex_loop.py`` entry point while
+bridging to the refactored voice loop package introduced during previous
+iterations.
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import logging
 import os
-import sounddevice as sd
-import numpy as np
-import simpleaudio as sa
-from openwakeword.model import Model
+from typing import Iterable
 
-# Load OpenWakeWord model (if not already loaded)
-model = Model(backend="onnx")
-wakeword = "rex"  # Use "rex" or any other wake word
-model.load_wakeword(wakeword)
+import rex
+from rex.assistant import Assistant
+from rex.assistant_errors import AssistantError, WakeWordError
+from rex.logging_utils import configure_logging
+from rex.plugins import PluginSpec, load_plugins, shutdown_plugins
+from rex.voice_loop import build_voice_loop
 
-# Audio settings
-sample_rate = 16000
-duration = 1  # second
-block_size = int(sample_rate * duration)
+logger = logging.getLogger(__name__)
 
-# Wake confirmation sound path
-wake_sound_path = os.path.join(os.path.dirname(__file__), "assets", "rex_wake_acknowledgment (1).wav")
 
-# Play the confirmation sound when wakeword is detected
-def play_confirmation_sound():
+def _select_plugins(enabled: Iterable[str] | None) -> list[PluginSpec]:
+    specs = load_plugins()
+    if not enabled:
+        return specs
+    enabled_set = {name.strip() for name in enabled if name}
+    return [spec for spec in specs if spec.name in enabled_set]
+
+
+async def _run(args) -> None:
+    configure_logging()
+    plugin_specs = _select_plugins(args.enable_plugin)
+
+    if args.user:
+        os.environ["REX_ACTIVE_USER"] = args.user
+        rex.reload_settings()
+
+    assistant = Assistant(
+        history_limit=rex.settings.max_memory_items,
+        plugins=plugin_specs
+    )
+
     try:
-        wave_obj = sa.WaveObject.from_wave_file(wake_sound_path)
-        play_obj = wave_obj.play()
-        play_obj.wait_done()
-    except Exception as e:
-        print(f"[!] Could not play wake confirmation sound: {e}")
+        voice_loop = build_voice_loop(assistant)
+    except (AssistantError, WakeWordError) as exc:
+        logger.error("Unable to initialise voice loop: %s", exc)
+        return
 
-# Callback function for listening to the audio stream
-def audio_callback(indata, frames, time, status):
-    if status:
-        print("[!] Audio stream status:", status)
-    audio_data = np.squeeze(indata)
+    logger.info("Voice loop started. Press Ctrl+C to exit.")
+    try:
+        await voice_loop.run()
+    finally:
+        shutdown_plugins(plugin_specs)
 
-    score = model.score(audio_data)
-    if score > 0.5:
-        print("👂 Wake word detected: Rex")
-        play_confirmation_sound()
 
-# Start listening for the wake word
-with sd.InputStream(channels=1, samplerate=sample_rate, blocksize=block_size, callback=audio_callback):
-    input("Press Enter to stop listening...\n")
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Run the Rex voice assistant loop.")
+    parser.add_argument("--user", help="Override the active user profile")
+    parser.add_argument(
+        "--enable-plugin",
+        action="append",
+        metavar="NAME",
+        help="Explicitly enable a plugin by name (omit to load all)",
+    )
 
+    args = parser.parse_args(argv)
+
+    try:
+        asyncio.run(_run(args))
+    except KeyboardInterrupt:
+        print("\nInterrupted.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

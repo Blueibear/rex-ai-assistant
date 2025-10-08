@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import importlib
+import os
 import sys
-import types
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -13,13 +14,13 @@ pytest.importorskip("flask")
 
 
 class DummyTTS:
-    """Lightweight stand-in for the Coqui XTTS engine."""
+    """Mock for Coqui TTS engine."""
 
     def __init__(self, *args, **kwargs):
-        self.calls: list[dict] = []
+        self.calls = []
 
     def tts_to_file(self, *, text, speaker_wav, language, file_path):
-        Path(file_path).write_bytes(b"RIFFdemoWAVE")
+        Path(file_path).write_bytes(b"FAKEAUDIO")
         self.calls.append(
             {
                 "text": text,
@@ -30,53 +31,91 @@ class DummyTTS:
         )
 
 
-def _load_app(monkeypatch):
-    """Import the Flask app with a stubbed TTS backend."""
-
-    # Install a stub ``TTS`` package before importing the module under test.
-    fake_api = types.ModuleType("TTS.api")
+def _mock_tts(monkeypatch):
+    """Patch TTS.api.TTS with dummy class."""
+    fake_api = ModuleType("TTS.api")
     fake_api.TTS = DummyTTS
-    fake_pkg = types.ModuleType("TTS")
+
+    fake_pkg = ModuleType("TTS")
     fake_pkg.api = fake_api
+
     monkeypatch.setitem(sys.modules, "TTS", fake_pkg)
     monkeypatch.setitem(sys.modules, "TTS.api", fake_api)
 
+
+def _load_app(monkeypatch, tmp_path) -> tuple:
+    """Prepare environment and import rex_speak_api with mocks."""
+    module_name = "rex_speak_api"
+
+    _mock_tts(monkeypatch)
+
+    monkeypatch.setenv("REX_SPEAK_API_KEY", "secret")
     monkeypatch.setenv("REX_ACTIVE_USER", "james")
 
-    sys.modules.pop("rex_speak_api", None)
-    module = importlib.import_module("rex_speak_api")
+    # Clean config cache if needed
+    if "config" in sys.modules:
+        monkeypatch.setattr(sys.modules["config"], "_cached_config", None, raising=False)
 
-    dummy_engine = DummyTTS()
-    module._TTS_ENGINE = dummy_engine
-    module._get_tts_engine = lambda: dummy_engine
+    if module_name in sys.modules:
+        del sys.modules[module_name]
 
-    app = module.app
-    app.config.update(TESTING=True)
-    return app, module
+    module = importlib.import_module(module_name)
+    return module.app, module
 
 
-def test_speak_requires_text(monkeypatch):
-    app, _module = _load_app(monkeypatch)
+def test_missing_api_key_prevents_start(monkeypatch):
+    """Fail fast if REX_SPEAK_API_KEY is missing at app startup."""
+    module_name = "rex_speak_api"
+
+    monkeypatch.delenv("REX_SPEAK_API_KEY", raising=False)
+    monkeypatch.setenv("REX_ACTIVE_USER", "james")
+    _mock_tts(monkeypatch)
+
+    if module_name in sys.modules:
+        del sys.modules[module_name]
+
+    with pytest.raises(RuntimeError):
+        importlib.import_module(module_name)
+
+
+def test_speak_requires_api_key(monkeypatch, tmp_path):
+    app, module = _load_app(monkeypatch, tmp_path)
 
     with app.test_client() as client:
-        response = client.post("/speak", json={})
+        # No API key
+        resp = client.post("/speak", json={"text": "Hello"})
+        assert resp.status_code == 401
 
-    assert response.status_code == 400
-    assert response.get_json()["error"]
+        # Valid API key
+        resp = client.post("/speak", json={"text": "Hello"}, headers={"X-API-Key": "secret"})
+        assert resp.status_code == 200
+        assert resp.data.startswith(b"FAKEAUDIO")
+        assert "audio/wav" in resp.content_type
 
 
-def test_speak_generates_audio_when_voice_missing(monkeypatch, tmp_path):
-    app, module = _load_app(monkeypatch)
+def test_speak_requires_text_param(monkeypatch, tmp_path):
+    app, _module = _load_app(monkeypatch, tmp_path)
 
-    # Simulate a memory profile that references a non-existent speaker file.
+    with app.test_client() as client:
+        resp = client.post("/speak", json={}, headers={"X-API-Key": "secret"})
+
+    assert resp.status_code == 400
+    body = resp.get_json()
+    assert "text" in body.get("error", "").lower()
+
+
+def test_speak_generates_audio_with_missing_voice(monkeypatch, tmp_path):
+    app, module = _load_app(monkeypatch, tmp_path)
+
+    # Simulate a profile with a missing speaker file
     module.USER_VOICES["james"] = str(tmp_path / "missing.wav")
 
     with app.test_client() as client:
-        response = client.post("/speak", json={"text": "Hello there"})
+        resp = client.post("/speak", json={"text": "Hi Rex"}, headers={"X-API-Key": "secret"})
 
-    assert response.status_code == 200
-    assert response.mimetype == "audio/wav"
-    assert module._TTS_ENGINE.calls
-    call = module._TTS_ENGINE.calls[0]
+    assert resp.status_code == 200
+    assert module.xtts.calls
+    call = module.xtts.calls[0]
+    assert call["text"] == "Hi Rex"
     assert call["speaker_wav"] is None
-    assert Path(call["file_path"]).suffix == ".wav"
+

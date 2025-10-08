@@ -1,21 +1,36 @@
 {
   "name": "James",
   "role": "Owner and primary user",
-  "preferences": {
-    "tone": "direct and insightful",
-    "topics": [
-      "AI",
-      "automation",
-      "t-shirts",
-      "privacy",
-      "voice assistants"
-    ]
-  },
+  "user": "james",
   "personality_traits": [
     "curious",
     "strategic",
     "creative"
   ],
-  "user": "james",
-  "voice_sample": "C:\\AI\\CoquiXTTS\\cleaned_jensen.wav"
+  "preferences": {
+    "tone": "casual and kind",
+    "conversation_style": "laid-back",
+    "topics": [
+      "travel",
+      "pets",
+      "AI",
+      "automation",
+      "t-shirts",
+      "privacy",
+      "voice assistants",
+      "star trek"
+    ]
+  },
+  "voice": {
+    "sample_path": "C:/AI/CoquiXTTS/james_voice.wav",
+    "speaker_name": "james_xtts",
+    "gender": "male",
+    "style": "friendly and warm"
+  },
+  "testing_mode": false,
+  "created_at": "2025-09-23T00:00:00Z",
+  "last_updated": "2025-09-23T00:00:00Z",
+  "notes_path": "Memory/james/notes.md"
 }
+
+
