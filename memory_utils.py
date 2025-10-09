@@ -26,6 +26,11 @@ try:  # Prefer the re-exported settings when rex is installed
 except Exception:  # pragma: no cover - rex package may be absent
     rex_config = None  # type: ignore[assignment]
 
+try:  # pragma: no cover - simple namespace for monkeypatching in tests
+    from rex.config import settings as rex_settings  # type: ignore
+except Exception:  # pragma: no cover - fallback when rex is absent
+    rex_settings = None  # type: ignore[assignment]
+
 REPO_ROOT = Path(__file__).resolve().parent
 MEMORY_ROOT = REPO_ROOT / "Memory"
 USERS_PATH = REPO_ROOT / "users.json"
@@ -92,6 +97,8 @@ def _load_db(path: Path) -> TinyDB | _MemoryDB:
 
 
 def _active_settings() -> AppConfig:
+    if rex_settings is not None:  # type: ignore[truthy-function]
+        return rex_settings  # type: ignore[return-value]
     if rex_config is not None:
         return rex_config.settings  # type: ignore[attr-defined]
     return load_config()
@@ -215,6 +222,7 @@ def append_history_entry(
     entry: Dict[str, str],
     *,
     memory_db: Path | None = None,
+    memory_root: Path | str | None = None,
     max_turns: Optional[int] = None,
 ) -> None:
     limit = max_turns or _default_max_memory()
@@ -226,7 +234,18 @@ def append_history_entry(
     if "role" not in entry or "text" not in entry:
         raise ConfigurationError("History entries require 'role' and 'text' fields.")
 
-    db_path = Path(memory_db) if memory_db else Path(cfg.memory_path)
+    if memory_db is not None:
+        db_path = Path(memory_db)
+    elif memory_root is not None:
+        root_path = Path(memory_root)
+        if root_path.is_dir():
+            db_path = root_path / "memory.json"
+        else:
+            db_path = root_path
+    else:
+        default_path = getattr(cfg, "memory_path", MEMORY_ROOT / "memory.json")
+        db_path = Path(default_path)
+
     db = _load_db(db_path)
     try:
         table = db.table(user_key)
@@ -237,7 +256,10 @@ def append_history_entry(
             overflow = len(documents) - limit
             doc_ids = [doc.doc_id for doc in documents[:overflow]]
             table.remove(doc_ids=doc_ids)
-        db.storage.flush()
+        storage = getattr(db, "storage", None)
+        flush = getattr(storage, "flush", None)
+        if callable(flush):
+            flush()
     finally:
         db.close()
 
@@ -247,9 +269,20 @@ def load_recent_history(
     *,
     limit: Optional[int] = None,
     memory_db: Path | None = None,
+    memory_root: Path | str | None = None,
 ) -> List[Dict[str, str]]:
     cfg = _active_settings()
-    db_path = Path(memory_db) if memory_db else Path(cfg.memory_path)
+    if memory_db is not None:
+        db_path = Path(memory_db)
+    elif memory_root is not None:
+        root_path = Path(memory_root)
+        if root_path.is_dir():
+            db_path = root_path / "memory.json"
+        else:
+            db_path = root_path
+    else:
+        default_path = getattr(cfg, "memory_path", MEMORY_ROOT / "memory.json")
+        db_path = Path(default_path)
     if not db_path.exists() and _HAS_TINYDB:
         return []
 
@@ -272,17 +305,20 @@ def export_transcript(
     transcripts_dir: Path | None = None,
 ) -> Path:
     cfg = _active_settings()
-    if not cfg.transcripts_enabled:
+    if not getattr(cfg, "transcripts_enabled", True):
         raise ConfigurationError("Transcripts are disabled in configuration.")
 
-    directory = Path(transcripts_dir) if transcripts_dir else Path(cfg.transcripts_dir)
-    _ensure_directory(directory)
+    base_dir = Path(transcripts_dir) if transcripts_dir else Path(getattr(cfg, "transcripts_dir", "transcripts"))
+    user_dir = base_dir / user_key
+    _ensure_directory(user_dir)
 
-    timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
-    export_path = directory / f"{user_key}-{timestamp}.json"
-    data = list(conversation)
-    with open(export_path, "w", encoding="utf-8") as handle:
-        json.dump(data, handle, ensure_ascii=False, indent=2)
+    export_path = user_dir / f"{datetime.utcnow().date()}.txt"
+    with export_path.open("a", encoding="utf-8") as handle:
+        for turn in conversation:
+            role = turn.get("role", "unknown")
+            text = turn.get("text", "")
+            timestamp = turn.get("timestamp") or datetime.utcnow().isoformat()
+            handle.write(f"[{timestamp}] {role}: {text}\n")
     return export_path
 
 
