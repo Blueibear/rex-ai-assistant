@@ -68,6 +68,11 @@ class AppConfig:
         raw["transcripts_dir"] = str(self.transcripts_dir)
         return raw
 
+    def __post_init__(self) -> None:
+        model_path = Path(self.llm_model)
+        if model_path.is_absolute() or ".." in model_path.parts:
+            raise ValueError("llm_model must not contain path traversal components.")
+
 _cached_config: Optional[AppConfig] = None
 
 ENV_MAPPING: Dict[str, str] = {

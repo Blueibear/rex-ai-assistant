@@ -84,6 +84,9 @@ RATE_LIMIT = int(os.getenv("REX_SPEAK_RATE_LIMIT", "30"))
 RATE_LIMIT_WINDOW = int(os.getenv("REX_SPEAK_RATE_WINDOW", "60"))
 MAX_TEXT_LENGTH = int(os.getenv("REX_SPEAK_MAX_CHARS", "800"))
 
+if not API_KEY:
+    raise RuntimeError("REX_SPEAK_API_KEY must be set before starting the speech API.")
+
 _RATE_STATE: dict[str, deque] = defaultdict(deque)
 
 # ------------------------------------------------------------------------------

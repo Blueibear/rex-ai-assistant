@@ -1,15 +1,16 @@
 """Command-line entry point for the Rex assistant.
 
 This module intentionally mirrors the historical top-level script so existing
-documentation that imports :mod:`rex_assistant` continues to work.
+documentation that imports :mod:ex_assistant continues to work.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Iterable
+from typing import Callable, Iterable, List, Optional, Sequence, Tuple
 
+from llm_client import LanguageModel
 from rex import settings
 from rex.assistant import Assistant
 from rex.logging_utils import configure_logging
@@ -18,9 +19,71 @@ from rex.plugins import PluginSpec, load_plugins, shutdown_plugins
 logger = logging.getLogger(__name__)
 
 
+class FunctionRouter:
+    """Simple command router that maps predicates to handlers."""
+
+    def __init__(self) -> None:
+        self._routes: List[Tuple[Callable[[str], bool], Callable[[str], str]]] = []
+
+    def register(self, predicate: Callable[[str], bool], handler: Callable[[str], str]) -> None:
+        self._routes.append((predicate, handler))
+
+    def route(self, text: str) -> Optional[str]:
+        for predicate, handler in self._routes:
+            try:
+                if predicate(text):
+                    return handler(text)
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.exception("Command handler failed: %s", exc)
+        return None
+
+
+ROUTER = FunctionRouter()
+LLM: Optional[LanguageModel] = None
+
+
+def _ensure_llm() -> LanguageModel:
+    global LLM
+    if LLM is None or not hasattr(LLM, "generate"):
+        LLM = LanguageModel()
+    return LLM
+
+
+def handle_command(text: str) -> Optional[str]:
+    """Dispatch `text` through the registered command handlers."""
+
+    return ROUTER.route(text)
+
+
+def generate_response(prompt: str, *, messages: Optional[Sequence[dict]] = None) -> str:
+    """Generate an assistant response, with safe fallback on failure."""
+
+    routed = handle_command(prompt)
+    if routed is not None:
+        return routed
+
+    try:
+        if messages is not None:
+            normalised = [
+                {
+                    "role": str(entry.get("role", "")),
+                    "content": str(entry.get("content", "")),
+                }
+                for entry in messages
+                if isinstance(entry, dict)
+            ]
+            return _ensure_llm().generate(messages=normalised)
+        return _ensure_llm().generate(prompt)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.exception("LLM generation failed: %s", exc)
+        cleaned = prompt.strip()
+        return f"I heard you say: {cleaned or '(silence)'}"
+
+
 async def _chat_loop(assistant: Assistant) -> None:
     """Interactive CLI loop for chatting with Rex."""
-    print("🧠 Rex assistant ready. Type 'exit' or 'quit' to stop.")
+
+    print("dY\u0015? Rex assistant ready. Type 'exit' or 'quit' to stop.")
     while True:
         try:
             user_input = input("You: ")
@@ -35,7 +98,7 @@ async def _chat_loop(assistant: Assistant) -> None:
 
         try:
             reply = await assistant.generate_reply(user_input)
-        except Exception as exc:
+        except Exception as exc:  # pragma: no cover - defensive logging
             logger.exception("Assistant failed to generate a reply: %s", exc)
             print(f"[error] {exc}")
             continue
@@ -45,6 +108,7 @@ async def _chat_loop(assistant: Assistant) -> None:
 
 async def _run() -> None:
     """Configure logging, load plugins, and run the assistant loop."""
+
     configure_logging()
     plugin_specs: Iterable[PluginSpec] = load_plugins()
     assistant = Assistant(history_limit=settings.max_memory_items, plugins=plugin_specs)
@@ -56,6 +120,7 @@ async def _run() -> None:
 
 def main() -> int:
     """Main entry point for Rex assistant CLI."""
+
     try:
         asyncio.run(_run())
     except KeyboardInterrupt:
@@ -65,4 +130,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
