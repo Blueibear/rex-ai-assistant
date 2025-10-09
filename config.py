@@ -46,8 +46,8 @@ except ImportError:  # pragma: no cover - provide minimal fallbacks
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         return key, value, True
 
-from rex.assistant_errors import ConfigurationError
-from rex.logging_utils import get_logger, set_global_level
+from assistant_errors import ConfigurationError
+from logging_utils import get_logger, set_global_level
 
 LOGGER = get_logger(__name__)
 
@@ -113,7 +113,7 @@ class AppConfig:
     transcripts_dir: Path = Path("transcripts")
     memory_backend: str = "tinydb"
     memory_path: Path = Path("Memory/memory.json")
-    user_profiles_dir: Path = Path("user_profiles")
+    user_profiles_dir: Path = Path("Memory")
     max_memory_items: int = 50
     memory_max_turns: int = 50
     default_user: Optional[str] = None

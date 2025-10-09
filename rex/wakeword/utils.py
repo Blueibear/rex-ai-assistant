@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Optional
 
 import numpy as np
 
@@ -15,8 +15,8 @@ except ImportError:  # pragma: no cover - Porcupine not installed
     pvporcupine = None  # type: ignore
 
 from config import load_config
-from rex.assistant_errors import WakeWordError
-from rex.logging_utils import get_logger
+from assistant_errors import WakeWordError
+from logging_utils import get_logger
 
 LOGGER = get_logger(__name__)
 
@@ -124,11 +124,44 @@ def load_wakeword_model(
     return detector, resolved_keyword
 
 
-def detect_wakeword(model: PorcupineDetector, audio_frame: np.ndarray, *, threshold: float | None = None) -> bool:
-    """Compatibility shim for historical signature. Threshold is unused."""
+def _extract_score(result: object) -> Optional[float]:
+    if isinstance(result, (int, float)):
+        return float(result)
+    if isinstance(result, dict):
+        for value in result.values():
+            if isinstance(value, (int, float)):
+                return float(value)
+        return None
+    if isinstance(result, Iterable) and not isinstance(result, (str, bytes)):
+        for value in result:
+            if isinstance(value, (int, float)):
+                return float(value)
+    return None
 
-    _ = threshold  # maintained for backward compatibility
-    return model.push(audio_frame)
+
+def detect_wakeword(model: PorcupineDetector | object, audio_frame: np.ndarray, *, threshold: float | None = None) -> bool:
+    """Compatibility shim for historical signature supporting legacy detectors."""
+
+    cutoff = threshold if threshold is not None else 0.5
+
+    if hasattr(model, "push"):
+        try:
+            return bool(model.push(audio_frame))  # type: ignore[call-arg]
+        except AttributeError:
+            pass
+
+    candidate = None
+    if hasattr(model, "predict"):
+        candidate = model.predict(audio_frame)  # type: ignore[attr-defined]
+    elif callable(model):  # type: ignore[callable-obj]
+        candidate = model(audio_frame)  # type: ignore[misc]
+    else:
+        raise WakeWordError("Wake-word model must expose push(), predict(), or be callable.")
+
+    score = _extract_score(candidate)
+    if score is None:
+        raise WakeWordError("Wake-word detector did not return a numeric confidence score.")
+    return score >= cutoff
 
 
 __all__ = ["PorcupineDetector", "load_wakeword_model", "detect_wakeword"]

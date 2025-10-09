@@ -7,7 +7,7 @@ import secrets
 import uuid
 from contextlib import suppress
 
-from flask import Flask, jsonify, request, send_file, Response
+from flask import Flask, jsonify, request, send_file, Response, after_this_request
 try:
     from flask_cors import CORS
 except ImportError:
@@ -150,12 +150,16 @@ def speak() -> Response:
             language=settings.speak_language,
             file_path=output_path,
         )
-        return send_file(output_path, mimetype="audio/wav", as_attachment=True, download_name="rex_response.wav")
     except Exception as exc:
         raise TextToSpeechError(str(exc))
-    finally:
-        with suppress(FileNotFoundError):
+
+    @after_this_request
+    def _cleanup(response: Response) -> Response:
+        with suppress(FileNotFoundError, PermissionError):
             os.remove(output_path)
+        return response
+
+    return send_file(output_path, mimetype="audio/wav", as_attachment=True, download_name="rex_response.wav")
 
 # ---------------------------------------------------------------------
 

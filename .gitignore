@@ -43,3 +43,5 @@ build/
 rex.onnx
 assets/rex_wake_acknowledgment (1).wav
 Memory/*/history.log
+models/
+transcripts/
