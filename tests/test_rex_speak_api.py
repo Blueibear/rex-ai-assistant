@@ -61,7 +61,6 @@ def _load_app(monkeypatch, tmp_path) -> tuple:
     dummy_engine = DummyTTS()
     module._TTS_ENGINE = dummy_engine
     module._get_tts_engine = lambda: dummy_engine
-    module._RATE_STATE.clear()
 
     app = module.app
     app.config.update(TESTING=True)

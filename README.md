@@ -146,9 +146,10 @@ SERPAPI_KEY	Enables SerpAPI search
 REX_SPEAK_API_KEY	Required by /speak endpoint
 REX_PROXY_TOKEN	Auth token for Flask proxy
 REX_PROXY_ALLOW_LOCAL	Allow local dev bypass (1)
-REX_SPEAK_RATE_LIMIT	Requests allowed per window for /speak (in-memory store)
+REX_SPEAK_RATE_LIMIT	Requests allowed per window for /speak
 REX_SPEAK_RATE_WINDOW	Window size in seconds for rate limiting
 REX_SPEAK_MAX_CHARS	Maximum text length accepted by /speak
+REX_SPEAK_STORAGE_URI	Limiter storage backend (e.g. redis://localhost:6379/0)
 REX_LLM_PROVIDER	Preferred backend (transformers, openai, dummy)
 (Rate limiting defaults use in-memory storage. For multi-instance deployments configure a Flask-Limiter backend, or disable limits explicitly.)
 🧠 Memory & Personalization

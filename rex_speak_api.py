@@ -11,20 +11,25 @@ import time
 from collections import defaultdict, deque
 from typing import Optional, Tuple
 
-from flask import Flask, request, send_file, jsonify, after_this_request
+from flask import Flask, jsonify, request, send_file, after_this_request
 from flask_cors import CORS
 
-try:
+try:  # pragma: no cover - optional dependency
     from flask_limiter import Limiter
-    from flask_limiter.util import get_remote_address
-except ImportError:
-    class Limiter:
-        def __init__(self, *args, **kwargs): pass
+    from flask_limiter.exceptions import RateLimitExceeded
+except ImportError:  # pragma: no cover - fallback for documentation builds
+    class Limiter:  # type: ignore
+        def __init__(self, *args, **kwargs):
+            pass
+
         def limit(self, *args, **kwargs):
-            def decorator(func): return func
+            def decorator(func):
+                return func
+
             return decorator
-    def get_remote_address() -> str:
-        return "0.0.0.0"
+
+    class RateLimitExceeded(Exception):  # type: ignore
+        retry_after = None
 
 from TTS.api import TTS
 
@@ -34,16 +39,42 @@ from memory_utils import (
     load_users_map,
     resolve_user_key,
 )
-from rex.config import settings
 from rex.assistant_errors import AuthenticationError, TextToSpeechError
+from rex.config import settings
 
 # ------------------------------------------------------------------------------
-# Setup
+# App setup
 # ------------------------------------------------------------------------------
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
-limiter = Limiter(get_remote_address, app=app, default_limits=["30 per minute"])
+
+
+def _rate_limit_key() -> str:
+    """Derive a stable rate-limit identity from API key or source address."""
+
+    provided = request.headers.get("X-API-Key") or request.headers.get("Authorization")
+    if provided:
+        token = provided.split()[-1]
+        return f"api:{token[:16]}"
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.remote_addr or "anonymous"
+
+
+_LIMITER_STORAGE_URI = (
+    os.getenv("REX_SPEAK_STORAGE_URI")
+    or os.getenv("FLASK_LIMITER_STORAGE_URI")
+    or "memory://"
+)
+
+limiter = Limiter(
+    key_func=_rate_limit_key,
+    storage_uri=_LIMITER_STORAGE_URI,
+    app=app,
+    default_limits=[],
+)
 logger = logging.getLogger("rex.speak_api")
 
 if not logger.handlers:
@@ -60,7 +91,7 @@ USERS_MAP = load_users_map()
 USER_PROFILES = load_all_profiles()
 DEFAULT_USER = resolve_user_key(
     os.getenv("REX_ACTIVE_USER"), USERS_MAP, profiles=USER_PROFILES
-) or sorted(USER_PROFILES.keys())[0] if USER_PROFILES else "james"
+) or (sorted(USER_PROFILES.keys())[0] if USER_PROFILES else "james")
 
 USER_VOICES = {
     user: extract_voice_reference(profile, user_key=user)
@@ -87,20 +118,75 @@ MAX_TEXT_LENGTH = int(os.getenv("REX_SPEAK_MAX_CHARS", "800"))
 if not API_KEY:
     raise RuntimeError("REX_SPEAK_API_KEY must be set before starting the speech API.")
 
-_RATE_STATE: dict[str, deque] = defaultdict(deque)
+if RATE_LIMIT > 0 and RATE_LIMIT_WINDOW > 0:
+    _UNIT_MAP = {1: "second", 60: "minute", 3600: "hour", 86400: "day"}
+    unit = _UNIT_MAP.get(RATE_LIMIT_WINDOW, None)
+    if unit:
+        _RATE_LIMIT_SPEC = f"{RATE_LIMIT} per {unit}"
+    else:
+        _RATE_LIMIT_SPEC = f"{RATE_LIMIT}/{RATE_LIMIT_WINDOW} second"
+else:
+    _RATE_LIMIT_SPEC = None
+
+if _LIMITER_STORAGE_URI.startswith("memory"):
+    _RATE_CACHE: dict[str, deque] = defaultdict(deque)
+else:
+    _RATE_CACHE = None
 
 # ------------------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------------------
 
+
+@app.errorhandler(AuthenticationError)
+def _handle_auth_error(exc: AuthenticationError):
+    return jsonify({"error": str(exc)}), 401
+
+
+@app.errorhandler(TextToSpeechError)
+def _handle_tts_error(exc: TextToSpeechError):
+    return jsonify({"error": str(exc)}), 500
+
+
+@app.errorhandler(RateLimitExceeded)
+def _handle_rate_limit(exc: RateLimitExceeded):
+    response = jsonify({"error": "Too many requests"})
+    response.status_code = 429
+    retry_after = getattr(exc, "retry_after", None)
+    if retry_after:
+        response.headers["Retry-After"] = str(int(retry_after))
+    return response
+
+
+def _extract_api_key(payload: dict | None) -> Optional[str]:
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        return auth_header[7:].strip()
+    return (
+        request.headers.get("X-API-Key")
+        or request.args.get("api_key")
+        or payload.get("api_key") if payload else None
+    )
+
+
+def _require_api_key(provided_key: Optional[str]) -> bool:
+    if not provided_key:
+        return False
+    try:
+        return hmac.compare_digest(provided_key, API_KEY)
+    except TypeError:  # pragma: no cover - malformed header
+        return False
+
+
 def _prune_requests(identity: str, now: float) -> deque:
-    entries = _RATE_STATE[identity]
+    entries = _RATE_CACHE[identity]
     while entries and now - entries[0] > RATE_LIMIT_WINDOW:
         entries.popleft()
     return entries
 
+
 def _check_rate_limit(identity: str) -> Tuple[bool, int]:
-    if RATE_LIMIT <= 0:
+    if _RATE_CACHE is None or RATE_LIMIT <= 0 or RATE_LIMIT_WINDOW <= 0:
         return True, 0
     now = time.monotonic()
     entries = _prune_requests(identity, now)
@@ -110,30 +196,6 @@ def _check_rate_limit(identity: str) -> Tuple[bool, int]:
     entries.append(now)
     return True, 0
 
-def _extract_api_key(payload: dict | None) -> Optional[str]:
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.lower().startswith("bearer "):
-        return auth_header[7:].strip()
-    return (
-        request.headers.get("X-API-Key") or
-        request.args.get("api_key") or
-        payload.get("api_key") if payload else None
-    )
-
-def _require_api_key(provided_key: Optional[str]) -> bool:
-    if not API_KEY:
-        return True
-    if not provided_key:
-        return False
-    try:
-        return hmac.compare_digest(provided_key, API_KEY)
-    except TypeError:
-        return False
-
-def _get_request_identity(provided_key: Optional[str]) -> str:
-    if provided_key:
-        return f"key:{provided_key[:8]}"
-    return request.headers.get("X-Forwarded-For") or request.remote_addr or "anonymous"
 
 def _validate_text(text: str) -> Optional[str]:
     if not isinstance(text, str):
@@ -145,6 +207,7 @@ def _validate_text(text: str) -> Optional[str]:
         return f"Text exceeds maximum length of {MAX_TEXT_LENGTH} characters."
     return None
 
+
 def _select_speaker(user: Optional[str]) -> Optional[str]:
     candidate = str(user).lower() if user else DEFAULT_USER
     if candidate not in USER_VOICES:
@@ -154,6 +217,7 @@ def _select_speaker(user: Optional[str]) -> Optional[str]:
         logger.warning("Speaker reference '%s' is missing.", speaker_wav)
         return None
     return speaker_wav
+
 
 def _get_tts_engine() -> TTS:
     global _TTS_ENGINE
@@ -166,26 +230,34 @@ def _get_tts_engine() -> TTS:
         )
     return _TTS_ENGINE
 
+
 # ------------------------------------------------------------------------------
 # Routes
 # ------------------------------------------------------------------------------
 
+
+def _apply_rate_limit(func):
+    if _RATE_LIMIT_SPEC:
+        return limiter.limit(_RATE_LIMIT_SPEC)(func)
+    return func
+
+
 @app.route("/speak", methods=["POST"])
-def speak():
+@_apply_rate_limit
+def speak() -> Response:
     payload = request.get_json(silent=True) or {}
     provided_key = _extract_api_key(payload)
 
     if not _require_api_key(provided_key):
         logger.warning("Unauthorized request.")
-        return jsonify({"error": "Unauthorized"}), 401
+        raise AuthenticationError("Missing or invalid API key")
 
-    identity = _get_request_identity(provided_key)
-    allowed, retry_after = _check_rate_limit(identity)
+    allowed, retry_after = _check_rate_limit(_rate_limit_key())
     if not allowed:
-        logger.warning("Rate limit exceeded for %s", identity)
         response = jsonify({"error": "Too many requests"})
         response.status_code = 429
-        response.headers["Retry-After"] = str(retry_after)
+        if retry_after:
+            response.headers["Retry-After"] = str(retry_after)
         return response
 
     text = payload.get("text")
@@ -196,7 +268,7 @@ def speak():
     speaker_wav = _select_speaker(payload.get("user"))
     language = payload.get("language", "en")
 
-    logger.info("Generating speech for %s (lang=%s)", identity, language)
+    logger.info("Generating speech (lang=%s)", language)
     output_path = tempfile.mktemp(suffix=".wav")
 
     try:
@@ -226,7 +298,8 @@ def speak():
         logger.exception("TTS generation failed.")
         if os.path.exists(output_path):
             os.remove(output_path)
-        return jsonify({"error": str(exc)}), 500
+        raise TextToSpeechError(str(exc))
+
 
 # ------------------------------------------------------------------------------
 # Entry Point
@@ -234,4 +307,3 @@ def speak():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-
