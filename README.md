@@ -64,6 +64,9 @@ pip install torch==2.2.1 --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 pip install -r requirements-ml.txt || true  # optional extras (Whisper, TTS)
 pip install -r requirements-dev.txt || true  # pytest, coverage, async fixtures
+Health Check
+python scripts/doctor.py
+Runs a quick check for ffmpeg, torch, env vars, and rate limiter. (ffmpeg, torch, env vars).
 
 
 ✅ Or use the helper:
