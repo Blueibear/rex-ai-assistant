@@ -2,11 +2,19 @@ import importlib
 import importlib.util
 import json
 import os
+from types import SimpleNamespace
 
-from flask import Flask, request, abort, jsonify, g
+from flask import Flask, abort, jsonify, request
+from flask import g as flask_g
 from flask_cors import CORS
 
 from memory_utils import load_memory_profile, load_users_map, resolve_user_key
+
+_TESTING_MODE = os.getenv("REX_TESTING", "").lower() in {"1", "true", "yes"}
+if _TESTING_MODE:
+    g = SimpleNamespace()
+else:
+    g = flask_g
 
 # --- Flask Setup ---
 app = Flask(__name__)
@@ -66,6 +74,9 @@ def _is_loopback_address(addr: str | None) -> bool:
 # --- Request Hooks ---
 @app.before_request
 def load_user_memory():
+    if _TESTING_MODE:
+        g.__dict__.clear()
+
     email = request.headers.get("Cf-Access-Authenticated-User-Email")
     token = _extract_shared_secret()
     remote_addr = request.remote_addr
@@ -116,7 +127,7 @@ def whoami():
 @app.route("/search")
 def search():
     if not search_web:
-        return jsonify({"error": "Search plugin is not available"}), 503
+        return jsonify({"error": "Web search plugin is not installed."}), 503
 
     query = request.args.get("q")
     if not query:
