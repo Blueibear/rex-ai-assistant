@@ -27,7 +27,7 @@ Everything runs offline by default — no cloud access unless explicitly enabled
 
 🗣️ Speech transcription via Whisper
 
-🤖 Chat model (local Transformers or OpenAI)
+🤖 Chat model (local Transformers with offline fallback, or OpenAI if configured)
 
 🔉 XTTS TTS with optional voice cloning
 
@@ -60,10 +60,10 @@ python -m venv .venv
 source .venv/bin/activate  # Windows: .\.venv\Scripts\activate
 
 pip install --upgrade pip
-pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install torch==2.2.1 --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
-pip install -r requirements-ml.txt || true
-pip install -r requirements-dev.txt || true
+pip install -r requirements-ml.txt || true  # optional extras (Whisper, TTS)
+pip install -r requirements-dev.txt || true  # pytest, coverage, async fixtures
 
 
 ✅ Or use the helper:
@@ -146,6 +146,11 @@ SERPAPI_KEY	Enables SerpAPI search
 REX_SPEAK_API_KEY	Required by /speak endpoint
 REX_PROXY_TOKEN	Auth token for Flask proxy
 REX_PROXY_ALLOW_LOCAL	Allow local dev bypass (1)
+REX_SPEAK_RATE_LIMIT	Requests allowed per window for /speak (in-memory store)
+REX_SPEAK_RATE_WINDOW	Window size in seconds for rate limiting
+REX_SPEAK_MAX_CHARS	Maximum text length accepted by /speak
+REX_LLM_PROVIDER	Preferred backend (transformers, openai, dummy)
+(Rate limiting defaults use in-memory storage. For multi-instance deployments configure a Flask-Limiter backend, or disable limits explicitly.)
 🧠 Memory & Personalization
 
 Each user has:
@@ -183,6 +188,7 @@ plugins/web_search.py — search backend
 Run locally:
 
 pytest
+# (requires optional dev dependencies)
 
 
 GitHub Actions runs .github/workflows/ci.yml on every push or PR. Includes:

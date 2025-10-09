@@ -129,15 +129,22 @@ class TransformersStrategy:
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(config.seed)
 
-        outputs = self.pipeline(
-            prompt,
-            max_new_tokens=config.max_new_tokens,
-            do_sample=config.temperature > 0,
-            temperature=config.temperature,
-            top_p=config.top_p,
-            top_k=config.top_k,
-            pad_token_id=self.tokenizer.pad_token_id,
-        )
+        do_sample = config.temperature > 0 or config.top_p < 1.0
+        generate_kwargs = {
+            "max_new_tokens": config.max_new_tokens,
+            "do_sample": do_sample,
+            "pad_token_id": self.tokenizer.pad_token_id,
+        }
+        if do_sample:
+            generate_kwargs["temperature"] = max(config.temperature, 1e-4)
+            generate_kwargs["top_p"] = config.top_p
+            generate_kwargs["top_k"] = config.top_k
+        else:
+            generate_kwargs["temperature"] = 1.0
+            generate_kwargs["top_p"] = 1.0
+            generate_kwargs["top_k"] = 0
+
+        outputs = self.pipeline(prompt, **generate_kwargs)
         text = outputs[0]["generated_text"]
         return text[len(prompt):].strip() or "(silence)"
 
