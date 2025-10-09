@@ -1,3 +1,11 @@
+<p align="center">
+  <img src="assets/logo.svg" width="120" alt="Rex AI Assistant logo" />
+</p>
+
+<p align="center">
+  <img src="https://github.com/Blueibear/rex-ai-assistant/actions/workflows/ci.yml/badge.svg" alt="CI status" />
+</p>
+
 🧠 Rex AI Assistant
 
 Rex is a local-first, voice-driven AI companion that runs entirely on your machine. It combines:
@@ -223,3 +231,5 @@ Expose TTS and proxy ports
 
 Released under the MIT License
 .
+
+See [CHANGELOG](CHANGELOG.md) for release history.
