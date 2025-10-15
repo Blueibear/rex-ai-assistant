@@ -51,3 +51,7 @@ assets/wake_acknowledgment.wav
 Memory/*/history.log
 models/
 transcripts/
+
+.claude-project.yaml    
+run_project.py  
+.project.yaml

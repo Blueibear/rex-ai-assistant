@@ -19,7 +19,7 @@ _AVAILABLE_KEYWORDS = {name.replace("_", " ") for name in openwakeword.MODELS.ke
 
 
 def _resolve_model_path(model_path: str | None = None) -> Path:
-    repo_root = Path(__file__).resolve().parent
+    repo_root = Path(__file__).resolve().parent.parent
     if model_path:
         return Path(model_path)
     return repo_root / "rex.onnx"
@@ -132,4 +132,3 @@ def detect_wakeword(
 
 
 __all__ = ["load_wakeword_model", "detect_wakeword"]
-

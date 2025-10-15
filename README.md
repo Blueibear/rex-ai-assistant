@@ -16,8 +16,7 @@ Rex is a local-first, voice-driven AI companion that runs entirely on your machi
 
 🤖 Transformer-based responses via Hugging Face or OpenAI (optional)
 
-🔉 Text-to-speech via Coqui XTTS
-, with voice cloning support
+🔉 Text-to-speech via Coqui XTTS, with voice cloning support
 
 🌐 Pluggable web search via SerpAPI or DuckDuckGo
 
@@ -26,6 +25,8 @@ Rex is a local-first, voice-driven AI companion that runs entirely on your machi
 🧠 Per-user memory profiles for personalization
 
 ✅ Built-in tests and GitHub Actions CI
+
+🏗️ **Modular rex.* namespace** for clean imports and no circular dependencies
 
 Everything runs offline by default — no cloud access unless explicitly enabled.
 

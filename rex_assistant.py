@@ -10,8 +10,8 @@ import asyncio
 import logging
 from typing import Callable, Iterable, List, Optional, Sequence, Tuple
 
-from llm_client import LanguageModel
 from rex import settings
+from rex.llm_client import LanguageModel
 from rex.assistant import Assistant
 from rex.logging_utils import configure_logging
 from rex.plugins import PluginSpec, load_plugins, shutdown_plugins
@@ -83,7 +83,7 @@ def generate_response(prompt: str, *, messages: Optional[Sequence[dict]] = None)
 async def _chat_loop(assistant: Assistant) -> None:
     """Interactive CLI loop for chatting with Rex."""
 
-    print("dY\u0015? Rex assistant ready. Type 'exit' or 'quit' to stop.")
+    print("🎤 Rex assistant ready. Type 'exit' or 'quit' to stop.")
     while True:
         try:
             user_input = input("You: ")

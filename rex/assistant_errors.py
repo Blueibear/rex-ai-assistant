@@ -4,7 +4,7 @@ from __future__ import annotations
 
 
 class AssistantError(Exception):
-    """Base class for recoverable assistant errors."""
+    """Base class for all custom Rex exceptions."""
 
 
 class ConfigurationError(AssistantError):
@@ -23,12 +23,22 @@ class SpeechToTextError(AssistantError):
     """Raised when speech-to-text transcription fails."""
 
 
+# Alias for backward compatibility
+class SpeechRecognitionError(SpeechToTextError):
+    """Alias for SpeechToTextError - kept for backward compatibility."""
+
+
 class TextToSpeechError(AssistantError):
     """Raised when text-to-speech synthesis fails."""
 
 
 class PluginExecutionError(AssistantError):
     """Raised when a plugin misbehaves during processing."""
+
+
+# Alias for backward compatibility
+class PluginError(PluginExecutionError):
+    """Alias for PluginExecutionError - kept for backward compatibility."""
 
 
 class AuthenticationError(AssistantError):
@@ -41,8 +51,9 @@ __all__ = [
     "AudioDeviceError",
     "WakeWordError",
     "SpeechToTextError",
+    "SpeechRecognitionError",
     "TextToSpeechError",
     "PluginExecutionError",
+    "PluginError",
     "AuthenticationError",
 ]
-

@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 
 import pytest
 
@@ -72,7 +72,7 @@ def test_voice_loop_processes_interaction():
     asyncio.run(loop.run(max_interactions=1))
 
     assert assistant.calls == ["hello world"]
-    assert spoken == ["ok"]
+    assert spoken == ["ok."] # Voice loop adds period for TTS
 
 
 def test_voice_loop_handles_transcription_error():
@@ -123,3 +123,4 @@ def test_voice_loop_propagates_audio_errors():
     asyncio.run(loop.run(max_interactions=1))
 
     assert assistant.calls == []
+

@@ -8,8 +8,8 @@ import numpy as np
 import simpleaudio as sa
 import sounddevice as sd
 
-from wakeword_utils import detect_wakeword, load_wakeword_model
-from wake_acknowledgment import ensure_wake_acknowledgment_sound
+from rex.wakeword_utils import detect_wakeword, load_wakeword_model
+from rex.wake_acknowledgment import ensure_wake_acknowledgment_sound
 
 # Configuration
 WAKEWORD = os.getenv("REX_WAKEWORD", "rex")

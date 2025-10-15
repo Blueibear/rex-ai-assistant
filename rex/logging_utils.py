@@ -37,9 +37,17 @@ def configure_logging(level: int = logging.INFO, handlers: Iterable[logging.Hand
     error_path.parent.mkdir(parents=True, exist_ok=True)
 
     if handlers is None:
-        stream_handler = logging.StreamHandler()
-        file_handler = RotatingFileHandler(log_path, maxBytes=1_000_000, backupCount=5)
-        error_handler = RotatingFileHandler(error_path, maxBytes=1_000_000, backupCount=5)
+        import sys
+        # Force UTF-8 encoding for console output to handle emoji and Unicode
+        stream_handler = logging.StreamHandler(sys.stdout)
+        if hasattr(sys.stdout, 'reconfigure'):
+            try:
+                sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+            except (AttributeError, ValueError):
+                pass  # Fallback: continue with default encoding
+        
+        file_handler = RotatingFileHandler(log_path, maxBytes=1_000_000, backupCount=5, encoding='utf-8')
+        error_handler = RotatingFileHandler(error_path, maxBytes=1_000_000, backupCount=5, encoding='utf-8')
         error_handler.setLevel(logging.ERROR)
         handlers = (stream_handler, file_handler, error_handler)
 

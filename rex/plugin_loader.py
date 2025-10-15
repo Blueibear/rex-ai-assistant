@@ -8,8 +8,8 @@ import os
 from pathlib import Path
 from typing import Any, Dict
 
-from rex.assistant_errors import PluginError
-from rex.logging_utils import get_logger
+from .assistant_errors import PluginError
+from .logging_utils import get_logger
 
 LOGGER = get_logger(__name__)
 

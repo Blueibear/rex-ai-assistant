@@ -11,6 +11,10 @@ import numpy as np
 
 from .utils import detect_wakeword
 
+# Optional: TTS
+# import pyttsx3
+# tts = pyttsx3.init()
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,8 +41,16 @@ class WakeWordListener:
                 except Exception as exc:  # pragma: no cover - defensive guard
                     logger.exception("Wake-word detection failed: %s", exc)
                     triggered = False
+
                 if triggered:
+                    print("🎤 Wakeword DETECTED! Rex is listening...")
+
+                    # Optional: Speak a response
+                    # tts.say("Hello, how can I help?")
+                    # tts.runAndWait()
+
                     yield frame
+
                 await asyncio.sleep(self._poll_interval)
         finally:
             self._running = False

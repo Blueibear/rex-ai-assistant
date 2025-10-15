@@ -11,7 +11,7 @@ import time
 from collections import defaultdict, deque
 from typing import Optional, Tuple
 
-from flask import Flask, jsonify, request, send_file, after_this_request
+from flask import Flask, Response, jsonify, request, send_file, after_this_request
 from flask_cors import CORS
 
 try:  # pragma: no cover - optional dependency
@@ -33,7 +33,7 @@ except ImportError:  # pragma: no cover - fallback for documentation builds
 
 from TTS.api import TTS
 
-from memory_utils import (
+from rex.memory_utils import (
     extract_voice_reference,
     load_all_profiles,
     load_users_map,
