@@ -31,12 +31,20 @@ except ImportError:
 
 from TTS.api import TTS
 
-from memory_utils import (
-    extract_voice_reference,
-    load_all_profiles,
-    load_users_map,
-    resolve_user_key,
-)
+try:
+    from rex.memory_utils import (
+        extract_voice_reference,
+        load_all_profiles,
+        load_users_map,
+        resolve_user_key,
+    )
+except ImportError:  # pragma: no cover - fallback for module-level execution
+    from memory_utils import (
+        extract_voice_reference,
+        load_all_profiles,
+        load_users_map,
+        resolve_user_key,
+    )
 from rex.assistant_errors import AuthenticationError, TextToSpeechError
 from rex.config import settings
 

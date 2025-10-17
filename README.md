@@ -164,6 +164,13 @@ REX_SPEAK_MAX_CHARS	Maximum text length accepted by /speak
 REX_SPEAK_STORAGE_URI	Limiter storage backend (e.g. redis://localhost:6379/0)
 REX_LLM_PROVIDER	Preferred backend (transformers, openai, dummy)
 (Rate limiting defaults use in-memory storage. For multi-instance deployments configure a Flask-Limiter backend, or disable limits explicitly.)
+dY� Production Deployment Notes
+
+- Serve Flask apps behind a real WSGI stack (gunicorn/uvicorn) and terminate TLS at a reverse proxy such as nginx or Cloudflare.
+- Set REX_SPEAK_STORAGE_URI to a shared backend (Redis, Memcached) when running multiple workers so rate limiting stays consistent.
+- Store REX_SPEAK_API_KEY in your secret manager and rotate it regularly; restart the speak API after each rotation.
+- Monitor /health and application logs to catch TTS or rate limit failures early.
+- When packaging Rex as a Python distribution, use the rex.* imports (for example, rex.memory_utils) so modules resolve from the installed package.
 🧠 Memory & Personalization
 
 Each user has:
