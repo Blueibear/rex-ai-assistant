@@ -54,4 +54,6 @@ transcripts/
 
 .claude-project.yaml    
 run_project.py  
-.project.yaml
+project.yaml
+run_codex_autonomous.ps1
+

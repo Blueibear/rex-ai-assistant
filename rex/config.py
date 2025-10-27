@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import hmac
+import json
 import logging
 import os
 from functools import lru_cache
@@ -127,6 +128,28 @@ class Settings:
     
     # Debug
     debug_logging: bool = False
+
+    # MQTT configuration
+    mqtt_broker: str = "localhost"
+    mqtt_port: int = 8883
+    mqtt_tls: bool = True
+    mqtt_username: Optional[str] = None
+    mqtt_password: Optional[str] = None
+    mqtt_client_id: str = "rex-core"
+    mqtt_keepalive: int = 60
+    mqtt_tls_ca: Optional[str] = None
+    mqtt_tls_cert: Optional[str] = None
+    mqtt_tls_key: Optional[str] = None
+    mqtt_tls_insecure: bool = False
+    mqtt_watchdog_interval: int = 30
+    mqtt_watchdog_timeout: int = 90
+    mqtt_node_id: str = "rex_core"
+    ha_base_url: Optional[str] = None
+    ha_token: Optional[str] = None
+    ha_secret: Optional[str] = None
+    ha_verify_ssl: bool = True
+    ha_timeout: float = 5.0
+    ha_entity_map: Dict[str, str] = dataclasses.field(default_factory=dict)
     
     def __post_init__(self) -> None:
         """Validate configuration after initialization."""
@@ -143,6 +166,23 @@ class Settings:
             raise ConfigurationError("llm_max_tokens must be positive")
         if not (0 <= self.llm_temperature <= 5.0):
             raise ConfigurationError("llm_temperature must be between 0 and 5")
+        if self.mqtt_port <= 0:
+            raise ConfigurationError("mqtt_port must be positive")
+        if self.mqtt_keepalive <= 0:
+            raise ConfigurationError("mqtt_keepalive must be positive")
+        if self.mqtt_watchdog_interval <= 0:
+            raise ConfigurationError("mqtt_watchdog_interval must be positive")
+        if self.mqtt_watchdog_timeout <= 0:
+            raise ConfigurationError("mqtt_watchdog_timeout must be positive")
+        if self.ha_base_url:
+            self.ha_base_url = self.ha_base_url.rstrip("/")
+        if isinstance(self.ha_entity_map, str):
+            try:
+                self.ha_entity_map = json.loads(self.ha_entity_map)  # type: ignore[assignment]
+            except json.JSONDecodeError as exc:
+                raise ConfigurationError(f"Invalid HA entity map JSON: {exc}") from exc
+        if not isinstance(self.ha_entity_map, dict):
+            raise ConfigurationError("ha_entity_map must be a dict of aliases to entity IDs")
     
     def dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -208,6 +248,26 @@ _ENV_MAPPING: Dict[str, Sequence[str]] = {
     "error_log_path": ("REX_ERROR_LOG_PATH",),
     "search_providers": ("REX_SEARCH_PROVIDERS",),
     "debug_logging": ("REX_DEBUG_LOGGING",),
+    "mqtt_broker": ("REX_MQTT_BROKER",),
+    "mqtt_port": ("REX_MQTT_PORT",),
+    "mqtt_tls": ("REX_MQTT_TLS",),
+    "mqtt_username": ("REX_MQTT_USERNAME",),
+    "mqtt_password": ("REX_MQTT_PASSWORD",),
+    "mqtt_client_id": ("REX_MQTT_CLIENT_ID",),
+    "mqtt_keepalive": ("REX_MQTT_KEEPALIVE",),
+    "mqtt_tls_ca": ("REX_MQTT_TLS_CA", "REX_MQTT_CA"),
+    "mqtt_tls_cert": ("REX_MQTT_TLS_CERT",),
+    "mqtt_tls_key": ("REX_MQTT_TLS_KEY",),
+    "mqtt_tls_insecure": ("REX_MQTT_TLS_INSECURE",),
+    "mqtt_watchdog_interval": ("REX_MQTT_WATCHDOG_INTERVAL",),
+    "mqtt_watchdog_timeout": ("REX_MQTT_WATCHDOG_TIMEOUT",),
+    "mqtt_node_id": ("REX_MQTT_NODE_ID",),
+    "ha_base_url": ("REX_HA_BASE_URL",),
+    "ha_token": ("REX_HA_TOKEN",),
+    "ha_secret": ("REX_HA_SECRET",),
+    "ha_verify_ssl": ("REX_HA_VERIFY_SSL",),
+    "ha_timeout": ("REX_HA_TIMEOUT",),
+    "ha_entity_map": ("REX_HA_ENTITY_MAP",),
 }
 
 
@@ -216,16 +276,19 @@ def _cast_value(key: str, raw: str) -> Any:
     float_keys = {
         "temperature", "wakeword_threshold", "detection_frame_seconds",
         "capture_seconds", "wakeword_poll_interval", "wakeword_window",
-        "command_duration", "llm_temperature", "llm_top_p"
+        "command_duration", "llm_temperature", "llm_top_p", "ha_timeout"
     }
     int_keys = {
         "max_memory_items", "sample_rate", "memory_max_turns",
-        "llm_max_tokens", "llm_top_k", "llm_seed"
+        "llm_max_tokens", "llm_top_k", "llm_seed",
+        "mqtt_port", "mqtt_keepalive", "mqtt_watchdog_interval", "mqtt_watchdog_timeout"
     }
     bool_keys = {
-        "transcripts_enabled", "conversation_export", "debug_logging"
+        "transcripts_enabled", "conversation_export", "debug_logging",
+        "mqtt_tls", "mqtt_tls_insecure", "ha_verify_ssl"
     }
     optional_int_keys = {"input_device", "output_device"}
+    json_keys = {"ha_entity_map"}
     
     if key in float_keys:
         return float(raw)
@@ -235,6 +298,12 @@ def _cast_value(key: str, raw: str) -> Any:
         return raw.lower() in {"1", "true", "yes", "on"}
     elif key in optional_int_keys:
         return int(raw) if raw not in {"", "none", "None"} else None
+    elif key in json_keys:
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError as exc:
+            logger.warning("Invalid JSON for %s: %s (%s)", key, raw, exc)
+            return {}
     return raw
 
 

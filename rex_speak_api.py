@@ -15,6 +15,8 @@ from typing import Optional, Tuple
 from flask import Flask, Response, jsonify, request, send_file, after_this_request
 from flask_cors import CORS
 
+from rex.ha_bridge import create_blueprint as create_ha_blueprint
+
 try:
     from flask_limiter import Limiter
     from flask_limiter.exceptions import RateLimitExceeded
@@ -62,6 +64,8 @@ if not logger.handlers:
         level=os.getenv("REX_LOG_LEVEL", "INFO").upper(),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
+
+app.register_blueprint(create_ha_blueprint())
 
 # ------------------------------------------------------------------------------
 # Config and Globals

@@ -32,3 +32,6 @@ pydantic>=1.10.15
 
 # 🔒 Security
 cryptography>=41.0.0
+
+# MQTT Messaging
+asyncio-mqtt>=0.16.0

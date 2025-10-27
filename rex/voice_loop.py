@@ -8,6 +8,7 @@ import os
 import re
 import tempfile
 from contextlib import suppress
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Awaitable, Callable, Optional
 
@@ -50,6 +51,18 @@ except ImportError:  # pragma: no cover - degrade gracefully
 logger = logging.getLogger(__name__)
 
 RecorderCallable = Callable[[float], Awaitable[np.ndarray] | np.ndarray]
+
+
+@dataclass
+class SynthesizedAudio:
+    """Container for synthesized audio suitable for playback or transport."""
+
+    sample_rate: int
+    pcm: np.ndarray  # Float32 mono samples in range [-1, 1]
+
+    def to_int16(self) -> np.ndarray:
+        """Return the PCM data as signed 16-bit integers."""
+        return (np.clip(self.pcm, -1.0, 1.0) * 32767.0).astype(np.int16)
 
 
 class AsyncMicrophone:
@@ -206,7 +219,18 @@ class TextToSpeech:
 
         try:
             if self._provider == "xtts":
-                await self._speak_xtts(text, speaker_wav)
+                audio = await self._synthesise_xtts_audio(text, speaker_wav)
+                if sa is None:
+                    logger.warning("[TTS] simpleaudio not available, printing response.")
+                    print(f"Rex: {text}")
+                    return
+
+                def _play() -> None:
+                    samples = audio.to_int16()
+                    play_obj = sa.play_buffer(samples.tobytes(), 1, 2, audio.sample_rate)  # type: ignore[attr-defined]
+                    play_obj.wait_done()
+
+                await asyncio.to_thread(_play)
             elif self._provider == "edge":
                 await self._speak_edge(text)
             elif self._provider == "piper":
@@ -219,6 +243,22 @@ class TextToSpeech:
         except Exception as exc:
             logger.error("[TTS] Failed: %s", exc)
             print(f"Rex: {text}")
+
+    async def synthesise(self, text: str, *, speaker_wav: Optional[str] = None) -> SynthesizedAudio:
+        """Generate speech audio without playing it."""
+        if not text.strip():
+            raise TextToSpeechError("Text must not be empty for synthesis")
+
+        cleaned = self._clean_text(text)
+        if not cleaned:
+            raise TextToSpeechError("Nothing to synthesise after cleaning")
+
+        if self._provider != "xtts":
+            raise TextToSpeechError(
+                f"Audio capture not supported for provider '{self._provider}'"
+            )
+
+        return await self._synthesise_xtts_audio(cleaned, speaker_wav)
 
     def _clean_text(self, text: str) -> str:
         if "Additional info:" in text:
@@ -233,13 +273,15 @@ class TextToSpeech:
             text += "."
         return text
 
-    async def _speak_xtts(self, text: str, speaker_wav: Optional[str]) -> None:
+    async def _synthesise_xtts_audio(
+        self, text: str, speaker_wav: Optional[str]
+    ) -> SynthesizedAudio:
         if self._tts is None:
             raise TextToSpeechError("XTTS not initialized")
 
         speaker = speaker_wav or self._default_speaker
 
-        def _synthesise() -> None:
+        def _render() -> SynthesizedAudio:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as handle:
                 temp_path = Path(handle.name)
             try:
@@ -254,16 +296,15 @@ class TextToSpeech:
                     kwargs["speaker"] = "Claribel Dervla"
 
                 self._tts.tts_to_file(**kwargs)  # type: ignore[attr-defined]
-
-                if sa is not None:
-                    wave_obj = sa.WaveObject.from_wave_file(str(temp_path))  # type: ignore[attr-defined]
-                    play_obj = wave_obj.play()
-                    play_obj.wait_done()
+                data, sample_rate = sf.read(temp_path, dtype="float32")
+                if data.ndim > 1:
+                    data = data[:, 0]
+                return SynthesizedAudio(sample_rate=sample_rate, pcm=np.asarray(data, dtype=np.float32))
             finally:
                 with suppress(FileNotFoundError):
                     temp_path.unlink()
 
-        await asyncio.to_thread(_synthesise)
+        return await asyncio.to_thread(_render)
 
     async def _speak_edge(self, text: str) -> None:
         try:
@@ -573,9 +614,8 @@ __all__ = [
     "AsyncMicrophone",
     "WakeAcknowledgement",
     "SpeechToText",
+    "SynthesizedAudio",
     "TextToSpeech",
     "VoiceLoop",
     "build_voice_loop",
 ]
-
-

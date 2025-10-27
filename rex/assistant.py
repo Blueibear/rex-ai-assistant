@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 from .config import Settings, settings
+from .ha_bridge import HABridge
 from .llm_client import LanguageModel
 from .memory import trim_history
 from .plugins import PluginSpec
@@ -40,15 +41,37 @@ class Assistant:
         self._history_limit = history_limit or self._settings.max_memory_items
         self._plugins = list(plugins or [])
         self._transcripts_dir = Path(transcripts_dir or self._settings.transcripts_dir)
+        self._ha_bridge: Optional[HABridge] = HABridge()
 
     async def generate_reply(self, transcript: str) -> str:
         if not transcript.strip():
             raise ValueError("Transcript must not be empty")
 
         loop = asyncio.get_running_loop()
-        prompt = self._build_prompt(transcript)
+        completion: Optional[str] = None
+        if self._ha_bridge and self._ha_bridge.enabled:
+            completion = await loop.run_in_executor(
+                None,
+                self._ha_bridge.process_transcript,
+                transcript,
+            )
 
-        completion = await loop.run_in_executor(None, self._llm.generate, prompt)
+        if completion is None:
+            prompt = self._build_prompt(transcript)
+            completion = await loop.run_in_executor(None, self._llm.generate, prompt)
+            plugin_enrichments = await self._run_plugins(transcript)
+            if plugin_enrichments:
+                completion = (
+                    f"{completion}\n\nAdditional info:\n"
+                    + "\n".join(plugin_enrichments)
+                )
+            if self._ha_bridge and self._ha_bridge.enabled:
+                completion = await loop.run_in_executor(
+                    None,
+                    self._ha_bridge.post_process_response,
+                    completion,
+                )
+
         self._history.append(ConversationTurn("user", transcript))
         self._history.append(ConversationTurn("assistant", completion))
         self._history = [
@@ -56,9 +79,6 @@ class Assistant:
             for item in trim_history(self._history, limit=self._history_limit)
         ]
 
-        plugin_enrichments = await self._run_plugins(transcript)
-        if plugin_enrichments:
-            completion = f"{completion}\n\nAdditional info:\n" + "\n".join(plugin_enrichments)
         self._log_turn(transcript, completion)
         return completion
 
