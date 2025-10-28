@@ -98,6 +98,7 @@ Issues = "https://github.com/Blueibear/rex-ai-assistant/issues"
 
 [tool.setuptools]
 packages = ["rex"]
+# Top-level modules are specified in setup.py (pyproject.toml doesn't support py_modules)
 
 [tool.setuptools.package-data]
 rex = ["py.typed"]

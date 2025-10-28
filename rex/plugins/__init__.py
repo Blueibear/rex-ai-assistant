@@ -103,23 +103,41 @@ class PluginSafetyWrapper:
         return sanitized
 
     def process(self, *args, **kwargs) -> Any:
-        """Execute plugin with safety measures."""
+        """Execute plugin with safety measures.
+
+        NOTE: Timeout enforcement uses ThreadPoolExecutor with non-blocking shutdown.
+        Threads cannot be forcefully terminated, so a truly hung plugin thread will
+        remain running in the background. For mission-critical timeout enforcement,
+        consider using multiprocessing.Process with terminate().
+        """
         # Check rate limit
         if not self._check_rate_limit():
             raise RuntimeError(f"Plugin {self.name} rate limit exceeded")
 
-        # Execute with timeout
+        # Execute with timeout - DO NOT use context manager as it blocks on shutdown
         import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(self.plugin.process, *args, **kwargs)
-            try:
-                result = future.result(timeout=PLUGIN_TIMEOUT)
-            except concurrent.futures.TimeoutError:
-                logger.error("Plugin %s timed out after %d seconds", self.name, PLUGIN_TIMEOUT)
-                raise RuntimeError(f"Plugin {self.name} execution timed out")
-            except Exception as exc:
-                logger.exception("Plugin %s raised an exception", self.name)
-                raise
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(self.plugin.process, *args, **kwargs)
+
+        executor_shutdown = False
+        try:
+            result = future.result(timeout=PLUGIN_TIMEOUT)
+        except concurrent.futures.TimeoutError:
+            logger.error("Plugin %s timed out after %d seconds", self.name, PLUGIN_TIMEOUT)
+            # Shutdown without waiting - abandon the hung thread to prevent blocking
+            executor.shutdown(wait=False)
+            executor_shutdown = True
+            future.cancel()  # Attempt to cancel (may not work if already running)
+            raise RuntimeError(f"Plugin {self.name} execution timed out")
+        except Exception as exc:
+            logger.exception("Plugin %s raised an exception", self.name)
+            executor.shutdown(wait=False)
+            executor_shutdown = True
+            raise
+        finally:
+            # Clean shutdown for successful executions
+            if not executor_shutdown:
+                executor.shutdown(wait=False)
 
         # Truncate and sanitize output
         result = self._truncate_output(result)
