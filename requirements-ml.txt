@@ -1,5 +1,6 @@
 # Optional machine learning dependencies for speech and language features
+# These are now included in the main requirements.txt
+# Use requirements-cpu.txt or requirements-gpu.txt for proper torch installation
 openai-whisper>=20230124
 TTS>=0.18.0
-torch>=2.2.0
 transformers>=4.38.0

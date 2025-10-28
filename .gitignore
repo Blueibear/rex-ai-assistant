@@ -5,9 +5,14 @@ __pycache__/
 
 # Environments
 .env
+.env.local
+.env.*.local
 .venv/
 env/
 venv/
+ENV/
+env.bak/
+venv.bak/
 
 # OS-generated files
 .DS_Store
@@ -45,9 +50,46 @@ build/
 *.sqlite3
 *.db
 
-# Custom folders
+# Custom folders - State and generated assets
 rex.onnx
 assets/wake_acknowledgment.wav
-Memory/*/history.log
+
+# Memory profiles and user data - Exclude entirely
+Memory/
+!Memory/.gitkeep
+!Memory/README.md
+
+# Downloaded/generated models
 models/
+!models/.gitkeep
+!models/README.md
+
+# Transcripts and recordings
 transcripts/
+!transcripts/.gitkeep
+!transcripts/README.md
+
+# Test fixtures are allowed
+!tests/fixtures/
+
+# Logs directory
+logs/
+!logs/.gitkeep
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Pytest cache
+.pytest_cache/
+
+# MyPy cache
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff cache
+.ruff_cache/
