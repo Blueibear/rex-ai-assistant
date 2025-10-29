@@ -47,7 +47,24 @@ from rex.config import settings
 # ------------------------------------------------------------------------------
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+
+# CORS Configuration: Restrict origins based on environment
+# Default to localhost for development; override via REX_ALLOWED_ORIGINS env var
+ALLOWED_ORIGINS = os.getenv("REX_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5000,http://127.0.0.1:3000,http://127.0.0.1:5000")
+_CORS_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS.split(",") if origin.strip()]
+
+# Only allow credentials if not using wildcard
+CORS(
+    app,
+    resources={r"/*": {
+        "origins": _CORS_ORIGINS,
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "X-API-Key"],
+        "expose_headers": ["Retry-After"],
+        "supports_credentials": False,  # Disable by default for security
+        "max_age": 600,  # Preflight cache: 10 minutes
+    }}
+)
 
 
 def _rate_limit_key() -> str:
