@@ -12,9 +12,11 @@ simpleaudio>=1.0.4
 # 🧠 AI / ML Models
 # For CPU: pip install -r requirements-cpu.txt
 # For GPU: pip install -r requirements-gpu.txt
-torch>=2.2.0,<2.7.0
-torchvision>=0.17.0,<0.22.0
-torchaudio>=2.2.0,<2.7.0
+# Note: torch 2.6.0 has local DoS vulnerabilities (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
+# Fixed in torch 2.8.0, but keep 2.6.0 for stability. Upgrade to 2.8.0 when available.
+torch>=2.6.0,<2.9.0
+torchvision>=0.17.0,<0.23.0
+torchaudio>=2.6.0,<2.9.0
 transformers>=4.38.0
 TTS>=0.18.0
 openai>=1.3.0
@@ -31,4 +33,10 @@ beautifulsoup4>=4.12.0
 
 # 📐 Configuration / Validation
 pydantic>=1.10.15
+
+# 🔒 Security-Critical Dependencies
+# These packages have known vulnerabilities in older versions
+cryptography>=43.0.1  # CVE fixes: GHSA-h4gh-qq45-vh27, GHSA-9v9h-cgj8-h64p, GHSA-3ww4-gg4f-jr7f, PYSEC-2024-225
+setuptools>=78.1.1    # CVE fix: PYSEC-2025-49 (path traversal vulnerability)
+pip>=25.3             # CVE fix: GHSA-4xh5-x5gv-qwph (tarfile path traversal)
 
