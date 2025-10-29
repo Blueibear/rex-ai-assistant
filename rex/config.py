@@ -12,6 +12,9 @@ from typing import Any, Dict, Iterable, Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
+# Required environment variables (kept for backward compatibility with tests)
+REQUIRED_ENV_KEYS = {"REX_WAKEWORD"}
+
 try:  # pragma: no cover - optional helper for persisting .env
     from dotenv import load_dotenv, set_key
 except ImportError:  # pragma: no cover - python-dotenv is optional at runtime

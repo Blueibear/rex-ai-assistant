@@ -31,6 +31,10 @@ class PluginExecutionError(AssistantError):
     """Raised when a plugin misbehaves during processing."""
 
 
+class PluginError(AssistantError):
+    """Raised when dynamic plugins cannot be imported or registered."""
+
+
 class AuthenticationError(AssistantError):
     """Raised when API authentication fails."""
 
@@ -43,6 +47,7 @@ __all__ = [
     "SpeechToTextError",
     "TextToSpeechError",
     "PluginExecutionError",
+    "PluginError",
     "AuthenticationError",
 ]
 
