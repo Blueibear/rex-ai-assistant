@@ -11,7 +11,7 @@ import time
 from collections import defaultdict, deque
 from typing import Optional, Tuple
 
-from flask import Flask, jsonify, request, send_file, after_this_request
+from flask import Flask, Response, jsonify, request, send_file, after_this_request
 from flask_cors import CORS
 
 try:  # pragma: no cover - optional dependency
@@ -322,5 +322,12 @@ def speak() -> Response:
 # Entry Point
 # ------------------------------------------------------------------------------
 
-if __name__ == "__main__":
+
+def main() -> int:
+    """Main entry point for Rex TTS API server."""
     app.run(host="0.0.0.0", port=5000)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
