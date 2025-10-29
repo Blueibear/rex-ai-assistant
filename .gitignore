@@ -28,12 +28,15 @@ Thumbs.db
 
 # Audio and model outputs
 *.wav
+!assets/wake_acknowledgment.wav
 *.mp3
 *.onnx
+
 # Keep documentation for the voices directory without tracking audio files
 assets/voices/*
 !assets/voices/.gitkeep
 !assets/voices/README.md
+
 # Guard against stray wake acknowledgment artifacts created by some OSes
 assets/rex_wake_acknowledgment*.wav
 
@@ -52,12 +55,12 @@ build/
 
 # Custom folders - State and generated assets
 rex.onnx
-assets/wake_acknowledgment.wav
 
 # Memory profiles and user data - Exclude entirely
 Memory/
 !Memory/.gitkeep
 !Memory/README.md
+Memory/*/history.log
 
 # Downloaded/generated models
 models/
@@ -93,3 +96,4 @@ dmypy.json
 
 # Ruff cache
 .ruff_cache/
+

@@ -12,10 +12,13 @@ from typing import Any, Dict, Iterable, Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
-# Required environment variables (kept for backward compatibility with tests)
-REQUIRED_ENV_KEYS = {"REX_WAKEWORD"}
+# Environment variables that must be provided for a functional deployment.
+REQUIRED_ENV_KEYS: Sequence[str] = (
+    "OPENAI_API_KEY",
+)
 
-try:  # pragma: no cover - optional helper for persisting .env
+# Optional dependencies
+try:
     from dotenv import load_dotenv, set_key
 except ImportError:  # pragma: no cover - python-dotenv is optional at runtime
     def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
@@ -195,11 +198,28 @@ settings = _load_settings()
 
 def reload_settings() -> Settings:
     """Force settings to be reloaded from the environment."""
-
     _load_settings.cache_clear()
     new_settings = _load_settings()
     globals()["settings"] = new_settings
     return new_settings
+
+
+def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> Settings:
+    """Load configuration (backward compatibility wrapper)."""
+    if reload:
+        return reload_settings()
+    return settings
+
+
+def show_config() -> None:
+    """Print the current configuration values for debugging."""
+    for key, value in sorted(settings.dict().items()):
+        print(f"{key}: {value}")
+
+
+def validate_config(config: Settings) -> None:
+    """Validate configuration (calls __post_init__ internally)."""
+    config.__post_init__()
 
 
 def _env_path() -> Path:
@@ -208,7 +228,6 @@ def _env_path() -> Path:
 
 def update_env_value(key: str, value: str) -> None:
     """Persist a configuration value into the ``.env`` file."""
-
     env_path = _env_path()
     env_path.parent.mkdir(parents=True, exist_ok=True)
     set_key(str(env_path), key, value)
@@ -253,5 +272,30 @@ def _cli(argv: Iterable[str] | None = None) -> int:
     return 0
 
 
-if __name__ == "__main__":  # pragma: no cover - CLI entry point
+def cli(argv: Iterable[str] | None = None) -> int:
+    """Public CLI entrypoint wrapper."""
+    return _cli(argv)
+
+
+# Backward compatibility aliases
+AppConfig = Settings
+ENV_PATH = Path.cwd() / ".env"
+ENV_MAPPING = _ENV_ALIASES
+
+
+__all__ = [
+    "Settings",
+    "AppConfig",
+    "cli",
+    "settings",
+    "load_config",
+    "reload_settings",
+    "validate_config",
+    "update_env_value",
+    "show_config",
+    "REQUIRED_ENV_KEYS",
+]
+
+
+if __name__ == "__main__":
     raise SystemExit(_cli())
