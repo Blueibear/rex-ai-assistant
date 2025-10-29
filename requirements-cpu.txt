@@ -2,7 +2,7 @@
 # Use this for development, CI, or CPU-only deployments
 
 # PyTorch CPU-only versions (compatible set)
-torch==2.6.0
+torch==2.7.1+cu118
 torchvision==0.21.0
 torchaudio==2.6.0
 
