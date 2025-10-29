@@ -31,31 +31,22 @@ dependencies = [
     "flask-limiter>=3.5.0",
     "requests>=2.32.0",  # CVE-2024-35195 fixed in 2.32.0
 
-    # Audio Input/Output
-    "sounddevice>=0.4.6",
-    "soundfile>=0.12.0",
-    "simpleaudio>=1.0.4",
-
     # AI / ML Models - CPU-only by default
-    # Install GPU versions separately: see requirements-gpu.txt
+    # Install GPU versions separately: see requirements-gpu.txt or use extras: pip install -e .[gpu-cu118]
     # Note: torch 2.6.0 has local DoS CVEs (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp), fixed in 2.8.0
     "torch>=2.6.0,<2.9.0",
     "torchvision>=0.17.0,<0.23.0",
     "torchaudio>=2.6.0,<2.9.0",
     "transformers>=4.38.0",
-    "TTS>=0.18.0",
-    "openai>=1.3.0",
-    "openai-whisper>=20230124",
-    "openwakeword>=0.6.0",
     "numpy>=1.24.0,<2.0.0",
+
+    # LLM Backends
+    "openai>=1.3.0",  # OpenAI API client (optional backend)
 
     # Configuration & Validation
     "pydantic>=2.0.0",  # Upgraded to v2 for security and performance
     "pydantic-settings>=2.0.0",  # Settings management moved to separate package in v2
     "python-dotenv>=1.0.1",
-
-    # Web Scraping
-    "beautifulsoup4>=4.12.0",
 
     # Security-Critical Dependencies (minimum versions with CVE fixes)
     "cryptography>=43.0.1",  # Fixes: GHSA-h4gh-qq45-vh27, GHSA-9v9h-cgj8-h64p, GHSA-3ww4-gg4f-jr7f, PYSEC-2024-225
@@ -68,6 +59,39 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Audio input/output support
+audio = [
+    "sounddevice>=0.4.6",
+    "soundfile>=0.12.0",
+    "simpleaudio>=1.0.4",
+]
+
+# Speech-to-text (Whisper)
+stt = [
+    "openai-whisper>=20230124",
+]
+
+# Text-to-speech (Coqui TTS)
+tts = [
+    "TTS>=0.18.0",
+]
+
+# Wake word detection
+wakeword = [
+    "openwakeword>=0.6.0",
+]
+
+# Web search capabilities
+search = [
+    "beautifulsoup4>=4.12.0",
+]
+
+# Full voice assistant (all features)
+full = [
+    "rex-ai-assistant[audio,stt,tts,wakeword,search]",
+]
+
+# Development tools
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
@@ -77,6 +101,7 @@ dev = [
     "mypy>=1.8.0",
 ]
 
+# Testing dependencies
 test = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",

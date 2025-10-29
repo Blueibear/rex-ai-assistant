@@ -1,50 +1,30 @@
-# 🌐 Core Web & API
-flask>=3.0.0  # Upgraded for security improvements
-flask-cors>=4.0.0
-flask-limiter>=3.5.0
-requests>=2.32.0  # CVE-2024-35195 fixed in 2.32.0
+# ========================================
+# Rex AI Assistant - Full Installation
+# ========================================
+#
+# This installs ALL features. For minimal/selective install, use:
+#   pip install -e .                    # Core only (no audio/TTS/STT/wakeword)
+#   pip install -e .[full]              # All features (same as this file)
+#   pip install -e .[audio,stt,tts]     # Specific features only
+#
+# Available extras: audio, stt, tts, wakeword, search, full, dev, test
+# See pyproject.toml [project.optional-dependencies] for details
+# ========================================
 
-# 🔊 Audio Input/Output
-sounddevice>=0.4.6
-soundfile>=0.12.0
-simpleaudio>=1.0.4
+# Install package with full extras (includes all optional dependencies)
+-e .[full]
 
-# 🧠 AI / ML Models
-# For CPU: pip install -r requirements-cpu.txt
-# For GPU: pip install -r requirements-gpu.txt
-# Note: torch 2.6.0 has local DoS vulnerabilities (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
-# Fixed in torch 2.8.0, but keep 2.6.0 for stability. Upgrade to 2.8.0 when available.
-torch>=2.6.0,<2.9.0
-torchvision>=0.17.0,<0.23.0
-torchaudio>=2.6.0,<2.9.0
-transformers>=4.38.0
-TTS>=0.18.0
-openai>=1.3.0
-openai-whisper>=20230124
-openwakeword>=0.6.0
-numpy>=1.24.0,<2.0.0
-
-# 🧪 Testing & Environment
+# Additional development dependencies
 pytest>=8.0.0
-python-dotenv>=1.0.1
 
-# 🌐 Web Scraping
-beautifulsoup4>=4.12.0
+# Security-Critical Dependencies (already in pyproject.toml, listed here for documentation)
+# cryptography>=43.0.1  # CVE fixes: GHSA-h4gh-qq45-vh27, GHSA-9v9h-cgj8-h64p
+# setuptools>=78.1.1    # CVE fix: PYSEC-2025-49 (path traversal)
+# pip>=25.3             # CVE fix: GHSA-4xh5-x5gv-qwph (tarfile path traversal)
 
-# 📐 Configuration / Validation
-pydantic>=2.0.0  # Upgraded to v2 for security and performance
-pydantic-settings>=2.0.0  # Settings management moved to separate package in v2
-
-# 🔒 Security-Critical Dependencies
-# These packages have known vulnerabilities in older versions
-cryptography>=43.0.1  # CVE fixes: GHSA-h4gh-qq45-vh27, GHSA-9v9h-cgj8-h64p, GHSA-3ww4-gg4f-jr7f, PYSEC-2024-225
-setuptools>=78.1.1    # CVE fix: PYSEC-2025-49 (path traversal vulnerability)
-pip>=25.3             # CVE fix: GHSA-4xh5-x5gv-qwph (tarfile path traversal)
-
-# Flask dependencies (pinned for security)
-werkzeug>=3.0.0  # Flask dependency, multiple CVE fixes in 3.x
-jinja2>=3.1.3    # Template injection fixes
-pillow>=10.3.0   # If used by dependencies, multiple CVE fixes
-urllib3>=2.0.0   # Request dependency, multiple CVE fixes
-certifi>=2024.2.2  # Certificate validation fixes
+# Note: PyTorch versions
+# - Default: CPU-only (torch==2.6.0)
+# - For GPU: pip install -e .[gpu-cu118] or use requirements-gpu.txt
+# - torch 2.6.0 has local DoS vulnerabilities (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
+#   Fixed in torch 2.8.0, upgrade when stable version is released
 
