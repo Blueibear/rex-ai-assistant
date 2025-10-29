@@ -1,8 +1,8 @@
 # 🌐 Core Web & API
-flask>=2.3.0
+flask>=3.0.0  # Upgraded for security improvements
 flask-cors>=4.0.0
 flask-limiter>=3.5.0
-requests>=2.31.0
+requests>=2.32.0  # CVE-2024-35195 fixed in 2.32.0
 
 # 🔊 Audio Input/Output
 sounddevice>=0.4.6
@@ -32,11 +32,18 @@ python-dotenv>=1.0.1
 beautifulsoup4>=4.12.0
 
 # 📐 Configuration / Validation
-pydantic>=1.10.15
+pydantic>=2.0.0  # Upgraded to v2 for security and performance
 
 # 🔒 Security-Critical Dependencies
 # These packages have known vulnerabilities in older versions
 cryptography>=43.0.1  # CVE fixes: GHSA-h4gh-qq45-vh27, GHSA-9v9h-cgj8-h64p, GHSA-3ww4-gg4f-jr7f, PYSEC-2024-225
 setuptools>=78.1.1    # CVE fix: PYSEC-2025-49 (path traversal vulnerability)
 pip>=25.3             # CVE fix: GHSA-4xh5-x5gv-qwph (tarfile path traversal)
+
+# Flask dependencies (pinned for security)
+werkzeug>=3.0.0  # Flask dependency, multiple CVE fixes in 3.x
+jinja2>=3.1.3    # Template injection fixes
+pillow>=10.3.0   # If used by dependencies, multiple CVE fixes
+urllib3>=2.0.0   # Request dependency, multiple CVE fixes
+certifi>=2024.2.2  # Certificate validation fixes
 
