@@ -33,6 +33,7 @@ beautifulsoup4>=4.12.0
 
 # 📐 Configuration / Validation
 pydantic>=2.0.0  # Upgraded to v2 for security and performance
+pydantic-settings>=2.0.0  # Settings management moved to separate package in v2
 
 # 🔒 Security-Critical Dependencies
 # These packages have known vulnerabilities in older versions

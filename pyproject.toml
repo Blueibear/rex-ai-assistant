@@ -51,6 +51,7 @@ dependencies = [
 
     # Configuration & Validation
     "pydantic>=2.0.0",  # Upgraded to v2 for security and performance
+    "pydantic-settings>=2.0.0",  # Settings management moved to separate package in v2
     "python-dotenv>=1.0.1",
 
     # Web Scraping

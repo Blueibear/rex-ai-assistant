@@ -44,11 +44,14 @@ except ImportError:  # pragma: no cover - python-dotenv is optional at runtime
         env_file.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
 try:  # pragma: no cover - pydantic may be unavailable in slim environments
-    from pydantic import BaseSettings, Field
+    from pydantic import Field, AliasChoices
+    from pydantic_settings import BaseSettings, SettingsConfigDict  # Moved to pydantic-settings in v2
     _HAS_PYDANTIC = True
 except ImportError:  # pragma: no cover - fallback to dataclass implementation
     BaseSettings = object  # type: ignore[assignment]
     Field = None  # type: ignore[assignment]
+    AliasChoices = None  # type: ignore[assignment]
+    SettingsConfigDict = None  # type: ignore[assignment]
     _HAS_PYDANTIC = False
 
 
@@ -114,30 +117,31 @@ if _HAS_PYDANTIC:
     class Settings(BaseSettings):
         """Typed configuration loaded from environment variables."""
 
-        whisper_model: str = Field(_FIELD_DEFAULTS["whisper_model"], env=["WHISPER_MODEL", "REX_WHISPER_MODEL"])
-        whisper_device: str = Field(_FIELD_DEFAULTS["whisper_device"], env=["WHISPER_DEVICE", "REX_WHISPER_DEVICE"])
-        temperature: float = Field(_FIELD_DEFAULTS["temperature"], env="REX_LLM_TEMPERATURE")
-        user_id: str = Field(_FIELD_DEFAULTS["user_id"], env="REX_ACTIVE_USER")
-        llm_model: str = Field(_FIELD_DEFAULTS["llm_model"], env="REX_LLM_MODEL")
-        llm_backend: str = Field(_FIELD_DEFAULTS["llm_backend"], env="REX_LLM_BACKEND")
-        max_memory_items: int = Field(_FIELD_DEFAULTS["max_memory_items"], env="REX_MEMORY_MAX_ITEMS")
-        wakeword_keyword: str = Field(_FIELD_DEFAULTS["wakeword_keyword"], env="REX_WAKEWORD_KEYWORD")
-        wakeword_threshold: float = Field(_FIELD_DEFAULTS["wakeword_threshold"], env="REX_WAKEWORD_THRESHOLD")
-        sample_rate: int = Field(_FIELD_DEFAULTS["sample_rate"], env="REX_SAMPLE_RATE")
-        detection_frame_seconds: float = Field(_FIELD_DEFAULTS["detection_frame_seconds"], env="REX_DETECTION_FRAME_SECONDS")
-        capture_seconds: float = Field(_FIELD_DEFAULTS["capture_seconds"], env="REX_CAPTURE_SECONDS")
-        wakeword_poll_interval: float = Field(_FIELD_DEFAULTS["wakeword_poll_interval"], env="REX_WAKEWORD_POLL_INTERVAL")
-        log_path: str = Field(_FIELD_DEFAULTS["log_path"], env="REX_LOG_PATH")
-        error_log_path: str = Field(_FIELD_DEFAULTS["error_log_path"], env="REX_ERROR_LOG_PATH")
-        transcripts_dir: str = Field(_FIELD_DEFAULTS["transcripts_dir"], env="REX_TRANSCRIPTS_DIR")
-        search_providers: str = Field(_FIELD_DEFAULTS["search_providers"], env="REX_SEARCH_PROVIDERS")
-        speak_language: str = Field(_FIELD_DEFAULTS["speak_language"], env="REX_SPEAK_LANGUAGE")
-        input_device: Optional[int] = Field(default=None, env="REX_INPUT_DEVICE")
-        output_device: Optional[int] = Field(default=None, env="REX_OUTPUT_DEVICE")
+        whisper_model: str = Field(_FIELD_DEFAULTS["whisper_model"], validation_alias=AliasChoices("WHISPER_MODEL", "REX_WHISPER_MODEL"))
+        whisper_device: str = Field(_FIELD_DEFAULTS["whisper_device"], validation_alias=AliasChoices("WHISPER_DEVICE", "REX_WHISPER_DEVICE"))
+        temperature: float = Field(_FIELD_DEFAULTS["temperature"], validation_alias="REX_LLM_TEMPERATURE")
+        user_id: str = Field(_FIELD_DEFAULTS["user_id"], validation_alias="REX_ACTIVE_USER")
+        llm_model: str = Field(_FIELD_DEFAULTS["llm_model"], validation_alias="REX_LLM_MODEL")
+        llm_backend: str = Field(_FIELD_DEFAULTS["llm_backend"], validation_alias="REX_LLM_BACKEND")
+        max_memory_items: int = Field(_FIELD_DEFAULTS["max_memory_items"], validation_alias="REX_MEMORY_MAX_ITEMS")
+        wakeword_keyword: str = Field(_FIELD_DEFAULTS["wakeword_keyword"], validation_alias="REX_WAKEWORD_KEYWORD")
+        wakeword_threshold: float = Field(_FIELD_DEFAULTS["wakeword_threshold"], validation_alias="REX_WAKEWORD_THRESHOLD")
+        sample_rate: int = Field(_FIELD_DEFAULTS["sample_rate"], validation_alias="REX_SAMPLE_RATE")
+        detection_frame_seconds: float = Field(_FIELD_DEFAULTS["detection_frame_seconds"], validation_alias="REX_DETECTION_FRAME_SECONDS")
+        capture_seconds: float = Field(_FIELD_DEFAULTS["capture_seconds"], validation_alias="REX_CAPTURE_SECONDS")
+        wakeword_poll_interval: float = Field(_FIELD_DEFAULTS["wakeword_poll_interval"], validation_alias="REX_WAKEWORD_POLL_INTERVAL")
+        log_path: str = Field(_FIELD_DEFAULTS["log_path"], validation_alias="REX_LOG_PATH")
+        error_log_path: str = Field(_FIELD_DEFAULTS["error_log_path"], validation_alias="REX_ERROR_LOG_PATH")
+        transcripts_dir: str = Field(_FIELD_DEFAULTS["transcripts_dir"], validation_alias="REX_TRANSCRIPTS_DIR")
+        search_providers: str = Field(_FIELD_DEFAULTS["search_providers"], validation_alias="REX_SEARCH_PROVIDERS")
+        speak_language: str = Field(_FIELD_DEFAULTS["speak_language"], validation_alias="REX_SPEAK_LANGUAGE")
+        input_device: Optional[int] = Field(default=None, validation_alias="REX_INPUT_DEVICE")
+        output_device: Optional[int] = Field(default=None, validation_alias="REX_OUTPUT_DEVICE")
 
-        class Config:
-            env_file = ".env"
-            env_file_encoding = "utf-8"
+        model_config = SettingsConfigDict(
+            env_file=".env",
+            env_file_encoding="utf-8",
+        )
 
 else:
 
