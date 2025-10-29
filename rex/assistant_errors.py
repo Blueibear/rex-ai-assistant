@@ -30,8 +30,16 @@ class TextToSpeechError(AssistantError):
     """Raised when text-to-speech synthesis fails."""
 
 
-class PluginExecutionError(AssistantError):
-    """Raised when a plugin misbehaves during processing."""
+class PluginError(AssistantError):
+    """Raised when a plugin fails to load or execute."""
+
+
+class PluginExecutionError(PluginError):
+    """Backward-compatible alias for plugin execution failures."""
+
+
+class PluginError(AssistantError):
+    """Raised when dynamic plugins cannot be imported or registered."""
 
 
 class AuthenticationError(AssistantError):
@@ -50,6 +58,8 @@ __all__ = [
     "SpeechToTextError",
     "SpeechRecognitionError",
     "TextToSpeechError",
+    "PluginError",
     "PluginExecutionError",
+    "PluginError",
     "AuthenticationError",
 ]

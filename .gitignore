@@ -5,9 +5,14 @@ __pycache__/
 
 # Environments
 .env
+.env.local
+.env.*.local
 .venv/
 env/
 venv/
+ENV/
+env.bak/
+venv.bak/
 
 # OS-generated files
 .DS_Store
@@ -20,16 +25,21 @@ Thumbs.db
 *.log
 *.bak
 *.tmp
+logs/
+!logs/.gitkeep
 
 # Audio and model outputs
 *.wav
+!assets/wake_acknowledgment.wav
 *.mp3
 *.onnx
+
 # Keep documentation for the voices directory without tracking audio files
 assets/voices/*
 !assets/voices/.gitkeep
 !assets/voices/README.md
-# Guard against stray wake acknowledgment artifacts created by some OSes
+
+# Guard against stray wake acknowledgment artifacts
 assets/rex_wake_acknowledgment*.wav
 
 # Model training artifacts
@@ -45,15 +55,50 @@ build/
 *.sqlite3
 *.db
 
-# Custom folders
+# Custom folders - State and generated assets
 rex.onnx
-assets/wake_acknowledgment.wav
-Memory/*/history.log
-models/
-transcripts/
 
-.claude-project.yaml    
-run_project.py  
-project.yaml
-run_codex_autonomous.ps1
+# Memory profiles and user data
+Memory/
+!Memory/.gitkeep
+!Memory/README.md
+Memory/*/history.log
+
+# Downloaded/generated models
+models/
+!models/.gitkeep
+!models/README.md
+
+# Transcripts and recordings
+transcripts/
+!transcripts/.gitkeep
+!transcripts/README.md
+
+# Project and script files (do not ignore these)
+!project.yaml
+!run_project.py
+!run_codex_autonomous.ps1
+!.claude-project.yaml
+
+# Test fixtures
+!tests/fixtures/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Pytest cache
+.pytest_cache/
+
+# MyPy cache
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff cache
+.ruff_cache/
+
 

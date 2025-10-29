@@ -1,0 +1,202 @@
+[build-system]
+requires = ["setuptools>=78.1.1", "wheel"]  # setuptools>=78.1.1 fixes PYSEC-2025-49
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rex-ai-assistant"
+version = "0.1.0"
+description = "Rex AI Assistant - Voice-activated AI assistant with speech recognition and synthesis"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Rex AI Assistant Contributors"}
+]
+keywords = ["ai", "assistant", "voice", "speech", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    # Core Web & API
+    "flask>=3.0.0",  # Upgraded for security improvements
+    "flask-cors>=4.0.0",
+    "flask-limiter>=3.5.0",
+    "requests>=2.32.0",  # CVE-2024-35195 fixed in 2.32.0
+
+    # Audio Input/Output
+    "sounddevice>=0.4.6",
+    "soundfile>=0.12.0",
+    "simpleaudio>=1.0.4",
+
+    # AI / ML Models - CPU-only by default
+    # Install GPU versions separately: see requirements-gpu.txt
+    # Note: torch 2.6.0 has local DoS CVEs (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp), fixed in 2.8.0
+    "torch>=2.6.0,<2.9.0",
+    "torchvision>=0.17.0,<0.23.0",
+    "torchaudio>=2.6.0,<2.9.0",
+    "transformers>=4.38.0",
+    "TTS>=0.18.0",
+    "openai>=1.3.0",
+    "openai-whisper>=20230124",
+    "openwakeword>=0.6.0",
+    "numpy>=1.24.0,<2.0.0",
+
+    # Configuration & Validation
+    "pydantic>=2.0.0",  # Upgraded to v2 for security and performance
+    "python-dotenv>=1.0.1",
+
+    # Web Scraping
+    "beautifulsoup4>=4.12.0",
+
+    # Security-Critical Dependencies (minimum versions with CVE fixes)
+    "cryptography>=43.0.1",  # Fixes: GHSA-h4gh-qq45-vh27, GHSA-9v9h-cgj8-h64p, GHSA-3ww4-gg4f-jr7f, PYSEC-2024-225
+    "setuptools>=78.1.1",    # Fixes: PYSEC-2025-49 (path traversal)
+    "werkzeug>=3.0.0",       # Flask dependency, multiple CVE fixes in 3.x
+    "jinja2>=3.1.3",         # Template injection fixes
+    "pillow>=10.3.0",        # If used by dependencies, multiple CVE fixes
+    "urllib3>=2.0.0",        # Request dependency, multiple CVE fixes
+    "certifi>=2024.2.2",     # Certificate validation fixes
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.23.0",
+    "black>=24.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+]
+
+test = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+# GPU-accelerated PyTorch for CUDA 11.8
+gpu-cu118 = [
+    "torch==2.6.0+cu118",
+    "torchvision==0.21.0+cu118",
+    "torchaudio==2.6.0+cu118",
+]
+
+# GPU-accelerated PyTorch for CUDA 12.1
+gpu-cu121 = [
+    "torch==2.7.1+cu118",
+    "torchvision==0.21.0+cu121",
+    "torchaudio==2.6.0+cu121",
+]
+
+[project.scripts]
+rex = "rex_assistant:main"
+rex-config = "rex.config:_cli"
+rex-speak-api = "rex_speak_api:main"
+
+[project.urls]
+Homepage = "https://github.com/Blueibear/rex-ai-assistant"
+Repository = "https://github.com/Blueibear/rex-ai-assistant"
+Issues = "https://github.com/Blueibear/rex-ai-assistant/issues"
+
+[tool.setuptools]
+packages = ["rex"]
+# Top-level modules are specified in setup.py (pyproject.toml doesn't support py_modules)
+
+[tool.setuptools.package-data]
+rex = ["py.typed"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "--cov=rex",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+markers = [
+    "unit: Unit tests that don't require external dependencies",
+    "integration: Integration tests that may require external services",
+    "slow: Tests that take significant time to run",
+    "audio: Tests requiring audio hardware or ASR/TTS models",
+    "gpu: Tests that require GPU acceleration",
+    "network: Tests that require network access",
+]
+
+[tool.coverage.run]
+source = ["rex"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | build
+  | dist
+  | __pycache__
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true

@@ -18,7 +18,22 @@ else:
 
 # --- Flask Setup ---
 app = Flask(__name__)
-CORS(app)
+
+# CORS Configuration: Restrict origins based on environment
+# Default to localhost for development; override via REX_ALLOWED_ORIGINS env var
+ALLOWED_ORIGINS = os.getenv("REX_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5000,http://127.0.0.1:3000,http://127.0.0.1:5000")
+_CORS_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS.split(",") if origin.strip()]
+
+CORS(
+    app,
+    resources={r"/*": {
+        "origins": _CORS_ORIGINS,
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "X-Rex-Proxy-Token", "Cf-Access-Authenticated-User-Email"],
+        "supports_credentials": False,
+        "max_age": 600,
+    }}
+)
 
 # --- Optional Plugin: Web Search ---
 search_web = None
