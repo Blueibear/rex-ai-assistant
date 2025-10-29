@@ -9,9 +9,11 @@ sounddevice>=0.4.6
 soundfile>=0.12.0
 simpleaudio>=1.0.4
 
-# 🧠 AI / ML Models - Merged Notes + Corrected Versions
-# Note: torch 2.6.0+ has known local DoS vulnerabilities (GHSA-3749-ghw9-m3mg, etc.)
-# Using 2.5.1 for stability. Upgrade to 2.8.0+ when validated.
+# 🧠 AI / ML Models
+# Note:
+# - torch 2.6.x has known local DoS vulnerabilities (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
+# - torch 2.8.0+ contains fixes, but is not yet validated for this project
+# - 2.5.1 is used for stability and security until validation is complete
 torch==2.5.1
 torchvision>=0.20.0,<0.23.0
 torchaudio>=2.5.0,<2.9.0
@@ -34,17 +36,17 @@ beautifulsoup4>=4.12.0
 pydantic>=2.0.0  # Upgraded to v2 for security and performance
 
 # 🔒 Security-Critical Dependencies
-cryptography>=43.0.1  # CVE fixes: GHSA-h4gh-qq45-vh27, etc.
+# These packages have known vulnerabilities in older versions
+cryptography>=43.0.1  # CVE fixes: GHSA-h4gh-qq45-vh27, GHSA-9v9h-cgj8-h64p, GHSA-3ww4-gg4f-jr7f, PYSEC-2024-225
 setuptools>=78.1.1    # CVE fix: PYSEC-2025-49 (path traversal vulnerability)
 pip>=25.3             # CVE fix: GHSA-4xh5-x5gv-qwph (tarfile path traversal)
 
 # Flask dependencies (pinned for security)
-werkzeug>=3.0.0  # Flask dependency, multiple CVE fixes in 3.x
-jinja2>=3.1.3    # Template injection fixes
-pillow>=10.3.0   # If used by dependencies, multiple CVE fixes
-urllib3>=2.0.0   # Request dependency, multiple CVE fixes
-certifi>=2024.2.2  # Certificate validation fixes
+werkzeug>=3.0.0   # Flask dependency, multiple CVE fixes in 3.x
+jinja2>=3.1.3     # Template injection fixes
+pillow>=10.3.0    # Multiple CVE fixes
+urllib3>=2.0.0    # Request dependency, multiple CVE fixes
+certifi>=2024.2.2 # Certificate validation fixes
 
 # MQTT Messaging
 asyncio-mqtt>=0.16.0
-
