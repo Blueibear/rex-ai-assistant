@@ -93,3 +93,6 @@ dmypy.json
 
 # Ruff cache
 .ruff_cache/
+
+# CI trigger files (temporary files used to trigger CI reruns)
+trigger_ci.txt
