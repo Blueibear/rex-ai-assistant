@@ -7,12 +7,21 @@ from pathlib import Path
 from typing import List, Sequence, Tuple
 
 import numpy as np
-import openwakeword
-from openwakeword.model import Model as WakeWordModel
+
+# Optional dependency - install with: pip install -e .[wakeword]
+try:
+    import openwakeword
+    from openwakeword.model import Model as WakeWordModel
+    _HAS_OPENWAKEWORD = True
+    _AVAILABLE_KEYWORDS = {name.replace("_", " ") for name in openwakeword.MODELS.keys()}
+except ImportError:
+    openwakeword = None  # type: ignore
+    WakeWordModel = None  # type: ignore
+    _HAS_OPENWAKEWORD = False
+    _AVAILABLE_KEYWORDS = set()
 
 DEFAULT_KEYWORD = os.getenv("REX_WAKEWORD_KEYWORD", "hey_jarvis")
 DEFAULT_BACKEND = os.getenv("REX_WAKEWORD_BACKEND", "onnx")
-_AVAILABLE_KEYWORDS = {name.replace("_", " ") for name in openwakeword.MODELS.keys()}
 
 
 def _resolve_model_path(model_path: str | None = None) -> Path:
@@ -41,7 +50,16 @@ def _normalise_keywords(keyword: str | Sequence[str] | None) -> List[str]:
 def load_wakeword_model(
     *, keyword: str | Sequence[str] | None = None, model_path: str | None = None
 ) -> Tuple[WakeWordModel, str]:
-    """Return a configured openWakeWord model and the active wake phrase."""
+    """Return a configured openWakeWord model and the active wake phrase.
+
+    Raises:
+        ImportError: If openwakeword is not installed. Install with: pip install -e .[wakeword]
+    """
+    if not _HAS_OPENWAKEWORD:
+        raise ImportError(
+            "openwakeword is not installed. "
+            "Install it with: pip install -e .[wakeword] or pip install openwakeword"
+        )
 
     resolved_path = _resolve_model_path(model_path)
     requested_keywords = _normalise_keywords(keyword)
@@ -71,13 +89,22 @@ def load_wakeword_model(
 
 
 def detect_wakeword(
-    model: WakeWordModel,
+    model,  # type: WakeWordModel or mock
     audio_frame: np.ndarray,
     *,
     threshold: float = 0.5,
 ) -> bool:
-    """Return ``True`` when ``audio_frame`` contains the active wake word."""
+    """Return ``True`` when ``audio_frame`` contains the active wake word.
 
+    Args:
+        model: Wake word model with a predict() method (real or mock)
+        audio_frame: Audio data as numpy array
+        threshold: Confidence threshold (0.0-1.0)
+
+    Note:
+        This function works with any model object that has a predict() method,
+        so it can be used with mocks for testing even without openwakeword installed.
+    """
     if audio_frame.ndim != 1:
         audio_frame = np.reshape(audio_frame, (-1,))
 
