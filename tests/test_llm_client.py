@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import types
+
 import pytest
 
 from config import AppConfig
 from llm_client import (
-    LanguageModel,
-    register_strategy,
     TORCH_AVAILABLE,
     TRANSFORMERS_AVAILABLE,
+    LanguageModel,
+    register_strategy,
 )
 
 
@@ -72,7 +73,9 @@ def test_openai_provider(monkeypatch):
         def __init__(self):
             self.choices = [types.SimpleNamespace(message=types.SimpleNamespace(content="hello"))]
 
-    fake_client.chat = types.SimpleNamespace(completions=types.SimpleNamespace(create=lambda **_: _Response()))
+    fake_client.chat = types.SimpleNamespace(
+        completions=types.SimpleNamespace(create=lambda **_: _Response())
+    )
 
     monkeypatch.setenv("OPENAI_API_KEY", "test")
     monkeypatch.setattr(LanguageModel, "_ensure_openai_client", lambda self: fake_client)

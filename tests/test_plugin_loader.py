@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import textwrap
-import pytest
-
-# Codex-style plugin test (class-based with lifecycle methods)
-from rex.plugins import load_plugins as load_rex_plugins, shutdown_plugins
 
 # Master-style plugin loader test (dict-based plugin discovery)
 from plugin_loader import load_plugins as load_dict_plugins
+
+# Codex-style plugin test (class-based with lifecycle methods)
+from rex.plugins import load_plugins as load_rex_plugins
+from rex.plugins import shutdown_plugins
 
 
 def test_class_based_plugin_loads_and_runs(tmp_path, monkeypatch):
@@ -101,4 +101,3 @@ def test_dict_based_plugin_loader(tmp_path, monkeypatch):
     assert results[f"{plugin_dir.name}.second"]["feature"] == "active"
 
     assert f"{plugin_dir.name}.broken" not in results
-

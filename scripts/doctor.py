@@ -6,10 +6,8 @@ import os
 import platform
 import shutil
 import sys
-from collections import defaultdict, deque
-from typing import List, Tuple
 
-CheckResult = Tuple[str, bool, str]
+CheckResult = tuple[str, bool, str]
 
 
 def _check_python() -> CheckResult:
@@ -56,8 +54,8 @@ def _check_torch_cuda() -> CheckResult:
     )
 
 
-def _check_env_vars() -> List[CheckResult]:
-    checks: List[CheckResult] = []
+def _check_env_vars() -> list[CheckResult]:
+    checks: list[CheckResult] = []
     required = {
         "REX_SPEAK_API_KEY": "Required for /speak TTS endpoint authentication.",
     }
@@ -91,8 +89,8 @@ def _check_rate_limiter() -> CheckResult:
     )
 
 
-def run_checks() -> List[CheckResult]:
-    results: List[CheckResult] = []
+def run_checks() -> list[CheckResult]:
+    results: list[CheckResult] = []
     results.append(_check_python())
     results.append(_check_binary("ffmpeg", "https://ffmpeg.org/download.html"))
     results.append(_check_torch_cuda())

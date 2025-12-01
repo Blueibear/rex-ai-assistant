@@ -10,8 +10,9 @@ import os
 import signal
 import time
 from collections import defaultdict, deque
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable, List, Protocol
+from typing import Any, List, Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -24,14 +25,11 @@ PLUGIN_RATE_LIMIT = int(os.getenv("REX_PLUGIN_RATE_LIMIT", "10"))  # requests pe
 class Plugin(Protocol):
     name: str
 
-    def initialize(self) -> None:
-        ...
+    def initialize(self) -> None: ...
 
-    def process(self, *args, **kwargs):
-        ...
+    def process(self, *args, **kwargs): ...
 
-    def shutdown(self) -> None:
-        ...
+    def shutdown(self) -> None: ...
 
 
 @dataclass
@@ -71,13 +69,16 @@ class PluginSafetyWrapper:
             if len(output) > PLUGIN_OUTPUT_LIMIT:
                 logger.warning(
                     "Plugin %s output truncated from %d to %d bytes",
-                    self.name, len(output), PLUGIN_OUTPUT_LIMIT
+                    self.name,
+                    len(output),
+                    PLUGIN_OUTPUT_LIMIT,
                 )
                 return output[:PLUGIN_OUTPUT_LIMIT] + "\n[...output truncated]"
             return output
 
         if isinstance(output, (list, dict)):
             import json
+
             try:
                 serialized = json.dumps(output)
                 if len(serialized) > PLUGIN_OUTPUT_LIMIT:
@@ -96,10 +97,11 @@ class PluginSafetyWrapper:
 
         # Remove potentially problematic characters that might affect TTS
         import re
+
         # Remove control characters except newlines and tabs
-        sanitized = re.sub(r'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]', '', output)
+        sanitized = re.sub(r"[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]", "", output)
         # Limit repeated characters (potential DoS via TTS)
-        sanitized = re.sub(r'(.)\1{10,}', r'\1' * 10, sanitized)
+        sanitized = re.sub(r"(.)\1{10,}", r"\1" * 10, sanitized)
         return sanitized
 
     def process(self, *args, **kwargs) -> Any:
@@ -116,6 +118,7 @@ class PluginSafetyWrapper:
 
         # Execute with timeout - DO NOT use context manager as it blocks on shutdown
         import concurrent.futures
+
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         future = executor.submit(self.plugin.process, *args, **kwargs)
 
@@ -129,7 +132,7 @@ class PluginSafetyWrapper:
             executor_shutdown = True
             future.cancel()  # Attempt to cancel (may not work if already running)
             raise RuntimeError(f"Plugin {self.name} execution timed out")
-        except Exception as exc:
+        except Exception:
             logger.exception("Plugin %s raised an exception", self.name)
             executor.shutdown(wait=False)
             executor_shutdown = True
@@ -149,8 +152,8 @@ class PluginSafetyWrapper:
         return getattr(self.plugin, name)
 
 
-def load_plugins(path: str = "plugins") -> List[PluginSpec]:
-    specs: List[PluginSpec] = []
+def load_plugins(path: str = "plugins") -> list[PluginSpec]:
+    specs: list[PluginSpec] = []
     if not os.path.isdir(path):
         return specs
 

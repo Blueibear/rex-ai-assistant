@@ -6,23 +6,11 @@ import asyncio
 import contextlib
 import os
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional
 
 import numpy as np
-import sounddevice as sd
 import simpleaudio as sa
+import sounddevice as sd
 import whisper
-from TTS.api import TTS
-
-from rex.assistant_errors import (
-    SpeechRecognitionError,
-    TextToSpeechError,
-    WakeWordError,
-)
-from rex.config import AppConfig, load_config
-from rex.logging_utils import get_logger
-from rex.llm_client import LanguageModel
 from rex.memory_utils import (
     append_history_entry,
     export_transcript,
@@ -32,6 +20,16 @@ from rex.memory_utils import (
 )
 from rex.plugin_loader import load_plugins
 from rex.wakeword_utils import detect_wakeword, load_wakeword_model
+from TTS.api import TTS
+
+from rex.assistant_errors import (
+    SpeechRecognitionError,
+    TextToSpeechError,
+    WakeWordError,
+)
+from rex.config import AppConfig, load_config
+from rex.llm_client import LanguageModel
+from rex.logging_utils import get_logger
 
 LOGGER = get_logger(__name__)
 
@@ -44,12 +42,12 @@ class WakeWordListener:
     threshold: float
     sample_rate: int
     block_size: int
-    device: Optional[int]
+    device: int | None
     loop: asyncio.AbstractEventLoop
 
     def __post_init__(self) -> None:
         self._event = asyncio.Event()
-        self._stream: Optional[sd.InputStream] = None
+        self._stream: sd.InputStream | None = None
 
     def start(self) -> None:
         try:
@@ -92,7 +90,7 @@ class WakeWordListener:
 
 
 class AsyncRexAssistant:
-    def __init__(self, config: Optional[AppConfig] = None) -> None:
+    def __init__(self, config: AppConfig | None = None) -> None:
         self.config = config or load_config()
         self.loop = asyncio.get_event_loop()
         self.language_model = LanguageModel(self.config)
@@ -105,11 +103,13 @@ class AsyncRexAssistant:
             device=self.config.audio_input_device,
             loop=self.loop,
         )
-        self._tts: Optional[TTS] = None
-        self._whisper_model: Optional[whisper.Whisper] = None
+        self._tts: TTS | None = None
+        self._whisper_model: whisper.Whisper | None = None
         self.users_map = load_users_map()
         self.profiles = load_all_profiles()
-        resolved = resolve_user_key(self.config.default_user, self.users_map, profiles=self.profiles)
+        resolved = resolve_user_key(
+            self.config.default_user, self.users_map, profiles=self.profiles
+        )
         self.active_user = resolved or (self.config.default_user or "james")
         self.plugins = load_plugins()
         LOGGER.info("Loaded plugins: %s", ", ".join(self.plugins.keys()) or "none")
@@ -197,7 +197,13 @@ class AsyncRexAssistant:
         duration = self.config.command_duration
         frames = int(sample_rate * duration)
         LOGGER.info("Recording %.1f seconds of audio", duration)
-        audio = sd.rec(frames, samplerate=sample_rate, channels=1, dtype="float32", device=self.config.audio_input_device)
+        audio = sd.rec(
+            frames,
+            samplerate=sample_rate,
+            channels=1,
+            dtype="float32",
+            device=self.config.audio_input_device,
+        )
         sd.wait()
         return np.squeeze(audio)
 
@@ -255,6 +261,6 @@ class AsyncRexAssistant:
         self._listener.trigger()
 
 
-def build_voice_loop(assistant: Optional[AsyncRexAssistant] = None) -> AsyncRexAssistant:
+def build_voice_loop(assistant: AsyncRexAssistant | None = None) -> AsyncRexAssistant:
     """Helper function for rex_loop.py to build and run the voice assistant loop."""
     return assistant or AsyncRexAssistant()

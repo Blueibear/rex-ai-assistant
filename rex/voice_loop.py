@@ -5,9 +5,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import tempfile
+from collections.abc import Awaitable
 from contextlib import suppress
 from pathlib import Path
-from typing import Awaitable, Callable, Optional
+from typing import Callable
 
 import numpy as np
 
@@ -72,7 +73,7 @@ class AsyncMicrophone:
     async def detection_frame(self) -> np.ndarray:
         return await self._record(self._detection_seconds)
 
-    async def record_phrase(self, duration: Optional[float] = None) -> np.ndarray:
+    async def record_phrase(self, duration: float | None = None) -> np.ndarray:
         return await self._record(duration or self._capture_seconds)
 
     async def _record(self, duration: float) -> np.ndarray:
@@ -105,8 +106,10 @@ class AsyncMicrophone:
 class WakeAcknowledgement:
     """Play a short acknowledgement when the wake word fires."""
 
-    def __init__(self, sound_path: Optional[Path] = None) -> None:
-        default_path = Path(__file__).resolve().parents[1] / "assets" / "rex_wake_acknowledgment (1).wav"
+    def __init__(self, sound_path: Path | None = None) -> None:
+        default_path = (
+            Path(__file__).resolve().parents[1] / "assets" / "rex_wake_acknowledgment (1).wav"
+        )
         self._sound_path = Path(sound_path) if sound_path else default_path
 
     async def play(self) -> None:
@@ -150,9 +153,11 @@ class SpeechToText:
 class TextToSpeech:
     """Text-to-speech helper that plays audio via simpleaudio when available."""
 
-    def __init__(self, *, language: str, default_speaker: Optional[str] = None) -> None:
+    def __init__(self, *, language: str, default_speaker: str | None = None) -> None:
         self._language = language
-        self._default_speaker = default_speaker if default_speaker and Path(default_speaker).exists() else None
+        self._default_speaker = (
+            default_speaker if default_speaker and Path(default_speaker).exists() else None
+        )
         self._tts = None
         if TTS is not None:
             try:
@@ -161,7 +166,7 @@ class TextToSpeech:
                 logger.warning("Unable to initialise TTS backend: %s", exc)
                 self._tts = None
 
-    async def speak(self, text: str, *, speaker_wav: Optional[str] = None) -> None:
+    async def speak(self, text: str, *, speaker_wav: str | None = None) -> None:
         if not text:
             return
 
@@ -216,7 +221,7 @@ class VoiceLoop:
         record_phrase: PhraseRecorder,
         transcribe: Transcriber,
         speak: Speaker,
-        acknowledge: Optional[Acknowledgement] = None,
+        acknowledge: Acknowledgement | None = None,
     ) -> None:
         self._assistant = assistant
         self._wake_listener = wake_listener
@@ -226,7 +231,7 @@ class VoiceLoop:
         self._speak = speak
         self._acknowledge = acknowledge
 
-    async def run(self, *, max_interactions: Optional[int] = None) -> None:
+    async def run(self, *, max_interactions: int | None = None) -> None:
         interactions = 0
         while max_interactions is None or interactions < max_interactions:
             try:
@@ -290,7 +295,7 @@ class VoiceLoop:
         raise WakeWordError("Wake-word listener exited unexpectedly")
 
 
-def _resolve_voice_reference() -> Optional[str]:
+def _resolve_voice_reference() -> str | None:
     try:
         users_map = load_users_map()
         profiles = load_all_profiles()
@@ -323,7 +328,7 @@ def build_voice_loop(assistant: Assistant) -> VoiceLoop:
     wake_listener = WakeWordListener(detector, poll_interval=settings.wakeword_poll_interval)
     acknowledgement = WakeAcknowledgement()
 
-    speech_to_text: Optional[SpeechToText]
+    speech_to_text: SpeechToText | None
     try:
         speech_to_text = SpeechToText(settings.whisper_model, settings.whisper_device)
     except SpeechToTextError as exc:

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Protocol, Sequence
+from typing import Any, Protocol
 
 from assistant_errors import ConfigurationError
 from config import AppConfig, load_config
@@ -19,7 +20,8 @@ except ImportError:  # pragma: no cover - dependency optional
     torch = None
 
 try:  # pragma: no cover - dependency optional
-    from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline as hf_pipeline
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from transformers import pipeline as hf_pipeline
 except ImportError:
     AutoModelForCausalLM = AutoTokenizer = hf_pipeline = None
 
@@ -50,9 +52,8 @@ class LLMStrategy(Protocol):
         prompt: str,
         config: GenerationConfig,
         *,
-        messages: Optional[List[Dict[str, str]]] = None,
-    ) -> str:
-        ...
+        messages: list[dict[str, str]] | None = None,
+    ) -> str: ...
 
 
 # === Backend: Echo (fallback) ===
@@ -67,7 +68,7 @@ class EchoStrategy:
         prompt: str,
         _config: GenerationConfig,
         *,
-        messages: Optional[List[Dict[str, str]]] = None,
+        messages: list[dict[str, str]] | None = None,
     ) -> str:
         text = prompt.strip()
         if not text and messages:
@@ -90,7 +91,7 @@ class OfflineTransformersStrategy:
         prompt: str,
         _config: GenerationConfig,
         *,
-        messages: Optional[List[Dict[str, str]]] = None,
+        messages: list[dict[str, str]] | None = None,
     ) -> str:
         text = prompt.strip()
         if not text and messages:
@@ -110,7 +111,9 @@ class TransformersStrategy:
         model = AutoModelForCausalLM.from_pretrained(model_name)
         device = 0 if torch.cuda.is_available() else -1
 
-        self.pipeline = hf_pipeline("text-generation", model=model, tokenizer=tokenizer, device=device)
+        self.pipeline = hf_pipeline(
+            "text-generation", model=model, tokenizer=tokenizer, device=device
+        )
         self.tokenizer = tokenizer
         if tokenizer.pad_token_id is None:
             tokenizer.pad_token_id = tokenizer.eos_token_id
@@ -120,7 +123,7 @@ class TransformersStrategy:
         prompt: str,
         config: GenerationConfig,
         *,
-        messages: Optional[List[Dict[str, str]]] = None,
+        messages: list[dict[str, str]] | None = None,
     ) -> str:
         if torch is None:  # pragma: no cover - defensive
             raise ConfigurationError("Transformers backend requires torch.")
@@ -146,7 +149,7 @@ class TransformersStrategy:
 
         outputs = self.pipeline(prompt, **generate_kwargs)
         text = outputs[0]["generated_text"]
-        return text[len(prompt):].strip() or "(silence)"
+        return text[len(prompt) :].strip() or "(silence)"
 
 
 class OpenAIStrategy:
@@ -167,7 +170,7 @@ class OpenAIStrategy:
         prompt: str,
         config: GenerationConfig,
         *,
-        messages: Optional[List[Dict[str, str]]] = None,
+        messages: list[dict[str, str]] | None = None,
     ) -> str:
         payload = messages or [{"role": "user", "content": prompt}]
         response = self._get_client().chat.completions.create(
@@ -181,7 +184,7 @@ class OpenAIStrategy:
         return content.strip() or "(silence)"
 
 
-_STRATEGIES: Dict[str, type[LLMStrategy]] = {
+_STRATEGIES: dict[str, type[LLMStrategy]] = {
     EchoStrategy.name: EchoStrategy,
     TransformersStrategy.name: TransformersStrategy,
 }
@@ -194,7 +197,7 @@ def register_strategy(name: str, strategy: type[LLMStrategy]) -> None:
 class LanguageModel:
     """LLM wrapper supporting multiple backends (OpenAI, Transformers, Echo)."""
 
-    def __init__(self, config: Optional[AppConfig] = None, **overrides) -> None:
+    def __init__(self, config: AppConfig | None = None, **overrides) -> None:
         self.config = config or load_config()
         self.provider = (overrides.get("provider") or self.config.llm_provider).lower()
         self.model_name = overrides.get("model") or self.config.llm_model
@@ -224,7 +227,9 @@ class LanguageModel:
             logger.warning("Unknown LLM provider '%s'. Falling back to echo mode.", self.provider)
             return EchoStrategy(self.model_name)
 
-        if strategy_cls is TransformersStrategy and not (TORCH_AVAILABLE and TRANSFORMERS_AVAILABLE):
+        if strategy_cls is TransformersStrategy and not (
+            TORCH_AVAILABLE and TRANSFORMERS_AVAILABLE
+        ):
             logger.warning(
                 "Transformers dependencies missing; using offline fallback for model '%s'.",
                 self.model_name,
@@ -234,7 +239,9 @@ class LanguageModel:
         try:
             return strategy_cls(self.model_name)
         except Exception as exc:
-            logger.warning("LLM backend init failed (%s). Falling back to echo. (%s)", self.provider, exc)
+            logger.warning(
+                "LLM backend init failed (%s). Falling back to echo. (%s)", self.provider, exc
+            )
             return EchoStrategy(self.model_name)
 
     def _ensure_openai_client(self):
@@ -247,8 +254,8 @@ class LanguageModel:
         self._openai_client = OpenAI(api_key=self.api_key)
         return self._openai_client
 
-    def _format_messages(self, messages: Sequence[Dict[str, str]]) -> str:
-        parts: List[str] = []
+    def _format_messages(self, messages: Sequence[dict[str, str]]) -> str:
+        parts: list[str] = []
         for message in messages:
             if not isinstance(message, dict):
                 continue
@@ -259,14 +266,14 @@ class LanguageModel:
 
     def generate(
         self,
-        prompt: Optional[str] = None,
+        prompt: str | None = None,
         *,
-        messages: Optional[Sequence[Dict[str, str]]] = None,
-        config: Optional[GenerationConfig] = None,
+        messages: Sequence[dict[str, str]] | None = None,
+        config: GenerationConfig | None = None,
     ) -> str:
         if messages is not None:
             prompt_text = self._format_messages(messages)
-            normalized_messages: Optional[List[Dict[str, str]]] = []
+            normalized_messages: list[dict[str, str]] | None = []
             for entry in messages:
                 if isinstance(entry, dict):
                     normalized_messages.append(
@@ -306,4 +313,3 @@ __all__ = [
     "TORCH_AVAILABLE",
     "TRANSFORMERS_AVAILABLE",
 ]
-

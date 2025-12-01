@@ -31,4 +31,6 @@ def test_detect_wakeword_low_confidence():
     model = LowConfidenceModel()
     audio = np.zeros(10, dtype=np.float32)
 
-    assert not detect_wakeword(model, audio, threshold=0.5), "Wakeword should not trigger at 0.3 score"
+    assert not detect_wakeword(
+        model, audio, threshold=0.5
+    ), "Wakeword should not trigger at 0.3 score"

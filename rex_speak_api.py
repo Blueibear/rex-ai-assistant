@@ -9,15 +9,15 @@ import re
 import tempfile
 import time
 from collections import defaultdict, deque
-from typing import Optional, Tuple
 
-from flask import Flask, Response, jsonify, request, send_file, after_this_request
+from flask import Flask, Response, after_this_request, jsonify, request, send_file
 from flask_cors import CORS
 
 try:  # pragma: no cover - optional dependency
     from flask_limiter import Limiter
     from flask_limiter.exceptions import RateLimitExceeded
 except ImportError:  # pragma: no cover - fallback for documentation builds
+
     class Limiter:  # type: ignore
         def __init__(self, *args, **kwargs):
             pass
@@ -31,6 +31,7 @@ except ImportError:  # pragma: no cover - fallback for documentation builds
     class RateLimitExceeded(Exception):  # type: ignore
         retry_after = None
 
+
 from TTS.api import TTS
 
 from memory_utils import (
@@ -40,7 +41,6 @@ from memory_utils import (
     resolve_user_key,
 )
 from rex.assistant_errors import AuthenticationError, TextToSpeechError
-from rex.config import settings
 
 # ------------------------------------------------------------------------------
 # App setup
@@ -50,20 +50,25 @@ app = Flask(__name__)
 
 # CORS Configuration: Restrict origins based on environment
 # Default to localhost for development; override via REX_ALLOWED_ORIGINS env var
-ALLOWED_ORIGINS = os.getenv("REX_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5000,http://127.0.0.1:3000,http://127.0.0.1:5000")
+ALLOWED_ORIGINS = os.getenv(
+    "REX_ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:5000,http://127.0.0.1:3000,http://127.0.0.1:5000",
+)
 _CORS_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS.split(",") if origin.strip()]
 
 # Only allow credentials if not using wildcard
 CORS(
     app,
-    resources={r"/*": {
-        "origins": _CORS_ORIGINS,
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "X-API-Key"],
-        "expose_headers": ["Retry-After"],
-        "supports_credentials": False,  # Disable by default for security
-        "max_age": 600,  # Preflight cache: 10 minutes
-    }}
+    resources={
+        r"/*": {
+            "origins": _CORS_ORIGINS,
+            "methods": ["GET", "POST", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization", "X-API-Key"],
+            "expose_headers": ["Retry-After"],
+            "supports_credentials": False,  # Disable by default for security
+            "max_age": 600,  # Preflight cache: 10 minutes
+        }
+    },
 )
 
 
@@ -81,9 +86,7 @@ def _rate_limit_key() -> str:
 
 
 _LIMITER_STORAGE_URI = (
-    os.getenv("REX_SPEAK_STORAGE_URI")
-    or os.getenv("FLASK_LIMITER_STORAGE_URI")
-    or "memory://"
+    os.getenv("REX_SPEAK_STORAGE_URI") or os.getenv("FLASK_LIMITER_STORAGE_URI") or "memory://"
 )
 
 limiter = Limiter(
@@ -111,17 +114,14 @@ DEFAULT_USER = resolve_user_key(
 ) or (sorted(USER_PROFILES.keys())[0] if USER_PROFILES else "james")
 
 USER_VOICES = {
-    user: extract_voice_reference(profile, user_key=user)
-    for user, profile in USER_PROFILES.items()
+    user: extract_voice_reference(profile, user_key=user) for user, profile in USER_PROFILES.items()
 }
 if DEFAULT_USER not in USER_VOICES:
     USER_VOICES[DEFAULT_USER] = None
 
-_TTS_ENGINE: Optional[TTS] = None
+_TTS_ENGINE: TTS | None = None
 
-DEFAULT_TTS_MODEL = os.getenv(
-    "REX_TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2"
-)
+DEFAULT_TTS_MODEL = os.getenv("REX_TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2")
 _MODEL_PATTERN = re.compile(r"^[\w\-./]+(\/[\w\-./]+)*$")
 if not _MODEL_PATTERN.match(DEFAULT_TTS_MODEL):
     logger.warning("Invalid TTS model name '%s'; using default.", DEFAULT_TTS_MODEL)
@@ -175,18 +175,18 @@ def _handle_rate_limit(exc: RateLimitExceeded):
     return response
 
 
-def _extract_api_key(payload: dict | None) -> Optional[str]:
+def _extract_api_key(payload: dict | None) -> str | None:
     auth_header = request.headers.get("Authorization", "")
     if auth_header.lower().startswith("bearer "):
         return auth_header[7:].strip()
     return (
-        request.headers.get("X-API-Key")
-        or request.args.get("api_key")
-        or payload.get("api_key") if payload else None
+        request.headers.get("X-API-Key") or request.args.get("api_key") or payload.get("api_key")
+        if payload
+        else None
     )
 
 
-def _require_api_key(provided_key: Optional[str]) -> bool:
+def _require_api_key(provided_key: str | None) -> bool:
     if not provided_key:
         return False
     try:
@@ -202,7 +202,7 @@ def _prune_requests(identity: str, now: float) -> deque:
     return entries
 
 
-def _check_rate_limit(identity: str) -> Tuple[bool, int]:
+def _check_rate_limit(identity: str) -> tuple[bool, int]:
     if _RATE_CACHE is None or RATE_LIMIT <= 0 or RATE_LIMIT_WINDOW <= 0:
         return True, 0
     now = time.monotonic()
@@ -214,7 +214,7 @@ def _check_rate_limit(identity: str) -> Tuple[bool, int]:
     return True, 0
 
 
-def _validate_text(text: str) -> Optional[str]:
+def _validate_text(text: str) -> str | None:
     if not isinstance(text, str):
         return "Text must be a string."
     normalised = text.strip()
@@ -225,7 +225,7 @@ def _validate_text(text: str) -> Optional[str]:
     return None
 
 
-def _select_speaker(user: Optional[str]) -> Optional[str]:
+def _select_speaker(user: str | None) -> str | None:
     candidate = str(user).lower() if user else DEFAULT_USER
     if candidate not in USER_VOICES:
         candidate = DEFAULT_USER

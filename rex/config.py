@@ -3,24 +3,25 @@
 from __future__ import annotations
 
 import argparse
+import builtins
 import dataclasses
 import logging
 import os
+from collections.abc import Iterable, Sequence
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Iterable, Optional, Sequence
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Environment variables that must be provided for a functional deployment.
-REQUIRED_ENV_KEYS: Sequence[str] = (
-    "OPENAI_API_KEY",
-)
+REQUIRED_ENV_KEYS: Sequence[str] = ("OPENAI_API_KEY",)
 
 # Optional dependencies
 try:
     from dotenv import load_dotenv, set_key
 except ImportError:  # pragma: no cover - python-dotenv is optional at runtime
+
     def load_dotenv(*_args: Any, **_kwargs: Any) -> bool:
         env_path = Path.cwd() / ".env"
         if not env_path.exists():
@@ -46,8 +47,10 @@ except ImportError:  # pragma: no cover - python-dotenv is optional at runtime
             lines.append(f"{prefix}{value}")
         env_file.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 
+
 try:  # pragma: no cover - pydantic may be unavailable in slim environments
     from pydantic import BaseSettings, Field
+
     _HAS_PYDANTIC = True
 except ImportError:  # pragma: no cover - fallback to dataclass implementation
     BaseSettings = object  # type: ignore[assignment]
@@ -55,7 +58,7 @@ except ImportError:  # pragma: no cover - fallback to dataclass implementation
     _HAS_PYDANTIC = False
 
 
-_FIELD_DEFAULTS: Dict[str, Any] = {
+_FIELD_DEFAULTS: dict[str, Any] = {
     "whisper_model": "medium",
     "whisper_device": "cuda",
     "temperature": 0.8,
@@ -78,7 +81,7 @@ _FIELD_DEFAULTS: Dict[str, Any] = {
     "output_device": None,
 }
 
-_ENV_ALIASES: Dict[str, Sequence[str]] = {
+_ENV_ALIASES: dict[str, Sequence[str]] = {
     "whisper_model": ("WHISPER_MODEL", "REX_WHISPER_MODEL"),
     "whisper_device": ("WHISPER_DEVICE", "REX_WHISPER_DEVICE"),
     "temperature": ("REX_LLM_TEMPERATURE",),
@@ -103,7 +106,13 @@ _ENV_ALIASES: Dict[str, Sequence[str]] = {
 
 
 def _cast_value(key: str, raw: str) -> Any:
-    if key in {"temperature", "wakeword_threshold", "detection_frame_seconds", "capture_seconds", "wakeword_poll_interval"}:
+    if key in {
+        "temperature",
+        "wakeword_threshold",
+        "detection_frame_seconds",
+        "capture_seconds",
+        "wakeword_poll_interval",
+    }:
         return float(raw)
     if key in {"max_memory_items", "sample_rate"}:
         return int(raw)
@@ -117,26 +126,44 @@ if _HAS_PYDANTIC:
     class Settings(BaseSettings):
         """Typed configuration loaded from environment variables."""
 
-        whisper_model: str = Field(_FIELD_DEFAULTS["whisper_model"], env=["WHISPER_MODEL", "REX_WHISPER_MODEL"])
-        whisper_device: str = Field(_FIELD_DEFAULTS["whisper_device"], env=["WHISPER_DEVICE", "REX_WHISPER_DEVICE"])
+        whisper_model: str = Field(
+            _FIELD_DEFAULTS["whisper_model"], env=["WHISPER_MODEL", "REX_WHISPER_MODEL"]
+        )
+        whisper_device: str = Field(
+            _FIELD_DEFAULTS["whisper_device"], env=["WHISPER_DEVICE", "REX_WHISPER_DEVICE"]
+        )
         temperature: float = Field(_FIELD_DEFAULTS["temperature"], env="REX_LLM_TEMPERATURE")
         user_id: str = Field(_FIELD_DEFAULTS["user_id"], env="REX_ACTIVE_USER")
         llm_model: str = Field(_FIELD_DEFAULTS["llm_model"], env="REX_LLM_MODEL")
         llm_backend: str = Field(_FIELD_DEFAULTS["llm_backend"], env="REX_LLM_BACKEND")
-        max_memory_items: int = Field(_FIELD_DEFAULTS["max_memory_items"], env="REX_MEMORY_MAX_ITEMS")
-        wakeword_keyword: str = Field(_FIELD_DEFAULTS["wakeword_keyword"], env="REX_WAKEWORD_KEYWORD")
-        wakeword_threshold: float = Field(_FIELD_DEFAULTS["wakeword_threshold"], env="REX_WAKEWORD_THRESHOLD")
+        max_memory_items: int = Field(
+            _FIELD_DEFAULTS["max_memory_items"], env="REX_MEMORY_MAX_ITEMS"
+        )
+        wakeword_keyword: str = Field(
+            _FIELD_DEFAULTS["wakeword_keyword"], env="REX_WAKEWORD_KEYWORD"
+        )
+        wakeword_threshold: float = Field(
+            _FIELD_DEFAULTS["wakeword_threshold"], env="REX_WAKEWORD_THRESHOLD"
+        )
         sample_rate: int = Field(_FIELD_DEFAULTS["sample_rate"], env="REX_SAMPLE_RATE")
-        detection_frame_seconds: float = Field(_FIELD_DEFAULTS["detection_frame_seconds"], env="REX_DETECTION_FRAME_SECONDS")
-        capture_seconds: float = Field(_FIELD_DEFAULTS["capture_seconds"], env="REX_CAPTURE_SECONDS")
-        wakeword_poll_interval: float = Field(_FIELD_DEFAULTS["wakeword_poll_interval"], env="REX_WAKEWORD_POLL_INTERVAL")
+        detection_frame_seconds: float = Field(
+            _FIELD_DEFAULTS["detection_frame_seconds"], env="REX_DETECTION_FRAME_SECONDS"
+        )
+        capture_seconds: float = Field(
+            _FIELD_DEFAULTS["capture_seconds"], env="REX_CAPTURE_SECONDS"
+        )
+        wakeword_poll_interval: float = Field(
+            _FIELD_DEFAULTS["wakeword_poll_interval"], env="REX_WAKEWORD_POLL_INTERVAL"
+        )
         log_path: str = Field(_FIELD_DEFAULTS["log_path"], env="REX_LOG_PATH")
         error_log_path: str = Field(_FIELD_DEFAULTS["error_log_path"], env="REX_ERROR_LOG_PATH")
         transcripts_dir: str = Field(_FIELD_DEFAULTS["transcripts_dir"], env="REX_TRANSCRIPTS_DIR")
-        search_providers: str = Field(_FIELD_DEFAULTS["search_providers"], env="REX_SEARCH_PROVIDERS")
+        search_providers: str = Field(
+            _FIELD_DEFAULTS["search_providers"], env="REX_SEARCH_PROVIDERS"
+        )
         speak_language: str = Field(_FIELD_DEFAULTS["speak_language"], env="REX_SPEAK_LANGUAGE")
-        input_device: Optional[int] = Field(default=None, env="REX_INPUT_DEVICE")
-        output_device: Optional[int] = Field(default=None, env="REX_OUTPUT_DEVICE")
+        input_device: int | None = Field(default=None, env="REX_INPUT_DEVICE")
+        output_device: int | None = Field(default=None, env="REX_OUTPUT_DEVICE")
 
         class Config:
             env_file = ".env"
@@ -164,10 +191,10 @@ else:
         transcripts_dir: str = _FIELD_DEFAULTS["transcripts_dir"]
         search_providers: str = _FIELD_DEFAULTS["search_providers"]
         speak_language: str = _FIELD_DEFAULTS["speak_language"]
-        input_device: Optional[int] = _FIELD_DEFAULTS["input_device"]
-        output_device: Optional[int] = _FIELD_DEFAULTS["output_device"]
+        input_device: int | None = _FIELD_DEFAULTS["input_device"]
+        output_device: int | None = _FIELD_DEFAULTS["output_device"]
 
-        def dict(self) -> Dict[str, Any]:  # pragma: no cover - simple accessor
+        def dict(self) -> builtins.dict[str, Any]:  # pragma: no cover - simple accessor
             return dataclasses.asdict(self)
 
 
@@ -177,7 +204,7 @@ def _load_settings() -> Settings:
     if _HAS_PYDANTIC:
         return Settings()  # type: ignore[call-arg]
 
-    values: Dict[str, Any] = {}
+    values: dict[str, Any] = {}
     for field, aliases in _ENV_ALIASES.items():
         for env_var in aliases:
             raw = os.getenv(env_var)
@@ -204,7 +231,7 @@ def reload_settings() -> Settings:
     return new_settings
 
 
-def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> Settings:
+def load_config(*, env_path: Path | None = None, reload: bool = False) -> Settings:
     """Load configuration (backward compatibility wrapper)."""
     if reload:
         return reload_settings()
@@ -234,17 +261,21 @@ def update_env_value(key: str, value: str) -> None:
     reload_settings()
 
 
-def _format_settings() -> Dict[str, Any]:
+def _format_settings() -> dict[str, Any]:
     current = settings.dict()
-    current_sorted: Dict[str, Any] = dict(sorted(current.items()))
+    current_sorted: dict[str, Any] = dict(sorted(current.items()))
     return current_sorted
 
 
 def _cli(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Manage Rex configuration values.")
-    parser.add_argument("--set", nargs=2, metavar=("KEY", "VALUE"), help="Persist a key/value pair to .env")
+    parser.add_argument(
+        "--set", nargs=2, metavar=("KEY", "VALUE"), help="Persist a key/value pair to .env"
+    )
     parser.add_argument("--get", metavar="KEY", help="Print a single configuration value")
-    parser.add_argument("--show", action="store_true", help="Print all resolved configuration values")
+    parser.add_argument(
+        "--show", action="store_true", help="Print all resolved configuration values"
+    )
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 
