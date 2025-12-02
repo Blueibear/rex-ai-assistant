@@ -188,21 +188,24 @@ class OpenAIStrategy:
 
 
 class OllamaStrategy:
-    """Ollama backend supporting both local and cloud models."""
+    """Ollama backend supporting local models."""
     name = "ollama"
 
-    def __init__(self, model_name: str, api_key: Optional[str] = None, base_url: str = "http://localhost:11434", use_cloud: bool = False) -> None:
+    def __init__(self, model_name: str) -> None:
         if not OLLAMA_AVAILABLE:
             raise ConfigurationError("Ollama backend requires the `ollama` package.")
-        
-        self.model_name = model_name
-        self.base_url = base_url
-        self.use_cloud = use_cloud
-        self.api_key = api_key
-        
-        # Configure Ollama client
-        if use_cloud and not api_key:
-            raise ConfigurationError("Ollama cloud requires an API key (OLLAMA_API_KEY).")
+
+        # Read environment variables with fallback defaults
+        self._base_url = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
+        self._model = os.getenv("REX_MODEL", model_name or "llama3.1:8b")
+
+        # Import Client from ollama package
+        try:
+            from ollama import Client
+            self._client = Client(host=self._base_url)
+            logger.info("Ollama client initialized with host=%s, model=%s", self._base_url, self._model)
+        except Exception as exc:
+            raise ConfigurationError(f"Failed to initialize Ollama client: {exc}") from exc
 
     def generate(
         self,
@@ -212,7 +215,7 @@ class OllamaStrategy:
         messages: Optional[List[Dict[str, str]]] = None,
     ) -> str:
         payload = messages or [{"role": "user", "content": prompt}]
-        
+
         # Prepare options
         options = {
             "temperature": config.temperature,
@@ -220,31 +223,25 @@ class OllamaStrategy:
             "top_k": config.top_k,
             "seed": config.seed,
         }
-        
-        # Call Ollama API
+
+        # Call Ollama API - no api_key parameter
         try:
-            if self.use_cloud:
-                # Cloud API call
-                response = ollama.chat(
-                    model=self.model_name,
-                    messages=payload,
-                    options=options,
-                    api_key=self.api_key,
-                )
-            else:
-                # Local API call
-                response = ollama.chat(
-                    model=self.model_name,
-                    messages=payload,
-                    options=options,
-                    host=self.base_url,
-                )
-            
+            response = self._client.chat(
+                model=self._model,
+                messages=payload,
+                options=options,
+            )
+
             content = response.get("message", {}).get("content", "")
             return content.strip() or "(silence)"
         except Exception as exc:
-            logger.error("Ollama generation failed: %s", exc)
-            return "(ollama error)"
+            logger.error("Ollama generation failed (provider=%s, model=%s, host=%s): %s",
+                        self.name, self._model, self._base_url, exc)
+            # Return a user-friendly error message that will be spoken
+            return (
+                f"I had trouble contacting the Ollama server at {self._base_url}. "
+                f"Please make sure ollama serve is running and the {self._model} model is pulled."
+            )
 
 
 _STRATEGIES: Dict[str, type[LLMStrategy]] = {
@@ -284,14 +281,10 @@ class LanguageModel:
     def _init_strategy(self) -> LLMStrategy:
         if self.provider == "openai":
             return OpenAIStrategy(self.model_name, self._ensure_openai_client)
-        
+
         if self.provider == "ollama":
-            return OllamaStrategy(
-                self.model_name,
-                api_key=self.config.ollama_api_key,
-                base_url=self.config.ollama_base_url,
-                use_cloud=self.config.ollama_use_cloud,
-            )
+            # OllamaStrategy reads OLLAMA_HOST and REX_MODEL from environment
+            return OllamaStrategy(self.model_name)
 
         strategy_cls = _STRATEGIES.get(self.provider)
         if strategy_cls is None:
