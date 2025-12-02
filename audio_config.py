@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from typing import List
 
 try:
     import sounddevice as sd
@@ -32,7 +31,7 @@ def _require_sounddevice() -> None:
         raise AudioDeviceError("The 'sounddevice' package is required for audio device selection.")
 
 
-def list_devices() -> List[dict]:
+def list_devices() -> list[dict]:
     _require_sounddevice()
     try:
         return sd.query_devices()
@@ -94,8 +93,12 @@ def _format_devices() -> str:
 def cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Configure audio devices for Rex.")
     parser.add_argument("--list", action="store_true", help="List available audio devices")
-    parser.add_argument("--set-input", type=int, metavar="INDEX", help="Persist default input device")
-    parser.add_argument("--set-output", type=int, metavar="INDEX", help="Persist default output device")
+    parser.add_argument(
+        "--set-input", type=int, metavar="INDEX", help="Persist default input device"
+    )
+    parser.add_argument(
+        "--set-output", type=int, metavar="INDEX", help="Persist default output device"
+    )
     parser.add_argument("--show", action="store_true", help="Show current configured devices")
 
     args = parser.parse_args(argv)
@@ -138,4 +141,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

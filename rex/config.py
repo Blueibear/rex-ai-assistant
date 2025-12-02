@@ -1,4 +1,4 @@
-﻿"""Central configuration loader and CLI utilities for the Rex assistant."""
+"""Central configuration loader and CLI utilities for the Rex assistant."""
 
 from __future__ import annotations
 
@@ -23,9 +23,9 @@ from rex.assistant_errors import ConfigurationError
 from rex.logging_utils import get_logger, set_global_level
 
 LOGGER = get_logger(__name__)
-
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 REQUIRED_ENV_KEYS = {"REX_WAKEWORD"}
+
 
 @dataclass
 class AppConfig:
@@ -35,12 +35,10 @@ class AppConfig:
     wakeword_poll_interval: float = 0.01
     command_duration: float = 5.0
 
-    # Audio configuration
     sample_rate: int = 16000
     detection_frame_seconds: float = 1.0
     capture_seconds: float = 5.0
 
-    # Whisper configuration  
     whisper_model: str = "base"
     whisper_device: str = "cpu"
     llm_provider: str = "transformers"
@@ -71,24 +69,20 @@ class AppConfig:
     openai_api_key: Optional[str] = None
     openai_model: Optional[str] = None
     openai_base_url: Optional[str] = None
-    
-    # Ollama configuration
+
     ollama_api_key: Optional[str] = None
     ollama_base_url: str = "http://localhost:11434"
     ollama_use_cloud: bool = False
-    
-    # Search configuration
-    search_providers: str = "serpapi,brave,duckduckgo,google"
 
-    # TTS configuration
+    search_providers: str = "serpapi,brave,duckduckgo,google"
     speak_language: str = "en"
 
-    # Aliases for backward compatibility
-    llm_backend: Optional[str] = None  # Alias for llm_provider
-    temperature: Optional[float] = None  # Alias for llm_temperature
-    max_memory_items: Optional[int] = None  # Alias for memory_max_turns
-    user_id: str = "default"  # Default user for transcripts
-    wakeword_keyword: Optional[str] = None  # Alias for wakeword
+    # Aliases
+    llm_backend: Optional[str] = None
+    temperature: Optional[float] = None
+    max_memory_items: Optional[int] = None
+    user_id: str = "default"
+    wakeword_keyword: Optional[str] = None
 
     def to_dict(self) -> dict:
         raw = asdict(self)
@@ -100,7 +94,7 @@ class AppConfig:
         if model_path.is_absolute() or ".." in model_path.parts:
             raise ValueError("llm_model must not contain path traversal components.")
 
-        # Set aliases from primary fields if not explicitly set
+        # Set aliases
         if self.llm_backend is None:
             self.llm_backend = self.llm_provider
         if self.temperature is None:
@@ -110,7 +104,9 @@ class AppConfig:
         if self.wakeword_keyword is None:
             self.wakeword_keyword = self.wakeword
 
+
 _cached_config: Optional[AppConfig] = None
+
 
 ENV_MAPPING: Dict[str, str] = {
     "wakeword": "REX_WAKEWORD",
@@ -154,8 +150,10 @@ ENV_MAPPING: Dict[str, str] = {
     "search_providers": "REX_SEARCH_PROVIDERS",
 }
 
+
 TRUE_VALUES = {"1", "true", "yes", "on"}
 FALSE_VALUES = {"0", "false", "no", "off"}
+
 
 def _parse_bool(value: Optional[str], *, default: bool = False) -> bool:
     if value is None:
@@ -167,6 +165,7 @@ def _parse_bool(value: Optional[str], *, default: bool = False) -> bool:
         return False
     raise ConfigurationError(f"Invalid boolean value: {value}")
 
+
 def _parse_optional_int(value: Optional[str]) -> Optional[int]:
     if value in (None, ""):
         return None
@@ -175,12 +174,25 @@ def _parse_optional_int(value: Optional[str]) -> Optional[int]:
     except ValueError as exc:
         raise ConfigurationError(f"Invalid integer: {value}") from exc
 
+
 def _first_env_value(*keys: str) -> Optional[str]:
     for key in keys:
         value = os.getenv(key)
         if value not in (None, ""):
             return value
     return None
+
+
+def _env_key_for(field_name: str) -> Optional[str]:
+    if field_name in ENV_MAPPING:
+        return ENV_MAPPING[field_name]
+    elif field_name.startswith("REX_") or field_name in os.environ:
+        return field_name
+    return None
+
+
+def _write_env(key: str, value: str, *, env_path: Path) -> None:
+    set_key(str(env_path), key, value)
 
 
 def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> AppConfig:
@@ -231,12 +243,8 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> App
         default_user=getenv("REX_ACTIVE_USER"),
         wake_sound_path=getenv("REX_WAKE_SOUND"),
 
-        audio_input_device=_parse_optional_int(
-            _first_env_value("REX_INPUT_DEVICE", "REX_AUDIO_INPUT_DEVICE")
-        ),
-        audio_output_device=_parse_optional_int(
-            _first_env_value("REX_OUTPUT_DEVICE", "REX_AUDIO_OUTPUT_DEVICE")
-        ),
+        audio_input_device=_parse_optional_int(_first_env_value("REX_INPUT_DEVICE", "REX_AUDIO_INPUT_DEVICE")),
+        audio_output_device=_parse_optional_int(_first_env_value("REX_OUTPUT_DEVICE", "REX_AUDIO_OUTPUT_DEVICE")),
 
         debug_logging=_parse_bool(getenv("REX_DEBUG_LOGGING")),
         conversation_export=_parse_bool(getenv("REX_CONVERSATION_EXPORT"), default=True),
@@ -260,6 +268,7 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> App
 
     return config
 
+
 def validate_config(config: AppConfig) -> None:
     if not (0 < config.wakeword_threshold <= 1):
         raise ConfigurationError("wakeword_threshold must be between 0 and 1.")
@@ -274,23 +283,17 @@ def validate_config(config: AppConfig) -> None:
     if config.memory_max_turns <= 0:
         raise ConfigurationError("memory_max_turns must be positive.")
 
-def _env_key_for(field_name: str) -> Optional[str]:
-    if field_name in ENV_MAPPING:
-        return ENV_MAPPING[field_name]
-    elif field_name.startswith("REX_") or field_name in os.environ:
-        return field_name
-    return None
 
-def _write_env(key: str, value: str, *, env_path: Path) -> None:
-    set_key(str(env_path), key, value)
+def reload_settings(*, env_path: Optional[Path] = None) -> AppConfig:
+    """Reload configuration from .env file, bypassing cache."""
+    return load_config(env_path=env_path, reload=True)
 
-def _iter_config_fields() -> Iterable[str]:
-    return ENV_MAPPING.keys()
 
 def show_config(config: Optional[AppConfig] = None) -> None:
     cfg = config or load_config()
     for key, value in cfg.to_dict().items():
         LOGGER.info("%s = %s", key, value)
+
 
 def cli(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Configure Rex Assistant")
@@ -310,7 +313,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
             if not env_key:
                 raise ConfigurationError(f"Unknown config key: {key}")
             _write_env(env_key, value, env_path=ENV_PATH)
-            LOGGER.info("Updated %s â†’ %s", env_key, value)
+            LOGGER.info("Updated %s → %s", env_key, value)
 
     if args.reload or args.set or args.show:
         load_config(env_path=ENV_PATH, reload=True)
@@ -321,16 +324,12 @@ def cli(argv: Optional[List[str]] = None) -> int:
     return 0
 
 
-def reload_settings(*, env_path: Optional[Path] = None) -> AppConfig:
-    """Reload configuration from .env file, bypassing cache."""
-    return load_config(env_path=env_path, reload=True)
-
-
-# Expose a module-level settings instance for consumers expecting "config.settings".
+# Module-level settings instance for global import
 settings = load_config()
 
-# Alias AppConfig as Settings for backward compatibility
+# Backward compatibility alias
 Settings = AppConfig
+
 
 if __name__ == "__main__":
     try:
@@ -338,8 +337,4 @@ if __name__ == "__main__":
     except ConfigurationError as exc:
         LOGGER.error("Config error: %s", exc)
         raise SystemExit(1) from exc
-
-
-
-
 

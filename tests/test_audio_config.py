@@ -1,5 +1,6 @@
-import audio_config
 import pytest
+
+import audio_config
 
 
 class _DummyStream:

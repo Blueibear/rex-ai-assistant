@@ -11,22 +11,31 @@ import sounddevice as sd
 from rex.wakeword_utils import detect_wakeword, load_wakeword_model
 from rex.wake_acknowledgment import ensure_wake_acknowledgment_sound
 
+# ------------------------------------------------------------------------------
 # Configuration
+# ------------------------------------------------------------------------------
+
 WAKEWORD = os.getenv("REX_WAKEWORD", "rex")
 THRESHOLD = float(os.getenv("REX_WAKEWORD_THRESHOLD", "0.5"))
+SAMPLE_RATE = 16000
+BLOCK_SIZE = SAMPLE_RATE  # 1-second blocks
 
-# Load wake-word detection model
+# ------------------------------------------------------------------------------
+# Initialization
+# ------------------------------------------------------------------------------
+
+# Load model
 wake_model, wake_keyword = load_wakeword_model(keyword=WAKEWORD)
 
-# Audio settings
-sample_rate = 16000
-block_size = sample_rate  # 1-second blocks
-
-# Wake confirmation sound
+# Load acknowledgment sound
 wake_sound_path = ensure_wake_acknowledgment_sound()
 
 print(f"🔊 Listening for wake word: '{wake_keyword}'…")
 
+
+# ------------------------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------------------------
 
 def play_confirmation_sound() -> None:
     try:
@@ -38,6 +47,8 @@ def play_confirmation_sound() -> None:
 
 
 def listen_for_wakeword() -> bool:
+    """Start streaming from microphone and detect the wakeword in real time."""
+
     def audio_callback(indata, frames, time, status):
         if status:
             print("[!] Audio stream status:", status)
@@ -50,18 +61,22 @@ def listen_for_wakeword() -> bool:
     try:
         with sd.InputStream(
             channels=1,
-            samplerate=sample_rate,
-            blocksize=block_size,
+            samplerate=SAMPLE_RATE,
+            blocksize=BLOCK_SIZE,
             callback=audio_callback,
         ):
             while True:
-                sd.sleep(100)
+                sd.sleep(100)  # Sleep in small chunks
     except StopIteration:
         return True
     except Exception as exc:
         print("[!] Wakeword listener error:", exc)
         return False
 
+
+# ------------------------------------------------------------------------------
+# Entry Point
+# ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     success = listen_for_wakeword()

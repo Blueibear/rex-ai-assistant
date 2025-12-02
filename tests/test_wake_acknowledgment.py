@@ -1,6 +1,6 @@
 import os
-from pathlib import Path
 import wave
+from pathlib import Path
 
 from wake_acknowledgment import (
     DEFAULT_WAKE_ACK_RELATIVE_PATH,

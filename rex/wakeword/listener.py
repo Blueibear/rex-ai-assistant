@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator, Callable
-from typing import Awaitable
+from collections.abc import AsyncIterator, Awaitable, Callable
 
 import numpy as np
 
@@ -31,13 +30,17 @@ class WakeWordListener:
         self._poll_interval = poll_interval
         self._running = False
 
-    async def listen(self, source: Callable[[], Awaitable[np.ndarray]]) -> AsyncIterator[np.ndarray]:
+    async def listen(
+        self, source: Callable[[], Awaitable[np.ndarray]]
+    ) -> AsyncIterator[np.ndarray]:
         self._running = True
         try:
             while self._running:
                 frame = await source()
                 try:
-                    triggered = await asyncio.get_running_loop().run_in_executor(None, self._detector, frame)
+                    triggered = await asyncio.get_running_loop().run_in_executor(
+                        None, self._detector, frame
+                    )
                 except Exception as exc:  # pragma: no cover - defensive guard
                     logger.exception("Wake-word detection failed: %s", exc)
                     triggered = False

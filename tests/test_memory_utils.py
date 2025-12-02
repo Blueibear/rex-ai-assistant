@@ -2,19 +2,16 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-import pytest
 import config
-
 from memory_utils import (
+    append_history_entry,
+    export_transcript,
     extract_voice_reference,
     load_all_profiles,
     load_recent_history,
     load_users_map,
     resolve_user_key,
     trim_history,
-    append_history_entry,
-    export_transcript,
 )
 
 
@@ -48,11 +45,14 @@ def test_extract_voice_reference_handles_absolute_and_relative(tmp_path):
 
     # Missing or malformed profile
     profile_missing = {"voice": {}}
-    assert extract_voice_reference(
-        profile_missing,
-        user_key="james",
-        memory_root=str(tmp_path),
-    ) is None
+    assert (
+        extract_voice_reference(
+            profile_missing,
+            user_key="james",
+            memory_root=str(tmp_path),
+        )
+        is None
+    )
 
 
 def test_trim_history_limits_entries():

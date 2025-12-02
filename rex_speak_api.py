@@ -9,15 +9,15 @@ import re
 import tempfile
 import time
 from collections import defaultdict, deque
-from typing import Optional, Tuple
 
-from flask import Flask, Response, jsonify, request, send_file, after_this_request
+from flask import Flask, Response, after_this_request, jsonify, request, send_file
 from flask_cors import CORS
 
-try:  # pragma: no cover - optional dependency
+try:
     from flask_limiter import Limiter
     from flask_limiter.exceptions import RateLimitExceeded
-except ImportError:  # pragma: no cover - fallback for documentation builds
+except ImportError:
+
     class Limiter:  # type: ignore
         def __init__(self, *args, **kwargs):
             pass
@@ -25,14 +25,12 @@ except ImportError:  # pragma: no cover - fallback for documentation builds
         def limit(self, *args, **kwargs):
             def decorator(func):
                 return func
-
             return decorator
 
     class RateLimitExceeded(Exception):  # type: ignore
         retry_after = None
 
 from TTS.api import TTS
-
 from rex.memory_utils import (
     extract_voice_reference,
     load_all_profiles,
@@ -40,19 +38,50 @@ from rex.memory_utils import (
     resolve_user_key,
 )
 from rex.assistant_errors import AuthenticationError, TextToSpeechError
-from rex.config import settings
 
 # ------------------------------------------------------------------------------
 # App setup
 # ------------------------------------------------------------------------------
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
 
+ALLOWED_ORIGINS = os.getenv(
+    "REX_ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:5000,http://127.0.0.1:3000,http://127.0.0.1:5000",
+)
+_CORS_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS.split(",") if origin.strip()]
+
+CORS(
+    app,
+    resources={
+        r"/*": {
+            "origins": _CORS_ORIGINS,
+            "methods": ["GET", "POST", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization", "X-API-Key"],
+            "expose_headers": ["Retry-After"],
+            "supports_credentials": False,
+            "max_age": 600,
+        }
+    },
+)
+
+# ------------------------------------------------------------------------------
+# Logging
+# ------------------------------------------------------------------------------
+
+logger = logging.getLogger("rex.speak_api")
+
+if not logger.handlers:
+    logging.basicConfig(
+        level=os.getenv("REX_LOG_LEVEL", "INFO").upper(),
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+
+# ------------------------------------------------------------------------------
+# Rate Limiting
+# ------------------------------------------------------------------------------
 
 def _rate_limit_key() -> str:
-    """Derive a stable rate-limit identity from API key or source address."""
-
     provided = request.headers.get("X-API-Key") or request.headers.get("Authorization")
     if provided:
         token = provided.split()[-1]
@@ -62,11 +91,10 @@ def _rate_limit_key() -> str:
         return forwarded.split(",")[0].strip()
     return request.remote_addr or "anonymous"
 
-
 _LIMITER_STORAGE_URI = (
-    os.getenv("REX_SPEAK_STORAGE_URI")
-    or os.getenv("FLASK_LIMITER_STORAGE_URI")
-    or "memory://"
+    os.getenv("REX_SPEAK_STORAGE_URI") or
+    os.getenv("FLASK_LIMITER_STORAGE_URI") or
+    "memory://"
 )
 
 limiter = Limiter(
@@ -75,13 +103,6 @@ limiter = Limiter(
     app=app,
     default_limits=[],
 )
-logger = logging.getLogger("rex.speak_api")
-
-if not logger.handlers:
-    logging.basicConfig(
-        level=os.getenv("REX_LOG_LEVEL", "INFO").upper(),
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    )
 
 # ------------------------------------------------------------------------------
 # Config and Globals
@@ -100,11 +121,9 @@ USER_VOICES = {
 if DEFAULT_USER not in USER_VOICES:
     USER_VOICES[DEFAULT_USER] = None
 
-_TTS_ENGINE: Optional[TTS] = None
+_TTS_ENGINE: TTS | None = None
 
-DEFAULT_TTS_MODEL = os.getenv(
-    "REX_TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2"
-)
+DEFAULT_TTS_MODEL = os.getenv("REX_TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2")
 _MODEL_PATTERN = re.compile(r"^[\w\-./]+(\/[\w\-./]+)*$")
 if not _MODEL_PATTERN.match(DEFAULT_TTS_MODEL):
     logger.warning("Invalid TTS model name '%s'; using default.", DEFAULT_TTS_MODEL)
@@ -128,55 +147,49 @@ if RATE_LIMIT > 0 and RATE_LIMIT_WINDOW > 0:
 else:
     _RATE_LIMIT_SPEC = None
 
-if _LIMITER_STORAGE_URI.startswith("memory"):
-    _RATE_CACHE: dict[str, deque] = defaultdict(deque)
-else:
-    _RATE_CACHE = None
+_RATE_CACHE: dict[str, deque] | None = defaultdict(deque) if _LIMITER_STORAGE_URI.startswith("memory") else None
 
 # ------------------------------------------------------------------------------
-# Helpers
+# Error Handlers
 # ------------------------------------------------------------------------------
-
 
 @app.errorhandler(AuthenticationError)
 def _handle_auth_error(exc: AuthenticationError):
     return jsonify({"error": str(exc)}), 401
 
-
 @app.errorhandler(TextToSpeechError)
 def _handle_tts_error(exc: TextToSpeechError):
     return jsonify({"error": str(exc)}), 500
-
 
 @app.errorhandler(RateLimitExceeded)
 def _handle_rate_limit(exc: RateLimitExceeded):
     response = jsonify({"error": "Too many requests"})
     response.status_code = 429
-    retry_after = getattr(exc, "retry_after", None)
-    if retry_after:
-        response.headers["Retry-After"] = str(int(retry_after))
+    if getattr(exc, "retry_after", None):
+        response.headers["Retry-After"] = str(int(exc.retry_after))
     return response
 
+# ------------------------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------------------------
 
-def _extract_api_key(payload: dict | None) -> Optional[str]:
+def _extract_api_key(payload: dict | None) -> str | None:
     auth_header = request.headers.get("Authorization", "")
     if auth_header.lower().startswith("bearer "):
         return auth_header[7:].strip()
     return (
-        request.headers.get("X-API-Key")
-        or request.args.get("api_key")
-        or payload.get("api_key") if payload else None
+        request.headers.get("X-API-Key") or
+        request.args.get("api_key") or
+        payload.get("api_key") if payload else None
     )
 
-
-def _require_api_key(provided_key: Optional[str]) -> bool:
+def _require_api_key(provided_key: str | None) -> bool:
     if not provided_key:
         return False
     try:
         return hmac.compare_digest(provided_key, API_KEY)
-    except TypeError:  # pragma: no cover - malformed header
+    except TypeError:
         return False
-
 
 def _prune_requests(identity: str, now: float) -> deque:
     entries = _RATE_CACHE[identity]
@@ -184,8 +197,7 @@ def _prune_requests(identity: str, now: float) -> deque:
         entries.popleft()
     return entries
 
-
-def _check_rate_limit(identity: str) -> Tuple[bool, int]:
+def _check_rate_limit(identity: str) -> tuple[bool, int]:
     if _RATE_CACHE is None or RATE_LIMIT <= 0 or RATE_LIMIT_WINDOW <= 0:
         return True, 0
     now = time.monotonic()
@@ -196,8 +208,7 @@ def _check_rate_limit(identity: str) -> Tuple[bool, int]:
     entries.append(now)
     return True, 0
 
-
-def _validate_text(text: str) -> Optional[str]:
+def _validate_text(text: str) -> str | None:
     if not isinstance(text, str):
         return "Text must be a string."
     normalised = text.strip()
@@ -207,8 +218,7 @@ def _validate_text(text: str) -> Optional[str]:
         return f"Text exceeds maximum length of {MAX_TEXT_LENGTH} characters."
     return None
 
-
-def _select_speaker(user: Optional[str]) -> Optional[str]:
+def _select_speaker(user: str | None) -> str | None:
     candidate = str(user).lower() if user else DEFAULT_USER
     if candidate not in USER_VOICES:
         candidate = DEFAULT_USER
@@ -217,7 +227,6 @@ def _select_speaker(user: Optional[str]) -> Optional[str]:
         logger.warning("Speaker reference '%s' is missing.", speaker_wav)
         return None
     return speaker_wav
-
 
 def _get_tts_engine() -> TTS:
     global _TTS_ENGINE
@@ -230,17 +239,14 @@ def _get_tts_engine() -> TTS:
         )
     return _TTS_ENGINE
 
-
-# ------------------------------------------------------------------------------
-# Routes
-# ------------------------------------------------------------------------------
-
-
 def _apply_rate_limit(func):
     if _RATE_LIMIT_SPEC:
         return limiter.limit(_RATE_LIMIT_SPEC)(func)
     return func
 
+# ------------------------------------------------------------------------------
+# Routes
+# ------------------------------------------------------------------------------
 
 @app.route("/speak", methods=["POST"])
 @_apply_rate_limit
@@ -269,7 +275,9 @@ def speak() -> Response:
     language = payload.get("language", "en")
 
     logger.info("Generating speech (lang=%s)", language)
-    output_path = tempfile.mktemp(suffix=".wav")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+        output_path = tmp.name
 
     try:
         _get_tts_engine().tts_to_file(
@@ -301,9 +309,18 @@ def speak() -> Response:
         raise TextToSpeechError(str(exc))
 
 
+@app.route("/healthz", methods=["GET"])
+def health_check() -> Response:
+    return jsonify({"status": "ok"}), 200
+
 # ------------------------------------------------------------------------------
 # Entry Point
 # ------------------------------------------------------------------------------
 
-if __name__ == "__main__":
+def main() -> int:
+    """Main entry point for Rex TTS API server."""
     app.run(host="0.0.0.0", port=5000)
+    return 0
+
+if __name__ == "__main__":
+    raise SystemExit(main())
