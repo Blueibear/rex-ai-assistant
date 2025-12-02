@@ -11,7 +11,7 @@ simpleaudio>=1.0.4,<2.0.0
 
 # 🧠 AI / ML Models
 # NOTE: For GPU, ensure CUDA-compatible install of torch
-torch==2.5.1                   # Latest stable (avoid 2.6.0 DoS issue; upgrade to 2.8.0 when possible)
+torch==2.7.1+cu118                   # Latest stable (avoid 2.6.0 DoS issue; upgrade to 2.8.0 when possible)
 torchvision==0.20.1
 torchaudio==2.5.1
 transformers>=4.38.0,<5.0.0
