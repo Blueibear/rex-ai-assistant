@@ -8,6 +8,10 @@ It also enables installation as a console script via pyproject.toml.
 
 from __future__ import annotations
 
+# Load .env before accessing any environment variables
+from utils.env_loader import load as _load_env
+_load_env()
+
 import sys
 
 # Import the main function from the top-level script

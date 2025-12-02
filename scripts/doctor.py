@@ -7,6 +7,13 @@ import platform
 import shutil
 import sys
 
+# Add repo root to path and load .env before accessing any environment variables
+_repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+from utils.env_loader import load as _load_env
+_load_env()
+
 CheckResult = tuple[str, bool, str]
 
 
