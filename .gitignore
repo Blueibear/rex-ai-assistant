@@ -1,57 +1,20 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Environments
-.env
-.venv/
-env/
-venv/
-
-# OS-generated files
-.DS_Store
-Thumbs.db
-
-# VSCode settings
-.vscode/
-
-# Logs and debug
-*.log
-*.bak
-*.tmp
-
-# Audio and model outputs
-*.wav
-*.mp3
-*.onnx
-# Keep documentation for the voices directory without tracking audio files
-assets/voices/*
-!assets/voices/.gitkeep
-!assets/voices/README.md
-# Guard against stray wake acknowledgment artifacts created by some OSes
-assets/rex_wake_acknowledgment*.wav
-
-# Model training artifacts
-*.pth
-*.ckpt
-
-# Python-specific cache
-*.egg-info/
+node_modules/
 dist/
 build/
-
-# Database or stateful files
-*.sqlite3
-*.db
-
-# Custom folders
-rex.onnx
-assets/wake_acknowledgment.wav
-Memory/*/history.log
-models/
-transcripts/
-
-.claude-project.yaml    
-run_project.py  
-.project.yaml
+coverage/
+.nyc_output/
+*.log
+.DS_Store
+.env
+.env.*.local
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+*.iml
+.idea/
+.vscode/

@@ -1,0 +1,17 @@
+name: Commitlint
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+permissions:
+  pull-requests: read
+  contents: read
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Lint commits & PR title (Conventional Commits)
+        uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: '@commitlint/config-conventional'
