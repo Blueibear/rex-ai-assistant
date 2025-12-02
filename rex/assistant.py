@@ -35,11 +35,7 @@ class Assistant:
         transcripts_dir: str | Path | None = None,
     ) -> None:
         self._settings = settings_obj or settings
-        self._llm = LanguageModel(
-            model_name=self._settings.llm_model,
-            backend=self._settings.llm_backend,
-            temperature=self._settings.temperature,
-        )
+        self._llm = LanguageModel(config=self._settings)
         self._history: list[ConversationTurn] = []
         self._history_limit = history_limit or self._settings.max_memory_items
         self._plugins = list(plugins or [])

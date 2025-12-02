@@ -6,15 +6,15 @@ import importlib
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
-from rex.assistant_errors import PluginError
-from rex.logging_utils import get_logger
+from .assistant_errors import PluginError
+from .logging_utils import get_logger
 
 LOGGER = get_logger(__name__)
 
 
-def _load_manifest(path: Path) -> dict[str, Any]:
+def _load_manifest(path: Path) -> Dict[str, Any]:
     manifest_path = path / "manifest.json"
     if manifest_path.is_file():
         try:
@@ -25,7 +25,7 @@ def _load_manifest(path: Path) -> dict[str, Any]:
     return {}
 
 
-def load_plugins(path: str | os.PathLike[str] = "plugins") -> dict[str, Any]:
+def load_plugins(path: str | os.PathLike[str] = "plugins") -> Dict[str, Any]:
     """Dynamically import all plugin modules and call their ``register`` hooks."""
 
     base_path = Path(path)
@@ -34,7 +34,7 @@ def load_plugins(path: str | os.PathLike[str] = "plugins") -> dict[str, Any]:
         return {}
 
     manifest = _load_manifest(base_path)
-    capabilities: dict[str, Any] = {}
+    capabilities: Dict[str, Any] = {}
 
     for file in base_path.glob("*.py"):
         if file.name.startswith("_"):

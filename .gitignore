@@ -1,103 +1,4 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Environments
-.env
-.env.local
-.env.*.local
-.venv/
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# OS-generated files
-.DS_Store
-Thumbs.db
-
-# VSCode settings
-.vscode/
-
-# Logs and debug
-*.log
-*.bak
-*.tmp
-
-# Audio and model outputs
-*.wav
-!assets/wake_acknowledgment.wav
-*.mp3
-*.onnx
-
-# Keep documentation for the voices directory without tracking audio files
-assets/voices/*
-!assets/voices/.gitkeep
-!assets/voices/README.md
-
-# Guard against stray wake acknowledgment artifacts created by some OSes
-assets/rex_wake_acknowledgment*.wav
-
-# Model training artifacts
-*.pth
-*.ckpt
-
-# Python-specific cache
-*.egg-info/
-dist/
-build/
-
-# Database or stateful files
-*.sqlite3
-*.db
-
-# Custom folders - State and generated assets
-rex.onnx
-
-# Memory profiles and user data - Exclude entirely
-Memory/
-!Memory/.gitkeep
-!Memory/README.md
-Memory/*/history.log
-
-# Downloaded/generated models
-models/
-!models/.gitkeep
-!models/README.md
-
-# Transcripts and recordings
-transcripts/
-!transcripts/.gitkeep
-!transcripts/README.md
-
-# Test fixtures are allowed
-!tests/fixtures/
-
-# Logs directory
-logs/
-!logs/.gitkeep
-
-# Coverage reports
-htmlcov/
-.coverage
-.coverage.*
-coverage.xml
-*.cover
-
-# Pytest cache
-.pytest_cache/
-
-# MyPy cache
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Ruff cache
-.ruff_cache/
-
-# Node.js / JavaScript (if used for tooling or extensions)
+# Node.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -105,12 +6,91 @@ yarn-error.log*
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
-*.local
 
-# IDE files
+# Build & dist
+dist/
+build/
+
+# Coverage & test reports
+coverage/
+.nyc_output/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+htmlcov/
+
+# Logs & temp files
+*.log
+*.bak
+*.tmp
+logs/
+!logs/.gitkeep
+
+# Python - virtual envs
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Python - caches & bytecode
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+*.egg-info/
+
+# IDEs
 .idea/
+.vscode/
 *.iml
 *.swp
 *.swo
 *~
 
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Model training & audio artifacts
+*.wav
+*.mp3
+*.onnx
+*.pth
+*.ckpt
+
+# Specific model files
+rex.onnx
+
+# Audio exclusions and includes
+!assets/wake_acknowledgment.wav
+assets/rex_wake_acknowledgment*.wav
+
+# Voices (track doc but not files)
+assets/voices/*
+!assets/voices/.gitkeep
+!assets/voices/README.md
+
+# Transcripts
+transcripts/
+!transcripts/.gitkeep
+!transcripts/README.md
+
+# Memory storage (exclude content but keep metadata)
+Memory/
+!Memory/.gitkeep
+!Memory/README.md
+Memory/*/history.log
+
+# Test Fixtures
+!tests/fixtures/

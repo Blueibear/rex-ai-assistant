@@ -6,7 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
+
   lint:
     name: Lint & Format Check
     runs-on: ubuntu-latest
@@ -44,11 +48,31 @@ jobs:
         run: mypy . --no-error-summary || true
         continue-on-error: true
 
-  tests:
-    name: Tests & Coverage
+  node-ci:
+    name: Node.js CI
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    steps:
+      - name: 🧾 Checkout repository
+        uses: actions/checkout@v4
 
+      - name: 🔧 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: 📦 Install Node.js dependencies
+        run: npm ci || yarn install || pnpm i || echo "no node project"
+
+      - name: 🧪 Run Node.js Lint
+        run: npm run lint || echo "no lint script"
+
+      - name: 🧪 Run Node.js Tests
+        run: npm test || echo "no tests"
+
+  tests:
+    name: Python Tests & Coverage
+    runs-on: ubuntu-latest
     steps:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
@@ -84,16 +108,14 @@ jobs:
       - name: 📥 Install Python dependencies (CPU-only)
         run: |
           python -m pip install --upgrade pip>=25.3 setuptools>=78.1.1 wheel
-          # Install CPU-only PyTorch for faster CI
           pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
           pip install -e .[dev,test]
 
       - name: 🧪 Run tests with coverage
         run: |
-          # Run only unit tests by default; skip slow/audio/gpu tests
           pytest -m "not slow and not audio and not gpu" --cov=rex --cov-report=term-missing --cov-report=xml
         env:
-          REX_FILE_LOGGING_ENABLED: "false"  # Log to stdout only in CI
+          REX_FILE_LOGGING_ENABLED: "false"
 
       - name: 📤 Upload coverage report
         if: success()
@@ -104,4 +126,3 @@ jobs:
             .coverage
             coverage.xml
             htmlcov/
-

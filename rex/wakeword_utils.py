@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
-from collections.abc import Sequence
 from pathlib import Path
+from typing import List, Sequence, Tuple
 
 import numpy as np
 import openwakeword
@@ -19,13 +19,13 @@ _AVAILABLE_KEYWORDS = {name.replace("_", " ") for name in openwakeword.MODELS.ke
 
 
 def _resolve_model_path(model_path: str | None = None) -> Path:
-    repo_root = Path(__file__).resolve().parent
+    repo_root = Path(__file__).resolve().parent.parent
     if model_path:
         return Path(model_path)
     return repo_root / "rex.onnx"
 
 
-def _normalise_keywords(keyword: str | Sequence[str] | None) -> list[str]:
+def _normalise_keywords(keyword: str | Sequence[str] | None) -> List[str]:
     if keyword is None:
         return [DEFAULT_KEYWORD.replace("_", " ")]
 
@@ -81,14 +81,14 @@ def _ensure_builtin_keyword_resources(keywords: Sequence[str], backend: str) -> 
 
 def load_wakeword_model(
     *, keyword: str | Sequence[str] | None = None, model_path: str | None = None
-) -> tuple[WakeWordModel, str]:
+) -> Tuple[WakeWordModel, str]:
     """Return a configured openWakeWord model and the active wake phrase."""
 
     resolved_path = _resolve_model_path(model_path)
     requested_keywords = _normalise_keywords(keyword)
 
     if resolved_path.is_file() and resolved_path.stat().st_size > 0:
-        models_to_load: list[str | os.PathLike[str]] = [str(resolved_path)]
+        models_to_load: List[str | os.PathLike[str]] = [str(resolved_path)]
         active_label = resolved_path.stem
     else:
         valid_keywords = [kw for kw in requested_keywords if kw in _AVAILABLE_KEYWORDS]
