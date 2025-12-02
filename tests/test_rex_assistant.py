@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib
-import importlib
 import sys
 import types
 
@@ -65,9 +64,7 @@ def _install_stubs(monkeypatch):
     sounddevice = types.ModuleType("sounddevice")
     sounddevice.query_devices = lambda: []
     sounddevice.InputStream = _DummyStream
-    sounddevice.rec = (
-        lambda frames, samplerate=None, channels=None: [[0.0] for _ in range(frames)]
-    )
+    sounddevice.rec = lambda frames, samplerate=None, channels=None: [[0.0] for _ in range(frames)]
     sounddevice.wait = lambda: None
     sounddevice.default = types.SimpleNamespace(device=(0, 0))
 
@@ -78,7 +75,9 @@ def _install_stubs(monkeypatch):
     soundfile.write = lambda filename, data, samplerate: None
 
     whisper = types.ModuleType("whisper")
-    whisper.load_model = lambda name: types.SimpleNamespace(transcribe=lambda path: {"text": "test"})
+    whisper.load_model = lambda name: types.SimpleNamespace(
+        transcribe=lambda path: {"text": "test"}
+    )
 
     tts_api = types.ModuleType("TTS.api")
     tts_api.TTS = object
@@ -120,7 +119,11 @@ def test_handle_command_routes_function(monkeypatch, assistant_module):
 
 def test_generate_response_fallback(monkeypatch, assistant_module):
     module = assistant_module
-    monkeypatch.setattr(module, "LLM", types.SimpleNamespace(generate=lambda **_: (_ for _ in ()).throw(RuntimeError("boom"))))
+    monkeypatch.setattr(
+        module,
+        "LLM",
+        types.SimpleNamespace(generate=lambda **_: (_ for _ in ()).throw(RuntimeError("boom"))),
+    )
 
     response = module.generate_response("Hello there")
 

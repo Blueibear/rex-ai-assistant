@@ -1,5 +1,7 @@
-# Use the Python 3.11 slim base image
-FROM python:3.11-slim
+# ============================================
+# Stage 1: Dependencies - Install Python deps
+# ============================================
+FROM python:3.11.11-slim AS deps
 
 # Set working directory
 WORKDIR /app
@@ -14,16 +16,46 @@ RUN apt-get update && \
         git \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy pyproject.toml first for better layer caching
-COPY pyproject.toml ./
+# Copy dependency files
+COPY pyproject.toml setup.py* ./
+COPY rex/ ./rex/
 
 # Install Python dependencies (CPU-only by default)
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir --upgrade pip>=25.3 setuptools>=78.1.1 wheel && \
+    pip install --no-cache-dir torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 \
+        --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -e .
 
-# Copy source code and install the package
+# ============================================
+# Stage 2: Runtime - Minimal runtime image
+# ============================================
+FROM python:3.11.11-slim AS runner
+
+WORKDIR /app
+
+# Install only runtime system dependencies (smaller than deps stage)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ffmpeg \
+        libsndfile1 \
+        libasound2 \
+        portaudio19-runtime \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Copy Python environment from deps stage
+COPY --from=deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=deps /usr/local/bin /usr/local/bin
+
+# Copy application code
 COPY . .
-RUN pip install --no-cache-dir -e .
+
+# Create non-root user for security
+RUN useradd -m -u 1000 -s /bin/bash rex && \
+    mkdir -p /app/Memory /app/logs /app/transcripts /app/models && \
+    chown -R rex:rex /app
+
+# Switch to non-root user
+USER rex
 
 # Environment variables (set sensible defaults for containers)
 ENV PYTHONUNBUFFERED=1 \
@@ -33,11 +65,15 @@ ENV PYTHONUNBUFFERED=1 \
     REX_FILE_LOGGING_ENABLED=false \
     REX_WHISPER_DEVICE=cpu
 
-# Create directories for state
-RUN mkdir -p /app/Memory /app/logs /app/transcripts /app/models
-
 # Mountable volumes for persistent state
 VOLUME ["/app/Memory", "/app/models", "/app/transcripts"]
+
+# Expose ports (if using Flask APIs)
+EXPOSE 5000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import sys; sys.exit(0)"
 
 # Default command: use the module entrypoint
 CMD ["python", "-m", "rex"]

@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import logging
-import os
-from pathlib import Path
-from typing import Optional
-
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 # Create a log directory if not already present
 LOG_DIR = Path(__file__).resolve().parent / "logs"
@@ -64,4 +61,3 @@ def set_global_level(level: int) -> None:
             logger.setLevel(level)
             for handler in logger.handlers:
                 handler.setLevel(level)
-

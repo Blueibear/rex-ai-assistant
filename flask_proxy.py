@@ -21,18 +21,28 @@ app = Flask(__name__)
 
 # CORS Configuration: Restrict origins based on environment
 # Default to localhost for development; override via REX_ALLOWED_ORIGINS env var
-ALLOWED_ORIGINS = os.getenv("REX_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5000,http://127.0.0.1:3000,http://127.0.0.1:5000")
+ALLOWED_ORIGINS = os.getenv(
+    "REX_ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:5000,http://127.0.0.1:3000,http://127.0.0.1:5000",
+)
 _CORS_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS.split(",") if origin.strip()]
 
 CORS(
     app,
-    resources={r"/*": {
-        "origins": _CORS_ORIGINS,
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "X-Rex-Proxy-Token", "Cf-Access-Authenticated-User-Email"],
-        "supports_credentials": False,
-        "max_age": 600,
-    }}
+    resources={
+        r"/*": {
+            "origins": _CORS_ORIGINS,
+            "methods": ["GET", "POST", "OPTIONS"],
+            "allow_headers": [
+                "Content-Type",
+                "Authorization",
+                "X-Rex-Proxy-Token",
+                "Cf-Access-Authenticated-User-Email",
+            ],
+            "supports_credentials": False,
+            "max_age": 600,
+        }
+    },
 )
 
 # --- Optional Plugin: Web Search ---
@@ -50,6 +60,7 @@ USERS_MAP = load_users_map()
 PROXY_TOKEN = os.getenv("REX_PROXY_TOKEN")
 ALLOW_LOCAL = os.getenv("REX_PROXY_ALLOW_LOCAL") == "1"
 
+
 # --- Helpers ---
 def _summarize_memory(profile: dict) -> dict:
     summary = {}
@@ -66,7 +77,7 @@ def _summarize_memory(profile: dict) -> dict:
     if isinstance(prefs, dict):
         summary["preferences"] = {
             "tone": prefs.get("tone"),
-            "topics": [t for t in prefs.get("topics", []) if isinstance(t, str)]
+            "topics": [t for t in prefs.get("topics", []) if isinstance(t, str)],
         }
 
     return summary
@@ -85,6 +96,7 @@ def _is_loopback_address(addr: str | None) -> bool:
     if addr.startswith("::ffff:"):
         addr = addr.split("::ffff:", 1)[-1]
     return addr in {"127.0.0.1", "::1"}
+
 
 # --- Request Hooks ---
 @app.before_request
@@ -125,6 +137,7 @@ def load_user_memory():
     except json.JSONDecodeError:
         abort(500, f"Memory file for user '{g.user_key}' is invalid JSON.")
 
+
 # --- Routes ---
 @app.route("/")
 def index():
@@ -133,10 +146,12 @@ def index():
 
 @app.route("/whoami")
 def whoami():
-    return jsonify({
-        "user": g.user_key,
-        "profile": _summarize_memory(g.memory),
-    })
+    return jsonify(
+        {
+            "user": g.user_key,
+            "profile": _summarize_memory(g.memory),
+        }
+    )
 
 
 @app.route("/search")
@@ -154,13 +169,9 @@ def search():
         app.logger.exception("Web search failed")
         return jsonify({"error": f"Search provider error: {e}"}), 502
 
-    return jsonify({
-        "query": query,
-        "result": result
-    })
+    return jsonify({"query": query, "result": result})
 
 
 # --- Entry Point ---
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-

@@ -1,5 +1,6 @@
-import openwakeword
 import os
+
+import openwakeword
 
 # Path to save the model
 model_save_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rex.onnx")
@@ -11,4 +12,3 @@ model = openwakeword.Model(backend="onnx")
 model.record_wakeword("rex", model_save_path)
 
 print(f"Wakeword model saved to {model_save_path}")
-

@@ -97,3 +97,20 @@ dmypy.json
 # Ruff cache
 .ruff_cache/
 
+# Node.js / JavaScript (if used for tooling or extensions)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+*.local
+
+# IDE files
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Tuple
 
 import numpy as np
 
@@ -33,7 +32,7 @@ def _resolve_model_path(model_path: str | None = None) -> Path:
 
 def load_wakeword_model(
     *, keyword: str | None = None, model_path: str | None = None
-) -> Tuple[WakeWordModel, str]:
+) -> tuple[WakeWordModel, str]:
     if openwakeword is None:
         raise RuntimeError("openwakeword is not installed")
 

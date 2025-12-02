@@ -2,10 +2,50 @@ name: CI
 
 on:
   push:
+    branches: [main, claude/**]
   pull_request:
+    branches: [main]
 
 jobs:
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 🧾 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 📦 Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-lint-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-lint-
+
+      - name: 📥 Install linting tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff black mypy
+
+      - name: 🔍 Run Ruff linting
+        run: ruff check . --output-format=github
+
+      - name: 🎨 Check code formatting with Black
+        run: black --check --diff .
+
+      - name: 🔎 Run Mypy type checking
+        run: mypy . --no-error-summary || true
+        continue-on-error: true
+
   tests:
+    name: Tests & Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -25,10 +65,10 @@ jobs:
           pip cache purge || true
 
       - name: 📦 Cache pip dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml', '**/requirements*.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
@@ -43,7 +83,7 @@ jobs:
 
       - name: 📥 Install Python dependencies (CPU-only)
         run: |
-          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install --upgrade pip>=25.3 setuptools>=78.1.1 wheel
           # Install CPU-only PyTorch for faster CI
           pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
           pip install -e .[dev,test]
@@ -55,10 +95,13 @@ jobs:
         env:
           REX_FILE_LOGGING_ENABLED: "false"  # Log to stdout only in CI
 
-      - name: 📤 Upload coverage report (optional)
+      - name: 📤 Upload coverage report
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: .coverage
+          path: |
+            .coverage
+            coverage.xml
+            htmlcov/
 
