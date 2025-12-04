@@ -12,8 +12,10 @@ from rex.plugins import Plugin
 try:
     import requests
     from requests.adapters import HTTPAdapter, Retry
-except ImportError:
-    requests = None  # type: ignore
+except ImportError as e:
+    raise RuntimeError(
+        "Install with: pip install requests  (or add to requirements.txt and reinstall)"
+    ) from e
 
 try:
     from bs4 import BeautifulSoup
@@ -42,8 +44,6 @@ class WebSearchPlugin:
     name = "web_search"
 
     def __init__(self) -> None:
-        if requests is None:
-            raise RuntimeError("requests must be installed for web search")
         self._session = _create_session()
 
     def initialize(self) -> None:
