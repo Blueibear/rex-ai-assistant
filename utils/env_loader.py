@@ -2,6 +2,8 @@
 
 This module ensures .env files are loaded before any environment variables
 are accessed, preventing initialization issues.
+
+The .env file is automatically loaded when this module is first imported.
 """
 
 from __future__ import annotations
@@ -13,10 +15,10 @@ try:
     from dotenv import find_dotenv, load_dotenv
 except ImportError:
     # Gracefully handle missing python-dotenv
-    def load_dotenv(*args, **kwargs):
+    def load_dotenv(*args, **kwargs):  # type: ignore[misc]
         return False
 
-    def find_dotenv(*args, **kwargs):
+    def find_dotenv(*args, **kwargs):  # type: ignore[misc]
         return ""
 
 
@@ -49,3 +51,7 @@ def load() -> None:
         load_dotenv(dotenv_path, override=False)
 
     _loaded = True
+
+
+# Automatically load .env on module import
+load()

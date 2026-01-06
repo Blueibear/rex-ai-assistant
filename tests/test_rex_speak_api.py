@@ -67,8 +67,8 @@ def _load_app(monkeypatch, tmp_path) -> tuple:
     return app, module
 
 
-def test_missing_api_key_prevents_start(monkeypatch):
-    """Fail fast if REX_SPEAK_API_KEY is missing at app startup."""
+def test_import_without_api_key(monkeypatch):
+    """Module can be imported without REX_SPEAK_API_KEY set."""
     module_name = "rex_speak_api"
     monkeypatch.delenv("REX_SPEAK_API_KEY", raising=False)
     monkeypatch.setenv("REX_ACTIVE_USER", "james")
@@ -77,18 +77,52 @@ def test_missing_api_key_prevents_start(monkeypatch):
     if module_name in sys.modules:
         del sys.modules[module_name]
 
-    with pytest.raises(RuntimeError):
-        importlib.import_module(module_name)
+    # Import should succeed without API key
+    module = importlib.import_module(module_name)
+    assert module.app is not None
+    assert module.API_KEY is None
+
+
+def test_missing_api_key_prevents_start(monkeypatch):
+    """Fail fast if REX_SPEAK_API_KEY is missing when calling main()."""
+    module_name = "rex_speak_api"
+    monkeypatch.delenv("REX_SPEAK_API_KEY", raising=False)
+    monkeypatch.setenv("REX_ACTIVE_USER", "james")
+    _mock_tts(monkeypatch)
+
+    if module_name in sys.modules:
+        del sys.modules[module_name]
+
+    module = importlib.import_module(module_name)
+
+    # main() should raise RuntimeError
+    with pytest.raises(RuntimeError, match="REX_SPEAK_API_KEY must be set"):
+        module.main()
+
+
+def test_unauthorized_requests_return_401(monkeypatch, tmp_path):
+    """Requests without valid API key return 401."""
+    app, module = _load_app(monkeypatch, tmp_path)
+
+    with app.test_client() as client:
+        # No API key at all
+        resp = client.post("/speak", json={"text": "Hello"})
+        assert resp.status_code == 401
+        assert "invalid" in resp.get_json()["error"].lower() or "missing" in resp.get_json()["error"].lower()
+
+        # Wrong API key
+        resp = client.post("/speak", json={"text": "Hello"}, headers={"X-API-Key": "wrong"})
+        assert resp.status_code == 401
+
+        # Empty API key
+        resp = client.post("/speak", json={"text": "Hello"}, headers={"X-API-Key": ""})
+        assert resp.status_code == 401
 
 
 def test_speak_requires_api_key(monkeypatch, tmp_path):
     app, module = _load_app(monkeypatch, tmp_path)
 
     with app.test_client() as client:
-        # Missing key
-        resp = client.post("/speak", json={"text": "Hello"})
-        assert resp.status_code == 401
-
         # Valid key
         resp = client.post("/speak", json={"text": "Hello"}, headers={"X-API-Key": "secret"})
         assert resp.status_code == 200
@@ -162,3 +196,95 @@ def test_speak_rate_limit(monkeypatch, tmp_path):
 
     assert blocked.status_code == 429
     assert blocked.get_json()["error"] == "Too many requests"
+
+
+def test_spoofed_xff_does_not_bypass_rate_limit(monkeypatch, tmp_path):
+    """X-Forwarded-For header from untrusted source should not bypass rate limiting."""
+    app, module = _load_app(monkeypatch, tmp_path)
+
+    # Ensure TRUSTED_PROXIES doesn't include our test client IP
+    module.TRUSTED_PROXIES = {"192.168.1.1"}  # Different from test client
+
+    with app.test_client() as client:
+        # Make 2 requests with different spoofed X-Forwarded-For headers
+        for i in range(2):
+            resp = client.post(
+                "/speak",
+                json={"text": "hi"},
+                headers={
+                    "X-API-Key": "secret",
+                    "X-Forwarded-For": f"10.0.0.{i}",  # Trying to spoof different IPs
+                },
+            )
+            assert resp.status_code == 200
+
+        # Third request should be blocked (same remote_addr, spoofed XFF ignored)
+        blocked = client.post(
+            "/speak",
+            json={"text": "hi again"},
+            headers={
+                "X-API-Key": "secret",
+                "X-Forwarded-For": "10.0.0.99",  # Different spoofed IP
+            },
+        )
+
+    assert blocked.status_code == 429
+    assert blocked.get_json()["error"] == "Too many requests"
+
+
+def test_trusted_proxy_xff_honored(monkeypatch, tmp_path):
+    """X-Forwarded-For from trusted proxy should be honored."""
+    app, module = _load_app(monkeypatch, tmp_path)
+
+    # Configure test client IP as trusted
+    # Flask test client uses 127.0.0.1 by default
+    module.TRUSTED_PROXIES = {"127.0.0.1", "::1"}
+
+    with app.test_client() as client:
+        # Request 1 from IP 10.0.0.1
+        resp1 = client.post(
+            "/speak",
+            json={"text": "hi"},
+            headers={
+                "X-API-Key": "secret",
+                "X-Forwarded-For": "10.0.0.1",
+            },
+            environ_base={"REMOTE_ADDR": "127.0.0.1"},
+        )
+        assert resp1.status_code == 200
+
+        # Request 2 from same IP should count toward same limit
+        resp2 = client.post(
+            "/speak",
+            json={"text": "hi"},
+            headers={
+                "X-API-Key": "secret",
+                "X-Forwarded-For": "10.0.0.1",
+            },
+            environ_base={"REMOTE_ADDR": "127.0.0.1"},
+        )
+        assert resp2.status_code == 200
+
+        # Request 3 from same IP should be rate limited
+        resp3 = client.post(
+            "/speak",
+            json={"text": "hi"},
+            headers={
+                "X-API-Key": "secret",
+                "X-Forwarded-For": "10.0.0.1",
+            },
+            environ_base={"REMOTE_ADDR": "127.0.0.1"},
+        )
+        assert resp3.status_code == 429
+
+        # But request from different IP should succeed
+        resp4 = client.post(
+            "/speak",
+            json={"text": "hi"},
+            headers={
+                "X-API-Key": "secret",
+                "X-Forwarded-For": "10.0.0.2",  # Different client IP
+            },
+            environ_base={"REMOTE_ADDR": "127.0.0.1"},
+        )
+        assert resp4.status_code == 200

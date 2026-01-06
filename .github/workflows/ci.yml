@@ -45,8 +45,7 @@ jobs:
         run: black --check --diff .
 
       - name: 🔎 Run Mypy type checking
-        run: mypy . --no-error-summary || true
-        continue-on-error: true
+        run: mypy . --no-error-summary
 
   node-ci:
     name: Node.js CI

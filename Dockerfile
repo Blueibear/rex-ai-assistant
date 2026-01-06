@@ -21,8 +21,9 @@ COPY pyproject.toml setup.py* ./
 COPY rex/ ./rex/
 
 # Install Python dependencies (CPU-only by default)
+# Using torch 2.7.1 to avoid known DoS vulnerabilities in 2.6.0
 RUN pip install --no-cache-dir --upgrade pip>=25.3 setuptools>=78.1.1 wheel && \
-    pip install --no-cache-dir torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 \
+    pip install --no-cache-dir torch==2.7.1 torchvision==0.20.1 torchaudio==2.5.1 \
         --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -e .
 
