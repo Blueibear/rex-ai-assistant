@@ -19,7 +19,8 @@ except ImportError:  # pragma: no cover - dependency optional
     torch = None
 
 try:  # pragma: no cover - dependency optional
-    from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline as hf_pipeline
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from transformers import pipeline as hf_pipeline
 except ImportError:
     AutoModelForCausalLM = AutoTokenizer = hf_pipeline = None
 

@@ -428,6 +428,20 @@ Memory/james/
 
 Rex uses voice cloning with XTTS when a valid `voice.sample_path` is provided.
 
+## Architecture
+
+Rex follows a modular architecture with a clear separation between the canonical `rex/` package and backward-compatible root-level wrappers.
+
+**📖 For detailed architecture documentation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**
+
+Key architectural components:
+- **`rex/` package** - Canonical implementation (single source of truth)
+- **Root wrappers** - Backward compatibility for legacy imports
+- **Plugin system** - Extensible functionality via `plugins/`
+- **Voice loop** - Optimized async pipeline (wake word → STT → LLM → TTS)
+- **Memory system** - Per-user profiles with path traversal protection
+- **API server** - Flask-based TTS API with authentication and rate limiting
+
 ## Development
 
 ### Code Quality Tools

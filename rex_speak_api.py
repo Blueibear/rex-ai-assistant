@@ -10,9 +10,10 @@ import tempfile
 import time
 from collections import defaultdict, deque
 
-import utils.env_loader  # Auto-loads .env on import
 from flask import Flask, Response, after_this_request, jsonify, request, send_file
 from flask_cors import CORS
+
+import utils.env_loader  # Auto-loads .env on import
 
 try:
     from flask_limiter import Limiter
@@ -32,13 +33,14 @@ except ImportError:
         retry_after = None
 
 from TTS.api import TTS
+
+from rex.assistant_errors import AuthenticationError, TextToSpeechError
 from rex.memory_utils import (
     extract_voice_reference,
     load_all_profiles,
     load_users_map,
     resolve_user_key,
 )
-from rex.assistant_errors import AuthenticationError, TextToSpeechError
 
 # ------------------------------------------------------------------------------
 # App setup
