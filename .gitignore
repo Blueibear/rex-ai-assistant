@@ -73,10 +73,10 @@ Thumbs.db
 rex.onnx
 
 # Audio exclusions and includes
-!assets/wake_acknowledgment.wav
 assets/rex_wake_acknowledgment*.wav
+!assets/wake_acknowledgment.wav
 
-# Voices (track doc but not files)
+# Keep documentation for the voices directory without tracking audio files
 assets/voices/*
 !assets/voices/.gitkeep
 !assets/voices/README.md
@@ -94,3 +94,10 @@ Memory/*/history.log
 
 # Test Fixtures
 !tests/fixtures/
+
+# Project and script files (do not ignore these)
+!project.yaml
+!run_project.py
+!run_codex_autonomous.ps1
+!.claude-project.yaml
+

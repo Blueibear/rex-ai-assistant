@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Tuple
 
 import numpy as np
 
@@ -150,3 +150,5 @@ def detect_wakeword(
 
 
 __all__ = ["load_wakeword_model", "detect_wakeword"]
+
+

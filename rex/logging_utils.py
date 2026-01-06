@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 from collections.abc import Iterable
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -34,37 +35,43 @@ def configure_logging(
 
     This makes logging container-friendly and follows 12-factor app principles.
     """
-
     root_logger = logging.getLogger()
     if root_logger.handlers:
         return
 
     if handlers is None:
-        # Always include stdout handler
-        stream_handler = logging.StreamHandler()
+        stream_handler = logging.StreamHandler(sys.stdout)
+
+        # Force UTF-8 encoding for console output to handle emoji and Unicode
+        if hasattr(sys.stdout, "reconfigure"):
+            try:
+                sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            except (AttributeError, ValueError):
+                pass  # Continue without forcing encoding
+
         handlers_list = [stream_handler]
 
-        # Only add file handlers if explicitly enabled
         file_logging_enabled = os.getenv("REX_FILE_LOGGING_ENABLED", "false").lower() in {
-            "true",
-            "1",
-            "yes",
+            "true", "1", "yes"
         }
 
         if file_logging_enabled:
             log_path = _resolve_path(
-                getattr(settings, "log_path", DEFAULT_LOG_FILE), DEFAULT_LOG_FILE
+                getattr(settings, "log_path", DEFAULT_LOG_FILE) if settings else DEFAULT_LOG_FILE,
+                DEFAULT_LOG_FILE
             )
             error_path = _resolve_path(
-                getattr(settings, "error_log_path", DEFAULT_ERROR_FILE), DEFAULT_ERROR_FILE
+                getattr(settings, "error_log_path", DEFAULT_ERROR_FILE) if settings else DEFAULT_ERROR_FILE,
+                DEFAULT_ERROR_FILE
             )
 
             log_path.parent.mkdir(parents=True, exist_ok=True)
             error_path.parent.mkdir(parents=True, exist_ok=True)
 
-            file_handler = RotatingFileHandler(log_path, maxBytes=1_000_000, backupCount=5)
-            error_handler = RotatingFileHandler(error_path, maxBytes=1_000_000, backupCount=5)
+            file_handler = RotatingFileHandler(log_path, maxBytes=1_000_000, backupCount=5, encoding="utf-8")
+            error_handler = RotatingFileHandler(error_path, maxBytes=1_000_000, backupCount=5, encoding="utf-8")
             error_handler.setLevel(logging.ERROR)
+
             handlers_list.extend([file_handler, error_handler])
 
         handlers = tuple(handlers_list)
@@ -74,7 +81,6 @@ def configure_logging(
 
 def get_logger(name: str, *, level: int | None = None) -> logging.Logger:
     """Return a module-level logger backed by the shared configuration."""
-
     configure_logging(level=level or logging.getLogger().level or logging.INFO)
     logger = logging.getLogger(name)
 
@@ -88,7 +94,6 @@ def get_logger(name: str, *, level: int | None = None) -> logging.Logger:
 
 def set_global_level(level: int) -> None:
     """Update the configured logging level for all registered handlers."""
-
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
 

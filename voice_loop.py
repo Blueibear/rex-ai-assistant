@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Async event loop orchestrating Rex's wake-word, STT, LLM and TTS pipeline."""
 
 from __future__ import annotations
@@ -214,6 +215,7 @@ class AsyncRexAssistant:
         duration = self.config.command_duration
         frames = int(sample_rate * duration)
         logger.info("Recording %.1f seconds of audio", duration)
+
         audio = sd.rec(
             frames,
             samplerate=sample_rate,
@@ -302,3 +304,4 @@ class AsyncRexAssistant:
 def build_voice_loop(assistant: AsyncRexAssistant | None = None) -> AsyncRexAssistant:
     """Helper function for rex_loop.py to build and run the voice assistant loop."""
     return assistant or AsyncRexAssistant()
+

@@ -1,0 +1,194 @@
+#requires -RunAsAdministrator
+<#
+.SYNOPSIS
+    Provision a TLS-enabled Mosquitto MQTT broker for Rex AI on Windows.
+
+.DESCRIPTION
+    Installs Mosquitto (via winget or Chocolatey), generates a certificate
+    authority and server certificate if missing, enables password
+    authentication, and writes a hardened mosquitto.conf tailored for the
+    Rex voice node network.
+
+.EXAMPLE
+    .\setup_mosquitto.ps1 -BrokerHost rex-broker.local -Username rex -Password (Read-Host -AsSecureString)
+#>
+[CmdletBinding()]
+param(
+    [string]$BrokerHost = "rex-broker.local",
+    [string]$InstallRoot = "C:\Program Files\mosquitto",
+    [string]$DataRoot = "C:\ProgramData\mosquitto",
+    [string]$Username = "rex",
+    [SecureString]$Password,
+    [int]$ListenerPort = 8883,
+    [switch]$SkipServiceRestart
+)
+
+function Assert-Admin {
+    if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        throw "Administrator privileges are required. Relaunch PowerShell as Administrator."
+    }
+}
+
+function Ensure-Command {
+    param(
+        [Parameter(Mandatory)] [string]$Name,
+        [scriptblock]$Installer
+    )
+
+    if (Get-Command -Name $Name -ErrorAction SilentlyContinue) {
+        return
+    }
+
+    if (-not $Installer) {
+        throw "Command '$Name' is required but not installed."
+    }
+
+    Write-Host "Installing prerequisite '$Name'..." -ForegroundColor Cyan
+    & $Installer
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to install dependency '$Name'. Exit code: $LASTEXITCODE"
+    }
+}
+
+function Resolve-PlainPassword {
+    if ($Password) {
+        return [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+            [Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)
+        )
+    }
+    return Read-Host -Prompt "Enter password for MQTT user '$Username'" -AsSecureString |
+        ForEach-Object {
+            [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+                [Runtime.InteropServices.Marshal]::SecureStringToBSTR($_)
+            )
+        }
+}
+
+function Format-PathForConf {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [switch]$IsDirectory
+    )
+    $normalized = $Path.TrimEnd('\', '/')
+    if ($IsDirectory) {
+        $normalized = $normalized + "/"
+    }
+    '"' + ($normalized -replace '\\', '/') + '"'
+}
+
+Assert-Admin
+
+$plainPassword = Resolve-PlainPassword
+if (-not $plainPassword) {
+    throw "Password input is required."
+}
+
+# Ensure dependencies
+Ensure-Command -Name "winget" -Installer { Write-Host "winget missing. Install from Microsoft Store manually and re-run." -ForegroundColor Yellow; exit 1 }
+Ensure-Command -Name "mosquitto" -Installer { winget install -e --id EclipseFoundation.Mosquitto }
+Ensure-Command -Name "mosquitto_passwd" -Installer { winget install -e --id EclipseFoundation.Mosquitto }
+Ensure-Command -Name "openssl" -Installer {
+    if (Get-Command choco -ErrorAction SilentlyContinue) {
+        choco install openssl.light -y
+    } else {
+        winget install -e --id ShiningLight.OpenSSL
+    }
+}
+
+$certDir = Join-Path $DataRoot "certs"
+$configDir = Join-Path $DataRoot "config"
+$logDir = Join-Path $DataRoot "logs"
+$dataDir = Join-Path $DataRoot "data"
+$passwordFile = Join-Path $configDir "passwd"
+$confPath = Join-Path $configDir "mosquitto.conf"
+$caFile = Join-Path $certDir "ca.crt"
+$serverCert = Join-Path $certDir "server.crt"
+$serverKey = Join-Path $certDir "server.key"
+
+$null = New-Item -ItemType Directory -Path $certDir, $configDir, $logDir, $dataDir -Force
+
+Push-Location $certDir
+
+if (-not (Test-Path "ca.key") -or -not (Test-Path "ca.crt")) {
+    Write-Host "Generating certificate authority..." -ForegroundColor Cyan
+    & openssl req -x509 -nodes -newkey rsa:4096 `
+        -keyout ca.key `
+        -out ca.crt `
+        -days 825 `
+        -subj "/C=US/ST=State/L=City/O=RexAI/OU=MQTT/CN=$BrokerHost"
+    if ($LASTEXITCODE -ne 0) {
+        throw "OpenSSL failed to create CA certificate."
+    }
+}
+
+if (-not (Test-Path "server.key") -or -not (Test-Path "server.crt")) {
+    Write-Host "Generating server certificate..." -ForegroundColor Cyan
+    & openssl req -nodes -newkey rsa:4096 `
+        -keyout server.key `
+        -out server.csr `
+        -days 825 `
+        -subj "/C=US/ST=State/L=City/O=RexAI/OU=MQTT/CN=$BrokerHost"
+    if ($LASTEXITCODE -ne 0) {
+        throw "OpenSSL failed to create server CSR."
+    }
+    & openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial `
+        -out server.crt -days 825 -sha256
+    if ($LASTEXITCODE -ne 0) {
+        throw "OpenSSL failed to sign server certificate."
+    }
+}
+
+Pop-Location
+
+Write-Host "Configuring Mosquitto password file..." -ForegroundColor Cyan
+& mosquitto_passwd -b "$passwordFile" $Username $plainPassword
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to write Mosquitto password file."
+}
+
+$logFile = Join-Path $logDir "mosquitto.log"
+
+$confContent = @"
+# Auto-generated by setup_mosquitto.ps1 for Rex AI
+
+listener $ListenerPort
+protocol mqtt
+
+allow_anonymous false
+password_file $(Format-PathForConf $passwordFile)
+require_certificate false
+tls_version tlsv1.3
+
+cafile $(Format-PathForConf $caFile)
+certfile $(Format-PathForConf $serverCert)
+keyfile $(Format-PathForConf $serverKey)
+
+persistence true
+persistence_location $(Format-PathForConf $dataDir -IsDirectory)
+
+log_dest file $(Format-PathForConf $logFile)
+include_dir $InstallRoot\conf.d
+"@
+
+Set-Content -Path $confPath -Value $confContent -Encoding ASCII
+
+Write-Host "Mosquitto configuration written to $confPath" -ForegroundColor Green
+
+if (-not $SkipServiceRestart) {
+    Write-Host "Restarting Mosquitto service..." -ForegroundColor Cyan
+    if (Get-Service -Name "Mosquitto" -ErrorAction SilentlyContinue) {
+        Restart-Service -Name "Mosquitto" -Force -ErrorAction Stop
+    } else {
+        Write-Host "Mosquitto service not found. You may need to finish the MSI installation." -ForegroundColor Yellow
+    }
+}
+
+Write-Host ""
+Write-Host "Mosquitto ready with TLS and password auth." -ForegroundColor Green
+Write-Host "Broker host: $BrokerHost"
+Write-Host "Listener port: $ListenerPort"
+Write-Host "Certificates: $certDir"
+Write-Host "Password file: $passwordFile"
+Write-Host "Update your .env with:" -ForegroundColor Cyan
+Write-Host ("  REX_MQTT_BROKER={0}`n  REX_MQTT_PORT={1}`n  REX_MQTT_TLS=True`n  REX_MQTT_TLS_CA={2}`n  REX_MQTT_TLS_CERT={3}`n  REX_MQTT_TLS_KEY={4}" -f `
+    $BrokerHost, $ListenerPort, "$certDir\ca.crt", "$certDir\server.crt", "$certDir\server.key")

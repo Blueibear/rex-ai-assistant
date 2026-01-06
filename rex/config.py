@@ -26,7 +26,6 @@ LOGGER = get_logger(__name__)
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 REQUIRED_ENV_KEYS = {"REX_WAKEWORD"}
 
-
 @dataclass
 class AppConfig:
     wakeword: str = "rex"
@@ -93,8 +92,6 @@ class AppConfig:
         model_path = Path(self.llm_model)
         if model_path.is_absolute() or ".." in model_path.parts:
             raise ValueError("llm_model must not contain path traversal components.")
-
-        # Set aliases
         if self.llm_backend is None:
             self.llm_backend = self.llm_provider
         if self.temperature is None:
@@ -104,9 +101,7 @@ class AppConfig:
         if self.wakeword_keyword is None:
             self.wakeword_keyword = self.wakeword
 
-
 _cached_config: Optional[AppConfig] = None
-
 
 ENV_MAPPING: Dict[str, str] = {
     "wakeword": "REX_WAKEWORD",
@@ -150,10 +145,8 @@ ENV_MAPPING: Dict[str, str] = {
     "search_providers": "REX_SEARCH_PROVIDERS",
 }
 
-
 TRUE_VALUES = {"1", "true", "yes", "on"}
 FALSE_VALUES = {"0", "false", "no", "off"}
-
 
 def _parse_bool(value: Optional[str], *, default: bool = False) -> bool:
     if value is None:
@@ -165,7 +158,6 @@ def _parse_bool(value: Optional[str], *, default: bool = False) -> bool:
         return False
     raise ConfigurationError(f"Invalid boolean value: {value}")
 
-
 def _parse_optional_int(value: Optional[str]) -> Optional[int]:
     if value in (None, ""):
         return None
@@ -174,14 +166,12 @@ def _parse_optional_int(value: Optional[str]) -> Optional[int]:
     except ValueError as exc:
         raise ConfigurationError(f"Invalid integer: {value}") from exc
 
-
 def _first_env_value(*keys: str) -> Optional[str]:
     for key in keys:
         value = os.getenv(key)
         if value not in (None, ""):
             return value
     return None
-
 
 def _env_key_for(field_name: str) -> Optional[str]:
     if field_name in ENV_MAPPING:
@@ -190,10 +180,8 @@ def _env_key_for(field_name: str) -> Optional[str]:
         return field_name
     return None
 
-
 def _write_env(key: str, value: str, *, env_path: Path) -> None:
     set_key(str(env_path), key, value)
-
 
 def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> AppConfig:
     global _cached_config
@@ -217,11 +205,9 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> App
         wakeword_window=float(getenv("REX_WAKEWORD_WINDOW", "1.0")),
         wakeword_poll_interval=float(getenv("REX_WAKEWORD_POLL_INTERVAL", "0.01")),
         command_duration=float(getenv("REX_COMMAND_DURATION", "5.0")),
-
         sample_rate=int(getenv("REX_SAMPLE_RATE", "16000")),
         detection_frame_seconds=float(getenv("REX_DETECTION_FRAME_SECONDS", "1.0")),
         capture_seconds=float(getenv("REX_CAPTURE_SECONDS", "5.0")),
-
         whisper_model=getenv("REX_WHISPER_MODEL", "base"),
         whisper_device=getenv("REX_WHISPER_DEVICE", "cpu"),
         speak_language=getenv("REX_SPEAK_LANGUAGE", "en"),
@@ -232,23 +218,18 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> App
         llm_top_p=float(getenv("REX_LLM_TOP_P", "0.9")),
         llm_top_k=int(getenv("REX_LLM_TOP_K", "50")),
         llm_seed=int(getenv("REX_LLM_SEED", "42")),
-
         speak_api_key=getenv("REX_SPEAK_API_KEY"),
         rate_limit=getenv("REX_RATE_LIMIT", "30/minute"),
         allowed_origins=allowed_origins,
-
         memory_max_turns=int(getenv("REX_MEMORY_MAX_TURNS", "50")),
         transcripts_enabled=_parse_bool(getenv("REX_TRANSCRIPTS_ENABLED"), default=True),
         transcripts_dir=Path(getenv("REX_TRANSCRIPTS_DIR", "transcripts")),
         default_user=getenv("REX_ACTIVE_USER"),
         wake_sound_path=getenv("REX_WAKE_SOUND"),
-
         audio_input_device=_parse_optional_int(_first_env_value("REX_INPUT_DEVICE", "REX_AUDIO_INPUT_DEVICE")),
         audio_output_device=_parse_optional_int(_first_env_value("REX_OUTPUT_DEVICE", "REX_AUDIO_OUTPUT_DEVICE")),
-
         debug_logging=_parse_bool(getenv("REX_DEBUG_LOGGING")),
         conversation_export=_parse_bool(getenv("REX_CONVERSATION_EXPORT"), default=True),
-
         brave_api_key=getenv("BRAVE_API_KEY"),
         openai_api_key=getenv("OPENAI_API_KEY"),
         openai_model=getenv("OPENAI_MODEL"),
@@ -268,7 +249,6 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> App
 
     return config
 
-
 def validate_config(config: AppConfig) -> None:
     if not (0 < config.wakeword_threshold <= 1):
         raise ConfigurationError("wakeword_threshold must be between 0 and 1.")
@@ -283,17 +263,13 @@ def validate_config(config: AppConfig) -> None:
     if config.memory_max_turns <= 0:
         raise ConfigurationError("memory_max_turns must be positive.")
 
-
 def reload_settings(*, env_path: Optional[Path] = None) -> AppConfig:
-    """Reload configuration from .env file, bypassing cache."""
     return load_config(env_path=env_path, reload=True)
-
 
 def show_config(config: Optional[AppConfig] = None) -> None:
     cfg = config or load_config()
     for key, value in cfg.to_dict().items():
         LOGGER.info("%s = %s", key, value)
-
 
 def cli(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Configure Rex Assistant")
@@ -323,13 +299,8 @@ def cli(argv: Optional[List[str]] = None) -> int:
 
     return 0
 
-
-# Module-level settings instance for global import
 settings = load_config()
-
-# Backward compatibility alias
 Settings = AppConfig
-
 
 if __name__ == "__main__":
     try:
@@ -337,4 +308,5 @@ if __name__ == "__main__":
     except ConfigurationError as exc:
         LOGGER.error("Config error: %s", exc)
         raise SystemExit(1) from exc
+
 

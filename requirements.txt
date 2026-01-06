@@ -9,12 +9,12 @@ sounddevice>=0.4.6,<1.0.0
 soundfile>=0.12.0,<1.0.0
 simpleaudio>=1.0.4,<2.0.0
 
-# 🧠 AI / ML Models - CPU-only by default
-# For GPU acceleration, use requirements-gpu.txt instead
-# torch 2.7.1 fixes DoS vulnerabilities in 2.6.0 (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
-torch==2.7.1+cpu                        # CPU-only version
-torchvision==0.20.1                 # CPU-only version
-torchaudio==2.5.1                   # CPU-only version
+# 🧠 AI / ML Models (CPU-only by default)
+# For GPU support, use requirements-gpu.txt instead
+# torch 2.7.1+ fixes DoS vulnerabilities present in 2.6.0 (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
+torch==2.7.1+cpu
+torchvision==0.20.1
+torchaudio==2.5.1
 transformers>=4.38.0,<5.0.0
 TTS>=0.18.0,<1.0.0
 openai>=1.3.0,<2.0.0
@@ -34,7 +34,8 @@ beautifulsoup4>=4.12.0,<5.0.0
 pydantic>=2.0.0,<3.0.0         # Upgraded to v2 for performance & security
 
 # 🔒 Security-Critical Dependencies
-cryptography>=43.0.1           # Fixes multiple CVEs
+# These packages fix vulnerabilities in earlier versions
+cryptography>=43.0.1           # Fixes CVEs: GHSA-h4gh-qq45-vh27, GHSA-9v9h-cgj8-h64p, etc.
 setuptools>=78.1.1             # Fixes path traversal vulnerability (PYSEC-2025-49)
 pip>=25.3                      # Fixes tarfile path traversal issue
 werkzeug>=3.0.0                # Flask dependency, multiple CVE fixes
@@ -43,4 +44,6 @@ pillow>=10.3.0                 # Multiple image processing CVEs
 urllib3>=2.0.0                 # Request dependency, many CVEs fixed
 certifi>=2024.2.2              # Certificate validation updates
 
+# MQTT Messaging
+asyncio-mqtt>=0.16.0
 

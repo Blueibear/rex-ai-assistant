@@ -17,6 +17,7 @@ from collections.abc import Iterable, Sequence
 from typing import Callable
 
 from rex import settings
+from rex.llm_client import LanguageModel
 from rex.assistant import Assistant
 from rex.llm_client import LanguageModel
 from rex.logging_utils import configure_logging

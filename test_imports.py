@@ -22,6 +22,7 @@ def test_import(module_path: str, item_name: str) -> bool:
         traceback.print_exc()
         return False
 
+
 def test_module(module_path: str) -> bool:
     """Test importing a module directly."""
     try:
@@ -33,16 +34,17 @@ def test_module(module_path: str) -> bool:
         traceback.print_exc()
         return False
 
+
 if __name__ == "__main__":
     print("Testing Rex package imports...\n")
-    
+
     # Test core rex package exports
     core_tests: list[tuple[str, str]] = [
         ("rex", "settings"),
         ("rex", "reload_settings"),
         ("rex", "configure_logging"),
     ]
-    
+
     # Test rex submodules
     submodule_tests: list[tuple[str, str]] = [
         ("rex.config", "AppConfig"),
@@ -63,7 +65,7 @@ if __name__ == "__main__":
         ("rex.plugins", "load_plugins"),
         ("rex.assistant", "Assistant"),
     ]
-    
+
     # Test backward compatibility wrappers
     compat_tests: list[tuple[str, str]] = [
         ("config", "settings"),
@@ -72,35 +74,36 @@ if __name__ == "__main__":
         ("memory_utils", "load_users_map"),
         ("logging_utils", "get_logger"),
     ]
-    
+
     # Test top-level scripts
     script_tests: list[str] = [
         "rex_assistant",
         "rex_speak_api",
     ]
-    
+
     results = []
-    
+
     print("=== Core Rex Package ===")
     for module, item in core_tests:
         results.append(test_import(module, item))
-    
+
     print("\n=== Rex Submodules ===")
     for module, item in submodule_tests:
         results.append(test_import(module, item))
-    
+
     print("\n=== Backward Compatibility ===")
     for module, item in compat_tests:
         results.append(test_import(module, item))
-    
+
     print("\n=== Top-Level Scripts ===")
     for module in script_tests:
         results.append(test_module(module))
-    
+
     passed = sum(results)
     total = len(results)
-    print(f"\n{'='*50}")
-    print(f"Results: {passed}/{total} passed ({passed*100//total}%)")
-    print(f"{'='*50}")
-    
+    print(f"\n{'=' * 50}")
+    print(f"Results: {passed}/{total} passed ({passed * 100 // total}%)")
+    print(f"{'=' * 50}")
+
     sys.exit(0 if all(results) else 1)
+

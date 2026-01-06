@@ -1,4 +1,7 @@
-"""Shared exception types for the Rex assistant stack."""
+"""Shared exception types for the Rex assistant stack.
+
+This module has NO imports to prevent circular dependencies.
+"""
 
 from __future__ import annotations
 
@@ -42,6 +45,10 @@ PluginExecutionError = PluginError
 
 class AuthenticationError(AssistantError):
     """Raised when API authentication fails."""
+
+
+# Legacy alias
+SpeechRecognitionError = SpeechToTextError
 
 
 __all__ = [
