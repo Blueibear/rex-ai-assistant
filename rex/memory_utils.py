@@ -1,4 +1,4 @@
-﻿"""Helper utilities for loading Rex memory profiles and metadata."""
+"""Helper utilities for loading Rex memory profiles and metadata."""
 
 from __future__ import annotations
 

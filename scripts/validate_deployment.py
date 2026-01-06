@@ -1,4 +1,4 @@
-﻿"""Rex AI Assistant - Post-Deployment Validation Script
+"""Rex AI Assistant - Post-Deployment Validation Script
 
 Run this after deploying stabilization files to verify everything works.
 """
