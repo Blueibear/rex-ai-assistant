@@ -22,9 +22,17 @@ import rex
 from rex.assistant import Assistant
 from rex.assistant_errors import AssistantError, WakeWordError
 from rex.logging_utils import configure_logging
-from rex.mqtt_audio_router import MqttAudioRouter
 from rex.plugins import PluginSpec, load_plugins, shutdown_plugins
 from rex.voice_loop import build_voice_loop
+
+# MQTT is optional
+try:
+    from rex.mqtt_audio_router import MqttAudioRouter
+    MQTT_AVAILABLE = True
+except ImportError as exc:
+    MqttAudioRouter = None  # type: ignore
+    MQTT_AVAILABLE = False
+    _mqtt_import_error = str(exc)
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +61,17 @@ async def _run(args) -> None:
         logger.error("Unable to initialise voice loop: %s", exc)
         return
 
-    mqtt_router: MqttAudioRouter | None = None
-    try:
-        mqtt_router = MqttAudioRouter(assistant=assistant)
-        await mqtt_router.start()
-        logger.info("MQTT audio router started.")
-    except Exception as exc:  # pragma: no cover - defensive startup log
-        logger.error("Unable to start MQTT audio router: %s", exc)
-        mqtt_router = None
+    mqtt_router = None
+    if MQTT_AVAILABLE and MqttAudioRouter is not None:
+        try:
+            mqtt_router = MqttAudioRouter(assistant=assistant)
+            await mqtt_router.start()
+            logger.info("MQTT audio router started.")
+        except Exception as exc:  # pragma: no cover - defensive startup log
+            logger.error("Unable to start MQTT audio router: %s", exc)
+            mqtt_router = None
+    elif not MQTT_AVAILABLE:
+        logger.info("MQTT audio router disabled (dependency not available)")
 
     logger.info("🎙️ Voice loop started. Press Ctrl+C to exit.")
     try:

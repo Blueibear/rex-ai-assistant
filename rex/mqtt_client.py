@@ -23,11 +23,16 @@ from rex.assistant_errors import ConfigurationError
 from rex.config import settings
 
 try:
-    from asyncio_mqtt import Client, MqttError, Message
-except ImportError as exc:  # pragma: no cover - handled during runtime
-    raise ImportError(
-        "asyncio-mqtt is required for Rex MQTT features. "
-        "Install via `pip install asyncio-mqtt`."
+    # Try new package name first (asyncio-mqtt was renamed to aiomqtt)
+    from aiomqtt import Client, MqttError, Message
+except ImportError:
+    try:
+        # Fall back to old package name for backwards compatibility
+        from asyncio_mqtt import Client, MqttError, Message
+    except ImportError as exc:  # pragma: no cover - handled during runtime
+        raise ImportError(
+            "aiomqtt (or asyncio-mqtt) is required for Rex MQTT features. "
+            "Install via `pip install aiomqtt`."
     ) from exc
 
 logger = logging.getLogger(__name__)
