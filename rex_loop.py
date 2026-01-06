@@ -36,6 +36,14 @@ except ImportError as exc:
 
 logger = logging.getLogger(__name__)
 
+# Backward compatibility: re-export AsyncRexAssistant for code that imports it from here
+# The canonical location is voice_loop.py at the repo root
+try:
+    from voice_loop import AsyncRexAssistant, build_voice_loop as _build_voice_loop_v1
+except ImportError:
+    AsyncRexAssistant = None  # type: ignore
+    _build_voice_loop_v1 = None  # type: ignore
+
 
 def _select_plugins(enabled: Iterable[str] | None) -> list[PluginSpec]:
     specs = load_plugins()
