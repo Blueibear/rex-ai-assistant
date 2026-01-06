@@ -279,7 +279,52 @@ python rex_loop.py --enable-plugin web_search
 5. Rex will transcribe, process, and respond with speech
 6. Press `Ctrl+C` to exit
 
-### 3. Audio Device Configuration
+### 3. GUI Settings Editor
+
+Rex includes a user-friendly graphical settings editor that lets you configure all environment variables without manually editing `.env` files.
+
+**Launch the GUI:**
+
+```bash
+python gui.py
+```
+
+**Features:**
+
+- **Dashboard Tab**: Monitor Rex assistant status and recent conversation history
+- **Settings Tab**: Visual editor for ALL environment variables
+  - Organized by section (Core Settings, Wakeword, Audio, LLM, TTS, etc.)
+  - Smart controls: dropdowns for enums, checkboxes for booleans, spinboxes for numbers, path pickers for files
+  - Help tooltips: Hover or click the "?" icon next to any setting for detailed explanations
+  - Secret masking: API keys and tokens are hidden by default with Show/Hide toggles
+  - Restart indicators: Settings that require restart are marked with ⚠ icon
+  - Advanced section: Edit custom environment variables not in `.env.example`
+  - Add custom keys: Create new environment variables on the fly
+
+**Backup & Restore:**
+
+The Settings editor automatically creates timestamped backups before saving. Use the Backup and Restore buttons to manage your configurations:
+
+- **Save**: Updates `.env` with new values (creates backup first)
+- **Reset to Defaults**: Restores all settings to `.env.example` defaults
+- **Backup**: Manually create a backup of current `.env`
+- **Restore**: Choose from previous backups to restore
+- **Open .env in Notepad** (Windows): Power-user option to edit `.env` directly
+
+All backups are stored in the `backups/` directory with timestamps like `.env.backup.20240615_143022`.
+
+**Model Selection:**
+
+The LLM Model field adapts based on your selected provider:
+- **Transformers**: Text entry with Browse button for local model paths
+- **OpenAI**: Dropdown with common models (gpt-3.5-turbo, gpt-4, etc.)
+- **Ollama**: Refresh button to query local Ollama instance for installed models
+
+**Ollama Integration:**
+
+If you're using Ollama as your LLM provider, click the "Refresh" button next to the model dropdown to automatically populate it with models from your local Ollama installation.
+
+### 4. Audio Device Configuration
 
 List and configure audio devices:
 
@@ -297,7 +342,7 @@ python audio_config.py --set-output 2
 python audio_config.py --show
 ```
 
-### 4. TTS API Server
+### 5. TTS API Server
 
 Run the standalone text-to-speech HTTP API:
 
