@@ -91,7 +91,7 @@ gpu-cu118 = [
 
 # GPU-accelerated PyTorch for CUDA 12.1
 gpu-cu121 = [
-    "torch==2.7.1+cu121",  # Fixed: was incorrectly cu118
+    "torch==2.7.1+cpu",  # Fixed: was incorrectly cu118
     "torchvision==0.21.0+cu121",
     "torchaudio==2.6.0+cu121",
 ]

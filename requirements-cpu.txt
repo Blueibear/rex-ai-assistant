@@ -4,7 +4,7 @@
 # PyTorch CPU-only versions (compatible set)
 # torch 2.7.1 fixes DoS vulnerabilities in 2.6.0 (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.7.1
+torch==2.7.1+cpu
 torchvision==0.20.1
 torchaudio==2.5.1
 
