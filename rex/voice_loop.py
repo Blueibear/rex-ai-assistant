@@ -394,6 +394,33 @@ def build_voice_loop(
     )
 
 
+def _resolve_voice_reference() -> Optional[str]:
+    """Resolve voice reference for the default user.
+
+    Returns:
+        Path to voice sample file, or None if not configured
+    """
+    try:
+        users_map = load_users_map()
+        profiles = load_all_profiles()
+
+        # Get default user
+        default_user = settings.default_user or settings.user_id or "default"
+        user_key = resolve_user_key(default_user, users_map, profiles=profiles)
+
+        if not user_key:
+            user_key = default_user
+
+        # Load profile and extract voice reference
+        if user_key in profiles:
+            return extract_voice_reference(profiles[user_key], user_key=user_key)
+
+        return None
+    except Exception as exc:
+        logger.warning("Failed to resolve voice reference: %s", exc)
+        return None
+
+
 __all__ = [
     "AsyncMicrophone",
     "WakeAcknowledgement",
@@ -402,5 +429,6 @@ __all__ = [
     "TextToSpeech",
     "VoiceLoop",
     "build_voice_loop",
+    "_resolve_voice_reference",
 ]
 
