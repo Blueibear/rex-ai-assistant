@@ -36,17 +36,8 @@ class PluginError(AssistantError):
     """Raised when a plugin fails to load or execute."""
 
 
-class PluginExecutionError(PluginError):
-    """Backward-compatible alias for plugin execution failures."""
-
-
-class PluginError(AssistantError):
-    """Raised when dynamic plugins cannot be imported or registered."""
-
-
 # Alias for backward compatibility
-class PluginError(PluginExecutionError):
-    """Alias for PluginExecutionError - kept for backward compatibility."""
+PluginExecutionError = PluginError
 
 
 class AuthenticationError(AssistantError):
@@ -63,6 +54,5 @@ __all__ = [
     "TextToSpeechError",
     "PluginError",
     "PluginExecutionError",
-    "PluginError",
     "AuthenticationError",
 ]
