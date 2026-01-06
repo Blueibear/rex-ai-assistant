@@ -67,6 +67,7 @@ def _load_app(monkeypatch, tmp_path) -> tuple:
     return app, module
 
 
+@pytest.mark.unit
 def test_import_without_api_key(monkeypatch):
     """Module can be imported without REX_SPEAK_API_KEY set."""
     module_name = "rex_speak_api"
@@ -83,6 +84,7 @@ def test_import_without_api_key(monkeypatch):
     assert module.API_KEY is None
 
 
+@pytest.mark.unit
 def test_missing_api_key_prevents_start(monkeypatch):
     """Fail fast if REX_SPEAK_API_KEY is missing when calling main()."""
     module_name = "rex_speak_api"
@@ -100,6 +102,7 @@ def test_missing_api_key_prevents_start(monkeypatch):
         module.main()
 
 
+@pytest.mark.integration
 def test_unauthorized_requests_return_401(monkeypatch, tmp_path):
     """Requests without valid API key return 401."""
     app, module = _load_app(monkeypatch, tmp_path)
@@ -119,6 +122,7 @@ def test_unauthorized_requests_return_401(monkeypatch, tmp_path):
         assert resp.status_code == 401
 
 
+@pytest.mark.integration
 def test_speak_requires_api_key(monkeypatch, tmp_path):
     app, module = _load_app(monkeypatch, tmp_path)
 
@@ -130,6 +134,7 @@ def test_speak_requires_api_key(monkeypatch, tmp_path):
         assert "audio/wav" in resp.content_type
 
 
+@pytest.mark.integration
 def test_speak_requires_text(monkeypatch, tmp_path):
     app, _ = _load_app(monkeypatch, tmp_path)
 
@@ -140,6 +145,7 @@ def test_speak_requires_text(monkeypatch, tmp_path):
     assert "text" in resp.get_json()["error"].lower()
 
 
+@pytest.mark.integration
 def test_speak_rejects_long_text(monkeypatch, tmp_path):
     app, _ = _load_app(monkeypatch, tmp_path)
 
@@ -156,6 +162,7 @@ def test_speak_rejects_long_text(monkeypatch, tmp_path):
     assert "maximum length" in response.get_json()["error"]
 
 
+@pytest.mark.integration
 def test_speak_generates_audio_with_missing_voice(monkeypatch, tmp_path):
     app, module = _load_app(monkeypatch, tmp_path)
 
@@ -176,6 +183,7 @@ def test_speak_generates_audio_with_missing_voice(monkeypatch, tmp_path):
     assert Path(call["file_path"]).suffix == ".wav"
 
 
+@pytest.mark.integration
 def test_speak_rate_limit(monkeypatch, tmp_path):
     app, module = _load_app(monkeypatch, tmp_path)
 
@@ -198,6 +206,7 @@ def test_speak_rate_limit(monkeypatch, tmp_path):
     assert blocked.get_json()["error"] == "Too many requests"
 
 
+@pytest.mark.integration
 def test_spoofed_xff_does_not_bypass_rate_limit(monkeypatch, tmp_path):
     """X-Forwarded-For header from untrusted source should not bypass rate limiting."""
     app, module = _load_app(monkeypatch, tmp_path)
@@ -232,6 +241,7 @@ def test_spoofed_xff_does_not_bypass_rate_limit(monkeypatch, tmp_path):
     assert blocked.get_json()["error"] == "Too many requests"
 
 
+@pytest.mark.integration
 def test_trusted_proxy_xff_honored(monkeypatch, tmp_path):
     """X-Forwarded-For from trusted proxy should be honored."""
     app, module = _load_app(monkeypatch, tmp_path)

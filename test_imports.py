@@ -3,11 +3,12 @@
 
 # Load .env before accessing any environment variables
 from utils.env_loader import load as _load_env
+
 _load_env()
 
 import sys
 import traceback
-from typing import List, Tuple
+
 
 def test_import(module_path: str, item_name: str) -> bool:
     """Test importing a specific item from a module."""
@@ -36,14 +37,14 @@ if __name__ == "__main__":
     print("Testing Rex package imports...\n")
     
     # Test core rex package exports
-    core_tests: List[Tuple[str, str]] = [
+    core_tests: list[tuple[str, str]] = [
         ("rex", "settings"),
         ("rex", "reload_settings"),
         ("rex", "configure_logging"),
     ]
     
     # Test rex submodules
-    submodule_tests: List[Tuple[str, str]] = [
+    submodule_tests: list[tuple[str, str]] = [
         ("rex.config", "AppConfig"),
         ("rex.config", "Settings"),
         ("rex.config", "settings"),
@@ -64,7 +65,7 @@ if __name__ == "__main__":
     ]
     
     # Test backward compatibility wrappers
-    compat_tests: List[Tuple[str, str]] = [
+    compat_tests: list[tuple[str, str]] = [
         ("config", "settings"),
         ("assistant_errors", "ConfigurationError"),
         ("llm_client", "LanguageModel"),
@@ -73,7 +74,7 @@ if __name__ == "__main__":
     ]
     
     # Test top-level scripts
-    script_tests: List[str] = [
+    script_tests: list[str] = [
         "rex_assistant",
         "rex_speak_api",
     ]

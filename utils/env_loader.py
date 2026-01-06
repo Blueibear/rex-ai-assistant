@@ -8,7 +8,6 @@ The .env file is automatically loaded when this module is first imported.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 try:

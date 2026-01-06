@@ -8,6 +8,7 @@ from __future__ import annotations
 
 # Load .env before accessing any environment variables
 from utils.env_loader import load as _load_env
+
 _load_env()
 
 import asyncio
@@ -16,8 +17,8 @@ from collections.abc import Iterable, Sequence
 from typing import Callable
 
 from rex import settings
-from rex.llm_client import LanguageModel
 from rex.assistant import Assistant
+from rex.llm_client import LanguageModel
 from rex.logging_utils import configure_logging
 from rex.plugins import PluginSpec, load_plugins, shutdown_plugins
 

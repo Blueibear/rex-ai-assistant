@@ -4,11 +4,11 @@ import json
 import os
 from types import SimpleNamespace
 
-import utils.env_loader  # Auto-loads .env on import
 from flask import Flask, abort, jsonify, request
 from flask import g as flask_g
 from flask_cors import CORS
 
+import utils.env_loader  # Auto-loads .env on import
 from memory_utils import load_memory_profile, load_users_map, resolve_user_key
 
 _TESTING_MODE = os.getenv("REX_TESTING", "").lower() in {"1", "true", "yes"}
