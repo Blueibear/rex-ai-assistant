@@ -15,23 +15,25 @@ logger = get_logger(__name__)
 # Optional dependencies
 try:
     import torch
-except ImportError:  # pragma: no cover - dependency optional
+except ImportError:  # pragma: no cover
     torch = None
 
-try:  # pragma: no cover - dependency optional
-    from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline as hf_pipeline
+try:  # pragma: no cover
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from transformers import pipeline as hf_pipeline
 except ImportError:
     AutoModelForCausalLM = AutoTokenizer = hf_pipeline = None
 
-try:  # pragma: no cover - dependency optional
+try:  # pragma: no cover
     from openai import OpenAI
 except ImportError:
     OpenAI = None
 
-try:  # pragma: no cover - dependency optional
+try:  # pragma: no cover
     import ollama
+    from ollama import Client as OllamaClient
 except ImportError:
-    ollama = None
+    ollama = OllamaClient = None
 
 TORCH_AVAILABLE = torch is not None
 TRANSFORMERS_AVAILABLE = all([AutoTokenizer, AutoModelForCausalLM, hf_pipeline])
@@ -61,57 +63,38 @@ class LLMStrategy(Protocol):
         ...
 
 
-# === Backend: Echo (fallback) ===
 class EchoStrategy:
     name = "echo"
 
     def __init__(self, model_name: str) -> None:
         self.model_name = model_name
 
-    def generate(
-        self,
-        prompt: str,
-        _config: GenerationConfig,
-        *,
-        messages: Optional[List[Dict[str, str]]] = None,
-    ) -> str:
+    def generate(self, prompt: str, _config: GenerationConfig, *, messages=None) -> str:
         text = prompt.strip()
         if not text and messages:
-            text = "\n".join(item.get("content", "").strip() for item in messages).strip()
-        if not text:
-            return "(silence)"
-        return f"[{self.model_name}] {text}"
+            text = "\n".join(m.get("content", "").strip() for m in messages).strip()
+        return f"[{self.model_name}] {text or '(silence)'}"
 
 
 class OfflineTransformersStrategy:
-    """Deterministic fallback when transformers dependencies are unavailable."""
-
     name = "offline-transformers"
 
     def __init__(self, model_name: str) -> None:
         self.model_name = model_name
 
-    def generate(
-        self,
-        prompt: str,
-        _config: GenerationConfig,
-        *,
-        messages: Optional[List[Dict[str, str]]] = None,
-    ) -> str:
+    def generate(self, prompt: str, _config: GenerationConfig, *, messages=None) -> str:
         text = prompt.strip()
         if not text and messages:
-            text = "\n".join(item.get("content", "").strip() for item in messages).strip()
-        return f"(offline) {text}" if text else "(offline)"
+            text = "\n".join(m.get("content", "").strip() for m in messages).strip()
+        return f"(offline) {text or ''}".strip() or "(offline)"
 
 
-# === Backend: Transformers ===
 class TransformersStrategy:
     name = "transformers"
 
     def __init__(self, model_name: str) -> None:
         if not (TORCH_AVAILABLE and TRANSFORMERS_AVAILABLE):
             raise ConfigurationError("Transformers backend requires `torch` and `transformers`.")
-
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         model = AutoModelForCausalLM.from_pretrained(model_name)
         device = 0 if torch.cuda.is_available() else -1
@@ -121,16 +104,9 @@ class TransformersStrategy:
         if tokenizer.pad_token_id is None:
             tokenizer.pad_token_id = tokenizer.eos_token_id
 
-    def generate(
-        self,
-        prompt: str,
-        config: GenerationConfig,
-        *,
-        messages: Optional[List[Dict[str, str]]] = None,
-    ) -> str:
-        if torch is None:  # pragma: no cover - defensive
+    def generate(self, prompt: str, config: GenerationConfig, *, messages=None) -> str:
+        if torch is None:
             raise ConfigurationError("Transformers backend requires torch.")
-
         torch.manual_seed(config.seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(config.seed)
@@ -142,13 +118,11 @@ class TransformersStrategy:
             "pad_token_id": self.tokenizer.pad_token_id,
         }
         if do_sample:
-            generate_kwargs["temperature"] = max(config.temperature, 1e-4)
-            generate_kwargs["top_p"] = config.top_p
-            generate_kwargs["top_k"] = config.top_k
-        else:
-            generate_kwargs["temperature"] = 1.0
-            generate_kwargs["top_p"] = 1.0
-            generate_kwargs["top_k"] = 0
+            generate_kwargs.update({
+                "temperature": max(config.temperature, 1e-4),
+                "top_p": config.top_p,
+                "top_k": config.top_k,
+            })
 
         outputs = self.pipeline(prompt, **generate_kwargs)
         text = outputs[0]["generated_text"]
@@ -161,20 +135,14 @@ class OpenAIStrategy:
     def __init__(self, model_name: str, client_factory) -> None:
         self.model_name = model_name
         self._client_factory = client_factory
-        self._cached_client: Any | None = None
+        self._cached_client = None
 
     def _get_client(self) -> Any:
         if self._cached_client is None:
             self._cached_client = self._client_factory()
         return self._cached_client
 
-    def generate(
-        self,
-        prompt: str,
-        config: GenerationConfig,
-        *,
-        messages: Optional[List[Dict[str, str]]] = None,
-    ) -> str:
+    def generate(self, prompt: str, config: GenerationConfig, *, messages=None) -> str:
         payload = messages or [{"role": "user", "content": prompt}]
         response = self._get_client().chat.completions.create(
             model=self.model_name,
@@ -188,43 +156,44 @@ class OpenAIStrategy:
 
 
 class OllamaStrategy:
-    """Ollama backend supporting both local and cloud models."""
     name = "ollama"
 
-    def __init__(self, model_name: str, api_key: Optional[str] = None, base_url: str = "http://localhost:11434", use_cloud: bool = False) -> None:
+    def __init__(
+        self,
+        model_name: str,
+        api_key: Optional[str] = None,
+        base_url: str = "http://localhost:11434",
+        use_cloud: bool = False
+    ) -> None:
         if not OLLAMA_AVAILABLE:
             raise ConfigurationError("Ollama backend requires the `ollama` package.")
-        
         self.model_name = model_name
         self.base_url = base_url
         self.use_cloud = use_cloud
         self.api_key = api_key
-        
-        # Configure Ollama client
-        if use_cloud and not api_key:
-            raise ConfigurationError("Ollama cloud requires an API key (OLLAMA_API_KEY).")
 
-    def generate(
-        self,
-        prompt: str,
-        config: GenerationConfig,
-        *,
-        messages: Optional[List[Dict[str, str]]] = None,
-    ) -> str:
+        if use_cloud and not api_key:
+            raise ConfigurationError("Ollama cloud requires an API key.")
+
+        try:
+            if use_cloud:
+                self._client = None  # cloud handled via ollama.chat
+            else:
+                self._client = OllamaClient(host=self.base_url)
+                logger.info("Ollama local client initialized at %s", self.base_url)
+        except Exception as exc:
+            raise ConfigurationError(f"Failed to initialize Ollama client: {exc}") from exc
+
+    def generate(self, prompt: str, config: GenerationConfig, *, messages=None) -> str:
         payload = messages or [{"role": "user", "content": prompt}]
-        
-        # Prepare options
         options = {
             "temperature": config.temperature,
             "top_p": config.top_p,
             "top_k": config.top_k,
             "seed": config.seed,
         }
-        
-        # Call Ollama API
         try:
             if self.use_cloud:
-                # Cloud API call
                 response = ollama.chat(
                     model=self.model_name,
                     messages=payload,
@@ -232,19 +201,19 @@ class OllamaStrategy:
                     api_key=self.api_key,
                 )
             else:
-                # Local API call
-                response = ollama.chat(
+                response = self._client.chat(
                     model=self.model_name,
                     messages=payload,
                     options=options,
-                    host=self.base_url,
                 )
-            
             content = response.get("message", {}).get("content", "")
             return content.strip() or "(silence)"
         except Exception as exc:
-            logger.error("Ollama generation failed: %s", exc)
-            return "(ollama error)"
+            logger.error("Ollama generation failed (model=%s, host=%s): %s", self.model_name, self.base_url, exc)
+            return (
+                f"I had trouble contacting the Ollama server at {self.base_url}. "
+                f"Make sure `ollama serve` is running and the `{self.model_name}` model is pulled."
+            )
 
 
 _STRATEGIES: Dict[str, type[LLMStrategy]] = {
@@ -258,17 +227,11 @@ def register_strategy(name: str, strategy: type[LLMStrategy]) -> None:
 
 
 class LanguageModel:
-    """LLM wrapper supporting multiple backends (OpenAI, Transformers, Echo)."""
-
     def __init__(self, config: Optional[AppConfig] = None, **overrides) -> None:
         self.config = config or load_config()
         self.provider = (overrides.get("provider") or self.config.llm_provider).lower()
         self.model_name = overrides.get("model") or self.config.llm_model
-        self.api_key = (
-            overrides.get("openai_api_key")
-            or self.config.openai_api_key
-            or os.getenv("OPENAI_API_KEY")
-        )
+        self.api_key = overrides.get("openai_api_key") or self.config.openai_api_key or os.getenv("OPENAI_API_KEY")
 
         self.generation = GenerationConfig(
             max_new_tokens=overrides.get("max_new_tokens", self.config.llm_max_tokens),
@@ -278,13 +241,13 @@ class LanguageModel:
             seed=overrides.get("seed", self.config.llm_seed),
         )
 
-        self._openai_client: Any | None = None
+        self._openai_client = None
         self.strategy = self._init_strategy()
 
     def _init_strategy(self) -> LLMStrategy:
         if self.provider == "openai":
             return OpenAIStrategy(self.model_name, self._ensure_openai_client)
-        
+
         if self.provider == "ollama":
             return OllamaStrategy(
                 self.model_name,
@@ -299,10 +262,7 @@ class LanguageModel:
             return EchoStrategy(self.model_name)
 
         if strategy_cls is TransformersStrategy and not (TORCH_AVAILABLE and TRANSFORMERS_AVAILABLE):
-            logger.warning(
-                "Transformers dependencies missing; using offline fallback for model '%s'.",
-                self.model_name,
-            )
+            logger.warning("Transformers missing; using offline fallback for model '%s'.", self.model_name)
             return OfflineTransformersStrategy(self.model_name)
 
         try:
@@ -318,65 +278,30 @@ class LanguageModel:
             raise ConfigurationError("OpenAI backend requires the `openai` package.")
         if not self.api_key:
             raise ConfigurationError("Missing OpenAI API key.")
-        
-        # Use custom base_url if provided (e.g., for LM Studio)
         base_url = self.config.openai_base_url
-        if base_url:
-            self._openai_client = OpenAI(api_key=self.api_key, base_url=base_url)
-        else:
-            self._openai_client = OpenAI(api_key=self.api_key)
+        self._openai_client = OpenAI(api_key=self.api_key, base_url=base_url) if base_url else OpenAI(api_key=self.api_key)
         return self._openai_client
 
     def _format_messages(self, messages: Sequence[Dict[str, str]]) -> str:
-        parts: List[str] = []
-        for message in messages:
-            if not isinstance(message, dict):
-                continue
-            role = message.get("role", "user").strip() or "user"
-            content = (message.get("content") or "").strip()
-            parts.append(f"{role.capitalize()}: {content}".strip())
-        return "\n".join(part for part in parts if part).strip()
+        return "\n".join(f"{m.get('role', 'user').capitalize()}: {m.get('content', '').strip()}" for m in messages if isinstance(m, dict)).strip()
 
-    def generate(
-        self,
-        prompt: Optional[str] = None,
-        *,
-        messages: Optional[Sequence[Dict[str, str]]] = None,
-        config: Optional[GenerationConfig] = None,
-    ) -> str:
+    def generate(self, prompt: Optional[str] = None, *, messages: Optional[Sequence[Dict[str, str]]] = None, config: Optional[GenerationConfig] = None) -> str:
         if messages is not None:
             prompt_text = self._format_messages(messages)
-            normalized_messages: Optional[List[Dict[str, str]]] = []
-            for entry in messages:
-                if isinstance(entry, dict):
-                    normalized_messages.append(
-                        {
-                            "role": str(entry.get("role", "")),
-                            "content": str(entry.get("content", "")),
-                        }
-                    )
-            if not normalized_messages:
-                normalized_messages = None
+            normalized_messages = [{"role": str(m.get("role", "")), "content": str(m.get("content", ""))} for m in messages if isinstance(m, dict)]
         elif isinstance(prompt, str):
             prompt_text = prompt
             normalized_messages = None
         else:
             raise ValueError("Prompt or messages must be provided.")
 
-        if not prompt_text or not prompt_text.strip():
+        if not prompt_text.strip():
             raise ValueError("Prompt must not be empty.")
 
-        active_config = config or self.generation
-
         try:
-            return self.strategy.generate(
-                prompt_text,
-                active_config,
-                messages=normalized_messages,
-            )
+            return self.strategy.generate(prompt_text, config or self.generation, messages=normalized_messages)
         except TypeError:
-            # Backwards compatibility for custom strategies that ignore ``messages``.
-            return self.strategy.generate(prompt_text, active_config)
+            return self.strategy.generate(prompt_text, config or self.generation)
 
 
 __all__ = [
@@ -386,3 +311,4 @@ __all__ = [
     "TORCH_AVAILABLE",
     "TRANSFORMERS_AVAILABLE",
 ]
+

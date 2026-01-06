@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 from urllib.parse import quote_plus
 
 from rex.config import settings
@@ -13,8 +12,10 @@ from rex.plugins import Plugin
 try:
     import requests
     from requests.adapters import HTTPAdapter, Retry
-except ImportError:
-    requests = None  # type: ignore
+except ImportError as e:
+    raise RuntimeError(
+        "Install with: pip install requests  (or add to requirements.txt and reinstall)"
+    ) from e
 
 try:
     from bs4 import BeautifulSoup
@@ -43,8 +44,6 @@ class WebSearchPlugin:
     name = "web_search"
 
     def __init__(self) -> None:
-        if requests is None:
-            raise RuntimeError("requests must be installed for web search")
         self._session = _create_session()
 
     def initialize(self) -> None:
@@ -53,7 +52,7 @@ class WebSearchPlugin:
     def shutdown(self) -> None:
         self._session.close()
 
-    def process(self, query: str) -> Optional[str]:
+    def process(self, query: str) -> str | None:
         for provider in self._provider_order():
             method = getattr(self, f"_search_{provider}", None)
             if method:
@@ -72,7 +71,7 @@ class WebSearchPlugin:
     def _format_result(self, title: str, url: str, snippet: str) -> str:
         return f"{title} - {url}\n{snippet}"
 
-    def _search_serpapi(self, query: str) -> Optional[str]:
+    def _search_serpapi(self, query: str) -> str | None:
         api_key = os.getenv("SERPAPI_KEY")
         if not api_key:
             return None
@@ -95,7 +94,7 @@ class WebSearchPlugin:
             logger.warning("SerpAPI search failed: %s", e)
             return None
 
-    def _search_brave(self, query: str) -> Optional[str]:
+    def _search_brave(self, query: str) -> str | None:
         api_key = os.getenv("BRAVE_API_KEY")
         if not api_key:
             return None
@@ -113,7 +112,7 @@ class WebSearchPlugin:
             logger.warning("Brave search failed: %s", e)
             return None
 
-    def _search_duckduckgo(self, query: str) -> Optional[str]:
+    def _search_duckduckgo(self, query: str) -> str | None:
         if BeautifulSoup is None:
             logger.warning("BeautifulSoup is required for DuckDuckGo scraping")
             return None
@@ -126,12 +125,14 @@ class WebSearchPlugin:
             result = soup.find("a", class_="result__a")
             snippet = soup.find("a", class_="result__snippet")
             if result:
-                return self._format_result(result.text, result["href"], snippet.text if snippet else "")
+                return self._format_result(
+                    result.text, result["href"], snippet.text if snippet else ""
+                )
         except Exception as e:
             logger.warning("DuckDuckGo search failed: %s", e)
             return None
 
-    def _search_google(self, query: str) -> Optional[str]:
+    def _search_google(self, query: str) -> str | None:
         api_key = os.getenv("GOOGLE_API_KEY")
         engine_id = os.getenv("GOOGLE_CSE_ID")
         if not api_key or not engine_id:
@@ -149,7 +150,7 @@ class WebSearchPlugin:
             logger.warning("Google CSE search failed: %s", e)
             return None
 
-    def _search_browserless(self, query: str) -> Optional[str]:
+    def _search_browserless(self, query: str) -> str | None:
         token = os.getenv("BROWSERLESS_API_KEY")
         if not token or BeautifulSoup is None:
             return None
@@ -160,18 +161,16 @@ class WebSearchPlugin:
         headers = {"Cache-Control": "no-cache", "Content-Type": "application/json"}
         try:
             resp = self._session.post(
-                BROWSERLESS_URL,
-                headers=headers,
-                params={"token": token},
-                json=payload,
-                timeout=20
+                BROWSERLESS_URL, headers=headers, params={"token": token}, json=payload, timeout=20
             )
             resp.raise_for_status()
             soup = BeautifulSoup(resp.text, "html.parser")
             result = soup.find("a", class_="result__a")
             snippet = soup.find("a", class_="result__snippet")
             if result:
-                return self._format_result(result.text, result["href"], snippet.text if snippet else "")
+                return self._format_result(
+                    result.text, result["href"], snippet.text if snippet else ""
+                )
         except Exception as e:
             logger.warning("Browserless search failed: %s", e)
             return None
@@ -191,17 +190,18 @@ def _get_plugin() -> WebSearchPlugin:
 
 # --- Public API ---
 
-def search_web(query: str) -> Optional[str]:
+
+def search_web(query: str) -> str | None:
     """Search the web using the configured fallback order."""
     return _get_plugin().process(query)
 
 
-def search_serpapi(query: str) -> Optional[str]:
+def search_serpapi(query: str) -> str | None:
     """Force a SerpAPI search (if available)."""
     return _get_plugin()._search_serpapi(query)
 
 
-def search_duckduckgo(query: str) -> Optional[str]:
+def search_duckduckgo(query: str) -> str | None:
     """Perform a DuckDuckGo HTML scrape."""
     return _get_plugin()._search_duckduckgo(query)
 

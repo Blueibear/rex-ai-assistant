@@ -1,104 +1,103 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
-# Environments
-.env
-.env.local
-.env.*.local
-.venv/
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+# Build & dist
+dist/
+build/
 
-# OS-generated files
-.DS_Store
-Thumbs.db
+# Coverage & test reports
+coverage/
+.nyc_output/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+htmlcov/
 
-# VSCode settings
-.vscode/
-
-# Logs and debug
+# Logs & temp files
 *.log
 *.bak
 *.tmp
 logs/
 !logs/.gitkeep
 
-# Audio and model outputs
+# Python - virtual envs
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Python - caches & bytecode
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+*.egg-info/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Model training & audio artifacts
 *.wav
-!assets/wake_acknowledgment.wav
 *.mp3
 *.onnx
+*.pth
+*.ckpt
+
+# Specific model files
+rex.onnx
+
+# Audio exclusions and includes
+assets/rex_wake_acknowledgment*.wav
+!assets/wake_acknowledgment.wav
 
 # Keep documentation for the voices directory without tracking audio files
 assets/voices/*
 !assets/voices/.gitkeep
 !assets/voices/README.md
 
-# Guard against stray wake acknowledgment artifacts
-assets/rex_wake_acknowledgment*.wav
+# Transcripts
+transcripts/
+!transcripts/.gitkeep
+!transcripts/README.md
 
-# Model training artifacts
-*.pth
-*.ckpt
-
-# Python-specific cache
-*.egg-info/
-dist/
-build/
-
-# Database or stateful files
-*.sqlite3
-*.db
-
-# Custom folders - State and generated assets
-rex.onnx
-
-# Memory profiles and user data
+# Memory storage (exclude content but keep metadata)
 Memory/
 !Memory/.gitkeep
 !Memory/README.md
 Memory/*/history.log
 
-# Downloaded/generated models
-models/
-!models/.gitkeep
-!models/README.md
-
-# Transcripts and recordings
-transcripts/
-!transcripts/.gitkeep
-!transcripts/README.md
+# Test Fixtures
+!tests/fixtures/
 
 # Project and script files (do not ignore these)
 !project.yaml
 !run_project.py
 !run_codex_autonomous.ps1
 !.claude-project.yaml
-
-# Test fixtures
-!tests/fixtures/
-
-# Coverage reports
-htmlcov/
-.coverage
-.coverage.*
-coverage.xml
-*.cover
-
-# Pytest cache
-.pytest_cache/
-
-# MyPy cache
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Ruff cache
-.ruff_cache/
-
 

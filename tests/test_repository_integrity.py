@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import subprocess
 
-
 _BINARY_SUFFIXES = (
     ".wav",
     ".mp3",
@@ -50,4 +49,3 @@ def test_no_tracked_binary_artifacts():
         "Remove these files or update .gitignore: "
         f"{', '.join(offenders)}"
     )
-

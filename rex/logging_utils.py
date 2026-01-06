@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from collections.abc import Iterable
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Iterable
 
 LOG_FORMAT = "[%(asctime)s] %(levelname)s - %(message)s"
 DEFAULT_LOG_FILE = Path("logs/rex.log")
@@ -24,7 +24,9 @@ def _resolve_path(candidate: str | os.PathLike[str], default: Path) -> Path:
     return path
 
 
-def configure_logging(level: int = logging.INFO, handlers: Iterable[logging.Handler] | None = None) -> None:
+def configure_logging(
+    level: int = logging.INFO, handlers: Iterable[logging.Handler] | None = None
+) -> None:
     """Configure application-wide logging with optional file handlers.
 
     By default, logs to stdout. File logging is enabled only if:
@@ -33,13 +35,11 @@ def configure_logging(level: int = logging.INFO, handlers: Iterable[logging.Hand
 
     This makes logging container-friendly and follows 12-factor app principles.
     """
-
     root_logger = logging.getLogger()
     if root_logger.handlers:
         return
 
     if handlers is None:
-        # Always include stdout handler
         stream_handler = logging.StreamHandler(sys.stdout)
 
         # Force UTF-8 encoding for console output to handle emoji and Unicode
@@ -51,12 +51,19 @@ def configure_logging(level: int = logging.INFO, handlers: Iterable[logging.Hand
 
         handlers_list = [stream_handler]
 
-        # Only add file handlers if explicitly enabled
-        file_logging_enabled = os.getenv("REX_FILE_LOGGING_ENABLED", "false").lower() in {"true", "1", "yes"}
+        file_logging_enabled = os.getenv("REX_FILE_LOGGING_ENABLED", "false").lower() in {
+            "true", "1", "yes"
+        }
 
         if file_logging_enabled:
-            log_path = _resolve_path(getattr(settings, "log_path", DEFAULT_LOG_FILE), DEFAULT_LOG_FILE)
-            error_path = _resolve_path(getattr(settings, "error_log_path", DEFAULT_ERROR_FILE), DEFAULT_ERROR_FILE)
+            log_path = _resolve_path(
+                getattr(settings, "log_path", DEFAULT_LOG_FILE) if settings else DEFAULT_LOG_FILE,
+                DEFAULT_LOG_FILE
+            )
+            error_path = _resolve_path(
+                getattr(settings, "error_log_path", DEFAULT_ERROR_FILE) if settings else DEFAULT_ERROR_FILE,
+                DEFAULT_ERROR_FILE
+            )
 
             log_path.parent.mkdir(parents=True, exist_ok=True)
             error_path.parent.mkdir(parents=True, exist_ok=True)

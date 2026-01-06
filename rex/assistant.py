@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Optional
 
 from .config import Settings, settings
 from .ha_bridge import HABridge
@@ -30,7 +30,7 @@ class Assistant:
     def __init__(
         self,
         *,
-        history_limit: Optional[int] = None,
+        history_limit: int | None = None,
         plugins: Iterable[PluginSpec] | None = None,
         settings_obj: Settings | None = None,
         transcripts_dir: str | Path | None = None,

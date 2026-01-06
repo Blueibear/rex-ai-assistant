@@ -6,7 +6,6 @@ import math
 import os
 import struct
 import wave
-from typing import Optional
 
 DEFAULT_PLACEHOLDER_RELATIVE_PATH = os.path.join("assets", "voices", "placeholder.wav")
 _SAMPLE_RATE = 22_050
@@ -16,9 +15,9 @@ _AMPLITUDE = 16_000
 
 
 def ensure_placeholder_voice(
-    path: Optional[str] = None,
+    path: str | None = None,
     *,
-    repo_root: Optional[str] = None,
+    repo_root: str | None = None,
 ) -> str:
     """Return the absolute path to the placeholder voice sample.
 

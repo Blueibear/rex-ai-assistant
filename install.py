@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+# Load .env before accessing any environment variables
+from utils.env_loader import load as _load_env
+
+_load_env()
+
 import argparse
 import platform
 import shutil
@@ -49,7 +54,9 @@ def check_ffmpeg(install_if_missing: bool = False) -> None:
         elif sys.platform == "darwin":
             cmd = ["brew", "install", "ffmpeg"]
         elif sys.platform == "win32":
-            raise AssistantError("Please install ffmpeg manually on Windows and ensure it's on your PATH.")
+            raise AssistantError(
+                "Please install ffmpeg manually on Windows and ensure it's on your PATH."
+            )
         else:
             raise AssistantError(f"Unsupported platform: {sys.platform}")
 
@@ -76,11 +83,12 @@ def run_mic_test() -> None:
 
     logger.info("🎙️  Available audio devices:")
     for idx, device in enumerate(devices):
-        logger.info("  [%2d] %s (in: %d, out: %d)",
-                    idx,
-                    device["name"],
-                    device["max_input_channels"],
-                    device["max_output_channels"]
+        logger.info(
+            "  [%2d] %s (in: %d, out: %d)",
+            idx,
+            device["name"],
+            device["max_input_channels"],
+            device["max_output_channels"],
         )
 
 
@@ -94,11 +102,21 @@ def show_system_info() -> None:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Install Rex dependencies.")
-    parser.add_argument("--with-ml", action="store_true", help="Install machine learning stack (Whisper, Torch, XTTS)")
-    parser.add_argument("--with-dev", action="store_true", help="Install developer tools (pytest, coverage, etc.)")
-    parser.add_argument("--auto-install-ffmpeg", action="store_true", help="Auto-install ffmpeg if missing")
+    parser.add_argument(
+        "--with-ml",
+        action="store_true",
+        help="Install machine learning stack (Whisper, Torch, XTTS)",
+    )
+    parser.add_argument(
+        "--with-dev", action="store_true", help="Install developer tools (pytest, coverage, etc.)"
+    )
+    parser.add_argument(
+        "--auto-install-ffmpeg", action="store_true", help="Auto-install ffmpeg if missing"
+    )
     parser.add_argument("--mic-test", action="store_true", help="List and test audio devices")
-    parser.add_argument("--no-install", action="store_true", help="Skip pip dependency installation")
+    parser.add_argument(
+        "--no-install", action="store_true", help="Skip pip dependency installation"
+    )
     return parser.parse_args(argv)
 
 
@@ -133,4 +151,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

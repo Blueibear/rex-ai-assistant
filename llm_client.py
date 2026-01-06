@@ -5,12 +5,12 @@ New code should import directly from rex.llm_client.
 
 from __future__ import annotations
 
-# Re-export all classes and functions from the rex package
+# Re-export all classes and functions from the rex.llm_client package
 from rex.llm_client import (
-    GenerationConfig,
-    LanguageModel,
     TORCH_AVAILABLE,
     TRANSFORMERS_AVAILABLE,
+    GenerationConfig,
+    LanguageModel,
     register_strategy,
 )
 
@@ -21,3 +21,4 @@ __all__ = [
     "TORCH_AVAILABLE",
     "TRANSFORMERS_AVAILABLE",
 ]
+

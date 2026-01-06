@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque, Dict, List
 
 
 @dataclass
@@ -30,7 +29,7 @@ class ConversationMemory:
             raise ValueError("summary_trigger must be at least 1")
         self.max_turns = max_turns
         self.summary_trigger = summary_trigger
-        self._turns: Deque[MemoryTurn] = deque()
+        self._turns: deque[MemoryTurn] = deque()
         self._summary: str = ""
 
     # ------------------------------------------------------------------
@@ -64,7 +63,7 @@ class ConversationMemory:
         return self._summary
 
     @property
-    def turns(self) -> List[MemoryTurn]:
+    def turns(self) -> list[MemoryTurn]:
         return list(self._turns)
 
     # ------------------------------------------------------------------
@@ -76,13 +75,13 @@ class ConversationMemory:
         persona: str,
         profile_context: str,
         user_text: str,
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """Return structured chat messages for the active interaction."""
 
         if not user_text or not user_text.strip():
             raise ValueError("user_text must not be empty")
 
-        messages: List[Dict[str, str]] = []
+        messages: list[dict[str, str]] = []
         if persona.strip():
             messages.append({"role": "system", "content": persona.strip()})
         if self._summary:
@@ -106,7 +105,7 @@ class ConversationMemory:
         if not stale:
             return
 
-        summary_lines: List[str] = []
+        summary_lines: list[str] = []
         i = 0
         while i < len(stale):
             user = stale[i].content if i < len(stale) else ""

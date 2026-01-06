@@ -1,6 +1,12 @@
 """Manual demo for the web search plugin."""
 
 from __future__ import annotations
+
+# Load .env before accessing any environment variables
+from utils.env_loader import load as _load_env
+
+_load_env()
+
 import argparse
 
 from plugins.web_search import search_web
@@ -51,4 +57,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

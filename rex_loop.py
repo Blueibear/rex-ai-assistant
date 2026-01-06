@@ -7,11 +7,16 @@ iterations.
 
 from __future__ import annotations
 
+# Load .env before accessing any environment variables
+from utils.env_loader import load as _load_env
+
+_load_env()
+
 import argparse
 import asyncio
 import logging
 import os
-from typing import Iterable
+from collections.abc import Iterable
 
 import rex
 from rex.assistant import Assistant
@@ -40,10 +45,7 @@ async def _run(args) -> None:
         os.environ["REX_ACTIVE_USER"] = args.user
         rex.reload_settings()
 
-    assistant = Assistant(
-        history_limit=rex.settings.max_memory_items,
-        plugins=plugin_specs
-    )
+    assistant = Assistant(history_limit=rex.settings.max_memory_items, plugins=plugin_specs)
 
     try:
         voice_loop = build_voice_loop(assistant)
@@ -90,4 +92,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

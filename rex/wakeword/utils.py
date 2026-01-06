@@ -46,7 +46,7 @@ def _ensure_builtin_keyword_resources(keywords: Iterable[str], backend: str) -> 
 
     try:
         from openwakeword.utils import download_models
-    except Exception as exc:  # pragma: no cover - defensive import guard
+    except Exception as exc:
         logger.warning("Unable to prepare wake-word models automatically: %s", exc)
         return
 
@@ -75,13 +75,13 @@ def _ensure_builtin_keyword_resources(keywords: Iterable[str], backend: str) -> 
     try:
         download_models(model_names=list(dict.fromkeys(missing)))
         logger.info("Downloaded wake-word resources: %s", ", ".join(missing))
-    except Exception as exc:  # pragma: no cover - network failures
+    except Exception as exc:
         logger.warning("Failed to download wake-word models %s: %s", missing, exc)
 
 
 def load_wakeword_model(
     *, keyword: str | None = None, model_path: str | None = None
-) -> Tuple[WakeWordModel, str]:
+) -> tuple[WakeWordModel, str]:
     if openwakeword is None:
         raise RuntimeError("openwakeword is not installed")
 
@@ -150,4 +150,5 @@ def detect_wakeword(
 
 
 __all__ = ["load_wakeword_model", "detect_wakeword"]
+
 

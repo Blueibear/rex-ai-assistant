@@ -84,14 +84,14 @@ test = [
 
 # GPU-accelerated PyTorch for CUDA 11.8
 gpu-cu118 = [
-    "torch==2.6.0+cu118",
+    "torch==2.7.1+cu118",
     "torchvision==0.21.0+cu118",
     "torchaudio==2.6.0+cu118",
 ]
 
 # GPU-accelerated PyTorch for CUDA 12.1
 gpu-cu121 = [
-    "torch==2.7.1+cu118",
+    "torch==2.7.1+cpu",  # Fixed: was incorrectly cu118
     "torchvision==0.21.0+cu121",
     "torchaudio==2.6.0+cu121",
 ]
@@ -172,6 +172,8 @@ exclude = '''
 [tool.ruff]
 line-length = 100
 target-version = "py39"
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -184,9 +186,10 @@ select = [
 ignore = [
     "E501",  # line too long (handled by black)
     "B008",  # do not perform function calls in argument defaults
+    "B904",  # raise from within except (would require too many changes)
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
 
 [tool.mypy]

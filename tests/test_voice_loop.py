@@ -51,6 +51,7 @@ async def _ack():
     pass
 
 
+@pytest.mark.unit
 def test_voice_loop_processes_interaction():
     assistant = DummyAssistant()
     listener = DummyListener()
@@ -75,6 +76,7 @@ def test_voice_loop_processes_interaction():
     assert spoken == ["ok."] # Voice loop adds period for TTS
 
 
+@pytest.mark.unit
 def test_voice_loop_handles_transcription_error():
     assistant = DummyAssistant()
     listener = DummyListener()

@@ -2,9 +2,11 @@
 # Use this for development, CI, or CPU-only deployments
 
 # PyTorch CPU-only versions (compatible set)
-torch==2.7.1+cu118
-torchvision==0.21.0
-torchaudio==2.6.0
+# torch 2.7.1 fixes DoS vulnerabilities in 2.6.0 (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.7.1+cpu
+torchvision==0.20.1
+torchaudio==2.5.1
 
 # Install remaining dependencies from pyproject.toml
 -e .

@@ -1,9 +1,10 @@
 # GPU-accelerated PyTorch dependencies for Rex AI Assistant
-# Use this for production deployments with NVIDIA GPU support
+# Use this for production deployments with NVIDIA GPU support (CUDA 11.8+)
 
 # PyTorch CUDA 11.8 versions (compatible set)
+# torch 2.7.1 fixes DoS vulnerabilities in 2.6.0 (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
 --extra-index-url https://download.pytorch.org/whl/cu118
-torch==2.7.1+cu118
+torch==2.7.1+cpu
 torchvision==0.21.0+cu118
 torchaudio==2.6.0+cu118
 

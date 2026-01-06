@@ -6,13 +6,20 @@ documentation that imports :mod:ex_assistant continues to work.
 
 from __future__ import annotations
 
+# Load .env before accessing any environment variables
+from utils.env_loader import load as _load_env
+
+_load_env()
+
 import asyncio
 import logging
-from typing import Callable, Iterable, List, Optional, Sequence, Tuple
+from collections.abc import Iterable, Sequence
+from typing import Callable
 
 from rex import settings
 from rex.llm_client import LanguageModel
 from rex.assistant import Assistant
+from rex.llm_client import LanguageModel
 from rex.logging_utils import configure_logging
 from rex.plugins import PluginSpec, load_plugins, shutdown_plugins
 
@@ -23,12 +30,12 @@ class FunctionRouter:
     """Simple command router that maps predicates to handlers."""
 
     def __init__(self) -> None:
-        self._routes: List[Tuple[Callable[[str], bool], Callable[[str], str]]] = []
+        self._routes: list[tuple[Callable[[str], bool], Callable[[str], str]]] = []
 
     def register(self, predicate: Callable[[str], bool], handler: Callable[[str], str]) -> None:
         self._routes.append((predicate, handler))
 
-    def route(self, text: str) -> Optional[str]:
+    def route(self, text: str) -> str | None:
         for predicate, handler in self._routes:
             try:
                 if predicate(text):
@@ -39,7 +46,7 @@ class FunctionRouter:
 
 
 ROUTER = FunctionRouter()
-LLM: Optional[LanguageModel] = None
+LLM: LanguageModel | None = None
 
 
 def _ensure_llm() -> LanguageModel:
@@ -49,13 +56,13 @@ def _ensure_llm() -> LanguageModel:
     return LLM
 
 
-def handle_command(text: str) -> Optional[str]:
+def handle_command(text: str) -> str | None:
     """Dispatch `text` through the registered command handlers."""
 
     return ROUTER.route(text)
 
 
-def generate_response(prompt: str, *, messages: Optional[Sequence[dict]] = None) -> str:
+def generate_response(prompt: str, *, messages: Sequence[dict] | None = None) -> str:
     """Generate an assistant response, with safe fallback on failure."""
 
     routed = handle_command(prompt)

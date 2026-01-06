@@ -5,7 +5,7 @@ New code should import directly from rex.memory_utils.
 
 from __future__ import annotations
 
-# Re-export all utilities from the rex package
+# Re-export all utilities from the rex.memory_utils package
 from rex.memory_utils import (
     append_history_entry,
     export_transcript,
@@ -29,3 +29,4 @@ __all__ = [
     "load_recent_history",
     "export_transcript",
 ]
+
