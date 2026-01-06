@@ -452,14 +452,17 @@ ruff check . && black --check . && mypy .
 ### Running Tests
 
 ```bash
-# Install test dependencies
+# Install test dependencies (required for coverage)
 pip install -e .[test]
 
-# Run all tests
+# Or install dev dependencies (includes test, linting, and type checking)
+pip install -e .[dev]
+
+# Run all tests (coverage reports enabled by default via pytest.ini)
 pytest
 
-# Run with coverage
-pytest --cov=rex --cov-report=html
+# Run without coverage (if test dependencies not installed)
+pytest --no-cov
 
 # Run only unit tests (skip slow/audio/GPU tests)
 pytest -m "not slow and not audio and not gpu"
@@ -469,7 +472,12 @@ pytest tests/test_config.py
 
 # Verbose output
 pytest -v
+
+# Generate HTML coverage report
+pytest --cov-report=html
 ```
+
+**Note:** Coverage reporting requires `pytest-cov` (included in `[test]` and `[dev]` extras). If you see coverage-related errors, either install test dependencies or run `pytest --no-cov`.
 
 ### Available Test Markers
 

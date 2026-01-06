@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-# Load .env before accessing any environment variables
-from utils.env_loader import load as _load_env
-_load_env()
-
 import hmac
 import logging
 import os
@@ -14,6 +10,7 @@ import tempfile
 import time
 from collections import defaultdict, deque
 
+import utils.env_loader  # Auto-loads .env on import
 from flask import Flask, Response, after_this_request, jsonify, request, send_file
 from flask_cors import CORS
 
@@ -85,15 +82,29 @@ if not logger.handlers:
 # Rate Limiting
 # ------------------------------------------------------------------------------
 
+# Trusted proxy IPs that are allowed to set X-Forwarded-For
+TRUSTED_PROXIES = set(
+    ip.strip()
+    for ip in os.getenv("REX_TRUSTED_PROXIES", "127.0.0.1,::1").split(",")
+    if ip.strip()
+)
+
+
 def _rate_limit_key() -> str:
     provided = request.headers.get("X-API-Key") or request.headers.get("Authorization")
     if provided:
         token = provided.split()[-1]
         return f"api:{token[:16]}"
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.remote_addr or "anonymous"
+
+    # Only trust X-Forwarded-For if request comes from trusted proxy
+    remote_addr = request.remote_addr or "unknown"
+    if remote_addr in TRUSTED_PROXIES:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            # Use rightmost IP (the one added by our trusted proxy)
+            return forwarded.split(",")[-1].strip()
+
+    return remote_addr
 
 _LIMITER_STORAGE_URI = (
     os.getenv("REX_SPEAK_STORAGE_URI") or
@@ -133,13 +144,10 @@ if not _MODEL_PATTERN.match(DEFAULT_TTS_MODEL):
     logger.warning("Invalid TTS model name '%s'; using default.", DEFAULT_TTS_MODEL)
     DEFAULT_TTS_MODEL = "tts_models/multilingual/multi-dataset/xtts_v2"
 
-API_KEY = os.getenv("REX_SPEAK_API_KEY")
+API_KEY = os.getenv("REX_SPEAK_API_KEY")  # Optional at import; checked at runtime
 RATE_LIMIT = int(os.getenv("REX_SPEAK_RATE_LIMIT", "30"))
 RATE_LIMIT_WINDOW = int(os.getenv("REX_SPEAK_RATE_WINDOW", "60"))
 MAX_TEXT_LENGTH = int(os.getenv("REX_SPEAK_MAX_CHARS", "800"))
-
-if not API_KEY:
-    raise RuntimeError("REX_SPEAK_API_KEY must be set before starting the speech API.")
 
 if RATE_LIMIT > 0 and RATE_LIMIT_WINDOW > 0:
     _UNIT_MAP = {1: "second", 60: "minute", 3600: "hour", 86400: "day"}
@@ -188,6 +196,9 @@ def _extract_api_key(payload: dict | None) -> str | None:
     )
 
 def _require_api_key(provided_key: str | None) -> bool:
+    if not API_KEY:
+        logger.error("REX_SPEAK_API_KEY not configured")
+        return False
     if not provided_key:
         return False
     try:
@@ -323,6 +334,10 @@ def health_check() -> Response:
 
 def main() -> int:
     """Main entry point for Rex TTS API server."""
+    if not API_KEY:
+        logger.error("REX_SPEAK_API_KEY environment variable must be set")
+        raise RuntimeError("REX_SPEAK_API_KEY must be set before starting the speech API.")
+    logger.info("Starting Rex TTS API server on 0.0.0.0:5000")
     app.run(host="0.0.0.0", port=5000)
     return 0
 
