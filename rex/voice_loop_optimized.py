@@ -1,5 +1,9 @@
 """Optimized async voice assistant loop with reduced latency.
 
+This is the CANONICAL implementation of the voice loop functionality.
+The `rex/voice_loop.py` module is a compatibility wrapper that re-exports
+from this module.
+
 Key optimizations:
 1. Voice Activity Detection for shorter recording times
 2. Concurrent STT + LLM processing where possible
