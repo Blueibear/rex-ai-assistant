@@ -10,6 +10,7 @@ _load_env()
 import asyncio
 import threading
 import tkinter as tk
+from pathlib import Path
 from tkinter import ttk
 
 from config import load_config
@@ -24,8 +25,8 @@ class AssistantGUI(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Rex Assistant")
-        self.geometry("480x360")
-        self.resizable(False, False)
+        self.geometry("800x600")
+        self.resizable(True, True)
 
         self.config = load_config()
         self.assistant: AsyncRexAssistant | None = None
@@ -35,18 +36,50 @@ class AssistantGUI(tk.Tk):
         self.status_var = tk.StringVar(value="Idle")
         self.user_var = tk.StringVar(value=f"Active user: {self.config.default_user or 'auto'}")
 
-        # --- UI Setup ---
-        ttk.Label(self, textvariable=self.status_var, font=("Segoe UI", 14)).pack(pady=10)
-        ttk.Label(self, textvariable=self.user_var).pack(pady=5)
-        ttk.Button(self, text="Start", command=self.start_assistant).pack(pady=5)
-        ttk.Button(self, text="Stop", command=self.stop_assistant).pack(pady=5)
+        # Create notebook for tabs
+        self.notebook = ttk.Notebook(self)
+        self.notebook.pack(fill="both", expand=True, padx=5, pady=5)
 
-        ttk.Label(self, text="Recent conversation:").pack(pady=(20, 5))
-        self.history_box = tk.Text(self, height=8, width=55, state="disabled", wrap="word")
-        self.history_box.pack(padx=10, pady=(0, 10))
+        # Create Dashboard tab
+        self.dashboard_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.dashboard_tab, text="Dashboard")
+        self._create_dashboard()
+
+        # Create Settings tab
+        self._create_settings_tab()
 
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.after(2000, self.refresh_history)
+
+    def _create_dashboard(self) -> None:
+        """Create the dashboard tab content."""
+        # --- UI Setup ---
+        ttk.Label(self.dashboard_tab, textvariable=self.status_var, font=("Segoe UI", 14)).pack(pady=10)
+        ttk.Label(self.dashboard_tab, textvariable=self.user_var).pack(pady=5)
+        ttk.Button(self.dashboard_tab, text="Start", command=self.start_assistant).pack(pady=5)
+        ttk.Button(self.dashboard_tab, text="Stop", command=self.stop_assistant).pack(pady=5)
+
+        ttk.Label(self.dashboard_tab, text="Recent conversation:").pack(pady=(20, 5))
+        self.history_box = tk.Text(self.dashboard_tab, height=8, width=55, state="disabled", wrap="word")
+        self.history_box.pack(padx=10, pady=(0, 10))
+
+    def _create_settings_tab(self) -> None:
+        """Create the Settings tab."""
+        try:
+            from gui_settings_tab import SettingsTab
+            repo_root = Path(__file__).resolve().parent
+            self.settings_tab = SettingsTab(self.notebook, repo_root)
+            self.notebook.add(self.settings_tab, text="Settings")
+        except Exception as e:
+            LOGGER.exception("Failed to create Settings tab")
+            # Create error tab
+            error_frame = ttk.Frame(self.notebook)
+            ttk.Label(
+                error_frame,
+                text=f"Failed to load Settings tab:\n{e}",
+                foreground="red"
+            ).pack(padx=20, pady=20)
+            self.notebook.add(error_frame, text="Settings")
 
     def start_assistant(self) -> None:
         if self.running:
