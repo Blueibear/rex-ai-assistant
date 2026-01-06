@@ -16,7 +16,7 @@ from tkinter import ttk
 from config import load_config
 from logging_utils import get_logger
 from memory_utils import load_recent_history
-from rex_loop import AsyncRexAssistant
+from voice_loop import AsyncRexAssistant
 
 LOGGER = get_logger(__name__)
 
