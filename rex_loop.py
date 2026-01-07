@@ -16,7 +16,13 @@ import argparse
 import asyncio
 import logging
 import os
+import warnings
 from collections.abc import Iterable
+
+# Suppress torio FFmpeg extension warnings (non-critical audio codec features)
+warnings.filterwarnings("ignore", message=".*FFmpeg extension.*")
+warnings.filterwarnings("ignore", message=".*libtorio.*")
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="torio")
 
 import rex
 from rex.assistant import Assistant

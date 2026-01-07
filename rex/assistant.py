@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 from .config import Settings, settings
 from .ha_bridge import HABridge
@@ -41,7 +42,16 @@ class Assistant:
         self._history_limit = history_limit or self._settings.max_memory_items
         self._plugins = list(plugins or [])
         self._transcripts_dir = Path(transcripts_dir or self._settings.transcripts_dir)
-        self._ha_bridge: Optional[HABridge] = HABridge()
+
+        # Only create HABridge if HA is configured
+        self._ha_bridge: Optional[HABridge] = None
+        if self._settings.ha_base_url and self._settings.ha_token:
+            try:
+                self._ha_bridge = HABridge()
+                logger.info("Home Assistant bridge initialized")
+            except Exception as exc:
+                logger.warning("Failed to initialize Home Assistant bridge: %s", exc)
+                self._ha_bridge = None
 
     async def generate_reply(self, transcript: str) -> str:
         if not transcript.strip():
