@@ -76,6 +76,14 @@ class AppConfig:
     search_providers: str = "serpapi,brave,duckduckgo,google"
     speak_language: str = "en"
 
+    # Home Assistant integration
+    ha_base_url: Optional[str] = None
+    ha_token: Optional[str] = None
+    ha_secret: Optional[str] = None
+    ha_verify_ssl: bool = True
+    ha_timeout: float = 10.0
+    ha_entity_map: Optional[Dict[str, str]] = None
+
     # Aliases
     llm_backend: Optional[str] = None
     temperature: Optional[float] = None
@@ -143,6 +151,11 @@ ENV_MAPPING: Dict[str, str] = {
     "ollama_use_cloud": "OLLAMA_USE_CLOUD",
     "user_id": "REX_USER_ID",
     "search_providers": "REX_SEARCH_PROVIDERS",
+    "ha_base_url": "HA_BASE_URL",
+    "ha_token": "HA_TOKEN",
+    "ha_secret": "HA_SECRET",
+    "ha_verify_ssl": "HA_VERIFY_SSL",
+    "ha_timeout": "HA_TIMEOUT",
 }
 
 TRUE_VALUES = {"1", "true", "yes", "on"}
@@ -239,6 +252,12 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> App
         ollama_use_cloud=_parse_bool(getenv("OLLAMA_USE_CLOUD")),
         user_id=getenv("REX_USER_ID", "default"),
         search_providers=getenv("REX_SEARCH_PROVIDERS", "serpapi,brave,duckduckgo,google"),
+        ha_base_url=getenv("HA_BASE_URL"),
+        ha_token=getenv("HA_TOKEN"),
+        ha_secret=getenv("HA_SECRET"),
+        ha_verify_ssl=_parse_bool(getenv("HA_VERIFY_SSL"), default=True),
+        ha_timeout=float(getenv("HA_TIMEOUT", "10.0")),
+        ha_entity_map=None,  # Set programmatically or via config file
     )
 
     validate_config(config)

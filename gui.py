@@ -10,8 +10,14 @@ _load_env()
 import asyncio
 import threading
 import tkinter as tk
+import warnings
 from pathlib import Path
 from tkinter import ttk
+
+# Suppress torio FFmpeg extension warnings (non-critical audio codec features)
+warnings.filterwarnings("ignore", message=".*FFmpeg extension.*")
+warnings.filterwarnings("ignore", message=".*libtorio.*")
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="torio")
 
 from config import load_config
 from logging_utils import get_logger

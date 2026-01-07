@@ -110,6 +110,16 @@ python run_gui.py
 
 Or add to your PowerShell profile for persistence.
 
+### Issue: Home Assistant AttributeError
+
+**Error:** `AttributeError: 'AppConfig' object has no attribute 'ha_base_url'`
+
+**Solution:** This was fixed in recent commits. Home Assistant integration is now optional. Rex will work without HA configured. If you want to use Home Assistant integration, add to your .env:
+```
+HA_BASE_URL=http://homeassistant.local:8123
+HA_TOKEN=your_long_lived_access_token
+```
+
 ## Verification Script
 
 Run the import checker to verify all modules are syntactically correct:
