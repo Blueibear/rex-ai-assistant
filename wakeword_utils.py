@@ -106,7 +106,7 @@ def load_wakeword_model(
     wake_model = WakeWordModel(
         wakeword_models=models_to_load,
         inference_framework=DEFAULT_BACKEND,
-        enable_speex_noise_suppression=True,
+        enable_speex_noise_suppression=False,  # Disabled for Windows compatibility (speexdsp_ns not available)
     )
 
     return wake_model, active_label

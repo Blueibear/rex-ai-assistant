@@ -7,6 +7,7 @@ This guide provides exact commands for running Rex on Windows.
 - **Python**: Supports Python 3.9 through 3.13
 - **Windows**: Fully supported on Windows 10 and 11
 - **Audio Playback**: The `simpleaudio` library is automatically disabled on Windows due to build issues. Audio files are still generated but won't auto-play.
+- **Noise Suppression**: The `speexdsp_ns` library (used for real-time noise suppression) is not available on Windows. Noise suppression is automatically disabled on all platforms to ensure Windows compatibility. Audio quality is still excellent for most use cases.
 
 ## Quick Start (Windows PowerShell)
 
@@ -125,6 +126,15 @@ Or add to your PowerShell profile for persistence.
 HA_BASE_URL=http://homeassistant.local:8123
 HA_TOKEN=your_long_lived_access_token
 ```
+
+### Issue: speexdsp_ns ModuleNotFoundError
+
+**Error:** `ModuleNotFoundError: No module named 'speexdsp_ns'` when starting the GUI
+
+**Solution:** This was fixed in recent commits. The `speexdsp_ns` library is not compatible with Windows and has been disabled. Noise suppression is now automatically turned off for all platforms. The GUI will start normally without this dependency. If you see this error:
+1. Update to the latest code: `git pull`
+2. The fix ensures `enable_speex_noise_suppression=False` in all wakeword utilities
+3. No manual installation of speexdsp_ns is required or recommended
 
 ## Verification Script
 
