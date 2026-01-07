@@ -364,6 +364,36 @@ class SettingsTab(ttk.Frame):
         # This would query Ollama API - implement if needed
         pass
 
+    def _normalize_value(self, key: str, value: str) -> str:
+        """Normalize value to preserve integer types.
+
+        Converts float-formatted integers (e.g., "16000.0") back to integers ("16000").
+        """
+        if not value:
+            return value
+
+        # Try to detect if this should be an integer
+        # Common integer config keys
+        integer_keys = {
+            'REX_SAMPLE_RATE', 'REX_LLM_MAX_TOKENS', 'REX_LLM_TOP_K', 'REX_LLM_SEED',
+            'REX_MEMORY_MAX_TURNS', 'REX_MEMORY_MAX_BYTES', 'REX_SPEAK_RATE_LIMIT',
+            'REX_SPEAK_RATE_WINDOW', 'REX_SPEAK_MAX_CHARS', 'REX_PLUGIN_TIMEOUT',
+            'REX_PLUGIN_OUTPUT_LIMIT', 'REX_PLUGIN_RATE_LIMIT', 'REX_INPUT_DEVICE',
+            'REX_OUTPUT_DEVICE', 'REX_AUDIO_INPUT_DEVICE', 'REX_AUDIO_OUTPUT_DEVICE'
+        }
+
+        if key in integer_keys:
+            try:
+                # Parse as float to handle "16000.0"
+                float_val = float(value)
+                # Check if it's a whole number
+                if float_val.is_integer():
+                    return str(int(float_val))
+            except (ValueError, OverflowError):
+                pass
+
+        return value
+
     def _get_control_value(self, key: str) -> str:
         """Get current value from control."""
         if key not in self.controls:
@@ -372,13 +402,16 @@ class SettingsTab(ttk.Frame):
         control = self.controls[key]
 
         if isinstance(control, ttk.Checkbutton):
-            return "true" if control.var.get() else "false"
+            value = "true" if control.var.get() else "false"
         elif isinstance(control, ttk.Frame) and hasattr(control, 'entry'):
-            return control.entry.get()
+            value = control.entry.get()
         elif hasattr(control, 'get'):
-            return str(control.get())
+            value = str(control.get())
         else:
-            return ""
+            value = ""
+
+        # Normalize to preserve integer types
+        return self._normalize_value(key, value)
 
     def save_settings(self):
         """Save all settings to .env file."""

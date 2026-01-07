@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Deque, Dict, Iterable, List, Optional
 
 from .assistant_errors import ConfigurationError
-from .config import load_config, settings
+from .config import _parse_int, load_config, settings
 from .placeholder_voice import (
     DEFAULT_PLACEHOLDER_RELATIVE_PATH,
     ensure_placeholder_voice,
@@ -21,7 +21,7 @@ MEMORY_ROOT = REPO_ROOT / "Memory"
 USERS_PATH = REPO_ROOT / "users.json"
 HISTORY_FILENAME = "history.jsonl"
 HISTORY_META = "history_meta.json"
-MAX_MEMORY_FILE_BYTES = int(os.getenv("REX_MEMORY_MAX_BYTES", "131072"))
+MAX_MEMORY_FILE_BYTES = _parse_int("REX_MEMORY_MAX_BYTES", os.getenv("REX_MEMORY_MAX_BYTES"), default=131072)
 MAX_PATH_DEPTH = 10  # Maximum directory traversal depth
 
 
