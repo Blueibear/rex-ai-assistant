@@ -58,6 +58,9 @@ dmypy.json
 .env.local
 .env.*.local
 
+# User-specific config
+config/
+
 # OS-generated files
 .DS_Store
 Thumbs.db

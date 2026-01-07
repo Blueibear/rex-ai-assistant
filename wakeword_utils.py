@@ -50,7 +50,7 @@ def _ensure_builtin_keyword_resources(keywords: Sequence[str], backend: str) -> 
         logger.warning("Unable to import openwakeword.utils.download_models: %s", exc)
         return
 
-    missing: List[str] = []
+    missing: list[str] = []
     backend = (backend or "").lower()
 
     for keyword in keywords:
