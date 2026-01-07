@@ -59,6 +59,7 @@ class WakeWordListener:
     def __post_init__(self) -> None:
         self._event = asyncio.Event()
         self._stream: sd.InputStream | None = None
+        self._callback_count = 0  # Track number of audio callbacks received
 
     def start(self) -> None:
         """Start audio input stream with robust Windows-friendly fallback strategy."""
@@ -186,8 +187,16 @@ class WakeWordListener:
         self.loop.call_soon_threadsafe(self._event.set)
 
     def _callback(self, indata, frames, time_info, status) -> None:
+        self._callback_count += 1
+
+        # Log every 100 callbacks (~5-10 seconds) to show we're receiving audio
+        if self._callback_count % 100 == 1:
+            audio_level = np.max(np.abs(indata)) if indata.size > 0 else 0.0
+            logger.info(f"Audio callback #{self._callback_count}: receiving audio (level: {audio_level:.3f})")
+
         if status:
             logger.warning("Audio status: %s", status)
+
         audio_data = np.squeeze(indata)
         try:
             if detect_wakeword(self.model, audio_data, threshold=self.threshold):
