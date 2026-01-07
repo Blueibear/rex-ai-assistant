@@ -8,6 +8,7 @@ from utils.env_loader import load as _load_env
 _load_env()
 
 import asyncio
+import logging
 import threading
 import tkinter as tk
 import warnings
@@ -30,6 +31,25 @@ from utils.audio_device import (
 from voice_loop import AsyncRexAssistant
 
 LOGGER = get_logger(__name__)
+
+
+class GUILogHandler(logging.Handler):
+    """Custom logging handler that sends log messages to the GUI."""
+
+    def __init__(self, gui_log_callback):
+        super().__init__()
+        self.gui_log_callback = gui_log_callback
+        # Set format
+        formatter = logging.Formatter('%(levelname)s: %(message)s')
+        self.setFormatter(formatter)
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            # Call the GUI callback (thread-safe)
+            self.gui_log_callback(msg)
+        except Exception:
+            self.handleError(record)
 
 
 class AssistantGUI(tk.Tk):
@@ -59,6 +79,9 @@ class AssistantGUI(tk.Tk):
         # Create Settings tab
         self._create_settings_tab()
 
+        # Install logging handler to capture logs from background threads
+        self._install_log_handler()
+
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.after(2000, self.refresh_history)
 
@@ -86,6 +109,11 @@ class AssistantGUI(tk.Tk):
         # --- Status Section ---
         ttk.Label(self.dashboard_tab, textvariable=self.status_var, font=("Segoe UI", 14)).pack(pady=10)
         ttk.Label(self.dashboard_tab, textvariable=self.user_var).pack(pady=5)
+
+        # Wake word info
+        wake_keyword = self.config.wakeword_keyword or self.config.wakeword
+        self.wake_var = tk.StringVar(value=f"Wake word: \"{wake_keyword}\" (threshold: {self.config.wakeword_threshold})")
+        ttk.Label(self.dashboard_tab, textvariable=self.wake_var, font=("Segoe UI", 9), foreground="blue").pack(pady=2)
 
         # Button frame
         button_frame = ttk.Frame(self.dashboard_tab)
@@ -123,8 +151,24 @@ class AssistantGUI(tk.Tk):
             ).pack(padx=20, pady=20)
             self.notebook.add(error_frame, text="Settings")
 
+    def _install_log_handler(self) -> None:
+        """Install custom log handler to capture logs from background threads."""
+        # Create handler that calls our GUI logging method
+        handler = GUILogHandler(self._log_to_gui_threadsafe)
+        handler.setLevel(logging.INFO)  # Capture INFO and above
+
+        # Add to root logger so we get logs from voice_loop, wakeword_utils, etc.
+        root_logger = logging.getLogger()
+        root_logger.addHandler(handler)
+        LOGGER.info("GUI log handler installed")
+
+    def _log_to_gui_threadsafe(self, message: str) -> None:
+        """Thread-safe logging to GUI - can be called from any thread."""
+        # Use after() to execute on main thread
+        self.after(0, lambda: self._log_to_gui(message))
+
     def _log_to_gui(self, message: str) -> None:
-        """Log a message to the GUI log box."""
+        """Log a message to the GUI log box (must be called from main thread)."""
         try:
             self.log_box.configure(state="normal")
             self.log_box.insert(tk.END, f"{message}\n")
