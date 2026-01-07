@@ -61,46 +61,118 @@ class WakeWordListener:
         self._stream: sd.InputStream | None = None
 
     def start(self) -> None:
-        try:
-            # Get device info for better error messages
-            device_info_str = "default"
-            if self.device is not None:
-                try:
-                    devices = enumerate_input_devices()
-                    device_obj = next((d for d in devices if d.index == self.device), None)
-                    if device_obj:
-                        device_info_str = device_obj.display_name()
-                    else:
-                        device_info_str = f"device {self.device}"
-                except Exception:
-                    device_info_str = f"device {self.device}"
+        """Start audio input stream with robust Windows-friendly fallback strategy."""
+        # Get device info for logging and error messages
+        device_name = "default"
+        device_hostapi = "default"
+        if self.device is not None:
+            try:
+                devices = enumerate_input_devices()
+                device_obj = next((d for d in devices if d.index == self.device), None)
+                if device_obj:
+                    device_name = device_obj.name
+                    device_hostapi = device_obj.hostapi_name
+                else:
+                    device_name = f"device_{self.device}"
+            except Exception:
+                device_name = f"device_{self.device}"
 
-            logger.info(f"Starting wake-word listener with {device_info_str} at {self.sample_rate} Hz")
+        # Get device default samplerate if available
+        device_default_sr = None
+        if self.device is not None:
+            try:
+                info = sd.query_devices(self.device)
+                if isinstance(info, dict):
+                    device_default_sr = int(info.get("default_samplerate", 0))
+            except Exception:
+                pass
 
-            self._stream = sd.InputStream(
-                channels=1,
-                samplerate=self.sample_rate,
-                blocksize=self.block_size,
-                callback=self._callback,
-                device=self.device,
-            )
-            self._stream.start()
-            logger.info(f"Wake-word listener started on {device_info_str}")
-        except Exception as exc:
-            # Build comprehensive error message
-            error_msg = f"Failed to start input stream"
-            if self.device is not None:
-                try:
-                    devices = enumerate_input_devices()
-                    device_obj = next((d for d in devices if d.index == self.device), None)
-                    if device_obj:
-                        error_msg += f" on {device_obj.display_name()}"
-                    else:
-                        error_msg += f" on device {self.device}"
-                except Exception:
-                    error_msg += f" on device {self.device}"
-            error_msg += f" at {self.sample_rate} Hz: {exc}"
-            raise WakeWordError(error_msg)
+        # Define retry strategies: (samplerate, blocksize, latency)
+        # Try different combinations for Windows WASAPI compatibility
+        retry_strategies = []
+
+        # Start with requested configuration
+        retry_strategies.append((self.sample_rate, self.block_size, None))
+
+        # Try with device's default samplerate
+        if device_default_sr and device_default_sr != self.sample_rate:
+            retry_strategies.append((device_default_sr, self.block_size, None))
+
+        # Try common samplerates
+        for sr in [16000, 44100, 48000]:
+            if sr != self.sample_rate and (not device_default_sr or sr != device_default_sr):
+                retry_strategies.append((sr, self.block_size, None))
+
+        # Try with different blocksizes
+        retry_strategies.append((self.sample_rate, None, None))
+        retry_strategies.append((self.sample_rate, 1024, None))
+        retry_strategies.append((self.sample_rate, 2048, None))
+
+        # Try with high latency
+        retry_strategies.append((self.sample_rate, self.block_size, "high"))
+
+        # Attempt to start stream with retry strategies
+        last_exception = None
+        attempt_details = []
+
+        for attempt_num, (samplerate, blocksize, latency) in enumerate(retry_strategies, 1):
+            try:
+                logger.info(
+                    f"Attempt {attempt_num}: Using input device index: {self.device} "
+                    f"name: {device_name} hostapi: {device_hostapi} "
+                    f"samplerate: {samplerate} channels: 1 dtype: float32 "
+                    f"blocksize: {blocksize} latency: {latency or 'default'}"
+                )
+
+                stream_kwargs = {
+                    "channels": 1,
+                    "samplerate": samplerate,
+                    "callback": self._callback,
+                    "device": self.device,
+                    "dtype": "float32",
+                }
+
+                if blocksize is not None:
+                    stream_kwargs["blocksize"] = blocksize
+
+                if latency is not None:
+                    stream_kwargs["latency"] = latency
+
+                self._stream = sd.InputStream(**stream_kwargs)
+                self._stream.start()
+
+                # Success!
+                logger.info(f"Wake-word listener started successfully on device {self.device} ({device_name}) at {samplerate} Hz")
+
+                # Update sample_rate if we had to use a different one
+                if samplerate != self.sample_rate:
+                    logger.warning(f"Using samplerate {samplerate} instead of requested {self.sample_rate}")
+                    self.sample_rate = samplerate
+
+                return
+
+            except Exception as exc:
+                last_exception = exc
+                attempt_details.append(
+                    f"  Attempt {attempt_num} [sr={samplerate}, bs={blocksize}, lat={latency or 'default'}]: {type(exc).__name__}: {exc}"
+                )
+                logger.debug(f"Stream start attempt {attempt_num} failed: {exc}")
+
+                # Close stream if it was partially created
+                if self._stream is not None:
+                    try:
+                        self._stream.close()
+                    except Exception:
+                        pass
+                    self._stream = None
+
+        # All attempts failed - build comprehensive error message
+        error_msg = f"Failed to start input stream on device {self.device} ({device_name}) [{device_hostapi}]\n"
+        error_msg += f"Tried {len(retry_strategies)} different configurations:\n"
+        error_msg += "\n".join(attempt_details)
+        error_msg += f"\n\nFinal error: {last_exception}"
+
+        raise WakeWordError(error_msg)
 
     def stop(self) -> None:
         if self._stream is not None:

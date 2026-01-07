@@ -74,10 +74,11 @@ class AssistantGUI(tk.Tk):
         ttk.Label(device_frame, text="Input Device:").pack(side="left", padx=(0, 10))
 
         self.device_var = tk.StringVar()
-        self.device_combo = ttk.Combobox(device_frame, textvariable=self.device_var, state="readonly", width=50)
-        self.device_combo.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        self.device_combo = ttk.Combobox(device_frame, textvariable=self.device_var, state="readonly", width=40)
+        self.device_combo.pack(side="left", fill="x", expand=True, padx=(0, 5))
 
-        ttk.Button(device_frame, text="Refresh", command=self._refresh_audio_devices, width=10).pack(side="left")
+        ttk.Button(device_frame, text="Refresh", command=self._refresh_audio_devices, width=10).pack(side="left", padx=(0, 5))
+        ttk.Button(device_frame, text="Test Mic", command=self._test_selected_mic, width=10).pack(side="left")
 
         # Populate devices
         self._refresh_audio_devices()
@@ -197,6 +198,81 @@ class AssistantGUI(tk.Tk):
             LOGGER.exception("Failed to save audio device")
             self._log_to_gui(f"ERROR saving device: {exc}")
 
+    def _test_selected_mic(self) -> None:
+        """Test the selected microphone with the same parameters the assistant will use."""
+        import sounddevice as sd
+
+        device_idx = self._get_selected_device_index()
+        if device_idx is None:
+            self._log_to_gui("ERROR: No device selected")
+            return
+
+        self._log_to_gui(f"Testing device {device_idx}...")
+
+        # Get device info
+        try:
+            from utils.audio_device import enumerate_input_devices
+            devices = enumerate_input_devices()
+            device_obj = next((d for d in devices if d.index == device_idx), None)
+            if device_obj:
+                device_name = device_obj.name
+                device_hostapi = device_obj.hostapi_name
+                self._log_to_gui(f"  Device: {device_name} [{device_hostapi}]")
+            else:
+                device_name = f"device_{device_idx}"
+                device_hostapi = "unknown"
+        except Exception as exc:
+            device_name = f"device_{device_idx}"
+            device_hostapi = "unknown"
+            self._log_to_gui(f"  Warning: Could not get device details: {exc}")
+
+        # Try to open stream with same parameters as assistant
+        sample_rate = 16000
+        test_duration = 0.25  # 250ms
+
+        # Try multiple configurations
+        test_configs = [
+            (sample_rate, None, None),
+            (sample_rate, 1024, None),
+            (sample_rate, None, "high"),
+            (44100, None, None),
+            (48000, None, None),
+        ]
+
+        for sr, blocksize, latency in test_configs:
+            try:
+                self._log_to_gui(f"  Testing: sr={sr}, blocksize={blocksize}, latency={latency or 'default'}...")
+
+                stream_kwargs = {
+                    "channels": 1,
+                    "samplerate": sr,
+                    "device": device_idx,
+                    "dtype": "float32",
+                }
+
+                if blocksize is not None:
+                    stream_kwargs["blocksize"] = blocksize
+
+                if latency is not None:
+                    stream_kwargs["latency"] = latency
+
+                # Record a short clip
+                frames = int(sr * test_duration)
+                audio = sd.rec(frames, **stream_kwargs)
+                sd.wait()
+
+                self._log_to_gui(f"  ✓ PASS: Device {device_idx} works at {sr} Hz")
+                self._log_to_gui(f"  Recommendation: Use this device for the assistant")
+                return
+
+            except Exception as exc:
+                self._log_to_gui(f"  ✗ Failed at sr={sr}: {type(exc).__name__}: {exc}")
+                continue
+
+        # All tests failed
+        self._log_to_gui(f"ERROR: Device {device_idx} failed all test configurations")
+        self._log_to_gui(f"  Try selecting a different device from the dropdown")
+
     def start_assistant(self) -> None:
         """Start the voice assistant with comprehensive error handling."""
         if self.running:
@@ -208,8 +284,8 @@ class AssistantGUI(tk.Tk):
             self._save_audio_device()
 
             self._log_to_gui("Initializing assistant...")
-            if not self.assistant:
-                self.assistant = AsyncRexAssistant(self.config)
+            # ALWAYS create a new assistant instance to pick up new device selection
+            self.assistant = AsyncRexAssistant(self.config)
 
             self.running = True
             self.status_var.set("Starting…")
@@ -219,7 +295,7 @@ class AssistantGUI(tk.Tk):
 
             self.thread = threading.Thread(target=self._run_assistant, daemon=True)
             self.thread.start()
-            self._log_to_gui("Assistant started successfully.")
+            self._log_to_gui("Assistant thread started.")
             self.status_var.set("Running")
 
         except Exception as exc:
