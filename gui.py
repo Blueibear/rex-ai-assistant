@@ -22,6 +22,11 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, module="torio")
 from config import load_config
 from logging_utils import get_logger
 from memory_utils import load_recent_history
+from utils.audio_device import (
+    enumerate_input_devices,
+    load_audio_config,
+    save_audio_config,
+)
 from voice_loop import AsyncRexAssistant
 
 LOGGER = get_logger(__name__)
@@ -59,7 +64,25 @@ class AssistantGUI(tk.Tk):
 
     def _create_dashboard(self) -> None:
         """Create the dashboard tab content."""
-        # --- UI Setup ---
+        # --- Audio Input Section ---
+        audio_frame = ttk.LabelFrame(self.dashboard_tab, text="Audio Input", padding=10)
+        audio_frame.pack(padx=10, pady=10, fill="x")
+
+        # Device selection
+        device_frame = ttk.Frame(audio_frame)
+        device_frame.pack(fill="x", pady=5)
+        ttk.Label(device_frame, text="Input Device:").pack(side="left", padx=(0, 10))
+
+        self.device_var = tk.StringVar()
+        self.device_combo = ttk.Combobox(device_frame, textvariable=self.device_var, state="readonly", width=50)
+        self.device_combo.pack(side="left", fill="x", expand=True, padx=(0, 10))
+
+        ttk.Button(device_frame, text="Refresh", command=self._refresh_audio_devices, width=10).pack(side="left")
+
+        # Populate devices
+        self._refresh_audio_devices()
+
+        # --- Status Section ---
         ttk.Label(self.dashboard_tab, textvariable=self.status_var, font=("Segoe UI", 14)).pack(pady=10)
         ttk.Label(self.dashboard_tab, textvariable=self.user_var).pack(pady=5)
 
@@ -109,6 +132,71 @@ class AssistantGUI(tk.Tk):
         except Exception:
             pass  # Don't crash if logging fails
 
+    def _refresh_audio_devices(self) -> None:
+        """Refresh the list of available audio input devices."""
+        try:
+            devices = enumerate_input_devices()
+            if not devices:
+                self.device_combo["values"] = ["No input devices found"]
+                self.device_var.set("No input devices found")
+                self._log_to_gui("WARNING: No audio input devices found")
+                return
+
+            # Format device list for dropdown
+            device_list = [d.display_name() for d in devices]
+            self.device_combo["values"] = device_list
+
+            # Load saved config and select that device
+            audio_config = load_audio_config()
+            saved_device_idx = audio_config.get("input_device_index")
+
+            if saved_device_idx is not None:
+                # Find the device in the list
+                for i, device in enumerate(devices):
+                    if device.index == saved_device_idx:
+                        self.device_combo.current(i)
+                        self._log_to_gui(f"Loaded saved device: {device.display_name()}")
+                        return
+
+            # No saved device or not found - select first device
+            if device_list:
+                self.device_combo.current(0)
+                self._log_to_gui(f"Selected default device: {devices[0].display_name()}")
+
+        except Exception as exc:
+            LOGGER.exception("Failed to refresh audio devices")
+            self._log_to_gui(f"ERROR refreshing devices: {exc}")
+            self.device_combo["values"] = ["Error loading devices"]
+            self.device_var.set("Error loading devices")
+
+    def _get_selected_device_index(self) -> int | None:
+        """Get the device index from the currently selected dropdown item."""
+        try:
+            selected = self.device_var.get()
+            if not selected or selected in ["No input devices found", "Error loading devices"]:
+                return None
+
+            # Extract device index from "12: Device Name [API]" format
+            if ":" in selected:
+                idx_str = selected.split(":")[0].strip()
+                return int(idx_str)
+        except Exception as exc:
+            LOGGER.exception("Failed to parse device index")
+            self._log_to_gui(f"ERROR parsing device: {exc}")
+
+        return None
+
+    def _save_audio_device(self) -> None:
+        """Save the currently selected audio device to config."""
+        try:
+            device_idx = self._get_selected_device_index()
+            if device_idx is not None:
+                save_audio_config(device_idx)
+                self._log_to_gui(f"Saved audio device: {device_idx}")
+        except Exception as exc:
+            LOGGER.exception("Failed to save audio device")
+            self._log_to_gui(f"ERROR saving device: {exc}")
+
     def start_assistant(self) -> None:
         """Start the voice assistant with comprehensive error handling."""
         if self.running:
@@ -116,6 +204,9 @@ class AssistantGUI(tk.Tk):
             return
 
         try:
+            # Save audio device selection before starting
+            self._save_audio_device()
+
             self._log_to_gui("Initializing assistant...")
             if not self.assistant:
                 self.assistant = AsyncRexAssistant(self.config)

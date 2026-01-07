@@ -38,6 +38,11 @@ from rex.memory_utils import (
 )
 from rex.plugin_loader import load_plugins
 from rex.wakeword_utils import detect_wakeword, load_wakeword_model
+from utils.audio_device import (
+    enumerate_input_devices,
+    load_audio_config,
+    resolve_audio_device,
+)
 
 logger = get_logger(__name__)
 
@@ -57,6 +62,21 @@ class WakeWordListener:
 
     def start(self) -> None:
         try:
+            # Get device info for better error messages
+            device_info_str = "default"
+            if self.device is not None:
+                try:
+                    devices = enumerate_input_devices()
+                    device_obj = next((d for d in devices if d.index == self.device), None)
+                    if device_obj:
+                        device_info_str = device_obj.display_name()
+                    else:
+                        device_info_str = f"device {self.device}"
+                except Exception:
+                    device_info_str = f"device {self.device}"
+
+            logger.info(f"Starting wake-word listener with {device_info_str} at {self.sample_rate} Hz")
+
             self._stream = sd.InputStream(
                 channels=1,
                 samplerate=self.sample_rate,
@@ -65,9 +85,22 @@ class WakeWordListener:
                 device=self.device,
             )
             self._stream.start()
-            logger.info("Wake-word listener started")
+            logger.info(f"Wake-word listener started on {device_info_str}")
         except Exception as exc:
-            raise WakeWordError(f"Failed to start input stream: {exc}")
+            # Build comprehensive error message
+            error_msg = f"Failed to start input stream"
+            if self.device is not None:
+                try:
+                    devices = enumerate_input_devices()
+                    device_obj = next((d for d in devices if d.index == self.device), None)
+                    if device_obj:
+                        error_msg += f" on {device_obj.display_name()}"
+                    else:
+                        error_msg += f" on device {self.device}"
+                except Exception:
+                    error_msg += f" on device {self.device}"
+            error_msg += f" at {self.sample_rate} Hz: {exc}"
+            raise WakeWordError(error_msg)
 
     def stop(self) -> None:
         if self._stream is not None:
@@ -102,12 +135,24 @@ class AsyncRexAssistant:
         self.language_model = LanguageModel(self.config)
         self._wake_model, self._wake_keyword = load_wakeword_model(keyword=self.config.wakeword)
         self._sample_rate = 16000
+
+        # Load audio config and resolve device with validation
+        audio_config = load_audio_config()
+        configured_device = audio_config.get("input_device_index") or self.config.audio_input_device
+        resolved_device, status_msg = resolve_audio_device(configured_device, self._sample_rate)
+
+        if resolved_device is None:
+            logger.warning(f"Audio device resolution failed: {status_msg}")
+            logger.warning("Will attempt to use default device (None)")
+        else:
+            logger.info(status_msg)
+
         self._listener = WakeWordListener(
             model=self._wake_model,
             threshold=self.config.wakeword_threshold,
             sample_rate=self._sample_rate,
             block_size=int(self._sample_rate * self.config.wakeword_window),
-            device=self.config.audio_input_device,
+            device=resolved_device,
             loop=self.loop,
         )
         self._tts: TTS | None = None
@@ -220,12 +265,15 @@ class AsyncRexAssistant:
         frames = int(sample_rate * duration)
         logger.info("Recording %.1f seconds of audio", duration)
 
+        # Use the same device as the listener
+        device = self._listener.device
+
         audio = sd.rec(
             frames,
             samplerate=sample_rate,
             channels=1,
             dtype="float32",
-            device=self.config.audio_input_device,
+            device=device,
         )
         sd.wait()
         audio = np.squeeze(audio)
