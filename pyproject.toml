@@ -22,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 dependencies = [
@@ -34,7 +35,8 @@ dependencies = [
     # Audio Input/Output
     "sounddevice>=0.4.6",
     "soundfile>=0.12.0",
-    "simpleaudio>=1.0.4",
+    # simpleaudio has build issues on Windows - made optional
+    "simpleaudio>=1.0.4; platform_system!='Windows'",
 
     # AI / ML Models - CPU-only by default
     # Install GPU versions separately: see requirements-gpu.txt

@@ -10,11 +10,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-import simpleaudio as sa
 import sounddevice as sd
 import soundfile as sf
 import whisper
 from TTS.api import TTS
+
+try:
+    import simpleaudio as sa  # type: ignore
+except ImportError:
+    sa = None  # type: ignore[assignment]
 
 from rex.assistant_errors import (
     SpeechToTextError,
@@ -265,9 +269,12 @@ class AsyncRexAssistant:
                 language="en",
                 file_path="assistant_response.wav",
             )
-            wave_obj = sa.WaveObject.from_wave_file("assistant_response.wav")
-            play_obj = wave_obj.play()
-            play_obj.wait_done()
+            if sa is not None:
+                wave_obj = sa.WaveObject.from_wave_file("assistant_response.wav")
+                play_obj = wave_obj.play()
+                play_obj.wait_done()
+            else:
+                logger.warning("simpleaudio not available - audio saved but not played")
         except Exception as exc:
             raise TextToSpeechError(f"Failed to synthesise speech: {exc}")
         finally:
@@ -276,7 +283,7 @@ class AsyncRexAssistant:
 
     def _play_wake_sound(self) -> None:
         path = self.config.wake_sound_path
-        if not path:
+        if not path or sa is None:
             return
         try:
             wave_obj = sa.WaveObject.from_wave_file(path)

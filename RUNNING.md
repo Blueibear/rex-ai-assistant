@@ -2,6 +2,12 @@
 
 This guide provides exact commands for running Rex on Windows.
 
+## Platform Support
+
+- **Python**: Supports Python 3.9 through 3.13
+- **Windows**: Fully supported on Windows 10 and 11
+- **Audio Playback**: The `simpleaudio` library is automatically disabled on Windows due to build issues. Audio files are still generated but won't auto-play.
+
 ## Quick Start (Windows PowerShell)
 
 ### 1. Create and Activate Virtual Environment
