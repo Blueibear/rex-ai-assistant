@@ -171,11 +171,68 @@ def _parse_bool(value: Optional[str], *, default: bool = False) -> bool:
         return False
     raise ConfigurationError(f"Invalid boolean value: {value}")
 
+def _parse_int(name: str, value: Optional[str], *, default: int) -> int:
+    """Parse integer from string, accepting both int and float-formatted strings.
+
+    Handles:
+    - "16000" -> 16000
+    - "16000.0" -> 16000
+    - " 16000 " -> 16000
+    - None or "" -> default
+    - "16000.5" -> raises ConfigurationError
+    - "abc" -> raises ConfigurationError
+    """
+    if value in (None, ""):
+        return default
+
+    stripped = value.strip()
+    if not stripped:
+        return default
+
+    try:
+        # Try parsing as float first to handle "16000.0" case
+        float_val = float(stripped)
+        # Check if it's a whole number
+        if float_val.is_integer():
+            return int(float_val)
+        else:
+            raise ConfigurationError(
+                f"Configuration {name}={value} must be a whole number, got {float_val}"
+            )
+    except ValueError as exc:
+        raise ConfigurationError(
+            f"Configuration {name}={value} is not a valid number"
+        ) from exc
+
+def _parse_float(name: str, value: Optional[str], *, default: float) -> float:
+    """Parse float from string with helpful error messages."""
+    if value in (None, ""):
+        return default
+
+    stripped = value.strip()
+    if not stripped:
+        return default
+
+    try:
+        return float(stripped)
+    except ValueError as exc:
+        raise ConfigurationError(
+            f"Configuration {name}={value} is not a valid number"
+        ) from exc
+
 def _parse_optional_int(value: Optional[str]) -> Optional[int]:
+    """Legacy helper for optional integers. Prefer _parse_int for new code."""
     if value in (None, ""):
         return None
+
+    stripped = value.strip()
     try:
-        return int(value)
+        # Handle float-formatted strings like "1.0"
+        float_val = float(stripped)
+        if float_val.is_integer():
+            return int(float_val)
+        else:
+            raise ConfigurationError(f"Invalid integer (not a whole number): {value}")
     except ValueError as exc:
         raise ConfigurationError(f"Invalid integer: {value}") from exc
 
@@ -214,27 +271,27 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> App
 
     config = AppConfig(
         wakeword=getenv("REX_WAKEWORD", "rex"),
-        wakeword_threshold=float(getenv("REX_WAKEWORD_THRESHOLD", "0.5")),
-        wakeword_window=float(getenv("REX_WAKEWORD_WINDOW", "1.0")),
-        wakeword_poll_interval=float(getenv("REX_WAKEWORD_POLL_INTERVAL", "0.01")),
-        command_duration=float(getenv("REX_COMMAND_DURATION", "5.0")),
-        sample_rate=int(getenv("REX_SAMPLE_RATE", "16000")),
-        detection_frame_seconds=float(getenv("REX_DETECTION_FRAME_SECONDS", "1.0")),
-        capture_seconds=float(getenv("REX_CAPTURE_SECONDS", "5.0")),
+        wakeword_threshold=_parse_float("REX_WAKEWORD_THRESHOLD", getenv("REX_WAKEWORD_THRESHOLD"), default=0.5),
+        wakeword_window=_parse_float("REX_WAKEWORD_WINDOW", getenv("REX_WAKEWORD_WINDOW"), default=1.0),
+        wakeword_poll_interval=_parse_float("REX_WAKEWORD_POLL_INTERVAL", getenv("REX_WAKEWORD_POLL_INTERVAL"), default=0.01),
+        command_duration=_parse_float("REX_COMMAND_DURATION", getenv("REX_COMMAND_DURATION"), default=5.0),
+        sample_rate=_parse_int("REX_SAMPLE_RATE", getenv("REX_SAMPLE_RATE"), default=16000),
+        detection_frame_seconds=_parse_float("REX_DETECTION_FRAME_SECONDS", getenv("REX_DETECTION_FRAME_SECONDS"), default=1.0),
+        capture_seconds=_parse_float("REX_CAPTURE_SECONDS", getenv("REX_CAPTURE_SECONDS"), default=5.0),
         whisper_model=getenv("REX_WHISPER_MODEL", "base"),
         whisper_device=getenv("REX_WHISPER_DEVICE", "cpu"),
         speak_language=getenv("REX_SPEAK_LANGUAGE", "en"),
         llm_provider=getenv("REX_LLM_PROVIDER", "transformers"),
         llm_model=getenv("REX_LLM_MODEL", "sshleifer/tiny-gpt2"),
-        llm_max_tokens=int(getenv("REX_LLM_MAX_TOKENS", "120")),
-        llm_temperature=float(getenv("REX_LLM_TEMPERATURE", "0.7")),
-        llm_top_p=float(getenv("REX_LLM_TOP_P", "0.9")),
-        llm_top_k=int(getenv("REX_LLM_TOP_K", "50")),
-        llm_seed=int(getenv("REX_LLM_SEED", "42")),
+        llm_max_tokens=_parse_int("REX_LLM_MAX_TOKENS", getenv("REX_LLM_MAX_TOKENS"), default=120),
+        llm_temperature=_parse_float("REX_LLM_TEMPERATURE", getenv("REX_LLM_TEMPERATURE"), default=0.7),
+        llm_top_p=_parse_float("REX_LLM_TOP_P", getenv("REX_LLM_TOP_P"), default=0.9),
+        llm_top_k=_parse_int("REX_LLM_TOP_K", getenv("REX_LLM_TOP_K"), default=50),
+        llm_seed=_parse_int("REX_LLM_SEED", getenv("REX_LLM_SEED"), default=42),
         speak_api_key=getenv("REX_SPEAK_API_KEY"),
         rate_limit=getenv("REX_RATE_LIMIT", "30/minute"),
         allowed_origins=allowed_origins,
-        memory_max_turns=int(getenv("REX_MEMORY_MAX_TURNS", "50")),
+        memory_max_turns=_parse_int("REX_MEMORY_MAX_TURNS", getenv("REX_MEMORY_MAX_TURNS"), default=50),
         transcripts_enabled=_parse_bool(getenv("REX_TRANSCRIPTS_ENABLED"), default=True),
         transcripts_dir=Path(getenv("REX_TRANSCRIPTS_DIR", "transcripts")),
         default_user=getenv("REX_ACTIVE_USER"),
@@ -256,7 +313,7 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> App
         ha_token=getenv("HA_TOKEN"),
         ha_secret=getenv("HA_SECRET"),
         ha_verify_ssl=_parse_bool(getenv("HA_VERIFY_SSL"), default=True),
-        ha_timeout=float(getenv("HA_TIMEOUT", "10.0")),
+        ha_timeout=_parse_float("HA_TIMEOUT", getenv("HA_TIMEOUT"), default=10.0),
         ha_entity_map=None,  # Set programmatically or via config file
     )
 
@@ -318,10 +375,78 @@ def cli(argv: Optional[List[str]] = None) -> int:
 
     return 0
 
+def _self_test_parsers() -> None:
+    """Self-test for parsing helpers to ensure robustness."""
+    print("Running config parser self-tests...")
+
+    # Test _parse_int
+    assert _parse_int("TEST", "16000", default=0) == 16000
+    assert _parse_int("TEST", "16000.0", default=0) == 16000  # Float-formatted int
+    assert _parse_int("TEST", " 16000 ", default=0) == 16000  # Whitespace
+    assert _parse_int("TEST", None, default=42) == 42
+    assert _parse_int("TEST", "", default=42) == 42
+
+    try:
+        _parse_int("TEST", "16000.5", default=0)
+        assert False, "Should have raised ConfigurationError for non-integer"
+    except ConfigurationError:
+        pass  # Expected
+
+    try:
+        _parse_int("TEST", "abc", default=0)
+        assert False, "Should have raised ConfigurationError for invalid number"
+    except ConfigurationError:
+        pass  # Expected
+
+    # Test _parse_float
+    assert _parse_float("TEST", "0.5", default=0.0) == 0.5
+    assert _parse_float("TEST", "16000", default=0.0) == 16000.0
+    assert _parse_float("TEST", "16000.0", default=0.0) == 16000.0
+    assert _parse_float("TEST", " 0.5 ", default=0.0) == 0.5
+    assert _parse_float("TEST", None, default=1.5) == 1.5
+    assert _parse_float("TEST", "", default=1.5) == 1.5
+
+    try:
+        _parse_float("TEST", "abc", default=0.0)
+        assert False, "Should have raised ConfigurationError for invalid float"
+    except ConfigurationError:
+        pass  # Expected
+
+    # Test _parse_bool
+    assert _parse_bool("true", default=False) is True
+    assert _parse_bool("1", default=False) is True
+    assert _parse_bool("yes", default=False) is True
+    assert _parse_bool("on", default=False) is True
+    assert _parse_bool("false", default=True) is False
+    assert _parse_bool("0", default=True) is False
+    assert _parse_bool("no", default=True) is False
+    assert _parse_bool("off", default=True) is False
+    assert _parse_bool(None, default=True) is True
+    assert _parse_bool(None, default=False) is False
+
+    # Test _parse_optional_int
+    assert _parse_optional_int("16000") == 16000
+    assert _parse_optional_int("16000.0") == 16000  # Float-formatted int
+    assert _parse_optional_int(None) is None
+    assert _parse_optional_int("") is None
+
+    try:
+        _parse_optional_int("16000.5")
+        assert False, "Should have raised ConfigurationError for non-integer"
+    except ConfigurationError:
+        pass  # Expected
+
+    print("✓ All config parser self-tests passed!")
+
 settings = load_config()
 Settings = AppConfig
 
 if __name__ == "__main__":
+    import sys
+    if "--self-test" in sys.argv:
+        _self_test_parsers()
+        raise SystemExit(0)
+
     try:
         raise SystemExit(cli())
     except ConfigurationError as exc:

@@ -15,6 +15,7 @@ from typing import Optional, Tuple
 from flask import Flask, Response, jsonify, request, send_file, after_this_request
 from flask_cors import CORS
 
+from rex.config import _parse_int
 from rex.ha_bridge import create_blueprint as create_ha_blueprint
 
 try:
@@ -141,9 +142,9 @@ if not _MODEL_PATTERN.match(DEFAULT_TTS_MODEL):
     DEFAULT_TTS_MODEL = "tts_models/multilingual/multi-dataset/xtts_v2"
 
 API_KEY = os.getenv("REX_SPEAK_API_KEY")
-RATE_LIMIT = int(os.getenv("REX_SPEAK_RATE_LIMIT", "30"))
-RATE_LIMIT_WINDOW = int(os.getenv("REX_SPEAK_RATE_WINDOW", "60"))
-MAX_TEXT_LENGTH = int(os.getenv("REX_SPEAK_MAX_CHARS", "800"))
+RATE_LIMIT = _parse_int("REX_SPEAK_RATE_LIMIT", os.getenv("REX_SPEAK_RATE_LIMIT"), default=30)
+RATE_LIMIT_WINDOW = _parse_int("REX_SPEAK_RATE_WINDOW", os.getenv("REX_SPEAK_RATE_WINDOW"), default=60)
+MAX_TEXT_LENGTH = _parse_int("REX_SPEAK_MAX_CHARS", os.getenv("REX_SPEAK_MAX_CHARS"), default=800)
 
 if RATE_LIMIT > 0 and RATE_LIMIT_WINDOW > 0:
     _UNIT_MAP = {1: "second", 60: "minute", 3600: "hour", 86400: "day"}

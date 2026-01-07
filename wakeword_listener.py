@@ -13,6 +13,7 @@ import numpy as np
 import simpleaudio as sa
 import sounddevice as sd
 
+from rex.config import _parse_float
 from rex.wake_acknowledgment import ensure_wake_acknowledgment_sound
 from rex.wakeword_utils import detect_wakeword, load_wakeword_model
 
@@ -21,7 +22,7 @@ from rex.wakeword_utils import detect_wakeword, load_wakeword_model
 # ------------------------------------------------------------------------------
 
 WAKEWORD = os.getenv("REX_WAKEWORD", "rex")
-THRESHOLD = float(os.getenv("REX_WAKEWORD_THRESHOLD", "0.5"))
+THRESHOLD = _parse_float("REX_WAKEWORD_THRESHOLD", os.getenv("REX_WAKEWORD_THRESHOLD"), default=0.5)
 SAMPLE_RATE = 16000
 BLOCK_SIZE = SAMPLE_RATE  # 1-second blocks
 
