@@ -22,11 +22,13 @@
 
 | Component | Requirement |
 |-----------|-------------|
-| **OS** | macOS 11+, Windows 10+, or Ubuntu 20.04+ |
-| **Python** | 3.9 or newer (3.10+ recommended) |
+| **OS** | macOS 11+, Windows 10/11, or Ubuntu 20.04+ |
+| **Python** | 3.9 through 3.13 (3.10+ recommended) |
 | **FFmpeg** | Must be installed and available on PATH |
 | **Hardware** | Microphone and speakers for voice mode |
 | **GPU** (optional) | NVIDIA GPU with CUDA 11.8+ for acceleration |
+
+**Note for Windows users**: The `simpleaudio` package (used for audio playback) has build issues on Windows and is automatically disabled. Audio playback functionality will be limited on Windows, but all core features work correctly.
 
 ## Quickstart
 

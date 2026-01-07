@@ -10,8 +10,12 @@ _load_env()
 import os
 
 import numpy as np
-import simpleaudio as sa
 import sounddevice as sd
+
+try:
+    import simpleaudio as sa  # type: ignore
+except ImportError:
+    sa = None  # type: ignore[assignment]
 
 from rex.config import _parse_float
 from rex.wake_acknowledgment import ensure_wake_acknowledgment_sound
@@ -44,6 +48,9 @@ print(f"🔊 Listening for wake word: '{wake_keyword}'…")
 # ------------------------------------------------------------------------------
 
 def play_confirmation_sound() -> None:
+    if sa is None:
+        print("[!] simpleaudio not available (Windows or not installed) - skipping confirmation sound")
+        return
     try:
         wave_obj = sa.WaveObject.from_wave_file(wake_sound_path)
         play_obj = wave_obj.play()
