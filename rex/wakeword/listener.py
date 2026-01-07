@@ -8,7 +8,8 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 
 import numpy as np
 
-from .utils import detect_wakeword
+from ..assistant_errors import WakeWordError
+from .utils import detect_wakeword, load_wakeword_model
 
 # Optional: TTS
 # import pyttsx3
@@ -62,11 +63,28 @@ class WakeWordListener:
         self._running = False
 
 
-def build_default_detector(model, *, threshold: float = 0.5) -> Callable[[np.ndarray], bool]:
+def build_default_detector(
+    *,
+    sample_rate: int,
+    chunk_duration: float,
+    threshold: float = 0.5,
+    poll_interval: float | None = None,
+    keyword: str | None = None,
+    model_path: str | None = None,
+) -> WakeWordListener:
+    """Build a WakeWordListener with the default wake-word model."""
+    try:
+        model, _ = load_wakeword_model(keyword=keyword, model_path=model_path)
+    except Exception as exc:  # pragma: no cover - dependency/setup dependent
+        raise WakeWordError(f"Failed to load wake-word model: {exc}") from exc
+
     def _detector(frame: np.ndarray) -> bool:
         return detect_wakeword(model, frame, threshold=threshold)
 
-    return _detector
+    if poll_interval is None:
+        poll_interval = min(0.05, max(0.0, chunk_duration / 2))
+
+    return WakeWordListener(_detector, poll_interval=poll_interval)
 
 
 __all__ = ["WakeWordListener", "build_default_detector"]
