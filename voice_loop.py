@@ -198,11 +198,24 @@ class WakeWordListener:
             logger.warning("Audio status: %s", status)
 
         audio_data = np.squeeze(indata)
+
+        # TEMPORARY DEBUG: Log before calling detect_wakeword
+        if self._callback_count % 100 == 1:
+            logger.info(f">>> ABOUT TO CALL detect_wakeword (callback #{self._callback_count}, threshold={self.threshold})")
+
         try:
-            if detect_wakeword(self.model, audio_data, threshold=self.threshold):
+            result = detect_wakeword(self.model, audio_data, threshold=self.threshold)
+
+            # TEMPORARY DEBUG: Log after calling detect_wakeword
+            if self._callback_count % 100 == 1:
+                logger.info(f"<<< detect_wakeword RETURNED: {result}")
+
+            if result:
                 self.loop.call_soon_threadsafe(self._event.set)
         except Exception as exc:
             logger.error("Wake-word detection failed: %s", exc)
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
 
     async def wait_for_wake(self) -> None:
         await self._event.wait()

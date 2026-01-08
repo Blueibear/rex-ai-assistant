@@ -87,20 +87,27 @@ def load_wakeword_model(
     resolved_path = _resolve_model_path(model_path)
     requested_keywords = _normalise_keywords(keyword)
 
+    logger.info(f"Loading wake word model - requested keywords: {requested_keywords}")
+    logger.info(f"Available openwakeword models: {sorted(_AVAILABLE_KEYWORDS)}")
+
     if resolved_path.is_file() and resolved_path.stat().st_size > 0:
         models_to_load: List[str | os.PathLike[str]] = [str(resolved_path)]
         active_label = resolved_path.stem
+        logger.info(f"Using custom model file: {resolved_path}")
     else:
         valid_keywords = [kw for kw in requested_keywords if kw in _AVAILABLE_KEYWORDS]
         if not valid_keywords:
             fallback = DEFAULT_KEYWORD.replace("_", " ")
-            print(
-                f"[wakeword] Keywords {requested_keywords!r} unavailable; "
-                f"falling back to '{fallback}'."
+            logger.warning(
+                f"Keywords {requested_keywords!r} not available in openwakeword models. "
+                f"Falling back to '{fallback}'. "
+                f"Available models: {sorted(_AVAILABLE_KEYWORDS)}"
             )
+            print(f"[WAKEWORD] Keywords {requested_keywords!r} unavailable; falling back to '{fallback}'.")
             valid_keywords = [fallback]
         models_to_load = valid_keywords
         active_label = ", ".join(valid_keywords)
+        logger.info(f"Loading built-in models: {models_to_load}")
         _ensure_builtin_keyword_resources(valid_keywords, DEFAULT_BACKEND)
 
     wake_model = WakeWordModel(
@@ -109,6 +116,8 @@ def load_wakeword_model(
         enable_speex_noise_suppression=False,  # Disabled for Windows compatibility (speexdsp_ns not available)
     )
 
+    logger.info(f"Wake word model loaded successfully. Active wake phrase: '{active_label}'")
+    print(f"[WAKEWORD] Model loaded. Say: '{active_label}' (threshold: adjust in .env if needed)")
     return wake_model, active_label
 
 
@@ -128,7 +137,16 @@ def detect_wakeword(
         audio_frame = (scaled * np.iinfo(np.int16).max).astype(np.int16)
 
     predictions = model.predict(audio_frame)
-    return any(score >= threshold for score in predictions.values())
+
+    # TEMPORARY DEBUG: Log EVERY detection to diagnose issue
+    scores_str = ", ".join(f"{k}: {v:.3f}" for k, v in predictions.items())
+    logger.info(f"Wake word scores: {scores_str} (threshold: {threshold})")
+
+    detected = any(score >= threshold for score in predictions.values())
+    if detected:
+        logger.info(f"✓✓✓ WAKE WORD DETECTED! Scores: {scores_str} ✓✓✓")
+
+    return detected
 
 
 __all__ = ["load_wakeword_model", "detect_wakeword"]
