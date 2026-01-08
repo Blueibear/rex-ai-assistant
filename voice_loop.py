@@ -274,6 +274,10 @@ class AsyncRexAssistant:
         return self._whisper_model
 
     async def run(self) -> None:
+        # Log wake word details right before starting (this is in background thread so GUI will see it)
+        logger.info(f"Starting wake word listener for keyword: '{self._wake_keyword}' (threshold: {self.config.wakeword_threshold})")
+        logger.info(f"Wake word model type: {type(self._wake_model).__name__}")
+
         self._listener.start()
         try:
             while self._running:
