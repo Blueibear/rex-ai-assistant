@@ -116,6 +116,7 @@ def load_wakeword_model(
     )
 
     logger.info(f"Wake word model loaded successfully. Active wake phrase: '{active_label}'")
+    print(f"[WAKEWORD] Model loaded. Say: '{active_label}' (threshold: adjust in .env if needed)")
     return wake_model, active_label
 
 
@@ -139,9 +140,9 @@ def detect_wakeword(
     # Log detection scores periodically (every ~5 seconds at typical frame rate)
     # This helps debug why wake word isn't being detected
     import random
-    if random.random() < 0.02:  # ~2% of frames
+    if random.random() < 0.01:  # ~1% of frames = every ~10 seconds
         scores_str = ", ".join(f"{k}: {v:.3f}" for k, v in predictions.items())
-        logger.debug(f"Wake word scores: {scores_str} (threshold: {threshold})")
+        logger.info(f"Wake word scores: {scores_str} (threshold: {threshold})")
 
     detected = any(score >= threshold for score in predictions.values())
     if detected:
