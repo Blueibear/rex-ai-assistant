@@ -137,17 +137,13 @@ def detect_wakeword(
 
     predictions = model.predict(audio_frame)
 
-    # Log detection scores periodically (every ~5 seconds at typical frame rate)
-    # This helps debug why wake word isn't being detected
-    import random
-    if random.random() < 0.01:  # ~1% of frames = every ~10 seconds
-        scores_str = ", ".join(f"{k}: {v:.3f}" for k, v in predictions.items())
-        logger.info(f"Wake word scores: {scores_str} (threshold: {threshold})")
+    # TEMPORARY DEBUG: Log EVERY detection to diagnose issue
+    scores_str = ", ".join(f"{k}: {v:.3f}" for k, v in predictions.items())
+    logger.info(f"Wake word scores: {scores_str} (threshold: {threshold})")
 
     detected = any(score >= threshold for score in predictions.values())
     if detected:
-        scores_str = ", ".join(f"{k}: {v:.3f}" for k, v in predictions.items())
-        logger.info(f"WAKE WORD DETECTED! Scores: {scores_str}")
+        logger.info(f"✓✓✓ WAKE WORD DETECTED! Scores: {scores_str} ✓✓✓")
 
     return detected
 
