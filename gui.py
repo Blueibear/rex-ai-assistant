@@ -155,12 +155,17 @@ class AssistantGUI(tk.Tk):
         """Install custom log handler to capture logs from background threads."""
         # Create handler that calls our GUI logging method
         handler = GUILogHandler(self._log_to_gui_threadsafe)
-        handler.setLevel(logging.INFO)  # Capture INFO and above
+        handler.setLevel(logging.DEBUG)  # Capture DEBUG and above for troubleshooting
 
         # Add to root logger so we get logs from voice_loop, wakeword_utils, etc.
         root_logger = logging.getLogger()
         root_logger.addHandler(handler)
-        LOGGER.info("GUI log handler installed")
+
+        # Set specific loggers to DEBUG level
+        logging.getLogger("voice_loop").setLevel(logging.DEBUG)
+        logging.getLogger("wakeword_utils").setLevel(logging.DEBUG)
+
+        LOGGER.info("GUI log handler installed (level: DEBUG)")
 
     def _log_to_gui_threadsafe(self, message: str) -> None:
         """Thread-safe logging to GUI - can be called from any thread."""
