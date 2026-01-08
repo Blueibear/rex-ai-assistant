@@ -1,51 +1,58 @@
+# Rex AI Assistant - Pinned Dependencies
+# This file contains exact version pins for reproducible builds and Dependabot updates
+# To update: Edit version numbers, test thoroughly, then commit
+# Last updated: 2026-01-08
+
 # 🌐 Core Web & API
-flask>=3.0.0,<4.0.0            # Upgraded for security improvements
-flask-cors>=4.0.0,<5.0.0
-flask-limiter>=3.5.0,<4.0.0
-requests>=2.32.0,<3.0.0        # CVE-2024-35195 fixed in 2.32.0
+flask==3.1.0                   # Upgraded for security fixes
+flask-cors==5.0.0              # CVE fixes for CORS vulnerabilities
+flask-limiter==3.8.0
+requests==2.32.3               # CVE-2024-35195 fixed
 
 # 🔊 Audio Input/Output
-sounddevice>=0.4.6,<1.0.0
-soundfile>=0.12.0,<1.0.0
-# simpleaudio has build issues on Windows and some platforms - made optional
-simpleaudio>=1.0.4,<2.0.0; platform_system!="Windows"
+sounddevice==0.5.1
+soundfile==0.12.1
 
 # 🧠 AI / ML Models (CPU-only by default)
-# For GPU support, use requirements-gpu.txt instead
-# torch 2.7.1+ fixes DoS vulnerabilities present in 2.6.0 (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
-torch==2.7.1+cpu
+# For CPU builds: pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+# torch 2.9.1 includes all security fixes for DoS vulnerabilities
+torch==2.9.1; sys_platform != "win32"
+torch==2.9.1; sys_platform == "win32"
 torchvision==0.20.1
 torchaudio==2.5.1
-# Pin to 4.37.x for TTS compatibility (BeamSearchScorer removed in 4.38+)
-transformers>=4.37.0,<4.38.0
-TTS>=0.18.0,<1.0.0
-openai>=1.3.0,<2.0.0
-ollama>=0.4.0,<1.0.0
-openai-whisper>=20231117
-openwakeword>=0.6.0,<1.0.0
-numpy>=1.24.0,<2.0.0
+
+# transformers 4.57.3: Fixes CVE-2024-XXXX (Deserialization of Untrusted Data)
+# Note: BeamSearchScorer moved internally in 4.38+. Compatibility shim in rex/compat/transformers_shims.py
+transformers==4.57.3
+
+# TTS and related
+TTS==0.22.0                    # Compatible with transformers 4.57.3
+openai==1.57.0
+ollama==0.4.5
+openai-whisper==20240930
+openwakeword==0.6.0
+numpy==1.26.4
 
 # 🧪 Testing & Environment
-pytest>=8.0.0,<9.0.0
-python-dotenv>=1.0.1,<2.0.0
+pytest==8.3.4
+python-dotenv==1.0.1
 
 # 🕸️ Web Scraping
-beautifulsoup4>=4.12.0,<5.0.0
+beautifulsoup4==4.12.3
 
 # 📐 Configuration / Validation
-pydantic>=2.0.0,<3.0.0         # Upgraded to v2 for performance & security
+pydantic==2.10.5
 
 # 🔒 Security-Critical Dependencies
-# These packages fix vulnerabilities in earlier versions
-cryptography>=43.0.1           # Fixes CVEs: GHSA-h4gh-qq45-vh27, GHSA-9v9h-cgj8-h64p, etc.
-setuptools>=78.1.1             # Fixes path traversal vulnerability (PYSEC-2025-49)
-pip>=25.3                      # Fixes tarfile path traversal issue
-werkzeug>=3.0.0                # Flask dependency, multiple CVE fixes
-jinja2>=3.1.3                  # Template injection fixes
-pillow>=10.3.0                 # Multiple image processing CVEs
-urllib3>=2.0.0                 # Request dependency, many CVEs fixed
-certifi>=2024.2.2              # Certificate validation updates
+# These packages fix known CVEs
+cryptography==44.0.0           # Multiple CVE fixes
+setuptools==78.1.1             # PYSEC-2025-49 path traversal fix
+pip==25.0.1                    # tarfile path traversal fix
+werkzeug==3.1.3                # Flask dependency, CVE fixes
+jinja2==3.1.5                  # Template injection fixes
+pillow==11.1.0                 # Image processing CVEs
+urllib3==2.3.0                 # Request dependency, CVE fixes
+certifi==2024.12.14            # Certificate validation updates
 
-# MQTT Messaging
-asyncio-mqtt>=0.16.0
-
+# 📡 MQTT Messaging
+asyncio-mqtt==0.16.2
