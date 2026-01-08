@@ -458,12 +458,23 @@ class AsyncRexAssistant:
 
     def _play_wake_sound(self) -> None:
         path = self.config.wake_sound_path
-        if not path or sa is None:
+        if not path:
+            logger.debug("No wake sound path configured - skipping acknowledgment tone")
             return
+
         try:
-            wave_obj = sa.WaveObject.from_wave_file(path)
-            play_obj = wave_obj.play()
-            play_obj.wait_done()
+            # Try simpleaudio first (Linux/macOS)
+            if sa is not None:
+                wave_obj = sa.WaveObject.from_wave_file(path)
+                play_obj = wave_obj.play()
+                play_obj.wait_done()
+                logger.info("Wake acknowledgment tone played (simpleaudio)")
+            else:
+                # Fallback to sounddevice for Windows
+                data, samplerate = sf.read(path)
+                sd.play(data, samplerate)
+                sd.wait()
+                logger.info("Wake acknowledgment tone played (sounddevice)")
         except Exception as exc:
             logger.warning("Failed to play wake sound %s: %s", path, exc)
 
