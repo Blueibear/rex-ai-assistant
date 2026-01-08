@@ -138,12 +138,11 @@ def detect_wakeword(
 
     predictions = model.predict(audio_frame)
 
-    # TEMPORARY DEBUG: Log EVERY detection to diagnose issue
-    scores_str = ", ".join(f"{k}: {v:.3f}" for k, v in predictions.items())
-    logger.info(f"Wake word scores: {scores_str} (threshold: {threshold})")
-
     detected = any(score >= threshold for score in predictions.values())
+
+    # Only log when detected (not every frame)
     if detected:
+        scores_str = ", ".join(f"{k}: {v:.3f}" for k, v in predictions.items())
         logger.info(f"✓✓✓ WAKE WORD DETECTED! Scores: {scores_str} ✓✓✓")
 
     return detected
