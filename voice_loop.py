@@ -54,7 +54,7 @@ class WakeWordListener:
     sample_rate: int
     block_size: int
     device: int | None
-    loop: asyncio.AbstractEventLoop
+    loop: asyncio.AbstractEventLoop | None = None
 
     def __post_init__(self) -> None:
         self._event = asyncio.Event()
@@ -212,8 +212,11 @@ class WakeWordListener:
 
             if result:
                 logger.info(f"!!! WAKE WORD DETECTED IN CALLBACK - calling loop.call_soon_threadsafe to set event")
-                self.loop.call_soon_threadsafe(self._event.set)
-                logger.info(f"!!! Event.set() scheduled on event loop")
+                if self.loop is None:
+                    logger.error("!!! ERROR: loop is None - cannot schedule event.set()!")
+                else:
+                    self.loop.call_soon_threadsafe(self._event.set)
+                    logger.info(f"!!! Event.set() scheduled on event loop: {self.loop}")
         except Exception as exc:
             logger.error("Wake-word detection failed: %s", exc)
             import traceback
@@ -230,7 +233,6 @@ class WakeWordListener:
 class AsyncRexAssistant:
     def __init__(self, config: AppConfig | None = None) -> None:
         self.config = config or load_config()
-        self.loop = asyncio.get_event_loop()
         self.language_model = LanguageModel(self.config)
         self._wake_model, self._wake_keyword = load_wakeword_model(keyword=self.config.wakeword)
         self._sample_rate = 16000
@@ -246,13 +248,14 @@ class AsyncRexAssistant:
         else:
             logger.info(status_msg)
 
+        # Create listener with a placeholder loop (will be updated in run() with the actual running loop)
         self._listener = WakeWordListener(
             model=self._wake_model,
             threshold=self.config.wakeword_threshold,
             sample_rate=self._sample_rate,
             block_size=int(self._sample_rate * self.config.wakeword_window),
             device=resolved_device,
-            loop=self.loop,
+            loop=None,  # Will be set to the running loop in run()
         )
         self._tts: TTS | None = None
         self._whisper_model: whisper.Whisper | None = None
@@ -295,6 +298,12 @@ class AsyncRexAssistant:
         # Log wake word details right before starting (this is in background thread so GUI will see it)
         logger.info(f"Starting wake word listener for keyword: '{self._wake_keyword}' (threshold: {self.config.wakeword_threshold})")
         logger.info(f"Wake word model type: {type(self._wake_model).__name__}")
+
+        # CRITICAL: Get the running event loop and update listener to use it
+        # This ensures the audio callback schedules events on the correct loop
+        running_loop = asyncio.get_running_loop()
+        self._listener.loop = running_loop
+        logger.info(f"Updated listener to use running event loop: {running_loop}")
 
         self._listener.start()
         try:
