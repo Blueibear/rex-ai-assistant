@@ -15,11 +15,6 @@ import soundfile as sf
 import whisper
 from TTS.api import TTS
 
-try:
-    import simpleaudio as sa  # type: ignore
-except ImportError:
-    sa = None  # type: ignore[assignment]
-
 from rex.assistant_errors import (
     SpeechToTextError,
     TextToSpeechError,
@@ -325,10 +320,9 @@ class AsyncRexAssistant:
     async def _handle_interaction(self) -> None:
         logger.info(">>> _handle_interaction() started - playing wake sound and processing conversation...")
         try:
-            await asyncio.gather(
-                asyncio.to_thread(self._play_wake_sound),
-                self._process_conversation(),
-            )
+            # Play wake sound first, then record (don't overlap to avoid audio device conflicts)
+            await asyncio.to_thread(self._play_wake_sound)
+            await self._process_conversation()
             logger.info(">>> _handle_interaction() completed successfully")
         except Exception as exc:
             logger.error(f"!!! _handle_interaction() FAILED: {exc}")
@@ -462,19 +456,21 @@ class AsyncRexAssistant:
             logger.debug("No wake sound path configured - skipping acknowledgment tone")
             return
 
+        # Check if file exists
+        if not Path(path).exists():
+            logger.warning(f"Wake sound file not found: {path}")
+            return
+
         try:
-            # Try simpleaudio first (Linux/macOS)
-            if sa is not None:
-                wave_obj = sa.WaveObject.from_wave_file(path)
-                play_obj = wave_obj.play()
-                play_obj.wait_done()
-                logger.info("Wake acknowledgment tone played (simpleaudio)")
-            else:
-                # Fallback to sounddevice for Windows
-                data, samplerate = sf.read(path)
-                sd.play(data, samplerate)
-                sd.wait()
-                logger.info("Wake acknowledgment tone played (sounddevice)")
+            # Use sounddevice for cross-platform compatibility
+            data, samplerate = sf.read(path)
+            logger.debug(f"Playing wake sound: {path} ({len(data)} samples at {samplerate} Hz)")
+
+            # Play and wait for completion with timeout
+            sd.play(data, samplerate, blocking=False)
+            sd.wait()  # Wait for playback to complete
+
+            logger.info("Wake acknowledgment tone played")
         except Exception as exc:
             logger.warning("Failed to play wake sound %s: %s", path, exc)
 
