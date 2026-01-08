@@ -211,15 +211,20 @@ class WakeWordListener:
                 logger.info(f"<<< detect_wakeword RETURNED: {result}")
 
             if result:
+                logger.info(f"!!! WAKE WORD DETECTED IN CALLBACK - calling loop.call_soon_threadsafe to set event")
                 self.loop.call_soon_threadsafe(self._event.set)
+                logger.info(f"!!! Event.set() scheduled on event loop")
         except Exception as exc:
             logger.error("Wake-word detection failed: %s", exc)
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
 
     async def wait_for_wake(self) -> None:
+        logger.info(">>> wait_for_wake() called - waiting for event...")
         await self._event.wait()
+        logger.info("<<< wait_for_wake() - event received! Clearing event...")
         self._event.clear()
+        logger.info("<<< wait_for_wake() - event cleared, returning")
 
 
 class AsyncRexAssistant:
@@ -293,23 +298,38 @@ class AsyncRexAssistant:
 
         self._listener.start()
         try:
+            logger.info(">>> Entering main run loop - waiting for wake word...")
             while self._running:
+                logger.info(">>> Loop iteration - calling wait_for_wake()...")
                 await self._listener.wait_for_wake()
+                logger.info(">>> wait_for_wake() returned!")
                 if not self._running:
+                    logger.info(">>> _running is False, breaking loop")
                     break
                 logger.info("Wake word '%s' detected", self._wake_keyword)
+                logger.info(">>> Calling _handle_interaction()...")
                 await self._handle_interaction()
+                logger.info(">>> _handle_interaction() completed")
         finally:
             self._listener.stop()
 
     async def _handle_interaction(self) -> None:
-        await asyncio.gather(
-            asyncio.to_thread(self._play_wake_sound),
-            self._process_conversation(),
-        )
+        logger.info(">>> _handle_interaction() started - playing wake sound and processing conversation...")
+        try:
+            await asyncio.gather(
+                asyncio.to_thread(self._play_wake_sound),
+                self._process_conversation(),
+            )
+            logger.info(">>> _handle_interaction() completed successfully")
+        except Exception as exc:
+            logger.error(f"!!! _handle_interaction() FAILED: {exc}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
 
     async def _process_conversation(self) -> None:
+        logger.info(">>> _process_conversation() started - recording audio...")
         audio = await asyncio.to_thread(self._record_audio)
+        logger.info(f">>> Audio recording complete - {audio.size} samples")
         if audio.size:
             min_val = float(np.min(audio))
             max_val = float(np.max(audio))
