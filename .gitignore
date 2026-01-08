@@ -104,3 +104,10 @@ Memory/*/history.log
 !run_codex_autonomous.ps1
 !.claude-project.yaml
 
+# Local-only scratch and environments
+backups/
+source/
+list_audio.py
+test_mic_open.py
+
+
