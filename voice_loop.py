@@ -487,9 +487,19 @@ class AsyncRexAssistant:
         try:
             import winsound
             logger.debug(f"Playing wake sound (Windows): {path}")
-            # SND_FILENAME: path is a file, SND_NODEFAULT: no default sound if file missing
-            # This is synchronous/blocking by default
-            winsound.PlaySound(str(path), winsound.SND_FILENAME)
+
+            # First, stop any currently playing sound
+            winsound.PlaySound(None, winsound.SND_PURGE)
+
+            # Play the wake sound synchronously (blocks until complete)
+            # SND_FILENAME: path is a file
+            # SND_NODEFAULT: no default beep if file missing
+            # SND_NOSTOP: don't interrupt if another sound is playing (we already purged)
+            winsound.PlaySound(str(path), winsound.SND_FILENAME | winsound.SND_NODEFAULT)
+
+            # Ensure playback is fully stopped
+            winsound.PlaySound(None, winsound.SND_PURGE)
+
             logger.info("Wake acknowledgment tone played (Windows)")
         except Exception as exc:
             logger.warning("Failed to play wake sound with winsound: %s, falling back to sounddevice", exc)
