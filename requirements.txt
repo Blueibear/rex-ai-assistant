@@ -4,10 +4,10 @@
 # Last updated: 2026-01-08
 
 # 🌐 Core Web & API
-flask==3.1.0                   # Upgraded for security fixes
-flask-cors==5.0.0              # CVE fixes for CORS vulnerabilities
+flask==3.1.1                   # CVE-2025-47278 fixed (fallback key signing issue)
+flask-cors==6.0.0              # CVE-2024-6866, CVE-2024-6844, CVE-2024-6839 fixed
 flask-limiter==3.8.0
-requests==2.32.3               # CVE-2024-35195 fixed
+requests==2.32.4               # CVE-2024-47081 fixed (.netrc credential leak)
 
 # 🔊 Audio Input/Output
 sounddevice==0.5.1
@@ -15,11 +15,11 @@ soundfile==0.12.1
 
 # 🧠 AI / ML Models (CPU-only by default)
 # For CPU builds: pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
-# torch 2.9.1 includes all security fixes for DoS vulnerabilities
-torch==2.9.1; sys_platform != "win32"
-torch==2.9.1; sys_platform == "win32"
-torchvision==0.20.1
-torchaudio==2.5.1
+# torch 2.8.0+ includes all security fixes for DoS vulnerabilities (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
+# Using PyTorch 2.8.0 compatibility matrix versions
+torch==2.8.0
+torchvision==0.23.0
+torchaudio==2.8.0
 
 # transformers 4.57.3: Fixes CVE-2024-XXXX (Deserialization of Untrusted Data)
 # Note: BeamSearchScorer moved internally in 4.38+. Compatibility shim in rex/compat/transformers_shims.py
@@ -45,13 +45,13 @@ pydantic==2.10.5
 
 # 🔒 Security-Critical Dependencies
 # These packages fix known CVEs
-cryptography==44.0.0           # Multiple CVE fixes
+cryptography==44.0.1           # CVE-2024-12797 fixed (OpenSSL vulnerability)
 setuptools==78.1.1             # PYSEC-2025-49 path traversal fix
-pip==25.0.1                    # tarfile path traversal fix
-werkzeug==3.1.3                # Flask dependency, CVE fixes
-jinja2==3.1.5                  # Template injection fixes
+pip==25.3                      # CVE-2025-8869 fixed (tar symlink extraction)
+werkzeug==3.1.5                # CVE-2025-66221, CVE-2026-21860 fixed (Windows device names)
+jinja2==3.1.6                  # CVE-2025-27516 fixed (sandbox escape via |attr filter)
 pillow==11.1.0                 # Image processing CVEs
-urllib3==2.3.0                 # Request dependency, CVE fixes
+urllib3==2.6.3                 # CVE-2024-47313 fixed (decompression bomb on redirects)
 certifi==2024.12.14            # Certificate validation updates
 
 # 📡 MQTT Messaging
