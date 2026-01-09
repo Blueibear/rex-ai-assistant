@@ -303,11 +303,13 @@ class AsyncRexAssistant:
 
     def _get_tts(self) -> TTS:
         if self._tts is None:
-            logger.info("Loading TTS model (XTTS v2) on GPU...")
+            import torch
+            gpu_available = torch.cuda.is_available()
+            logger.info(f"Loading TTS model (XTTS v2) on {'GPU' if gpu_available else 'CPU (WARNING: GPU not available!)'}...")
             self._tts = TTS(
                 model_name="tts_models/multilingual/multi-dataset/xtts_v2",
                 progress_bar=False,
-                gpu=True,  # Enable GPU for 5-10x speedup
+                gpu=gpu_available,  # Enable GPU if available, fallback to CPU
             )
             logger.info("TTS model loaded successfully")
         return self._tts
@@ -355,12 +357,15 @@ class AsyncRexAssistant:
             self._listener.stop()
 
     async def _handle_interaction(self) -> None:
+        import time
+        start_time = time.time()
         logger.info(">>> _handle_interaction() started - playing wake sound and processing conversation...")
         try:
             # Play wake sound first, then record (don't overlap to avoid audio device conflicts)
             await asyncio.to_thread(self._play_wake_sound)
             await self._process_conversation()
-            logger.info(">>> _handle_interaction() completed successfully")
+            total_time = time.time() - start_time
+            logger.info(f">>> _handle_interaction() completed successfully in {total_time:.2f} seconds")
         except Exception as exc:
             logger.error(f"!!! _handle_interaction() FAILED: {exc}")
             import traceback
@@ -466,11 +471,15 @@ class AsyncRexAssistant:
             raise SpeechToTextError(str(exc)) from exc
 
     def _speak_response(self, text: str) -> None:
+        import time
         tts = self._get_tts()
         speaker_wav = self.user_voice_refs.get(self.active_user)
         try:
             # XTTS v2 requires either speaker_wav or speaker parameter
             # If no voice reference, use built-in speaker
+            logger.info(f"[TTS] Generating speech for {len(text)} characters...")
+            tts_start = time.time()
+
             if speaker_wav:
                 tts.tts_to_file(
                     text=text,
@@ -486,7 +495,14 @@ class AsyncRexAssistant:
                     language="en",
                     file_path="assistant_response.wav",
                 )
+
+            tts_duration = time.time() - tts_start
+            logger.info(f"[TTS] Speech generated in {tts_duration:.2f} seconds")
+
             # Play the generated audio
+            logger.info("[TTS] Playing audio...")
+            playback_start = time.time()
+
             if platform.system() == "Windows":
                 # Use winsound on Windows (more reliable than simpleaudio)
                 import winsound
@@ -498,6 +514,9 @@ class AsyncRexAssistant:
                 play_obj.wait_done()
             else:
                 logger.warning("No audio playback library available - audio saved but not played")
+
+            playback_duration = time.time() - playback_start
+            logger.info(f"[TTS] Audio playback completed in {playback_duration:.2f} seconds")
         except Exception as exc:
             raise TextToSpeechError(f"Failed to synthesise speech: {exc}")
         finally:
