@@ -168,6 +168,20 @@ class WakeWordListener:
         error_msg += "\n".join(attempt_details)
         error_msg += f"\n\nFinal error: {last_exception}"
 
+        # Add helpful suggestions for common Windows DirectSound errors
+        error_str = str(last_exception).lower()
+        if "directsound" in error_str and "-2005401480" in error_str:
+            error_msg += "\n\n💡 DirectSound Exclusive Access Error - Try these fixes:"
+            error_msg += "\n   1. Close any apps using the microphone (Skype, Teams, Discord, Zoom, OBS)"
+            error_msg += "\n   2. Disable exclusive mode: Sound settings → Recording → Device Properties → Advanced → Uncheck 'Allow exclusive control'"
+            error_msg += "\n   3. Look for a WASAPI version of this device in the device dropdown (more reliable than DirectSound)"
+            error_msg += "\n   4. Try a different audio device"
+        elif "directsound" in error_str or "wasapi" in error_str:
+            error_msg += "\n\n💡 Windows Audio Error - Suggestions:"
+            error_msg += "\n   1. Close other audio applications"
+            error_msg += "\n   2. Try selecting a different device"
+            error_msg += "\n   3. Check Windows Sound settings → Recording tab"
+
         raise WakeWordError(error_msg)
 
     def stop(self) -> None:
