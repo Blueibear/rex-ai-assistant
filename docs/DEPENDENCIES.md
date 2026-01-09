@@ -6,8 +6,12 @@ Rex AI Assistant uses **pinned dependencies** in `requirements.txt` for reproduc
 
 ## Files
 
-- **`requirements.txt`**: Pinned versions for production deployment
-- **`requirements.in`**: (Optional) Top-level dependencies with semver ranges
+- **`requirements.txt`**: Pinned versions for production deployment (primary)
+- **`requirements.in`**: Top-level dependencies with semver ranges (optional)
+- **`Pipfile`**: Pipenv dependency specification (exact pins for Dependabot)
+- **`Pipfile.lock`**: Pipenv lockfile with all transitive dependencies (for Dependabot)
+
+**Note:** `Pipfile.lock` enables GitHub Dependabot to automatically detect and propose updates for vulnerable dependencies.
 
 ## Updating Dependencies
 
@@ -119,9 +123,67 @@ GitHub Dependabot requires exact pins (`==`) to function. It will:
 
 | Date       | Transformers | Torch | TTS   | Notes                          |
 |------------|--------------|-------|-------|--------------------------------|
+| 2026-01-09 | 4.57.3       | 2.8.0 | 0.22.0| 15 CVEs fixed, Pipfile.lock added |
 | 2026-01-08 | 4.57.3       | 2.9.1 | 0.22.0| Security fixes, shim added     |
 | 2025-12-XX | 4.37.2       | 2.7.1 | 0.18.0| Pre-security audit             |
 
 ## Questions?
 
 See [README_STABILIZATION.md](README_STABILIZATION.md) for configuration details or open an issue on GitHub.
+
+
+## Using Pipenv (Optional)
+
+Pipenv provides an alternative dependency management workflow with lockfile support. The `Pipfile.lock` is primarily used by GitHub Dependabot to track updates.
+
+### Installation with Pipenv
+
+```bash
+# Install pipenv
+pip install pipenv
+
+# Install dependencies from Pipfile
+pipenv install
+
+# Install dev dependencies
+pipenv install --dev
+
+# Activate virtual environment
+pipenv shell
+
+# Run commands in pipenv environment
+pipenv run python gui.py
+```
+
+### Updating Dependencies with Pipenv
+
+```bash
+# Update a specific package
+pipenv update flask
+
+# Update all packages
+pipenv update
+
+# Lock dependencies after manual edit to Pipfile
+pipenv lock
+
+# Generate requirements.txt from Pipfile.lock
+pipenv requirements > requirements.txt
+```
+
+### Keeping requirements.txt and Pipfile in Sync
+
+**Primary workflow:** Edit `requirements.txt` directly for dependency updates.
+
+To sync Pipfile when requirements.txt changes:
+
+```bash
+# Update Pipfile manually or regenerate from requirements.txt
+pipenv install -r requirements.txt --skip-lock
+
+# Lock dependencies
+pipenv lock
+```
+
+**Note:** `requirements.txt` remains the primary dependency file. Pipfile/Pipfile.lock exist primarily to enable Dependabot.
+
