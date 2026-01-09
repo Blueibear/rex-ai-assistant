@@ -24,8 +24,32 @@ def ensure_transformers_compatibility() -> None:
         if hasattr(transformers, 'BeamSearchScorer'):
             return
 
-        # Import from new location
-        from transformers.generation import BeamSearchScorer
+        # Try multiple import locations (transformers has moved it around in different versions)
+        BeamSearchScorer = None
+
+        # Try transformers.generation.beam_search (4.38+)
+        try:
+            from transformers.generation.beam_search import BeamSearchScorer
+        except (ImportError, AttributeError):
+            pass
+
+        # Try transformers.generation (older 4.x versions)
+        if BeamSearchScorer is None:
+            try:
+                from transformers.generation import BeamSearchScorer
+            except (ImportError, AttributeError):
+                pass
+
+        # Try transformers.generation_utils (very old versions)
+        if BeamSearchScorer is None:
+            try:
+                from transformers.generation_utils import BeamSearchScorer
+            except (ImportError, AttributeError):
+                pass
+
+        if BeamSearchScorer is None:
+            # Couldn't find it anywhere, give up
+            return
 
         # Patch it into the transformers module namespace (multiple methods for robustness)
         transformers.BeamSearchScorer = BeamSearchScorer
@@ -36,7 +60,7 @@ def ensure_transformers_compatibility() -> None:
             sys.modules['transformers'].BeamSearchScorer = BeamSearchScorer
             sys.modules['transformers'].__dict__['BeamSearchScorer'] = BeamSearchScorer
 
-    except (ImportError, AttributeError):
+    except (ImportError, AttributeError) as e:
         # If transformers isn't installed or BeamSearchScorer doesn't exist,
         # skip the patch - TTS will fail later with a clearer error
         pass
