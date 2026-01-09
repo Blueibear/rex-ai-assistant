@@ -55,6 +55,7 @@ try:
     from transformers.generation.beam_search import BeamSearchScorer
     from transformers.generation.logits_process import LogitsProcessorList
     from transformers.generation.stopping_criteria import StoppingCriteriaList
+    from transformers.generation.configuration_utils import GenerationConfig
 except (ImportError, AttributeError):
     try:
         # Fallback for older transformers versions (all in generation module)
@@ -62,6 +63,7 @@ except (ImportError, AttributeError):
             BeamSearchScorer,
             LogitsProcessorList,
             StoppingCriteriaList,
+            GenerationConfig,
         )
     except (ImportError, AttributeError):
         # Final fallback to main transformers namespace (very old versions)
