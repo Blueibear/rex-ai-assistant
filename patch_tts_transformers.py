@@ -48,22 +48,23 @@ def patch_stream_generator(file_path):
         return False
 
     # Create the new import with try/except fallback
+    # Each class is in a different module in transformers 4.38+
     new_import = """# PATCHED FOR TRANSFORMERS COMPATIBILITY
-# Try new location first (transformers 4.38+), fall back to old location
+# Import each class from its actual location in transformers 4.38+
 try:
-    from transformers.generation.beam_search import (
-        BeamSearchScorer,
-        LogitsProcessorList,
-        StoppingCriteriaList,
-    )
+    from transformers.generation.beam_search import BeamSearchScorer
+    from transformers.generation.logits_process import LogitsProcessorList
+    from transformers.generation.stopping_criteria import StoppingCriteriaList
 except (ImportError, AttributeError):
     try:
+        # Fallback for older transformers versions (all in generation module)
         from transformers.generation import (
             BeamSearchScorer,
             LogitsProcessorList,
             StoppingCriteriaList,
         )
     except (ImportError, AttributeError):
+        # Final fallback to main transformers namespace (very old versions)
         from transformers import ("""
 
     # Replace the import
