@@ -284,6 +284,12 @@ class AsyncRexAssistant:
         self._tts: TTS | None = None
         self._whisper_model: whisper.Whisper | None = None
 
+        # Pre-load models at startup for faster first response
+        logger.info("Pre-loading Whisper and TTS models...")
+        self._get_whisper()  # Pre-load Whisper
+        self._get_tts()      # Pre-load TTS
+        logger.info("Models pre-loaded successfully")
+
         self.users_map = load_users_map()
         self.profiles = load_all_profiles()
         resolved = resolve_user_key(
@@ -303,11 +309,13 @@ class AsyncRexAssistant:
 
     def _get_tts(self) -> TTS:
         if self._tts is None:
+            logger.info("Loading TTS model (XTTS v2) on GPU...")
             self._tts = TTS(
                 model_name="tts_models/multilingual/multi-dataset/xtts_v2",
                 progress_bar=False,
-                gpu=False,
+                gpu=True,  # Enable GPU for 5-10x speedup
             )
+            logger.info("TTS model loaded successfully")
         return self._tts
 
     def _get_whisper(self) -> whisper.Whisper:
