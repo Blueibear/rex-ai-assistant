@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import os
+import platform
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -475,6 +476,27 @@ class AsyncRexAssistant:
             logger.warning(f"Wake sound file not found: {path}")
             return
 
+        # Use platform-specific playback for reliability
+        if platform.system() == "Windows":
+            self._play_wake_sound_windows(path)
+        else:
+            self._play_wake_sound_sounddevice(path)
+
+    def _play_wake_sound_windows(self, path: str | Path) -> None:
+        """Play wake sound on Windows using winsound (more reliable than sounddevice)."""
+        try:
+            import winsound
+            logger.debug(f"Playing wake sound (Windows): {path}")
+            # SND_FILENAME: path is a file, SND_NODEFAULT: no default sound if file missing
+            # This is synchronous/blocking by default
+            winsound.PlaySound(str(path), winsound.SND_FILENAME)
+            logger.info("Wake acknowledgment tone played (Windows)")
+        except Exception as exc:
+            logger.warning("Failed to play wake sound with winsound: %s, falling back to sounddevice", exc)
+            self._play_wake_sound_sounddevice(path)
+
+    def _play_wake_sound_sounddevice(self, path: str | Path) -> None:
+        """Play wake sound using sounddevice (cross-platform fallback)."""
         try:
             # Read audio file
             data, samplerate = sf.read(path)
@@ -486,8 +508,7 @@ class AsyncRexAssistant:
             except Exception:
                 pass
 
-            # Use blocking playback to ensure proper cleanup on Windows
-            # This prevents the audio from looping indefinitely
+            # Use blocking playback to ensure proper cleanup
             device = self.config.audio_output_device
             sd.play(data, samplerate, device=device, blocking=True)
 
