@@ -3,10 +3,15 @@
 
 from __future__ import annotations
 
-# CRITICAL: Import compatibility shims BEFORE TTS to patch transformers
-# Coqui TTS imports transformers at module load time, so the shim must be applied first
-from rex.compat import ensure_transformers_compatibility  # noqa: F401
+# CRITICAL: Apply transformers compatibility patch BEFORE importing TTS
+# Step 1: Import and apply the compatibility shim
+from rex.compat import ensure_transformers_compatibility
+ensure_transformers_compatibility()  # Explicitly call to ensure it runs
 
+# Step 2: Force transformers to load NOW with the patch applied
+import transformers  # noqa: F401
+
+# Step 3: NOW it's safe to import TTS (which will use patched transformers)
 import asyncio
 import contextlib
 import os
