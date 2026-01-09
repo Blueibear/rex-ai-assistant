@@ -1,38 +1,54 @@
 """Quick test to verify transformers compatibility patch works."""
 
 print("Testing transformers BeamSearchScorer patch...")
+print("=" * 70)
 
-# Apply the patch
-print("1. Applying compatibility shim...")
+# Apply the patch - SAME sequence as voice_loop.py
+print("\n1. Applying compatibility shim...")
 from rex.compat import ensure_transformers_compatibility
 ensure_transformers_compatibility()
 
-# Try to import transformers
+# Force transformers to load
 print("2. Importing transformers...")
 import transformers
 print(f"   transformers version: {transformers.__version__}")
 
-# Check if BeamSearchScorer is available
-print("3. Checking for BeamSearchScorer...")
+# Check if BeamSearchScorer is available in transformers namespace
+print("\n3. Checking for BeamSearchScorer in transformers namespace...")
 if hasattr(transformers, 'BeamSearchScorer'):
-    print(f"   ✓ BeamSearchScorer found: {transformers.BeamSearchScorer}")
+    print(f"   ✓ transformers.BeamSearchScorer found: {transformers.BeamSearchScorer}")
 else:
-    print("   ✗ BeamSearchScorer NOT found in transformers namespace")
-    print(f"   Available attributes: {[attr for attr in dir(transformers) if 'Beam' in attr]}")
+    print("   ✗ transformers.BeamSearchScorer NOT found")
+    print(f"   Beam-related attributes: {[attr for attr in dir(transformers) if 'Beam' in attr]}")
 
 # Try the import that TTS uses
-print("4. Testing import as TTS does it...")
+print("\n4. Testing import statement that TTS uses...")
 try:
     from transformers import BeamSearchScorer
-    print(f"   ✓ SUCCESS: from transformers import BeamSearchScorer worked!")
-    print(f"   BeamSearchScorer: {BeamSearchScorer}")
+    print(f"   ✓ SUCCESS: 'from transformers import BeamSearchScorer' worked!")
+    print(f"   BeamSearchScorer class: {BeamSearchScorer}")
+    print(f"   Module: {BeamSearchScorer.__module__}")
 except ImportError as e:
     print(f"   ✗ FAILED: {e}")
-    # Try to see where it actually is
-    try:
-        from transformers.generation import BeamSearchScorer as BSS
-        print(f"   But it IS available at: transformers.generation.BeamSearchScorer")
-    except ImportError:
-        print(f"   And it's NOT in transformers.generation either!")
+    print("\n   Trying to find where it actually is...")
 
-print("\nDone!")
+    # Try different locations
+    locations = [
+        "transformers.generation.beam_search",
+        "transformers.generation",
+        "transformers.generation_utils"
+    ]
+
+    for loc in locations:
+        try:
+            parts = loc.split(".")
+            module = __import__(loc, fromlist=[parts[-1]])
+            if hasattr(module, 'BeamSearchScorer'):
+                print(f"   Found at: {loc}.BeamSearchScorer")
+        except (ImportError, AttributeError):
+            pass
+
+print("\n" + "=" * 70)
+print("Test complete!")
+print("\nIf you see '✓ SUCCESS' above, the patch is working correctly.")
+print("You can now run: python gui.py")
