@@ -343,6 +343,10 @@ class AssistantGUI(tk.Tk):
             # ALWAYS create a new assistant instance to pick up new device selection
             self.assistant = AsyncRexAssistant(self.config)
 
+            # Update wake word display with the ACTUAL keyword being used (may differ from config due to fallback)
+            actual_wake_keyword = self.assistant._wake_keyword
+            self.wake_var.set(f"Wake word: \"{actual_wake_keyword}\" (threshold: {self.config.wakeword_threshold})")
+
             self.running = True
             self.status_var.set("Starting…")
             self.start_button.configure(state="disabled")

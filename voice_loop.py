@@ -476,27 +476,28 @@ class AsyncRexAssistant:
             return
 
         try:
-            # Use sounddevice for cross-platform compatibility
+            # Read audio file
             data, samplerate = sf.read(path)
             logger.debug(f"Playing wake sound: {path} ({len(data)} samples at {samplerate} Hz)")
 
-            # Explicitly stop any previous playback to prevent looping issues on Windows
-            sd.stop()
+            # Forcefully abort any existing streams before playing
+            try:
+                sd.stop()
+            except Exception:
+                pass
 
-            # Play with explicit device if configured
+            # Use blocking playback to ensure proper cleanup on Windows
+            # This prevents the audio from looping indefinitely
             device = self.config.audio_output_device
-            sd.play(data, samplerate, device=device, blocking=False)
+            sd.play(data, samplerate, device=device, blocking=True)
 
-            # Wait for playback to complete with timeout
-            sd.wait()
-
-            # Explicitly stop playback to ensure cleanup on Windows
+            # Ensure stream is fully stopped
             sd.stop()
 
             logger.info("Wake acknowledgment tone played")
         except Exception as exc:
             logger.warning("Failed to play wake sound %s: %s", path, exc)
-            # Ensure we stop playback even on error
+            # Forcefully stop any stuck playback
             try:
                 sd.stop()
             except Exception:
