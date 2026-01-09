@@ -25,6 +25,11 @@ import soundfile as sf
 import whisper
 from TTS.api import TTS
 
+try:
+    import simpleaudio as sa  # type: ignore
+except ImportError:
+    sa = None
+
 from rex.assistant_errors import (
     SpeechToTextError,
     TextToSpeechError,
@@ -473,12 +478,18 @@ class AsyncRexAssistant:
                     language="en",
                     file_path="assistant_response.wav",
                 )
-            if sa is not None:
+            # Play the generated audio
+            if platform.system() == "Windows":
+                # Use winsound on Windows (more reliable than simpleaudio)
+                import winsound
+                winsound.PlaySound("assistant_response.wav", winsound.SND_FILENAME)
+            elif sa is not None:
+                # Use simpleaudio on other platforms
                 wave_obj = sa.WaveObject.from_wave_file("assistant_response.wav")
                 play_obj = wave_obj.play()
                 play_obj.wait_done()
             else:
-                logger.warning("simpleaudio not available - audio saved but not played")
+                logger.warning("No audio playback library available - audio saved but not played")
         except Exception as exc:
             raise TextToSpeechError(f"Failed to synthesise speech: {exc}")
         finally:
