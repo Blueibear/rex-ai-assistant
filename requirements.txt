@@ -1,7 +1,10 @@
 # Rex AI Assistant - Pinned Dependencies
 # This file contains exact version pins for reproducible builds and Dependabot updates
 # To update: Edit version numbers, test thoroughly, then commit
-# Last updated: 2026-01-08
+# Last updated: 2026-01-09
+
+# PyTorch CUDA 12.4 Index (must be before torch packages)
+--extra-index-url https://download.pytorch.org/whl/cu124
 
 # 🌐 Core Web & API
 flask==3.1.1                   # CVE-2025-47278 fixed (fallback key signing issue)
@@ -13,13 +16,13 @@ requests==2.32.4               # CVE-2024-47081 fixed (.netrc credential leak)
 sounddevice==0.5.1
 soundfile==0.12.1
 
-# 🧠 AI / ML Models (CPU-only by default)
-# For CPU builds: pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
-# torch 2.8.0+ includes all security fixes for DoS vulnerabilities (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
-# Using PyTorch 2.8.0 compatibility matrix versions
-torch==2.8.0
-torchvision==0.23.0
-torchaudio==2.8.0
+# 🧠 AI / ML Models (GPU CUDA 12.4)
+# For CPU-only builds: use requirements-cpu.txt instead
+# torch 2.6.0 satisfies security fixes for DoS vulnerabilities (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
+# Using PyTorch 2.6.0 + CUDA 12.4 compatibility matrix (verified working)
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
+torchaudio==2.6.0+cu124
 
 # transformers 4.57.3: Fixes CVE-2024-XXXX (Deserialization of Untrusted Data)
 # Note: BeamSearchScorer moved internally in 4.38+. Compatibility shim in rex/compat/transformers_shims.py
