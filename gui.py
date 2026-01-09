@@ -310,6 +310,11 @@ class AssistantGUI(tk.Tk):
                 audio = sd.rec(frames, **stream_kwargs)
                 sd.wait()
 
+                # Ensure device is fully released
+                sd.stop()
+                import time
+                time.sleep(0.5)  # Give Windows time to release device
+
                 self._log_to_gui(f"  ✓ PASS: Device {device_idx} works at {sr} Hz")
                 self._log_to_gui(f"  Recommendation: Use this device for the assistant")
                 return
@@ -320,6 +325,8 @@ class AssistantGUI(tk.Tk):
 
         # All tests failed
         self._log_to_gui(f"ERROR: Device {device_idx} failed all test configurations")
+        if "DirectSound" in device_hostapi:
+            self._log_to_gui(f"  💡 Tip: Look for a WASAPI version of this device (more reliable than DirectSound)")
         self._log_to_gui(f"  Try selecting a different device from the dropdown")
 
     def start_assistant(self) -> None:
