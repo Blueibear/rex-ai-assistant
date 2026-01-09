@@ -295,7 +295,7 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> App
         transcripts_enabled=_parse_bool(getenv("REX_TRANSCRIPTS_ENABLED"), default=True),
         transcripts_dir=Path(getenv("REX_TRANSCRIPTS_DIR", "transcripts")),
         default_user=getenv("REX_ACTIVE_USER"),
-        wake_sound_path=getenv("REX_WAKE_SOUND") or "assets/wake_acknowledgment.wav",
+        wake_sound_path=None if getenv("REX_WAKE_SOUND") == "" else (getenv("REX_WAKE_SOUND") or "assets/wake_acknowledgment.wav"),
         audio_input_device=_parse_optional_int(_first_env_value("REX_INPUT_DEVICE", "REX_AUDIO_INPUT_DEVICE")),
         audio_output_device=_parse_optional_int(_first_env_value("REX_OUTPUT_DEVICE", "REX_AUDIO_OUTPUT_DEVICE")),
         debug_logging=_parse_bool(getenv("REX_DEBUG_LOGGING")),
