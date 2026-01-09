@@ -456,12 +456,23 @@ class AsyncRexAssistant:
         tts = self._get_tts()
         speaker_wav = self.user_voice_refs.get(self.active_user)
         try:
-            tts.tts_to_file(
-                text=text,
-                speaker_wav=speaker_wav,
-                language="en",
-                file_path="assistant_response.wav",
-            )
+            # XTTS v2 requires either speaker_wav or speaker parameter
+            # If no voice reference, use built-in speaker
+            if speaker_wav:
+                tts.tts_to_file(
+                    text=text,
+                    speaker_wav=speaker_wav,
+                    language="en",
+                    file_path="assistant_response.wav",
+                )
+            else:
+                # Use built-in XTTS speaker when no voice reference is available
+                tts.tts_to_file(
+                    text=text,
+                    speaker="Claribel Dervla",  # Default XTTS v2 speaker
+                    language="en",
+                    file_path="assistant_response.wav",
+                )
             if sa is not None:
                 wave_obj = sa.WaveObject.from_wave_file("assistant_response.wav")
                 play_obj = wave_obj.play()
