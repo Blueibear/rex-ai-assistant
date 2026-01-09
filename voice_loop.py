@@ -311,6 +311,21 @@ class AsyncRexAssistant:
                 progress_bar=False,
                 gpu=gpu_available,  # Enable GPU if available, fallback to CPU
             )
+
+            # Verify the model is actually on GPU
+            if gpu_available:
+                try:
+                    # Try to move model to GPU explicitly
+                    if hasattr(self._tts, 'synthesizer') and hasattr(self._tts.synthesizer, 'tts_model'):
+                        device = next(self._tts.synthesizer.tts_model.parameters()).device
+                        logger.info(f"TTS model device: {device}")
+                        if device.type != 'cuda':
+                            logger.warning(f"⚠️  TTS model is on {device.type}, not CUDA! Attempting to move to GPU...")
+                            self._tts.synthesizer.tts_model = self._tts.synthesizer.tts_model.cuda()
+                            logger.info("✓ Moved TTS model to GPU")
+                except Exception as e:
+                    logger.warning(f"Could not verify TTS device: {e}")
+
             logger.info("TTS model loaded successfully")
         return self._tts
 
