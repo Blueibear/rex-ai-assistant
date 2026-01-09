@@ -480,13 +480,28 @@ class AsyncRexAssistant:
             data, samplerate = sf.read(path)
             logger.debug(f"Playing wake sound: {path} ({len(data)} samples at {samplerate} Hz)")
 
-            # Play and wait for completion with timeout
-            sd.play(data, samplerate, blocking=False)
-            sd.wait()  # Wait for playback to complete
+            # Explicitly stop any previous playback to prevent looping issues on Windows
+            sd.stop()
+
+            # Play with explicit device if configured
+            device = self.config.audio_output_device
+            sd.play(data, samplerate, device=device, blocking=False)
+
+            # Wait for playback to complete with timeout
+            sd.wait()
+
+            # Explicitly stop playback to ensure cleanup on Windows
+            sd.stop()
 
             logger.info("Wake acknowledgment tone played")
         except Exception as exc:
             logger.warning("Failed to play wake sound %s: %s", path, exc)
+            # Ensure we stop playback even on error
+            try:
+                sd.stop()
+            except Exception:
+                pass
+
 
     def _maybe_switch_user(self, transcript: str) -> bool:
         cleaned = transcript.strip().lower()
