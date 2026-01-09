@@ -123,6 +123,7 @@ GitHub Dependabot requires exact pins (`==`) to function. It will:
 
 | Date       | Transformers | Torch | TTS   | Notes                          |
 |------------|--------------|-------|-------|--------------------------------|
+| 2026-01-09 | 4.57.3       | 2.6.0 | 0.22.0| Pin CUDA 12.4, fix torchvision constraint |
 | 2026-01-09 | 4.57.3       | 2.8.0 | 0.22.0| 15 CVEs fixed, Pipfile.lock added |
 | 2026-01-08 | 4.57.3       | 2.9.1 | 0.22.0| Security fixes, shim added     |
 | 2025-12-XX | 4.37.2       | 2.7.1 | 0.18.0| Pre-security audit             |

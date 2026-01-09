@@ -49,9 +49,7 @@ cp .env.example .env
 
 # Install dependencies (CPU-only PyTorch)
 pip install --upgrade pip setuptools wheel
-pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 \
-  --index-url https://download.pytorch.org/whl/cpu
-pip install -e .
+pip install -r requirements-cpu.txt
 
 # Run health check
 python scripts/doctor.py
@@ -80,9 +78,7 @@ Copy-Item .env.example .env
 
 # Install dependencies (CPU-only PyTorch)
 pip install --upgrade pip setuptools wheel
-pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 `
-  --index-url https://download.pytorch.org/whl/cpu
-pip install -e .
+pip install -r requirements-cpu.txt
 
 # Run health check
 python scripts/doctor.py
@@ -117,19 +113,41 @@ python install.py --mic-test
 
 ### GPU Acceleration (Optional)
 
-For NVIDIA GPUs with CUDA 11.8:
+#### CUDA 12.4 (Recommended for Windows 11)
+
+For NVIDIA GPUs with CUDA 12.4, use the main requirements file:
 
 ```bash
 pip uninstall -y torch torchvision torchaudio
-pip install torch==2.6.0+cu118 torchvision==0.21.0+cu118 torchaudio==2.6.0+cu118 \
-  --index-url https://download.pytorch.org/whl/cu118
+pip install -r requirements.txt
 ```
 
-For CUDA 12.1+:
+This installs:
+- `torch==2.6.0+cu124`
+- `torchvision==0.21.0+cu124`
+- `torchaudio==2.6.0+cu124`
+
+**Verify GPU is detected:**
+```bash
+python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
+```
+
+#### CPU-Only Installation
+
+For development, CI, or systems without GPU:
 
 ```bash
 pip uninstall -y torch torchvision torchaudio
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+pip install -r requirements-cpu.txt
+```
+
+#### Alternative: CUDA 11.8
+
+For systems with CUDA 11.8:
+
+```bash
+pip uninstall -y torch torchvision torchaudio
+pip install -r requirements-gpu.txt
 ```
 
 ## Configuration (Environment Variables)
@@ -550,15 +568,19 @@ REX_SPEAK_API_KEY=your-secret-key-here
 
 **Error:** `torch is not installed`
 
-**Solution:** Install PyTorch manually:
+**Solution:** Use the appropriate requirements file:
 ```bash
 # CPU-only
-pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 \
-  --index-url https://download.pytorch.org/whl/cpu
+pip uninstall -y torch torchvision torchaudio
+pip install -r requirements-cpu.txt
 
-# CUDA 11.8
-pip install torch==2.6.0+cu118 torchvision==0.21.0+cu118 torchaudio==2.6.0+cu118 \
-  --index-url https://download.pytorch.org/whl/cu118
+# GPU with CUDA 12.4 (Windows 11)
+pip uninstall -y torch torchvision torchaudio
+pip install -r requirements.txt
+
+# GPU with CUDA 11.8
+pip uninstall -y torch torchvision torchaudio
+pip install -r requirements-gpu.txt
 ```
 
 ### Microphone Permissions (macOS)
