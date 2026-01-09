@@ -284,12 +284,6 @@ class AsyncRexAssistant:
         self._tts: TTS | None = None
         self._whisper_model: whisper.Whisper | None = None
 
-        # Pre-load models at startup for faster first response
-        logger.info("Pre-loading Whisper and TTS models...")
-        self._get_whisper()  # Pre-load Whisper
-        self._get_tts()      # Pre-load TTS
-        logger.info("Models pre-loaded successfully")
-
         self.users_map = load_users_map()
         self.profiles = load_all_profiles()
         resolved = resolve_user_key(
@@ -336,6 +330,12 @@ class AsyncRexAssistant:
         running_loop = asyncio.get_running_loop()
         self._listener.loop = running_loop
         logger.info(f"Updated listener to use running event loop: {running_loop}")
+
+        # Pre-load models in background thread for faster first response
+        logger.info("Pre-loading Whisper and TTS models in background...")
+        await asyncio.to_thread(self._get_whisper)  # Pre-load Whisper
+        await asyncio.to_thread(self._get_tts)      # Pre-load TTS on GPU
+        logger.info("Models pre-loaded successfully")
 
         self._listener.start()
         try:
