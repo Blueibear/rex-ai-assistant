@@ -25,6 +25,11 @@ import soundfile as sf
 import whisper
 from TTS.api import TTS
 
+try:
+    import simpleaudio as sa  # type: ignore
+except ImportError:
+    sa = None
+
 from rex.assistant_errors import (
     SpeechToTextError,
     TextToSpeechError,
