@@ -52,19 +52,27 @@ def patch_stream_generator(file_path):
     new_import = """# PATCHED FOR TRANSFORMERS COMPATIBILITY
 # Import each class from its actual location in transformers 4.38+
 try:
-    from transformers.generation.beam_search import BeamSearchScorer
+    from transformers.generation.beam_search import BeamSearchScorer, ConstrainedBeamSearchScorer
+    from transformers.generation.beam_constraints import DisjunctiveConstraint, PhrasalConstraint
+    from transformers.generation.configuration_utils import GenerationConfig
     from transformers.generation.logits_process import LogitsProcessorList
     from transformers.generation.stopping_criteria import StoppingCriteriaList
-    from transformers.generation.configuration_utils import GenerationConfig
+    from transformers.generation.utils import GenerationMixin
+    from transformers.modeling_utils import PreTrainedModel
 except (ImportError, AttributeError):
     try:
         # Fallback for older transformers versions (all in generation module)
         from transformers.generation import (
             BeamSearchScorer,
-            LogitsProcessorList,
-            StoppingCriteriaList,
+            ConstrainedBeamSearchScorer,
+            DisjunctiveConstraint,
             GenerationConfig,
+            GenerationMixin,
+            LogitsProcessorList,
+            PhrasalConstraint,
+            StoppingCriteriaList,
         )
+        from transformers.modeling_utils import PreTrainedModel
     except (ImportError, AttributeError):
         # Final fallback to main transformers namespace (very old versions)
         from transformers import ("""
