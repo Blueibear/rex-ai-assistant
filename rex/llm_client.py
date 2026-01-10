@@ -136,22 +136,39 @@ class OpenAIStrategy:
         self.model_name = model_name
         self._client_factory = client_factory
         self._cached_client = None
+        self.tools = []  # Will be set by LanguageModel
 
     def _get_client(self) -> Any:
         if self._cached_client is None:
             self._cached_client = self._client_factory()
         return self._cached_client
 
-    def generate(self, prompt: str, config: GenerationConfig, *, messages=None) -> str:
+    def generate(self, prompt: str, config: GenerationConfig, *, messages=None, tools=None) -> str:
         payload = messages or [{"role": "user", "content": prompt}]
-        response = self._get_client().chat.completions.create(
-            model=self.model_name,
-            messages=payload,
-            temperature=config.temperature,
-            max_tokens=config.max_new_tokens,
-            top_p=config.top_p,
-        )
-        content = getattr(response.choices[0].message, "content", "") or ""
+
+        # Prepare API call parameters
+        api_params = {
+            "model": self.model_name,
+            "messages": payload,
+            "temperature": config.temperature,
+            "max_tokens": config.max_new_tokens,
+            "top_p": config.top_p,
+        }
+
+        # Add tools if available
+        if tools or self.tools:
+            api_params["tools"] = tools or self.tools
+            # Don't force tool use, let model decide
+            # api_params["tool_choice"] = "auto"
+
+        response = self._get_client().chat.completions.create(**api_params)
+        message = response.choices[0].message
+
+        # Check if model wants to call a tool
+        if hasattr(message, 'tool_calls') and message.tool_calls:
+            return message  # Return full message object for tool handling
+
+        content = getattr(message, "content", "") or ""
         return content.strip() or "(silence)"
 
 
@@ -242,6 +259,8 @@ class LanguageModel:
         )
 
         self._openai_client = None
+        self._tools = []  # OpenAI tool definitions
+        self._tool_functions = {}  # Map of tool name -> callable
         self.strategy = self._init_strategy()
 
     def _init_strategy(self) -> LLMStrategy:
@@ -282,26 +301,125 @@ class LanguageModel:
         self._openai_client = OpenAI(api_key=self.api_key, base_url=base_url) if base_url else OpenAI(api_key=self.api_key)
         return self._openai_client
 
+    def register_tool(self, name: str, description: str, parameters: Dict[str, Any], function: Any) -> None:
+        """Register a tool/function that the LLM can call.
+
+        Args:
+            name: Function name (e.g., "web_search")
+            description: What the function does
+            parameters: JSON schema for parameters
+            function: Callable to execute when tool is invoked
+        """
+        tool_def = {
+            "type": "function",
+            "function": {
+                "name": name,
+                "description": description,
+                "parameters": parameters,
+            }
+        }
+        self._tools.append(tool_def)
+        self._tool_functions[name] = function
+
+        # Update strategy if it supports tools
+        if hasattr(self.strategy, 'tools'):
+            self.strategy.tools = self._tools
+
+        logger.info(f"Registered tool: {name}")
+
+    def _execute_tool_call(self, tool_call: Any) -> str:
+        """Execute a tool call and return the result."""
+        import json
+
+        function_name = tool_call.function.name
+        function_args = json.loads(tool_call.function.arguments)
+
+        logger.info(f"Executing tool: {function_name} with args: {function_args}")
+
+        if function_name not in self._tool_functions:
+            return f"Error: Unknown function {function_name}"
+
+        try:
+            result = self._tool_functions[function_name](**function_args)
+            return str(result) if result is not None else "No results found"
+        except Exception as e:
+            logger.error(f"Tool execution failed: {e}")
+            return f"Error executing {function_name}: {str(e)}"
+
     def _format_messages(self, messages: Sequence[Dict[str, str]]) -> str:
         return "\n".join(f"{m.get('role', 'user').capitalize()}: {m.get('content', '').strip()}" for m in messages if isinstance(m, dict)).strip()
 
-    def generate(self, prompt: Optional[str] = None, *, messages: Optional[Sequence[Dict[str, str]]] = None, config: Optional[GenerationConfig] = None) -> str:
+    def generate(self, prompt: Optional[str] = None, *, messages: Optional[Sequence[Dict[str, str]]] = None, config: Optional[GenerationConfig] = None, max_tool_rounds: int = 3) -> str:
         if messages is not None:
             prompt_text = self._format_messages(messages)
             normalized_messages = [{"role": str(m.get("role", "")), "content": str(m.get("content", ""))} for m in messages if isinstance(m, dict)]
         elif isinstance(prompt, str):
             prompt_text = prompt
-            normalized_messages = None
+            normalized_messages = [{"role": "user", "content": prompt}]
         else:
             raise ValueError("Prompt or messages must be provided.")
 
         if not prompt_text.strip():
             raise ValueError("Prompt must not be empty.")
 
+        # Tool calling loop (only for OpenAI strategy with tools)
+        if self.provider == "openai" and self._tools:
+            current_messages = list(normalized_messages)
+
+            for round_num in range(max_tool_rounds):
+                try:
+                    result = self.strategy.generate(prompt_text, config or self.generation, messages=current_messages, tools=self._tools)
+                except TypeError:
+                    # Fallback for strategies that don't support tools parameter
+                    result = self.strategy.generate(prompt_text, config or self.generation, messages=current_messages)
+
+                # Check if result is a message object with tool calls
+                if hasattr(result, 'tool_calls') and result.tool_calls:
+                    logger.info(f"Tool call round {round_num + 1}: Model requested {len(result.tool_calls)} tool(s)")
+
+                    # Add assistant message to conversation
+                    assistant_msg = {
+                        "role": "assistant",
+                        "content": result.content or "",
+                        "tool_calls": [
+                            {
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments
+                                }
+                            } for tc in result.tool_calls
+                        ]
+                    }
+                    current_messages.append(assistant_msg)
+
+                    # Execute each tool call and add results
+                    for tool_call in result.tool_calls:
+                        tool_result = self._execute_tool_call(tool_call)
+                        current_messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "content": tool_result
+                        })
+
+                    # Continue loop to get final response with tool results
+                    continue
+
+                # No tool calls - return final response
+                return result.strip() if isinstance(result, str) else (result.content or "(silence)").strip()
+
+            # Max rounds reached
+            logger.warning(f"Max tool rounds ({max_tool_rounds}) reached")
+            return "I apologize, but I encountered too many tool calls. Please try rephrasing your question."
+
+        # No tools or not OpenAI - use original simple generation
         try:
-            return self.strategy.generate(prompt_text, config or self.generation, messages=normalized_messages)
+            result = self.strategy.generate(prompt_text, config or self.generation, messages=normalized_messages)
+            return result.strip() if isinstance(result, str) else str(result).strip()
         except TypeError:
-            return self.strategy.generate(prompt_text, config or self.generation)
+            result = self.strategy.generate(prompt_text, config or self.generation)
+            return result.strip() if isinstance(result, str) else str(result).strip()
 
 
 __all__ = [
