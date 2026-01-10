@@ -69,6 +69,7 @@ class SettingsTab(ttk.Frame):
         ttk.Button(button_frame, text="Reset to Defaults", command=self.reset_to_defaults, width=15).pack(side="left", padx=2)
         ttk.Button(button_frame, text="Backup", command=self.create_backup_manual, width=12).pack(side="left", padx=2)
         ttk.Button(button_frame, text="Restore", command=self.restore_backup, width=12).pack(side="left", padx=2)
+        ttk.Button(button_frame, text="Restart App", command=self.restart_application, width=12).pack(side="left", padx=2)
 
         # Platform-specific "Open in editor" button
         if sys.platform == "win32":
@@ -127,24 +128,38 @@ class SettingsTab(ttk.Frame):
         """Build all settings controls organized by section."""
         row = 0
 
-        # Add all sections from schema
+        # Track advanced settings separately
+        advanced_vars = []
+
+        # Add all sections from schema (non-advanced first)
         for section in self.schema.sections:
-            # Section heading
-            section_label = ttk.Label(
-                self.scrollable_frame,
-                text=section.name,
-                font=("Segoe UI", 11, "bold"),
-                foreground="#0066cc"
-            )
-            section_label.grid(row=row, column=0, columnspan=4, sticky="w", pady=(15, 5), padx=5)
-            row += 1
+            # Collect non-advanced variables for this section
+            regular_vars = [v for v in section.variables if not v.is_advanced]
 
-            # Variables in section
-            for var in section.variables:
-                row = self._add_variable_control(var, row)
+            if regular_vars:
+                # Section heading
+                section_label = ttk.Label(
+                    self.scrollable_frame,
+                    text=section.name,
+                    font=("Segoe UI", 11, "bold"),
+                    foreground="#0066cc"
+                )
+                section_label.grid(row=row, column=0, columnspan=4, sticky="w", pady=(15, 5), padx=5)
+                row += 1
 
-        # Add Advanced section for extra keys
-        if self.extra_keys or True:  # Always show Advanced section
+                # Regular variables in section
+                for var in regular_vars:
+                    row = self._add_variable_control(var, row)
+
+            # Collect advanced variables
+            advanced_vars.extend([v for v in section.variables if v.is_advanced])
+
+        # Add collapsible Advanced section
+        if advanced_vars or self.extra_keys:
+            row = self._add_advanced_section(row, advanced_vars)
+
+        # Add Custom/Extra keys section
+        if self.extra_keys or True:  # Always show option to add custom keys
             section_label = ttk.Label(
                 self.scrollable_frame,
                 text="Advanced / Custom Settings",
@@ -181,6 +196,157 @@ class SettingsTab(ttk.Frame):
             add_button.grid(row=row, column=0, columnspan=2, sticky="w", pady=10, padx=5)
             row += 1
 
+    def _add_advanced_section(self, row: int, advanced_vars: list) -> int:
+        """Add collapsible Advanced settings section.
+
+        Args:
+            row: Current grid row
+            advanced_vars: List of advanced EnvVariable objects
+
+        Returns:
+            Next available row number
+        """
+        # Create collapsible frame
+        collapse_frame = ttk.Frame(self.scrollable_frame)
+        collapse_frame.grid(row=row, column=0, columnspan=5, sticky="ew", pady=(15, 5), padx=5)
+        row += 1
+
+        # Track collapsed state
+        is_collapsed = tk.BooleanVar(value=True)
+
+        # Toggle button
+        toggle_btn = ttk.Button(
+            collapse_frame,
+            text="▶ Advanced Settings (click to expand)",
+            command=lambda: self._toggle_advanced_section(is_collapsed, toggle_btn, advanced_frame)
+        )
+        toggle_btn.pack(anchor="w")
+
+        # Warning label
+        warning_label = ttk.Label(
+            self.scrollable_frame,
+            text="⚠ Most users should not change these. Incorrect values can cause instability.",
+            foreground="orange",
+            font=("Segoe UI", 8)
+        )
+        warning_label.grid(row=row, column=0, columnspan=5, sticky="w", pady=(0, 5), padx=20)
+        warning_label.grid_remove()  # Hidden by default
+        row += 1
+
+        # Advanced settings container (hidden by default)
+        advanced_frame = ttk.Frame(self.scrollable_frame)
+        advanced_frame.grid(row=row, column=0, columnspan=5, sticky="ew", padx=20)
+        advanced_frame.grid_remove()  # Hidden by default
+
+        # Store references for toggle
+        toggle_btn.warning_label = warning_label
+        toggle_btn.advanced_frame = advanced_frame
+
+        # Add advanced variables to the frame
+        adv_row = 0
+        for var in advanced_vars:
+            adv_row = self._add_variable_control_to_frame(var, advanced_frame, adv_row)
+
+        row += 1
+        return row
+
+    def _toggle_advanced_section(self, is_collapsed: tk.BooleanVar, toggle_btn, advanced_frame):
+        """Toggle visibility of advanced section."""
+        if is_collapsed.get():
+            # Expand
+            toggle_btn.config(text="▼ Advanced Settings (click to collapse)")
+            advanced_frame.grid()
+            if hasattr(toggle_btn, 'warning_label'):
+                toggle_btn.warning_label.grid()
+            is_collapsed.set(False)
+        else:
+            # Collapse
+            toggle_btn.config(text="▶ Advanced Settings (click to expand)")
+            advanced_frame.grid_remove()
+            if hasattr(toggle_btn, 'warning_label'):
+                toggle_btn.warning_label.grid_remove()
+            is_collapsed.set(True)
+
+    def _add_variable_control_to_frame(self, var: EnvVariable, parent_frame: ttk.Frame, row: int) -> int:
+        """Add a variable control to a specific frame (used for Advanced section).
+
+        This is similar to _add_variable_control but renders into a custom frame.
+        """
+        # Get current value (from .env or default)
+        current_value = self.current_values.get(var.key, var.default_value)
+
+        # Label with required indicator
+        label_text = var.key
+        if var.is_required:
+            label_text += " "
+
+        label_frame = ttk.Frame(parent_frame)
+        label_frame.grid(row=row, column=0, sticky="w", padx=5, pady=3)
+
+        label = ttk.Label(label_frame, text=label_text)
+        label.pack(side="left")
+
+        if var.is_required:
+            required_label = ttk.Label(
+                label_frame,
+                text="Required",
+                foreground="red",
+                font=("Segoe UI", 7, "bold")
+            )
+            required_label.pack(side="left", padx=(2, 0))
+
+        # Control
+        control = self._create_control(var, current_value)
+        control.grid(row=row, column=1, sticky="ew", padx=5, pady=3)
+        self.controls[var.key] = control
+
+        # Configure column weight
+        parent_frame.columnconfigure(1, weight=1)
+
+        # Help icon
+        tooltip_text = self._generate_tooltip_text(var)
+        help_icon = HelpIcon(
+            parent_frame,
+            text=tooltip_text,
+            title=f"Help: {var.key}"
+        )
+        help_icon.grid(row=row, column=2, padx=5)
+
+        return row + 1
+
+    def _generate_tooltip_text(self, var: EnvVariable) -> str:
+        """Generate enhanced tooltip text for a variable.
+
+        For numeric settings, includes range and effect information.
+        """
+        base_text = var.description or f"{var.key} setting"
+
+        # Add range information for numeric settings
+        if var.control_type in ['spinbox'] and (var.min_value is not None or var.max_value is not None):
+            range_parts = []
+
+            # Add range
+            if var.min_value is not None and var.max_value is not None:
+                unit_str = f" {var.units}" if var.units else ""
+                range_parts.append(f"Range: {var.min_value}{unit_str} to {var.max_value}{unit_str}")
+            elif var.min_value is not None:
+                unit_str = f" {var.units}" if var.units else ""
+                range_parts.append(f"Minimum: {var.min_value}{unit_str}")
+            elif var.max_value is not None:
+                unit_str = f" {var.units}" if var.units else ""
+                range_parts.append(f"Maximum: {var.max_value}{unit_str}")
+
+            # Add effect descriptions
+            if var.tooltip_low_effect:
+                range_parts.append(f"Low values: {var.tooltip_low_effect}")
+            if var.tooltip_high_effect:
+                range_parts.append(f"High values: {var.tooltip_high_effect}")
+
+            if range_parts:
+                return f"{base_text}\n\n" + "\n".join(range_parts)
+
+        return base_text
+
     def _add_variable_control(self, var: EnvVariable, row: int, is_custom: bool = False) -> int:
         """Add a control for a single variable.
 
@@ -195,31 +361,58 @@ class SettingsTab(ttk.Frame):
         # Get current value (from .env or default)
         current_value = self.current_values.get(var.key, var.default_value)
 
-        # Label
+        # Label with required indicator
         label_text = var.key
         if var.is_required:
-            label_text += " *"
+            label_text += " "
 
-        label = ttk.Label(self.scrollable_frame, text=label_text)
-        label.grid(row=row, column=0, sticky="w", padx=5, pady=3)
+        label_frame = ttk.Frame(self.scrollable_frame)
+        label_frame.grid(row=row, column=0, sticky="w", padx=5, pady=3)
 
-        # Control
+        label = ttk.Label(label_frame, text=label_text)
+        label.pack(side="left")
+
+        if var.is_required:
+            required_label = ttk.Label(
+                label_frame,
+                text="Required",
+                foreground="red",
+                font=("Segoe UI", 7, "bold")
+            )
+            required_label.pack(side="left", padx=(2, 0))
+
+        # Control with required highlighting
         control = self._create_control(var, current_value)
-        control.grid(row=row, column=1, sticky="ew", padx=5, pady=3)
+
+        # Add red highlight frame for required fields
+        if var.is_required:
+            highlight_frame = tk.Frame(
+                self.scrollable_frame,
+                highlightbackground="red",
+                highlightthickness=2,
+                highlightcolor="red"
+            )
+            highlight_frame.grid(row=row, column=1, sticky="ew", padx=5, pady=3)
+            control.pack(in_=highlight_frame, fill="x", expand=True)
+        else:
+            control.grid(row=row, column=1, sticky="ew", padx=5, pady=3)
+
         self.controls[var.key] = control
 
         # Configure column weight for expansion
         self.scrollable_frame.columnconfigure(1, weight=1)
 
-        # Help icon
+        # Help icon with enhanced tooltip for numeric ranges
+        tooltip_text = self._generate_tooltip_text(var)
         help_icon = HelpIcon(
             self.scrollable_frame,
-            text=var.description or f"{var.key} setting",
+            text=tooltip_text,
             title=f"Help: {var.key}"
         )
         help_icon.grid(row=row, column=2, padx=5)
 
-        # Restart indicator
+        # Restart indicator and active engine badge
+        indicator_col = 3
         if is_restart_required(var.key):
             restart_label = ttk.Label(
                 self.scrollable_frame,
@@ -227,17 +420,80 @@ class SettingsTab(ttk.Frame):
                 foreground="orange",
                 font=("Segoe UI", 10)
             )
-            restart_label.grid(row=row, column=3, padx=5)
+            restart_label.grid(row=row, column=indicator_col, padx=2)
             self.restart_indicators[var.key] = restart_label
 
             # Add tooltip
             from utils.tooltips import ToolTip
             ToolTip(restart_label, "Restart required after changing this setting")
+            indicator_col += 1
+
+        # Active engine indication
+        if var.active_group and self._is_engine_active(var):
+            active_label = ttk.Label(
+                self.scrollable_frame,
+                text="Active",
+                foreground="green",
+                font=("Segoe UI", 7, "bold"),
+                background="#e8f5e9",
+                padding=(4, 2)
+            )
+            active_label.grid(row=row, column=indicator_col, padx=2)
+        elif var.active_group and not self._is_engine_selector(var):
+            # Inactive engine settings get a grayed badge
+            inactive_label = ttk.Label(
+                self.scrollable_frame,
+                text="Inactive",
+                foreground="gray",
+                font=("Segoe UI", 7),
+                padding=(4, 2)
+            )
+            inactive_label.grid(row=row, column=indicator_col, padx=2)
 
         return row + 1
 
+    def _is_engine_selector(self, var: EnvVariable) -> bool:
+        """Check if this variable is an engine selector (not a configuration for an engine)."""
+        return var.active_group and 'selector' in var.active_group
+
+    def _is_engine_active(self, var: EnvVariable) -> bool:
+        """Check if this engine/module is currently active."""
+        if not var.active_group:
+            return False
+
+        # Get current provider/backend selections
+        llm_provider = self.current_values.get('REX_LLM_PROVIDER', '').lower()
+        tts_provider = self.current_values.get('REX_TTS_PROVIDER', '').lower()
+        wakeword_backend = self.current_values.get('REX_WAKEWORD_BACKEND', '').lower()
+
+        # Check if this setting's group matches active provider
+        if var.active_group == 'openai':
+            return llm_provider == 'openai'
+        elif var.active_group == 'ollama':
+            return llm_provider == 'ollama'
+        elif var.active_group == 'transformers':
+            return llm_provider == 'transformers'
+        elif var.active_group == 'xtts':
+            return tts_provider == 'xtts'
+        elif var.active_group == 'edge':
+            return tts_provider == 'edge'
+        elif var.active_group == 'piper':
+            return tts_provider == 'piper'
+        elif var.active_group == 'pyttsx3':
+            return tts_provider == 'pyttsx3'
+        elif var.active_group == 'whisper':
+            return True  # Whisper is always active for STT
+        elif 'selector' in var.active_group:
+            return True  # Selectors are always "active"
+
+        return False
+
     def _create_control(self, var: EnvVariable, current_value: str) -> tk.Widget:
         """Create appropriate control widget for variable."""
+        # Special handling for voice selection
+        if 'voice' in var.key.lower() and 'tts' in var.section.lower():
+            return self._create_voice_dropdown(var, current_value)
+
         if var.control_type == "checkbox":
             return self._create_checkbox(var, current_value)
         elif var.control_type == "dropdown":
@@ -323,6 +579,57 @@ class SettingsTab(ttk.Frame):
 
         return entry
 
+    def _create_voice_dropdown(self, var: EnvVariable, current_value: str) -> ttk.Frame:
+        """Create voice selection dropdown with preview button."""
+        frame = ttk.Frame(self.scrollable_frame)
+
+        # Discover voices based on TTS provider
+        tts_provider = self.current_values.get('REX_TTS_PROVIDER', 'xtts').lower()
+
+        try:
+            from utils.voice_discovery import discover_all_voices
+            voices = discover_all_voices(provider=tts_provider)
+            voice_options = [v.display_name() for v in voices]
+
+            if not voice_options:
+                voice_options = [current_value or "No voices found"]
+        except Exception as e:
+            LOGGER.warning(f"Failed to discover voices: {e}")
+            voice_options = [current_value or "Error loading voices"]
+
+        # Dropdown
+        dropdown = ttk.Combobox(
+            frame,
+            values=voice_options,
+            state="readonly" if voice_options else "normal",
+            width=25
+        )
+
+        # Set current value if in options
+        if current_value in voice_options:
+            dropdown.set(current_value)
+        elif voice_options and voice_options[0] != "No voices found":
+            dropdown.set(voice_options[0])
+
+        dropdown.pack(side="left", fill="x", expand=True)
+
+        # Preview button
+        preview_btn = ttk.Button(
+            frame,
+            text="Preview",
+            command=lambda: self._preview_voice(dropdown.get(), tts_provider),
+            width=8
+        )
+        preview_btn.pack(side="left", padx=(5, 0))
+
+        # Disable preview if no valid voices
+        if not voice_options or voice_options[0] in ["No voices found", "Error loading voices"]:
+            preview_btn.config(state="disabled")
+
+        # Store dropdown reference for value retrieval
+        frame.dropdown = dropdown
+        return frame
+
     def _create_path_control(self, var: EnvVariable, current_value: str) -> ttk.Frame:
         """Create path entry with browse button."""
         frame = ttk.Frame(self.scrollable_frame)
@@ -394,6 +701,42 @@ class SettingsTab(ttk.Frame):
 
         return value
 
+    def _preview_voice(self, voice_display_name: str, provider: str):
+        """Preview a TTS voice."""
+        if not voice_display_name or voice_display_name in ["No voices found", "Error loading voices"]:
+            messagebox.showwarning(
+                "No Voice",
+                "No voice selected or voice unavailable for preview.",
+                parent=self
+            )
+            return
+
+        try:
+            from utils.voice_preview import generate_and_play_voice_sample
+
+            # Extract voice ID from display name (format: "Name (lang) - provider")
+            voice_id = voice_display_name.split(" - ")[0]
+            if " (" in voice_id:
+                voice_id = voice_id.split(" (")[0]
+
+            # Play sample in background
+            success = generate_and_play_voice_sample(voice_id, provider)
+
+            if not success:
+                messagebox.showinfo(
+                    "Preview Unavailable",
+                    f"Preview unavailable for this voice.\nProvider: {provider}",
+                    parent=self
+                )
+
+        except Exception as e:
+            LOGGER.exception("Voice preview failed")
+            messagebox.showerror(
+                "Preview Error",
+                f"Failed to preview voice:\n{e}",
+                parent=self
+            )
+
     def _get_control_value(self, key: str) -> str:
         """Get current value from control."""
         if key not in self.controls:
@@ -405,6 +748,8 @@ class SettingsTab(ttk.Frame):
             value = "true" if control.var.get() else "false"
         elif isinstance(control, ttk.Frame) and hasattr(control, 'entry'):
             value = control.entry.get()
+        elif isinstance(control, ttk.Frame) and hasattr(control, 'dropdown'):
+            value = control.dropdown.get()
         elif hasattr(control, 'get'):
             value = str(control.get())
         else:
@@ -420,6 +765,26 @@ class SettingsTab(ttk.Frame):
             values = {}
             for key in self.controls.keys():
                 values[key] = self._get_control_value(key)
+
+            # Validate required fields
+            missing_required = []
+            for var in self.schema.get_all_variables():
+                if var.is_required:
+                    value = values.get(var.key, '').strip()
+                    if not value:
+                        missing_required.append(var.key)
+
+            if missing_required:
+                error_msg = "The following required fields are missing:\n\n"
+                error_msg += "\n".join(f"  - {key}" for key in missing_required)
+                error_msg += "\n\nPlease fill in all required fields before saving."
+
+                messagebox.showerror(
+                    "Required Fields Missing",
+                    error_msg,
+                    parent=self
+                )
+                return
 
             # Separate custom overrides
             schema_keys = {var.key for var in self.schema.get_all_variables()}
@@ -683,3 +1048,78 @@ class SettingsTab(ttk.Frame):
 
         # Rebuild UI
         self._build_settings_controls()
+
+    def restart_application(self):
+        """Restart the application.
+
+        Handles unsaved changes and attempts to restart automatically on Windows.
+        """
+        # Check for unsaved changes
+        try:
+            current_env = read_current_env(self.env_path)
+            has_changes = False
+
+            for key in self.controls.keys():
+                current_ui_value = self._get_control_value(key)
+                current_file_value = current_env.get(key, '')
+
+                if current_ui_value != current_file_value:
+                    has_changes = True
+                    break
+
+            if has_changes:
+                response = messagebox.askyesnocancel(
+                    "Unsaved Changes",
+                    "You have unsaved changes.\n\n"
+                    "Do you want to save before restarting?\n\n"
+                    "Yes = Save and restart\n"
+                    "No = Restart without saving\n"
+                    "Cancel = Cancel restart",
+                    parent=self
+                )
+
+                if response is None:  # Cancel
+                    return
+                elif response:  # Yes - save first
+                    self.save_settings()
+
+        except Exception as e:
+            LOGGER.warning(f"Failed to check for unsaved changes: {e}")
+
+        # Attempt restart
+        try:
+            if sys.platform == "win32":
+                # Windows: try to restart via Python
+                python = sys.executable
+                script = str(self.repo_root / "run_gui.py")
+
+                # Log the restart
+                LOGGER.info(f"Restarting application: {python} {script}")
+
+                # Close current window
+                root = self.winfo_toplevel()
+
+                # Launch new instance
+                subprocess.Popen([python, script], cwd=str(self.repo_root))
+
+                # Close this instance after a short delay
+                root.after(500, root.destroy)
+
+            else:
+                # For other platforms, show manual restart instructions
+                messagebox.showinfo(
+                    "Restart Required",
+                    "Please close and restart the application manually.\n\n"
+                    "Run: python run_gui.py",
+                    parent=self
+                )
+
+        except Exception as e:
+            LOGGER.exception("Failed to restart application")
+            messagebox.showerror(
+                "Restart Failed",
+                f"Failed to restart automatically:\n{e}\n\n"
+                "Please close and restart the application manually.\n"
+                "Run: python run_gui.py",
+                parent=self
+            )

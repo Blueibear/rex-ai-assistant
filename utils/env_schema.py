@@ -17,6 +17,7 @@ class EnvVariable:
     section: str
     is_required: bool = False
     is_secret: bool = False
+    is_advanced: bool = False
 
     # UI control hints
     control_type: str = "entry"  # entry, dropdown, spinbox, checkbox, path
@@ -25,10 +26,21 @@ class EnvVariable:
     max_value: Optional[float] = None
     path_type: Optional[str] = None  # file, directory
 
+    # Tooltip enhancements for numeric ranges
+    tooltip_low_effect: Optional[str] = None
+    tooltip_high_effect: Optional[str] = None
+    units: Optional[str] = None
+
+    # Active engine/module grouping
+    active_group: Optional[str] = None  # e.g., "llm_provider", "tts_provider"
+
     def __post_init__(self):
         """Auto-detect control types and constraints."""
         self._detect_secret()
+        self._detect_advanced()
         self._detect_control_type()
+        self._detect_tooltip_info()
+        self._detect_active_group()
 
     def _detect_secret(self):
         """Detect if this is a secret/API key field."""
@@ -87,6 +99,18 @@ class EnvVariable:
             self.dropdown_options = ['transformers', 'openai', 'ollama']
             return
 
+        # Search providers
+        if 'search_provider' in key_lower:
+            self.control_type = 'dropdown'
+            self.dropdown_options = ['serpapi', 'brave', 'duckduckgo', 'google']
+            return
+
+        # Language selection
+        if 'language' in key_lower and 'speak' in key_lower:
+            self.control_type = 'dropdown'
+            self.dropdown_options = ['en', 'es', 'fr', 'de', 'it', 'pt', 'pl', 'tr', 'ru', 'nl', 'cs', 'ar', 'zh', 'ja', 'ko']
+            return
+
         # Threshold (0.0-1.0)
         if 'threshold' in key_lower:
             self.control_type = 'spinbox'
@@ -127,6 +151,126 @@ class EnvVariable:
 
         # Default to entry
         self.control_type = 'entry'
+
+    def _detect_advanced(self):
+        """Detect if this is an advanced/rarely-used setting."""
+        key_lower = self.key.lower()
+
+        # Advanced settings keywords
+        advanced_keywords = [
+            'poll_interval', 'detection_frame', 'wakeword_window', 'seed',
+            'top_k', 'top_p', 'verify_ssl', 'storage_uri', 'limiter',
+            'proxy', 'rate_window', 'bytes', 'output_limit', 'frame_seconds',
+            'browserless', 'cse', 'engine_id'
+        ]
+
+        for keyword in advanced_keywords:
+            if keyword in key_lower:
+                self.is_advanced = True
+                return
+
+        # File logging and debug options are advanced
+        if 'debug' in key_lower or 'file_logging' in key_lower:
+            self.is_advanced = True
+
+    def _detect_tooltip_info(self):
+        """Detect tooltip information for numeric ranges."""
+        key_lower = self.key.lower()
+
+        # Temperature settings
+        if 'temperature' in key_lower:
+            self.tooltip_low_effect = "More focused and deterministic responses"
+            self.tooltip_high_effect = "More creative and varied responses"
+            self.units = None
+            if not self.min_value:
+                self.min_value = 0.0
+            if not self.max_value:
+                self.max_value = 2.0
+
+        # Threshold settings
+        elif 'threshold' in key_lower:
+            self.tooltip_low_effect = "More sensitive, may trigger on noise"
+            self.tooltip_high_effect = "Less sensitive, requires clearer signal"
+            self.units = None
+
+        # Duration/time settings
+        elif any(word in key_lower for word in ['duration', 'seconds', 'window', 'interval']):
+            self.tooltip_low_effect = "Shorter time period"
+            self.tooltip_high_effect = "Longer time period"
+            self.units = "seconds"
+
+        # Token limits
+        elif 'token' in key_lower or 'max_' in key_lower:
+            if 'token' in key_lower:
+                self.tooltip_low_effect = "Shorter, more concise responses"
+                self.tooltip_high_effect = "Longer, more detailed responses"
+                self.units = "tokens"
+            else:
+                self.tooltip_low_effect = "Lower limit"
+                self.tooltip_high_effect = "Higher limit"
+                self.units = "items" if 'items' in key_lower or 'turns' in key_lower else None
+
+        # Sample rate
+        elif 'sample_rate' in key_lower or 'rate' in key_lower:
+            self.tooltip_low_effect = "Lower audio quality"
+            self.tooltip_high_effect = "Higher audio quality"
+            self.units = "Hz" if 'sample' in key_lower else None
+
+        # Top_p and top_k
+        elif 'top_p' in key_lower:
+            self.tooltip_low_effect = "More focused on likely words"
+            self.tooltip_high_effect = "Considers more word possibilities"
+            self.units = None
+
+        elif 'top_k' in key_lower:
+            self.tooltip_low_effect = "Fewer word choices considered"
+            self.tooltip_high_effect = "More word choices considered"
+            self.units = None
+
+        # Timeout settings
+        elif 'timeout' in key_lower:
+            self.tooltip_low_effect = "Faster timeout, may fail on slow operations"
+            self.tooltip_high_effect = "More time allowed, better for slow connections"
+            self.units = "seconds"
+
+    def _detect_active_group(self):
+        """Detect if this setting belongs to an active engine group."""
+        key_lower = self.key.lower()
+
+        # LLM provider group
+        if 'llm' in key_lower or 'openai' in key_lower or 'ollama' in key_lower:
+            if 'provider' in key_lower or 'backend' in key_lower:
+                self.active_group = 'llm_provider_selector'
+            elif any(word in key_lower for word in ['model', 'api_key', 'base_url', 'temperature', 'max_tokens', 'top_']):
+                # Determine which provider this belongs to
+                if 'openai' in key_lower:
+                    self.active_group = 'openai'
+                elif 'ollama' in key_lower:
+                    self.active_group = 'ollama'
+                elif 'llm' in key_lower:
+                    self.active_group = 'transformers'
+
+        # TTS provider group
+        elif 'tts' in key_lower or 'piper' in key_lower or 'edge' in key_lower or 'speak' in key_lower:
+            if 'provider' in key_lower:
+                self.active_group = 'tts_provider_selector'
+            elif 'voice' in key_lower or 'model' in key_lower or 'piper' in key_lower:
+                # Determine TTS engine
+                if 'edge' in key_lower:
+                    self.active_group = 'edge'
+                elif 'piper' in key_lower:
+                    self.active_group = 'piper'
+                else:
+                    self.active_group = 'xtts'
+
+        # Wakeword backend group
+        elif 'wakeword' in key_lower:
+            if 'backend' in key_lower:
+                self.active_group = 'wakeword_backend_selector'
+
+        # Whisper settings
+        elif 'whisper' in key_lower:
+            self.active_group = 'whisper'
 
 
 @dataclass
