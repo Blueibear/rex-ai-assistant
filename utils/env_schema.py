@@ -118,6 +118,16 @@ class EnvVariable:
             self.max_value = 1.0
             return
 
+        # Paths and directories - CHECK FIRST before numeric detection
+        # This prevents "REX_LOG_PATH" from being detected as spinbox
+        if any(word in key_lower for word in ['path', 'dir', 'file']) or any(word in desc_lower for word in ['path', 'directory', 'file']):
+            self.control_type = 'path'
+            if 'dir' in key_lower or 'directory' in desc_lower:
+                self.path_type = 'directory'
+            else:
+                self.path_type = 'file'
+            return
+
         # Numeric ranges
         if any(word in key_lower for word in ['duration', 'seconds', 'rate', 'window', 'interval']):
             try:
@@ -139,15 +149,6 @@ class EnvVariable:
                 return
             except ValueError:
                 pass
-
-        # Paths and directories
-        if any(word in key_lower for word in ['path', 'dir', 'file']) or any(word in desc_lower for word in ['path', 'directory', 'file']):
-            self.control_type = 'path'
-            if 'dir' in key_lower or 'directory' in desc_lower:
-                self.path_type = 'directory'
-            else:
-                self.path_type = 'file'
-            return
 
         # Default to entry
         self.control_type = 'entry'
