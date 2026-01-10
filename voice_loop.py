@@ -299,6 +299,9 @@ class AsyncRexAssistant:
         self.plugins = load_plugins()
         logger.info("Loaded plugins: %s", ", ".join(self.plugins.keys()) or "none")
 
+        # Register plugins as LLM tools (for function calling)
+        self._register_plugins_as_tools()
+
         self._running = True
 
     def _get_tts(self) -> TTS:
@@ -336,6 +339,37 @@ class AsyncRexAssistant:
             except Exception as exc:
                 raise SpeechToTextError(f"Failed to load Whisper model: {exc}")
         return self._whisper_model
+
+    def _register_plugins_as_tools(self) -> None:
+        """Register loaded plugins as LLM tools for function calling."""
+        # Only register tools if using OpenAI-compatible provider
+        if self.config.llm_provider.lower() not in ["openai", "ollama"]:
+            logger.info("LLM provider '%s' does not support function calling; skipping tool registration", self.config.llm_provider)
+            return
+
+        # Register web_search plugin if available
+        if "plugins.web_search" in self.plugins:
+            try:
+                from plugins.web_search import search_web
+
+                self.language_model.register_tool(
+                    name="web_search",
+                    description="Search the web for current information, news, facts, weather, or anything requiring up-to-date knowledge. Use this when the user asks about current events, recent information, or anything you don't have knowledge about.",
+                    parameters={
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "The search query to look up on the web"
+                            }
+                        },
+                        "required": ["query"]
+                    },
+                    function=search_web
+                )
+                logger.info("Registered web_search tool for LLM function calling")
+            except Exception as exc:
+                logger.warning("Failed to register web_search tool: %s", exc)
 
     async def run(self) -> None:
         # Log wake word details right before starting (this is in background thread so GUI will see it)
