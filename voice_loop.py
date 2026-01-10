@@ -522,6 +522,8 @@ class AsyncRexAssistant:
                 # Use winsound on Windows (more reliable than simpleaudio)
                 import winsound
                 winsound.PlaySound("assistant_response.wav", winsound.SND_FILENAME)
+                # Give Windows time to release audio device before next recording
+                time.sleep(0.5)
             elif sa is not None:
                 # Use simpleaudio on other platforms
                 wave_obj = sa.WaveObject.from_wave_file("assistant_response.wav")
