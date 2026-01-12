@@ -30,7 +30,7 @@ def configure_logging(
     """Configure application-wide logging with optional file handlers.
 
     By default, logs to stdout. File logging is enabled only if:
-    - REX_FILE_LOGGING_ENABLED=true (default: false in containers)
+    - runtime.file_logging_enabled=true in rex_config.json (default: false)
     - Or explicitly requested via handlers parameter
 
     This makes logging container-friendly and follows 12-factor app principles.
@@ -51,9 +51,10 @@ def configure_logging(
 
         handlers_list = [stream_handler]
 
-        file_logging_enabled = os.getenv("REX_FILE_LOGGING_ENABLED", "false").lower() in {
-            "true", "1", "yes"
-        }
+        # Get file logging setting from config (defaults to False)
+        file_logging_enabled = False
+        if settings is not None:
+            file_logging_enabled = getattr(settings, "file_logging_enabled", False)
 
         if file_logging_enabled:
             log_path = _resolve_path(

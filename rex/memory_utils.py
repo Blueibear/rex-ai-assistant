@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Deque, Dict, Iterable, List, Optional
 
 from .assistant_errors import ConfigurationError
-from .config import _parse_int, load_config, settings
+from .config import load_config, settings
 from .placeholder_voice import (
     DEFAULT_PLACEHOLDER_RELATIVE_PATH,
     ensure_placeholder_voice,
@@ -21,7 +21,6 @@ MEMORY_ROOT = REPO_ROOT / "Memory"
 USERS_PATH = REPO_ROOT / "users.json"
 HISTORY_FILENAME = "history.jsonl"
 HISTORY_META = "history_meta.json"
-MAX_MEMORY_FILE_BYTES = _parse_int("REX_MEMORY_MAX_BYTES", os.getenv("REX_MEMORY_MAX_BYTES"), default=131072)
 MAX_PATH_DEPTH = 10  # Maximum directory traversal depth
 
 
@@ -133,18 +132,21 @@ def load_memory_profile(user_key: str, memory_root: str | Path = MEMORY_ROOT) ->
     sanitized_key = _sanitize_user_key(user_key)
     memory_root_path = Path(memory_root)
     core_path = memory_root_path / sanitized_key / "core.json"
-    
+
     # Validate path is within memory root
     core_path = _validate_path_within(core_path, memory_root_path)
-    
-    if MAX_MEMORY_FILE_BYTES > 0:
+
+    # Get max memory file size from config (defaults to 131072 bytes = 128KB)
+    max_memory_bytes = getattr(settings, "memory_max_bytes", 131072) if settings else 131072
+
+    if max_memory_bytes > 0:
         try:
             size = core_path.stat().st_size
         except OSError:
             size = 0
-        if size > MAX_MEMORY_FILE_BYTES:
+        if size > max_memory_bytes:
             raise ConfigurationError(
-                f"Memory profile '{core_path}' exceeds {MAX_MEMORY_FILE_BYTES} bytes; refusing to load."
+                f"Memory profile '{core_path}' exceeds {max_memory_bytes} bytes; refusing to load."
             )
     with open(core_path, "r", encoding="utf-8") as handle:
         return json.load(handle)

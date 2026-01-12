@@ -34,17 +34,33 @@ def test_list_devices_requires_sounddevice(monkeypatch):
         audio_config.list_devices()
 
 
-def test_main_updates_env(monkeypatch):
-    updated = {}
+def test_main_updates_json_config(monkeypatch, tmp_path):
+    """Test that audio_config.main updates rex_config.json instead of .env."""
+    # Create a temporary config file
+    config_path = tmp_path / "rex_config.json"
 
-    def fake_update(key, value):
-        updated[key] = value
+    # Mock the config module to use our temp path
+    saved_config = None
+
+    def mock_load_config():
+        return {
+            "audio": {
+                "input_device_index": None,
+                "output_device_index": None,
+            }
+        }
+
+    def mock_save_config(config):
+        nonlocal saved_config
+        saved_config = config
 
     monkeypatch.setattr(audio_config, "sd", _DummySoundDevice(), raising=False)
-    monkeypatch.setattr(audio_config, "update_env_value", fake_update)
+    monkeypatch.setattr(audio_config, "load_config", mock_load_config)
+    monkeypatch.setattr(audio_config, "save_config", mock_save_config)
 
     exit_code = audio_config.main(["--set-input", "0", "--set-output", "1"])
 
     assert exit_code == 0
-    assert updated["REX_INPUT_DEVICE"] == "0"
-    assert updated["REX_OUTPUT_DEVICE"] == "1"
+    assert saved_config is not None
+    assert saved_config["audio"]["input_device_index"] == 0
+    assert saved_config["audio"]["output_device_index"] == 1

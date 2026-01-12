@@ -28,11 +28,32 @@ from rex.logging_utils import get_logger, set_global_level
 LOGGER = get_logger(__name__)
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 
+
+def _parse_int(name: str, value: Optional[str], *, default: int = 0) -> int:
+    """Parse integer from string value.
+
+    Args:
+        name: Parameter name (for error messages, unused)
+        value: String value to parse
+        default: Default value if parsing fails
+
+    Returns:
+        Parsed integer or default
+    """
+    if value is None:
+        return default
+    try:
+        return int(float(value))
+    except (ValueError, TypeError):
+        return default
+
+
 @dataclass
 class AppConfig:
     """Application configuration combining JSON config and environment secrets."""
 
     wakeword: str = "rex"
+    wakeword_backend: str = "openwakeword"
     wakeword_threshold: float = 0.5
     wakeword_window: float = 1.0
     wakeword_poll_interval: float = 0.01
@@ -51,6 +72,8 @@ class AppConfig:
     llm_top_p: float = 0.9
     llm_top_k: int = 50
     llm_seed: int = 42
+    tts_provider: str = "xtts"
+    tts_voice: Optional[str] = None
 
     speak_api_key: Optional[str] = None
     rate_limit: str = "30/minute"
@@ -66,6 +89,8 @@ class AppConfig:
     audio_output_device: Optional[int] = None
 
     debug_logging: bool = False
+    file_logging_enabled: bool = False
+    memory_max_bytes: int = 131072
     conversation_export: bool = True
 
     brave_api_key: Optional[str] = None
@@ -115,12 +140,12 @@ class AppConfig:
 
 _cached_config: Optional[AppConfig] = None
 
-# Backward compatibility: mapping for old code that uses ENV_MAPPING
-ENV_MAPPING: Dict[str, str] = {
-    "wakeword": "REX_WAKEWORD",
-    "audio_input_device": "REX_INPUT_DEVICE",
-    "audio_output_device": "REX_OUTPUT_DEVICE",
-}
+# Required environment variables (secrets only)
+REQUIRED_ENV_KEYS: set = set()  # No required env vars - secrets are optional
+
+# Backward compatibility: ENV_MAPPING removed - use rex_config.json for runtime settings
+# For migration, see rex.config_manager.ENV_TO_CONFIG_MAPPING
+ENV_MAPPING: Dict[str, str] = {}
 
 
 def _get_nested(data: dict, path: str, default=None):
@@ -190,6 +215,8 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False, json_c
     config = AppConfig(
         # Wake word settings from JSON
         wakeword=_get_nested(json_config, "wake_word.wakeword", "rex"),
+        wakeword_backend=_get_nested(json_config, "wake_word.backend", "openwakeword"),
+        wakeword_keyword=_get_nested(json_config, "wake_word.keyword"),
         wakeword_threshold=float(_get_nested(json_config, "wake_word.threshold", 0.5)),
         wakeword_window=float(_get_nested(json_config, "wake_word.window", 1.0)),
         wakeword_poll_interval=float(_get_nested(json_config, "wake_word.poll_interval", 0.01)),
@@ -222,6 +249,8 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False, json_c
         llm_top_p=float(_get_nested(json_config, "models.llm_top_p", 0.9)),
         llm_top_k=int(_get_nested(json_config, "models.llm_top_k", 50)),
         llm_seed=int(_get_nested(json_config, "models.llm_seed", 42)),
+        tts_provider=_get_nested(json_config, "models.tts_provider", "xtts"),
+        tts_voice=_get_nested(json_config, "models.tts_voice"),
 
         # API settings from JSON
         rate_limit=_get_nested(json_config, "api.rate_limit", "30/minute"),
@@ -254,6 +283,8 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False, json_c
 
         # Logging from JSON
         debug_logging=_get_nested(json_config, "runtime.log_level", "INFO").upper() == "DEBUG",
+        file_logging_enabled=bool(_get_nested(json_config, "runtime.file_logging_enabled", False)),
+        memory_max_bytes=int(_get_nested(json_config, "runtime.memory_max_bytes", 131072)),
     )
 
     validate_config(config)
