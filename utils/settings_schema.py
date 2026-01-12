@@ -210,34 +210,8 @@ AUTHORITATIVE_SETTINGS: List[SettingDef] = [
         step=0.5,
         units='seconds',
     ),
-    SettingDef(
-        key='REX_INPUT_DEVICE',
-        type='string',
-        default='',
-        description='Audio input device index (leave empty for default)',
-        section='Audio Configuration',
-    ),
-    SettingDef(
-        key='REX_OUTPUT_DEVICE',
-        type='string',
-        default='',
-        description='Audio output device index (leave empty for default)',
-        section='Audio Configuration',
-    ),
-    SettingDef(
-        key='REX_AUDIO_INPUT_DEVICE',
-        type='string',
-        default='',
-        description='Audio input device (alternative key)',
-        section='Audio Configuration',
-    ),
-    SettingDef(
-        key='REX_AUDIO_OUTPUT_DEVICE',
-        type='string',
-        default='',
-        description='Audio output device (alternative key)',
-        section='Audio Configuration',
-    ),
+    # NOTE: Audio device settings moved to rex_config.json under audio.input_device_index and audio.output_device_index
+    # These env keys are deprecated and ignored
     SettingDef(
         key='REX_WAKE_SOUND',
         type='file_path',

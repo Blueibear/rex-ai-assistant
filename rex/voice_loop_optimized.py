@@ -202,8 +202,10 @@ class TextToSpeech:
     def __init__(self, *, language: str, default_speaker: Optional[str] = None) -> None:
         self._language = language
         self._default_speaker = default_speaker
-        self._provider = os.getenv("REX_TTS_PROVIDER", "edge").lower()
-        self._edge_voice = os.getenv("REX_TTS_VOICE", "en-US-AndrewNeural")
+
+        # Get TTS settings from config (defaults: xtts provider, en-US-AndrewNeural voice)
+        self._provider = getattr(settings, "tts_provider", "xtts").lower()
+        self._edge_voice = getattr(settings, "tts_voice", None) or "en-US-AndrewNeural"
 
         if self._provider == "xtts":
             logger.warning("[TTS] XTTS is slow (~3-4s). Recommend 'edge' or 'windows' for <1s latency")

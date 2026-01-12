@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 from typing import Iterable, Tuple
 
@@ -18,8 +17,15 @@ except Exception:  # pragma: no cover - openwakeword optional
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_KEYWORD = os.getenv("REX_WAKEWORD_KEYWORD", "hey_jarvis")
-DEFAULT_BACKEND = os.getenv("REX_WAKEWORD_BACKEND", "onnx")
+# Get defaults from config (with fallbacks)
+try:
+    from rex.config import settings
+    DEFAULT_KEYWORD = getattr(settings, "wakeword_keyword", None) or "hey_jarvis"
+    DEFAULT_BACKEND = getattr(settings, "wakeword_backend", "openwakeword")
+except Exception:
+    DEFAULT_KEYWORD = "hey_jarvis"
+    DEFAULT_BACKEND = "openwakeword"
+
 _AVAILABLE_KEYWORDS = (
     {name.replace("_", " ") for name in getattr(openwakeword, "MODELS", {}).keys()}
     if openwakeword

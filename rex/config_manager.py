@@ -52,6 +52,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "runtime": {
         "log_level": "INFO",
         "file_logging_enabled": False,
+        "memory_max_bytes": 131072,
         "transcripts_enabled": True,
         "transcripts_dir": "transcripts",
         "active_user": None,
@@ -123,6 +124,7 @@ ENV_TO_CONFIG_MAPPING: Dict[str, str] = {
     # Runtime settings
     "REX_LOG_LEVEL": "runtime.log_level",
     "REX_FILE_LOGGING_ENABLED": "runtime.file_logging_enabled",
+    "REX_MEMORY_MAX_BYTES": "runtime.memory_max_bytes",
     "REX_TRANSCRIPTS_ENABLED": "runtime.transcripts_enabled",
     "REX_TRANSCRIPTS_DIR": "runtime.transcripts_dir",
     "REX_ACTIVE_USER": "runtime.active_user",

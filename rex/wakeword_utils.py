@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 from typing import List, Sequence, Tuple
 
@@ -13,8 +12,15 @@ from openwakeword.model import Model as WakeWordModel
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_KEYWORD = os.getenv("REX_WAKEWORD_KEYWORD", "hey_jarvis")
-DEFAULT_BACKEND = os.getenv("REX_WAKEWORD_BACKEND", "onnx")
+# Get defaults from config (with fallbacks)
+try:
+    from .config import settings
+    DEFAULT_KEYWORD = getattr(settings, "wakeword_keyword", None) or "hey_jarvis"
+    DEFAULT_BACKEND = getattr(settings, "wakeword_backend", "openwakeword")
+except Exception:
+    DEFAULT_KEYWORD = "hey_jarvis"
+    DEFAULT_BACKEND = "openwakeword"
+
 _AVAILABLE_KEYWORDS = {name.replace("_", " ") for name in openwakeword.MODELS.keys()}
 
 

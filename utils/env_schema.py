@@ -397,17 +397,22 @@ def parse_env_example(path: Path) -> EnvSchema:
 
 
 def get_restart_required_keys() -> set:
-    """Return set of environment keys that require restart when changed."""
+    """Return set of environment keys that require restart when changed.
+
+    Note: Most runtime settings are now in rex_config.json, not environment variables.
+    This only lists secret keys that remain in .env.
+    """
     return {
-        'REX_LLM_PROVIDER', 'REX_LLM_BACKEND', 'REX_LLM_MODEL',
-        'REX_WHISPER_MODEL', 'REX_WHISPER_DEVICE', 'WHISPER_MODEL', 'WHISPER_DEVICE',
-        'REX_WAKEWORD_BACKEND', 'REX_WAKEWORD',
-        'REX_INPUT_DEVICE', 'REX_OUTPUT_DEVICE',
-        'REX_AUDIO_INPUT_DEVICE', 'REX_AUDIO_OUTPUT_DEVICE',
-        'REX_TTS_PROVIDER', 'REX_TTS_MODEL',
-        'REX_DEVICE', 'REX_SAMPLE_RATE',
-        'OPENAI_API_KEY', 'OLLAMA_HOST', 'OLLAMA_API_KEY',
-        'REX_SPEAK_API_KEY'
+        # Secret keys only (these remain in .env)
+        'OPENAI_API_KEY',
+        'OLLAMA_API_KEY',
+        'REX_SPEAK_API_KEY',
+        'BRAVE_API_KEY',
+        'SERPAPI_KEY',
+        'GOOGLE_API_KEY',
+        'BROWSERLESS_API_KEY',
+        'HA_TOKEN',
+        'HA_SECRET',
     }
 
 
