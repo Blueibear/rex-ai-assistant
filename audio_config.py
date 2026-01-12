@@ -1,4 +1,7 @@
-"""CLI utilities for inspecting and selecting audio devices."""
+"""CLI utilities for inspecting and selecting audio devices.
+
+This module now uses rex_config.json for persistence instead of .env.
+"""
 
 from __future__ import annotations
 
@@ -9,26 +12,18 @@ _load_env()
 
 import argparse
 import sys
+from typing import Dict, Optional
 
 try:
     import sounddevice as sd
 except ImportError:
     sd = None  # sounddevice is optional
 
-from dotenv import set_key
-
 from assistant_errors import AudioDeviceError
-from config import ENV_MAPPING, ENV_PATH, load_config
 from logging_utils import get_logger
+from rex.config_manager import load_config, save_config
 
 logger = get_logger(__name__)
-
-
-def update_env_value(key: str, value: str) -> None:
-    """Persist an environment override to the shared .env file."""
-
-    set_key(str(ENV_PATH), key, value)
-    logger.info("Persisted %s = %s", key, value)
 
 
 def _require_sounddevice() -> None:
@@ -44,11 +39,71 @@ def list_devices() -> list[dict]:
         raise AudioDeviceError(f"Failed to query audio devices: {exc}") from exc
 
 
-def _set_device(env_key: str, device_id: int) -> None:
-    update_env_value(env_key, str(device_id))
+def get_selected_input_device_index(config: Dict) -> Optional[int]:
+    """Get selected input device index from config dict.
+
+    Args:
+        config: Configuration dict (from config_manager.load_config)
+
+    Returns:
+        Device index or None
+    """
+    return config.get("audio", {}).get("input_device_index")
+
+
+def set_selected_input_device_index(config: Dict, index: Optional[int]) -> Dict:
+    """Set selected input device index in config dict.
+
+    Args:
+        config: Configuration dict
+        index: Device index or None
+
+    Returns:
+        Updated config dict
+    """
+    if "audio" not in config:
+        config["audio"] = {}
+    config["audio"]["input_device_index"] = index
+    return config
+
+
+def get_selected_output_device_index(config: Dict) -> Optional[int]:
+    """Get selected output device index from config dict.
+
+    Args:
+        config: Configuration dict (from config_manager.load_config)
+
+    Returns:
+        Device index or None
+    """
+    return config.get("audio", {}).get("output_device_index")
+
+
+def set_selected_output_device_index(config: Dict, index: Optional[int]) -> Dict:
+    """Set selected output device index in config dict.
+
+    Args:
+        config: Configuration dict
+        index: Device index or None
+
+    Returns:
+        Updated config dict
+    """
+    if "audio" not in config:
+        config["audio"] = {}
+    config["audio"]["output_device_index"] = index
+    return config
 
 
 def select_input(device_id: int) -> None:
+    """Select and persist input device to rex_config.json.
+
+    Args:
+        device_id: Device index to select
+
+    Raises:
+        AudioDeviceError: If device is invalid or cannot be opened
+    """
     devices = list_devices()
     if device_id < 0 or device_id >= len(devices):
         raise AudioDeviceError(f"Invalid input device ID: {device_id}")
@@ -63,10 +118,22 @@ def select_input(device_id: int) -> None:
     except Exception as exc:
         raise AudioDeviceError(f"Failed to open input device {device_id}: {exc}") from exc
 
-    _set_device(ENV_MAPPING["audio_input_device"], device_id)
+    # Save to rex_config.json
+    config = load_config()
+    config = set_selected_input_device_index(config, device_id)
+    save_config(config)
+    logger.info(f"Selected input device {device_id}, saved to config")
 
 
 def select_output(device_id: int) -> None:
+    """Select and persist output device to rex_config.json.
+
+    Args:
+        device_id: Device index to select
+
+    Raises:
+        AudioDeviceError: If device is invalid or cannot be opened
+    """
     devices = list_devices()
     if device_id < 0 or device_id >= len(devices):
         raise AudioDeviceError(f"Invalid output device ID: {device_id}")
@@ -81,7 +148,11 @@ def select_output(device_id: int) -> None:
     except Exception as exc:
         raise AudioDeviceError(f"Failed to open output device {device_id}: {exc}") from exc
 
-    _set_device(ENV_MAPPING["audio_output_device"], device_id)
+    # Save to rex_config.json
+    config = load_config()
+    config = set_selected_output_device_index(config, device_id)
+    save_config(config)
+    logger.info(f"Selected output device {device_id}, saved to config")
 
 
 def _format_devices() -> str:
@@ -115,17 +186,19 @@ def cli(argv: list[str] | None = None) -> int:
 
         if args.set_input is not None:
             select_input(args.set_input)
-            print(f"✅ Input device set to index {args.set_input}")
+            print(f"Input device set to index {args.set_input}")
 
         if args.set_output is not None:
             select_output(args.set_output)
-            print(f"✅ Output device set to index {args.set_output}")
+            print(f"Output device set to index {args.set_output}")
 
         if args.show:
-            cfg = load_config(reload=True)
+            config = load_config()
+            input_idx = get_selected_input_device_index(config)
+            output_idx = get_selected_output_device_index(config)
             print("Configured Audio Devices:")
-            print(f"  🎤 Input Device Index : {cfg.audio_input_device}")
-            print(f"  🔈 Output Device Index: {cfg.audio_output_device}")
+            print(f"  Input Device Index : {input_idx}")
+            print(f"  Output Device Index: {output_idx}")
 
         if not any([args.list, args.set_input is not None, args.set_output is not None, args.show]):
             parser.print_help()
@@ -134,7 +207,7 @@ def cli(argv: list[str] | None = None) -> int:
         return 0
     except AudioDeviceError as exc:
         logger.error("Audio error: %s", exc)
-        print(f"❌ Error: {exc}", file=sys.stderr)
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
 
 

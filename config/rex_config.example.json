@@ -1,0 +1,69 @@
+{
+  "audio": {
+    "input_device_index": null,
+    "output_device_index": null,
+    "sample_rate": 16000
+  },
+  "wake_word": {
+    "backend": "openwakeword",
+    "wakeword": "rex",
+    "keyword": null,
+    "threshold": 0.5,
+    "window": 1.0,
+    "poll_interval": 0.01,
+    "wake_sound_path": "assets/wake_acknowledgment.wav"
+  },
+  "models": {
+    "llm_provider": "transformers",
+    "llm_backend": null,
+    "llm_model": "sshleifer/tiny-gpt2",
+    "llm_max_tokens": 120,
+    "llm_temperature": 0.7,
+    "llm_top_p": 0.9,
+    "llm_top_k": 50,
+    "llm_seed": 42,
+    "stt_model": "base",
+    "stt_device": "cpu",
+    "tts_provider": "xtts",
+    "tts_model": null,
+    "tts_voice": null,
+    "windows_tts_voice_index": null
+  },
+  "runtime": {
+    "log_level": "INFO",
+    "file_logging_enabled": false,
+    "transcripts_enabled": true,
+    "transcripts_dir": "transcripts",
+    "active_user": null,
+    "user_id": "default",
+    "memory_max_turns": 50,
+    "command_duration": 5.0,
+    "capture_seconds": 5.0,
+    "detection_frame_seconds": 1.0,
+    "conversation_export": true,
+    "speak_language": "en"
+  },
+  "search": {
+    "providers": "serpapi,brave,duckduckgo,google"
+  },
+  "home_assistant": {
+    "base_url": null,
+    "verify_ssl": true,
+    "timeout": 10.0
+  },
+  "ollama": {
+    "base_url": "http://localhost:11434",
+    "use_cloud": false
+  },
+  "openai": {
+    "model": null,
+    "base_url": null
+  },
+  "api": {
+    "rate_limit": "30/minute",
+    "allowed_origins": ["*"]
+  },
+  "ui": {
+    "start_minimized": false
+  }
+}

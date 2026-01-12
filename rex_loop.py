@@ -61,6 +61,18 @@ def _select_plugins(enabled: Iterable[str] | None) -> list[PluginSpec]:
 
 async def _run(args) -> None:
     configure_logging()
+
+    # Run migration from legacy .env to rex_config.json if needed
+    from rex.config_manager import migrate_legacy_env_to_config, get_legacy_env_warnings
+    migration_notes = migrate_legacy_env_to_config()
+    if migration_notes and len(migration_notes) > 1:
+        logger.info("Configuration migration completed")
+
+    # Warn about legacy environment variables
+    legacy_warnings = get_legacy_env_warnings()
+    if legacy_warnings:
+        logger.warning("Legacy environment variables detected. These are now ignored. Use config/rex_config.json instead.")
+
     plugin_specs = _select_plugins(args.enable_plugin)
 
     if args.user:

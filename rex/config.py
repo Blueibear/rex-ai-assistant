@@ -1,4 +1,7 @@
-"""Central configuration loader and CLI utilities for the Rex assistant."""
+"""Central configuration loader and CLI utilities for the Rex assistant.
+
+Now uses rex_config.json for non-secret settings and .env only for secrets.
+"""
 
 from __future__ import annotations
 
@@ -24,10 +27,11 @@ from rex.logging_utils import get_logger, set_global_level
 
 LOGGER = get_logger(__name__)
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
-REQUIRED_ENV_KEYS = {"REX_WAKEWORD"}
 
 @dataclass
 class AppConfig:
+    """Application configuration combining JSON config and environment secrets."""
+
     wakeword: str = "rex"
     wakeword_threshold: float = 0.5
     wakeword_window: float = 1.0
@@ -111,210 +115,145 @@ class AppConfig:
 
 _cached_config: Optional[AppConfig] = None
 
+# Backward compatibility: mapping for old code that uses ENV_MAPPING
 ENV_MAPPING: Dict[str, str] = {
     "wakeword": "REX_WAKEWORD",
-    "wakeword_threshold": "REX_WAKEWORD_THRESHOLD",
-    "wakeword_window": "REX_WAKEWORD_WINDOW",
-    "wakeword_poll_interval": "REX_WAKEWORD_POLL_INTERVAL",
-    "command_duration": "REX_COMMAND_DURATION",
-    "sample_rate": "REX_SAMPLE_RATE",
-    "detection_frame_seconds": "REX_DETECTION_FRAME_SECONDS",
-    "capture_seconds": "REX_CAPTURE_SECONDS",
-    "whisper_model": "REX_WHISPER_MODEL",
-    "whisper_device": "REX_WHISPER_DEVICE",
-    "speak_language": "REX_SPEAK_LANGUAGE",
-    "llm_provider": "REX_LLM_PROVIDER",
-    "llm_model": "REX_LLM_MODEL",
-    "llm_max_tokens": "REX_LLM_MAX_TOKENS",
-    "llm_temperature": "REX_LLM_TEMPERATURE",
-    "llm_top_p": "REX_LLM_TOP_P",
-    "llm_top_k": "REX_LLM_TOP_K",
-    "llm_seed": "REX_LLM_SEED",
-    "speak_api_key": "REX_SPEAK_API_KEY",
-    "rate_limit": "REX_RATE_LIMIT",
-    "allowed_origins": "REX_ALLOWED_ORIGINS",
-    "memory_max_turns": "REX_MEMORY_MAX_TURNS",
-    "transcripts_enabled": "REX_TRANSCRIPTS_ENABLED",
-    "transcripts_dir": "REX_TRANSCRIPTS_DIR",
-    "default_user": "REX_ACTIVE_USER",
-    "wake_sound_path": "REX_WAKE_SOUND",
     "audio_input_device": "REX_INPUT_DEVICE",
     "audio_output_device": "REX_OUTPUT_DEVICE",
-    "debug_logging": "REX_DEBUG_LOGGING",
-    "conversation_export": "REX_CONVERSATION_EXPORT",
-    "brave_api_key": "BRAVE_API_KEY",
-    "openai_api_key": "OPENAI_API_KEY",
-    "openai_model": "OPENAI_MODEL",
-    "openai_base_url": "OPENAI_BASE_URL",
-    "ollama_api_key": "OLLAMA_API_KEY",
-    "ollama_base_url": "OLLAMA_HOST",
-    "ollama_use_cloud": "OLLAMA_USE_CLOUD",
-    "user_id": "REX_USER_ID",
-    "search_providers": "REX_SEARCH_PROVIDERS",
-    "ha_base_url": "HA_BASE_URL",
-    "ha_token": "HA_TOKEN",
-    "ha_secret": "HA_SECRET",
-    "ha_verify_ssl": "HA_VERIFY_SSL",
-    "ha_timeout": "HA_TIMEOUT",
 }
 
-TRUE_VALUES = {"1", "true", "yes", "on"}
-FALSE_VALUES = {"0", "false", "no", "off"}
 
-def _parse_bool(value: Optional[str], *, default: bool = False) -> bool:
-    if value is None:
-        return default
-    lowered = value.strip().lower()
-    if lowered in TRUE_VALUES:
-        return True
-    if lowered in FALSE_VALUES:
-        return False
-    raise ConfigurationError(f"Invalid boolean value: {value}")
-
-def _parse_int(name: str, value: Optional[str], *, default: int) -> int:
-    """Parse integer from string, accepting both int and float-formatted strings.
-
-    Handles:
-    - "16000" -> 16000
-    - "16000.0" -> 16000
-    - " 16000 " -> 16000
-    - None or "" -> default
-    - "16000.5" -> raises ConfigurationError
-    - "abc" -> raises ConfigurationError
-    """
-    if value in (None, ""):
-        return default
-
-    stripped = value.strip()
-    if not stripped:
-        return default
-
-    try:
-        # Try parsing as float first to handle "16000.0" case
-        float_val = float(stripped)
-        # Check if it's a whole number
-        if float_val.is_integer():
-            return int(float_val)
-        else:
-            raise ConfigurationError(
-                f"Configuration {name}={value} must be a whole number, got {float_val}"
-            )
-    except ValueError as exc:
-        raise ConfigurationError(
-            f"Configuration {name}={value} is not a valid number"
-        ) from exc
-
-def _parse_float(name: str, value: Optional[str], *, default: float) -> float:
-    """Parse float from string with helpful error messages."""
-    if value in (None, ""):
-        return default
-
-    stripped = value.strip()
-    if not stripped:
-        return default
-
-    try:
-        return float(stripped)
-    except ValueError as exc:
-        raise ConfigurationError(
-            f"Configuration {name}={value} is not a valid number"
-        ) from exc
-
-def _parse_optional_int(value: Optional[str]) -> Optional[int]:
-    """Legacy helper for optional integers. Prefer _parse_int for new code."""
-    if value in (None, ""):
-        return None
-
-    stripped = value.strip()
-    try:
-        # Handle float-formatted strings like "1.0"
-        float_val = float(stripped)
-        if float_val.is_integer():
-            return int(float_val)
-        else:
-            raise ConfigurationError(f"Invalid integer (not a whole number): {value}")
-    except ValueError as exc:
-        raise ConfigurationError(f"Invalid integer: {value}") from exc
-
-def _first_env_value(*keys: str) -> Optional[str]:
+def _get_nested(data: dict, path: str, default=None):
+    """Get value from nested dict using dot notation."""
+    keys = path.split(".")
+    value = data
     for key in keys:
-        value = os.getenv(key)
-        if value not in (None, ""):
-            return value
-    return None
+        if isinstance(value, dict):
+            value = value.get(key, default)
+        else:
+            return default
+    return value
 
-def _env_key_for(field_name: str) -> Optional[str]:
-    if field_name in ENV_MAPPING:
-        return ENV_MAPPING[field_name]
-    elif field_name.startswith("REX_") or field_name in os.environ:
-        return field_name
-    return None
 
-def _write_env(key: str, value: str, *, env_path: Path) -> None:
-    set_key(str(env_path), key, value)
+def load_config(*, env_path: Optional[Path] = None, reload: bool = False, json_config: Optional[dict] = None) -> AppConfig:
+    """Load configuration from rex_config.json and .env secrets.
 
-def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> AppConfig:
+    Args:
+        env_path: Path to .env file (default: repo root .env)
+        reload: Force reload instead of using cached config
+        json_config: Pre-loaded JSON config dict (if None, loads from rex/config_manager)
+
+    Returns:
+        AppConfig with runtime settings from JSON and secrets from .env
+
+    Note:
+        Non-secret environment variables are now ignored. Use rex_config.json instead.
+    """
     global _cached_config
-    if _cached_config is not None and not reload:
+    if _cached_config is not None and not reload and json_config is None:
         return _cached_config
 
+    # Load .env for secrets only
     load_dotenv(env_path or ENV_PATH, override=False)
 
+    # Load JSON config for runtime settings
+    if json_config is None:
+        from rex.config_manager import load_config as load_json_config, get_legacy_env_warnings
+        json_config = load_json_config()
+
+        # Warn about legacy environment variables
+        warnings = get_legacy_env_warnings()
+        if warnings:
+            for warning in warnings[:3]:  # Limit to first 3 to avoid spam
+                LOGGER.warning(warning)
+            if len(warnings) > 3:
+                LOGGER.warning(f"... and {len(warnings) - 3} more legacy environment variables")
+
     def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
+        """Get value from environment (secrets only)."""
         return os.getenv(key, default)
 
-    allowed_origins = [
-        origin.strip().rstrip("/")
-        for origin in (getenv("REX_ALLOWED_ORIGINS", "*").split(","))
-        if origin.strip()
-    ] or ["*"]
+    # Parse allowed origins from JSON config
+    allowed_origins_value = _get_nested(json_config, "api.allowed_origins", ["*"])
+    if isinstance(allowed_origins_value, str):
+        allowed_origins = [
+            origin.strip().rstrip("/")
+            for origin in allowed_origins_value.split(",")
+            if origin.strip()
+        ] or ["*"]
+    elif isinstance(allowed_origins_value, list):
+        allowed_origins = [str(o).strip().rstrip("/") for o in allowed_origins_value if o]
+    else:
+        allowed_origins = ["*"]
 
+    # Build config from JSON config + env secrets
     config = AppConfig(
-        wakeword=getenv("REX_WAKEWORD", "rex"),
-        wakeword_threshold=_parse_float("REX_WAKEWORD_THRESHOLD", getenv("REX_WAKEWORD_THRESHOLD"), default=0.5),
-        wakeword_window=_parse_float("REX_WAKEWORD_WINDOW", getenv("REX_WAKEWORD_WINDOW"), default=1.0),
-        wakeword_poll_interval=_parse_float("REX_WAKEWORD_POLL_INTERVAL", getenv("REX_WAKEWORD_POLL_INTERVAL"), default=0.01),
-        command_duration=_parse_float("REX_COMMAND_DURATION", getenv("REX_COMMAND_DURATION"), default=5.0),
-        sample_rate=_parse_int("REX_SAMPLE_RATE", getenv("REX_SAMPLE_RATE"), default=16000),
-        detection_frame_seconds=_parse_float("REX_DETECTION_FRAME_SECONDS", getenv("REX_DETECTION_FRAME_SECONDS"), default=1.0),
-        capture_seconds=_parse_float("REX_CAPTURE_SECONDS", getenv("REX_CAPTURE_SECONDS"), default=5.0),
-        whisper_model=getenv("REX_WHISPER_MODEL", "base"),
-        whisper_device=getenv("REX_WHISPER_DEVICE", "cpu"),
-        speak_language=getenv("REX_SPEAK_LANGUAGE", "en"),
-        llm_provider=getenv("REX_LLM_PROVIDER", "transformers"),
-        llm_model=getenv("REX_LLM_MODEL", "sshleifer/tiny-gpt2"),
-        llm_max_tokens=_parse_int("REX_LLM_MAX_TOKENS", getenv("REX_LLM_MAX_TOKENS"), default=120),
-        llm_temperature=_parse_float("REX_LLM_TEMPERATURE", getenv("REX_LLM_TEMPERATURE"), default=0.7),
-        llm_top_p=_parse_float("REX_LLM_TOP_P", getenv("REX_LLM_TOP_P"), default=0.9),
-        llm_top_k=_parse_int("REX_LLM_TOP_K", getenv("REX_LLM_TOP_K"), default=50),
-        llm_seed=_parse_int("REX_LLM_SEED", getenv("REX_LLM_SEED"), default=42),
-        speak_api_key=getenv("REX_SPEAK_API_KEY"),
-        rate_limit=getenv("REX_RATE_LIMIT", "30/minute"),
+        # Wake word settings from JSON
+        wakeword=_get_nested(json_config, "wake_word.wakeword", "rex"),
+        wakeword_threshold=float(_get_nested(json_config, "wake_word.threshold", 0.5)),
+        wakeword_window=float(_get_nested(json_config, "wake_word.window", 1.0)),
+        wakeword_poll_interval=float(_get_nested(json_config, "wake_word.poll_interval", 0.01)),
+        wake_sound_path=_get_nested(json_config, "wake_word.wake_sound_path"),
+
+        # Runtime settings from JSON
+        command_duration=float(_get_nested(json_config, "runtime.command_duration", 5.0)),
+        detection_frame_seconds=float(_get_nested(json_config, "runtime.detection_frame_seconds", 1.0)),
+        capture_seconds=float(_get_nested(json_config, "runtime.capture_seconds", 5.0)),
+        memory_max_turns=int(_get_nested(json_config, "runtime.memory_max_turns", 50)),
+        transcripts_enabled=bool(_get_nested(json_config, "runtime.transcripts_enabled", True)),
+        transcripts_dir=Path(_get_nested(json_config, "runtime.transcripts_dir", "transcripts")),
+        default_user=_get_nested(json_config, "runtime.active_user"),
+        conversation_export=bool(_get_nested(json_config, "runtime.conversation_export", True)),
+        speak_language=_get_nested(json_config, "runtime.speak_language", "en"),
+        user_id=_get_nested(json_config, "runtime.user_id", "default"),
+
+        # Audio settings from JSON
+        sample_rate=int(_get_nested(json_config, "audio.sample_rate", 16000)),
+        audio_input_device=_get_nested(json_config, "audio.input_device_index"),
+        audio_output_device=_get_nested(json_config, "audio.output_device_index"),
+
+        # Model settings from JSON
+        whisper_model=_get_nested(json_config, "models.stt_model", "base"),
+        whisper_device=_get_nested(json_config, "models.stt_device", "cpu"),
+        llm_provider=_get_nested(json_config, "models.llm_provider", "transformers"),
+        llm_model=_get_nested(json_config, "models.llm_model", "sshleifer/tiny-gpt2"),
+        llm_max_tokens=int(_get_nested(json_config, "models.llm_max_tokens", 120)),
+        llm_temperature=float(_get_nested(json_config, "models.llm_temperature", 0.7)),
+        llm_top_p=float(_get_nested(json_config, "models.llm_top_p", 0.9)),
+        llm_top_k=int(_get_nested(json_config, "models.llm_top_k", 50)),
+        llm_seed=int(_get_nested(json_config, "models.llm_seed", 42)),
+
+        # API settings from JSON
+        rate_limit=_get_nested(json_config, "api.rate_limit", "30/minute"),
         allowed_origins=allowed_origins,
-        memory_max_turns=_parse_int("REX_MEMORY_MAX_TURNS", getenv("REX_MEMORY_MAX_TURNS"), default=50),
-        transcripts_enabled=_parse_bool(getenv("REX_TRANSCRIPTS_ENABLED"), default=True),
-        transcripts_dir=Path(getenv("REX_TRANSCRIPTS_DIR", "transcripts")),
-        default_user=getenv("REX_ACTIVE_USER"),
-        wake_sound_path=None if getenv("REX_WAKE_SOUND") == "" else (getenv("REX_WAKE_SOUND") or "assets/wake_acknowledgment.wav"),
-        audio_input_device=_parse_optional_int(_first_env_value("REX_INPUT_DEVICE", "REX_AUDIO_INPUT_DEVICE")),
-        audio_output_device=_parse_optional_int(_first_env_value("REX_OUTPUT_DEVICE", "REX_AUDIO_OUTPUT_DEVICE")),
-        debug_logging=_parse_bool(getenv("REX_DEBUG_LOGGING")),
-        conversation_export=_parse_bool(getenv("REX_CONVERSATION_EXPORT"), default=True),
+
+        # Search settings from JSON
+        search_providers=_get_nested(json_config, "search.providers", "serpapi,brave,duckduckgo,google"),
+
+        # Home Assistant from JSON + secrets from env
+        ha_base_url=_get_nested(json_config, "home_assistant.base_url"),
+        ha_verify_ssl=bool(_get_nested(json_config, "home_assistant.verify_ssl", True)),
+        ha_timeout=float(_get_nested(json_config, "home_assistant.timeout", 10.0)),
+        ha_token=getenv("HA_TOKEN"),  # SECRET from env
+        ha_secret=getenv("HA_SECRET"),  # SECRET from env
+        ha_entity_map=None,
+
+        # Ollama from JSON + secrets from env
+        ollama_base_url=_get_nested(json_config, "ollama.base_url", "http://localhost:11434"),
+        ollama_use_cloud=bool(_get_nested(json_config, "ollama.use_cloud", False)),
+        ollama_api_key=getenv("OLLAMA_API_KEY"),  # SECRET from env
+
+        # OpenAI from JSON + secrets from env
+        openai_model=_get_nested(json_config, "openai.model"),
+        openai_base_url=_get_nested(json_config, "openai.base_url"),
+        openai_api_key=getenv("OPENAI_API_KEY"),  # SECRET from env
+
+        # All secrets from env only
         brave_api_key=getenv("BRAVE_API_KEY"),
-        openai_api_key=getenv("OPENAI_API_KEY"),
-        openai_model=getenv("OPENAI_MODEL"),
-        openai_base_url=getenv("OPENAI_BASE_URL"),
-        ollama_api_key=getenv("OLLAMA_API_KEY"),
-        ollama_base_url=getenv("OLLAMA_HOST") or getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-        ollama_use_cloud=_parse_bool(getenv("OLLAMA_USE_CLOUD")),
-        user_id=getenv("REX_USER_ID", "default"),
-        search_providers=getenv("REX_SEARCH_PROVIDERS", "serpapi,brave,duckduckgo,google"),
-        ha_base_url=getenv("HA_BASE_URL"),
-        ha_token=getenv("HA_TOKEN"),
-        ha_secret=getenv("HA_SECRET"),
-        ha_verify_ssl=_parse_bool(getenv("HA_VERIFY_SSL"), default=True),
-        ha_timeout=_parse_float("HA_TIMEOUT", getenv("HA_TIMEOUT"), default=10.0),
-        ha_entity_map=None,  # Set programmatically or via config file
+        speak_api_key=getenv("REX_SPEAK_API_KEY"),
+
+        # Logging from JSON
+        debug_logging=_get_nested(json_config, "runtime.log_level", "INFO").upper() == "DEBUG",
     )
 
     validate_config(config)
@@ -324,6 +263,7 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False) -> App
         set_global_level(10)
 
     return config
+
 
 def validate_config(config: AppConfig) -> None:
     if not (0 < config.wakeword_threshold <= 1):
@@ -339,118 +279,42 @@ def validate_config(config: AppConfig) -> None:
     if config.memory_max_turns <= 0:
         raise ConfigurationError("memory_max_turns must be positive.")
 
-def reload_settings(*, env_path: Optional[Path] = None) -> AppConfig:
-    return load_config(env_path=env_path, reload=True)
+
+def reload_settings(*, env_path: Optional[Path] = None, json_config: Optional[dict] = None) -> AppConfig:
+    """Reload configuration, optionally with new JSON config."""
+    return load_config(env_path=env_path, reload=True, json_config=json_config)
+
 
 def show_config(config: Optional[AppConfig] = None) -> None:
     cfg = config or load_config()
     for key, value in cfg.to_dict().items():
         LOGGER.info("%s = %s", key, value)
 
+
 def cli(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Configure Rex Assistant")
     parser.add_argument("--show", action="store_true", help="Print current configuration")
-    parser.add_argument("--set", nargs="*", help="Set config values (key=value)")
     parser.add_argument("--reload", action="store_true", help="Reload config after changes")
     args = parser.parse_args(argv)
 
     ENV_PATH.touch(exist_ok=True)
 
-    if args.set:
-        for pair in args.set:
-            if "=" not in pair:
-                raise ConfigurationError(f"Invalid --set argument (use key=value): {pair}")
-            key, value = map(str.strip, pair.split("=", 1))
-            env_key = _env_key_for(key)
-            if not env_key:
-                raise ConfigurationError(f"Unknown config key: {key}")
-            _write_env(env_key, value, env_path=ENV_PATH)
-            LOGGER.info("Updated %s → %s", env_key, value)
-
-    if args.reload or args.set or args.show:
+    if args.reload or args.show:
         load_config(env_path=ENV_PATH, reload=True)
 
-    if args.show or not args.set:
+    if args.show or True:
         show_config(_cached_config)
 
     return 0
 
-def _self_test_parsers() -> None:
-    """Self-test for parsing helpers to ensure robustness."""
-    print("Running config parser self-tests...")
-
-    # Test _parse_int
-    assert _parse_int("TEST", "16000", default=0) == 16000
-    assert _parse_int("TEST", "16000.0", default=0) == 16000  # Float-formatted int
-    assert _parse_int("TEST", " 16000 ", default=0) == 16000  # Whitespace
-    assert _parse_int("TEST", None, default=42) == 42
-    assert _parse_int("TEST", "", default=42) == 42
-
-    try:
-        _parse_int("TEST", "16000.5", default=0)
-        assert False, "Should have raised ConfigurationError for non-integer"
-    except ConfigurationError:
-        pass  # Expected
-
-    try:
-        _parse_int("TEST", "abc", default=0)
-        assert False, "Should have raised ConfigurationError for invalid number"
-    except ConfigurationError:
-        pass  # Expected
-
-    # Test _parse_float
-    assert _parse_float("TEST", "0.5", default=0.0) == 0.5
-    assert _parse_float("TEST", "16000", default=0.0) == 16000.0
-    assert _parse_float("TEST", "16000.0", default=0.0) == 16000.0
-    assert _parse_float("TEST", " 0.5 ", default=0.0) == 0.5
-    assert _parse_float("TEST", None, default=1.5) == 1.5
-    assert _parse_float("TEST", "", default=1.5) == 1.5
-
-    try:
-        _parse_float("TEST", "abc", default=0.0)
-        assert False, "Should have raised ConfigurationError for invalid float"
-    except ConfigurationError:
-        pass  # Expected
-
-    # Test _parse_bool
-    assert _parse_bool("true", default=False) is True
-    assert _parse_bool("1", default=False) is True
-    assert _parse_bool("yes", default=False) is True
-    assert _parse_bool("on", default=False) is True
-    assert _parse_bool("false", default=True) is False
-    assert _parse_bool("0", default=True) is False
-    assert _parse_bool("no", default=True) is False
-    assert _parse_bool("off", default=True) is False
-    assert _parse_bool(None, default=True) is True
-    assert _parse_bool(None, default=False) is False
-
-    # Test _parse_optional_int
-    assert _parse_optional_int("16000") == 16000
-    assert _parse_optional_int("16000.0") == 16000  # Float-formatted int
-    assert _parse_optional_int(None) is None
-    assert _parse_optional_int("") is None
-
-    try:
-        _parse_optional_int("16000.5")
-        assert False, "Should have raised ConfigurationError for non-integer"
-    except ConfigurationError:
-        pass  # Expected
-
-    print("✓ All config parser self-tests passed!")
 
 settings = load_config()
 Settings = AppConfig
 
 if __name__ == "__main__":
     import sys
-    if "--self-test" in sys.argv:
-        _self_test_parsers()
-        raise SystemExit(0)
-
     try:
         raise SystemExit(cli())
     except ConfigurationError as exc:
         LOGGER.error("Config error: %s", exc)
         raise SystemExit(1) from exc
-
-

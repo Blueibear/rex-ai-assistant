@@ -1,0 +1,313 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rex AI Assistant Configuration",
+  "description": "Runtime configuration for Rex AI Assistant (non-secret settings)",
+  "type": "object",
+  "properties": {
+    "audio": {
+      "type": "object",
+      "description": "Audio device and sampling configuration",
+      "properties": {
+        "input_device_index": {
+          "type": ["integer", "null"],
+          "description": "Audio input device index (null for system default)",
+          "minimum": 0
+        },
+        "output_device_index": {
+          "type": ["integer", "null"],
+          "description": "Audio output device index (null for system default)",
+          "minimum": 0
+        },
+        "sample_rate": {
+          "type": "integer",
+          "description": "Audio sample rate in Hz",
+          "default": 16000,
+          "minimum": 8000,
+          "maximum": 48000
+        }
+      },
+      "required": ["sample_rate"]
+    },
+    "wake_word": {
+      "type": "object",
+      "description": "Wake word detection settings",
+      "properties": {
+        "backend": {
+          "type": "string",
+          "description": "Wake word detection backend",
+          "default": "openwakeword"
+        },
+        "wakeword": {
+          "type": "string",
+          "description": "Wake word phrase",
+          "default": "rex"
+        },
+        "keyword": {
+          "type": ["string", "null"],
+          "description": "Alternative wake word keyword (overrides wakeword if set)"
+        },
+        "threshold": {
+          "type": "number",
+          "description": "Detection threshold (0.0 to 1.0)",
+          "default": 0.5,
+          "minimum": 0,
+          "maximum": 1
+        },
+        "window": {
+          "type": "number",
+          "description": "Detection window in seconds",
+          "default": 1.0,
+          "minimum": 0.1
+        },
+        "poll_interval": {
+          "type": "number",
+          "description": "Poll interval in seconds",
+          "default": 0.01,
+          "minimum": 0.001
+        },
+        "wake_sound_path": {
+          "type": ["string", "null"],
+          "description": "Path to wake acknowledgment sound file"
+        }
+      }
+    },
+    "models": {
+      "type": "object",
+      "description": "AI model configuration",
+      "properties": {
+        "llm_provider": {
+          "type": "string",
+          "description": "LLM provider (transformers, openai, ollama)",
+          "default": "transformers"
+        },
+        "llm_backend": {
+          "type": ["string", "null"],
+          "description": "LLM backend (alias for llm_provider)"
+        },
+        "llm_model": {
+          "type": ["string", "null"],
+          "description": "LLM model name or path"
+        },
+        "llm_max_tokens": {
+          "type": "integer",
+          "description": "Maximum tokens to generate",
+          "default": 120,
+          "minimum": 1
+        },
+        "llm_temperature": {
+          "type": "number",
+          "description": "Sampling temperature",
+          "default": 0.7,
+          "minimum": 0,
+          "maximum": 5
+        },
+        "llm_top_p": {
+          "type": "number",
+          "description": "Top-p (nucleus) sampling parameter",
+          "default": 0.9,
+          "minimum": 0,
+          "maximum": 1
+        },
+        "llm_top_k": {
+          "type": ["integer", "null"],
+          "description": "Top-k sampling parameter",
+          "minimum": 1
+        },
+        "llm_seed": {
+          "type": ["integer", "null"],
+          "description": "Random seed for reproducibility"
+        },
+        "stt_model": {
+          "type": "string",
+          "description": "Whisper model size (tiny, base, small, medium, large)",
+          "default": "base"
+        },
+        "stt_device": {
+          "type": "string",
+          "description": "Device for STT model (cpu, cuda)",
+          "default": "cpu"
+        },
+        "tts_provider": {
+          "type": "string",
+          "description": "TTS provider (xtts, edge, piper, pyttsx3)",
+          "default": "xtts"
+        },
+        "tts_model": {
+          "type": ["string", "null"],
+          "description": "TTS model name"
+        },
+        "tts_voice": {
+          "type": ["string", "null"],
+          "description": "TTS voice name"
+        },
+        "windows_tts_voice_index": {
+          "type": ["integer", "null"],
+          "description": "Windows TTS voice index"
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "description": "Runtime behavior settings",
+      "properties": {
+        "log_level": {
+          "type": "string",
+          "description": "Logging level",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "default": "INFO"
+        },
+        "file_logging_enabled": {
+          "type": "boolean",
+          "description": "Enable file logging",
+          "default": false
+        },
+        "transcripts_enabled": {
+          "type": "boolean",
+          "description": "Enable conversation transcripts",
+          "default": true
+        },
+        "transcripts_dir": {
+          "type": "string",
+          "description": "Directory for transcript files",
+          "default": "transcripts"
+        },
+        "active_user": {
+          "type": ["string", "null"],
+          "description": "Active user profile name"
+        },
+        "user_id": {
+          "type": "string",
+          "description": "User identifier",
+          "default": "default"
+        },
+        "memory_max_turns": {
+          "type": "integer",
+          "description": "Maximum conversation turns to remember",
+          "default": 50,
+          "minimum": 1
+        },
+        "command_duration": {
+          "type": "number",
+          "description": "Command recording duration in seconds",
+          "default": 5.0,
+          "minimum": 0.5
+        },
+        "capture_seconds": {
+          "type": "number",
+          "description": "Audio capture duration in seconds",
+          "default": 5.0,
+          "minimum": 0.5
+        },
+        "detection_frame_seconds": {
+          "type": "number",
+          "description": "Detection frame duration in seconds",
+          "default": 1.0,
+          "minimum": 0.1
+        },
+        "conversation_export": {
+          "type": "boolean",
+          "description": "Enable conversation export",
+          "default": true
+        },
+        "speak_language": {
+          "type": "string",
+          "description": "TTS language code",
+          "default": "en"
+        }
+      }
+    },
+    "search": {
+      "type": "object",
+      "description": "Web search configuration",
+      "properties": {
+        "providers": {
+          "type": "string",
+          "description": "Comma-separated list of search providers",
+          "default": "serpapi,brave,duckduckgo,google"
+        }
+      }
+    },
+    "home_assistant": {
+      "type": "object",
+      "description": "Home Assistant integration",
+      "properties": {
+        "base_url": {
+          "type": ["string", "null"],
+          "description": "Home Assistant base URL"
+        },
+        "verify_ssl": {
+          "type": "boolean",
+          "description": "Verify SSL certificates",
+          "default": true
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in seconds",
+          "default": 10.0,
+          "minimum": 1
+        }
+      }
+    },
+    "ollama": {
+      "type": "object",
+      "description": "Ollama configuration",
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "description": "Ollama base URL",
+          "default": "http://localhost:11434"
+        },
+        "use_cloud": {
+          "type": "boolean",
+          "description": "Use cloud-hosted Ollama",
+          "default": false
+        }
+      }
+    },
+    "openai": {
+      "type": "object",
+      "description": "OpenAI configuration",
+      "properties": {
+        "model": {
+          "type": ["string", "null"],
+          "description": "OpenAI model name"
+        },
+        "base_url": {
+          "type": ["string", "null"],
+          "description": "OpenAI API base URL (for compatible APIs)"
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "description": "API server configuration",
+      "properties": {
+        "rate_limit": {
+          "type": "string",
+          "description": "Rate limit (e.g., '30/minute')",
+          "default": "30/minute"
+        },
+        "allowed_origins": {
+          "type": "array",
+          "description": "Allowed CORS origins",
+          "items": {
+            "type": "string"
+          },
+          "default": ["*"]
+        }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "description": "User interface settings",
+      "properties": {
+        "start_minimized": {
+          "type": "boolean",
+          "description": "Start GUI minimized",
+          "default": false
+        }
+      }
+    }
+  },
+  "required": ["audio", "wake_word", "models", "runtime"]
+}

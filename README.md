@@ -7,6 +7,14 @@
   <a href="https://www.buymeacoffee.com/Blueibear" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 28px !important;width: 120px !important;" ></a>
 </p>
 
+## Configuration Changes
+
+Rex now uses a dual-configuration system for better security:
+- **config/rex_config.json** - Runtime settings (audio, models, wake word, etc.)
+- **.env** - Secrets only (API keys, tokens)
+
+Existing .env settings are automatically migrated on first run. See [CONFIGURATION.md](CONFIGURATION.md) for full details.
+
 ## Features
 
 - 🔊 **Wake word detection** via openWakeWord (customizable trigger phrases)

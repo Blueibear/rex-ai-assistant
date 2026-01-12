@@ -24,11 +24,8 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, module="torio")
 from config import load_config
 from logging_utils import get_logger
 from memory_utils import load_recent_history
-from utils.audio_device import (
-    enumerate_input_devices,
-    load_audio_config,
-    save_audio_config,
-)
+from rex.config_manager import load_config as load_json_config, save_config as save_json_config, migrate_legacy_env_to_config, get_legacy_env_warnings
+from utils.audio_device import enumerate_input_devices
 from voice_loop import AsyncRexAssistant
 
 LOGGER = get_logger(__name__)
@@ -60,6 +57,17 @@ class AssistantGUI(tk.Tk):
         self.geometry("800x600")
         self.resizable(True, True)
 
+        # Load JSON config (runtime settings)
+        self.json_config = load_json_config()
+
+        # Run migration from legacy .env to rex_config.json on first startup
+        migration_notes = migrate_legacy_env_to_config()
+        if migration_notes and len(migration_notes) > 1:
+            LOGGER.info("Configuration migration completed")
+            for note in migration_notes:
+                LOGGER.info("  %s", note)
+
+        # Load full config (JSON + env secrets)
         self.config = load_config()
         self.assistant: AsyncRexAssistant | None = None
         self.thread: threading.Thread | None = None
@@ -82,6 +90,13 @@ class AssistantGUI(tk.Tk):
 
         # Install logging handler to capture logs from background threads
         self._install_log_handler()
+
+        # Check for legacy environment variables and warn
+        legacy_warnings = get_legacy_env_warnings()
+        if legacy_warnings:
+            warning_msg = "Legacy environment variables detected. These are now ignored. Use rex_config.json instead."
+            self._log_to_gui(f"WARNING: {warning_msg}")
+            LOGGER.warning(warning_msg)
 
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.after(2000, self.refresh_history)
@@ -211,9 +226,8 @@ class AssistantGUI(tk.Tk):
             device_list = [d.display_name() for d in devices]
             self.device_combo["values"] = device_list
 
-            # Load saved config and select that device
-            audio_config = load_audio_config()
-            saved_device_idx = audio_config.get("input_device_index")
+            # Load saved config from JSON config
+            saved_device_idx = self.json_config.get("audio", {}).get("input_device_index")
 
             if saved_device_idx is not None:
                 # Find the device in the list
@@ -252,11 +266,15 @@ class AssistantGUI(tk.Tk):
         return None
 
     def _save_audio_device(self) -> None:
-        """Save the currently selected audio device to config."""
+        """Save the currently selected audio device to rex_config.json."""
         try:
             device_idx = self._get_selected_device_index()
             if device_idx is not None:
-                save_audio_config(device_idx)
+                # Update JSON config
+                if "audio" not in self.json_config:
+                    self.json_config["audio"] = {}
+                self.json_config["audio"]["input_device_index"] = device_idx
+                save_json_config(self.json_config)
                 self._log_to_gui(f"Saved audio device: {device_idx}")
         except Exception as exc:
             LOGGER.exception("Failed to save audio device")
