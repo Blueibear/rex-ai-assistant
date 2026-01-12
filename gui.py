@@ -12,6 +12,7 @@ import logging
 import threading
 import tkinter as tk
 import warnings
+import webbrowser
 from pathlib import Path
 from tkinter import ttk
 
@@ -132,6 +133,20 @@ class AssistantGUI(tk.Tk):
         self.log_box = tk.Text(self.dashboard_tab, height=6, width=55, state="disabled", wrap="word", bg="#f0f0f0")
         self.log_box.pack(padx=10, pady=(0, 10))
         self._log_to_gui("Ready. Click Start to begin.")
+
+        # Footer with Buy Me a Coffee link
+        footer_frame = ttk.Frame(self.dashboard_tab)
+        footer_frame.pack(side="bottom", fill="x", padx=10, pady=5)
+
+        coffee_link = tk.Label(
+            footer_frame,
+            text="☕ Support this project - Buy me a coffee!",
+            fg="#0066cc",
+            cursor="hand2",
+            font=("Segoe UI", 9, "underline")
+        )
+        coffee_link.pack()
+        coffee_link.bind("<Button-1>", lambda e: webbrowser.open("https://www.buymeacoffee.com/Blueibear"))
 
     def _create_settings_tab(self) -> None:
         """Create the Settings tab."""
