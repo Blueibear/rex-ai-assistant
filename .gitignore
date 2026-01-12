@@ -60,6 +60,8 @@ dmypy.json
 
 # User-specific config
 config/
+!config/*.example.json
+!config/*.schema.json
 
 # OS-generated files
 .DS_Store
