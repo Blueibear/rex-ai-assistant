@@ -286,9 +286,9 @@ def speak() -> Response:
         raise TextToSpeechError(str(exc)) from exc
     finally:
         try:
-            Path(output_path).unlink()
-        except (FileNotFoundError, PermissionError):
-            pass
+            Path(output_path).unlink(missing_ok=True)
+        except PermissionError:
+            logger.debug("Skipping cleanup for locked file: %s", output_path)
 
     return Response(audio_bytes, mimetype="audio/wav")
 
