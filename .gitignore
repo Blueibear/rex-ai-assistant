@@ -79,7 +79,6 @@ rex.onnx
 
 # Audio exclusions and includes
 assets/rex_wake_acknowledgment*.wav
-!assets/wake_acknowledgment.wav
 
 # Keep documentation for the voices directory without tracking audio files
 assets/voices/*
@@ -112,4 +111,6 @@ source/
 list_audio.py
 test_mic_open.py
 
-
+# Binary artifacts
+caddy.zip
+OLLAMA_INTEGRATION_GUIDE.txt
