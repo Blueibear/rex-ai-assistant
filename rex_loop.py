@@ -26,7 +26,8 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, module="torio")
 
 import rex
 from rex.assistant import Assistant
-from rex.assistant_errors import AssistantError, WakeWordError
+from rex.assistant_errors import AssistantError, ConfigurationError, WakeWordError
+from rex.config import load_config as load_runtime_config
 from rex.logging_utils import configure_logging
 from rex.plugins import PluginSpec, load_plugins, shutdown_plugins
 from rex.voice_loop import build_voice_loop
@@ -72,6 +73,13 @@ async def _run(args) -> None:
     legacy_warnings = get_legacy_env_warnings()
     if legacy_warnings:
         logger.warning("Legacy environment variables detected. These are now ignored. Use config/rex_config.json instead.")
+
+    try:
+        runtime_config = load_runtime_config(reload=True)
+        rex.settings = runtime_config
+    except ConfigurationError as exc:
+        logger.error("Profile configuration error: %s", exc)
+        return
 
     plugin_specs = _select_plugins(args.enable_plugin)
 

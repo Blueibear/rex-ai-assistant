@@ -1,0 +1,14 @@
+{
+  "profile_version": 1,
+  "name": "james",
+  "description": "Personal profile with expanded household capabilities",
+  "capabilities": ["local_commands", "ha_router", "web_search", "plugins"],
+  "overrides": {
+    "runtime": {
+      "log_level": "DEBUG"
+    },
+    "models": {
+      "tts_provider": "edge"
+    }
+  }
+}

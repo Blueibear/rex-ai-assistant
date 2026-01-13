@@ -14,6 +14,8 @@ Non-secret configuration including audio devices, model settings, wake word conf
 **Example**:
 ```json
 {
+  "active_profile": "default",
+  "profiles_dir": "profiles",
   "audio": {
     "input_device_index": 0,
     "output_device_index": null,
@@ -34,6 +36,39 @@ Non-secret configuration including audio devices, model settings, wake word conf
 - Primary method: Use the Settings tab in the GUI
 - Alternative: Edit `config/rex_config.json` directly with a text editor
 - CLI: Use `python -m audio_config` for audio device selection
+
+### profiles directory (Profile Settings)
+Profiles define higher level behavior, including enabled capabilities and overrides to runtime settings.
+
+**Location**: `profiles/`
+
+**Active profile selector**: `config/rex_config.json` uses `active_profile` and defaults to `default`.
+
+**Profile format**:
+```json
+{
+  "profile_version": 1,
+  "name": "default",
+  "description": "Paid stable profile",
+  "capabilities": ["local_commands", "ha_router"],
+  "overrides": {
+    "runtime": {
+      "log_level": "INFO"
+    },
+    "models": {
+      "tts_provider": "xtts"
+    }
+  }
+}
+```
+
+**Profiles shipped with the repo**:
+- `profiles/default.json` is the paid stable profile
+- `profiles/james.json` is a personal profile with expanded household capabilities
+
+**Important**:
+- Secrets stay in `.env` only
+- Profiles should not contain API keys or tokens
 
 ### .env (Secrets Only)
 API keys, tokens, and other sensitive information.

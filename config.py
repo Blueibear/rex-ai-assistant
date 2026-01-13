@@ -11,6 +11,7 @@ from rex.config import (
     ENV_MAPPING,
     ENV_PATH,
     REQUIRED_ENV_KEYS,
+    build_app_config,
     cli,
     load_config,
     reload_settings,
@@ -24,6 +25,7 @@ __all__ = [
     "ENV_MAPPING",
     "ENV_PATH",
     "REQUIRED_ENV_KEYS",
+    "build_app_config",
     "settings",
     "load_config",
     "reload_settings",
@@ -31,4 +33,3 @@ __all__ = [
     "show_config",
     "cli",
 ]
-

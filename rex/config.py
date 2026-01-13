@@ -24,6 +24,12 @@ except ImportError:
 
 from rex.assistant_errors import ConfigurationError
 from rex.logging_utils import get_logger, set_global_level
+from rex.profile_manager import (
+    DEFAULT_PROFILES_DIR,
+    apply_profile,
+    get_active_profile_name,
+    load_profile,
+)
 
 LOGGER = get_logger(__name__)
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
@@ -84,6 +90,9 @@ class AppConfig:
     transcripts_dir: Path = Path("transcripts")
     default_user: Optional[str] = None
     wake_sound_path: Optional[str] = None
+
+    active_profile: str = "default"
+    capabilities: List[str] = field(default_factory=list)
 
     audio_input_device: Optional[int] = None
     audio_output_device: Optional[int] = None
@@ -160,44 +169,19 @@ def _get_nested(data: dict, path: str, default=None):
     return value
 
 
-def load_config(*, env_path: Optional[Path] = None, reload: bool = False, json_config: Optional[dict] = None) -> AppConfig:
-    """Load configuration from rex_config.json and .env secrets.
+def _merge_profile_config(base_config: dict) -> dict:
+    profile_name = get_active_profile_name(base_config)
+    profiles_dir = base_config.get("profiles_dir", DEFAULT_PROFILES_DIR)
+    profile = load_profile(profile_name, profiles_dir=profiles_dir)
+    merged_config = apply_profile(base_config, profile)
+    merged_config["active_profile"] = profile_name
+    merged_config.setdefault("profiles_dir", profiles_dir)
+    merged_config["capabilities"] = profile.get("capabilities", [])
+    return merged_config
 
-    Args:
-        env_path: Path to .env file (default: repo root .env)
-        reload: Force reload instead of using cached config
-        json_config: Pre-loaded JSON config dict (if None, loads from rex/config_manager)
 
-    Returns:
-        AppConfig with runtime settings from JSON and secrets from .env
-
-    Note:
-        Non-secret environment variables are now ignored. Use rex_config.json instead.
-    """
-    global _cached_config
-    if _cached_config is not None and not reload and json_config is None:
-        return _cached_config
-
-    # Load .env for secrets only
-    load_dotenv(env_path or ENV_PATH, override=False)
-
-    # Load JSON config for runtime settings
-    if json_config is None:
-        from rex.config_manager import load_config as load_json_config, get_legacy_env_warnings
-        json_config = load_json_config()
-
-        # Warn about legacy environment variables
-        warnings = get_legacy_env_warnings()
-        if warnings:
-            for warning in warnings[:3]:  # Limit to first 3 to avoid spam
-                LOGGER.warning(warning)
-            if len(warnings) > 3:
-                LOGGER.warning(f"... and {len(warnings) - 3} more legacy environment variables")
-
-    def getenv(key: str, default: Optional[str] = None) -> Optional[str]:
-        """Get value from environment (secrets only)."""
-        return os.getenv(key, default)
-
+def build_app_config(json_config: dict) -> AppConfig:
+    """Build an AppConfig from a merged JSON configuration."""
     # Parse allowed origins from JSON config
     allowed_origins_value = _get_nested(json_config, "api.allowed_origins", ["*"])
     if isinstance(allowed_origins_value, str):
@@ -210,6 +194,12 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False, json_c
         allowed_origins = [str(o).strip().rstrip("/") for o in allowed_origins_value if o]
     else:
         allowed_origins = ["*"]
+
+    capabilities_value = _get_nested(json_config, "capabilities", [])
+    if isinstance(capabilities_value, list):
+        capabilities = [str(item) for item in capabilities_value if item]
+    else:
+        capabilities = []
 
     # Build config from JSON config + env secrets
     config = AppConfig(
@@ -263,29 +253,77 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False, json_c
         ha_base_url=_get_nested(json_config, "home_assistant.base_url"),
         ha_verify_ssl=bool(_get_nested(json_config, "home_assistant.verify_ssl", True)),
         ha_timeout=float(_get_nested(json_config, "home_assistant.timeout", 10.0)),
-        ha_token=getenv("HA_TOKEN"),  # SECRET from env
-        ha_secret=getenv("HA_SECRET"),  # SECRET from env
+        ha_token=os.getenv("HA_TOKEN"),  # SECRET from env
+        ha_secret=os.getenv("HA_SECRET"),  # SECRET from env
         ha_entity_map=None,
 
         # Ollama from JSON + secrets from env
         ollama_base_url=_get_nested(json_config, "ollama.base_url", "http://localhost:11434"),
         ollama_use_cloud=bool(_get_nested(json_config, "ollama.use_cloud", False)),
-        ollama_api_key=getenv("OLLAMA_API_KEY"),  # SECRET from env
+        ollama_api_key=os.getenv("OLLAMA_API_KEY"),  # SECRET from env
 
         # OpenAI from JSON + secrets from env
         openai_model=_get_nested(json_config, "openai.model"),
         openai_base_url=_get_nested(json_config, "openai.base_url"),
-        openai_api_key=getenv("OPENAI_API_KEY"),  # SECRET from env
+        openai_api_key=os.getenv("OPENAI_API_KEY"),  # SECRET from env
 
         # All secrets from env only
-        brave_api_key=getenv("BRAVE_API_KEY"),
-        speak_api_key=getenv("REX_SPEAK_API_KEY"),
+        brave_api_key=os.getenv("BRAVE_API_KEY"),
+        speak_api_key=os.getenv("REX_SPEAK_API_KEY"),
 
         # Logging from JSON
         debug_logging=_get_nested(json_config, "runtime.log_level", "INFO").upper() == "DEBUG",
         file_logging_enabled=bool(_get_nested(json_config, "runtime.file_logging_enabled", False)),
         memory_max_bytes=int(_get_nested(json_config, "runtime.memory_max_bytes", 131072)),
+
+        # Profile metadata
+        active_profile=_get_nested(json_config, "active_profile", "default"),
+        capabilities=capabilities,
     )
+
+    return config
+
+
+def load_config(*, env_path: Optional[Path] = None, reload: bool = False, json_config: Optional[dict] = None) -> AppConfig:
+    """Load configuration from rex_config.json and .env secrets.
+
+    Args:
+        env_path: Path to .env file (default: repo root .env)
+        reload: Force reload instead of using cached config
+        json_config: Pre-loaded JSON config dict (if None, loads from rex/config_manager)
+
+    Returns:
+        AppConfig with runtime settings from JSON and secrets from .env
+
+    Note:
+        Non-secret environment variables are now ignored. Use rex_config.json instead.
+    """
+    global _cached_config
+    if _cached_config is not None and not reload and json_config is None:
+        return _cached_config
+
+    # Load .env for secrets only
+    load_dotenv(env_path or ENV_PATH, override=False)
+
+    # Load JSON config for runtime settings
+    if json_config is None:
+        from rex.config_manager import load_config as load_json_config, get_legacy_env_warnings
+        json_config = load_json_config()
+
+        # Warn about legacy environment variables
+        warnings = get_legacy_env_warnings()
+        if warnings:
+            for warning in warnings[:3]:  # Limit to first 3 to avoid spam
+                LOGGER.warning(warning)
+            if len(warnings) > 3:
+                LOGGER.warning(f"... and {len(warnings) - 3} more legacy environment variables")
+
+        try:
+            json_config = _merge_profile_config(json_config)
+        except Exception as exc:
+            raise ConfigurationError(f"Profile loading failed: {exc}") from exc
+
+    config = build_app_config(json_config)
 
     validate_config(config)
     _cached_config = config
