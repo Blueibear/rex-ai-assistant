@@ -144,7 +144,7 @@ if not _MODEL_PATTERN.match(DEFAULT_TTS_MODEL):
     logger.warning("Invalid TTS model name '%s'; using default.", DEFAULT_TTS_MODEL)
     DEFAULT_TTS_MODEL = "tts_models/multilingual/multi-dataset/xtts_v2"
 
-API_KEY = os.getenv("REX_SPEAK_API_KEY")
+API_KEY = os.getenv("REX_SPEAK_API_KEY") or None
 RATE_LIMIT = _parse_int("REX_SPEAK_RATE_LIMIT", os.getenv("REX_SPEAK_RATE_LIMIT"), default=30)
 RATE_LIMIT_WINDOW = _parse_int("REX_SPEAK_RATE_WINDOW", os.getenv("REX_SPEAK_RATE_WINDOW"), default=60)
 MAX_TEXT_LENGTH = _parse_int("REX_SPEAK_MAX_CHARS", os.getenv("REX_SPEAK_MAX_CHARS"), default=800)
