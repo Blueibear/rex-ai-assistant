@@ -31,7 +31,7 @@ class EnvVariable:
     tooltip_high_effect: Optional[str] = None
     units: Optional[str] = None
 
-    # Active engine/module grouping
+    # Active engine or module grouping
     active_group: Optional[str] = None  # e.g., "llm_provider", "tts_provider"
 
     def __post_init__(self):
@@ -43,9 +43,9 @@ class EnvVariable:
         self._detect_active_group()
 
     def _detect_secret(self):
-        """Detect if this is a secret/API key field."""
+        """Detect if this is a secret or API key field."""
         secret_keywords = [
-            'api_key', 'token', 'secret', 'password', 'key'
+            "api_key", "token", "secret", "password", "key"
         ]
         key_lower = self.key.lower()
         for keyword in secret_keywords:
@@ -59,80 +59,98 @@ class EnvVariable:
         desc_lower = self.description.lower()
 
         # Boolean values
-        if self.default_value.lower() in ('true', 'false', '1', '0'):
-            self.control_type = 'checkbox'
+        if self.default_value.lower() in ("true", "false", "1", "0"):
+            self.control_type = "checkbox"
             return
 
         # Known dropdowns - Log level
-        if 'log_level' in key_lower:
-            self.control_type = 'dropdown'
-            self.dropdown_options = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        if "log_level" in key_lower:
+            self.control_type = "dropdown"
+            self.dropdown_options = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
             return
 
         # Device selection
-        if 'device' in key_lower and 'audio' not in key_lower:
-            self.control_type = 'dropdown'
-            self.dropdown_options = ['cpu', 'cuda']
+        if "device" in key_lower and "audio" not in key_lower:
+            self.control_type = "dropdown"
+            self.dropdown_options = ["cpu", "cuda"]
             return
 
         # Whisper model
-        if 'whisper_model' in key_lower:
-            self.control_type = 'dropdown'
-            self.dropdown_options = ['tiny', 'base', 'small', 'medium', 'large']
+        if "whisper_model" in key_lower:
+            self.control_type = "dropdown"
+            self.dropdown_options = ["tiny", "base", "small", "medium", "large"]
             return
 
         # TTS provider
-        if 'tts_provider' in key_lower:
-            self.control_type = 'dropdown'
-            self.dropdown_options = ['xtts', 'edge', 'pyttsx3', 'piper']
+        if "tts_provider" in key_lower:
+            self.control_type = "dropdown"
+            self.dropdown_options = ["xtts", "edge", "pyttsx3", "piper"]
             return
 
         # Wakeword backend
-        if 'wakeword_backend' in key_lower:
-            self.control_type = 'dropdown'
-            self.dropdown_options = ['onnx', 'openwakeword', 'porcupine', 'none']
+        if "wakeword_backend" in key_lower:
+            self.control_type = "dropdown"
+            self.dropdown_options = ["onnx", "openwakeword", "porcupine", "none"]
             return
 
-        # LLM provider/backend
-        if 'llm_provider' in key_lower or 'llm_backend' in key_lower:
-            self.control_type = 'dropdown'
-            self.dropdown_options = ['transformers', 'openai', 'ollama']
+        # LLM provider or backend
+        if "llm_provider" in key_lower or "llm_backend" in key_lower:
+            self.control_type = "dropdown"
+            self.dropdown_options = ["transformers", "openai", "ollama"]
             return
 
         # Search providers
-        if 'search_provider' in key_lower:
-            self.control_type = 'dropdown'
-            self.dropdown_options = ['serpapi', 'brave', 'duckduckgo', 'google']
+        if "search_provider" in key_lower:
+            self.control_type = "dropdown"
+            self.dropdown_options = ["serpapi", "brave", "duckduckgo", "google"]
             return
 
         # Language selection
-        if 'language' in key_lower and 'speak' in key_lower:
-            self.control_type = 'dropdown'
-            self.dropdown_options = ['en', 'es', 'fr', 'de', 'it', 'pt', 'pl', 'tr', 'ru', 'nl', 'cs', 'ar', 'zh', 'ja', 'ko']
+        if "language" in key_lower and "speak" in key_lower:
+            self.control_type = "dropdown"
+            self.dropdown_options = [
+                "en",
+                "es",
+                "fr",
+                "de",
+                "it",
+                "pt",
+                "pl",
+                "tr",
+                "ru",
+                "nl",
+                "cs",
+                "ar",
+                "zh",
+                "ja",
+                "ko",
+            ]
             return
 
         # Threshold (0.0-1.0)
-        if 'threshold' in key_lower:
-            self.control_type = 'spinbox'
+        if "threshold" in key_lower:
+            self.control_type = "spinbox"
             self.min_value = 0.0
             self.max_value = 1.0
             return
 
-        # Paths and directories - CHECK FIRST before numeric detection
+        # Paths and directories - check first before numeric detection
         # This prevents "REX_LOG_PATH" from being detected as spinbox
-        if any(word in key_lower for word in ['path', 'dir', 'file']) or any(word in desc_lower for word in ['path', 'directory', 'file']):
-            self.control_type = 'path'
-            if 'dir' in key_lower or 'directory' in desc_lower:
-                self.path_type = 'directory'
+        if any(word in key_lower for word in ["path", "dir", "file"]) or any(
+            word in desc_lower for word in ["path", "directory", "file"]
+        ):
+            self.control_type = "path"
+            if "dir" in key_lower or "directory" in desc_lower:
+                self.path_type = "directory"
             else:
-                self.path_type = 'file'
+                self.path_type = "file"
             return
 
         # Numeric ranges
-        if any(word in key_lower for word in ['duration', 'seconds', 'rate', 'window', 'interval']):
+        if any(word in key_lower for word in ["duration", "seconds", "rate", "window", "interval"]):
             try:
                 float(self.default_value)
-                self.control_type = 'spinbox'
+                self.control_type = "spinbox"
                 self.min_value = 0.0
                 self.max_value = 3600.0  # Reasonable max
                 return
@@ -140,10 +158,10 @@ class EnvVariable:
                 pass
 
         # Integer values
-        if any(word in key_lower for word in ['max_', 'limit', 'tokens', 'items', 'turns', 'bytes', 'chars', 'timeout']):
+        if any(word in key_lower for word in ["max_", "limit", "tokens", "items", "turns", "bytes", "chars", "timeout"]):
             try:
                 int(self.default_value)
-                self.control_type = 'spinbox'
+                self.control_type = "spinbox"
                 self.min_value = 0
                 self.max_value = 999999
                 return
@@ -151,18 +169,31 @@ class EnvVariable:
                 pass
 
         # Default to entry
-        self.control_type = 'entry'
+        self.control_type = "entry"
 
     def _detect_advanced(self):
-        """Detect if this is an advanced/rarely-used setting."""
+        """Detect if this is an advanced or rarely-used setting."""
         key_lower = self.key.lower()
 
         # Advanced settings keywords
         advanced_keywords = [
-            'poll_interval', 'detection_frame', 'wakeword_window', 'seed',
-            'top_k', 'top_p', 'verify_ssl', 'storage_uri', 'limiter',
-            'proxy', 'rate_window', 'bytes', 'output_limit', 'frame_seconds',
-            'browserless', 'cse', 'engine_id'
+            "poll_interval",
+            "detection_frame",
+            "wakeword_window",
+            "seed",
+            "top_k",
+            "top_p",
+            "verify_ssl",
+            "storage_uri",
+            "limiter",
+            "proxy",
+            "rate_window",
+            "bytes",
+            "output_limit",
+            "frame_seconds",
+            "browserless",
+            "cse",
+            "engine_id",
         ]
 
         for keyword in advanced_keywords:
@@ -171,7 +202,7 @@ class EnvVariable:
                 return
 
         # File logging and debug options are advanced
-        if 'debug' in key_lower or 'file_logging' in key_lower:
+        if "debug" in key_lower or "file_logging" in key_lower:
             self.is_advanced = True
 
     def _detect_tooltip_info(self):
@@ -179,7 +210,7 @@ class EnvVariable:
         key_lower = self.key.lower()
 
         # Temperature settings
-        if 'temperature' in key_lower:
+        if "temperature" in key_lower:
             self.tooltip_low_effect = "More focused and deterministic responses"
             self.tooltip_high_effect = "More creative and varied responses"
             self.units = None
@@ -189,47 +220,47 @@ class EnvVariable:
                 self.max_value = 2.0
 
         # Threshold settings
-        elif 'threshold' in key_lower:
+        elif "threshold" in key_lower:
             self.tooltip_low_effect = "More sensitive, may trigger on noise"
             self.tooltip_high_effect = "Less sensitive, requires clearer signal"
             self.units = None
 
-        # Duration/time settings
-        elif any(word in key_lower for word in ['duration', 'seconds', 'window', 'interval']):
+        # Duration and time settings
+        elif any(word in key_lower for word in ["duration", "seconds", "window", "interval"]):
             self.tooltip_low_effect = "Shorter time period"
             self.tooltip_high_effect = "Longer time period"
             self.units = "seconds"
 
         # Token limits
-        elif 'token' in key_lower or 'max_' in key_lower:
-            if 'token' in key_lower:
+        elif "token" in key_lower or "max_" in key_lower:
+            if "token" in key_lower:
                 self.tooltip_low_effect = "Shorter, more concise responses"
                 self.tooltip_high_effect = "Longer, more detailed responses"
                 self.units = "tokens"
             else:
                 self.tooltip_low_effect = "Lower limit"
                 self.tooltip_high_effect = "Higher limit"
-                self.units = "items" if 'items' in key_lower or 'turns' in key_lower else None
+                self.units = "items" if "items" in key_lower or "turns" in key_lower else None
 
         # Sample rate
-        elif 'sample_rate' in key_lower or 'rate' in key_lower:
+        elif "sample_rate" in key_lower or "rate" in key_lower:
             self.tooltip_low_effect = "Lower audio quality"
             self.tooltip_high_effect = "Higher audio quality"
-            self.units = "Hz" if 'sample' in key_lower else None
+            self.units = "Hz" if "sample" in key_lower else None
 
         # Top_p and top_k
-        elif 'top_p' in key_lower:
+        elif "top_p" in key_lower:
             self.tooltip_low_effect = "More focused on likely words"
             self.tooltip_high_effect = "Considers more word possibilities"
             self.units = None
 
-        elif 'top_k' in key_lower:
+        elif "top_k" in key_lower:
             self.tooltip_low_effect = "Fewer word choices considered"
             self.tooltip_high_effect = "More word choices considered"
             self.units = None
 
         # Timeout settings
-        elif 'timeout' in key_lower:
+        elif "timeout" in key_lower:
             self.tooltip_low_effect = "Faster timeout, may fail on slow operations"
             self.tooltip_high_effect = "More time allowed, better for slow connections"
             self.units = "seconds"
@@ -239,39 +270,39 @@ class EnvVariable:
         key_lower = self.key.lower()
 
         # LLM provider group
-        if 'llm' in key_lower or 'openai' in key_lower or 'ollama' in key_lower:
-            if 'provider' in key_lower or 'backend' in key_lower:
-                self.active_group = 'llm_provider_selector'
-            elif any(word in key_lower for word in ['model', 'api_key', 'base_url', 'temperature', 'max_tokens', 'top_']):
+        if "llm" in key_lower or "openai" in key_lower or "ollama" in key_lower:
+            if "provider" in key_lower or "backend" in key_lower:
+                self.active_group = "llm_provider_selector"
+            elif any(word in key_lower for word in ["model", "api_key", "base_url", "temperature", "max_tokens", "top_"]):
                 # Determine which provider this belongs to
-                if 'openai' in key_lower:
-                    self.active_group = 'openai'
-                elif 'ollama' in key_lower:
-                    self.active_group = 'ollama'
-                elif 'llm' in key_lower:
-                    self.active_group = 'transformers'
+                if "openai" in key_lower:
+                    self.active_group = "openai"
+                elif "ollama" in key_lower:
+                    self.active_group = "ollama"
+                elif "llm" in key_lower:
+                    self.active_group = "transformers"
 
         # TTS provider group
-        elif 'tts' in key_lower or 'piper' in key_lower or 'edge' in key_lower or 'speak' in key_lower:
-            if 'provider' in key_lower:
-                self.active_group = 'tts_provider_selector'
-            elif 'voice' in key_lower or 'model' in key_lower or 'piper' in key_lower:
+        elif "tts" in key_lower or "piper" in key_lower or "edge" in key_lower or "speak" in key_lower:
+            if "provider" in key_lower:
+                self.active_group = "tts_provider_selector"
+            elif "voice" in key_lower or "model" in key_lower or "piper" in key_lower:
                 # Determine TTS engine
-                if 'edge' in key_lower:
-                    self.active_group = 'edge'
-                elif 'piper' in key_lower:
-                    self.active_group = 'piper'
+                if "edge" in key_lower:
+                    self.active_group = "edge"
+                elif "piper" in key_lower:
+                    self.active_group = "piper"
                 else:
-                    self.active_group = 'xtts'
+                    self.active_group = "xtts"
 
         # Wakeword backend group
-        elif 'wakeword' in key_lower:
-            if 'backend' in key_lower:
-                self.active_group = 'wakeword_backend_selector'
+        elif "wakeword" in key_lower:
+            if "backend" in key_lower:
+                self.active_group = "wakeword_backend_selector"
 
         # Whisper settings
-        elif 'whisper' in key_lower:
-            self.active_group = 'whisper'
+        elif "whisper" in key_lower:
+            self.active_group = "whisper"
 
 
 @dataclass
@@ -313,7 +344,7 @@ def parse_env_example(path: Path) -> EnvSchema:
     if not path.exists():
         raise FileNotFoundError(f".env.example not found at {path}")
 
-    content = path.read_text(encoding='utf-8')
+    content = path.read_text(encoding="utf-8")
     lines = content.splitlines()
 
     schema = EnvSchema()
@@ -321,17 +352,17 @@ def parse_env_example(path: Path) -> EnvSchema:
     current_comments = []
 
     # Regex patterns
-    section_pattern = re.compile(r'^#\s*={3,}')
-    section_name_pattern = re.compile(r'^#\s+(.+?)(?:\s*#.*)?$')
-    key_value_pattern = re.compile(r'^([A-Z_][A-Z0-9_]*)=(.*)$')
-    comment_pattern = re.compile(r'^#\s+(.+)$')
+    section_pattern = re.compile(r"^#\s*={3,}")
+    section_name_pattern = re.compile(r"^#\s+(.+?)(?:\s*#.*)?$")
+    key_value_pattern = re.compile(r"^([A-Z_][A-Z0-9_]*)=(.*)$")
+    comment_pattern = re.compile(r"^#\s+(.+)$")
 
     for line in lines:
         line = line.rstrip()
 
         # Skip empty lines (they reset comment accumulation)
         if not line.strip():
-            # Only reset if we're not in the middle of a comment block
+            # Only reset if we are not in the middle of a comment block
             if current_comments and not any(c.strip() for c in current_comments):
                 current_comments = []
             continue
@@ -342,24 +373,26 @@ def parse_env_example(path: Path) -> EnvSchema:
             continue
 
         # Section name (comment line after divider)
-        if line.startswith('#') and '=' not in line:
+        if line.startswith("#") and "=" not in line:
             match = comment_pattern.match(line)
             if match:
                 text = match.group(1).strip()
 
                 # Check if this looks like a section name (title case, no lowercase text)
-                if text and (text[0].isupper() or text.startswith('(')):
-                    # Could be a section name if we don't have one yet or it looks like a title
-                    if not current_section or (len(text.split()) <= 5 and not any(c in text for c in [',', '.', ':'])):
+                if text and (text[0].isupper() or text.startswith("(")):
+                    # Could be a section name if we do not have one yet or it looks like a title
+                    if not current_section or (
+                        len(text.split()) <= 5 and not any(c in text for c in [",", ".", ":"])
+                    ):
                         # Start new section
                         current_section = EnvSection(name=text)
                         schema.sections.append(current_section)
                         current_comments = []
                         continue
 
-                # Otherwise it's a comment/description
+                # Otherwise it is a comment or description
                 # Clean up dividers and extra symbols
-                if not all(c in '=-_' for c in text):
+                if not all(c in "=-_" for c in text):
                     current_comments.append(text)
             continue
 
@@ -375,11 +408,11 @@ def parse_env_example(path: Path) -> EnvSchema:
                 schema.sections.append(current_section)
 
             # Build description from accumulated comments
-            description = ' '.join(current_comments).strip()
+            description = " ".join(current_comments).strip()
 
             # Check if required
-            is_required = '(REQUIRED)' in description.upper() or '(required)' in description
-            description = re.sub(r'\(REQUIRED\)', '', description, flags=re.IGNORECASE).strip()
+            is_required = "(REQUIRED" in description.upper() or key == "OPENAI_API_KEY"
+            description = re.sub(r"\(REQUIRED\)", "", description, flags=re.IGNORECASE).strip()
 
             # Create variable
             var = EnvVariable(
@@ -387,7 +420,7 @@ def parse_env_example(path: Path) -> EnvSchema:
                 default_value=value,
                 description=description or f"{key} setting",
                 section=current_section.name,
-                is_required=is_required
+                is_required=is_required,
             )
 
             current_section.variables.append(var)
@@ -404,15 +437,17 @@ def get_restart_required_keys() -> set:
     """
     return {
         # Secret keys only (these remain in .env)
-        'OPENAI_API_KEY',
-        'OLLAMA_API_KEY',
-        'REX_SPEAK_API_KEY',
-        'BRAVE_API_KEY',
-        'SERPAPI_KEY',
-        'GOOGLE_API_KEY',
-        'BROWSERLESS_API_KEY',
-        'HA_TOKEN',
-        'HA_SECRET',
+        "OPENAI_API_KEY",
+        "OLLAMA_API_KEY",
+        "REX_SPEAK_API_KEY",
+        "BRAVE_API_KEY",
+        "SERPAPI_KEY",
+        "GOOGLE_API_KEY",
+        "BROWSERLESS_API_KEY",
+        "HA_TOKEN",
+        "HA_SECRET",
+        "REX_LLM_PROVIDER",
+        "REX_WHISPER_MODEL",
     }
 
 

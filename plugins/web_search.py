@@ -66,7 +66,9 @@ class WebSearchPlugin:
         return None
 
     def _provider_order(self) -> list[str]:
-        return [p.strip() for p in settings.search_providers.split(",") if p.strip()]
+        env_value = os.getenv("REX_SEARCH_PROVIDERS")
+        providers_value = env_value if env_value else settings.search_providers
+        return [p.strip() for p in providers_value.split(",") if p.strip()]
 
     def _format_result(self, title: str, url: str, snippet: str) -> str:
         return f"{title} - {url}\n{snippet}"

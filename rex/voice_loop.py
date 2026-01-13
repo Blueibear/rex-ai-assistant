@@ -316,43 +316,45 @@ class VoiceLoop:
         """Run the voice loop for a specified number of interactions."""
         interactions = 0
 
-        async for _ in self._wake_listener.listen(self._detection_source):
-            try:
-                if self._acknowledge:
-                    await self._acknowledge()
+        try:
+            async for _ in self._wake_listener.listen(self._detection_source):
+                try:
+                    if self._acknowledge:
+                        await self._acknowledge()
 
-                # Record user speech
-                audio = await self._record_phrase()
+                    # Record user speech
+                    audio = await self._record_phrase()
 
-                # Transcribe to text
-                transcript = await self._transcribe(audio)
-                if not transcript:
-                    logger.info("No speech detected")
-                    continue
+                    # Transcribe to text
+                    transcript = await self._transcribe(audio)
+                    if not transcript:
+                        logger.info("No speech detected")
+                        continue
 
-                # Get LLM response
-                response = await self._assistant.generate_reply(transcript)
+                    # Get LLM response
+                    response = await self._assistant.generate_reply(transcript)
 
-                # Ensure response ends with period for better TTS
-                if response and not response.endswith("."):
-                    response = response + "."
+                    # Ensure response ends with period for better TTS
+                    if response and not response.endswith("."):
+                        response = response + "."
 
-                # Speak response
-                await self._speak(response)
+                    # Speak response
+                    await self._speak(response)
 
-            except SpeechToTextError as exc:
-                logger.error("STT error: %s", exc)
-                # Continue loop on transcription errors
-            except AudioDeviceError as exc:
-                logger.error("Audio device error: %s", exc)
-                # Propagate audio device errors by breaking
-                break
-            except Exception as exc:
-                logger.error("Unexpected error in voice loop: %s", exc)
+                except SpeechToTextError as exc:
+                    logger.error("STT error: %s", exc)
+                    # Continue loop on transcription errors
+                except AudioDeviceError as exc:
+                    logger.error("Audio device error: %s", exc)
+                    break
+                except Exception as exc:
+                    logger.error("Unexpected error in voice loop: %s", exc)
 
-            interactions += 1
-            if max_interactions is not None and interactions >= max_interactions:
-                break
+                interactions += 1
+                if max_interactions is not None and interactions >= max_interactions:
+                    break
+        except AudioDeviceError as exc:
+            logger.error("Audio device error: %s", exc)
 
 
 def build_voice_loop(
@@ -433,4 +435,3 @@ __all__ = [
     "build_voice_loop",
     "_resolve_voice_reference",
 ]
-

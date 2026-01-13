@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
@@ -299,8 +300,15 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False, json_c
         Non-secret environment variables are now ignored. Use rex_config.json instead.
     """
     global _cached_config
-    if _cached_config is not None and not reload and json_config is None:
-        return _cached_config
+    if not reload and json_config is None:
+        config_module = sys.modules.get("config")
+        if config_module is not None:
+            cached = getattr(config_module, "_cached_config", None)
+            if cached is not None:
+                _cached_config = cached
+                return _cached_config
+        if _cached_config is not None:
+            return _cached_config
 
     # Load .env for secrets only
     load_dotenv(env_path or ENV_PATH, override=False)

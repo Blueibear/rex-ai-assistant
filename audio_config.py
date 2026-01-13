@@ -95,7 +95,7 @@ def set_selected_output_device_index(config: Dict, index: Optional[int]) -> Dict
     return config
 
 
-def select_input(device_id: int) -> None:
+def select_input(device_id: int, *, config: Optional[Dict] = None) -> None:
     """Select and persist input device to rex_config.json.
 
     Args:
@@ -119,13 +119,14 @@ def select_input(device_id: int) -> None:
         raise AudioDeviceError(f"Failed to open input device {device_id}: {exc}") from exc
 
     # Save to rex_config.json
-    config = load_config()
+    if config is None:
+        config = load_config()
     config = set_selected_input_device_index(config, device_id)
     save_config(config)
     logger.info(f"Selected input device {device_id}, saved to config")
 
 
-def select_output(device_id: int) -> None:
+def select_output(device_id: int, *, config: Optional[Dict] = None) -> None:
     """Select and persist output device to rex_config.json.
 
     Args:
@@ -149,7 +150,8 @@ def select_output(device_id: int) -> None:
         raise AudioDeviceError(f"Failed to open output device {device_id}: {exc}") from exc
 
     # Save to rex_config.json
-    config = load_config()
+    if config is None:
+        config = load_config()
     config = set_selected_output_device_index(config, device_id)
     save_config(config)
     logger.info(f"Selected output device {device_id}, saved to config")
@@ -184,12 +186,16 @@ def cli(argv: list[str] | None = None) -> int:
             print(_format_devices())
             return 0
 
+        config = None
+        if args.set_input is not None or args.set_output is not None:
+            config = load_config()
+
         if args.set_input is not None:
-            select_input(args.set_input)
+            select_input(args.set_input, config=config)
             print(f"Input device set to index {args.set_input}")
 
         if args.set_output is not None:
-            select_output(args.set_output)
+            select_output(args.set_output, config=config)
             print(f"Output device set to index {args.set_output}")
 
         if args.show:
