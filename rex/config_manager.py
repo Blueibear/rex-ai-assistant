@@ -19,6 +19,8 @@ logger = get_logger(__name__)
 
 # Default configuration structure
 DEFAULT_CONFIG: Dict[str, Any] = {
+    "active_profile": "default",
+    "profiles_dir": "profiles",
     "audio": {
         "input_device_index": None,
         "output_device_index": None,

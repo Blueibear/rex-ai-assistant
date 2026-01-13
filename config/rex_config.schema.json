@@ -4,6 +4,16 @@
   "description": "Runtime configuration for Rex AI Assistant (non-secret settings)",
   "type": "object",
   "properties": {
+    "active_profile": {
+      "type": "string",
+      "description": "Active profile name to load from the profiles directory",
+      "default": "default"
+    },
+    "profiles_dir": {
+      "type": "string",
+      "description": "Directory containing profile JSON files",
+      "default": "profiles"
+    },
     "audio": {
       "type": "object",
       "description": "Audio device and sampling configuration",

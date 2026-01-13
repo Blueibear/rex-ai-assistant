@@ -21,10 +21,11 @@ warnings.filterwarnings("ignore", message=".*FFmpeg extension.*")
 warnings.filterwarnings("ignore", message=".*libtorio.*")
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="torio")
 
-from config import load_config
+from config import load_config, build_app_config
 from logging_utils import get_logger
 from memory_utils import load_recent_history
 from rex.config_manager import load_config as load_json_config, save_config as save_json_config, migrate_legacy_env_to_config, get_legacy_env_warnings
+from rex.assistant_errors import ConfigurationError
 from utils.audio_device import enumerate_input_devices
 from voice_loop import AsyncRexAssistant
 
@@ -68,7 +69,13 @@ class AssistantGUI(tk.Tk):
                 LOGGER.info("  %s", note)
 
         # Load full config (JSON + env secrets)
-        self.config = load_config()
+        self.profile_error = None
+        try:
+            self.config = load_config()
+        except ConfigurationError as exc:
+            self.profile_error = str(exc)
+            LOGGER.error("Profile loading failed: %s", exc)
+            self.config = build_app_config(self.json_config)
         self.assistant: AsyncRexAssistant | None = None
         self.thread: threading.Thread | None = None
         self.running = False
@@ -90,6 +97,12 @@ class AssistantGUI(tk.Tk):
 
         # Install logging handler to capture logs from background threads
         self._install_log_handler()
+
+        if self.profile_error:
+            self.profile_var.set(f"Profile: {self.config.active_profile} (error)")
+            self._log_to_gui(f"ERROR: {self.profile_error}")
+            self.status_var.set("Profile error")
+            self.start_button.configure(state="disabled")
 
         # Check for legacy environment variables and warn
         legacy_warnings = get_legacy_env_warnings()
@@ -125,6 +138,8 @@ class AssistantGUI(tk.Tk):
         # --- Status Section ---
         ttk.Label(self.dashboard_tab, textvariable=self.status_var, font=("Segoe UI", 14)).pack(pady=10)
         ttk.Label(self.dashboard_tab, textvariable=self.user_var).pack(pady=5)
+        self.profile_var = tk.StringVar(value=f"Profile: {self.config.active_profile}")
+        ttk.Label(self.dashboard_tab, textvariable=self.profile_var).pack(pady=2)
 
         # Wake word info
         wake_keyword = self.config.wakeword_keyword or self.config.wakeword
@@ -366,6 +381,9 @@ class AssistantGUI(tk.Tk):
         """Start the voice assistant with comprehensive error handling."""
         if self.running:
             self._log_to_gui("Already running.")
+            return
+        if self.profile_error:
+            self._log_to_gui(f"ERROR: {self.profile_error}")
             return
 
         try:
