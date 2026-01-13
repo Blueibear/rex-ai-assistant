@@ -144,7 +144,7 @@ if not _MODEL_PATTERN.match(DEFAULT_TTS_MODEL):
     logger.warning("Invalid TTS model name '%s'; using default.", DEFAULT_TTS_MODEL)
     DEFAULT_TTS_MODEL = "tts_models/multilingual/multi-dataset/xtts_v2"
 
-API_KEY = os.getenv("REX_SPEAK_API_KEY") or None
+API_KEY: str | None = None
 RATE_LIMIT = _parse_int("REX_SPEAK_RATE_LIMIT", os.getenv("REX_SPEAK_RATE_LIMIT"), default=30)
 RATE_LIMIT_WINDOW = _parse_int("REX_SPEAK_RATE_WINDOW", os.getenv("REX_SPEAK_RATE_WINDOW"), default=60)
 MAX_TEXT_LENGTH = _parse_int("REX_SPEAK_MAX_CHARS", os.getenv("REX_SPEAK_MAX_CHARS"), default=800)
@@ -203,13 +203,18 @@ def _request_api_key() -> Optional[str]:
     return parts[-1] if parts else None
 
 
+def get_api_key() -> Optional[str]:
+    return os.getenv("REX_SPEAK_API_KEY") or None
+
+
 def _require_api_key() -> None:
     provided = _request_api_key()
-    if not API_KEY:
+    api_key = get_api_key()
+    if not api_key:
         raise AuthenticationError("Missing API key")
     if not provided:
         raise AuthenticationError("Missing API key")
-    if not hmac_compare(provided, API_KEY):
+    if not hmac_compare(provided, api_key):
         raise AuthenticationError("Invalid API key")
 
 
@@ -299,7 +304,7 @@ def speak() -> Response:
 
 
 def main() -> None:
-    if not API_KEY:
+    if not get_api_key():
         raise RuntimeError("REX_SPEAK_API_KEY must be set")
     app.run(host="0.0.0.0", port=int(os.getenv("REX_SPEAK_PORT", "5005")))
 
