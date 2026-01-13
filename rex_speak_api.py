@@ -11,7 +11,7 @@ from collections import defaultdict, deque
 from pathlib import Path
 from typing import Optional, Tuple
 
-from flask import Flask, Response, jsonify, request, send_file, after_this_request
+from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 
 from rex.config import _parse_int
@@ -270,14 +270,6 @@ def speak() -> Response:
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         output_path = tmp.name
 
-    @after_this_request
-    def _cleanup(response: Response) -> Response:
-        try:
-            Path(output_path).unlink()
-        except FileNotFoundError:
-            pass
-        return response
-
     try:
         engine.tts_to_file(
             text=text,
@@ -287,8 +279,18 @@ def speak() -> Response:
         )
     except Exception as exc:
         raise TextToSpeechError(str(exc)) from exc
+    try:
+        with open(output_path, "rb") as audio_file:
+            audio_bytes = audio_file.read()
+    except Exception as exc:
+        raise TextToSpeechError(str(exc)) from exc
+    finally:
+        try:
+            Path(output_path).unlink()
+        except (FileNotFoundError, PermissionError):
+            pass
 
-    return send_file(output_path, mimetype="audio/wav", as_attachment=False)
+    return Response(audio_bytes, mimetype="audio/wav")
 
 
 # ------------------------------------------------------------------------------
