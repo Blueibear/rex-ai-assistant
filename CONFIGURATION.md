@@ -3,7 +3,7 @@
 Rex AI Assistant uses a dual-configuration system that separates secrets from runtime settings for better security and ease of use.
 
 ## Dependency notes
-Core runtime dependencies are covered by the main requirements files. Optional features such as the web search plugin or the Home Assistant bridge rely on extra packages like requests and BeautifulSoup. If those extras are not installed, Rex can still import and run core features, but using the optional feature will raise a clear error.
+Core runtime dependencies are covered by the main requirements files. Optional features such as the web search plugin or the Home Assistant bridge rely on extra packages like requests, BeautifulSoup, and Flask. If those extras are not installed, Rex can still import and run core features, but using the optional feature will raise a clear error.
 
 ## Configuration Files
 

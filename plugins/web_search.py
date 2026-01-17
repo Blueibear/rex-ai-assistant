@@ -106,6 +106,8 @@ class WebSearchPlugin:
             top = results[0]
             return self._format_result(top["title"], top["link"], top.get("snippet", ""))
         except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise
             logger.warning("SerpAPI search failed: %s", e)
             return None
 
@@ -125,6 +127,8 @@ class WebSearchPlugin:
             top = results[0]
             return self._format_result(top["title"], top["url"], top.get("description", ""))
         except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise
             logger.warning("Brave search failed: %s", e)
             return None
 
@@ -146,6 +150,8 @@ class WebSearchPlugin:
                     result.text, result["href"], snippet.text if snippet else ""
                 )
         except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise
             logger.warning("DuckDuckGo search failed: %s", e)
             return None
 
@@ -165,6 +171,8 @@ class WebSearchPlugin:
             top = items[0]
             return self._format_result(top["title"], top["link"], top.get("snippet", ""))
         except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise
             logger.warning("Google CSE search failed: %s", e)
             return None
 
@@ -191,6 +199,8 @@ class WebSearchPlugin:
                     result.text, result["href"], snippet.text if snippet else ""
                 )
         except Exception as e:
+            if isinstance(e, RuntimeError):
+                raise
             logger.warning("Browserless search failed: %s", e)
             return None
 
