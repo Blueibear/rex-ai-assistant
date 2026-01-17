@@ -21,10 +21,10 @@ def parse_tool_request(text: str) -> dict[str, Any] | None:
     """Return parsed tool request data or None if not a valid request."""
     if not isinstance(text, str):
         return None
+    if "\n" in text or "\r" in text:
+        return None
     line = text.strip()
     if not line.startswith(TOOL_REQUEST_PREFIX):
-        return None
-    if len(line.splitlines()) != 1:
         return None
 
     json_payload = line[len(TOOL_REQUEST_PREFIX):].strip()
@@ -65,7 +65,7 @@ def execute_tool(request: dict[str, Any], default_context: dict[str, Any]) -> di
     if args is None:
         args = {}
     if not isinstance(args, dict):
-        return _error_result("Invalid tool arguments", tool=tool)
+        return _error_result("Invalid tool arguments", tool=tool, args={})
 
     if tool == "time_now":
         return _execute_time_now(args, default_context)
