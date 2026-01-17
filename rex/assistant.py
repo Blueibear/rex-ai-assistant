@@ -8,7 +8,6 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from .config import Settings, settings
 from .ha_bridge import HABridge
@@ -45,7 +44,7 @@ class Assistant:
         self._transcripts_dir = Path(transcripts_dir or self._settings.transcripts_dir)
 
         # Only create HABridge if HA is configured
-        self._ha_bridge: Optional[HABridge] = None
+        self._ha_bridge: HABridge | None = None
         if self._settings.ha_base_url and self._settings.ha_token:
             try:
                 self._ha_bridge = HABridge()
@@ -59,7 +58,7 @@ class Assistant:
             raise ValueError("Transcript must not be empty")
 
         loop = asyncio.get_running_loop()
-        completion: Optional[str] = None
+        completion: str | None = None
         if self._ha_bridge and self._ha_bridge.enabled:
             completion = await loop.run_in_executor(
                 None,
