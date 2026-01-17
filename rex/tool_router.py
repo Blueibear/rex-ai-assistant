@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
 TOOL_REQUEST_PREFIX = "TOOL_REQUEST:"
@@ -17,7 +17,7 @@ class ToolError:
     message: str
 
 
-def parse_tool_request(text: str) -> Optional[Dict[str, Any]]:
+def parse_tool_request(text: str) -> dict[str, Any] | None:
     """Return parsed tool request data or None if not a valid request."""
     if not isinstance(text, str):
         return None
@@ -53,7 +53,7 @@ def parse_tool_request(text: str) -> Optional[Dict[str, Any]]:
     return {"tool": tool, "args": args}
 
 
-def execute_tool(request: Dict[str, Any], default_context: Dict[str, Any]) -> Dict[str, Any]:
+def execute_tool(request: dict[str, Any], default_context: dict[str, Any]) -> dict[str, Any]:
     """Execute a tool request and return a result dictionary."""
     if not isinstance(request, dict):
         return _error_result("Invalid tool request payload")
@@ -76,7 +76,7 @@ def execute_tool(request: Dict[str, Any], default_context: Dict[str, Any]) -> Di
     return _error_result(f"Unknown tool {tool}", tool=tool, args=args)
 
 
-def format_tool_result(tool: str, args: Dict[str, Any], result: Dict[str, Any]) -> str:
+def format_tool_result(tool: str, args: dict[str, Any], result: dict[str, Any]) -> str:
     """Format the tool result as a single line message."""
     payload = {
         "tool": tool,
@@ -89,8 +89,8 @@ def format_tool_result(tool: str, args: Dict[str, Any], result: Dict[str, Any]) 
 
 def route_if_tool_request(
     llm_text: str,
-    default_context: Dict[str, Any],
-    model_call_fn: Callable[[Dict[str, str]], str],
+    default_context: dict[str, Any],
+    model_call_fn: Callable[[dict[str, str]], str],
 ) -> str:
     """Route a tool request if present and return the final model output."""
     request = parse_tool_request(llm_text)
@@ -109,7 +109,7 @@ def route_if_tool_request(
         return "Sorry, I could not complete that tool request."
 
 
-def _execute_time_now(args: Dict[str, Any], default_context: Dict[str, Any]) -> Dict[str, Any]:
+def _execute_time_now(args: dict[str, Any], default_context: dict[str, Any]) -> dict[str, Any]:
     location = args.get("location")
     if not isinstance(location, str) or not location.strip():
         location = default_context.get("location")
@@ -134,7 +134,7 @@ def _execute_time_now(args: Dict[str, Any], default_context: Dict[str, Any]) -> 
     }
 
 
-def _resolve_timezone(location: str, default_context: Dict[str, Any]) -> str | ToolError:
+def _resolve_timezone(location: str, default_context: dict[str, Any]) -> str | ToolError:
     normalized = location.strip().lower()
     if normalized == "dallas, tx":
         return "America/Chicago"
@@ -146,7 +146,11 @@ def _resolve_timezone(location: str, default_context: Dict[str, Any]) -> str | T
     return "UTC"
 
 
-def _error_result(message: str, tool: Optional[str] = None, args: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def _error_result(
+    message: str,
+    tool: str | None = None,
+    args: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     payload = {"message": message}
     if tool:
         payload["tool"] = tool
