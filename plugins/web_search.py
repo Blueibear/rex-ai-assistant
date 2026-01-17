@@ -11,11 +11,11 @@ from rex.plugins import Plugin
 
 try:
     import requests
-    from requests.adapters import HTTPAdapter, Retry
-except ImportError as e:
-    raise RuntimeError(
-        "Install with: pip install requests  (or add to requirements.txt and reinstall)"
-    ) from e
+except ImportError as exc:
+    requests = None
+    _REQUESTS_IMPORT_ERROR = exc
+else:
+    _REQUESTS_IMPORT_ERROR = None
 
 try:
     from bs4 import BeautifulSoup
@@ -31,7 +31,18 @@ GOOGLE_URL = "https://www.googleapis.com/customsearch/v1"
 BROWSERLESS_URL = "https://chrome.browserless.io/content"
 
 
+def _require_requests() -> None:
+    if requests is None:
+        raise RuntimeError(
+            "The web_search plugin requires the 'requests' package. "
+            "Install with: pip install requests"
+        ) from _REQUESTS_IMPORT_ERROR
+
+
 def _create_session() -> requests.Session:
+    _require_requests()
+    from requests.adapters import HTTPAdapter, Retry
+
     session = requests.Session()
     retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[429, 502, 503, 504])
     adapter = HTTPAdapter(max_retries=retries)
@@ -44,13 +55,14 @@ class WebSearchPlugin:
     name = "web_search"
 
     def __init__(self) -> None:
-        self._session = _create_session()
+        self._session: requests.Session | None = None
 
     def initialize(self) -> None:
         pass
 
     def shutdown(self) -> None:
-        self._session.close()
+        if self._session is not None:
+            self._session.close()
 
     def process(self, query: str) -> str | None:
         for provider in self._provider_order():
@@ -85,7 +97,8 @@ class WebSearchPlugin:
         }
         headers = {"X-Serpapi-Privacy": "true"}
         try:
-            resp = self._session.get(SERPAPI_URL, params=params, headers=headers, timeout=10)
+            session = self._get_session()
+            resp = session.get(SERPAPI_URL, params=params, headers=headers, timeout=10)
             resp.raise_for_status()
             results = resp.json().get("organic_results", [])
             if not results:
@@ -103,7 +116,8 @@ class WebSearchPlugin:
         headers = {"X-Subscription-Token": api_key}
         params = {"q": query, "count": 3}
         try:
-            resp = self._session.get(BRAVE_URL, headers=headers, params=params, timeout=10)
+            session = self._get_session()
+            resp = session.get(BRAVE_URL, headers=headers, params=params, timeout=10)
             resp.raise_for_status()
             results = resp.json().get("web", {}).get("results", [])
             if not results:
@@ -121,7 +135,8 @@ class WebSearchPlugin:
         try:
             url = f"https://html.duckduckgo.com/html/?q={quote_plus(query)}"
             headers = {"User-Agent": "Mozilla/5.0"}
-            resp = self._session.get(url, headers=headers, timeout=10)
+            session = self._get_session()
+            resp = session.get(url, headers=headers, timeout=10)
             resp.raise_for_status()
             soup = BeautifulSoup(resp.text, "html.parser")
             result = soup.find("a", class_="result__a")
@@ -141,7 +156,8 @@ class WebSearchPlugin:
             return None
         params = {"q": query, "key": api_key, "cx": engine_id, "num": 3}
         try:
-            resp = self._session.get(GOOGLE_URL, params=params, timeout=10)
+            session = self._get_session()
+            resp = session.get(GOOGLE_URL, params=params, timeout=10)
             resp.raise_for_status()
             items = resp.json().get("items", [])
             if not items:
@@ -162,7 +178,8 @@ class WebSearchPlugin:
         }
         headers = {"Cache-Control": "no-cache", "Content-Type": "application/json"}
         try:
-            resp = self._session.post(
+            session = self._get_session()
+            resp = session.post(
                 BROWSERLESS_URL, headers=headers, params={"token": token}, json=payload, timeout=20
             )
             resp.raise_for_status()
@@ -176,6 +193,11 @@ class WebSearchPlugin:
         except Exception as e:
             logger.warning("Browserless search failed: %s", e)
             return None
+
+    def _get_session(self) -> requests.Session:
+        if self._session is None:
+            self._session = _create_session()
+        return self._session
 
 
 # Singleton for use across the app
