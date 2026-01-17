@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import logging
 import re
 import threading
@@ -9,7 +11,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 try:
     import requests
@@ -18,11 +20,16 @@ except ImportError as exc:
     _REQUESTS_IMPORT_ERROR = exc
 else:
     _REQUESTS_IMPORT_ERROR = None
-from flask import Blueprint, jsonify, request
+if TYPE_CHECKING:
+    from flask import Blueprint
 
 from rex.config import settings
 
 logger = logging.getLogger(__name__)
+
+_flask_blueprint = None
+_flask_jsonify = None
+_flask_request = None
 
 
 def _require_requests() -> None:
@@ -31,6 +38,21 @@ def _require_requests() -> None:
             "The Home Assistant bridge requires the 'requests' package. "
             "Install with: pip install requests"
         ) from _REQUESTS_IMPORT_ERROR
+
+
+def _require_flask():
+    global _flask_blueprint, _flask_jsonify, _flask_request
+    if _flask_blueprint is not None:
+        return _flask_blueprint, _flask_jsonify, _flask_request
+    if importlib.util.find_spec("flask") is None:
+        raise RuntimeError(
+            "Flask is required for Home Assistant bridge. Install with: pip install flask"
+        )
+    flask = importlib.import_module("flask")
+    _flask_blueprint = flask.Blueprint
+    _flask_jsonify = flask.jsonify
+    _flask_request = flask.request
+    return _flask_blueprint, _flask_jsonify, _flask_request
 
 
 def _utc_iso() -> str:
@@ -423,6 +445,7 @@ class HABridge:
 
 def create_blueprint(bridge: Optional[HABridge] = None) -> Blueprint:
     """Create a Flask blueprint exposing HA bridge helpers."""
+    Blueprint, jsonify, request = _require_flask()
     bridge = bridge or HABridge()
     bp = Blueprint("ha_bridge", __name__)
 
