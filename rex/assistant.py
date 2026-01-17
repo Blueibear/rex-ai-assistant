@@ -15,6 +15,7 @@ from .ha_bridge import HABridge
 from .llm_client import LanguageModel
 from .memory import trim_history
 from .plugins import PluginSpec
+from .tool_router import route_if_tool_request
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,13 @@ class Assistant:
         if completion is None:
             prompt = self._build_prompt(transcript)
             completion = await loop.run_in_executor(None, self._llm.generate, prompt)
+            completion = await loop.run_in_executor(
+                None,
+                route_if_tool_request,
+                completion,
+                {},
+                self._build_tool_model_call(transcript),
+            )
             plugin_enrichments = await self._run_plugins(transcript)
             if plugin_enrichments:
                 completion = (
@@ -110,6 +118,18 @@ class Assistant:
         history_lines.append(f"user: {transcript}")
         history_lines.append("assistant:")
         return "\n".join(history_lines)
+
+    def _build_tool_model_call(self, transcript: str):
+        base_messages = [
+            {"role": turn.speaker, "content": turn.text} for turn in self._history[-4:]
+        ]
+        base_messages.append({"role": "user", "content": transcript})
+
+        def model_call(tool_message: dict[str, str]) -> str:
+            messages = base_messages + [tool_message]
+            return self._llm.generate(messages=messages)
+
+        return model_call
 
     def history(self) -> list[ConversationTurn]:
         return list(self._history)

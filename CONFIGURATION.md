@@ -157,6 +157,27 @@ python -m audio_config --show
 }
 ```
 
+## Tool Requests and Results
+Rex supports a minimal tool routing flow for local tools. The model can emit a single line tool request:
+
+```
+TOOL_REQUEST: {"tool":"time_now","args":{"location":"Dallas, TX"}}
+```
+
+Rex executes the tool and sends a tool result line back to the model:
+
+```
+TOOL_RESULT: {"tool":"time_now","args":{"location":"Dallas, TX"},"result":{"local_time":"YYYY-MM-DD HH:MM","timezone":"America/Chicago"}}
+```
+
+### Supported Tools
+- time_now is implemented
+- weather_now is stubbed for future use
+- web_search is stubbed for future use
+
+### Extending Tools
+To add new tools, update the tool router module to parse the new tool name and return a structured result. Add tests for the new tool and keep results in the TOOL_RESULT format.
+
 ### Runtime Settings (rex_config.json)
 ```json
 {
