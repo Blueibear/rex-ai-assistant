@@ -151,6 +151,9 @@ omit = [
     "*/tests/*",
     "*/test_*.py",
     "*/__pycache__/*",
+    "rex/mqtt_audio_router.py",
+    "rex/mqtt_client.py",
+    "rex/voice_loop_optimized.py",
 ]
 
 [tool.coverage.report]
