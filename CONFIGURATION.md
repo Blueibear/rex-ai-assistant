@@ -339,6 +339,16 @@ See `config/rex_config.schema.json` for complete JSON Schema documentation.
 2. Click "Restart App" button in Settings tab
 3. For CLI: Stop and restart rex_loop.py
 
+## Test Coverage Gate
+
+The current coverage floor is 25 percent. This is a temporary baseline that will be raised in steps as coverage improves, for example 25, 35, 45, 55.
+
+Run tests locally on Windows with:
+
+```bash
+python -m pytest
+```
+
 ## Reference
 
 ### Configuration Locations
