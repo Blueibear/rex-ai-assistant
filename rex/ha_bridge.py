@@ -11,12 +11,26 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import requests
+try:
+    import requests
+except ImportError as exc:
+    requests = None
+    _REQUESTS_IMPORT_ERROR = exc
+else:
+    _REQUESTS_IMPORT_ERROR = None
 from flask import Blueprint, jsonify, request
 
 from rex.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _require_requests() -> None:
+    if requests is None:
+        raise RuntimeError(
+            "The Home Assistant bridge requires the 'requests' package. "
+            "Install with: pip install requests"
+        ) from _REQUESTS_IMPORT_ERROR
 
 
 def _utc_iso() -> str:
@@ -94,6 +108,7 @@ class HABridge:
             for alias, entity_id in (entity_map or cfg.ha_entity_map or {}).items()
             if isinstance(alias, str) and isinstance(entity_id, str)
         }
+        _require_requests()
         self._session = requests.Session()
         self._entity_cache: Dict[str, str] = {}
         self._entity_cache_ts: float = 0.0
