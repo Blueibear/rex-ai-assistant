@@ -5,12 +5,14 @@ Now uses rex_config.json for non-secret settings and .env only for secrets.
 
 from __future__ import annotations
 
+# ruff: noqa: I001, UP006, UP035, UP045
+
 import argparse
 import os
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, List, Optional
 
 try:
     from dotenv import load_dotenv, set_key
@@ -55,6 +57,20 @@ def _parse_int(name: str, value: Optional[str], *, default: int = 0) -> int:
         return default
 
 
+def resolve_wakeword_keyword(
+    keyword: Optional[str],
+    wakeword: Optional[str],
+    *,
+    default: Optional[str] = None,
+) -> Optional[str]:
+    for candidate in (keyword, wakeword, default):
+        if candidate is None:
+            continue
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip()
+    return None
+
+
 @dataclass
 class AppConfig:
     """Application configuration combining JSON config and environment secrets."""
@@ -64,6 +80,10 @@ class AppConfig:
     wakeword_threshold: float = 0.5
     wakeword_window: float = 1.0
     wakeword_poll_interval: float = 0.01
+    wakeword_model_path: Optional[str] = None
+    wakeword_embedding_path: Optional[str] = None
+    wakeword_fallback_to_builtin: bool = True
+    wakeword_fallback_keyword: str = "hey jarvis"
     command_duration: float = 5.0
 
     sample_rate: int = 16000
@@ -145,8 +165,7 @@ class AppConfig:
             self.temperature = self.llm_temperature
         if self.max_memory_items is None:
             self.max_memory_items = self.memory_max_turns
-        if self.wakeword_keyword is None:
-            self.wakeword_keyword = self.wakeword
+        self.wakeword_keyword = resolve_wakeword_keyword(self.wakeword_keyword, self.wakeword)
 
 _cached_config: Optional[AppConfig] = None
 
@@ -212,6 +231,10 @@ def build_app_config(json_config: dict) -> AppConfig:
         wakeword_window=float(_get_nested(json_config, "wake_word.window", 1.0)),
         wakeword_poll_interval=float(_get_nested(json_config, "wake_word.poll_interval", 0.01)),
         wake_sound_path=_get_nested(json_config, "wake_word.wake_sound_path"),
+        wakeword_model_path=_get_nested(json_config, "wake_word.model_path"),
+        wakeword_embedding_path=_get_nested(json_config, "wake_word.embedding_path"),
+        wakeword_fallback_to_builtin=bool(_get_nested(json_config, "wake_word.fallback_to_builtin", True)),
+        wakeword_fallback_keyword=_get_nested(json_config, "wake_word.fallback_keyword", "hey jarvis"),
 
         # Runtime settings from JSON
         command_duration=float(_get_nested(json_config, "runtime.command_duration", 5.0)),

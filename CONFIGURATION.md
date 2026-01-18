@@ -127,9 +127,13 @@ python -m audio_config --show
 ```json
 {
   "wake_word": {
-    "backend": "openwakeword",                  // Backend: openwakeword, onnx
-    "wakeword": "rex",                          // Wake phrase
-    "keyword": null,                            // Alternative keyword (overrides wakeword)
+    "backend": "openwakeword",                  // Backend: openwakeword, custom_onnx, custom_embedding
+    "wakeword": "rex",                          // Legacy wake phrase (keyword is preferred)
+    "keyword": null,                            // Preferred wake word keyword
+    "model_path": null,                         // Path to custom ONNX model
+    "embedding_path": null,                     // Path to custom embedding .pt
+    "fallback_to_builtin": true,                // Fall back to built-in keyword when custom fails
+    "fallback_keyword": "hey jarvis",           // Preferred built-in fallback
     "threshold": 0.5,                           // Detection threshold (0.0-1.0)
     "window": 1.0,                              // Detection window (seconds)
     "poll_interval": 0.01,                      // Poll interval (seconds)
@@ -137,6 +141,60 @@ python -m audio_config --show
   }
 }
 ```
+
+#### Built-in OpenWakeWord keywords and fallback behavior
+When backend is openwakeword, Rex validates the requested keyword against the installed OpenWakeWord models.
+If the keyword is missing or invalid, Rex automatically falls back to a working keyword, preferring "hey jarvis" if it is available, otherwise the first available model.
+
+#### Custom wake words
+Store custom models in `models/wakewords/` and point the configuration at the file path. The GUI Wake Word panel lets you select built-in keywords and any files in that folder.
+
+**Custom ONNX model (recommended)**
+```json
+{
+  "wake_word": {
+    "backend": "custom_onnx",
+    "model_path": "models/wakewords/hey_rex.onnx",
+    "fallback_to_builtin": true,
+    "fallback_keyword": "hey jarvis"
+  }
+}
+```
+
+**Custom embedding model**
+```json
+{
+  "wake_word": {
+    "backend": "custom_embedding",
+    "embedding_path": "models/wakewords/hey_rex.pt",
+    "fallback_to_builtin": true,
+    "fallback_keyword": "hey jarvis"
+  }
+}
+```
+
+If fallback_to_builtin is false and the custom file is missing or invalid, Rex raises a clear error on startup.
+
+#### Training workflow (OpenWakeWord)
+1. Train or export your wake word with OpenWakeWord tooling to produce an ONNX model.
+2. Place the ONNX file in `models/wakewords/`.
+3. Set `wake_word.backend` to `custom_onnx` and update `wake_word.model_path`.
+4. Validate the file before starting Rex:
+   ```bash
+   python scripts/validate_wakeword_model.py --backend custom_onnx --model-path models/wakewords/hey_rex.onnx
+   ```
+
+#### Custom embedding workflow (optional)
+If you have a .pt embedding file, set `wake_word.backend` to `custom_embedding` and point `embedding_path` at the file. Rex uses cosine similarity on a lightweight embedding of the audio frame.
+Use the same validation script:
+```bash
+python scripts/validate_wakeword_model.py --backend custom_embedding --embedding-path models/wakewords/hey_rex.pt
+```
+
+#### Legacy wakeword alias
+`wake_word.wakeword` is treated as a legacy alias for `wake_word.keyword`. Rex will keep reading it for compatibility, but new configuration should prefer `keyword` only.
+
+Legacy environment variables are ignored for wake word configuration. Always update `config/rex_config.json` instead.
 
 ### Model Settings (rex_config.json)
 ```json

@@ -1,5 +1,7 @@
 """Simple Tkinter dashboard for monitoring the Rex assistant."""
 
+# ruff: noqa: E402, I001
+
 from __future__ import annotations
 
 # Load .env before accessing any environment variables
@@ -21,15 +23,30 @@ warnings.filterwarnings("ignore", message=".*FFmpeg extension.*")
 warnings.filterwarnings("ignore", message=".*libtorio.*")
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="torio")
 
+try:  # pragma: no cover - optional dependency
+    import openwakeword
+except Exception:  # pragma: no cover - optional dependency
+    openwakeword = None  # type: ignore[assignment]
+
 from config import load_config, build_app_config
 from logging_utils import get_logger
 from memory_utils import load_recent_history
 from rex.config_manager import load_config as load_json_config, save_config as save_json_config, migrate_legacy_env_to_config, get_legacy_env_warnings
 from rex.assistant_errors import ConfigurationError
+from rex.wakeword.selection import list_openwakeword_keywords
 from utils.audio_device import enumerate_input_devices
 from voice_loop import AsyncRexAssistant
 
 LOGGER = get_logger(__name__)
+
+DEFAULT_GUI_WAKEWORDS = [
+    "alexa",
+    "hey jarvis",
+    "hey mycroft",
+    "hey rhasspy",
+    "timer",
+    "weather",
+]
 
 
 class GUILogHandler(logging.Handler):
@@ -140,6 +157,33 @@ class AssistantGUI(tk.Tk):
         ttk.Label(self.dashboard_tab, textvariable=self.user_var).pack(pady=5)
         self.profile_var = tk.StringVar(value=f"Profile: {self.config.active_profile}")
         ttk.Label(self.dashboard_tab, textvariable=self.profile_var).pack(pady=2)
+
+        # Wake word configuration
+        wakeword_frame = ttk.LabelFrame(self.dashboard_tab, text="Wake Word", padding=10)
+        wakeword_frame.pack(padx=10, pady=10, fill="x")
+
+        backend_row = ttk.Frame(wakeword_frame)
+        backend_row.pack(fill="x", pady=2)
+        ttk.Label(backend_row, text="Backend:").pack(side="left", padx=(0, 10))
+
+        self.wake_backend_var = tk.StringVar(value=self.json_config.get("wake_word", {}).get("backend", "openwakeword"))
+        backend_options = ["openwakeword", "custom_onnx", "custom_embedding"]
+        self.wake_backend_combo = ttk.Combobox(backend_row, textvariable=self.wake_backend_var, state="readonly", values=backend_options, width=20)
+        self.wake_backend_combo.pack(side="left")
+
+        keyword_row = ttk.Frame(wakeword_frame)
+        keyword_row.pack(fill="x", pady=2)
+        ttk.Label(keyword_row, text="Keyword or Model:").pack(side="left", padx=(0, 10))
+
+        self.wake_keyword_var = tk.StringVar()
+        self.wake_keyword_combo = ttk.Combobox(keyword_row, textvariable=self.wake_keyword_var, state="readonly", width=40)
+        self.wake_keyword_combo.pack(side="left", fill="x", expand=True)
+
+        ttk.Button(keyword_row, text="Refresh", command=self._refresh_wakeword_choices, width=10).pack(side="left", padx=(5, 0))
+        ttk.Button(keyword_row, text="Save", command=self._save_wakeword_config, width=10).pack(side="left", padx=(5, 0))
+
+        self.wake_backend_combo.bind("<<ComboboxSelected>>", lambda event: self._refresh_wakeword_choices())
+        self._refresh_wakeword_choices()
 
         # Wake word info
         wake_keyword = self.config.wakeword_keyword or self.config.wakeword
@@ -263,6 +307,64 @@ class AssistantGUI(tk.Tk):
             self.device_combo["values"] = ["Error loading devices"]
             self.device_var.set("Error loading devices")
 
+    def _list_builtin_wakewords(self) -> list[str]:
+        available = list_openwakeword_keywords(openwakeword)
+        return available or DEFAULT_GUI_WAKEWORDS
+
+    def _list_custom_wakewords(self, *, extension: str) -> list[str]:
+        models_dir = Path(__file__).resolve().parent / "models" / "wakewords"
+        if not models_dir.exists():
+            return []
+        return sorted(
+            str(path.relative_to(Path(__file__).resolve().parent))
+            for path in models_dir.glob(f"*.{extension}")
+            if path.is_file()
+        )
+
+    def _refresh_wakeword_choices(self) -> None:
+        backend = (self.wake_backend_var.get() or "openwakeword").lower()
+        wake_word_config = self.json_config.get("wake_word", {})
+
+        if backend == "openwakeword":
+            options = self._list_builtin_wakewords()
+            current_value = wake_word_config.get("keyword") or wake_word_config.get("wakeword") or ""
+        elif backend == "custom_onnx":
+            options = self._list_custom_wakewords(extension="onnx")
+            current_value = wake_word_config.get("model_path") or ""
+        else:
+            options = self._list_custom_wakewords(extension="pt")
+            current_value = wake_word_config.get("embedding_path") or ""
+
+        if not options:
+            options = ["No models found"]
+
+        self.wake_keyword_combo.configure(values=options)
+        if current_value in options:
+            self.wake_keyword_var.set(current_value)
+        else:
+            self.wake_keyword_var.set(options[0])
+
+    def _save_wakeword_config(self) -> None:
+        wake_word_config = self.json_config.setdefault("wake_word", {})
+        backend = (self.wake_backend_var.get() or "openwakeword").lower()
+        selection = self.wake_keyword_var.get()
+
+        wake_word_config["backend"] = backend
+
+        if backend == "openwakeword":
+            wake_word_config["keyword"] = selection
+            wake_word_config["model_path"] = None
+            wake_word_config["embedding_path"] = None
+        elif backend == "custom_onnx":
+            wake_word_config["model_path"] = selection if selection != "No models found" else None
+            wake_word_config["embedding_path"] = None
+        else:
+            wake_word_config["embedding_path"] = selection if selection != "No models found" else None
+            wake_word_config["model_path"] = None
+
+        save_json_config(self.json_config)
+        self._log_to_gui("Saved wake word configuration. Restart Rex to apply changes.")
+
     def _get_selected_device_index(self) -> int | None:
         """Get the device index from the currently selected dropdown item."""
         try:
@@ -355,7 +457,7 @@ class AssistantGUI(tk.Tk):
 
                 # Record a short clip
                 frames = int(sr * test_duration)
-                audio = sd.rec(frames, **stream_kwargs)
+                sd.rec(frames, **stream_kwargs)
                 sd.wait()
 
                 # Ensure device is fully released
@@ -364,7 +466,7 @@ class AssistantGUI(tk.Tk):
                 time.sleep(0.5)  # Give Windows time to release device
 
                 self._log_to_gui(f"  ✓ PASS: Device {device_idx} works at {sr} Hz")
-                self._log_to_gui(f"  Recommendation: Use this device for the assistant")
+                self._log_to_gui("  Recommendation: Use this device for the assistant")
                 return
 
             except Exception as exc:
@@ -374,8 +476,8 @@ class AssistantGUI(tk.Tk):
         # All tests failed
         self._log_to_gui(f"ERROR: Device {device_idx} failed all test configurations")
         if "DirectSound" in device_hostapi:
-            self._log_to_gui(f"  💡 Tip: Look for a WASAPI version of this device (more reliable than DirectSound)")
-        self._log_to_gui(f"  Try selecting a different device from the dropdown")
+            self._log_to_gui("  💡 Tip: Look for a WASAPI version of this device (more reliable than DirectSound)")
+        self._log_to_gui("  Try selecting a different device from the dropdown")
 
     def start_assistant(self) -> None:
         """Start the voice assistant with comprehensive error handling."""
@@ -428,7 +530,7 @@ class AssistantGUI(tk.Tk):
             error_details = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
             LOGGER.exception("Assistant crashed during execution")
             self._log_to_gui(f"Assistant crashed:\n{error_details}")
-            self.after(0, lambda: self.status_var.set(f"Crashed: {exc}"))
+            self.after(0, lambda exc=exc: self.status_var.set(f"Crashed: {exc}"))
         finally:
             self.running = False
             self.after(0, lambda: self.start_button.configure(state="normal"))

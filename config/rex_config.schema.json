@@ -44,7 +44,7 @@
       "properties": {
         "backend": {
           "type": "string",
-          "description": "Wake word detection backend",
+          "description": "Wake word detection backend (openwakeword, custom_onnx, custom_embedding)",
           "default": "openwakeword"
         },
         "wakeword": {
@@ -55,6 +55,24 @@
         "keyword": {
           "type": ["string", "null"],
           "description": "Alternative wake word keyword (overrides wakeword if set)"
+        },
+        "model_path": {
+          "type": ["string", "null"],
+          "description": "Custom wake word model path for custom_onnx backend"
+        },
+        "embedding_path": {
+          "type": ["string", "null"],
+          "description": "Custom wake word embedding path for custom_embedding backend"
+        },
+        "fallback_to_builtin": {
+          "type": "boolean",
+          "description": "Fall back to a built-in wake word when custom model is missing",
+          "default": true
+        },
+        "fallback_keyword": {
+          "type": "string",
+          "description": "Preferred built-in fallback keyword",
+          "default": "hey jarvis"
         },
         "threshold": {
           "type": "number",
