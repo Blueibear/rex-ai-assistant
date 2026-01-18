@@ -71,10 +71,21 @@ def build_default_detector(
     poll_interval: float | None = None,
     keyword: str | None = None,
     model_path: str | None = None,
+    embedding_path: str | None = None,
+    backend: str | None = None,
+    fallback_to_builtin: bool | None = None,
+    fallback_keyword: str | None = None,
 ) -> WakeWordListener:
     """Build a WakeWordListener with the default wake-word model."""
     try:
-        model, _ = load_wakeword_model(keyword=keyword, model_path=model_path)
+        model, _ = load_wakeword_model(
+            keyword=keyword,
+            model_path=model_path,
+            embedding_path=embedding_path,
+            backend=backend,
+            fallback_to_builtin=fallback_to_builtin,
+            fallback_keyword=fallback_keyword,
+        )
     except Exception as exc:  # pragma: no cover - dependency/setup dependent
         raise WakeWordError(f"Failed to load wake-word model: {exc}") from exc
 

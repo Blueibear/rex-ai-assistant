@@ -6,6 +6,8 @@ Provides migration from legacy environment-based configuration.
 
 from __future__ import annotations
 
+# ruff: noqa: I001, UP006, UP015, UP035, UP045
+
 import json
 import os
 import shutil
@@ -30,6 +32,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "backend": "openwakeword",
         "wakeword": "rex",
         "keyword": None,
+        "model_path": None,
+        "embedding_path": None,
+        "fallback_to_builtin": True,
+        "fallback_keyword": "hey jarvis",
         "threshold": 0.5,
         "window": 1.0,
         "poll_interval": 0.01,
@@ -296,6 +302,8 @@ def save_config(config: Dict[str, Any], path: str | Path = "config/rex_config.js
     # Ensure config directory exists
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
+    _normalize_wake_word_config(config)
+
     try:
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2, sort_keys=True, ensure_ascii=False)
@@ -315,6 +323,17 @@ def _deep_merge(base: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[str, Any]
         else:
             result[key] = value
     return result
+
+
+def _normalize_wake_word_config(config: Dict[str, Any]) -> None:
+    wake_word = config.get("wake_word")
+    if not isinstance(wake_word, dict):
+        return
+
+    keyword = wake_word.get("keyword")
+    wakeword = wake_word.get("wakeword")
+    if (not isinstance(keyword, str) or not keyword.strip()) and isinstance(wakeword, str) and wakeword.strip():
+        wake_word["keyword"] = wakeword.strip()
 
 
 def migrate_legacy_env_to_config(

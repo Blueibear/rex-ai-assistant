@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Async event loop orchestrating Rex's wake-word, STT, LLM and TTS pipeline."""
 
+# ruff: noqa: E402, I001
+
 from __future__ import annotations
 
 # CRITICAL: Apply transformers compatibility patch BEFORE importing TTS
@@ -235,7 +237,7 @@ class WakeWordListener:
                 logger.info(f"<<< detect_wakeword RETURNED: {result}")
 
             if result:
-                logger.info(f"!!! WAKE WORD DETECTED IN CALLBACK - calling loop.call_soon_threadsafe to set event")
+                logger.info("!!! WAKE WORD DETECTED IN CALLBACK - calling loop.call_soon_threadsafe to set event")
                 if self.loop is None:
                     logger.error("!!! ERROR: loop is None - cannot schedule event.set()!")
                 else:
@@ -258,7 +260,14 @@ class AsyncRexAssistant:
     def __init__(self, config: AppConfig | None = None) -> None:
         self.config = config or load_config()
         self.language_model = LanguageModel(self.config)
-        self._wake_model, self._wake_keyword = load_wakeword_model(keyword=self.config.wakeword)
+        self._wake_model, self._wake_keyword = load_wakeword_model(
+            keyword=self.config.wakeword_keyword,
+            backend=self.config.wakeword_backend,
+            model_path=self.config.wakeword_model_path,
+            embedding_path=self.config.wakeword_embedding_path,
+            fallback_to_builtin=self.config.wakeword_fallback_to_builtin,
+            fallback_keyword=self.config.wakeword_fallback_keyword,
+        )
         self._sample_rate = 16000
 
         # Load audio config and resolve device with validation
@@ -663,4 +672,3 @@ class AsyncRexAssistant:
 def build_voice_loop(assistant: AsyncRexAssistant | None = None) -> AsyncRexAssistant:
     """Helper function for rex_loop.py to build and run the voice assistant loop."""
     return assistant or AsyncRexAssistant()
-
