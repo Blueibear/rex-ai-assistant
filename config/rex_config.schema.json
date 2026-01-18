@@ -168,6 +168,13 @@
           "type": ["string", "null"],
           "description": "TTS voice name"
         },
+        "tts_speed": {
+          "type": "number",
+          "description": "XTTS speaking rate multiplier",
+          "default": 1.08,
+          "minimum": 0.5,
+          "maximum": 2.0
+        },
         "windows_tts_voice_index": {
           "type": ["integer", "null"],
           "description": "Windows TTS voice index"

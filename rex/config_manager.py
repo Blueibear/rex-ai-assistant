@@ -55,6 +55,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "tts_provider": "xtts",
         "tts_model": None,
         "tts_voice": None,
+        "tts_speed": 1.08,
         "windows_tts_voice_index": None,
     },
     "runtime": {

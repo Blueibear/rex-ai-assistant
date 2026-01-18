@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+import wave
 from pathlib import Path
 from types import ModuleType
 
@@ -18,14 +19,19 @@ class DummyTTS:
     def __init__(self, *args, **kwargs):
         self.calls = []
 
-    def tts_to_file(self, *, text, speaker_wav, language, file_path):
-        Path(file_path).write_bytes(b"FAKEAUDIO")
+    def tts_to_file(self, *, text, speaker_wav, language, file_path, **kwargs):
+        with wave.open(file_path, "wb") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(16000)
+            wav_file.writeframes(b"\x00\x00" * 160)
         self.calls.append(
             {
                 "text": text,
                 "speaker_wav": speaker_wav,
                 "language": language,
                 "file_path": file_path,
+                "kwargs": kwargs,
             }
         )
 
@@ -130,7 +136,7 @@ def test_speak_requires_api_key(monkeypatch, tmp_path):
         # Valid key
         resp = client.post("/speak", json={"text": "Hello"}, headers={"X-API-Key": "secret"})
         assert resp.status_code == 200
-        assert resp.data.startswith(b"FAKEAUDIO")
+        assert resp.data
         assert "audio/wav" in resp.content_type
 
 

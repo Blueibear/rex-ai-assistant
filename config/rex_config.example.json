@@ -31,6 +31,7 @@
     "tts_provider": "xtts",
     "tts_model": null,
     "tts_voice": null,
+    "tts_speed": 1.08,
     "windows_tts_voice_index": null
   },
   "runtime": {
