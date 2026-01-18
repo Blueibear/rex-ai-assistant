@@ -36,7 +36,9 @@ from .memory import (
     resolve_user_key,
 )
 from .wakeword.listener import WakeWordListener, build_default_detector
+from wake_acknowledgment import ensure_wake_acknowledgment_sound
 from .wakeword.utils import load_wakeword_model
+from .tts_utils import chunk_text_for_xtts
 
 try:
     import simpleaudio as sa
@@ -156,15 +158,28 @@ class WakeAcknowledgement:
     def __init__(self, sound_path: Optional[Path] = None) -> None:
         default_path = Path(__file__).resolve().parents[1] / "assets" / "wake_acknowledgment.wav"
         self._sound_path = Path(sound_path) if sound_path else default_path
+        if not self._sound_path.exists():
+            try:
+                ensure_wake_acknowledgment_sound(path=str(self._sound_path))
+            except Exception as exc:
+                logger.warning("Failed to generate wake acknowledgment sound: %s", exc)
 
     async def play(self) -> None:
-        if sa is None or not self._sound_path.exists():
+        if not self._sound_path.exists():
+            return
+        if sa is None and sd is None:
+            logger.warning("No audio playback backend available for wake acknowledgment.")
             return
 
         def _play() -> None:
-            wave_obj = sa.WaveObject.from_wave_file(str(self._sound_path))
-            play_obj = wave_obj.play()
-            play_obj.wait_done()
+            if sa is not None:
+                wave_obj = sa.WaveObject.from_wave_file(str(self._sound_path))
+                play_obj = wave_obj.play()
+                play_obj.wait_done()
+                return
+            data, rate = sf.read(str(self._sound_path), dtype="float32")
+            sd.play(data, rate)
+            sd.wait()
 
         try:
             await asyncio.to_thread(_play)
@@ -202,6 +217,7 @@ class TextToSpeech:
     def __init__(self, *, language: str, default_speaker: Optional[str] = None) -> None:
         self._language = language
         self._default_speaker = default_speaker
+        self._tts_speed = getattr(settings, "tts_speed", 1.08)
 
         # Get TTS settings from config (defaults: xtts provider, en-US-AndrewNeural voice)
         self._provider = getattr(settings, "tts_provider", "xtts").lower()
@@ -257,21 +273,46 @@ class TextToSpeech:
     async def _speak_xtts(self, text: str, speaker_wav: Optional[str]) -> None:
         if self._tts is None:
             raise TextToSpeechError("XTTS not initialized")
+        chunks = chunk_text_for_xtts(text, max_tokens=300)
+        if not chunks:
+            return
+
+        audio_segments = []
+        sample_rate = None
+
+        for chunk in chunks:
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                chunk_path = tmp.name
+
+            try:
+                def _synthesize() -> None:
+                    self._tts.tts_to_file(
+                        text=chunk,
+                        speaker_wav=speaker_wav or self._default_speaker,
+                        language=self._language,
+                        file_path=chunk_path,
+                        speed=self._tts_speed,
+                    )
+
+                await asyncio.to_thread(_synthesize)
+                data, rate = sf.read(chunk_path, dtype="float32")
+                if sample_rate is None:
+                    sample_rate = rate
+                audio_segments.append(data)
+            finally:
+                with suppress(FileNotFoundError):
+                    Path(chunk_path).unlink()
+
+        if not audio_segments or sample_rate is None:
+            return
+
+        combined_audio = np.concatenate(audio_segments, axis=0)
 
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
             output_path = tmp.name
 
         try:
-            def _synthesize() -> None:
-                self._tts.tts_to_file(
-                    text=text,
-                    speaker_wav=speaker_wav or self._default_speaker,
-                    language=self._language,
-                    file_path=output_path,
-                )
-
-            await asyncio.to_thread(_synthesize)
-
+            sf.write(output_path, combined_audio, sample_rate)
             if sa is not None and Path(output_path).exists():
                 def _play() -> None:
                     wave_obj = sa.WaveObject.from_wave_file(output_path)

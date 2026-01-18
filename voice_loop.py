@@ -18,6 +18,7 @@ import asyncio
 import contextlib
 import os
 import platform
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -49,7 +50,9 @@ from rex.memory_utils import (
     resolve_user_key,
 )
 from rex.plugin_loader import load_plugins
+from rex.tts_utils import chunk_text_for_xtts
 from rex.wakeword_utils import detect_wakeword, load_wakeword_model
+from wake_acknowledgment import ensure_wake_acknowledgment_sound
 from utils.audio_device import (
     enumerate_input_devices,
     load_audio_config,
@@ -260,6 +263,11 @@ class AsyncRexAssistant:
     def __init__(self, config: AppConfig | None = None) -> None:
         self.config = config or load_config()
         self.language_model = LanguageModel(self.config)
+        if self.config.wake_sound_path:
+            try:
+                ensure_wake_acknowledgment_sound(path=self.config.wake_sound_path)
+            except Exception as exc:
+                logger.warning("Failed to generate wake acknowledgment sound: %s", exc)
         self._wake_model, self._wake_keyword = load_wakeword_model(
             keyword=self.config.wakeword_keyword,
             backend=self.config.wakeword_backend,
@@ -532,27 +540,55 @@ class AsyncRexAssistant:
         import time
         tts = self._get_tts()
         speaker_wav = self.user_voice_refs.get(self.active_user)
+        tts_speed = getattr(self.config, "tts_speed", 1.08)
         try:
             # XTTS v2 requires either speaker_wav or speaker parameter
             # If no voice reference, use built-in speaker
             logger.info(f"[TTS] Generating speech for {len(text)} characters...")
             tts_start = time.time()
 
-            if speaker_wav:
-                tts.tts_to_file(
-                    text=text,
-                    speaker_wav=speaker_wav,
-                    language="en",
-                    file_path="assistant_response.wav",
-                )
-            else:
-                # Use built-in XTTS speaker when no voice reference is available
-                tts.tts_to_file(
-                    text=text,
-                    speaker="Claribel Dervla",  # Default XTTS v2 speaker
-                    language="en",
-                    file_path="assistant_response.wav",
-                )
+            chunks = chunk_text_for_xtts(text, max_tokens=300)
+            if not chunks:
+                return
+
+            audio_segments = []
+            sample_rate = None
+
+            for chunk in chunks:
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                    chunk_path = tmp.name
+
+                try:
+                    if speaker_wav:
+                        tts.tts_to_file(
+                            text=chunk,
+                            speaker_wav=speaker_wav,
+                            language="en",
+                            file_path=chunk_path,
+                            speed=tts_speed,
+                        )
+                    else:
+                        # Use built-in XTTS speaker when no voice reference is available
+                        tts.tts_to_file(
+                            text=chunk,
+                            speaker="Claribel Dervla",  # Default XTTS v2 speaker
+                            language="en",
+                            file_path=chunk_path,
+                            speed=tts_speed,
+                        )
+                    data, rate = sf.read(chunk_path, dtype="float32")
+                    if sample_rate is None:
+                        sample_rate = rate
+                    audio_segments.append(data)
+                finally:
+                    with contextlib.suppress(FileNotFoundError):
+                        os.remove(chunk_path)
+
+            if not audio_segments or sample_rate is None:
+                return
+
+            combined_audio = np.concatenate(audio_segments, axis=0)
+            sf.write("assistant_response.wav", combined_audio, sample_rate)
 
             tts_duration = time.time() - tts_start
             logger.info(f"[TTS] Speech generated in {tts_duration:.2f} seconds")

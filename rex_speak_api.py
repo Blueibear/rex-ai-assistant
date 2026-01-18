@@ -13,9 +13,12 @@ from typing import Optional, Tuple
 
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
+import numpy as np
+import soundfile as sf
 
-from rex.config import _parse_int
+from rex.config import _parse_int, load_config
 from rex.ha_bridge import create_blueprint as create_ha_blueprint
+from rex.tts_utils import chunk_text_for_xtts
 
 try:
     from flask_limiter import Limiter
@@ -148,6 +151,7 @@ API_KEY: str | None = None
 RATE_LIMIT = _parse_int("REX_SPEAK_RATE_LIMIT", os.getenv("REX_SPEAK_RATE_LIMIT"), default=30)
 RATE_LIMIT_WINDOW = _parse_int("REX_SPEAK_RATE_WINDOW", os.getenv("REX_SPEAK_RATE_WINDOW"), default=60)
 MAX_TEXT_LENGTH = _parse_int("REX_SPEAK_MAX_CHARS", os.getenv("REX_SPEAK_MAX_CHARS"), default=800)
+TTS_SPEED = load_config().tts_speed
 
 if RATE_LIMIT > 0 and RATE_LIMIT_WINDOW > 0:
     _UNIT_MAP = {1: "second", 60: "minute", 3600: "hour", 86400: "day"}
@@ -276,12 +280,40 @@ def speak() -> Response:
         output_path = tmp.name
 
     try:
-        engine.tts_to_file(
-            text=text,
-            speaker_wav=speaker_wav,
-            language=language,
-            file_path=output_path,
-        )
+        chunks = chunk_text_for_xtts(text, max_tokens=300)
+        if not chunks:
+            raise TextToSpeechError("No speech content to synthesize.")
+
+        audio_segments = []
+        sample_rate = None
+
+        for chunk in chunks:
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                chunk_path = tmp.name
+
+            try:
+                engine.tts_to_file(
+                    text=chunk,
+                    speaker_wav=speaker_wav,
+                    language=language,
+                    file_path=chunk_path,
+                    speed=TTS_SPEED,
+                )
+                data, rate = sf.read(chunk_path, dtype="float32")
+                if sample_rate is None:
+                    sample_rate = rate
+                audio_segments.append(data)
+            finally:
+                try:
+                    Path(chunk_path).unlink(missing_ok=True)
+                except PermissionError:
+                    logger.debug("Skipping cleanup for locked file: %s", chunk_path)
+
+        if not audio_segments or sample_rate is None:
+            raise TextToSpeechError("XTTS produced no audio output.")
+
+        combined_audio = np.concatenate(audio_segments, axis=0)
+        sf.write(output_path, combined_audio, sample_rate)
     except Exception as exc:
         raise TextToSpeechError(str(exc)) from exc
     try:

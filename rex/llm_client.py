@@ -247,7 +247,10 @@ class LanguageModel:
     def __init__(self, config: Optional[AppConfig] = None, **overrides) -> None:
         self.config = config or load_config()
         self.provider = (overrides.get("provider") or self.config.llm_provider).lower()
-        self.model_name = overrides.get("model") or self.config.llm_model
+        if self.provider == "openai":
+            self.model_name = overrides.get("model") or self.config.openai_model or self.config.llm_model
+        else:
+            self.model_name = overrides.get("model") or self.config.llm_model
         self.api_key = overrides.get("openai_api_key") or self.config.openai_api_key or os.getenv("OPENAI_API_KEY")
 
         self.generation = GenerationConfig(
@@ -295,10 +298,13 @@ class LanguageModel:
             return self._openai_client
         if not OPENAI_AVAILABLE:
             raise ConfigurationError("OpenAI backend requires the `openai` package.")
-        if not self.api_key:
-            raise ConfigurationError("Missing OpenAI API key.")
         base_url = self.config.openai_base_url
-        self._openai_client = OpenAI(api_key=self.api_key, base_url=base_url) if base_url else OpenAI(api_key=self.api_key)
+        api_key = self.api_key
+        if not api_key and base_url:
+            api_key = "local"
+        if not api_key:
+            raise ConfigurationError("Missing OpenAI API key.")
+        self._openai_client = OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
         return self._openai_client
 
     def register_tool(self, name: str, description: str, parameters: Dict[str, Any], function: Any) -> None:
@@ -429,4 +435,3 @@ __all__ = [
     "TORCH_AVAILABLE",
     "TRANSFORMERS_AVAILABLE",
 ]
-

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import os
 import struct
@@ -13,10 +14,11 @@ _LEGACY_WAKE_ACK_RELATIVE_PATHS = (
     os.path.join("assets", "rex_wake_acknowledgment (1).wav"),
 )
 _SAMPLE_RATE = 24_000
-_DURATION_SECONDS = 0.35
+_DURATION_SECONDS = 0.2
 _AMPLITUDE = 12_000
-_FREQUENCIES = (880.0, 660.0)
+_FREQUENCIES = (880.0,)
 _FADE_DURATION = 0.02
+_LOGGER = logging.getLogger(__name__)
 
 
 def _envelope(time_seconds: float) -> float:
@@ -71,6 +73,8 @@ def ensure_wake_acknowledgment_sound(
 
     if os.path.exists(target_path) and os.path.getsize(target_path) > 0:
         return target_path
+
+    _LOGGER.warning("Wake acknowledgment sound missing; generating fallback beep at %s", target_path)
 
     total_frames = int(_DURATION_SECONDS * _SAMPLE_RATE)
 

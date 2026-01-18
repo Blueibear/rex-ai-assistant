@@ -101,6 +101,7 @@ class AppConfig:
     llm_seed: int = 42
     tts_provider: str = "xtts"
     tts_voice: Optional[str] = None
+    tts_speed: float = 1.08
 
     speak_api_key: Optional[str] = None
     rate_limit: str = "30/minute"
@@ -156,9 +157,10 @@ class AppConfig:
         return raw
 
     def __post_init__(self) -> None:
-        model_path = Path(self.llm_model)
-        if model_path.is_absolute() or ".." in model_path.parts:
-            raise ValueError("llm_model must not contain path traversal components.")
+        if self.llm_provider.lower() == "transformers" and isinstance(self.llm_model, str):
+            model_path = Path(self.llm_model)
+            if model_path.is_absolute() or ".." in model_path.parts:
+                raise ValueError("llm_model must not contain path traversal components.")
         if self.llm_backend is None:
             self.llm_backend = self.llm_provider
         if self.temperature is None:
@@ -265,6 +267,7 @@ def build_app_config(json_config: dict) -> AppConfig:
         llm_seed=int(_get_nested(json_config, "models.llm_seed", 42)),
         tts_provider=_get_nested(json_config, "models.tts_provider", "xtts"),
         tts_voice=_get_nested(json_config, "models.tts_voice"),
+        tts_speed=float(_get_nested(json_config, "models.tts_speed", 1.08)),
 
         # API settings from JSON
         rate_limit=_get_nested(json_config, "api.rate_limit", "30/minute"),
