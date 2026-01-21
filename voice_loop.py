@@ -239,7 +239,7 @@ class WakeWordListener:
             if self._callback_count % 100 == 1:
                 logger.info(f"<<< detect_wakeword RETURNED: {result}")
 
-            if result:
+            if bool(result):
                 logger.info("!!! WAKE WORD DETECTED IN CALLBACK - calling loop.call_soon_threadsafe to set event")
                 if self.loop is None:
                     logger.error("!!! ERROR: loop is None - cannot schedule event.set()!")
@@ -263,11 +263,11 @@ class AsyncRexAssistant:
     def __init__(self, config: AppConfig | None = None) -> None:
         self.config = config or load_config()
         self.language_model = LanguageModel(self.config)
-        if self.config.wake_sound_path:
-            try:
-                ensure_wake_acknowledgment_sound(path=self.config.wake_sound_path)
-            except Exception as exc:
-                logger.warning("Failed to generate wake acknowledgment sound: %s", exc)
+        self._wake_sound_path: str | None = None
+        try:
+            self._wake_sound_path = ensure_wake_acknowledgment_sound(path=self.config.wake_sound_path)
+        except Exception as exc:
+            logger.warning("Failed to generate wake acknowledgment sound: %s", exc)
         self._wake_model, self._wake_keyword = load_wakeword_model(
             keyword=self.config.wakeword_keyword,
             backend=self.config.wakeword_backend,
@@ -280,7 +280,10 @@ class AsyncRexAssistant:
 
         # Load audio config and resolve device with validation
         audio_config = load_audio_config()
-        configured_device = audio_config.get("input_device_index") or self.config.audio_input_device
+        if self.config.audio_input_device is not None:
+            configured_device = self.config.audio_input_device
+        else:
+            configured_device = audio_config.get("input_device_index")
         resolved_device, status_msg = resolve_audio_device(configured_device, self._sample_rate)
 
         if resolved_device is None:
@@ -320,6 +323,8 @@ class AsyncRexAssistant:
         self._register_plugins_as_tools()
 
         self._running = True
+        self._state = "initialized"
+        self._stop_requested_by: str | None = None
 
     def _get_tts(self) -> TTS:
         if self._tts is None:
@@ -389,6 +394,12 @@ class AsyncRexAssistant:
                 logger.warning("Failed to register web_search tool: %s", exc)
 
     async def run(self) -> None:
+        if self._state in {"starting", "running"}:
+            logger.warning("Assistant start requested while already %s; ignoring duplicate start.", self._state)
+            return
+        self._state = "starting"
+        self._running = True
+
         # Log wake word details right before starting (this is in background thread so GUI will see it)
         logger.info(f"Starting wake word listener for keyword: '{self._wake_keyword}' (threshold: {self.config.wakeword_threshold})")
         logger.info(f"Wake word model type: {type(self._wake_model).__name__}")
@@ -401,11 +412,26 @@ class AsyncRexAssistant:
 
         # Pre-load models in background thread for faster first response
         logger.info("Pre-loading Whisper and TTS models in background...")
-        await asyncio.to_thread(self._get_whisper)  # Pre-load Whisper
-        await asyncio.to_thread(self._get_tts)      # Pre-load TTS on GPU
-        logger.info("Models pre-loaded successfully")
+        try:
+            await asyncio.to_thread(self._get_whisper)  # Pre-load Whisper
+            await asyncio.to_thread(self._get_tts)      # Pre-load TTS on GPU
+            logger.info("Models pre-loaded successfully")
+        except Exception:
+            logger.exception("Model preloading failed with an exception")
+            self._running = False
+            self._state = "stopped"
+            return
+
+        if not self._running:
+            logger.info(
+                "Stop requested before wake listener start; aborting startup (requested_by=%s).",
+                self._stop_requested_by or "unknown",
+            )
+            self._state = "stopped"
+            return
 
         self._listener.start()
+        self._state = "running"
         try:
             logger.info(">>> Entering main run loop - waiting for wake word...")
             while self._running:
@@ -421,6 +447,7 @@ class AsyncRexAssistant:
                 logger.info(">>> _handle_interaction() completed")
         finally:
             self._listener.stop()
+            self._state = "stopped"
 
     async def _handle_interaction(self) -> None:
         import time
@@ -620,14 +647,16 @@ class AsyncRexAssistant:
                 os.remove("assistant_response.wav")
 
     def _play_wake_sound(self) -> None:
-        path = self.config.wake_sound_path
-        if not path:
-            logger.debug("No wake sound path configured - skipping acknowledgment tone")
+        path = self._wake_sound_path or self.config.wake_sound_path
+        try:
+            path = ensure_wake_acknowledgment_sound(path=path)
+        except Exception as exc:
+            logger.warning("Wake acknowledgment sound unavailable: %s", exc)
             return
 
         # Check if file exists
         if not Path(path).exists():
-            logger.warning(f"Wake sound file not found: {path}")
+            logger.warning("Wake sound file not found after ensure: %s", path)
             return
 
         # Use platform-specific playback for reliability
@@ -701,6 +730,11 @@ class AsyncRexAssistant:
         return False
 
     def stop(self) -> None:
+        self.stop_requested_by("unknown")
+
+    def stop_requested_by(self, requested_by: str) -> None:
+        self._stop_requested_by = requested_by
+        logger.info("Stop requested by %s (state=%s, running=%s)", requested_by, self._state, self._running)
         self._running = False
         self._listener.trigger()
 

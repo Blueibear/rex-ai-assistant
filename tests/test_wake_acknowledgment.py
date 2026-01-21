@@ -54,3 +54,17 @@ def test_cleanup_removes_legacy_assets(tmp_path):
 
     assert not legacy_one.exists()
     assert not legacy_two.exists()
+
+
+def test_default_path_created_when_missing(tmp_path):
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    target = repo_root / DEFAULT_WAKE_ACK_RELATIVE_PATH
+    assert not target.exists()
+
+    result = ensure_wake_acknowledgment_sound(repo_root=str(repo_root))
+
+    created = Path(result)
+    assert created.exists()
+    assert created == target
