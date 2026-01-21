@@ -96,6 +96,7 @@ class AssistantGUI(tk.Tk):
         self.assistant: AsyncRexAssistant | None = None
         self.thread: threading.Thread | None = None
         self.running = False
+        self._start_in_progress = False
 
         self.status_var = tk.StringVar(value="Idle")
         self.user_var = tk.StringVar(value=f"Active user: {self.config.default_user or 'auto'}")
@@ -484,11 +485,15 @@ class AssistantGUI(tk.Tk):
         if self.running:
             self._log_to_gui("Already running.")
             return
+        if self._start_in_progress:
+            self._log_to_gui("Start already in progress.")
+            return
         if self.profile_error:
             self._log_to_gui(f"ERROR: {self.profile_error}")
             return
 
         try:
+            self._start_in_progress = True
             # Save audio device selection before starting
             self._save_audio_device()
 
@@ -518,6 +523,7 @@ class AssistantGUI(tk.Tk):
             self._log_to_gui(f"ERROR starting assistant:\n{error_details}")
             self.status_var.set(f"Start Failed: {exc}")
             self.running = False
+            self._start_in_progress = False
             self.start_button.configure(state="normal")
             self.stop_button.configure(state="disabled")
 
@@ -533,15 +539,18 @@ class AssistantGUI(tk.Tk):
             self.after(0, lambda exc=exc: self.status_var.set(f"Crashed: {exc}"))
         finally:
             self.running = False
+            self._start_in_progress = False
             self.after(0, lambda: self.start_button.configure(state="normal"))
             self.after(0, lambda: self.stop_button.configure(state="disabled"))
 
     def stop_assistant(self) -> None:
         """Stop the assistant with proper cleanup."""
-        self._log_to_gui("Stopping assistant...")
+        self._log_to_gui(
+            f"Stopping assistant... (running={self.running}, starting={self._start_in_progress})"
+        )
         if self.assistant:
             try:
-                self.assistant.stop()
+                self.assistant.stop_requested_by("GUI stop button")
             except Exception as exc:
                 LOGGER.exception("Error stopping assistant")
                 self._log_to_gui(f"Error during stop: {exc}")

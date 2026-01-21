@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 # Default sample rate for wake word detection
 DEFAULT_SAMPLE_RATE = 16000
+DEFAULT_REX_CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "rex_config.json"
 
 
 class AudioDeviceInfo:
@@ -161,65 +162,117 @@ def get_smart_default_device(
 
 def load_audio_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
     """
-    Load audio configuration from JSON file.
+    Load audio configuration from rex_config.json.
 
     Returns dict with keys:
         - input_device_index: int or None
+        - output_device_index: int or None
         - sample_rate: int (default 16000)
     """
     if config_path is None:
-        config_path = Path(__file__).parent.parent / "config" / "audio_config.json"
+        config_path = DEFAULT_REX_CONFIG_PATH
 
     if not config_path.exists():
-        logger.debug(f"Audio config not found at {config_path}, using defaults")
-        return {"input_device_index": None, "sample_rate": DEFAULT_SAMPLE_RATE}
+        logger.warning("Audio config not found at %s, using defaults", config_path)
+        return {
+            "input_device_index": None,
+            "output_device_index": None,
+            "sample_rate": DEFAULT_SAMPLE_RATE,
+        }
 
     try:
         with open(config_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
+        audio_section = data.get("audio", {}) if isinstance(data, dict) else {}
+        if not isinstance(audio_section, dict):
+            logger.warning("Audio config section is invalid in %s, using defaults", config_path)
+            audio_section = {}
+
         # Validate and normalize
-        device_idx = data.get("input_device_index")
+        device_idx = audio_section.get("input_device_index")
         if device_idx is not None:
             device_idx = int(device_idx)
             if device_idx < 0:
                 logger.warning(f"Invalid device index {device_idx} in config, ignoring")
                 device_idx = None
 
-        sample_rate = int(data.get("sample_rate", DEFAULT_SAMPLE_RATE))
+        output_device_idx = audio_section.get("output_device_index")
+        if output_device_idx is not None:
+            output_device_idx = int(output_device_idx)
+            if output_device_idx < 0:
+                logger.warning("Invalid output device index %s in config, ignoring", output_device_idx)
+                output_device_idx = None
+
+        sample_rate = int(audio_section.get("sample_rate", DEFAULT_SAMPLE_RATE))
 
         return {
             "input_device_index": device_idx,
+            "output_device_index": output_device_idx,
             "sample_rate": sample_rate,
         }
     except Exception as exc:
-        logger.error(f"Failed to load audio config from {config_path}: {exc}")
-        return {"input_device_index": None, "sample_rate": DEFAULT_SAMPLE_RATE}
+        logger.error("Failed to load audio config from %s: %s", config_path, exc)
+        return {
+            "input_device_index": None,
+            "output_device_index": None,
+            "sample_rate": DEFAULT_SAMPLE_RATE,
+        }
 
 
 def save_audio_config(
     input_device_index: Optional[int],
+    output_device_index: Optional[int] = None,
     sample_rate: int = DEFAULT_SAMPLE_RATE,
     config_path: Optional[Path] = None,
 ) -> None:
-    """Save audio configuration to JSON file."""
+    """Save audio configuration to rex_config.json."""
     if config_path is None:
-        config_path = Path(__file__).parent.parent / "config" / "audio_config.json"
+        config_path = DEFAULT_REX_CONFIG_PATH
 
     # Ensure config directory exists
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
-    data = {
-        "input_device_index": input_device_index,
-        "sample_rate": sample_rate,
-    }
+    data: Dict[str, Any]
+    if config_path.exists():
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as exc:
+            logger.warning("Failed to read existing rex config at %s: %s", config_path, exc)
+            data = {}
+    else:
+        logger.warning("Rex config not found at %s. Creating a new config file.", config_path)
+        data = {}
+
+    if not isinstance(data, dict):
+        data = {}
+
+    audio_section = data.get("audio")
+    if not isinstance(audio_section, dict):
+        audio_section = {}
+
+    audio_section.update(
+        {
+            "input_device_index": input_device_index,
+            "output_device_index": output_device_index,
+            "sample_rate": sample_rate,
+        }
+    )
+    data["audio"] = audio_section
 
     try:
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
-        logger.info(f"Saved audio config to {config_path}: device={input_device_index}, rate={sample_rate}")
+        logger.info(
+            "Saved audio config to %s: input=%s output=%s rate=%s",
+            config_path,
+            input_device_index,
+            output_device_index,
+            sample_rate,
+        )
     except Exception as exc:
-        logger.error(f"Failed to save audio config to {config_path}: {exc}")
+        logger.error("Failed to save audio config to %s: %s", config_path, exc)
 
 
 def resolve_audio_device(
@@ -285,4 +338,5 @@ __all__ = [
     "save_audio_config",
     "resolve_audio_device",
     "DEFAULT_SAMPLE_RATE",
+    "DEFAULT_REX_CONFIG_PATH",
 ]

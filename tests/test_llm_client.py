@@ -80,7 +80,7 @@ def test_openai_provider(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test")
     monkeypatch.setattr(LanguageModel, "_ensure_openai_client", lambda self: fake_client)
 
-    cfg = AppConfig(llm_model="openai:gpt-test", llm_provider="openai")
+    cfg = AppConfig(llm_model=None, llm_provider="openai", openai_model="gpt-test")
     model = LanguageModel(cfg)
 
     completion = model.generate(messages=[{"role": "user", "content": "hello"}])

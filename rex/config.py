@@ -157,10 +157,14 @@ class AppConfig:
         return raw
 
     def __post_init__(self) -> None:
-        if self.llm_provider.lower() == "transformers" and isinstance(self.llm_model, str):
+        provider = self.llm_provider.lower()
+        local_path_providers = {"transformers"}
+        if provider in local_path_providers and isinstance(self.llm_model, str):
             model_path = Path(self.llm_model)
             if model_path.is_absolute() or ".." in model_path.parts:
                 raise ValueError("llm_model must not contain path traversal components.")
+        if provider == "openai" and not self.openai_model:
+            raise ValueError("openai.model must be set when llm_provider is 'openai'.")
         if self.llm_backend is None:
             self.llm_backend = self.llm_provider
         if self.temperature is None:
