@@ -2,17 +2,23 @@
 
 All tool calls are evaluated by the policy engine before execution to determine
 whether they should auto-execute, require approval, or be denied.
+
+Tool executions are automatically logged to the audit log for accountability
+and traceability. Sensitive data is redacted before being written to the log.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import time
+import uuid
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Callable
+from datetime import datetime, timezone
+from typing import Any, Callable, Literal
 from zoneinfo import ZoneInfo
 
+from rex.audit import LogEntry, get_audit_logger
 from rex.contracts import ToolCall
 from rex.policy_engine import PolicyEngine, get_policy_engine
 
@@ -92,6 +98,9 @@ def execute_tool(
     *,
     policy_engine: PolicyEngine | None = None,
     skip_policy_check: bool = False,
+    task_id: str | None = None,
+    requested_by: str | None = None,
+    skip_audit_log: bool = False,
 ) -> dict[str, Any]:
     """Execute a tool request and return a result dictionary.
 
@@ -100,12 +109,18 @@ def execute_tool(
     a PolicyDeniedError is raised. If approval is required, an
     ApprovalRequiredError is raised.
 
+    All tool executions (successful or failed) are logged to the audit log
+    unless skip_audit_log is True.
+
     Args:
         request: Tool request dict with 'tool' and 'args' keys.
         default_context: Default context for tool execution.
         policy_engine: Optional policy engine instance. If not provided,
             uses the default singleton.
         skip_policy_check: If True, skip the policy check. Use with caution.
+        task_id: Optional task ID for audit logging.
+        requested_by: Optional identifier of who requested the action.
+        skip_audit_log: If True, skip audit logging. Use with caution.
 
     Returns:
         A result dictionary with the tool output or error.
@@ -126,6 +141,11 @@ def execute_tool(
     if not isinstance(args, dict):
         return _error_result("Invalid tool arguments", tool=tool, args={})
 
+    # Generate action ID for audit logging
+    action_id = f"act_{uuid.uuid4().hex[:12]}"
+    policy_decision: Literal["allowed", "denied", "requires_approval"] = "allowed"
+    start_time = time.monotonic()
+
     # Check policy before execution
     if not skip_policy_check:
         engine = policy_engine or get_policy_engine()
@@ -135,21 +155,119 @@ def execute_tool(
 
         if decision.denied:
             logger.warning("Policy denied tool=%s: %s", tool, decision.reason)
+            policy_decision = "denied"
+            # Log the denial before raising
+            if not skip_audit_log:
+                _log_audit_entry(
+                    action_id=action_id,
+                    task_id=task_id,
+                    tool=tool,
+                    args=args,
+                    policy_decision=policy_decision,
+                    result=None,
+                    error=f"Policy denied: {decision.reason}",
+                    start_time=start_time,
+                    requested_by=requested_by,
+                )
             raise PolicyDeniedError(tool, decision.reason)
 
         if decision.requires_approval:
             logger.info("Policy requires approval for tool=%s: %s", tool, decision.reason)
+            policy_decision = "requires_approval"
+            # Log the approval requirement before raising
+            if not skip_audit_log:
+                _log_audit_entry(
+                    action_id=action_id,
+                    task_id=task_id,
+                    tool=tool,
+                    args=args,
+                    policy_decision=policy_decision,
+                    result=None,
+                    error=f"Requires approval: {decision.reason}",
+                    start_time=start_time,
+                    requested_by=requested_by,
+                )
             raise ApprovalRequiredError(tool, decision.reason)
 
         logger.debug("Policy allowed tool=%s: %s", tool, decision.reason)
 
-    if tool == "time_now":
-        return _execute_time_now(args, default_context)
+    # Execute the tool
+    result: dict[str, Any]
+    error: str | None = None
 
-    if tool in {"weather_now", "web_search"}:
-        return _error_result(f"Tool {tool} is not implemented", tool=tool, args=args)
+    try:
+        if tool == "time_now":
+            result = _execute_time_now(args, default_context)
+        elif tool in {"weather_now", "web_search"}:
+            result = _error_result(f"Tool {tool} is not implemented", tool=tool, args=args)
+            error = f"Tool {tool} is not implemented"
+        else:
+            result = _error_result(f"Unknown tool {tool}", tool=tool, args=args)
+            error = f"Unknown tool {tool}"
+    except Exception as e:
+        result = _error_result(str(e), tool=tool, args=args)
+        error = str(e)
 
-    return _error_result(f"Unknown tool {tool}", tool=tool, args=args)
+    # Log to audit
+    if not skip_audit_log:
+        _log_audit_entry(
+            action_id=action_id,
+            task_id=task_id,
+            tool=tool,
+            args=args,
+            policy_decision=policy_decision,
+            result=result,
+            error=error,
+            start_time=start_time,
+            requested_by=requested_by,
+        )
+
+    return result
+
+
+def _log_audit_entry(
+    action_id: str,
+    task_id: str | None,
+    tool: str,
+    args: dict[str, Any],
+    policy_decision: Literal["allowed", "denied", "requires_approval"],
+    result: dict[str, Any] | None,
+    error: str | None,
+    start_time: float,
+    requested_by: str | None,
+) -> None:
+    """Log an audit entry for a tool execution.
+
+    Args:
+        action_id: Unique action identifier.
+        task_id: Optional parent task ID.
+        tool: Tool name.
+        args: Tool arguments.
+        policy_decision: Policy engine decision.
+        result: Tool result (if any).
+        error: Error message (if any).
+        start_time: Monotonic time when execution started.
+        requested_by: Who requested the action.
+    """
+    try:
+        duration_ms = int((time.monotonic() - start_time) * 1000)
+        entry = LogEntry(
+            timestamp=datetime.now(timezone.utc),
+            action_id=action_id,
+            task_id=task_id,
+            tool=tool,
+            tool_call_args=args,
+            policy_decision=policy_decision,
+            tool_result=result,
+            error=error,
+            requested_by=requested_by,
+            duration_ms=duration_ms,
+        )
+        audit_logger = get_audit_logger()
+        audit_logger.log(entry)
+    except Exception as e:
+        # Don't let audit logging failures break tool execution
+        logger.error("Failed to log audit entry: %s", e)
 
 
 def _extract_policy_metadata(args: dict[str, Any]) -> dict[str, Any]:
