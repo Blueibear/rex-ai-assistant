@@ -2,6 +2,60 @@
 
 Rex Contracts are versioned Pydantic schemas that define the internal data structures used across all Rex components: voice node, web dashboard, gateway API, tool adapters, audit log, and scheduler.
 
+## Installation
+
+### Installing Rex
+
+Rex uses modern Python packaging with `pyproject.toml`. To install:
+
+```bash
+# Clone the repository
+git clone https://github.com/Blueibear/rex-ai-assistant.git
+cd rex-ai-assistant
+
+# Install in development/editable mode
+pip install -e .
+
+# Or install with development dependencies
+pip install -e ".[dev]"
+```
+
+### Verifying Installation
+
+After installation, run the doctor command to verify your environment:
+
+```bash
+rex doctor
+```
+
+Or via the Python module:
+
+```bash
+python -m rex doctor
+```
+
+This checks for:
+- Python version compatibility
+- Configuration files
+- Required environment variables
+- External dependencies (ffmpeg, etc.)
+
+See [docs/doctor.md](doctor.md) for detailed documentation.
+
+### CLI Commands
+
+After installation, the following commands are available:
+
+| Command | Description |
+|---------|-------------|
+| `rex` or `rex chat` | Start interactive chat |
+| `rex doctor` | Run environment diagnostics |
+| `rex version` | Show version information |
+| `rex-config` | Configuration management |
+| `rex-speak-api` | Start the TTS API server |
+
+---
+
 ## Purpose
 
 Contracts provide:

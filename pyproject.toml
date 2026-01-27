@@ -106,7 +106,7 @@ gpu-cu124 = [
 ]
 
 [project.scripts]
-rex = "rex_assistant:main"
+rex = "rex.cli:main"
 rex-config = "rex.config:_cli"
 rex-speak-api = "rex_speak_api:main"
 
