@@ -25,4 +25,45 @@ except Exception as exc:  # pragma: no cover - defensive guard for import-time c
 
     settings = None  # type: ignore[assignment]
 
-__all__ = ["settings", "reload_settings", "configure_logging"]
+# Credential management
+from .credentials import (
+    Credential,
+    CredentialManager,
+    CredentialRefreshError,
+    get_credential_manager,
+    set_credential_manager,
+    mask_token,
+)
+
+# Tool registry
+from .tool_registry import (
+    ToolMeta,
+    ToolRegistry,
+    ToolNotFoundError,
+    MissingCredentialError,
+    get_tool_registry,
+    set_tool_registry,
+    register_tool,
+)
+
+__all__ = [
+    # Configuration
+    "settings",
+    "reload_settings",
+    "configure_logging",
+    # Credential management
+    "Credential",
+    "CredentialManager",
+    "CredentialRefreshError",
+    "get_credential_manager",
+    "set_credential_manager",
+    "mask_token",
+    # Tool registry
+    "ToolMeta",
+    "ToolRegistry",
+    "ToolNotFoundError",
+    "MissingCredentialError",
+    "get_tool_registry",
+    "set_tool_registry",
+    "register_tool",
+]

@@ -406,7 +406,23 @@ curl -X POST http://localhost:5000/speak \
   --output speech.wav
 ```
 
-### 5. Health Check & Diagnostics
+### 5. Tool Registry & Credential Management
+
+View registered tools and their status:
+
+```bash
+# List all tools with status
+rex tools
+
+# Verbose output with credential and health details
+rex tools -v
+```
+
+Rex includes a centralized credential vault and tool registry. See:
+- [docs/credentials.md](docs/credentials.md) - Credential management
+- [docs/tools.md](docs/tools.md) - Tool registry and health checks
+
+### 6. Health Check & Diagnostics
 
 Run the doctor script to verify your setup:
 
@@ -429,7 +445,7 @@ Platform: Darwin 22.6.0 (arm64)
 Summary: 1 warning(s) detected.
 ```
 
-### 6. Testing Individual Components
+### 7. Testing Individual Components
 
 **Test Whisper transcription:**
 ```bash

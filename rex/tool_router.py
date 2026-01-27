@@ -5,6 +5,10 @@ whether they should auto-execute, require approval, or be denied.
 
 Tool executions are automatically logged to the audit log for accountability
 and traceability. Sensitive data is redacted before being written to the log.
+
+Tools are registered in the ToolRegistry, which provides metadata and health
+checks. Before execution, required credentials are validated via the
+CredentialManager.
 """
 
 from __future__ import annotations
@@ -21,6 +25,11 @@ from zoneinfo import ZoneInfo
 from rex.audit import LogEntry, get_audit_logger
 from rex.contracts import ToolCall
 from rex.policy_engine import PolicyEngine, get_policy_engine
+from rex.tool_registry import (
+    MissingCredentialError,
+    ToolRegistry,
+    get_tool_registry,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +63,23 @@ class ApprovalRequiredError(Exception):
         self.tool = tool
         self.reason = reason
         super().__init__(f"Tool '{tool}' requires approval: {reason}")
+
+
+class CredentialMissingError(Exception):
+    """Raised when required credentials are not configured for a tool.
+
+    This exception signals that the user needs to configure credentials
+    before the tool can be executed.
+    """
+
+    def __init__(self, tool: str, missing_credentials: list[str]) -> None:
+        self.tool = tool
+        self.missing_credentials = missing_credentials
+        creds = ", ".join(missing_credentials)
+        super().__init__(
+            f"Tool '{tool}' requires credentials that are not configured: {creds}. "
+            f"Please configure: {creds}"
+        )
 
 
 def parse_tool_request(text: str) -> dict[str, Any] | None:
@@ -97,15 +123,19 @@ def execute_tool(
     default_context: dict[str, Any],
     *,
     policy_engine: PolicyEngine | None = None,
+    tool_registry: ToolRegistry | None = None,
     skip_policy_check: bool = False,
+    skip_credential_check: bool = False,
     task_id: str | None = None,
     requested_by: str | None = None,
     skip_audit_log: bool = False,
 ) -> dict[str, Any]:
     """Execute a tool request and return a result dictionary.
 
-    Before executing a tool, the policy engine is consulted to determine
-    whether the action should proceed. If the policy denies the action,
+    Before executing a tool, credentials are validated against the tool's
+    requirements, and the policy engine is consulted to determine whether
+    the action should proceed. If credentials are missing, a
+    CredentialMissingError is raised. If the policy denies the action,
     a PolicyDeniedError is raised. If approval is required, an
     ApprovalRequiredError is raised.
 
@@ -117,7 +147,10 @@ def execute_tool(
         default_context: Default context for tool execution.
         policy_engine: Optional policy engine instance. If not provided,
             uses the default singleton.
+        tool_registry: Optional tool registry instance. If not provided,
+            uses the default singleton.
         skip_policy_check: If True, skip the policy check. Use with caution.
+        skip_credential_check: If True, skip credential validation.
         task_id: Optional task ID for audit logging.
         requested_by: Optional identifier of who requested the action.
         skip_audit_log: If True, skip audit logging. Use with caution.
@@ -126,6 +159,7 @@ def execute_tool(
         A result dictionary with the tool output or error.
 
     Raises:
+        CredentialMissingError: If required credentials are not configured.
         PolicyDeniedError: If the policy engine denies the action.
         ApprovalRequiredError: If the action requires user approval.
     """
@@ -145,6 +179,31 @@ def execute_tool(
     action_id = f"act_{uuid.uuid4().hex[:12]}"
     policy_decision: Literal["allowed", "denied", "requires_approval"] = "allowed"
     start_time = time.monotonic()
+
+    # Check credentials before execution
+    if not skip_credential_check:
+        registry = tool_registry or get_tool_registry()
+        tool_meta = registry.get_tool(tool)
+        if tool_meta is not None:
+            all_available, missing = registry.check_credentials(tool)
+            if not all_available:
+                logger.warning(
+                    "Missing credentials for tool=%s: %s", tool, ", ".join(missing)
+                )
+                # Log the credential failure before raising
+                if not skip_audit_log:
+                    _log_audit_entry(
+                        action_id=action_id,
+                        task_id=task_id,
+                        tool=tool,
+                        args=args,
+                        policy_decision="denied",
+                        result=None,
+                        error=f"Missing credentials: {', '.join(missing)}",
+                        start_time=start_time,
+                        requested_by=requested_by,
+                    )
+                raise CredentialMissingError(tool, missing)
 
     # Check policy before execution
     if not skip_policy_check:
@@ -360,6 +419,10 @@ def route_if_tool_request(
             policy_engine=policy_engine,
             skip_policy_check=skip_policy_check,
         )
+    except CredentialMissingError as e:
+        logger.warning("Tool request missing credentials: %s", e)
+        creds = ", ".join(e.missing_credentials)
+        return f"I cannot execute that action. Missing credentials: {creds}. Please configure them first."
     except PolicyDeniedError as e:
         logger.warning("Tool request denied: %s", e)
         return f"I cannot execute that action: {e.reason}"
@@ -433,4 +496,5 @@ __all__ = [
     "route_if_tool_request",
     "PolicyDeniedError",
     "ApprovalRequiredError",
+    "CredentialMissingError",
 ]

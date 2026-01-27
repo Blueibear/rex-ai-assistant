@@ -72,7 +72,12 @@ def test_execute_tool_unknown_tool_returns_error():
 
 
 def test_execute_tool_weather_now_returns_not_implemented_error_payload():
-    result = execute_tool({"tool": "weather_now", "args": {"location": "Dallas, TX"}}, {})
+    # Skip credential check since we're testing the "not implemented" behavior
+    result = execute_tool(
+        {"tool": "weather_now", "args": {"location": "Dallas, TX"}},
+        {},
+        skip_credential_check=True,
+    )
     assert result == {
         "error": {
             "message": "Tool weather_now is not implemented",
@@ -83,7 +88,12 @@ def test_execute_tool_weather_now_returns_not_implemented_error_payload():
 
 
 def test_execute_tool_web_search_returns_not_implemented_error_payload():
-    result = execute_tool({"tool": "web_search", "args": {"query": "hello"}}, {})
+    # Skip credential check since we're testing the "not implemented" behavior
+    result = execute_tool(
+        {"tool": "web_search", "args": {"query": "hello"}},
+        {},
+        skip_credential_check=True,
+    )
     assert result == {
         "error": {
             "message": "Tool web_search is not implemented",
@@ -93,7 +103,8 @@ def test_execute_tool_web_search_returns_not_implemented_error_payload():
     }
 
 
-def test_route_if_tool_request_returns_tool_result_for_weather_now():
+def test_route_if_tool_request_returns_credential_error_for_weather_now():
+    """Test that weather_now returns credential missing message when not configured."""
     calls: list[dict[str, str] | None] = []
 
     def model_call(message: dict[str, str] | None = None) -> str:
@@ -104,13 +115,13 @@ def test_route_if_tool_request_returns_tool_result_for_weather_now():
 
     result = route_if_tool_request(model_call(), {}, model_call)
 
-    assert result == "weather response"
-    payload = json.loads(calls[1]["content"].split("TOOL_RESULT: ", 1)[1])
-    assert payload["tool"] == "weather_now"
-    assert payload["result"]["error"]["message"] == "Tool weather_now is not implemented"
+    # Should return credential error since weather_now requires weather_api credential
+    assert "Missing credentials" in result
+    assert "weather_api" in result
 
 
-def test_route_if_tool_request_returns_tool_result_for_web_search():
+def test_route_if_tool_request_returns_credential_error_for_web_search():
+    """Test that web_search can execute without credentials (no required creds)."""
     calls: list[dict[str, str] | None] = []
 
     def model_call(message: dict[str, str] | None = None) -> str:
@@ -121,6 +132,7 @@ def test_route_if_tool_request_returns_tool_result_for_web_search():
 
     result = route_if_tool_request(model_call(), {}, model_call)
 
+    # web_search has no required credentials, so it should execute (but return not implemented)
     assert result == "search response"
     payload = json.loads(calls[1]["content"].split("TOOL_RESULT: ", 1)[1])
     assert payload["tool"] == "web_search"
