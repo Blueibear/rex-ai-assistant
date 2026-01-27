@@ -1,0 +1,64 @@
+{
+  "description": "A request to invoke a tool.\n\nTool calls represent requests from the AI or user to execute\na specific tool with given arguments.",
+  "examples": [
+    {
+      "args": {
+        "location": "Dallas, TX"
+      },
+      "created_at": "2024-01-15T10:30:00Z",
+      "requested_by": "assistant",
+      "tool": "time_now"
+    }
+  ],
+  "properties": {
+    "tool": {
+      "description": "Name of the tool to invoke",
+      "title": "Tool",
+      "type": "string"
+    },
+    "args": {
+      "additionalProperties": true,
+      "description": "Arguments to pass to the tool",
+      "title": "Args",
+      "type": "object"
+    },
+    "requested_by": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Identifier of who/what requested this tool call (user, AI, scheduler)",
+      "title": "Requested By"
+    },
+    "idempotency_key": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional key to ensure idempotent execution",
+      "title": "Idempotency Key"
+    },
+    "created_at": {
+      "description": "When the tool call was created",
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "tool"
+  ],
+  "title": "ToolCall",
+  "type": "object",
+  "$comment": "Rex Contract Schema v0.1.0"
+}

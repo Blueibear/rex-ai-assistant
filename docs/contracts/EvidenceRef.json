@@ -1,0 +1,72 @@
+{
+  "description": "Reference to evidence supporting an action or result.\n\nEvidence can be screenshots, log files, links, or other artifacts\nthat provide context or proof of an action's execution.",
+  "examples": [
+    {
+      "created_at": "2024-01-15T10:30:00Z",
+      "evidence_id": "ev_001",
+      "kind": "screenshot",
+      "sha256": "abc123...",
+      "uri": "s3://bucket/screenshots/ev_001.png"
+    }
+  ],
+  "properties": {
+    "evidence_id": {
+      "description": "Unique identifier for this evidence reference",
+      "title": "Evidence Id",
+      "type": "string"
+    },
+    "kind": {
+      "description": "Type of evidence",
+      "enum": [
+        "screenshot",
+        "log",
+        "file",
+        "link",
+        "message_id",
+        "event_id",
+        "other"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "uri": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "URI or path to the evidence resource",
+      "title": "Uri"
+    },
+    "sha256": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "SHA-256 hash of the evidence content for integrity verification",
+      "title": "Sha256"
+    },
+    "created_at": {
+      "description": "When the evidence was created or captured",
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "evidence_id",
+    "kind"
+  ],
+  "title": "EvidenceRef",
+  "type": "object",
+  "$comment": "Rex Contract Schema v0.1.0"
+}

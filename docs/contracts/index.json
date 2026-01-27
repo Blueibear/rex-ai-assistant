@@ -1,0 +1,41 @@
+{
+  "contract_version": "0.1.0",
+  "generated_at": "2026-01-27T11:35:39.251515+00:00",
+  "schemas": [
+    {
+      "model": "EvidenceRef",
+      "file": "EvidenceRef.json",
+      "description": "Reference to evidence supporting an action or result."
+    },
+    {
+      "model": "ToolCall",
+      "file": "ToolCall.json",
+      "description": "A request to invoke a tool."
+    },
+    {
+      "model": "ToolResult",
+      "file": "ToolResult.json",
+      "description": "Result of a tool invocation."
+    },
+    {
+      "model": "Approval",
+      "file": "Approval.json",
+      "description": "An approval request and its resolution."
+    },
+    {
+      "model": "Action",
+      "file": "Action.json",
+      "description": "A discrete action within a task."
+    },
+    {
+      "model": "Task",
+      "file": "Task.json",
+      "description": "A task representing a unit of work in Rex."
+    },
+    {
+      "model": "Notification",
+      "file": "Notification.json",
+      "description": "A notification to be delivered to users."
+    }
+  ]
+}

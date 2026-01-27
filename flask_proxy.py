@@ -11,6 +11,16 @@ from flask_cors import CORS
 import utils.env_loader  # Auto-loads .env on import
 from memory_utils import load_memory_profile, load_users_map, resolve_user_key
 
+# Import contract version for /contracts endpoint
+try:
+    from rex.contracts import CONTRACT_VERSION
+    from rex.contracts.core import ALL_MODELS
+    _CONTRACTS_AVAILABLE = True
+except ImportError:
+    CONTRACT_VERSION = None
+    ALL_MODELS = []
+    _CONTRACTS_AVAILABLE = False
+
 _TESTING_MODE = os.getenv("REX_TESTING", "").lower() in {"1", "true", "yes"}
 if _TESTING_MODE:
     g = SimpleNamespace()
@@ -99,9 +109,17 @@ def _is_loopback_address(addr: str | None) -> bool:
     return addr in {"127.0.0.1", "::1"}
 
 
+# --- Public Endpoints (no auth required) ---
+_PUBLIC_PATHS = frozenset({"/contracts"})
+
+
 # --- Request Hooks ---
 @app.before_request
 def load_user_memory():
+    # Skip auth for public endpoints
+    if request.path in _PUBLIC_PATHS:
+        return
+
     if _TESTING_MODE:
         g.__dict__.clear()
 
@@ -171,6 +189,20 @@ def search():
         return jsonify({"error": f"Search provider error: {e}"}), 502
 
     return jsonify({"query": query, "result": result})
+
+
+@app.route("/contracts")
+def contracts():
+    """Return contract schema metadata for discoverability."""
+    if not _CONTRACTS_AVAILABLE:
+        return jsonify({"error": "Contracts module not available"}), 503
+
+    model_names = [model.__name__ for model in ALL_MODELS]
+    return jsonify({
+        "contract_version": CONTRACT_VERSION,
+        "schema_docs_path": "docs/contracts/",
+        "models": model_names,
+    })
 
 
 # --- Entry Point ---
