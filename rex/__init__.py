@@ -13,7 +13,16 @@ from __future__ import annotations
 # This must be imported early to patch libraries before they're used
 from .compat import ensure_transformers_compatibility  # noqa: F401
 
-from .config import reload_settings, settings
 from .logging_utils import configure_logging
+
+try:
+    from .config import reload_settings, settings
+except Exception as exc:  # pragma: no cover - defensive guard for import-time config failures
+    _config_import_error = exc
+
+    def reload_settings(*args, **kwargs):  # type: ignore[no-redef]
+        raise RuntimeError("Rex configuration failed to load.") from _config_import_error
+
+    settings = None  # type: ignore[assignment]
 
 __all__ = ["settings", "reload_settings", "configure_logging"]

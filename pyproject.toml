@@ -107,7 +107,7 @@ gpu-cu124 = [
 
 [project.scripts]
 rex = "rex.cli:main"
-rex-config = "rex.config:_cli"
+rex-config = "rex.config:cli"
 rex-speak-api = "rex_speak_api:main"
 
 [project.urls]
@@ -116,7 +116,7 @@ Repository = "https://github.com/Blueibear/rex-ai-assistant"
 Issues = "https://github.com/Blueibear/rex-ai-assistant/issues"
 
 [tool.setuptools]
-packages = ["rex"]
+packages = {find = {include = ["rex*"]}}
 # Top-level modules are specified in setup.py (pyproject.toml doesn't support py_modules)
 
 [tool.setuptools.package-data]
