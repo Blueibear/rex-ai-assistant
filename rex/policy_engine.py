@@ -245,8 +245,19 @@ class PolicyEngine:
                     denied=True,
                 )
 
-        # Check allowed recipients (if specified, recipient must be in list)
-        if policy.allowed_recipients is not None and recipient:
+        # Check allowed recipients (if specified, recipient must be present and in list)
+        if policy.allowed_recipients is not None:
+            if not recipient:
+                logger.info(
+                    "Denying tool=%s: recipient required for allowed list",
+                    tool_call.tool,
+                )
+                return PolicyDecision(
+                    allowed=False,
+                    reason="Recipient is required but missing for allowed list",
+                    requires_approval=False,
+                    denied=True,
+                )
             if not self._matches_list(recipient, policy.allowed_recipients):
                 logger.info(
                     "Denying tool=%s: recipient %s not in allowed list",
@@ -260,8 +271,19 @@ class PolicyEngine:
                     denied=True,
                 )
 
-        # Check allowed domains (if specified, domain must be in list)
-        if policy.allowed_domains is not None and domain:
+        # Check allowed domains (if specified, domain must be present and in list)
+        if policy.allowed_domains is not None:
+            if not domain:
+                logger.info(
+                    "Denying tool=%s: domain required for allowed list",
+                    tool_call.tool,
+                )
+                return PolicyDecision(
+                    allowed=False,
+                    reason="Domain is required but missing for allowed list",
+                    requires_approval=False,
+                    denied=True,
+                )
             if not self._matches_list(domain, policy.allowed_domains):
                 logger.info(
                     "Denying tool=%s: domain %s not in allowed list",

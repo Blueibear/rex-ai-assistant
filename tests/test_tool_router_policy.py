@@ -298,6 +298,40 @@ class TestMetadataExtraction:
                 policy_engine=engine,
             )
 
+    def test_allowed_recipients_requires_recipient(self):
+        """Test that allowed_recipients denies when no recipient provided."""
+        policy = ActionPolicy(
+            tool_name="test",
+            risk=RiskLevel.LOW,
+            allow_auto=True,
+            allowed_recipients=["allowed@test.com"],
+        )
+        engine = PolicyEngine(policies=[policy])
+
+        with pytest.raises(PolicyDeniedError):
+            execute_tool(
+                {"tool": "test", "args": {}},
+                {},
+                policy_engine=engine,
+            )
+
+    def test_allowed_domains_requires_domain(self):
+        """Test that allowed_domains denies when no domain provided."""
+        policy = ActionPolicy(
+            tool_name="test",
+            risk=RiskLevel.LOW,
+            allow_auto=True,
+            allowed_domains=["allowed.com"],
+        )
+        engine = PolicyEngine(policies=[policy])
+
+        with pytest.raises(PolicyDeniedError):
+            execute_tool(
+                {"tool": "test", "args": {}},
+                {},
+                policy_engine=engine,
+            )
+
 
 class TestExceptionDetails:
     """Tests for exception details."""
