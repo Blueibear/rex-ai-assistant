@@ -1,0 +1,78 @@
+{
+  "description": "A notification to be delivered to users.\n\nNotifications inform users about task status, required approvals,\nsystem events, or other important information.",
+  "examples": [
+    {
+      "body": "Your time check request has been completed.",
+      "channel": "dashboard",
+      "created_at": "2024-01-15T10:30:05Z",
+      "metadata": {
+        "task_id": "task_001"
+      },
+      "notification_id": "notif_001",
+      "priority": "normal",
+      "title": "Task Completed"
+    }
+  ],
+  "properties": {
+    "notification_id": {
+      "description": "Unique identifier for this notification",
+      "title": "Notification Id",
+      "type": "string"
+    },
+    "channel": {
+      "description": "Delivery channel for the notification",
+      "enum": [
+        "dashboard",
+        "push",
+        "email",
+        "ha_tts",
+        "sms",
+        "other"
+      ],
+      "title": "Channel",
+      "type": "string"
+    },
+    "priority": {
+      "default": "normal",
+      "description": "Priority level affecting delivery timing",
+      "enum": [
+        "urgent",
+        "normal",
+        "digest"
+      ],
+      "title": "Priority",
+      "type": "string"
+    },
+    "title": {
+      "description": "Notification title/subject",
+      "title": "Title",
+      "type": "string"
+    },
+    "body": {
+      "description": "Notification body content",
+      "title": "Body",
+      "type": "string"
+    },
+    "created_at": {
+      "description": "When the notification was created",
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "description": "Additional metadata for the notification",
+      "title": "Metadata",
+      "type": "object"
+    }
+  },
+  "required": [
+    "notification_id",
+    "channel",
+    "title",
+    "body"
+  ],
+  "title": "Notification",
+  "type": "object",
+  "$comment": "Rex Contract Schema v0.1.0"
+}

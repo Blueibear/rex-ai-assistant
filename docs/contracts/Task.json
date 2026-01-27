@@ -1,0 +1,525 @@
+{
+  "$defs": {
+    "Action": {
+      "description": "A discrete action within a task.\n\nActions represent individual steps that Rex takes, such as tool calls,\napproval requests, or other operations. Each action tracks its risk\nlevel and associated data.",
+      "examples": [
+        {
+          "action_id": "act_001",
+          "created_at": "2024-01-15T10:30:00Z",
+          "kind": "tool_call",
+          "risk": "low",
+          "task_id": "task_001",
+          "tool_call": {
+            "args": {
+              "location": "Dallas, TX"
+            },
+            "created_at": "2024-01-15T10:30:00Z",
+            "tool": "time_now"
+          }
+        }
+      ],
+      "properties": {
+        "action_id": {
+          "description": "Unique identifier for this action",
+          "title": "Action Id",
+          "type": "string"
+        },
+        "task_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ID of the parent task, if any",
+          "title": "Task Id"
+        },
+        "kind": {
+          "description": "Type of action (e.g., 'tool_call', 'approval_request', 'notification')",
+          "title": "Kind",
+          "type": "string"
+        },
+        "risk": {
+          "default": "low",
+          "description": "Risk level of this action",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "title": "Risk",
+          "type": "string"
+        },
+        "tool_call": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolCall"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tool call details if this is a tool action"
+        },
+        "tool_result": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ToolResult"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tool result if the tool has been executed"
+        },
+        "approval": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Approval"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Approval details if this action requires/required approval"
+        },
+        "created_at": {
+          "description": "When this action was created",
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_id",
+        "kind"
+      ],
+      "title": "Action",
+      "type": "object"
+    },
+    "Approval": {
+      "description": "An approval request and its resolution.\n\nApprovals gate high-risk actions, requiring human review before\nexecution proceeds.",
+      "examples": [
+        {
+          "approval_id": "apr_001",
+          "decided_at": "2024-01-15T10:35:00Z",
+          "decided_by": "james",
+          "reason": "Routine maintenance action",
+          "requested_at": "2024-01-15T10:30:00Z",
+          "requested_by": "scheduler",
+          "status": "approved"
+        }
+      ],
+      "properties": {
+        "approval_id": {
+          "description": "Unique identifier for this approval",
+          "title": "Approval Id",
+          "type": "string"
+        },
+        "status": {
+          "description": "Current status of the approval",
+          "enum": [
+            "pending",
+            "approved",
+            "denied",
+            "expired"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reason for the approval decision",
+          "title": "Reason"
+        },
+        "requested_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Who requested this approval",
+          "title": "Requested By"
+        },
+        "decided_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Who made the approval decision",
+          "title": "Decided By"
+        },
+        "requested_at": {
+          "description": "When the approval was requested",
+          "format": "date-time",
+          "title": "Requested At",
+          "type": "string"
+        },
+        "decided_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "When the approval decision was made",
+          "title": "Decided At"
+        }
+      },
+      "required": [
+        "approval_id",
+        "status"
+      ],
+      "title": "Approval",
+      "type": "object"
+    },
+    "EvidenceRef": {
+      "description": "Reference to evidence supporting an action or result.\n\nEvidence can be screenshots, log files, links, or other artifacts\nthat provide context or proof of an action's execution.",
+      "examples": [
+        {
+          "created_at": "2024-01-15T10:30:00Z",
+          "evidence_id": "ev_001",
+          "kind": "screenshot",
+          "sha256": "abc123...",
+          "uri": "s3://bucket/screenshots/ev_001.png"
+        }
+      ],
+      "properties": {
+        "evidence_id": {
+          "description": "Unique identifier for this evidence reference",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Type of evidence",
+          "enum": [
+            "screenshot",
+            "log",
+            "file",
+            "link",
+            "message_id",
+            "event_id",
+            "other"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "URI or path to the evidence resource",
+          "title": "Uri"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 hash of the evidence content for integrity verification",
+          "title": "Sha256"
+        },
+        "created_at": {
+          "description": "When the evidence was created or captured",
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "kind"
+      ],
+      "title": "EvidenceRef",
+      "type": "object"
+    },
+    "ToolCall": {
+      "description": "A request to invoke a tool.\n\nTool calls represent requests from the AI or user to execute\na specific tool with given arguments.",
+      "examples": [
+        {
+          "args": {
+            "location": "Dallas, TX"
+          },
+          "created_at": "2024-01-15T10:30:00Z",
+          "requested_by": "assistant",
+          "tool": "time_now"
+        }
+      ],
+      "properties": {
+        "tool": {
+          "description": "Name of the tool to invoke",
+          "title": "Tool",
+          "type": "string"
+        },
+        "args": {
+          "additionalProperties": true,
+          "description": "Arguments to pass to the tool",
+          "title": "Args",
+          "type": "object"
+        },
+        "requested_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Identifier of who/what requested this tool call (user, AI, scheduler)",
+          "title": "Requested By"
+        },
+        "idempotency_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional key to ensure idempotent execution",
+          "title": "Idempotency Key"
+        },
+        "created_at": {
+          "description": "When the tool call was created",
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool"
+      ],
+      "title": "ToolCall",
+      "type": "object"
+    },
+    "ToolResult": {
+      "description": "Result of a tool invocation.\n\nContains the outcome of a tool call, including success/failure status,\noutput data, any errors, and optional evidence.",
+      "examples": [
+        {
+          "finished_at": "2024-01-15T10:30:01Z",
+          "ok": true,
+          "output": {
+            "local_time": "2024-01-15 10:30",
+            "timezone": "America/Chicago"
+          },
+          "started_at": "2024-01-15T10:30:00Z",
+          "tool": "time_now"
+        }
+      ],
+      "properties": {
+        "tool": {
+          "description": "Name of the tool that was invoked",
+          "title": "Tool",
+          "type": "string"
+        },
+        "ok": {
+          "description": "Whether the tool execution succeeded",
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tool output data on success",
+          "title": "Output"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Error message if the tool failed",
+          "title": "Error"
+        },
+        "evidence": {
+          "description": "Evidence collected during tool execution",
+          "items": {
+            "$ref": "#/$defs/EvidenceRef"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "When tool execution started",
+          "title": "Started At"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "When tool execution completed",
+          "title": "Finished At"
+        }
+      },
+      "required": [
+        "tool",
+        "ok"
+      ],
+      "title": "ToolResult",
+      "type": "object"
+    }
+  },
+  "description": "A task representing a unit of work in Rex.\n\nTasks group related actions together and track overall progress.\nThey can be created by users, the AI, or scheduled jobs.",
+  "examples": [
+    {
+      "created_at": "2024-01-15T10:30:00Z",
+      "requested_by": "user:james",
+      "status": "completed",
+      "summary": "Successfully retrieved local time",
+      "task_id": "task_001",
+      "title": "Check current time in Dallas",
+      "updated_at": "2024-01-15T10:30:05Z"
+    }
+  ],
+  "properties": {
+    "task_id": {
+      "description": "Unique identifier for this task",
+      "title": "Task Id",
+      "type": "string"
+    },
+    "title": {
+      "description": "Human-readable title describing the task",
+      "title": "Title",
+      "type": "string"
+    },
+    "status": {
+      "default": "queued",
+      "description": "Current status of the task",
+      "enum": [
+        "queued",
+        "running",
+        "blocked",
+        "completed",
+        "failed",
+        "canceled"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "requested_by": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Who/what created this task",
+      "title": "Requested By"
+    },
+    "created_at": {
+      "description": "When the task was created",
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "updated_at": {
+      "description": "When the task was last updated",
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    },
+    "actions": {
+      "description": "Actions that are part of this task",
+      "items": {
+        "$ref": "#/$defs/Action"
+      },
+      "title": "Actions",
+      "type": "array"
+    },
+    "summary": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional summary or notes about the task outcome",
+      "title": "Summary"
+    }
+  },
+  "required": [
+    "task_id",
+    "title"
+  ],
+  "title": "Task",
+  "type": "object",
+  "$comment": "Rex Contract Schema v0.1.0"
+}

@@ -1,0 +1,170 @@
+{
+  "$defs": {
+    "EvidenceRef": {
+      "description": "Reference to evidence supporting an action or result.\n\nEvidence can be screenshots, log files, links, or other artifacts\nthat provide context or proof of an action's execution.",
+      "examples": [
+        {
+          "created_at": "2024-01-15T10:30:00Z",
+          "evidence_id": "ev_001",
+          "kind": "screenshot",
+          "sha256": "abc123...",
+          "uri": "s3://bucket/screenshots/ev_001.png"
+        }
+      ],
+      "properties": {
+        "evidence_id": {
+          "description": "Unique identifier for this evidence reference",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Type of evidence",
+          "enum": [
+            "screenshot",
+            "log",
+            "file",
+            "link",
+            "message_id",
+            "event_id",
+            "other"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "URI or path to the evidence resource",
+          "title": "Uri"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 hash of the evidence content for integrity verification",
+          "title": "Sha256"
+        },
+        "created_at": {
+          "description": "When the evidence was created or captured",
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "kind"
+      ],
+      "title": "EvidenceRef",
+      "type": "object"
+    }
+  },
+  "description": "Result of a tool invocation.\n\nContains the outcome of a tool call, including success/failure status,\noutput data, any errors, and optional evidence.",
+  "examples": [
+    {
+      "finished_at": "2024-01-15T10:30:01Z",
+      "ok": true,
+      "output": {
+        "local_time": "2024-01-15 10:30",
+        "timezone": "America/Chicago"
+      },
+      "started_at": "2024-01-15T10:30:00Z",
+      "tool": "time_now"
+    }
+  ],
+  "properties": {
+    "tool": {
+      "description": "Name of the tool that was invoked",
+      "title": "Tool",
+      "type": "string"
+    },
+    "ok": {
+      "description": "Whether the tool execution succeeded",
+      "title": "Ok",
+      "type": "boolean"
+    },
+    "output": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Tool output data on success",
+      "title": "Output"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Error message if the tool failed",
+      "title": "Error"
+    },
+    "evidence": {
+      "description": "Evidence collected during tool execution",
+      "items": {
+        "$ref": "#/$defs/EvidenceRef"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "started_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "When tool execution started",
+      "title": "Started At"
+    },
+    "finished_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "When tool execution completed",
+      "title": "Finished At"
+    }
+  },
+  "required": [
+    "tool",
+    "ok"
+  ],
+  "title": "ToolResult",
+  "type": "object",
+  "$comment": "Rex Contract Schema v0.1.0"
+}

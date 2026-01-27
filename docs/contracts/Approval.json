@@ -1,0 +1,98 @@
+{
+  "description": "An approval request and its resolution.\n\nApprovals gate high-risk actions, requiring human review before\nexecution proceeds.",
+  "examples": [
+    {
+      "approval_id": "apr_001",
+      "decided_at": "2024-01-15T10:35:00Z",
+      "decided_by": "james",
+      "reason": "Routine maintenance action",
+      "requested_at": "2024-01-15T10:30:00Z",
+      "requested_by": "scheduler",
+      "status": "approved"
+    }
+  ],
+  "properties": {
+    "approval_id": {
+      "description": "Unique identifier for this approval",
+      "title": "Approval Id",
+      "type": "string"
+    },
+    "status": {
+      "description": "Current status of the approval",
+      "enum": [
+        "pending",
+        "approved",
+        "denied",
+        "expired"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Reason for the approval decision",
+      "title": "Reason"
+    },
+    "requested_by": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Who requested this approval",
+      "title": "Requested By"
+    },
+    "decided_by": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Who made the approval decision",
+      "title": "Decided By"
+    },
+    "requested_at": {
+      "description": "When the approval was requested",
+      "format": "date-time",
+      "title": "Requested At",
+      "type": "string"
+    },
+    "decided_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "When the approval decision was made",
+      "title": "Decided At"
+    }
+  },
+  "required": [
+    "approval_id",
+    "status"
+  ],
+  "title": "Approval",
+  "type": "object",
+  "$comment": "Rex Contract Schema v0.1.0"
+}
