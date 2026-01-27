@@ -8,7 +8,7 @@ import pytest
 
 pytest.importorskip("pydantic")
 
-from rex.audit import LogEntry
+from rex.audit import LogEntry, replay as audit_replay
 from rex.contracts import ToolCall
 from rex.replay import (
     ReplayResult,
@@ -194,6 +194,17 @@ class TestReplay:
         assert result.notes is not None
         assert "STUB" in result.notes
         assert "future phase" in result.notes.lower()
+
+    def test_audit_replay_wrapper(self):
+        """Audit replay wrapper should return a ReplayResult."""
+        entry = LogEntry(
+            action_id="act_006",
+            tool="time_now",
+            tool_call_args={"location": "Dallas"},
+            policy_decision="allowed",
+        )
+        result = audit_replay(entry)
+        assert isinstance(result, ReplayResult)
 
     def test_replay_has_timestamp(self):
         """ReplayResult should have replayed_at timestamp."""
