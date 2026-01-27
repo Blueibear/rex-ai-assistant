@@ -132,6 +132,20 @@ class TestAuditLogger:
             logger.log(entry)
             assert logger.log_path.exists()
 
+    def test_log_path_override(self):
+        """AuditLogger should honor log_path when provided."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_path = Path(tmpdir) / "custom" / "audit.log"
+            logger = AuditLogger(log_path=log_path)
+            entry = LogEntry(
+                action_id="act_002",
+                tool="time_now",
+                policy_decision="allowed",
+            )
+            logger.log(entry)
+            assert logger.log_path == log_path
+            assert log_path.exists()
+
     def test_log_writes_json_line(self):
         """Log entries should be written as JSON lines."""
         with tempfile.TemporaryDirectory() as tmpdir:

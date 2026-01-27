@@ -132,6 +132,15 @@ logger = AuditLogger(
 )
 ```
 
+You can also provide a full path to the log file directly:
+
+```python
+from pathlib import Path
+from rex.audit import AuditLogger
+
+logger = AuditLogger(log_path=Path("/custom/logs/audit.log"))
+```
+
 ## Redaction and Privacy
 
 ### Automatic Redaction

@@ -14,9 +14,7 @@ before being written to disk to prevent sensitive data exposure.
 
 from __future__ import annotations
 
-import json
 import logging
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
@@ -131,18 +129,25 @@ class AuditLogger:
         self,
         log_dir: Path | str | None = None,
         log_file: str = DEFAULT_LOG_FILE,
+        log_path: Path | str | None = None,
     ) -> None:
         """Initialize the audit logger.
 
         Args:
             log_dir: Directory to store log files. Defaults to data/logs.
             log_file: Name of the log file. Defaults to audit.log.
+            log_path: Optional full path to the log file. Overrides log_dir/log_file.
         """
-        if log_dir is None:
-            log_dir = DEFAULT_LOG_DIR
-        self._log_dir = Path(log_dir)
-        self._log_file = log_file
-        self._log_path = self._log_dir / self._log_file
+        if log_path is not None:
+            self._log_path = Path(log_path)
+            self._log_dir = self._log_path.parent
+            self._log_file = self._log_path.name
+        else:
+            if log_dir is None:
+                log_dir = DEFAULT_LOG_DIR
+            self._log_dir = Path(log_dir)
+            self._log_file = log_file
+            self._log_path = self._log_dir / self._log_file
         self._lock = Lock()
         self._ensure_log_dir()
 
@@ -344,11 +349,22 @@ def reset_audit_logger() -> None:
         _default_audit_logger = None
 
 
+def replay(entry: LogEntry, *, dry_run: bool = True) -> Any:
+    """Replay a tool execution from an audit log entry.
+
+    This is a convenience wrapper for rex.replay.replay.
+    """
+    from rex.replay import replay as _replay
+
+    return _replay(entry, dry_run=dry_run)
+
+
 __all__ = [
     "LogEntry",
     "AuditLogger",
     "get_audit_logger",
     "reset_audit_logger",
+    "replay",
     "DEFAULT_LOG_DIR",
     "DEFAULT_LOG_FILE",
 ]
