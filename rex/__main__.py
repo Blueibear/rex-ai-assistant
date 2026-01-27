@@ -2,31 +2,27 @@
 
 This module allows running Rex as a Python module:
     python -m rex
+    python -m rex doctor
+    python -m rex chat
+    python -m rex version
 
 It also enables installation as a console script via pyproject.toml.
 """
 
 from __future__ import annotations
 
-# Load .env before accessing any environment variables
-from utils.env_loader import load as _load_env
-
-_load_env()
-
 import sys
 
-# Import the main function from the top-level script
-# This maintains backward compatibility while providing a proper package entry point
+# Load .env before accessing any environment variables
 try:
-    from rex_assistant import main
+    from utils.env_loader import load as _load_env
+
+    _load_env()
 except ImportError:
-    # Fallback if the module structure is different
-    import os
-    import sys
+    # utils may not be available if running from installed package
+    pass
 
-    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-    from rex_assistant import main
-
+from rex.cli import main
 
 if __name__ == "__main__":
     sys.exit(main())
