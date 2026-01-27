@@ -4,6 +4,7 @@ This module provides the main CLI entry point with subcommands:
     rex doctor  - Run environment diagnostics
     rex chat    - Start interactive chat (default)
     rex version - Show version information
+    rex tools   - List registered tools and their status
 
 Usage:
     rex [command] [options]
@@ -110,6 +111,59 @@ def cmd_version(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_tools(args: argparse.Namespace) -> int:
+    """List registered tools and their status."""
+    from rex.tool_registry import get_tool_registry
+
+    registry = get_tool_registry()
+    tools = registry.list_tools(include_disabled=args.all)
+
+    if not tools:
+        print("No tools registered.")
+        return 0
+
+    print("Rex Tool Registry")
+    print("=" * 60)
+    print()
+
+    for tool in tools:
+        status = registry.get_tool_status(tool.name)
+
+        # Status indicators
+        if status["ready"]:
+            ready_icon = "[READY]"
+        elif not status["enabled"]:
+            ready_icon = "[DISABLED]"
+        elif not status["credentials_available"]:
+            ready_icon = "[NO CREDS]"
+        elif not status["health_ok"]:
+            ready_icon = "[UNHEALTHY]"
+        else:
+            ready_icon = "[UNKNOWN]"
+
+        print(f"{tool.name} {ready_icon}")
+        print(f"  Description: {tool.description}")
+
+        if args.verbose:
+            print(f"  Version: {tool.version}")
+            if tool.capabilities:
+                print(f"  Capabilities: {', '.join(tool.capabilities)}")
+            if tool.required_credentials:
+                print(f"  Required credentials: {', '.join(tool.required_credentials)}")
+            if status["missing_credentials"]:
+                print(f"  Missing credentials: {', '.join(status['missing_credentials'])}")
+            print(f"  Health: {status['health_message']}")
+
+        print()
+
+    # Summary
+    total = len(tools)
+    ready = sum(1 for t in tools if registry.get_tool_status(t.name)["ready"])
+    print(f"Total: {total} tools, {ready} ready")
+
+    return 0
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser with all subcommands."""
     parser = argparse.ArgumentParser(
@@ -122,6 +176,8 @@ Examples:
   rex doctor -v       Run diagnostics with verbose output
   rex chat            Start interactive chat
   rex version         Show version information
+  rex tools           List registered tools and status
+  rex tools -v        Show detailed tool information
 
 For more information, visit: https://github.com/Blueibear/rex-ai-assistant
 """,
@@ -182,6 +238,26 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Show dependency versions",
     )
     version_parser.set_defaults(func=cmd_version)
+
+    # tools subcommand
+    tools_parser = subparsers.add_parser(
+        "tools",
+        help="List registered tools and their status",
+        description="Display all registered tools with health status and credential availability.",
+    )
+    tools_parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Show detailed tool information",
+    )
+    tools_parser.add_argument(
+        "-a",
+        "--all",
+        action="store_true",
+        help="Include disabled tools",
+    )
+    tools_parser.set_defaults(func=cmd_tools)
 
     return parser
 
