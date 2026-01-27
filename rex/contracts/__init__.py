@@ -9,7 +9,12 @@ Usage:
         CONTRACT_VERSION,
         Task, Action, ToolCall, ToolResult,
         Approval, Notification, EvidenceRef,
+        RiskLevel,  # Used by policy engine
     )
+
+See Also:
+    rex.policy: Policy models (ActionPolicy, PolicyDecision)
+    rex.policy_engine: Policy engine for tool call evaluation
 """
 
 from rex.contracts.version import CONTRACT_VERSION, get_version_info

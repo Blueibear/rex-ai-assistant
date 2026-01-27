@@ -66,7 +66,8 @@ def test_route_if_tool_request_does_not_call_model_for_normal_text():
 
 
 def test_execute_tool_unknown_tool_returns_error():
-    result = execute_tool({"tool": "unknown", "args": {}}, {})
+    # Skip policy check to test the tool routing logic directly
+    result = execute_tool({"tool": "unknown", "args": {}}, {}, skip_policy_check=True)
     assert "error" in result
 
 
@@ -165,7 +166,8 @@ def test_unknown_tool_returns_tool_result_line():
             return 'TOOL_REQUEST: {"tool":"unknown_tool","args":{"value":1}}'
         return "unknown response"
 
-    result = route_if_tool_request(model_call(), {}, model_call)
+    # Skip policy check to test the tool routing logic directly
+    result = route_if_tool_request(model_call(), {}, model_call, skip_policy_check=True)
 
     assert result == "unknown response"
     payload = json.loads(calls[1]["content"].split("TOOL_RESULT: ", 1)[1])
