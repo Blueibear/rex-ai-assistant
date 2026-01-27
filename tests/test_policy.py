@@ -271,6 +271,36 @@ class TestPolicyEngineDecisions:
         decision = engine.decide(tool_call, {"domain": "external.com"})
         assert decision.denied is True
 
+    def test_allowed_recipients_requires_recipient(self):
+        """Test that allowed_recipients requires a recipient to be provided."""
+        policy = ActionPolicy(
+            tool_name="test_tool",
+            risk=RiskLevel.LOW,
+            allow_auto=True,
+            allowed_recipients=["trusted@example.com"],
+        )
+        engine = PolicyEngine(policies=[policy])
+        tool_call = ToolCall(tool="test_tool", args={})
+
+        decision = engine.decide(tool_call, {})
+        assert decision.denied is True
+        assert "recipient" in decision.reason.lower()
+
+    def test_allowed_domains_requires_domain(self):
+        """Test that allowed_domains requires a domain to be provided."""
+        policy = ActionPolicy(
+            tool_name="test_tool",
+            risk=RiskLevel.LOW,
+            allow_auto=True,
+            allowed_domains=["company.com"],
+        )
+        engine = PolicyEngine(policies=[policy])
+        tool_call = ToolCall(tool="test_tool", args={})
+
+        decision = engine.decide(tool_call, {})
+        assert decision.denied is True
+        assert "domain" in decision.reason.lower()
+
     def test_case_insensitive_matching(self):
         """Test that recipient/domain matching is case-insensitive."""
         policy = ActionPolicy(
