@@ -179,6 +179,7 @@ When specifying expiration times:
 - `24h` - 24 hours
 - `30m` - 30 minutes
 - `2w` - 2 weeks
+- `10s` - 10 seconds
 
 ## Sensitive Data Handling
 
