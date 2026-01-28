@@ -33,17 +33,12 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from rex.audit import get_audit_logger, AuditLogger
-from rex.contracts import EvidenceRef, ToolCall
+from rex.contracts import EvidenceRef
 from rex.policy_engine import PolicyEngine, get_policy_engine
-from rex.workflow import Workflow, WorkflowStep
-from rex.workflow_runner import (
-    WorkflowRunner,
-    RunResult,
-    ApprovalBlockedError,
-)
+from rex.workflow import Workflow, WorkflowStep, StepResult
+from rex.workflow_runner import WorkflowRunner, RunResult
 
 logger = logging.getLogger(__name__)
 
@@ -228,25 +223,22 @@ class Executor:
 
         self.start_time = time.time()
 
-        # Create workflow runner
+        # Create workflow runner with budget hooks
         runner = WorkflowRunner(
             self.workflow,
             policy_engine=self.policy_engine,
             audit_logger=self.audit_logger,
             workflow_dir=self.workflow_dir,
             approval_dir=self.approval_dir,
+            pre_step_hook=self._check_time_budget,
+            before_tool_call_hook=self._check_action_budget,
+            after_tool_call_hook=self._record_step,
         )
 
         # Execute workflow with budget checks
         try:
-            # Check if we can execute at all
-            self._check_budget()
-
             # Run workflow
             run_result = runner.run()
-
-            # Collect evidence and update counts
-            self._collect_evidence()
 
             # Generate summary
             summary = self._generate_summary(run_result)
@@ -289,38 +281,8 @@ class Executor:
                 summary=f"Execution failed: {e}",
             )
 
-    def _check_budget(self) -> None:
-        """Check if we've exceeded any budget limits.
-
-        Raises:
-            BudgetExceededError: If a budget limit is exceeded
-        """
-        # Check actions budget
-        if self.budget.max_actions > 0:
-            # Count remaining steps with tool calls
-            remaining_steps = 0
-            for i in range(self.workflow.current_step_index, len(self.workflow.steps)):
-                step = self.workflow.steps[i]
-                if step.tool_call is not None:
-                    remaining_steps += 1
-
-            if self.actions_taken >= self.budget.max_actions:
-                raise BudgetExceededError(
-                    "actions",
-                    self.budget.max_actions,
-                    self.actions_taken,
-                )
-
-        # Check messages budget
-        if self.budget.max_messages > 0:
-            if self.messages_sent >= self.budget.max_messages:
-                raise BudgetExceededError(
-                    "messages",
-                    self.budget.max_messages,
-                    self.messages_sent,
-                )
-
-        # Check time budget
+    def _check_time_budget(self, step: WorkflowStep) -> None:
+        """Check if the time budget has been exceeded."""
         if self.budget.max_time_seconds > 0 and self.start_time is not None:
             elapsed = time.time() - self.start_time
             if elapsed >= self.budget.max_time_seconds:
@@ -329,6 +291,46 @@ class Executor:
                     self.budget.max_time_seconds,
                     int(elapsed),
                 )
+
+    def _check_action_budget(self, step: WorkflowStep) -> None:
+        """Check action and message budgets before executing a tool call."""
+        if step.tool_call is None:
+            return
+
+        if self.budget.max_actions > 0 and self.actions_taken >= self.budget.max_actions:
+            raise BudgetExceededError(
+                "actions",
+                self.budget.max_actions,
+                self.actions_taken,
+            )
+
+        if self.budget.max_messages > 0:
+            if step.tool_call.tool in ("send_email", "send_sms", "send_notification"):
+                if self.messages_sent >= self.budget.max_messages:
+                    raise BudgetExceededError(
+                        "messages",
+                        self.budget.max_messages,
+                        self.messages_sent,
+                    )
+
+    def _record_step(self, step: WorkflowStep, result: StepResult) -> None:
+        """Record counts and evidence after a tool call executes."""
+        if step.tool_call is None:
+            return
+
+        self.actions_taken += 1
+
+        if step.tool_call.tool in ("send_email", "send_sms", "send_notification"):
+            self.messages_sent += 1
+
+        if result.success and result.output:
+            evidence = EvidenceRef(
+                evidence_id=f"ev_{self.workflow.workflow_id}_{step.step_id}",
+                kind="log",
+                uri=None,
+                created_at=result.executed_at,
+            )
+            self.evidence.append(evidence)
 
     def _collect_evidence(self) -> None:
         """Collect evidence from executed workflow steps."""
