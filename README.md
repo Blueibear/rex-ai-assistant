@@ -127,6 +127,34 @@ python install.py --auto-install-ffmpeg
 python install.py --mic-test
 ```
 
+### Full vs. Lean Install Scripts
+
+Use these scripts for supervised deployments with the service supervisor enabled:
+
+```bash
+# Full install with optional extras (sms + devtools) and systemd service setup
+./install_full.sh
+
+# Lean node install with minimal dependencies and a trimmed service list
+./install_lean.sh
+```
+
+Optional environment overrides:
+
+```bash
+REX_SERVICE_PORT=8765 REX_SKIP_SERVICE=1 ./install_full.sh
+REX_SERVICES=event_bus,workflow_runner,memory_store,credential_manager ./install_lean.sh
+```
+
+### Pip Installation
+
+Install from source or a built wheel:
+
+```bash
+pip install .
+pip install .[sms,devtools]
+```
+
 ### GPU Acceleration (Optional)
 
 #### CUDA 12.4 (Recommended for Windows 11)

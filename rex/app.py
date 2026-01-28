@@ -15,11 +15,12 @@ import argparse
 import logging
 import signal
 import sys
-from pathlib import Path
 
 from rex.logging_utils import configure_logging
+from rex.memory import get_long_term_memory, get_working_memory
 from rex.service_supervisor import ServiceSupervisor
 from rex.services import initialize_services
+from rex.credentials import get_credential_manager
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,15 @@ def main(argv: list[str] | None = None) -> int:
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Logging level (default: INFO)",
     )
+    parser.add_argument(
+        "--services",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated list of services to supervise "
+            "(default: scheduler,event_bus,workflow_runner,memory_store,credential_manager)"
+        ),
+    )
 
     args = parser.parse_args(argv)
 
@@ -81,6 +91,28 @@ def main(argv: list[str] | None = None) -> int:
     logger.info(f"Starting Rex runtime on health port {args.port}")
 
     try:
+        default_services = {
+            "scheduler",
+            "event_bus",
+            "workflow_runner",
+            "memory_store",
+            "credential_manager",
+        }
+        if args.services:
+            services_to_manage = {
+                name.strip()
+                for name in args.services.split(",")
+                if name.strip()
+            }
+        else:
+            services_to_manage = default_services
+        unknown_services = services_to_manage - default_services
+        if unknown_services:
+            logger.warning(
+                "Unknown service names specified: %s",
+                ", ".join(sorted(unknown_services)),
+            )
+
         # Initialize core services
         logger.info("Initializing core services...")
         services = initialize_services()
@@ -92,60 +124,111 @@ def main(argv: list[str] | None = None) -> int:
         # Register services
         logger.info("Registering managed services...")
 
-        # Scheduler service
-        def start_scheduler():
-            services.scheduler.start()
+        if "scheduler" in services_to_manage:
+            # Scheduler service
+            def start_scheduler():
+                services.scheduler.start()
 
-        def stop_scheduler():
-            services.scheduler.stop()
+            def stop_scheduler():
+                services.scheduler.stop()
 
-        def check_scheduler():
-            # Simple health check: scheduler thread is alive
-            return services.scheduler.is_running
+            def check_scheduler():
+                # Simple health check: scheduler thread is alive
+                return services.scheduler.is_running
 
-        _supervisor.register_service(
-            name="scheduler",
-            start_func=start_scheduler,
-            stop_func=stop_scheduler,
-            health_check_func=check_scheduler,
-        )
+            _supervisor.register_service(
+                name="scheduler",
+                start_func=start_scheduler,
+                stop_func=stop_scheduler,
+                health_check_func=check_scheduler,
+                metrics_func=services.scheduler.get_metrics,
+            )
 
-        # Event bus service
-        def start_event_bus():
-            # Event bus is passive, just mark as ready
-            logger.info("Event bus initialized")
+        if "event_bus" in services_to_manage:
+            # Event bus service
+            def start_event_bus():
+                # Event bus is passive, just mark as ready
+                logger.info("Event bus initialized")
 
-        def stop_event_bus():
-            logger.info("Stopping event bus")
+            def stop_event_bus():
+                logger.info("Stopping event bus")
 
-        def check_event_bus():
-            return True  # Event bus is always healthy (passive)
+            def check_event_bus():
+                return True  # Event bus is always healthy (passive)
 
-        _supervisor.register_service(
-            name="event_bus",
-            start_func=start_event_bus,
-            stop_func=stop_event_bus,
-            health_check_func=check_event_bus,
-        )
+            _supervisor.register_service(
+                name="event_bus",
+                start_func=start_event_bus,
+                stop_func=stop_event_bus,
+                health_check_func=check_event_bus,
+                metrics_func=services.event_bus.get_metrics,
+            )
 
-        # Workflow runner service (passive, but monitored for queue depth)
-        def start_workflow_runner():
-            logger.info("Workflow runner initialized")
+        if "workflow_runner" in services_to_manage:
+            # Workflow runner service (passive, but monitored for queue depth)
+            def start_workflow_runner():
+                logger.info("Workflow runner initialized")
 
-        def stop_workflow_runner():
-            logger.info("Stopping workflow runner")
+            def stop_workflow_runner():
+                logger.info("Stopping workflow runner")
 
-        def check_workflow_runner():
-            # Check if workflow runner is healthy (not overwhelmed)
-            # In a real implementation, check queue depth, etc.
-            return True
+            def check_workflow_runner():
+                # Check if workflow runner is healthy (not overwhelmed)
+                # In a real implementation, check queue depth, etc.
+                return True
 
-        _supervisor.register_service(
-            name="workflow_runner",
-            start_func=start_workflow_runner,
-            stop_func=stop_workflow_runner,
-            health_check_func=check_workflow_runner,
-        )
+            _supervisor.register_service(
+                name="workflow_runner",
+                start_func=start_workflow_runner,
+                stop_func=stop_workflow_runner,
+                health_check_func=check_workflow_runner,
+            )
+
+        if "memory_store" in services_to_manage:
+            def start_memory_store():
+                get_working_memory()
+                get_long_term_memory()
+                logger.info("Memory store initialized")
+
+            def stop_memory_store():
+                logger.info("Memory store shutdown complete")
+
+            def check_memory_store():
+                return True
+
+            def memory_metrics():
+                wm = get_working_memory()
+                ltm = get_long_term_memory()
+                return {
+                    "working_memory": wm.stats(),
+                    "long_term_memory": ltm.stats(),
+                }
+
+            _supervisor.register_service(
+                name="memory_store",
+                start_func=start_memory_store,
+                stop_func=stop_memory_store,
+                health_check_func=check_memory_store,
+                metrics_func=memory_metrics,
+            )
+
+        if "credential_manager" in services_to_manage:
+            def start_credential_manager():
+                get_credential_manager()
+                logger.info("Credential manager initialized")
+
+            def stop_credential_manager():
+                logger.info("Credential manager shutdown complete")
+
+            def check_credential_manager():
+                return True
+
+            _supervisor.register_service(
+                name="credential_manager",
+                start_func=start_credential_manager,
+                stop_func=stop_credential_manager,
+                health_check_func=check_credential_manager,
+            )
 
         # Setup graceful shutdown
         _setup_signal_handlers(_supervisor)

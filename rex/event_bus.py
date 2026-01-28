@@ -198,6 +198,14 @@ class EventBus:
             exc_info=True,
         )
 
+    def get_metrics(self) -> dict[str, int]:
+        """Return event bus metrics."""
+        with self._lock:
+            return {
+                "published_events": self._event_count,
+                "handler_errors": self._error_count,
+            }
+
     # -------------------------
     # Introspection / Maintenance
     # -------------------------
@@ -274,5 +282,4 @@ def set_event_bus(event_bus: EventBus) -> None:
 
 
 __all__ = ["Event", "EventBus", "get_event_bus", "set_event_bus"]
-
 

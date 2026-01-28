@@ -215,6 +215,26 @@ class Executor:
             BudgetExceededError: If a budget limit is exceeded (should not happen,
                 as we check before each step)
         """
+        if self.workflow.is_finished():
+            logger.info(
+                "Workflow %s already finished with status %s; skipping execution.",
+                self.workflow.workflow_id,
+                self.workflow.status,
+            )
+            return ExecutionResult(
+                workflow_id=self.workflow.workflow_id,
+                status=self.workflow.status,
+                actions_taken=0,
+                messages_sent=0,
+                elapsed_seconds=0.0,
+                budget=self.budget,
+                remaining_budget=self.budget,
+                evidence=[],
+                error=self.workflow.error,
+                blocking_approval_id=self.workflow.blocking_approval_id,
+                summary="Workflow already finished; skipped execution for idempotency.",
+            )
+
         logger.info(
             "Starting execution of workflow %s with budget %s",
             self.workflow.workflow_id,

@@ -184,6 +184,13 @@ class WorkingMemory:
         """Return the number of entries."""
         return len(self._entries)
 
+    def stats(self) -> dict[str, Any]:
+        """Return summary statistics for working memory."""
+        return {
+            "entries": len(self._entries),
+            "max_entries": self.max_entries,
+        }
+
 
 # =============================================================================
 # Long-Term Memory
@@ -513,6 +520,13 @@ class LongTermMemory:
     def __len__(self) -> int:
         """Return the number of non-expired entries."""
         return sum(1 for e in self._entries.values() if not e.is_expired())
+
+    def stats(self) -> dict[str, Any]:
+        """Return summary statistics for long-term memory."""
+        return {
+            "entries": len(self),
+            "categories": self.count_by_category(),
+        }
 
 
 # =============================================================================

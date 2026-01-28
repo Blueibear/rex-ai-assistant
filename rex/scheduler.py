@@ -43,6 +43,17 @@ logger = logging.getLogger(__name__)
 JobCallback = Callable[["ScheduledJob"], None]
 
 
+@dataclass
+class SchedulerMetrics:
+    """Cumulative metrics for scheduler execution."""
+
+    total_runs: int = 0
+    successful_runs: int = 0
+    failed_runs: int = 0
+    last_run_at: Optional[datetime] = None
+    last_failure_at: Optional[datetime] = None
+
+
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -107,6 +118,7 @@ class ScheduledJob:
     enabled: bool = True
     next_run: datetime = field(default_factory=_utc_now)
     last_run_at: Optional[datetime] = None
+    last_scheduled_run: Optional[datetime] = None
 
     # Execution
     callback_name: Optional[str] = None
@@ -148,6 +160,9 @@ class ScheduledJob:
             "enabled": self.enabled,
             "next_run": _ensure_tz(self.next_run).isoformat(),
             "last_run_at": _ensure_tz(self.last_run_at).isoformat() if self.last_run_at else None,
+            "last_scheduled_run": _ensure_tz(self.last_scheduled_run).isoformat()
+            if self.last_scheduled_run
+            else None,
             "max_runs": self.max_runs,
             "run_count": self.run_count,
             "callback_name": self.callback_name,
@@ -188,6 +203,7 @@ class ScheduledJob:
         # Parse times
         next_run = _parse_dt(data.get("next_run")) or _parse_dt(next_run_at)
         last_run = _parse_dt(data.get("last_run_at"))
+        last_scheduled_run = _parse_dt(data.get("last_scheduled_run"))
 
         # If next_run missing, compute it
         if next_run is None:
@@ -200,6 +216,7 @@ class ScheduledJob:
             enabled=enabled,
             next_run=_ensure_tz(next_run),
             last_run_at=_ensure_tz(last_run) if last_run else None,
+            last_scheduled_run=_ensure_tz(last_scheduled_run) if last_scheduled_run else None,
             max_runs=data.get("max_runs"),
             run_count=int(data.get("run_count", 0) or 0),
             callback_name=callback_name,
@@ -241,6 +258,7 @@ class Scheduler:
         self._lock = threading.RLock()
         self._jobs: dict[str, ScheduledJob] = {}
         self._callbacks: dict[str, JobCallback] = {}
+        self._metrics = SchedulerMetrics()
 
         self._running = False
         self._thread: Optional[threading.Thread] = None
@@ -474,6 +492,16 @@ class Scheduler:
                     return False
                 if job.max_runs is not None and job.run_count >= job.max_runs:
                     return False
+                scheduled_for = _ensure_tz(job.next_run)
+                if job.last_scheduled_run and _ensure_tz(job.last_scheduled_run) == scheduled_for:
+                    logger.info(
+                        "Skipping job %s: already ran for scheduled time %s",
+                        job.job_id,
+                        scheduled_for.isoformat(),
+                    )
+                    return False
+            else:
+                scheduled_for = _ensure_tz(job.next_run)
 
             callback_name = job.callback_name
 
@@ -494,8 +522,17 @@ class Scheduler:
         with self._lock:
             now = _ensure_tz(self._now())
             job.last_run_at = now
+            if not bypass:
+                job.last_scheduled_run = scheduled_for
             job.run_count += 1
             job.next_run = _calculate_next_run(job.schedule, from_time=now)
+            self._metrics.total_runs += 1
+            if ok:
+                self._metrics.successful_runs += 1
+                self._metrics.last_run_at = now
+            else:
+                self._metrics.failed_runs += 1
+                self._metrics.last_failure_at = now
 
         self._save_jobs()
         return ok
@@ -518,6 +555,32 @@ class Scheduler:
                     due.append(job.job_id)
 
         return due
+
+    def get_metrics(self) -> dict[str, Any]:
+        """Return scheduler metrics and queue depth."""
+        with self._lock:
+            now = _ensure_tz(self._now())
+            due_jobs = [
+                job
+                for job in self._jobs.values()
+                if job.enabled
+                and (job.max_runs is None or job.run_count < job.max_runs)
+                and _ensure_tz(job.next_run) <= now
+            ]
+            return {
+                "total_jobs": len(self._jobs),
+                "enabled_jobs": sum(1 for job in self._jobs.values() if job.enabled),
+                "due_jobs": len(due_jobs),
+                "total_runs": self._metrics.total_runs,
+                "successful_runs": self._metrics.successful_runs,
+                "failed_runs": self._metrics.failed_runs,
+                "last_run_at": self._metrics.last_run_at.isoformat()
+                if self._metrics.last_run_at
+                else None,
+                "last_failure_at": self._metrics.last_failure_at.isoformat()
+                if self._metrics.last_failure_at
+                else None,
+            }
 
     # -------------------------
     # Background loop (optional)
@@ -576,4 +639,3 @@ def set_scheduler(scheduler: Scheduler) -> None:
 
 
 __all__ = ["ScheduledJob", "JobDefinition", "Scheduler", "get_scheduler", "set_scheduler"]
-

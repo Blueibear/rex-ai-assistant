@@ -11,6 +11,7 @@ Provides GitHub API integration with:
 """
 
 import json
+import logging
 import subprocess
 import uuid
 from dataclasses import dataclass
@@ -24,6 +25,9 @@ from rex.audit import LogEntry, get_audit_logger
 from rex.credentials import get_credential_manager
 from rex.policy_engine import get_policy_engine
 from rex.contracts.core import ToolCall
+from rex.retry import RetryPolicy, retry_call
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -153,7 +157,7 @@ class GitHubService:
             "Accept": "application/vnd.github.v3+json",
         }
 
-        try:
+        def _do_request() -> dict[str, Any]:
             response = requests.request(
                 method=method,
                 url=url,
@@ -169,6 +173,26 @@ class GitHubService:
 
             return response.json()
 
+        retry_policy = RetryPolicy(
+            attempts=3,
+            initial_backoff_seconds=1.0,
+            backoff_multiplier=2.0,
+            max_backoff_seconds=8.0,
+            retry_exceptions=(requests.exceptions.RequestException,),
+        )
+
+        try:
+            return retry_call(
+                _do_request,
+                policy=retry_policy,
+                on_retry=lambda attempt, exc, delay: logger.warning(
+                    "GitHub request failed (attempt %d/%d). Retrying in %.1fs: %s",
+                    attempt,
+                    retry_policy.attempts,
+                    delay,
+                    exc,
+                ),
+            )
         except requests.exceptions.RequestException as e:
             raise RuntimeError(f"GitHub API request failed: {str(e)}") from e
 
