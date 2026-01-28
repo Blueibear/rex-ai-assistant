@@ -42,6 +42,11 @@ class TestParseTTL:
         result = _parse_ttl("30m")
         assert result == timedelta(minutes=30)
 
+    def test_parse_seconds(self):
+        """Test parsing seconds."""
+        result = _parse_ttl("10s")
+        assert result == timedelta(seconds=10)
+
     def test_parse_weeks(self):
         """Test parsing weeks."""
         result = _parse_ttl("2w")

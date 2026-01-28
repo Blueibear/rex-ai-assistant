@@ -434,7 +434,7 @@ def cmd_memory(args: argparse.Namespace) -> int:
             expires_in = _parse_ttl(args.ttl)
             if expires_in is None:
                 print(f"Error: Invalid TTL format: {args.ttl}")
-                print("Use formats like: 7d, 24h, 30m, 1w")
+                print("Use formats like: 7d, 24h, 30m, 1w, 10s")
                 return 1
 
         entry = ltm.add_entry(
@@ -705,7 +705,7 @@ def cmd_kb(args: argparse.Namespace) -> int:
 
 
 def _parse_ttl(ttl_str: str):
-    """Parse TTL string like '7d', '24h', '30m', '1w' into timedelta."""
+    """Parse TTL string like '7d', '24h', '30m', '1w', '10s' into timedelta."""
     from datetime import timedelta
 
     ttl_str = ttl_str.strip().lower()
@@ -721,6 +721,8 @@ def _parse_ttl(ttl_str: str):
             return timedelta(hours=int(ttl_str[:-1]))
         elif ttl_str.endswith("m"):
             return timedelta(minutes=int(ttl_str[:-1]))
+        elif ttl_str.endswith("s"):
+            return timedelta(seconds=int(ttl_str[:-1]))
         else:
             # Try parsing as days
             return timedelta(days=int(ttl_str))
@@ -940,6 +942,11 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         default=10,
         help="Number of entries to show (default: 10)",
     )
+    memory_recent.add_argument(
+        "--show-sensitive",
+        action="store_true",
+        help="No-op for working memory (kept for CLI compatibility)",
+    )
     memory_recent.set_defaults(func=cmd_memory)
 
     # memory add
@@ -961,7 +968,7 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     memory_add.add_argument(
         "--ttl",
         type=str,
-        help="Time to live (e.g., '7d', '24h', '30m', '1w')",
+        help="Time to live (e.g., '7d', '24h', '30m', '1w', '10s')",
     )
     memory_add.add_argument(
         "--sensitive",
