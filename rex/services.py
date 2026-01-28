@@ -56,8 +56,11 @@ def initialize_services(
     # Initialize notification system
     if notifications_path:
         notifications_path = Path(notifications_path) if isinstance(notifications_path, str) else notifications_path
-    notifier = Notifier(storage_path=notifications_path)
     escalation_manager = EscalationManager()
+    notifier = Notifier(
+        storage_path=notifications_path,
+        escalation_manager=escalation_manager,
+    )
 
     # Register scheduler handlers
     scheduler.register_handler("email_triage", lambda job: email.triage_unread())
@@ -92,13 +95,21 @@ def _check_escalations(notifier: Notifier, escalation_manager: EscalationManager
     """Check for notifications that need escalation and resend them."""
     to_escalate = escalation_manager.check_escalations()
     for notif_id, next_channel in to_escalate:
-        # In a real implementation, we would look up the original notification
-        # and resend it via the next channel. For now, we just log it.
-        from rex.notification import NotificationRequest
-        import logging
+        rule = escalation_manager.pending_escalations.get(notif_id)
+        if not rule:
+            continue
+        try:
+            notifier.send_to_channel(next_channel, rule.notification)
+        except Exception as exc:
+            import logging
 
-        logger = logging.getLogger(__name__)
-        logger.info(f"Would escalate notification {notif_id} to {next_channel}")
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "Failed to escalate notification %s to %s: %s",
+                notif_id,
+                next_channel,
+                exc,
+            )
 
 
 def _register_default_jobs(scheduler: Scheduler) -> None:

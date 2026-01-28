@@ -122,6 +122,8 @@ class Notifier:
         self,
         digest_interval_seconds: int = 3600,
         storage_path: Optional[Path] = None,
+        escalation_manager: Optional["EscalationManager"] = None,
+        enforce_quiet_hours: bool = True,
     ):
         """Initialize the notifier.
 
@@ -131,6 +133,8 @@ class Notifier:
         """
         self.digest_interval = digest_interval_seconds
         self.storage_path = storage_path or Path("data/notifications")
+        self.escalation_manager = escalation_manager
+        self.enforce_quiet_hours = enforce_quiet_hours
         self.digest_file = self.storage_path / "digests.json"
         self.digest_queues: dict[str, DigestQueue] = {}
         self._load_digests()
@@ -195,6 +199,24 @@ class Notifier:
             f"Sending {notification.priority} notification: {notification.title}"
         )
 
+        if (
+            self.escalation_manager
+            and self.enforce_quiet_hours
+            and self.escalation_manager.should_suppress(notification)
+        ):
+            if notification.priority == "digest":
+                logger.info(
+                    "Suppressing digest notification during quiet hours/DND; "
+                    "queuing for later delivery."
+                )
+                self._queue_digest(notification)
+            else:
+                logger.info(
+                    "Suppressing notification during quiet hours/DND: %s",
+                    notification.title,
+                )
+            return
+
         if notification.priority == "urgent":
             self._send_urgent(notification)
         elif notification.priority == "normal":
@@ -203,6 +225,15 @@ class Notifier:
             self._queue_digest(notification)
         else:
             logger.warning(f"Unknown priority: {notification.priority}")
+            return
+
+        if self.escalation_manager and notification.priority == "urgent":
+            next_channel = (
+                notification.channel_preferences[1]
+                if len(notification.channel_preferences) > 1
+                else "email"
+            )
+            self.escalation_manager.track_notification(notification, next_channel)
 
     def _send_urgent(self, notification: NotificationRequest) -> None:
         """Send urgent notification to all preferred channels immediately."""
@@ -260,6 +291,10 @@ class Notifier:
             self._send_to_ha_tts(notification)
         else:
             logger.warning(f"Unknown channel: {channel}")
+
+    def send_to_channel(self, channel: str, notification: NotificationRequest) -> None:
+        """Send a notification directly to a specific channel."""
+        self._dispatch_to_channel(channel, notification)
 
     def _send_to_dashboard(self, notification: NotificationRequest) -> None:
         """Send notification to dashboard (placeholder)."""
@@ -472,6 +507,7 @@ class EscalationRule:
     sent_at: datetime
     escalation_delay_minutes: int
     next_channel: str
+    notification: NotificationRequest
     escalated: bool = False
 
 
@@ -565,6 +601,7 @@ class EscalationManager:
             sent_at=notification.timestamp,
             escalation_delay_minutes=self.escalation_delay,
             next_channel=next_channel,
+            notification=notification.model_copy(deep=True),
         )
         self.pending_escalations[notification.id] = rule
         logger.debug(f"Tracking notification {notification.id} for escalation")
@@ -628,11 +665,11 @@ def get_notifier() -> Notifier:
     """
     global _notifier
     if _notifier is None:
-        _notifier = Notifier()
+        _notifier = Notifier(escalation_manager=get_escalation_manager())
     return _notifier
 
 
-def set_notifier(notifier: Notifier) -> None:
+def set_notifier(notifier: Optional[Notifier]) -> None:
     """Set the global notifier instance.
 
     Args:
