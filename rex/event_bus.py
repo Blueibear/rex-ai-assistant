@@ -218,16 +218,17 @@ class EventBus:
     def get_stats(self) -> dict[str, Any]:
         """Get event bus statistics."""
         with self._lock:
+            keys = set(self._legacy_subscribers.keys()) | set(self._handlers.keys())
             return {
                 "total_events": self._event_count,
                 "error_count": self._error_count,
-                "subscription_types": len(set(self._legacy_subscribers.keys()) | set(self._handlers.keys())),
+                "subscription_types": len(keys),
                 "subscriptions": {
                     et: {
                         "legacy": len(self._legacy_subscribers.get(et, [])),
                         "handlers": len(self._handlers.get(et, [])),
                     }
-                    for et in sorted(set(self._legacy_subscribers.keys()) | set(self._handlers.keys()))
+                    for et in sorted(keys)
                 },
             }
 
@@ -273,4 +274,5 @@ def set_event_bus(event_bus: EventBus) -> None:
 
 
 __all__ = ["Event", "EventBus", "get_event_bus", "set_event_bus"]
+
 
