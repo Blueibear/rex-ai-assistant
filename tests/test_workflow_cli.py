@@ -160,6 +160,51 @@ class TestRunWorkflowCommand:
             captured = capsys.readouterr()
             assert "Cannot resume" in captured.out
 
+    def test_run_workflow_resume_loads_persisted(self, capsys):
+        """Test resume loads persisted blocked workflow state."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workflow_id = "wf_resume_persisted"
+            workflow_file = Path(tmpdir) / "workflow.json"
+            queued = Workflow(
+                workflow_id=workflow_id,
+                title="Queued Workflow",
+                status="queued",
+                steps=[],
+            )
+            workflow_file.write_text(queued.model_dump_json())
+
+            blocked = Workflow(
+                workflow_id=workflow_id,
+                title="Blocked Workflow",
+                status="blocked",
+                steps=[],
+                blocking_approval_id="apr_resume_pending",
+            )
+            workflows_dir = Path(tmpdir) / "workflows"
+            approvals_dir = Path(tmpdir) / "approvals"
+            blocked.save(workflows_dir)
+
+            approval = WorkflowApproval(
+                approval_id="apr_resume_pending",
+                workflow_id=workflow_id,
+                step_id="step_001",
+                status="pending",
+            )
+            approval.save(approvals_dir)
+
+            parser = create_parser()
+            args = parser.parse_args(["run-workflow", str(workflow_file), "--resume"])
+
+            with mock.patch("rex.workflow.DEFAULT_WORKFLOW_DIR", workflows_dir):
+                with mock.patch("rex.workflow.DEFAULT_APPROVAL_DIR", approvals_dir):
+                    with mock.patch("rex.workflow_runner.DEFAULT_WORKFLOW_DIR", workflows_dir):
+                        with mock.patch("rex.workflow_runner.DEFAULT_APPROVAL_DIR", approvals_dir):
+                            result = cmd_run_workflow(args)
+
+            assert result == 0
+            captured = capsys.readouterr()
+            assert "blocked on approval" in captured.out.lower()
+
 
 class TestApprovalsCommand:
     """Tests for the approvals CLI command."""

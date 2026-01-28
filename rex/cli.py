@@ -217,6 +217,12 @@ def cmd_run_workflow(args: argparse.Namespace) -> int:
         return 0
 
     if args.resume:
+        # Prefer persisted workflow state for resume
+        persisted = Workflow.load(workflow.workflow_id)
+        if persisted is not None:
+            workflow = persisted
+            runner = WorkflowRunner(workflow)
+
         if workflow.status != "blocked":
             print(f"Error: Cannot resume workflow in status '{workflow.status}'")
             print("Only 'blocked' workflows can be resumed.")
@@ -250,7 +256,7 @@ def cmd_run_workflow(args: argparse.Namespace) -> int:
         print(f"  Blocked on approval: {result.blocking_approval_id}")
         print()
         print("To approve, run:")
-        print(f"  rex approvals approve {result.blocking_approval_id}")
+        print(f"  rex approvals --approve {result.blocking_approval_id}")
         print()
         print("Then resume with:")
         print(f"  rex run-workflow {workflow_path} --resume")
