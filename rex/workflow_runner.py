@@ -40,7 +40,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from rex.audit import LogEntry, get_audit_logger, AuditLogger
 from rex.contracts import ToolCall
@@ -132,6 +132,9 @@ class WorkflowRunner:
         workflow_dir: Path | str | None = None,
         approval_dir: Path | str | None = None,
         default_context: dict[str, Any] | None = None,
+        pre_step_hook: Callable[[WorkflowStep], None] | None = None,
+        before_tool_call_hook: Callable[[WorkflowStep], None] | None = None,
+        after_tool_call_hook: Callable[[WorkflowStep, StepResult], None] | None = None,
     ) -> None:
         """Initialize the workflow runner.
 
@@ -149,6 +152,9 @@ class WorkflowRunner:
         self.workflow_dir = Path(workflow_dir) if workflow_dir else DEFAULT_WORKFLOW_DIR
         self.approval_dir = Path(approval_dir) if approval_dir else DEFAULT_APPROVAL_DIR
         self.default_context = default_context or {}
+        self.pre_step_hook = pre_step_hook
+        self.before_tool_call_hook = before_tool_call_hook
+        self.after_tool_call_hook = after_tool_call_hook
 
     def run(self) -> RunResult:
         """Run the workflow from its current state.
@@ -188,6 +194,9 @@ class WorkflowRunner:
                 break
 
             try:
+                if self.pre_step_hook:
+                    self.pre_step_hook(step)
+
                 step_result = self._execute_step(step)
                 steps_executed += 1
 
@@ -515,6 +524,9 @@ class WorkflowRunner:
                 raise self._create_approval_and_block(step, decision.reason)
 
         # Execute the tool call
+        if self.before_tool_call_hook:
+            self.before_tool_call_hook(step)
+
         try:
             tool_result = execute_tool(
                 {"tool": step.tool_call.tool, "args": step.tool_call.args},
@@ -532,6 +544,8 @@ class WorkflowRunner:
                 error=str(e),
             )
             step.result = result
+            if self.after_tool_call_hook:
+                self.after_tool_call_hook(step, result)
             return result
 
         # Check for error in result
@@ -545,6 +559,8 @@ class WorkflowRunner:
                 error=error_msg,
             )
             step.result = result
+            if self.after_tool_call_hook:
+                self.after_tool_call_hook(step, result)
             return result
 
         # Store output in workflow state
@@ -573,6 +589,8 @@ class WorkflowRunner:
                         error=f"Postcondition '{step.postcondition}' failed",
                     )
                     step.result = result
+                    if self.after_tool_call_hook:
+                        self.after_tool_call_hook(step, result)
                     return result
 
         # Success!
@@ -582,6 +600,8 @@ class WorkflowRunner:
             output=tool_result,
         )
         step.result = result
+        if self.after_tool_call_hook:
+            self.after_tool_call_hook(step, result)
 
         self._log_step_to_audit(step, "allowed", tool_result, None)
 

@@ -48,7 +48,7 @@ class PlannerError(Exception):
     pass
 
 
-class UnableToPlnError(PlannerError):
+class UnableToPlanError(PlannerError):
     """Raised when the planner cannot parse or plan for a goal."""
     pass
 
@@ -88,7 +88,7 @@ class Planner:
             # Email patterns
             (re.compile(r"send\s+(?:monthly|weekly|daily)?\s*newsletter", re.IGNORECASE),
              self._plan_newsletter),
-            (re.compile(r"send\s+(?:an?\s+)?email\s+(?:to\s+)?(.+)", re.IGNORECASE),
+            (re.compile(r"send\s+(?:an?\s+)?(?:\w+\s+)*email(?:\s+to\s+(.+))?", re.IGNORECASE),
              self._plan_send_email),
             (re.compile(r"email\s+(.+)", re.IGNORECASE),
              self._plan_send_email),
@@ -258,8 +258,9 @@ class Planner:
 
     def _plan_send_email(self, match: re.Match, goal: str) -> list[WorkflowStep]:
         """Generate steps for sending an email."""
-        recipient = match.group(1) if match.lastindex and match.lastindex >= 1 else "recipient@example.com"
-        recipient = recipient.strip()
+        recipient = "recipient@example.com"
+        if match.lastindex and match.lastindex >= 1 and match.group(1):
+            recipient = match.group(1).strip()
 
         if not self.tool_registry.has_tool("send_email"):
             return []
