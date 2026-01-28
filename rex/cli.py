@@ -704,6 +704,181 @@ def cmd_kb(args: argparse.Namespace) -> int:
         return 1
 
 
+def cmd_scheduler(args: argparse.Namespace) -> int:
+    """Manage scheduler jobs."""
+    from rex.scheduler import get_scheduler
+    from rex.integrations import initialize_scheduler_system
+
+    scheduler = get_scheduler()
+    subcommand = args.scheduler_command
+
+    if subcommand == "list":
+        # List all jobs
+        jobs = scheduler.list_jobs()
+
+        if not jobs:
+            print("No scheduled jobs.")
+            return 0
+
+        print("Scheduled Jobs")
+        print("=" * 80)
+        print()
+
+        for job in jobs:
+            status = "✓ enabled" if job.enabled else "✗ disabled"
+            print(f"{job.job_id}: {job.name} [{status}]")
+            print(f"  Schedule: {job.schedule}")
+            print(f"  Next run: {job.next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"  Run count: {job.run_count}", end="")
+            if job.max_runs:
+                print(f" / {job.max_runs}")
+            else:
+                print(" (unlimited)")
+            if args.verbose:
+                if job.callback_name:
+                    print(f"  Callback: {job.callback_name}")
+                if job.workflow_id:
+                    print(f"  Workflow: {job.workflow_id}")
+            print()
+
+        print(f"Total: {len(jobs)} jobs")
+        return 0
+
+    elif subcommand == "run":
+        # Run a job immediately
+        job_id = args.job_id
+
+        # Initialize system to register callbacks
+        initialize_scheduler_system(start_scheduler=False)
+
+        if scheduler.run_job(job_id, force=True):
+            print(f"Job {job_id} executed successfully")
+            return 0
+        else:
+            print(f"Error: Failed to run job {job_id}")
+            return 1
+
+    elif subcommand == "init":
+        # Initialize scheduler system with default jobs
+        from rex.integrations import initialize_scheduler_system
+
+        initialize_scheduler_system(start_scheduler=False)
+        print("Scheduler system initialized with default jobs")
+        print("Use 'rex scheduler list' to see registered jobs")
+        return 0
+
+    else:
+        print("Unknown scheduler subcommand. Use 'rex scheduler --help'")
+        return 1
+
+
+def cmd_email(args: argparse.Namespace) -> int:
+    """Manage email."""
+    from rex.email_service import get_email_service
+
+    email_service = get_email_service()
+    subcommand = args.email_command
+
+    if subcommand == "unread":
+        # Fetch unread emails
+        if not email_service.connected:
+            if not email_service.connect():
+                print("Error: Failed to connect to email service")
+                return 1
+
+        unread = email_service.fetch_unread(limit=args.limit or 10)
+
+        if not unread:
+            print("No unread emails.")
+            return 0
+
+        print("Unread Emails")
+        print("=" * 80)
+        print()
+
+        for email in unread:
+            # Categorize
+            category = email_service.categorize(email)
+
+            importance = "⚠️ " if email.importance_score >= 0.8 else ""
+            print(f"{importance}{email.id}: {email.subject}")
+            print(f"  From: {email.from_addr}")
+            print(f"  Received: {email.received_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"  Category: {category}")
+            if args.verbose:
+                print(f"  Importance: {email.importance_score:.2f}")
+                print(f"  Snippet: {email.snippet}")
+            print()
+
+        print(f"Total: {len(unread)} unread emails")
+        return 0
+
+    else:
+        print("Unknown email subcommand. Use 'rex email --help'")
+        return 1
+
+
+def cmd_calendar(args: argparse.Namespace) -> int:
+    """Manage calendar."""
+    from datetime import datetime, timedelta
+    from rex.calendar_service import get_calendar_service
+
+    calendar_service = get_calendar_service()
+    subcommand = args.calendar_command
+
+    if subcommand == "upcoming":
+        # Get upcoming events
+        if not calendar_service.connected:
+            if not calendar_service.connect():
+                print("Error: Failed to connect to calendar service")
+                return 1
+
+        days = args.days or 7
+        events = calendar_service.get_upcoming_events(days=days)
+
+        if not events:
+            print(f"No upcoming events in the next {days} days.")
+            return 0
+
+        print(f"Upcoming Events (next {days} days)")
+        print("=" * 80)
+        print()
+
+        for event in events:
+            if event.all_day:
+                time_str = event.start_time.strftime('%Y-%m-%d') + " (All day)"
+            else:
+                time_str = event.start_time.strftime('%Y-%m-%d %H:%M') + " - " + event.end_time.strftime('%H:%M')
+
+            print(f"{event.id}: {event.title}")
+            print(f"  When: {time_str}")
+            if event.location:
+                print(f"  Location: {event.location}")
+            if event.attendees:
+                print(f"  Attendees: {', '.join(event.attendees)}")
+            if args.verbose and event.description:
+                print(f"  Description: {event.description}")
+            print()
+
+        print(f"Total: {len(events)} events")
+
+        # Check for conflicts
+        if args.conflicts:
+            conflicts = calendar_service.find_conflicts(events)
+            if conflicts:
+                print()
+                print("Conflicts Detected:")
+                print("-" * 80)
+                for event1, event2 in conflicts:
+                    print(f"⚠️  '{event1.title}' overlaps with '{event2.title}'")
+
+        return 0
+
+    else:
+        print("Unknown calendar subcommand. Use 'rex calendar --help'")
+        return 1
+
+
 def _parse_ttl(ttl_str: str):
     """Parse TTL string like '7d', '24h', '30m', '1w', '10s' into timedelta."""
     from datetime import timedelta
@@ -768,6 +943,21 @@ Knowledge base commands:
   rex kb show <doc_id>                    Show document content
   rex kb delete <doc_id>                  Delete a document
   rex kb cite "phrase"                    Get citations for a phrase
+
+Scheduler commands:
+  rex scheduler init                      Initialize with default jobs
+  rex scheduler list                      List all scheduled jobs
+  rex scheduler run <job_id>              Run a job immediately
+
+Email commands:
+  rex email unread                        Fetch unread emails
+  rex email unread --limit 5              Fetch only 5 emails
+  rex email unread -v                     Show detailed email info
+
+Calendar commands:
+  rex calendar upcoming                   Show next 7 days of events
+  rex calendar upcoming --days 14         Show next 14 days
+  rex calendar upcoming --conflicts       Check for scheduling conflicts
 
 For more information, visit: https://github.com/Blueibear/rex-ai-assistant
 """,
@@ -1162,6 +1352,127 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     kb_tags.set_defaults(func=cmd_kb)
 
     kb_parser.set_defaults(func=cmd_kb, kb_command="list")
+
+    # scheduler subcommand
+    scheduler_parser = subparsers.add_parser(
+        "scheduler",
+        help="Manage scheduled jobs",
+        description="Manage Rex's job scheduler for automated tasks.",
+    )
+    scheduler_subparsers = scheduler_parser.add_subparsers(
+        title="scheduler commands",
+        dest="scheduler_command",
+        metavar="COMMAND",
+    )
+
+    # scheduler list
+    scheduler_list = scheduler_subparsers.add_parser(
+        "list",
+        help="List all scheduled jobs",
+        description="Display all registered jobs with their schedules and status.",
+    )
+    scheduler_list.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Show detailed job information",
+    )
+    scheduler_list.set_defaults(func=cmd_scheduler)
+
+    # scheduler run
+    scheduler_run = scheduler_subparsers.add_parser(
+        "run",
+        help="Run a job immediately",
+        description="Execute a scheduled job immediately, ignoring its schedule.",
+    )
+    scheduler_run.add_argument(
+        "job_id",
+        help="Job ID to run",
+    )
+    scheduler_run.set_defaults(func=cmd_scheduler)
+
+    # scheduler init
+    scheduler_init = scheduler_subparsers.add_parser(
+        "init",
+        help="Initialize scheduler with default jobs",
+        description="Set up the scheduler system with default email and calendar jobs.",
+    )
+    scheduler_init.set_defaults(func=cmd_scheduler)
+
+    scheduler_parser.set_defaults(func=cmd_scheduler, scheduler_command="list")
+
+    # email subcommand
+    email_parser = subparsers.add_parser(
+        "email",
+        help="Manage email",
+        description="Read and triage emails from your inbox.",
+    )
+    email_subparsers = email_parser.add_subparsers(
+        title="email commands",
+        dest="email_command",
+        metavar="COMMAND",
+    )
+
+    # email unread
+    email_unread = email_subparsers.add_parser(
+        "unread",
+        help="Fetch unread emails",
+        description="Display unread emails with categorization.",
+    )
+    email_unread.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Maximum number of emails to fetch (default: 10)",
+    )
+    email_unread.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Show detailed email information",
+    )
+    email_unread.set_defaults(func=cmd_email)
+
+    email_parser.set_defaults(func=cmd_email, email_command="unread")
+
+    # calendar subcommand
+    calendar_parser = subparsers.add_parser(
+        "calendar",
+        help="Manage calendar",
+        description="View and manage calendar events.",
+    )
+    calendar_subparsers = calendar_parser.add_subparsers(
+        title="calendar commands",
+        dest="calendar_command",
+        metavar="COMMAND",
+    )
+
+    # calendar upcoming
+    calendar_upcoming = calendar_subparsers.add_parser(
+        "upcoming",
+        help="Show upcoming events",
+        description="Display upcoming calendar events.",
+    )
+    calendar_upcoming.add_argument(
+        "--days",
+        type=int,
+        default=7,
+        help="Number of days to look ahead (default: 7)",
+    )
+    calendar_upcoming.add_argument(
+        "--conflicts",
+        action="store_true",
+        help="Check for scheduling conflicts",
+    )
+    calendar_upcoming.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Show detailed event information",
+    )
+    calendar_upcoming.set_defaults(func=cmd_calendar)
+
+    calendar_parser.set_defaults(func=cmd_calendar, calendar_command="upcoming")
 
     return parser
 
