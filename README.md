@@ -23,6 +23,9 @@ Existing .env settings are automatically migrated on first run. See [CONFIGURATI
 - 🔉 **Text-to-speech** with Coqui XTTS, edge-tts, or pyttsx3 (voice cloning supported)
 - 🌐 **Web search plugins** for SerpAPI, Brave, Google CSE, and DuckDuckGo
 - 🧠 **Per-user memory** profiles with conversation history and preferences
+- 📧 **Email and calendar** integration with triage and scheduling
+- 📱 **Multi-channel messaging** via SMS with extensible framework for Telegram, Discord, etc.
+- 🔔 **Smart notifications** with priority routing, digest mode, quiet hours, and auto-escalation
 - 🔐 **Flask TTS API** with authentication and rate limiting
 - ✅ **CI/CD** with GitHub Actions and Release Please automation
 - 🐳 **Docker support** for containerized deployment

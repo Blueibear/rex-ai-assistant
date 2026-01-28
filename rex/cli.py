@@ -858,6 +858,161 @@ def _parse_ttl(ttl_str: str) -> Optional[timedelta]:
         return None
 
 
+def cmd_msg(args: argparse.Namespace) -> int:
+    """Manage messaging."""
+    from rex.messaging_service import Message, get_sms_service
+
+    subcommand = args.msg_command
+
+    if subcommand == "send":
+        channel = args.channel.lower()
+
+        if channel == "sms":
+            sms_service = get_sms_service()
+            message = Message(
+                channel="sms",
+                to=args.to,
+                from_=sms_service.from_number,
+                body=args.body,
+            )
+            sent = sms_service.send(message)
+            print(f"Message sent successfully")
+            print(f"  ID: {sent.id}")
+            print(f"  To: {sent.to}")
+            print(f"  Thread: {sent.thread_id}")
+            print(f"  Timestamp: {sent.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+            return 0
+        else:
+            print(f"Error: Unsupported channel '{channel}'. Currently only 'sms' is supported.")
+            return 1
+
+    if subcommand == "receive":
+        channel = args.channel.lower()
+
+        if channel == "sms":
+            sms_service = get_sms_service()
+            messages = sms_service.receive(limit=args.limit)
+
+            if not messages:
+                print("No messages received.")
+                return 0
+
+            print("Recent Messages")
+            print("=" * 80)
+            print()
+
+            for msg in messages:
+                print(f"{msg.id}: {msg.body[:50]}...")
+                print(f"  From: {msg.from_}")
+                print(f"  To: {msg.to}")
+                print(f"  Received: {msg.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+                print(f"  Thread: {msg.thread_id}")
+                print()
+
+            print(f"Total: {len(messages)} messages")
+            return 0
+        else:
+            print(f"Error: Unsupported channel '{channel}'. Currently only 'sms' is supported.")
+            return 1
+
+    print("Unknown messaging subcommand. Use 'rex msg --help'")
+    return 1
+
+
+def cmd_notify(args: argparse.Namespace) -> int:
+    """Manage notifications."""
+    from rex.notification import NotificationRequest, get_escalation_manager, get_notifier
+
+    notifier = get_notifier()
+    escalation_manager = get_escalation_manager()
+    subcommand = args.notify_command
+
+    if subcommand == "send":
+        # Parse channels
+        if args.channels:
+            channel_list = [ch.strip() for ch in args.channels.split(",")]
+        else:
+            channel_list = ["dashboard"]
+
+        # Create notification
+        notification = NotificationRequest(
+            priority=args.priority,
+            title=args.title,
+            body=args.body,
+            channel_preferences=channel_list,
+        )
+
+        # Send notification
+        notifier.send(notification)
+
+        # Track for escalation if urgent
+        if notification.priority == "urgent":
+            next_channel = channel_list[1] if len(channel_list) > 1 else "email"
+            escalation_manager.track_notification(notification, next_channel)
+
+        print(f"Notification sent successfully")
+        print(f"  ID: {notification.id}")
+        print(f"  Priority: {notification.priority}")
+        print(f"  Channels: {', '.join(channel_list)}")
+        print(f"  Title: {notification.title}")
+        return 0
+
+    if subcommand == "list-digests":
+        digests = notifier.list_digests()
+
+        if not digests or all(len(q) == 0 for q in digests.values()):
+            print("No queued digest notifications.")
+            return 0
+
+        print("Queued Digest Notifications")
+        print("=" * 80)
+        print()
+
+        for channel, notifications in digests.items():
+            if not notifications:
+                continue
+
+            print(f"Channel: {channel}")
+            print(f"  Count: {len(notifications)}")
+            print()
+
+            for notif in notifications:
+                print(f"  - {notif['id']}: {notif['title']}")
+                print(f"    Created: {notif['timestamp']}")
+                body_preview = notif['body'][:60] + "..." if len(notif['body']) > 60 else notif['body']
+                print(f"    Body: {body_preview}")
+                print()
+
+        total_count = sum(len(q) for q in digests.values())
+        print(f"Total: {total_count} queued notifications across {len(digests)} channels")
+        return 0
+
+    if subcommand == "flush-digests":
+        channel = args.channel
+        count = notifier.flush_digests(channel=channel)
+
+        if count == 0:
+            print("No digest notifications to flush.")
+        else:
+            if channel:
+                print(f"Flushed digest queue for channel: {channel}")
+            else:
+                print(f"Flushed {count} digest queue(s)")
+        return 0
+
+    if subcommand == "ack":
+        notification_id = args.notification_id
+        if escalation_manager.acknowledge(notification_id):
+            print(f"Acknowledged notification: {notification_id}")
+            return 0
+        else:
+            print(f"Notification not found or already acknowledged: {notification_id}")
+            return 1
+
+    print("Unknown notification subcommand. Use 'rex notify --help'")
+    return 1
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser with all subcommands."""
     parser = argparse.ArgumentParser(
@@ -1229,6 +1384,87 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     calendar_upcoming.set_defaults(func=cmd_calendar, calendar_command="upcoming")
 
     calendar_parser.set_defaults(func=cmd_calendar, calendar_command="upcoming")
+
+    # msg (messaging)
+    msg_parser = subparsers.add_parser(
+        "msg",
+        help="Send and receive messages via SMS and other channels",
+        description="Manage messaging through various channels (SMS, Telegram, etc.).",
+    )
+    msg_subparsers = msg_parser.add_subparsers(
+        title="messaging commands",
+        dest="msg_command",
+        metavar="COMMAND",
+    )
+
+    msg_send = msg_subparsers.add_parser(
+        "send",
+        help="Send a message",
+        description="Send a message via a specific channel.",
+    )
+    msg_send.add_argument("--channel", type=str, default="sms", help="Channel to send via (default: sms)")
+    msg_send.add_argument("--to", type=str, required=True, help="Recipient (phone number, user ID, etc.)")
+    msg_send.add_argument("--body", type=str, required=True, help="Message body text")
+    msg_send.set_defaults(func=cmd_msg, msg_command="send")
+
+    msg_receive = msg_subparsers.add_parser(
+        "receive",
+        help="Receive recent messages",
+        description="List recent inbound messages from a channel.",
+    )
+    msg_receive.add_argument("--channel", type=str, default="sms", help="Channel to receive from (default: sms)")
+    msg_receive.add_argument("--limit", type=int, default=10, help="Maximum number of messages (default: 10)")
+    msg_receive.set_defaults(func=cmd_msg, msg_command="receive")
+
+    msg_parser.set_defaults(func=cmd_msg, msg_command="receive")
+
+    # notify (notifications)
+    notify_parser = subparsers.add_parser(
+        "notify",
+        help="Send and manage notifications",
+        description="Multi-channel notification system with priority routing.",
+    )
+    notify_subparsers = notify_parser.add_subparsers(
+        title="notification commands",
+        dest="notify_command",
+        metavar="COMMAND",
+    )
+
+    notify_send = notify_subparsers.add_parser(
+        "send",
+        help="Send a notification",
+        description="Send a notification with priority and channel preferences.",
+    )
+    notify_send.add_argument("--priority", type=str, default="normal", choices=["urgent", "normal", "digest"], help="Priority level (default: normal)")
+    notify_send.add_argument("--title", type=str, required=True, help="Notification title")
+    notify_send.add_argument("--body", type=str, required=True, help="Notification body")
+    notify_send.add_argument("--channels", type=str, help="Comma-separated list of channels (e.g., sms,email,dashboard)")
+    notify_send.set_defaults(func=cmd_notify, notify_command="send")
+
+    notify_list_digests = notify_subparsers.add_parser(
+        "list-digests",
+        help="List queued digest notifications",
+        description="Show all notifications queued for digest delivery.",
+    )
+    notify_list_digests.set_defaults(func=cmd_notify, notify_command="list-digests")
+
+    notify_flush = notify_subparsers.add_parser(
+        "flush-digests",
+        help="Flush digest queues",
+        description="Send all queued digest notifications immediately.",
+    )
+    notify_flush.add_argument("--channel", type=str, help="Specific channel to flush (default: all)")
+    notify_flush.set_defaults(func=cmd_notify, notify_command="flush-digests")
+
+    notify_ack = notify_subparsers.add_parser(
+        "ack",
+        help="Acknowledge a notification",
+        description="Mark a notification as acknowledged (prevents escalation).",
+    )
+    notify_ack.add_argument("notification_id", type=str, help="Notification ID to acknowledge")
+    notify_ack.set_defaults(func=cmd_notify, notify_command="ack")
+
+    notify_parser.set_defaults(func=cmd_notify, notify_command="list-digests")
 
     return parser
 
