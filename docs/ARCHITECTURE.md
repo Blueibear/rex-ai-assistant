@@ -13,7 +13,9 @@ rex-ai-assistant/
 │   ├── assistant.py       # Core Assistant class
 │   ├── config.py          # Configuration management
 │   ├── llm_client.py      # LLM integration
+│   ├── memory.py          # Working & long-term memory (see docs/memory.md)
 │   ├── memory_utils.py    # User memory & profiles
+│   ├── knowledge_base.py  # Document storage & search (see docs/knowledge_base.md)
 │   ├── plugin_loader.py   # Plugin system
 │   ├── voice_loop.py      # Voice loop (wrapper to optimized)
 │   ├── voice_loop_optimized.py  # CANONICAL voice loop implementation
