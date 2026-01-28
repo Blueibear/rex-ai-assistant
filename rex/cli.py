@@ -48,6 +48,7 @@ def cmd_chat(args: argparse.Namespace) -> int:
     from rex.assistant import Assistant
     from rex.logging_utils import configure_logging
     from rex.plugins import load_plugins, shutdown_plugins
+    from rex.services import initialize_services
     from rex import settings
 
     async def _chat_loop(assistant: "Assistant") -> None:
@@ -76,6 +77,7 @@ def cmd_chat(args: argparse.Namespace) -> int:
     async def _run() -> None:
         """Configure logging, load plugins, and run the assistant loop."""
         configure_logging()
+        initialize_services()
         plugin_specs = load_plugins()
         assistant = Assistant(history_limit=settings.max_memory_items, plugins=plugin_specs)
         try:
@@ -113,6 +115,89 @@ def cmd_version(args: argparse.Namespace) -> int:
             print("Transformers: not installed")
 
     return 0
+
+
+def cmd_scheduler(args: argparse.Namespace) -> int:
+    """Manage scheduler jobs."""
+    from rex.services import initialize_services
+
+    services = initialize_services(storage_path=args.storage)
+    scheduler = services.scheduler
+
+    if args.scheduler_command == "list":
+        jobs = scheduler.list_jobs()
+        if not jobs:
+            print("No jobs scheduled.")
+            return 0
+        print("Scheduled Jobs")
+        print("=" * 60)
+        for job in jobs:
+            next_run = job.next_run_at.isoformat() if job.next_run_at else "n/a"
+            status = "enabled" if job.enabled else "disabled"
+            print(f"{job.job_id} | {job.name} | every {job.interval_seconds}s | {status}")
+            print(f"  Next run: {next_run}")
+        return 0
+
+    if args.scheduler_command == "run":
+        if scheduler.run_job(args.job_id, manual=True):
+            print(f"Job {args.job_id} executed.")
+            return 0
+        print(f"Job not found: {args.job_id}")
+        return 1
+
+    print("Unknown scheduler command.")
+    return 1
+
+
+def cmd_email(args: argparse.Namespace) -> int:
+    """Email triage commands."""
+    from rex.services import initialize_services
+
+    services = initialize_services()
+    email_service = services.email
+
+    if args.email_command == "unread":
+        triaged = email_service.triage_unread()
+        if not triaged:
+            print("No unread messages.")
+            return 0
+        print("Unread Email Summary")
+        print("=" * 60)
+        for item in triaged:
+            received = item["received_at"].isoformat()
+            print(f"{item['message_id']} | {item['subject']} | {item['sender']}")
+            print(f"  Category: {item['category']} | Received: {received}")
+            print(f"  Summary: {item['summary']}")
+        return 0
+
+    print("Unknown email command.")
+    return 1
+
+
+def cmd_calendar(args: argparse.Namespace) -> int:
+    """Calendar commands."""
+    from rex.services import initialize_services
+
+    services = initialize_services()
+    calendar = services.calendar
+
+    if args.calendar_command == "upcoming":
+        events = calendar.list_upcoming()
+        if not events:
+            print("No upcoming events.")
+            return 0
+        print("Upcoming Events")
+        print("=" * 60)
+        for event in events:
+            start = event.start_time.isoformat()
+            end = event.end_time.isoformat()
+            location = event.location or "n/a"
+            print(f"{event.event_id} | {event.title}")
+            print(f"  {start} - {end} | {location}")
+        return 0
+
+    print("Unknown calendar command.")
+    return 1
 
 
 def cmd_tools(args: argparse.Namespace) -> int:
@@ -1162,6 +1247,67 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     kb_tags.set_defaults(func=cmd_kb)
 
     kb_parser.set_defaults(func=cmd_kb, kb_command="list")
+
+    # scheduler subcommand
+    scheduler_parser = subparsers.add_parser(
+        "scheduler",
+        help="Manage scheduled jobs",
+        description="List or run scheduled jobs.",
+    )
+    scheduler_parser.add_argument(
+        "--storage",
+        type=str,
+        default=None,
+        help="Path to scheduler storage (default: data/scheduler/jobs.json).",
+    )
+    scheduler_subparsers = scheduler_parser.add_subparsers(dest="scheduler_command")
+
+    scheduler_list = scheduler_subparsers.add_parser(
+        "list",
+        help="List scheduled jobs",
+    )
+    scheduler_list.set_defaults(func=cmd_scheduler, scheduler_command="list")
+
+    scheduler_run = scheduler_subparsers.add_parser(
+        "run",
+        help="Run a scheduled job immediately",
+    )
+    scheduler_run.add_argument("job_id", type=str, help="Job ID to run")
+    scheduler_run.set_defaults(func=cmd_scheduler, scheduler_command="run")
+
+    scheduler_parser.set_defaults(func=cmd_scheduler, scheduler_command="list")
+
+    # email subcommand
+    email_parser = subparsers.add_parser(
+        "email",
+        help="Inspect unread email (mock data)",
+        description="List unread emails and triage them.",
+    )
+    email_subparsers = email_parser.add_subparsers(dest="email_command")
+
+    email_unread = email_subparsers.add_parser(
+        "unread",
+        help="List unread emails",
+    )
+    email_unread.set_defaults(func=cmd_email, email_command="unread")
+
+    email_parser.set_defaults(func=cmd_email, email_command="unread")
+
+    # calendar subcommand
+    calendar_parser = subparsers.add_parser(
+        "calendar",
+        help="Inspect upcoming calendar events (mock data)",
+        description="List upcoming calendar events.",
+    )
+    calendar_subparsers = calendar_parser.add_subparsers(dest="calendar_command")
+
+    calendar_upcoming = calendar_subparsers.add_parser(
+        "upcoming",
+        help="List upcoming calendar events",
+    )
+    calendar_upcoming.set_defaults(func=cmd_calendar, calendar_command="upcoming")
+
+    calendar_parser.set_defaults(func=cmd_calendar, calendar_command="upcoming")
 
     return parser
 
