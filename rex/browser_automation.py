@@ -15,6 +15,7 @@ import json
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any, Literal, Optional
 
@@ -22,6 +23,12 @@ from rex.audit import LogEntry, get_audit_logger
 from rex.credentials import get_credential_manager
 from rex.policy_engine import get_policy_engine
 from rex.contracts.core import ToolCall
+
+async_playwright = None
+if find_spec("playwright.async_api") is not None:
+    from playwright.async_api import async_playwright as _async_playwright
+
+    async_playwright = _async_playwright
 
 
 @dataclass
@@ -81,9 +88,7 @@ class BrowserSession:
 
     async def launch(self) -> None:
         """Launch the browser and create a page."""
-        try:
-            from playwright.async_api import async_playwright
-        except ImportError:
+        if async_playwright is None:
             raise RuntimeError(
                 "Playwright not installed. Install with: pip install playwright && "
                 "playwright install chromium"
