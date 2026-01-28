@@ -28,10 +28,11 @@ class TestBrowserSession:
         """Test BrowserSession as async context manager."""
         with patch('rex.browser_automation.async_playwright') as mock_playwright:
             mock_playwright_instance = AsyncMock()
-            mock_playwright.return_value.__aenter__.return_value = mock_playwright_instance
+            mock_playwright.return_value.start = AsyncMock(return_value=mock_playwright_instance)
 
             mock_browser = AsyncMock()
             mock_playwright_instance.chromium.launch = AsyncMock(return_value=mock_browser)
+            mock_playwright_instance.chromium.launch_persistent_context = AsyncMock(return_value=mock_browser)
 
             mock_context = AsyncMock()
             mock_browser.new_context = AsyncMock(return_value=mock_context)

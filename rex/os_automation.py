@@ -79,6 +79,7 @@ class OSAutomationService:
             self.allowed_commands = {
                 "ls", "cat", "echo", "pwd", "whoami", "date", "head", "tail",
                 "grep", "find", "wc", "sort", "uniq", "which", "man",
+                "file", "stat", "du", "df", "tree", "diff", "cmp", "md5sum", "sha256sum",
             }
 
     def run_command(
