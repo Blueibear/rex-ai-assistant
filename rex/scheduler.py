@@ -1,398 +1,579 @@
 """
 Scheduler module for Rex AI Assistant.
 
-Provides a job scheduling system with persistent storage, recurring jobs,
-and integration with the event bus and workflow system.
+This file is a merge-resolved, compatibility-first scheduler that supports both
+older "JobDefinition" style jobs and newer "ScheduledJob" style jobs.
+
+Supported APIs (both):
+- Legacy:
+    scheduler.register_handler(name, handler)
+    job = scheduler.add_job(name, interval_seconds, handler_name, job_id=..., enabled=..., metadata=...)
+    scheduler.list_jobs() -> list[JobDefinition/ScheduledJob]
+    scheduler.run_job(job_id, manual=True|False) -> bool
+    scheduler.run_due_jobs() -> list[str]
+    scheduler.get_job(job_id) -> JobDefinition|None
+
+- Newer:
+    scheduler.register_callback(name, callback)
+    job = scheduler.add_job(job_id=..., name=..., schedule="interval:600", callback_name=..., workflow_id=..., ...)
+    scheduler.run_job(job_id, force=True|False) -> bool
+    scheduler.start() / scheduler.stop() for background loop (optional)
+    scheduler.update_job(job_id, **updates)
+
+Persistence:
+- Defaults to: data/scheduler/jobs.json
 """
+
+from __future__ import annotations
 
 import json
 import logging
 import threading
 import time
-from datetime import datetime, timedelta
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from pydantic import BaseModel, Field
-
 logger = logging.getLogger(__name__)
 
+# Handler signature used by both styles:
+# We pass the job object itself to the callback.
+JobCallback = Callable[["ScheduledJob"], None]
 
-class ScheduledJob(BaseModel):
-    """A scheduled job definition."""
 
-    job_id: str = Field(..., description="Unique job identifier")
-    name: str = Field(..., description="Human-readable job name")
-    schedule: str = Field(..., description="Schedule specification (e.g., 'interval:600' for 10 minutes)")
-    enabled: bool = Field(default=True, description="Whether the job is enabled")
-    next_run: datetime = Field(..., description="Next scheduled run time")
-    max_runs: Optional[int] = Field(default=None, description="Maximum number of times to run (None for unlimited)")
-    run_count: int = Field(default=0, description="Number of times this job has run")
-    callback_name: Optional[str] = Field(default=None, description="Name of registered callback function")
-    workflow_id: Optional[str] = Field(default=None, description="Workflow ID to trigger")
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
+
+def _ensure_tz(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _parse_dt(value: Any) -> Optional[datetime]:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return _ensure_tz(value)
+    if isinstance(value, str) and value.strip():
+        try:
+            return _ensure_tz(datetime.fromisoformat(value))
+        except ValueError:
+            return None
+    return None
+
+
+def _schedule_from_interval(interval_seconds: int) -> str:
+    return f"interval:{int(interval_seconds)}"
+
+
+def _interval_from_schedule(schedule: str) -> int:
+    s = (schedule or "").strip().lower()
+    if s.startswith("interval:"):
+        try:
+            return int(s.split(":", 1)[1].strip())
+        except ValueError:
+            return 3600
+    return 3600
+
+
+def _calculate_next_run(schedule: str, from_time: Optional[datetime] = None) -> datetime:
+    base = _ensure_tz(from_time or _utc_now())
+    seconds = _interval_from_schedule(schedule)
+    return base + timedelta(seconds=seconds)
+
+
+@dataclass
+class ScheduledJob:
+    """
+    Unified job model.
+
+    Fields cover the newer scheduler, but we provide legacy-compatible aliases:
+    - interval_seconds property (derived from schedule)
+    - handler_name alias for callback_name
+    - next_run_at alias for next_run
+    - last_run_at used by legacy systems
+    """
+
+    # Required
+    job_id: str
+    name: str
+
+    # Scheduling
+    schedule: str = field(default_factory=lambda: "interval:3600")
+    enabled: bool = True
+    next_run: datetime = field(default_factory=_utc_now)
+    last_run_at: Optional[datetime] = None
+
+    # Execution
+    callback_name: Optional[str] = None
+    workflow_id: Optional[str] = None
+
+    # Limits and stats
+    max_runs: Optional[int] = None
+    run_count: int = 0
+
+    # Extra
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    # ---------- Legacy compatibility aliases ----------
+
+    @property
+    def interval_seconds(self) -> int:
+        return _interval_from_schedule(self.schedule)
+
+    @property
+    def handler_name(self) -> str:
+        # Legacy expects a string handler_name. Prefer callback_name; fallback to empty.
+        return self.callback_name or ""
+
+    @property
+    def next_run_at(self) -> datetime:
+        return self.next_run
+
+    @next_run_at.setter
+    def next_run_at(self, value: datetime) -> None:
+        self.next_run = _ensure_tz(value)
+
+    # ---------- Serialization ----------
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "job_id": self.job_id,
+            "name": self.name,
+            "schedule": self.schedule,
+            "enabled": self.enabled,
+            "next_run": _ensure_tz(self.next_run).isoformat(),
+            "last_run_at": _ensure_tz(self.last_run_at).isoformat() if self.last_run_at else None,
+            "max_runs": self.max_runs,
+            "run_count": self.run_count,
+            "callback_name": self.callback_name,
+            "workflow_id": self.workflow_id,
+            "metadata": self.metadata or {},
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ScheduledJob":
+        # Accept both legacy and newer keys.
+        job_id = data.get("job_id") or data.get("id") or str(uuid.uuid4())
+        name = data.get("name") or "Unnamed Job"
+
+        # Legacy: interval_seconds + handler_name + next_run_at
+        interval_seconds = data.get("interval_seconds")
+        handler_name = data.get("handler_name")
+        next_run_at = data.get("next_run_at")
+
+        # New: schedule + callback_name + next_run
+        schedule = data.get("schedule")
+        callback_name = data.get("callback_name")
+
+        enabled = bool(data.get("enabled", True))
+        metadata = dict(data.get("metadata", {}) or {})
+
+        # Decide schedule
+        if not schedule:
+            if interval_seconds is not None:
+                schedule = _schedule_from_interval(int(interval_seconds))
+            else:
+                schedule = "interval:3600"
+
+        # Decide callback_name
+        if not callback_name:
+            if handler_name:
+                callback_name = str(handler_name)
+
+        # Parse times
+        next_run = _parse_dt(data.get("next_run")) or _parse_dt(next_run_at)
+        last_run = _parse_dt(data.get("last_run_at"))
+
+        # If next_run missing, compute it
+        if next_run is None:
+            next_run = _calculate_next_run(schedule)
+
+        return cls(
+            job_id=str(job_id),
+            name=str(name),
+            schedule=str(schedule),
+            enabled=enabled,
+            next_run=_ensure_tz(next_run),
+            last_run_at=_ensure_tz(last_run) if last_run else None,
+            max_runs=data.get("max_runs"),
+            run_count=int(data.get("run_count", 0) or 0),
+            callback_name=callback_name,
+            workflow_id=data.get("workflow_id"),
+            metadata=metadata,
+        )
+
+
+# Backwards-compatible export name used in older code
+JobDefinition = ScheduledJob
 
 
 class Scheduler:
     """
-    Job scheduler with persistent storage and background execution.
+    Job scheduler with persistent storage.
 
-    Features:
-    - Interval-based scheduling (e.g., every 10 minutes)
-    - Persistent job definitions
-    - Callback execution or workflow triggering
-    - Thread-safe job management
+    You can use it in two ways:
+    - Manually: call run_due_jobs() periodically.
+    - Background: call start() to run due jobs in a daemon thread.
+
+    Note: Workflow triggering is stubbed. If a job has workflow_id but no callback,
+    it will log and return success, leaving actual workflow integration to the
+    workflow runner layer.
     """
 
-    def __init__(self, jobs_file: Optional[Path] = None):
-        """
-        Initialize the scheduler.
-
-        Args:
-            jobs_file: Path to jobs definition file. Defaults to data/scheduler/jobs.json
-        """
+    def __init__(
+        self,
+        jobs_file: Optional[Path] = None,
+        *,
+        now_func: Optional[Callable[[], datetime]] = None,
+        poll_interval_seconds: float = 1.0,
+    ) -> None:
         self.jobs_file = jobs_file or Path("data/scheduler/jobs.json")
-        self.jobs: dict[str, ScheduledJob] = {}
-        self.callbacks: dict[str, Callable] = {}
+        self.jobs_file.parent.mkdir(parents=True, exist_ok=True)
+
+        self._now = now_func or _utc_now
+        self._poll_interval = float(poll_interval_seconds)
+
         self._lock = threading.RLock()
+        self._jobs: dict[str, ScheduledJob] = {}
+        self._callbacks: dict[str, JobCallback] = {}
+
         self._running = False
         self._thread: Optional[threading.Thread] = None
 
-        # Ensure directory exists
-        self.jobs_file.parent.mkdir(parents=True, exist_ok=True)
-
-        # Load existing jobs
         self._load_jobs()
 
+    # -------------------------
+    # Persistence
+    # -------------------------
+
     def _load_jobs(self) -> None:
-        """Load jobs from persistent storage."""
         if not self.jobs_file.exists():
-            logger.info(f"No existing jobs file at {self.jobs_file}")
+            return
+        try:
+            raw = json.loads(self.jobs_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.error("Failed to read jobs file %s: %s", self.jobs_file, e)
             return
 
-        try:
-            with open(self.jobs_file, 'r') as f:
-                jobs_data = json.load(f)
+        # Accept either:
+        # - legacy: {"jobs": [ ... ]}
+        # - newer:  [ ... ]
+        items: list[dict[str, Any]]
+        if isinstance(raw, dict) and isinstance(raw.get("jobs"), list):
+            items = raw["jobs"]
+        elif isinstance(raw, list):
+            items = raw
+        else:
+            items = []
 
-            for job_data in jobs_data:
-                # Parse datetime from ISO format
-                if 'next_run' in job_data and isinstance(job_data['next_run'], str):
-                    job_data['next_run'] = datetime.fromisoformat(job_data['next_run'])
+        loaded = 0
+        with self._lock:
+            self._jobs.clear()
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                job = ScheduledJob.from_dict(item)
+                # Ensure next_run is sane
+                if job.next_run is None:
+                    job.next_run = _calculate_next_run(job.schedule, from_time=self._now())
+                self._jobs[job.job_id] = job
+                loaded += 1
 
-                job = ScheduledJob(**job_data)
-                self.jobs[job.job_id] = job
-
-            logger.info(f"Loaded {len(self.jobs)} jobs from {self.jobs_file}")
-        except Exception as e:
-            logger.error(f"Failed to load jobs from {self.jobs_file}: {e}")
+        logger.info("Loaded %d job(s) from %s", loaded, self.jobs_file)
 
     def _save_jobs(self) -> None:
-        """Save jobs to persistent storage."""
-        try:
-            jobs_data = [job.model_dump() for job in self.jobs.values()]
-
-            # Convert datetime to ISO format for JSON serialization
-            for job_data in jobs_data:
-                if isinstance(job_data.get('next_run'), datetime):
-                    job_data['next_run'] = job_data['next_run'].isoformat()
-
-            with open(self.jobs_file, 'w') as f:
-                json.dump(jobs_data, f, indent=2)
-
-            logger.debug(f"Saved {len(self.jobs)} jobs to {self.jobs_file}")
-        except Exception as e:
-            logger.error(f"Failed to save jobs to {self.jobs_file}: {e}")
-
-    def register_callback(self, name: str, callback: Callable) -> None:
-        """
-        Register a callback function that can be invoked by jobs.
-
-        Args:
-            name: Callback name
-            callback: Callable to invoke when job runs
-        """
         with self._lock:
-            self.callbacks[name] = callback
-            logger.debug(f"Registered callback: {name}")
+            payload = [job.to_dict() for job in self._jobs.values()]
+
+        try:
+            self.jobs_file.parent.mkdir(parents=True, exist_ok=True)
+            self.jobs_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.error("Failed to save jobs to %s: %s", self.jobs_file, e)
+
+    # -------------------------
+    # Registration
+    # -------------------------
+
+    def register_handler(self, name: str, handler: JobCallback) -> None:
+        """Legacy name for registering callbacks."""
+        self.register_callback(name, handler)
+
+    def register_callback(self, name: str, callback: JobCallback) -> None:
+        with self._lock:
+            self._callbacks[str(name)] = callback
+            logger.debug("Registered scheduler callback: %s", name)
+
+    # -------------------------
+    # CRUD
+    # -------------------------
 
     def add_job(
         self,
-        job_id: str,
-        name: str,
-        schedule: str,
-        enabled: bool = True,
-        callback_name: Optional[str] = None,
-        workflow_id: Optional[str] = None,
-        max_runs: Optional[int] = None,
-        metadata: Optional[dict[str, Any]] = None
+        *args,
+        **kwargs,
     ) -> ScheduledJob:
         """
-        Add a new scheduled job.
+        Supports both call styles.
 
-        Args:
-            job_id: Unique job identifier
-            name: Human-readable job name
-            schedule: Schedule specification (format: 'interval:seconds')
-            enabled: Whether job is enabled
-            callback_name: Name of registered callback
-            workflow_id: Workflow ID to trigger
-            max_runs: Maximum runs (None for unlimited)
-            metadata: Additional metadata
+        Legacy style:
+            add_job(name, interval_seconds, handler_name, job_id=None, enabled=True, metadata=None)
 
-        Returns:
-            Created ScheduledJob
+        New style:
+            add_job(
+                job_id="...",
+                name="...",
+                schedule="interval:600",
+                enabled=True,
+                callback_name="...",
+                workflow_id=None,
+                max_runs=None,
+                metadata=None,
+            )
         """
-        with self._lock:
-            # Calculate next run based on schedule
-            next_run = self._calculate_next_run(schedule)
+        # Detect legacy positional signature
+        if len(args) >= 3 and isinstance(args[0], str) and isinstance(args[1], (int, float)) and isinstance(args[2], str):
+            name = args[0]
+            interval_seconds = int(args[1])
+            handler_name = args[2]
 
+            job_id = kwargs.get("job_id") or str(uuid.uuid4())
+            enabled = bool(kwargs.get("enabled", True))
+            metadata = kwargs.get("metadata") or {}
+
+            schedule = _schedule_from_interval(interval_seconds)
+            now = _ensure_tz(self._now())
             job = ScheduledJob(
-                job_id=job_id,
-                name=name,
+                job_id=str(job_id),
+                name=str(name),
                 schedule=schedule,
                 enabled=enabled,
-                next_run=next_run,
-                max_runs=max_runs,
+                next_run=_calculate_next_run(schedule, from_time=now),
+                last_run_at=None,
+                callback_name=str(handler_name) if handler_name else None,
+                workflow_id=None,
+                max_runs=None,
                 run_count=0,
-                callback_name=callback_name,
-                workflow_id=workflow_id,
-                metadata=metadata or {}
+                metadata=dict(metadata),
             )
 
-            self.jobs[job_id] = job
+            with self._lock:
+                self._jobs[job.job_id] = job
             self._save_jobs()
-
-            logger.info(f"Added job: {job_id} ({name}) - next run: {next_run}")
             return job
 
-    def remove_job(self, job_id: str) -> bool:
-        """
-        Remove a scheduled job.
+        # New style kwargs
+        job_id = str(kwargs.get("job_id") or str(uuid.uuid4()))
+        name = str(kwargs.get("name") or "Unnamed Job")
+        schedule = str(kwargs.get("schedule") or "interval:3600")
+        enabled = bool(kwargs.get("enabled", True))
+        callback_name = kwargs.get("callback_name")
+        workflow_id = kwargs.get("workflow_id")
+        max_runs = kwargs.get("max_runs")
+        metadata = kwargs.get("metadata") or {}
 
-        Args:
-            job_id: Job identifier
+        now = _ensure_tz(self._now())
+        job = ScheduledJob(
+            job_id=job_id,
+            name=name,
+            schedule=schedule,
+            enabled=enabled,
+            next_run=_calculate_next_run(schedule, from_time=now),
+            last_run_at=None,
+            callback_name=str(callback_name) if callback_name else None,
+            workflow_id=str(workflow_id) if workflow_id else None,
+            max_runs=max_runs,
+            run_count=0,
+            metadata=dict(metadata),
+        )
 
-        Returns:
-            True if job was removed, False if not found
-        """
         with self._lock:
-            if job_id in self.jobs:
-                del self.jobs[job_id]
-                self._save_jobs()
-                logger.info(f"Removed job: {job_id}")
-                return True
-            return False
+            self._jobs[job.job_id] = job
+        self._save_jobs()
+        return job
+
+    def remove_job(self, job_id: str) -> bool:
+        with self._lock:
+            existed = job_id in self._jobs
+            if existed:
+                del self._jobs[job_id]
+        if existed:
+            self._save_jobs()
+        return existed
 
     def list_jobs(self) -> list[ScheduledJob]:
-        """
-        List all scheduled jobs.
-
-        Returns:
-            List of ScheduledJob instances
-        """
         with self._lock:
-            return list(self.jobs.values())
+            return list(self._jobs.values())
 
     def get_job(self, job_id: str) -> Optional[ScheduledJob]:
-        """
-        Get a specific job by ID.
-
-        Args:
-            job_id: Job identifier
-
-        Returns:
-            ScheduledJob if found, None otherwise
-        """
         with self._lock:
-            return self.jobs.get(job_id)
+            return self._jobs.get(job_id)
 
-    def update_job(self, job_id: str, **updates) -> Optional[ScheduledJob]:
-        """
-        Update a job's properties.
-
-        Args:
-            job_id: Job identifier
-            **updates: Properties to update
-
-        Returns:
-            Updated ScheduledJob if found, None otherwise
-        """
+    def find_job_by_name(self, name: str) -> Optional[ScheduledJob]:
         with self._lock:
-            job = self.jobs.get(job_id)
+            for job in self._jobs.values():
+                if job.name == name:
+                    return job
+        return None
+
+    def update_job(self, job_id: str, **updates: Any) -> Optional[ScheduledJob]:
+        with self._lock:
+            job = self._jobs.get(job_id)
             if not job:
                 return None
 
-            # Update fields
+            # Apply updates conservatively to known fields
             for key, value in updates.items():
-                if hasattr(job, key):
-                    setattr(job, key, value)
+                if not hasattr(job, key):
+                    continue
+                if key in {"next_run", "last_run_at"} and isinstance(value, str):
+                    parsed = _parse_dt(value)
+                    if parsed:
+                        setattr(job, key, parsed)
+                    continue
+                setattr(job, key, value)
 
-            self._save_jobs()
-            logger.info(f"Updated job: {job_id}")
-            return job
+            # If schedule changed, recompute next_run from now
+            if "schedule" in updates:
+                job.next_run = _calculate_next_run(job.schedule, from_time=self._now())
 
-    def _calculate_next_run(self, schedule: str, from_time: Optional[datetime] = None) -> datetime:
-        """
-        Calculate next run time based on schedule specification.
+        self._save_jobs()
+        return job
 
-        Args:
-            schedule: Schedule specification (format: 'interval:seconds')
-            from_time: Base time for calculation (defaults to now)
+    # -------------------------
+    # Execution
+    # -------------------------
 
-        Returns:
-            Next run datetime
-        """
-        from_time = from_time or datetime.now()
-
-        # Parse schedule - currently supports interval format
-        if schedule.startswith('interval:'):
-            seconds = int(schedule.split(':')[1])
-            return from_time + timedelta(seconds=seconds)
-
-        # Default to 1 hour if format not recognized
-        logger.warning(f"Unknown schedule format: {schedule}, defaulting to 1 hour")
-        return from_time + timedelta(hours=1)
-
-    def update_next_run(self, job_id: str) -> None:
-        """
-        Update the next_run time for a job after execution.
-
-        Args:
-            job_id: Job identifier
-        """
-        with self._lock:
-            job = self.jobs.get(job_id)
-            if not job:
-                return
-
-            job.next_run = self._calculate_next_run(job.schedule, from_time=datetime.now())
-            self._save_jobs()
-
-    def run_job(self, job_id: str, force: bool = False) -> bool:
+    def run_job(self, job_id: str, *, manual: bool = False, force: bool = False) -> bool:
         """
         Execute a job immediately.
 
-        Args:
-            job_id: Job identifier
-            force: If True, run even if disabled or max_runs exceeded
+        Compatibility:
+        - Legacy callers pass manual=True.
+        - New callers pass force=True.
 
-        Returns:
-            True if job was executed, False otherwise
+        Rules:
+        - If force or manual, ignore enabled and max_runs checks.
+        - Otherwise, skip if disabled or max_runs reached.
         """
         with self._lock:
-            job = self.jobs.get(job_id)
+            job = self._jobs.get(job_id)
             if not job:
-                logger.warning(f"Job not found: {job_id}")
+                logger.warning("Job not found: %s", job_id)
                 return False
 
-            # Check if job should run
-            if not force:
+            bypass = bool(force or manual)
+
+            if not bypass:
                 if not job.enabled:
-                    logger.debug(f"Job {job_id} is disabled, skipping")
                     return False
-
                 if job.max_runs is not None and job.run_count >= job.max_runs:
-                    logger.debug(f"Job {job_id} has reached max_runs ({job.max_runs}), skipping")
                     return False
 
-            logger.info(f"Running job: {job_id} ({job.name})")
+            callback_name = job.callback_name
 
-            try:
-                # Execute callback or trigger workflow
-                if job.callback_name and job.callback_name in self.callbacks:
-                    callback = self.callbacks[job.callback_name]
-                    callback(job)
-                elif job.workflow_id:
-                    logger.info(f"Job {job_id} would trigger workflow {job.workflow_id}")
-                    # Workflow triggering will be implemented when integrated
-                else:
-                    logger.warning(f"Job {job_id} has no callback or workflow configured")
+        # Execute outside lock
+        ok = True
+        try:
+            if callback_name and callback_name in self._callbacks:
+                self._callbacks[callback_name](job)
+            elif job.workflow_id:
+                logger.info("Job %s would trigger workflow %s (integration stub)", job.job_id, job.workflow_id)
+            else:
+                logger.warning("Job %s has no callback_name or workflow_id", job.job_id)
+        except Exception as e:
+            ok = False
+            logger.error("Error running job %s: %s", job_id, e, exc_info=True)
 
-                # Update job state
-                job.run_count += 1
-                self.update_next_run(job_id)
+        # Update job timing and counts
+        with self._lock:
+            now = _ensure_tz(self._now())
+            job.last_run_at = now
+            job.run_count += 1
+            job.next_run = _calculate_next_run(job.schedule, from_time=now)
 
-                logger.info(f"Job {job_id} completed successfully (run {job.run_count})")
-                return True
+        self._save_jobs()
+        return ok
 
-            except Exception as e:
-                logger.error(f"Error running job {job_id}: {e}", exc_info=True)
-                # Still update next run even on error
-                self.update_next_run(job_id)
-                return False
+    def run_due_jobs(self) -> list[str]:
+        """Run all jobs whose next_run is due. Returns list of job_ids that were executed."""
+        now = _ensure_tz(self._now())
+        due: list[str] = []
+
+        with self._lock:
+            jobs_snapshot = list(self._jobs.values())
+
+        for job in jobs_snapshot:
+            if not job.enabled:
+                continue
+            if job.max_runs is not None and job.run_count >= job.max_runs:
+                continue
+            if _ensure_tz(job.next_run) <= now:
+                if self.run_job(job.job_id):
+                    due.append(job.job_id)
+
+        return due
+
+    # -------------------------
+    # Background loop (optional)
+    # -------------------------
 
     def start(self) -> None:
-        """Start the scheduler background thread."""
         if self._running:
-            logger.warning("Scheduler is already running")
+            logger.warning("Scheduler already running")
             return
-
         self._running = True
-        self._thread = threading.Thread(target=self._run_loop, daemon=True, name="SchedulerThread")
+        self._thread = threading.Thread(target=self._run_loop, daemon=True, name="RexScheduler")
         self._thread.start()
         logger.info("Scheduler started")
 
     def stop(self) -> None:
-        """Stop the scheduler background thread."""
         if not self._running:
             return
-
         self._running = False
-        if self._thread:
-            self._thread.join(timeout=5.0)
+        t = self._thread
+        if t:
+            t.join(timeout=5.0)
         logger.info("Scheduler stopped")
 
     def _run_loop(self) -> None:
-        """Background thread loop that checks and runs due jobs."""
         logger.info("Scheduler loop starting")
-
         while self._running:
             try:
-                now = datetime.now()
-
-                # Check each job
-                with self._lock:
-                    jobs_to_run = [
-                        job for job in self.jobs.values()
-                        if job.enabled and job.next_run <= now
-                    ]
-
-                # Run due jobs
-                for job in jobs_to_run:
-                    self.run_job(job.job_id)
-
-                # Sleep for a short interval before checking again
-                time.sleep(1)
-
+                self.run_due_jobs()
+                time.sleep(self._poll_interval)
             except Exception as e:
-                logger.error(f"Error in scheduler loop: {e}", exc_info=True)
-                time.sleep(5)  # Back off on error
-
+                logger.error("Scheduler loop error: %s", e, exc_info=True)
+                time.sleep(max(self._poll_interval, 5.0))
         logger.info("Scheduler loop exiting")
 
 
 # Global scheduler instance
-_scheduler: Optional[Scheduler] = None
-_scheduler_lock = threading.Lock()
+_SCHEDULER: Optional[Scheduler] = None
+_SCHEDULER_LOCK = threading.Lock()
 
 
 def get_scheduler() -> Scheduler:
     """Get the global scheduler instance."""
-    global _scheduler
-    if _scheduler is None:
-        with _scheduler_lock:
-            if _scheduler is None:
-                _scheduler = Scheduler()
-    return _scheduler
+    global _SCHEDULER
+    if _SCHEDULER is None:
+        with _SCHEDULER_LOCK:
+            if _SCHEDULER is None:
+                _SCHEDULER = Scheduler()
+    return _SCHEDULER
 
 
 def set_scheduler(scheduler: Scheduler) -> None:
     """Set the global scheduler instance (for testing)."""
-    global _scheduler
-    with _scheduler_lock:
-        _scheduler = scheduler
+    global _SCHEDULER
+    with _SCHEDULER_LOCK:
+        _SCHEDULER = scheduler
+
+
+__all__ = ["ScheduledJob", "JobDefinition", "Scheduler", "get_scheduler", "set_scheduler"]
+
