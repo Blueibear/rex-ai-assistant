@@ -1,0 +1,28 @@
+{
+  "workflow_id": "wf_sample_001",
+  "title": "Sample Time Check Workflow",
+  "steps": [
+    {
+      "step_id": "get_time",
+      "description": "Get current local time in Dallas",
+      "tool_call": {
+        "tool": "time_now",
+        "args": {
+          "location": "Dallas, TX"
+        }
+      }
+    },
+    {
+      "step_id": "get_time_2",
+      "description": "Get current local time again (with idempotency)",
+      "tool_call": {
+        "tool": "time_now",
+        "args": {
+          "location": "Dallas, TX"
+        }
+      },
+      "idempotency_key": "second_time_check"
+    }
+  ],
+  "state": {}
+}
