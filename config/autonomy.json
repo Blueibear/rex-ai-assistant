@@ -1,0 +1,24 @@
+{
+  "default_mode": "suggest",
+  "categories": {
+    "info.*": "auto",
+    "info.weather": "auto",
+    "info.time": "auto",
+    "web.search": "auto",
+    "email.*": "suggest",
+    "email.newsletter": "suggest",
+    "email.report": "suggest",
+    "email.send": "suggest",
+    "calendar.*": "suggest",
+    "calendar.event": "suggest",
+    "home.*": "suggest",
+    "home.control": "suggest",
+    "browser.*": "suggest",
+    "browser.automation": "suggest",
+    "os.*": "off",
+    "os.command": "off",
+    "fs.*": "off",
+    "fs.operation": "off",
+    "general.workflow": "suggest"
+  }
+}

@@ -26,6 +26,10 @@ Existing .env settings are automatically migrated on first run. See [CONFIGURATI
 - 📧 **Email and calendar** integration with triage and scheduling
 - 📱 **Multi-channel messaging** via SMS with extensible framework for Telegram, Discord, etc.
 - 🔔 **Smart notifications** with priority routing, digest mode, quiet hours, and auto-escalation
+- 🤖 **Autonomous workflows** with planner-executor loop for multi-step task automation
+- 🎯 **Smart planning** converts natural language goals into structured workflows
+- ⚙️ **Configurable autonomy modes** (OFF/SUGGEST/AUTO) for fine-grained control
+- 💰 **Execution budgets** limit actions, messages, and time for safe automation
 - 🔐 **Flask TTS API** with authentication and rate limiting
 - ✅ **CI/CD** with GitHub Actions and Release Please automation
 - 🐳 **Docker support** for containerized deployment
@@ -464,6 +468,41 @@ python manual_search_demo.py "Python programming tutorials"
 ```bash
 python record_wakeword.py
 ```
+
+### 8. Autonomous Workflows (Phase 9)
+
+Rex can autonomously plan and execute multi-step workflows from natural language goals.
+
+**Plan a workflow:**
+```bash
+# Generate a plan
+rex plan "send monthly newsletter"
+
+# Plan and execute immediately
+rex plan "check weather in Dallas" --execute
+
+# Execute with budgets
+rex plan "send email" --execute --max-actions 10 --max-messages 5 --max-time 60
+```
+
+**Resume blocked workflows:**
+```bash
+# View pending approvals
+rex approvals
+
+# Approve a request
+rex approvals --approve <approval_id>
+
+# Resume execution
+rex executor resume <workflow_id>
+```
+
+**Configure autonomy modes** in `config/autonomy.json`:
+- **AUTO**: Low-risk operations execute automatically (weather, time, web search)
+- **SUGGEST**: Medium-risk operations require confirmation (email, calendar, home control)
+- **OFF**: High-risk operations must be triggered manually (OS commands, file operations)
+
+**See [docs/autonomy.md](docs/autonomy.md) for complete documentation.**
 
 ## Docker
 

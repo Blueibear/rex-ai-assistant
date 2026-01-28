@@ -375,6 +375,173 @@ def cmd_workflows(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_plan(args: argparse.Namespace) -> int:
+    """Generate a workflow plan from a high-level goal."""
+    from rex.planner import Planner, UnableToPlanError
+    from rex.tool_registry import get_tool_registry
+    from rex.policy_engine import get_policy_engine
+    from rex.autonomy_modes import get_mode, AutonomyMode
+    from rex.executor import Executor, ExecutionBudget
+
+    goal = args.goal
+    print(f"Planning workflow for goal: {goal}")
+    print("-" * 60)
+
+    # Create planner
+    planner = Planner(
+        tool_registry=get_tool_registry(),
+        policy_engine=get_policy_engine(),
+    )
+
+    # Generate plan
+    try:
+        workflow = planner.plan(goal, requested_by="cli_user")
+    except UnableToPlanError as e:
+        print(f"Error: {e}")
+        return 1
+
+    print(f"Generated workflow: {workflow.title}")
+    print(f"  ID: {workflow.workflow_id}")
+    print(f"  Steps: {len(workflow.steps)}")
+    print()
+
+    # Display steps
+    for i, step in enumerate(workflow.steps, 1):
+        print(f"{i}. {step.description}")
+        if step.tool_call:
+            print(f"   Tool: {step.tool_call.tool}")
+            print(f"   Args: {step.tool_call.args}")
+        if step.requires_approval:
+            print(f"   [REQUIRES APPROVAL]")
+        print()
+
+    # Validate workflow
+    print("Validating workflow...")
+    if not planner.validate_workflow(workflow):
+        print("Error: Workflow validation failed.")
+        print("The workflow contains steps that cannot be executed (missing tools or policy denials).")
+        return 1
+
+    print("Workflow validation passed.")
+    print()
+
+    # Check autonomy mode
+    autonomy_mode = get_mode(workflow)
+    print(f"Autonomy mode: {autonomy_mode.value}")
+    print()
+
+    # Save workflow
+    if args.save or args.execute:
+        workflow.save()
+        print(f"Saved workflow to: data/workflows/{workflow.workflow_id}.json")
+        print()
+
+    # Execute if requested
+    if args.execute:
+        if autonomy_mode == AutonomyMode.OFF:
+            print("Autonomy mode is OFF for this workflow category.")
+            print("Manual execution is required.")
+            if not args.force:
+                print("Use --force to execute anyway.")
+                return 0
+
+        # Parse budget
+        budget = ExecutionBudget(
+            max_actions=args.max_actions,
+            max_messages=args.max_messages,
+            max_time_seconds=args.max_time,
+        )
+
+        print(f"Executing workflow with budget: {budget}")
+        print("-" * 60)
+
+        executor = Executor(workflow, budget)
+        result = executor.run()
+
+        print()
+        print("-" * 60)
+        print("Execution complete")
+        print(result)
+
+        if result.status == "completed":
+            return 0
+        elif result.status == "blocked":
+            print()
+            print("To approve, run:")
+            print(f"  rex approvals --approve {result.blocking_approval_id}")
+            print()
+            print("Then resume with:")
+            print(f"  rex executor resume {workflow.workflow_id}")
+            return 0
+        else:
+            return 1
+    else:
+        print("Workflow planned successfully.")
+        print()
+        print("To execute, run:")
+        print(f"  rex plan \"{goal}\" --execute")
+        print()
+        print("Or run the workflow file:")
+        print(f"  rex run-workflow data/workflows/{workflow.workflow_id}.json")
+
+    return 0
+
+
+def cmd_executor_resume(args: argparse.Namespace) -> int:
+    """Resume a blocked executor workflow."""
+    from rex.workflow import Workflow
+    from rex.executor import Executor, ExecutionBudget
+
+    workflow_id = args.workflow_id
+
+    # Load workflow
+    workflow = Workflow.load(workflow_id)
+    if workflow is None:
+        print(f"Error: Workflow not found: {workflow_id}")
+        return 1
+
+    if workflow.status != "blocked":
+        print(f"Error: Cannot resume workflow in status '{workflow.status}'")
+        print("Only 'blocked' workflows can be resumed.")
+        return 1
+
+    print(f"Resuming workflow: {workflow.title}")
+    print(f"  ID: {workflow.workflow_id}")
+    print(f"  Blocking approval: {workflow.blocking_approval_id}")
+    print()
+
+    # Parse budget
+    budget = ExecutionBudget(
+        max_actions=args.max_actions,
+        max_messages=args.max_messages,
+        max_time_seconds=args.max_time,
+    )
+
+    print(f"Executing with budget: {budget}")
+    print("-" * 60)
+
+    executor = Executor(workflow, budget)
+    result = executor.run()
+
+    print()
+    print("-" * 60)
+    print("Execution complete")
+    print(result)
+
+    if result.status == "completed":
+        return 0
+    elif result.status == "blocked":
+        print()
+        print("To approve, run:")
+        print(f"  rex approvals --approve {result.blocking_approval_id}")
+        print()
+        print("Then resume with:")
+        print(f"  rex executor resume {workflow.workflow_id}")
+        return 0
+    else:
+        return 1
+
+
 def cmd_memory(args: argparse.Namespace) -> int:
     """Manage working and long-term memory."""
     import json
@@ -1429,6 +1596,12 @@ Examples:
   rex approvals --approve <id>
   rex workflows
 
+Planning and execution commands:
+  rex plan "send monthly newsletter"
+  rex plan "check weather in Dallas" --execute
+  rex plan "turn on living room lights" --save
+  rex executor resume <workflow_id>
+
 Memory commands:
   rex memory recent 5
   rex memory add facts '{"key":"value"}'
@@ -1549,6 +1722,46 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Filter by workflow status",
     )
     workflows_parser.set_defaults(func=cmd_workflows)
+
+    # plan
+    plan_parser = subparsers.add_parser(
+        "plan",
+        help="Generate a workflow plan from a high-level goal",
+        description="Use the planner to generate a multi-step workflow from a natural language goal.",
+    )
+    plan_parser.add_argument("goal", type=str, help="High-level goal (e.g., 'send monthly newsletter')")
+    plan_parser.add_argument("--save", action="store_true", help="Save the generated workflow to disk")
+    plan_parser.add_argument("--execute", action="store_true", help="Execute the workflow immediately")
+    plan_parser.add_argument("--force", action="store_true", help="Force execution even if autonomy mode is OFF")
+    plan_parser.add_argument("--max-actions", type=int, default=0, help="Maximum number of actions to execute (0=unlimited)")
+    plan_parser.add_argument("--max-messages", type=int, default=0, help="Maximum number of messages to send (0=unlimited)")
+    plan_parser.add_argument("--max-time", type=int, default=0, help="Maximum execution time in seconds (0=unlimited)")
+    plan_parser.set_defaults(func=cmd_plan)
+
+    # executor resume
+    executor_parser = subparsers.add_parser(
+        "executor",
+        help="Executor commands",
+        description="Resume blocked executor workflows.",
+    )
+    executor_subparsers = executor_parser.add_subparsers(
+        title="executor commands",
+        dest="executor_command",
+        metavar="COMMAND",
+    )
+
+    executor_resume = executor_subparsers.add_parser(
+        "resume",
+        help="Resume a blocked workflow",
+        description="Resume execution of a workflow that was blocked pending approval.",
+    )
+    executor_resume.add_argument("workflow_id", type=str, help="Workflow ID to resume")
+    executor_resume.add_argument("--max-actions", type=int, default=0, help="Maximum number of actions to execute (0=unlimited)")
+    executor_resume.add_argument("--max-messages", type=int, default=0, help="Maximum number of messages to send (0=unlimited)")
+    executor_resume.add_argument("--max-time", type=int, default=0, help="Maximum execution time in seconds (0=unlimited)")
+    executor_resume.set_defaults(func=cmd_executor_resume)
+
+    executor_parser.set_defaults(func=cmd_executor_resume, executor_command="resume")
 
     # memory
     memory_parser = subparsers.add_parser(
