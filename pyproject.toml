@@ -84,6 +84,17 @@ test = [
     "pytest-asyncio>=0.23.0",
 ]
 
+sms = [
+    "twilio>=9.0.0",
+]
+
+devtools = [
+    "build>=1.0.0",
+    "black>=24.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+]
+
 # GPU-accelerated PyTorch for CUDA 11.8
 gpu-cu118 = [
     "torch==2.6.0+cu118",

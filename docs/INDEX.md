@@ -124,6 +124,14 @@ QUICK_REFERENCE.md        →  docs/QUICK_REFERENCE.md
 validate_deployment.py    →  scripts/validate_deployment.py
 ```
 
+---
+
+## 📦 Phase 10: Hardening & Distribution
+
+For reliability, service supervision, packaging, and remote node deployments, see:
+- `docs/hardening.md`
+- `docs/distribution.md`
+
 ### Phase 4: Dependencies (10 min)
 ```powershell
 .\.venv\Scripts\activate

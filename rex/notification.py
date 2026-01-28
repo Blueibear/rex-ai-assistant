@@ -23,6 +23,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 from rex.contracts.core import NotificationChannel, NotificationPriority
+from rex.retry import RetryPolicy, retry_call
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,10 @@ class NotificationRequest(BaseModel):
     channel_preferences: list[str] = Field(
         default_factory=lambda: ["dashboard"],
         description="Ordered list of preferred delivery channels",
+    )
+    idempotency_key: Optional[str] = Field(
+        default=None,
+        description="Optional idempotency key to prevent duplicate delivery.",
     )
     metadata: dict = Field(
         default_factory=dict,
@@ -124,6 +129,7 @@ class Notifier:
         storage_path: Optional[Path] = None,
         escalation_manager: Optional["EscalationManager"] = None,
         enforce_quiet_hours: bool = True,
+        max_sent_log_entries: int = 2000,
     ):
         """Initialize the notifier.
 
@@ -136,8 +142,12 @@ class Notifier:
         self.escalation_manager = escalation_manager
         self.enforce_quiet_hours = enforce_quiet_hours
         self.digest_file = self.storage_path / "digests.json"
+        self.sent_log_file = self.storage_path / "sent_log.json"
+        self.max_sent_log_entries = max_sent_log_entries
         self.digest_queues: dict[str, DigestQueue] = {}
+        self._sent_log: dict[str, str] = {}
         self._load_digests()
+        self._load_sent_log()
 
     def _load_digests(self) -> None:
         """Load digest queues from disk."""
@@ -185,6 +195,48 @@ class Notifier:
         except Exception as e:
             logger.error(f"Failed to save digest queues: {e}")
 
+    def _load_sent_log(self) -> None:
+        """Load sent notification idempotency log."""
+        if not self.sent_log_file.exists():
+            return
+        try:
+            with open(self.sent_log_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self._sent_log = {k: v for k, v in data.get("sent", {}).items()}
+        except Exception as e:
+            logger.warning(f"Failed to load sent log: {e}")
+            self._sent_log = {}
+
+    def _save_sent_log(self) -> None:
+        """Persist sent notification idempotency log."""
+        try:
+            payload = {"sent": self._sent_log}
+            with open(self.sent_log_file, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to save sent log: {e}")
+
+    def _prune_sent_log(self) -> None:
+        """Prune the sent log to the most recent entries."""
+        if len(self._sent_log) <= self.max_sent_log_entries:
+            return
+        items = sorted(self._sent_log.items(), key=lambda item: item[1], reverse=True)
+        trimmed = dict(items[: self.max_sent_log_entries])
+        self._sent_log = trimmed
+
+    def _idempotency_key(self, notification: NotificationRequest) -> str:
+        return notification.idempotency_key or notification.id
+
+    def _mark_sent(self, notification: NotificationRequest) -> None:
+        key = self._idempotency_key(notification)
+        self._sent_log[key] = _utc_now().isoformat()
+        self._prune_sent_log()
+        self._save_sent_log()
+
+    def _is_duplicate(self, notification: NotificationRequest) -> bool:
+        key = self._idempotency_key(notification)
+        return key in self._sent_log
+
     def send(self, notification: NotificationRequest) -> None:
         """Send a notification based on its priority.
 
@@ -198,6 +250,14 @@ class Notifier:
         logger.info(
             f"Sending {notification.priority} notification: {notification.title}"
         )
+
+        if self._is_duplicate(notification):
+            logger.info(
+                "Skipping duplicate notification %s (idempotency key %s)",
+                notification.id,
+                self._idempotency_key(notification),
+            )
+            return
 
         if (
             self.escalation_manager
@@ -219,8 +279,10 @@ class Notifier:
 
         if notification.priority == "urgent":
             self._send_urgent(notification)
+            self._mark_sent(notification)
         elif notification.priority == "normal":
             self._send_normal(notification)
+            self._mark_sent(notification)
         elif notification.priority == "digest":
             self._queue_digest(notification)
         else:
@@ -261,6 +323,13 @@ class Notifier:
 
     def _queue_digest(self, notification: NotificationRequest) -> None:
         """Add notification to digest queue."""
+        if self._is_duplicate(notification):
+            logger.info(
+                "Skipping duplicate digest notification %s (idempotency key %s)",
+                notification.id,
+                self._idempotency_key(notification),
+            )
+            return
         for channel in notification.channel_preferences:
             if channel not in self.digest_queues:
                 self.digest_queues[channel] = DigestQueue(channel=channel)
@@ -268,6 +337,7 @@ class Notifier:
             logger.debug(f"Queued digest notification for {channel}")
 
         self._save_digests()
+        self._mark_sent(notification)
 
     def _dispatch_to_channel(
         self, channel: str, notification: NotificationRequest
@@ -281,16 +351,41 @@ class Notifier:
         Raises:
             Exception: If dispatch fails
         """
+        def _dispatch() -> None:
+            if channel == "dashboard":
+                self._send_to_dashboard(notification)
+            elif channel == "email":
+                self._send_to_email(notification)
+            elif channel == "sms":
+                self._send_to_sms(notification)
+            elif channel == "ha_tts":
+                self._send_to_ha_tts(notification)
+            else:
+                logger.warning(f"Unknown channel: {channel}")
+
         if channel == "dashboard":
-            self._send_to_dashboard(notification)
-        elif channel == "email":
-            self._send_to_email(notification)
-        elif channel == "sms":
-            self._send_to_sms(notification)
-        elif channel == "ha_tts":
-            self._send_to_ha_tts(notification)
-        else:
-            logger.warning(f"Unknown channel: {channel}")
+            _dispatch()
+            return
+
+        retry_policy = RetryPolicy(
+            attempts=3,
+            initial_backoff_seconds=0.5,
+            backoff_multiplier=2.0,
+            max_backoff_seconds=4.0,
+            retry_exceptions=(Exception,),
+        )
+        retry_call(
+            _dispatch,
+            policy=retry_policy,
+            on_retry=lambda attempt, exc, delay: logger.warning(
+                "Notification dispatch retry %d/%d for %s in %.1fs: %s",
+                attempt,
+                retry_policy.attempts,
+                channel,
+                delay,
+                exc,
+            ),
+        )
 
     def send_to_channel(self, channel: str, notification: NotificationRequest) -> None:
         """Send a notification directly to a specific channel."""

@@ -364,6 +364,34 @@ def test_run_job_max_runs(scheduler: Scheduler) -> None:
     not _is_variant_b(),
     reason="Newer Scheduler(jobs_file=...) API not available in this build.",
 )
+def test_run_due_jobs_idempotent(temp_jobs_file: Path) -> None:
+    now = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    executed: list[str] = []
+
+    scheduler = Scheduler(jobs_file=temp_jobs_file, now_func=lambda: now)  # type: ignore[call-arg]
+
+    def test_callback(job):
+        executed.append(job.job_id)
+
+    scheduler.register_callback("test_cb", test_callback)  # type: ignore[attr-defined]
+    job = scheduler.add_job(  # type: ignore[attr-defined]
+        job_id="test-job",
+        name="Test Job",
+        schedule="interval:60",
+        callback_name="test_cb",
+    )
+
+    job.next_run = now
+    scheduler.run_due_jobs()  # type: ignore[attr-defined]
+    scheduler.run_due_jobs()  # type: ignore[attr-defined]
+
+    assert executed == [job.job_id]
+
+
+@pytest.mark.skipif(
+    not _is_variant_b(),
+    reason="Newer Scheduler(jobs_file=...) API not available in this build.",
+)
 def test_calculate_next_run(scheduler: Scheduler) -> None:
     now = datetime.now()
 
@@ -505,4 +533,3 @@ def test_job_with_metadata(scheduler: Scheduler) -> None:
     )
 
     assert job.metadata == metadata
-

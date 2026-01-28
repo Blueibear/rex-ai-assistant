@@ -50,6 +50,7 @@ class ManagedService:
         start_func: Callable[[], None],
         stop_func: Callable[[], None],
         health_check_func: Callable[[], bool] = None,
+        metrics_func: Callable[[], dict] | None = None,
         max_restart_attempts: int = 5,
         backoff_multiplier: float = 1.5,
         initial_backoff_seconds: float = 1.0,
@@ -58,6 +59,7 @@ class ManagedService:
         self.start_func = start_func
         self.stop_func = stop_func
         self.health_check_func = health_check_func or (lambda: True)
+        self.metrics_func = metrics_func or (lambda: {})
         self.max_restart_attempts = max_restart_attempts
         self.backoff_multiplier = backoff_multiplier
         self.initial_backoff_seconds = initial_backoff_seconds
@@ -106,6 +108,10 @@ class ServiceSupervisor:
         start_func: Callable[[], None],
         stop_func: Callable[[], None],
         health_check_func: Callable[[], bool] = None,
+        metrics_func: Callable[[], dict] | None = None,
+        max_restart_attempts: int = 5,
+        backoff_multiplier: float = 1.5,
+        initial_backoff_seconds: float = 1.0,
     ) -> None:
         """Register a service to be supervised."""
         with self._lock:
@@ -114,6 +120,10 @@ class ServiceSupervisor:
                 start_func=start_func,
                 stop_func=stop_func,
                 health_check_func=health_check_func,
+                metrics_func=metrics_func,
+                max_restart_attempts=max_restart_attempts,
+                backoff_multiplier=backoff_multiplier,
+                initial_backoff_seconds=initial_backoff_seconds,
             )
             self.services[name] = service
             logger.info(f"Registered service: {name}")
@@ -269,6 +279,18 @@ class ServiceSupervisor:
         with self._lock:
             return {name: service.status() for name, service in self.services.items()}
 
+    def get_all_metrics(self) -> dict[str, dict]:
+        """Get metrics payload from all services."""
+        with self._lock:
+            metrics: dict[str, dict] = {}
+            for name, service in self.services.items():
+                try:
+                    metrics[name] = service.metrics_func()
+                except Exception as exc:
+                    logger.warning("Failed to collect metrics for %s: %s", name, exc)
+                    metrics[name] = {"error": str(exc)}
+            return metrics
+
     def get_metrics(self) -> ServiceMetrics:
         """Get cumulative supervisor metrics."""
         with self._lock:
@@ -313,6 +335,7 @@ class ServiceSupervisor:
                             }
                             for name, s in status.items()
                         },
+                        "service_metrics": supervisor.get_all_metrics(),
                         "metrics": {
                             "total_restarts": supervisor.metrics.total_restarts,
                             "total_crashes": supervisor.metrics.total_crashes,
@@ -334,6 +357,29 @@ class ServiceSupervisor:
                         self.send_header("Content-Type", "text/plain")
                         self.end_headers()
                         self.wfile.write(b"Not ready")
+                elif self.path == "/metrics":
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    payload = {
+                        "supervisor": {
+                            "total_restarts": supervisor.metrics.total_restarts,
+                            "total_crashes": supervisor.metrics.total_crashes,
+                            "successful_checks": supervisor.metrics.successful_checks,
+                            "failed_checks": supervisor.metrics.failed_checks,
+                        },
+                        "services": {
+                            name: {
+                                "status": status.is_running,
+                                "uptime_seconds": status.uptime_seconds,
+                                "restarts": status.restart_count,
+                                "last_error": status.last_error,
+                                "metrics": supervisor.services[name].metrics_func(),
+                            }
+                            for name, status in supervisor.get_all_status().items()
+                        },
+                    }
+                    self.wfile.write(json.dumps(payload).encode())
                 else:
                     self.send_response(404)
                     self.send_header("Content-Type", "text/plain")
