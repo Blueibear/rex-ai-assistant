@@ -1,324 +1,422 @@
 """
 Calendar service module for Rex AI Assistant.
 
-Provides calendar integration with read/write capabilities.
-Currently implements stub/mock functionality for testing; real calendar API
-integration (Google Calendar, Outlook, etc.) can be added later.
+Provides calendar integration with read/write capabilities using mock data.
+A real calendar API integration (Google Calendar, Outlook, etc.) can be added later.
 """
+
+from __future__ import annotations
 
 import json
 import logging
 import uuid
-from datetime import datetime, timedelta
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Iterable, Optional
 
-from pydantic import BaseModel, Field
-
-from rex.credentials import get_credential_manager
+from rex.event_bus import EventBus
 
 logger = logging.getLogger(__name__)
 
 
-class CalendarEvent(BaseModel):
-    """A calendar event."""
+class _NoOpEventBus:
+    """Fallback event bus used when no EventBus is provided."""
 
-    id: str = Field(..., description="Unique event identifier")
-    title: str = Field(..., description="Event title/summary")
-    start_time: datetime = Field(..., description="Event start time")
-    end_time: datetime = Field(..., description="Event end time")
-    attendees: list[str] = Field(default_factory=list, description="List of attendee email addresses")
-    location: Optional[str] = Field(default=None, description="Event location")
-    description: Optional[str] = Field(default=None, description="Event description")
-    all_day: bool = Field(default=False, description="Whether this is an all-day event")
+    def publish(self, *_args: Any, **_kwargs: Any) -> None:
+        return
 
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
+
+def _ensure_aware_utc(dt: datetime) -> datetime:
+    """
+    Ensure datetime is timezone-aware in UTC.
+    If a naive datetime is provided, it is assumed to already be UTC.
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+@dataclass(slots=True)
+class CalendarEvent:
+    event_id: str
+    title: str
+    start_time: datetime
+    end_time: datetime
+    attendees: list[str] = field(default_factory=list)
+    location: str | None = None
+    description: str | None = None
+    all_day: bool = False
+
+    def __post_init__(self) -> None:
+        self.start_time = _ensure_aware_utc(self.start_time)
+        self.end_time = _ensure_aware_utc(self.end_time)
+
+    @property
+    def id(self) -> str:
+        """Compatibility alias for code that expects `id`."""
+        return self.event_id
+
+    @id.setter
+    def id(self, value: str) -> None:
+        self.event_id = value
+
+    def to_summary(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "id": self.event_id,
+            "title": self.title,
+            "start_time": self.start_time.isoformat(),
+            "end_time": self.end_time.isoformat(),
+            "attendees": list(self.attendees),
+            "location": self.location,
+            "description": self.description,
+            "all_day": self.all_day,
         }
 
     def overlaps_with(self, other: "CalendarEvent") -> bool:
-        """
-        Check if this event overlaps with another event.
-
-        Args:
-            other: Another calendar event
-
-        Returns:
-            True if events overlap
-        """
-        # Events overlap if one starts before the other ends
-        return (self.start_time < other.end_time and
-                self.end_time > other.start_time)
+        """Return True if this event overlaps with another event."""
+        return self.start_time < other.end_time and self.end_time > other.start_time
 
 
 class CalendarService:
     """
-    Calendar service for reading and writing calendar events.
+    Read/write calendar service backed by mock data.
 
-    Currently uses stub implementation with mock data.
-    Real calendar API integration will be added in future iterations.
+    Supports:
+    - Loading from mock file (two formats supported)
+    - Creating, updating, deleting events
+    - Listing upcoming events
+    - Getting events in a time range
+    - Conflict detection
     """
 
-    def __init__(self, mock_data_file: Optional[Path] = None):
-        """
-        Initialize the calendar service.
-
-        Args:
-            mock_data_file: Path to mock calendar data file
-        """
-        self.mock_data_file = mock_data_file or Path("data/mock_calendar.json")
+    def __init__(
+        self,
+        event_bus: Optional[EventBus] = None,
+        *,
+        mock_data_path: Path | str | None = None,
+        mock_events: list[CalendarEvent] | None = None,
+    ) -> None:
+        self._event_bus = event_bus if event_bus is not None else _NoOpEventBus()
+        self._mock_data_path = Path(mock_data_path) if mock_data_path else Path("data/mock_calendar.json")
+        self._events: list[CalendarEvent] | None = list(mock_events) if mock_events is not None else None
         self.connected = False
-        self.credential_manager = get_credential_manager()
-        self._mock_events: list[CalendarEvent] = []
 
     def connect(self) -> bool:
         """
         Connect to calendar service.
 
-        For stub implementation, this loads mock data and validates credentials exist.
-
-        Returns:
-            True if connection successful
+        For mock mode, this loads mock data. Always returns True unless a hard failure occurs.
         """
         try:
-            # Check if calendar credentials exist
-            calendar_creds = self.credential_manager.get_credential("calendar")
-            if not calendar_creds:
-                logger.warning("No calendar credentials configured")
-                # Continue anyway for testing purposes
-
-            # Load mock data
-            self._load_mock_data()
-
+            self._events = self._load_events()
             self.connected = True
-            logger.info("Calendar service connected (stub mode)")
+            logger.info("Calendar service connected (mock mode)")
+            self._event_bus.publish("calendar.connected", {"connected": True, "count": len(self._events)})
             return True
-
         except Exception as e:
-            logger.error(f"Failed to connect calendar service: {e}", exc_info=True)
+            logger.error("Failed to connect calendar service: %s", e, exc_info=True)
+            self.connected = False
+            self._event_bus.publish("calendar.connected", {"connected": False, "error": str(e)})
             return False
 
-    def _load_mock_data(self) -> None:
-        """Load mock calendar data from file."""
-        if not self.mock_data_file.exists():
-            logger.warning(f"No mock calendar data at {self.mock_data_file}")
-            self._mock_events = []
-            return
+    def list_upcoming(self, *, horizon_hours: int = 72) -> list[CalendarEvent]:
+        events = self._load_events()
+        now = datetime.now(timezone.utc)
+        horizon = now + timedelta(hours=horizon_hours)
 
-        try:
-            with open(self.mock_data_file, 'r') as f:
-                data = json.load(f)
+        # Upcoming includes events that start within horizon or are currently ongoing
+        upcoming = [
+            event
+            for event in events
+            if (event.start_time <= horizon) and (event.end_time > now)
+        ]
+        upcoming.sort(key=lambda e: e.start_time)
 
-            self._mock_events = []
-            for event_data in data:
-                # Parse datetime from ISO format
-                if 'start_time' in event_data and isinstance(event_data['start_time'], str):
-                    event_data['start_time'] = datetime.fromisoformat(event_data['start_time'])
-                if 'end_time' in event_data and isinstance(event_data['end_time'], str):
-                    event_data['end_time'] = datetime.fromisoformat(event_data['end_time'])
+        self._event_bus.publish(
+            "calendar.upcoming",
+            {"count": len(upcoming), "events": [e.to_summary() for e in upcoming]},
+        )
+        return upcoming
 
-                event = CalendarEvent(**event_data)
-                self._mock_events.append(event)
-
-            logger.info(f"Loaded {len(self._mock_events)} mock calendar events")
-
-        except Exception as e:
-            logger.error(f"Failed to load mock calendar data: {e}", exc_info=True)
-            self._mock_events = []
-
-    def _save_mock_data(self) -> None:
-        """Save mock calendar data to file."""
-        try:
-            # Ensure directory exists
-            self.mock_data_file.parent.mkdir(parents=True, exist_ok=True)
-
-            # Convert events to dict format
-            events_data = []
-            for event in self._mock_events:
-                event_dict = event.model_dump()
-                # Convert datetime to ISO format
-                if isinstance(event_dict.get('start_time'), datetime):
-                    event_dict['start_time'] = event_dict['start_time'].isoformat()
-                if isinstance(event_dict.get('end_time'), datetime):
-                    event_dict['end_time'] = event_dict['end_time'].isoformat()
-                events_data.append(event_dict)
-
-            with open(self.mock_data_file, 'w') as f:
-                json.dump(events_data, f, indent=2)
-
-            logger.debug(f"Saved {len(self._mock_events)} events to {self.mock_data_file}")
-
-        except Exception as e:
-            logger.error(f"Failed to save mock calendar data: {e}", exc_info=True)
+    def refresh_upcoming(self) -> list[CalendarEvent]:
+        return self.list_upcoming()
 
     def get_events(self, start: datetime, end: datetime) -> list[CalendarEvent]:
         """
-        Get calendar events in a time range.
-
-        Args:
-            start: Start of time range
-            end: End of time range
-
-        Returns:
-            List of CalendarEvent objects in the time range
+        Get calendar events that overlap a time range.
         """
-        if not self.connected:
-            logger.warning("Calendar service not connected")
+        if not self.connected and self._events is None:
+            logger.warning("Calendar service not connected; returning empty list")
             return []
 
-        # Filter events that overlap with the time range
-        result = [
-            event for event in self._mock_events
-            if event.start_time < end and event.end_time > start
-        ]
+        start_utc = _ensure_aware_utc(start)
+        end_utc = _ensure_aware_utc(end)
 
-        # Sort by start time
+        events = self._load_events()
+        result = [e for e in events if e.start_time < end_utc and e.end_time > start_utc]
         result.sort(key=lambda e: e.start_time)
 
-        logger.info(f"Found {len(result)} events between {start} and {end}")
+        self._event_bus.publish(
+            "calendar.range",
+            {"count": len(result), "start": start_utc.isoformat(), "end": end_utc.isoformat()},
+        )
         return result
 
-    def create_event(self, event: CalendarEvent) -> CalendarEvent:
+    def create_event(
+        self,
+        title: str,
+        start_time: datetime,
+        end_time: datetime,
+        *,
+        location: str | None = None,
+        attendees: Optional[Iterable[str]] = None,
+        description: str | None = None,
+        all_day: bool = False,
+    ) -> CalendarEvent:
         """
-        Create a new calendar event.
-
-        Args:
-            event: Event to create (id will be generated if not provided)
-
-        Returns:
-            Created event with assigned ID
+        Create a new calendar event and persist it to mock storage.
         """
-        if not self.connected:
-            raise RuntimeError("Calendar service not connected")
+        if not self.connected and self._events is None:
+            # Allow creation even if connect() was not explicitly called
+            self.connect()
 
-        # Generate ID if not provided
-        if not event.id:
-            event.id = str(uuid.uuid4())
+        event = CalendarEvent(
+            event_id=str(uuid.uuid4()),
+            title=title,
+            start_time=start_time,
+            end_time=end_time,
+            location=location,
+            attendees=list(attendees) if attendees is not None else [],
+            description=description,
+            all_day=all_day,
+        )
 
-        # Add to mock events
-        self._mock_events.append(event)
+        events = self._load_events()
+        events.append(event)
+        events.sort(key=lambda e: e.start_time)
+        self._events = events
+        self._save_events(events)
 
-        # Save to file
-        self._save_mock_data()
-
-        logger.info(f"Created calendar event: {event.id} ({event.title})")
+        self._event_bus.publish("calendar.created", event.to_summary())
         return event
 
-    def update_event(self, event_id: str, updates: dict) -> Optional[CalendarEvent]:
+    def update_event(self, event_id: str, updates: dict[str, Any]) -> CalendarEvent | None:
         """
-        Update an existing calendar event.
-
-        Args:
-            event_id: Event identifier
-            updates: Dictionary of fields to update
-
-        Returns:
-            Updated event if found, None otherwise
+        Update an existing calendar event by id.
         """
-        if not self.connected:
-            logger.warning("Calendar service not connected")
-            return None
+        events = self._load_events()
+        for i, event in enumerate(events):
+            if event.event_id != event_id:
+                continue
 
-        # Find event
-        for event in self._mock_events:
-            if event.id == event_id:
-                # Apply updates
-                for key, value in updates.items():
-                    if hasattr(event, key):
-                        setattr(event, key, value)
+            # Apply supported updates safely
+            if "title" in updates:
+                event.title = str(updates["title"])
+            if "start_time" in updates and isinstance(updates["start_time"], datetime):
+                event.start_time = _ensure_aware_utc(updates["start_time"])
+            if "end_time" in updates and isinstance(updates["end_time"], datetime):
+                event.end_time = _ensure_aware_utc(updates["end_time"])
+            if "location" in updates:
+                event.location = updates["location"]
+            if "description" in updates:
+                event.description = updates["description"]
+            if "all_day" in updates:
+                event.all_day = bool(updates["all_day"])
+            if "attendees" in updates:
+                att = updates["attendees"]
+                if isinstance(att, (list, tuple)):
+                    event.attendees = [str(a) for a in att]
 
-                # Save to file
-                self._save_mock_data()
+            events[i] = event
+            events.sort(key=lambda e: e.start_time)
+            self._events = events
+            self._save_events(events)
 
-                logger.info(f"Updated calendar event: {event_id}")
-                return event
+            self._event_bus.publish("calendar.updated", {"event": event.to_summary()})
+            return event
 
-        logger.warning(f"Event not found: {event_id}")
+        logger.warning("Event not found for update: %s", event_id)
+        self._event_bus.publish("calendar.updated", {"event_id": event_id, "updated": False})
         return None
 
     def delete_event(self, event_id: str) -> bool:
         """
-        Delete a calendar event.
-
-        Args:
-            event_id: Event identifier
-
-        Returns:
-            True if event was deleted, False if not found
+        Delete an event by id.
         """
-        if not self.connected:
-            logger.warning("Calendar service not connected")
+        events = self._load_events()
+        new_events = [e for e in events if e.event_id != event_id]
+        if len(new_events) == len(events):
+            logger.warning("Event not found for delete: %s", event_id)
+            self._event_bus.publish("calendar.deleted", {"event_id": event_id, "deleted": False})
             return False
 
-        # Find and remove event
-        for i, event in enumerate(self._mock_events):
-            if event.id == event_id:
-                self._mock_events.pop(i)
-                self._save_mock_data()
-                logger.info(f"Deleted calendar event: {event_id}")
-                return True
+        self._events = new_events
+        self._save_events(new_events)
+        self._event_bus.publish("calendar.deleted", {"event_id": event_id, "deleted": True})
+        return True
 
-        logger.warning(f"Event not found: {event_id}")
-        return False
-
-    def find_conflicts(self, events: Optional[list[CalendarEvent]] = None) -> list[tuple[CalendarEvent, CalendarEvent]]:
+    def detect_conflicts(self, event: CalendarEvent) -> list[CalendarEvent]:
         """
-        Find overlapping events.
-
-        Args:
-            events: Events to check for conflicts. If None, checks all events.
-
-        Returns:
-            List of tuples containing conflicting event pairs
+        Detect conflicts between the provided event and existing events.
         """
-        if events is None:
-            events = self._mock_events
+        conflicts: list[CalendarEvent] = []
+        for existing in self._load_events():
+            if existing.event_id == event.event_id:
+                continue
+            if existing.overlaps_with(event):
+                conflicts.append(existing)
+        return conflicts
 
-        conflicts = []
+    def find_conflicts(
+        self,
+        events: Optional[list[CalendarEvent]] = None,
+    ) -> list[tuple[CalendarEvent, CalendarEvent]]:
+        """
+        Find overlapping event pairs.
+        """
+        events_to_check = list(events) if events is not None else self._load_events()
+        events_to_check.sort(key=lambda e: e.start_time)
 
-        # Compare each pair of events
-        for i, event1 in enumerate(events):
-            for event2 in events[i + 1:]:
-                if event1.overlaps_with(event2):
-                    conflicts.append((event1, event2))
-
-        logger.info(f"Found {len(conflicts)} conflicts")
+        conflicts: list[tuple[CalendarEvent, CalendarEvent]] = []
+        for i, e1 in enumerate(events_to_check):
+            for e2 in events_to_check[i + 1 :]:
+                if e1.overlaps_with(e2):
+                    conflicts.append((e1, e2))
         return conflicts
 
     def get_upcoming_events(self, days: int = 7) -> list[CalendarEvent]:
-        """
-        Get upcoming events in the next N days.
-
-        Args:
-            days: Number of days to look ahead
-
-        Returns:
-            List of upcoming CalendarEvent objects
-        """
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         end = now + timedelta(days=days)
         return self.get_events(now, end)
 
     def get_all_events(self) -> list[CalendarEvent]:
+        return self._load_events()
+
+    def _load_events(self) -> list[CalendarEvent]:
+        if self._events is not None:
+            return list(self._events)
+
+        path = self._mock_data_path
+        if path and path.exists():
+            events = self._load_mock_events(path)
+            self._events = list(events)
+            return list(events)
+
+        events = self._default_mock_events()
+        self._events = list(events)
+        return list(events)
+
+    def _load_mock_events(self, path: Path) -> list[CalendarEvent]:
         """
-        Get all events (for testing purposes).
+        Supports two file formats:
 
-        Returns:
-            List of all CalendarEvent objects
+        Format A:
+          { "events": [ { "event_id": "...", "title": "...", "start_time": "...", "end_time": "...", ... } ] }
+
+        Format B:
+          [ { "id": "...", "title": "...", "start_time": "...", "end_time": "...", ... }, ... ]
         """
-        return self._mock_events.copy()
+        payload = json.loads(path.read_text(encoding="utf-8"))
+
+        raw_events: list[dict[str, Any]]
+        if isinstance(payload, dict) and isinstance(payload.get("events"), list):
+            raw_events = payload["events"]
+        elif isinstance(payload, list):
+            raw_events = payload
+        else:
+            logger.warning("Unrecognized mock calendar format in %s", path)
+            return []
+
+        events: list[CalendarEvent] = []
+        for item in raw_events:
+            event_id = item.get("event_id") or item.get("id") or str(uuid.uuid4())
+            title = item.get("title", "Untitled event")
+
+            start_raw = item.get("start_time")
+            end_raw = item.get("end_time")
+
+            if isinstance(start_raw, str):
+                start_dt = datetime.fromisoformat(start_raw)
+            elif isinstance(start_raw, datetime):
+                start_dt = start_raw
+            else:
+                start_dt = datetime.now(timezone.utc)
+
+            if isinstance(end_raw, str):
+                end_dt = datetime.fromisoformat(end_raw)
+            elif isinstance(end_raw, datetime):
+                end_dt = end_raw
+            else:
+                end_dt = start_dt + timedelta(hours=1)
+
+            attendees = item.get("attendees") or []
+            if not isinstance(attendees, list):
+                attendees = []
+
+            events.append(
+                CalendarEvent(
+                    event_id=str(event_id),
+                    title=str(title),
+                    start_time=_ensure_aware_utc(start_dt),
+                    end_time=_ensure_aware_utc(end_dt),
+                    location=item.get("location"),
+                    description=item.get("description"),
+                    attendees=[str(a) for a in attendees],
+                    all_day=bool(item.get("all_day", False)),
+                )
+            )
+
+        events.sort(key=lambda e: e.start_time)
+        return events
+
+    def _save_events(self, events: list[CalendarEvent]) -> None:
+        """
+        Persist events to mock storage, using Format A for stability:
+          { "events": [ ... ] }
+        """
+        try:
+            path = self._mock_data_path
+            if not path:
+                return
+
+            path.parent.mkdir(parents=True, exist_ok=True)
+            data = {"events": [e.to_summary() for e in events]}
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.error("Failed to save mock calendar data: %s", e, exc_info=True)
+
+    def _default_mock_events(self) -> list[CalendarEvent]:
+        now = datetime.now(timezone.utc)
+        return [
+            CalendarEvent(
+                event_id="event-001",
+                title="Product sync",
+                start_time=now + timedelta(hours=2),
+                end_time=now + timedelta(hours=3),
+                location="Zoom",
+            ),
+            CalendarEvent(
+                event_id="event-002",
+                title="1:1 check-in",
+                start_time=now + timedelta(hours=6),
+                end_time=now + timedelta(hours=6, minutes=30),
+                location="Conference Room A",
+            ),
+        ]
 
 
-# Global calendar service instance
+# Global calendar service instance (optional convenience)
 _calendar_service: Optional[CalendarService] = None
 
 
-def get_calendar_service() -> CalendarService:
+def get_calendar_service(event_bus: Optional[EventBus] = None) -> CalendarService:
     """Get the global calendar service instance."""
     global _calendar_service
     if _calendar_service is None:
-        _calendar_service = CalendarService()
+        _calendar_service = CalendarService(event_bus=event_bus)
+        _calendar_service.connect()
     return _calendar_service
 
 
@@ -326,3 +424,12 @@ def set_calendar_service(service: CalendarService) -> None:
     """Set the global calendar service instance (for testing)."""
     global _calendar_service
     _calendar_service = service
+
+
+__all__ = [
+    "CalendarEvent",
+    "CalendarService",
+    "get_calendar_service",
+    "set_calendar_service",
+]
+
