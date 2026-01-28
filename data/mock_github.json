@@ -1,0 +1,61 @@
+{
+  "GET:/user/repos": [
+    {
+      "name": "rex-ai-assistant",
+      "full_name": "user/rex-ai-assistant",
+      "owner": {"login": "user"},
+      "html_url": "https://github.com/user/rex-ai-assistant",
+      "description": "Rex AI Assistant",
+      "private": false,
+      "default_branch": "main"
+    },
+    {
+      "name": "example-repo",
+      "full_name": "user/example-repo",
+      "owner": {"login": "user"},
+      "html_url": "https://github.com/user/example-repo",
+      "description": "Example repository",
+      "private": true,
+      "default_branch": "main"
+    }
+  ],
+  "GET:/repos/user/rex-ai-assistant/pulls": [
+    {
+      "number": 1,
+      "title": "Add new feature",
+      "state": "open",
+      "html_url": "https://github.com/user/rex-ai-assistant/pull/1",
+      "user": {"login": "contributor"},
+      "head": {"ref": "feature-branch"},
+      "base": {"ref": "main"},
+      "created_at": "2024-01-15T10:00:00Z",
+      "updated_at": "2024-01-16T14:30:00Z"
+    }
+  ],
+  "POST:/repos/user/rex-ai-assistant/issues": {
+    "number": 42,
+    "title": "Test Issue",
+    "state": "open",
+    "html_url": "https://github.com/user/rex-ai-assistant/issues/42",
+    "user": {"login": "user"},
+    "created_at": "2024-01-20T12:00:00Z",
+    "updated_at": "2024-01-20T12:00:00Z",
+    "labels": [{"name": "bug"}, {"name": "priority"}]
+  },
+  "POST:/repos/user/rex-ai-assistant/issues/42/comments": {
+    "id": 1234567890,
+    "html_url": "https://github.com/user/rex-ai-assistant/issues/42#issuecomment-1234567890",
+    "created_at": "2024-01-20T12:30:00Z"
+  },
+  "POST:/repos/user/rex-ai-assistant/pulls": {
+    "number": 2,
+    "title": "Test Pull Request",
+    "state": "open",
+    "html_url": "https://github.com/user/rex-ai-assistant/pull/2",
+    "user": {"login": "user"},
+    "head": {"ref": "test-branch"},
+    "base": {"ref": "main"},
+    "created_at": "2024-01-20T15:00:00Z",
+    "updated_at": "2024-01-20T15:00:00Z"
+  }
+}

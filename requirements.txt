@@ -59,3 +59,6 @@ certifi==2024.12.14            # Certificate validation updates
 
 # 📡 MQTT Messaging
 asyncio-mqtt==0.16.2
+
+# 🌐 Browser Automation
+playwright==1.48.0
