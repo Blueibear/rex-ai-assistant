@@ -46,6 +46,38 @@ from .tool_registry import (
     register_tool,
 )
 
+# Scheduler
+from .scheduler import (
+    ScheduledJob,
+    Scheduler,
+    get_scheduler,
+    set_scheduler,
+)
+
+# Event bus
+from .event_bus import (
+    Event,
+    EventBus,
+    get_event_bus,
+    set_event_bus,
+)
+
+# Email service
+from .email_service import (
+    EmailSummary,
+    EmailService,
+    get_email_service,
+    set_email_service,
+)
+
+# Calendar service
+from .calendar_service import (
+    CalendarEvent,
+    CalendarService,
+    get_calendar_service,
+    set_calendar_service,
+)
+
 __all__ = [
     # Configuration
     "settings",
@@ -66,4 +98,24 @@ __all__ = [
     "get_tool_registry",
     "set_tool_registry",
     "register_tool",
+    # Scheduler
+    "ScheduledJob",
+    "Scheduler",
+    "get_scheduler",
+    "set_scheduler",
+    # Event bus
+    "Event",
+    "EventBus",
+    "get_event_bus",
+    "set_event_bus",
+    # Email service
+    "EmailSummary",
+    "EmailService",
+    "get_email_service",
+    "set_email_service",
+    # Calendar service
+    "CalendarEvent",
+    "CalendarService",
+    "get_calendar_service",
+    "set_calendar_service",
 ]

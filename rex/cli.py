@@ -1,4 +1,5 @@
-"""Command-line interface for Rex AI Assistant.
+"""
+Command-line interface for Rex AI Assistant.
 
 This module provides the main CLI entry point with subcommands:
     rex doctor       - Run environment diagnostics
@@ -7,8 +8,12 @@ This module provides the main CLI entry point with subcommands:
     rex tools        - List registered tools and their status
     rex run-workflow - Run a workflow from a JSON file
     rex approvals    - List and manage pending approvals
+    rex workflows    - List workflows
     rex memory       - Manage working and long-term memory
     rex kb           - Manage knowledge base documents
+    rex scheduler    - List and manage scheduler jobs
+    rex email        - Manage email
+    rex calendar     - Manage calendar
 
 Usage:
     rex [command] [options]
@@ -20,7 +25,8 @@ from __future__ import annotations
 
 import argparse
 import sys
-from typing import Sequence
+from datetime import timedelta
+from typing import Optional, Sequence
 
 
 def _get_version() -> str:
@@ -42,7 +48,6 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 def cmd_chat(args: argparse.Namespace) -> int:
     """Start the interactive chat interface."""
-    # Import here to avoid loading heavy dependencies unless needed
     import asyncio
 
     from rex.assistant import Assistant
@@ -98,8 +103,6 @@ def cmd_version(args: argparse.Namespace) -> int:
     print(f"rex-ai-assistant {version}")
 
     if args.verbose:
-        import sys
-
         print(f"Python: {sys.version}")
         try:
             import torch
@@ -115,89 +118,6 @@ def cmd_version(args: argparse.Namespace) -> int:
             print("Transformers: not installed")
 
     return 0
-
-
-def cmd_scheduler(args: argparse.Namespace) -> int:
-    """Manage scheduler jobs."""
-    from rex.services import initialize_services
-
-    services = initialize_services(storage_path=args.storage)
-    scheduler = services.scheduler
-
-    if args.scheduler_command == "list":
-        jobs = scheduler.list_jobs()
-        if not jobs:
-            print("No jobs scheduled.")
-            return 0
-        print("Scheduled Jobs")
-        print("=" * 60)
-        for job in jobs:
-            next_run = job.next_run_at.isoformat() if job.next_run_at else "n/a"
-            status = "enabled" if job.enabled else "disabled"
-            print(f"{job.job_id} | {job.name} | every {job.interval_seconds}s | {status}")
-            print(f"  Next run: {next_run}")
-        return 0
-
-    if args.scheduler_command == "run":
-        if scheduler.run_job(args.job_id, manual=True):
-            print(f"Job {args.job_id} executed.")
-            return 0
-        print(f"Job not found: {args.job_id}")
-        return 1
-
-    print("Unknown scheduler command.")
-    return 1
-
-
-def cmd_email(args: argparse.Namespace) -> int:
-    """Email triage commands."""
-    from rex.services import initialize_services
-
-    services = initialize_services()
-    email_service = services.email
-
-    if args.email_command == "unread":
-        triaged = email_service.triage_unread()
-        if not triaged:
-            print("No unread messages.")
-            return 0
-        print("Unread Email Summary")
-        print("=" * 60)
-        for item in triaged:
-            received = item["received_at"].isoformat()
-            print(f"{item['message_id']} | {item['subject']} | {item['sender']}")
-            print(f"  Category: {item['category']} | Received: {received}")
-            print(f"  Summary: {item['summary']}")
-        return 0
-
-    print("Unknown email command.")
-    return 1
-
-
-def cmd_calendar(args: argparse.Namespace) -> int:
-    """Calendar commands."""
-    from rex.services import initialize_services
-
-    services = initialize_services()
-    calendar = services.calendar
-
-    if args.calendar_command == "upcoming":
-        events = calendar.list_upcoming()
-        if not events:
-            print("No upcoming events.")
-            return 0
-        print("Upcoming Events")
-        print("=" * 60)
-        for event in events:
-            start = event.start_time.isoformat()
-            end = event.end_time.isoformat()
-            location = event.location or "n/a"
-            print(f"{event.event_id} | {event.title}")
-            print(f"  {start} - {end} | {location}")
-        return 0
-
-    print("Unknown calendar command.")
-    return 1
 
 
 def cmd_tools(args: argparse.Namespace) -> int:
@@ -218,7 +138,6 @@ def cmd_tools(args: argparse.Namespace) -> int:
     for tool in tools:
         status = registry.get_tool_status(tool.name)
 
-        # Status indicators
         if status["ready"]:
             ready_icon = "[READY]"
         elif not status["enabled"]:
@@ -239,13 +158,12 @@ def cmd_tools(args: argparse.Namespace) -> int:
                 print(f"  Capabilities: {', '.join(tool.capabilities)}")
             if tool.required_credentials:
                 print(f"  Required credentials: {', '.join(tool.required_credentials)}")
-            if status["missing_credentials"]:
+            if status.get("missing_credentials"):
                 print(f"  Missing credentials: {', '.join(status['missing_credentials'])}")
-            print(f"  Health: {status['health_message']}")
+            print(f"  Health: {status.get('health_message', 'n/a')}")
 
         print()
 
-    # Summary
     total = len(tools)
     ready = sum(1 for t in tools if registry.get_tool_status(t.name)["ready"])
     print(f"Total: {total} tools, {ready} ready")
@@ -304,7 +222,6 @@ def cmd_run_workflow(args: argparse.Namespace) -> int:
         return 0
 
     if args.resume:
-        # Prefer persisted workflow state for resume
         persisted = Workflow.load(workflow.workflow_id)
         if persisted is not None:
             workflow = persisted
@@ -315,7 +232,7 @@ def cmd_run_workflow(args: argparse.Namespace) -> int:
             print("Only 'blocked' workflows can be resumed.")
             return 1
 
-        print(f"Resuming blocked workflow...")
+        print("Resuming blocked workflow...")
         print(f"  Blocking approval: {workflow.blocking_approval_id}")
         print()
 
@@ -331,7 +248,7 @@ def cmd_run_workflow(args: argparse.Namespace) -> int:
 
     print()
     print("-" * 60)
-    print(f"Workflow finished")
+    print("Workflow finished")
     print(f"  Status: {result.status}")
     print(f"  Steps executed: {result.steps_executed}/{result.steps_total}")
 
@@ -354,11 +271,7 @@ def cmd_run_workflow(args: argparse.Namespace) -> int:
 
 def cmd_approvals(args: argparse.Namespace) -> int:
     """List and manage pending approvals."""
-    from rex.workflow_runner import (
-        list_pending_approvals,
-        approve_workflow,
-        deny_workflow,
-    )
+    from rex.workflow_runner import approve_workflow, deny_workflow, list_pending_approvals
     from rex.workflow import WorkflowApproval
 
     if args.approve:
@@ -366,9 +279,8 @@ def cmd_approvals(args: argparse.Namespace) -> int:
         if approve_workflow(approval_id, decided_by="cli_user", reason=args.reason):
             print(f"Approved: {approval_id}")
             return 0
-        else:
-            print(f"Error: Approval not found: {approval_id}")
-            return 1
+        print(f"Error: Approval not found: {approval_id}")
+        return 1
 
     if args.deny:
         approval_id = args.deny
@@ -376,9 +288,8 @@ def cmd_approvals(args: argparse.Namespace) -> int:
         if deny_workflow(approval_id, decided_by="cli_user", reason=reason):
             print(f"Denied: {approval_id}")
             return 0
-        else:
-            print(f"Error: Approval not found: {approval_id}")
-            return 1
+        print(f"Error: Approval not found: {approval_id}")
+        return 1
 
     if args.show:
         approval_id = args.show
@@ -401,9 +312,7 @@ def cmd_approvals(args: argparse.Namespace) -> int:
             print(f"  Reason: {approval.reason}")
         return 0
 
-    # List pending approvals
     pending = list_pending_approvals()
-
     if not pending:
         print("No pending approvals.")
         return 0
@@ -463,24 +372,18 @@ def cmd_workflows(args: argparse.Namespace) -> int:
         print()
 
     print(f"Total: {len(workflows)} workflow(s)")
-
     return 0
 
 
 def cmd_memory(args: argparse.Namespace) -> int:
     """Manage working and long-term memory."""
     import json
-    from datetime import timedelta
 
-    from rex.memory import (
-        get_working_memory,
-        get_long_term_memory,
-    )
+    from rex.memory import get_long_term_memory, get_working_memory
 
     subcommand = args.memory_command
 
     if subcommand == "recent":
-        # Show recent working memory entries
         wm = get_working_memory()
         n = args.count or 10
         entries = wm.get_recent_with_timestamps(n)
@@ -503,10 +406,8 @@ def cmd_memory(args: argparse.Namespace) -> int:
         print(f"Total: {len(entries)} entries shown (of {len(wm)})")
         return 0
 
-    elif subcommand == "add":
-        # Add a long-term memory entry
+    if subcommand == "add":
         ltm = get_long_term_memory()
-
         category = args.category
         try:
             content = json.loads(args.content)
@@ -535,10 +436,8 @@ def cmd_memory(args: argparse.Namespace) -> int:
         print(f"  Sensitive: {entry.sensitive}")
         return 0
 
-    elif subcommand == "search":
-        # Search long-term memory
+    if subcommand == "search":
         ltm = get_long_term_memory()
-
         keyword = args.keyword
         category = args.category
         show_sensitive = args.show_sensitive
@@ -546,7 +445,7 @@ def cmd_memory(args: argparse.Namespace) -> int:
         results = ltm.search(
             category=category,
             keyword=keyword,
-            include_sensitive=True,  # Always include, but filter display
+            include_sensitive=True,
         )
 
         if not results:
@@ -575,35 +474,29 @@ def cmd_memory(args: argparse.Namespace) -> int:
         print(f"Total: {len(results)} entries found")
         return 0
 
-    elif subcommand == "forget":
-        # Delete a memory entry
+    if subcommand == "forget":
         ltm = get_long_term_memory()
-
         entry_id = args.entry_id
         if ltm.forget(entry_id):
             print(f"Deleted memory entry: {entry_id}")
             return 0
-        else:
-            print(f"Error: Entry not found: {entry_id}")
-            return 1
+        print(f"Error: Entry not found: {entry_id}")
+        return 1
 
-    elif subcommand == "clear":
-        # Clear working memory
+    if subcommand == "clear":
         wm = get_working_memory()
         count = len(wm)
         wm.clear()
         print(f"Cleared {count} working memory entries.")
         return 0
 
-    elif subcommand == "retention":
-        # Run retention policy
+    if subcommand == "retention":
         ltm = get_long_term_memory()
         deleted = ltm.run_retention_policy()
         print(f"Retention policy deleted {deleted} expired entries.")
         return 0
 
-    elif subcommand == "stats":
-        # Show memory statistics
+    if subcommand == "stats":
         wm = get_working_memory()
         ltm = get_long_term_memory()
 
@@ -622,9 +515,8 @@ def cmd_memory(args: argparse.Namespace) -> int:
 
         return 0
 
-    else:
-        print("Unknown memory subcommand. Use 'rex memory --help'")
-        return 1
+    print("Unknown memory subcommand. Use 'rex memory --help'")
+    return 1
 
 
 def cmd_kb(args: argparse.Namespace) -> int:
@@ -635,7 +527,6 @@ def cmd_kb(args: argparse.Namespace) -> int:
     subcommand = args.kb_command
 
     if subcommand == "ingest":
-        # Ingest a file
         path = args.path
         title = args.title
         tags = args.tags.split(",") if args.tags else None
@@ -656,11 +547,9 @@ def cmd_kb(args: argparse.Namespace) -> int:
             print(f"  Tags: {', '.join(doc.tags)}")
         return 0
 
-    elif subcommand == "search":
-        # Search documents
+    if subcommand == "search":
         query = args.query
         max_results = args.max_results or 5
-
         results = kb.search(query, max_results=max_results)
 
         if not results:
@@ -677,7 +566,6 @@ def cmd_kb(args: argparse.Namespace) -> int:
                 print(f"  Tags: {', '.join(doc.tags)}")
             print(f"  Words: {doc.word_count}")
             if args.verbose:
-                # Show snippet
                 snippet = doc.content[:200].replace("\n", " ")
                 if len(doc.content) > 200:
                     snippet += "..."
@@ -687,8 +575,7 @@ def cmd_kb(args: argparse.Namespace) -> int:
         print(f"Total: {len(results)} documents found")
         return 0
 
-    elif subcommand == "list":
-        # List documents
+    if subcommand == "list":
         limit = args.limit or 20
         docs = kb.list_documents(limit=limit)
 
@@ -711,8 +598,7 @@ def cmd_kb(args: argparse.Namespace) -> int:
         print(f"Total: {len(kb)} documents")
         return 0
 
-    elif subcommand == "show":
-        # Show a specific document
+    if subcommand == "show":
         doc_id = args.doc_id
         doc = kb.get_document(doc_id)
 
@@ -735,18 +621,15 @@ def cmd_kb(args: argparse.Namespace) -> int:
         print(doc.content)
         return 0
 
-    elif subcommand == "delete":
-        # Delete a document
+    if subcommand == "delete":
         doc_id = args.doc_id
         if kb.delete_document(doc_id):
             print(f"Deleted document: {doc_id}")
             return 0
-        else:
-            print(f"Error: Document not found: {doc_id}")
-            return 1
+        print(f"Error: Document not found: {doc_id}")
+        return 1
 
-    elif subcommand == "cite":
-        # Get citations for a query
+    if subcommand == "cite":
         query = args.query
         citations = kb.get_citations(query)
 
@@ -767,8 +650,7 @@ def cmd_kb(args: argparse.Namespace) -> int:
         print(f"Total: {len(citations)} documents can be cited")
         return 0
 
-    elif subcommand == "tags":
-        # List all tags
+    if subcommand == "tags":
         tags = kb.list_tags()
 
         if not tags:
@@ -784,15 +666,178 @@ def cmd_kb(args: argparse.Namespace) -> int:
         print(f"Total: {len(tags)} tags")
         return 0
 
-    else:
-        print("Unknown kb subcommand. Use 'rex kb --help'")
+    print("Unknown kb subcommand. Use 'rex kb --help'")
+    return 1
+
+
+def cmd_scheduler(args: argparse.Namespace) -> int:
+    """Manage scheduler jobs."""
+    from rex.integrations import initialize_scheduler_system
+    from rex.scheduler import get_scheduler
+
+    scheduler = get_scheduler()
+    subcommand = args.scheduler_command
+
+    if subcommand == "list":
+        jobs = scheduler.list_jobs()
+        if not jobs:
+            print("No scheduled jobs.")
+            return 0
+
+        print("Scheduled Jobs")
+        print("=" * 80)
+        print()
+
+        for job in jobs:
+            status = "enabled" if job.enabled else "disabled"
+            next_run = getattr(job, "next_run", None)
+            next_run_str = next_run.strftime("%Y-%m-%d %H:%M:%S") if next_run else "n/a"
+
+            print(f"{job.job_id}: {job.name} [{status}]")
+            if hasattr(job, "schedule"):
+                print(f"  Schedule: {job.schedule}")
+            print(f"  Next run: {next_run_str}")
+            if hasattr(job, "run_count"):
+                print(f"  Run count: {job.run_count}", end="")
+                if getattr(job, "max_runs", None):
+                    print(f" / {job.max_runs}")
+                else:
+                    print(" (unlimited)")
+            if args.verbose:
+                callback_name = getattr(job, "callback_name", None)
+                workflow_id = getattr(job, "workflow_id", None)
+                if callback_name:
+                    print(f"  Callback: {callback_name}")
+                if workflow_id:
+                    print(f"  Workflow: {workflow_id}")
+            print()
+
+        print(f"Total: {len(jobs)} jobs")
+        return 0
+
+    if subcommand == "run":
+        job_id = args.job_id
+        initialize_scheduler_system(start_scheduler=False)
+
+        if scheduler.run_job(job_id, force=True):
+            print(f"Job {job_id} executed successfully")
+            return 0
+        print(f"Error: Failed to run job {job_id}")
         return 1
 
+    if subcommand == "init":
+        initialize_scheduler_system(start_scheduler=False)
+        print("Scheduler system initialized with default jobs")
+        print("Use 'rex scheduler list' to see registered jobs")
+        return 0
 
-def _parse_ttl(ttl_str: str):
+    print("Unknown scheduler subcommand. Use 'rex scheduler --help'")
+    return 1
+
+
+def cmd_email(args: argparse.Namespace) -> int:
+    """Manage email."""
+    from rex.email_service import get_email_service
+
+    email_service = get_email_service()
+    subcommand = args.email_command
+
+    if subcommand == "unread":
+        if not email_service.connected:
+            if not email_service.connect():
+                print("Error: Failed to connect to email service")
+                return 1
+
+        unread = email_service.fetch_unread(limit=args.limit or 10)
+        if not unread:
+            print("No unread emails.")
+            return 0
+
+        print("Unread Emails")
+        print("=" * 80)
+        print()
+
+        for email in unread:
+            category = email_service.categorize(email)
+            importance = "!! " if getattr(email, "importance_score", 0.0) >= 0.8 else ""
+            print(f"{importance}{email.id}: {email.subject}")
+            print(f"  From: {email.from_addr}")
+            print(f"  Received: {email.received_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"  Category: {category}")
+            if args.verbose:
+                score = getattr(email, "importance_score", None)
+                if score is not None:
+                    print(f"  Importance: {score:.2f}")
+                print(f"  Snippet: {email.snippet}")
+            print()
+
+        print(f"Total: {len(unread)} unread emails")
+        return 0
+
+    print("Unknown email subcommand. Use 'rex email --help'")
+    return 1
+
+
+def cmd_calendar(args: argparse.Namespace) -> int:
+    """Manage calendar."""
+    from rex.calendar_service import get_calendar_service
+
+    calendar_service = get_calendar_service()
+    subcommand = args.calendar_command
+
+    if subcommand == "upcoming":
+        if not calendar_service.connected:
+            if not calendar_service.connect():
+                print("Error: Failed to connect to calendar service")
+                return 1
+
+        days = args.days or 7
+        events = calendar_service.get_upcoming_events(days=days)
+
+        if not events:
+            print(f"No upcoming events in the next {days} days.")
+            return 0
+
+        print(f"Upcoming Events (next {days} days)")
+        print("=" * 80)
+        print()
+
+        for event in events:
+            if getattr(event, "all_day", False):
+                time_str = event.start_time.strftime("%Y-%m-%d") + " (All day)"
+            else:
+                time_str = event.start_time.strftime("%Y-%m-%d %H:%M") + " - " + event.end_time.strftime("%H:%M")
+
+            print(f"{event.id}: {event.title}")
+            print(f"  When: {time_str}")
+            if event.location:
+                print(f"  Location: {event.location}")
+            if getattr(event, "attendees", None):
+                if event.attendees:
+                    print(f"  Attendees: {', '.join(event.attendees)}")
+            if args.verbose and getattr(event, "description", None):
+                print(f"  Description: {event.description}")
+            print()
+
+        print(f"Total: {len(events)} events")
+
+        if args.conflicts:
+            conflicts = calendar_service.find_conflicts(events)
+            if conflicts:
+                print()
+                print("Conflicts Detected:")
+                print("-" * 80)
+                for event1, event2 in conflicts:
+                    print(f"!! '{event1.title}' overlaps with '{event2.title}'")
+
+        return 0
+
+    print("Unknown calendar subcommand. Use 'rex calendar --help'")
+    return 1
+
+
+def _parse_ttl(ttl_str: str) -> Optional[timedelta]:
     """Parse TTL string like '7d', '24h', '30m', '1w', '10s' into timedelta."""
-    from datetime import timedelta
-
     ttl_str = ttl_str.strip().lower()
     if not ttl_str:
         return None
@@ -800,17 +845,15 @@ def _parse_ttl(ttl_str: str):
     try:
         if ttl_str.endswith("w"):
             return timedelta(weeks=int(ttl_str[:-1]))
-        elif ttl_str.endswith("d"):
+        if ttl_str.endswith("d"):
             return timedelta(days=int(ttl_str[:-1]))
-        elif ttl_str.endswith("h"):
+        if ttl_str.endswith("h"):
             return timedelta(hours=int(ttl_str[:-1]))
-        elif ttl_str.endswith("m"):
+        if ttl_str.endswith("m"):
             return timedelta(minutes=int(ttl_str[:-1]))
-        elif ttl_str.endswith("s"):
+        if ttl_str.endswith("s"):
             return timedelta(seconds=int(ttl_str[:-1]))
-        else:
-            # Try parsing as days
-            return timedelta(days=int(ttl_str))
+        return timedelta(days=int(ttl_str))
     except ValueError:
         return None
 
@@ -823,53 +866,59 @@ def create_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  rex doctor          Run environment diagnostics
-  rex doctor -v       Run diagnostics with verbose output
-  rex chat            Start interactive chat
-  rex version         Show version information
-  rex tools           List registered tools and status
-  rex tools -v        Show detailed tool information
-  rex run-workflow workflow.json        Run a workflow
-  rex run-workflow workflow.json --dry-run  Preview workflow
-  rex run-workflow workflow.json --resume   Resume blocked workflow
-  rex approvals       List pending approvals
-  rex approvals --approve <id>   Approve a pending request
-  rex workflows       List all workflows
+  rex doctor
+  rex doctor -v
+  rex chat
+  rex version
+  rex tools
+  rex tools -v
+  rex run-workflow workflow.json
+  rex run-workflow workflow.json --dry-run
+  rex run-workflow workflow.json --resume
+  rex approvals
+  rex approvals --approve <id>
+  rex workflows
 
 Memory commands:
-  rex memory recent 5                     Show last 5 working memory entries
-  rex memory add "facts" '{"key":"value"}'  Add a long-term memory entry
-  rex memory add "secrets" '{"api":"key"}' --sensitive --ttl=7d
-  rex memory search "keyword"             Search long-term memory
+  rex memory recent 5
+  rex memory add facts '{"key":"value"}'
+  rex memory add secrets '{"api":"key"}' --sensitive --ttl=7d
+  rex memory search keyword
   rex memory search --category preferences
-  rex memory forget <entry_id>            Delete a memory entry
-  rex memory stats                        Show memory statistics
+  rex memory forget <entry_id>
+  rex memory stats
 
 Knowledge base commands:
   rex kb ingest /path/to/file.txt --title "My Doc" --tags notes,project
-  rex kb search "query"                   Search documents
-  rex kb search "query" -v                Search with content snippets
-  rex kb list                             List all documents
-  rex kb show <doc_id>                    Show document content
-  rex kb delete <doc_id>                  Delete a document
-  rex kb cite "phrase"                    Get citations for a phrase
+  rex kb search "query"
+  rex kb search "query" -v
+  rex kb list
+  rex kb show <doc_id>
+  rex kb delete <doc_id>
+  rex kb cite "phrase"
+  rex kb tags
+
+Scheduler commands:
+  rex scheduler init
+  rex scheduler list
+  rex scheduler run <job_id>
+
+Email commands:
+  rex email unread
+  rex email unread --limit 5
+  rex email unread -v
+
+Calendar commands:
+  rex calendar upcoming
+  rex calendar upcoming --days 14
+  rex calendar upcoming --conflicts
 
 For more information, visit: https://github.com/Blueibear/rex-ai-assistant
 """,
     )
 
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Enable verbose output",
-    )
-
-    parser.add_argument(
-        "--version",
-        action="version",
-        version=f"%(prog)s {_get_version()}",
-    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {_get_version()}")
 
     subparsers = parser.add_subparsers(
         title="commands",
@@ -878,21 +927,16 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         metavar="COMMAND",
     )
 
-    # doctor subcommand
+    # doctor
     doctor_parser = subparsers.add_parser(
         "doctor",
         help="Run environment diagnostics",
         description="Check Python version, config files, environment variables, and external dependencies.",
     )
-    doctor_parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Show detailed diagnostic information",
-    )
+    doctor_parser.add_argument("-v", "--verbose", action="store_true", help="Show detailed diagnostic information")
     doctor_parser.set_defaults(func=cmd_doctor)
 
-    # chat subcommand
+    # chat
     chat_parser = subparsers.add_parser(
         "chat",
         help="Start interactive chat (default)",
@@ -900,95 +944,49 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     )
     chat_parser.set_defaults(func=cmd_chat)
 
-    # version subcommand
+    # version
     version_parser = subparsers.add_parser(
         "version",
         help="Show version information",
         description="Display Rex version and optionally dependency versions.",
     )
-    version_parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Show dependency versions",
-    )
+    version_parser.add_argument("-v", "--verbose", action="store_true", help="Show dependency versions")
     version_parser.set_defaults(func=cmd_version)
 
-    # tools subcommand
+    # tools
     tools_parser = subparsers.add_parser(
         "tools",
         help="List registered tools and their status",
         description="Display all registered tools with health status and credential availability.",
     )
-    tools_parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Show detailed tool information",
-    )
-    tools_parser.add_argument(
-        "-a",
-        "--all",
-        action="store_true",
-        help="Include disabled tools",
-    )
+    tools_parser.add_argument("-v", "--verbose", action="store_true", help="Show detailed tool information")
+    tools_parser.add_argument("-a", "--all", action="store_true", help="Include disabled tools")
     tools_parser.set_defaults(func=cmd_tools)
 
-    # run-workflow subcommand
+    # run-workflow
     workflow_parser = subparsers.add_parser(
         "run-workflow",
         help="Run a workflow from a JSON file",
         description="Load and execute a workflow definition. Supports dry-run and resume modes.",
     )
-    workflow_parser.add_argument(
-        "workflow",
-        type=str,
-        help="Path to the workflow JSON file",
-    )
-    workflow_parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Preview workflow without executing (no changes made)",
-    )
-    workflow_parser.add_argument(
-        "--resume",
-        action="store_true",
-        help="Resume a blocked workflow after approval",
-    )
+    workflow_parser.add_argument("workflow", type=str, help="Path to the workflow JSON file")
+    workflow_parser.add_argument("--dry-run", action="store_true", help="Preview workflow without executing")
+    workflow_parser.add_argument("--resume", action="store_true", help="Resume a blocked workflow after approval")
     workflow_parser.set_defaults(func=cmd_run_workflow)
 
-    # approvals subcommand
+    # approvals
     approvals_parser = subparsers.add_parser(
         "approvals",
         help="List and manage pending approvals",
         description="View, approve, or deny pending workflow approvals.",
     )
-    approvals_parser.add_argument(
-        "--approve",
-        type=str,
-        metavar="ID",
-        help="Approve the specified approval request",
-    )
-    approvals_parser.add_argument(
-        "--deny",
-        type=str,
-        metavar="ID",
-        help="Deny the specified approval request",
-    )
-    approvals_parser.add_argument(
-        "--show",
-        type=str,
-        metavar="ID",
-        help="Show details of a specific approval",
-    )
-    approvals_parser.add_argument(
-        "--reason",
-        type=str,
-        help="Reason for approval/denial decision",
-    )
+    approvals_parser.add_argument("--approve", type=str, metavar="ID", help="Approve the specified approval request")
+    approvals_parser.add_argument("--deny", type=str, metavar="ID", help="Deny the specified approval request")
+    approvals_parser.add_argument("--show", type=str, metavar="ID", help="Show details of a specific approval")
+    approvals_parser.add_argument("--reason", type=str, help="Reason for approval or denial decision")
     approvals_parser.set_defaults(func=cmd_approvals)
 
-    # workflows subcommand
+    # workflows
     workflows_parser = subparsers.add_parser(
         "workflows",
         help="List workflows",
@@ -1002,7 +1000,7 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     )
     workflows_parser.set_defaults(func=cmd_workflows)
 
-    # memory subcommand
+    # memory
     memory_parser = subparsers.add_parser(
         "memory",
         help="Manage working and long-term memory",
@@ -1014,118 +1012,68 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         metavar="COMMAND",
     )
 
-    # memory recent
     memory_recent = memory_subparsers.add_parser(
         "recent",
         help="Show recent working memory entries",
         description="Display the most recent entries from working memory.",
     )
-    memory_recent.add_argument(
-        "count",
-        type=int,
-        nargs="?",
-        default=10,
-        help="Number of entries to show (default: 10)",
-    )
-    memory_recent.add_argument(
-        "--show-sensitive",
-        action="store_true",
-        help="No-op for working memory (kept for CLI compatibility)",
-    )
-    memory_recent.set_defaults(func=cmd_memory)
+    memory_recent.add_argument("count", type=int, nargs="?", default=10, help="Number of entries to show (default: 10)")
+    memory_recent.add_argument("--show-sensitive", action="store_true", help="No-op (kept for compatibility)")
+    memory_recent.set_defaults(func=cmd_memory, memory_command="recent")
 
-    # memory add
     memory_add = memory_subparsers.add_parser(
         "add",
         help="Add a long-term memory entry",
         description="Add a new entry to long-term memory with category and JSON content.",
     )
-    memory_add.add_argument(
-        "category",
-        type=str,
-        help="Category for the entry (e.g., 'preferences', 'facts')",
-    )
-    memory_add.add_argument(
-        "content",
-        type=str,
-        help='JSON content for the entry (e.g., \'{"key": "value"}\')',
-    )
-    memory_add.add_argument(
-        "--ttl",
-        type=str,
-        help="Time to live (e.g., '7d', '24h', '30m', '1w', '10s')",
-    )
-    memory_add.add_argument(
-        "--sensitive",
-        action="store_true",
-        help="Mark this entry as containing sensitive data",
-    )
-    memory_add.set_defaults(func=cmd_memory)
+    memory_add.add_argument("category", type=str, help="Category for the entry (e.g., preferences, facts)")
+    memory_add.add_argument("content", type=str, help='JSON content for the entry (e.g., \'{"key": "value"}\')')
+    memory_add.add_argument("--ttl", type=str, help="Time to live (e.g., 7d, 24h, 30m, 1w, 10s)")
+    memory_add.add_argument("--sensitive", action="store_true", help="Mark this entry as containing sensitive data")
+    memory_add.set_defaults(func=cmd_memory, memory_command="add")
 
-    # memory search
     memory_search = memory_subparsers.add_parser(
         "search",
         help="Search long-term memory",
         description="Search for entries in long-term memory by keyword or category.",
     )
-    memory_search.add_argument(
-        "keyword",
-        type=str,
-        nargs="?",
-        help="Keyword to search for in content",
-    )
-    memory_search.add_argument(
-        "--category",
-        type=str,
-        help="Filter by category",
-    )
-    memory_search.add_argument(
-        "--show-sensitive",
-        action="store_true",
-        help="Show content of sensitive entries",
-    )
-    memory_search.set_defaults(func=cmd_memory)
+    memory_search.add_argument("keyword", type=str, nargs="?", help="Keyword to search for in content")
+    memory_search.add_argument("--category", type=str, help="Filter by category")
+    memory_search.add_argument("--show-sensitive", action="store_true", help="Show content of sensitive entries")
+    memory_search.set_defaults(func=cmd_memory, memory_command="search")
 
-    # memory forget
     memory_forget = memory_subparsers.add_parser(
         "forget",
         help="Delete a memory entry",
         description="Delete a specific entry from long-term memory.",
     )
-    memory_forget.add_argument(
-        "entry_id",
-        type=str,
-        help="ID of the entry to delete",
-    )
-    memory_forget.set_defaults(func=cmd_memory)
+    memory_forget.add_argument("entry_id", type=str, help="ID of the entry to delete")
+    memory_forget.set_defaults(func=cmd_memory, memory_command="forget")
 
-    # memory clear
     memory_clear = memory_subparsers.add_parser(
         "clear",
         help="Clear all working memory",
         description="Remove all entries from working memory.",
     )
-    memory_clear.set_defaults(func=cmd_memory)
+    memory_clear.set_defaults(func=cmd_memory, memory_command="clear")
 
-    # memory retention
     memory_retention = memory_subparsers.add_parser(
         "retention",
         help="Run retention policy",
         description="Delete all expired entries from long-term memory.",
     )
-    memory_retention.set_defaults(func=cmd_memory)
+    memory_retention.set_defaults(func=cmd_memory, memory_command="retention")
 
-    # memory stats
     memory_stats = memory_subparsers.add_parser(
         "stats",
         help="Show memory statistics",
         description="Display statistics about working and long-term memory.",
     )
-    memory_stats.set_defaults(func=cmd_memory)
+    memory_stats.set_defaults(func=cmd_memory, memory_command="stats")
 
     memory_parser.set_defaults(func=cmd_memory, memory_command="stats")
 
-    # kb (knowledge base) subcommand
+    # kb
     kb_parser = subparsers.add_parser(
         "kb",
         help="Manage knowledge base",
@@ -1137,174 +1085,147 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         metavar="COMMAND",
     )
 
-    # kb ingest
     kb_ingest = kb_subparsers.add_parser(
         "ingest",
         help="Ingest a file into the knowledge base",
         description="Read and index a text file for later search and retrieval.",
     )
-    kb_ingest.add_argument(
-        "path",
-        type=str,
-        help="Path to the file to ingest",
-    )
-    kb_ingest.add_argument(
-        "--title",
-        type=str,
-        help="Title for the document (defaults to filename)",
-    )
-    kb_ingest.add_argument(
-        "--tags",
-        type=str,
-        help="Comma-separated list of tags",
-    )
-    kb_ingest.set_defaults(func=cmd_kb)
+    kb_ingest.add_argument("path", type=str, help="Path to the file to ingest")
+    kb_ingest.add_argument("--title", type=str, help="Title for the document (defaults to filename)")
+    kb_ingest.add_argument("--tags", type=str, help="Comma-separated list of tags")
+    kb_ingest.set_defaults(func=cmd_kb, kb_command="ingest")
 
-    # kb search
     kb_search = kb_subparsers.add_parser(
         "search",
         help="Search the knowledge base",
         description="Search for documents matching a query.",
     )
-    kb_search.add_argument(
-        "query",
-        type=str,
-        help="Search query",
-    )
-    kb_search.add_argument(
-        "--max-results",
-        type=int,
-        default=5,
-        help="Maximum number of results (default: 5)",
-    )
-    kb_search.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="Show content snippets",
-    )
-    kb_search.set_defaults(func=cmd_kb)
+    kb_search.add_argument("query", type=str, help="Search query")
+    kb_search.add_argument("--max-results", type=int, default=5, help="Maximum number of results (default: 5)")
+    kb_search.add_argument("-v", "--verbose", action="store_true", help="Show content snippets")
+    kb_search.set_defaults(func=cmd_kb, kb_command="search")
 
-    # kb list
     kb_list = kb_subparsers.add_parser(
         "list",
         help="List all documents",
         description="List all documents in the knowledge base.",
     )
-    kb_list.add_argument(
-        "--limit",
-        type=int,
-        default=20,
-        help="Maximum number of documents to list (default: 20)",
-    )
-    kb_list.set_defaults(func=cmd_kb)
+    kb_list.add_argument("--limit", type=int, default=20, help="Maximum number of documents to list (default: 20)")
+    kb_list.set_defaults(func=cmd_kb, kb_command="list")
 
-    # kb show
     kb_show = kb_subparsers.add_parser(
         "show",
         help="Show a document's content",
         description="Display the full content of a document.",
     )
-    kb_show.add_argument(
-        "doc_id",
-        type=str,
-        help="Document ID",
-    )
-    kb_show.set_defaults(func=cmd_kb)
+    kb_show.add_argument("doc_id", type=str, help="Document ID")
+    kb_show.set_defaults(func=cmd_kb, kb_command="show")
 
-    # kb delete
     kb_delete = kb_subparsers.add_parser(
         "delete",
         help="Delete a document",
         description="Remove a document from the knowledge base.",
     )
-    kb_delete.add_argument(
-        "doc_id",
-        type=str,
-        help="Document ID to delete",
-    )
-    kb_delete.set_defaults(func=cmd_kb)
+    kb_delete.add_argument("doc_id", type=str, help="Document ID to delete")
+    kb_delete.set_defaults(func=cmd_kb, kb_command="delete")
 
-    # kb cite
     kb_cite = kb_subparsers.add_parser(
         "cite",
         help="Get citations for a query",
         description="Find documents that can be cited for a specific phrase or term.",
     )
-    kb_cite.add_argument(
-        "query",
-        type=str,
-        help="Text to find citations for",
-    )
-    kb_cite.set_defaults(func=cmd_kb)
+    kb_cite.add_argument("query", type=str, help="Text to find citations for")
+    kb_cite.set_defaults(func=cmd_kb, kb_command="cite")
 
-    # kb tags
     kb_tags = kb_subparsers.add_parser(
         "tags",
         help="List all tags",
         description="List all unique tags in the knowledge base.",
     )
-    kb_tags.set_defaults(func=cmd_kb)
+    kb_tags.set_defaults(func=cmd_kb, kb_command="tags")
 
     kb_parser.set_defaults(func=cmd_kb, kb_command="list")
 
-    # scheduler subcommand
+    # scheduler
     scheduler_parser = subparsers.add_parser(
         "scheduler",
         help="Manage scheduled jobs",
-        description="List or run scheduled jobs.",
+        description="Manage Rex's job scheduler for automated tasks.",
     )
-    scheduler_parser.add_argument(
-        "--storage",
-        type=str,
-        default=None,
-        help="Path to scheduler storage (default: data/scheduler/jobs.json).",
+    scheduler_subparsers = scheduler_parser.add_subparsers(
+        title="scheduler commands",
+        dest="scheduler_command",
+        metavar="COMMAND",
     )
-    scheduler_subparsers = scheduler_parser.add_subparsers(dest="scheduler_command")
 
     scheduler_list = scheduler_subparsers.add_parser(
         "list",
-        help="List scheduled jobs",
+        help="List all scheduled jobs",
+        description="Display all registered jobs with their schedules and status.",
     )
+    scheduler_list.add_argument("-v", "--verbose", action="store_true", help="Show detailed job information")
     scheduler_list.set_defaults(func=cmd_scheduler, scheduler_command="list")
 
     scheduler_run = scheduler_subparsers.add_parser(
         "run",
-        help="Run a scheduled job immediately",
+        help="Run a job immediately",
+        description="Execute a scheduled job immediately, ignoring its schedule.",
     )
-    scheduler_run.add_argument("job_id", type=str, help="Job ID to run")
+    scheduler_run.add_argument("job_id", help="Job ID to run")
     scheduler_run.set_defaults(func=cmd_scheduler, scheduler_command="run")
+
+    scheduler_init = scheduler_subparsers.add_parser(
+        "init",
+        help="Initialize scheduler with default jobs",
+        description="Set up the scheduler system with default email and calendar jobs.",
+    )
+    scheduler_init.set_defaults(func=cmd_scheduler, scheduler_command="init")
 
     scheduler_parser.set_defaults(func=cmd_scheduler, scheduler_command="list")
 
-    # email subcommand
+    # email
     email_parser = subparsers.add_parser(
         "email",
-        help="Inspect unread email (mock data)",
-        description="List unread emails and triage them.",
+        help="Manage email",
+        description="Read and triage emails from your inbox.",
     )
-    email_subparsers = email_parser.add_subparsers(dest="email_command")
+    email_subparsers = email_parser.add_subparsers(
+        title="email commands",
+        dest="email_command",
+        metavar="COMMAND",
+    )
 
     email_unread = email_subparsers.add_parser(
         "unread",
-        help="List unread emails",
+        help="Fetch unread emails",
+        description="Display unread emails with categorization.",
     )
+    email_unread.add_argument("--limit", type=int, default=10, help="Maximum number of emails to fetch (default: 10)")
+    email_unread.add_argument("-v", "--verbose", action="store_true", help="Show detailed email information")
     email_unread.set_defaults(func=cmd_email, email_command="unread")
 
     email_parser.set_defaults(func=cmd_email, email_command="unread")
 
-    # calendar subcommand
+    # calendar
     calendar_parser = subparsers.add_parser(
         "calendar",
-        help="Inspect upcoming calendar events (mock data)",
-        description="List upcoming calendar events.",
+        help="Manage calendar",
+        description="View and manage calendar events.",
     )
-    calendar_subparsers = calendar_parser.add_subparsers(dest="calendar_command")
+    calendar_subparsers = calendar_parser.add_subparsers(
+        title="calendar commands",
+        dest="calendar_command",
+        metavar="COMMAND",
+    )
 
     calendar_upcoming = calendar_subparsers.add_parser(
         "upcoming",
-        help="List upcoming calendar events",
+        help="Show upcoming events",
+        description="Display upcoming calendar events.",
     )
+    calendar_upcoming.add_argument("--days", type=int, default=7, help="Number of days to look ahead (default: 7)")
+    calendar_upcoming.add_argument("--conflicts", action="store_true", help="Check for scheduling conflicts")
+    calendar_upcoming.add_argument("-v", "--verbose", action="store_true", help="Show detailed event information")
     calendar_upcoming.set_defaults(func=cmd_calendar, calendar_command="upcoming")
 
     calendar_parser.set_defaults(func=cmd_calendar, calendar_command="upcoming")
@@ -1313,25 +1234,14 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Main entry point for the Rex CLI.
-
-    Args:
-        argv: Command-line arguments (defaults to sys.argv[1:])
-
-    Returns:
-        Exit code (0 for success, non-zero for failure)
-    """
+    """Main entry point for the Rex CLI."""
     parser = create_parser()
     args = parser.parse_args(argv)
 
-    # If no command specified, default to chat
     if args.command is None:
-        # Check if just -v/--verbose was passed without a command
-        if hasattr(args, "verbose") and args.verbose:
-            # Show help with verbose flag but no command
+        if getattr(args, "verbose", False):
             parser.print_help()
             return 0
-        # Default to chat mode
         args.func = cmd_chat
         args.verbose = getattr(args, "verbose", False)
 
