@@ -1,0 +1,74 @@
+[
+  {
+    "id": "email-001",
+    "from_addr": "boss@company.com",
+    "subject": "URGENT: Project deadline tomorrow",
+    "snippet": "Hi team, just a reminder that the project deliverable is due tomorrow at 5 PM. Please make sure all code is reviewed and tests are passing...",
+    "received_at": "2026-01-28T09:30:00",
+    "labels": ["unread", "important"],
+    "importance_score": 0.95
+  },
+  {
+    "id": "email-002",
+    "from_addr": "newsletter@techblog.com",
+    "subject": "Weekly Tech Digest - AI Advances",
+    "snippet": "This week's top stories: New AI models breaking benchmarks, open source tools gaining traction... Click here to unsubscribe.",
+    "received_at": "2026-01-28T08:00:00",
+    "labels": ["unread"],
+    "importance_score": 0.3
+  },
+  {
+    "id": "email-003",
+    "from_addr": "notifications@github.com",
+    "subject": "Pull request #42 merged",
+    "snippet": "Your pull request 'Add scheduler module' has been merged into main by reviewer123.",
+    "received_at": "2026-01-27T16:45:00",
+    "labels": ["unread"],
+    "importance_score": 0.6
+  },
+  {
+    "id": "email-004",
+    "from_addr": "sales@onlinestore.com",
+    "subject": "50% OFF SALE - Limited Time Only!",
+    "snippet": "Don't miss our biggest sale of the year! Get 50% off on all items with free shipping. Use code: SAVE50 at checkout...",
+    "received_at": "2026-01-27T14:20:00",
+    "labels": ["unread"],
+    "importance_score": 0.1
+  },
+  {
+    "id": "email-005",
+    "from_addr": "alice@example.com",
+    "subject": "Meeting notes from yesterday",
+    "snippet": "Hi everyone, here are the notes from yesterday's planning meeting. Action items: 1. Bob to review API design 2. Carol to update docs...",
+    "received_at": "2026-01-27T11:30:00",
+    "labels": ["unread"],
+    "importance_score": 0.7
+  },
+  {
+    "id": "email-006",
+    "from_addr": "security@company.com",
+    "subject": "Action Required: Security audit scheduled",
+    "snippet": "Your system will undergo a security audit on January 30th. Please ensure all credentials are properly secured and documentation is up to date.",
+    "received_at": "2026-01-27T10:00:00",
+    "labels": ["unread", "important"],
+    "importance_score": 0.9
+  },
+  {
+    "id": "email-007",
+    "from_addr": "noreply@linkedin.com",
+    "subject": "John Doe liked your post",
+    "snippet": "John Doe and 5 others liked your post about AI assistants. View all reactions on LinkedIn.",
+    "received_at": "2026-01-26T18:30:00",
+    "labels": [],
+    "importance_score": 0.2
+  },
+  {
+    "id": "email-008",
+    "from_addr": "team@startup.io",
+    "subject": "Re: API integration question",
+    "snippet": "Thanks for reaching out! To integrate our API, you'll need to first create an API key from the dashboard...",
+    "received_at": "2026-01-26T15:00:00",
+    "labels": [],
+    "importance_score": 0.6
+  }
+]
