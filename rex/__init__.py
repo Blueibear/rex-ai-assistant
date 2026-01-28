@@ -78,6 +78,26 @@ from .calendar_service import (
     set_calendar_service,
 )
 
+# Messaging service
+from .messaging_service import (
+    Message,
+    MessagingService,
+    SMSService,
+    get_sms_service,
+    set_sms_service,
+)
+
+# Notification system
+from .notification import (
+    NotificationRequest,
+    Notifier,
+    EscalationManager,
+    get_notifier,
+    set_notifier,
+    get_escalation_manager,
+    set_escalation_manager,
+)
+
 __all__ = [
     # Configuration
     "settings",
@@ -118,4 +138,18 @@ __all__ = [
     "CalendarService",
     "get_calendar_service",
     "set_calendar_service",
+    # Messaging service
+    "Message",
+    "MessagingService",
+    "SMSService",
+    "get_sms_service",
+    "set_sms_service",
+    # Notification system
+    "NotificationRequest",
+    "Notifier",
+    "EscalationManager",
+    "get_notifier",
+    "set_notifier",
+    "get_escalation_manager",
+    "set_escalation_manager",
 ]
