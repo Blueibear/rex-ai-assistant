@@ -260,4 +260,5 @@ pytest tests/test_tool_router_policy.py -v
 ## Related Documentation
 
 - [Contracts](contracts.md) - Core data models including `ToolCall` and `RiskLevel`
+- [Workflow Engine](workflow-engine.md) - Multi-step task execution with policy enforcement
 - [Architecture](ARCHITECTURE.md) - System architecture overview
