@@ -1,34 +1,35 @@
 """Follow-up engine for Rex AI Assistant.
 
-This module integrates cues into conversations, making Rex feel more personal
-by following up on calendar events, reminders, and other activities.
+Integrates cues into conversations to make Rex feel more personal by
+following up on calendar events, reminders, and other activities.
 
 The follow-up engine:
-- Injects cue prompts into conversations at the start
+- Injects cue prompts into conversations
 - Tracks which cues have been asked per session
 - Rate-limits cue injection (default 1 per session)
-- Generates cues from calendar events when conversations start
+- Optionally generates cues from calendar events
 
 Usage:
-    from rex.followup_engine import FollowupEngine, get_followup_engine
+    from rex.followup_engine import get_followup_engine
 
     engine = get_followup_engine()
+    engine.start_session(user_id="default")
 
-    # At the start of a conversation session
-    cue_prompt = engine.get_followup_prompt(user_id="default")
-    if cue_prompt:
-        # Include in the assistant's opening or first response
-        print(f"Rex might ask: {cue_prompt}")
+    prompt = engine.get_followup_prompt(user_id="default")
+    if prompt:
+        # include prompt naturally early in conversation
+        ...
 
-    # After the user responds to a cue
-    engine.mark_current_cue_asked()
+    # after delivering the prompt
+    engine.mark_current_cue_asked(user_id="default")
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Optional
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -38,97 +39,198 @@ def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _ensure_utc(dt: datetime) -> datetime:
+    """Ensure a datetime is timezone-aware and normalized to UTC."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _clamp(value: int, minimum: int, maximum: int) -> int:
+    return max(minimum, min(maximum, value))
+
+
 def _get_config() -> dict[str, Any]:
-    """Load followup configuration with safe defaults."""
+    """Load follow-up configuration with safe defaults."""
     try:
         from rex.config_manager import load_config
 
-        config = load_config()
-        return config.get("conversation", {}).get("followups", {})
+        cfg = load_config()
+        followups = cfg.get("conversation", {}).get("followups", {})
+        if isinstance(followups, dict):
+            return followups
+        return {}
     except Exception:
         return {}
+
+
+@dataclass(frozen=True)
+class FollowupConfig:
+    """Compatibility config object (can also be constructed from rex_config.json)."""
+
+    enabled: bool = True
+    max_per_session: int = 1
+    lookback_hours: int = 72
+    expire_hours: int = 168
 
 
 class FollowupEngine:
     """Engine for managing follow-up cue injection into conversations.
 
-    Provides functionality to:
-    - Get a follow-up prompt for a conversation session
-    - Track cues asked within a session
-    - Rate-limit cue injection
-    - Generate cues from calendar events
+    Supports two usage styles:
+    1) Modern session-based flow:
+        start_session() -> get_followup_prompt() -> mark_current_cue_asked()
+    2) Legacy flow:
+        collect_followups() / format_followups()
 
-    The engine maintains session state to avoid asking the same user
-    multiple cues in a single conversation.
-
-    Example:
-        engine = FollowupEngine()
-        engine.start_session("default")
-        prompt = engine.get_followup_prompt("default")
-        if prompt:
-            # Use the prompt in conversation
-            engine.mark_current_cue_asked()
+    The engine holds in-memory session state per user_id.
     """
 
-    def __init__(self) -> None:
-        """Initialize the follow-up engine."""
-        # Session state: tracks cues asked per user session
+    def __init__(
+        self,
+        *,
+        cue_store: Any = None,
+        calendar_service: Any = None,
+        config: Optional[FollowupConfig] = None,
+        now_fn: Optional[Callable[[], datetime]] = None,
+    ) -> None:
+        # Lazy imports to avoid import cycles at module import time.
+        if cue_store is None:
+            from rex.cue_store import get_cue_store
+
+            cue_store = get_cue_store()
+
+        self._cue_store = cue_store
+        self._calendar_service = calendar_service
+        self._now_fn = now_fn or _utc_now
+
+        # Session state
         self._session_cues_asked: dict[str, int] = {}
         self._current_cue_id: dict[str, Optional[str]] = {}
+        self._session_asked_ids: dict[str, set[str]] = {}
 
-    def _is_enabled(self) -> bool:
-        """Check if follow-ups are enabled in config."""
-        config = _get_config()
-        return config.get("enabled", True)
+        # Optional fixed config override (otherwise config is read dynamically)
+        self._fixed_config = config
 
-    def _max_per_session(self) -> int:
-        """Get the maximum cues per session from config."""
-        config = _get_config()
-        return config.get("max_per_session", 1)
+    @classmethod
+    def from_settings(
+        cls,
+        settings: object,
+        *,
+        cue_store: Any = None,
+        calendar_service: Any = None,
+    ) -> "FollowupEngine":
+        """Compatibility constructor for older settings objects."""
+        enabled = bool(getattr(settings, "followups_enabled", True))
+        max_per_session = int(getattr(settings, "followups_max_per_session", 1))
+        lookback_hours = int(getattr(settings, "followups_lookback_hours", 72))
+        expire_hours = int(getattr(settings, "followups_expire_hours", 168))
 
-    def _lookback_hours(self) -> int:
-        """Get the lookback hours from config."""
-        config = _get_config()
-        return config.get("lookback_hours", 72)
+        cfg = FollowupConfig(
+            enabled=enabled,
+            max_per_session=max_per_session,
+            lookback_hours=lookback_hours,
+            expire_hours=expire_hours,
+        )
+        return cls(cue_store=cue_store, calendar_service=calendar_service, config=cfg)
 
-    def _expire_hours(self) -> int:
-        """Get the expire hours from config."""
-        config = _get_config()
-        return config.get("expire_hours", 168)
+    def _effective_config(self) -> FollowupConfig:
+        if self._fixed_config is not None:
+            cfg = self._fixed_config
+        else:
+            raw = _get_config()
+            cfg = FollowupConfig(
+                enabled=bool(raw.get("enabled", True)),
+                max_per_session=int(raw.get("max_per_session", 1)),
+                lookback_hours=int(raw.get("lookback_hours", 72)),
+                expire_hours=int(raw.get("expire_hours", 168)),
+            )
+
+        return FollowupConfig(
+            enabled=bool(cfg.enabled),
+            max_per_session=_clamp(int(cfg.max_per_session), 1, 5),
+            lookback_hours=_clamp(int(cfg.lookback_hours), 1, 168),
+            expire_hours=_clamp(int(cfg.expire_hours), 1, 720),
+        )
 
     def start_session(self, user_id: str) -> None:
-        """Start a new conversation session for a user.
-
-        Resets the cue count for the session and generates new cues
-        from calendar events.
-
-        Args:
-            user_id: The user ID starting the session.
-        """
+        """Start a new conversation session for a user."""
         self._session_cues_asked[user_id] = 0
         self._current_cue_id[user_id] = None
+        self._session_asked_ids[user_id] = set()
 
-        # Generate cues from calendar if enabled
-        if self._is_enabled():
-            self._generate_calendar_cues(user_id)
+        cfg = self._effective_config()
+        if cfg.enabled:
+            self._generate_calendar_cues(user_id=user_id, config=cfg)
 
-    def _generate_calendar_cues(self, user_id: str) -> None:
-        """Generate follow-up cues from recent calendar events.
-
-        Args:
-            user_id: The user ID to generate cues for.
-        """
+    def _get_calendar_service(self) -> Any:
+        if self._calendar_service is not None:
+            return self._calendar_service
         try:
             from rex.calendar_service import get_calendar_service
 
-            calendar = get_calendar_service()
-            calendar.generate_followup_cues(
-                user_id=user_id,
-                lookback_hours=self._lookback_hours(),
-                expire_hours=self._expire_hours(),
-            )
-        except Exception as e:
-            logger.debug(f"Could not generate calendar cues: {e}")
+            return get_calendar_service()
+        except Exception:
+            return None
+
+    def _generate_calendar_cues(self, *, user_id: str, config: FollowupConfig) -> None:
+        """Generate follow-up cues from recent calendar events.
+
+        Supports:
+        - calendar.generate_followup_cues(user_id=..., lookback_hours=..., expire_hours=...)
+        - fallback: calendar.get_events(start, end)
+        """
+        calendar = self._get_calendar_service()
+        if calendar is None:
+            return
+
+        try:
+            if hasattr(calendar, "generate_followup_cues"):
+                calendar.generate_followup_cues(
+                    user_id=user_id,
+                    lookback_hours=config.lookback_hours,
+                    expire_hours=config.expire_hours,
+                )
+                return
+        except Exception as exc:
+            logger.debug("Could not generate calendar cues via generate_followup_cues: %s", exc)
+
+        # Fallback path: build cues from events list
+        try:
+            now = self._now_fn()
+            start = now - timedelta(hours=config.lookback_hours)
+            if not hasattr(calendar, "get_events"):
+                return
+
+            events = calendar.get_events(start, now)
+            for event in events:
+                end_time = getattr(event, "end_time", None)
+                title = getattr(event, "title", None)
+                event_id = getattr(event, "event_id", None)
+
+                if not isinstance(end_time, datetime) or not isinstance(title, str) or not isinstance(event_id, str):
+                    continue
+
+                end_time_utc = _ensure_utc(end_time)
+                if end_time_utc > _ensure_utc(now):
+                    continue
+
+                prompt = f"How did your {title} go?"
+                expires_at = end_time_utc + timedelta(hours=config.expire_hours)
+
+                # CueStore API: add_cue(user_id, source_type, source_id, title, prompt, ...)
+                self._cue_store.add_cue(
+                    user_id=user_id,
+                    source_type="calendar",
+                    source_id=event_id,
+                    title=title,
+                    prompt=prompt,
+                    eligible_after=end_time_utc,
+                    expires_at=expires_at,
+                    metadata={"event_title": title},
+                )
+        except Exception as exc:
+            logger.debug("Could not generate calendar cues via fallback path: %s", exc)
 
     def get_followup_prompt(
         self,
@@ -138,48 +240,32 @@ class FollowupEngine:
     ) -> Optional[str]:
         """Get a follow-up prompt for the user if available.
 
-        Returns a cue prompt if:
-        - Follow-ups are enabled
-        - Rate limit not exceeded for session
-        - Pending cues exist for the user
-
         The cue is NOT marked as asked until mark_current_cue_asked() is called.
-
-        Args:
-            user_id: The user ID to get a prompt for.
-            now: Current time (defaults to UTC now).
-
-        Returns:
-            A follow-up prompt string, or None if no cue available.
         """
-        if not self._is_enabled():
+        cfg = self._effective_config()
+        if not cfg.enabled:
             return None
 
-        # Check rate limit
         asked_count = self._session_cues_asked.get(user_id, 0)
-        if asked_count >= self._max_per_session():
+        if asked_count >= cfg.max_per_session:
             return None
 
         try:
-            from rex.cue_store import get_cue_store
-
-            store = get_cue_store()
-            pending = store.list_pending_cues(
+            check_time = _ensure_utc(now or self._now_fn())
+            pending = self._cue_store.list_pending_cues(
                 user_id=user_id,
-                now=now,
+                now=check_time,
                 limit=1,
-                window_hours=self._lookback_hours(),
+                window_hours=cfg.lookback_hours,
             )
-
             if not pending:
                 return None
 
             cue = pending[0]
             self._current_cue_id[user_id] = cue.cue_id
             return cue.prompt
-
-        except Exception as e:
-            logger.warning(f"Failed to get followup prompt: {e}")
+        except Exception as exc:
+            logger.warning("Failed to get followup prompt: %s", exc)
             return None
 
     def get_followup_context(
@@ -188,36 +274,23 @@ class FollowupEngine:
         *,
         now: Optional[datetime] = None,
     ) -> Optional[dict[str, Any]]:
-        """Get follow-up context including prompt and metadata.
-
-        Similar to get_followup_prompt but returns more context
-        for advanced use cases.
-
-        Args:
-            user_id: The user ID to get context for.
-            now: Current time (defaults to UTC now).
-
-        Returns:
-            A dict with 'prompt', 'cue_id', 'title', 'source_type', or None.
-        """
-        if not self._is_enabled():
+        """Return follow-up context including prompt and metadata."""
+        cfg = self._effective_config()
+        if not cfg.enabled:
             return None
 
         asked_count = self._session_cues_asked.get(user_id, 0)
-        if asked_count >= self._max_per_session():
+        if asked_count >= cfg.max_per_session:
             return None
 
         try:
-            from rex.cue_store import get_cue_store
-
-            store = get_cue_store()
-            pending = store.list_pending_cues(
+            check_time = _ensure_utc(now or self._now_fn())
+            pending = self._cue_store.list_pending_cues(
                 user_id=user_id,
-                now=now,
+                now=check_time,
                 limit=1,
-                window_hours=self._lookback_hours(),
+                window_hours=cfg.lookback_hours,
             )
-
             if not pending:
                 return None
 
@@ -229,79 +302,47 @@ class FollowupEngine:
                 "title": cue.title,
                 "source_type": cue.source_type,
                 "source_id": cue.source_id,
+                "metadata": cue.metadata,
             }
-
-        except Exception as e:
-            logger.warning(f"Failed to get followup context: {e}")
+        except Exception as exc:
+            logger.warning("Failed to get followup context: %s", exc)
             return None
 
     def mark_current_cue_asked(self, user_id: str) -> bool:
-        """Mark the current cue as asked.
-
-        Should be called after the follow-up prompt has been delivered
-        to the user and they have responded.
-
-        Args:
-            user_id: The user ID whose cue to mark.
-
-        Returns:
-            True if a cue was marked, False otherwise.
-        """
+        """Mark the current cue as asked for this user session."""
         cue_id = self._current_cue_id.get(user_id)
         if cue_id is None:
             return False
 
         try:
-            from rex.cue_store import get_cue_store
-
-            store = get_cue_store()
-            if store.mark_asked(cue_id):
-                self._session_cues_asked[user_id] = (
-                    self._session_cues_asked.get(user_id, 0) + 1
-                )
+            if self._cue_store.mark_asked(cue_id):
+                self._session_cues_asked[user_id] = self._session_cues_asked.get(user_id, 0) + 1
                 self._current_cue_id[user_id] = None
+                self._session_asked_ids.setdefault(user_id, set()).add(cue_id)
                 return True
             return False
-
-        except Exception as e:
-            logger.warning(f"Failed to mark cue as asked: {e}")
+        except Exception as exc:
+            logger.warning("Failed to mark cue as asked: %s", exc)
             return False
 
     def has_pending_cue(self, user_id: str) -> bool:
-        """Check if there's a pending cue for the user.
-
-        Args:
-            user_id: The user ID to check.
-
-        Returns:
-            True if there's at least one pending cue.
-        """
-        if not self._is_enabled():
+        """Check if there's at least one pending cue for the user."""
+        cfg = self._effective_config()
+        if not cfg.enabled:
             return False
 
         try:
-            from rex.cue_store import get_cue_store
-
-            store = get_cue_store()
-            pending = store.list_pending_cues(
+            pending = self._cue_store.list_pending_cues(
                 user_id=user_id,
                 limit=1,
-                window_hours=self._lookback_hours(),
+                window_hours=cfg.lookback_hours,
             )
             return len(pending) > 0
-
         except Exception:
             return False
 
     def get_session_cues_asked(self, user_id: str) -> int:
-        """Get the number of cues asked in the current session.
-
-        Args:
-            user_id: The user ID to check.
-
-        Returns:
-            Number of cues asked this session.
-        """
+        """Get the number of cues asked in the current session."""
         return self._session_cues_asked.get(user_id, 0)
 
     def inject_followup_into_prompt(
@@ -311,30 +352,69 @@ class FollowupEngine:
         *,
         now: Optional[datetime] = None,
     ) -> str:
-        """Inject a follow-up cue into a system/assistant prompt.
-
-        This is a convenience method for modifying prompts to include
-        follow-up behavior.
-
-        Args:
-            user_id: The user ID.
-            base_prompt: The original prompt/system message.
-            now: Current time (defaults to UTC now).
-
-        Returns:
-            Modified prompt with follow-up instruction, or original if no cue.
-        """
+        """Inject a follow-up cue into a prompt."""
         followup = self.get_followup_prompt(user_id, now=now)
         if followup is None:
             return base_prompt
 
-        followup_instruction = (
-            f"\n\nEarly in this conversation, naturally ask the user: "
+        instruction = (
+            "\n\nEarly in this conversation, naturally ask the user: "
             f'"{followup}" '
-            f"Make it feel like friendly small talk, not a checklist."
+            "Make it feel like friendly small talk, not a checklist."
         )
+        return base_prompt + instruction
 
-        return base_prompt + followup_instruction
+    # Legacy compatibility API
+
+    def collect_followups(self, user_id: str = "default") -> list[str]:
+        """Collect follow-up prompts and mark them asked immediately.
+
+        This matches the older behavior where collecting also consumes cues.
+        """
+        cfg = self._effective_config()
+        if not cfg.enabled:
+            return []
+
+        asked_count = self._session_cues_asked.get(user_id, 0)
+        if asked_count >= cfg.max_per_session:
+            return []
+
+        remaining = cfg.max_per_session - asked_count
+        now = _ensure_utc(self._now_fn())
+
+        prompts: list[str] = []
+        asked_ids = self._session_asked_ids.setdefault(user_id, set())
+
+        try:
+            pending = self._cue_store.list_pending_cues(
+                user_id=user_id,
+                now=now,
+                limit=max(1, remaining),
+                window_hours=cfg.lookback_hours,
+            )
+            for cue in pending:
+                if cue.cue_id in asked_ids:
+                    continue
+                if self._cue_store.mark_asked(cue.cue_id):
+                    asked_ids.add(cue.cue_id)
+                    self._session_cues_asked[user_id] = self._session_cues_asked.get(user_id, 0) + 1
+                    prompts.append(cue.prompt)
+                if len(prompts) >= remaining:
+                    break
+        except Exception as exc:
+            logger.warning("Failed to collect followups: %s", exc)
+
+        return prompts
+
+    def format_followups(self, user_id: str = "default") -> Optional[str]:
+        """Return formatted follow-up block or None."""
+        prompts = self.collect_followups(user_id=user_id)
+        if not prompts:
+            return None
+        lines = ["[Follow-up cues]"]
+        lines.extend(f"- {prompt}" for prompt in prompts)
+        lines.append("[/Follow-up cues]")
+        return "\n".join(lines)
 
 
 # Global instance
@@ -349,14 +429,16 @@ def get_followup_engine() -> FollowupEngine:
     return _followup_engine
 
 
-def set_followup_engine(engine: FollowupEngine) -> None:
+def set_followup_engine(engine: Optional[FollowupEngine]) -> None:
     """Set the global follow-up engine instance (for testing)."""
     global _followup_engine
     _followup_engine = engine
 
 
 __all__ = [
+    "FollowupConfig",
     "FollowupEngine",
     "get_followup_engine",
     "set_followup_engine",
 ]
+

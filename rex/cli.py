@@ -14,6 +14,14 @@ This module provides the main CLI entry point with subcommands:
     rex scheduler    - List and manage scheduler jobs
     rex email        - Manage email
     rex calendar     - Manage calendar
+    rex reminders    - Manage reminders
+    rex cues         - Manage follow-up cues
+    rex browser      - Browser automation
+    rex os           - OS automation
+    rex gh           - GitHub integration
+    rex code         - VS Code operations
+    rex msg          - Messaging (SMS)
+    rex notify       - Notifications
 
 Usage:
     rex [command] [options]
@@ -25,7 +33,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional, Sequence
 
 
@@ -69,6 +77,18 @@ def get_calendar_service():
     from rex.calendar_service import get_calendar_service as _get_calendar_service
 
     return _get_calendar_service()
+
+
+def get_reminder_service():
+    from rex.reminder_service import get_reminder_service as _get_reminder_service
+
+    return _get_reminder_service()
+
+
+def get_cue_store():
+    from rex.cue_store import get_cue_store as _get_cue_store
+
+    return _get_cue_store()
 
 
 def initialize_scheduler_system(*args, **kwargs):
@@ -435,13 +455,11 @@ def cmd_plan(args: argparse.Namespace) -> int:
     print(f"Planning workflow for goal: {goal}")
     print("-" * 60)
 
-    # Create planner
     planner = Planner(
         tool_registry=get_tool_registry(),
         policy_engine=get_policy_engine(),
     )
 
-    # Generate plan
     try:
         workflow = planner.plan(goal, requested_by="cli_user")
     except UnableToPlanError as e:
@@ -453,17 +471,15 @@ def cmd_plan(args: argparse.Namespace) -> int:
     print(f"  Steps: {len(workflow.steps)}")
     print()
 
-    # Display steps
     for i, step in enumerate(workflow.steps, 1):
         print(f"{i}. {step.description}")
         if step.tool_call:
             print(f"   Tool: {step.tool_call.tool}")
             print(f"   Args: {step.tool_call.args}")
         if step.requires_approval:
-            print(f"   [REQUIRES APPROVAL]")
+            print("   [REQUIRES APPROVAL]")
         print()
 
-    # Validate workflow
     print("Validating workflow...")
     if not planner.validate_workflow(workflow):
         print("Error: Workflow validation failed.")
@@ -473,18 +489,15 @@ def cmd_plan(args: argparse.Namespace) -> int:
     print("Validation passed.")
     print()
 
-    # Check autonomy mode
     autonomy_mode = get_mode(workflow)
     print(f"Autonomy mode: {autonomy_mode.value}")
     print()
 
-    # Save workflow
     if args.save or args.execute:
         workflow.save()
         print(f"Saved workflow to: data/workflows/{workflow.workflow_id}.json")
         print()
 
-    # Execute if requested
     if args.execute:
         if autonomy_mode == AutonomyMode.OFF:
             print("Autonomy mode is OFF for this workflow category.")
@@ -493,7 +506,6 @@ def cmd_plan(args: argparse.Namespace) -> int:
                 print("Use --force to execute anyway.")
                 return 0
 
-        # Parse budget
         budget = ExecutionBudget(
             max_actions=args.max_actions,
             max_messages=args.max_messages,
@@ -513,7 +525,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
 
         if result.status == "completed":
             return 0
-        elif result.status == "blocked":
+        if result.status == "blocked":
             print()
             print("To approve, run:")
             print(f"  rex approvals --approve {result.blocking_approval_id}")
@@ -521,17 +533,15 @@ def cmd_plan(args: argparse.Namespace) -> int:
             print("Then resume with:")
             print(f"  rex executor resume {workflow.workflow_id}")
             return 0
-        else:
-            return 1
-    else:
-        print("Workflow planned successfully.")
-        print()
-        print("To execute, run:")
-        print(f"  rex plan \"{goal}\" --execute")
-        print()
-        print("Or run the workflow file:")
-        print(f"  rex run-workflow data/workflows/{workflow.workflow_id}.json")
+        return 1
 
+    print("Workflow planned successfully.")
+    print()
+    print("To execute, run:")
+    print(f"  rex plan \"{goal}\" --execute")
+    print()
+    print("Or run the workflow file:")
+    print(f"  rex run-workflow data/workflows/{workflow.workflow_id}.json")
     return 0
 
 
@@ -542,7 +552,6 @@ def cmd_executor_resume(args: argparse.Namespace) -> int:
 
     workflow_id = args.workflow_id
 
-    # Load workflow
     workflow = Workflow.load(workflow_id)
     if workflow is None:
         print(f"Error: Workflow not found: {workflow_id}")
@@ -558,7 +567,6 @@ def cmd_executor_resume(args: argparse.Namespace) -> int:
     print(f"  Blocking approval: {workflow.blocking_approval_id}")
     print()
 
-    # Parse budget
     budget = ExecutionBudget(
         max_actions=args.max_actions,
         max_messages=args.max_messages,
@@ -578,7 +586,7 @@ def cmd_executor_resume(args: argparse.Namespace) -> int:
 
     if result.status == "completed":
         return 0
-    elif result.status == "blocked":
+    if result.status == "blocked":
         print()
         print("To approve, run:")
         print(f"  rex approvals --approve {result.blocking_approval_id}")
@@ -586,8 +594,7 @@ def cmd_executor_resume(args: argparse.Namespace) -> int:
         print("Then resume with:")
         print(f"  rex executor resume {workflow.workflow_id}")
         return 0
-    else:
-        return 1
+    return 1
 
 
 def cmd_memory(args: argparse.Namespace) -> int:
@@ -600,7 +607,7 @@ def cmd_memory(args: argparse.Namespace) -> int:
 
     if subcommand == "recent":
         wm = get_working_memory()
-        n = args.count or 10
+        n = int(getattr(args, "count", 10))
         entries = wm.get_recent_with_timestamps(n)
 
         if not entries:
@@ -1067,39 +1074,53 @@ def _parse_ttl(ttl_str: str) -> Optional[timedelta]:
         return None
 
 
-def _parse_datetime(dt_str: str) -> Optional["datetime"]:
-    """Parse datetime string in various formats."""
-    from datetime import datetime, timezone
+def _parse_datetime_strict(dt_str: str) -> datetime:
+    """
+    Parse a datetime string in common formats and return a timezone-aware datetime.
 
+    Accepted examples:
+      - 2026-01-29 14:30
+      - 2026-01-29 14:30:00
+      - 2026/01/29 14:30
+      - ISO-8601 (datetime.fromisoformat compatible)
+
+    If no timezone is provided, local timezone is assumed.
+    """
     dt_str = dt_str.strip()
     if not dt_str:
-        return None
+        raise ValueError("Datetime cannot be empty")
 
-    # Try common formats
+    # First, try ISO parsing (supports "YYYY-MM-DD HH:MM[:SS]" and true ISO forms)
+    try:
+        dt = datetime.fromisoformat(dt_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=datetime.now().astimezone().tzinfo)
+        return dt
+    except ValueError:
+        pass
+
+    # Then, try a few explicit formats
     formats = [
         "%Y-%m-%d %H:%M",
         "%Y-%m-%d %H:%M:%S",
         "%Y/%m/%d %H:%M",
         "%Y/%m/%d %H:%M:%S",
-        "%d/%m/%Y %H:%M",
         "%m/%d/%Y %H:%M",
+        "%d/%m/%Y %H:%M",
     ]
 
     for fmt in formats:
         try:
             dt = datetime.strptime(dt_str, fmt)
-            # Make timezone-aware as UTC
-            return dt.replace(tzinfo=timezone.utc)
+            return dt.replace(tzinfo=datetime.now().astimezone().tzinfo)
         except ValueError:
             continue
 
-    return None
+    raise ValueError("Invalid datetime format. Use YYYY-MM-DD HH:MM (or ISO-8601).")
 
 
 def cmd_reminders(args: argparse.Namespace) -> int:
     """Manage reminders."""
-    from rex.reminder_service import get_reminder_service
-
     service = get_reminder_service()
     subcommand = args.reminders_command
 
@@ -1107,15 +1128,14 @@ def cmd_reminders(args: argparse.Namespace) -> int:
         title = args.title
         at_str = args.at
 
-        remind_at = _parse_datetime(at_str)
-        if remind_at is None:
-            print(f"Error: Invalid datetime format: {at_str}")
-            print("Use formats like: YYYY-MM-DD HH:MM or YYYY/MM/DD HH:MM")
+        try:
+            remind_at = _parse_datetime_strict(at_str)
+        except ValueError as exc:
+            print(f"Error: {exc}")
             return 1
 
-        followup = getattr(args, "followup", False)
+        followup = bool(getattr(args, "followup", False))
 
-        # Get user_id from config
         try:
             from rex.config_manager import load_config
 
@@ -1124,17 +1144,28 @@ def cmd_reminders(args: argparse.Namespace) -> int:
         except Exception:
             user_id = "default"
 
-        reminder = service.create_reminder(
-            user_id=user_id,
-            title=title,
-            remind_at=remind_at,
-            followup_enabled=followup,
-        )
+        # Compatibility: service might implement create_reminder(...) or add_reminder(...)
+        if hasattr(service, "create_reminder"):
+            reminder = service.create_reminder(
+                user_id=user_id,
+                title=title,
+                remind_at=remind_at,
+                followup_enabled=followup,
+            )
+        else:
+            reminder = service.add_reminder(title, remind_at, follow_up=followup)
 
-        print(f"Created reminder: {reminder.reminder_id}")
-        print(f"  Title: {reminder.title}")
-        print(f"  Remind at: {reminder.remind_at.strftime('%Y-%m-%d %H:%M')}")
-        print(f"  Follow-up enabled: {reminder.followup_enabled}")
+        reminder_id = getattr(reminder, "reminder_id", getattr(reminder, "id", "unknown"))
+        remind_at_val = getattr(reminder, "remind_at", getattr(reminder, "remind_at", remind_at))
+        if hasattr(remind_at_val, "isoformat"):
+            remind_at_str = remind_at_val.isoformat()
+        else:
+            remind_at_str = str(remind_at_val)
+
+        print(f"Created reminder: {reminder_id}")
+        print(f"  Title: {getattr(reminder, 'title', title)}")
+        print(f"  Remind at: {remind_at_str}")
+        print(f"  Follow-up enabled: {getattr(reminder, 'followup_enabled', followup)}")
         return 0
 
     if subcommand == "list":
@@ -1155,16 +1186,25 @@ def cmd_reminders(args: argparse.Namespace) -> int:
                 "fired": "[FIRED]",
                 "done": "[DONE]",
                 "canceled": "[CANCELED]",
-            }.get(rem.status, "[?]")
+            }.get(getattr(rem, "status", getattr(rem, "status", "unknown")), "[?]")
 
-            print(f"{rem.reminder_id}: {rem.title} {status_indicator}")
-            print(f"  Remind at: {rem.remind_at.strftime('%Y-%m-%d %H:%M')}")
-            if rem.followup_enabled:
-                print(f"  Follow-up: enabled")
-            if rem.fired_at:
-                print(f"  Fired at: {rem.fired_at.strftime('%Y-%m-%d %H:%M')}")
-            if rem.done_at:
-                print(f"  Done at: {rem.done_at.strftime('%Y-%m-%d %H:%M')}")
+            rid = getattr(rem, "reminder_id", getattr(rem, "id", "unknown"))
+            title = getattr(rem, "title", "")
+            remind_at_dt = getattr(rem, "remind_at", getattr(rem, "remind_at", None))
+            remind_at_str = remind_at_dt.strftime("%Y-%m-%d %H:%M") if remind_at_dt else "n/a"
+
+            print(f"{rid}: {title} {status_indicator}")
+            print(f"  Remind at: {remind_at_str}")
+
+            if getattr(rem, "followup_enabled", False):
+                print("  Follow-up: enabled")
+
+            fired_at = getattr(rem, "fired_at", None)
+            done_at = getattr(rem, "done_at", None)
+            if fired_at:
+                print(f"  Fired at: {fired_at.strftime('%Y-%m-%d %H:%M')}")
+            if done_at:
+                print(f"  Done at: {done_at.strftime('%Y-%m-%d %H:%M')}")
             print()
 
         print(f"Total: {len(reminders)} reminders")
@@ -1172,7 +1212,11 @@ def cmd_reminders(args: argparse.Namespace) -> int:
 
     if subcommand == "done":
         reminder_id = args.id
-        if service.mark_done(reminder_id):
+        if hasattr(service, "mark_done"):
+            ok = service.mark_done(reminder_id)
+        else:
+            ok = service.complete_reminder(reminder_id)
+        if ok:
             print(f"Marked reminder {reminder_id} as done.")
             return 0
         print(f"Error: Reminder not found: {reminder_id}")
@@ -1180,7 +1224,11 @@ def cmd_reminders(args: argparse.Namespace) -> int:
 
     if subcommand == "cancel":
         reminder_id = args.id
-        if service.cancel_reminder(reminder_id):
+        if hasattr(service, "cancel_reminder"):
+            ok = service.cancel_reminder(reminder_id)
+        else:
+            ok = service.cancel(reminder_id)
+        if ok:
             print(f"Canceled reminder {reminder_id}.")
             return 0
         print(f"Error: Reminder not found: {reminder_id}")
@@ -1192,14 +1240,16 @@ def cmd_reminders(args: argparse.Namespace) -> int:
 
 def cmd_cues(args: argparse.Namespace) -> int:
     """Manage follow-up cues."""
-    from rex.cue_store import get_cue_store
-
     store = get_cue_store()
     subcommand = args.cues_command
 
     if subcommand == "list":
         status_filter = getattr(args, "status", None)
-        cues = store.list_all_cues(status=status_filter)
+
+        if hasattr(store, "list_all_cues"):
+            cues = store.list_all_cues(status=status_filter)
+        else:
+            cues = store.list_cues(status=status_filter)
 
         if not cues:
             print("No cues found.")
@@ -1214,40 +1264,64 @@ def cmd_cues(args: argparse.Namespace) -> int:
                 "pending": "[PENDING]",
                 "asked": "[ASKED]",
                 "dismissed": "[DISMISSED]",
-            }.get(cue.status, "[?]")
+            }.get(getattr(cue, "status", "unknown"), "[?]")
 
-            source_label = f"[{cue.source_type}]"
-            print(f"{cue.cue_id}: {cue.title} {source_label} {status_indicator}")
-            print(f"  Prompt: {cue.prompt}")
-            print(f"  Created: {cue.created_at.strftime('%Y-%m-%d %H:%M')}")
-            if cue.expires_at:
-                print(f"  Expires: {cue.expires_at.strftime('%Y-%m-%d %H:%M')}")
-            if cue.asked_at:
-                print(f"  Asked at: {cue.asked_at.strftime('%Y-%m-%d %H:%M')}")
-            if cue.dismissed_at:
-                print(f"  Dismissed at: {cue.dismissed_at.strftime('%Y-%m-%d %H:%M')}")
+            source_type = getattr(cue, "source_type", None)
+            source_label = f"[{source_type}]" if source_type else ""
+            cue_id = getattr(cue, "cue_id", getattr(cue, "id", "unknown"))
+            title = getattr(cue, "title", "(no title)")
+            prompt = getattr(cue, "prompt", "")
+
+            print(f"{cue_id}: {title} {source_label} {status_indicator}".strip())
+            print(f"  Prompt: {prompt}")
+
+            created_at = getattr(cue, "created_at", None)
+            expires_at = getattr(cue, "expires_at", None)
+            asked_at = getattr(cue, "asked_at", None)
+            dismissed_at = getattr(cue, "dismissed_at", None)
+
+            if created_at:
+                print(f"  Created: {created_at.strftime('%Y-%m-%d %H:%M')}")
+            if expires_at:
+                print(f"  Expires: {expires_at.strftime('%Y-%m-%d %H:%M')}")
+            if asked_at:
+                print(f"  Asked at: {asked_at.strftime('%Y-%m-%d %H:%M')}")
+            if dismissed_at:
+                print(f"  Dismissed at: {dismissed_at.strftime('%Y-%m-%d %H:%M')}")
             print()
 
         print(f"Total: {len(cues)} cues")
 
-        # Show stats
-        stats = store.stats()
-        print(f"  Pending: {stats['by_status'].get('pending', 0)}")
-        print(f"  Asked: {stats['by_status'].get('asked', 0)}")
-        print(f"  Dismissed: {stats['by_status'].get('dismissed', 0)}")
+        if hasattr(store, "stats"):
+            stats = store.stats()
+            by_status = stats.get("by_status", {}) if isinstance(stats, dict) else {}
+            print(f"  Pending: {by_status.get('pending', 0)}")
+            print(f"  Asked: {by_status.get('asked', 0)}")
+            print(f"  Dismissed: {by_status.get('dismissed', 0)}")
 
         return 0
 
     if subcommand == "dismiss":
         cue_id = args.cue_id
-        if store.dismiss(cue_id):
+        ok = store.dismiss(cue_id) if hasattr(store, "dismiss") else False
+        if ok:
             print(f"Dismissed cue {cue_id}.")
             return 0
         print(f"Error: Cue not found: {cue_id}")
         return 1
 
     if subcommand == "prune":
-        count = store.prune_expired()
+        # Compatibility: store may implement prune_expired() or prune_expired(expire_hours=...)
+        if hasattr(store, "prune_expired"):
+            try:
+                count = store.prune_expired()
+            except TypeError:
+                from rex import settings
+
+                expire_hours = int(getattr(settings, "followups_expire_hours", 168))
+                count = store.prune_expired(expire_hours=expire_hours)
+        else:
+            count = 0
         print(f"Pruned {count} expired cue(s).")
         return 0
 
@@ -1264,14 +1338,13 @@ def cmd_browser(args: argparse.Namespace) -> int:
     subcommand = args.browser_command
 
     if subcommand == "run":
-        # Run a browser script from JSON file
         script_path = Path(args.script)
         if not script_path.exists():
             print(f"Error: Script file not found: {script_path}")
             return 1
 
         try:
-            with open(script_path, 'r') as f:
+            with open(script_path, "r", encoding="utf-8") as f:
                 script_data = json.load(f)
 
             steps = script_data.get("steps", [])
@@ -1306,7 +1379,7 @@ def cmd_browser(args: argparse.Namespace) -> int:
             print(f"Error: {e}")
             return 1
 
-    elif subcommand == "sessions":
+    if subcommand == "sessions":
         service = get_browser_service()
         sessions = service.list_sessions()
 
@@ -1325,7 +1398,7 @@ def cmd_browser(args: argparse.Namespace) -> int:
         print(f"Total: {len(sessions)} sessions")
         return 0
 
-    elif subcommand == "screenshots":
+    if subcommand == "screenshots":
         service = get_browser_service()
         screenshots = service.list_screenshots()
 
@@ -1354,7 +1427,6 @@ def cmd_os(args: argparse.Namespace) -> int:
     service = get_os_service()
 
     if subcommand == "run":
-        # Run a command
         command = args.command.split()
 
         try:
@@ -1382,31 +1454,31 @@ def cmd_os(args: argparse.Namespace) -> int:
             print(f"Error: {e}")
             return 1
 
-    elif subcommand == "copy":
+    if subcommand == "copy":
         try:
             result = service.copy_file(args.src, args.dst)
-            print(f"Copied: {result['src']} → {result['dst']}")
+            print(f"Copied: {result['src']} -> {result['dst']}")
             print(f"Size: {result['size']} bytes")
             return 0
         except Exception as e:
             print(f"Error: {e}")
             return 1
 
-    elif subcommand == "move":
+    if subcommand == "move":
         try:
             result = service.move_file(args.src, args.dst)
-            print(f"Moved: {result['src']} → {result['dst']}")
+            print(f"Moved: {result['src']} -> {result['dst']}")
             return 0
         except Exception as e:
             print(f"Error: {e}")
             return 1
 
-    elif subcommand == "delete":
+    if subcommand == "delete":
         try:
             backup = not args.permanent
             result = service.delete_file(args.path, backup=backup)
 
-            if result['action'] == 'moved_to_trash':
+            if result["action"] == "moved_to_trash":
                 print(f"Moved to trash: {result['path']}")
                 print(f"Backup location: {result['backup_path']}")
             else:
@@ -1417,7 +1489,7 @@ def cmd_os(args: argparse.Namespace) -> int:
             print(f"Error: {e}")
             return 1
 
-    elif subcommand == "trash":
+    if subcommand == "trash":
         files = service.list_trash()
 
         if not files:
@@ -1475,7 +1547,7 @@ def cmd_gh(args: argparse.Namespace) -> int:
             print(f"Error: {e}")
             return 1
 
-    elif subcommand == "prs":
+    if subcommand == "prs":
         try:
             prs = service.list_prs(args.repo, state=args.state)
 
@@ -1491,7 +1563,7 @@ def cmd_gh(args: argparse.Namespace) -> int:
                 print(f"#{pr.number}: {pr.title}")
                 print(f"  State: {pr.state}")
                 print(f"  Author: {pr.author}")
-                print(f"  Branch: {pr.head_branch} → {pr.base_branch}")
+                print(f"  Branch: {pr.head_branch} -> {pr.base_branch}")
                 print(f"  URL: {pr.url}")
                 print(f"  Created: {pr.created_at}")
                 print()
@@ -1503,12 +1575,12 @@ def cmd_gh(args: argparse.Namespace) -> int:
             print(f"Error: {e}")
             return 1
 
-    elif subcommand == "issue-create":
+    if subcommand == "issue-create":
         try:
             labels = args.labels.split(",") if args.labels else None
             issue = service.create_issue(args.repo, args.title, args.body, labels)
 
-            print(f"Issue created successfully!")
+            print("Issue created successfully!")
             print(f"  Number: #{issue.number}")
             print(f"  Title: {issue.title}")
             print(f"  URL: {issue.url}")
@@ -1519,7 +1591,7 @@ def cmd_gh(args: argparse.Namespace) -> int:
             print(f"Error: {e}")
             return 1
 
-    elif subcommand == "pr-create":
+    if subcommand == "pr-create":
         try:
             pr = service.create_pr(
                 args.repo,
@@ -1529,7 +1601,7 @@ def cmd_gh(args: argparse.Namespace) -> int:
                 args.body,
             )
 
-            print(f"Pull request created successfully!")
+            print("Pull request created successfully!")
             print(f"  Number: #{pr.number}")
             print(f"  Title: {pr.title}")
             print(f"  URL: {pr.url}")
@@ -1559,7 +1631,7 @@ def cmd_code(args: argparse.Namespace) -> int:
             print(f"Modified: {result['modified']}")
             print()
             print("-" * 80)
-            print(result['content'])
+            print(result["content"])
             print("-" * 80)
 
             return 0
@@ -1568,7 +1640,7 @@ def cmd_code(args: argparse.Namespace) -> int:
             print(f"Error: {e}")
             return 1
 
-    elif subcommand == "patch":
+    if subcommand == "patch":
         try:
             from pathlib import Path
 
@@ -1577,17 +1649,17 @@ def cmd_code(args: argparse.Namespace) -> int:
                 print(f"Error: Patch file not found: {patch_file}")
                 return 1
 
-            with open(patch_file, 'r') as f:
+            with open(patch_file, "r", encoding="utf-8") as f:
                 patch_content = f.read()
 
             result = service.apply_patch(args.path, patch_content)
 
             if result.success:
-                print(f"Patch applied successfully!")
+                print("Patch applied successfully!")
                 print(f"  File: {result.file_path}")
                 print(f"  Hunks applied: {result.hunks_applied}")
             else:
-                print(f"Patch application failed!")
+                print("Patch application failed!")
                 print(f"  File: {result.file_path}")
                 print(f"  Hunks applied: {result.hunks_applied}")
                 print(f"  Hunks failed: {result.hunks_failed}")
@@ -1603,7 +1675,7 @@ def cmd_code(args: argparse.Namespace) -> int:
             print(f"Error: {e}")
             return 1
 
-    elif subcommand == "test":
+    if subcommand == "test":
         try:
             result = service.run_tests(
                 test_path=args.path,
@@ -1616,9 +1688,9 @@ def cmd_code(args: argparse.Namespace) -> int:
             print()
 
             if result.success:
-                print(f"✓ All tests passed!")
+                print("✓ All tests passed!")
             else:
-                print(f"✗ Some tests failed")
+                print("✗ Some tests failed")
 
             print()
             print(f"Total: {result.total}")
@@ -1662,15 +1734,15 @@ def cmd_msg(args: argparse.Namespace) -> int:
                 body=args.body,
             )
             sent = sms_service.send(message)
-            print(f"Message sent successfully")
+            print("Message sent successfully")
             print(f"  ID: {sent.id}")
             print(f"  To: {sent.to}")
             print(f"  Thread: {sent.thread_id}")
             print(f"  Timestamp: {sent.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
             return 0
-        else:
-            print(f"Error: Unsupported channel '{channel}'. Currently only 'sms' is supported.")
-            return 1
+
+        print(f"Error: Unsupported channel '{channel}'. Currently only 'sms' is supported.")
+        return 1
 
     if subcommand == "receive":
         channel = args.channel.lower()
@@ -1688,7 +1760,8 @@ def cmd_msg(args: argparse.Namespace) -> int:
             print()
 
             for msg in messages:
-                print(f"{msg.id}: {msg.body[:50]}...")
+                preview = (msg.body[:50] + "...") if len(msg.body) > 50 else msg.body
+                print(f"{msg.id}: {preview}")
                 print(f"  From: {msg.from_}")
                 print(f"  To: {msg.to}")
                 print(f"  Received: {msg.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -1697,9 +1770,9 @@ def cmd_msg(args: argparse.Namespace) -> int:
 
             print(f"Total: {len(messages)} messages")
             return 0
-        else:
-            print(f"Error: Unsupported channel '{channel}'. Currently only 'sms' is supported.")
-            return 1
+
+        print(f"Error: Unsupported channel '{channel}'. Currently only 'sms' is supported.")
+        return 1
 
     print("Unknown messaging subcommand. Use 'rex msg --help'")
     return 1
@@ -1714,13 +1787,11 @@ def cmd_notify(args: argparse.Namespace) -> int:
     subcommand = args.notify_command
 
     if subcommand == "send":
-        # Parse channels
         if args.channels:
             channel_list = [ch.strip() for ch in args.channels.split(",")]
         else:
             channel_list = ["dashboard"]
 
-        # Create notification
         notification = NotificationRequest(
             priority=args.priority,
             title=args.title,
@@ -1728,15 +1799,13 @@ def cmd_notify(args: argparse.Namespace) -> int:
             channel_preferences=channel_list,
         )
 
-        # Send notification
         notifier.send(notification)
 
-        # Track for escalation if urgent
         if notification.priority == "urgent":
             next_channel = channel_list[1] if len(channel_list) > 1 else "email"
             escalation_manager.track_notification(notification, next_channel)
 
-        print(f"Notification sent successfully")
+        print("Notification sent successfully")
         print(f"  ID: {notification.id}")
         print(f"  Priority: {notification.priority}")
         print(f"  Channels: {', '.join(channel_list)}")
@@ -1765,7 +1834,7 @@ def cmd_notify(args: argparse.Namespace) -> int:
             for notif in notifications:
                 print(f"  - {notif['id']}: {notif['title']}")
                 print(f"    Created: {notif['timestamp']}")
-                body_preview = notif['body'][:60] + "..." if len(notif['body']) > 60 else notif['body']
+                body_preview = notif["body"][:60] + "..." if len(notif["body"]) > 60 else notif["body"]
                 print(f"    Body: {body_preview}")
                 print()
 
@@ -1791,9 +1860,8 @@ def cmd_notify(args: argparse.Namespace) -> int:
         if escalation_manager.acknowledge(notification_id):
             print(f"Acknowledged notification: {notification_id}")
             return 0
-        else:
-            print(f"Notification not found or already acknowledged: {notification_id}")
-            return 1
+        print(f"Notification not found or already acknowledged: {notification_id}")
+        return 1
 
     print("Unknown notification subcommand. Use 'rex notify --help'")
     return 1
@@ -2236,7 +2304,12 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     )
     reminders_add.add_argument("title", type=str, help="Reminder title/description")
     reminders_add.add_argument("--at", type=str, required=True, help="When to remind (YYYY-MM-DD HH:MM)")
-    reminders_add.add_argument("--follow-up", dest="followup", action="store_true", help="Create a follow-up cue after reminder fires")
+    reminders_add.add_argument(
+        "--follow-up",
+        dest="followup",
+        action="store_true",
+        help="Create a follow-up cue after reminder fires",
+    )
     reminders_add.set_defaults(func=cmd_reminders, reminders_command="add")
 
     reminders_list = reminders_subparsers.add_parser(
@@ -2244,7 +2317,12 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="List reminders",
         description="List all reminders with their status.",
     )
-    reminders_list.add_argument("--status", type=str, choices=["pending", "fired", "done", "canceled"], help="Filter by status")
+    reminders_list.add_argument(
+        "--status",
+        type=str,
+        choices=["pending", "fired", "done", "canceled"],
+        help="Filter by status",
+    )
     reminders_list.set_defaults(func=cmd_reminders, reminders_command="list")
 
     reminders_done = reminders_subparsers.add_parser(

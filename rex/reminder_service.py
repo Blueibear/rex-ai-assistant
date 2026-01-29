@@ -6,16 +6,16 @@ Reminders can optionally create follow-up cues after they fire.
 Reminders integrate with the scheduler system and notification system.
 
 Usage:
-    from rex.reminder_service import get_reminder_service, Reminder
+    from rex.reminder_service import get_reminder_service
 
     service = get_reminder_service()
     reminder = service.create_reminder(
         user_id="default",
         title="Call mom",
-        remind_at=datetime.now() + timedelta(hours=2),
+        remind_at=datetime.now(timezone.utc) + timedelta(hours=2),
         followup_enabled=True,
     )
-    pending = service.list_reminders(user_id="default")
+    pending = service.list_reminders(user_id="default", status="pending")
     service.mark_done(reminder.reminder_id)
 """
 
@@ -26,19 +26,29 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Iterable, Literal, Optional
 
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-# Default storage directory
+# Default storage directory (new)
 _DATA_DIR = Path("data/reminders")
+
+# Legacy storage directory (old branch used this)
+_LEGACY_DATA_DIR = Path("data/followups")
 
 
 def _utc_now() -> datetime:
     """Return the current UTC datetime."""
     return datetime.now(timezone.utc)
+
+
+def _ensure_utc(dt: datetime) -> datetime:
+    """Ensure a datetime is timezone-aware and normalized to UTC."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def _ensure_data_dir() -> Path:
@@ -47,25 +57,16 @@ def _ensure_data_dir() -> Path:
     return _DATA_DIR
 
 
+def _legacy_storage_path() -> Path:
+    """Return legacy storage path (if it exists)."""
+    return _LEGACY_DATA_DIR / "reminders.json"
+
+
 ReminderStatus = Literal["pending", "fired", "done", "canceled"]
 
 
 class Reminder(BaseModel):
-    """A one-off reminder that fires at a specific time.
-
-    Attributes:
-        reminder_id: Unique identifier for this reminder.
-        user_id: User/profile ID this reminder belongs to.
-        title: Title/description of the reminder.
-        remind_at: When the reminder should fire (UTC).
-        created_at: When the reminder was created (UTC).
-        status: Current status of the reminder.
-        fired_at: When the reminder was fired (if applicable).
-        done_at: When the reminder was marked done (if applicable).
-        followup_enabled: Whether to create a follow-up cue after firing.
-        followup_prompt: Custom prompt for the follow-up cue.
-        metadata: Additional metadata.
-    """
+    """A one-off reminder that fires at a specific time."""
 
     reminder_id: str = Field(
         default_factory=lambda: f"rem_{uuid.uuid4().hex[:12]}",
@@ -99,6 +100,10 @@ class Reminder(BaseModel):
         default=None,
         description="When the reminder was marked done (if applicable)",
     )
+    canceled_at: Optional[datetime] = Field(
+        default=None,
+        description="When the reminder was canceled (if applicable)",
+    )
     followup_enabled: bool = Field(
         default=False,
         description="Whether to create a follow-up cue after firing",
@@ -114,8 +119,8 @@ class Reminder(BaseModel):
 
     def is_due(self, now: Optional[datetime] = None) -> bool:
         """Check if this reminder is due to fire."""
-        check_time = now or _utc_now()
-        return self.status == "pending" and check_time >= self.remind_at
+        check_time = _ensure_utc(now or _utc_now())
+        return self.status == "pending" and check_time >= _ensure_utc(self.remind_at)
 
     def get_followup_prompt(self) -> str:
         """Get the follow-up prompt, using default if not customized."""
@@ -143,33 +148,24 @@ class Reminder(BaseModel):
 class ReminderService:
     """Service for managing reminders.
 
-    Provides functionality to:
     - Create one-off reminders
-    - List reminders for a user
-    - Mark reminders as done
-    - Fire due reminders (with notification and optional follow-up cue)
-    - Integrate with scheduler for automatic firing
+    - List reminders
+    - Mark reminders as done/canceled
+    - Fire due reminders (notifications + optional follow-up cue)
+    - Optionally register a scheduler job to auto-fire
 
-    Example:
-        service = ReminderService()
-        reminder = service.create_reminder(
-            user_id="default",
-            title="Call mom",
-            remind_at=datetime.now() + timedelta(hours=2),
-        )
-        service.fire_due_reminders()  # Called by scheduler
+    Backward compatible aliases:
+    - add_reminder(...) -> create_reminder(...)
+    - cancel(...) -> cancel_reminder(...)
+    - fire_due(...) -> fire_due_reminders(...)
+    - get(...) -> get_reminder(...)
+    - all_reminders() -> iterable of all reminders
     """
 
     def __init__(
         self,
         storage_path: Path | str | None = None,
     ) -> None:
-        """Initialize the reminder service.
-
-        Args:
-            storage_path: Path to the persistence file. Defaults to
-                data/reminders/reminders.json
-        """
         if storage_path is None:
             _ensure_data_dir()
             storage_path = _DATA_DIR / "reminders.json"
@@ -177,33 +173,67 @@ class ReminderService:
         self.storage_path = Path(storage_path)
         self._reminders: dict[str, Reminder] = {}
         self._scheduler_job_registered = False
+
         self._load()
 
     def _load(self) -> None:
-        """Load reminders from disk."""
-        if self.storage_path.exists():
+        """Load reminders from disk (supports legacy path)."""
+        path_to_use = self.storage_path
+
+        # If new path doesn't exist but legacy does, load legacy.
+        if not path_to_use.exists():
+            legacy = _legacy_storage_path()
+            if legacy.exists():
+                path_to_use = legacy
+
+        if not path_to_use.exists():
+            self._reminders = {}
+            return
+
+        try:
+            with open(path_to_use, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            loaded: dict[str, Reminder] = {}
+            for rem_data in data.get("reminders", []):
+                try:
+                    reminder = Reminder.model_validate(rem_data)
+                    # Normalize datetimes
+                    reminder.remind_at = _ensure_utc(reminder.remind_at)
+                    reminder.created_at = _ensure_utc(reminder.created_at)
+                    if reminder.fired_at is not None:
+                        reminder.fired_at = _ensure_utc(reminder.fired_at)
+                    if reminder.done_at is not None:
+                        reminder.done_at = _ensure_utc(reminder.done_at)
+                    if reminder.canceled_at is not None:
+                        reminder.canceled_at = _ensure_utc(reminder.canceled_at)
+                    loaded[reminder.reminder_id] = reminder
+                except Exception as exc:
+                    logger.debug("Skipping invalid reminder entry: %s", exc)
+
+            self._reminders = loaded
+            logger.debug("Loaded %d reminders from %s", len(self._reminders), path_to_use)
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("Failed to load reminders: %s", e)
+            self._reminders = {}
+
+        # If we loaded from legacy, write back to new path so migration happens naturally.
+        if path_to_use != self.storage_path and self._reminders:
             try:
-                with open(self.storage_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    for rem_data in data.get("reminders", []):
-                        reminder = Reminder.model_validate(rem_data)
-                        self._reminders[reminder.reminder_id] = reminder
-                    logger.debug(f"Loaded {len(self._reminders)} reminders from disk")
-            except (json.JSONDecodeError, OSError) as e:
-                logger.warning(f"Failed to load reminders: {e}")
-                self._reminders = {}
+                self._save()
+            except Exception:
+                # Non-fatal: still usable in-memory.
+                pass
 
     def _save(self) -> None:
         """Save reminders to disk."""
         self.storage_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            reminders_data = [
-                rem.model_dump(mode="json") for rem in self._reminders.values()
-            ]
+            reminders_data = [r.model_dump(mode="json") for r in self._reminders.values()]
             with open(self.storage_path, "w", encoding="utf-8") as f:
                 json.dump({"reminders": reminders_data}, f, indent=2, default=str)
         except OSError as e:
-            logger.error(f"Failed to save reminders: {e}")
+            logger.error("Failed to save reminders: %s", e)
 
     def create_reminder(
         self,
@@ -216,31 +246,14 @@ class ReminderService:
         metadata: Optional[dict[str, Any]] = None,
         reminder_id: Optional[str] = None,
     ) -> Reminder:
-        """Create a new reminder.
-
-        Args:
-            user_id: User/profile ID.
-            title: Title/description of the reminder.
-            remind_at: When the reminder should fire.
-            followup_enabled: Whether to create a follow-up cue after firing.
-            followup_prompt: Custom prompt for the follow-up cue.
-            metadata: Additional metadata.
-            reminder_id: Optional custom reminder ID.
-
-        Returns:
-            The created Reminder.
-        """
-        # Ensure remind_at is timezone-aware UTC
-        if remind_at.tzinfo is None:
-            remind_at = remind_at.replace(tzinfo=timezone.utc)
-        else:
-            remind_at = remind_at.astimezone(timezone.utc)
+        """Create a new reminder."""
+        remind_at_utc = _ensure_utc(remind_at)
 
         reminder = Reminder(
             reminder_id=reminder_id or f"rem_{uuid.uuid4().hex[:12]}",
             user_id=user_id,
             title=title,
-            remind_at=remind_at,
+            remind_at=remind_at_utc,
             created_at=_utc_now(),
             status="pending",
             followup_enabled=followup_enabled,
@@ -250,22 +263,15 @@ class ReminderService:
 
         self._reminders[reminder.reminder_id] = reminder
         self._save()
-        logger.info(f"Created reminder {reminder.reminder_id}: {title}")
+        logger.info("Created reminder %s: %s", reminder.reminder_id, title)
 
-        # Try to register scheduler job if not already done
+        # Try to register scheduler job if available
         self._ensure_scheduler_job()
 
         return reminder
 
     def get_reminder(self, reminder_id: str) -> Optional[Reminder]:
-        """Get a specific reminder by ID.
-
-        Args:
-            reminder_id: The reminder ID to look up.
-
-        Returns:
-            The Reminder if found, else None.
-        """
+        """Get a reminder by ID."""
         return self._reminders.get(reminder_id)
 
     def list_reminders(
@@ -274,16 +280,7 @@ class ReminderService:
         status: Optional[ReminderStatus] = None,
         include_past: bool = True,
     ) -> list[Reminder]:
-        """List reminders with optional filtering.
-
-        Args:
-            user_id: Filter by user ID.
-            status: Filter by status.
-            include_past: Whether to include reminders that have fired.
-
-        Returns:
-            List of reminders matching the filters, sorted by remind_at.
-        """
+        """List reminders with optional filtering."""
         reminders = list(self._reminders.values())
         if user_id is not None:
             reminders = [r for r in reminders if r.user_id == user_id]
@@ -296,14 +293,7 @@ class ReminderService:
         return reminders
 
     def mark_done(self, reminder_id: str) -> bool:
-        """Mark a reminder as done.
-
-        Args:
-            reminder_id: The reminder ID to mark.
-
-        Returns:
-            True if the reminder was found and marked, False otherwise.
-        """
+        """Mark a reminder as done."""
         reminder = self._reminders.get(reminder_id)
         if reminder is None:
             return False
@@ -311,94 +301,58 @@ class ReminderService:
         reminder.status = "done"
         reminder.done_at = _utc_now()
         self._save()
-        logger.info(f"Marked reminder {reminder_id} as done")
+        logger.info("Marked reminder %s as done", reminder_id)
         return True
 
     def cancel_reminder(self, reminder_id: str) -> bool:
-        """Cancel a reminder.
-
-        Args:
-            reminder_id: The reminder ID to cancel.
-
-        Returns:
-            True if the reminder was found and canceled, False otherwise.
-        """
+        """Cancel a reminder."""
         reminder = self._reminders.get(reminder_id)
         if reminder is None:
             return False
 
         reminder.status = "canceled"
+        reminder.canceled_at = _utc_now()
         self._save()
-        logger.info(f"Canceled reminder {reminder_id}")
+        logger.info("Canceled reminder %s", reminder_id)
         return True
 
     def delete_reminder(self, reminder_id: str) -> bool:
-        """Delete a reminder from the store.
-
-        Args:
-            reminder_id: The reminder ID to delete.
-
-        Returns:
-            True if the reminder was found and deleted, False otherwise.
-        """
+        """Delete a reminder."""
         if reminder_id in self._reminders:
             del self._reminders[reminder_id]
             self._save()
-            logger.debug(f"Deleted reminder {reminder_id}")
+            logger.debug("Deleted reminder %s", reminder_id)
             return True
         return False
 
     def fire_due_reminders(self, now: Optional[datetime] = None) -> list[Reminder]:
-        """Fire all due reminders.
-
-        This method:
-        1. Finds all pending reminders that are due
-        2. Sends notifications for each
-        3. Creates follow-up cues if enabled
-        4. Marks them as fired
-
-        Args:
-            now: Current time (defaults to UTC now).
-
-        Returns:
-            List of reminders that were fired.
-        """
-        check_time = now or _utc_now()
-        fired = []
+        """Fire all due reminders (notifications + optional follow-up cues)."""
+        check_time = _ensure_utc(now or _utc_now())
+        fired: list[Reminder] = []
 
         for reminder in list(self._reminders.values()):
             if reminder.is_due(check_time):
-                self._fire_reminder(reminder)
+                self._fire_reminder(reminder, now=check_time)
                 fired.append(reminder)
 
         return fired
 
-    def _fire_reminder(self, reminder: Reminder) -> None:
-        """Fire a single reminder.
+    def _fire_reminder(self, reminder: Reminder, *, now: Optional[datetime] = None) -> None:
+        """Fire a single reminder."""
+        fire_time = _ensure_utc(now or _utc_now())
+        logger.info("Firing reminder %s: %s", reminder.reminder_id, reminder.title)
 
-        Args:
-            reminder: The reminder to fire.
-        """
-        logger.info(f"Firing reminder {reminder.reminder_id}: {reminder.title}")
-
-        # Send notification
         self._send_notification(reminder)
 
-        # Create follow-up cue if enabled
         if reminder.followup_enabled:
-            self._create_followup_cue(reminder)
+            self._create_followup_cue(reminder, fired_at=fire_time)
 
-        # Update status
         reminder.status = "fired"
-        reminder.fired_at = _utc_now()
+        reminder.fired_at = fire_time
         self._save()
 
     def _send_notification(self, reminder: Reminder) -> None:
-        """Send a notification for a reminder.
-
-        Args:
-            reminder: The reminder to notify about.
-        """
+        """Send a notification for a reminder (best-effort)."""
         try:
             from rex.notification import NotificationRequest, get_notifier
 
@@ -408,38 +362,34 @@ class ReminderService:
                 title="Reminder",
                 body=reminder.title,
                 channel_preferences=["dashboard", "ha_tts"],
-                metadata={
-                    "reminder_id": reminder.reminder_id,
-                    "user_id": reminder.user_id,
-                },
+                metadata={"reminder_id": reminder.reminder_id, "user_id": reminder.user_id},
             )
             notifier.send(notification)
-            logger.debug(f"Sent notification for reminder {reminder.reminder_id}")
+            logger.debug("Sent notification for reminder %s", reminder.reminder_id)
         except Exception as e:
-            logger.warning(f"Failed to send notification for reminder: {e}")
+            logger.warning("Failed to send notification for reminder: %s", e)
 
-    def _create_followup_cue(self, reminder: Reminder) -> None:
-        """Create a follow-up cue for a reminder.
-
-        Args:
-            reminder: The reminder to create a cue for.
-        """
+    def _create_followup_cue(self, reminder: Reminder, *, fired_at: Optional[datetime] = None) -> None:
+        """Create a follow-up cue for a reminder (best-effort)."""
         try:
             from rex.cue_store import get_cue_store
 
             store = get_cue_store()
 
-            # Get default expire hours from config, or use 168 (7 days)
+            # Default expire hours from config, fallback to 168 hours (7 days)
             expire_hours = 168
             try:
                 from rex.config_manager import load_config
 
-                config = load_config()
-                expire_hours = config.get("conversation", {}).get(
-                    "followups", {}
-                ).get("expire_hours", 168)
+                cfg = load_config()
+                expire_hours = int(
+                    cfg.get("conversation", {}).get("followups", {}).get("expire_hours", 168)
+                )
             except Exception:
                 pass
+
+            fired_time = _ensure_utc(fired_at or _utc_now())
+            expires_at = fired_time + timedelta(hours=max(1, expire_hours))
 
             store.add_cue(
                 user_id=reminder.user_id,
@@ -447,15 +397,16 @@ class ReminderService:
                 source_id=reminder.reminder_id,
                 title=reminder.title,
                 prompt=reminder.get_followup_prompt(),
-                expires_in=timedelta(hours=expire_hours),
+                eligible_after=fired_time,
+                expires_at=expires_at,
                 metadata={"reminder_id": reminder.reminder_id},
             )
-            logger.debug(f"Created follow-up cue for reminder {reminder.reminder_id}")
+            logger.debug("Created follow-up cue for reminder %s", reminder.reminder_id)
         except Exception as e:
-            logger.warning(f"Failed to create follow-up cue for reminder: {e}")
+            logger.warning("Failed to create follow-up cue for reminder: %s", e)
 
     def _ensure_scheduler_job(self) -> None:
-        """Ensure the scheduler job for firing reminders is registered."""
+        """Ensure the scheduler job for firing reminders is registered (best-effort)."""
         if self._scheduler_job_registered:
             return
 
@@ -464,22 +415,19 @@ class ReminderService:
 
             scheduler = get_scheduler()
 
-            # Check if job already exists
             existing = scheduler.get_job("reminder_check")
             if existing is not None:
                 self._scheduler_job_registered = True
                 return
 
-            # Register callback
             def reminder_check_callback(job):
                 service = get_reminder_service()
                 fired = service.fire_due_reminders()
                 if fired:
-                    logger.info(f"Fired {len(fired)} due reminder(s)")
+                    logger.info("Fired %d due reminder(s)", len(fired))
 
             scheduler.register_callback("reminder_check", reminder_check_callback)
 
-            # Add job - check every 60 seconds
             scheduler.add_job(
                 job_id="reminder_check",
                 name="Check Due Reminders",
@@ -491,14 +439,12 @@ class ReminderService:
             self._scheduler_job_registered = True
             logger.info("Registered reminder check scheduler job")
         except Exception as e:
-            logger.warning(f"Failed to register scheduler job for reminders: {e}")
+            logger.warning("Failed to register scheduler job for reminders: %s", e)
 
     def __len__(self) -> int:
-        """Return the number of reminders."""
         return len(self._reminders)
 
     def stats(self) -> dict[str, Any]:
-        """Return summary statistics for the reminder service."""
         by_status = {"pending": 0, "fired": 0, "done": 0, "canceled": 0}
         followup_count = 0
 
@@ -513,6 +459,43 @@ class ReminderService:
             "with_followup": followup_count,
         }
 
+    # Backward compatible aliases (codex branch API)
+
+    def add_reminder(
+        self,
+        title: str,
+        remind_at: datetime,
+        *,
+        follow_up: bool = False,
+        metadata: Optional[dict[str, Any]] = None,
+        user_id: str = "default",
+    ) -> Reminder:
+        """Alias for older code: add_reminder(title, remind_at, follow_up=...)."""
+        return self.create_reminder(
+            user_id=user_id,
+            title=title,
+            remind_at=remind_at,
+            followup_enabled=follow_up,
+            metadata=metadata,
+        )
+
+    def cancel(self, reminder_id: str, *, at: Optional[datetime] = None) -> bool:
+        """Alias for older code: cancel(reminder_id)."""
+        _ = at  # kept for signature compatibility
+        return self.cancel_reminder(reminder_id)
+
+    def fire_due(self, *, now: Optional[datetime] = None) -> list[Reminder]:
+        """Alias for older code: fire_due(now=...)."""
+        return self.fire_due_reminders(now=now)
+
+    def get(self, reminder_id: str) -> Optional[Reminder]:
+        """Alias for older code: get(reminder_id)."""
+        return self.get_reminder(reminder_id)
+
+    def all_reminders(self) -> Iterable[Reminder]:
+        """Alias for older code: iterable of all reminders."""
+        return list(self._reminders.values())
+
 
 # Global instance
 _reminder_service: Optional[ReminderService] = None
@@ -526,7 +509,7 @@ def get_reminder_service() -> ReminderService:
     return _reminder_service
 
 
-def set_reminder_service(service: ReminderService) -> None:
+def set_reminder_service(service: Optional[ReminderService]) -> None:
     """Set the global reminder service instance (for testing)."""
     global _reminder_service
     _reminder_service = service
@@ -539,3 +522,4 @@ __all__ = [
     "get_reminder_service",
     "set_reminder_service",
 ]
+

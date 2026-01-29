@@ -183,6 +183,32 @@ class CalendarService:
         )
         return result
 
+    def list_past_events(self, *, lookback_hours: int = 72) -> list[CalendarEvent]:
+        """Return events that ended within the lookback window."""
+        now = datetime.now(timezone.utc)
+        start = now - timedelta(hours=lookback_hours)
+        events = self.get_events(start, now)
+        past_events = [event for event in events if event.end_time <= now]
+        past_events.sort(key=lambda e: e.end_time)
+        return past_events
+
+    def generate_followup_cues(self, cue_store: "CueStore", *, lookback_hours: int = 72) -> int:
+        """Generate follow-up cues for past events within the lookback window."""
+        created = 0
+        for event in self.list_past_events(lookback_hours=lookback_hours):
+            existing = cue_store.find_by_source("calendar", event.event_id)
+            if existing is not None:
+                continue
+            cue_store.add_cue(
+                prompt=f"How did '{event.title}' go?",
+                source="calendar",
+                source_id=event.event_id,
+                due_at=event.end_time,
+                metadata={"event_title": event.title},
+            )
+            created += 1
+        return created
+
     def create_event(
         self,
         title: str,
