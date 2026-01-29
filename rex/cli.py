@@ -1031,13 +1031,13 @@ def cmd_calendar(args: argparse.Namespace) -> int:
             if getattr(event, "attendees", None):
                 if event.attendees:
                     print(f"  Attendees: {', '.join(event.attendees)}")
-            if args.verbose and getattr(event, "description", None):
+            if getattr(args, "verbose", False) and getattr(event, "description", None):
                 print(f"  Description: {event.description}")
             print()
 
         print(f"Total: {len(events)} events")
 
-        if args.conflicts:
+        if getattr(args, "conflicts", False):
             conflicts = calendar_service.find_conflicts(events)
             if conflicts:
                 print()
@@ -1211,7 +1211,7 @@ def cmd_reminders(args: argparse.Namespace) -> int:
         return 0
 
     if subcommand == "done":
-        reminder_id = args.id
+        reminder_id = getattr(args, "reminder_id", None) or getattr(args, "id", None)
         if hasattr(service, "mark_done"):
             ok = service.mark_done(reminder_id)
         else:
@@ -1223,7 +1223,7 @@ def cmd_reminders(args: argparse.Namespace) -> int:
         return 1
 
     if subcommand == "cancel":
-        reminder_id = args.id
+        reminder_id = getattr(args, "reminder_id", None) or getattr(args, "id", None)
         if hasattr(service, "cancel_reminder"):
             ok = service.cancel_reminder(reminder_id)
         else:

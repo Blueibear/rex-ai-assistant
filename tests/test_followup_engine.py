@@ -405,8 +405,8 @@ class TestFollowupEngine:
             expires_at=now + timedelta(days=7),
         )
 
-        # FollowupEngine (v1) loads config via rex.config_manager.load_config
-        monkeypatch.setattr("rex.config_manager.load_config", _mock_config_loader(enabled=True, max_per_session=1), raising=False)
+        # FollowupEngine (v1) loads config via rex.followup_engine.load_config
+        monkeypatch.setattr("rex.followup_engine.load_config", _mock_config_loader(enabled=True, max_per_session=1), raising=False)
 
         engine = FollowupEngine()
 
@@ -444,7 +444,7 @@ class TestFollowupEngine:
             prompt="How did it go?",
         )
 
-        monkeypatch.setattr("rex.config_manager.load_config", _mock_config_loader(enabled=False), raising=False)
+        monkeypatch.setattr("rex.followup_engine.load_config", _mock_config_loader(enabled=False), raising=False)
 
         engine = FollowupEngine()
         if hasattr(engine, "get_followup_prompt"):
