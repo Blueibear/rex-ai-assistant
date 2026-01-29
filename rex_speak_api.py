@@ -273,27 +273,9 @@ def _resolve_speaker_wav(user_key: str) -> Optional[str]:
     return None
 
 
-# ------------------------------------------------------------------------------
-# Routes
-# ------------------------------------------------------------------------------
-
-
-@app.route("/speak", methods=["POST"])
-def speak() -> Response:
-    _require_api_key()
-    _enforce_rate_limit()
-
-    payload = request.get_json(silent=True) or {}
-    text = payload.get("text")
-    if not text or not isinstance(text, str):
-        return jsonify({"error": "Text is required"}), 400
-    if len(text) > MAX_TEXT_LENGTH:
-        return jsonify({"error": "Text exceeds maximum length"}), 400
-
-    language = payload.get("language") or "en"
-    user_key = payload.get("user") or DEFAULT_USER
+def generate_speech(text: str, language: str, user_key: str) -> bytes:
+    """Generate speech audio from text. Can be monkeypatched for testing."""
     speaker_wav = _resolve_speaker_wav(user_key)
-
     engine = _get_tts_engine()
     np, sf = _load_audio_dependencies()
 
@@ -348,6 +330,30 @@ def speak() -> Response:
         except PermissionError:
             logger.debug("Skipping cleanup for locked file: %s", output_path)
 
+    return audio_bytes
+
+
+# ------------------------------------------------------------------------------
+# Routes
+# ------------------------------------------------------------------------------
+
+
+@app.route("/speak", methods=["POST"])
+def speak() -> Response:
+    _require_api_key()
+    _enforce_rate_limit()
+
+    payload = request.get_json(silent=True) or {}
+    text = payload.get("text")
+    if not text or not isinstance(text, str):
+        return jsonify({"error": "Text is required"}), 400
+    if len(text) > MAX_TEXT_LENGTH:
+        return jsonify({"error": "Text exceeds maximum length"}), 400
+
+    language = payload.get("language") or "en"
+    user_key = payload.get("user") or DEFAULT_USER
+
+    audio_bytes = generate_speech(text, language, user_key)
     return Response(audio_bytes, mimetype="audio/wav")
 
 

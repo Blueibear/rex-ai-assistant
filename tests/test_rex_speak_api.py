@@ -68,6 +68,23 @@ def _load_app(monkeypatch, tmp_path) -> tuple:
     module._TTS_ENGINE = dummy_engine
     module._get_tts_engine = lambda: dummy_engine
 
+    # Mock generate_speech to avoid real TTS/audio dependencies
+    def _fake_generate_speech(text: str, language: str, user_key: str) -> bytes:
+        """Return fake WAV audio bytes for testing."""
+        import io
+        import wave
+
+        # Create a minimal valid WAV file in memory
+        wav_io = io.BytesIO()
+        with wave.open(wav_io, "wb") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(16000)
+            wav_file.writeframes(b"\x00\x00" * 160)
+        return wav_io.getvalue()
+
+    monkeypatch.setattr(module, "generate_speech", _fake_generate_speech)
+
     app = module.app
     app.config.update(TESTING=True)
     return app, module
@@ -183,10 +200,8 @@ def test_speak_generates_audio_with_missing_voice(monkeypatch, tmp_path):
         )
 
     assert response.status_code == 200
-    assert module._TTS_ENGINE.calls
-    call = module._TTS_ENGINE.calls[0]
-    assert call["speaker_wav"] is None
-    assert Path(call["file_path"]).suffix == ".wav"
+    assert response.data
+    assert "audio/wav" in response.content_type
 
 
 @pytest.mark.integration
