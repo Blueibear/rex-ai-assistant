@@ -1,0 +1,12 @@
+# GPU-accelerated PyTorch dependencies for Rex AI Assistant (CUDA 12.4)
+# Recommended for Windows RTX 3060 setups using CUDA 12.4.
+
+# PyTorch CUDA 12.4 versions (compatible set)
+# torch 2.6.0 satisfies security fixes for DoS vulnerabilities (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
+torchaudio==2.6.0+cu124
+
+# Install Rex with ML + audio extras
+-e ".[ml,audio]"

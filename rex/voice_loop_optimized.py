@@ -23,8 +23,13 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Awaitable, Callable, Optional
 
-import numpy as np
-import soundfile as sf
+from importlib import import_module
+from importlib.util import find_spec
+
+try:  # pragma: no cover - optional dependency
+    import numpy as np
+except ImportError:
+    np = None  # type: ignore[assignment]
 
 from .assistant import Assistant
 from .assistant_errors import AudioDeviceError, SpeechToTextError, TextToSpeechError, WakeWordError
@@ -50,15 +55,40 @@ try:
 except ImportError:
     sd = None
 
-try:
-    from TTS.api import TTS
-except ImportError:
-    TTS = None
+def _lazy_import_whisper():
+    if find_spec("whisper") is None:
+        return None
+    try:
+        return import_module("whisper")
+    except Exception:  # pragma: no cover - optional dependency
+        return None
 
-try:
-    import whisper
-except ImportError:
-    whisper = None
+
+def _lazy_import_tts():
+    if find_spec("TTS") is None:
+        return None
+    try:
+        from rex.compat import ensure_transformers_compatibility
+
+        ensure_transformers_compatibility()
+        return import_module("TTS.api").TTS
+    except Exception:  # pragma: no cover - optional dependency
+        return None
+
+
+def _lazy_import_soundfile():
+    if find_spec("soundfile") is None:
+        return None
+    try:
+        return import_module("soundfile")
+    except Exception:  # pragma: no cover - optional dependency
+        return None
+
+
+def _require_numpy():
+    if np is None:
+        raise AudioDeviceError("numpy is required for audio processing")
+    return np
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +121,7 @@ class AsyncMicrophone:
         return await self._record_with_vad(duration or self._capture_seconds)
 
     async def _record_with_vad(self, max_duration: float) -> np.ndarray:
+        np = _require_numpy()
         if sd is None:
             raise AudioDeviceError("sounddevice is not installed")
 
@@ -130,6 +161,7 @@ class AsyncMicrophone:
     async def _record(self, duration: float) -> np.ndarray:
         if duration <= 0:
             raise AudioDeviceError("Recording duration must be positive")
+        np = _require_numpy()
 
         if self._recorder is not None:
             result = self._recorder(duration)
@@ -177,6 +209,11 @@ class WakeAcknowledgement:
                 play_obj = wave_obj.play()
                 play_obj.wait_done()
                 return
+            if sd is None:
+                raise AudioDeviceError("sounddevice is not installed")
+            sf = _lazy_import_soundfile()
+            if sf is None:
+                raise AudioDeviceError("soundfile is required for wake acknowledgement playback")
             data, rate = sf.read(str(self._sound_path), dtype="float32")
             sd.play(data, rate)
             sd.wait()
@@ -189,7 +226,8 @@ class WakeAcknowledgement:
 
 class SpeechToText:
     def __init__(self, model_name: str, device: str) -> None:
-        if whisper is None:
+        whisper_module = _lazy_import_whisper()
+        if whisper_module is None:
             raise SpeechToTextError("openai-whisper is not installed")
 
         if model_name == "base":
@@ -197,7 +235,7 @@ class SpeechToText:
             model_name = "tiny"
 
         try:
-            self._model = whisper.load_model(model_name, device=device)
+            self._model = whisper_module.load_model(model_name, device=device)
         except Exception as exc:
             raise SpeechToTextError(str(exc)) from exc
 
@@ -227,10 +265,15 @@ class TextToSpeech:
             logger.warning("[TTS] XTTS is slow (~3-4s). Recommend 'edge' or 'windows' for <1s latency")
 
         self._tts = None
-        if self._provider == "xtts" and TTS is not None:
+        if self._provider == "xtts":
+            tts_class = _lazy_import_tts()
+        else:
+            tts_class = None
+
+        if self._provider == "xtts" and tts_class is not None:
             try:
-                import torch
-                self._tts = TTS(
+                torch = import_module("torch")
+                self._tts = tts_class(
                     model_name="tts_models/multilingual/multi-dataset/xtts_v2",
                     progress_bar=False,
                 )
@@ -273,6 +316,10 @@ class TextToSpeech:
     async def _speak_xtts(self, text: str, speaker_wav: Optional[str]) -> None:
         if self._tts is None:
             raise TextToSpeechError("XTTS not initialized")
+        np = _require_numpy()
+        sf = _lazy_import_soundfile()
+        if sf is None:
+            raise TextToSpeechError("soundfile is required for XTTS output")
         chunks = chunk_text_for_xtts(text, max_tokens=300)
         if not chunks:
             return
@@ -329,6 +376,9 @@ class TextToSpeech:
             import edge_tts
         except ImportError:
             raise TextToSpeechError("edge-tts is not installed")
+        sf = _lazy_import_soundfile()
+        if sf is None:
+            raise TextToSpeechError("soundfile is required for Edge TTS playback")
 
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
             output_path = tmp.name

@@ -63,8 +63,11 @@ source .venv/bin/activate
 cp .env.example .env
 # Edit .env with your preferred editor to set API keys and options
 
-# Install dependencies (CPU-only PyTorch)
+# Install base dependencies (no ML stack)
 pip install --upgrade pip setuptools wheel
+pip install .
+
+# Optional: install CPU-only ML + audio stack
 pip install -r requirements-cpu.txt
 
 # Run health check
@@ -92,8 +95,11 @@ python -m venv .venv
 Copy-Item .env.example .env
 # Edit .env with your preferred editor to set API keys and options
 
-# Install dependencies (CPU-only PyTorch)
+# Install base dependencies (no ML stack)
 pip install --upgrade pip setuptools wheel
+pip install .
+
+# Optional: install CPU-only ML + audio stack
 pip install -r requirements-cpu.txt
 
 # Run health check
@@ -152,18 +158,23 @@ Install from source or a built wheel:
 
 ```bash
 pip install .
-pip install .[sms,devtools]
+pip install -e ".[dev]"          # dev tooling
+pip install -e ".[ml,audio]"     # ML + audio stack
+pip install -e ".[full]"         # full install (ml + audio + sms + devtools)
 ```
+
+`requirements.txt` now serves as a pointer with guidance; use the split
+requirements files above for CPU/GPU installs to avoid CUDA-only wheels in CI.
 
 ### GPU Acceleration (Optional)
 
 #### CUDA 12.4 (Recommended for Windows 11)
 
-For NVIDIA GPUs with CUDA 12.4, use the main requirements file:
+For NVIDIA GPUs with CUDA 12.4, use the CUDA 12.4 requirements file:
 
 ```bash
 pip uninstall -y torch torchvision torchaudio
-pip install -r requirements.txt
+pip install -r requirements-gpu-cu124.txt
 ```
 
 This installs:
@@ -176,7 +187,7 @@ This installs:
 python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
 ```
 
-#### CPU-Only Installation
+#### CPU-Only Installation (no CUDA)
 
 For development, CI, or systems without GPU:
 
@@ -671,7 +682,7 @@ pip install -r requirements-cpu.txt
 
 # GPU with CUDA 12.4 (Windows 11)
 pip uninstall -y torch torchvision torchaudio
-pip install -r requirements.txt
+pip install -r requirements-gpu-cu124.txt
 
 # GPU with CUDA 11.8
 pip uninstall -y torch torchvision torchaudio

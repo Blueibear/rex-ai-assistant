@@ -1,7 +1,8 @@
 """Compatibility shims for third-party library incompatibilities.
 
 This module patches known issues between library versions used in Rex.
-It must be imported early (from rex/__init__.py) before libraries are used.
+Call :func:`ensure_transformers_compatibility` before importing libraries that
+expect legacy transformers exports (e.g., Coqui TTS).
 """
 
 from __future__ import annotations
@@ -64,10 +65,6 @@ def ensure_transformers_compatibility() -> None:
         # If transformers isn't installed or BeamSearchScorer doesn't exist,
         # skip the patch - TTS will fail later with a clearer error
         pass
-
-
-# Apply compatibility shims immediately when this module is imported
-ensure_transformers_compatibility()
 
 
 __all__ = ["ensure_transformers_compatibility"]

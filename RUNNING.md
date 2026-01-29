@@ -30,8 +30,14 @@ python -m venv .venv
 # Upgrade pip first
 python -m pip install --upgrade pip setuptools wheel
 
-# Install all requirements
-pip install -r requirements.txt
+# Install base dependencies (no ML stack)
+pip install .
+
+# Optional: CPU-only ML + audio stack
+pip install -r requirements-cpu.txt
+
+# Optional: CUDA 12.4 GPU stack (RTX 3060)
+pip install -r requirements-gpu-cu124.txt
 ```
 
 ### 3. Configure Environment
@@ -147,8 +153,8 @@ python check_imports.py
 ## Updating Dependencies
 
 ```powershell
-# Update all packages to latest compatible versions
-pip install --upgrade -r requirements.txt
+# Update base packages to latest compatible versions
+pip install --upgrade -e .
 ```
 
 ## Running Tests
@@ -190,8 +196,12 @@ If `.\.venv\Scripts\Activate.ps1` doesn't work:
 If you see `ModuleNotFoundError` for numpy, torch, tkinter, etc.:
 
 ```powershell
-# Reinstall all requirements
-pip install --force-reinstall -r requirements.txt
+# Reinstall base requirements
+pip install --force-reinstall -e .
+
+# Optional: reinstall CPU or GPU stacks
+pip install --force-reinstall -r requirements-cpu.txt
+pip install --force-reinstall -r requirements-gpu-cu124.txt
 ```
 
 ### Performance Issues
@@ -204,7 +214,7 @@ For faster startup and better performance:
    REX_LLM_MODEL=distilgpt2
    ```
 
-2. Use CPU-optimized PyTorch (already in requirements.txt)
+2. Use CPU-optimized PyTorch (requirements-cpu.txt)
 
 3. Disable debug logging:
    ```

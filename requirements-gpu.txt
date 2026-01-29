@@ -1,6 +1,5 @@
 # GPU-accelerated PyTorch dependencies for Rex AI Assistant (CUDA 11.8)
-# Use this for production deployments with NVIDIA GPU support (CUDA 11.8)
-# For CUDA 12.4, use requirements.txt instead
+# Use this for CUDA 11.8 environments (Linux). For CUDA 12.4, use requirements-gpu-cu124.txt.
 
 # PyTorch CUDA 11.8 versions (compatible set)
 # torch 2.6.0 satisfies security fixes for DoS vulnerabilities (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
@@ -9,5 +8,5 @@ torch==2.6.0+cu118
 torchvision==0.21.0+cu118
 torchaudio==2.6.0+cu118
 
-# Install remaining dependencies from pyproject.toml
--e .
+# Install Rex with ML + audio extras
+-e ".[ml,audio]"

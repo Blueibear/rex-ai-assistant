@@ -38,7 +38,10 @@ cd rex-ai-assistant
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install CPU-only version (fastest for development)
+# Install base dependencies (no ML stack)
+pip install .
+
+# Optional: install CPU-only ML + audio stack
 pip install -r requirements-cpu.txt
 
 # Copy environment template and configure
@@ -52,16 +55,16 @@ python -m rex
 
 ## Installation Methods
 
-### CPU-Only (Recommended for Development)
+### Base (Recommended for Development)
 
-CPU-only installation is faster, lighter, and sufficient for most development and testing scenarios.
+Base installation is faster, lighter, and sufficient for most development and testing scenarios.
 
 ```bash
-# Install CPU-only PyTorch and dependencies
-pip install -r requirements-cpu.txt
-
-# Or install from pyproject.toml
+# Install base dependencies
 pip install -e .
+
+# Optional: add CPU-only ML + audio stack
+pip install -r requirements-cpu.txt
 ```
 
 **Pros:**
@@ -79,19 +82,20 @@ pip install -e .
 GPU acceleration provides significantly faster speech processing for production deployments.
 
 ```bash
-# Install CUDA 11.8 compatible PyTorch
-pip install -r requirements-gpu.txt
+# Install CUDA 12.4 compatible PyTorch (Windows RTX 3060)
+pip install -r requirements-gpu-cu124.txt
 
 # Or install from pyproject.toml with GPU extras
-pip install -e .[gpu-cu118]
+pip install -e .[gpu-cu124]
 
-# For CUDA 12.1
-pip install -e .[gpu-cu121]
+# For CUDA 11.8 (Linux)
+pip install -r requirements-gpu.txt
+pip install -e .[gpu-cu118]
 ```
 
 **Requirements:**
 - NVIDIA GPU with CUDA support
-- CUDA Toolkit 11.8 or 12.1
+- CUDA Toolkit 11.8 or 12.4
 - 4GB+ VRAM
 
 **Pros:**

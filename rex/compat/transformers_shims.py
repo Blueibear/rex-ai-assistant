@@ -75,5 +75,4 @@ def ensure_transformers_compatibility() -> None:
         logger.error(f"Failed to apply transformers compatibility shim: {e}")
 
 
-# Auto-apply shim when module is imported
-ensure_transformers_compatibility()
+__all__ = ["ensure_transformers_compatibility"]

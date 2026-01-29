@@ -11,12 +11,26 @@ try:  # pragma: no cover - optional dependency
 except Exception:  # pragma: no cover - optional dependency
     np = None  # type: ignore[assignment]
 
-try:  # pragma: no cover - optional dependency
-    import openwakeword
-    from openwakeword.model import Model as WakeWordModel
-except Exception:  # pragma: no cover - openwakeword optional
-    openwakeword = None  # type: ignore[assignment]
-    WakeWordModel = object  # type: ignore[misc,assignment]
+def _lazy_import_openwakeword():
+    try:
+        module = __import__("openwakeword", fromlist=["model"])
+        model_cls = getattr(module, "model", None)
+        model_type = getattr(model_cls, "Model", object) if model_cls else object
+        return module, model_type
+    except Exception:  # pragma: no cover - openwakeword optional
+        return None, object
+
+
+WakeWordModel = object
+_OPENWAKEWORD_MODULE = None
+_WAKEWORD_MODEL = object
+
+
+def _get_openwakeword():
+    global _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
+    if _OPENWAKEWORD_MODULE is None:
+        _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL = _lazy_import_openwakeword()
+    return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
 
 from .embedding import compute_embedding, load_embedding
 from .selection import (
@@ -56,6 +70,7 @@ def _normalize_backend(backend: str | None) -> tuple[str, str]:
 
 
 def _ensure_builtin_keyword_resources(keywords: Iterable[str], backend: str) -> None:
+    openwakeword, _ = _get_openwakeword()
     if openwakeword is None:
         return
 
@@ -115,6 +130,7 @@ def _load_builtin_openwakeword_model(
     inference_framework: str,
     fallback_keyword: str | None,
 ) -> tuple[WakeWordModel, str]:
+    openwakeword, model_cls = _get_openwakeword()
     if openwakeword is None:
         raise RuntimeError("openwakeword is not installed")
 
@@ -147,7 +163,7 @@ def _load_builtin_openwakeword_model(
     active_label = ", ".join(valid_keywords)
     _ensure_builtin_keyword_resources(valid_keywords, inference_framework)
 
-    wake_model = WakeWordModel(
+    wake_model = model_cls(
         wakeword_models=models_to_load,
         inference_framework=inference_framework,
         enable_speex_noise_suppression=False,  # disabled for Windows compatibility
@@ -173,9 +189,10 @@ def load_wakeword_model(
     if resolved_backend == "custom_onnx":
         resolved_path = Path(model_path) if model_path else _resolve_model_path(None)
         if resolved_path.is_file() and resolved_path.stat().st_size > 0:
+            openwakeword, model_cls = _get_openwakeword()
             if openwakeword is None:
                 raise RuntimeError("openwakeword is not installed")
-            wake_model = WakeWordModel(
+            wake_model = model_cls(
                 wakeword_models=[str(resolved_path)],
                 inference_framework="onnx",
                 enable_speex_noise_suppression=False,

@@ -13,8 +13,9 @@ from typing import Optional, Tuple
 
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
-import numpy as np
-import soundfile as sf
+from importlib import import_module
+from importlib.util import find_spec
+from typing import TYPE_CHECKING
 
 from rex.config import _parse_int, load_config
 from rex.ha_bridge import create_blueprint as create_ha_blueprint
@@ -36,7 +37,6 @@ except ImportError:
     class RateLimitExceeded(Exception):  # type: ignore
         retry_after = None
 
-from TTS.api import TTS
 from rex.assistant_errors import AuthenticationError, TextToSpeechError
 from rex.memory_utils import (
     extract_voice_reference,
@@ -139,7 +139,7 @@ USER_VOICES = {
 if DEFAULT_USER not in USER_VOICES:
     USER_VOICES[DEFAULT_USER] = None
 
-_TTS_ENGINE: TTS | None = None
+_TTS_ENGINE: "TTS" | None = None
 
 DEFAULT_TTS_MODEL = os.getenv("REX_TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2")
 _MODEL_PATTERN = re.compile(r"^[\w\-./]+(\/[\w\-./]+)*$")
@@ -192,11 +192,31 @@ def _handle_rate_limit(exc: RateLimitExceeded) -> Response:
 # ------------------------------------------------------------------------------
 
 
-def _get_tts_engine() -> TTS:
+def _get_tts_engine() -> "TTS":
     global _TTS_ENGINE
     if _TTS_ENGINE is None:
-        _TTS_ENGINE = TTS(model_name=DEFAULT_TTS_MODEL, progress_bar=False)
+        if find_spec("TTS") is None:
+            raise TextToSpeechError("Coqui TTS is not installed. Install with `pip install -e \".[ml]\"`.")
+        try:
+            from rex.compat import ensure_transformers_compatibility
+
+            ensure_transformers_compatibility()
+            tts_class = import_module("TTS.api").TTS
+        except Exception as exc:
+            raise TextToSpeechError("Failed to import Coqui TTS. Install with `pip install -e \".[ml]\"`.") from exc
+        _TTS_ENGINE = tts_class(model_name=DEFAULT_TTS_MODEL, progress_bar=False)
     return _TTS_ENGINE
+
+
+def _load_audio_dependencies():
+    if find_spec("numpy") is None or find_spec("soundfile") is None:
+        raise TextToSpeechError("Audio dependencies missing. Install with `pip install -e \".[audio]\"`.")
+    try:
+        np = import_module("numpy")
+        sf = import_module("soundfile")
+    except Exception as exc:
+        raise TextToSpeechError("Failed to import audio dependencies. Install with `pip install -e \".[audio]\"`.") from exc
+    return np, sf
 
 
 def _request_api_key() -> Optional[str]:
@@ -275,6 +295,7 @@ def speak() -> Response:
     speaker_wav = _resolve_speaker_wav(user_key)
 
     engine = _get_tts_engine()
+    np, sf = _load_audio_dependencies()
 
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         output_path = tmp.name
@@ -343,3 +364,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from TTS.api import TTS

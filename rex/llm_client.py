@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+from importlib import import_module
+from importlib.util import find_spec
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Protocol, Sequence
 
@@ -12,33 +14,14 @@ from rex.logging_utils import get_logger
 
 logger = get_logger(__name__)
 
-# Optional dependencies
-try:
-    import torch
-except ImportError:  # pragma: no cover
-    torch = None
+def _module_available(name: str) -> bool:
+    return find_spec(name) is not None
 
-try:  # pragma: no cover
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-    from transformers import pipeline as hf_pipeline
-except ImportError:
-    AutoModelForCausalLM = AutoTokenizer = hf_pipeline = None
 
-try:  # pragma: no cover
-    from openai import OpenAI
-except ImportError:
-    OpenAI = None
-
-try:  # pragma: no cover
-    import ollama
-    from ollama import Client as OllamaClient
-except ImportError:
-    ollama = OllamaClient = None
-
-TORCH_AVAILABLE = torch is not None
-TRANSFORMERS_AVAILABLE = all([AutoTokenizer, AutoModelForCausalLM, hf_pipeline])
-OPENAI_AVAILABLE = OpenAI is not None
-OLLAMA_AVAILABLE = ollama is not None
+TORCH_AVAILABLE = _module_available("torch")
+TRANSFORMERS_AVAILABLE = _module_available("transformers")
+OPENAI_AVAILABLE = _module_available("openai")
+OLLAMA_AVAILABLE = _module_available("ollama")
 
 
 @dataclass
@@ -95,18 +78,29 @@ class TransformersStrategy:
     def __init__(self, model_name: str) -> None:
         if not (TORCH_AVAILABLE and TRANSFORMERS_AVAILABLE):
             raise ConfigurationError("Transformers backend requires `torch` and `transformers`.")
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = AutoModelForCausalLM.from_pretrained(model_name)
+        try:
+            torch = import_module("torch")
+            transformers = import_module("transformers")
+        except ImportError as exc:
+            raise ConfigurationError("Transformers backend requires `torch` and `transformers`.") from exc
+
+        tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
+        model = transformers.AutoModelForCausalLM.from_pretrained(model_name)
         device = 0 if torch.cuda.is_available() else -1
 
-        self.pipeline = hf_pipeline("text-generation", model=model, tokenizer=tokenizer, device=device)
+        self._torch = torch
+        self.pipeline = transformers.pipeline(
+            "text-generation",
+            model=model,
+            tokenizer=tokenizer,
+            device=device,
+        )
         self.tokenizer = tokenizer
         if tokenizer.pad_token_id is None:
             tokenizer.pad_token_id = tokenizer.eos_token_id
 
     def generate(self, prompt: str, config: GenerationConfig, *, messages=None) -> str:
-        if torch is None:
-            raise ConfigurationError("Transformers backend requires torch.")
+        torch = self._torch
         torch.manual_seed(config.seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(config.seed)
@@ -184,10 +178,17 @@ class OllamaStrategy:
     ) -> None:
         if not OLLAMA_AVAILABLE:
             raise ConfigurationError("Ollama backend requires the `ollama` package.")
+        try:
+            ollama = import_module("ollama")
+            client_cls = getattr(ollama, "Client")
+        except Exception as exc:
+            raise ConfigurationError("Ollama backend requires the `ollama` package.") from exc
         self.model_name = model_name
         self.base_url = base_url
         self.use_cloud = use_cloud
         self.api_key = api_key
+        self._ollama = ollama
+        self._client_cls = client_cls
 
         if use_cloud and not api_key:
             raise ConfigurationError("Ollama cloud requires an API key.")
@@ -196,7 +197,7 @@ class OllamaStrategy:
             if use_cloud:
                 self._client = None  # cloud handled via ollama.chat
             else:
-                self._client = OllamaClient(host=self.base_url)
+                self._client = self._client_cls(host=self.base_url)
                 logger.info("Ollama local client initialized at %s", self.base_url)
         except Exception as exc:
             raise ConfigurationError(f"Failed to initialize Ollama client: {exc}") from exc
@@ -211,7 +212,7 @@ class OllamaStrategy:
         }
         try:
             if self.use_cloud:
-                response = ollama.chat(
+                response = self._ollama.chat(
                     model=self.model_name,
                     messages=payload,
                     options=options,
@@ -298,6 +299,10 @@ class LanguageModel:
             return self._openai_client
         if not OPENAI_AVAILABLE:
             raise ConfigurationError("OpenAI backend requires the `openai` package.")
+        try:
+            OpenAI = import_module("openai").OpenAI
+        except Exception as exc:
+            raise ConfigurationError("OpenAI backend requires the `openai` package.") from exc
         base_url = self.config.openai_base_url
         api_key = self.api_key
         if not api_key and base_url:

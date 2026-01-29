@@ -25,12 +25,12 @@ python -m venv .venv
 .venv\Scripts\activate
 ```
 
-### 3. Install CUDA-enabled PyTorch
+### 3. Install CUDA-enabled PyTorch (CUDA 12.4)
 
-Run this **before** installing the rest of the requirements:
+Run this **before** installing the rest of the requirements (RTX 3060 / CUDA 12.4):
 
 ```powershell
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 ```
 
 Verify CUDA:
@@ -39,13 +39,13 @@ Verify CUDA:
 python -c "import torch; print(torch.__version__); print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
 ```
 
-You should see a version like `2.x.x+cu118`, `cuda.is_available() = True`, and your RTX GPU name.
+You should see a version like `2.x.x+cu124`, `cuda.is_available() = True`, and your RTX GPU name.
 
 ### 4. Install project dependencies
 
 ```powershell
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r requirements-gpu-cu124.txt
 ```
 
 ### 5. Run the assistant
@@ -96,8 +96,7 @@ $env:OPENAI_API_KEY="your_api_key_here"
 
 ## ✅ Summary
 
-- Use **CUDA-enabled PyTorch (cu118 wheels)** for RTX GPUs  
-- Install requirements after PyTorch  
+- Use **CUDA-enabled PyTorch (cu124 wheels)** for RTX 3060 GPUs  
+- Install requirements after PyTorch (requirements-gpu-cu124.txt)  
 - Start with `rex_assistant.py` or `rex_loop.py`  
 - Configure via environment variables
-

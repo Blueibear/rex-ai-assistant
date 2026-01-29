@@ -2,11 +2,15 @@
 
 ## Overview
 
-Rex AI Assistant uses **pinned dependencies** in `requirements.txt` for reproducible builds and security. All versions are explicitly specified with `==` to enable GitHub Dependabot to track and propose updates for vulnerable packages.
+Rex AI Assistant splits dependencies by install target so CPU-only installs and CI do not pull CUDA/GPU wheels. Base installs come from `pyproject.toml`, while optional ML/audio stacks live in split requirements files.
 
 ## Files
 
-- **`requirements.txt`**: Pinned versions for production deployment (primary)
+- **`requirements.txt`**: Pointer file with guidance (not used for installs)
+- **`requirements-cpu.txt`**: CPU-only ML + audio stack (no CUDA index)
+- **`requirements-gpu-cu124.txt`**: CUDA 12.4 GPU stack (Windows RTX 3060)
+- **`requirements-gpu.txt`**: CUDA 11.8 GPU stack (Linux)
+- **`requirements-dev.txt`**: Dev tooling via extras
 - **`requirements.in`**: Top-level dependencies with semver ranges (optional)
 - **`Pipfile`**: Pipenv dependency specification (exact pins for Dependabot)
 - **`Pipfile.lock`**: Pipenv lockfile with all transitive dependencies (for Dependabot)
@@ -17,10 +21,12 @@ Rex AI Assistant uses **pinned dependencies** in `requirements.txt` for reproduc
 
 ### Manual Updates
 
-1. **Edit `requirements.txt`** with new version numbers
+1. **Edit the relevant requirements file** with new version numbers
 2. **Test thoroughly:**
    ```bash
-   pip install -r requirements.txt
+   pip install .
+   pip install -r requirements-cpu.txt
+   pip install -e ".[dev]"
    python -m compileall .
    pytest
    python -c "import rex; from rex.llm_client import *"
@@ -32,7 +38,7 @@ Rex AI Assistant uses **pinned dependencies** in `requirements.txt` for reproduc
 When GitHub Dependabot alerts you to vulnerabilities:
 
 1. Check the **recommended version** in the Dependabot alert
-2. Update `requirements.txt` to that version or higher
+2. Update the relevant requirements file to that version or higher
 3. **Test for breaking changes** (see Testing section below)
 4. Review security advisory to understand the risk
 5. Commit with reference to CVE/GHSA ID
@@ -44,7 +50,7 @@ When GitHub Dependabot alerts you to vulnerabilities:
 Rex uses CPU-only PyTorch builds for compatibility:
 
 ```bash
-pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements-cpu.txt
 ```
 
 **Version constraints:**
@@ -57,7 +63,7 @@ pip install -r requirements.txt --extra-index-url https://download.pytorch.org/w
 
 **Solution:** Compatibility shim in `rex/compat/transformers_shims.py`
 
-- Automatically patches `transformers.BeamSearchScorer` when `rex` is imported
+- Call `ensure_transformers_compatibility()` before importing libraries that require it
 - Allows upgrading to transformers 4.48+ for security fixes
 - No changes needed to TTS library code
 
@@ -115,7 +121,7 @@ GitHub Dependabot requires exact pins (`==`) to function. It will:
 - Flag security vulnerabilities
 
 **To enable Dependabot:**
-1. Ensure `requirements.txt` uses exact pins
+1. Ensure the split requirements files use exact pins where needed
 2. Enable Dependabot in repository settings
 3. Review and merge Dependabot PRs after testing
 
@@ -168,23 +174,22 @@ pipenv update
 # Lock dependencies after manual edit to Pipfile
 pipenv lock
 
-# Generate requirements.txt from Pipfile.lock
-pipenv requirements > requirements.txt
+# Generate CPU requirements from Pipfile.lock (if using Pipenv)
+pipenv requirements > requirements-cpu.txt
 ```
 
-### Keeping requirements.txt and Pipfile in Sync
+### Keeping Pipfile and split requirements in Sync
 
-**Primary workflow:** Edit `requirements.txt` directly for dependency updates.
+**Primary workflow:** Edit the split requirements files directly for dependency updates.
 
-To sync Pipfile when requirements.txt changes:
+To sync Pipfile when requirements files change:
 
 ```bash
-# Update Pipfile manually or regenerate from requirements.txt
-pipenv install -r requirements.txt --skip-lock
+# Update Pipfile manually or regenerate from requirements-cpu.txt
+pipenv install -r requirements-cpu.txt --skip-lock
 
 # Lock dependencies
 pipenv lock
 ```
 
-**Note:** `requirements.txt` remains the primary dependency file. Pipfile/Pipfile.lock exist primarily to enable Dependabot.
-
+**Note:** `requirements.txt` is a pointer file. Pipfile/Pipfile.lock exist primarily to enable Dependabot.
