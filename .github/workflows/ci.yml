@@ -58,7 +58,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
 
       - name: 📦 Install Node.js dependencies
         run: npm ci || yarn install || pnpm i || echo "no node project"
