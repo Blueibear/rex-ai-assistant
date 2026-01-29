@@ -32,25 +32,6 @@ dependencies = [
     "flask-limiter>=3.5.0",
     "requests>=2.32.0",  # CVE-2024-35195 fixed in 2.32.0
 
-    # Audio Input/Output
-    "sounddevice>=0.4.6",
-    "soundfile>=0.12.0",
-    # simpleaudio has build issues on Windows - made optional
-    "simpleaudio>=1.0.4; platform_system!='Windows'",
-
-    # AI / ML Models - CPU-only by default
-    # Install GPU versions separately: see requirements-gpu.txt
-    # Note: torch 2.6.0 has local DoS CVEs (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp), fixed in 2.8.0
-    "torch>=2.6.0,<2.9.0",
-    "torchvision>=0.17.0,<0.23.0",
-    "torchaudio>=2.6.0,<2.9.0",
-    "transformers>=4.38.0",
-    "TTS>=0.18.0",
-    "openai>=1.3.0",
-    "openai-whisper>=20230124",
-    "openwakeword>=0.6.0",
-    "numpy>=1.24.0,<2.0.0",
-
     # Configuration & Validation
     "pydantic>=2.0.0",  # Upgraded to v2 for security and performance
     "python-dotenv>=1.0.1",
@@ -69,13 +50,40 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+audio = [
+    "numpy>=1.24.0,<2.0.0",
+    "sounddevice>=0.4.6",
+    "soundfile>=0.12.0",
+    # simpleaudio has build issues on Windows - keep optional
+    "simpleaudio>=1.0.4; platform_system!='Windows'",
+]
+
+ml = [
+    # AI / ML Models - CPU-only by default (GPU versions via requirements-gpu*.txt)
+    # Note: torch 2.6.0 has local DoS CVEs (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp), fixed in 2.8.0
+    "torch>=2.6.0,<2.9.0",
+    "torchvision>=0.17.0,<0.23.0",
+    "torchaudio>=2.6.0,<2.9.0",
+    "transformers>=4.38.0",
+    "TTS>=0.18.0",
+    "openai>=1.3.0",
+    "ollama>=0.4.0",
+    "openai-whisper>=20230124",
+    "openwakeword>=0.6.0",
+]
+
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
     "pytest-asyncio>=0.23.0",
+    "build>=1.0.0",
     "black>=24.0.0",
     "ruff>=0.1.0",
     "mypy>=1.8.0",
+    "numpy>=1.24.0,<2.0.0",
+    "sounddevice>=0.4.6",
+    "soundfile>=0.12.0",
+    "simpleaudio>=1.0.4; platform_system!='Windows'",
 ]
 
 test = [
@@ -89,6 +97,27 @@ sms = [
 ]
 
 devtools = [
+    "build>=1.0.0",
+    "black>=24.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+]
+
+full = [
+    "torch>=2.6.0,<2.9.0",
+    "torchvision>=0.17.0,<0.23.0",
+    "torchaudio>=2.6.0,<2.9.0",
+    "transformers>=4.38.0",
+    "TTS>=0.18.0",
+    "openai>=1.3.0",
+    "ollama>=0.4.0",
+    "openai-whisper>=20230124",
+    "openwakeword>=0.6.0",
+    "numpy>=1.24.0,<2.0.0",
+    "sounddevice>=0.4.6",
+    "soundfile>=0.12.0",
+    "simpleaudio>=1.0.4; platform_system!='Windows'",
+    "twilio>=9.0.0",
     "build>=1.0.0",
     "black>=24.0.0",
     "ruff>=0.1.0",

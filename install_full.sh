@@ -56,12 +56,12 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-install_cmd=("$REX_PYTHON" -m pip install "${ROOT_DIR}[sms,devtools]")
+install_cmd=("$REX_PYTHON" -m pip install "${ROOT_DIR}[ml,audio,sms,devtools]")
 if [ -n "$REX_INSTALL_PREFIX" ]; then
-  install_cmd=("$REX_PYTHON" -m pip install --prefix "$REX_INSTALL_PREFIX" "${ROOT_DIR}[sms,devtools]")
+  install_cmd=("$REX_PYTHON" -m pip install --prefix "$REX_INSTALL_PREFIX" "${ROOT_DIR}[ml,audio,sms,devtools]")
 fi
 
-echo "Installing Rex (full) with extras: sms, devtools"
+echo "Installing Rex (full) with extras: ml, audio, sms, devtools"
 if [ "$REX_DRY_RUN" = "1" ]; then
   echo "[DRY RUN] ${install_cmd[*]}"
 else

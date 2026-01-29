@@ -1,13 +1,11 @@
-# CPU-only PyTorch dependencies for Rex AI Assistant
-# Use this for development, CI, or CPU-only deployments
+# CPU-only ML dependencies for Rex AI Assistant (no CUDA, no extra index URL)
+# Use this for CPU-only deployments or CI environments that need the ML stack.
 
-# PyTorch CPU-only versions (compatible set)
+# PyTorch CPU versions (PyPI CPU wheels)
 # torch 2.6.0 satisfies security fixes for DoS vulnerabilities (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
-# torchvision 0.21.0 < 0.23.0 (project constraint)
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.6.0+cpu
-torchvision==0.21.0+cpu
-torchaudio==2.6.0+cpu
+torch==2.6.0
+torchvision==0.21.0
+torchaudio==2.6.0
 
-# Install remaining dependencies from pyproject.toml
--e .
+# Install Rex with ML + audio extras
+-e ".[ml,audio]"
