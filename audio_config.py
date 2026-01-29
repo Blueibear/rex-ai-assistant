@@ -16,7 +16,8 @@ from importlib import import_module
 from importlib.util import find_spec
 from typing import Dict, Optional
 
-sd = None
+_SOUNDDEVICE_UNSET = object()
+sd = _SOUNDDEVICE_UNSET
 
 from assistant_errors import AudioDeviceError
 from logging_utils import get_logger
@@ -27,11 +28,15 @@ logger = get_logger(__name__)
 
 def _load_sounddevice():
     global sd
-    if sd is not None:
+    if sd is not _SOUNDDEVICE_UNSET:
         return sd
     if find_spec("sounddevice") is None:
+        sd = None
         return None
-    sd = import_module("sounddevice")
+    try:
+        sd = import_module("sounddevice")
+    except ImportError:
+        sd = None
     return sd
 
 

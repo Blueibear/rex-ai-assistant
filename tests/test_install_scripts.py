@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 
 def test_install_lean_script_dry_run(tmp_path: Path) -> None:
+    if shutil.which("bash") is None:
+        pytest.skip("bash not available")
     repo_root = Path(__file__).resolve().parents[1]
     script = repo_root / "install_lean.sh"
 

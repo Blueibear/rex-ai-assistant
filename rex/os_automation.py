@@ -10,6 +10,7 @@ Provides system-level automation with safety rails:
 """
 
 import json
+import os
 import shutil
 import subprocess
 import uuid
@@ -132,8 +133,12 @@ class OSAutomationService:
         start_time = datetime.now()
 
         try:
+            run_cmd = cmd
+            if os.name == "nt" and command_name == "echo":
+                run_cmd = ["cmd", "/c", *cmd]
+
             result = subprocess.run(
-                cmd,
+                run_cmd,
                 capture_output=True,
                 text=True,
                 timeout=timeout,
@@ -144,7 +149,7 @@ class OSAutomationService:
 
             cmd_result = CommandResult(
                 success=result.returncode == 0,
-                command=cmd,
+                command=run_cmd,
                 stdout=result.stdout,
                 stderr=result.stderr,
                 returncode=result.returncode,
@@ -155,7 +160,7 @@ class OSAutomationService:
             self._audit_logger.log(LogEntry(
                 action_id=action_id,
                 tool="execute_shell_command",
-                tool_call_args={"command": cmd, "cwd": cwd},
+                tool_call_args={"command": run_cmd, "cwd": cwd},
                 policy_decision="allowed",
                 tool_result={
                     "returncode": result.returncode,
@@ -175,7 +180,7 @@ class OSAutomationService:
             self._audit_logger.log(LogEntry(
                 action_id=action_id,
                 tool="execute_shell_command",
-                tool_call_args={"command": cmd},
+                tool_call_args={"command": run_cmd},
                 policy_decision="allowed",
                 tool_result=None,
                 error=error_msg,
@@ -191,7 +196,7 @@ class OSAutomationService:
             self._audit_logger.log(LogEntry(
                 action_id=action_id,
                 tool="execute_shell_command",
-                tool_call_args={"command": cmd},
+                tool_call_args={"command": run_cmd},
                 policy_decision="allowed",
                 tool_result=None,
                 error=error_msg,

@@ -147,6 +147,7 @@ class CredentialManager:
         self._refresh_handlers = refresh_handlers or {}
         self._credentials: dict[str, Credential] = {}
         self._loaded = False
+        self._config_invalid = False
 
     def _load_from_env(self) -> None:
         """Load credentials from environment variables."""
@@ -168,6 +169,7 @@ class CredentialManager:
 
     def _load_from_config(self) -> None:
         """Load credentials from JSON config file if it exists."""
+        self._config_invalid = False
         if not self._config_path.exists():
             logger.debug("Credential config file not found at %s", self._config_path)
             return
@@ -177,15 +179,21 @@ class CredentialManager:
                 config = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
             logger.warning("Failed to load credential config: %s", e)
+            self._config_invalid = True
+            self._credentials.clear()
             return
 
         if not isinstance(config, dict):
             logger.warning("Invalid credential config format (expected dict)")
+            self._config_invalid = True
+            self._credentials.clear()
             return
 
         credentials_section = config.get("credentials", config)
         if not isinstance(credentials_section, dict):
             logger.warning("Invalid credentials section format")
+            self._config_invalid = True
+            self._credentials.clear()
             return
 
         for service_name, cred_data in credentials_section.items():
@@ -227,6 +235,8 @@ class CredentialManager:
         if not self._loaded:
             self._load_from_env()
             self._load_from_config()
+            if self._config_invalid:
+                self._credentials.clear()
             self._loaded = True
 
     def reload(self) -> None:

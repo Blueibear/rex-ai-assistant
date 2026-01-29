@@ -10,6 +10,7 @@ Provides VS Code-like file operations and testing capabilities:
 """
 
 import difflib
+import os
 import re
 import subprocess
 import uuid
@@ -551,7 +552,8 @@ class VSCodeService:
         Returns:
             List of file information dictionaries
         """
-        dir_path = (self.workspace_path / directory).resolve()
+        workspace_root = Path(self.workspace_path).resolve()
+        dir_path = (workspace_root / directory).resolve()
 
         if not dir_path.exists():
             raise FileNotFoundError(f"Directory not found: {directory}")
@@ -566,9 +568,14 @@ class VSCodeService:
         for file_path in matched_files:
             if file_path.is_file():
                 stat = file_path.stat()
+                resolved_file = file_path.resolve()
+                try:
+                    relative_path = str(resolved_file.relative_to(workspace_root))
+                except ValueError:
+                    relative_path = os.path.relpath(str(resolved_file), str(workspace_root))
                 files.append({
                     "name": file_path.name,
-                    "path": str(file_path.relative_to(self.workspace_path)),
+                    "path": relative_path,
                     "size": stat.st_size,
                     "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
                 })
