@@ -11,6 +11,14 @@ from flask_cors import CORS
 import utils.env_loader  # Auto-loads .env on import
 from memory_utils import load_memory_profile, load_users_map, resolve_user_key
 
+# Import dashboard blueprint
+try:
+    from rex.dashboard import dashboard_bp
+    _DASHBOARD_AVAILABLE = True
+except ImportError:
+    dashboard_bp = None
+    _DASHBOARD_AVAILABLE = False
+
 # Import contract version for /contracts endpoint
 try:
     from rex.contracts import CONTRACT_VERSION
@@ -43,18 +51,23 @@ CORS(
     resources={
         r"/*": {
             "origins": _CORS_ORIGINS,
-            "methods": ["GET", "POST", "OPTIONS"],
+            "methods": ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
             "allow_headers": [
                 "Content-Type",
                 "Authorization",
                 "X-Rex-Proxy-Token",
+                "X-Dashboard-Token",
                 "Cf-Access-Authenticated-User-Email",
             ],
-            "supports_credentials": False,
+            "supports_credentials": True,
             "max_age": 600,
         }
     },
 )
+
+# Register dashboard blueprint if available
+if _DASHBOARD_AVAILABLE and dashboard_bp is not None:
+    app.register_blueprint(dashboard_bp)
 
 # --- Optional Plugin: Web Search ---
 search_web = None
@@ -110,7 +123,9 @@ def _is_loopback_address(addr: str | None) -> bool:
 
 
 # --- Public Endpoints (no auth required) ---
+# Note: Dashboard routes have their own auth mechanism
 _PUBLIC_PATHS = frozenset({"/contracts"})
+_DASHBOARD_PREFIXES = ("/dashboard", "/api/dashboard", "/api/settings", "/api/chat", "/api/scheduler")
 
 
 # --- Request Hooks ---
@@ -118,6 +133,10 @@ _PUBLIC_PATHS = frozenset({"/contracts"})
 def load_user_memory():
     # Skip auth for public endpoints
     if request.path in _PUBLIC_PATHS:
+        return
+
+    # Skip main auth for dashboard routes (they have their own auth)
+    if any(request.path.startswith(prefix) for prefix in _DASHBOARD_PREFIXES):
         return
 
     if _TESTING_MODE:
