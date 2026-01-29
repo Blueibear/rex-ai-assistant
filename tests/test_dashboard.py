@@ -251,6 +251,38 @@ class TestSettingsRedaction:
         assert "updated" in data
         assert "runtime.log_level" in data["updated"]
 
+    def test_settings_patch_rejects_unknown_key(self, app_client, auth_headers):
+        """Test that PATCH /api/settings rejects unknown keys."""
+        client, _ = app_client
+
+        response = client.patch(
+            "/api/settings",
+            json={"runtime.unknown_key": "value"},
+            headers=auth_headers,
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert "invalid" in data
+        assert "runtime.unknown_key" in data["invalid"]
+
+    def test_settings_patch_rejects_type_mismatch(self, app_client, auth_headers):
+        """Test that PATCH /api/settings rejects invalid value types."""
+        client, _ = app_client
+
+        response = client.patch(
+            "/api/settings",
+            json={"runtime.log_level": 123},
+            headers=auth_headers,
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert "invalid" in data
+        assert "runtime.log_level" in data["invalid"]
+
 
 class TestSchedulerAPI:
     """Test scheduler/reminders API endpoints."""

@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -305,14 +306,31 @@ def save_config(config: Dict[str, Any], path: str | Path = "config/rex_config.js
 
     _normalize_wake_word_config(config)
 
+    temp_path = None
     try:
-        with open(config_path, "w", encoding="utf-8") as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=str(config_path.parent),
+            delete=False,
+        ) as f:
+            temp_path = Path(f.name)
             json.dump(config, f, indent=2, sort_keys=True, ensure_ascii=False)
             f.write("\n")  # Newline at EOF
+            f.flush()
+            os.fsync(f.fileno())
+
+        os.replace(temp_path, config_path)
         logger.info(f"Saved config to {config_path}")
     except Exception as exc:
         logger.error(f"Failed to save config to {config_path}: {exc}")
         raise
+    finally:
+        if temp_path and temp_path.exists():
+            try:
+                temp_path.unlink()
+            except OSError:
+                pass
 
 
 def _deep_merge(base: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[str, Any]:

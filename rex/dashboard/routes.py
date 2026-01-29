@@ -191,6 +191,42 @@ def _set_nested(data: dict[str, Any], path: str, value: Any) -> None:
     data[keys[-1]] = value
 
 
+_MISSING = object()
+
+
+def _has_nested(data: dict[str, Any], path: str) -> bool:
+    """Check if a nested path exists in a dict."""
+    keys = path.split(".")
+    value: Any = data
+    for key in keys:
+        if isinstance(value, dict) and key in value:
+            value = value[key]
+        else:
+            return False
+    return True
+
+
+def _is_valid_setting_value(expected: Any, value: Any) -> bool:
+    """Validate value types against expected config."""
+    if value is None:
+        return True
+    if expected is None:
+        return True
+    if isinstance(expected, bool):
+        return isinstance(value, bool)
+    if isinstance(expected, int) and not isinstance(expected, bool):
+        return isinstance(value, int) and not isinstance(value, bool)
+    if isinstance(expected, float):
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if isinstance(expected, str):
+        return isinstance(value, str)
+    if isinstance(expected, list):
+        return isinstance(value, list)
+    if isinstance(expected, dict):
+        return isinstance(value, dict)
+    return False
+
+
 # --- Dashboard UI Routes ---
 
 
@@ -352,10 +388,25 @@ def update_settings():
         config = load_config()
         updated_keys = []
         restart_required = False
+        invalid_updates = {}
 
         for key_path, value in data.items():
             # Validate key path (prevent arbitrary key creation)
             if not key_path or ".." in key_path:
+                invalid_updates[key_path] = "Invalid key path"
+                continue
+
+            if not _has_nested(DEFAULT_CONFIG, key_path):
+                invalid_updates[key_path] = "Unknown setting key"
+                continue
+
+            expected_value = _get_nested(DEFAULT_CONFIG, key_path, _MISSING)
+            if expected_value is _MISSING:
+                invalid_updates[key_path] = "Unknown setting key"
+                continue
+
+            if not _is_valid_setting_value(expected_value, value):
+                invalid_updates[key_path] = f"Invalid value type (expected {type(expected_value).__name__})"
                 continue
 
             # Check if this is a sensitive key that shouldn't be set via API
@@ -370,6 +421,12 @@ def update_settings():
 
             _set_nested(config, key_path, value)
             updated_keys.append(key_path)
+
+        if invalid_updates:
+            return jsonify({
+                "error": "Invalid settings update",
+                "invalid": invalid_updates,
+            }), 400
 
         if updated_keys:
             save_config(config)

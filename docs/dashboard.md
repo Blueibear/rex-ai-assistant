@@ -100,6 +100,10 @@ To require password authentication:
 | `/api/settings` | GET | Get configuration (redacted) |
 | `/api/settings` | PATCH | Update configuration keys |
 
+Notes:
+- PATCH requests are validated against known configuration keys and value types.
+- Unknown keys or invalid value types are rejected with a 400 response.
+
 ### Chat
 
 | Endpoint | Method | Description |
