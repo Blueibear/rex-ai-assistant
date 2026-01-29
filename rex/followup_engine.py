@@ -50,11 +50,25 @@ def _clamp(value: int, minimum: int, maximum: int) -> int:
     return max(minimum, min(maximum, value))
 
 
+def load_config() -> dict[str, Any]:
+    """Load Rex configuration.
+
+    This function is a thin wrapper around rex.config_manager.load_config
+    that allows tests to monkeypatch it easily.
+
+    Returns:
+        The full Rex configuration dict.
+    """
+    try:
+        from rex.config_manager import load_config as _load_config_impl
+        return _load_config_impl()
+    except Exception:
+        return {}
+
+
 def _get_config() -> dict[str, Any]:
     """Load follow-up configuration with safe defaults."""
     try:
-        from rex.config_manager import load_config
-
         cfg = load_config()
         followups = cfg.get("conversation", {}).get("followups", {})
         if isinstance(followups, dict):
@@ -440,5 +454,6 @@ __all__ = [
     "FollowupEngine",
     "get_followup_engine",
     "set_followup_engine",
+    "load_config",
 ]
 
