@@ -8,6 +8,54 @@ REX_INSTALL_PREFIX="${REX_INSTALL_PREFIX:-}"
 REX_DRY_RUN="${REX_DRY_RUN:-0}"
 REX_SKIP_SERVICE="${REX_SKIP_SERVICE:-0}"
 
+usage() {
+  cat <<'USAGE'
+Usage: install_full.sh [options]
+
+Options:
+  --prefix PATH        Install prefix for pip (maps to REX_INSTALL_PREFIX)
+  --python PATH        Python interpreter to use
+  --port PORT          Service port (default: 8765)
+  --dry-run            Print commands without executing
+  --skip-service       Skip systemd service setup
+  --help               Show this help
+USAGE
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --prefix)
+      REX_INSTALL_PREFIX="$2"
+      shift 2
+      ;;
+    --python)
+      REX_PYTHON="$2"
+      shift 2
+      ;;
+    --port)
+      REX_SERVICE_PORT="$2"
+      shift 2
+      ;;
+    --dry-run)
+      REX_DRY_RUN="1"
+      shift
+      ;;
+    --skip-service)
+      REX_SKIP_SERVICE="1"
+      shift
+      ;;
+    --help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      usage
+      exit 1
+      ;;
+  esac
+done
+
 install_cmd=("$REX_PYTHON" -m pip install "${ROOT_DIR}[sms,devtools]")
 if [ -n "$REX_INSTALL_PREFIX" ]; then
   install_cmd=("$REX_PYTHON" -m pip install --prefix "$REX_INSTALL_PREFIX" "${ROOT_DIR}[sms,devtools]")
