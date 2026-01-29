@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 from .config import Settings, settings
 from .ha_bridge import HABridge
@@ -35,6 +36,7 @@ class Assistant:
         plugins: Iterable[PluginSpec] | None = None,
         settings_obj: Settings | None = None,
         transcripts_dir: str | Path | None = None,
+        user_id: str | None = None,
     ) -> None:
         self._settings = settings_obj or settings
         self._llm = LanguageModel(config=self._settings)
@@ -42,6 +44,13 @@ class Assistant:
         self._history_limit = history_limit or self._settings.max_memory_items
         self._plugins = list(plugins or [])
         self._transcripts_dir = Path(transcripts_dir or self._settings.transcripts_dir)
+        self._user_id = user_id or self._settings.user_id
+
+        # Follow-up engine for natural conversation cues
+        self._followup_engine: Optional["FollowupEngine"] = None
+        self._pending_followup: Optional[str] = None
+        self._followup_injected = False
+        self._init_followup_engine()
 
         # Only create HABridge if HA is configured
         self._ha_bridge: HABridge | None = None
@@ -52,6 +61,40 @@ class Assistant:
             except Exception as exc:
                 logger.warning("Failed to initialize Home Assistant bridge: %s", exc)
                 self._ha_bridge = None
+
+    def _init_followup_engine(self) -> None:
+        """Initialize the follow-up engine for natural cue injection."""
+        try:
+            from .followup_engine import get_followup_engine
+
+            self._followup_engine = get_followup_engine()
+            self._followup_engine.start_session(self._user_id)
+            self._pending_followup = self._followup_engine.get_followup_prompt(
+                self._user_id
+            )
+            if self._pending_followup:
+                logger.debug(f"Pending followup for session: {self._pending_followup}")
+        except Exception as exc:
+            logger.debug(f"Follow-up engine not available: {exc}")
+            self._followup_engine = None
+            self._pending_followup = None
+
+    @property
+    def user_id(self) -> str:
+        """Get the user ID for this assistant session."""
+        return self._user_id
+
+    @property
+    def has_pending_followup(self) -> bool:
+        """Check if there's a pending follow-up for this session."""
+        return self._pending_followup is not None and not self._followup_injected
+
+    @property
+    def pending_followup_prompt(self) -> Optional[str]:
+        """Get the pending follow-up prompt if any."""
+        if self.has_pending_followup:
+            return self._pending_followup
+        return None
 
     async def generate_reply(self, transcript: str) -> str:
         if not transcript.strip():
@@ -116,7 +159,21 @@ class Assistant:
         history_lines = [f"{turn.speaker}: {turn.text}" for turn in self._history[-4:]]
         history_lines.append(f"user: {transcript}")
         history_lines.append("assistant:")
-        return "\n".join(history_lines)
+        prompt = "\n".join(history_lines)
+
+        # Inject follow-up cue on first exchange if available
+        if self._pending_followup and not self._followup_injected:
+            followup_hint = (
+                f"\n[Note: You may want to ask the user: \"{self._pending_followup}\" "
+                f"as a natural conversation starter.]"
+            )
+            prompt = prompt + followup_hint
+            self._followup_injected = True
+            # Mark cue as asked once we've included it
+            if self._followup_engine:
+                self._followup_engine.mark_current_cue_asked(self._user_id)
+
+        return prompt
 
     def _build_tool_model_call(self, transcript: str):
         base_messages = [

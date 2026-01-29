@@ -425,6 +425,150 @@ class CalendarService:
             ),
         ]
 
+    def get_past_events(
+        self,
+        hours: int = 72,
+        *,
+        now: Optional[datetime] = None,
+    ) -> list[CalendarEvent]:
+        """Get events that ended within the specified time window.
+
+        Args:
+            hours: Look back this many hours for ended events.
+            now: Current time (defaults to UTC now).
+
+        Returns:
+            List of events that ended within the window, sorted by end_time.
+        """
+        check_time = now or datetime.now(timezone.utc)
+        window_start = check_time - timedelta(hours=hours)
+
+        events = self._load_events()
+        past_events = [
+            e for e in events
+            if e.end_time <= check_time and e.end_time >= window_start
+        ]
+        past_events.sort(key=lambda e: e.end_time, reverse=True)
+        return past_events
+
+    def generate_followup_cues(
+        self,
+        user_id: str,
+        *,
+        lookback_hours: int = 72,
+        expire_hours: int = 168,
+        now: Optional[datetime] = None,
+    ) -> int:
+        """Generate follow-up cues from recent past calendar events.
+
+        Creates cues for events that have ended within the lookback window.
+        Skips:
+        - Events that already have a cue
+        - All-day events that look like holidays
+        - Events with 'no-followup' in metadata/description
+
+        Args:
+            user_id: User ID to create cues for.
+            lookback_hours: Only consider events ended within this many hours.
+            expire_hours: Hours until the cue expires.
+            now: Current time (defaults to UTC now).
+
+        Returns:
+            Number of cues created.
+        """
+        try:
+            from rex.cue_store import get_cue_store
+        except ImportError:
+            logger.warning("CueStore not available, cannot generate followup cues")
+            return 0
+
+        check_time = now or datetime.now(timezone.utc)
+        past_events = self.get_past_events(hours=lookback_hours, now=check_time)
+        cue_store = get_cue_store()
+
+        created_count = 0
+        for event in past_events:
+            # Skip if cue already exists for this event
+            if cue_store.has_cue_for_source(user_id, "calendar", event.event_id):
+                continue
+
+            # Skip all-day events that look like holidays
+            if event.all_day and self._looks_like_holiday(event):
+                continue
+
+            # Skip events marked as no-followup
+            if self._is_no_followup(event):
+                continue
+
+            # Create the cue
+            prompt = f"How did '{event.title}' go?"
+            cue_store.add_cue(
+                user_id=user_id,
+                source_type="calendar",
+                source_id=event.event_id,
+                title=event.title,
+                prompt=prompt,
+                eligible_after=event.end_time,
+                expires_in=timedelta(hours=expire_hours),
+                metadata={
+                    "event_id": event.event_id,
+                    "start_time": event.start_time.isoformat(),
+                    "end_time": event.end_time.isoformat(),
+                    "location": event.location,
+                },
+            )
+            created_count += 1
+            logger.debug(f"Created followup cue for event '{event.title}'")
+
+        if created_count:
+            logger.info(f"Generated {created_count} followup cue(s) from calendar events")
+
+        return created_count
+
+    def _looks_like_holiday(self, event: CalendarEvent) -> bool:
+        """Check if an all-day event looks like a holiday.
+
+        Simple heuristic based on common holiday keywords.
+        """
+        if not event.all_day:
+            return False
+
+        title_lower = event.title.lower()
+        holiday_keywords = [
+            "holiday", "day off", "vacation", "pto",
+            "christmas", "thanksgiving", "easter", "new year",
+            "independence day", "memorial day", "labor day",
+            "birthday", "anniversary",
+        ]
+        for keyword in holiday_keywords:
+            if keyword in title_lower:
+                return True
+        return False
+
+    def _is_no_followup(self, event: CalendarEvent) -> bool:
+        """Check if an event is marked as no-followup.
+
+        Checks for 'no-followup' or 'nofollowup' in:
+        - Description
+        - Title (unlikely but possible)
+        """
+        markers = ["no-followup", "nofollowup", "no_followup", "[no followup]"]
+
+        # Check title
+        title_lower = event.title.lower()
+        for marker in markers:
+            if marker in title_lower:
+                return True
+
+        # Check description
+        if event.description:
+            desc_lower = event.description.lower()
+            for marker in markers:
+                if marker in desc_lower:
+                    return True
+
+        return False
+
 
 # Global calendar service instance (optional convenience)
 _calendar_service: Optional[CalendarService] = None
