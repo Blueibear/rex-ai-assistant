@@ -331,9 +331,10 @@ def set_tool_registry(registry: ToolRegistry) -> None:
 
 
 def reset_tool_registry() -> None:
-    """Reset the global tool registry instance to force reinitialization."""
+    """Reset the global tool registry instance to the default state."""
     global _tool_registry
-    _tool_registry = None
+    _tool_registry = ToolRegistry()
+    _register_builtin_tools(_tool_registry)
 
 
 def _register_builtin_tools(registry: ToolRegistry) -> None:
