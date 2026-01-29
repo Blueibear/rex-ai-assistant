@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rex Dashboard</title>
+    <link rel="stylesheet" href="/dashboard/assets/css/dashboard.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Login Screen -->
+        <div id="login-screen" class="screen">
+            <div class="login-container">
+                <div class="login-header">
+                    <h1>Rex</h1>
+                    <p>AI Assistant Dashboard</p>
+                </div>
+                <form id="login-form" class="login-form">
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" placeholder="Enter password" autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                    <p id="login-error" class="error-message"></p>
+                </form>
+                <div id="login-status" class="login-status"></div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div id="dashboard-screen" class="screen hidden">
+            <!-- Desktop Navigation (Left Sidebar) -->
+            <nav class="sidebar desktop-nav">
+                <div class="nav-header">
+                    <h2>Rex</h2>
+                </div>
+                <ul class="nav-links">
+                    <li><a href="#" data-section="chat" class="nav-link active">Chat</a></li>
+                    <li><a href="#" data-section="settings" class="nav-link">Settings</a></li>
+                    <li><a href="#" data-section="reminders" class="nav-link">Reminders</a></li>
+                    <li><a href="#" data-section="status" class="nav-link">Status</a></li>
+                </ul>
+                <div class="nav-footer">
+                    <button id="logout-btn" class="btn btn-secondary">Logout</button>
+                </div>
+            </nav>
+
+            <!-- Main Content Area -->
+            <main class="main-content">
+                <!-- Chat Section -->
+                <section id="chat-section" class="content-section">
+                    <header class="section-header">
+                        <h1>Chat</h1>
+                    </header>
+                    <div class="chat-container">
+                        <div id="chat-messages" class="chat-messages"></div>
+                        <div class="chat-input-container">
+                            <form id="chat-form" class="chat-form">
+                                <input type="text" id="chat-input" placeholder="Type your message..." autocomplete="off">
+                                <button type="submit" class="btn btn-primary">Send</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Settings Section -->
+                <section id="settings-section" class="content-section hidden">
+                    <header class="section-header">
+                        <h1>Settings</h1>
+                        <div class="search-container">
+                            <input type="text" id="settings-search" placeholder="Search settings...">
+                        </div>
+                    </header>
+                    <div id="settings-container" class="settings-container">
+                        <div class="loading">Loading settings...</div>
+                    </div>
+                    <div id="settings-save-bar" class="save-bar hidden">
+                        <span id="unsaved-count">0 unsaved changes</span>
+                        <button id="save-settings-btn" class="btn btn-primary">Save Changes</button>
+                        <button id="discard-settings-btn" class="btn btn-secondary">Discard</button>
+                    </div>
+                </section>
+
+                <!-- Reminders Section -->
+                <section id="reminders-section" class="content-section hidden">
+                    <header class="section-header">
+                        <h1>Reminders</h1>
+                        <button id="add-reminder-btn" class="btn btn-primary">Add Reminder</button>
+                    </header>
+                    <div id="reminders-list" class="reminders-list">
+                        <div class="loading">Loading reminders...</div>
+                    </div>
+                </section>
+
+                <!-- Status Section -->
+                <section id="status-section" class="content-section hidden">
+                    <header class="section-header">
+                        <h1>Status</h1>
+                    </header>
+                    <div id="status-container" class="status-container">
+                        <div class="loading">Loading status...</div>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Mobile Navigation (Bottom) -->
+            <nav class="mobile-nav">
+                <a href="#" data-section="chat" class="mobile-nav-link active">
+                    <span class="nav-icon">Chat</span>
+                </a>
+                <a href="#" data-section="settings" class="mobile-nav-link">
+                    <span class="nav-icon">Settings</span>
+                </a>
+                <a href="#" data-section="reminders" class="mobile-nav-link">
+                    <span class="nav-icon">Reminders</span>
+                </a>
+                <a href="#" data-section="status" class="mobile-nav-link">
+                    <span class="nav-icon">Status</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- Add Reminder Modal -->
+        <div id="reminder-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Add Reminder</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <form id="reminder-form" class="reminder-form">
+                    <div class="form-group">
+                        <label for="reminder-name">Name</label>
+                        <input type="text" id="reminder-name" required placeholder="Reminder name">
+                    </div>
+                    <div class="form-group">
+                        <label for="reminder-type">Type</label>
+                        <select id="reminder-type">
+                            <option value="interval">Interval (repeat)</option>
+                            <option value="at">At time (daily)</option>
+                        </select>
+                    </div>
+                    <div id="interval-fields" class="form-group">
+                        <label for="reminder-interval">Interval (seconds)</label>
+                        <input type="number" id="reminder-interval" min="60" value="3600" placeholder="Seconds between runs">
+                        <small>Minimum: 60 seconds (1 minute)</small>
+                    </div>
+                    <div id="at-fields" class="form-group hidden">
+                        <label for="reminder-time">Time</label>
+                        <input type="time" id="reminder-time" value="09:00">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="reminder-enabled" checked>
+                            Enabled
+                        </label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/dashboard/assets/js/dashboard.js"></script>
+</body>
+</html>
