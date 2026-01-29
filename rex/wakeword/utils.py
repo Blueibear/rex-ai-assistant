@@ -3,33 +3,57 @@
 from __future__ import annotations
 
 import logging
+import sys
 from collections.abc import Iterable
+from importlib import import_module
+from importlib.util import find_spec
 from pathlib import Path
 
-try:  # pragma: no cover - optional dependency
-    import numpy as np
-except Exception:  # pragma: no cover - optional dependency
-    np = None  # type: ignore[assignment]
+
+def _import_optional(module_name: str):
+    module = sys.modules.get(module_name)
+    if module is not None:
+        return module
+    if find_spec(module_name) is None:
+        return None
+    return import_module(module_name)
+
+
+np = _import_optional("numpy")
 
 def _lazy_import_openwakeword():
-    try:
-        module = __import__("openwakeword", fromlist=["model"])
-        model_cls = getattr(module, "model", None)
-        model_type = getattr(model_cls, "Model", object) if model_cls else object
-        return module, model_type
-    except Exception:  # pragma: no cover - openwakeword optional
+    module = _import_optional("openwakeword")
+    if module is None:
         return None, object
+    model_cls = getattr(module, "model", None)
+    model_type = getattr(model_cls, "Model", object) if model_cls else object
+    return module, model_type
 
 
 WakeWordModel = object
+openwakeword = None
 _OPENWAKEWORD_MODULE = None
 _WAKEWORD_MODEL = object
 
 
 def _get_openwakeword():
-    global _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
+    global _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL, openwakeword
+    if openwakeword is not None and openwakeword is not _OPENWAKEWORD_MODULE:
+        _OPENWAKEWORD_MODULE = openwakeword
+        _WAKEWORD_MODEL = WakeWordModel if WakeWordModel is not object else object
+        return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
+
+    module = sys.modules.get("openwakeword")
+    if module is not None and module is not _OPENWAKEWORD_MODULE:
+        model_cls = getattr(module, "model", None)
+        _OPENWAKEWORD_MODULE = module
+        _WAKEWORD_MODEL = getattr(model_cls, "Model", object) if model_cls else object
+        openwakeword = module
+        return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
+
     if _OPENWAKEWORD_MODULE is None:
         _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL = _lazy_import_openwakeword()
+        openwakeword = _OPENWAKEWORD_MODULE
     return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
 
 from .embedding import compute_embedding, load_embedding
@@ -133,6 +157,8 @@ def _load_builtin_openwakeword_model(
     openwakeword, model_cls = _get_openwakeword()
     if openwakeword is None:
         raise RuntimeError("openwakeword is not installed")
+    if model_cls is object and WakeWordModel is not object:
+        model_cls = WakeWordModel
 
     requested_keywords = split_keywords(keyword)
     available = list_openwakeword_keywords(openwakeword)

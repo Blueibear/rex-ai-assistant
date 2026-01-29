@@ -29,6 +29,54 @@ from datetime import timedelta
 from typing import Optional, Sequence
 
 
+def get_browser_service():
+    from rex.browser_automation import get_browser_service as _get_browser_service
+
+    return _get_browser_service()
+
+
+def get_os_service():
+    from rex.os_automation import get_os_service as _get_os_service
+
+    return _get_os_service()
+
+
+def get_github_service():
+    from rex.github_service import get_github_service as _get_github_service
+
+    return _get_github_service()
+
+
+def get_vscode_service():
+    from rex.vscode_service import get_vscode_service as _get_vscode_service
+
+    return _get_vscode_service()
+
+
+def get_scheduler():
+    from rex.scheduler import get_scheduler as _get_scheduler
+
+    return _get_scheduler()
+
+
+def get_email_service():
+    from rex.email_service import get_email_service as _get_email_service
+
+    return _get_email_service()
+
+
+def get_calendar_service():
+    from rex.calendar_service import get_calendar_service as _get_calendar_service
+
+    return _get_calendar_service()
+
+
+def initialize_scheduler_system(*args, **kwargs):
+    from rex.integrations import initialize_scheduler_system as _initialize_scheduler_system
+
+    return _initialize_scheduler_system(*args, **kwargs)
+
+
 def _get_version() -> str:
     """Return the current Rex version."""
     try:
@@ -422,7 +470,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
         print("The workflow contains steps that cannot be executed (missing tools or policy denials).")
         return 1
 
-    print("Workflow validation passed.")
+    print("Validation passed.")
     print()
 
     # Check autonomy mode
@@ -732,7 +780,7 @@ def cmd_kb(args: argparse.Namespace) -> int:
             if doc.tags:
                 print(f"  Tags: {', '.join(doc.tags)}")
             print(f"  Words: {doc.word_count}")
-            if args.verbose:
+            if getattr(args, "verbose", False):
                 snippet = doc.content[:200].replace("\n", " ")
                 if len(doc.content) > 200:
                     snippet += "..."
@@ -839,9 +887,6 @@ def cmd_kb(args: argparse.Namespace) -> int:
 
 def cmd_scheduler(args: argparse.Namespace) -> int:
     """Manage scheduler jobs."""
-    from rex.integrations import initialize_scheduler_system
-    from rex.scheduler import get_scheduler
-
     scheduler = get_scheduler()
     subcommand = args.scheduler_command
 
@@ -870,7 +915,7 @@ def cmd_scheduler(args: argparse.Namespace) -> int:
                     print(f" / {job.max_runs}")
                 else:
                     print(" (unlimited)")
-            if args.verbose:
+            if getattr(args, "verbose", False):
                 callback_name = getattr(job, "callback_name", None)
                 workflow_id = getattr(job, "workflow_id", None)
                 if callback_name:
@@ -904,8 +949,6 @@ def cmd_scheduler(args: argparse.Namespace) -> int:
 
 def cmd_email(args: argparse.Namespace) -> int:
     """Manage email."""
-    from rex.email_service import get_email_service
-
     email_service = get_email_service()
     subcommand = args.email_command
 
@@ -915,14 +958,15 @@ def cmd_email(args: argparse.Namespace) -> int:
                 print("Error: Failed to connect to email service")
                 return 1
 
-        unread = email_service.fetch_unread(limit=args.limit or 10)
+        limit = getattr(args, "limit", None) or 10
+        unread = email_service.fetch_unread(limit=limit)
+        print("Unread Email Summary")
+        print("=" * 80)
+        print()
+
         if not unread:
             print("No unread emails.")
             return 0
-
-        print("Unread Emails")
-        print("=" * 80)
-        print()
 
         for email in unread:
             category = email_service.categorize(email)
@@ -931,7 +975,7 @@ def cmd_email(args: argparse.Namespace) -> int:
             print(f"  From: {email.from_addr}")
             print(f"  Received: {email.received_at.strftime('%Y-%m-%d %H:%M:%S')}")
             print(f"  Category: {category}")
-            if args.verbose:
+            if getattr(args, "verbose", False):
                 score = getattr(email, "importance_score", None)
                 if score is not None:
                     print(f"  Importance: {score:.2f}")
@@ -947,8 +991,6 @@ def cmd_email(args: argparse.Namespace) -> int:
 
 def cmd_calendar(args: argparse.Namespace) -> int:
     """Manage calendar."""
-    from rex.calendar_service import get_calendar_service
-
     calendar_service = get_calendar_service()
     subcommand = args.calendar_command
 
@@ -958,16 +1000,16 @@ def cmd_calendar(args: argparse.Namespace) -> int:
                 print("Error: Failed to connect to calendar service")
                 return 1
 
-        days = args.days or 7
+        days = getattr(args, "days", None) or 7
         events = calendar_service.get_upcoming_events(days=days)
-
-        if not events:
-            print(f"No upcoming events in the next {days} days.")
-            return 0
 
         print(f"Upcoming Events (next {days} days)")
         print("=" * 80)
         print()
+
+        if not events:
+            print(f"No upcoming events in the next {days} days.")
+            return 0
 
         for event in events:
             if getattr(event, "all_day", False):
@@ -1029,7 +1071,7 @@ def cmd_browser(args: argparse.Namespace) -> int:
     """Manage browser automation."""
     import json
     from pathlib import Path
-    from rex.browser_automation import run_browser_script_sync, get_browser_service
+    from rex.browser_automation import run_browser_script_sync
 
     subcommand = args.browser_command
 
@@ -1120,8 +1162,6 @@ def cmd_browser(args: argparse.Namespace) -> int:
 
 def cmd_os(args: argparse.Namespace) -> int:
     """Manage OS automation."""
-    from rex.os_automation import get_os_service
-
     subcommand = args.os_command
     service = get_os_service()
 
@@ -1216,8 +1256,6 @@ def cmd_os(args: argparse.Namespace) -> int:
 
 def cmd_gh(args: argparse.Namespace) -> int:
     """Manage GitHub integration."""
-    from rex.github_service import get_github_service
-
     subcommand = args.gh_command
     service = get_github_service()
 
@@ -1320,8 +1358,6 @@ def cmd_gh(args: argparse.Namespace) -> int:
 
 def cmd_code(args: argparse.Namespace) -> int:
     """Manage VS Code operations."""
-    from rex.vscode_service import get_vscode_service
-
     subcommand = args.code_command
     service = get_vscode_service()
 

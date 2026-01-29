@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 import re
+import sys
 import tempfile
 from contextlib import suppress
 from dataclasses import dataclass
@@ -15,10 +16,20 @@ from typing import Awaitable, Callable, Optional
 from importlib import import_module
 from importlib.util import find_spec
 
-try:  # pragma: no cover - optional dependency
-    import numpy as np
-except ImportError:
-    np = None  # type: ignore[assignment]
+def _import_optional(module_name: str):
+    module = sys.modules.get(module_name)
+    if module is not None:
+        return module
+    if find_spec(module_name) is None:
+        return None
+    return import_module(module_name)
+
+
+def _lazy_import_numpy():
+    return _import_optional("numpy")
+
+
+np = _lazy_import_numpy()
 
 from .assistant import Assistant
 from .assistant_errors import AudioDeviceError, SpeechToTextError, TextToSpeechError, WakeWordError
@@ -34,50 +45,49 @@ from wake_acknowledgment import ensure_wake_acknowledgment_sound
 from .wakeword.utils import load_wakeword_model
 from .tts_utils import chunk_text_for_xtts
 
-try:  # pragma: no cover - optional dependency
-    import simpleaudio as sa  # type: ignore
-except ImportError:
-    sa = None  # type: ignore[assignment]
+def _lazy_import_simpleaudio():
+    return _import_optional("simpleaudio")
 
-try:  # pragma: no cover - optional dependency
-    import sounddevice as sd  # type: ignore
-except ImportError:
-    sd = None  # type: ignore[assignment]
+
+sa = _lazy_import_simpleaudio()
+sd = None
 
 def _lazy_import_whisper():
-    if find_spec("whisper") is None:
-        return None
-    try:
-        return import_module("whisper")
-    except Exception:  # pragma: no cover - optional dependency
-        return None
+    return _import_optional("whisper")
 
 
 def _lazy_import_tts():
-    if find_spec("TTS") is None:
+    if _import_optional("TTS") is None:
         return None
-    try:
-        from rex.compat import ensure_transformers_compatibility
+    from rex.compat import ensure_transformers_compatibility
 
-        ensure_transformers_compatibility()
-        return import_module("TTS.api").TTS
-    except Exception:  # pragma: no cover - optional dependency
-        return None
+    ensure_transformers_compatibility()
+    return import_module("TTS.api").TTS
 
 
 def _lazy_import_soundfile():
-    if find_spec("soundfile") is None:
-        return None
-    try:
-        return import_module("soundfile")
-    except Exception:  # pragma: no cover - optional dependency
-        return None
+    return _import_optional("soundfile")
+
+
+def _load_sounddevice():
+    global sd
+    if sd is not None:
+        return sd
+    sd = _import_optional("sounddevice")
+    return sd
 
 
 def _require_numpy():
     if np is None:
         raise AudioDeviceError("numpy is required for audio processing")
     return np
+
+
+def _require_sounddevice():
+    module = _load_sounddevice()
+    if module is None:
+        raise AudioDeviceError("sounddevice is not installed")
+    return module
 
 logger = logging.getLogger(__name__)
 
@@ -126,8 +136,7 @@ class AsyncMicrophone:
                 result = await result
             return np.asarray(result, dtype=np.float32).reshape(-1)
 
-        if sd is None:
-            raise AudioDeviceError("sounddevice is not installed")
+        sd = _require_sounddevice()
 
         frames = max(int(self.sample_rate * duration), 1)
 
@@ -158,7 +167,7 @@ class WakeAcknowledgement:
         """Play the wake acknowledgement sound."""
         if not self._sound_path.exists():
             return
-        if sa is None and sd is None:
+        if sa is None and _load_sounddevice() is None:
             logger.warning("No audio playback backend available for wake acknowledgment.")
             return
 
@@ -168,8 +177,7 @@ class WakeAcknowledgement:
                 play_obj = wave_obj.play()
                 play_obj.wait_done()
                 return
-            if sd is None:
-                raise AudioDeviceError("sounddevice is not installed")
+            sd = _require_sounddevice()
             sf = _lazy_import_soundfile()
             if sf is None:
                 raise AudioDeviceError("soundfile is required for wake acknowledgement playback")

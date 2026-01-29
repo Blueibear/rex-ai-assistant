@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from importlib import import_module
 from importlib.util import find_spec
 from dataclasses import dataclass
@@ -15,6 +16,8 @@ from rex.logging_utils import get_logger
 logger = get_logger(__name__)
 
 def _module_available(name: str) -> bool:
+    if name in sys.modules:
+        return True
     return find_spec(name) is not None
 
 

@@ -115,12 +115,9 @@ class GitHubService:
 
     def _get_token(self) -> str:
         """Get GitHub token from credential manager."""
-        token = self._credential_manager.get_token(self.credential_name)
-        if not token:
-            raise ValueError(
-                f"GitHub token not found. Set '{self.credential_name}' in credential manager "
-                "or set GITHUB_TOKEN environment variable."
-            )
+        token = get_credential_manager().get_token(self.credential_name)
+        if token is None or not token.strip():
+            raise ValueError("GitHub token not found")
         return token
 
     def _make_request(

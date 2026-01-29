@@ -65,6 +65,7 @@ class EventBus:
         # Store both styles separately to avoid signature confusion
         self._legacy_subscribers: DefaultDict[str, list[LegacyCallback]] = defaultdict(list)
         self._handlers: DefaultDict[str, list[EventHandler]] = defaultdict(list)
+        self._subscriptions = self._handlers
 
         self._event_count = 0
         self._error_count = 0
@@ -282,4 +283,3 @@ def set_event_bus(event_bus: EventBus) -> None:
 
 
 __all__ = ["Event", "EventBus", "get_event_bus", "set_event_bus"]
-
