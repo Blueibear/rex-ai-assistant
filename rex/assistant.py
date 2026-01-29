@@ -10,6 +10,8 @@ from datetime import datetime
 from pathlib import Path
 
 from .config import Settings, settings
+from .followup_engine import FollowupEngine
+from .calendar_service import get_calendar_service
 from .ha_bridge import HABridge
 from .llm_client import LanguageModel
 from .memory import trim_history
@@ -42,6 +44,7 @@ class Assistant:
         self._history_limit = history_limit or self._settings.max_memory_items
         self._plugins = list(plugins or [])
         self._transcripts_dir = Path(transcripts_dir or self._settings.transcripts_dir)
+        self._followup_engine: FollowupEngine | None = None
 
         # Only create HABridge if HA is configured
         self._ha_bridge: HABridge | None = None
@@ -52,6 +55,17 @@ class Assistant:
             except Exception as exc:
                 logger.warning("Failed to initialize Home Assistant bridge: %s", exc)
                 self._ha_bridge = None
+
+        if getattr(self._settings, "followups_enabled", False):
+            try:
+                calendar_service = get_calendar_service()
+            except Exception as exc:  # pragma: no cover - defensive guard
+                logger.warning("Failed to initialize calendar service: %s", exc)
+                calendar_service = None
+            self._followup_engine = FollowupEngine.from_settings(
+                self._settings,
+                calendar_service=calendar_service,
+            )
 
     async def generate_reply(self, transcript: str) -> str:
         if not transcript.strip():
@@ -115,6 +129,10 @@ class Assistant:
     def _build_prompt(self, transcript: str) -> str:
         history_lines = [f"{turn.speaker}: {turn.text}" for turn in self._history[-4:]]
         history_lines.append(f"user: {transcript}")
+        if self._followup_engine:
+            followups = self._followup_engine.format_followups()
+            if followups:
+                history_lines.append(followups)
         history_lines.append("assistant:")
         return "\n".join(history_lines)
 

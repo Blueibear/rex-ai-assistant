@@ -97,6 +97,14 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "ui": {
         "start_minimized": False,
     },
+    "conversation": {
+        "followups": {
+            "enabled": False,
+            "max_per_session": 2,
+            "lookback_hours": 72,
+            "expire_hours": 168,
+        },
+    },
 }
 
 # Map of legacy environment variable names to config paths

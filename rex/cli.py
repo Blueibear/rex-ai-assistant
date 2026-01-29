@@ -14,6 +14,8 @@ This module provides the main CLI entry point with subcommands:
     rex scheduler    - List and manage scheduler jobs
     rex email        - Manage email
     rex calendar     - Manage calendar
+    rex reminders    - Manage reminders
+    rex cues         - Manage follow-up cues
 
 Usage:
     rex [command] [options]
@@ -25,7 +27,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional, Sequence
 
 
@@ -69,6 +71,18 @@ def get_calendar_service():
     from rex.calendar_service import get_calendar_service as _get_calendar_service
 
     return _get_calendar_service()
+
+
+def get_reminder_service():
+    from rex.reminder_service import get_reminder_service as _get_reminder_service
+
+    return _get_reminder_service()
+
+
+def get_cue_store():
+    from rex.cue_store import get_cue_store as _get_cue_store
+
+    return _get_cue_store()
 
 
 def initialize_scheduler_system(*args, **kwargs):
@@ -1042,6 +1056,95 @@ def cmd_calendar(args: argparse.Namespace) -> int:
         return 0
 
     print("Unknown calendar subcommand. Use 'rex calendar --help'")
+    return 1
+
+
+def _parse_datetime(value: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.strip())
+    except ValueError as exc:
+        raise ValueError("Datetime must be in format YYYY-MM-DD HH:MM") from exc
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=datetime.now().astimezone().tzinfo)
+    return parsed
+
+
+def cmd_reminders(args: argparse.Namespace) -> int:
+    """Manage reminders."""
+    service = get_reminder_service()
+    subcommand = args.reminders_command
+
+    if subcommand == "add":
+        try:
+            remind_at = _parse_datetime(args.at)
+        except ValueError as exc:
+            print(f"Error: {exc}")
+            return 1
+        reminder = service.add_reminder(args.title, remind_at, follow_up=args.follow_up)
+        print(f"Added reminder {reminder.reminder_id} at {reminder.remind_at.isoformat()}")
+        return 0
+
+    if subcommand == "list":
+        reminders = service.list_reminders(status=args.status)
+        if not reminders:
+            print("No reminders found.")
+            return 0
+        for reminder in reminders:
+            print(
+                f"{reminder.reminder_id} | {reminder.status} | "
+                f"{reminder.remind_at.isoformat()} | {reminder.title}"
+            )
+        return 0
+
+    if subcommand == "done":
+        if service.mark_done(args.reminder_id):
+            print(f"Marked reminder {args.reminder_id} as done")
+            return 0
+        print(f"Reminder not found: {args.reminder_id}")
+        return 1
+
+    if subcommand == "cancel":
+        if service.cancel(args.reminder_id):
+            print(f"Canceled reminder {args.reminder_id}")
+            return 0
+        print(f"Reminder not found: {args.reminder_id}")
+        return 1
+
+    print("Unknown reminders subcommand. Use 'rex reminders --help'")
+    return 1
+
+
+def cmd_cues(args: argparse.Namespace) -> int:
+    """Manage follow-up cues."""
+    cue_store = get_cue_store()
+    subcommand = args.cues_command
+
+    if subcommand == "list":
+        cues = cue_store.list_cues(status=args.status)
+        if not cues:
+            print("No cues found.")
+            return 0
+        for cue in cues:
+            due_at = cue.due_at.isoformat() if cue.due_at else "n/a"
+            print(f"{cue.cue_id} | {cue.status} | {due_at} | {cue.prompt}")
+        return 0
+
+    if subcommand == "dismiss":
+        if cue_store.dismiss(args.cue_id):
+            print(f"Dismissed cue {args.cue_id}")
+            return 0
+        print(f"Cue not found: {args.cue_id}")
+        return 1
+
+    if subcommand == "prune":
+        from rex import settings
+
+        expire_hours = int(getattr(settings, "followups_expire_hours", 168))
+        removed = cue_store.prune_expired(expire_hours=expire_hours)
+        print(f"Pruned {removed} expired cues")
+        return 0
+
+    print("Unknown cues subcommand. Use 'rex cues --help'")
     return 1
 
 
@@ -2028,6 +2131,101 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     calendar_upcoming.set_defaults(func=cmd_calendar, calendar_command="upcoming")
 
     calendar_parser.set_defaults(func=cmd_calendar, calendar_command="upcoming")
+
+    # reminders
+    reminders_parser = subparsers.add_parser(
+        "reminders",
+        help="Manage reminders",
+        description="Create and manage reminders.",
+    )
+    reminders_subparsers = reminders_parser.add_subparsers(
+        title="reminders commands",
+        dest="reminders_command",
+        metavar="COMMAND",
+    )
+
+    reminders_add = reminders_subparsers.add_parser(
+        "add",
+        help="Add a reminder",
+        description="Create a reminder at a specific time.",
+    )
+    reminders_add.add_argument("title", type=str, help="Reminder title (e.g., \"Call mom\")")
+    reminders_add.add_argument("--at", type=str, required=True, help="Reminder time (YYYY-MM-DD HH:MM)")
+    reminders_add.add_argument("--follow-up", action="store_true", help="Create a follow-up cue after the reminder")
+    reminders_add.set_defaults(func=cmd_reminders, reminders_command="add")
+
+    reminders_list = reminders_subparsers.add_parser(
+        "list",
+        help="List reminders",
+        description="List reminders by status.",
+    )
+    reminders_list.add_argument(
+        "--status",
+        type=str,
+        choices=["pending", "fired", "done", "canceled"],
+        help="Filter reminders by status",
+    )
+    reminders_list.set_defaults(func=cmd_reminders, reminders_command="list")
+
+    reminders_done = reminders_subparsers.add_parser(
+        "done",
+        help="Mark reminder as done",
+        description="Mark a reminder as done.",
+    )
+    reminders_done.add_argument("reminder_id", type=str, help="Reminder ID")
+    reminders_done.set_defaults(func=cmd_reminders, reminders_command="done")
+
+    reminders_cancel = reminders_subparsers.add_parser(
+        "cancel",
+        help="Cancel a reminder",
+        description="Cancel a reminder.",
+    )
+    reminders_cancel.add_argument("reminder_id", type=str, help="Reminder ID")
+    reminders_cancel.set_defaults(func=cmd_reminders, reminders_command="cancel")
+
+    reminders_parser.set_defaults(func=cmd_reminders, reminders_command="list")
+
+    # cues
+    cues_parser = subparsers.add_parser(
+        "cues",
+        help="Manage follow-up cues",
+        description="List and manage follow-up cues.",
+    )
+    cues_subparsers = cues_parser.add_subparsers(
+        title="cues commands",
+        dest="cues_command",
+        metavar="COMMAND",
+    )
+
+    cues_list = cues_subparsers.add_parser(
+        "list",
+        help="List cues",
+        description="List follow-up cues by status.",
+    )
+    cues_list.add_argument(
+        "--status",
+        type=str,
+        choices=["pending", "asked", "dismissed"],
+        help="Filter cues by status",
+    )
+    cues_list.set_defaults(func=cmd_cues, cues_command="list")
+
+    cues_dismiss = cues_subparsers.add_parser(
+        "dismiss",
+        help="Dismiss a cue",
+        description="Dismiss a follow-up cue.",
+    )
+    cues_dismiss.add_argument("cue_id", type=str, help="Cue ID")
+    cues_dismiss.set_defaults(func=cmd_cues, cues_command="dismiss")
+
+    cues_prune = cues_subparsers.add_parser(
+        "prune",
+        help="Prune expired cues",
+        description="Remove expired cues based on followup configuration.",
+    )
+    cues_prune.set_defaults(func=cmd_cues, cues_command="prune")
+
+    cues_parser.set_defaults(func=cmd_cues, cues_command="list")
 
     # msg (messaging)
     msg_parser = subparsers.add_parser(

@@ -136,6 +136,11 @@ class AppConfig:
     search_providers: str = "serpapi,brave,duckduckgo,google"
     speak_language: str = "en"
 
+    followups_enabled: bool = False
+    followups_max_per_session: int = 2
+    followups_lookback_hours: int = 72
+    followups_expire_hours: int = 168
+
     # Home Assistant integration
     ha_base_url: Optional[str] = None
     ha_token: Optional[str] = None
@@ -310,6 +315,12 @@ def build_app_config(json_config: dict) -> AppConfig:
         # Profile metadata
         active_profile=_get_nested(json_config, "active_profile", "default"),
         capabilities=capabilities,
+
+        # Conversational followups
+        followups_enabled=bool(_get_nested(json_config, "conversation.followups.enabled", False)),
+        followups_max_per_session=int(_get_nested(json_config, "conversation.followups.max_per_session", 2)),
+        followups_lookback_hours=int(_get_nested(json_config, "conversation.followups.lookback_hours", 72)),
+        followups_expire_hours=int(_get_nested(json_config, "conversation.followups.expire_hours", 168)),
     )
 
     return config
