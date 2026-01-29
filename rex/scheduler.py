@@ -545,7 +545,10 @@ class Scheduler:
             if not bypass:
                 job.last_scheduled_run = scheduled_for
             job.run_count += 1
-            job.next_run = _calculate_next_run(job.schedule, from_time=now)
+            base_time = now
+            if scheduled_for and now <= scheduled_for:
+                base_time = scheduled_for
+            job.next_run = _calculate_next_run(job.schedule, from_time=base_time)
             self._metrics.total_runs += 1
             if ok:
                 self._metrics.successful_runs += 1
