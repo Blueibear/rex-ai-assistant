@@ -99,8 +99,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     },
     "conversation": {
         "followups": {
-            "enabled": False,
-            "max_per_session": 2,
+            "enabled": True,
+            "max_per_session": 1,
             "lookback_hours": 72,
             "expire_hours": 168,
         },
@@ -198,28 +198,34 @@ SECRET_ENV_VARS = {
 def _get_nested(data: Dict[str, Any], path: str, default: Any = None) -> Any:
     """Get value from nested dict using dot notation path."""
     keys = path.split(".")
-    value = data
+    value: Any = data
     for key in keys:
-        if isinstance(value, dict):
-            value = value.get(key, default)
-        else:
+        if not isinstance(value, dict):
             return default
+        if key not in value:
+            return default
+        value = value[key]
     return value
 
 
 def _set_nested(data: Dict[str, Any], path: str, value: Any) -> None:
     """Set value in nested dict using dot notation path."""
     keys = path.split(".")
+    cursor: Any = data
     for key in keys[:-1]:
-        if key not in data:
-            data[key] = {}
-        data = data[key]
-    data[keys[-1]] = value
+        if not isinstance(cursor, dict):
+            raise TypeError(f"Cannot set nested key on non-dict at '{key}' for path '{path}'")
+        if key not in cursor or not isinstance(cursor[key], dict):
+            cursor[key] = {}
+        cursor = cursor[key]
+    if not isinstance(cursor, dict):
+        raise TypeError(f"Cannot set nested key on non-dict for path '{path}'")
+    cursor[keys[-1]] = value
 
 
 def _parse_bool(value: str) -> bool:
     """Parse boolean from string."""
-    return value.lower() in ("true", "1", "yes", "on")
+    return value.strip().lower() in ("true", "1", "yes", "on")
 
 
 def _parse_int(value: str) -> Optional[int]:
@@ -273,6 +279,7 @@ def load_config(path: str | Path = "config/rex_config.json") -> Dict[str, Any]:
 
         # Merge with defaults to ensure all keys exist
         merged = _deep_merge(DEFAULT_CONFIG.copy(), config)
+        _normalize_wake_word_config(merged)
         logger.debug(f"Loaded config from {config_path}")
         return merged
 
@@ -314,7 +321,7 @@ def save_config(config: Dict[str, Any], path: str | Path = "config/rex_config.js
 
     _normalize_wake_word_config(config)
 
-    temp_path = None
+    temp_path: Optional[Path] = None
     try:
         with tempfile.NamedTemporaryFile(
             mode="w",
@@ -343,7 +350,7 @@ def save_config(config: Dict[str, Any], path: str | Path = "config/rex_config.js
 
 def _deep_merge(base: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[str, Any]:
     """Deep merge two dicts, with overlay taking precedence."""
-    result = base.copy()
+    result: Dict[str, Any] = base.copy()
     for key, value in overlay.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = _deep_merge(result[key], value)
@@ -359,7 +366,11 @@ def _normalize_wake_word_config(config: Dict[str, Any]) -> None:
 
     keyword = wake_word.get("keyword")
     wakeword = wake_word.get("wakeword")
-    if (not isinstance(keyword, str) or not keyword.strip()) and isinstance(wakeword, str) and wakeword.strip():
+    if (
+        (not isinstance(keyword, str) or not keyword.strip())
+        and isinstance(wakeword, str)
+        and wakeword.strip()
+    ):
         wake_word["keyword"] = wakeword.strip()
 
 
@@ -434,14 +445,27 @@ def migrate_legacy_env_to_config(
                     else:
                         continue  # Don't migrate if false
 
-                elif "THRESHOLD" in env_key or "WINDOW" in env_key or "INTERVAL" in env_key or "DURATION" in env_key or "TIMEOUT" in env_key:
-                    parsed_value = _parse_float(env_value) or parsed_value
+                elif any(x in env_key for x in ["THRESHOLD", "WINDOW", "INTERVAL", "DURATION", "TIMEOUT"]):
+                    parsed = _parse_float(env_value)
+                    parsed_value = parsed if parsed is not None else parsed_value
 
-                elif "DEVICE" in env_key and "INDEX" in env_key or env_key in ["REX_INPUT_DEVICE", "REX_OUTPUT_DEVICE", "REX_DEVICE", "REX_AUDIO_INPUT_DEVICE", "REX_AUDIO_OUTPUT_DEVICE"]:
-                    parsed_value = _parse_int(env_value)
+                elif (
+                    ("DEVICE" in env_key and "INDEX" in env_key)
+                    or env_key
+                    in [
+                        "REX_INPUT_DEVICE",
+                        "REX_OUTPUT_DEVICE",
+                        "REX_DEVICE",
+                        "REX_AUDIO_INPUT_DEVICE",
+                        "REX_AUDIO_OUTPUT_DEVICE",
+                    ]
+                ):
+                    parsed = _parse_int(env_value)
+                    parsed_value = parsed if parsed is not None else parsed_value
 
                 elif any(x in env_key for x in ["MAX_TOKENS", "TOP_K", "SEED", "MAX_TURNS", "SAMPLE_RATE"]):
-                    parsed_value = _parse_int(env_value) or parsed_value
+                    parsed = _parse_int(env_value)
+                    parsed_value = parsed if parsed is not None else parsed_value
 
                 elif any(x in env_key for x in ["ENABLED", "EXPORT", "USE_CLOUD", "VERIFY_SSL"]):
                     parsed_value = _parse_bool(env_value)
@@ -472,7 +496,7 @@ def get_legacy_env_warnings() -> List[str]:
     Returns:
         List of warning messages about legacy env vars that should be in config
     """
-    warnings = []
+    warnings: List[str] = []
 
     for env_key in ENV_TO_CONFIG_MAPPING.keys():
         if env_key not in SECRET_ENV_VARS and os.getenv(env_key):
@@ -494,3 +518,4 @@ __all__ = [
     "ENV_TO_CONFIG_MAPPING",
     "SECRET_ENV_VARS",
 ]
+
