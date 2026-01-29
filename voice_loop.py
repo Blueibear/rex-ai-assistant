@@ -5,33 +5,77 @@
 
 from __future__ import annotations
 
-# CRITICAL: Apply transformers compatibility patch BEFORE importing TTS
-# Step 1: Import and apply the compatibility shim
-from rex.compat import ensure_transformers_compatibility
-ensure_transformers_compatibility()  # Explicitly call to ensure it runs
-
-# Step 2: Force transformers to load NOW with the patch applied
-import transformers  # noqa: F401
-
-# Step 3: NOW it's safe to import TTS (which will use patched transformers)
 import asyncio
 import contextlib
 import os
 import platform
+import sys
 import tempfile
 from dataclasses import dataclass
+from importlib import import_module
+from importlib.util import find_spec
 from pathlib import Path
 
-import numpy as np
-import sounddevice as sd
-import soundfile as sf
-import whisper
-from TTS.api import TTS
+def _import_optional(module_name: str):
+    module = sys.modules.get(module_name)
+    if module is not None:
+        return module
+    if find_spec(module_name) is None:
+        return None
+    return import_module(module_name)
 
-try:
-    import simpleaudio as sa  # type: ignore
-except ImportError:
-    sa = None
+
+def _lazy_import_numpy():
+    return _import_optional("numpy")
+
+
+def _lazy_import_soundfile():
+    return _import_optional("soundfile")
+
+
+def _lazy_import_whisper():
+    return _import_optional("whisper")
+
+
+def _lazy_import_tts():
+    tts_api = _import_optional("TTS.api")
+    if tts_api is None:
+        return None
+    from rex.compat import ensure_transformers_compatibility
+
+    ensure_transformers_compatibility()
+    _import_optional("transformers")
+    return tts_api.TTS
+
+
+def _lazy_import_simpleaudio():
+    return _import_optional("simpleaudio")
+
+
+def _load_sounddevice():
+    global sd
+    if sd is not None:
+        return sd
+    sd = _import_optional("sounddevice")
+    return sd
+
+
+def _require_sounddevice():
+    module = _load_sounddevice()
+    if module is None:
+        raise WakeWordError("sounddevice is required for audio capture")
+    return module
+
+
+def _require_numpy():
+    if np is None:
+        raise WakeWordError("numpy is required for wake word detection")
+    return np
+
+
+np = _lazy_import_numpy()
+sd = None
+sa = _lazy_import_simpleaudio()
 
 from rex.assistant_errors import (
     SpeechToTextError,
@@ -78,6 +122,7 @@ class WakeWordListener:
 
     def start(self) -> None:
         """Start audio input stream with robust Windows-friendly fallback strategy."""
+        sounddevice = _require_sounddevice()
         # Get device info for logging and error messages
         device_name = "default"
         device_hostapi = "default"
@@ -97,7 +142,7 @@ class WakeWordListener:
         device_default_sr = None
         if self.device is not None:
             try:
-                info = sd.query_devices(self.device)
+                info = sounddevice.query_devices(self.device)
                 if isinstance(info, dict):
                     device_default_sr = int(info.get("default_samplerate", 0))
             except Exception:
@@ -154,7 +199,7 @@ class WakeWordListener:
                 if latency is not None:
                     stream_kwargs["latency"] = latency
 
-                self._stream = sd.InputStream(**stream_kwargs)
+                self._stream = sounddevice.InputStream(**stream_kwargs)
                 self._stream.start()
 
                 # Success!
@@ -217,6 +262,7 @@ class WakeWordListener:
 
     def _callback(self, indata, frames, time_info, status) -> None:
         self._callback_count += 1
+        np = _require_numpy()
 
         # Log every 100 callbacks (~5-10 seconds) to show we're receiving audio
         if self._callback_count % 100 == 1:
@@ -301,8 +347,8 @@ class AsyncRexAssistant:
             device=resolved_device,
             loop=None,  # Will be set to the running loop in run()
         )
-        self._tts: TTS | None = None
-        self._whisper_model: whisper.Whisper | None = None
+        self._tts: object | None = None
+        self._whisper_model: object | None = None
 
         self.users_map = load_users_map()
         self.profiles = load_all_profiles()
@@ -326,12 +372,15 @@ class AsyncRexAssistant:
         self._state = "initialized"
         self._stop_requested_by: str | None = None
 
-    def _get_tts(self) -> TTS:
+    def _get_tts(self) -> object:
         if self._tts is None:
+            tts_class = _lazy_import_tts()
+            if tts_class is None:
+                raise TextToSpeechError("TTS is not installed")
             import torch
             gpu_available = torch.cuda.is_available()
             logger.info(f"Loading TTS model (XTTS v2) on {'GPU' if gpu_available else 'CPU (WARNING: GPU not available!)'}...")
-            self._tts = TTS(
+            self._tts = tts_class(
                 model_name="tts_models/multilingual/multi-dataset/xtts_v2",
                 progress_bar=False,
                 gpu=gpu_available,  # Enable GPU if available, fallback to CPU
@@ -354,10 +403,13 @@ class AsyncRexAssistant:
             logger.info("TTS model loaded successfully")
         return self._tts
 
-    def _get_whisper(self) -> whisper.Whisper:
+    def _get_whisper(self) -> object:
         if self._whisper_model is None:
+            whisper_module = _lazy_import_whisper()
+            if whisper_module is None:
+                raise SpeechToTextError("openai-whisper is not installed")
             try:
-                self._whisper_model = whisper.load_model(self.config.whisper_model)
+                self._whisper_model = whisper_module.load_model(self.config.whisper_model)
             except Exception as exc:
                 raise SpeechToTextError(f"Failed to load Whisper model: {exc}")
         return self._whisper_model
@@ -465,6 +517,7 @@ class AsyncRexAssistant:
             logger.error(f"Traceback: {traceback.format_exc()}")
 
     async def _process_conversation(self) -> None:
+        np = _require_numpy()
         logger.info(">>> _process_conversation() started - recording audio...")
         audio = await asyncio.to_thread(self._record_audio)
         logger.info(f">>> Audio recording complete - {audio.size} samples")
@@ -516,6 +569,9 @@ class AsyncRexAssistant:
             logger.error("TTS failed: %s", exc)
 
     def _record_audio(self) -> np.ndarray:
+        np = _require_numpy()
+        sounddevice = _require_sounddevice()
+        soundfile = _lazy_import_soundfile()
         sample_rate = self._sample_rate
         duration = self.config.command_duration
         frames = int(sample_rate * duration)
@@ -524,29 +580,33 @@ class AsyncRexAssistant:
         # Use the same device as the listener
         device = self._listener.device
 
-        audio = sd.rec(
+        audio = sounddevice.rec(
             frames,
             samplerate=sample_rate,
             channels=1,
             dtype="float32",
             device=device,
         )
-        sd.wait()
+        sounddevice.wait()
         audio = np.squeeze(audio)
 
         peak = float(np.max(np.abs(audio))) if audio.size else 0.0
         logger.debug("[MIC] Recorded %s samples, %.2fs, peak volume %.4f", audio.size, duration, peak)
 
         debug_output = Path("debug_recording.wav")
-        try:
-            sf.write(debug_output, audio, sample_rate)
-            logger.debug("[MIC] Saved debug audio to %s", debug_output)
-        except Exception as exc:
-            logger.warning("[MIC] Failed to save debug recording: %s", exc)
+        if soundfile is None:
+            logger.warning("[MIC] soundfile not available; skipping debug recording write")
+        else:
+            try:
+                soundfile.write(debug_output, audio, sample_rate)
+                logger.debug("[MIC] Saved debug audio to %s", debug_output)
+            except Exception as exc:
+                logger.warning("[MIC] Failed to save debug recording: %s", exc)
 
         return audio
 
     async def transcribe(self, audio: np.ndarray, sample_rate: int) -> str:
+        np = _require_numpy()
         self._get_whisper()
 
         def _transcribe() -> str:
@@ -565,6 +625,10 @@ class AsyncRexAssistant:
 
     def _speak_response(self, text: str) -> None:
         import time
+        np = _require_numpy()
+        soundfile = _lazy_import_soundfile()
+        if soundfile is None:
+            raise TextToSpeechError("soundfile is required for TTS playback")
         tts = self._get_tts()
         speaker_wav = self.user_voice_refs.get(self.active_user)
         tts_speed = getattr(self.config, "tts_speed", 1.08)
@@ -603,7 +667,7 @@ class AsyncRexAssistant:
                             file_path=chunk_path,
                             speed=tts_speed,
                         )
-                    data, rate = sf.read(chunk_path, dtype="float32")
+                    data, rate = soundfile.read(chunk_path, dtype="float32")
                     if sample_rate is None:
                         sample_rate = rate
                     audio_segments.append(data)
@@ -615,7 +679,7 @@ class AsyncRexAssistant:
                 return
 
             combined_audio = np.concatenate(audio_segments, axis=0)
-            sf.write("assistant_response.wav", combined_audio, sample_rate)
+            soundfile.write("assistant_response.wav", combined_audio, sample_rate)
 
             tts_duration = time.time() - tts_start
             logger.info(f"[TTS] Speech generated in {tts_duration:.2f} seconds")
@@ -667,8 +731,13 @@ class AsyncRexAssistant:
 
     def _play_wake_sound_windows(self, path: str | Path) -> None:
         """Play wake sound on Windows using winsound (more reliable than sounddevice)."""
+        winsound = import_module("winsound") if find_spec("winsound") is not None else None
+        if winsound is None:
+            logger.warning("winsound not available; falling back to sounddevice")
+            self._play_wake_sound_sounddevice(path)
+            return
+
         try:
-            import winsound
             logger.debug(f"Playing wake sound (Windows): {path}")
 
             # First, stop any currently playing sound
@@ -690,30 +759,35 @@ class AsyncRexAssistant:
 
     def _play_wake_sound_sounddevice(self, path: str | Path) -> None:
         """Play wake sound using sounddevice (cross-platform fallback)."""
+        sounddevice = _require_sounddevice()
+        soundfile = _lazy_import_soundfile()
+        if soundfile is None:
+            logger.warning("soundfile is required to play wake sounds")
+            return
         try:
             # Read audio file
-            data, samplerate = sf.read(path)
+            data, samplerate = soundfile.read(path)
             logger.debug(f"Playing wake sound: {path} ({len(data)} samples at {samplerate} Hz)")
 
             # Forcefully abort any existing streams before playing
             try:
-                sd.stop()
+                sounddevice.stop()
             except Exception:
                 pass
 
             # Use blocking playback to ensure proper cleanup
             device = self.config.audio_output_device
-            sd.play(data, samplerate, device=device, blocking=True)
+            sounddevice.play(data, samplerate, device=device, blocking=True)
 
             # Ensure stream is fully stopped
-            sd.stop()
+            sounddevice.stop()
 
             logger.info("Wake acknowledgment tone played")
         except Exception as exc:
             logger.warning("Failed to play wake sound %s: %s", path, exc)
             # Forcefully stop any stuck playback
             try:
-                sd.stop()
+                sounddevice.stop()
             except Exception:
                 pass
 

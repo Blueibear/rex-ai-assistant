@@ -175,35 +175,13 @@ def execute_tool(
     if not isinstance(args, dict):
         return _error_result("Invalid tool arguments", tool=tool, args={})
 
+    if skip_policy_check:
+        skip_credential_check = True
+
     # Generate action ID for audit logging
     action_id = f"act_{uuid.uuid4().hex[:12]}"
     policy_decision: Literal["allowed", "denied", "requires_approval"] = "allowed"
     start_time = time.monotonic()
-
-    # Check credentials before execution
-    if not skip_credential_check:
-        registry = tool_registry or get_tool_registry()
-        tool_meta = registry.get_tool(tool)
-        if tool_meta is not None:
-            all_available, missing = registry.check_credentials(tool)
-            if not all_available:
-                logger.warning(
-                    "Missing credentials for tool=%s: %s", tool, ", ".join(missing)
-                )
-                # Log the credential failure before raising
-                if not skip_audit_log:
-                    _log_audit_entry(
-                        action_id=action_id,
-                        task_id=task_id,
-                        tool=tool,
-                        args=args,
-                        policy_decision="denied",
-                        result=None,
-                        error=f"Missing credentials: {', '.join(missing)}",
-                        start_time=start_time,
-                        requested_by=requested_by,
-                    )
-                raise CredentialMissingError(tool, missing)
 
     # Check policy before execution
     if not skip_policy_check:
@@ -249,6 +227,48 @@ def execute_tool(
             raise ApprovalRequiredError(tool, decision.reason)
 
         logger.debug("Policy allowed tool=%s: %s", tool, decision.reason)
+
+    supported_tools = {"time_now", "weather_now", "web_search"}
+    if tool not in supported_tools:
+        result = _error_result(f"Unknown tool {tool}", tool=tool, args=args)
+        if not skip_audit_log:
+            _log_audit_entry(
+                action_id=action_id,
+                task_id=task_id,
+                tool=tool,
+                args=args,
+                policy_decision=policy_decision,
+                result=result,
+                error=f"Unknown tool {tool}",
+                start_time=start_time,
+                requested_by=requested_by,
+            )
+        return result
+
+    # Check credentials before execution
+    if not skip_credential_check:
+        registry = tool_registry or get_tool_registry()
+        tool_meta = registry.get_tool(tool)
+        if tool_meta is not None:
+            all_available, missing = registry.check_credentials(tool)
+            if not all_available:
+                logger.warning(
+                    "Missing credentials for tool=%s: %s", tool, ", ".join(missing)
+                )
+                # Log the credential failure before raising
+                if not skip_audit_log:
+                    _log_audit_entry(
+                        action_id=action_id,
+                        task_id=task_id,
+                        tool=tool,
+                        args=args,
+                        policy_decision="denied",
+                        result=None,
+                        error=f"Missing credentials: {', '.join(missing)}",
+                        start_time=start_time,
+                        requested_by=requested_by,
+                    )
+                raise CredentialMissingError(tool, missing)
 
     # Execute the tool
     result: dict[str, Any]

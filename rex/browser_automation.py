@@ -25,7 +25,7 @@ from rex.policy_engine import get_policy_engine
 from rex.contracts.core import ToolCall
 
 async_playwright = None
-if find_spec("playwright.async_api") is not None:
+if find_spec("playwright") is not None:
     from playwright.async_api import async_playwright as _async_playwright
 
     async_playwright = _async_playwright

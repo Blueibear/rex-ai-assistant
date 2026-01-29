@@ -344,11 +344,12 @@ class Executor:
             self.messages_sent += 1
 
         if result.success and result.output:
+            executed_at = result.executed_at or datetime.now(timezone.utc)
             evidence = EvidenceRef(
                 evidence_id=f"ev_{self.workflow.workflow_id}_{step.step_id}",
                 kind="log",
                 uri=None,
-                created_at=result.executed_at,
+                created_at=executed_at,
             )
             self.evidence.append(evidence)
 
@@ -369,11 +370,12 @@ class Executor:
             # Collect evidence from tool results
             if step.result.success and step.result.output:
                 # Create evidence reference for this step
+                executed_at = step.result.executed_at or datetime.now(timezone.utc)
                 evidence = EvidenceRef(
                     evidence_id=f"ev_{self.workflow.workflow_id}_{step.step_id}",
                     kind="log",
                     uri=None,  # Could be enhanced to store results in files
-                    created_at=step.result.executed_at,
+                    created_at=executed_at,
                 )
                 self.evidence.append(evidence)
 

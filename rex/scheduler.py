@@ -55,13 +55,13 @@ class SchedulerMetrics:
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now()
 
 
 def _ensure_tz(dt: datetime) -> datetime:
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt
+        return dt
+    return dt.astimezone(timezone.utc)
 
 
 def _parse_dt(value: Any) -> Optional[datetime]:
@@ -246,9 +246,12 @@ class Scheduler:
         self,
         jobs_file: Optional[Path] = None,
         *,
+        storage_path: Optional[Path] = None,
         now_func: Optional[Callable[[], datetime]] = None,
         poll_interval_seconds: float = 1.0,
     ) -> None:
+        if jobs_file is None and storage_path is not None:
+            jobs_file = storage_path
         self.jobs_file = jobs_file or Path("data/scheduler/jobs.json")
         self.jobs_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -326,6 +329,23 @@ class Scheduler:
         with self._lock:
             self._callbacks[str(name)] = callback
             logger.debug("Registered scheduler callback: %s", name)
+
+    @property
+    def callbacks(self) -> dict[str, JobCallback]:
+        """Expose registered callbacks for compatibility with older tests."""
+        return self._callbacks
+
+    def _calculate_next_run(self, schedule: str, *, from_time: Optional[datetime] = None) -> datetime:
+        """Compatibility wrapper for test suites expecting this method."""
+        return _calculate_next_run(schedule, from_time=from_time)
+
+    def update_next_run(self, job_id: str) -> None:
+        """Recalculate and update a job's next_run based on its schedule."""
+        job = self._jobs.get(job_id)
+        if job is None:
+            return
+        job.next_run = _calculate_next_run(job.schedule, from_time=self._now())
+        self._save_jobs()
 
     # -------------------------
     # CRUD

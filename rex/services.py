@@ -12,7 +12,7 @@ from rex.email_service import EmailService
 from rex.event_bus import EventBus, get_event_bus
 from rex.messaging_service import SMSService
 from rex.notification import EscalationManager, Notifier
-from rex.scheduler import Scheduler
+from rex.scheduler import Scheduler, set_scheduler
 
 
 @dataclass
@@ -45,6 +45,7 @@ def initialize_services(
 
     event_bus = get_event_bus()
     scheduler = Scheduler(storage_path=storage_path, now_func=now_func)
+    set_scheduler(scheduler)
     email = EmailService(event_bus, mock_data_path=email_mock_path)
     calendar = CalendarService(event_bus, mock_data_path=calendar_mock_path)
 

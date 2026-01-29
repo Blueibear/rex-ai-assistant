@@ -37,7 +37,7 @@ def _ensure_aware_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, init=False)
 class CalendarEvent:
     event_id: str
     title: str
@@ -48,9 +48,28 @@ class CalendarEvent:
     description: str | None = None
     all_day: bool = False
 
-    def __post_init__(self) -> None:
-        self.start_time = _ensure_aware_utc(self.start_time)
-        self.end_time = _ensure_aware_utc(self.end_time)
+    def __init__(
+        self,
+        *,
+        event_id: str | None = None,
+        id: str | None = None,
+        title: str,
+        start_time: datetime,
+        end_time: datetime,
+        attendees: list[str] | None = None,
+        location: str | None = None,
+        description: str | None = None,
+        all_day: bool = False,
+    ) -> None:
+        resolved_id = event_id or id or str(uuid.uuid4())
+        self.event_id = resolved_id
+        self.title = title
+        self.start_time = _ensure_aware_utc(start_time)
+        self.end_time = _ensure_aware_utc(end_time)
+        self.attendees = list(attendees) if attendees is not None else []
+        self.location = location
+        self.description = description
+        self.all_day = all_day
 
     @property
     def id(self) -> str:
@@ -432,4 +451,3 @@ __all__ = [
     "get_calendar_service",
     "set_calendar_service",
 ]
-

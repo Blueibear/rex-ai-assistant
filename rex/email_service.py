@@ -102,7 +102,15 @@ class EmailService:
         *,
         event_bus: Optional["EventBus"] = None,
         mock_messages: Optional[list[EmailMessage]] = None,
+        mock_data_path: Optional[Path] = None,
     ) -> None:
+        if event_bus is None and mock_data_file is not None and hasattr(mock_data_file, "publish"):
+            event_bus = mock_data_file  # type: ignore[assignment]
+            mock_data_file = None
+
+        if mock_data_file is None and mock_data_path is not None:
+            mock_data_file = mock_data_path
+
         self.mock_data_file = mock_data_file or Path("data/mock_emails.json")
         self.connected = False
         self._event_bus = event_bus
@@ -272,8 +280,9 @@ class EmailService:
             List of EmailSummary objects
         """
         if not self.connected:
-            logger.warning("Email service not connected")
-            return []
+            if not self.connect():
+                logger.warning("Email service not connected")
+                return []
 
         unread = [email for email in self._mock_emails if "unread" in (email.labels or [])]
         result = unread[: max(0, int(limit))]
@@ -435,4 +444,3 @@ __all__ = [
     "get_email_service",
     "set_email_service",
 ]
-

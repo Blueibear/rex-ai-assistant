@@ -4,16 +4,35 @@ from __future__ import annotations
 
 import json
 import logging
+from importlib import import_module
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import sounddevice as sd
+sd = None
 
 logger = logging.getLogger(__name__)
 
 # Default sample rate for wake word detection
 DEFAULT_SAMPLE_RATE = 16000
 DEFAULT_REX_CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "rex_config.json"
+
+
+def _load_sounddevice():
+    global sd
+    if sd is not None:
+        return sd
+    if find_spec("sounddevice") is None:
+        return None
+    sd = import_module("sounddevice")
+    return sd
+
+
+def _require_sounddevice():
+    module = _load_sounddevice()
+    if module is None:
+        raise RuntimeError("sounddevice is required for audio device access")
+    return module
 
 
 class AudioDeviceInfo:
@@ -27,8 +46,9 @@ class AudioDeviceInfo:
         self.hostapi = int(device_info.get("hostapi", 0))
 
         # Get host API name (e.g., "WASAPI", "WDM-KS")
+        sounddevice = _require_sounddevice()
         try:
-            hostapi_info = sd.query_hostapis(self.hostapi)
+            hostapi_info = sounddevice.query_hostapis(self.hostapi)
             self.hostapi_name = str(hostapi_info.get("name", "Unknown"))
         except Exception:
             self.hostapi_name = "Unknown"
@@ -53,11 +73,16 @@ def enumerate_input_devices() -> List[AudioDeviceInfo]:
     """Return list of all available input devices (max_input_channels > 0)."""
     devices: List[AudioDeviceInfo] = []
 
+    sounddevice = _load_sounddevice()
+    if sounddevice is None:
+        logger.warning("sounddevice not available; skipping audio device enumeration")
+        return devices
+
     try:
-        device_count = len(sd.query_devices())
+        device_count = len(sounddevice.query_devices())
         for idx in range(device_count):
             try:
-                info = sd.query_devices(idx)
+                info = sounddevice.query_devices(idx)
                 if isinstance(info, dict) and info.get("max_input_channels", 0) > 0:
                     devices.append(AudioDeviceInfo(idx, info))
             except Exception as exc:
@@ -79,8 +104,12 @@ def validate_device(device_index: int, sample_rate: int = DEFAULT_SAMPLE_RATE) -
     if device_index < 0:
         return False, f"Invalid device index: {device_index} (must be >= 0)"
 
+    sounddevice = _load_sounddevice()
+    if sounddevice is None:
+        return False, "sounddevice is required to validate audio devices"
+
     try:
-        device_info = sd.query_devices(device_index)
+        device_info = sounddevice.query_devices(device_index)
         if not isinstance(device_info, dict):
             return False, f"Device {device_index} returned invalid info"
 
@@ -93,7 +122,7 @@ def validate_device(device_index: int, sample_rate: int = DEFAULT_SAMPLE_RATE) -
         device_name = device_info.get("name", "Unknown")
         hostapi_idx = device_info.get("hostapi", 0)
         try:
-            hostapi_info = sd.query_hostapis(hostapi_idx)
+            hostapi_info = sounddevice.query_hostapis(hostapi_idx)
             hostapi_name = hostapi_info.get("name", "Unknown")
         except Exception:
             hostapi_name = "Unknown"

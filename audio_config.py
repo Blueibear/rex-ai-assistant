@@ -12,12 +12,11 @@ _load_env()
 
 import argparse
 import sys
+from importlib import import_module
+from importlib.util import find_spec
 from typing import Dict, Optional
 
-try:
-    import sounddevice as sd
-except ImportError:
-    sd = None  # sounddevice is optional
+sd = None
 
 from assistant_errors import AudioDeviceError
 from logging_utils import get_logger
@@ -26,15 +25,27 @@ from rex.config_manager import load_config, save_config
 logger = get_logger(__name__)
 
 
-def _require_sounddevice() -> None:
-    if sd is None:
+def _load_sounddevice():
+    global sd
+    if sd is not None:
+        return sd
+    if find_spec("sounddevice") is None:
+        return None
+    sd = import_module("sounddevice")
+    return sd
+
+
+def _require_sounddevice():
+    module = _load_sounddevice()
+    if module is None:
         raise AudioDeviceError("The 'sounddevice' package is required for audio device selection.")
+    return module
 
 
 def list_devices() -> list[dict]:
-    _require_sounddevice()
+    sounddevice = _require_sounddevice()
     try:
-        return sd.query_devices()
+        return sounddevice.query_devices()
     except Exception as exc:
         raise AudioDeviceError(f"Failed to query audio devices: {exc}") from exc
 
@@ -113,7 +124,8 @@ def select_input(device_id: int, *, config: Optional[Dict] = None) -> None:
         raise AudioDeviceError(f"Device {device_id} has no input channels.")
 
     try:
-        with sd.InputStream(device=device_id, blocksize=0):
+        sounddevice = _require_sounddevice()
+        with sounddevice.InputStream(device=device_id, blocksize=0):
             pass
     except Exception as exc:
         raise AudioDeviceError(f"Failed to open input device {device_id}: {exc}") from exc
@@ -144,7 +156,8 @@ def select_output(device_id: int, *, config: Optional[Dict] = None) -> None:
         raise AudioDeviceError(f"Device {device_id} has no output channels.")
 
     try:
-        with sd.OutputStream(device=device_id, blocksize=0):
+        sounddevice = _require_sounddevice()
+        with sounddevice.OutputStream(device=device_id, blocksize=0):
             pass
     except Exception as exc:
         raise AudioDeviceError(f"Failed to open output device {device_id}: {exc}") from exc

@@ -330,6 +330,12 @@ def set_tool_registry(registry: ToolRegistry) -> None:
     _tool_registry = registry
 
 
+def reset_tool_registry() -> None:
+    """Reset the global tool registry instance to force reinitialization."""
+    global _tool_registry
+    _tool_registry = None
+
+
 def _register_builtin_tools(registry: ToolRegistry) -> None:
     """Register built-in tools with the registry.
 
@@ -429,5 +435,6 @@ __all__ = [
     "HealthCheckFn",
     "get_tool_registry",
     "set_tool_registry",
+    "reset_tool_registry",
     "register_tool",
 ]
