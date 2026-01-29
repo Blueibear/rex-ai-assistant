@@ -114,3 +114,8 @@ test_mic_open.py
 # Binary artifacts
 caddy.zip
 OLLAMA_INTEGRATION_GUIDE.txt
+
+# Test artifacts in data/ subdirectories
+data/cues/
+data/notifications/
+data/scheduler/
