@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
-from typing import Dict, Optional, Tuple
 
 from logging_utils import get_logger
 from utils.env_schema import EnvSchema, EnvVariable, is_restart_required, parse_env_example
@@ -40,9 +38,7 @@ class SettingsTab(ttk.Frame):
             self.schema = parse_env_example(self.template_path)
         except FileNotFoundError:
             messagebox.showerror(
-                "Error",
-                f".env.example not found at {self.template_path}",
-                parent=self
+                "Error", f".env.example not found at {self.template_path}", parent=self
             )
             self.schema = EnvSchema()
 
@@ -51,9 +47,9 @@ class SettingsTab(ttk.Frame):
         self.extra_keys = get_extra_keys(self.env_path, self.schema)
 
         # Track controls
-        self.controls: Dict[str, tk.Widget] = {}
-        self.secret_toggles: Dict[str, tk.Button] = {}
-        self.restart_indicators: Dict[str, tk.Label] = {}
+        self.controls: dict[str, tk.Widget] = {}
+        self.secret_toggles: dict[str, tk.Button] = {}
+        self.restart_indicators: dict[str, tk.Label] = {}
         self.needs_restart = set()
 
         # Create UI
@@ -65,34 +61,35 @@ class SettingsTab(ttk.Frame):
         button_frame = ttk.Frame(self)
         button_frame.pack(side="top", fill="x", padx=10, pady=5)
 
-        ttk.Button(button_frame, text="Save", command=self.save_settings, width=12).pack(side="left", padx=2)
-        ttk.Button(button_frame, text="Reset to Defaults", command=self.reset_to_defaults, width=15).pack(side="left", padx=2)
-        ttk.Button(button_frame, text="Backup", command=self.create_backup_manual, width=12).pack(side="left", padx=2)
-        ttk.Button(button_frame, text="Restore", command=self.restore_backup, width=12).pack(side="left", padx=2)
-        ttk.Button(button_frame, text="Restart App", command=self.restart_application, width=12).pack(side="left", padx=2)
+        ttk.Button(button_frame, text="Save", command=self.save_settings, width=12).pack(
+            side="left", padx=2
+        )
+        ttk.Button(
+            button_frame, text="Reset to Defaults", command=self.reset_to_defaults, width=15
+        ).pack(side="left", padx=2)
+        ttk.Button(button_frame, text="Backup", command=self.create_backup_manual, width=12).pack(
+            side="left", padx=2
+        )
+        ttk.Button(button_frame, text="Restore", command=self.restore_backup, width=12).pack(
+            side="left", padx=2
+        )
+        ttk.Button(
+            button_frame, text="Restart App", command=self.restart_application, width=12
+        ).pack(side="left", padx=2)
 
         # Platform-specific "Open in editor" button
         if sys.platform == "win32":
             ttk.Button(
-                button_frame,
-                text="Open .env in Notepad",
-                command=self.open_in_notepad,
-                width=20
+                button_frame, text="Open .env in Notepad", command=self.open_in_notepad, width=20
             ).pack(side="right", padx=2)
         else:
-            ttk.Button(
-                button_frame,
-                text="Open .env",
-                command=self.open_in_editor,
-                width=12
-            ).pack(side="right", padx=2)
+            ttk.Button(button_frame, text="Open .env", command=self.open_in_editor, width=12).pack(
+                side="right", padx=2
+            )
 
         # Restart required indicator
         self.restart_label = ttk.Label(
-            button_frame,
-            text="",
-            foreground="orange",
-            font=("Segoe UI", 9, "bold")
+            button_frame, text="", foreground="orange", font=("Segoe UI", 9, "bold")
         )
         self.restart_label.pack(side="right", padx=10)
 
@@ -105,8 +102,7 @@ class SettingsTab(ttk.Frame):
         self.scrollable_frame = ttk.Frame(canvas)
 
         self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+            "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
 
         canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
@@ -142,9 +138,11 @@ class SettingsTab(ttk.Frame):
                     self.scrollable_frame,
                     text=section.name,
                     font=("Segoe UI", 11, "bold"),
-                    foreground="#0066cc"
+                    foreground="#0066cc",
                 )
-                section_label.grid(row=row, column=0, columnspan=4, sticky="w", pady=(15, 5), padx=5)
+                section_label.grid(
+                    row=row, column=0, columnspan=4, sticky="w", pady=(15, 5), padx=5
+                )
                 row += 1
 
                 # Regular variables in section
@@ -164,7 +162,7 @@ class SettingsTab(ttk.Frame):
                 self.scrollable_frame,
                 text="Advanced / Custom Settings",
                 font=("Segoe UI", 11, "bold"),
-                foreground="#cc6600"
+                foreground="#cc6600",
             )
             section_label.grid(row=row, column=0, columnspan=4, sticky="w", pady=(15, 5), padx=5)
             row += 1
@@ -173,7 +171,7 @@ class SettingsTab(ttk.Frame):
                 self.scrollable_frame,
                 text="Custom keys not in .env.example. Be careful when modifying.",
                 font=("Segoe UI", 8),
-                foreground="gray"
+                foreground="gray",
             )
             info_label.grid(row=row, column=0, columnspan=4, sticky="w", pady=(0, 5), padx=5)
             row += 1
@@ -183,15 +181,13 @@ class SettingsTab(ttk.Frame):
                     key=key,
                     default_value=value,
                     description=f"Custom setting: {key}",
-                    section="Advanced"
+                    section="Advanced",
                 )
                 row = self._add_variable_control(custom_var, row, is_custom=True)
 
             # Add new custom key button
             add_button = ttk.Button(
-                self.scrollable_frame,
-                text="+ Add Custom Key",
-                command=self.add_custom_key
+                self.scrollable_frame, text="+ Add Custom Key", command=self.add_custom_key
             )
             add_button.grid(row=row, column=0, columnspan=2, sticky="w", pady=10, padx=5)
             row += 1
@@ -218,7 +214,7 @@ class SettingsTab(ttk.Frame):
         toggle_btn = ttk.Button(
             collapse_frame,
             text="▶ Advanced Settings (click to expand)",
-            command=lambda: self._toggle_advanced_section(is_collapsed, toggle_btn, advanced_frame)
+            command=lambda: self._toggle_advanced_section(is_collapsed, toggle_btn, advanced_frame),
         )
         toggle_btn.pack(anchor="w")
 
@@ -227,7 +223,7 @@ class SettingsTab(ttk.Frame):
             self.scrollable_frame,
             text="⚠ Most users should not change these. Incorrect values can cause instability.",
             foreground="orange",
-            font=("Segoe UI", 8)
+            font=("Segoe UI", 8),
         )
         warning_label.grid(row=row, column=0, columnspan=5, sticky="w", pady=(0, 5), padx=20)
         warning_label.grid_remove()  # Hidden by default
@@ -256,18 +252,20 @@ class SettingsTab(ttk.Frame):
             # Expand
             toggle_btn.config(text="▼ Advanced Settings (click to collapse)")
             advanced_frame.grid()
-            if hasattr(toggle_btn, 'warning_label'):
+            if hasattr(toggle_btn, "warning_label"):
                 toggle_btn.warning_label.grid()
             is_collapsed.set(False)
         else:
             # Collapse
             toggle_btn.config(text="▶ Advanced Settings (click to expand)")
             advanced_frame.grid_remove()
-            if hasattr(toggle_btn, 'warning_label'):
+            if hasattr(toggle_btn, "warning_label"):
                 toggle_btn.warning_label.grid_remove()
             is_collapsed.set(True)
 
-    def _add_variable_control_to_frame(self, var: EnvVariable, parent_frame: ttk.Frame, row: int) -> int:
+    def _add_variable_control_to_frame(
+        self, var: EnvVariable, parent_frame: ttk.Frame, row: int
+    ) -> int:
         """Add a variable control to a specific frame (used for Advanced section).
 
         This is similar to _add_variable_control but renders into a custom frame.
@@ -288,10 +286,7 @@ class SettingsTab(ttk.Frame):
 
         if var.is_required:
             required_label = ttk.Label(
-                label_frame,
-                text="Required",
-                foreground="red",
-                font=("Segoe UI", 7, "bold")
+                label_frame, text="Required", foreground="red", font=("Segoe UI", 7, "bold")
             )
             required_label.pack(side="left", padx=(2, 0))
 
@@ -305,11 +300,7 @@ class SettingsTab(ttk.Frame):
 
         # Help icon
         tooltip_text = self._generate_tooltip_text(var)
-        help_icon = HelpIcon(
-            parent_frame,
-            text=tooltip_text,
-            title=f"Help: {var.key}"
-        )
+        help_icon = HelpIcon(parent_frame, text=tooltip_text, title=f"Help: {var.key}")
         help_icon.grid(row=row, column=2, padx=5)
 
         return row + 1
@@ -322,7 +313,9 @@ class SettingsTab(ttk.Frame):
         base_text = var.description or f"{var.key} setting"
 
         # Add range information for numeric settings
-        if var.control_type in ['spinbox'] and (var.min_value is not None or var.max_value is not None):
+        if var.control_type in ["spinbox"] and (
+            var.min_value is not None or var.max_value is not None
+        ):
             range_parts = []
 
             # Add range
@@ -374,10 +367,7 @@ class SettingsTab(ttk.Frame):
 
         if var.is_required:
             required_label = ttk.Label(
-                label_frame,
-                text="Required",
-                foreground="red",
-                font=("Segoe UI", 7, "bold")
+                label_frame, text="Required", foreground="red", font=("Segoe UI", 7, "bold")
             )
             required_label.pack(side="left", padx=(2, 0))
 
@@ -390,7 +380,7 @@ class SettingsTab(ttk.Frame):
                 self.scrollable_frame,
                 highlightbackground="red",
                 highlightthickness=2,
-                highlightcolor="red"
+                highlightcolor="red",
             )
             highlight_frame.grid(row=row, column=1, sticky="ew", padx=5, pady=3)
             control.pack(in_=highlight_frame, fill="x", expand=True)
@@ -404,27 +394,21 @@ class SettingsTab(ttk.Frame):
 
         # Help icon with enhanced tooltip for numeric ranges
         tooltip_text = self._generate_tooltip_text(var)
-        help_icon = HelpIcon(
-            self.scrollable_frame,
-            text=tooltip_text,
-            title=f"Help: {var.key}"
-        )
+        help_icon = HelpIcon(self.scrollable_frame, text=tooltip_text, title=f"Help: {var.key}")
         help_icon.grid(row=row, column=2, padx=5)
 
         # Restart indicator and active engine badge
         indicator_col = 3
         if is_restart_required(var.key):
             restart_label = ttk.Label(
-                self.scrollable_frame,
-                text="⚠",
-                foreground="orange",
-                font=("Segoe UI", 10)
+                self.scrollable_frame, text="⚠", foreground="orange", font=("Segoe UI", 10)
             )
             restart_label.grid(row=row, column=indicator_col, padx=2)
             self.restart_indicators[var.key] = restart_label
 
             # Add tooltip
             from utils.tooltips import ToolTip
+
             ToolTip(restart_label, "Restart required after changing this setting")
             indicator_col += 1
 
@@ -436,7 +420,7 @@ class SettingsTab(ttk.Frame):
                 foreground="green",
                 font=("Segoe UI", 7, "bold"),
                 background="#e8f5e9",
-                padding=(4, 2)
+                padding=(4, 2),
             )
             active_label.grid(row=row, column=indicator_col, padx=2)
         elif var.active_group and not self._is_engine_selector(var):
@@ -446,7 +430,7 @@ class SettingsTab(ttk.Frame):
                 text="Inactive",
                 foreground="gray",
                 font=("Segoe UI", 7),
-                padding=(4, 2)
+                padding=(4, 2),
             )
             inactive_label.grid(row=row, column=indicator_col, padx=2)
 
@@ -454,7 +438,7 @@ class SettingsTab(ttk.Frame):
 
     def _is_engine_selector(self, var: EnvVariable) -> bool:
         """Check if this variable is an engine selector (not a configuration for an engine)."""
-        return var.active_group and 'selector' in var.active_group
+        return var.active_group and "selector" in var.active_group
 
     def _is_engine_active(self, var: EnvVariable) -> bool:
         """Check if this engine/module is currently active."""
@@ -462,28 +446,27 @@ class SettingsTab(ttk.Frame):
             return False
 
         # Get current provider/backend selections
-        llm_provider = self.current_values.get('REX_LLM_PROVIDER', '').lower()
-        tts_provider = self.current_values.get('REX_TTS_PROVIDER', '').lower()
-        wakeword_backend = self.current_values.get('REX_WAKEWORD_BACKEND', '').lower()
+        llm_provider = self.current_values.get("REX_LLM_PROVIDER", "").lower()
+        tts_provider = self.current_values.get("REX_TTS_PROVIDER", "").lower()
 
         # Check if this setting's group matches active provider
-        if var.active_group == 'openai':
-            return llm_provider == 'openai'
-        elif var.active_group == 'ollama':
-            return llm_provider == 'ollama'
-        elif var.active_group == 'transformers':
-            return llm_provider == 'transformers'
-        elif var.active_group == 'xtts':
-            return tts_provider == 'xtts'
-        elif var.active_group == 'edge':
-            return tts_provider == 'edge'
-        elif var.active_group == 'piper':
-            return tts_provider == 'piper'
-        elif var.active_group == 'pyttsx3':
-            return tts_provider == 'pyttsx3'
-        elif var.active_group == 'whisper':
+        if var.active_group == "openai":
+            return llm_provider == "openai"
+        elif var.active_group == "ollama":
+            return llm_provider == "ollama"
+        elif var.active_group == "transformers":
+            return llm_provider == "transformers"
+        elif var.active_group == "xtts":
+            return tts_provider == "xtts"
+        elif var.active_group == "edge":
+            return tts_provider == "edge"
+        elif var.active_group == "piper":
+            return tts_provider == "piper"
+        elif var.active_group == "pyttsx3":
+            return tts_provider == "pyttsx3"
+        elif var.active_group == "whisper":
             return True  # Whisper is always active for STT
-        elif 'selector' in var.active_group:
+        elif "selector" in var.active_group:
             return True  # Selectors are always "active"
 
         return False
@@ -491,7 +474,7 @@ class SettingsTab(ttk.Frame):
     def _create_control(self, var: EnvVariable, current_value: str) -> tk.Widget:
         """Create appropriate control widget for variable."""
         # Special handling for voice selection
-        if 'voice' in var.key.lower() and 'tts' in var.section.lower():
+        if "voice" in var.key.lower() and "tts" in var.section.lower():
             return self._create_voice_dropdown(var, current_value)
 
         if var.control_type == "checkbox":
@@ -516,10 +499,7 @@ class SettingsTab(ttk.Frame):
     def _create_dropdown(self, var: EnvVariable, current_value: str) -> ttk.Combobox:
         """Create dropdown control."""
         dropdown = ttk.Combobox(
-            self.scrollable_frame,
-            values=var.dropdown_options or [],
-            state="readonly",
-            width=30
+            self.scrollable_frame, values=var.dropdown_options or [], state="readonly", width=30
         )
 
         # Set current value if in options
@@ -529,7 +509,7 @@ class SettingsTab(ttk.Frame):
             dropdown.set(var.dropdown_options[0])
 
         # Special handling for Ollama model dropdown
-        if 'LLM_MODEL' in var.key and self._is_ollama_selected():
+        if "LLM_MODEL" in var.key and self._is_ollama_selected():
             self._setup_ollama_refresh(dropdown)
 
         return dropdown
@@ -546,7 +526,7 @@ class SettingsTab(ttk.Frame):
             from_=var.min_value or 0,
             to=var.max_value or 999999,
             increment=0.1 if var.min_value and var.min_value < 1 else 1,
-            width=28
+            width=28,
         )
         spinbox.set(value)
         return spinbox
@@ -570,10 +550,7 @@ class SettingsTab(ttk.Frame):
                     toggle_btn.config(text="Show")
 
             toggle_btn = ttk.Button(
-                self.scrollable_frame,
-                text="Show",
-                command=toggle_secret,
-                width=6
+                self.scrollable_frame, text="Show", command=toggle_secret, width=6
             )
             self.secret_toggles[var.key] = toggle_btn
 
@@ -584,10 +561,11 @@ class SettingsTab(ttk.Frame):
         frame = ttk.Frame(self.scrollable_frame)
 
         # Discover voices based on TTS provider
-        tts_provider = self.current_values.get('REX_TTS_PROVIDER', 'xtts').lower()
+        tts_provider = self.current_values.get("REX_TTS_PROVIDER", "xtts").lower()
 
         try:
             from utils.voice_discovery import discover_all_voices
+
             voices = discover_all_voices(provider=tts_provider)
             voice_options = [v.display_name() for v in voices]
 
@@ -599,10 +577,7 @@ class SettingsTab(ttk.Frame):
 
         # Dropdown
         dropdown = ttk.Combobox(
-            frame,
-            values=voice_options,
-            state="readonly" if voice_options else "normal",
-            width=25
+            frame, values=voice_options, state="readonly" if voice_options else "normal", width=25
         )
 
         # Set current value if in options
@@ -618,7 +593,7 @@ class SettingsTab(ttk.Frame):
             frame,
             text="Preview",
             command=lambda: self._preview_voice(dropdown.get(), tts_provider),
-            width=8
+            width=8,
         )
         preview_btn.pack(side="left", padx=(5, 0))
 
@@ -657,12 +632,12 @@ class SettingsTab(ttk.Frame):
 
     def _is_ollama_selected(self) -> bool:
         """Check if Ollama is the selected LLM provider."""
-        for key in ['REX_LLM_PROVIDER', 'REX_LLM_BACKEND']:
+        for key in ["REX_LLM_PROVIDER", "REX_LLM_BACKEND"]:
             if key in self.controls:
                 control = self.controls[key]
-                if hasattr(control, 'get'):
+                if hasattr(control, "get"):
                     value = control.get()
-                    if value.lower() == 'ollama':
+                    if value.lower() == "ollama":
                         return True
         return False
 
@@ -682,11 +657,22 @@ class SettingsTab(ttk.Frame):
         # Try to detect if this should be an integer
         # Common integer config keys
         integer_keys = {
-            'REX_SAMPLE_RATE', 'REX_LLM_MAX_TOKENS', 'REX_LLM_TOP_K', 'REX_LLM_SEED',
-            'REX_MEMORY_MAX_TURNS', 'REX_MEMORY_MAX_BYTES', 'REX_SPEAK_RATE_LIMIT',
-            'REX_SPEAK_RATE_WINDOW', 'REX_SPEAK_MAX_CHARS', 'REX_PLUGIN_TIMEOUT',
-            'REX_PLUGIN_OUTPUT_LIMIT', 'REX_PLUGIN_RATE_LIMIT', 'REX_INPUT_DEVICE',
-            'REX_OUTPUT_DEVICE', 'REX_AUDIO_INPUT_DEVICE', 'REX_AUDIO_OUTPUT_DEVICE'
+            "REX_SAMPLE_RATE",
+            "REX_LLM_MAX_TOKENS",
+            "REX_LLM_TOP_K",
+            "REX_LLM_SEED",
+            "REX_MEMORY_MAX_TURNS",
+            "REX_MEMORY_MAX_BYTES",
+            "REX_SPEAK_RATE_LIMIT",
+            "REX_SPEAK_RATE_WINDOW",
+            "REX_SPEAK_MAX_CHARS",
+            "REX_PLUGIN_TIMEOUT",
+            "REX_PLUGIN_OUTPUT_LIMIT",
+            "REX_PLUGIN_RATE_LIMIT",
+            "REX_INPUT_DEVICE",
+            "REX_OUTPUT_DEVICE",
+            "REX_AUDIO_INPUT_DEVICE",
+            "REX_AUDIO_OUTPUT_DEVICE",
         }
 
         if key in integer_keys:
@@ -703,11 +689,12 @@ class SettingsTab(ttk.Frame):
 
     def _preview_voice(self, voice_display_name: str, provider: str):
         """Preview a TTS voice."""
-        if not voice_display_name or voice_display_name in ["No voices found", "Error loading voices"]:
+        if not voice_display_name or voice_display_name in [
+            "No voices found",
+            "Error loading voices",
+        ]:
             messagebox.showwarning(
-                "No Voice",
-                "No voice selected or voice unavailable for preview.",
-                parent=self
+                "No Voice", "No voice selected or voice unavailable for preview.", parent=self
             )
             return
 
@@ -726,16 +713,12 @@ class SettingsTab(ttk.Frame):
                 messagebox.showinfo(
                     "Preview Unavailable",
                     f"Preview unavailable for this voice.\nProvider: {provider}",
-                    parent=self
+                    parent=self,
                 )
 
         except Exception as e:
             LOGGER.exception("Voice preview failed")
-            messagebox.showerror(
-                "Preview Error",
-                f"Failed to preview voice:\n{e}",
-                parent=self
-            )
+            messagebox.showerror("Preview Error", f"Failed to preview voice:\n{e}", parent=self)
 
     def _get_control_value(self, key: str) -> str:
         """Get current value from control."""
@@ -746,11 +729,11 @@ class SettingsTab(ttk.Frame):
 
         if isinstance(control, ttk.Checkbutton):
             value = "true" if control.var.get() else "false"
-        elif isinstance(control, ttk.Frame) and hasattr(control, 'entry'):
+        elif isinstance(control, ttk.Frame) and hasattr(control, "entry"):
             value = control.entry.get()
-        elif isinstance(control, ttk.Frame) and hasattr(control, 'dropdown'):
+        elif isinstance(control, ttk.Frame) and hasattr(control, "dropdown"):
             value = control.dropdown.get()
-        elif hasattr(control, 'get'):
+        elif hasattr(control, "get"):
             value = str(control.get())
         else:
             value = ""
@@ -770,7 +753,7 @@ class SettingsTab(ttk.Frame):
             missing_required = []
             for var in self.schema.get_all_variables():
                 if var.is_required:
-                    value = values.get(var.key, '').strip()
+                    value = values.get(var.key, "").strip()
                     if not value:
                         missing_required.append(var.key)
 
@@ -779,11 +762,7 @@ class SettingsTab(ttk.Frame):
                 error_msg += "\n".join(f"  - {key}" for key in missing_required)
                 error_msg += "\n\nPlease fill in all required fields before saving."
 
-                messagebox.showerror(
-                    "Required Fields Missing",
-                    error_msg,
-                    parent=self
-                )
+                messagebox.showerror("Required Fields Missing", error_msg, parent=self)
                 return
 
             # Separate custom overrides
@@ -797,17 +776,19 @@ class SettingsTab(ttk.Frame):
                 self.template_path,
                 standard_values,
                 custom_overrides,
-                create_backup=True
+                create_backup=True,
             )
 
             # Reload environment
             try:
                 from utils.env_loader import load
+
                 load()
 
                 # Try to reload config
                 try:
                     from rex.config import reload_settings
+
                     reload_settings()
                 except ImportError:
                     pass
@@ -819,7 +800,9 @@ class SettingsTab(ttk.Frame):
             restart_keys = {k for k in changed_keys if is_restart_required(k)}
 
             if restart_keys:
-                message = "Settings saved!\n\nRestart required for: " + ", ".join(sorted(restart_keys))
+                message = "Settings saved!\n\nRestart required for: " + ", ".join(
+                    sorted(restart_keys)
+                )
                 self.restart_label.config(text="⚠ Restart required")
             else:
                 message = "Settings saved successfully!"
@@ -839,7 +822,7 @@ class SettingsTab(ttk.Frame):
         if not messagebox.askyesno(
             "Reset to Defaults",
             "This will reset ALL settings to defaults from .env.example.\n\nContinue?",
-            parent=self
+            parent=self,
         ):
             return
 
@@ -859,13 +842,13 @@ class SettingsTab(ttk.Frame):
                 self.env_path,
                 self.template_path,
                 defaults,
-                create_backup=False  # Already created above
+                create_backup=False,  # Already created above
             )
 
             messagebox.showinfo(
                 "Success",
                 "Settings reset to defaults.\n\nPlease restart the application.",
-                parent=self
+                parent=self,
             )
 
             # Reload the UI
@@ -879,19 +862,13 @@ class SettingsTab(ttk.Frame):
         """Manually create a backup of current .env."""
         if not self.env_path.exists():
             messagebox.showwarning(
-                "No .env File",
-                ".env file does not exist yet. Nothing to backup.",
-                parent=self
+                "No .env File", ".env file does not exist yet. Nothing to backup.", parent=self
             )
             return
 
         try:
             backup_path = create_backup(self.env_path, self.backup_dir)
-            messagebox.showinfo(
-                "Backup Created",
-                f"Backup saved to:\n{backup_path}",
-                parent=self
-            )
+            messagebox.showinfo("Backup Created", f"Backup saved to:\n{backup_path}", parent=self)
         except Exception as e:
             LOGGER.exception("Failed to create backup")
             messagebox.showerror("Error", f"Failed to create backup:\n{e}", parent=self)
@@ -902,11 +879,7 @@ class SettingsTab(ttk.Frame):
         backups = get_backup_files(self.backup_dir)
 
         if not backups:
-            messagebox.showinfo(
-                "No Backups",
-                "No backup files found.",
-                parent=self
-            )
+            messagebox.showinfo("No Backups", "No backup files found.", parent=self)
             return
 
         # Show selection dialog
@@ -927,7 +900,9 @@ class SettingsTab(ttk.Frame):
         def do_restore():
             selection = listbox.curselection()
             if not selection:
-                messagebox.showwarning("No Selection", "Please select a backup to restore.", parent=dialog)
+                messagebox.showwarning(
+                    "No Selection", "Please select a backup to restore.", parent=dialog
+                )
                 return
 
             backup_path = backups[selection[0]]
@@ -935,14 +910,14 @@ class SettingsTab(ttk.Frame):
             if messagebox.askyesno(
                 "Confirm Restore",
                 f"Restore from:\n{backup_path.name}\n\nThis will overwrite current settings. Continue?",
-                parent=dialog
+                parent=dialog,
             ):
                 try:
                     restore_from_backup(backup_path, self.env_path)
                     messagebox.showinfo(
                         "Success",
                         "Settings restored.\n\nPlease restart the application.",
-                        parent=dialog
+                        parent=dialog,
                     )
                     dialog.destroy()
                     self._reload_ui()
@@ -959,9 +934,7 @@ class SettingsTab(ttk.Frame):
         """Open .env file in Notepad (Windows)."""
         if not self.env_path.exists():
             if messagebox.askyesno(
-                ".env Not Found",
-                ".env file does not exist. Create it with defaults?",
-                parent=self
+                ".env Not Found", ".env file does not exist. Create it with defaults?", parent=self
             ):
                 self.reset_to_defaults()
             else:
@@ -977,9 +950,7 @@ class SettingsTab(ttk.Frame):
         """Open .env file in system default editor."""
         if not self.env_path.exists():
             if messagebox.askyesno(
-                ".env Not Found",
-                ".env file does not exist. Create it with defaults?",
-                parent=self
+                ".env Not Found", ".env file does not exist. Create it with defaults?", parent=self
             ):
                 self.reset_to_defaults()
             else:
@@ -1018,8 +989,12 @@ class SettingsTab(ttk.Frame):
                 messagebox.showwarning("Invalid Key", "Key cannot be empty.", parent=dialog)
                 return
 
-            if not key.replace('_', '').isalnum():
-                messagebox.showwarning("Invalid Key", "Key must contain only letters, numbers, and underscores.", parent=dialog)
+            if not key.replace("_", "").isalnum():
+                messagebox.showwarning(
+                    "Invalid Key",
+                    "Key must contain only letters, numbers, and underscores.",
+                    parent=dialog,
+                )
                 return
 
             # Add to extra keys
@@ -1061,7 +1036,7 @@ class SettingsTab(ttk.Frame):
 
             for key in self.controls.keys():
                 current_ui_value = self._get_control_value(key)
-                current_file_value = current_env.get(key, '')
+                current_file_value = current_env.get(key, "")
 
                 if current_ui_value != current_file_value:
                     has_changes = True
@@ -1075,7 +1050,7 @@ class SettingsTab(ttk.Frame):
                     "Yes = Save and restart\n"
                     "No = Restart without saving\n"
                     "Cancel = Cancel restart",
-                    parent=self
+                    parent=self,
                 )
 
                 if response is None:  # Cancel
@@ -1111,7 +1086,7 @@ class SettingsTab(ttk.Frame):
                     "Restart Required",
                     "Please close and restart the application manually.\n\n"
                     "Run: python run_gui.py",
-                    parent=self
+                    parent=self,
                 )
 
         except Exception as e:
@@ -1121,5 +1096,5 @@ class SettingsTab(ttk.Frame):
                 f"Failed to restart automatically:\n{e}\n\n"
                 "Please close and restart the application manually.\n"
                 "Run: python run_gui.py",
-                parent=self
+                parent=self,
             )

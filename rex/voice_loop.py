@@ -4,17 +4,30 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import re
 import sys
 import tempfile
+from collections.abc import Awaitable
 from contextlib import suppress
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Awaitable, Callable, Optional
-
 from importlib import import_module
 from importlib.util import find_spec
+from pathlib import Path
+from typing import Callable
+
+from wake_acknowledgment import ensure_wake_acknowledgment_sound
+
+from .assistant_errors import AudioDeviceError, SpeechToTextError, TextToSpeechError
+from .config import settings
+from .memory import (
+    extract_voice_reference,
+    load_all_profiles,
+    load_users_map,
+    resolve_user_key,
+)
+from .tts_utils import chunk_text_for_xtts
+from .wakeword.listener import build_default_detector
+
 
 def _import_optional(module_name: str):
     module = sys.modules.get(module_name)
@@ -31,19 +44,6 @@ def _lazy_import_numpy():
 
 np = _lazy_import_numpy()
 
-from .assistant import Assistant
-from .assistant_errors import AudioDeviceError, SpeechToTextError, TextToSpeechError, WakeWordError
-from .config import settings
-from .memory import (
-    extract_voice_reference,
-    load_all_profiles,
-    load_users_map,
-    resolve_user_key,
-)
-from .wakeword.listener import WakeWordListener, build_default_detector
-from wake_acknowledgment import ensure_wake_acknowledgment_sound
-from .wakeword.utils import load_wakeword_model
-from .tts_utils import chunk_text_for_xtts
 
 def _lazy_import_simpleaudio():
     return _import_optional("simpleaudio")
@@ -51,6 +51,7 @@ def _lazy_import_simpleaudio():
 
 sa = _lazy_import_simpleaudio()
 sd = None
+
 
 def _lazy_import_whisper():
     return _import_optional("whisper")
@@ -89,6 +90,7 @@ def _require_sounddevice():
         raise AudioDeviceError("sounddevice is not installed")
     return module
 
+
 logger = logging.getLogger(__name__)
 
 RecorderCallable = Callable[[float], Awaitable[np.ndarray] | np.ndarray]
@@ -97,12 +99,14 @@ RecorderCallable = Callable[[float], Awaitable[np.ndarray] | np.ndarray]
 @dataclass
 class SynthesizedAudio:
     """Container for synthesized audio data."""
+
     data: np.ndarray
     sample_rate: int
 
 
 class AsyncMicrophone:
     """Async microphone recording."""
+
     def __init__(
         self,
         *,
@@ -120,7 +124,7 @@ class AsyncMicrophone:
         """Record a short frame for wake word detection."""
         return await self._record(self._detection_seconds)
 
-    async def record_phrase(self, duration: Optional[float] = None) -> np.ndarray:
+    async def record_phrase(self, duration: float | None = None) -> np.ndarray:
         """Record user speech after wake word."""
         return await self._record(duration or self._capture_seconds)
 
@@ -154,7 +158,8 @@ class AsyncMicrophone:
 
 class WakeAcknowledgement:
     """Play acknowledgement sound when wake word is detected."""
-    def __init__(self, sound_path: Optional[Path] = None) -> None:
+
+    def __init__(self, sound_path: Path | None = None) -> None:
         default_path = Path(__file__).resolve().parents[1] / "assets" / "wake_acknowledgment.wav"
         self._sound_path = Path(sound_path) if sound_path else default_path
         if not self._sound_path.exists():
@@ -193,6 +198,7 @@ class WakeAcknowledgement:
 
 class SpeechToText:
     """Speech-to-text using Whisper."""
+
     def __init__(self, model_name: str, device: str) -> None:
         whisper_module = _lazy_import_whisper()
         if whisper_module is None:
@@ -205,6 +211,7 @@ class SpeechToText:
 
     async def transcribe(self, audio: np.ndarray, sample_rate: int) -> str:
         """Transcribe audio to text."""
+
         def _transcribe() -> str:
             result = self._model.transcribe(audio, language="en", fp16=False)
             return str(result.get("text", "")).strip()
@@ -218,7 +225,8 @@ class SpeechToText:
 
 class TextToSpeech:
     """Text-to-speech synthesis."""
-    def __init__(self, *, language: str, default_speaker: Optional[str] = None) -> None:
+
+    def __init__(self, *, language: str, default_speaker: str | None = None) -> None:
         self._language = language
         self._default_speaker = default_speaker
         self._tts_speed = getattr(settings, "tts_speed", 1.08)
@@ -245,7 +253,7 @@ class TextToSpeech:
             except Exception as exc:
                 logger.warning("XTTS init failed: %s", exc)
 
-    async def speak(self, text: str, *, speaker_wav: Optional[str] = None) -> None:
+    async def speak(self, text: str, *, speaker_wav: str | None = None) -> None:
         """Synthesize and play text as speech."""
         if not text:
             return
@@ -278,7 +286,7 @@ class TextToSpeech:
         text = ". ".join(sentences[:2])
         return text + "." if text and not text.endswith(".") else text
 
-    async def _speak_xtts(self, text: str, speaker_wav: Optional[str]) -> None:
+    async def _speak_xtts(self, text: str, speaker_wav: str | None) -> None:
         """Synthesize speech using XTTS."""
         if self._tts is None:
             raise TextToSpeechError("XTTS not initialized")
@@ -298,12 +306,18 @@ class TextToSpeech:
                 chunk_path = tmp.name
 
             try:
-                def _synthesize() -> None:
+
+                def _synthesize(
+                    *,
+                    text_chunk: str = chunk,
+                    path: str = chunk_path,
+                    speaker: str | None = speaker_wav,
+                ) -> None:
                     self._tts.tts_to_file(
-                        text=chunk,
-                        speaker_wav=speaker_wav or self._default_speaker,
+                        text=text_chunk,
+                        speaker_wav=speaker or self._default_speaker,
                         language=self._language,
-                        file_path=chunk_path,
+                        file_path=path,
                         speed=self._tts_speed,
                     )
 
@@ -327,6 +341,7 @@ class TextToSpeech:
         try:
             sf.write(output_path, combined_audio, sample_rate)
             if sa is not None and Path(output_path).exists():
+
                 def _play() -> None:
                     wave_obj = sa.WaveObject.from_wave_file(output_path)
                     play_obj = wave_obj.play()
@@ -399,7 +414,7 @@ class VoiceLoop:
         record_phrase: Callable[[], Awaitable[np.ndarray]],
         transcribe: Callable[[np.ndarray], Awaitable[str]],
         speak: Callable[[str], Awaitable[None]],
-        acknowledge: Optional[Callable[[], Awaitable[None]]] = None,
+        acknowledge: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         self._assistant = assistant
         self._wake_listener = wake_listener
@@ -409,7 +424,7 @@ class VoiceLoop:
         self._speak = speak
         self._acknowledge = acknowledge
 
-    async def run(self, max_interactions: Optional[int] = None) -> None:
+    async def run(self, max_interactions: int | None = None) -> None:
         """Run the voice loop for a specified number of interactions."""
         interactions = 0
 
@@ -463,11 +478,10 @@ def build_voice_loop(
     whisper_model: str = "base",
     device: str = "cpu",
     language: str = "en",
-    speaker_wav: Optional[str] = None,
-    wake_sound_path: Optional[Path] = None,
+    speaker_wav: str | None = None,
+    wake_sound_path: Path | None = None,
 ) -> VoiceLoop:
     """Build a VoiceLoop with default components."""
-    from .wakeword.listener import build_default_detector
 
     mic = AsyncMicrophone(
         sample_rate=sample_rate,
@@ -495,7 +509,7 @@ def build_voice_loop(
     )
 
 
-def _resolve_voice_reference() -> Optional[str]:
+def _resolve_voice_reference() -> str | None:
     """Resolve voice reference for the default user.
 
     Returns:

@@ -7,14 +7,14 @@ and a simple health check endpoint.
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from typing import Callable, Dict, Optional
-import json
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +22,11 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ServiceHealthStatus:
     """Health status of a single service."""
+
     name: str
     is_running: bool
     last_checked: datetime = field(default_factory=datetime.utcnow)
-    last_error: Optional[str] = None
+    last_error: str | None = None
     restart_count: int = 0
     uptime_seconds: float = 0.0
 
@@ -33,6 +34,7 @@ class ServiceHealthStatus:
 @dataclass
 class ServiceMetrics:
     """Cumulative metrics for service supervision."""
+
     total_restarts: int = 0
     total_crashes: int = 0
     total_uptime_seconds: float = 0.0
@@ -64,11 +66,11 @@ class ManagedService:
         self.backoff_multiplier = backoff_multiplier
         self.initial_backoff_seconds = initial_backoff_seconds
 
-        self.thread: Optional[threading.Thread] = None
+        self.thread: threading.Thread | None = None
         self.is_running = False
         self.restart_count = 0
-        self.start_time: Optional[datetime] = None
-        self.last_error: Optional[str] = None
+        self.start_time: datetime | None = None
+        self.last_error: str | None = None
 
     def status(self) -> ServiceHealthStatus:
         """Get current health status."""
@@ -93,13 +95,13 @@ class ServiceSupervisor:
     """
 
     def __init__(self, health_check_port: int = 8765):
-        self.services: Dict[str, ManagedService] = {}
+        self.services: dict[str, ManagedService] = {}
         self.metrics = ServiceMetrics()
         self.health_check_port = health_check_port
         self.is_running = False
-        self._health_check_thread: Optional[threading.Thread] = None
-        self._http_server_thread: Optional[threading.Thread] = None
-        self._http_server: Optional[HTTPServer] = None
+        self._health_check_thread: threading.Thread | None = None
+        self._http_server_thread: threading.Thread | None = None
+        self._http_server: HTTPServer | None = None
         self._lock = threading.RLock()
 
     def register_service(
@@ -241,9 +243,7 @@ class ServiceSupervisor:
             return
 
         # Calculate backoff
-        backoff_seconds = service.initial_backoff_seconds * (
-            service.backoff_multiplier ** attempt
-        )
+        backoff_seconds = service.initial_backoff_seconds * (service.backoff_multiplier**attempt)
         logger.info(
             f"Restarting service {service.name} in {backoff_seconds:.1f}s (attempt {attempt + 1}/{service.max_restart_attempts})"
         )
@@ -266,7 +266,7 @@ class ServiceSupervisor:
             # Retry with next backoff
             self._restart_service(service, attempt + 1)
 
-    def get_service_status(self, service_name: str) -> Optional[ServiceHealthStatus]:
+    def get_service_status(self, service_name: str) -> ServiceHealthStatus | None:
         """Get health status of a specific service."""
         with self._lock:
             service = self.services.get(service_name)
@@ -274,7 +274,7 @@ class ServiceSupervisor:
                 return service.status()
             return None
 
-    def get_all_status(self) -> Dict[str, ServiceHealthStatus]:
+    def get_all_status(self) -> dict[str, ServiceHealthStatus]:
         """Get health status of all services."""
         with self._lock:
             return {name: service.status() for name, service in self.services.items()}
@@ -300,9 +300,7 @@ class ServiceSupervisor:
         """Run HTTP health check server."""
         try:
             handler = self._create_health_handler()
-            self._http_server = HTTPServer(
-                ("127.0.0.1", self.health_check_port), handler
-            )
+            self._http_server = HTTPServer(("127.0.0.1", self.health_check_port), handler)
             logger.info(f"Health server listening on port {self.health_check_port}")
             self._http_server.serve_forever()
         except Exception as e:
@@ -320,9 +318,7 @@ class ServiceSupervisor:
                     self.end_headers()
 
                     status = supervisor.get_all_status()
-                    all_healthy = all(
-                        s.is_running for s in status.values()
-                    )
+                    all_healthy = all(s.is_running for s in status.values())
 
                     response = {
                         "status": "healthy" if all_healthy else "degraded",

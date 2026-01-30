@@ -4,10 +4,10 @@ import pytest
 
 np = pytest.importorskip("numpy")
 
-import voice_loop
-
 
 def test_wakeword_callback_sets_event_only_on_true(monkeypatch):
+    import voice_loop
+
     async def _exercise():
         loop = asyncio.get_running_loop()
         listener = voice_loop.WakeWordListener(

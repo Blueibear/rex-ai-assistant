@@ -4,8 +4,6 @@ import pytest
 
 np = pytest.importorskip("numpy")
 
-from wakeword_utils import detect_wakeword
-
 
 class DummyModel:
     def predict(self, audio):
@@ -19,6 +17,8 @@ class LowConfidenceModel:
 
 @pytest.mark.unit
 def test_detect_wakeword_threshold():
+    from wakeword_utils import detect_wakeword
+
     model = DummyModel()
     audio = np.zeros(10, dtype=np.float32)
 
@@ -28,6 +28,8 @@ def test_detect_wakeword_threshold():
 
 @pytest.mark.unit
 def test_detect_wakeword_low_confidence():
+    from wakeword_utils import detect_wakeword
+
     model = LowConfidenceModel()
     audio = np.zeros(10, dtype=np.float32)
 

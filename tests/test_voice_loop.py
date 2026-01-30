@@ -2,10 +2,10 @@ import asyncio
 
 import pytest
 
-np = pytest.importorskip("numpy")
-
 from rex.assistant_errors import AudioDeviceError, SpeechToTextError
 from rex.voice_loop import VoiceLoop
+
+np = pytest.importorskip("numpy")
 
 
 class DummyListener:
@@ -73,7 +73,7 @@ def test_voice_loop_processes_interaction():
     asyncio.run(loop.run(max_interactions=1))
 
     assert assistant.calls == ["hello world"]
-    assert spoken == ["ok."] # Voice loop adds period for TTS
+    assert spoken == ["ok."]  # Voice loop adds period for TTS
 
 
 @pytest.mark.unit
@@ -125,4 +125,3 @@ def test_voice_loop_propagates_audio_errors():
     asyncio.run(loop.run(max_interactions=1))
 
     assert assistant.calls == []
-

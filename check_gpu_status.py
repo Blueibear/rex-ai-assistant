@@ -4,6 +4,7 @@ import sys
 
 try:
     import torch
+
     print(f"PyTorch version: {torch.__version__}")
     print(f"CUDA available: {torch.cuda.is_available()}")
 
@@ -27,7 +28,7 @@ try:
         print("  3. PyTorch CPU-only version installed")
 
         # Check if this is CPU-only PyTorch
-        if not hasattr(torch.version, 'cuda') or torch.version.cuda is None:
+        if not hasattr(torch.version, "cuda") or torch.version.cuda is None:
             print("\n  → PyTorch was compiled without CUDA support")
             print("  → You have the CPU-only version of PyTorch")
 

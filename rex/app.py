@@ -16,11 +16,11 @@ import logging
 import signal
 import sys
 
+from rex.credentials import get_credential_manager
 from rex.logging_utils import configure_logging
 from rex.memory import get_long_term_memory, get_working_memory
 from rex.service_supervisor import ServiceSupervisor
 from rex.services import initialize_services
-from rex.credentials import get_credential_manager
 
 logger = logging.getLogger(__name__)
 
@@ -99,11 +99,7 @@ def main(argv: list[str] | None = None) -> int:
             "credential_manager",
         }
         if args.services:
-            services_to_manage = {
-                name.strip()
-                for name in args.services.split(",")
-                if name.strip()
-            }
+            services_to_manage = {name.strip() for name in args.services.split(",") if name.strip()}
         else:
             services_to_manage = default_services
         unknown_services = services_to_manage - default_services
@@ -185,6 +181,7 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         if "memory_store" in services_to_manage:
+
             def start_memory_store():
                 get_working_memory()
                 get_long_term_memory()
@@ -213,6 +210,7 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         if "credential_manager" in services_to_manage:
+
             def start_credential_manager():
                 get_credential_manager()
                 logger.info("Credential manager initialized")

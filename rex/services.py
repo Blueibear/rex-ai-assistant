@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from typing import Callable
 
 from rex.calendar_service import CalendarService
@@ -56,7 +56,9 @@ def initialize_services(
 
     # Initialize notification system
     if notifications_path:
-        notifications_path = Path(notifications_path) if isinstance(notifications_path, str) else notifications_path
+        notifications_path = (
+            Path(notifications_path) if isinstance(notifications_path, str) else notifications_path
+        )
     escalation_manager = EscalationManager()
     notifier = Notifier(
         storage_path=notifications_path,
@@ -67,7 +69,9 @@ def initialize_services(
     scheduler.register_handler("email_triage", lambda job: email.triage_unread())
     scheduler.register_handler("calendar_sync", lambda job: calendar.refresh_upcoming())
     scheduler.register_handler("flush_digests", lambda job: notifier.flush_digests())
-    scheduler.register_handler("check_escalations", lambda job: _check_escalations(notifier, escalation_manager))
+    scheduler.register_handler(
+        "check_escalations", lambda job: _check_escalations(notifier, escalation_manager)
+    )
 
     _register_default_jobs(scheduler)
 

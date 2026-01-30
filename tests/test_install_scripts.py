@@ -20,11 +20,7 @@ def test_install_lean_script_dry_run(tmp_path: Path) -> None:
             check=False,
         )
         stderr = probe.stderr or ""
-        if (
-            probe.returncode != 0
-            or "WSL" in stderr
-            or "execvpe(/bin/bash) failed" in stderr
-        ):
+        if probe.returncode != 0 or "WSL" in stderr or "execvpe(/bin/bash) failed" in stderr:
             pytest.skip("bash not usable on Windows")
     repo_root = Path(__file__).resolve().parents[1]
     script = repo_root / "install_lean.sh"

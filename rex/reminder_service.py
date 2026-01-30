@@ -24,9 +24,10 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterable, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -92,15 +93,15 @@ class Reminder(BaseModel):
         default="pending",
         description="Current status of the reminder",
     )
-    fired_at: Optional[datetime] = Field(
+    fired_at: datetime | None = Field(
         default=None,
         description="When the reminder was fired (if applicable)",
     )
-    done_at: Optional[datetime] = Field(
+    done_at: datetime | None = Field(
         default=None,
         description="When the reminder was marked done (if applicable)",
     )
-    canceled_at: Optional[datetime] = Field(
+    canceled_at: datetime | None = Field(
         default=None,
         description="When the reminder was canceled (if applicable)",
     )
@@ -108,7 +109,7 @@ class Reminder(BaseModel):
         default=False,
         description="Whether to create a follow-up cue after firing",
     )
-    followup_prompt: Optional[str] = Field(
+    followup_prompt: str | None = Field(
         default=None,
         description="Custom prompt for the follow-up cue",
     )
@@ -117,7 +118,7 @@ class Reminder(BaseModel):
         description="Additional metadata",
     )
 
-    def is_due(self, now: Optional[datetime] = None) -> bool:
+    def is_due(self, now: datetime | None = None) -> bool:
         """Check if this reminder is due to fire."""
         check_time = _ensure_utc(now or _utc_now())
         return self.status == "pending" and check_time >= _ensure_utc(self.remind_at)
@@ -191,7 +192,7 @@ class ReminderService:
             return
 
         try:
-            with open(path_to_use, "r", encoding="utf-8") as f:
+            with open(path_to_use, encoding="utf-8") as f:
                 data = json.load(f)
 
             loaded: dict[str, Reminder] = {}
@@ -242,9 +243,9 @@ class ReminderService:
         remind_at: datetime,
         *,
         followup_enabled: bool = False,
-        followup_prompt: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
-        reminder_id: Optional[str] = None,
+        followup_prompt: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        reminder_id: str | None = None,
     ) -> Reminder:
         """Create a new reminder."""
         remind_at_utc = _ensure_utc(remind_at)
@@ -270,14 +271,14 @@ class ReminderService:
 
         return reminder
 
-    def get_reminder(self, reminder_id: str) -> Optional[Reminder]:
+    def get_reminder(self, reminder_id: str) -> Reminder | None:
         """Get a reminder by ID."""
         return self._reminders.get(reminder_id)
 
     def list_reminders(
         self,
-        user_id: Optional[str] = None,
-        status: Optional[ReminderStatus] = None,
+        user_id: str | None = None,
+        status: ReminderStatus | None = None,
         include_past: bool = True,
     ) -> list[Reminder]:
         """List reminders with optional filtering."""
@@ -325,7 +326,7 @@ class ReminderService:
             return True
         return False
 
-    def fire_due_reminders(self, now: Optional[datetime] = None) -> list[Reminder]:
+    def fire_due_reminders(self, now: datetime | None = None) -> list[Reminder]:
         """Fire all due reminders (notifications + optional follow-up cues)."""
         check_time = _ensure_utc(now or _utc_now())
         fired: list[Reminder] = []
@@ -337,7 +338,7 @@ class ReminderService:
 
         return fired
 
-    def _fire_reminder(self, reminder: Reminder, *, now: Optional[datetime] = None) -> None:
+    def _fire_reminder(self, reminder: Reminder, *, now: datetime | None = None) -> None:
         """Fire a single reminder."""
         fire_time = _ensure_utc(now or _utc_now())
         logger.info("Firing reminder %s: %s", reminder.reminder_id, reminder.title)
@@ -369,7 +370,7 @@ class ReminderService:
         except Exception as e:
             logger.warning("Failed to send notification for reminder: %s", e)
 
-    def _create_followup_cue(self, reminder: Reminder, *, fired_at: Optional[datetime] = None) -> None:
+    def _create_followup_cue(self, reminder: Reminder, *, fired_at: datetime | None = None) -> None:
         """Create a follow-up cue for a reminder (best-effort)."""
         try:
             from rex.cue_store import get_cue_store
@@ -467,7 +468,7 @@ class ReminderService:
         remind_at: datetime,
         *,
         follow_up: bool = False,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
         user_id: str = "default",
     ) -> Reminder:
         """Alias for older code: add_reminder(title, remind_at, follow_up=...)."""
@@ -479,16 +480,16 @@ class ReminderService:
             metadata=metadata,
         )
 
-    def cancel(self, reminder_id: str, *, at: Optional[datetime] = None) -> bool:
+    def cancel(self, reminder_id: str, *, at: datetime | None = None) -> bool:
         """Alias for older code: cancel(reminder_id)."""
         _ = at  # kept for signature compatibility
         return self.cancel_reminder(reminder_id)
 
-    def fire_due(self, *, now: Optional[datetime] = None) -> list[Reminder]:
+    def fire_due(self, *, now: datetime | None = None) -> list[Reminder]:
         """Alias for older code: fire_due(now=...)."""
         return self.fire_due_reminders(now=now)
 
-    def get(self, reminder_id: str) -> Optional[Reminder]:
+    def get(self, reminder_id: str) -> Reminder | None:
         """Alias for older code: get(reminder_id)."""
         return self.get_reminder(reminder_id)
 
@@ -498,7 +499,7 @@ class ReminderService:
 
 
 # Global instance
-_reminder_service: Optional[ReminderService] = None
+_reminder_service: ReminderService | None = None
 
 
 def get_reminder_service() -> ReminderService:
@@ -509,7 +510,7 @@ def get_reminder_service() -> ReminderService:
     return _reminder_service
 
 
-def set_reminder_service(service: Optional[ReminderService]) -> None:
+def set_reminder_service(service: ReminderService | None) -> None:
     """Set the global reminder service instance (for testing)."""
     global _reminder_service
     _reminder_service = service
@@ -522,4 +523,3 @@ __all__ = [
     "get_reminder_service",
     "set_reminder_service",
 ]
-

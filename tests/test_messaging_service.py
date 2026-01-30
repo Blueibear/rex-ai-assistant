@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
-from rex.messaging_service import Message, MessagingService, SMSService, get_sms_service, set_sms_service
+from rex.messaging_service import (
+    Message,
+    MessagingService,
+    SMSService,
+    get_sms_service,
+    set_sms_service,
+)
 
 
 @pytest.fixture

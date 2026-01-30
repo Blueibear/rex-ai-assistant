@@ -59,18 +59,26 @@ def configure_logging(
         if file_logging_enabled:
             log_path = _resolve_path(
                 getattr(settings, "log_path", DEFAULT_LOG_FILE) if settings else DEFAULT_LOG_FILE,
-                DEFAULT_LOG_FILE
+                DEFAULT_LOG_FILE,
             )
             error_path = _resolve_path(
-                getattr(settings, "error_log_path", DEFAULT_ERROR_FILE) if settings else DEFAULT_ERROR_FILE,
-                DEFAULT_ERROR_FILE
+                (
+                    getattr(settings, "error_log_path", DEFAULT_ERROR_FILE)
+                    if settings
+                    else DEFAULT_ERROR_FILE
+                ),
+                DEFAULT_ERROR_FILE,
             )
 
             log_path.parent.mkdir(parents=True, exist_ok=True)
             error_path.parent.mkdir(parents=True, exist_ok=True)
 
-            file_handler = RotatingFileHandler(log_path, maxBytes=1_000_000, backupCount=5, encoding="utf-8")
-            error_handler = RotatingFileHandler(error_path, maxBytes=1_000_000, backupCount=5, encoding="utf-8")
+            file_handler = RotatingFileHandler(
+                log_path, maxBytes=1_000_000, backupCount=5, encoding="utf-8"
+            )
+            error_handler = RotatingFileHandler(
+                error_path, maxBytes=1_000_000, backupCount=5, encoding="utf-8"
+            )
             error_handler.setLevel(logging.ERROR)
 
             handlers_list.extend([file_handler, error_handler])

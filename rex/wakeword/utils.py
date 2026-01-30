@@ -9,6 +9,14 @@ from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
 
+from .embedding import compute_embedding, load_embedding
+from .selection import (
+    list_openwakeword_keywords,
+    normalize_keyword,
+    select_fallback_keyword,
+    split_keywords,
+)
+
 
 def _import_optional(module_name: str):
     module = sys.modules.get(module_name)
@@ -20,6 +28,7 @@ def _import_optional(module_name: str):
 
 
 np = _import_optional("numpy")
+
 
 def _lazy_import_openwakeword():
     module = _import_optional("openwakeword")
@@ -56,13 +65,6 @@ def _get_openwakeword():
         openwakeword = _OPENWAKEWORD_MODULE
     return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
 
-from .embedding import compute_embedding, load_embedding
-from .selection import (
-    list_openwakeword_keywords,
-    normalize_keyword,
-    select_fallback_keyword,
-    split_keywords,
-)
 
 logger = logging.getLogger(__name__)
 

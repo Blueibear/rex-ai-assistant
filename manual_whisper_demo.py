@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-# Load .env before accessing any environment variables
-from utils.env_loader import load as _load_env
-
-_load_env()
-
 import argparse
 import os
 import sys
 from pathlib import Path
 
 import whisper
+
+from utils.env_loader import load as _load_env
+
+# Load .env before accessing any environment variables
+_load_env()
 
 
 def transcribe_audio(file_path: str, model_name: str = "base", language: str | None = None) -> str:

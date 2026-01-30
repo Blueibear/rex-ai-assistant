@@ -1,14 +1,14 @@
 """Tests for VS Code service module."""
 
-import pytest
 import tempfile
 from pathlib import Path
+
+import pytest
+
 from rex.vscode_service import (
     VSCodeService,
     get_vscode_service,
     reset_vscode_service,
-    PatchResult,
-    TestResult,
 )
 
 

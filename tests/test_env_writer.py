@@ -1,8 +1,5 @@
 """Tests for env_writer module."""
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 from utils.env_schema import parse_env_example
@@ -113,12 +110,7 @@ def test_write_env_from_template(sample_env_example, tmp_path):
         "OPENAI_API_KEY": "sk-new-key",
     }
 
-    write_env_from_template(
-        env_path,
-        sample_env_example,
-        values,
-        create_backup=False
-    )
+    write_env_from_template(env_path, sample_env_example, values, create_backup=False)
 
     assert env_path.exists()
 
@@ -150,11 +142,7 @@ def test_write_env_with_custom_overrides(sample_env_example, tmp_path):
     }
 
     write_env_from_template(
-        env_path,
-        sample_env_example,
-        values,
-        custom_overrides=custom_overrides,
-        create_backup=False
+        env_path, sample_env_example, values, custom_overrides=custom_overrides, create_backup=False
     )
 
     content = env_path.read_text()
@@ -167,17 +155,14 @@ def test_write_env_with_custom_overrides(sample_env_example, tmp_path):
 
 def test_write_env_creates_backup(sample_env, sample_env_example, tmp_path):
     """Test that writing .env creates a backup of existing file."""
-    backup_dir = tmp_path / "backups"
+    tmp_path / "backups"
 
     values = {
         "REX_ACTIVE_USER": "new_user",
     }
 
     backup_path = write_env_from_template(
-        sample_env,
-        sample_env_example,
-        values,
-        create_backup=True
+        sample_env, sample_env_example, values, create_backup=True
     )
 
     # Should have created a backup

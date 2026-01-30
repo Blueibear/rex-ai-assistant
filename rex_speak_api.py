@@ -8,14 +8,13 @@ import re
 import tempfile
 import time
 from collections import defaultdict, deque
+from importlib import import_module
+from importlib.util import find_spec
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import TYPE_CHECKING
 
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
-from importlib import import_module
-from importlib.util import find_spec
-from typing import TYPE_CHECKING
 
 from rex.config import _parse_int, load_config
 from rex.ha_bridge import create_blueprint as create_ha_blueprint
@@ -25,6 +24,7 @@ try:
     from flask_limiter import Limiter
     from flask_limiter.exceptions import RateLimitExceeded
 except ImportError:
+
     class Limiter:  # type: ignore
         def __init__(self, *args, **kwargs):
             pass
@@ -32,10 +32,12 @@ except ImportError:
         def limit(self, *args, **kwargs):
             def decorator(func):
                 return func
+
             return decorator
 
     class RateLimitExceeded(Exception):  # type: ignore
         retry_after = None
+
 
 from rex.assistant_errors import AuthenticationError, TextToSpeechError
 from rex.memory_utils import (
@@ -83,11 +85,9 @@ if not logger.handlers:
 # Rate Limiting
 # ------------------------------------------------------------------------------
 
-TRUSTED_PROXIES = set(
-    ip.strip()
-    for ip in os.getenv("REX_TRUSTED_PROXIES", "127.0.0.1,::1").split(",")
-    if ip.strip()
-)
+TRUSTED_PROXIES = {
+    ip.strip() for ip in os.getenv("REX_TRUSTED_PROXIES", "127.0.0.1,::1").split(",") if ip.strip()
+}
 
 
 def _rate_limit_key() -> str:
@@ -106,9 +106,7 @@ def _rate_limit_key() -> str:
 
 
 _LIMITER_STORAGE_URI = (
-    os.getenv("REX_SPEAK_STORAGE_URI")
-    or os.getenv("FLASK_LIMITER_STORAGE_URI")
-    or "memory://"
+    os.getenv("REX_SPEAK_STORAGE_URI") or os.getenv("FLASK_LIMITER_STORAGE_URI") or "memory://"
 )
 
 limiter = Limiter(
@@ -118,7 +116,9 @@ limiter = Limiter(
     default_limits=[],
 )
 
-_RATE_CACHE: dict[str, deque] | None = defaultdict(deque) if _LIMITER_STORAGE_URI.startswith("memory") else None
+_RATE_CACHE: dict[str, deque] | None = (
+    defaultdict(deque) if _LIMITER_STORAGE_URI.startswith("memory") else None
+)
 
 app.register_blueprint(create_ha_blueprint())
 
@@ -133,13 +133,12 @@ DEFAULT_USER = resolve_user_key(
 ) or (sorted(USER_PROFILES.keys())[0] if USER_PROFILES else "james")
 
 USER_VOICES = {
-    user: extract_voice_reference(profile, user_key=user)
-    for user, profile in USER_PROFILES.items()
+    user: extract_voice_reference(profile, user_key=user) for user, profile in USER_PROFILES.items()
 }
 if DEFAULT_USER not in USER_VOICES:
     USER_VOICES[DEFAULT_USER] = None
 
-_TTS_ENGINE: "TTS" | None = None
+_TTS_ENGINE: TTS | None = None
 
 DEFAULT_TTS_MODEL = os.getenv("REX_TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2")
 _MODEL_PATTERN = re.compile(r"^[\w\-./]+(\/[\w\-./]+)*$")
@@ -149,7 +148,9 @@ if not _MODEL_PATTERN.match(DEFAULT_TTS_MODEL):
 
 API_KEY: str | None = None
 RATE_LIMIT = _parse_int("REX_SPEAK_RATE_LIMIT", os.getenv("REX_SPEAK_RATE_LIMIT"), default=30)
-RATE_LIMIT_WINDOW = _parse_int("REX_SPEAK_RATE_WINDOW", os.getenv("REX_SPEAK_RATE_WINDOW"), default=60)
+RATE_LIMIT_WINDOW = _parse_int(
+    "REX_SPEAK_RATE_WINDOW", os.getenv("REX_SPEAK_RATE_WINDOW"), default=60
+)
 MAX_TEXT_LENGTH = _parse_int("REX_SPEAK_MAX_CHARS", os.getenv("REX_SPEAK_MAX_CHARS"), default=800)
 TTS_SPEED = load_config().tts_speed
 
@@ -169,12 +170,12 @@ else:
 
 
 @app.errorhandler(AuthenticationError)
-def _handle_auth_error(exc: AuthenticationError) -> Tuple[Response, int]:
+def _handle_auth_error(exc: AuthenticationError) -> tuple[Response, int]:
     return jsonify({"error": str(exc)}), 401
 
 
 @app.errorhandler(TextToSpeechError)
-def _handle_tts_error(exc: TextToSpeechError) -> Tuple[Response, int]:
+def _handle_tts_error(exc: TextToSpeechError) -> tuple[Response, int]:
     return jsonify({"error": str(exc)}), 500
 
 
@@ -192,34 +193,42 @@ def _handle_rate_limit(exc: RateLimitExceeded) -> Response:
 # ------------------------------------------------------------------------------
 
 
-def _get_tts_engine() -> "TTS":
+def _get_tts_engine() -> TTS:
     global _TTS_ENGINE
     if _TTS_ENGINE is None:
         if find_spec("TTS") is None:
-            raise TextToSpeechError("Coqui TTS is not installed. Install with `pip install -e \".[ml]\"`.")
+            raise TextToSpeechError(
+                'Coqui TTS is not installed. Install with `pip install -e ".[ml]"`.'
+            )
         try:
             from rex.compat import ensure_transformers_compatibility
 
             ensure_transformers_compatibility()
             tts_class = import_module("TTS.api").TTS
         except Exception as exc:
-            raise TextToSpeechError("Failed to import Coqui TTS. Install with `pip install -e \".[ml]\"`.") from exc
+            raise TextToSpeechError(
+                'Failed to import Coqui TTS. Install with `pip install -e ".[ml]"`.'
+            ) from exc
         _TTS_ENGINE = tts_class(model_name=DEFAULT_TTS_MODEL, progress_bar=False)
     return _TTS_ENGINE
 
 
 def _load_audio_dependencies():
     if find_spec("numpy") is None or find_spec("soundfile") is None:
-        raise TextToSpeechError("Audio dependencies missing. Install with `pip install -e \".[audio]\"`.")
+        raise TextToSpeechError(
+            'Audio dependencies missing. Install with `pip install -e ".[audio]"`.'
+        )
     try:
         np = import_module("numpy")
         sf = import_module("soundfile")
     except Exception as exc:
-        raise TextToSpeechError("Failed to import audio dependencies. Install with `pip install -e \".[audio]\"`.") from exc
+        raise TextToSpeechError(
+            'Failed to import audio dependencies. Install with `pip install -e ".[audio]"`.'
+        ) from exc
     return np, sf
 
 
-def _request_api_key() -> Optional[str]:
+def _request_api_key() -> str | None:
     provided = request.headers.get("X-API-Key") or request.headers.get("Authorization")
     if not provided:
         return None
@@ -227,7 +236,7 @@ def _request_api_key() -> Optional[str]:
     return parts[-1] if parts else None
 
 
-def get_api_key() -> Optional[str]:
+def get_api_key() -> str | None:
     return os.getenv("REX_SPEAK_API_KEY") or None
 
 
@@ -266,7 +275,7 @@ def _enforce_rate_limit() -> None:
     bucket.append(now)
 
 
-def _resolve_speaker_wav(user_key: str) -> Optional[str]:
+def _resolve_speaker_wav(user_key: str) -> str | None:
     voice_path = USER_VOICES.get(user_key)
     if voice_path and Path(voice_path).is_file():
         return voice_path

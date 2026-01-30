@@ -5,23 +5,21 @@ This module now uses rex_config.json for persistence instead of .env.
 
 from __future__ import annotations
 
-# Load .env before accessing any environment variables
-from utils.env_loader import load as _load_env
-
-_load_env()
-
 import argparse
 import sys
 from importlib import import_module
 from importlib.util import find_spec
-from typing import Dict, Optional
-
-_SOUNDDEVICE_UNSET = object()
-sd = _SOUNDDEVICE_UNSET
 
 from assistant_errors import AudioDeviceError
 from logging_utils import get_logger
 from rex.config_manager import load_config, save_config
+from utils.env_loader import load as _load_env
+
+# Load .env before accessing any environment variables
+_load_env()
+
+_SOUNDDEVICE_UNSET = object()
+sd = _SOUNDDEVICE_UNSET
 
 logger = get_logger(__name__)
 
@@ -55,7 +53,7 @@ def list_devices() -> list[dict]:
         raise AudioDeviceError(f"Failed to query audio devices: {exc}") from exc
 
 
-def get_selected_input_device_index(config: Dict) -> Optional[int]:
+def get_selected_input_device_index(config: dict) -> int | None:
     """Get selected input device index from config dict.
 
     Args:
@@ -67,7 +65,7 @@ def get_selected_input_device_index(config: Dict) -> Optional[int]:
     return config.get("audio", {}).get("input_device_index")
 
 
-def set_selected_input_device_index(config: Dict, index: Optional[int]) -> Dict:
+def set_selected_input_device_index(config: dict, index: int | None) -> dict:
     """Set selected input device index in config dict.
 
     Args:
@@ -83,7 +81,7 @@ def set_selected_input_device_index(config: Dict, index: Optional[int]) -> Dict:
     return config
 
 
-def get_selected_output_device_index(config: Dict) -> Optional[int]:
+def get_selected_output_device_index(config: dict) -> int | None:
     """Get selected output device index from config dict.
 
     Args:
@@ -95,7 +93,7 @@ def get_selected_output_device_index(config: Dict) -> Optional[int]:
     return config.get("audio", {}).get("output_device_index")
 
 
-def set_selected_output_device_index(config: Dict, index: Optional[int]) -> Dict:
+def set_selected_output_device_index(config: dict, index: int | None) -> dict:
     """Set selected output device index in config dict.
 
     Args:
@@ -111,7 +109,7 @@ def set_selected_output_device_index(config: Dict, index: Optional[int]) -> Dict
     return config
 
 
-def select_input(device_id: int, *, config: Optional[Dict] = None) -> None:
+def select_input(device_id: int, *, config: dict | None = None) -> None:
     """Select and persist input device to rex_config.json.
 
     Args:
@@ -143,7 +141,7 @@ def select_input(device_id: int, *, config: Optional[Dict] = None) -> None:
     logger.info(f"Selected input device {device_id}, saved to config")
 
 
-def select_output(device_id: int, *, config: Optional[Dict] = None) -> None:
+def select_output(device_id: int, *, config: dict | None = None) -> None:
     """Select and persist output device to rex_config.json.
 
     Args:

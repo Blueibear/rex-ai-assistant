@@ -33,7 +33,6 @@ import json
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Any
 
 from rex.workflow import Workflow
 
@@ -167,7 +166,7 @@ class AutonomyConfig:
         logger.info("Saved autonomy config to %s", path)
 
     @classmethod
-    def load(cls, path: Path | str | None = None) -> "AutonomyConfig":
+    def load(cls, path: Path | str | None = None) -> AutonomyConfig:
         """Load autonomy config from JSON file.
 
         Args:
@@ -186,7 +185,7 @@ class AutonomyConfig:
             return cls()
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
 
             default_mode_str = data.get("default_mode", "suggest")
@@ -323,7 +322,9 @@ def _infer_category(workflow: Workflow) -> str:
         return "fs.operation"
 
     # Browser automation
-    if any(tool in tools_used for tool in ("browser_navigate", "browser_click", "browser_screenshot")):
+    if any(
+        tool in tools_used for tool in ("browser_navigate", "browser_click", "browser_screenshot")
+    ):
         return "browser.automation"
 
     # Default: general workflow

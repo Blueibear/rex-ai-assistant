@@ -9,38 +9,31 @@ This module tests the workflow primitives and runner:
 """
 
 import tempfile
-from datetime import datetime, timezone
-from pathlib import Path
 
 import pytest
 
-from rex.contracts import ToolCall, RiskLevel
+from rex.audit import AuditLogger
+from rex.contracts import RiskLevel, ToolCall
 from rex.policy import ActionPolicy
 from rex.policy_engine import PolicyEngine
 from rex.workflow import (
-    Workflow,
-    WorkflowStep,
-    WorkflowApproval,
     StepResult,
-    generate_workflow_id,
-    generate_step_id,
-    generate_approval_id,
-    register_condition,
-    get_condition,
+    Workflow,
+    WorkflowApproval,
+    WorkflowStep,
     clear_condition_registry,
-    DEFAULT_WORKFLOW_DIR,
-    DEFAULT_APPROVAL_DIR,
+    generate_approval_id,
+    generate_step_id,
+    generate_workflow_id,
+    get_condition,
+    register_condition,
 )
 from rex.workflow_runner import (
     WorkflowRunner,
-    RunResult,
-    DryRunResult,
-    ApprovalBlockedError,
     approve_workflow,
     deny_workflow,
     list_pending_approvals,
 )
-from rex.audit import AuditLogger
 
 
 class TestWorkflowStep:

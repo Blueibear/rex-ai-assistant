@@ -20,13 +20,14 @@ from pathlib import Path
 from typing import Any, Optional
 
 from rex.audit import LogEntry, get_audit_logger
-from rex.policy_engine import get_policy_engine
 from rex.contracts.core import ToolCall
+from rex.policy_engine import get_policy_engine
 
 
 @dataclass
 class PatchResult:
     """Result of applying a patch."""
+
     success: bool
     file_path: str
     hunks_applied: int
@@ -37,6 +38,7 @@ class PatchResult:
 @dataclass
 class TestResult:
     """Result of running tests."""
+
     success: bool
     total: int
     passed: int
@@ -90,7 +92,7 @@ class VSCodeService:
                 raise FileNotFoundError(f"File not found: {file_path}")
 
             # Read file content
-            with open(full_path, 'r', encoding='utf-8') as f:
+            with open(full_path, encoding="utf-8") as f:
                 content = f.read()
 
             # Get file metadata
@@ -108,15 +110,17 @@ class VSCodeService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
             # Audit log
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="code_open_file",
-                tool_call_args={"file_path": file_path},
-                policy_decision="allowed",
-                tool_result={"path": str(full_path), "lines": result["lines"]},
-                error=None,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="code_open_file",
+                    tool_call_args={"file_path": file_path},
+                    policy_decision="allowed",
+                    tool_result={"path": str(full_path), "lines": result["lines"]},
+                    error=None,
+                    duration_ms=duration_ms,
+                )
+            )
 
             return result
 
@@ -124,15 +128,17 @@ class VSCodeService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Failed to open file: {str(e)}"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="code_open_file",
-                tool_call_args={"file_path": file_path},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="code_open_file",
+                    tool_call_args={"file_path": file_path},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 
@@ -173,7 +179,7 @@ class VSCodeService:
                 raise FileNotFoundError(f"File not found: {file_path}")
 
             # Read current file content
-            with open(full_path, 'r', encoding='utf-8') as f:
+            with open(full_path, encoding="utf-8") as f:
                 original_lines = f.readlines()
 
             # Parse and apply patch
@@ -184,7 +190,7 @@ class VSCodeService:
 
             # Write patched content
             if hunks_failed == 0:
-                with open(full_path, 'w', encoding='utf-8') as f:
+                with open(full_path, "w", encoding="utf-8") as f:
                     f.writelines(patched_lines)
 
             result = PatchResult(
@@ -198,19 +204,21 @@ class VSCodeService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
             # Audit log
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="code_apply_patch",
-                tool_call_args={"file_path": file_path},
-                policy_decision="allowed",
-                tool_result={
-                    "success": result.success,
-                    "hunks_applied": hunks_applied,
-                    "hunks_failed": hunks_failed,
-                },
-                error=None if result.success else f"{hunks_failed} hunks failed",
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="code_apply_patch",
+                    tool_call_args={"file_path": file_path},
+                    policy_decision="allowed",
+                    tool_result={
+                        "success": result.success,
+                        "hunks_applied": hunks_applied,
+                        "hunks_failed": hunks_failed,
+                    },
+                    error=None if result.success else f"{hunks_failed} hunks failed",
+                    duration_ms=duration_ms,
+                )
+            )
 
             return result
 
@@ -218,15 +226,17 @@ class VSCodeService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Patch application failed: {str(e)}"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="code_apply_patch",
-                tool_call_args={"file_path": file_path},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="code_apply_patch",
+                    tool_call_args={"file_path": file_path},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 
@@ -263,17 +273,17 @@ class VSCodeService:
                 line = lines[i]
 
                 # Look for hunk header: @@ -start,count +start,count @@
-                if line.startswith('@@'):
-                    match = re.match(r'@@ -(\d+),?(\d*) \+(\d+),?(\d*) @@', line)
+                if line.startswith("@@"):
+                    match = re.match(r"@@ -(\d+),?(\d*) \+(\d+),?(\d*) @@", line)
                     if match:
                         old_start = int(match.group(1))
-                        new_start = int(match.group(3))
+                        int(match.group(3))
 
                         # Collect hunk lines
                         hunk_lines = []
                         i += 1
-                        while i < len(lines) and not lines[i].startswith('@@'):
-                            if lines[i].startswith('---') or lines[i].startswith('+++'):
+                        while i < len(lines) and not lines[i].startswith("@@"):
+                            if lines[i].startswith("---") or lines[i].startswith("+++"):
                                 i += 1
                                 continue
                             hunk_lines.append(lines[i])
@@ -315,16 +325,16 @@ class VSCodeService:
                 continue
 
             prefix = hunk_line[0]
-            content = hunk_line[1:] + '\n' if len(hunk_line) > 1 else '\n'
+            content = hunk_line[1:] + "\n" if len(hunk_line) > 1 else "\n"
 
-            if prefix == ' ':  # Context line
+            if prefix == " ":  # Context line
                 if line_idx < len(lines):
                     result.append(lines[line_idx])
                     line_idx += 1
-            elif prefix == '-':  # Remove line
+            elif prefix == "-":  # Remove line
                 if line_idx < len(lines):
                     line_idx += 1
-            elif prefix == '+':  # Add line
+            elif prefix == "+":  # Add line
                 result.append(content)
 
         # Append remaining lines
@@ -369,10 +379,12 @@ class VSCodeService:
                 cmd.append("-q")
 
             # Add additional options
-            cmd.extend([
-                "--tb=short",
-                "--no-header",
-            ])
+            cmd.extend(
+                [
+                    "--tb=short",
+                    "--no-header",
+                ]
+            )
 
             # Run tests
             result = subprocess.run(
@@ -390,19 +402,21 @@ class VSCodeService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
             # Audit log
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="code_run_tests",
-                tool_call_args={"test_path": test_path, "pattern": pattern},
-                policy_decision="allowed",
-                tool_result={
-                    "success": test_result.success,
-                    "passed": test_result.passed,
-                    "failed": test_result.failed,
-                },
-                error=None if test_result.success else f"{test_result.failed} tests failed",
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="code_run_tests",
+                    tool_call_args={"test_path": test_path, "pattern": pattern},
+                    policy_decision="allowed",
+                    tool_result={
+                        "success": test_result.success,
+                        "passed": test_result.passed,
+                        "failed": test_result.failed,
+                    },
+                    error=None if test_result.success else f"{test_result.failed} tests failed",
+                    duration_ms=duration_ms,
+                )
+            )
 
             return test_result
 
@@ -410,15 +424,17 @@ class VSCodeService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = "Tests timed out after 5 minutes"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="code_run_tests",
-                tool_call_args={"test_path": test_path},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="code_run_tests",
+                    tool_call_args={"test_path": test_path},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             return TestResult(
                 success=False,
@@ -435,15 +451,17 @@ class VSCodeService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Test execution failed: {str(e)}"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="code_run_tests",
-                tool_call_args={"test_path": test_path},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="code_run_tests",
+                    tool_call_args={"test_path": test_path},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 
@@ -467,27 +485,27 @@ class VSCodeService:
 
         # Parse summary line
         # Example: "5 passed, 2 failed in 1.23s"
-        summary_pattern = r'(\d+)\s+passed'
+        summary_pattern = r"(\d+)\s+passed"
         match = re.search(summary_pattern, output)
         if match:
             passed = int(match.group(1))
 
-        failed_pattern = r'(\d+)\s+failed'
+        failed_pattern = r"(\d+)\s+failed"
         match = re.search(failed_pattern, output)
         if match:
             failed = int(match.group(1))
 
-        error_pattern = r'(\d+)\s+error'
+        error_pattern = r"(\d+)\s+error"
         match = re.search(error_pattern, output)
         if match:
             errors = int(match.group(1))
 
-        skipped_pattern = r'(\d+)\s+skipped'
+        skipped_pattern = r"(\d+)\s+skipped"
         match = re.search(skipped_pattern, output)
         if match:
             skipped = int(match.group(1))
 
-        duration_pattern = r'in\s+([\d.]+)s'
+        duration_pattern = r"in\s+([\d.]+)s"
         match = re.search(duration_pattern, output)
         if match:
             duration = float(match.group(1))
@@ -521,7 +539,7 @@ class VSCodeService:
         if not full_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        with open(full_path, 'r', encoding='utf-8') as f:
+        with open(full_path, encoding="utf-8") as f:
             original_content = f.read()
 
         original_lines = original_content.splitlines(keepends=True)
@@ -532,10 +550,10 @@ class VSCodeService:
             new_lines,
             fromfile=f"a/{file_path}",
             tofile=f"b/{file_path}",
-            lineterm='',
+            lineterm="",
         )
 
-        return ''.join(diff)
+        return "".join(diff)
 
     def list_files(
         self,
@@ -573,12 +591,14 @@ class VSCodeService:
                     relative_path = str(resolved_file.relative_to(workspace_root))
                 except ValueError:
                     relative_path = os.path.relpath(str(resolved_file), str(workspace_root))
-                files.append({
-                    "name": file_path.name,
-                    "path": relative_path,
-                    "size": stat.st_size,
-                    "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                })
+                files.append(
+                    {
+                        "name": file_path.name,
+                        "path": relative_path,
+                        "size": stat.st_size,
+                        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    }
+                )
 
         return sorted(files, key=lambda x: x["name"])
 

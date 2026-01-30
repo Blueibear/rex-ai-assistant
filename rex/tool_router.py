@@ -26,7 +26,6 @@ from rex.audit import LogEntry, get_audit_logger
 from rex.contracts import ToolCall
 from rex.policy_engine import PolicyEngine, get_policy_engine
 from rex.tool_registry import (
-    MissingCredentialError,
     ToolRegistry,
     get_tool_registry,
 )
@@ -92,7 +91,7 @@ def parse_tool_request(text: str) -> dict[str, Any] | None:
     if not line.startswith(TOOL_REQUEST_PREFIX):
         return None
 
-    json_payload = line[len(TOOL_REQUEST_PREFIX):].strip()
+    json_payload = line[len(TOOL_REQUEST_PREFIX) :].strip()
     if not json_payload:
         return None
 
@@ -252,9 +251,7 @@ def execute_tool(
         if tool_meta is not None:
             all_available, missing = registry.check_credentials(tool)
             if not all_available:
-                logger.warning(
-                    "Missing credentials for tool=%s: %s", tool, ", ".join(missing)
-                )
+                logger.warning("Missing credentials for tool=%s: %s", tool, ", ".join(missing))
                 # Log the credential failure before raising
                 if not skip_audit_log:
                     _log_audit_entry(

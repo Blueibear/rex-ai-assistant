@@ -9,8 +9,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from rex.doctor import (
     CheckResult,
     DiagnosticsReport,
@@ -168,7 +166,7 @@ class TestConfigFileCheck:
             config_dir = Path(tmpdir) / "config"
             config_dir.mkdir()
             config_file = config_dir / "rex_config.json"
-            config_file.write_text('invalid json {{{')
+            config_file.write_text("invalid json {{{")
 
             result = check_config_file(Path(tmpdir))
             assert result.status == Status.ERROR

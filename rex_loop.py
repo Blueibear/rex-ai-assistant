@@ -7,22 +7,12 @@ iterations.
 
 from __future__ import annotations
 
-# Load .env before accessing any environment variables
-from utils.env_loader import load as _load_env
-
-_load_env()
-
 import argparse
 import asyncio
 import logging
 import os
 import warnings
 from collections.abc import Iterable
-
-# Suppress torio FFmpeg extension warnings (non-critical audio codec features)
-warnings.filterwarnings("ignore", message=".*FFmpeg extension.*")
-warnings.filterwarnings("ignore", message=".*libtorio.*")
-warnings.filterwarnings("ignore", category=RuntimeWarning, module="torio")
 
 import rex
 from rex.assistant import Assistant
@@ -31,10 +21,20 @@ from rex.config import load_config as load_runtime_config
 from rex.logging_utils import configure_logging
 from rex.plugins import PluginSpec, load_plugins, shutdown_plugins
 from rex.voice_loop import build_voice_loop
+from utils.env_loader import load as _load_env
+
+# Load .env before accessing any environment variables
+_load_env()
+
+# Suppress torio FFmpeg extension warnings (non-critical audio codec features)
+warnings.filterwarnings("ignore", message=".*FFmpeg extension.*")
+warnings.filterwarnings("ignore", message=".*libtorio.*")
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="torio")
 
 # MQTT is optional
 try:
     from rex.mqtt_audio_router import MqttAudioRouter
+
     MQTT_AVAILABLE = True
 except ImportError as exc:
     MqttAudioRouter = None  # type: ignore
@@ -46,7 +46,8 @@ logger = logging.getLogger(__name__)
 # Backward compatibility: re-export AsyncRexAssistant for code that imports it from here
 # The canonical location is voice_loop.py at the repo root
 try:
-    from voice_loop import AsyncRexAssistant, build_voice_loop as _build_voice_loop_v1
+    from voice_loop import AsyncRexAssistant
+    from voice_loop import build_voice_loop as _build_voice_loop_v1
 except ImportError:
     AsyncRexAssistant = None  # type: ignore
     _build_voice_loop_v1 = None  # type: ignore
@@ -64,7 +65,8 @@ async def _run(args) -> None:
     configure_logging()
 
     # Run migration from legacy .env to rex_config.json if needed
-    from rex.config_manager import migrate_legacy_env_to_config, get_legacy_env_warnings
+    from rex.config_manager import get_legacy_env_warnings, migrate_legacy_env_to_config
+
     migration_notes = migrate_legacy_env_to_config()
     if migration_notes and len(migration_notes) > 1:
         logger.info("Configuration migration completed")
@@ -72,7 +74,9 @@ async def _run(args) -> None:
     # Warn about legacy environment variables
     legacy_warnings = get_legacy_env_warnings()
     if legacy_warnings:
-        logger.warning("Legacy environment variables detected. These are now ignored. Use config/rex_config.json instead.")
+        logger.warning(
+            "Legacy environment variables detected. These are now ignored. Use config/rex_config.json instead."
+        )
 
     try:
         runtime_config = load_runtime_config(reload=True)

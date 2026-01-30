@@ -34,7 +34,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +50,8 @@ class SchedulerMetrics:
     total_runs: int = 0
     successful_runs: int = 0
     failed_runs: int = 0
-    last_run_at: Optional[datetime] = None
-    last_failure_at: Optional[datetime] = None
+    last_run_at: datetime | None = None
+    last_failure_at: datetime | None = None
 
 
 def _utc_now() -> datetime:
@@ -64,7 +64,7 @@ def _ensure_tz(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-def _parse_dt(value: Any) -> Optional[datetime]:
+def _parse_dt(value: Any) -> datetime | None:
     if value is None:
         return None
     if isinstance(value, datetime):
@@ -91,7 +91,7 @@ def _interval_from_schedule(schedule: str) -> int:
     return 3600
 
 
-def _calculate_next_run(schedule: str, from_time: Optional[datetime] = None) -> datetime:
+def _calculate_next_run(schedule: str, from_time: datetime | None = None) -> datetime:
     base = _ensure_tz(from_time or _utc_now())
     seconds = _interval_from_schedule(schedule)
     return base + timedelta(seconds=seconds)
@@ -117,15 +117,15 @@ class ScheduledJob:
     schedule: str = field(default_factory=lambda: "interval:3600")
     enabled: bool = True
     next_run: datetime = field(default_factory=_utc_now)
-    last_run_at: Optional[datetime] = None
-    last_scheduled_run: Optional[datetime] = None
+    last_run_at: datetime | None = None
+    last_scheduled_run: datetime | None = None
 
     # Execution
-    callback_name: Optional[str] = None
-    workflow_id: Optional[str] = None
+    callback_name: str | None = None
+    workflow_id: str | None = None
 
     # Limits and stats
-    max_runs: Optional[int] = None
+    max_runs: int | None = None
     run_count: int = 0
 
     # Extra
@@ -160,9 +160,9 @@ class ScheduledJob:
             "enabled": self.enabled,
             "next_run": _ensure_tz(self.next_run).isoformat(),
             "last_run_at": _ensure_tz(self.last_run_at).isoformat() if self.last_run_at else None,
-            "last_scheduled_run": _ensure_tz(self.last_scheduled_run).isoformat()
-            if self.last_scheduled_run
-            else None,
+            "last_scheduled_run": (
+                _ensure_tz(self.last_scheduled_run).isoformat() if self.last_scheduled_run else None
+            ),
             "max_runs": self.max_runs,
             "run_count": self.run_count,
             "callback_name": self.callback_name,
@@ -171,7 +171,7 @@ class ScheduledJob:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ScheduledJob":
+    def from_dict(cls, data: dict[str, Any]) -> ScheduledJob:
         # Accept both legacy and newer keys.
         job_id = data.get("job_id") or data.get("id") or str(uuid.uuid4())
         name = data.get("name") or "Unnamed Job"
@@ -244,10 +244,10 @@ class Scheduler:
 
     def __init__(
         self,
-        jobs_file: Optional[Path] = None,
+        jobs_file: Path | None = None,
         *,
-        storage_path: Optional[Path] = None,
-        now_func: Optional[Callable[[], datetime]] = None,
+        storage_path: Path | None = None,
+        now_func: Callable[[], datetime] | None = None,
         poll_interval_seconds: float = 1.0,
     ) -> None:
         if jobs_file is None and storage_path is not None:
@@ -264,7 +264,7 @@ class Scheduler:
         self._metrics = SchedulerMetrics()
 
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
 
         self._load_jobs()
 
@@ -335,7 +335,7 @@ class Scheduler:
         """Expose registered callbacks for compatibility with older tests."""
         return self._callbacks
 
-    def _calculate_next_run(self, schedule: str, *, from_time: Optional[datetime] = None) -> datetime:
+    def _calculate_next_run(self, schedule: str, *, from_time: datetime | None = None) -> datetime:
         """Compatibility wrapper for test suites expecting this method."""
         return _calculate_next_run(schedule, from_time=from_time)
 
@@ -375,7 +375,12 @@ class Scheduler:
             )
         """
         # Detect legacy positional signature
-        if len(args) >= 3 and isinstance(args[0], str) and isinstance(args[1], (int, float)) and isinstance(args[2], str):
+        if (
+            len(args) >= 3
+            and isinstance(args[0], str)
+            and isinstance(args[1], (int, float))
+            and isinstance(args[2], str)
+        ):
             name = args[0]
             interval_seconds = int(args[1])
             handler_name = args[2]
@@ -448,18 +453,18 @@ class Scheduler:
         with self._lock:
             return list(self._jobs.values())
 
-    def get_job(self, job_id: str) -> Optional[ScheduledJob]:
+    def get_job(self, job_id: str) -> ScheduledJob | None:
         with self._lock:
             return self._jobs.get(job_id)
 
-    def find_job_by_name(self, name: str) -> Optional[ScheduledJob]:
+    def find_job_by_name(self, name: str) -> ScheduledJob | None:
         with self._lock:
             for job in self._jobs.values():
                 if job.name == name:
                     return job
         return None
 
-    def update_job(self, job_id: str, **updates: Any) -> Optional[ScheduledJob]:
+    def update_job(self, job_id: str, **updates: Any) -> ScheduledJob | None:
         with self._lock:
             job = self._jobs.get(job_id)
             if not job:
@@ -531,7 +536,11 @@ class Scheduler:
             if callback_name and callback_name in self._callbacks:
                 self._callbacks[callback_name](job)
             elif job.workflow_id:
-                logger.info("Job %s would trigger workflow %s (integration stub)", job.job_id, job.workflow_id)
+                logger.info(
+                    "Job %s would trigger workflow %s (integration stub)",
+                    job.job_id,
+                    job.workflow_id,
+                )
             else:
                 logger.warning("Job %s has no callback_name or workflow_id", job.job_id)
         except Exception as e:
@@ -597,12 +606,14 @@ class Scheduler:
                 "total_runs": self._metrics.total_runs,
                 "successful_runs": self._metrics.successful_runs,
                 "failed_runs": self._metrics.failed_runs,
-                "last_run_at": self._metrics.last_run_at.isoformat()
-                if self._metrics.last_run_at
-                else None,
-                "last_failure_at": self._metrics.last_failure_at.isoformat()
-                if self._metrics.last_failure_at
-                else None,
+                "last_run_at": (
+                    self._metrics.last_run_at.isoformat() if self._metrics.last_run_at else None
+                ),
+                "last_failure_at": (
+                    self._metrics.last_failure_at.isoformat()
+                    if self._metrics.last_failure_at
+                    else None
+                ),
             }
 
     # -------------------------
@@ -640,7 +651,7 @@ class Scheduler:
 
 
 # Global scheduler instance
-_SCHEDULER: Optional[Scheduler] = None
+_SCHEDULER: Scheduler | None = None
 _SCHEDULER_LOCK = threading.Lock()
 
 

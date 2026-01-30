@@ -1,10 +1,12 @@
 """Tests for browser automation module."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
+
 from rex.browser_automation import (
-    BrowserSession,
     BrowserAutomationService,
+    BrowserSession,
     get_browser_service,
     reset_browser_service,
 )
@@ -13,7 +15,7 @@ from rex.browser_automation import (
 class TestBrowserSession:
     """Tests for BrowserSession class."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_browser_session_init(self):
         """Test BrowserSession initialization."""
         session = BrowserSession(headless=True, session_name="test_session")
@@ -23,16 +25,18 @@ class TestBrowserSession:
         assert session._playwright is None
         assert session._browser is None
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_browser_session_context_manager(self):
         """Test BrowserSession as async context manager."""
-        with patch('rex.browser_automation.async_playwright') as mock_playwright:
+        with patch("rex.browser_automation.async_playwright") as mock_playwright:
             mock_playwright_instance = AsyncMock()
             mock_playwright.return_value.start = AsyncMock(return_value=mock_playwright_instance)
 
             mock_browser = AsyncMock()
             mock_playwright_instance.chromium.launch = AsyncMock(return_value=mock_browser)
-            mock_playwright_instance.chromium.launch_persistent_context = AsyncMock(return_value=mock_browser)
+            mock_playwright_instance.chromium.launch_persistent_context = AsyncMock(
+                return_value=mock_browser
+            )
 
             mock_context = AsyncMock()
             mock_browser.new_context = AsyncMock(return_value=mock_context)

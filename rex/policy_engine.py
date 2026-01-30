@@ -226,7 +226,9 @@ class PolicyEngine:
         # Check denied recipients first
         if policy.denied_recipients and recipient:
             if self._matches_list(recipient, policy.denied_recipients):
-                logger.info("Denying tool=%s: recipient %s is on deny list", tool_call.tool, recipient)
+                logger.info(
+                    "Denying tool=%s: recipient %s is on deny list", tool_call.tool, recipient
+                )
                 return PolicyDecision(
                     allowed=False,
                     reason=f"Recipient '{recipient}' is on the deny list",

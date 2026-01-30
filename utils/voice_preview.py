@@ -7,38 +7,43 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional
 
 LOGGER = logging.getLogger(__name__)
 
 
-def play_audio_file(file_path: Path, on_complete: Optional[callable] = None) -> None:
+def play_audio_file(file_path: Path, on_complete: Callable[[], None] | None = None) -> None:
     """Play an audio file in a background thread.
 
     Args:
         file_path: Path to audio file to play
         on_complete: Optional callback when playback completes
     """
+
     def _play():
         try:
             # Try using playsound (simple, cross-platform)
             try:
                 import playsound
+
                 playsound.playsound(str(file_path), block=True)
             except ImportError:
                 # Fall back to platform-specific methods
                 import sys
+
                 if sys.platform == "win32":
                     import winsound
+
                     winsound.PlaySound(str(file_path), winsound.SND_FILENAME)
                 elif sys.platform == "darwin":
                     import subprocess
+
                     subprocess.run(["afplay", str(file_path)], check=True)
                 else:  # Linux
                     import subprocess
-                    subprocess.run(["aplay", str(file_path)], check=True,
-                                 stderr=subprocess.DEVNULL)
+
+                    subprocess.run(["aplay", str(file_path)], check=True, stderr=subprocess.DEVNULL)
 
             if on_complete:
                 on_complete()
@@ -50,7 +55,9 @@ def play_audio_file(file_path: Path, on_complete: Optional[callable] = None) -> 
     thread.start()
 
 
-def generate_and_play_voice_sample(voice_id: str, provider: str, text: str = "Hello, this is a voice preview test.") -> bool:
+def generate_and_play_voice_sample(
+    voice_id: str, provider: str, text: str = "Hello, this is a voice preview test."
+) -> bool:
     """Generate and play a TTS sample for the given voice.
 
     Args:
@@ -62,11 +69,11 @@ def generate_and_play_voice_sample(voice_id: str, provider: str, text: str = "He
         True if playback started successfully, False otherwise
     """
     try:
-        if provider == 'pyttsx3':
+        if provider == "pyttsx3":
             return _play_pyttsx3_sample(voice_id, text)
-        elif provider == 'edge' or provider == 'edge-tts':
+        elif provider == "edge" or provider == "edge-tts":
             return _play_edge_sample(voice_id, text)
-        elif provider == 'xtts':
+        elif provider == "xtts":
             # XTTS voice samples are file-based
             if Path(voice_id).exists():
                 play_audio_file(Path(voice_id))
@@ -83,11 +90,13 @@ def generate_and_play_voice_sample(voice_id: str, provider: str, text: str = "He
 
 def _play_pyttsx3_sample(voice_id: str, text: str) -> bool:
     """Play a sample using pyttsx3."""
+
     def _speak():
         try:
             import pyttsx3
+
             engine = pyttsx3.init()
-            engine.setProperty('voice', voice_id)
+            engine.setProperty("voice", voice_id)
             engine.say(text)
             engine.runAndWait()
             engine.stop()
@@ -101,16 +110,18 @@ def _play_pyttsx3_sample(voice_id: str, text: str) -> bool:
 
 def _play_edge_sample(voice_id: str, text: str) -> bool:
     """Play a sample using edge-tts."""
+
     def _speak():
         try:
             import asyncio
-            import edge_tts
-            import tempfile
             import os
+            import tempfile
+
+            import edge_tts
 
             async def generate():
                 communicate = edge_tts.Communicate(text, voice_id)
-                with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp:
+                with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
                     tmp_path = tmp.name
 
                 await communicate.save(tmp_path)
@@ -125,6 +136,7 @@ def _play_edge_sample(voice_id: str, text: str) -> bool:
             # Clean up after a delay
             def cleanup():
                 import time
+
                 time.sleep(5)
                 try:
                     os.unlink(tmp_file)

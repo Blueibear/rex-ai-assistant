@@ -5,7 +5,6 @@ from __future__ import annotations
 import importlib
 import sys
 import wave
-from pathlib import Path
 from types import ModuleType
 
 import pytest
@@ -134,7 +133,10 @@ def test_unauthorized_requests_return_401(monkeypatch, tmp_path):
         # No API key at all
         resp = client.post("/speak", json={"text": "Hello"})
         assert resp.status_code == 401
-        assert "invalid" in resp.get_json()["error"].lower() or "missing" in resp.get_json()["error"].lower()
+        assert (
+            "invalid" in resp.get_json()["error"].lower()
+            or "missing" in resp.get_json()["error"].lower()
+        )
 
         # Wrong API key
         resp = client.post("/speak", json={"text": "Hello"}, headers={"X-API-Key": "wrong"})

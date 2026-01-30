@@ -47,10 +47,6 @@ class AuthenticationError(AssistantError):
     """Raised when API authentication fails."""
 
 
-# Legacy alias
-SpeechRecognitionError = SpeechToTextError
-
-
 __all__ = [
     "AssistantError",
     "ConfigurationError",

@@ -75,7 +75,7 @@ ml = [
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
-    "pytest-asyncio>=0.23.0",
+    "pytest-anyio>=0.0.0",
     "build>=1.0.0",
     "black>=24.0.0",
     "ruff>=0.1.0",
@@ -86,7 +86,7 @@ dev = [
 test = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
-    "pytest-asyncio>=0.23.0",
+    "pytest-anyio>=0.0.0",
 ]
 
 sms = [

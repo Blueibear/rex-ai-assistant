@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
-from typing import Sequence
+from collections.abc import Sequence
 
 
 def _has_pytest_cov() -> bool:

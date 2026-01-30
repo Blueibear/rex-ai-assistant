@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -42,7 +41,7 @@ def test_cmd_msg_send(temp_sms_file, capsys):
     )
 
     with patch("rex.messaging_service.get_sms_service") as mock_get_sms:
-        from rex.messaging_service import Message, SMSService
+        from rex.messaging_service import SMSService
 
         mock_service = SMSService(mock_file=temp_sms_file)
         mock_get_sms.return_value = mock_service
@@ -166,9 +165,10 @@ def test_cmd_notify_send(temp_notification_path, capsys):
         channels="sms,email",
     )
 
-    with patch("rex.notification.get_notifier") as mock_get_notifier, patch(
-        "rex.notification.get_escalation_manager"
-    ) as mock_get_escalation:
+    with (
+        patch("rex.notification.get_notifier") as mock_get_notifier,
+        patch("rex.notification.get_escalation_manager") as mock_get_escalation,
+    ):
         from rex.notification import EscalationManager, Notifier
 
         mock_notifier = Notifier(storage_path=temp_notification_path)
@@ -197,9 +197,10 @@ def test_cmd_notify_send_default_channel(temp_notification_path, capsys):
         channels=None,
     )
 
-    with patch("rex.notification.get_notifier") as mock_get_notifier, patch(
-        "rex.notification.get_escalation_manager"
-    ) as mock_get_escalation:
+    with (
+        patch("rex.notification.get_notifier") as mock_get_notifier,
+        patch("rex.notification.get_escalation_manager") as mock_get_escalation,
+    ):
         from rex.notification import EscalationManager, Notifier
 
         mock_notifier = Notifier(storage_path=temp_notification_path)

@@ -16,20 +16,19 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, time, timezone
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from rex.contracts.core import NotificationChannel, NotificationPriority
 from rex.retry import RetryPolicy, retry_call
 
 logger = logging.getLogger(__name__)
 
 # Global instances
-_notifier: Optional["Notifier"] = None
-_escalation_manager: Optional["EscalationManager"] = None
+_notifier: Notifier | None = None
+_escalation_manager: EscalationManager | None = None
 
 
 def _utc_now() -> datetime:
@@ -72,7 +71,7 @@ class NotificationRequest(BaseModel):
         default_factory=lambda: ["dashboard"],
         description="Ordered list of preferred delivery channels",
     )
-    idempotency_key: Optional[str] = Field(
+    idempotency_key: str | None = Field(
         default=None,
         description="Optional idempotency key to prevent duplicate delivery.",
     )
@@ -80,7 +79,7 @@ class NotificationRequest(BaseModel):
         default_factory=dict,
         description="Additional metadata for the notification",
     )
-    acknowledged_at: Optional[datetime] = Field(
+    acknowledged_at: datetime | None = Field(
         default=None,
         description="When the notification was acknowledged (for escalation)",
     )
@@ -107,7 +106,7 @@ class DigestQueue:
 
     channel: str
     notifications: list[NotificationRequest] = field(default_factory=list)
-    last_flush_at: Optional[datetime] = None
+    last_flush_at: datetime | None = None
 
 
 # --- Notifier ---
@@ -126,8 +125,8 @@ class Notifier:
     def __init__(
         self,
         digest_interval_seconds: int = 3600,
-        storage_path: Optional[Path] = None,
-        escalation_manager: Optional["EscalationManager"] = None,
+        storage_path: Path | None = None,
+        escalation_manager: EscalationManager | None = None,
         enforce_quiet_hours: bool = True,
         max_sent_log_entries: int = 2000,
     ):
@@ -162,11 +161,7 @@ class Notifier:
                         for n in queue_data.get("notifications", [])
                     ]
                     last_flush_str = queue_data.get("last_flush_at")
-                    last_flush = (
-                        datetime.fromisoformat(last_flush_str)
-                        if last_flush_str
-                        else None
-                    )
+                    last_flush = datetime.fromisoformat(last_flush_str) if last_flush_str else None
                     self.digest_queues[channel] = DigestQueue(
                         channel=channel,
                         notifications=notifications,
@@ -183,12 +178,10 @@ class Notifier:
             data = {}
             for channel, queue in self.digest_queues.items():
                 data[channel] = {
-                    "notifications": [
-                        n.model_dump(mode="json") for n in queue.notifications
-                    ],
-                    "last_flush_at": queue.last_flush_at.isoformat()
-                    if queue.last_flush_at
-                    else None,
+                    "notifications": [n.model_dump(mode="json") for n in queue.notifications],
+                    "last_flush_at": (
+                        queue.last_flush_at.isoformat() if queue.last_flush_at else None
+                    ),
                 }
             with open(self.digest_file, "w") as f:
                 json.dump(data, f, indent=2, default=str)
@@ -200,9 +193,9 @@ class Notifier:
         if not self.sent_log_file.exists():
             return
         try:
-            with open(self.sent_log_file, "r", encoding="utf-8") as f:
+            with open(self.sent_log_file, encoding="utf-8") as f:
                 data = json.load(f)
-            self._sent_log = {k: v for k, v in data.get("sent", {}).items()}
+            self._sent_log = dict(data.get("sent", {}).items())
         except Exception as e:
             logger.warning(f"Failed to load sent log: {e}")
             self._sent_log = {}
@@ -247,9 +240,7 @@ class Notifier:
         Args:
             notification: The notification to send
         """
-        logger.info(
-            f"Sending {notification.priority} notification: {notification.title}"
-        )
+        logger.info(f"Sending {notification.priority} notification: {notification.title}")
 
         if self._is_duplicate(notification):
             logger.info(
@@ -311,14 +302,11 @@ class Notifier:
             try:
                 self._dispatch_to_channel(channel, notification)
                 logger.debug(
-                    f"Sent normal notification to {channel}, "
-                    f"skipping remaining channels"
+                    f"Sent normal notification to {channel}, " f"skipping remaining channels"
                 )
                 break
             except Exception as e:
-                logger.warning(
-                    f"Failed to send to {channel}, trying next channel: {e}"
-                )
+                logger.warning(f"Failed to send to {channel}, trying next channel: {e}")
                 continue
 
     def _queue_digest(self, notification: NotificationRequest) -> None:
@@ -339,9 +327,7 @@ class Notifier:
         self._save_digests()
         self._mark_sent(notification)
 
-    def _dispatch_to_channel(
-        self, channel: str, notification: NotificationRequest
-    ) -> None:
+    def _dispatch_to_channel(self, channel: str, notification: NotificationRequest) -> None:
         """Dispatch notification to a specific channel.
 
         Args:
@@ -351,6 +337,7 @@ class Notifier:
         Raises:
             Exception: If dispatch fails
         """
+
         def _dispatch() -> None:
             if channel == "dashboard":
                 self._send_to_dashboard(notification)
@@ -401,10 +388,8 @@ class Notifier:
         try:
             from rex.email_service import get_email_service
 
-            email_service = get_email_service()
-            logger.info(
-                f"[EMAIL] Would send: {notification.title}\n{notification.body}"
-            )
+            get_email_service()
+            logger.info(f"[EMAIL] Would send: {notification.title}\n{notification.body}")
             # In a real implementation:
             # email_service.send(
             #     to=user_email,
@@ -443,7 +428,7 @@ class Notifier:
         logger.info(f"[HA_TTS] Would announce: {notification.title}")
         # In a real implementation, this would call Home Assistant TTS API
 
-    def flush_digests(self, channel: Optional[str] = None) -> int:
+    def flush_digests(self, channel: str | None = None) -> int:
         """Flush digest queues and send summaries.
 
         Args:
@@ -452,9 +437,7 @@ class Notifier:
         Returns:
             Number of digest summaries sent
         """
-        channels_to_flush = (
-            [channel] if channel else list(self.digest_queues.keys())
-        )
+        channels_to_flush = [channel] if channel else list(self.digest_queues.keys())
         count = 0
 
         for ch in channels_to_flush:
@@ -486,20 +469,14 @@ class Notifier:
         logger.info(f"Flushed {count} digest queue(s)")
         return count
 
-    def _create_digest_summary(
-        self, notifications: list[NotificationRequest]
-    ) -> str:
+    def _create_digest_summary(self, notifications: list[NotificationRequest]) -> str:
         """Create a summary of digest notifications."""
         lines = ["Notification Digest:\n"]
         for i, notif in enumerate(notifications, 1):
             lines.append(f"{i}. {notif.title}")
             if notif.body:
                 # Truncate long bodies
-                body_preview = (
-                    notif.body[:80] + "..."
-                    if len(notif.body) > 80
-                    else notif.body
-                )
+                body_preview = notif.body[:80] + "..." if len(notif.body) > 80 else notif.body
                 lines.append(f"   {body_preview}")
         return "\n".join(lines)
 
@@ -634,7 +611,7 @@ class EscalationManager:
         self.dnd_enabled = False
         self.pending_escalations: dict[str, EscalationRule] = {}
 
-    def is_quiet_hours(self, dt: Optional[datetime] = None) -> bool:
+    def is_quiet_hours(self, dt: datetime | None = None) -> bool:
         """Check if the given time is within quiet hours.
 
         Args:
@@ -733,9 +710,7 @@ class EscalationManager:
             if elapsed >= rule.escalation_delay_minutes:
                 to_escalate.append((notif_id, rule.next_channel))
                 rule.escalated = True
-                logger.info(
-                    f"Escalating notification {notif_id} to {rule.next_channel}"
-                )
+                logger.info(f"Escalating notification {notif_id} to {rule.next_channel}")
 
         return to_escalate
 
@@ -764,7 +739,7 @@ def get_notifier() -> Notifier:
     return _notifier
 
 
-def set_notifier(notifier: Optional[Notifier]) -> None:
+def set_notifier(notifier: Notifier | None) -> None:
     """Set the global notifier instance.
 
     Args:

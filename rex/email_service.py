@@ -18,7 +18,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +48,15 @@ try:
         received_at: datetime = Field(..., description="When the email was received")
         labels: list[str] = Field(default_factory=list, description="Email labels/tags")
         importance_score: float = Field(default=0.5, description="Importance score (0.0-1.0)")
-        category: Optional[str] = Field(default=None, description="Email category (important, promo, social, etc.)")
+        category: str | None = Field(
+            default=None, description="Email category (important, promo, social, etc.)"
+        )
 
         class Config:
             json_encoders = {datetime: lambda v: v.isoformat()}
 
 except Exception:  # pragma: no cover
+
     @dataclass
     class EmailSummary:  # type: ignore
         """Fallback EmailSummary when pydantic is not installed."""
@@ -65,7 +68,7 @@ except Exception:  # pragma: no cover
         received_at: datetime
         labels: list[str]
         importance_score: float = 0.5
-        category: Optional[str] = None
+        category: str | None = None
 
 
 @dataclass(frozen=True)
@@ -98,11 +101,11 @@ class EmailService:
 
     def __init__(
         self,
-        mock_data_file: Optional[Path] = None,
+        mock_data_file: Path | None = None,
         *,
-        event_bus: Optional["EventBus"] = None,
-        mock_messages: Optional[list[EmailMessage]] = None,
-        mock_data_path: Optional[Path] = None,
+        event_bus: EventBus | None = None,
+        mock_messages: list[EmailMessage] | None = None,
+        mock_data_path: Path | None = None,
     ) -> None:
         if event_bus is None and mock_data_file is not None and hasattr(mock_data_file, "publish"):
             event_bus = mock_data_file  # type: ignore[assignment]
@@ -126,11 +129,11 @@ class EmailService:
 
     def connect(self) -> bool:
         """
-        Connect to email service.
+                Connect to email service.
 
-        Stub behavior:
-- checks credentials exist (if credential manager available)
-- loads mock data from file or provided mock_messages
+                Stub behavior:
+        - checks credentials exist (if credential manager available)
+        - loads mock data from file or provided mock_messages
         """
         try:
             if self.credential_manager is not None:
@@ -186,7 +189,9 @@ class EmailService:
         elif isinstance(data, dict) and isinstance(data.get("messages"), list):
             items = [x for x in data["messages"] if isinstance(x, dict)]
         else:
-            logger.warning("Mock email data format not recognized, expected list or {messages: [...]}")
+            logger.warning(
+                "Mock email data format not recognized, expected list or {messages: [...]}"
+            )
             self._mock_emails = []
             return
 
@@ -256,7 +261,7 @@ class EmailService:
             category=category_str,
         )
 
-    def _parse_datetime(self, value: Any) -> Optional[datetime]:
+    def _parse_datetime(self, value: Any) -> datetime | None:
         if value is None:
             return None
         if isinstance(value, datetime):
@@ -286,7 +291,10 @@ class EmailService:
 
         unread = [email for email in self._mock_emails if "unread" in (email.labels or [])]
         result = unread[: max(0, int(limit))]
-        self._publish("email.unread", {"count": len(result), "messages": [self._summary_dict(e) for e in result]})
+        self._publish(
+            "email.unread",
+            {"count": len(result), "messages": [self._summary_dict(e) for e in result]},
+        )
         return result
 
     def triage_unread(self, limit: int = 10) -> list[dict[str, Any]]:
@@ -318,7 +326,12 @@ class EmailService:
 
         self._publish(
             "email.triaged",
-            {"count": len(triaged), "triaged": [{"message_id": t["message_id"], "category": t["category"]} for t in triaged]},
+            {
+                "count": len(triaged),
+                "triaged": [
+                    {"message_id": t["message_id"], "category": t["category"]} for t in triaged
+                ],
+            },
         )
         return triaged
 
@@ -361,12 +374,26 @@ class EmailService:
             return "calendar"
 
         # Promo indicators
-        promo_keywords = ["sale", "discount", "offer", "deal", "promotion", "coupon", "free shipping"]
+        promo_keywords = [
+            "sale",
+            "discount",
+            "offer",
+            "deal",
+            "promotion",
+            "coupon",
+            "free shipping",
+        ]
         if any(kw in subject_lower or kw in snippet_lower for kw in promo_keywords):
             return "promo"
 
         # Social indicators
-        social_keywords = ["liked your", "commented on", "mentioned you", "friend request", "connection"]
+        social_keywords = [
+            "liked your",
+            "commented on",
+            "mentioned you",
+            "friend request",
+            "connection",
+        ]
         social_domains = ["facebook.com", "twitter.com", "linkedin.com", "instagram.com"]
         if any(kw in subject_lower or kw in snippet_lower for kw in social_keywords):
             return "social"
@@ -408,7 +435,11 @@ class EmailService:
             "id": email.id,
             "from_addr": email.from_addr,
             "subject": email.subject,
-            "received_at": email.received_at.isoformat() if isinstance(email.received_at, datetime) else str(email.received_at),
+            "received_at": (
+                email.received_at.isoformat()
+                if isinstance(email.received_at, datetime)
+                else str(email.received_at)
+            ),
             "labels": list(email.labels or []),
             "importance_score": float(getattr(email, "importance_score", 0.5)),
             "category": getattr(email, "category", None),
@@ -420,7 +451,7 @@ class EmailService:
 
 
 # Global email service instance
-_email_service: Optional[EmailService] = None
+_email_service: EmailService | None = None
 
 
 def get_email_service() -> EmailService:

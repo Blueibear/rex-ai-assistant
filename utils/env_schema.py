@@ -5,12 +5,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
 
 
 @dataclass
 class EnvVariable:
     """Represents a single environment variable."""
+
     key: str
     default_value: str
     description: str
@@ -21,18 +21,18 @@ class EnvVariable:
 
     # UI control hints
     control_type: str = "entry"  # entry, dropdown, spinbox, checkbox, path
-    dropdown_options: Optional[List[str]] = None
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
-    path_type: Optional[str] = None  # file, directory
+    dropdown_options: list[str] | None = None
+    min_value: float | None = None
+    max_value: float | None = None
+    path_type: str | None = None  # file, directory
 
     # Tooltip enhancements for numeric ranges
-    tooltip_low_effect: Optional[str] = None
-    tooltip_high_effect: Optional[str] = None
-    units: Optional[str] = None
+    tooltip_low_effect: str | None = None
+    tooltip_high_effect: str | None = None
+    units: str | None = None
 
     # Active engine or module grouping
-    active_group: Optional[str] = None  # e.g., "llm_provider", "tts_provider"
+    active_group: str | None = None  # e.g., "llm_provider", "tts_provider"
 
     def __post_init__(self):
         """Auto-detect control types and constraints."""
@@ -44,9 +44,7 @@ class EnvVariable:
 
     def _detect_secret(self):
         """Detect if this is a secret or API key field."""
-        secret_keywords = [
-            "api_key", "token", "secret", "password", "key"
-        ]
+        secret_keywords = ["api_key", "token", "secret", "password", "key"]
         key_lower = self.key.lower()
         for keyword in secret_keywords:
             if keyword in key_lower:
@@ -158,7 +156,10 @@ class EnvVariable:
                 pass
 
         # Integer values
-        if any(word in key_lower for word in ["max_", "limit", "tokens", "items", "turns", "bytes", "chars", "timeout"]):
+        if any(
+            word in key_lower
+            for word in ["max_", "limit", "tokens", "items", "turns", "bytes", "chars", "timeout"]
+        ):
             try:
                 int(self.default_value)
                 self.control_type = "spinbox"
@@ -273,7 +274,10 @@ class EnvVariable:
         if "llm" in key_lower or "openai" in key_lower or "ollama" in key_lower:
             if "provider" in key_lower or "backend" in key_lower:
                 self.active_group = "llm_provider_selector"
-            elif any(word in key_lower for word in ["model", "api_key", "base_url", "temperature", "max_tokens", "top_"]):
+            elif any(
+                word in key_lower
+                for word in ["model", "api_key", "base_url", "temperature", "max_tokens", "top_"]
+            ):
                 # Determine which provider this belongs to
                 if "openai" in key_lower:
                     self.active_group = "openai"
@@ -283,7 +287,12 @@ class EnvVariable:
                     self.active_group = "transformers"
 
         # TTS provider group
-        elif "tts" in key_lower or "piper" in key_lower or "edge" in key_lower or "speak" in key_lower:
+        elif (
+            "tts" in key_lower
+            or "piper" in key_lower
+            or "edge" in key_lower
+            or "speak" in key_lower
+        ):
             if "provider" in key_lower:
                 self.active_group = "tts_provider_selector"
             elif "voice" in key_lower or "model" in key_lower or "piper" in key_lower:
@@ -308,23 +317,25 @@ class EnvVariable:
 @dataclass
 class EnvSection:
     """Represents a section in .env.example."""
+
     name: str
-    variables: List[EnvVariable] = field(default_factory=list)
+    variables: list[EnvVariable] = field(default_factory=list)
 
 
 @dataclass
 class EnvSchema:
     """Complete schema parsed from .env.example."""
-    sections: List[EnvSection] = field(default_factory=list)
 
-    def get_all_variables(self) -> List[EnvVariable]:
+    sections: list[EnvSection] = field(default_factory=list)
+
+    def get_all_variables(self) -> list[EnvVariable]:
         """Get a flat list of all variables."""
         all_vars = []
         for section in self.sections:
             all_vars.extend(section.variables)
         return all_vars
 
-    def get_variable(self, key: str) -> Optional[EnvVariable]:
+    def get_variable(self, key: str) -> EnvVariable | None:
         """Find a variable by key."""
         for var in self.get_all_variables():
             if var.key == key:
@@ -353,7 +364,7 @@ def parse_env_example(path: Path) -> EnvSchema:
 
     # Regex patterns
     section_pattern = re.compile(r"^#\s*={3,}")
-    section_name_pattern = re.compile(r"^#\s+(.+?)(?:\s*#.*)?$")
+    re.compile(r"^#\s+(.+?)(?:\s*#.*)?$")
     key_value_pattern = re.compile(r"^([A-Z_][A-Z0-9_]*)=(.*)$")
     comment_pattern = re.compile(r"^#\s+(.+)$")
 

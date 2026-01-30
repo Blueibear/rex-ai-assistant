@@ -154,22 +154,124 @@ class KnowledgeBase:
     """
 
     # Words to exclude from the index (common stop words)
-    STOP_WORDS = frozenset([
-        "a", "an", "the", "and", "or", "but", "is", "are", "was", "were",
-        "be", "been", "being", "have", "has", "had", "do", "does", "did",
-        "will", "would", "could", "should", "may", "might", "must", "shall",
-        "to", "of", "in", "for", "on", "with", "at", "by", "from", "as",
-        "into", "through", "during", "before", "after", "above", "below",
-        "between", "under", "again", "further", "then", "once", "here",
-        "there", "when", "where", "why", "how", "all", "each", "few",
-        "more", "most", "other", "some", "such", "no", "nor", "not", "only",
-        "own", "same", "so", "than", "too", "very", "can", "just", "now",
-        "it", "its", "this", "that", "these", "those", "what", "which",
-        "who", "whom", "whose", "i", "me", "my", "myself", "we", "our",
-        "ours", "ourselves", "you", "your", "yours", "yourself", "yourselves",
-        "he", "him", "his", "himself", "she", "her", "hers", "herself",
-        "they", "them", "their", "theirs", "themselves",
-    ])
+    STOP_WORDS = frozenset(
+        [
+            "a",
+            "an",
+            "the",
+            "and",
+            "or",
+            "but",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "must",
+            "shall",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "into",
+            "through",
+            "during",
+            "before",
+            "after",
+            "above",
+            "below",
+            "between",
+            "under",
+            "again",
+            "further",
+            "then",
+            "once",
+            "here",
+            "there",
+            "when",
+            "where",
+            "why",
+            "how",
+            "all",
+            "each",
+            "few",
+            "more",
+            "most",
+            "other",
+            "some",
+            "such",
+            "no",
+            "nor",
+            "not",
+            "only",
+            "own",
+            "same",
+            "so",
+            "than",
+            "too",
+            "very",
+            "can",
+            "just",
+            "now",
+            "it",
+            "its",
+            "this",
+            "that",
+            "these",
+            "those",
+            "what",
+            "which",
+            "who",
+            "whom",
+            "whose",
+            "i",
+            "me",
+            "my",
+            "myself",
+            "we",
+            "our",
+            "ours",
+            "ourselves",
+            "you",
+            "your",
+            "yours",
+            "yourself",
+            "yourselves",
+            "he",
+            "him",
+            "his",
+            "himself",
+            "she",
+            "her",
+            "hers",
+            "herself",
+            "they",
+            "them",
+            "their",
+            "theirs",
+            "themselves",
+        ]
+    )
 
     def __init__(
         self,
@@ -200,7 +302,7 @@ class KnowledgeBase:
         # Load documents
         if self.docs_path.exists():
             try:
-                with open(self.docs_path, "r", encoding="utf-8") as f:
+                with open(self.docs_path, encoding="utf-8") as f:
                     data = json.load(f)
                     for doc_data in data.get("documents", []):
                         doc = KnowledgeDocument.model_validate(doc_data)
@@ -213,7 +315,7 @@ class KnowledgeBase:
         # Load index
         if self.index_path.exists():
             try:
-                with open(self.index_path, "r", encoding="utf-8") as f:
+                with open(self.index_path, encoding="utf-8") as f:
                     data = json.load(f)
                     for word, doc_ids in data.get("index", {}).items():
                         self._index[word] = set(doc_ids)
@@ -230,9 +332,7 @@ class KnowledgeBase:
 
         # Save documents
         try:
-            docs_data = [
-                doc.model_dump(mode="json") for doc in self._documents.values()
-            ]
+            docs_data = [doc.model_dump(mode="json") for doc in self._documents.values()]
             with open(self.docs_path, "w", encoding="utf-8") as f:
                 json.dump({"documents": docs_data}, f, indent=2, default=str)
         except OSError as e:
@@ -256,7 +356,7 @@ class KnowledgeBase:
             List of lowercase word tokens.
         """
         # Split on non-word characters, convert to lowercase
-        words = re.findall(r'\b[a-zA-Z0-9]+\b', text.lower())
+        words = re.findall(r"\b[a-zA-Z0-9]+\b", text.lower())
         # Filter out stop words and very short words
         return [w for w in words if w not in self.STOP_WORDS and len(w) > 1]
 
@@ -453,12 +553,12 @@ class KnowledgeBase:
 
         # Apply tag filter if specified
         if tags:
-            tag_set = set(t.lower() for t in tags)
+            tag_set = {t.lower() for t in tags}
             doc_scores = {
                 doc_id: score
                 for doc_id, score in doc_scores.items()
                 if doc_id in self._documents
-                and tag_set.issubset(set(t.lower() for t in self._documents[doc_id].tags))
+                and tag_set.issubset({t.lower() for t in self._documents[doc_id].tags})
             }
 
         # Also search for substring matches in content and title
@@ -471,11 +571,7 @@ class KnowledgeBase:
                 doc_scores[doc_id] += 5
 
         # Sort by score (descending) and return top results
-        sorted_docs = sorted(
-            doc_scores.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
+        sorted_docs = sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)
 
         results = []
         for doc_id, _score in sorted_docs[:max_results]:
@@ -523,11 +619,8 @@ class KnowledgeBase:
         docs = list(self._documents.values())
 
         if tags:
-            tag_set = set(t.lower() for t in tags)
-            docs = [
-                d for d in docs
-                if tag_set.issubset(set(t.lower() for t in d.tags))
-            ]
+            tag_set = {t.lower() for t in tags}
+            docs = [d for d in docs if tag_set.issubset({t.lower() for t in d.tags})]
 
         # Sort by created_at descending
         docs.sort(key=lambda d: d.created_at, reverse=True)

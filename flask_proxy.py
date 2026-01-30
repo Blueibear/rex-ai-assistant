@@ -8,12 +8,12 @@ from flask import Flask, abort, jsonify, request
 from flask import g as flask_g
 from flask_cors import CORS
 
-import utils.env_loader  # Auto-loads .env on import
 from memory_utils import load_memory_profile, load_users_map, resolve_user_key
 
 # Import dashboard blueprint
 try:
     from rex.dashboard import dashboard_bp
+
     _DASHBOARD_AVAILABLE = True
 except ImportError:
     dashboard_bp = None
@@ -23,6 +23,7 @@ except ImportError:
 try:
     from rex.contracts import CONTRACT_VERSION
     from rex.contracts.core import ALL_MODELS
+
     _CONTRACTS_AVAILABLE = True
 except ImportError:
     CONTRACT_VERSION = None
@@ -125,7 +126,13 @@ def _is_loopback_address(addr: str | None) -> bool:
 # --- Public Endpoints (no auth required) ---
 # Note: Dashboard routes have their own auth mechanism
 _PUBLIC_PATHS = frozenset({"/contracts"})
-_DASHBOARD_PREFIXES = ("/dashboard", "/api/dashboard", "/api/settings", "/api/chat", "/api/scheduler")
+_DASHBOARD_PREFIXES = (
+    "/dashboard",
+    "/api/dashboard",
+    "/api/settings",
+    "/api/chat",
+    "/api/scheduler",
+)
 
 
 # --- Request Hooks ---
@@ -217,11 +224,13 @@ def contracts():
         return jsonify({"error": "Contracts module not available"}), 503
 
     model_names = [model.__name__ for model in ALL_MODELS]
-    return jsonify({
-        "contract_version": CONTRACT_VERSION,
-        "schema_docs_path": "docs/contracts/",
-        "models": model_names,
-    })
+    return jsonify(
+        {
+            "contract_version": CONTRACT_VERSION,
+            "schema_docs_path": "docs/contracts/",
+            "models": model_names,
+        }
+    )
 
 
 # --- Entry Point ---

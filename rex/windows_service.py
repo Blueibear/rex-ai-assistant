@@ -6,10 +6,10 @@ import os
 import subprocess
 import sys
 
+import servicemanager
 import win32event
 import win32service
 import win32serviceutil
-import servicemanager
 
 DEFAULT_SERVICES = "event_bus,workflow_runner,memory_store,credential_manager"
 DEFAULT_PORT = "8765"

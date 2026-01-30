@@ -6,9 +6,6 @@ import pytest
 
 np = pytest.importorskip("numpy")
 
-from rex.wakeword.listener import WakeWordListener
-from rex.wakeword.utils import detect_wakeword
-
 
 class DummyModel:
     def __init__(self, scores):
@@ -19,6 +16,8 @@ class DummyModel:
 
 
 def test_detect_wakeword_handles_multidimensional_audio():
+    from rex.wakeword.utils import detect_wakeword
+
     model = DummyModel({"rex": 0.6})
     audio = np.ones((2, 4), dtype=np.float32)
 
@@ -26,6 +25,9 @@ def test_detect_wakeword_handles_multidimensional_audio():
 
 
 def test_wakeword_listener_yields_on_detection():
+    from rex.wakeword.listener import WakeWordListener
+    from rex.wakeword.utils import detect_wakeword
+
     model = DummyModel({"rex": 0.8})
 
     def detector(frame):

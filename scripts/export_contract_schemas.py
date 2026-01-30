@@ -28,6 +28,7 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
+from importlib import import_module
 from pathlib import Path
 
 # Ensure the project root is in the path
@@ -35,9 +36,10 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-
-from rex.contracts import CONTRACT_VERSION
-from rex.contracts.core import ALL_MODELS
+_contracts = import_module("rex.contracts")
+_contracts_core = import_module("rex.contracts.core")
+CONTRACT_VERSION = _contracts.CONTRACT_VERSION
+ALL_MODELS = _contracts_core.ALL_MODELS
 
 
 def get_output_dir() -> Path:
@@ -81,11 +83,13 @@ def export_schemas(output_dir: Path | None = None) -> dict[str, str]:
             f.write("\n")
 
         exported_files[model_name] = str(schema_path)
-        schema_entries.append({
-            "model": model_name,
-            "file": schema_filename,
-            "description": model.__doc__.split("\n")[0] if model.__doc__ else "",
-        })
+        schema_entries.append(
+            {
+                "model": model_name,
+                "file": schema_filename,
+                "description": model.__doc__.split("\n")[0] if model.__doc__ else "",
+            }
+        )
 
         print(f"  Exported: {schema_filename}")
 
@@ -101,7 +105,7 @@ def export_schemas(output_dir: Path | None = None) -> dict[str, str]:
         json.dump(index, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
-    print(f"  Exported: index.json")
+    print("  Exported: index.json")
     exported_files["index"] = str(index_path)
 
     return exported_files

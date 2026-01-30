@@ -20,9 +20,9 @@ from pathlib import Path
 from typing import Any, Literal, Optional
 
 from rex.audit import LogEntry, get_audit_logger
+from rex.contracts.core import ToolCall
 from rex.credentials import get_credential_manager
 from rex.policy_engine import get_policy_engine
-from rex.contracts.core import ToolCall
 
 async_playwright = None
 if find_spec("playwright") is not None:
@@ -34,6 +34,7 @@ if find_spec("playwright") is not None:
 @dataclass
 class BrowserAction:
     """A single browser action step."""
+
     action: Literal["navigate", "click", "type", "wait", "screenshot", "login"]
     params: dict[str, Any]
 
@@ -105,7 +106,9 @@ class BrowserSession:
                 str(context_path),
                 headless=self.headless,
             )
-            self._page = self._context.pages[0] if self._context.pages else await self._context.new_page()
+            self._page = (
+                self._context.pages[0] if self._context.pages else await self._context.new_page()
+            )
         else:
             # Create new browser and context
             self._browser = await self._playwright.chromium.launch(headless=self.headless)
@@ -151,30 +154,34 @@ class BrowserSession:
 
             # Audit log
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="browser_navigate",
-                tool_call_args={"url": url},
-                policy_decision="allowed",
-                tool_result=result,
-                error=None,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="browser_navigate",
+                    tool_call_args={"url": url},
+                    policy_decision="allowed",
+                    tool_result=result,
+                    error=None,
+                    duration_ms=duration_ms,
+                )
+            )
 
             return result
 
         except Exception as e:
             error_msg = f"Navigation failed: {str(e)}"
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="browser_navigate",
-                tool_call_args={"url": url},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="browser_navigate",
+                    tool_call_args={"url": url},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
             raise RuntimeError(error_msg) from e
 
     async def click(self, selector: str, timeout: int = 5000) -> dict[str, Any]:
@@ -421,23 +428,27 @@ async def run_browser_script(
                 decision = policy_engine.decide(tool_call, metadata={})
 
                 if not decision.allowed:
-                    results.append({
-                        "step": i,
-                        "action": action,
-                        "status": "denied",
-                        "reason": decision.reason,
-                    })
+                    results.append(
+                        {
+                            "step": i,
+                            "action": action,
+                            "status": "denied",
+                            "reason": decision.reason,
+                        }
+                    )
                     continue
 
                 if decision.requires_approval:
                     # In a real scenario, would wait for approval
                     # For now, we'll skip or fail
-                    results.append({
-                        "step": i,
-                        "action": action,
-                        "status": "requires_approval",
-                        "reason": "Policy requires approval for this action",
-                    })
+                    results.append(
+                        {
+                            "step": i,
+                            "action": action,
+                            "status": "requires_approval",
+                            "reason": "Policy requires approval for this action",
+                        }
+                    )
                     continue
 
             # Execute action
@@ -459,19 +470,23 @@ async def run_browser_script(
                 else:
                     result = {"status": "error", "error": f"Unknown action: {action}"}
 
-                results.append({
-                    "step": i,
-                    "action": action,
-                    **result,
-                })
+                results.append(
+                    {
+                        "step": i,
+                        "action": action,
+                        **result,
+                    }
+                )
 
             except Exception as e:
-                results.append({
-                    "step": i,
-                    "action": action,
-                    "status": "error",
-                    "error": str(e),
-                })
+                results.append(
+                    {
+                        "step": i,
+                        "action": action,
+                        "status": "error",
+                        "error": str(e),
+                    }
+                )
 
     return results
 
@@ -487,7 +502,7 @@ def run_browser_script_sync(
 
 
 # Singleton instance (optional, for service integration)
-_browser_service: Optional['BrowserAutomationService'] = None
+_browser_service: Optional["BrowserAutomationService"] = None
 
 
 class BrowserAutomationService:
@@ -516,7 +531,7 @@ class BrowserAutomationService:
         Returns:
             List of step results
         """
-        with open(script_path, 'r') as f:
+        with open(script_path) as f:
             script_data = json.load(f)
 
         steps = script_data.get("steps", [])
@@ -530,9 +545,7 @@ class BrowserAutomationService:
             return []
 
         return [
-            d.name
-            for d in self.storage_path.iterdir()
-            if d.is_dir() and not d.name.startswith(".")
+            d.name for d in self.storage_path.iterdir() if d.is_dir() and not d.name.startswith(".")
         ]
 
     def list_screenshots(self) -> list[str]:

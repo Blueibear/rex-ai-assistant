@@ -35,26 +35,29 @@ import logging
 import re
 from typing import Any
 
-from rex.contracts import RiskLevel, ToolCall
+from rex.contracts import ToolCall
 from rex.policy_engine import PolicyEngine, get_policy_engine
 from rex.tool_registry import ToolRegistry, get_tool_registry
-from rex.workflow import Workflow, WorkflowStep, generate_workflow_id, generate_step_id
+from rex.workflow import Workflow, WorkflowStep, generate_step_id, generate_workflow_id
 
 logger = logging.getLogger(__name__)
 
 
 class PlannerError(Exception):
     """Base exception for planner errors."""
+
     pass
 
 
 class UnableToPlanError(PlannerError):
     """Raised when the planner cannot parse or plan for a goal."""
+
     pass
 
 
 class InvalidWorkflowError(PlannerError):
     """Raised when a workflow fails validation."""
+
     pass
 
 
@@ -86,40 +89,58 @@ class Planner:
         # Define planning rules: pattern -> step generator function
         self._rules: list[tuple[re.Pattern, Any]] = [
             # Email patterns
-            (re.compile(r"send\s+(?:monthly|weekly|daily)?\s*newsletter", re.IGNORECASE),
-             self._plan_newsletter),
-            (re.compile(r"send\s+(?:an?\s+)?(?:\w+\s+)*email(?:\s+to\s+(.+))?", re.IGNORECASE),
-             self._plan_send_email),
-            (re.compile(r"email\s+(.+)", re.IGNORECASE),
-             self._plan_send_email),
-
+            (
+                re.compile(r"send\s+(?:monthly|weekly|daily)?\s*newsletter", re.IGNORECASE),
+                self._plan_newsletter,
+            ),
+            (
+                re.compile(r"send\s+(?:an?\s+)?(?:\w+\s+)*email(?:\s+to\s+(.+))?", re.IGNORECASE),
+                self._plan_send_email,
+            ),
+            (re.compile(r"email\s+(.+)", re.IGNORECASE), self._plan_send_email),
             # Calendar patterns
-            (re.compile(r"schedule\s+(?:a\s+)?(?:meeting|event)\s+(.+)", re.IGNORECASE),
-             self._plan_schedule_event),
-            (re.compile(r"create\s+(?:a\s+)?calendar\s+event\s+(.+)", re.IGNORECASE),
-             self._plan_schedule_event),
-
+            (
+                re.compile(r"schedule\s+(?:a\s+)?(?:meeting|event)\s+(.+)", re.IGNORECASE),
+                self._plan_schedule_event,
+            ),
+            (
+                re.compile(r"create\s+(?:a\s+)?calendar\s+event\s+(.+)", re.IGNORECASE),
+                self._plan_schedule_event,
+            ),
             # Weather patterns
-            (re.compile(r"(?:check|get|what'?s)\s+(?:the\s+)?weather(?:\s+(?:in|for)\s+(.+))?", re.IGNORECASE),
-             self._plan_check_weather),
-
+            (
+                re.compile(
+                    r"(?:check|get|what'?s)\s+(?:the\s+)?weather(?:\s+(?:in|for)\s+(.+))?",
+                    re.IGNORECASE,
+                ),
+                self._plan_check_weather,
+            ),
             # Time patterns
-            (re.compile(r"(?:check|get|what'?s)\s+(?:the\s+)?(?:current\s+)?time(?:\s+(?:in|at)\s+(.+))?", re.IGNORECASE),
-             self._plan_check_time),
-
+            (
+                re.compile(
+                    r"(?:check|get|what'?s)\s+(?:the\s+)?(?:current\s+)?time(?:\s+(?:in|at)\s+(.+))?",
+                    re.IGNORECASE,
+                ),
+                self._plan_check_time,
+            ),
             # Home automation patterns
-            (re.compile(r"turn\s+(on|off)\s+(?:the\s+)?(.+)", re.IGNORECASE),
-             self._plan_home_control),
-            (re.compile(r"set\s+(.+?)\s+to\s+(.+)", re.IGNORECASE),
-             self._plan_home_control),
-
+            (
+                re.compile(r"turn\s+(on|off)\s+(?:the\s+)?(.+)", re.IGNORECASE),
+                self._plan_home_control,
+            ),
+            (re.compile(r"set\s+(.+?)\s+to\s+(.+)", re.IGNORECASE), self._plan_home_control),
             # Web search patterns
-            (re.compile(r"(?:search|look\s+up|find)\s+(?:for\s+)?(.+)", re.IGNORECASE),
-             self._plan_web_search),
-
+            (
+                re.compile(r"(?:search|look\s+up|find)\s+(?:for\s+)?(.+)", re.IGNORECASE),
+                self._plan_web_search,
+            ),
             # Report generation patterns
-            (re.compile(r"(?:create|generate|send)\s+(?:monthly|weekly|daily)\s+report", re.IGNORECASE),
-             self._plan_report),
+            (
+                re.compile(
+                    r"(?:create|generate|send)\s+(?:monthly|weekly|daily)\s+report", re.IGNORECASE
+                ),
+                self._plan_report,
+            ),
         ]
 
     def plan(self, goal: str, requested_by: str | None = None) -> Workflow:
@@ -154,12 +175,12 @@ class Planner:
                             steps=steps,
                             requested_by=requested_by or "planner",
                         )
-                        logger.info("Generated workflow %s with %d steps",
-                                  workflow.workflow_id, len(steps))
+                        logger.info(
+                            "Generated workflow %s with %d steps", workflow.workflow_id, len(steps)
+                        )
                         return workflow
                 except Exception as e:
-                    logger.warning("Step generator failed for pattern %s: %s",
-                                 pattern.pattern, e)
+                    logger.warning("Step generator failed for pattern %s: %s", pattern.pattern, e)
                     continue
 
         # No pattern matched
@@ -201,15 +222,15 @@ class Planner:
             try:
                 self.tool_registry.validate_credentials_for_tool(tool_name)
             except Exception as e:
-                logger.error("Validation failed: Credentials missing for '%s': %s",
-                           tool_name, e)
+                logger.error("Validation failed: Credentials missing for '%s': %s", tool_name, e)
                 return False
 
             # Check policy allows the tool (not denied)
             decision = self.policy_engine.decide(step.tool_call, metadata={})
             if decision.denied:
-                logger.error("Validation failed: Policy denies tool '%s': %s",
-                           tool_name, decision.reason)
+                logger.error(
+                    "Validation failed: Policy denies tool '%s': %s", tool_name, decision.reason
+                )
                 return False
 
             # Set requires_approval flag based on policy
@@ -228,31 +249,35 @@ class Planner:
 
         # Step 1: Search for newsletter contacts (simulated with web_search)
         if self.tool_registry.has_tool("web_search"):
-            steps.append(WorkflowStep(
-                step_id=generate_step_id(),
-                description="Search for newsletter contact list",
-                tool_call=ToolCall(
-                    tool="web_search",
-                    args={"query": "newsletter contacts"},
-                ),
-                idempotency_key=f"newsletter_search_{goal}",
-            ))
+            steps.append(
+                WorkflowStep(
+                    step_id=generate_step_id(),
+                    description="Search for newsletter contact list",
+                    tool_call=ToolCall(
+                        tool="web_search",
+                        args={"query": "newsletter contacts"},
+                    ),
+                    idempotency_key=f"newsletter_search_{goal}",
+                )
+            )
 
         # Step 2: Send newsletter email
         if self.tool_registry.has_tool("send_email"):
-            steps.append(WorkflowStep(
-                step_id=generate_step_id(),
-                description="Send newsletter email",
-                tool_call=ToolCall(
-                    tool="send_email",
-                    args={
-                        "to": "newsletter@example.com",
-                        "subject": "Newsletter",
-                        "body": "Newsletter content",
-                    },
-                ),
-                idempotency_key=f"newsletter_send_{goal}",
-            ))
+            steps.append(
+                WorkflowStep(
+                    step_id=generate_step_id(),
+                    description="Send newsletter email",
+                    tool_call=ToolCall(
+                        tool="send_email",
+                        args={
+                            "to": "newsletter@example.com",
+                            "subject": "Newsletter",
+                            "body": "Newsletter content",
+                        },
+                    ),
+                    idempotency_key=f"newsletter_send_{goal}",
+                )
+            )
 
         return steps
 
@@ -265,19 +290,21 @@ class Planner:
         if not self.tool_registry.has_tool("send_email"):
             return []
 
-        return [WorkflowStep(
-            step_id=generate_step_id(),
-            description=f"Send email to {recipient}",
-            tool_call=ToolCall(
-                tool="send_email",
-                args={
-                    "to": recipient,
-                    "subject": "Message from Rex",
-                    "body": goal,
-                },
-            ),
-            idempotency_key=f"email_{recipient}_{goal[:20]}",
-        )]
+        return [
+            WorkflowStep(
+                step_id=generate_step_id(),
+                description=f"Send email to {recipient}",
+                tool_call=ToolCall(
+                    tool="send_email",
+                    args={
+                        "to": recipient,
+                        "subject": "Message from Rex",
+                        "body": goal,
+                    },
+                ),
+                idempotency_key=f"email_{recipient}_{goal[:20]}",
+            )
+        ]
 
     def _plan_schedule_event(self, match: re.Match, goal: str) -> list[WorkflowStep]:
         """Generate steps for scheduling a calendar event."""
@@ -287,22 +314,26 @@ class Planner:
         if not self.tool_registry.has_tool("calendar_create_event"):
             return []
 
-        return [WorkflowStep(
-            step_id=generate_step_id(),
-            description=f"Create calendar event: {event_details}",
-            tool_call=ToolCall(
-                tool="calendar_create_event",
-                args={
-                    "summary": event_details,
-                    "description": goal,
-                },
-            ),
-            idempotency_key=f"calendar_{event_details[:20]}",
-        )]
+        return [
+            WorkflowStep(
+                step_id=generate_step_id(),
+                description=f"Create calendar event: {event_details}",
+                tool_call=ToolCall(
+                    tool="calendar_create_event",
+                    args={
+                        "summary": event_details,
+                        "description": goal,
+                    },
+                ),
+                idempotency_key=f"calendar_{event_details[:20]}",
+            )
+        ]
 
     def _plan_check_weather(self, match: re.Match, goal: str) -> list[WorkflowStep]:
         """Generate steps for checking weather."""
-        location = match.group(1) if match.lastindex and match.lastindex >= 1 else "current location"
+        location = (
+            match.group(1) if match.lastindex and match.lastindex >= 1 else "current location"
+        )
         if location:
             location = location.strip()
         else:
@@ -311,15 +342,17 @@ class Planner:
         if not self.tool_registry.has_tool("weather_now"):
             return []
 
-        return [WorkflowStep(
-            step_id=generate_step_id(),
-            description=f"Check weather in {location}",
-            tool_call=ToolCall(
-                tool="weather_now",
-                args={"location": location},
-            ),
-            idempotency_key=f"weather_{location}",
-        )]
+        return [
+            WorkflowStep(
+                step_id=generate_step_id(),
+                description=f"Check weather in {location}",
+                tool_call=ToolCall(
+                    tool="weather_now",
+                    args={"location": location},
+                ),
+                idempotency_key=f"weather_{location}",
+            )
+        ]
 
     def _plan_check_time(self, match: re.Match, goal: str) -> list[WorkflowStep]:
         """Generate steps for checking time."""
@@ -332,15 +365,17 @@ class Planner:
         if not self.tool_registry.has_tool("time_now"):
             return []
 
-        return [WorkflowStep(
-            step_id=generate_step_id(),
-            description=f"Get current time in {location}",
-            tool_call=ToolCall(
-                tool="time_now",
-                args={"location": location},
-            ),
-            idempotency_key=f"time_{location}",
-        )]
+        return [
+            WorkflowStep(
+                step_id=generate_step_id(),
+                description=f"Get current time in {location}",
+                tool_call=ToolCall(
+                    tool="time_now",
+                    args={"location": location},
+                ),
+                idempotency_key=f"time_{location}",
+            )
+        ]
 
     def _plan_home_control(self, match: re.Match, goal: str) -> list[WorkflowStep]:
         """Generate steps for home automation control."""
@@ -355,20 +390,25 @@ class Planner:
             action = action.strip().lower()
             device = device.strip()
 
-        return [WorkflowStep(
-            step_id=generate_step_id(),
-            description=f"Turn {action} {device}",
-            tool_call=ToolCall(
-                tool="home_assistant_call_service",
-                args={
-                    "domain": "light" if "light" in device.lower() else "switch",
-                    "service": "turn_on" if action == "on" else "turn_off",
-                    "entity_id": f"light.{device.replace(' ', '_')}" if "light" in device.lower()
-                               else f"switch.{device.replace(' ', '_')}",
-                },
-            ),
-            idempotency_key=f"home_{action}_{device}",
-        )]
+        return [
+            WorkflowStep(
+                step_id=generate_step_id(),
+                description=f"Turn {action} {device}",
+                tool_call=ToolCall(
+                    tool="home_assistant_call_service",
+                    args={
+                        "domain": "light" if "light" in device.lower() else "switch",
+                        "service": "turn_on" if action == "on" else "turn_off",
+                        "entity_id": (
+                            f"light.{device.replace(' ', '_')}"
+                            if "light" in device.lower()
+                            else f"switch.{device.replace(' ', '_')}"
+                        ),
+                    },
+                ),
+                idempotency_key=f"home_{action}_{device}",
+            )
+        ]
 
     def _plan_web_search(self, match: re.Match, goal: str) -> list[WorkflowStep]:
         """Generate steps for web search."""
@@ -378,15 +418,17 @@ class Planner:
         if not self.tool_registry.has_tool("web_search"):
             return []
 
-        return [WorkflowStep(
-            step_id=generate_step_id(),
-            description=f"Search for: {query}",
-            tool_call=ToolCall(
-                tool="web_search",
-                args={"query": query},
-            ),
-            idempotency_key=f"search_{query[:30]}",
-        )]
+        return [
+            WorkflowStep(
+                step_id=generate_step_id(),
+                description=f"Search for: {query}",
+                tool_call=ToolCall(
+                    tool="web_search",
+                    args={"query": query},
+                ),
+                idempotency_key=f"search_{query[:30]}",
+            )
+        ]
 
     def _plan_report(self, match: re.Match, goal: str) -> list[WorkflowStep]:
         """Generate steps for creating and sending a report."""
@@ -394,31 +436,35 @@ class Planner:
 
         # Step 1: Gather data (simulated with web_search)
         if self.tool_registry.has_tool("web_search"):
-            steps.append(WorkflowStep(
-                step_id=generate_step_id(),
-                description="Gather report data",
-                tool_call=ToolCall(
-                    tool="web_search",
-                    args={"query": "report metrics data"},
-                ),
-                idempotency_key=f"report_data_{goal}",
-            ))
+            steps.append(
+                WorkflowStep(
+                    step_id=generate_step_id(),
+                    description="Gather report data",
+                    tool_call=ToolCall(
+                        tool="web_search",
+                        args={"query": "report metrics data"},
+                    ),
+                    idempotency_key=f"report_data_{goal}",
+                )
+            )
 
         # Step 2: Send report via email
         if self.tool_registry.has_tool("send_email"):
-            steps.append(WorkflowStep(
-                step_id=generate_step_id(),
-                description="Send report via email",
-                tool_call=ToolCall(
-                    tool="send_email",
-                    args={
-                        "to": "reports@example.com",
-                        "subject": "Report",
-                        "body": "Report content",
-                    },
-                ),
-                idempotency_key=f"report_send_{goal}",
-            ))
+            steps.append(
+                WorkflowStep(
+                    step_id=generate_step_id(),
+                    description="Send report via email",
+                    tool_call=ToolCall(
+                        tool="send_email",
+                        args={
+                            "to": "reports@example.com",
+                            "subject": "Report",
+                            "body": "Report content",
+                        },
+                    ),
+                    idempotency_key=f"report_send_{goal}",
+                )
+            )
 
         return steps
 

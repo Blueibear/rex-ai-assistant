@@ -4,16 +4,18 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Sequence
+from dataclasses import dataclass
 from importlib import import_module
 from importlib.util import find_spec
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Protocol, Sequence
+from typing import Any, Protocol
 
 from rex.assistant_errors import ConfigurationError
 from rex.config import AppConfig, load_config
 from rex.logging_utils import get_logger
 
 logger = get_logger(__name__)
+
 
 def _module_available(name: str) -> bool:
     if name in sys.modules:
@@ -44,9 +46,8 @@ class LLMStrategy(Protocol):
         prompt: str,
         config: GenerationConfig,
         *,
-        messages: Optional[List[Dict[str, str]]] = None,
-    ) -> str:
-        ...
+        messages: list[dict[str, str]] | None = None,
+    ) -> str: ...
 
 
 class EchoStrategy:
@@ -85,7 +86,9 @@ class TransformersStrategy:
             torch = import_module("torch")
             transformers = import_module("transformers")
         except ImportError as exc:
-            raise ConfigurationError("Transformers backend requires `torch` and `transformers`.") from exc
+            raise ConfigurationError(
+                "Transformers backend requires `torch` and `transformers`."
+            ) from exc
 
         tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
         model = transformers.AutoModelForCausalLM.from_pretrained(model_name)
@@ -115,15 +118,17 @@ class TransformersStrategy:
             "pad_token_id": self.tokenizer.pad_token_id,
         }
         if do_sample:
-            generate_kwargs.update({
-                "temperature": max(config.temperature, 1e-4),
-                "top_p": config.top_p,
-                "top_k": config.top_k,
-            })
+            generate_kwargs.update(
+                {
+                    "temperature": max(config.temperature, 1e-4),
+                    "top_p": config.top_p,
+                    "top_k": config.top_k,
+                }
+            )
 
         outputs = self.pipeline(prompt, **generate_kwargs)
         text = outputs[0]["generated_text"]
-        return text[len(prompt):].strip() or "(silence)"
+        return text[len(prompt) :].strip() or "(silence)"
 
 
 class OpenAIStrategy:
@@ -162,7 +167,7 @@ class OpenAIStrategy:
         message = response.choices[0].message
 
         # Check if model wants to call a tool
-        if hasattr(message, 'tool_calls') and message.tool_calls:
+        if hasattr(message, "tool_calls") and message.tool_calls:
             return message  # Return full message object for tool handling
 
         content = getattr(message, "content", "") or ""
@@ -175,15 +180,15 @@ class OllamaStrategy:
     def __init__(
         self,
         model_name: str,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         base_url: str = "http://localhost:11434",
-        use_cloud: bool = False
+        use_cloud: bool = False,
     ) -> None:
         if not OLLAMA_AVAILABLE:
             raise ConfigurationError("Ollama backend requires the `ollama` package.")
         try:
             ollama = import_module("ollama")
-            client_cls = getattr(ollama, "Client")
+            client_cls = ollama.Client
         except Exception as exc:
             raise ConfigurationError("Ollama backend requires the `ollama` package.") from exc
         self.model_name = model_name
@@ -230,14 +235,19 @@ class OllamaStrategy:
             content = response.get("message", {}).get("content", "")
             return content.strip() or "(silence)"
         except Exception as exc:
-            logger.error("Ollama generation failed (model=%s, host=%s): %s", self.model_name, self.base_url, exc)
+            logger.error(
+                "Ollama generation failed (model=%s, host=%s): %s",
+                self.model_name,
+                self.base_url,
+                exc,
+            )
             return (
                 f"I had trouble contacting the Ollama server at {self.base_url}. "
                 f"Make sure `ollama serve` is running and the `{self.model_name}` model is pulled."
             )
 
 
-_STRATEGIES: Dict[str, type[LLMStrategy]] = {
+_STRATEGIES: dict[str, type[LLMStrategy]] = {
     EchoStrategy.name: EchoStrategy,
     TransformersStrategy.name: TransformersStrategy,
 }
@@ -248,14 +258,20 @@ def register_strategy(name: str, strategy: type[LLMStrategy]) -> None:
 
 
 class LanguageModel:
-    def __init__(self, config: Optional[AppConfig] = None, **overrides) -> None:
+    def __init__(self, config: AppConfig | None = None, **overrides) -> None:
         self.config = config or load_config()
         self.provider = (overrides.get("provider") or self.config.llm_provider).lower()
         if self.provider == "openai":
-            self.model_name = overrides.get("model") or self.config.openai_model or self.config.llm_model
+            self.model_name = (
+                overrides.get("model") or self.config.openai_model or self.config.llm_model
+            )
         else:
             self.model_name = overrides.get("model") or self.config.llm_model
-        self.api_key = overrides.get("openai_api_key") or self.config.openai_api_key or os.getenv("OPENAI_API_KEY")
+        self.api_key = (
+            overrides.get("openai_api_key")
+            or self.config.openai_api_key
+            or os.getenv("OPENAI_API_KEY")
+        )
 
         self.generation = GenerationConfig(
             max_new_tokens=overrides.get("max_new_tokens", self.config.llm_max_tokens),
@@ -287,14 +303,20 @@ class LanguageModel:
             logger.warning("Unknown LLM provider '%s'. Falling back to echo mode.", self.provider)
             return EchoStrategy(self.model_name)
 
-        if strategy_cls is TransformersStrategy and not (TORCH_AVAILABLE and TRANSFORMERS_AVAILABLE):
-            logger.warning("Transformers missing; using offline fallback for model '%s'.", self.model_name)
+        if strategy_cls is TransformersStrategy and not (
+            TORCH_AVAILABLE and TRANSFORMERS_AVAILABLE
+        ):
+            logger.warning(
+                "Transformers missing; using offline fallback for model '%s'.", self.model_name
+            )
             return OfflineTransformersStrategy(self.model_name)
 
         try:
             return strategy_cls(self.model_name)
         except Exception as exc:
-            logger.warning("LLM backend init failed (%s). Falling back to echo. (%s)", self.provider, exc)
+            logger.warning(
+                "LLM backend init failed (%s). Falling back to echo. (%s)", self.provider, exc
+            )
             return EchoStrategy(self.model_name)
 
     def _ensure_openai_client(self):
@@ -312,10 +334,14 @@ class LanguageModel:
             api_key = "local"
         if not api_key:
             raise ConfigurationError("Missing OpenAI API key.")
-        self._openai_client = OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
+        self._openai_client = (
+            OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
+        )
         return self._openai_client
 
-    def register_tool(self, name: str, description: str, parameters: Dict[str, Any], function: Any) -> None:
+    def register_tool(
+        self, name: str, description: str, parameters: dict[str, Any], function: Any
+    ) -> None:
         """Register a tool/function that the LLM can call.
 
         Args:
@@ -330,13 +356,13 @@ class LanguageModel:
                 "name": name,
                 "description": description,
                 "parameters": parameters,
-            }
+            },
         }
         self._tools.append(tool_def)
         self._tool_functions[name] = function
 
         # Update strategy if it supports tools
-        if hasattr(self.strategy, 'tools'):
+        if hasattr(self.strategy, "tools"):
             self.strategy.tools = self._tools
 
         logger.info(f"Registered tool: {name}")
@@ -360,13 +386,28 @@ class LanguageModel:
             logger.error(f"Tool execution failed: {e}")
             return f"Error executing {function_name}: {str(e)}"
 
-    def _format_messages(self, messages: Sequence[Dict[str, str]]) -> str:
-        return "\n".join(f"{m.get('role', 'user').capitalize()}: {m.get('content', '').strip()}" for m in messages if isinstance(m, dict)).strip()
+    def _format_messages(self, messages: Sequence[dict[str, str]]) -> str:
+        return "\n".join(
+            f"{m.get('role', 'user').capitalize()}: {m.get('content', '').strip()}"
+            for m in messages
+            if isinstance(m, dict)
+        ).strip()
 
-    def generate(self, prompt: Optional[str] = None, *, messages: Optional[Sequence[Dict[str, str]]] = None, config: Optional[GenerationConfig] = None, max_tool_rounds: int = 3) -> str:
+    def generate(
+        self,
+        prompt: str | None = None,
+        *,
+        messages: Sequence[dict[str, str]] | None = None,
+        config: GenerationConfig | None = None,
+        max_tool_rounds: int = 3,
+    ) -> str:
         if messages is not None:
             prompt_text = self._format_messages(messages)
-            normalized_messages = [{"role": str(m.get("role", "")), "content": str(m.get("content", ""))} for m in messages if isinstance(m, dict)]
+            normalized_messages = [
+                {"role": str(m.get("role", "")), "content": str(m.get("content", ""))}
+                for m in messages
+                if isinstance(m, dict)
+            ]
         elif isinstance(prompt, str):
             prompt_text = prompt
             normalized_messages = [{"role": "user", "content": prompt}]
@@ -382,14 +423,23 @@ class LanguageModel:
 
             for round_num in range(max_tool_rounds):
                 try:
-                    result = self.strategy.generate(prompt_text, config or self.generation, messages=current_messages, tools=self._tools)
+                    result = self.strategy.generate(
+                        prompt_text,
+                        config or self.generation,
+                        messages=current_messages,
+                        tools=self._tools,
+                    )
                 except TypeError:
                     # Fallback for strategies that don't support tools parameter
-                    result = self.strategy.generate(prompt_text, config or self.generation, messages=current_messages)
+                    result = self.strategy.generate(
+                        prompt_text, config or self.generation, messages=current_messages
+                    )
 
                 # Check if result is a message object with tool calls
-                if hasattr(result, 'tool_calls') and result.tool_calls:
-                    logger.info(f"Tool call round {round_num + 1}: Model requested {len(result.tool_calls)} tool(s)")
+                if hasattr(result, "tool_calls") and result.tool_calls:
+                    logger.info(
+                        f"Tool call round {round_num + 1}: Model requested {len(result.tool_calls)} tool(s)"
+                    )
 
                     # Add assistant message to conversation
                     assistant_msg = {
@@ -401,27 +451,30 @@ class LanguageModel:
                                 "type": "function",
                                 "function": {
                                     "name": tc.function.name,
-                                    "arguments": tc.function.arguments
-                                }
-                            } for tc in result.tool_calls
-                        ]
+                                    "arguments": tc.function.arguments,
+                                },
+                            }
+                            for tc in result.tool_calls
+                        ],
                     }
                     current_messages.append(assistant_msg)
 
                     # Execute each tool call and add results
                     for tool_call in result.tool_calls:
                         tool_result = self._execute_tool_call(tool_call)
-                        current_messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "content": tool_result
-                        })
+                        current_messages.append(
+                            {"role": "tool", "tool_call_id": tool_call.id, "content": tool_result}
+                        )
 
                     # Continue loop to get final response with tool results
                     continue
 
                 # No tool calls - return final response
-                return result.strip() if isinstance(result, str) else (result.content or "(silence)").strip()
+                return (
+                    result.strip()
+                    if isinstance(result, str)
+                    else (result.content or "(silence)").strip()
+                )
 
             # Max rounds reached
             logger.warning(f"Max tool rounds ({max_tool_rounds}) reached")
@@ -429,7 +482,9 @@ class LanguageModel:
 
         # No tools or not OpenAI - use original simple generation
         try:
-            result = self.strategy.generate(prompt_text, config or self.generation, messages=normalized_messages)
+            result = self.strategy.generate(
+                prompt_text, config or self.generation, messages=normalized_messages
+            )
             return result.strip() if isinstance(result, str) else str(result).strip()
         except TypeError:
             result = self.strategy.generate(prompt_text, config or self.generation)

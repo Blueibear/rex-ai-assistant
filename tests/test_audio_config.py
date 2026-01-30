@@ -37,7 +37,7 @@ def test_list_devices_requires_sounddevice(monkeypatch):
 def test_main_updates_json_config(monkeypatch, tmp_path):
     """Test that audio_config.main updates rex_config.json instead of .env."""
     # Create a temporary config file
-    config_path = tmp_path / "rex_config.json"
+    tmp_path / "rex_config.json"
 
     # Mock the config module to use our temp path
     saved_config = None

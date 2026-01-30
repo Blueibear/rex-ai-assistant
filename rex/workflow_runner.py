@@ -35,31 +35,27 @@ Usage:
 from __future__ import annotations
 
 import logging
-import time
-import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from rex.audit import LogEntry, get_audit_logger, AuditLogger
+from rex.audit import AuditLogger, LogEntry, get_audit_logger
 from rex.contracts import ToolCall
 from rex.policy import PolicyDecision
 from rex.policy_engine import PolicyEngine, get_policy_engine
 from rex.tool_router import (
     execute_tool,
-    PolicyDeniedError,
-    ApprovalRequiredError,
 )
 from rex.workflow import (
-    Workflow,
-    WorkflowStep,
-    WorkflowApproval,
-    StepResult,
-    get_condition,
-    generate_approval_id,
-    DEFAULT_WORKFLOW_DIR,
     DEFAULT_APPROVAL_DIR,
+    DEFAULT_WORKFLOW_DIR,
+    StepResult,
+    Workflow,
+    WorkflowApproval,
+    WorkflowStep,
+    generate_approval_id,
+    get_condition,
 )
 
 logger = logging.getLogger(__name__)
@@ -205,9 +201,7 @@ class WorkflowRunner:
                     self.workflow.advance()
                 else:
                     # Step failed, mark workflow as failed
-                    self.workflow.mark_failed(
-                        step_result.error or f"Step {step.step_id} failed"
-                    )
+                    self.workflow.mark_failed(step_result.error or f"Step {step.step_id} failed")
             except ApprovalBlockedError as e:
                 # Step is blocked pending approval
                 logger.info(
@@ -255,8 +249,7 @@ class WorkflowRunner:
         """
         if self.workflow.status != "blocked":
             raise ValueError(
-                f"Cannot resume workflow in status '{self.workflow.status}', "
-                "expected 'blocked'"
+                f"Cannot resume workflow in status '{self.workflow.status}', " "expected 'blocked'"
             )
 
         if not self.workflow.blocking_approval_id:
@@ -269,9 +262,7 @@ class WorkflowRunner:
         )
 
         if approval is None:
-            raise ValueError(
-                f"Approval {self.workflow.blocking_approval_id} not found"
-            )
+            raise ValueError(f"Approval {self.workflow.blocking_approval_id} not found")
 
         logger.info(
             "Checking approval %s status=%s for workflow %s",
@@ -292,9 +283,7 @@ class WorkflowRunner:
             )
 
         if approval.status == "denied":
-            self.workflow.mark_failed(
-                f"Approval denied: {approval.reason or 'No reason provided'}"
-            )
+            self.workflow.mark_failed(f"Approval denied: {approval.reason or 'No reason provided'}")
             self._save_workflow()
             return RunResult(
                 workflow_id=self.workflow.workflow_id,
@@ -349,7 +338,6 @@ class WorkflowRunner:
         blocking_reason: str | None = None
 
         # Temporarily save current state
-        original_status = self.workflow.status
         original_step_index = self.workflow.current_step_index
 
         for i, step in enumerate(self.workflow.steps):
@@ -394,16 +382,18 @@ class WorkflowRunner:
                 reason = f"Precondition '{step.precondition}' would fail"
                 would_execute = False
 
-            steps.append(DryRunStepResult(
-                step_id=step.step_id,
-                description=step.description,
-                tool=step.tool_call.tool if step.tool_call else None,
-                would_execute=would_execute,
-                policy_decision=policy_decision,
-                reason=reason,
-                precondition_passed=precondition_passed,
-                precondition_name=precondition_name,
-            ))
+            steps.append(
+                DryRunStepResult(
+                    step_id=step.step_id,
+                    description=step.description,
+                    tool=step.tool_call.tool if step.tool_call else None,
+                    would_execute=would_execute,
+                    policy_decision=policy_decision,
+                    reason=reason,
+                    precondition_passed=precondition_passed,
+                    precondition_name=precondition_name,
+                )
+            )
 
         return DryRunResult(
             workflow_id=self.workflow.workflow_id,
@@ -551,7 +541,11 @@ class WorkflowRunner:
         # Check for error in result
         if "error" in tool_result:
             error_info = tool_result["error"]
-            error_msg = error_info.get("message", str(error_info)) if isinstance(error_info, dict) else str(error_info)
+            error_msg = (
+                error_info.get("message", str(error_info))
+                if isinstance(error_info, dict)
+                else str(error_info)
+            )
             result = StepResult(
                 step_id=step.step_id,
                 success=False,
@@ -646,7 +640,7 @@ class WorkflowRunner:
         self,
         step: WorkflowStep,
         reason: str,
-    ) -> "ApprovalBlockedError":
+    ) -> ApprovalBlockedError:
         """Create an approval request and block the workflow.
 
         Args:
@@ -734,9 +728,7 @@ class ApprovalBlockedError(Exception):
     def __init__(self, approval_id: str, step_id: str) -> None:
         self.approval_id = approval_id
         self.step_id = step_id
-        super().__init__(
-            f"Step '{step_id}' blocked pending approval '{approval_id}'"
-        )
+        super().__init__(f"Step '{step_id}' blocked pending approval '{approval_id}'")
 
 
 def approve_workflow(
@@ -832,7 +824,7 @@ def list_pending_approvals(
     pending = []
     for file_path in approval_dir.glob("*.json"):
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 approval = WorkflowApproval.model_validate_json(f.read())
                 if approval.status == "pending":
                     pending.append(approval)

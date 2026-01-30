@@ -34,7 +34,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 import pytest
 
@@ -215,9 +215,21 @@ def test_calendar_event_creation() -> None:
 def test_calendar_event_overlaps() -> None:
     start = datetime(2026, 1, 28, 10, 0)
 
-    event1 = CalendarEvent(id="1", title="Event 1", start_time=start, end_time=start + timedelta(hours=2))
-    event2 = CalendarEvent(id="2", title="Event 2", start_time=start + timedelta(hours=1), end_time=start + timedelta(hours=3))
-    event3 = CalendarEvent(id="3", title="Event 3", start_time=start + timedelta(hours=3), end_time=start + timedelta(hours=4))
+    event1 = CalendarEvent(
+        id="1", title="Event 1", start_time=start, end_time=start + timedelta(hours=2)
+    )
+    event2 = CalendarEvent(
+        id="2",
+        title="Event 2",
+        start_time=start + timedelta(hours=1),
+        end_time=start + timedelta(hours=3),
+    )
+    event3 = CalendarEvent(
+        id="3",
+        title="Event 3",
+        start_time=start + timedelta(hours=3),
+        end_time=start + timedelta(hours=4),
+    )
 
     assert event1.overlaps_with(event2) is True
     assert event2.overlaps_with(event1) is True
@@ -344,7 +356,9 @@ def test_create_event_with_id(calendar_service: CalendarService) -> None:
 def test_create_event_not_connected() -> None:
     service = CalendarService(mock_data_file=Path("/nonexistent"))  # type: ignore[call-arg]
     start = datetime.now()
-    event = CalendarEvent(id="test", title="Test", start_time=start, end_time=start + timedelta(hours=1))
+    event = CalendarEvent(
+        id="test", title="Test", start_time=start, end_time=start + timedelta(hours=1)
+    )
 
     with pytest.raises(RuntimeError):
         service.create_event(event)  # type: ignore[attr-defined]
@@ -431,8 +445,15 @@ def test_find_conflicts(calendar_service: CalendarService) -> None:
     calendar_service.connect()  # type: ignore[attr-defined]
 
     start = datetime.now()
-    event1 = CalendarEvent(id="conflict-1", title="Event 1", start_time=start, end_time=start + timedelta(hours=2))
-    event2 = CalendarEvent(id="conflict-2", title="Event 2", start_time=start + timedelta(hours=1), end_time=start + timedelta(hours=3))
+    event1 = CalendarEvent(
+        id="conflict-1", title="Event 1", start_time=start, end_time=start + timedelta(hours=2)
+    )
+    event2 = CalendarEvent(
+        id="conflict-2",
+        title="Event 2",
+        start_time=start + timedelta(hours=1),
+        end_time=start + timedelta(hours=3),
+    )
 
     conflicts = calendar_service.find_conflicts([event1, event2])  # type: ignore[attr-defined]
     assert len(conflicts) == 1
@@ -447,8 +468,15 @@ def test_find_conflicts_none(calendar_service: CalendarService) -> None:
     calendar_service.connect()  # type: ignore[attr-defined]
 
     start = datetime.now()
-    event1 = CalendarEvent(id="no-conflict-1", title="Event 1", start_time=start, end_time=start + timedelta(hours=1))
-    event2 = CalendarEvent(id="no-conflict-2", title="Event 2", start_time=start + timedelta(hours=2), end_time=start + timedelta(hours=3))
+    event1 = CalendarEvent(
+        id="no-conflict-1", title="Event 1", start_time=start, end_time=start + timedelta(hours=1)
+    )
+    event2 = CalendarEvent(
+        id="no-conflict-2",
+        title="Event 2",
+        start_time=start + timedelta(hours=2),
+        end_time=start + timedelta(hours=3),
+    )
 
     conflicts = calendar_service.find_conflicts([event1, event2])  # type: ignore[attr-defined]
     assert conflicts == []
@@ -509,7 +537,9 @@ def test_persistence(temp_mock_calendar: Path) -> None:
     start = datetime.now() + timedelta(days=5)
     end = start + timedelta(hours=1)
 
-    new_event = CalendarEvent(id="persist-test", title="Persistence Test", start_time=start, end_time=end)
+    new_event = CalendarEvent(
+        id="persist-test", title="Persistence Test", start_time=start, end_time=end
+    )
     service1.create_event(new_event)  # type: ignore[attr-defined]
 
     service2 = CalendarService(mock_data_file=temp_mock_calendar)  # type: ignore[call-arg]
@@ -542,4 +572,3 @@ def test_calendar_event_serialization() -> None:
     assert data["title"] == "Test"
     assert data["start_time"] == start
     assert data["end_time"] == end
-

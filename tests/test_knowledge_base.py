@@ -2,20 +2,16 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from pathlib import Path
-
 import pytest
 
 from rex.knowledge_base import (
-    KnowledgeDocument,
     KnowledgeBase,
+    KnowledgeDocument,
     get_knowledge_base,
-    set_knowledge_base,
     ingest_document,
     search_documents,
+    set_knowledge_base,
 )
-
 
 # =============================================================================
 # KnowledgeDocument Tests

@@ -13,7 +13,6 @@ import importlib
 import json
 import os
 import sys
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -37,17 +36,23 @@ def app_client(monkeypatch, tmp_path):
 
     # Create temp config
     config_path = tmp_path / "rex_config.json"
-    config_path.write_text(json.dumps({
-        "models": {"llm_provider": "echo", "llm_model": "test"},
-        "runtime": {"log_level": "DEBUG"},
-    }))
+    config_path.write_text(
+        json.dumps(
+            {
+                "models": {"llm_provider": "echo", "llm_model": "test"},
+                "runtime": {"log_level": "DEBUG"},
+            }
+        )
+    )
 
     # Reset scheduler singleton before importing
     from rex import scheduler as scheduler_module
+
     scheduler_module._SCHEDULER = None
 
     # Create a new scheduler with temp path
     from rex.scheduler import Scheduler, set_scheduler
+
     test_scheduler = Scheduler(jobs_file=scheduler_path)
     set_scheduler(test_scheduler)
 

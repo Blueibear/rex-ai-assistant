@@ -32,7 +32,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -115,7 +115,7 @@ class Cue(BaseModel):
         default_factory=_utc_now,
         description="When the cue becomes eligible to be asked (UTC)",
     )
-    expires_at: Optional[datetime] = Field(
+    expires_at: datetime | None = Field(
         default=None,
         description="When the cue expires (UTC), None for no expiration",
     )
@@ -123,11 +123,11 @@ class Cue(BaseModel):
         default="pending",
         description="Current status of the cue",
     )
-    asked_at: Optional[datetime] = Field(
+    asked_at: datetime | None = Field(
         default=None,
         description="When the cue was asked (if applicable)",
     )
-    dismissed_at: Optional[datetime] = Field(
+    dismissed_at: datetime | None = Field(
         default=None,
         description="When the cue was dismissed (if applicable)",
     )
@@ -136,19 +136,19 @@ class Cue(BaseModel):
         description="Additional metadata for the cue",
     )
 
-    def is_expired(self, now: Optional[datetime] = None) -> bool:
+    def is_expired(self, now: datetime | None = None) -> bool:
         """Check if this cue has expired."""
         if self.expires_at is None:
             return False
         check_time = _ensure_utc(now or _utc_now())
         return check_time > _ensure_utc(self.expires_at)
 
-    def is_eligible(self, now: Optional[datetime] = None) -> bool:
+    def is_eligible(self, now: datetime | None = None) -> bool:
         """Check if this cue is eligible to be asked."""
         check_time = _ensure_utc(now or _utc_now())
         return check_time >= _ensure_utc(self.eligible_after)
 
-    def is_pending_and_eligible(self, now: Optional[datetime] = None) -> bool:
+    def is_pending_and_eligible(self, now: datetime | None = None) -> bool:
         """Check if this cue is pending and eligible to be asked."""
         check_time = _ensure_utc(now or _utc_now())
         return (
@@ -210,7 +210,7 @@ class CueStore:
         """Load cues from disk."""
         if self.storage_path.exists():
             try:
-                with open(self.storage_path, "r", encoding="utf-8") as f:
+                with open(self.storage_path, encoding="utf-8") as f:
                     data = json.load(f)
                     for cue_data in data.get("cues", []):
                         cue = Cue.model_validate(cue_data)
@@ -238,11 +238,11 @@ class CueStore:
         title: str,
         prompt: str,
         *,
-        eligible_after: Optional[datetime] = None,
-        expires_at: Optional[datetime] = None,
-        expires_in: Optional[timedelta] = None,
-        metadata: Optional[dict[str, Any]] = None,
-        cue_id: Optional[str] = None,
+        eligible_after: datetime | None = None,
+        expires_at: datetime | None = None,
+        expires_in: timedelta | None = None,
+        metadata: dict[str, Any] | None = None,
+        cue_id: str | None = None,
     ) -> Cue:
         """Add a new cue to the store.
 
@@ -267,7 +267,7 @@ class CueStore:
 
         effective_eligible = _ensure_utc(eligible_after) if eligible_after is not None else now
 
-        effective_expires: Optional[datetime] = None
+        effective_expires: datetime | None = None
         if expires_at is not None:
             effective_expires = _ensure_utc(expires_at)
         elif expires_in is not None:
@@ -292,20 +292,20 @@ class CueStore:
         logger.debug("Added cue %s for %s:%s", cue.cue_id, source_type, source_id)
         return cue
 
-    def get_cue(self, cue_id: str) -> Optional[Cue]:
+    def get_cue(self, cue_id: str) -> Cue | None:
         """Get a specific cue by ID."""
         return self._cues.get(cue_id)
 
     def list_pending_cues(
         self,
         user_id: str,
-        now: Optional[datetime] = None,
+        now: datetime | None = None,
         limit: int = 10,
-        window_hours: Optional[int] = None,
+        window_hours: int | None = None,
     ) -> list[Cue]:
         """List pending cues for a user."""
         check_time = _ensure_utc(now or _utc_now())
-        window_start: Optional[datetime] = None
+        window_start: datetime | None = None
         if window_hours is not None:
             window_start = check_time - timedelta(hours=window_hours)
 
@@ -324,8 +324,8 @@ class CueStore:
 
     def list_all_cues(
         self,
-        user_id: Optional[str] = None,
-        status: Optional[CueStatus] = None,
+        user_id: str | None = None,
+        status: CueStatus | None = None,
     ) -> list[Cue]:
         """List all cues with optional filtering."""
         cues = list(self._cues.values())
@@ -360,7 +360,7 @@ class CueStore:
         logger.debug("Dismissed cue %s", cue_id)
         return True
 
-    def prune_expired(self, now: Optional[datetime] = None) -> int:
+    def prune_expired(self, now: datetime | None = None) -> int:
         """Remove expired cues from the store."""
         check_time = _ensure_utc(now or _utc_now())
         expired_ids = [cue_id for cue_id, cue in self._cues.items() if cue.is_expired(check_time)]
@@ -391,7 +391,11 @@ class CueStore:
     ) -> bool:
         """Check if a cue already exists for a given source."""
         for cue in self._cues.values():
-            if cue.user_id == user_id and cue.source_type == source_type and cue.source_id == source_id:
+            if (
+                cue.user_id == user_id
+                and cue.source_type == source_type
+                and cue.source_id == source_id
+            ):
                 return True
         return False
 
@@ -416,7 +420,7 @@ class CueStore:
 
 
 # Global instance
-_cue_store: Optional[CueStore] = None
+_cue_store: CueStore | None = None
 
 
 def get_cue_store() -> CueStore:
@@ -427,7 +431,7 @@ def get_cue_store() -> CueStore:
     return _cue_store
 
 
-def set_cue_store(store: Optional[CueStore]) -> None:
+def set_cue_store(store: CueStore | None) -> None:
     """Set the global cue store instance (for testing)."""
     global _cue_store
     _cue_store = store

@@ -2,11 +2,6 @@
 
 from __future__ import annotations
 
-# Load .env before accessing any environment variables
-from utils.env_loader import load as _load_env
-
-_load_env()
-
 import argparse
 import platform
 import shutil
@@ -17,6 +12,10 @@ from pathlib import Path
 from assistant_errors import AssistantError, AudioDeviceError
 from audio_config import list_devices
 from logging_utils import get_logger
+from utils.env_loader import load as _load_env
+
+# Load .env before accessing any environment variables
+_load_env()
 
 logger = get_logger(__name__)
 

@@ -10,13 +10,16 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import TYPE_CHECKING, Any
 
 from rex.event_bus import EventBus
 
+if TYPE_CHECKING:
+    from rex.cue_store import CueStore
 logger = logging.getLogger(__name__)
 
 
@@ -93,7 +96,7 @@ class CalendarEvent:
             "all_day": self.all_day,
         }
 
-    def overlaps_with(self, other: "CalendarEvent") -> bool:
+    def overlaps_with(self, other: CalendarEvent) -> bool:
         """Return True if this event overlaps with another event."""
         return self.start_time < other.end_time and self.end_time > other.start_time
 
@@ -112,14 +115,18 @@ class CalendarService:
 
     def __init__(
         self,
-        event_bus: Optional[EventBus] = None,
+        event_bus: EventBus | None = None,
         *,
         mock_data_path: Path | str | None = None,
         mock_events: list[CalendarEvent] | None = None,
     ) -> None:
         self._event_bus = event_bus if event_bus is not None else _NoOpEventBus()
-        self._mock_data_path = Path(mock_data_path) if mock_data_path else Path("data/mock_calendar.json")
-        self._events: list[CalendarEvent] | None = list(mock_events) if mock_events is not None else None
+        self._mock_data_path = (
+            Path(mock_data_path) if mock_data_path else Path("data/mock_calendar.json")
+        )
+        self._events: list[CalendarEvent] | None = (
+            list(mock_events) if mock_events is not None else None
+        )
         self.connected = False
 
     def connect(self) -> bool:
@@ -132,7 +139,9 @@ class CalendarService:
             self._events = self._load_events()
             self.connected = True
             logger.info("Calendar service connected (mock mode)")
-            self._event_bus.publish("calendar.connected", {"connected": True, "count": len(self._events)})
+            self._event_bus.publish(
+                "calendar.connected", {"connected": True, "count": len(self._events)}
+            )
             return True
         except Exception as e:
             logger.error("Failed to connect calendar service: %s", e, exc_info=True)
@@ -147,9 +156,7 @@ class CalendarService:
 
         # Upcoming includes events that start within horizon or are currently ongoing
         upcoming = [
-            event
-            for event in events
-            if (event.start_time <= horizon) and (event.end_time > now)
+            event for event in events if (event.start_time <= horizon) and (event.end_time > now)
         ]
         upcoming.sort(key=lambda e: e.start_time)
 
@@ -192,23 +199,6 @@ class CalendarService:
         past_events.sort(key=lambda e: e.end_time)
         return past_events
 
-    def generate_followup_cues(self, cue_store: "CueStore", *, lookback_hours: int = 72) -> int:
-        """Generate follow-up cues for past events within the lookback window."""
-        created = 0
-        for event in self.list_past_events(lookback_hours=lookback_hours):
-            existing = cue_store.find_by_source("calendar", event.event_id)
-            if existing is not None:
-                continue
-            cue_store.add_cue(
-                prompt=f"How did '{event.title}' go?",
-                source="calendar",
-                source_id=event.event_id,
-                due_at=event.end_time,
-                metadata={"event_title": event.title},
-            )
-            created += 1
-        return created
-
     def create_event(
         self,
         title: str,
@@ -216,7 +206,7 @@ class CalendarService:
         end_time: datetime,
         *,
         location: str | None = None,
-        attendees: Optional[Iterable[str]] = None,
+        attendees: Iterable[str] | None = None,
         description: str | None = None,
         all_day: bool = False,
     ) -> CalendarEvent:
@@ -316,7 +306,7 @@ class CalendarService:
 
     def find_conflicts(
         self,
-        events: Optional[list[CalendarEvent]] = None,
+        events: list[CalendarEvent] | None = None,
     ) -> list[tuple[CalendarEvent, CalendarEvent]]:
         """
         Find overlapping event pairs.
@@ -455,7 +445,7 @@ class CalendarService:
         self,
         hours: int = 72,
         *,
-        now: Optional[datetime] = None,
+        now: datetime | None = None,
     ) -> list[CalendarEvent]:
         """Get events that ended within the specified time window.
 
@@ -470,20 +460,18 @@ class CalendarService:
         window_start = check_time - timedelta(hours=hours)
 
         events = self._load_events()
-        past_events = [
-            e for e in events
-            if e.end_time <= check_time and e.end_time >= window_start
-        ]
+        past_events = [e for e in events if e.end_time <= check_time and e.end_time >= window_start]
         past_events.sort(key=lambda e: e.end_time, reverse=True)
         return past_events
 
     def generate_followup_cues(
         self,
-        user_id: str,
+        cue_store: CueStore | None = None,
         *,
+        user_id: str | None = None,
         lookback_hours: int = 72,
         expire_hours: int = 168,
-        now: Optional[datetime] = None,
+        now: datetime | None = None,
     ) -> int:
         """Generate follow-up cues from recent past calendar events.
 
@@ -494,6 +482,7 @@ class CalendarService:
         - Events with 'no-followup' in metadata/description
 
         Args:
+            cue_store: Legacy cue store instance (optional).
             user_id: User ID to create cues for.
             lookback_hours: Only consider events ended within this many hours.
             expire_hours: Hours until the cue expires.
@@ -502,6 +491,44 @@ class CalendarService:
         Returns:
             Number of cues created.
         """
+        if cue_store is not None and user_id is None:
+            legacy_user_id = "default"
+            created = 0
+            for event in self.list_past_events(lookback_hours=lookback_hours):
+                if hasattr(cue_store, "has_cue_for_source"):
+                    if cue_store.has_cue_for_source(legacy_user_id, "calendar", event.event_id):
+                        continue
+                elif hasattr(cue_store, "find_by_source"):
+                    if cue_store.find_by_source("calendar", event.event_id) is not None:
+                        continue
+                else:
+                    # If the store cannot dedupe, proceed to add.
+                    pass
+                prompt = f"How did '{event.title}' go?"
+                try:
+                    cue_store.add_cue(
+                        user_id=legacy_user_id,
+                        source_type="calendar",
+                        source_id=event.event_id,
+                        title=event.title,
+                        prompt=prompt,
+                        eligible_after=event.end_time,
+                        metadata={"event_title": event.title},
+                    )
+                except TypeError:
+                    cue_store.add_cue(
+                        prompt,
+                        source="calendar",
+                        source_id=event.event_id,
+                        due_at=event.end_time,
+                        metadata={"event_title": event.title},
+                    )
+                created += 1
+            return created
+
+        if user_id is None:
+            raise TypeError("generate_followup_cues requires either cue_store or user_id")
+
         try:
             from rex.cue_store import get_cue_store
         except ImportError:
@@ -561,10 +588,19 @@ class CalendarService:
 
         title_lower = event.title.lower()
         holiday_keywords = [
-            "holiday", "day off", "vacation", "pto",
-            "christmas", "thanksgiving", "easter", "new year",
-            "independence day", "memorial day", "labor day",
-            "birthday", "anniversary",
+            "holiday",
+            "day off",
+            "vacation",
+            "pto",
+            "christmas",
+            "thanksgiving",
+            "easter",
+            "new year",
+            "independence day",
+            "memorial day",
+            "labor day",
+            "birthday",
+            "anniversary",
         ]
         for keyword in holiday_keywords:
             if keyword in title_lower:
@@ -597,10 +633,10 @@ class CalendarService:
 
 
 # Global calendar service instance (optional convenience)
-_calendar_service: Optional[CalendarService] = None
+_calendar_service: CalendarService | None = None
 
 
-def get_calendar_service(event_bus: Optional[EventBus] = None) -> CalendarService:
+def get_calendar_service(event_bus: EventBus | None = None) -> CalendarService:
     """Get the global calendar service instance."""
     global _calendar_service
     if _calendar_service is None:

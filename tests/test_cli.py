@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from io import StringIO
-from unittest.mock import patch
 
 import pytest
 

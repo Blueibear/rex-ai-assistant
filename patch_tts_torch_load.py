@@ -12,6 +12,7 @@ def find_tts_io_file():
     """Find the TTS io.py file in site-packages."""
     try:
         import TTS
+
         tts_path = Path(TTS.__file__).parent
         io_file = tts_path / "utils" / "io.py"
 
@@ -30,7 +31,7 @@ def patch_io_file(file_path):
     print(f"Patching file: {file_path}")
 
     # Read the file
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, encoding="utf-8") as f:
         content = f.read()
 
     # Check if already patched
@@ -42,7 +43,7 @@ def patch_io_file(file_path):
     old_line = "    return torch.load(f, map_location=map_location, **kwargs)"
 
     if old_line not in content:
-        print(f"WARNING: Could not find expected torch.load line in file")
+        print("WARNING: Could not find expected torch.load line in file")
         print("The file may have already been modified or have a different structure")
         return False
 
@@ -56,15 +57,15 @@ def patch_io_file(file_path):
     print(f"Creating backup: {backup_path}")
 
     # Read original file for backup
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, encoding="utf-8") as f:
         original_content = f.read()
 
-    with open(backup_path, 'w', encoding='utf-8') as f:
+    with open(backup_path, "w", encoding="utf-8") as f:
         f.write(original_content)
 
     # Write patched content
-    print(f"Writing patched file...")
-    with open(file_path, 'w', encoding='utf-8') as f:
+    print("Writing patched file...")
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write(content)
 
     print("✓ Successfully patched io.py!")

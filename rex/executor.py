@@ -34,11 +34,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-from rex.audit import get_audit_logger, AuditLogger
+from rex.audit import AuditLogger, get_audit_logger
 from rex.contracts import EvidenceRef
 from rex.policy_engine import PolicyEngine, get_policy_engine
-from rex.workflow import Workflow, WorkflowStep, StepResult
-from rex.workflow_runner import WorkflowRunner, RunResult
+from rex.workflow import StepResult, Workflow, WorkflowStep
+from rex.workflow_runner import RunResult, WorkflowRunner
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +50,7 @@ class BudgetExceededError(Exception):
         self.budget_type = budget_type
         self.limit = limit
         self.current = current
-        super().__init__(
-            f"Budget exceeded: {budget_type} limit={limit}, current={current}"
-        )
+        super().__init__(f"Budget exceeded: {budget_type} limit={limit}, current={current}")
 
 
 @dataclass
@@ -71,11 +69,7 @@ class ExecutionBudget:
 
     def is_unlimited(self) -> bool:
         """Check if all budget limits are unlimited."""
-        return (
-            self.max_actions == 0
-            and self.max_messages == 0
-            and self.max_time_seconds == 0
-        )
+        return self.max_actions == 0 and self.max_messages == 0 and self.max_time_seconds == 0
 
     def __repr__(self) -> str:
         parts = []
@@ -382,12 +376,21 @@ class Executor:
     def _calculate_remaining_budget(self, elapsed: float) -> ExecutionBudget:
         """Calculate remaining budget after execution."""
         return ExecutionBudget(
-            max_actions=max(0, self.budget.max_actions - self.actions_taken)
-                       if self.budget.max_actions > 0 else 0,
-            max_messages=max(0, self.budget.max_messages - self.messages_sent)
-                        if self.budget.max_messages > 0 else 0,
-            max_time_seconds=max(0, int(self.budget.max_time_seconds - elapsed))
-                            if self.budget.max_time_seconds > 0 else 0,
+            max_actions=(
+                max(0, self.budget.max_actions - self.actions_taken)
+                if self.budget.max_actions > 0
+                else 0
+            ),
+            max_messages=(
+                max(0, self.budget.max_messages - self.messages_sent)
+                if self.budget.max_messages > 0
+                else 0
+            ),
+            max_time_seconds=(
+                max(0, int(self.budget.max_time_seconds - elapsed))
+                if self.budget.max_time_seconds > 0
+                else 0
+            ),
         )
 
     def _generate_summary(self, run_result: RunResult) -> str:
@@ -419,13 +422,9 @@ class Executor:
         if not self.budget.is_unlimited():
             budget_parts = []
             if self.budget.max_actions > 0:
-                budget_parts.append(
-                    f"{self.actions_taken}/{self.budget.max_actions} actions"
-                )
+                budget_parts.append(f"{self.actions_taken}/{self.budget.max_actions} actions")
             if self.budget.max_messages > 0:
-                budget_parts.append(
-                    f"{self.messages_sent}/{self.budget.max_messages} messages"
-                )
+                budget_parts.append(f"{self.messages_sent}/{self.budget.max_messages} messages")
             if budget_parts:
                 lines.append(f"Budget used: {', '.join(budget_parts)}")
 

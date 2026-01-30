@@ -516,4 +516,3 @@ def test_email_summary_serialization() -> None:
     assert data["id"] == "test-1"
     assert data["from_addr"] == "test@example.com"
     assert data["received_at"] == now
-

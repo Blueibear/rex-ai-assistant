@@ -1,12 +1,11 @@
 """Command-line entry point for the Rex assistant.
 
 This module intentionally mirrors the historical top-level script so existing
-documentation that imports :mod:ex_assistant continues to work.
-"""
 
-from __future__ import annotations
+from utils.env_loader import load as _load_env
 
 # Load .env before accessing any environment variables
+_load_env()
 from utils.env_loader import load as _load_env
 
 _load_env()

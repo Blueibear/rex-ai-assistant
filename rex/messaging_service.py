@@ -19,7 +19,6 @@ import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -28,7 +27,7 @@ from rex.credentials import get_credential_manager
 logger = logging.getLogger(__name__)
 
 # Global SMS service instance
-_sms_service: Optional["SMSService"] = None
+_sms_service: SMSService | None = None
 
 
 def _utc_now() -> datetime:
@@ -71,7 +70,7 @@ class Message(BaseModel):
         default_factory=_utc_now,
         description="Message timestamp (UTC)",
     )
-    thread_id: Optional[str] = Field(
+    thread_id: str | None = Field(
         default=None,
         description="Thread identifier for grouping related messages",
     )
@@ -165,8 +164,8 @@ class SMSService(MessagingService):
 
     def __init__(
         self,
-        mock_file: Optional[Path] = None,
-        from_number: Optional[str] = None,
+        mock_file: Path | None = None,
+        from_number: str | None = None,
     ):
         """Initialize the SMS service.
 

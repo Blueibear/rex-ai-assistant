@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -246,8 +245,7 @@ class CredentialManager:
         Runtime credentials set via set_token() will be preserved.
         """
         runtime_creds = {
-            name: cred for name, cred in self._credentials.items()
-            if cred.source == "runtime"
+            name: cred for name, cred in self._credentials.items() if cred.source == "runtime"
         }
         self._credentials.clear()
         self._loaded = False

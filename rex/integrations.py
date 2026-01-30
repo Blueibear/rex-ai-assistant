@@ -6,7 +6,6 @@ calendar, and other automated tasks.
 """
 
 import logging
-from datetime import datetime
 
 from rex.calendar_service import get_calendar_service
 from rex.email_service import get_email_service
@@ -46,11 +45,11 @@ def setup_email_job() -> ScheduledJob:
 
                 # Publish event
                 event = Event(
-                    event_type='email.unread',
+                    event_type="email.unread",
                     payload={
-                        'count': len(unread_emails),
-                        'emails': [email.model_dump() for email in unread_emails]
-                    }
+                        "count": len(unread_emails),
+                        "emails": [email.model_dump() for email in unread_emails],
+                    },
                 )
                 event_bus.publish(event)
 
@@ -61,15 +60,15 @@ def setup_email_job() -> ScheduledJob:
         except Exception as e:
             logger.error(f"Error checking emails: {e}", exc_info=True)
 
-    scheduler.register_callback('check_email', check_email)
+    scheduler.register_callback("check_email", check_email)
 
     # Add job (runs every 10 minutes = 600 seconds)
     job = scheduler.add_job(
-        job_id='email_check',
-        name='Check Email',
-        schedule='interval:600',
-        callback_name='check_email',
-        enabled=True
+        job_id="email_check",
+        name="Check Email",
+        schedule="interval:600",
+        callback_name="check_email",
+        enabled=True,
     )
 
     logger.info("Email check job registered")
@@ -101,11 +100,8 @@ def setup_calendar_job() -> ScheduledJob:
 
             # Publish event
             event = Event(
-                event_type='calendar.update',
-                payload={
-                    'count': len(events),
-                    'events': [e.model_dump() for e in events]
-                }
+                event_type="calendar.update",
+                payload={"count": len(events), "events": [e.model_dump() for e in events]},
             )
             event_bus.publish(event)
 
@@ -114,15 +110,15 @@ def setup_calendar_job() -> ScheduledJob:
         except Exception as e:
             logger.error(f"Error syncing calendar: {e}", exc_info=True)
 
-    scheduler.register_callback('sync_calendar', sync_calendar)
+    scheduler.register_callback("sync_calendar", sync_calendar)
 
     # Add job (runs every hour = 3600 seconds)
     job = scheduler.add_job(
-        job_id='calendar_sync',
-        name='Sync Calendar',
-        schedule='interval:3600',
-        callback_name='sync_calendar',
-        enabled=True
+        job_id="calendar_sync",
+        name="Sync Calendar",
+        schedule="interval:3600",
+        callback_name="sync_calendar",
+        enabled=True,
     )
 
     logger.info("Calendar sync job registered")
@@ -135,17 +131,17 @@ def setup_default_event_handlers() -> None:
 
     def log_email_event(event: Event) -> None:
         """Log email events."""
-        count = event.payload.get('count', 0)
+        count = event.payload.get("count", 0)
         logger.info(f"Email event received: {count} unread email(s)")
 
     def log_calendar_event(event: Event) -> None:
         """Log calendar events."""
-        count = event.payload.get('count', 0)
+        count = event.payload.get("count", 0)
         logger.info(f"Calendar event received: {count} upcoming event(s)")
 
     # Subscribe handlers
-    event_bus.subscribe('email.unread', log_email_event)
-    event_bus.subscribe('calendar.update', log_calendar_event)
+    event_bus.subscribe("email.unread", log_email_event)
+    event_bus.subscribe("calendar.update", log_calendar_event)
 
     logger.info("Default event handlers registered")
 

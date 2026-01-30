@@ -16,6 +16,7 @@ from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
 
+
 def _import_optional(module_name: str):
     module = sys.modules.get(module_name)
     if module is not None:
@@ -203,11 +204,15 @@ class WakeWordListener:
                 self._stream.start()
 
                 # Success!
-                logger.info(f"Wake-word listener started successfully on device {self.device} ({device_name}) at {samplerate} Hz")
+                logger.info(
+                    f"Wake-word listener started successfully on device {self.device} ({device_name}) at {samplerate} Hz"
+                )
 
                 # Update sample_rate if we had to use a different one
                 if samplerate != self.sample_rate:
-                    logger.warning(f"Using samplerate {samplerate} instead of requested {self.sample_rate}")
+                    logger.warning(
+                        f"Using samplerate {samplerate} instead of requested {self.sample_rate}"
+                    )
                     self.sample_rate = samplerate
 
                 return
@@ -237,7 +242,9 @@ class WakeWordListener:
         error_str = str(last_exception).lower()
         if "directsound" in error_str and "-2005401480" in error_str:
             error_msg += "\n\n💡 DirectSound Exclusive Access Error - Try these fixes:"
-            error_msg += "\n   1. Close any apps using the microphone (Skype, Teams, Discord, Zoom, OBS)"
+            error_msg += (
+                "\n   1. Close any apps using the microphone (Skype, Teams, Discord, Zoom, OBS)"
+            )
             error_msg += "\n   2. Disable exclusive mode: Sound settings → Recording → Device Properties → Advanced → Uncheck 'Allow exclusive control'"
             error_msg += "\n   3. Look for a WASAPI version of this device in the device dropdown (more reliable than DirectSound)"
             error_msg += "\n   4. Try a different audio device"
@@ -267,7 +274,9 @@ class WakeWordListener:
         # Log every 100 callbacks (~5-10 seconds) to show we're receiving audio
         if self._callback_count % 100 == 1:
             audio_level = np.max(np.abs(indata)) if indata.size > 0 else 0.0
-            logger.info(f"Audio callback #{self._callback_count}: receiving audio (level: {audio_level:.3f})")
+            logger.info(
+                f"Audio callback #{self._callback_count}: receiving audio (level: {audio_level:.3f})"
+            )
 
         if status:
             logger.warning("Audio status: %s", status)
@@ -276,7 +285,9 @@ class WakeWordListener:
 
         # TEMPORARY DEBUG: Log before calling detect_wakeword
         if self._callback_count % 100 == 1:
-            logger.info(f">>> ABOUT TO CALL detect_wakeword (callback #{self._callback_count}, threshold={self.threshold})")
+            logger.info(
+                f">>> ABOUT TO CALL detect_wakeword (callback #{self._callback_count}, threshold={self.threshold})"
+            )
 
         try:
             result = detect_wakeword(self.model, audio_data, threshold=self.threshold)
@@ -286,7 +297,9 @@ class WakeWordListener:
                 logger.info(f"<<< detect_wakeword RETURNED: {result}")
 
             if bool(result):
-                logger.info("!!! WAKE WORD DETECTED IN CALLBACK - calling loop.call_soon_threadsafe to set event")
+                logger.info(
+                    "!!! WAKE WORD DETECTED IN CALLBACK - calling loop.call_soon_threadsafe to set event"
+                )
                 if self.loop is None:
                     logger.error("!!! ERROR: loop is None - cannot schedule event.set()!")
                 else:
@@ -295,6 +308,7 @@ class WakeWordListener:
         except Exception as exc:
             logger.error("Wake-word detection failed: %s", exc)
             import traceback
+
             logger.error(f"Traceback: {traceback.format_exc()}")
 
     async def wait_for_wake(self) -> None:
@@ -311,7 +325,9 @@ class AsyncRexAssistant:
         self.language_model = LanguageModel(self.config)
         self._wake_sound_path: str | None = None
         try:
-            self._wake_sound_path = ensure_wake_acknowledgment_sound(path=self.config.wake_sound_path)
+            self._wake_sound_path = ensure_wake_acknowledgment_sound(
+                path=self.config.wake_sound_path
+            )
         except Exception as exc:
             logger.warning("Failed to generate wake acknowledgment sound: %s", exc)
         self._wake_model, self._wake_keyword = load_wakeword_model(
@@ -378,8 +394,11 @@ class AsyncRexAssistant:
             if tts_class is None:
                 raise TextToSpeechError("TTS is not installed")
             import torch
+
             gpu_available = torch.cuda.is_available()
-            logger.info(f"Loading TTS model (XTTS v2) on {'GPU' if gpu_available else 'CPU (WARNING: GPU not available!)'}...")
+            logger.info(
+                f"Loading TTS model (XTTS v2) on {'GPU' if gpu_available else 'CPU (WARNING: GPU not available!)'}..."
+            )
             self._tts = tts_class(
                 model_name="tts_models/multilingual/multi-dataset/xtts_v2",
                 progress_bar=False,
@@ -390,11 +409,15 @@ class AsyncRexAssistant:
             if gpu_available:
                 try:
                     # Try to move model to GPU explicitly
-                    if hasattr(self._tts, 'synthesizer') and hasattr(self._tts.synthesizer, 'tts_model'):
+                    if hasattr(self._tts, "synthesizer") and hasattr(
+                        self._tts.synthesizer, "tts_model"
+                    ):
                         device = next(self._tts.synthesizer.tts_model.parameters()).device
                         logger.info(f"TTS model device: {device}")
-                        if device.type != 'cuda':
-                            logger.warning(f"⚠️  TTS model is on {device.type}, not CUDA! Attempting to move to GPU...")
+                        if device.type != "cuda":
+                            logger.warning(
+                                f"⚠️  TTS model is on {device.type}, not CUDA! Attempting to move to GPU..."
+                            )
                             self._tts.synthesizer.tts_model = self._tts.synthesizer.tts_model.cuda()
                             logger.info("✓ Moved TTS model to GPU")
                 except Exception as e:
@@ -418,7 +441,10 @@ class AsyncRexAssistant:
         """Register loaded plugins as LLM tools for function calling."""
         # Only register tools if using OpenAI-compatible provider
         if self.config.llm_provider.lower() not in ["openai", "ollama"]:
-            logger.info("LLM provider '%s' does not support function calling; skipping tool registration", self.config.llm_provider)
+            logger.info(
+                "LLM provider '%s' does not support function calling; skipping tool registration",
+                self.config.llm_provider,
+            )
             return
 
         # Register web_search plugin if available
@@ -434,12 +460,12 @@ class AsyncRexAssistant:
                         "properties": {
                             "query": {
                                 "type": "string",
-                                "description": "The search query to look up on the web"
+                                "description": "The search query to look up on the web",
                             }
                         },
-                        "required": ["query"]
+                        "required": ["query"],
                     },
-                    function=search_web
+                    function=search_web,
                 )
                 logger.info("Registered web_search tool for LLM function calling")
             except Exception as exc:
@@ -447,13 +473,17 @@ class AsyncRexAssistant:
 
     async def run(self) -> None:
         if self._state in {"starting", "running"}:
-            logger.warning("Assistant start requested while already %s; ignoring duplicate start.", self._state)
+            logger.warning(
+                "Assistant start requested while already %s; ignoring duplicate start.", self._state
+            )
             return
         self._state = "starting"
         self._running = True
 
         # Log wake word details right before starting (this is in background thread so GUI will see it)
-        logger.info(f"Starting wake word listener for keyword: '{self._wake_keyword}' (threshold: {self.config.wakeword_threshold})")
+        logger.info(
+            f"Starting wake word listener for keyword: '{self._wake_keyword}' (threshold: {self.config.wakeword_threshold})"
+        )
         logger.info(f"Wake word model type: {type(self._wake_model).__name__}")
 
         # CRITICAL: Get the running event loop and update listener to use it
@@ -466,7 +496,7 @@ class AsyncRexAssistant:
         logger.info("Pre-loading Whisper and TTS models in background...")
         try:
             await asyncio.to_thread(self._get_whisper)  # Pre-load Whisper
-            await asyncio.to_thread(self._get_tts)      # Pre-load TTS on GPU
+            await asyncio.to_thread(self._get_tts)  # Pre-load TTS on GPU
             logger.info("Models pre-loaded successfully")
         except Exception:
             logger.exception("Model preloading failed with an exception")
@@ -503,17 +533,23 @@ class AsyncRexAssistant:
 
     async def _handle_interaction(self) -> None:
         import time
+
         start_time = time.time()
-        logger.info(">>> _handle_interaction() started - playing wake sound and processing conversation...")
+        logger.info(
+            ">>> _handle_interaction() started - playing wake sound and processing conversation..."
+        )
         try:
             # Play wake sound first, then record (don't overlap to avoid audio device conflicts)
             await asyncio.to_thread(self._play_wake_sound)
             await self._process_conversation()
             total_time = time.time() - start_time
-            logger.info(f">>> _handle_interaction() completed successfully in {total_time:.2f} seconds")
+            logger.info(
+                f">>> _handle_interaction() completed successfully in {total_time:.2f} seconds"
+            )
         except Exception as exc:
             logger.error(f"!!! _handle_interaction() FAILED: {exc}")
             import traceback
+
             logger.error(f"Traceback: {traceback.format_exc()}")
 
     async def _process_conversation(self) -> None:
@@ -526,7 +562,13 @@ class AsyncRexAssistant:
             max_val = float(np.max(audio))
         else:
             min_val = max_val = 0.0
-        logger.info("Audio shape: %s, dtype: %s, min: %.4f, max: %.4f", audio.shape, audio.dtype, min_val, max_val)
+        logger.info(
+            "Audio shape: %s, dtype: %s, min: %.4f, max: %.4f",
+            audio.shape,
+            audio.dtype,
+            min_val,
+            max_val,
+        )
 
         try:
             transcript = await self.transcribe(audio, self._sample_rate)
@@ -591,7 +633,9 @@ class AsyncRexAssistant:
         audio = np.squeeze(audio)
 
         peak = float(np.max(np.abs(audio))) if audio.size else 0.0
-        logger.debug("[MIC] Recorded %s samples, %.2fs, peak volume %.4f", audio.size, duration, peak)
+        logger.debug(
+            "[MIC] Recorded %s samples, %.2fs, peak volume %.4f", audio.size, duration, peak
+        )
 
         debug_output = Path("debug_recording.wav")
         if soundfile is None:
@@ -625,6 +669,7 @@ class AsyncRexAssistant:
 
     def _speak_response(self, text: str) -> None:
         import time
+
         np = _require_numpy()
         soundfile = _lazy_import_soundfile()
         if soundfile is None:
@@ -691,6 +736,7 @@ class AsyncRexAssistant:
             if platform.system() == "Windows":
                 # Use winsound on Windows (more reliable than simpleaudio)
                 import winsound
+
                 winsound.PlaySound("assistant_response.wav", winsound.SND_FILENAME)
                 # Give Windows time to release audio device before next recording
                 time.sleep(0.5)
@@ -754,7 +800,9 @@ class AsyncRexAssistant:
 
             logger.info("Wake acknowledgment tone played (Windows)")
         except Exception as exc:
-            logger.warning("Failed to play wake sound with winsound: %s, falling back to sounddevice", exc)
+            logger.warning(
+                "Failed to play wake sound with winsound: %s, falling back to sounddevice", exc
+            )
             self._play_wake_sound_sounddevice(path)
 
     def _play_wake_sound_sounddevice(self, path: str | Path) -> None:
@@ -791,7 +839,6 @@ class AsyncRexAssistant:
             except Exception:
                 pass
 
-
     def _maybe_switch_user(self, transcript: str) -> bool:
         cleaned = transcript.strip().lower()
         if not cleaned.startswith("this is "):
@@ -808,7 +855,9 @@ class AsyncRexAssistant:
 
     def stop_requested_by(self, requested_by: str) -> None:
         self._stop_requested_by = requested_by
-        logger.info("Stop requested by %s (state=%s, running=%s)", requested_by, self._state, self._running)
+        logger.info(
+            "Stop requested by %s (state=%s, running=%s)", requested_by, self._state, self._running
+        )
         self._running = False
         self._listener.trigger()
 

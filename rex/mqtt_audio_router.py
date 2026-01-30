@@ -10,7 +10,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any
 
 import numpy as np
 
@@ -47,9 +47,9 @@ class AudioSession:
     created_at: float = field(default_factory=time.perf_counter)
     sequence: int = 0
     buffer: bytearray = field(default_factory=bytearray)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def append_chunk(self, chunk: bytes, sequence: Optional[int]) -> None:
+    def append_chunk(self, chunk: bytes, sequence: int | None) -> None:
         if sequence is not None and sequence <= self.sequence:
             logger.warning(
                 "Out-of-order chunk for node %s: got %s after %s",
@@ -75,16 +75,16 @@ class MqttAudioRouter:
         self,
         *,
         assistant: Assistant,
-        mqtt_client: Optional[RexMQTTClient] = None,
-        speech_to_text: Optional[SpeechToText] = None,
-        text_to_speech: Optional[TextToSpeech] = None,
+        mqtt_client: RexMQTTClient | None = None,
+        speech_to_text: SpeechToText | None = None,
+        text_to_speech: TextToSpeech | None = None,
     ) -> None:
         self._assistant = assistant
         self._client = mqtt_client or RexMQTTClient()
         self._speech_to_text = speech_to_text
         self._text_to_speech = text_to_speech
-        self._voice_reference: Optional[str] = None
-        self._sessions: Dict[str, AudioSession] = {}
+        self._voice_reference: str | None = None
+        self._sessions: dict[str, AudioSession] = {}
         self._pending_tasks: set[asyncio.Task[Any]] = set()
         self._started = False
 
@@ -133,7 +133,7 @@ class MqttAudioRouter:
                 default_speaker=self._voice_reference,
             )
 
-    async def _handle_audio_message(self, topic: str, payload: Dict[str, Any]) -> None:
+    async def _handle_audio_message(self, topic: str, payload: dict[str, Any]) -> None:
         node_id = payload.get("node_id")
         if not node_id:
             logger.warning("[MQTT] audio message missing node_id.")
@@ -176,10 +176,12 @@ class MqttAudioRouter:
         self,
         node_id: str,
         session: AudioSession,
-        final_payload: Dict[str, Any],
+        final_payload: dict[str, Any],
     ) -> None:
         start = session.created_at
-        duration_ms = lambda: round((time.perf_counter() - start) * 1000, 2)
+
+        def duration_ms():
+            return round((time.perf_counter() - start) * 1000, 2)
 
         if self._speech_to_text is None or self._text_to_speech is None:
             logger.error("[MQTT] Cannot process session; STT or TTS unavailable.")
@@ -198,7 +200,7 @@ class MqttAudioRouter:
             logger.exception("[MQTT] Failed to decode mu-law audio from node %s: %s", node_id, exc)
             return
 
-        transcript: Optional[str] = None
+        transcript: str | None = None
         try:
             transcript = await self._speech_to_text.transcribe(audio, session.sample_rate)
             logger.info("[MQTT] Node %s transcript: %s", node_id, transcript)

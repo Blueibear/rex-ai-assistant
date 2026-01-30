@@ -4,7 +4,6 @@ This script modifies the installed TTS library file that imports BeamSearchScore
 from transformers, updating it to import from the new location.
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -13,13 +12,16 @@ def find_tts_stream_generator():
     """Find the TTS stream_generator.py file in site-packages."""
     try:
         import TTS
+
         tts_path = Path(TTS.__file__).parent
         stream_gen_file = tts_path / "tts" / "layers" / "xtts" / "stream_generator.py"
 
         if stream_gen_file.exists():
             return stream_gen_file
         else:
-            print(f"ERROR: Could not find stream_generator.py at expected location: {stream_gen_file}")
+            print(
+                f"ERROR: Could not find stream_generator.py at expected location: {stream_gen_file}"
+            )
             return None
     except ImportError:
         print("ERROR: TTS is not installed")
@@ -31,7 +33,7 @@ def patch_stream_generator(file_path):
     print(f"Patching file: {file_path}")
 
     # Read the file
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, encoding="utf-8") as f:
         content = f.read()
 
     # Check if already patched
@@ -43,7 +45,7 @@ def patch_stream_generator(file_path):
     old_import = "from transformers import ("
 
     if old_import not in content:
-        print(f"WARNING: Could not find expected import statement in file")
+        print("WARNING: Could not find expected import statement in file")
         print("The file may have already been modified or have a different structure")
         return False
 
@@ -83,12 +85,12 @@ except (ImportError, AttributeError):
     # Make backup
     backup_path = str(file_path) + ".backup"
     print(f"Creating backup: {backup_path}")
-    with open(backup_path, 'w', encoding='utf-8') as f:
+    with open(backup_path, "w", encoding="utf-8") as f:
         f.write(content)
 
     # Write patched content
-    print(f"Writing patched file...")
-    with open(file_path, 'w', encoding='utf-8') as f:
+    print("Writing patched file...")
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write(content)
 
     print("✓ Successfully patched stream_generator.py!")

@@ -74,7 +74,9 @@ def ensure_wake_acknowledgment_sound(
     if os.path.exists(target_path) and os.path.getsize(target_path) > 0:
         return target_path
 
-    _LOGGER.warning("Wake acknowledgment sound missing; generating fallback beep at %s", target_path)
+    _LOGGER.warning(
+        "Wake acknowledgment sound missing; generating fallback beep at %s", target_path
+    )
 
     total_frames = int(_DURATION_SECONDS * _SAMPLE_RATE)
 

@@ -12,30 +12,53 @@ Excludes: .git, .venv, venv, source, node_modules, dist, build, __pycache__, bac
 import re
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 # Directories to exclude
 EXCLUDE_DIRS = {
-    ".git", ".venv", "venv", "source", "node_modules",
-    "dist", "build", "__pycache__", "backups", "logs"
+    ".git",
+    ".venv",
+    "venv",
+    "source",
+    "node_modules",
+    "dist",
+    "build",
+    "__pycache__",
+    "backups",
+    "logs",
 }
 
 # File extensions to scan
 INCLUDE_EXTENSIONS = {
-    ".py", ".md", ".yml", ".yaml", ".toml", ".json",
-    ".ini", ".cfg", ".ps1", ".bat", ".sh", ".txt"
+    ".py",
+    ".md",
+    ".yml",
+    ".yaml",
+    ".toml",
+    ".json",
+    ".ini",
+    ".cfg",
+    ".ps1",
+    ".bat",
+    ".sh",
+    ".txt",
 }
 
 # Patterns to detect
 MERGE_MARKERS = re.compile(r"^(<{7}|={7}|>{7})", re.MULTILINE)
 PLACEHOLDER_MARKERS = re.compile(
     r"TRUNCAT|TBD|TODO|FIXME|PLACEHOLDER|INSERT HERE|REPLACE ME|WIP|COMING SOON|CUT HERE",
-    re.IGNORECASE
+    re.IGNORECASE,
 )
 # Real secret patterns (not documentation placeholders)
 SECRET_PATTERNS = [
     (re.compile(r"sk-[A-Za-z0-9]{40,}"), "OpenAI API key"),  # Real keys are longer
-    (re.compile(r'["\']?api[_-]?key["\']?\s*[:=]\s*["\'](?!sk-\.\.\.|your|example|test|dummy|xxx)[A-Za-z0-9]{20,}["\']', re.IGNORECASE), "Generic API key"),
+    (
+        re.compile(
+            r'["\']?api[_-]?key["\']?\s*[:=]\s*["\'](?!sk-\.\.\.|your|example|test|dummy|xxx)[A-Za-z0-9]{20,}["\']',
+            re.IGNORECASE,
+        ),
+        "Generic API key",
+    ),
     (re.compile(r"-----BEGIN (RSA |DSA )?PRIVATE KEY-----"), "Private key"),
     (re.compile(r"aws_secret_access_key\s*=\s*[A-Za-z0-9/+]{40}"), "AWS secret key"),
 ]
@@ -52,7 +75,7 @@ def should_scan_file(filepath: Path) -> bool:
     return filepath.suffix in INCLUDE_EXTENSIONS
 
 
-def scan_file(filepath: Path) -> Tuple[List[str], List[str], List[str]]:
+def scan_file(filepath: Path) -> tuple[list[str], list[str], list[str]]:
     """Scan a file and return lists of issues found."""
     merge_issues = []
     placeholder_issues = []
@@ -74,7 +97,9 @@ def scan_file(filepath: Path) -> Tuple[List[str], List[str], List[str]]:
                 if "scan" in line.lower() or "pattern" in line.lower():
                     continue
                 # Skip if it's the word "placeholder" in legitimate context
-                if "placeholder" in line.lower() and ("_path" in line.lower() or "voice" in line.lower()):
+                if "placeholder" in line.lower() and (
+                    "_path" in line.lower() or "voice" in line.lower()
+                ):
                     continue
                 placeholder_issues.append(f"{filepath}:{i}: {line.strip()[:80]}")
 
@@ -82,7 +107,7 @@ def scan_file(filepath: Path) -> Tuple[List[str], List[str], List[str]]:
         for pattern, secret_type in SECRET_PATTERNS:
             for match in pattern.finditer(content):
                 # Get line number
-                line_num = content[:match.start()].count("\n") + 1
+                line_num = content[: match.start()].count("\n") + 1
                 secret_issues.append(f"{filepath}:{line_num}: Potential {secret_type}")
 
     except Exception as e:

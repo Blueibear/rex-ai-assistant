@@ -11,13 +11,10 @@ import hmac
 import os
 import secrets
 import threading
-import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Optional
 
-from rex.config_manager import load_config, SECRET_ENV_VARS
-
+from rex.config_manager import load_config
 
 # Session expiry in seconds (default: 8 hours)
 SESSION_EXPIRY_SECONDS = int(os.getenv("REX_DASHBOARD_SESSION_EXPIRY", "28800"))
@@ -70,7 +67,7 @@ class SessionManager:
 
         return session
 
-    def validate_session(self, token: str) -> Optional[Session]:
+    def validate_session(self, token: str) -> Session | None:
         """Validate a session token and return the session if valid."""
         if not token:
             return None
@@ -109,7 +106,7 @@ class SessionManager:
 
 
 # Global session manager instance
-_session_manager: Optional[SessionManager] = None
+_session_manager: SessionManager | None = None
 _session_manager_lock = threading.Lock()
 
 
@@ -123,7 +120,7 @@ def get_session_manager() -> SessionManager:
     return _session_manager
 
 
-def get_dashboard_password() -> Optional[str]:
+def get_dashboard_password() -> str | None:
     """Get the dashboard password from config or environment.
 
     Checks in order:

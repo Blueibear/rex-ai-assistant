@@ -23,7 +23,7 @@ The tests auto-detect the available API at runtime and skip incompatible tests.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
 
 import pytest
 
@@ -273,4 +273,3 @@ def test_clear_subscriptions_variant_b(event_bus: EventBus) -> None:
 
     event_bus.clear_subscriptions()  # type: ignore[attr-defined]
     assert event_bus.get_subscription_count("test.event2") == 0  # type: ignore[attr-defined]
-

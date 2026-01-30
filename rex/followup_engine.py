@@ -29,7 +29,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,7 @@ def load_config() -> dict[str, Any]:
     """
     try:
         from rex.config_manager import load_config as _load_config_impl
+
         return _load_config_impl()
     except Exception:
         return {}
@@ -105,8 +106,8 @@ class FollowupEngine:
         *,
         cue_store: Any = None,
         calendar_service: Any = None,
-        config: Optional[FollowupConfig] = None,
-        now_fn: Optional[Callable[[], datetime]] = None,
+        config: FollowupConfig | None = None,
+        now_fn: Callable[[], datetime] | None = None,
     ) -> None:
         # Lazy imports to avoid import cycles at module import time.
         if cue_store is None:
@@ -120,7 +121,7 @@ class FollowupEngine:
 
         # Session state
         self._session_cues_asked: dict[str, int] = {}
-        self._current_cue_id: dict[str, Optional[str]] = {}
+        self._current_cue_id: dict[str, str | None] = {}
         self._session_asked_ids: dict[str, set[str]] = {}
 
         # Optional fixed config override (otherwise config is read dynamically)
@@ -133,7 +134,7 @@ class FollowupEngine:
         *,
         cue_store: Any = None,
         calendar_service: Any = None,
-    ) -> "FollowupEngine":
+    ) -> FollowupEngine:
         """Compatibility constructor for older settings objects."""
         enabled = bool(getattr(settings, "followups_enabled", True))
         max_per_session = int(getattr(settings, "followups_max_per_session", 1))
@@ -222,7 +223,11 @@ class FollowupEngine:
                 title = getattr(event, "title", None)
                 event_id = getattr(event, "event_id", None)
 
-                if not isinstance(end_time, datetime) or not isinstance(title, str) or not isinstance(event_id, str):
+                if (
+                    not isinstance(end_time, datetime)
+                    or not isinstance(title, str)
+                    or not isinstance(event_id, str)
+                ):
                     continue
 
                 end_time_utc = _ensure_utc(end_time)
@@ -250,8 +255,8 @@ class FollowupEngine:
         self,
         user_id: str,
         *,
-        now: Optional[datetime] = None,
-    ) -> Optional[str]:
+        now: datetime | None = None,
+    ) -> str | None:
         """Get a follow-up prompt for the user if available.
 
         The cue is NOT marked as asked until mark_current_cue_asked() is called.
@@ -286,8 +291,8 @@ class FollowupEngine:
         self,
         user_id: str,
         *,
-        now: Optional[datetime] = None,
-    ) -> Optional[dict[str, Any]]:
+        now: datetime | None = None,
+    ) -> dict[str, Any] | None:
         """Return follow-up context including prompt and metadata."""
         cfg = self._effective_config()
         if not cfg.enabled:
@@ -364,7 +369,7 @@ class FollowupEngine:
         user_id: str,
         base_prompt: str,
         *,
-        now: Optional[datetime] = None,
+        now: datetime | None = None,
     ) -> str:
         """Inject a follow-up cue into a prompt."""
         followup = self.get_followup_prompt(user_id, now=now)
@@ -420,7 +425,7 @@ class FollowupEngine:
 
         return prompts
 
-    def format_followups(self, user_id: str = "default") -> Optional[str]:
+    def format_followups(self, user_id: str = "default") -> str | None:
         """Return formatted follow-up block or None."""
         prompts = self.collect_followups(user_id=user_id)
         if not prompts:
@@ -432,7 +437,7 @@ class FollowupEngine:
 
 
 # Global instance
-_followup_engine: Optional[FollowupEngine] = None
+_followup_engine: FollowupEngine | None = None
 
 
 def get_followup_engine() -> FollowupEngine:
@@ -443,7 +448,7 @@ def get_followup_engine() -> FollowupEngine:
     return _followup_engine
 
 
-def set_followup_engine(engine: Optional[FollowupEngine]) -> None:
+def set_followup_engine(engine: FollowupEngine | None) -> None:
     """Set the global follow-up engine instance (for testing)."""
     global _followup_engine
     _followup_engine = engine
@@ -456,4 +461,3 @@ __all__ = [
     "set_followup_engine",
     "load_config",
 ]
-

@@ -344,32 +344,37 @@ def _register_builtin_tools(registry: ToolRegistry) -> None:
         registry: The registry to register tools with.
     """
     # time_now - no credentials required, always healthy
-    registry.register_tool(ToolMeta(
-        name="time_now",
-        description="Get the current time for a specified location",
-        required_credentials=[],
-        capabilities=["read", "time"],
-        health_check=lambda: (True, "Time service available"),
-        version="1.0.0",
-    ))
+    registry.register_tool(
+        ToolMeta(
+            name="time_now",
+            description="Get the current time for a specified location",
+            required_credentials=[],
+            capabilities=["read", "time"],
+            health_check=lambda: (True, "Time service available"),
+            version="1.0.0",
+        )
+    )
 
     # weather_now - stub, would require API key
     def weather_health() -> tuple[bool, str]:
         return False, "Weather service not implemented"
 
-    registry.register_tool(ToolMeta(
-        name="weather_now",
-        description="Get current weather conditions for a location",
-        required_credentials=["weather_api"],
-        capabilities=["read", "network", "weather"],
-        health_check=weather_health,
-        version="1.0.0",
-        enabled=True,
-    ))
+    registry.register_tool(
+        ToolMeta(
+            name="weather_now",
+            description="Get current weather conditions for a location",
+            required_credentials=["weather_api"],
+            capabilities=["read", "network", "weather"],
+            health_check=weather_health,
+            version="1.0.0",
+            enabled=True,
+        )
+    )
 
     # web_search - stub, would require API key
     def web_search_health() -> tuple[bool, str]:
         from rex.credentials import get_credential_manager
+
         cm = get_credential_manager()
         # Check for any available search API
         for service in ["brave", "serpapi"]:
@@ -377,44 +382,51 @@ def _register_builtin_tools(registry: ToolRegistry) -> None:
                 return True, f"Using {service} for web search"
         return False, "No search API configured (need brave or serpapi)"
 
-    registry.register_tool(ToolMeta(
-        name="web_search",
-        description="Search the web for information",
-        required_credentials=[],  # Optional - uses any available search API
-        capabilities=["read", "network", "search"],
-        health_check=web_search_health,
-        version="1.0.0",
-        enabled=True,
-    ))
+    registry.register_tool(
+        ToolMeta(
+            name="web_search",
+            description="Search the web for information",
+            required_credentials=[],  # Optional - uses any available search API
+            capabilities=["read", "network", "search"],
+            health_check=web_search_health,
+            version="1.0.0",
+            enabled=True,
+        )
+    )
 
     # send_email - stub, requires email token
-    registry.register_tool(ToolMeta(
-        name="send_email",
-        description="Send an email message",
-        required_credentials=["email"],
-        capabilities=["write", "network", "email"],
-        health_check=lambda: (False, "Email service not implemented"),
-        version="1.0.0",
-        enabled=True,
-    ))
+    registry.register_tool(
+        ToolMeta(
+            name="send_email",
+            description="Send an email message",
+            required_credentials=["email"],
+            capabilities=["write", "network", "email"],
+            health_check=lambda: (False, "Email service not implemented"),
+            version="1.0.0",
+            enabled=True,
+        )
+    )
 
     # home_assistant - integration with Home Assistant
     def ha_health() -> tuple[bool, str]:
         from rex.credentials import get_credential_manager
+
         cm = get_credential_manager()
         if cm.has_token("home_assistant"):
             return True, "Home Assistant token configured"
         return False, "Home Assistant token not configured"
 
-    registry.register_tool(ToolMeta(
-        name="home_assistant",
-        description="Control Home Assistant devices and scenes",
-        required_credentials=["home_assistant"],
-        capabilities=["read", "write", "network", "iot"],
-        health_check=ha_health,
-        version="1.0.0",
-        enabled=True,
-    ))
+    registry.register_tool(
+        ToolMeta(
+            name="home_assistant",
+            description="Control Home Assistant devices and scenes",
+            required_credentials=["home_assistant"],
+            capabilities=["read", "write", "network", "iot"],
+            health_check=ha_health,
+            version="1.0.0",
+            enabled=True,
+        )
+    )
 
     logger.debug("Registered %d built-in tools", len(registry.list_tools(include_disabled=True)))
 

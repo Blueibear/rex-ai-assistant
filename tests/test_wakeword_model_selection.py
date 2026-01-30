@@ -42,7 +42,10 @@ def _install_dummy_openwakeword(monkeypatch, models):
 @pytest.mark.unit
 def test_openwakeword_invalid_keyword_falls_back_to_hey_jarvis(monkeypatch, caplog):
     models = {
-        "hey_jarvis": {"model_path": "hey_jarvis.tflite", "download_url": "http://example.com/hey_jarvis.zip"},
+        "hey_jarvis": {
+            "model_path": "hey_jarvis.tflite",
+            "download_url": "http://example.com/hey_jarvis.zip",
+        },
     }
     _install_dummy_openwakeword(monkeypatch, models)
 
@@ -83,7 +86,10 @@ def test_wakeword_keyword_alias():
 @pytest.mark.unit
 def test_custom_onnx_missing_model_falls_back(monkeypatch):
     models = {
-        "hey_jarvis": {"model_path": "hey_jarvis.tflite", "download_url": "http://example.com/hey_jarvis.zip"},
+        "hey_jarvis": {
+            "model_path": "hey_jarvis.tflite",
+            "download_url": "http://example.com/hey_jarvis.zip",
+        },
     }
     _install_dummy_openwakeword(monkeypatch, models)
 
@@ -112,7 +118,10 @@ def test_custom_onnx_missing_model_raises(monkeypatch):
 @pytest.mark.unit
 def test_custom_embedding_missing_model_falls_back(monkeypatch):
     models = {
-        "hey_jarvis": {"model_path": "hey_jarvis.tflite", "download_url": "http://example.com/hey_jarvis.zip"},
+        "hey_jarvis": {
+            "model_path": "hey_jarvis.tflite",
+            "download_url": "http://example.com/hey_jarvis.zip",
+        },
     }
     _install_dummy_openwakeword(monkeypatch, models)
 
@@ -141,7 +150,10 @@ def test_custom_embedding_missing_model_raises(monkeypatch):
 @pytest.mark.unit
 def test_async_assistant_init_with_invalid_keyword(monkeypatch):
     models = {
-        "hey_jarvis": {"model_path": "hey_jarvis.tflite", "download_url": "http://example.com/hey_jarvis.zip"},
+        "hey_jarvis": {
+            "model_path": "hey_jarvis.tflite",
+            "download_url": "http://example.com/hey_jarvis.zip",
+        },
     }
     _install_dummy_openwakeword(monkeypatch, models)
 
@@ -172,13 +184,23 @@ def test_async_assistant_init_with_invalid_keyword(monkeypatch):
             self.config = config
 
     monkeypatch.setattr(voice_loop_module, "LanguageModel", DummyLanguageModel)
-    monkeypatch.setattr(voice_loop_module, "load_audio_config", lambda: {"input_device_index": None})
-    monkeypatch.setattr(voice_loop_module, "resolve_audio_device", lambda configured_device, sample_rate: (None, "ok"))
+    monkeypatch.setattr(
+        voice_loop_module, "load_audio_config", lambda: {"input_device_index": None}
+    )
+    monkeypatch.setattr(
+        voice_loop_module,
+        "resolve_audio_device",
+        lambda configured_device, sample_rate: (None, "ok"),
+    )
     monkeypatch.setattr(voice_loop_module, "load_plugins", lambda: {})
     monkeypatch.setattr(voice_loop_module, "load_users_map", lambda: {})
     monkeypatch.setattr(voice_loop_module, "load_all_profiles", lambda: {})
-    monkeypatch.setattr(voice_loop_module, "resolve_user_key", lambda user, users_map, profiles=None: user)
-    monkeypatch.setattr(voice_loop_module, "extract_voice_reference", lambda profile, user_key=None: None)
+    monkeypatch.setattr(
+        voice_loop_module, "resolve_user_key", lambda user, users_map, profiles=None: user
+    )
+    monkeypatch.setattr(
+        voice_loop_module, "extract_voice_reference", lambda profile, user_key=None: None
+    )
 
     config = AppConfig(wakeword="rex", wakeword_keyword=None, wakeword_backend="openwakeword")
 
