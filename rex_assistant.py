@@ -1,23 +1,20 @@
 """Command-line entry point for the Rex assistant.
 
 This module intentionally mirrors the historical top-level script so existing
-documentation that imports :mod:ex_assistant continues to work.
+...
 """
-
-from __future__ import annotations
-
-# Load .env before accessing any environment variables
-from utils.env_loader import load as _load_env
-
-_load_env()
 
 import asyncio
 import logging
 from collections.abc import Iterable, Sequence
 from typing import Callable
 
+from utils.env_loader import load as _load_env
+
+# Load .env before accessing any environment variables
+_load_env()
+
 from rex import settings
-from rex.llm_client import LanguageModel
 from rex.assistant import Assistant
 from rex.llm_client import LanguageModel
 from rex.logging_utils import configure_logging
@@ -32,7 +29,9 @@ class FunctionRouter:
     def __init__(self) -> None:
         self._routes: list[tuple[Callable[[str], bool], Callable[[str], str]]] = []
 
-    def register(self, predicate: Callable[[str], bool], handler: Callable[[str], str]) -> None:
+    def register(
+        self, predicate: Callable[[str], bool], handler: Callable[[str], str]
+    ) -> None:
         self._routes.append((predicate, handler))
 
     def route(self, text: str) -> str | None:
@@ -40,7 +39,7 @@ class FunctionRouter:
             try:
                 if predicate(text):
                     return handler(text)
-            except Exception as exc:  # pragma: no cover - defensive logging
+            except Exception as exc:  # pragma: no cover
                 logger.exception("Command handler failed: %s", exc)
         return None
 
@@ -58,13 +57,11 @@ def _ensure_llm() -> LanguageModel:
 
 def handle_command(text: str) -> str | None:
     """Dispatch `text` through the registered command handlers."""
-
     return ROUTER.route(text)
 
 
 def generate_response(prompt: str, *, messages: Sequence[dict] | None = None) -> str:
     """Generate an assistant response, with safe fallback on failure."""
-
     routed = handle_command(prompt)
     if routed is not None:
         return routed
@@ -81,7 +78,7 @@ def generate_response(prompt: str, *, messages: Sequence[dict] | None = None) ->
             ]
             return _ensure_llm().generate(messages=normalised)
         return _ensure_llm().generate(prompt)
-    except Exception as exc:  # pragma: no cover - defensive logging
+    except Exception as exc:  # pragma: no cover
         logger.exception("LLM generation failed: %s", exc)
         cleaned = prompt.strip()
         return f"I heard you say: {cleaned or '(silence)'}"
@@ -89,7 +86,6 @@ def generate_response(prompt: str, *, messages: Sequence[dict] | None = None) ->
 
 async def _chat_loop(assistant: Assistant) -> None:
     """Interactive CLI loop for chatting with Rex."""
-
     print("🎤 Rex assistant ready. Type 'exit' or 'quit' to stop.")
     while True:
         try:
@@ -105,7 +101,7 @@ async def _chat_loop(assistant: Assistant) -> None:
 
         try:
             reply = await assistant.generate_reply(user_input)
-        except Exception as exc:  # pragma: no cover - defensive logging
+        except Exception as exc:  # pragma: no cover
             logger.exception("Assistant failed to generate a reply: %s", exc)
             print(f"[error] {exc}")
             continue
@@ -115,7 +111,6 @@ async def _chat_loop(assistant: Assistant) -> None:
 
 async def _run() -> None:
     """Configure logging, load plugins, and run the assistant loop."""
-
     configure_logging()
     plugin_specs: Iterable[PluginSpec] = load_plugins()
     assistant = Assistant(history_limit=settings.max_memory_items, plugins=plugin_specs)
@@ -127,7 +122,6 @@ async def _run() -> None:
 
 def main() -> int:
     """Main entry point for Rex assistant CLI."""
-
     try:
         asyncio.run(_run())
     except KeyboardInterrupt:
