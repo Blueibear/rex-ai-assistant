@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: 🧾 Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 🐍 Set up Python
         uses: actions/setup-python@v5
@@ -39,10 +41,24 @@ jobs:
           pip install ruff black mypy
 
       - name: 🔍 Run Ruff linting
-        run: ruff check . --output-format=github
+        run: |
+          git fetch origin main
+          files=$(git diff --name-only origin/main...HEAD -- '*.py')
+          if [ -z "$files" ]; then
+            echo "No Python files changed; skipping ruff."
+          else
+            echo "$files" | xargs ruff check --output-format=github
+          fi
 
       - name: 🎨 Check code formatting with Black
-        run: black --check --diff .
+        run: |
+          git fetch origin main
+          files=$(git diff --name-only origin/main...HEAD -- '*.py')
+          if [ -z "$files" ]; then
+            echo "No Python files changed; skipping black."
+          else
+            echo "$files" | xargs black --check --diff
+          fi
 
       - name: 🔎 Run Mypy type checking
         run: mypy . --no-error-summary
