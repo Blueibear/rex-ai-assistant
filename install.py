@@ -2,11 +2,6 @@
 
 from __future__ import annotations
 
-# Load .env before accessing any environment variables
-from utils.env_loader import load as _load_env
-
-_load_env()
-
 import argparse
 import platform
 import shutil
@@ -121,6 +116,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from utils.env_loader import load as _load_env
+
+    _load_env()
+
     args = parse_args(argv)
 
     try:

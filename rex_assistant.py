@@ -9,17 +9,6 @@ import logging
 from collections.abc import Iterable, Sequence
 from typing import Callable
 
-from utils.env_loader import load as _load_env
-
-# Load .env before accessing any environment variables
-_load_env()
-
-from rex import settings
-from rex.assistant import Assistant
-from rex.llm_client import LanguageModel
-from rex.logging_utils import configure_logging
-from rex.plugins import PluginSpec, load_plugins, shutdown_plugins
-
 logger = logging.getLogger(__name__)
 
 
@@ -45,10 +34,12 @@ class FunctionRouter:
 
 
 ROUTER = FunctionRouter()
-LLM: LanguageModel | None = None
+LLM = None
 
 
-def _ensure_llm() -> LanguageModel:
+def _ensure_llm():
+    from rex.llm_client import LanguageModel
+
     global LLM
     if LLM is None or not hasattr(LLM, "generate"):
         LLM = LanguageModel()
@@ -111,6 +102,11 @@ async def _chat_loop(assistant: Assistant) -> None:
 
 async def _run() -> None:
     """Configure logging, load plugins, and run the assistant loop."""
+    from rex import settings
+    from rex.assistant import Assistant
+    from rex.logging_utils import configure_logging
+    from rex.plugins import PluginSpec, load_plugins, shutdown_plugins
+
     configure_logging()
     plugin_specs: Iterable[PluginSpec] = load_plugins()
     assistant = Assistant(history_limit=settings.max_memory_items, plugins=plugin_specs)
@@ -122,6 +118,10 @@ async def _run() -> None:
 
 def main() -> int:
     """Main entry point for Rex assistant CLI."""
+    from utils.env_loader import load as _load_env
+
+    _load_env()
+
     try:
         asyncio.run(_run())
     except KeyboardInterrupt:

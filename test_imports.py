@@ -1,41 +1,41 @@
 #!/usr/bin/env python3
 """Comprehensive import test for Rex modules - validates namespace structure."""
 
-# Load .env before accessing any environment variables
-from utils.env_loader import load as _load_env
-
-_load_env()
+from __future__ import annotations
 
 import sys
 import traceback
 
 
-def test_import(module_path: str, item_name: str) -> bool:
-    """Test importing a specific item from a module."""
-    try:
-        module = __import__(module_path, fromlist=[item_name])
-        getattr(module, item_name)
-        print(f"✓ {module_path}.{item_name}")
-        return True
-    except Exception as e:
-        print(f"✗ {module_path}.{item_name}: {e}")
-        traceback.print_exc()
-        return False
+def main() -> int:
+    # Load .env before accessing any environment variables
+    from utils.env_loader import load as _load_env
 
+    _load_env()
 
-def test_module(module_path: str) -> bool:
-    """Test importing a module directly."""
-    try:
-        __import__(module_path)
-        print(f"✓ {module_path}")
-        return True
-    except Exception as e:
-        print(f"✗ {module_path}: {e}")
-        traceback.print_exc()
-        return False
+    def test_import(module_path: str, item_name: str) -> bool:
+        """Test importing a specific item from a module."""
+        try:
+            module = __import__(module_path, fromlist=[item_name])
+            getattr(module, item_name)
+            print(f"✓ {module_path}.{item_name}")
+            return True
+        except Exception as e:
+            print(f"✗ {module_path}.{item_name}: {e}")
+            traceback.print_exc()
+            return False
 
+    def test_module(module_path: str) -> bool:
+        """Test importing a module directly."""
+        try:
+            __import__(module_path)
+            print(f"✓ {module_path}")
+            return True
+        except Exception as e:
+            print(f"✗ {module_path}: {e}")
+            traceback.print_exc()
+            return False
 
-if __name__ == "__main__":
     print("Testing Rex package imports...\n")
 
     # Test core rex package exports
@@ -105,5 +105,8 @@ if __name__ == "__main__":
     print(f"Results: {passed}/{total} passed ({passed * 100 // total}%)")
     print(f"{'=' * 50}")
 
-    sys.exit(0 if all(results) else 1)
+    return 0 if all(results) else 1
 
+
+if __name__ == "__main__":
+    raise SystemExit(main())

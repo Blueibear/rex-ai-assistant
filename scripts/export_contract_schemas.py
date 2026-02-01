@@ -30,35 +30,33 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Ensure the project root is in the path
-SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
-from rex.contracts import CONTRACT_VERSION
-from rex.contracts.core import ALL_MODELS
-
-
-def get_output_dir() -> Path:
+def get_output_dir(project_root: Path) -> Path:
     """Get the output directory for schema files."""
     env_dir = os.environ.get("REX_CONTRACTS_OUTPUT_DIR")
     if env_dir:
         return Path(env_dir)
-    return PROJECT_ROOT / "docs" / "contracts"
+    return project_root / "docs" / "contracts"
 
 
-def export_schemas(output_dir: Path | None = None) -> dict[str, str]:
+def export_schemas(output_dir: Path | None = None, project_root: Path | None = None) -> dict[str, str]:
     """Export all contract schemas to JSON files.
 
     Args:
         output_dir: Directory to write schema files. If None, uses default.
+        project_root: Project root directory.
 
     Returns:
         Dictionary mapping model names to their output file paths.
     """
+    from rex.contracts import CONTRACT_VERSION
+    from rex.contracts.core import ALL_MODELS
+
+    if project_root is None:
+        project_root = Path(__file__).resolve().parent.parent
+
     if output_dir is None:
-        output_dir = get_output_dir()
+        output_dir = get_output_dir(project_root)
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -109,13 +107,21 @@ def export_schemas(output_dir: Path | None = None) -> dict[str, str]:
 
 def main() -> int:
     """Main entry point for the export script."""
-    output_dir = get_output_dir()
+    # Ensure the project root is in the path
+    script_dir = Path(__file__).resolve().parent
+    project_root = script_dir.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
+    from rex.contracts import CONTRACT_VERSION
+
+    output_dir = get_output_dir(project_root)
     print(f"Exporting Rex contract schemas v{CONTRACT_VERSION}")
     print(f"Output directory: {output_dir}")
     print()
 
     try:
-        exported = export_schemas(output_dir)
+        exported = export_schemas(output_dir, project_root)
         print()
         print(f"Successfully exported {len(exported)} files.")
         return 0

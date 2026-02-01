@@ -1,11 +1,10 @@
 import asyncio
 
 import pytest
-
-np = pytest.importorskip("numpy")
-
 from rex.assistant_errors import AudioDeviceError, SpeechToTextError
 from rex.voice_loop import VoiceLoop
+
+np = pytest.importorskip("numpy")
 
 
 class DummyListener:

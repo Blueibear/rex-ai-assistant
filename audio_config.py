@@ -5,23 +5,18 @@ This module now uses rex_config.json for persistence instead of .env.
 
 from __future__ import annotations
 
-# Load .env before accessing any environment variables
-from utils.env_loader import load as _load_env
-
-_load_env()
-
 import argparse
 import sys
 from importlib import import_module
 from importlib.util import find_spec
 from typing import Dict, Optional
 
-_SOUNDDEVICE_UNSET = object()
-sd = _SOUNDDEVICE_UNSET
-
 from assistant_errors import AudioDeviceError
 from logging_utils import get_logger
 from rex.config_manager import load_config, save_config
+
+_SOUNDDEVICE_UNSET = object()
+sd = _SOUNDDEVICE_UNSET
 
 logger = get_logger(__name__)
 
@@ -237,7 +232,9 @@ def cli(argv: list[str] | None = None) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     """Entry point used by unit tests to invoke the CLI."""
+    from utils.env_loader import load as _load_env
 
+    _load_env()
     return cli(argv)
 
 

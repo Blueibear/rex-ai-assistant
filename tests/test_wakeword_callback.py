@@ -1,10 +1,9 @@
 import asyncio
 
 import pytest
+import voice_loop
 
 np = pytest.importorskip("numpy")
-
-import voice_loop
 
 
 def test_wakeword_callback_sets_event_only_on_true(monkeypatch):

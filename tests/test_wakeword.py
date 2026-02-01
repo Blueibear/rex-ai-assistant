@@ -3,11 +3,10 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
-np = pytest.importorskip("numpy")
-
 from rex.wakeword.listener import WakeWordListener
 from rex.wakeword.utils import detect_wakeword
+
+np = pytest.importorskip("numpy")
 
 
 class DummyModel:

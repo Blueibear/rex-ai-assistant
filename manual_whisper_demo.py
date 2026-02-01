@@ -2,29 +2,30 @@
 
 from __future__ import annotations
 
-# Load .env before accessing any environment variables
-from utils.env_loader import load as _load_env
-
-_load_env()
-
 import argparse
 import os
 import sys
 from pathlib import Path
 
-import whisper
-
-
-def transcribe_audio(file_path: str, model_name: str = "base", language: str | None = None) -> str:
-    if not os.path.isfile(file_path):
-        raise FileNotFoundError(f"Audio file not found: {file_path}")
-
-    model = whisper.load_model(model_name)
-    result = model.transcribe(file_path, language=language)
-    return result.get("text", "").strip()
-
 
 def main() -> int:
+    from utils.env_loader import load as _load_env
+
+    _load_env()
+
+    import whisper
+
+    def transcribe_audio(
+        file_path: str, model_name: str = "base", language: str | None = None
+    ) -> str:
+        if not os.path.isfile(file_path):
+            raise FileNotFoundError(f"Audio file not found: {file_path}")
+
+        model = whisper.load_model(model_name)
+        result = model.transcribe(file_path, language=language)
+        return result.get("text", "").strip()
+
+    # Main logic
     parser = argparse.ArgumentParser(description="Transcribe an audio file using Whisper.")
     parser.add_argument("audio", help="Path to the audio file (WAV, MP3, etc.)")
     parser.add_argument("--model", default="base", help="Whisper model to use (default: base)")

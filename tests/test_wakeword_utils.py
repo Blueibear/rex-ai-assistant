@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import pytest
+from wakeword_utils import detect_wakeword
 
 np = pytest.importorskip("numpy")
-
-from wakeword_utils import detect_wakeword
 
 
 class DummyModel:

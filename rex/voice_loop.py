@@ -16,6 +16,21 @@ from typing import Awaitable, Callable, Optional
 from importlib import import_module
 from importlib.util import find_spec
 
+from .assistant import Assistant
+from .assistant_errors import AudioDeviceError, SpeechToTextError, TextToSpeechError, WakeWordError
+from .config import settings
+from .memory import (
+    extract_voice_reference,
+    load_all_profiles,
+    load_users_map,
+    resolve_user_key,
+)
+from .tts_utils import chunk_text_for_xtts
+from .wakeword.listener import WakeWordListener, build_default_detector
+from .wakeword.utils import load_wakeword_model
+from wake_acknowledgment import ensure_wake_acknowledgment_sound
+
+
 def _import_optional(module_name: str):
     module = sys.modules.get(module_name)
     if module is not None:
@@ -29,26 +44,11 @@ def _lazy_import_numpy():
     return _import_optional("numpy")
 
 
-np = _lazy_import_numpy()
-
-from .assistant import Assistant
-from .assistant_errors import AudioDeviceError, SpeechToTextError, TextToSpeechError, WakeWordError
-from .config import settings
-from .memory import (
-    extract_voice_reference,
-    load_all_profiles,
-    load_users_map,
-    resolve_user_key,
-)
-from .wakeword.listener import WakeWordListener, build_default_detector
-from wake_acknowledgment import ensure_wake_acknowledgment_sound
-from .wakeword.utils import load_wakeword_model
-from .tts_utils import chunk_text_for_xtts
-
 def _lazy_import_simpleaudio():
     return _import_optional("simpleaudio")
 
 
+np = _lazy_import_numpy()
 sa = _lazy_import_simpleaudio()
 sd = None
 

@@ -9,6 +9,16 @@ from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
 
+from .embedding import compute_embedding, load_embedding
+from .selection import (
+    list_openwakeword_keywords,
+    normalize_keyword,
+    select_fallback_keyword,
+    split_keywords,
+)
+
+logger = logging.getLogger(__name__)
+
 
 def _import_optional(module_name: str):
     module = sys.modules.get(module_name)
@@ -19,8 +29,6 @@ def _import_optional(module_name: str):
     return import_module(module_name)
 
 
-np = _import_optional("numpy")
-
 def _lazy_import_openwakeword():
     module = _import_optional("openwakeword")
     if module is None:
@@ -29,6 +37,8 @@ def _lazy_import_openwakeword():
     model_type = getattr(model_cls, "Model", object) if model_cls else object
     return module, model_type
 
+
+np = _import_optional("numpy")
 
 WakeWordModel = object
 openwakeword = None
@@ -55,16 +65,6 @@ def _get_openwakeword():
         _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL = _lazy_import_openwakeword()
         openwakeword = _OPENWAKEWORD_MODULE
     return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
-
-from .embedding import compute_embedding, load_embedding
-from .selection import (
-    list_openwakeword_keywords,
-    normalize_keyword,
-    select_fallback_keyword,
-    split_keywords,
-)
-
-logger = logging.getLogger(__name__)
 
 # Get defaults from config (with fallbacks)
 try:
