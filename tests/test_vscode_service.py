@@ -8,7 +8,7 @@ from rex.vscode_service import (
     get_vscode_service,
     reset_vscode_service,
     PatchResult,
-    TestResult,
+    PyTestRunResult,
 )
 
 
