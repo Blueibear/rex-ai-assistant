@@ -144,9 +144,9 @@ class TestCodeCLI:
     def test_cmd_code_test(self):
         """Test 'rex code test' command."""
         with patch('rex.cli.get_vscode_service') as mock_service:
-            from rex.vscode_service import TestResult
+            from rex.vscode_service import PyTestRunResult
 
-            mock_result = TestResult(
+            mock_result = PyTestRunResult(
                 success=True,
                 total=10,
                 passed=10,

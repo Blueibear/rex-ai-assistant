@@ -35,7 +35,7 @@ class PatchResult:
 
 
 @dataclass
-class TestResult:
+class PyTestRunResult:
     """Result of running tests."""
     success: bool
     total: int
@@ -336,7 +336,7 @@ class VSCodeService:
         test_path: Optional[str] = None,
         pattern: Optional[str] = None,
         verbose: bool = False,
-    ) -> TestResult:
+    ) -> PyTestRunResult:
         """
         Run tests using pytest.
 
@@ -346,7 +346,7 @@ class VSCodeService:
             verbose: Verbose output
 
         Returns:
-            TestResult with test execution results
+            PyTestRunResult with test execution results
         """
         action_id = str(uuid.uuid4())
         start_time = datetime.now()
@@ -420,7 +420,7 @@ class VSCodeService:
                 duration_ms=duration_ms,
             ))
 
-            return TestResult(
+            return PyTestRunResult(
                 success=False,
                 total=0,
                 passed=0,
@@ -447,7 +447,7 @@ class VSCodeService:
 
             raise RuntimeError(error_msg) from e
 
-    def _parse_pytest_output(self, output: str, returncode: int) -> TestResult:
+    def _parse_pytest_output(self, output: str, returncode: int) -> PyTestRunResult:
         """
         Parse pytest output to extract test results.
 
@@ -456,7 +456,7 @@ class VSCodeService:
             returncode: Process return code
 
         Returns:
-            TestResult with parsed data
+            PyTestRunResult with parsed data
         """
         # Default values
         passed = 0
@@ -494,7 +494,7 @@ class VSCodeService:
 
         total = passed + failed + errors + skipped
 
-        return TestResult(
+        return PyTestRunResult(
             success=returncode == 0,
             total=total,
             passed=passed,
