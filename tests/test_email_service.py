@@ -517,3 +517,40 @@ def test_email_summary_serialization() -> None:
     assert data["from_addr"] == "test@example.com"
     assert data["received_at"] == now
 
+    # JSON serialization should use isoformat for received_at
+    import json as _json
+
+    json_str = email.model_dump_json()
+    json_data = _json.loads(json_str)
+    assert json_data["received_at"] == now.isoformat()
+
+
+@pytest.mark.skipif(
+    not _email_summary_is_pydantic(),
+    reason="EmailSummary pydantic-style model not available in this build.",
+)
+def test_email_summary_no_pydantic_v2_deprecation_warnings() -> None:
+    """Creating EmailSummary should not emit Pydantic v2 deprecation warnings."""
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", DeprecationWarning)
+        EmailSummary = _email_summary_class()
+        assert EmailSummary is not None
+        EmailSummary(
+            id="warn-test",
+            from_addr="test@example.com",
+            subject="Test",
+            snippet="Test snippet",
+            received_at=datetime.now(),
+        )
+
+    pydantic_warnings = [
+        w for w in caught if "pydantic" in str(w.category.__module__).lower()
+        or "class-based" in str(w.message).lower()
+        or "json_encoders" in str(w.message).lower()
+    ]
+    assert pydantic_warnings == [], (
+        f"Pydantic deprecation warnings emitted: {[str(w.message) for w in pydantic_warnings]}"
+    )
+

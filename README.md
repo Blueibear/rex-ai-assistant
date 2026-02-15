@@ -23,9 +23,9 @@ Existing .env settings are automatically migrated on first run. See [CONFIGURATI
 - 🔉 **Text-to-speech** with Coqui XTTS, edge-tts, or pyttsx3 (voice cloning supported)
 - 🌐 **Web search plugins** for SerpAPI, Brave, Google CSE, and DuckDuckGo
 - 🧠 **Per-user memory** profiles with conversation history and preferences
-- 📧 **Email and calendar** integration with triage and scheduling
-- 📱 **Multi-channel messaging** via SMS with extensible framework for Telegram, Discord, etc.
-- 🔔 **Smart notifications** with priority routing, digest mode, quiet hours, and auto-escalation
+- 📧 **Email and calendar** integration with triage and scheduling *(beta — stub/mock data only)*
+- 📱 **Multi-channel messaging** via SMS *(beta — stub scaffolding, real delivery requires Twilio credentials)*
+- 🔔 **Smart notifications** with priority routing, digest mode, quiet hours, and auto-escalation *(beta — stub scaffolding)*
 - 🤖 **Autonomous workflows** with planner-executor loop for multi-step task automation
 - 🎯 **Smart planning** converts natural language goals into structured workflows
 - ⚙️ **Configurable autonomy modes** (OFF/SUGGEST/AUTO) for fine-grained control
@@ -45,6 +45,19 @@ Existing .env settings are automatically migrated on first run. See [CONFIGURATI
 | **GPU** (optional) | NVIDIA GPU with CUDA 11.8+ for acceleration |
 
 **Note for Windows users**: The `simpleaudio` package (used for audio playback) has build issues on Windows and is automatically disabled. Audio playback functionality will be limited on Windows, but all core features work correctly.
+
+## Current Limitations
+
+The following integrations are **beta / stub scaffolding** and do not yet connect to live services:
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Email** | Stub (mock data) | Reads from a local JSON fixture; no real IMAP/SMTP connection yet. |
+| **Calendar** | Stub (mock data) | Returns mock events; no Google/Outlook calendar integration yet. |
+| **SMS / Messaging** | Stub scaffold | Framework and CLI are wired up, but sending requires valid Twilio credentials and is otherwise a no-op. |
+| **Notifications** | Stub scaffold | Priority routing and digest logic exist; delivery channels (email, dashboard) are placeholders. |
+
+All stub commands are fully usable for development and testing. Contributions to add real backends are welcome.
 
 ## Quickstart
 

@@ -2241,8 +2241,8 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     # email
     email_parser = subparsers.add_parser(
         "email",
-        help="Manage email",
-        description="Read and triage emails from your inbox.",
+        help="Manage email (beta - stub/mock data)",
+        description="Read and triage emails from your inbox. NOTE: This integration is currently in beta and uses stub/mock data. No real IMAP/SMTP connection is made.",
     )
     email_subparsers = email_parser.add_subparsers(
         title="email commands",
@@ -2264,8 +2264,8 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     # calendar
     calendar_parser = subparsers.add_parser(
         "calendar",
-        help="Manage calendar",
-        description="View and manage calendar events.",
+        help="Manage calendar (beta - stub/mock data)",
+        description="View and manage calendar events. NOTE: This integration is currently in beta and uses stub/mock data. No real calendar provider is connected.",
     )
     calendar_subparsers = calendar_parser.add_subparsers(
         title="calendar commands",
@@ -2383,8 +2383,8 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     # msg (messaging)
     msg_parser = subparsers.add_parser(
         "msg",
-        help="Send and receive messages via SMS and other channels",
-        description="Manage messaging through various channels (SMS, Telegram, etc.).",
+        help="Send and receive messages (beta - stub scaffold)",
+        description="Manage messaging through various channels (SMS, Telegram, etc.). NOTE: This integration is currently in beta. Real SMS delivery requires valid Twilio credentials; other channels are stub scaffolds.",
     )
     msg_subparsers = msg_parser.add_subparsers(
         title="messaging commands",
