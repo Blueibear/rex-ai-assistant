@@ -1,0 +1,77 @@
+You are Codex acting as the repo maintainer. Claude already landed changes; you have a completed verification report and an implementation-ready backlog. Your job now is to IMPLEMENT the fixes, update docs/CI/tests as needed, and keep CLAUDE.md accurate.
+
+GOAL
+Implement the backlog items identified in the latest verification report, in this order:
+1) FRESH-01: pytest addopts decoupling from coverage plugin
+2) FRESH-02: security_audit markdown fence scanning policy toggle + allowlist behavior
+3) FRESH-03: docs consistency for notifications (and optional messaging intro)
+4) FRESH-04: eliminate tests mutating tracked fixture data/mock_calendar.json and enforce clean working tree after tests
+
+INPUTS
+- Paste the latest Codex verification report and backlog below this line:
+<PASTE REPORT HERE>
+
+SCOPE
+You may modify any repo files needed to implement the above, including:
+- pyproject.toml
+- .github/workflows/ci.yml
+- scripts/security_audit.py and its tests
+- docs/notifications.md (and optionally docs/messaging.md)
+- any tests that currently write to tracked fixtures (especially data/mock_calendar.json)
+- add or adjust tests to cover new behavior
+- update CLAUDE.md if commands, structure, behavior, or guardrails change
+
+NON-NEGOTIABLES
+- Do not add soft-pass CI steps (no masking failures with "|| true" or similar).
+- Do not introduce new default dev commands that require optional plugins unless:
+  (a) the plugin is in dev extras and documented, OR
+  (b) the flags are CI-only.
+- Tests must not write to tracked repo files. Use tmp_path and temp copies.
+- Any change to security_audit heuristics must be backed by tests for true positives and false positives.
+- Keep docs honest: if a feature is Beta or Stub, say so at the top.
+
+OUTPUT CONTRACT
+1) List of files changed (bullets).
+2) For every changed file: provide the FULL updated file content (no truncation, no placeholders).
+3) Include a PR description that contains:
+   - Summary
+   - Changes
+   - Verification (exact commands run and outcomes)
+   - CLAUDE.md updates (explicitly state if updated, and why)
+4) Provide a single suggested commit message.
+
+IMPLEMENTATION DETAILS (use these constraints)
+FRESH-01
+- Remove coverage flags from default pytest addopts in pyproject.toml.
+- Keep strict options (strict-markers, etc).
+- Move coverage flags to CI job command only.
+- Validation: "pytest -q" must work after "pip install -e ." without requiring pytest-cov.
+- CI should still run coverage when dev extras are installed or when CI command includes coverage flags.
+
+FRESH-02
+- scripts/security_audit.py currently skips secrets detection inside markdown fenced code blocks.
+- Add a CLI flag like "--strict-markdown-secrets" that scans fenced code blocks for secrets.
+- Default behavior should remain docs-friendly (skip fenced blocks) unless strict mode is set.
+- Add allowlist behavior so specific files can keep skip behavior even in strict mode if needed (keep allowlist minimal and explicit).
+- Add tests:
+  - a markdown file with a real-looking key inside a fenced block must be detected in strict mode
+  - existing false-positive suppressions remain suppressed where allowlisted
+
+FRESH-03
+- docs/notifications.md intro currently overstates readiness.
+- Add a top-level "Current Implementation Status" block that matches README Beta or Stub framing.
+- Include a small table clarifying real vs mock per channel where relevant.
+- Cross-link README Current Limitations section.
+
+FRESH-04
+- Identify and fix any tests that modify data/mock_calendar.json or other tracked fixture files.
+- Refactor tests to write only into tmp_path copies and inject those paths.
+- Add a CI step that fails if tracked files changed after running tests (example: "git status --porcelain" must be empty).
+- Make sure this check does not fail on generated coverage files by keeping coverage outputs untracked or in ignored paths.
+
+CLAUDE.md RULES
+- If your changes alter commands, test procedures, security_audit behavior, CI behavior, or doc status rules, update CLAUDE.md in the same PR.
+- Keep CLAUDE.md concise and actionable. Do not expand unrelated sections.
+
+START NOW
+Do not restate the verification report. Implement the fixes and produce the outputs described above.
