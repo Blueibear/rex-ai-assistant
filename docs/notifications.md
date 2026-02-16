@@ -1,5 +1,22 @@
 # Notification System
 
+## Current Implementation
+
+**Status: Stub scaffold**
+
+The notification system provides priority routing, digest logic, quiet hours, and escalation management. Delivery channels are currently placeholders — no live email, SMS, or dashboard delivery occurs.
+
+| Channel | Status | Details |
+|---------|--------|---------|
+| **Dashboard** | Placeholder | Logs to console; no web UI yet. |
+| **Email** | Placeholder | Delegates to email service, which itself uses mock data. |
+| **SMS** | Placeholder | Delegates to SMS service, which requires real Twilio credentials to deliver. |
+| **Home Assistant TTS** | Stub | Logs intent; no Home Assistant API call. |
+
+All channel dispatch is simulated in tests — no external calls are made.
+
+---
+
 Rex's multi-channel notification system provides intelligent routing, priority-based delivery, quiet hours management, and automatic escalation for urgent alerts. It integrates with the event bus to automatically create notifications for important events.
 
 ## Overview
@@ -405,11 +422,11 @@ Digest queues are persisted to disk:
 ```json
 {
   "email": {
-    "notifications": [...],
+    "notifications": [],
     "last_flush_at": "2024-01-15T10:30:00Z"
   },
   "dashboard": {
-    "notifications": [...],
+    "notifications": [],
     "last_flush_at": "2024-01-15T11:00:00Z"
   }
 }
