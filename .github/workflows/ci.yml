@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, claude/**]
+    branches: [master, claude/**]
   pull_request:
-    branches: [main]
+    branches: [master]
 
 permissions:
   contents: read
@@ -116,7 +116,7 @@ jobs:
 
       - name: 📥 Install Python dependencies (CPU-only)
         run: |
-          python -m pip install --upgrade pip>=25.3 setuptools>=78.1.1 wheel
+          python -m pip install --upgrade "pip>=25.3" "setuptools>=78.1.1" wheel
           pip install -e ".[dev]"
 
       - name: 🧪 Run tests with coverage
@@ -134,5 +134,6 @@ jobs:
             .coverage
             coverage.xml
             htmlcov/
+
 
 
