@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master, claude/**]
+    branches: [main, claude/**]
   pull_request:
-    branches: [master]
+    branches: [main]
 
 permissions:
   contents: read
@@ -39,48 +39,44 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff black mypy
 
-      - name: 🔍 Run Ruff linting
+      - name: 🔍 Determine base branch
+        id: base
         shell: bash
         run: |
-          set -euo pipefail
-
           BASE_REF="${{ github.base_ref }}"
           if [ -z "$BASE_REF" ]; then
             BASE_REF="${{ github.event.repository.default_branch }}"
           fi
+          echo "base_ref=$BASE_REF" >> "$GITHUB_OUTPUT"
+          echo "Using base ref: $BASE_REF"
 
+      - name: 🔍 Run Ruff linting
+        shell: bash
+        run: |
+          BASE_REF="${{ steps.base.outputs.base_ref }}"
           git fetch origin "$BASE_REF"
-
-          files=$(git diff --name-only -z "origin/$BASE_REF...HEAD" -- '*.py' | tr '\0' '\n')
+          files=$(git diff --name-only "origin/$BASE_REF...HEAD" -- '*.py')
           if [ -z "$files" ]; then
             echo "No Python files changed; skipping ruff."
           else
-            git diff --name-only -z "origin/$BASE_REF...HEAD" -- '*.py' \
-              | xargs -0 ruff check --output-format=github
+            echo "$files" | xargs ruff check --output-format=github
           fi
 
       - name: 🎨 Check code formatting with Black
         shell: bash
         run: |
-          set -euo pipefail
-
-          BASE_REF="${{ github.base_ref }}"
-          if [ -z "$BASE_REF" ]; then
-            BASE_REF="${{ github.event.repository.default_branch }}"
-          fi
-
+          BASE_REF="${{ steps.base.outputs.base_ref }}"
           git fetch origin "$BASE_REF"
-
-          files=$(git diff --name-only -z "origin/$BASE_REF...HEAD" -- '*.py' | tr '\0' '\n')
+          files=$(git diff --name-only "origin/$BASE_REF...HEAD" -- '*.py')
           if [ -z "$files" ]; then
             echo "No Python files changed; skipping black."
           else
-            git diff --name-only -z "origin/$BASE_REF...HEAD" -- '*.py' \
-              | xargs -0 black --check --diff
+            echo "$files" | xargs black --check --diff
           fi
 
       - name: 🔎 Run Mypy type checking
-        run: mypy . --no-error-summary
+        run: |
+          mypy rex scripts --no-error-summary
 
   tests:
     name: Python Tests & Coverage
@@ -138,4 +134,5 @@ jobs:
             .coverage
             coverage.xml
             htmlcov/
+
 
