@@ -1,0 +1,38 @@
+You are Claude working inside this repository. Follow CLAUDE.md strictly.
+
+GOAL
+Implement the requested change described below.
+
+REQUEST
+<Paste the user story or task here>
+
+SCOPE
+- Only modify files required to implement the request.
+- If anything is unclear, make a reasonable assumption and state it at the top.
+
+NON-NEGOTIABLES
+- If you change a file, output the ENTIRE updated file. No truncation. No placeholders.
+- List every file changed.
+- Add or update tests when behavior changes.
+- Do not write to tracked fixture files during tests.
+- Do not mask failures in CI (no "|| true", no soft-pass steps).
+- Keep docs honest about implementation status (Beta, Stub, Production-ready).
+- If commands, behavior, CI, or docs rules change, update CLAUDE.md in the same PR.
+
+OUTPUT CONTRACT
+1) Files changed (bullets).
+2) Full contents of every changed file.
+3) PR description including:
+   - Summary
+   - Changes
+   - Verification (exact commands run and outcomes)
+   - CLAUDE.md updates (state whether changed and why)
+4) One-line suggested commit message.
+
+VERIFICATION REQUIREMENTS
+Run and report results for:
+- python -m compileall -q .
+- python scripts/security_audit.py
+- pytest -q (must work in the environment implied by the change)
+
+BEGIN
