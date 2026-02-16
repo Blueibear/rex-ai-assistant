@@ -42,8 +42,8 @@ jobs:
 
       - name: 🔍 Run Ruff linting
         run: |
-          git fetch origin main
-          files=$(git diff --name-only origin/main...HEAD -- '*.py')
+          git fetch origin "${{ github.base_ref }}"
+          files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- '*.py')
           if [ -z "$files" ]; then
             echo "No Python files changed; skipping ruff."
           else
@@ -52,8 +52,8 @@ jobs:
 
       - name: 🎨 Check code formatting with Black
         run: |
-          git fetch origin main
-          files=$(git diff --name-only origin/main...HEAD -- '*.py')
+          git fetch origin "${{ github.base_ref }}"
+          files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- '*.py')
           if [ -z "$files" ]; then
             echo "No Python files changed; skipping black."
           else
