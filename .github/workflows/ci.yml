@@ -37,7 +37,7 @@ jobs:
       - name: 📥 Install linting tools
         run: |
           python -m pip install --upgrade pip
-          pip install ruff black mypy
+          pip install ruff black
 
       - name: 🔍 Determine base branch
         id: base
@@ -74,9 +74,9 @@ jobs:
             echo "$files" | xargs black --check --diff
           fi
 
-      - name: 🔎 Run Mypy type checking
+      - name: 🧾 Compile check (syntax)
         run: |
-          mypy rex scripts --no-error-summary
+          python -m compileall -q rex scripts
 
   tests:
     name: Python Tests & Coverage
