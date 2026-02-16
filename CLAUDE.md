@@ -85,8 +85,10 @@ Notable top-level modules and entrypoints:
 
 ## Testing
 - Pytest configuration source-of-truth is `[tool.pytest.ini_options]` in `pyproject.toml`; do not reintroduce `pytest.ini`.
-- Canonical local test setup: `python -m pip install -e '.[dev]'` before running tests, because default pytest options include coverage flags today.
-- Canonical test command: `pytest -q`.
+- Default pytest addopts do **not** include coverage flags. `pytest -q` works after a base install (`pip install -e .`) without pytest-cov.
+- Coverage runs in CI only; coverage flags (`--cov=rex --cov-report=...`) are passed explicitly in `.github/workflows/ci.yml`.
+- Canonical local test command: `pytest -q`.
+- For local coverage: `pip install -e '.[dev]'` then `pytest -q --cov=rex --cov-report=term-missing`.
 - Do not make default dev commands depend on optional plugins unless those plugins are in dev extras and documented, otherwise keep those flags CI-only.
 - Tests must not write to tracked repo fixtures or files (for example under `data/`). Use `tmp_path` or temp copies; only commit fixture updates when intentional.
 

@@ -151,9 +151,6 @@ addopts = [
     "-v",
     "--strict-markers",
     "--tb=short",
-    "--cov=rex",
-    "--cov-report=term-missing",
-    "--cov-report=html",
 ]
 markers = [
     "unit: Unit tests that don't require external dependencies",
