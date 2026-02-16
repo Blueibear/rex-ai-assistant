@@ -49,3 +49,29 @@ def test_no_tracked_binary_artifacts():
         "Remove these files or update .gitignore: "
         f"{', '.join(offenders)}"
     )
+
+
+def test_no_tracked_files_modified():
+    """Ensure that no tracked file was modified during the test run.
+
+    Tests must use tmp_path or temp copies for writable data.  Writing to
+    tracked repo files (e.g. data/mock_calendar.json) breaks this invariant.
+    """
+    completed = subprocess.run(
+        ["git", "status", "--porcelain"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    # Lines starting with " M" (unstaged modification) or "M " (staged)
+    # or "MM" indicate modified tracked files.
+    modified = [
+        line
+        for line in completed.stdout.splitlines()
+        if line and line[0:2].strip().startswith("M")
+    ]
+    assert not modified, (
+        "Tests must not modify tracked files. Use tmp_path or temp copies "
+        "for writable data. Dirty files: "
+        + ", ".join(line.strip() for line in modified)
+    )
