@@ -105,7 +105,7 @@ jobs:
 
       - name: 🧪 Run tests with coverage
         run: |
-          pytest -m "not slow and not audio and not gpu" --cov=rex --cov-report=term-missing --cov-report=xml
+          pytest -m "not slow and not audio and not gpu" --cov=rex --cov-report=term-missing --cov-report=html --cov-report=xml
         env:
           REX_FILE_LOGGING_ENABLED: "false"
 
