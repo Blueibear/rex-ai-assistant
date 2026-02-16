@@ -36,10 +36,12 @@ except Exception:  # pragma: no cover
 
 # Optional Pydantic import (nice to have, not required at runtime)
 try:
-    from pydantic import BaseModel, Field  # type: ignore
+    from pydantic import BaseModel, ConfigDict, Field, field_serializer  # type: ignore
 
     class EmailSummary(BaseModel):
         """Summary of an email message."""
+
+        model_config = ConfigDict()
 
         id: str = Field(..., description="Unique email identifier")
         from_addr: str = Field(..., description="Sender email address")
@@ -50,8 +52,10 @@ try:
         importance_score: float = Field(default=0.5, description="Importance score (0.0-1.0)")
         category: Optional[str] = Field(default=None, description="Email category (important, promo, social, etc.)")
 
-        class Config:
-            json_encoders = {datetime: lambda v: v.isoformat()}
+        @field_serializer("received_at", when_used="json")
+        @classmethod
+        def _serialize_received_at(cls, v: datetime, _info: object) -> str:
+            return v.isoformat()
 
 except Exception:  # pragma: no cover
     @dataclass

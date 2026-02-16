@@ -85,13 +85,14 @@ GPU acceleration provides significantly faster speech processing for production 
 # Install CUDA 12.4 compatible PyTorch (Windows RTX 3060)
 pip install -r requirements-gpu-cu124.txt
 
-# Or install from pyproject.toml with GPU extras
-pip install -e .[gpu-cu124]
-
 # For CUDA 11.8 (Linux)
 pip install -r requirements-gpu.txt
-pip install -e .[gpu-cu118]
 ```
+
+> **Note:** PyTorch CUDA wheels require the `--extra-index-url` flag pointing at
+> `https://download.pytorch.org/whl/cuXXX`. The requirements files above already
+> include this. Do **not** use `pip install .[gpu-cu*]` — those extras have been
+> removed because pip cannot pass the extra index URL through `pyproject.toml`.
 
 **Requirements:**
 - NVIDIA GPU with CUDA support

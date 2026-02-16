@@ -26,8 +26,8 @@ INCLUDE_EXTENSIONS = {
     ".ini", ".cfg", ".ps1", ".bat", ".sh", ".txt"
 }
 
-# Patterns to detect
-MERGE_MARKERS = re.compile(r"^(<{7}|={7}|>{7})", re.MULTILINE)
+# Patterns to detect — strict Git conflict tokens only (must be exactly 7 chars, optionally followed by a space and branch name)
+MERGE_MARKERS = re.compile(r"^(<{7}|={7}|>{7})( .*)?$")
 PLACEHOLDER_MARKERS = re.compile(
     r"TRUNCAT|TBD|TODO|FIXME|PLACEHOLDER|INSERT HERE|REPLACE ME|WIP|COMING SOON|CUT HERE",
     re.IGNORECASE
@@ -52,6 +52,25 @@ def should_scan_file(filepath: Path) -> bool:
     return filepath.suffix in INCLUDE_EXTENSIONS
 
 
+def _fenced_line_set(lines: List[str]) -> set:
+    """Return the set of 0-based line indices that are inside Markdown fenced code blocks."""
+    inside = set()
+    in_fence = False
+    for idx, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            if in_fence:
+                # closing fence — this line itself is still inside the block
+                inside.add(idx)
+                in_fence = False
+            else:
+                in_fence = True
+                inside.add(idx)
+        elif in_fence:
+            inside.add(idx)
+    return inside
+
+
 def scan_file(filepath: Path) -> Tuple[List[str], List[str], List[str]]:
     """Scan a file and return lists of issues found."""
     merge_issues = []
@@ -62,10 +81,16 @@ def scan_file(filepath: Path) -> Tuple[List[str], List[str], List[str]]:
         content = filepath.read_text(encoding="utf-8", errors="ignore")
         lines = content.split("\n")
 
-        # Check for merge markers
-        for i, line in enumerate(lines, 1):
+        is_markdown = filepath.suffix == ".md"
+        fenced = _fenced_line_set(lines) if is_markdown else set()
+
+        # Check for merge markers (strict: line must be exactly the marker)
+        for i, line in enumerate(lines):
             if MERGE_MARKERS.match(line):
-                merge_issues.append(f"{filepath}:{i}: {line[:50]}")
+                # In Markdown, skip merge-marker look-alikes inside fenced blocks
+                if is_markdown and i in fenced:
+                    continue
+                merge_issues.append(f"{filepath}:{i + 1}: {line[:50]}")
 
         # Check for placeholders (but filter out common false positives)
         for i, line in enumerate(lines, 1):
@@ -81,9 +106,21 @@ def scan_file(filepath: Path) -> Tuple[List[str], List[str], List[str]]:
         # Check for secrets
         for pattern, secret_type in SECRET_PATTERNS:
             for match in pattern.finditer(content):
-                # Get line number
-                line_num = content[:match.start()].count("\n") + 1
-                secret_issues.append(f"{filepath}:{line_num}: Potential {secret_type}")
+                # Get line number (0-based)
+                line_idx = content[:match.start()].count("\n")
+                line_text = lines[line_idx] if line_idx < len(lines) else ""
+
+                # Skip matches inside Markdown fenced code blocks
+                if is_markdown and line_idx in fenced:
+                    continue
+
+                # Skip lines that are clearly documenting the pattern (backtick-wrapped)
+                if "`" in line_text and match.group() in line_text:
+                    before_match = line_text[:line_text.index(match.group())]
+                    if before_match.count("`") % 2 == 1:
+                        continue
+
+                secret_issues.append(f"{filepath}:{line_idx + 1}: Potential {secret_type}")
 
     except Exception as e:
         print(f"Error scanning {filepath}: {e}", file=sys.stderr)
