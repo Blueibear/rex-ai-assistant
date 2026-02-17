@@ -2,6 +2,7 @@
 
 Covers merge-marker detection, secret scanning, and false-positive suppression
 for Markdown separators, fenced code blocks, and inline backtick patterns.
+Also covers --strict-markdown-secrets mode and the allowlist mechanism.
 """
 
 from __future__ import annotations
@@ -130,6 +131,99 @@ class TestSecretDetection:
 
 
 # ---------------------------------------------------------------------------
+# Strict-markdown-secrets mode tests
+# ---------------------------------------------------------------------------
+
+
+class TestStrictMarkdownSecrets:
+    """--strict-markdown-secrets should detect secrets inside fenced blocks."""
+
+    _PK_HEADER = "-----BEGIN " + "PRIVATE KEY-----"
+    _RSA_PK_HEADER = "-----BEGIN RSA " + "PRIVATE KEY-----"
+
+    def test_strict_detects_secret_in_fenced_block(self, tmp_path: Path):
+        """In strict mode, a secret inside a Markdown fenced block IS detected."""
+        f = tmp_path / "leaked.md"
+        f.write_text(f"# Oops\n```\n{self._RSA_PK_HEADER}\n```\n")
+        _, _, secrets = security_audit.scan_file(
+            f, strict_markdown_secrets=True
+        )
+        assert len(secrets) >= 1, "Strict mode should detect secret in fenced block"
+        assert any("Private key" in s for s in secrets)
+
+    def test_strict_detects_openai_key_in_fenced_block(self, tmp_path: Path):
+        """In strict mode, an OpenAI key inside a fenced block IS detected."""
+        fake_key = "sk-" + "B" * 48
+        f = tmp_path / "readme.md"
+        f.write_text(f"# Config\n```\nOPENAI_KEY={fake_key}\n```\n")
+        _, _, secrets = security_audit.scan_file(
+            f, strict_markdown_secrets=True
+        )
+        assert len(secrets) >= 1, "Strict mode should detect OpenAI key in fenced block"
+        assert any("OpenAI" in s for s in secrets)
+
+    def test_strict_detects_merge_markers_in_fenced_block(self, tmp_path: Path):
+        """In strict mode, merge markers inside fenced blocks ARE detected."""
+        f = tmp_path / "conflict.md"
+        f.write_text(
+            textwrap.dedent("""\
+                # Example
+                ```
+                <<<<<<< HEAD
+                =======
+                >>>>>>> branch
+                ```
+            """)
+        )
+        merge, _, _ = security_audit.scan_file(
+            f, strict_markdown_secrets=True
+        )
+        assert len(merge) == 3, f"Expected 3 merge markers in strict mode, got {len(merge)}"
+
+    def test_default_mode_still_skips_fenced_blocks(self, tmp_path: Path):
+        """Without the flag, fenced-block secrets remain suppressed."""
+        f = tmp_path / "safe.md"
+        f.write_text(f"# Docs\n```\n{self._RSA_PK_HEADER}\n```\n")
+        _, _, secrets = security_audit.scan_file(
+            f, strict_markdown_secrets=False
+        )
+        assert secrets == [], "Default mode should still skip fenced-block secrets"
+
+    def test_allowlisted_file_skips_fenced_even_in_strict(self, tmp_path: Path):
+        """An allowlisted file should skip fenced blocks even in strict mode."""
+        f = tmp_path / "allowed.md"
+        f.write_text(f"# Docs\n```\n{self._RSA_PK_HEADER}\n```\n")
+        _, _, secrets = security_audit.scan_file(
+            f,
+            strict_markdown_secrets=True,
+            allowlisted_paths={f.resolve()},
+        )
+        assert secrets == [], "Allowlisted file should skip fenced-block secrets even in strict mode"
+
+    def test_non_allowlisted_file_detected_in_strict(self, tmp_path: Path):
+        """A non-allowlisted file is scanned inside fenced blocks in strict mode."""
+        target = tmp_path / "target.md"
+        other = tmp_path / "other.md"
+        target.write_text(f"# Leak\n```\n{self._RSA_PK_HEADER}\n```\n")
+        # allowlist only 'other', not 'target'
+        _, _, secrets = security_audit.scan_file(
+            target,
+            strict_markdown_secrets=True,
+            allowlisted_paths={other.resolve()},
+        )
+        assert len(secrets) >= 1, "Non-allowlisted file should be scanned in strict mode"
+
+    def test_non_markdown_unaffected_by_strict(self, tmp_path: Path):
+        """Strict mode only affects .md files; .py files behave the same."""
+        fake_key = "sk-" + "C" * 48
+        f = tmp_path / "config.py"
+        f.write_text(f'KEY = "{fake_key}"\n')
+        _, _, secrets_default = security_audit.scan_file(f, strict_markdown_secrets=False)
+        _, _, secrets_strict = security_audit.scan_file(f, strict_markdown_secrets=True)
+        assert secrets_default == secrets_strict
+
+
+# ---------------------------------------------------------------------------
 # End-to-end script execution
 # ---------------------------------------------------------------------------
 
@@ -147,5 +241,22 @@ class TestSecurityAuditScript:
         )
         assert result.returncode == 0, (
             f"security_audit.py exited {result.returncode}.\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    def test_strict_mode_clean_repo_exits_zero(self):
+        """The script with --strict-markdown-secrets must still exit 0 on a clean repo.
+
+        This validates that existing docs don't contain real leaked secrets in
+        fenced blocks.
+        """
+        result = subprocess.run(
+            [sys.executable, "scripts/security_audit.py", "--strict-markdown-secrets"],
+            capture_output=True,
+            text=True,
+            cwd=str(Path(__file__).resolve().parent.parent),
+        )
+        assert result.returncode == 0, (
+            f"security_audit.py --strict-markdown-secrets exited {result.returncode}.\n"
             f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         )

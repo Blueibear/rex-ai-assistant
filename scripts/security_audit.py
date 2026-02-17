@@ -7,12 +7,20 @@ Scans source files for:
 - Exposed secrets and API keys
 
 Excludes: .git, .venv, venv, source, node_modules, dist, build, __pycache__, backups, logs
+
+Flags:
+    --strict-markdown-secrets  Also scan inside Markdown fenced code blocks for
+                               secrets (and merge markers).  Default behaviour
+                               skips fenced blocks to reduce false positives.
+    --allowlist FILE           Path(s) exempt from strict-mode fenced-block
+                               scanning (may be repeated).
 """
 
+import argparse
 import re
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Set, Tuple
 
 # Directories to exclude
 EXCLUDE_DIRS = {
@@ -71,11 +79,33 @@ def _fenced_line_set(lines: List[str]) -> set:
     return inside
 
 
-def scan_file(filepath: Path) -> Tuple[List[str], List[str], List[str]]:
-    """Scan a file and return lists of issues found."""
+def scan_file(
+    filepath: Path,
+    *,
+    strict_markdown_secrets: bool = False,
+    allowlisted_paths: Set[Path] | None = None,
+) -> Tuple[List[str], List[str], List[str]]:
+    """Scan a file and return lists of issues found.
+
+    Parameters
+    ----------
+    filepath:
+        The file to scan.
+    strict_markdown_secrets:
+        When *True*, secrets (and merge markers) inside Markdown fenced code
+        blocks are **not** skipped — they are reported just like any other
+        match.  This catches real leaked keys pasted into documentation.
+    allowlisted_paths:
+        Set of resolved file paths that are exempt from strict-mode
+        fenced-block scanning.  If *filepath* is in this set, fenced-block
+        content is still skipped even in strict mode.
+    """
     merge_issues = []
     placeholder_issues = []
     secret_issues = []
+
+    if allowlisted_paths is None:
+        allowlisted_paths = set()
 
     try:
         content = filepath.read_text(encoding="utf-8", errors="ignore")
@@ -84,11 +114,19 @@ def scan_file(filepath: Path) -> Tuple[List[str], List[str], List[str]]:
         is_markdown = filepath.suffix == ".md"
         fenced = _fenced_line_set(lines) if is_markdown else set()
 
+        # Determine whether fenced-block content should be skipped for this
+        # particular file.  In strict mode the blocks are scanned *unless*
+        # the file is on the allowlist.
+        skip_fenced = True
+        if strict_markdown_secrets and is_markdown:
+            if filepath.resolve() not in allowlisted_paths:
+                skip_fenced = False
+
         # Check for merge markers (strict: line must be exactly the marker)
         for i, line in enumerate(lines):
             if MERGE_MARKERS.match(line):
                 # In Markdown, skip merge-marker look-alikes inside fenced blocks
-                if is_markdown and i in fenced:
+                if is_markdown and i in fenced and skip_fenced:
                     continue
                 merge_issues.append(f"{filepath}:{i + 1}: {line[:50]}")
 
@@ -111,7 +149,7 @@ def scan_file(filepath: Path) -> Tuple[List[str], List[str], List[str]]:
                 line_text = lines[line_idx] if line_idx < len(lines) else ""
 
                 # Skip matches inside Markdown fenced code blocks
-                if is_markdown and line_idx in fenced:
+                if is_markdown and line_idx in fenced and skip_fenced:
                     continue
 
                 # Skip lines that are clearly documenting the pattern (backtick-wrapped)
@@ -128,9 +166,49 @@ def scan_file(filepath: Path) -> Tuple[List[str], List[str], List[str]]:
     return merge_issues, placeholder_issues, secret_issues
 
 
-def main():
+def _parse_args(argv: list | None = None) -> argparse.Namespace:
+    """Parse CLI arguments."""
+    parser = argparse.ArgumentParser(
+        description="Security audit for Rex AI Assistant repository."
+    )
+    parser.add_argument(
+        "--strict-markdown-secrets",
+        action="store_true",
+        default=False,
+        help=(
+            "Scan inside Markdown fenced code blocks for secrets and merge "
+            "markers.  Default behaviour skips fenced blocks to reduce false "
+            "positives."
+        ),
+    )
+    parser.add_argument(
+        "--allowlist",
+        action="append",
+        default=[],
+        metavar="FILE",
+        help=(
+            "File path exempt from strict-mode fenced-block scanning.  May be "
+            "repeated.  Paths are resolved relative to the repo root."
+        ),
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list | None = None):
     """Run security audit."""
+    args = _parse_args(argv)
+
     repo_root = Path(__file__).parent.parent
+
+    # Build the allowlist as a set of resolved Paths.
+    allowlisted_paths: Set[Path] = set()
+    for raw in args.allowlist:
+        p = Path(raw)
+        if not p.is_absolute():
+            p = repo_root / p
+        allowlisted_paths.add(p.resolve())
+
+    strict = args.strict_markdown_secrets
 
     merge_findings = []
     placeholder_findings = []
@@ -140,13 +218,21 @@ def main():
     print("Starting security audit...")
     print(f"Scanning: {repo_root}")
     print(f"Excluding: {', '.join(sorted(EXCLUDE_DIRS))}")
+    if strict:
+        print("Mode: --strict-markdown-secrets enabled")
+        if allowlisted_paths:
+            print(f"Allowlisted: {', '.join(str(p) for p in sorted(allowlisted_paths))}")
     print()
 
     # Scan all files
     for filepath in repo_root.rglob("*"):
         if filepath.is_file() and should_scan_file(filepath):
             files_scanned += 1
-            merge, placeholder, secret = scan_file(filepath)
+            merge, placeholder, secret = scan_file(
+                filepath,
+                strict_markdown_secrets=strict,
+                allowlisted_paths=allowlisted_paths,
+            )
             merge_findings.extend(merge)
             placeholder_findings.extend(placeholder)
             secret_findings.extend(secret)

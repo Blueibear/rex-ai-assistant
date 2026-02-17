@@ -1,6 +1,20 @@
 # Messaging Service
 
-Rex's messaging service provides a unified framework for sending and receiving messages across multiple channels. Currently, SMS is supported with a design that allows easy extension to other platforms like Telegram, Discord, WhatsApp, etc.
+## Current Implementation
+
+**Status: Stub scaffold**
+
+The messaging framework and CLI are wired up, but actual delivery requires valid Twilio credentials. Without credentials the SMS service operates in mock mode — messages are written to a local JSON file and no external API calls are made.
+
+| Channel | Status | Details |
+|---------|--------|---------|
+| **SMS** | Stub (mock mode) | Reads/writes `data/mock_sms.json`; real delivery requires Twilio credentials. |
+| **Telegram** | Not implemented | Extension example provided in docs; no built-in adapter. |
+| **Discord / WhatsApp** | Not implemented | Planned for future releases. |
+
+---
+
+Rex's messaging service provides a unified framework for sending and receiving messages across multiple channels.
 
 ## Overview
 
@@ -175,7 +189,7 @@ Add cases for "telegram" in `cmd_msg()` in `rex/cli.py`.
 
 The SMS service includes stubbed behavior for testing:
 
-- Messages are stored in `data/mock_sms.json`
+- Messages are stored in a temporary file (or `data/mock_sms.json` in mock mode)
 - No real SMS gateway calls are made
 - All functionality is simulated locally
 
@@ -204,7 +218,7 @@ When credentials are not available, the SMS service operates in mock mode:
 - Sends are written to `data/mock_sms.json`
 - Receives read from the same file
 - No external API calls are made
-- Perfect for development and testing
+- Suitable for development and testing
 
 ## Future Enhancements
 
@@ -308,7 +322,7 @@ messages = sms.receive(limit=1)
 user_message = messages[0]
 
 # Rex replies
-reply = sms.reply(user_message.thread_id, "It's sunny and 75°F!")
+reply = sms.reply(user_message.thread_id, "It's sunny and 75F!")
 ```
 
 ## Support
