@@ -365,7 +365,10 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False, json_c
             for warning in warnings[:3]:  # Limit to first 3 to avoid spam
                 LOGGER.warning(warning)
             if len(warnings) > 3:
-                LOGGER.warning(f"... and {len(warnings) - 3} more legacy environment variables")
+                LOGGER.warning(
+                    f"... and {len(warnings) - 3} more legacy env vars. "
+                    f"Run 'rex-config migrate-legacy-env' to migrate all."
+                )
 
         try:
             json_config = _merge_profile_config(json_config)
@@ -409,21 +412,118 @@ def show_config(config: Optional[AppConfig] = None) -> None:
         LOGGER.info("%s = %s", key, value)
 
 
+def _cmd_show(args: argparse.Namespace) -> int:
+    """Print the current configuration."""
+    load_config(env_path=ENV_PATH, reload=True)
+    show_config(_cached_config)
+    return 0
+
+
+def _cmd_migrate_legacy_env(args: argparse.Namespace) -> int:
+    """Migrate legacy environment variables to rex_config.json."""
+    from rex.config_manager import migrate_legacy_env_to_config
+
+    config_path = args.config_path
+    dry_run = args.dry_run
+
+    if dry_run:
+        # In dry-run mode, check for legacy env vars and report what would change
+        from rex.config_manager import (
+            ENV_TO_CONFIG_MAPPING,
+            SECRET_ENV_VARS,
+            load_config as load_json_config,
+            DEFAULT_CONFIG,
+            _get_nested,
+        )
+
+        json_config = load_json_config(config_path)
+        found = []
+        for env_key, config_path_str in ENV_TO_CONFIG_MAPPING.items():
+            if env_key not in SECRET_ENV_VARS and os.getenv(env_key):
+                current_value = _get_nested(json_config, config_path_str)
+                default_value = _get_nested(DEFAULT_CONFIG, config_path_str)
+                would_migrate = current_value is None or current_value == default_value
+                if would_migrate:
+                    found.append(
+                        f"  {env_key} -> {config_path_str} (value: {os.getenv(env_key)!r})"
+                    )
+                else:
+                    found.append(
+                        f"  {env_key} -> {config_path_str} (SKIPPED: config already has non-default value)"
+                    )
+        if found:
+            print("Dry run — the following legacy env vars were found:")
+            for line in found:
+                print(line)
+            print(f"\nRun without --dry-run to write changes to {config_path}")
+        else:
+            print("No legacy environment variables found that need migration.")
+        return 0
+
+    notes = migrate_legacy_env_to_config(
+        env_path=ENV_PATH,
+        config_path=config_path,
+    )
+    for note in notes:
+        print(note)
+    return 0
+
+
 def cli(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="Configure Rex Assistant")
-    parser.add_argument("--show", action="store_true", help="Print current configuration")
-    parser.add_argument("--reload", action="store_true", help="Reload config after changes")
+    parser = argparse.ArgumentParser(
+        prog="rex-config",
+        description="Configure Rex Assistant",
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    # show
+    show_parser = subparsers.add_parser(
+        "show",
+        help="Print current configuration",
+    )
+    show_parser.set_defaults(func=_cmd_show)
+
+    # migrate-legacy-env
+    migrate_parser = subparsers.add_parser(
+        "migrate-legacy-env",
+        help="Migrate legacy environment variables into config/rex_config.json",
+        description=(
+            "Reads legacy non-secret environment variables (e.g. OPENAI_BASE_URL) "
+            "and writes their values into config/rex_config.json. Existing non-default "
+            "config values are never overwritten."
+        ),
+    )
+    migrate_parser.add_argument(
+        "--config-path",
+        default="config/rex_config.json",
+        help="Path to rex_config.json (default: config/rex_config.json)",
+    )
+    migrate_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be migrated without writing any changes",
+    )
+    migrate_parser.set_defaults(func=_cmd_migrate_legacy_env)
+
+    # Backward compat: --show and --reload still work
+    parser.add_argument("--show", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--reload", action="store_true", help=argparse.SUPPRESS)
+
     args = parser.parse_args(argv)
 
     ENV_PATH.touch(exist_ok=True)
 
-    if args.reload or args.show:
+    # Handle legacy flags
+    if args.show or args.reload:
         load_config(env_path=ENV_PATH, reload=True)
-
-    if args.show or True:
         show_config(_cached_config)
+        return 0
 
-    return 0
+    if args.command is None:
+        parser.print_help()
+        return 0
+
+    return args.func(args)
 
 
 settings = load_config()

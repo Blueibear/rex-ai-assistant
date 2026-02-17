@@ -49,6 +49,33 @@ SECRET_PATTERNS = [
 ]
 
 
+# Extensions considered code (findings here are critical)
+CODE_EXTENSIONS = {".py", ".json", ".yml", ".yaml", ".toml", ".ini", ".cfg", ".ps1", ".bat", ".sh"}
+
+# Extensions considered documentation (findings here are usually acceptable)
+DOC_EXTENSIONS = {".md", ".txt"}
+
+
+def classify_placeholder_finding(finding: str) -> str:
+    """Classify a placeholder finding into a bucket based on file extension.
+
+    Returns one of: "code-critical", "doc-acceptable", "needs-review".
+    """
+    # Finding format is "filepath:line: text..."
+    # Extract file path (everything before the first colon-digit pattern)
+    colon_idx = finding.find(":")
+    if colon_idx == -1:
+        return "needs-review"
+    filepath_str = finding[:colon_idx]
+    suffix = Path(filepath_str).suffix.lower()
+
+    if suffix in CODE_EXTENSIONS:
+        return "code-critical"
+    if suffix in DOC_EXTENSIONS:
+        return "doc-acceptable"
+    return "needs-review"
+
+
 def should_scan_file(filepath: Path) -> bool:
     """Check if file should be scanned."""
     # Check if in excluded directory
@@ -258,11 +285,35 @@ def main(argv: list | None = None):
     print("PLACEHOLDER/INCOMPLETE CODE MARKERS")
     print("=" * 70)
     if placeholder_findings:
-        print(f"⚠️  FOUND {len(placeholder_findings)} potential issues:")
-        for issue in placeholder_findings[:30]:
-            print(f"  {issue}")
-        if len(placeholder_findings) > 30:
-            print(f"  ... and {len(placeholder_findings) - 30} more")
+        # Sort for deterministic output, then bucket
+        placeholder_findings.sort()
+        buckets: dict[str, list[str]] = {
+            "code-critical": [],
+            "doc-acceptable": [],
+            "needs-review": [],
+        }
+        for finding in placeholder_findings:
+            bucket = classify_placeholder_finding(finding)
+            buckets[bucket].append(finding)
+
+        print(f"Found {len(placeholder_findings)} placeholder findings "
+              f"({len(buckets['code-critical'])} code-critical, "
+              f"{len(buckets['doc-acceptable'])} doc-acceptable, "
+              f"{len(buckets['needs-review'])} needs-review)")
+        print()
+
+        for heading, label in [
+            ("code-critical", "CODE-CRITICAL (code files)"),
+            ("needs-review", "NEEDS-REVIEW (unknown extension)"),
+            ("doc-acceptable", "DOC-ACCEPTABLE (documentation)"),
+        ]:
+            items = buckets[heading]
+            print(f"  --- {label}: {len(items)} ---")
+            for issue in items[:20]:
+                print(f"    {issue}")
+            if len(items) > 20:
+                print(f"    ... and {len(items) - 20} more")
+            print()
     else:
         print("✅ CLEAN - No placeholder markers found")
     print()
