@@ -377,21 +377,29 @@ def _normalize_wake_word_config(config: Dict[str, Any]) -> None:
 def migrate_legacy_env_to_config(
     env_path: str | Path = ".env",
     config_path: str | Path = "config/rex_config.json",
+    *,
+    dry_run: bool = False,
 ) -> List[str]:
     """Migrate legacy non-secret environment variables to rex_config.json.
 
     Args:
         env_path: Path to .env file
         config_path: Path to rex_config.json
+        dry_run: If True, compute and return planned actions without writing any files.
 
     Returns:
-        List of migration notes and warnings
+        List of migration notes and warnings.  In dry_run mode the notes use the
+        prefix "[dry-run] Would migrate" so callers can distinguish them while
+        still comparing env_key, config path, and parsed value.
 
     Behavior:
-        - Only migrates non-secret settings from .env
-        - Only migrates if config value is null or default
-        - Never migrates secrets (they stay in .env)
-        - Returns list of human-readable migration notes
+        - Reads the .env file directly (not the process environment) for both
+          dry-run and real migration, so both modes see the same source data.
+        - Only migrates non-secret settings from .env.
+        - Only migrates if config value is null or default.
+        - Never migrates secrets (they stay in .env).
+        - In dry_run=True mode: returns planned actions without writing files.
+        - In dry_run=False mode: writes updated config and returns action notes.
     """
     env_file = Path(env_path)
     if not env_file.exists():
@@ -399,10 +407,15 @@ def migrate_legacy_env_to_config(
 
     notes: List[str] = []
 
-    # Load current config
-    config = load_config(config_path)
+    # Load current config.  In dry_run mode we must not create the file if it
+    # does not exist, so we short-circuit to DEFAULT_CONFIG in that case.
+    cfg_path = Path(config_path)
+    if dry_run and not cfg_path.exists():
+        config = _deep_merge(DEFAULT_CONFIG.copy(), {})
+    else:
+        config = load_config(config_path)
 
-    # Read .env file
+    # Read .env file directly — same source for both dry-run and real migration.
     env_vars: Dict[str, str] = {}
     try:
         with open(env_file, "r", encoding="utf-8") as f:
@@ -419,7 +432,8 @@ def migrate_legacy_env_to_config(
         notes.append(f"Failed to read .env file: {exc}")
         return notes
 
-    # Check for legacy non-secret variables
+    # Check for legacy non-secret variables applying the same mapping and coercion
+    # rules as the real migration.
     migrated_count = 0
     for env_key, config_path_str in ENV_TO_CONFIG_MAPPING.items():
         if env_key in env_vars and env_key not in SECRET_ENV_VARS:
@@ -433,15 +447,15 @@ def migrate_legacy_env_to_config(
             should_migrate = current_value is None or current_value == default_value
 
             if should_migrate and env_value:
-                # Parse value based on type
+                # Parse value based on type — identical rules for both modes.
                 parsed_value: Any = env_value
+                effective_path = config_path_str
 
                 # Special handling for specific keys
                 if env_key == "REX_DEBUG_LOGGING":
-                    # Map debug_logging boolean to log_level
                     if _parse_bool(env_value):
                         parsed_value = "DEBUG"
-                        config_path_str = "runtime.log_level"
+                        effective_path = "runtime.log_level"
                     else:
                         continue  # Don't migrate if false
 
@@ -471,13 +485,33 @@ def migrate_legacy_env_to_config(
                     parsed_value = _parse_bool(env_value)
 
                 elif env_key == "REX_ALLOWED_ORIGINS":
-                    # Parse comma-separated list
                     parsed_value = [x.strip() for x in env_value.split(",") if x.strip()]
 
-                # Set value in config
-                _set_nested(config, config_path_str, parsed_value)
-                notes.append(f"Migrated {env_key} -> {config_path_str} = {parsed_value}")
+                if dry_run:
+                    notes.append(
+                        f"[dry-run] Would migrate {env_key} -> {effective_path} = {parsed_value!r}"
+                    )
+                else:
+                    # Apply to in-memory config; write once at the end.
+                    _set_nested(config, effective_path, parsed_value)
+                    notes.append(f"Migrated {env_key} -> {effective_path} = {parsed_value}")
+
                 migrated_count += 1
+
+            elif not should_migrate:
+                if dry_run:
+                    notes.append(
+                        f"[dry-run] Skipped {env_key} -> {config_path_str}"
+                        f" (config already has non-default value: {current_value!r})"
+                    )
+
+    if dry_run:
+        if migrated_count > 0:
+            notes.append(f"\nDry run complete — {migrated_count} setting(s) would be written to {config_path}")
+            notes.append("Run without --dry-run to apply these changes.")
+        else:
+            notes.append("No legacy environment variables found that need migration.")
+        return notes
 
     # Save config if anything was migrated
     if migrated_count > 0:
