@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -18,6 +19,25 @@ from typing import Any, Iterable, Optional
 from rex.event_bus import EventBus
 
 logger = logging.getLogger(__name__)
+
+_REPO_SEED_PATH = Path("data/mock_calendar.json")
+
+
+def _runtime_calendar_path() -> Path:
+    """Return a writable runtime path for calendar persistence.
+
+    Uses OS-appropriate app data directories so the repo's
+    data/mock_calendar.json is never modified at runtime.
+    """
+    if os.name == "nt":
+        base = Path(
+            os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
+        )
+    else:
+        base = Path(
+            os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))
+        )
+    return base / "rex-ai" / "calendar.json"
 
 
 class _NoOpEventBus:
@@ -108,6 +128,12 @@ class CalendarService:
     - Listing upcoming events
     - Getting events in a time range
     - Conflict detection
+
+    Storage modes:
+    - mock_events provided: in-memory only, no disk writes.
+    - mock_data_path provided: read/write to that path (tests use tmp_path).
+    - Neither provided: read seed from data/mock_calendar.json, write to a
+      user-specific runtime directory so tracked repo files are never modified.
     """
 
     def __init__(
@@ -118,8 +144,24 @@ class CalendarService:
         mock_events: list[CalendarEvent] | None = None,
     ) -> None:
         self._event_bus = event_bus if event_bus is not None else _NoOpEventBus()
-        self._mock_data_path = Path(mock_data_path) if mock_data_path else Path("data/mock_calendar.json")
-        self._events: list[CalendarEvent] | None = list(mock_events) if mock_events is not None else None
+
+        if mock_events is not None:
+            # In-memory mode: caller supplied events, never touch disk.
+            self._seed_path: Path | None = None
+            self._storage_path: Path | None = None
+            self._events: list[CalendarEvent] | None = list(mock_events)
+        elif mock_data_path is not None:
+            # Explicit path: read and write to the caller-supplied location.
+            p = Path(mock_data_path)
+            self._seed_path = p
+            self._storage_path = p
+            self._events = None
+        else:
+            # Default mode: seed from repo fixture, persist to runtime dir.
+            self._seed_path = _REPO_SEED_PATH
+            self._storage_path = _runtime_calendar_path()
+            self._events = None
+
         self.connected = False
 
     def connect(self) -> bool:
@@ -191,23 +233,6 @@ class CalendarService:
         past_events = [event for event in events if event.end_time <= now]
         past_events.sort(key=lambda e: e.end_time)
         return past_events
-
-    def generate_followup_cues(self, cue_store: "CueStore", *, lookback_hours: int = 72) -> int:
-        """Generate follow-up cues for past events within the lookback window."""
-        created = 0
-        for event in self.list_past_events(lookback_hours=lookback_hours):
-            existing = cue_store.find_by_source("calendar", event.event_id)
-            if existing is not None:
-                continue
-            cue_store.add_cue(
-                prompt=f"How did '{event.title}' go?",
-                source="calendar",
-                source_id=event.event_id,
-                due_at=event.end_time,
-                metadata={"event_title": event.title},
-            )
-            created += 1
-        return created
 
     def create_event(
         self,
@@ -343,11 +368,12 @@ class CalendarService:
         if self._events is not None:
             return list(self._events)
 
-        path = self._mock_data_path
-        if path and path.exists():
-            events = self._load_mock_events(path)
-            self._events = list(events)
-            return list(events)
+        # Try storage path first (runtime copy), then seed path
+        for path in (self._storage_path, self._seed_path):
+            if path is not None and path.exists():
+                events = self._load_mock_events(path)
+                self._events = list(events)
+                return list(events)
 
         events = self._default_mock_events()
         self._events = list(events)
@@ -417,18 +443,19 @@ class CalendarService:
         return events
 
     def _save_events(self, events: list[CalendarEvent]) -> None:
-        """
-        Persist events to mock storage, using Format A for stability:
-          { "events": [ ... ] }
-        """
-        try:
-            path = self._mock_data_path
-            if not path:
-                return
+        """Persist events to storage.
 
-            path.parent.mkdir(parents=True, exist_ok=True)
+        Writes only to ``_storage_path``.  When the service was created with
+        ``mock_events`` (in-memory mode), ``_storage_path`` is ``None`` and
+        this method is a no-op — the repo seed file is never modified.
+        """
+        if self._storage_path is None:
+            return
+
+        try:
+            self._storage_path.parent.mkdir(parents=True, exist_ok=True)
             data = {"events": [e.to_summary() for e in events]}
-            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            self._storage_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         except Exception as e:
             logger.error("Failed to save mock calendar data: %s", e, exc_info=True)
 

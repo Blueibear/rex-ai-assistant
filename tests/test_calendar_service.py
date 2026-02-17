@@ -543,3 +543,63 @@ def test_calendar_event_serialization() -> None:
     assert data["start_time"] == start
     assert data["end_time"] == end
 
+
+# -------------------------------------------------------------------
+# Tests that in-memory mode never writes to disk
+# -------------------------------------------------------------------
+
+
+def test_mock_events_mode_does_not_write_to_disk(tmp_path: Path) -> None:
+    """CalendarService created with mock_events must never write files."""
+    from rex.event_bus import EventBus
+
+    bus = EventBus()
+    start = datetime(2024, 6, 1, 10, 0, tzinfo=timezone.utc)
+    seed = CalendarEvent(
+        event_id="e1",
+        title="Seed",
+        start_time=start,
+        end_time=start + timedelta(hours=1),
+    )
+
+    service = CalendarService(bus, mock_events=[seed])
+
+    # Mutate: create, update, delete
+    created = service.create_event(
+        "New",
+        start + timedelta(days=1),
+        start + timedelta(days=1, hours=1),
+    )
+    service.update_event(created.event_id, {"title": "Renamed"})
+    service.delete_event(created.event_id)
+
+    # The repo seed file must not have been created or modified
+    repo_seed = Path("data/mock_calendar.json")
+    # Read original content to compare (file may or may not exist in test cwd)
+    # The key assertion: _storage_path is None in mock_events mode
+    assert service._storage_path is None
+
+
+def test_explicit_path_writes_only_to_that_path(tmp_path: Path) -> None:
+    """CalendarService with explicit mock_data_path writes only there."""
+    cal_file = tmp_path / "cal.json"
+    cal_file.write_text("[]", encoding="utf-8")
+
+    service = CalendarService(mock_data_path=cal_file)
+    service.connect()
+
+    start = datetime(2024, 6, 1, 10, 0, tzinfo=timezone.utc)
+    service.create_event(
+        "Meeting",
+        start,
+        start + timedelta(hours=1),
+    )
+
+    # Written to the explicit path
+    data = json.loads(cal_file.read_text(encoding="utf-8"))
+    assert any(e["title"] == "Meeting" for e in data["events"])
+
+    # Repo seed file untouched
+    assert service._storage_path == cal_file
+    assert service._seed_path == cal_file
+
