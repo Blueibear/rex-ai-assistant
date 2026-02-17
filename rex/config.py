@@ -360,16 +360,17 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False, json_c
         from rex.config_manager import load_config as load_json_config, get_legacy_env_warnings
         json_config = load_json_config()
 
-        # Warn about legacy environment variables
-        warnings = get_legacy_env_warnings()
-        if warnings:
-            for warning in warnings[:3]:  # Limit to first 3 to avoid spam
-                LOGGER.warning(warning)
-            if len(warnings) > 3:
-                LOGGER.warning(
-                    f"... and {len(warnings) - 3} more legacy env vars. "
-                    f"Run 'rex-config migrate-legacy-env' to migrate all."
-                )
+    # Warn about legacy environment variables
+    warnings = get_legacy_env_warnings()
+    if warnings:
+        for warning in warnings[:3]:  # Limit to first 3 to avoid spam
+            print(warning, file=sys.stderr)
+        if len(warnings) > 3:
+            print(
+                f"... and {len(warnings) - 3} more legacy env vars. "
+                f"Run 'rex-config migrate-legacy-env' to migrate all.",
+                file=sys.stderr,
+            )
 
         try:
             json_config = _merge_profile_config(json_config)
