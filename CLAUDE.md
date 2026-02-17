@@ -94,7 +94,9 @@ Notable top-level modules and entrypoints:
 
 ## Security Audit
 - Run security checks with: `python scripts/security_audit.py`.
-- Current behavior intentionally skips Markdown fenced code blocks for merge-marker and secret checks to reduce false positives.
+- Optional strict mode: `python scripts/security_audit.py --strict-markdown-secrets`.
+- Default behavior intentionally skips Markdown fenced code blocks for merge-marker and secret checks to reduce false positives.
+- In strict mode, Markdown fenced blocks are scanned for merge markers and secrets; use `--allowlist <file>` to exempt specific Markdown files when needed.
 - Any heuristic change in `scripts/security_audit.py` must include corresponding updates in `tests/test_security_audit.py` with both true-positive and false-positive coverage.
 - Do not add silent blind spots: if skipping new content classes, document rationale in code/comments and add explicit tests that prove intended detection is still preserved.
 
@@ -102,6 +104,7 @@ Notable top-level modules and entrypoints:
 - Do not add soft-pass CI patterns that mask failures (for example `|| echo` on required checks).
 - Node/JavaScript CI jobs must not be added unless a real Node project exists (for example `package.json` at repo root or explicit subpath).
 - Any Node job that is added must fail on real lint/test/build errors.
+- CI and tests enforce clean-repo isolation after test runs (tracked files must remain unchanged; coverage artifacts are excluded).
 
 ## Docs Consistency
 - Integration docs for `email`, `calendar`, `messaging`, and `notifications` must include a top-level Implementation Status block (Beta, Stub, or Production-ready).
