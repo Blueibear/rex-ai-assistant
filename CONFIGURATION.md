@@ -283,30 +283,58 @@ FLASK_LIMITER_STORAGE_URI=...
 REX_SPEAK_STORAGE_URI=...
 ```
 
+## Configuration Precedence
+
+Rex resolves settings in this order (highest priority first):
+
+1. **Profile overrides** — the active profile's `overrides` section in `profiles/<name>.json`
+2. **config/rex_config.json** — user-edited runtime settings
+3. **Built-in defaults** — `DEFAULT_CONFIG` in `rex/config_manager.py`
+
+Secrets (API keys, tokens) are always read from environment variables loaded via `.env`. They are never stored in `rex_config.json`.
+
+Legacy non-secret environment variables (e.g. `OPENAI_BASE_URL`, `REX_LLM_PROVIDER`) are **ignored at runtime**. If any are set, Rex logs a warning and recommends running the migration command.
+
 ## Migration from Legacy Configuration
 
-If you have an existing Rex installation with settings in `.env`, they will be automatically migrated to `config/rex_config.json` on first run.
+If you have an existing Rex installation with non-secret settings in `.env`, use the migration command to move them into `config/rex_config.json`.
+
+### Migration command
+
+```bash
+rex-config migrate-legacy-env
+```
+
+Options:
+- `--config-path PATH` — target config file (default: `config/rex_config.json`)
+- `--dry-run` — show what would be migrated without writing changes
+
+The migration command:
+- Only migrates non-secret settings (API keys and tokens stay in `.env`)
+- Never overwrites config values that already differ from the defaults
+- Prints a summary of every setting it migrated
 
 ### What gets migrated:
-- Audio device settings (REX_INPUT_DEVICE, REX_SAMPLE_RATE, etc.)
-- Wake word settings (REX_WAKEWORD, REX_WAKEWORD_THRESHOLD, etc.)
-- Model settings (REX_LLM_PROVIDER, REX_WHISPER_MODEL, etc.)
-- Runtime settings (REX_LOG_LEVEL, REX_MEMORY_MAX_TURNS, etc.)
+- Audio device settings (`REX_INPUT_DEVICE`, `REX_SAMPLE_RATE`, etc.)
+- Wake word settings (`REX_WAKEWORD`, `REX_WAKEWORD_THRESHOLD`, etc.)
+- Model settings (`REX_LLM_PROVIDER`, `REX_WHISPER_MODEL`, etc.)
+- Runtime settings (`REX_LOG_LEVEL`, `REX_MEMORY_MAX_TURNS`, etc.)
+- OpenAI runtime settings (`OPENAI_BASE_URL`, `OPENAI_MODEL`)
 
 ### What stays in .env:
-- API keys (OPENAI_API_KEY, BRAVE_API_KEY, etc.)
-- Tokens (HA_TOKEN, REX_PROXY_TOKEN, etc.)
+- API keys (`OPENAI_API_KEY`, `BRAVE_API_KEY`, etc.)
+- Tokens (`HA_TOKEN`, `REX_PROXY_TOKEN`, etc.)
 - Secret URLs and credentials
 
 ### Migration process:
-1. First run of GUI or CLI detects legacy settings
-2. Non-secret settings are copied to `config/rex_config.json`
-3. You see a message: "Configuration migration completed"
-4. Legacy environment variables are now ignored
-5. Remove migrated settings from .env to clean up (optional)
+1. Run `rex-config migrate-legacy-env` (or add `--dry-run` to preview)
+2. Non-secret settings are written to `config/rex_config.json`
+3. Existing non-default config values are preserved (no-overwrite rule)
+4. Legacy environment variables are ignored at runtime after migration
+5. Remove migrated settings from `.env` to clean up (optional)
 
 ### Manual migration:
-If automatic migration fails, you can manually copy settings from `.env` to `config/rex_config.json`:
+If you prefer to migrate manually, copy settings from `.env` to `config/rex_config.json`:
 
 Example:
 ```bash

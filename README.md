@@ -9,11 +9,17 @@
 
 ## Configuration Changes
 
-Rex now uses a dual-configuration system for better security:
-- **config/rex_config.json** - Runtime settings (audio, models, wake word, etc.)
-- **.env** - Secrets only (API keys, tokens)
+Rex uses a dual-configuration system for better security:
+- **config/rex_config.json** — Runtime settings (audio, models, wake word, etc.)
+- **.env** — Secrets only (API keys, tokens)
 
-Existing .env settings are automatically migrated on first run. See [CONFIGURATION.md](CONFIGURATION.md) for full details.
+Legacy non-secret environment variables (e.g. `OPENAI_BASE_URL`) are ignored at runtime. If any are set, Rex logs a warning. To migrate them into `config/rex_config.json`, run:
+
+```bash
+rex-config migrate-legacy-env
+```
+
+See [CONFIGURATION.md](CONFIGURATION.md) for full details including configuration precedence and the no-overwrite migration rule.
 
 ## Features
 

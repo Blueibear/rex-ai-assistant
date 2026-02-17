@@ -224,6 +224,86 @@ class TestStrictMarkdownSecrets:
 
 
 # ---------------------------------------------------------------------------
+# Placeholder classification tests
+# ---------------------------------------------------------------------------
+
+
+class TestPlaceholderClassification:
+    """Tests for the classify_placeholder_finding function."""
+
+    def test_python_file_classified_as_code_critical(self):
+        finding = "src/app.py:10: # FIXME: handle edge case"
+        assert security_audit.classify_placeholder_finding(finding) == "code-critical"
+
+    def test_json_file_classified_as_code_critical(self):
+        finding = "config/settings.json:5: TODO placeholder"
+        assert security_audit.classify_placeholder_finding(finding) == "code-critical"
+
+    def test_yaml_file_classified_as_code_critical(self):
+        finding = "ci.yml:20: # WIP step"
+        assert security_audit.classify_placeholder_finding(finding) == "code-critical"
+
+    def test_toml_file_classified_as_code_critical(self):
+        finding = "pyproject.toml:8: # FIXME"
+        assert security_audit.classify_placeholder_finding(finding) == "code-critical"
+
+    def test_shell_script_classified_as_code_critical(self):
+        finding = "deploy.sh:3: # TODO finish"
+        assert security_audit.classify_placeholder_finding(finding) == "code-critical"
+
+    def test_markdown_file_classified_as_doc_acceptable(self):
+        finding = "README.md:42: Coming soon feature"
+        assert security_audit.classify_placeholder_finding(finding) == "doc-acceptable"
+
+    def test_txt_file_classified_as_doc_acceptable(self):
+        finding = "CHANGELOG.txt:10: WIP notes"
+        assert security_audit.classify_placeholder_finding(finding) == "doc-acceptable"
+
+    def test_unknown_extension_classified_as_needs_review(self):
+        finding = "data.csv:1: PLACEHOLDER"
+        assert security_audit.classify_placeholder_finding(finding) == "needs-review"
+
+    def test_no_extension_classified_as_needs_review(self):
+        finding = "Makefile:5: TODO target"
+        assert security_audit.classify_placeholder_finding(finding) == "needs-review"
+
+
+class TestPlaceholderBucketOutput:
+    """Tests that the audit output shows bucket headings when placeholder findings exist."""
+
+    def test_output_contains_bucket_headings(self):
+        """Running the audit on the repo should show bucket headings if any placeholders exist."""
+        result = subprocess.run(
+            [sys.executable, "scripts/security_audit.py"],
+            capture_output=True,
+            text=True,
+            cwd=str(Path(__file__).resolve().parent.parent),
+        )
+        # The repo is expected to have some placeholder findings (TODOs etc.)
+        if "placeholder findings" in result.stdout:
+            assert "CODE-CRITICAL" in result.stdout or "code-critical" in result.stdout
+            assert "DOC-ACCEPTABLE" in result.stdout or "doc-acceptable" in result.stdout
+            assert "NEEDS-REVIEW" in result.stdout or "needs-review" in result.stdout
+
+    def test_output_deterministic_ordering(self):
+        """Two runs should produce identical output (deterministic sorting)."""
+        repo_root = str(Path(__file__).resolve().parent.parent)
+        result1 = subprocess.run(
+            [sys.executable, "scripts/security_audit.py"],
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+        )
+        result2 = subprocess.run(
+            [sys.executable, "scripts/security_audit.py"],
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+        )
+        assert result1.stdout == result2.stdout
+
+
+# ---------------------------------------------------------------------------
 # End-to-end script execution
 # ---------------------------------------------------------------------------
 

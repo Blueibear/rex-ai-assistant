@@ -235,6 +235,35 @@ class TestCLIIntegration:
         assert "Rex Doctor" in result.stdout
 
 
+class TestLegacyEnvWarning:
+    """Tests that legacy env var warnings appear and reference the migration command."""
+
+    def test_help_warns_about_openai_base_url(self):
+        """When OPENAI_BASE_URL is set, python -m rex --help should emit a warning
+        that includes the variable name and the migration command."""
+        import os
+
+        env = os.environ.copy()
+        env["OPENAI_BASE_URL"] = "http://example.com/v1"
+        # Remove cached module state by using a fresh subprocess
+        result = subprocess.run(
+            [sys.executable, "-m", "rex", "--help"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
+        )
+        assert result.returncode == 0
+        # Warning goes to stderr (logging)
+        combined = result.stderr + result.stdout
+        assert "OPENAI_BASE_URL" in combined, (
+            f"Expected OPENAI_BASE_URL warning in output.\nstderr:\n{result.stderr}\nstdout:\n{result.stdout}"
+        )
+        assert "rex-config migrate-legacy-env" in combined, (
+            f"Expected migration command in warning.\nstderr:\n{result.stderr}\nstdout:\n{result.stdout}"
+        )
+
+
 class TestCLIOutput:
     """Tests for CLI output formatting."""
 

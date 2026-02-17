@@ -502,8 +502,9 @@ def get_legacy_env_warnings() -> List[str]:
         if env_key not in SECRET_ENV_VARS and os.getenv(env_key):
             config_path = ENV_TO_CONFIG_MAPPING[env_key]
             warnings.append(
-                f"Legacy setting {env_key} found in environment. "
-                f"Use {config_path} in rex_config.json instead."
+                f"Legacy env var {env_key} is set. "
+                f"This is ignored at runtime; use {config_path} in rex_config.json instead. "
+                f"Run 'rex-config migrate-legacy-env' to migrate automatically."
             )
 
     return warnings
