@@ -22,6 +22,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
+
 # Resolve a Python interpreter that can import rex (has all required deps).
 # The pytest runner may use an isolated venv without pydantic, so prefer the
 # interpreter that was used to *install* the package when it differs.
@@ -34,7 +35,8 @@ def _find_rex_python() -> str:
         try:
             r = subprocess.run(
                 [candidate, "-c", "import rex.config"],
-                capture_output=True, timeout=10,
+                capture_output=True,
+                timeout=10,
             )
             if r.returncode == 0:
                 return candidate
@@ -43,10 +45,13 @@ def _find_rex_python() -> str:
     # Fallback — let the caller surface the error
     return sys.executable
 
+
 _REX_PYTHON = _find_rex_python()
 
 
-def _run_rex_config(args: list[str], *, cwd: Path, extra_env: dict | None = None) -> subprocess.CompletedProcess:
+def _run_rex_config(
+    args: list[str], *, cwd: Path, extra_env: dict | None = None
+) -> subprocess.CompletedProcess:
     """Run 'python -m rex.config <args>' from the given working directory."""
     env = dict(os.environ)
     env["PYTHONPATH"] = str(REPO_ROOT)
@@ -62,20 +67,24 @@ def _run_rex_config(args: list[str], *, cwd: Path, extra_env: dict | None = None
     )
 
 
-_DEFAULT_PROFILE = json.dumps({
-    "profile_version": 1,
-    "name": "default",
-    "description": "Test profile",
-    "capabilities": [],
-    "overrides": {},
-})
-
-_MINIMAL_CONFIG = json.dumps({
-    "models": {
-        "llm_provider": "transformers",
-        "llm_model": "sshleifer/tiny-gpt2",
+_DEFAULT_PROFILE = json.dumps(
+    {
+        "profile_version": 1,
+        "name": "default",
+        "description": "Test profile",
+        "capabilities": [],
+        "overrides": {},
     }
-})
+)
+
+_MINIMAL_CONFIG = json.dumps(
+    {
+        "models": {
+            "llm_provider": "transformers",
+            "llm_model": "sshleifer/tiny-gpt2",
+        }
+    }
+)
 
 
 def _setup_work_dir(tmp_path: Path) -> Path:
@@ -105,9 +114,7 @@ def _extract_action_tuples(notes: list[str]) -> list[tuple[str, str, str]]:
     """Parse 'Migrated KEY -> path = value' or '[dry-run] Would migrate KEY -> path = VALUE'
     notes into (env_key, config_path, raw_value_str) tuples for comparison."""
     tuples = []
-    pattern = re.compile(
-        r"(?:\[dry-run\] Would migrate|Migrated)\s+(\S+)\s+->\s+(\S+)\s+=\s+(.*)"
-    )
+    pattern = re.compile(r"(?:\[dry-run\] Would migrate|Migrated)\s+(\S+)\s+->\s+(\S+)\s+=\s+(.*)")
     for note in notes:
         m = pattern.match(note.strip())
         if m:
@@ -127,9 +134,9 @@ class TestRexConfigShow:
         """rex-config show produces JSON on stdout containing known top-level keys."""
         work_dir = _minimal_config_dir(tmp_path)
         result = _run_rex_config(["show"], cwd=work_dir)
-        assert result.returncode == 0, (
-            f"rex-config show failed\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
+        assert (
+            result.returncode == 0
+        ), f"rex-config show failed\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         # Must produce parseable JSON
         data = json.loads(result.stdout)
         # These keys come from AppConfig.to_dict() / asdict()
@@ -149,9 +156,9 @@ class TestRexConfigShow:
         result = _run_rex_config(["show"], cwd=work_dir)
         assert result.returncode == 0
         # The main output should be valid JSON on stdout
-        assert result.stdout.strip().startswith("{"), (
-            f"Expected JSON on stdout, got: {result.stdout[:200]!r}"
-        )
+        assert result.stdout.strip().startswith(
+            "{"
+        ), f"Expected JSON on stdout, got: {result.stdout[:200]!r}"
 
 
 class TestRexConfigLegacyFlagShow:
@@ -161,9 +168,9 @@ class TestRexConfigLegacyFlagShow:
         """rex-config --show produces JSON on stdout."""
         work_dir = _minimal_config_dir(tmp_path)
         result = _run_rex_config(["--show"], cwd=work_dir)
-        assert result.returncode == 0, (
-            f"rex-config --show failed\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
+        assert (
+            result.returncode == 0
+        ), f"rex-config --show failed\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         data = json.loads(result.stdout)
         assert "openai_base_url" in data
         assert "openai_model" in data
@@ -191,9 +198,9 @@ class TestRexConfigLegacyFlagReload:
         """rex-config --reload produces JSON on stdout."""
         work_dir = _minimal_config_dir(tmp_path)
         result = _run_rex_config(["--reload"], cwd=work_dir)
-        assert result.returncode == 0, (
-            f"rex-config --reload failed\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
+        assert (
+            result.returncode == 0
+        ), f"rex-config --reload failed\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         data = json.loads(result.stdout)
         assert "openai_base_url" in data
         assert "openai_model" in data
@@ -234,11 +241,15 @@ class TestDryRunUsesEnvFile:
 
         result = subprocess.run(
             [
-                _REX_PYTHON, "-m", "rex.config",
+                _REX_PYTHON,
+                "-m",
+                "rex.config",
                 "migrate-legacy-env",
                 "--dry-run",
-                "--env-path", str(env_file),
-                "--config-path", str(config_file),
+                "--env-path",
+                str(env_file),
+                "--config-path",
+                str(config_file),
             ],
             capture_output=True,
             text=True,
@@ -252,9 +263,9 @@ class TestDryRunUsesEnvFile:
             f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         )
         combined = result.stdout + result.stderr
-        assert "openai.base_url" in combined, (
-            f"Expected 'openai.base_url' in dry-run output.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
+        assert (
+            "openai.base_url" in combined
+        ), f"Expected 'openai.base_url' in dry-run output.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
 
     def test_dry_run_does_not_write_config_file(self, tmp_path: Path):
         """--dry-run must not create or modify the config file."""
@@ -268,11 +279,15 @@ class TestDryRunUsesEnvFile:
 
         result = subprocess.run(
             [
-                _REX_PYTHON, "-m", "rex.config",
+                _REX_PYTHON,
+                "-m",
+                "rex.config",
                 "migrate-legacy-env",
                 "--dry-run",
-                "--env-path", str(env_file),
-                "--config-path", str(config_file),
+                "--env-path",
+                str(env_file),
+                "--config-path",
+                str(config_file),
             ],
             capture_output=True,
             text=True,
@@ -282,9 +297,7 @@ class TestDryRunUsesEnvFile:
         )
 
         assert result.returncode == 0
-        assert not config_file.exists(), (
-            "--dry-run must not write the config file"
-        )
+        assert not config_file.exists(), "--dry-run must not write the config file"
 
 
 # ---------------------------------------------------------------------------
@@ -301,8 +314,7 @@ class TestDryRunVsRealMigrationConsistency:
 
         env_file = tmp_path / ".env"
         env_file.write_text(
-            "OPENAI_BASE_URL=http://consistency-test.local/v1\n"
-            "REX_LLM_PROVIDER=openai\n"
+            "OPENAI_BASE_URL=http://consistency-test.local/v1\n" "REX_LLM_PROVIDER=openai\n"
         )
 
         dry_config = tmp_path / "dry_config.json"
@@ -347,10 +359,14 @@ class TestDryRunVsRealMigrationConsistency:
         real_config = tmp_path / "real_config.json"
 
         dry_notes = migrate_legacy_env_to_config(
-            env_path=str(env_file), config_path=str(dry_config), dry_run=True,
+            env_path=str(env_file),
+            config_path=str(dry_config),
+            dry_run=True,
         )
         real_notes = migrate_legacy_env_to_config(
-            env_path=str(env_file), config_path=str(real_config), dry_run=False,
+            env_path=str(env_file),
+            config_path=str(real_config),
+            dry_run=False,
         )
 
         dry_by_key = {(k, p): v for k, p, v in _extract_action_tuples(dry_notes)}
@@ -384,29 +400,46 @@ class TestDryRunVsRealMigrationConsistency:
 
         dry_result = subprocess.run(
             [
-                _REX_PYTHON, "-m", "rex.config",
-                "migrate-legacy-env", "--dry-run",
-                "--env-path", str(env_file),
-                "--config-path", str(dry_config),
+                _REX_PYTHON,
+                "-m",
+                "rex.config",
+                "migrate-legacy-env",
+                "--dry-run",
+                "--env-path",
+                str(env_file),
+                "--config-path",
+                str(dry_config),
             ],
-            capture_output=True, text=True, timeout=60, env=base_env, cwd=str(work_dir),
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env=base_env,
+            cwd=str(work_dir),
         )
         real_result = subprocess.run(
             [
-                _REX_PYTHON, "-m", "rex.config",
+                _REX_PYTHON,
+                "-m",
+                "rex.config",
                 "migrate-legacy-env",
-                "--env-path", str(env_file),
-                "--config-path", str(real_config),
+                "--env-path",
+                str(env_file),
+                "--config-path",
+                str(real_config),
             ],
-            capture_output=True, text=True, timeout=60, env=base_env, cwd=str(work_dir),
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env=base_env,
+            cwd=str(work_dir),
         )
 
         assert dry_result.returncode == 0
         assert real_result.returncode == 0
 
-        assert "openai.base_url" in dry_result.stdout, (
-            f"Expected 'openai.base_url' in dry-run stdout.\n{dry_result.stdout}"
-        )
+        assert (
+            "openai.base_url" in dry_result.stdout
+        ), f"Expected 'openai.base_url' in dry-run stdout.\n{dry_result.stdout}"
         # Real migration should have written the config file
         assert real_config.exists(), "Real migration must create config file"
         written = json.loads(real_config.read_text())

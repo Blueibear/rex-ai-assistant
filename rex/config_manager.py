@@ -459,25 +459,26 @@ def migrate_legacy_env_to_config(
                     else:
                         continue  # Don't migrate if false
 
-                elif any(x in env_key for x in ["THRESHOLD", "WINDOW", "INTERVAL", "DURATION", "TIMEOUT"]):
+                elif any(
+                    x in env_key for x in ["THRESHOLD", "WINDOW", "INTERVAL", "DURATION", "TIMEOUT"]
+                ):
                     parsed = _parse_float(env_value)
                     parsed_value = parsed if parsed is not None else parsed_value
 
-                elif (
-                    ("DEVICE" in env_key and "INDEX" in env_key)
-                    or env_key
-                    in [
-                        "REX_INPUT_DEVICE",
-                        "REX_OUTPUT_DEVICE",
-                        "REX_DEVICE",
-                        "REX_AUDIO_INPUT_DEVICE",
-                        "REX_AUDIO_OUTPUT_DEVICE",
-                    ]
-                ):
+                elif ("DEVICE" in env_key and "INDEX" in env_key) or env_key in [
+                    "REX_INPUT_DEVICE",
+                    "REX_OUTPUT_DEVICE",
+                    "REX_DEVICE",
+                    "REX_AUDIO_INPUT_DEVICE",
+                    "REX_AUDIO_OUTPUT_DEVICE",
+                ]:
                     parsed = _parse_int(env_value)
                     parsed_value = parsed if parsed is not None else parsed_value
 
-                elif any(x in env_key for x in ["MAX_TOKENS", "TOP_K", "SEED", "MAX_TURNS", "SAMPLE_RATE"]):
+                elif any(
+                    x in env_key
+                    for x in ["MAX_TOKENS", "TOP_K", "SEED", "MAX_TURNS", "SAMPLE_RATE"]
+                ):
                     parsed = _parse_int(env_value)
                     parsed_value = parsed if parsed is not None else parsed_value
 
@@ -507,7 +508,9 @@ def migrate_legacy_env_to_config(
 
     if dry_run:
         if migrated_count > 0:
-            notes.append(f"\nDry run complete — {migrated_count} setting(s) would be written to {config_path}")
+            notes.append(
+                f"\nDry run complete — {migrated_count} setting(s) would be written to {config_path}"
+            )
             notes.append("Run without --dry-run to apply these changes.")
         else:
             notes.append("No legacy environment variables found that need migration.")
@@ -517,7 +520,9 @@ def migrate_legacy_env_to_config(
     if migrated_count > 0:
         save_config(config, config_path)
         notes.append(f"\nMigrated {migrated_count} settings from .env to {config_path}")
-        notes.append("These environment variables are now ignored. Use rex_config.json for runtime settings.")
+        notes.append(
+            "These environment variables are now ignored. Use rex_config.json for runtime settings."
+        )
     else:
         notes.append("No legacy environment variables found that needed migration")
 
@@ -553,4 +558,3 @@ __all__ = [
     "ENV_TO_CONFIG_MAPPING",
     "SECRET_ENV_VARS",
 ]
-
