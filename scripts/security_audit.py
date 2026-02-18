@@ -10,7 +10,7 @@ Excludes: .git, .venv, venv, source, node_modules, dist, build, __pycache__, bac
 
 Flags:
     --strict-markdown-secrets  Also scan inside Markdown fenced code blocks for
-                               secrets (and merge markers).  Default behaviour
+                               secrets (and merge markers). Default behavior
                                skips fenced blocks to reduce false positives.
     --allowlist FILE           Path(s) exempt from strict-mode fenced-block
                                scanning (may be repeated).
@@ -20,7 +20,6 @@ import argparse
 import re
 import sys
 from pathlib import Path
-from typing import List, Set, Tuple
 
 
 def _configure_text_io() -> None:
@@ -34,36 +33,77 @@ def _configure_text_io() -> None:
 
 # Directories to exclude
 EXCLUDE_DIRS = {
-    ".git", ".venv", "venv", "source", "node_modules",
-    "dist", "build", "__pycache__", "backups", "logs"
+    ".git",
+    ".venv",
+    "venv",
+    "source",
+    "node_modules",
+    "dist",
+    "build",
+    "__pycache__",
+    "backups",
+    "logs",
 }
 
 # File extensions to scan
 INCLUDE_EXTENSIONS = {
-    ".py", ".md", ".yml", ".yaml", ".toml", ".json",
-    ".ini", ".cfg", ".ps1", ".bat", ".sh", ".txt"
+    ".py",
+    ".md",
+    ".yml",
+    ".yaml",
+    ".toml",
+    ".json",
+    ".ini",
+    ".cfg",
+    ".ps1",
+    ".bat",
+    ".sh",
+    ".txt",
 }
 
-# Patterns to detect — strict Git conflict tokens only (must be exactly 7 chars, optionally followed by a space and branch name)
+# Patterns to detect - strict Git conflict tokens only (must be exactly 7 chars,
+# optionally followed by a space and branch name)
 MERGE_MARKERS = re.compile(r"^(<{7}|={7}|>{7})( .*)?$")
 PLACEHOLDER_MARKERS = re.compile(
     r"TRUNCAT|TBD|TODO|FIXME|PLACEHOLDER|INSERT HERE|REPLACE ME|WIP|COMING SOON|CUT HERE",
-    re.IGNORECASE
+    re.IGNORECASE,
 )
+
 # Real secret patterns (not documentation placeholders)
 SECRET_PATTERNS = [
     (re.compile(r"sk-[A-Za-z0-9]{40,}"), "OpenAI API key"),  # Real keys are longer
-    (re.compile(r'["\']?api[_-]?key["\']?\s*[:=]\s*["\'](?!sk-\.\.\.|your|example|test|dummy|xxx)[A-Za-z0-9]{20,}["\']', re.IGNORECASE), "Generic API key"),
+    (
+        re.compile(
+            r"""["']?api[_-]?key["']?\s*[:=]\s*["'](?!sk-\.\.\.|your|example|test|dummy|xxx)[A-Za-z0-9]{20,}["']""",
+            re.IGNORECASE,
+        ),
+        "Generic API key",
+    ),
     (re.compile(r"-----BEGIN (RSA |DSA )?PRIVATE KEY-----"), "Private key"),
     (re.compile(r"aws_secret_access_key\s*=\s*[A-Za-z0-9/+]{40}"), "AWS secret key"),
 ]
 
-
 # Extensions considered code (findings here are critical)
-CODE_EXTENSIONS = {".py", ".json", ".yml", ".yaml", ".toml", ".ini", ".cfg", ".ps1", ".bat", ".sh"}
+CODE_EXTENSIONS = {
+    ".py",
+    ".json",
+    ".yml",
+    ".yaml",
+    ".toml",
+    ".ini",
+    ".cfg",
+    ".ps1",
+    ".bat",
+    ".sh",
+}
 
 # Extensions considered documentation (findings here are usually acceptable)
 DOC_EXTENSIONS = {".md", ".txt"}
+
+# Findings are printed as "filepath:line: message". On Windows, the filepath can
+# contain a ":" (drive letter). This regex greedily captures the filepath up to
+# the final ":<digits>:" delimiter.
+FINDING_PREFIX = re.compile(r"^(.*):(\d+):\s")
 
 
 def classify_placeholder_finding(finding: str) -> str:
@@ -71,12 +111,11 @@ def classify_placeholder_finding(finding: str) -> str:
 
     Returns one of: "code-critical", "doc-acceptable", "needs-review".
     """
-    # Finding format is "filepath:line: text..."
-    # Extract file path (everything before the first colon-digit pattern)
-    colon_idx = finding.find(":")
-    if colon_idx == -1:
+    m = FINDING_PREFIX.match(finding)
+    if not m:
         return "needs-review"
-    filepath_str = finding[:colon_idx]
+
+    filepath_str = m.group(1)
     suffix = Path(filepath_str).suffix.lower()
 
     if suffix in CODE_EXTENSIONS:
@@ -88,24 +127,21 @@ def classify_placeholder_finding(finding: str) -> str:
 
 def should_scan_file(filepath: Path) -> bool:
     """Check if file should be scanned."""
-    # Check if in excluded directory
     for part in filepath.parts:
         if part in EXCLUDE_DIRS:
             return False
-
-    # Check file extension
-    return filepath.suffix in INCLUDE_EXTENSIONS
+    return filepath.suffix.lower() in INCLUDE_EXTENSIONS
 
 
-def _fenced_line_set(lines: List[str]) -> set:
+def _fenced_line_set(lines: list[str]) -> set[int]:
     """Return the set of 0-based line indices that are inside Markdown fenced code blocks."""
-    inside = set()
+    inside: set[int] = set()
     in_fence = False
+
     for idx, line in enumerate(lines):
         stripped = line.strip()
         if stripped.startswith("```"):
             if in_fence:
-                # closing fence — this line itself is still inside the block
                 inside.add(idx)
                 in_fence = False
             else:
@@ -113,6 +149,7 @@ def _fenced_line_set(lines: List[str]) -> set:
                 inside.add(idx)
         elif in_fence:
             inside.add(idx)
+
     return inside
 
 
@@ -120,8 +157,8 @@ def scan_file(
     filepath: Path,
     *,
     strict_markdown_secrets: bool = False,
-    allowlisted_paths: Set[Path] | None = None,
-) -> Tuple[List[str], List[str], List[str]]:
+    allowlisted_paths: set[Path] | None = None,
+) -> tuple[list[str], list[str], list[str]]:
     """Scan a file and return lists of issues found.
 
     Parameters
@@ -129,17 +166,14 @@ def scan_file(
     filepath:
         The file to scan.
     strict_markdown_secrets:
-        When *True*, secrets (and merge markers) inside Markdown fenced code
-        blocks are **not** skipped — they are reported just like any other
-        match.  This catches real leaked keys pasted into documentation.
+        When True, secrets (and merge markers) inside Markdown fenced code
+        blocks are not skipped unless allowlisted.
     allowlisted_paths:
-        Set of resolved file paths that are exempt from strict-mode
-        fenced-block scanning.  If *filepath* is in this set, fenced-block
-        content is still skipped even in strict mode.
+        Set of resolved file paths exempt from strict-mode fenced-block scanning.
     """
-    merge_issues = []
-    placeholder_issues = []
-    secret_issues = []
+    merge_issues: list[str] = []
+    placeholder_issues: list[str] = []
+    secret_issues: list[str] = []
 
     if allowlisted_paths is None:
         allowlisted_paths = set()
@@ -148,50 +182,43 @@ def scan_file(
         content = filepath.read_text(encoding="utf-8", errors="ignore")
         lines = content.split("\n")
 
-        is_markdown = filepath.suffix == ".md"
+        is_markdown = filepath.suffix.lower() == ".md"
         fenced = _fenced_line_set(lines) if is_markdown else set()
 
-        # Determine whether fenced-block content should be skipped for this
-        # particular file.  In strict mode the blocks are scanned *unless*
-        # the file is on the allowlist.
+        # In strict mode, scan fenced blocks unless file is allowlisted.
         skip_fenced = True
-        if strict_markdown_secrets and is_markdown:
-            if filepath.resolve() not in allowlisted_paths:
-                skip_fenced = False
+        if strict_markdown_secrets and is_markdown and filepath.resolve() not in allowlisted_paths:
+            skip_fenced = False
 
-        # Check for merge markers (strict: line must be exactly the marker)
+        # Merge markers
         for i, line in enumerate(lines):
             if MERGE_MARKERS.match(line):
-                # In Markdown, skip merge-marker look-alikes inside fenced blocks
                 if is_markdown and i in fenced and skip_fenced:
                     continue
                 merge_issues.append(f"{filepath}:{i + 1}: {line[:50]}")
 
-        # Check for placeholders (but filter out common false positives)
+        # Placeholders (with some false-positive filtering)
         for i, line in enumerate(lines, 1):
             if PLACEHOLDER_MARKERS.search(line):
-                # Skip if it's in a comment about the pattern itself
-                if "scan" in line.lower() or "pattern" in line.lower():
+                lowered = line.lower()
+                if "scan" in lowered or "pattern" in lowered:
                     continue
-                # Skip if it's the word "placeholder" in legitimate context
-                if "placeholder" in line.lower() and ("_path" in line.lower() or "voice" in line.lower()):
+                if "placeholder" in lowered and ("_path" in lowered or "voice" in lowered):
                     continue
                 placeholder_issues.append(f"{filepath}:{i}: {line.strip()[:80]}")
 
-        # Check for secrets
+        # Secrets
         for pattern, secret_type in SECRET_PATTERNS:
             for match in pattern.finditer(content):
-                # Get line number (0-based)
-                line_idx = content[:match.start()].count("\n")
+                line_idx = content[: match.start()].count("\n")
                 line_text = lines[line_idx] if line_idx < len(lines) else ""
 
-                # Skip matches inside Markdown fenced code blocks
                 if is_markdown and line_idx in fenced and skip_fenced:
                     continue
 
-                # Skip lines that are clearly documenting the pattern (backtick-wrapped)
+                # Skip backtick-wrapped literal examples
                 if "`" in line_text and match.group() in line_text:
-                    before_match = line_text[:line_text.index(match.group())]
+                    before_match = line_text[: line_text.index(match.group())]
                     if before_match.count("`") % 2 == 1:
                         continue
 
@@ -203,18 +230,16 @@ def scan_file(
     return merge_issues, placeholder_issues, secret_issues
 
 
-def _parse_args(argv: list | None = None) -> argparse.Namespace:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments."""
-    parser = argparse.ArgumentParser(
-        description="Security audit for Rex AI Assistant repository."
-    )
+    parser = argparse.ArgumentParser(description="Security audit for Rex AI Assistant repository.")
     parser.add_argument(
         "--strict-markdown-secrets",
         action="store_true",
         default=False,
         help=(
             "Scan inside Markdown fenced code blocks for secrets and merge "
-            "markers.  Default behaviour skips fenced blocks to reduce false "
+            "markers. Default behavior skips fenced blocks to reduce false "
             "positives."
         ),
     )
@@ -224,14 +249,14 @@ def _parse_args(argv: list | None = None) -> argparse.Namespace:
         default=[],
         metavar="FILE",
         help=(
-            "File path exempt from strict-mode fenced-block scanning.  May be "
-            "repeated.  Paths are resolved relative to the repo root."
+            "File path exempt from strict-mode fenced-block scanning. May be "
+            "repeated. Paths are resolved relative to the repo root."
         ),
     )
     return parser.parse_args(argv)
 
 
-def main(argv: list | None = None):
+def main(argv: list[str] | None = None) -> int:
     """Run security audit."""
     _configure_text_io()
     args = _parse_args(argv)
@@ -239,7 +264,7 @@ def main(argv: list | None = None):
     repo_root = Path(__file__).parent.parent
 
     # Build the allowlist as a set of resolved Paths.
-    allowlisted_paths: Set[Path] = set()
+    allowlisted_paths: set[Path] = set()
     for raw in args.allowlist:
         p = Path(raw)
         if not p.is_absolute():
@@ -248,9 +273,9 @@ def main(argv: list | None = None):
 
     strict = args.strict_markdown_secrets
 
-    merge_findings = []
-    placeholder_findings = []
-    secret_findings = []
+    merge_findings: list[str] = []
+    placeholder_findings: list[str] = []
+    secret_findings: list[str] = []
     files_scanned = 0
 
     print("Starting security audit...")
@@ -296,7 +321,6 @@ def main(argv: list | None = None):
     print("PLACEHOLDER/INCOMPLETE CODE MARKERS")
     print("=" * 70)
     if placeholder_findings:
-        # Sort for deterministic output, then bucket
         placeholder_findings.sort()
         buckets: dict[str, list[str]] = {
             "code-critical": [],
@@ -307,10 +331,12 @@ def main(argv: list | None = None):
             bucket = classify_placeholder_finding(finding)
             buckets[bucket].append(finding)
 
-        print(f"Found {len(placeholder_findings)} placeholder findings "
-              f"({len(buckets['code-critical'])} code-critical, "
-              f"{len(buckets['doc-acceptable'])} doc-acceptable, "
-              f"{len(buckets['needs-review'])} needs-review)")
+        print(
+            f"Found {len(placeholder_findings)} placeholder findings "
+            f"({len(buckets['code-critical'])} code-critical, "
+            f"{len(buckets['doc-acceptable'])} doc-acceptable, "
+            f"{len(buckets['needs-review'])} needs-review)"
+        )
         print()
 
         for heading, label in [
@@ -337,13 +363,10 @@ def main(argv: list | None = None):
         for issue in secret_findings:
             print(f"  {issue}")
         return 1
-    else:
-        print("CLEAN - No exposed secrets found")
+
+    print("CLEAN - No exposed secrets found")
     print()
 
-    # Return exit code
-    if secret_findings:
-        return 1
     return 0
 
 
