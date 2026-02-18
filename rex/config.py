@@ -8,6 +8,7 @@ from __future__ import annotations
 # ruff: noqa: I001, UP006, UP035, UP045
 
 import argparse
+import json
 import os
 import sys
 from dataclasses import asdict, dataclass, field
@@ -17,15 +18,24 @@ from typing import Dict, List, Optional
 try:
     from dotenv import load_dotenv, set_key
 except ImportError:
-    def load_dotenv(*args, **kwargs): return False
+
+    def load_dotenv(*args, **kwargs):
+        return False
+
     def set_key(env_path: str, key: str, value: str):
         path = Path(env_path)
-        lines = [line for line in path.read_text().splitlines() if not line.startswith(f"{key}=")] if path.exists() else []
+        lines = (
+            [line for line in path.read_text().splitlines() if not line.startswith(f"{key}=")]
+            if path.exists()
+            else []
+        )
         lines.append(f"{key}={value}")
         path.write_text("\n".join(lines) + "\n")
         return key, value, True
 
+
 from rex.assistant_errors import ConfigurationError
+from rex.config_manager import get_legacy_env_warnings
 from rex.logging_utils import get_logger, set_global_level
 from rex.profile_manager import (
     DEFAULT_PROFILES_DIR,
@@ -178,6 +188,7 @@ class AppConfig:
             self.max_memory_items = self.memory_max_turns
         self.wakeword_keyword = resolve_wakeword_keyword(self.wakeword_keyword, self.wakeword)
 
+
 _cached_config: Optional[AppConfig] = None
 
 # Required environment variables (secrets only)
@@ -244,12 +255,17 @@ def build_app_config(json_config: dict) -> AppConfig:
         wake_sound_path=_get_nested(json_config, "wake_word.wake_sound_path"),
         wakeword_model_path=_get_nested(json_config, "wake_word.model_path"),
         wakeword_embedding_path=_get_nested(json_config, "wake_word.embedding_path"),
-        wakeword_fallback_to_builtin=bool(_get_nested(json_config, "wake_word.fallback_to_builtin", True)),
-        wakeword_fallback_keyword=_get_nested(json_config, "wake_word.fallback_keyword", "hey jarvis"),
-
+        wakeword_fallback_to_builtin=bool(
+            _get_nested(json_config, "wake_word.fallback_to_builtin", True)
+        ),
+        wakeword_fallback_keyword=_get_nested(
+            json_config, "wake_word.fallback_keyword", "hey jarvis"
+        ),
         # Runtime settings from JSON
         command_duration=float(_get_nested(json_config, "runtime.command_duration", 5.0)),
-        detection_frame_seconds=float(_get_nested(json_config, "runtime.detection_frame_seconds", 1.0)),
+        detection_frame_seconds=float(
+            _get_nested(json_config, "runtime.detection_frame_seconds", 1.0)
+        ),
         capture_seconds=float(_get_nested(json_config, "runtime.capture_seconds", 5.0)),
         memory_max_turns=int(_get_nested(json_config, "runtime.memory_max_turns", 50)),
         transcripts_enabled=bool(_get_nested(json_config, "runtime.transcripts_enabled", True)),
@@ -258,12 +274,10 @@ def build_app_config(json_config: dict) -> AppConfig:
         conversation_export=bool(_get_nested(json_config, "runtime.conversation_export", True)),
         speak_language=_get_nested(json_config, "runtime.speak_language", "en"),
         user_id=_get_nested(json_config, "runtime.user_id", "default"),
-
         # Audio settings from JSON
         sample_rate=int(_get_nested(json_config, "audio.sample_rate", 16000)),
         audio_input_device=_get_nested(json_config, "audio.input_device_index"),
         audio_output_device=_get_nested(json_config, "audio.output_device_index"),
-
         # Model settings from JSON
         whisper_model=_get_nested(json_config, "models.stt_model", "base"),
         whisper_device=_get_nested(json_config, "models.stt_device", "cpu"),
@@ -277,14 +291,13 @@ def build_app_config(json_config: dict) -> AppConfig:
         tts_provider=_get_nested(json_config, "models.tts_provider", "xtts"),
         tts_voice=_get_nested(json_config, "models.tts_voice"),
         tts_speed=float(_get_nested(json_config, "models.tts_speed", 1.08)),
-
         # API settings from JSON
         rate_limit=_get_nested(json_config, "api.rate_limit", "30/minute"),
         allowed_origins=allowed_origins,
-
         # Search settings from JSON
-        search_providers=_get_nested(json_config, "search.providers", "serpapi,brave,duckduckgo,google"),
-
+        search_providers=_get_nested(
+            json_config, "search.providers", "serpapi,brave,duckduckgo,google"
+        ),
         # Home Assistant from JSON + secrets from env
         ha_base_url=_get_nested(json_config, "home_assistant.base_url"),
         ha_verify_ssl=bool(_get_nested(json_config, "home_assistant.verify_ssl", True)),
@@ -292,41 +305,43 @@ def build_app_config(json_config: dict) -> AppConfig:
         ha_token=os.getenv("HA_TOKEN"),  # SECRET from env
         ha_secret=os.getenv("HA_SECRET"),  # SECRET from env
         ha_entity_map=None,
-
         # Ollama from JSON + secrets from env
         ollama_base_url=_get_nested(json_config, "ollama.base_url", "http://localhost:11434"),
         ollama_use_cloud=bool(_get_nested(json_config, "ollama.use_cloud", False)),
         ollama_api_key=os.getenv("OLLAMA_API_KEY"),  # SECRET from env
-
         # OpenAI from JSON + secrets from env
         openai_model=_get_nested(json_config, "openai.model"),
         openai_base_url=_get_nested(json_config, "openai.base_url"),
         openai_api_key=os.getenv("OPENAI_API_KEY"),  # SECRET from env
-
         # All secrets from env only
         brave_api_key=os.getenv("BRAVE_API_KEY"),
         speak_api_key=os.getenv("REX_SPEAK_API_KEY"),
-
         # Logging from JSON
         debug_logging=_get_nested(json_config, "runtime.log_level", "INFO").upper() == "DEBUG",
         file_logging_enabled=bool(_get_nested(json_config, "runtime.file_logging_enabled", False)),
         memory_max_bytes=int(_get_nested(json_config, "runtime.memory_max_bytes", 131072)),
-
         # Profile metadata
         active_profile=_get_nested(json_config, "active_profile", "default"),
         capabilities=capabilities,
-
         # Conversational followups
         followups_enabled=bool(_get_nested(json_config, "conversation.followups.enabled", False)),
-        followups_max_per_session=int(_get_nested(json_config, "conversation.followups.max_per_session", 2)),
-        followups_lookback_hours=int(_get_nested(json_config, "conversation.followups.lookback_hours", 72)),
-        followups_expire_hours=int(_get_nested(json_config, "conversation.followups.expire_hours", 168)),
+        followups_max_per_session=int(
+            _get_nested(json_config, "conversation.followups.max_per_session", 2)
+        ),
+        followups_lookback_hours=int(
+            _get_nested(json_config, "conversation.followups.lookback_hours", 72)
+        ),
+        followups_expire_hours=int(
+            _get_nested(json_config, "conversation.followups.expire_hours", 168)
+        ),
     )
 
     return config
 
 
-def load_config(*, env_path: Optional[Path] = None, reload: bool = False, json_config: Optional[dict] = None) -> AppConfig:
+def load_config(
+    *, env_path: Optional[Path] = None, reload: bool = False, json_config: Optional[dict] = None
+) -> AppConfig:
     """Load configuration from rex_config.json and .env secrets.
 
     Args:
@@ -356,19 +371,21 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False, json_c
 
     # Load JSON config for runtime settings
     if json_config is None:
-        from rex.config_manager import load_config as load_json_config, get_legacy_env_warnings
+        from rex.config_manager import load_config as load_json_config
+
         json_config = load_json_config()
 
-        # Warn about legacy environment variables
-        warnings = get_legacy_env_warnings()
-        if warnings:
-            for warning in warnings[:3]:  # Limit to first 3 to avoid spam
-                LOGGER.warning(warning)
-            if len(warnings) > 3:
-                LOGGER.warning(
-                    f"... and {len(warnings) - 3} more legacy env vars. "
-                    f"Run 'rex-config migrate-legacy-env' to migrate all."
-                )
+    # Warn about legacy environment variables
+    warnings = get_legacy_env_warnings()
+    if warnings:
+        for warning in warnings[:3]:  # Limit to first 3 to avoid spam
+            print(warning, file=sys.stderr)
+        if len(warnings) > 3:
+            print(
+                f"... and {len(warnings) - 3} more legacy env vars. "
+                f"Run 'rex-config migrate-legacy-env' to migrate all.",
+                file=sys.stderr,
+            )
 
         try:
             json_config = _merge_profile_config(json_config)
@@ -401,21 +418,23 @@ def validate_config(config: AppConfig) -> None:
         raise ConfigurationError("memory_max_turns must be positive.")
 
 
-def reload_settings(*, env_path: Optional[Path] = None, json_config: Optional[dict] = None) -> AppConfig:
+def reload_settings(
+    *, env_path: Optional[Path] = None, json_config: Optional[dict] = None
+) -> AppConfig:
     """Reload configuration, optionally with new JSON config."""
     return load_config(env_path=env_path, reload=True, json_config=json_config)
 
 
 def show_config(config: Optional[AppConfig] = None) -> None:
+    """Print the resolved configuration to stdout in stable JSON format."""
     cfg = config or load_config()
-    for key, value in cfg.to_dict().items():
-        LOGGER.info("%s = %s", key, value)
+    print(json.dumps(cfg.to_dict(), indent=2, sort_keys=True, default=str))
 
 
 def _cmd_show(args: argparse.Namespace) -> int:
     """Print the current configuration."""
-    load_config(env_path=ENV_PATH, reload=True)
-    show_config(_cached_config)
+    cfg = load_config(env_path=ENV_PATH, reload=True)
+    show_config(cfg)
     return 0
 
 
@@ -423,46 +442,11 @@ def _cmd_migrate_legacy_env(args: argparse.Namespace) -> int:
     """Migrate legacy environment variables to rex_config.json."""
     from rex.config_manager import migrate_legacy_env_to_config
 
-    config_path = args.config_path
-    dry_run = args.dry_run
-
-    if dry_run:
-        # In dry-run mode, check for legacy env vars and report what would change
-        from rex.config_manager import (
-            ENV_TO_CONFIG_MAPPING,
-            SECRET_ENV_VARS,
-            load_config as load_json_config,
-            DEFAULT_CONFIG,
-            _get_nested,
-        )
-
-        json_config = load_json_config(config_path)
-        found = []
-        for env_key, config_path_str in ENV_TO_CONFIG_MAPPING.items():
-            if env_key not in SECRET_ENV_VARS and os.getenv(env_key):
-                current_value = _get_nested(json_config, config_path_str)
-                default_value = _get_nested(DEFAULT_CONFIG, config_path_str)
-                would_migrate = current_value is None or current_value == default_value
-                if would_migrate:
-                    found.append(
-                        f"  {env_key} -> {config_path_str} (value: {os.getenv(env_key)!r})"
-                    )
-                else:
-                    found.append(
-                        f"  {env_key} -> {config_path_str} (SKIPPED: config already has non-default value)"
-                    )
-        if found:
-            print("Dry run — the following legacy env vars were found:")
-            for line in found:
-                print(line)
-            print(f"\nRun without --dry-run to write changes to {config_path}")
-        else:
-            print("No legacy environment variables found that need migration.")
-        return 0
-
+    env_path = Path(args.env_path) if args.env_path else ENV_PATH
     notes = migrate_legacy_env_to_config(
-        env_path=ENV_PATH,
-        config_path=config_path,
+        env_path=env_path,
+        config_path=args.config_path,
+        dry_run=args.dry_run,
     )
     for note in notes:
         print(note)
@@ -499,6 +483,11 @@ def cli(argv: Optional[List[str]] = None) -> int:
         help="Path to rex_config.json (default: config/rex_config.json)",
     )
     migrate_parser.add_argument(
+        "--env-path",
+        default=None,
+        help=("Path to .env file to read legacy variables from " "(default: repo root .env)"),
+    )
+    migrate_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Show what would be migrated without writing any changes",
@@ -515,8 +504,8 @@ def cli(argv: Optional[List[str]] = None) -> int:
 
     # Handle legacy flags
     if args.show or args.reload:
-        load_config(env_path=ENV_PATH, reload=True)
-        show_config(_cached_config)
+        cfg = load_config(env_path=ENV_PATH, reload=True)
+        show_config(cfg)
         return 0
 
     if args.command is None:
@@ -531,6 +520,7 @@ Settings = AppConfig
 
 if __name__ == "__main__":
     import sys
+
     try:
         raise SystemExit(cli())
     except ConfigurationError as exc:

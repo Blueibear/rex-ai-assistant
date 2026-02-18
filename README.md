@@ -283,9 +283,17 @@ python audio_config.py --set-output 2
 
 | Variable | Required? | Default | Description | Example |
 |----------|-----------|---------|-------------|---------|
-| `OPENAI_API_KEY` | **Yes** (if using OpenAI) | — | OpenAI API key | `sk-...` |
-| `OPENAI_MODEL` | No | `gpt-3.5-turbo` | OpenAI model name | `gpt-4`, `gpt-3.5-turbo` |
-| `OPENAI_BASE_URL` | No | (OpenAI default) | Custom API endpoint | `https://api.openai.com/v1` |
+| `OPENAI_API_KEY` | **Yes** (if using OpenAI) | — | OpenAI API key (secret — keep in `.env`) | `sk-...` |
+
+> **Note:** `OPENAI_MODEL` and `OPENAI_BASE_URL` are **not** active runtime environment
+> variables. They are ignored at runtime and must be set in `config/rex_config.json` under
+> the `openai` section (`openai.model` and `openai.base_url`).
+> If you have these in your `.env` from a previous installation, run:
+> ```bash
+> rex-config migrate-legacy-env
+> ```
+> to move them into `config/rex_config.json` automatically. See
+> [CONFIGURATION.md](CONFIGURATION.md) for the full precedence and migration guide.
 
 ### Text-to-Speech (TTS)
 
