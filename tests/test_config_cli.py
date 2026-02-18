@@ -15,8 +15,6 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Tuple
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -48,9 +46,9 @@ def _find_rex_python() -> str:
 _REX_PYTHON = _find_rex_python()
 
 
-def _run_rex_config(args: List[str], *, cwd: Path, extra_env: dict | None = None) -> subprocess.CompletedProcess:
+def _run_rex_config(args: list[str], *, cwd: Path, extra_env: dict | None = None) -> subprocess.CompletedProcess:
     """Run 'python -m rex.config <args>' from the given working directory."""
-    env = {k: v for k, v in os.environ.items()}
+    env = dict(os.environ)
     env["PYTHONPATH"] = str(REPO_ROOT)
     if extra_env:
         env.update(extra_env)
@@ -103,7 +101,7 @@ def _minimal_config_dir(tmp_path: Path) -> Path:
     return _setup_work_dir(tmp_path)
 
 
-def _extract_action_tuples(notes: List[str]) -> List[Tuple[str, str, str]]:
+def _extract_action_tuples(notes: list[str]) -> list[tuple[str, str, str]]:
     """Parse 'Migrated KEY -> path = value' or '[dry-run] Would migrate KEY -> path = VALUE'
     notes into (env_key, config_path, raw_value_str) tuples for comparison."""
     tuples = []
@@ -339,6 +337,7 @@ class TestDryRunVsRealMigrationConsistency:
     def test_dry_run_values_match_real_migration_values(self, tmp_path: Path):
         """For each migrated key, dry-run and real migration must agree on the parsed value."""
         import ast
+
         from rex.config_manager import migrate_legacy_env_to_config
 
         env_file = tmp_path / ".env"
