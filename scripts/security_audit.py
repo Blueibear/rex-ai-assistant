@@ -22,6 +22,16 @@ import sys
 from pathlib import Path
 from typing import List, Set, Tuple
 
+
+def _configure_text_io() -> None:
+    """Avoid UnicodeEncodeError on Windows consoles by forcing UTF-8 with safe fallback."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+        except Exception:
+            pass
+
+
 # Directories to exclude
 EXCLUDE_DIRS = {
     ".git", ".venv", "venv", "source", "node_modules",
@@ -223,6 +233,7 @@ def _parse_args(argv: list | None = None) -> argparse.Namespace:
 
 def main(argv: list | None = None):
     """Run security audit."""
+    _configure_text_io()
     args = _parse_args(argv)
 
     repo_root = Path(__file__).parent.parent
@@ -272,13 +283,13 @@ def main(argv: list | None = None):
     print("MERGE CONFLICT MARKERS")
     print("=" * 70)
     if merge_findings:
-        print(f"❌ FOUND {len(merge_findings)} issues:")
+        print(f"FOUND {len(merge_findings)} issues:")
         for issue in merge_findings[:20]:
             print(f"  {issue}")
         if len(merge_findings) > 20:
             print(f"  ... and {len(merge_findings) - 20} more")
     else:
-        print("✅ CLEAN - No merge markers found")
+        print("CLEAN - No merge markers found")
     print()
 
     print("=" * 70)
@@ -315,19 +326,19 @@ def main(argv: list | None = None):
                 print(f"    ... and {len(items) - 20} more")
             print()
     else:
-        print("✅ CLEAN - No placeholder markers found")
+        print("CLEAN - No placeholder markers found")
     print()
 
     print("=" * 70)
     print("EXPOSED SECRETS")
     print("=" * 70)
     if secret_findings:
-        print(f"🚨 FOUND {len(secret_findings)} potential secrets:")
+        print(f"FOUND {len(secret_findings)} potential secrets:")
         for issue in secret_findings:
             print(f"  {issue}")
         return 1
     else:
-        print("✅ CLEAN - No exposed secrets found")
+        print("CLEAN - No exposed secrets found")
     print()
 
     # Return exit code
