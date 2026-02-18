@@ -27,6 +27,7 @@ except ImportError:
         return key, value, True
 
 from rex.assistant_errors import ConfigurationError
+from rex.config_manager import get_legacy_env_warnings
 from rex.logging_utils import get_logger, set_global_level
 from rex.profile_manager import (
     DEFAULT_PROFILES_DIR,
@@ -37,7 +38,6 @@ from rex.profile_manager import (
 
 LOGGER = get_logger(__name__)
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
-
 
 def _parse_int(name: str, value: Optional[str], *, default: int = 0) -> int:
     """Parse integer from string value.
@@ -357,7 +357,8 @@ def load_config(*, env_path: Optional[Path] = None, reload: bool = False, json_c
 
     # Load JSON config for runtime settings
     if json_config is None:
-        from rex.config_manager import load_config as load_json_config, get_legacy_env_warnings
+        from rex.config_manager import load_config as load_json_config
+
         json_config = load_json_config()
 
     # Warn about legacy environment variables
