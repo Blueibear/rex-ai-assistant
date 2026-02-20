@@ -12,10 +12,27 @@ Rex AI Assistant splits dependencies by install target so CPU-only installs and 
 - **`requirements-gpu.txt`**: CUDA 11.8 GPU stack (Linux)
 - **`requirements-dev.txt`**: Dev tooling via extras
 - **`requirements.in`**: Top-level dependencies with semver ranges (optional)
-- **`Pipfile`**: Pipenv dependency specification (exact pins for Dependabot)
+- **`Pipfile`**: Pipenv dependency specification for Dependabot scanning (core/web/API packages only — see note below)
 - **`Pipfile.lock`**: Pipenv lockfile with all transitive dependencies (for Dependabot)
 
 **Note:** `Pipfile.lock` enables GitHub Dependabot to automatically detect and propose updates for vulnerable dependencies.
+
+## Pipfile / Pipfile.lock — Dependabot Scope
+
+The `Pipfile` and `Pipfile.lock` exist **primarily so Dependabot can scan for vulnerabilities**. They must be lockable on a clean Linux system (no CUDA, no extra index URLs).
+
+**What is in Pipfile:** Core web/API packages, pure-Python packages, and security-critical dependencies (flask, requests, cryptography, pillow, urllib3, etc.) that can be resolved from PyPI on stock Linux.
+
+**What is NOT in Pipfile:** Heavy ML packages that prevent clean locking on Dependabot's environment:
+
+| Package | Why excluded | Where it lives |
+|---|---|---|
+| `torch`, `torchvision`, `torchaudio` | Standard PyPI Linux wheel pulls in triton + all NVIDIA CUDA packages (~300 MB), making `pipenv lock` fail on clean systems | `requirements-cpu.txt`, `requirements-gpu*.txt` |
+| `openai-whisper` | Depends on numba + triton, which require native toolchain (LLVM) and pull CUDA libs | `requirements-cpu.txt` |
+| `openwakeword` | Depends on onnxruntime, which requires numpy ≥ 2.x, conflicting with numpy 1.x pin | `requirements-cpu.txt` |
+| `TTS` (Coqui) | Depends on torch (see above) and has many complex transitive deps | `requirements-cpu.txt` |
+
+> **Rule:** Any package that causes `pipenv lock` to fail on a clean Debian/Ubuntu Linux environment without CUDA must not be added to `Pipfile`. Keep those in the split requirements files instead.
 
 ## Updating Dependencies
 
@@ -56,6 +73,7 @@ pip install -r requirements-cpu.txt
 **Version constraints:**
 - `torch`, `torchvision`, `torchaudio` must be compatible versions
 - Check [PyTorch version compatibility](https://pytorch.org/get-started/previous-versions/)
+- These packages are NOT in Pipfile because the standard PyPI Linux wheel includes CUDA dependencies that break `pipenv lock` on clean systems
 
 ### Transformers + TTS Compatibility
 
@@ -107,11 +125,13 @@ python gui.py           # Test GUI loads
 
 ✅ **transformers BeamSearchScorer** - Shim in `rex/compat/transformers_shims.py`
 
+✅ **Dependabot lock failure** - Removed heavy ML packages (torch, openai-whisper, openwakeword, TTS) from Pipfile; they remain in requirements-cpu.txt and pyproject.toml [ml] extras.
+
 ### Active Constraints
 
-- **torch**: Must use CPU builds (no CUDA)
+- **torch**: Must use CPU builds (no CUDA). Not in Pipfile due to CUDA transitive deps on Linux PyPI.
 - **TTS**: Requires transformers compatibility shim
-- **numpy**: Keep <2.0 for compatibility with older scientific packages
+- **numpy**: Keep <2.0 in requirements-cpu.txt for compatibility with numba/TTS/other scientific packages
 
 ## Dependabot Configuration
 
@@ -119,6 +139,13 @@ GitHub Dependabot requires exact pins (`==`) to function. It will:
 - Detect outdated dependencies
 - Propose version bumps via pull requests
 - Flag security vulnerabilities
+
+**Pipfile / Pipfile.lock must remain lockable** on a clean Linux system without CUDA. Test with:
+
+```bash
+pip install pipenv
+pipenv lock --clear
+```
 
 **To enable Dependabot:**
 1. Ensure the split requirements files use exact pins where needed
@@ -129,6 +156,7 @@ GitHub Dependabot requires exact pins (`==`) to function. It will:
 
 | Date       | Transformers | Torch | TTS   | Notes                          |
 |------------|--------------|-------|-------|--------------------------------|
+| 2026-02-20 | 4.57.3 (Pipfile) | 2.6.0 (cpu only) | 0.22.0 (req files) | Remove ML packages from Pipfile to fix Dependabot lock; bump cryptography→44.0.2, pillow→11.2.1 |
 | 2026-01-09 | 4.57.3       | 2.6.0 | 0.22.0| Pin CUDA 12.4, fix torchvision constraint |
 | 2026-01-09 | 4.57.3       | 2.8.0 | 0.22.0| 15 CVEs fixed, Pipfile.lock added |
 | 2026-01-08 | 4.57.3       | 2.9.1 | 0.22.0| Security fixes, shim added     |
@@ -172,24 +200,24 @@ pipenv update flask
 pipenv update
 
 # Lock dependencies after manual edit to Pipfile
-pipenv lock
+pipenv lock --clear
 
-# Generate CPU requirements from Pipfile.lock (if using Pipenv)
-pipenv requirements > requirements-cpu.txt
+# Generate requirements from Pipfile.lock (core packages only)
+pipenv requirements > /tmp/pipenv-core.txt
 ```
 
 ### Keeping Pipfile and split requirements in Sync
 
 **Primary workflow:** Edit the split requirements files directly for dependency updates.
 
-To sync Pipfile when requirements files change:
+The Pipfile covers only the **core/web/API subset** of packages (no torch, openai-whisper, etc.). For the full ML stack, use `requirements-cpu.txt`.
 
 ```bash
-# Update Pipfile manually or regenerate from requirements-cpu.txt
-pipenv install -r requirements-cpu.txt --skip-lock
+# After editing Pipfile, regenerate the lockfile
+pipenv lock --clear
 
-# Lock dependencies
-pipenv lock
+# Run tests to verify nothing broke
+pytest -q
 ```
 
 **Note:** `requirements.txt` is a pointer file. Pipfile/Pipfile.lock exist primarily to enable Dependabot.
