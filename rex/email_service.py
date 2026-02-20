@@ -170,6 +170,11 @@ class EmailService:
         Otherwise falls back to stub behaviour (loads mock data).
         """
         try:
+            if self._backend is None:
+                backend, _account = self._resolve_backend_from_config()
+                if backend is not None:
+                    self._backend = backend
+
             if self._backend is not None:
                 result = self._backend.connect()  # type: ignore[union-attr]
                 self.connected = bool(result)
@@ -194,6 +199,41 @@ class EmailService:
             logger.error("Failed to connect email service: %s", e, exc_info=True)
             self.connected = False
             return False
+
+    def _resolve_backend_from_config(
+        self, account_id: str | None = None
+    ) -> tuple[object | None, Any]:
+        """Resolve a real backend from runtime config, else return ``(None, None)``.
+
+        Resolution follows the account-router precedence:
+        explicit account > default account > first account > stub fallback.
+        """
+        try:
+            from rex.config_manager import load_config as _load_json_config
+            from rex.email_backends.account_config import load_email_config
+            from rex.email_backends.account_router import resolve_backend
+            from rex.email_backends.stub import StubEmailBackend
+
+            raw_config = _load_json_config()
+            email_config = load_email_config(raw_config)
+
+            credential_getter = None
+            if self.credential_manager is not None and hasattr(
+                self.credential_manager, "get_token"
+            ):
+                credential_getter = self.credential_manager.get_token
+
+            backend, account = resolve_backend(
+                email_config,
+                account_id=account_id,
+                credential_getter=credential_getter,
+            )
+            if isinstance(backend, StubEmailBackend):
+                return None, None
+            return backend, account
+        except Exception as exc:
+            logger.debug("Failed to resolve configured email backend: %s", exc)
+            return None, None
 
     def _publish(self, topic: str, payload: dict[str, Any]) -> None:
         if self._event_bus is None:
@@ -448,9 +488,15 @@ class EmailService:
         """
         to_addrs = [to] if isinstance(to, str) else list(to)
 
-        if self._backend is not None and hasattr(self._backend, "send"):
-            sender = from_addr or ""
-            result = self._backend.send(  # type: ignore[union-attr]
+        send_backend = self._backend
+        resolved_account = None
+
+        if send_backend is None:
+            send_backend, resolved_account = self._resolve_backend_from_config(account_id)
+
+        if send_backend is not None and hasattr(send_backend, "send"):
+            sender = from_addr or getattr(resolved_account, "address", "") or ""
+            result = send_backend.send(  # type: ignore[union-attr]
                 from_addr=sender,
                 to_addrs=to_addrs,
                 subject=subject,
