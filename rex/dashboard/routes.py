@@ -748,4 +748,89 @@ def delete_job(job_id: str):
         return jsonify({"error": f"Failed to delete job: {e}"}), 500
 
 
+# --- Notification Endpoints ---
+
+
+@dashboard_bp.route("/api/notifications", methods=["GET"])
+@require_auth
+def list_notifications():
+    """List recent dashboard notifications.
+
+    Query params:
+    - limit: Max entries to return (default: 50, max: 200)
+    - unread: If "true", return only unread notifications
+    - priority: Filter by priority level (urgent, normal, digest)
+    - user_id: Filter by user ID
+    """
+    try:
+        from rex.dashboard_store import get_dashboard_store
+
+        store = get_dashboard_store()
+
+        limit = min(int(request.args.get("limit", 50)), 200)
+        unread_only = request.args.get("unread", "").lower() == "true"
+        priority = request.args.get("priority")
+        user_id = request.args.get("user_id")
+
+        notifications = store.query_recent(
+            limit=limit,
+            user_id=user_id,
+            unread_only=unread_only,
+            priority=priority,
+        )
+        unread_count = store.count_unread(user_id=user_id)
+
+        return jsonify({
+            "notifications": [n.to_dict() for n in notifications],
+            "total": len(notifications),
+            "unread_count": unread_count,
+        })
+
+    except Exception as e:
+        logger.error("Failed to list notifications: %s", e)
+        return jsonify({"error": f"Failed to list notifications: {e}"}), 500
+
+
+@dashboard_bp.route("/api/notifications/<notification_id>/read", methods=["POST"])
+@require_auth
+def mark_notification_read(notification_id: str):
+    """Mark a notification as read."""
+    try:
+        from rex.dashboard_store import get_dashboard_store
+
+        store = get_dashboard_store()
+        found = store.mark_as_read(notification_id)
+
+        if not found:
+            return jsonify({"error": "Notification not found or already read"}), 404
+
+        return jsonify({"id": notification_id, "read": True})
+
+    except Exception as e:
+        logger.error("Failed to mark notification read: %s", e)
+        return jsonify({"error": f"Failed to mark notification read: {e}"}), 500
+
+
+@dashboard_bp.route("/api/notifications/read-all", methods=["POST"])
+@require_auth
+def mark_all_notifications_read():
+    """Mark all notifications as read.
+
+    Query params:
+    - user_id: Scope to a specific user (optional)
+    """
+    try:
+        from rex.dashboard_store import get_dashboard_store
+
+        store = get_dashboard_store()
+        user_id = request.args.get("user_id")
+        count = store.mark_all_read(user_id=user_id)
+
+        return jsonify({"marked_read": count})
+
+    except Exception as e:
+        logger.error("Failed to mark all notifications read: %s", e)
+        return jsonify({"error": f"Failed to mark all notifications read: {e}"}), 500
+
+
 __all__ = ["dashboard_bp"]

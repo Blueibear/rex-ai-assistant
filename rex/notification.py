@@ -379,9 +379,30 @@ class Notifier:
         self._dispatch_to_channel(channel, notification)
 
     def _send_to_dashboard(self, notification: NotificationRequest) -> None:
-        """Send notification to dashboard (placeholder)."""
-        logger.info(f"[DASHBOARD] {notification.title}: {notification.body}")
-        # In a real implementation, this would write to a dashboard API or database
+        """Send notification to the local dashboard store.
+
+        Persists the notification to a SQLite database via ``DashboardStore``
+        so it can be retrieved by the dashboard API.  Falls back to logging
+        if the store is unavailable.
+        """
+        try:
+            from rex.dashboard_store import get_dashboard_store
+
+            store = get_dashboard_store()
+            user_id = notification.metadata.get("user_id")
+            store.write(
+                notification_id=notification.id,
+                priority=notification.priority,
+                title=notification.title,
+                body=notification.body,
+                channel="dashboard",
+                user_id=user_id,
+                metadata=notification.metadata,
+            )
+            logger.info("[DASHBOARD] Stored notification: %s", notification.title)
+        except Exception as exc:
+            logger.warning("[DASHBOARD] Failed to store notification: %s", exc)
+            logger.info("[DASHBOARD] %s: %s", notification.title, notification.body)
 
     def _send_to_email(self, notification: NotificationRequest) -> None:
         """Send notification via email.
@@ -435,14 +456,23 @@ class Notifier:
             raise
 
     def _send_to_sms(self, notification: NotificationRequest) -> None:
-        """Send notification via SMS."""
+        """Send notification via SMS using the messaging backend.
+
+        The recipient phone number is resolved from notification metadata
+        (``to_number``).  The messaging account is selected via the
+        ``messaging_account_id`` metadata key (if present).
+        """
         try:
             from rex.messaging_service import Message, get_sms_service
 
             sms_service = get_sms_service()
 
-            # Get recipient from metadata or use default
-            to_number = notification.metadata.get("to_number", "+15555551234")
+            to_number = notification.metadata.get("to_number")
+            if not to_number:
+                logger.warning("[SMS] No 'to_number' in notification metadata; skipping")
+                return
+
+            account_id = notification.metadata.get("messaging_account_id")
 
             message = Message(
                 channel="sms",
@@ -451,10 +481,10 @@ class Notifier:
                 body=f"{notification.title}: {notification.body}",
             )
 
-            sms_service.send(message)
-            logger.info(f"[SMS] Sent to {to_number}: {notification.title}")
+            sms_service.send(message, account_id=account_id)
+            logger.info("[SMS] Sent to %s: %s", to_number, notification.title)
         except Exception as e:
-            logger.warning(f"SMS notification failed: {e}")
+            logger.warning("SMS notification failed: %s", e)
             raise
 
     def _send_to_ha_tts(self, notification: NotificationRequest) -> None:

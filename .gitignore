@@ -119,3 +119,4 @@ OLLAMA_INTEGRATION_GUIDE.txt
 data/cues/
 data/notifications/
 data/scheduler/
+data/*.db
