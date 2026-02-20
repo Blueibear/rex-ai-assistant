@@ -92,8 +92,8 @@ Notable top-level modules and entrypoints:
 - Voice speaker recognition must be scaffolded behind optional dependencies; default installs must stay lightweight.
 
 ## Dependency and lockfile rules (non-negotiable)
-- Keep `Pipfile` and `Pipfile.lock` Dependabot/pipenv lock friendly on clean Linux (no CUDA runtime assumptions).
-- Do **not** add heavy ML/CUDA dependencies to `Pipfile` default packages.
+- Keep `Pipfile` and `Pipfile.lock` Dependabot and pipenv lock friendly on clean Linux (no CUDA runtime assumptions).
+- Do not add heavy ML or CUDA dependencies to `Pipfile` default packages.
 - Heavy voice-recognition dependencies must be optional extras only (for example in `pyproject.toml` optional dependency groups) and guarded at runtime.
 - Any dependency change for integrations must include explicit lockability verification (`pipenv lock --clear`) in the PR verification notes.
 
@@ -122,7 +122,7 @@ When these commands are added, update CLI help text, docs, and tests in the same
 
 ## Testing
 - Pytest configuration source-of-truth is `[tool.pytest.ini_options]` in `pyproject.toml`; do not reintroduce `pytest.ini`.
-- Default pytest addopts do **not** include coverage flags. `pytest -q` works after a base install (`pip install -e .`) without pytest-cov.
+- Default pytest addopts do not include coverage flags. `pytest -q` works after a base install (`pip install -e .`) without pytest-cov.
 - Coverage runs in CI only; coverage flags (`--cov=rex --cov-report=...`) are passed explicitly in `.github/workflows/ci.yml`.
 - Canonical local test command: `pytest -q`.
 - For local coverage: `pip install -e '.[dev]'` then `pytest -q --cov=rex --cov-report=term-missing`.
@@ -142,6 +142,30 @@ When these commands are added, update CLI help text, docs, and tests in the same
 - Node/JavaScript CI jobs must not be added unless a real Node project exists (for example `package.json` at repo root or explicit subpath).
 - Any Node job that is added must fail on real lint/test/build errors.
 - CI and tests enforce clean-repo isolation after test runs (tracked files must remain unchanged; coverage artifacts are excluded).
+
+## Commit and PR title rules (CI enforced)
+This repo enforces Conventional Commits via a commitlint GitHub Action. It lints both:
+- Every commit message in the PR, and
+- The PR title (often used as the squash-merge commit message)
+
+If either is not in Conventional Commits format, CI fails.
+
+Required format:
+- `type(optional-scope): subject`
+
+Common types to use:
+- `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci`, `build`, `perf`
+
+Examples:
+- `docs: add integration backlog and update CLAUDE rules`
+- `feat(email): add IMAP backend adapter scaffold`
+- `fix(calendar): handle empty ICS feed gracefully`
+- `chore(ci): tighten commitlint rules`
+
+Subject guidelines:
+- Use imperative mood ("add", "fix", "update"), do not start with "Added" or "Adding"
+- No trailing period
+- Keep it short and specific
 
 ## Docs Consistency
 - Integration docs for `email`, `calendar`, `messaging`, and `notifications` must include a top-level Implementation Status block (Beta, Stub, or Production-ready).
@@ -176,6 +200,7 @@ When these commands are added, update CLI help text, docs, and tests in the same
 - If requirements are ambiguous, propose a safe default and explain it briefly.
 - Provide the full updated file when you modify code, not a partial diff.
 - Keep outputs paste-ready and avoid non-printing Unicode characters.
+- Use Conventional Commits for every commit and for the PR title (see "Commit and PR title rules").
 
 ## Code output rules (must follow)
 - Do not provide truncated code. If you change a file, output the entire updated file unless the request explicitly asks for a diff.
