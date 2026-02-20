@@ -58,10 +58,10 @@ The following integrations are **beta / stub scaffolding** and do not yet connec
 
 | Feature | Status | Details |
 |---------|--------|---------|
-| **Email** | Stub (mock data) | Reads from a local JSON fixture; no real IMAP/SMTP connection yet. |
+| **Email** | Beta (real backend available) | Supports real IMAP4-SSL read + SMTP send when configured; defaults to stub/mock for offline dev. Multi-account support included. |
 | **Calendar** | Stub (mock data) | Returns mock events; no Google/Outlook calendar integration yet. |
 | **SMS / Messaging** | Stub scaffold | Framework and CLI are wired up, but sending requires valid Twilio credentials and is otherwise a no-op. |
-| **Notifications** | Stub scaffold | Priority routing and digest logic exist; delivery channels (email, dashboard) are placeholders. |
+| **Notifications** | Beta (email channel real) | Priority routing and digest logic exist; email channel uses real SMTP when configured, other channels remain placeholders. |
 
 All stub commands are fully usable for development and testing. Contributions to add real backends are welcome.
 

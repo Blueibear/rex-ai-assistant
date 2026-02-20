@@ -2,18 +2,29 @@
 
 The Rex AI Assistant includes email triage functionality that allows Rex to read, categorize, and process emails automatically. This enables Rex to keep you informed of important communications and trigger workflows based on email content.
 
+## Implementation Status
+
+**Status: Beta**
+
+The email integration supports two modes:
+
+| Mode | Read | Send | When |
+|------|------|------|------|
+| **Stub** (default) | JSON fixture | Logged no-op | No accounts configured |
+| **Real** | IMAP4-SSL | SMTP (STARTTLS/SMTPS) | Accounts configured with credentials |
+
+Multi-account support is included. Default mode is stub; real backends activate when accounts are configured in `config/rex_config.json` and credentials are available.
+
 ## Overview
 
 The email service provides:
-- Read-only access to unread emails
+- Read and send email (IMAP4-SSL read + SMTP send when configured)
 - Automatic categorization (important, promo, social, newsletter, general)
 - Email summarization
+- Multi-account support with explicit, default, and fallback routing
 - Integration with the scheduler for automated checking
 - Event publishing for reactive workflows
-
-## Current Implementation
-
-**Note**: The current implementation uses mock/stub functionality for testing. Real IMAP/SMTP integration will be added in future releases.
+- Notification email channel uses real SMTP when configured
 
 ## Architecture
 
@@ -261,27 +272,127 @@ for email in unread:
         email_service.mark_as_read(email.id)
 ```
 
-## Future: Real IMAP Integration
+## Multi-Account Configuration
 
-Future releases will include real IMAP support:
+Rex supports multiple email accounts per user. Accounts are configured in `config/rex_config.json` under the `email` key.
+
+### Configuration Format
+
+```json
+{
+  "email": {
+    "default_account_id": "personal",
+    "accounts": [
+      {
+        "id": "personal",
+        "label": "Personal Gmail",
+        "address": "you@gmail.com",
+        "imap": {
+          "host": "imap.gmail.com",
+          "port": 993,
+          "ssl": true
+        },
+        "smtp": {
+          "host": "smtp.gmail.com",
+          "port": 587,
+          "starttls": true
+        },
+        "credential_ref": "email:personal"
+      },
+      {
+        "id": "work",
+        "label": "Work Outlook",
+        "address": "you@company.com",
+        "imap": {
+          "host": "outlook.office365.com",
+          "port": 993,
+          "ssl": true
+        },
+        "smtp": {
+          "host": "smtp.office365.com",
+          "port": 587,
+          "starttls": true
+        },
+        "credential_ref": "email:work"
+      }
+    ]
+  }
+}
+```
+
+### Config Keys
+
+| Key | Description |
+|-----|-------------|
+| `email.default_account_id` | Account ID used when none is explicitly specified |
+| `email.accounts[].id` | Unique identifier for the account |
+| `email.accounts[].label` | Human-friendly display name |
+| `email.accounts[].address` | Email address |
+| `email.accounts[].imap` | IMAP server settings (`host`, `port`, `ssl`) |
+| `email.accounts[].smtp` | SMTP server settings (`host`, `port`, `starttls`) |
+| `email.accounts[].credential_ref` | Key for credential lookup (see below) |
+
+### Credentials
+
+Credentials are stored **outside** the config file. Each account references a `credential_ref` that maps to an environment variable or `config/credentials.json` entry via the `CredentialManager`.
+
+**Setting credentials via environment variable:**
+
+```bash
+# Format: username:password (or just password — address is used as username)
+export EMAIL_PERSONAL="you@gmail.com:your_app_password"
+export EMAIL_WORK="you@company.com:your_app_password"
+```
+
+Then configure the credential mapping to point `email:personal` to `EMAIL_PERSONAL`, etc.
+
+**Important:** Use app-specific passwords for services with 2FA (e.g., Gmail).
+
+### Account Selection (Routing)
+
+When sending or reading email, accounts are selected using this precedence:
+
+1. **Explicit** `account_id` argument (highest priority)
+2. **Default** from `email.default_account_id`
+3. **Fallback** to first account in the list
+
+If no accounts are configured, the stub backend is used automatically.
+
+### CLI Commands
+
+```bash
+# List configured accounts
+rex email accounts list
+
+# Set the default account
+rex email accounts set-active --account-id work
+
+# Test account connectivity
+rex email test-connection --account-id personal
+
+# Send an email via a specific account
+rex email send --account-id work --to recipient@example.com \
+  --subject "Hello" --body "Message body"
+```
+
+### Notification Account Selection
+
+Notifications that use the email channel can specify which account to use via the `email_account_id` metadata key:
 
 ```python
-class EmailService:
-    def connect(self):
-        # Connect to IMAP server
-        import imaplib
-        self.imap = imaplib.IMAP4_SSL(
-            self.imap_server,
-            self.imap_port
-        )
-        self.imap.login(username, password)
-        self.imap.select('INBOX')
-
-    def fetch_unread(self, limit=10):
-        # Fetch unread emails via IMAP
-        status, messages = self.imap.search(None, 'UNSEEN')
-        # Parse and return EmailSummary objects
+notification = NotificationRequest(
+    priority="urgent",
+    title="Alert",
+    body="Something happened",
+    channel_preferences=["email"],
+    metadata={
+        "to_email": "admin@example.com",
+        "email_account_id": "work",  # Use the work account
+    },
+)
 ```
+
+If `email_account_id` is not set, the default account routing rules apply.
 
 ## Security Considerations
 
@@ -332,13 +443,10 @@ If emails are mis-categorized:
 
 Planned improvements for email integration:
 
-- Real IMAP/SMTP support (Gmail, Outlook, etc.)
-- OAuth2 authentication
-- Email sending capabilities
+- OAuth2 authentication (currently uses app passwords)
 - Email threading and conversation tracking
 - Attachment handling
 - Advanced filtering and rules
 - Email templates
 - Batch operations
 - Search functionality
-- Multiple account support

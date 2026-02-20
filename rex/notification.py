@@ -397,20 +397,52 @@ class Notifier:
         # In a real implementation, this would write to a dashboard API or database
 
     def _send_to_email(self, notification: NotificationRequest) -> None:
-        """Send notification via email."""
+        """Send notification via email.
+
+        Uses the real ``EmailService.send()`` path when a backend is
+        configured.  Falls back to a logged stub when no backend or
+        recipient is available.
+
+        The recipient email address is resolved from notification metadata
+        (``to_email``), and the email account is selected via the
+        ``email_account_id`` metadata key (if present).
+        """
         try:
             from rex.email_service import get_email_service
 
             email_service = get_email_service()
-            logger.info(
-                f"[EMAIL] Would send: {notification.title}\n{notification.body}"
-            )
-            # In a real implementation:
-            # email_service.send(
-            #     to=user_email,
-            #     subject=notification.title,
-            #     body=notification.body
-            # )
+
+            to_email = notification.metadata.get("to_email")
+            account_id = notification.metadata.get("email_account_id")
+
+            if to_email and email_service.active_backend is not None:
+                result = email_service.send(
+                    to=to_email,
+                    subject=notification.title,
+                    body=notification.body,
+                    account_id=account_id,
+                )
+                if result.get("ok"):
+                    logger.info(
+                        "[EMAIL] Sent notification %r to %s",
+                        notification.title,
+                        to_email,
+                    )
+                else:
+                    error = result.get("error", "unknown error")
+                    logger.warning("[EMAIL] Send failed: %s", error)
+                    raise RuntimeError(f"Email send failed: {error}")
+            else:
+                logger.info(
+                    "[EMAIL] Would send: %s\n%s",
+                    notification.title,
+                    notification.body,
+                )
+        except ImportError:
+            logger.warning("Email service not available for notification delivery")
+            raise
+        except RuntimeError:
+            raise
         except Exception as e:
             logger.warning(f"Email notification failed: {e}")
             raise

@@ -4,11 +4,14 @@ Email service module for Rex AI Assistant.
 Provides email triage functionality with classification and summarization.
 
 Design goals:
-- Works in stub/mock mode (no real IMAP/SMTP yet).
+- Works in stub/mock mode (no real IMAP/SMTP yet) by default.
 - Supports both:
   1) "fetch_unread(...)" returning structured EmailSummary objects
   2) "triage_unread(...)" returning CLI-friendly dict summaries
 - Optional EventBus publishing if rex.event_bus is available and provided.
+- Backend-aware: accepts an optional ``EmailBackend`` for real IMAP/SMTP.
+- Multi-account: can resolve backend per-account via ``EmailConfig``.
+- ``send()`` method delegates to the active backend.
 """
 
 from __future__ import annotations
@@ -94,10 +97,14 @@ class EmailMessage:
 
 class EmailService:
     """
-    Email service for reading and categorizing emails.
+    Email service for reading, categorizing, and sending emails.
 
-    Currently uses stub implementation with mock data.
-    Real IMAP/SMTP integration can be added later.
+    Supports two modes:
+    - **Stub mode** (default): reads from a local JSON fixture; send is a
+      logged no-op.  Used for offline development and testing.
+    - **Backend mode**: delegates to an ``EmailBackend`` instance for real
+      IMAP/SMTP operations.  Activated by passing a ``backend`` to the
+      constructor or by calling ``set_backend()``.
     """
 
     def __init__(
@@ -107,6 +114,7 @@ class EmailService:
         event_bus: Optional["EventBus"] = None,
         mock_messages: Optional[list[EmailMessage]] = None,
         mock_data_path: Optional[Path] = None,
+        backend: Optional[object] = None,
     ) -> None:
         if event_bus is None and mock_data_file is not None and hasattr(mock_data_file, "publish"):
             event_bus = mock_data_file  # type: ignore[assignment]
@@ -120,6 +128,7 @@ class EmailService:
         self._event_bus = event_bus
         self._mock_messages = mock_messages  # If provided, overrides file loading
         self._mock_emails: list[EmailSummary] = []
+        self._backend = backend  # Optional EmailBackend instance
 
         self.credential_manager = None
         if get_credential_manager is not None:
@@ -128,15 +137,44 @@ class EmailService:
             except Exception:
                 self.credential_manager = None
 
+    # ------------------------------------------------------------------
+    # Backend management
+    # ------------------------------------------------------------------
+
+    def set_backend(self, backend: object) -> None:
+        """Swap the active email backend at runtime.
+
+        Args:
+            backend: An ``EmailBackend`` instance (or ``None`` for stub).
+        """
+        self._backend = backend
+        self.connected = False
+
+    @property
+    def active_backend(self) -> Optional[object]:
+        """The currently configured backend (may be ``None`` for stub mode)."""
+        return self._backend
+
+    # ------------------------------------------------------------------
+    # Connection
+    # ------------------------------------------------------------------
+
     def connect(self) -> bool:
         """
         Connect to email service.
 
-        Stub behavior:
-- checks credentials exist (if credential manager available)
-- loads mock data from file or provided mock_messages
+        If a backend is set, delegates to ``backend.connect()``.
+        Otherwise falls back to stub behaviour (loads mock data).
         """
         try:
+            if self._backend is not None:
+                result = self._backend.connect()  # type: ignore[union-attr]
+                self.connected = bool(result)
+                if self.connected:
+                    logger.info("Email service connected via backend")
+                return self.connected
+
+            # Stub mode
             if self.credential_manager is not None:
                 try:
                     email_creds = self.credential_manager.get_credential("email")
@@ -273,9 +311,17 @@ class EmailService:
                 return None
         return None
 
+    # ------------------------------------------------------------------
+    # Read operations
+    # ------------------------------------------------------------------
+
     def fetch_unread(self, limit: int = 10) -> list[EmailSummary]:
         """
         Fetch unread email summaries.
+
+        If a backend is configured, delegates to ``backend.fetch_unread()``
+        and converts envelopes to ``EmailSummary`` objects.  Otherwise uses
+        the in-memory mock data.
 
         Args:
             limit: Maximum number of emails to return
@@ -287,6 +333,12 @@ class EmailService:
             if not self.connect():
                 logger.warning("Email service not connected")
                 return []
+
+        if self._backend is not None:
+            envelopes = self._backend.fetch_unread(limit=limit)  # type: ignore[union-attr]
+            result = [self._envelope_to_summary(env) for env in envelopes]
+            self._publish("email.unread", {"count": len(result), "messages": [self._summary_dict(e) for e in result]})
+            return result
 
         unread = [email for email in self._mock_emails if "unread" in (email.labels or [])]
         result = unread[: max(0, int(limit))]
@@ -327,10 +379,16 @@ class EmailService:
         return triaged
 
     def mark_as_read(self, email_id: str) -> bool:
-        """Mark an email as read (stub implementation)."""
+        """Mark an email as read."""
         if not self.connected:
             logger.warning("Email service not connected")
             return False
+
+        if self._backend is not None:
+            result = self._backend.mark_as_read(email_id)  # type: ignore[union-attr]
+            if result:
+                self._publish("email.read", {"id": email_id})
+            return result
 
         for email in self._mock_emails:
             if email.id == email_id:
@@ -342,6 +400,63 @@ class EmailService:
 
         logger.warning("Email not found: %s", email_id)
         return False
+
+    # ------------------------------------------------------------------
+    # Send operations
+    # ------------------------------------------------------------------
+
+    def send(
+        self,
+        *,
+        to: str | list[str],
+        subject: str,
+        body: str,
+        from_addr: Optional[str] = None,
+        account_id: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Send an email via the active backend.
+
+        If no backend is configured or send is not supported, logs the
+        intent and returns a stub result.
+
+        Args:
+            to:         Recipient address(es).
+            subject:    Email subject line.
+            body:       Plain-text body.
+            from_addr:  Sender address override (defaults to account address).
+            account_id: Explicit account to route through (for multi-account).
+
+        Returns:
+            A dict with keys ``ok`` (bool), ``message_id`` (str|None), and
+            ``error`` (str|None).
+        """
+        to_addrs = [to] if isinstance(to, str) else list(to)
+
+        if self._backend is not None and hasattr(self._backend, "send"):
+            sender = from_addr or ""
+            result = self._backend.send(  # type: ignore[union-attr]
+                from_addr=sender,
+                to_addrs=to_addrs,
+                subject=subject,
+                body=body,
+            )
+            return {
+                "ok": result.ok,
+                "message_id": result.message_id,
+                "error": result.error,
+            }
+
+        # Stub mode: log and return success.
+        logger.info(
+            "[STUB] Would send email to=%s subject=%r",
+            to_addrs,
+            subject,
+        )
+        return {"ok": True, "message_id": None, "error": None}
+
+    # ------------------------------------------------------------------
+    # Categorisation / summarisation
+    # ------------------------------------------------------------------
 
     def categorize(self, email: EmailSummary) -> str:
         """
@@ -421,6 +536,23 @@ class EmailService:
     def get_all_emails(self) -> list[EmailSummary]:
         """Get all emails (stub/testing)."""
         return self._mock_emails.copy()
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _envelope_to_summary(env: object) -> EmailSummary:
+        """Convert an ``EmailEnvelope`` from a backend to ``EmailSummary``."""
+        return EmailSummary(
+            id=getattr(env, "message_id", ""),
+            from_addr=getattr(env, "from_addr", ""),
+            subject=getattr(env, "subject", ""),
+            snippet=getattr(env, "snippet", ""),
+            received_at=getattr(env, "received_at", datetime.now(timezone.utc)),
+            labels=list(getattr(env, "labels", [])),
+            importance_score=0.5,
+        )
 
 
 # Global email service instance

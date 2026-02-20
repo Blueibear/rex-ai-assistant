@@ -992,8 +992,193 @@ def cmd_email(args: argparse.Namespace) -> int:
         print(f"Total: {len(unread)} unread emails")
         return 0
 
+    if subcommand == "accounts":
+        return _cmd_email_accounts(args)
+
+    if subcommand == "send":
+        return _cmd_email_send(args)
+
+    if subcommand == "test-connection":
+        return _cmd_email_test_connection(args)
+
     print("Unknown email subcommand. Use 'rex email --help'")
     return 1
+
+
+def _cmd_email_accounts(args: argparse.Namespace) -> int:
+    """Handle 'rex email accounts' subcommands."""
+    accounts_cmd = getattr(args, "accounts_command", "list")
+
+    if accounts_cmd == "list":
+        email_config = _load_email_config_safe()
+        if not email_config or not email_config.accounts:
+            print("No email accounts configured.")
+            print()
+            print("To configure accounts, add an 'email' section to config/rex_config.json.")
+            print("See docs/email.md for details.")
+            return 0
+
+        print("Email Accounts")
+        print("=" * 60)
+        print()
+
+        default_id = email_config.default_account_id
+        for acct in email_config.accounts:
+            is_default = " (default)" if acct.id == default_id else ""
+            print(f"  {acct.id}{is_default}")
+            if acct.label:
+                print(f"    Label:   {acct.label}")
+            print(f"    Address: {acct.address}")
+            print(f"    IMAP:    {acct.imap.host}:{acct.imap.port} (SSL={acct.imap.ssl})")
+            print(f"    SMTP:    {acct.smtp.host}:{acct.smtp.port} (STARTTLS={acct.smtp.starttls})")
+            print(f"    Cred:    {acct.credential_ref}")
+            print()
+
+        print(f"Total: {len(email_config.accounts)} account(s)")
+        return 0
+
+    if accounts_cmd == "set-active":
+        account_id = getattr(args, "account_id", None)
+        if not account_id:
+            print("Error: --account-id is required")
+            return 1
+
+        email_config = _load_email_config_safe()
+        if not email_config:
+            print("Error: No email configuration found")
+            return 1
+
+        ids = email_config.list_account_ids()
+        if account_id not in ids:
+            print(f"Error: Account '{account_id}' not found. Available: {', '.join(ids)}")
+            return 1
+
+        # Update the config file
+        try:
+            import json as _json
+            config_path = Path("config/rex_config.json")
+            if config_path.exists():
+                config_data = _json.loads(config_path.read_text(encoding="utf-8"))
+            else:
+                config_data = {}
+
+            if "email" not in config_data:
+                config_data["email"] = {}
+            config_data["email"]["default_account_id"] = account_id
+            config_path.write_text(_json.dumps(config_data, indent=2) + "\n", encoding="utf-8")
+            print(f"Default email account set to '{account_id}'")
+            return 0
+        except Exception as exc:
+            print(f"Error updating config: {exc}")
+            return 1
+
+    print("Unknown accounts subcommand. Use 'rex email accounts --help'")
+    return 1
+
+
+def _cmd_email_send(args: argparse.Namespace) -> int:
+    """Handle 'rex email send'."""
+    to = getattr(args, "to", None)
+    subject = getattr(args, "subject", None)
+    body = getattr(args, "body", None)
+    account_id = getattr(args, "account_id", None)
+
+    if not to or not subject or not body:
+        print("Error: --to, --subject, and --body are required")
+        return 1
+
+    email_service = get_email_service()
+    if not email_service.connected:
+        if not email_service.connect():
+            print("Error: Failed to connect to email service")
+            return 1
+
+    result = email_service.send(
+        to=to,
+        subject=subject,
+        body=body,
+        account_id=account_id,
+    )
+
+    if result.get("ok"):
+        msg_id = result.get("message_id") or "(stub)"
+        print(f"Email sent successfully (message_id: {msg_id})")
+        return 0
+
+    print(f"Error: {result.get('error', 'Unknown error')}")
+    return 1
+
+
+def _cmd_email_test_connection(args: argparse.Namespace) -> int:
+    """Handle 'rex email test-connection'."""
+    account_id = getattr(args, "account_id", None)
+
+    email_config = _load_email_config_safe()
+    if not email_config or not email_config.accounts:
+        print("No email accounts configured. Using stub backend.")
+        print("Connection test: OK (stub mode)")
+        return 0
+
+    acct = email_config.get_account(account_id)
+    if acct is None:
+        available = ", ".join(email_config.list_account_ids())
+        print(f"Error: Account not found. Available: {available}")
+        return 1
+
+    print(f"Testing connection for account '{acct.id}' ({acct.address})...")
+    print(f"  IMAP: {acct.imap.host}:{acct.imap.port}")
+    print(f"  SMTP: {acct.smtp.host}:{acct.smtp.port}")
+
+    # Check credentials
+    try:
+        from rex.credentials import get_credential_manager
+        cm = get_credential_manager()
+        token = cm.get_token(acct.credential_ref)
+        if not token:
+            print(f"  Credential ({acct.credential_ref}): NOT FOUND")
+            print()
+            print("Error: No credentials available for this account.")
+            print(f"Set the environment variable for '{acct.credential_ref}' or")
+            print("add it to config/credentials.json.")
+            return 1
+        print(f"  Credential ({acct.credential_ref}): available")
+    except Exception as exc:
+        print(f"  Credential check error: {exc}")
+        return 1
+
+    # Try IMAP connect
+    try:
+        from rex.email_backends.account_router import resolve_backend
+        backend, _ = resolve_backend(
+            email_config,
+            account_id=acct.id,
+            credential_getter=cm.get_token,
+        )
+        if backend.connect():
+            print("  IMAP connection: OK")
+            backend.disconnect()
+        else:
+            print("  IMAP connection: FAILED")
+            return 1
+    except Exception as exc:
+        print(f"  IMAP connection error: {exc}")
+        return 1
+
+    print()
+    print("Connection test passed.")
+    return 0
+
+
+def _load_email_config_safe():
+    """Load EmailConfig from rex_config.json, returning None on failure."""
+    try:
+        from rex.email_backends.account_config import load_email_config
+        from rex.config_manager import load_config as _load_json_config
+
+        raw_config = _load_json_config()
+        return load_email_config(raw_config)
+    except Exception:
+        return None
 
 
 def cmd_calendar(args: argparse.Namespace) -> int:
@@ -2241,8 +2426,8 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     # email
     email_parser = subparsers.add_parser(
         "email",
-        help="Manage email (beta - stub/mock data)",
-        description="Read and triage emails from your inbox. NOTE: This integration is currently in beta and uses stub/mock data. No real IMAP/SMTP connection is made.",
+        help="Manage email (supports real IMAP/SMTP and stub mode)",
+        description="Read, send, and triage emails. Supports real IMAP/SMTP backends when configured, or stub/mock data for offline development.",
     )
     email_subparsers = email_parser.add_subparsers(
         title="email commands",
@@ -2258,6 +2443,59 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     email_unread.add_argument("--limit", type=int, default=10, help="Maximum number of emails to fetch (default: 10)")
     email_unread.add_argument("-v", "--verbose", action="store_true", help="Show detailed email information")
     email_unread.set_defaults(func=cmd_email, email_command="unread")
+
+    # email accounts
+    email_accounts = email_subparsers.add_parser(
+        "accounts",
+        help="Manage email accounts",
+        description="List and manage configured email accounts.",
+    )
+    email_accounts_sub = email_accounts.add_subparsers(
+        title="accounts commands",
+        dest="accounts_command",
+        metavar="COMMAND",
+    )
+
+    email_accounts_list = email_accounts_sub.add_parser(
+        "list",
+        help="List configured email accounts",
+    )
+    email_accounts_list.set_defaults(func=cmd_email, email_command="accounts", accounts_command="list")
+
+    email_accounts_set_active = email_accounts_sub.add_parser(
+        "set-active",
+        help="Set the default email account",
+    )
+    email_accounts_set_active.add_argument(
+        "--account-id",
+        type=str,
+        required=True,
+        help="Account ID to set as default",
+    )
+    email_accounts_set_active.set_defaults(func=cmd_email, email_command="accounts", accounts_command="set-active")
+
+    email_accounts.set_defaults(func=cmd_email, email_command="accounts", accounts_command="list")
+
+    # email send
+    email_send = email_subparsers.add_parser(
+        "send",
+        help="Send an email",
+        description="Send an email via the configured backend.",
+    )
+    email_send.add_argument("--to", type=str, required=True, help="Recipient email address")
+    email_send.add_argument("--subject", type=str, required=True, help="Email subject")
+    email_send.add_argument("--body", type=str, required=True, help="Email body text")
+    email_send.add_argument("--account-id", type=str, default=None, help="Account ID to send from")
+    email_send.set_defaults(func=cmd_email, email_command="send")
+
+    # email test-connection
+    email_test_conn = email_subparsers.add_parser(
+        "test-connection",
+        help="Test email account connection",
+        description="Verify IMAP/SMTP connectivity for a configured account.",
+    )
+    email_test_conn.add_argument("--account-id", type=str, default=None, help="Account ID to test")
+    email_test_conn.set_defaults(func=cmd_email, email_command="test-connection")
 
     email_parser.set_defaults(func=cmd_email, email_command="unread")
 

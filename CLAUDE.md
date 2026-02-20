@@ -54,6 +54,9 @@ Notable top-level modules and entrypoints:
 - `rex_speak_api.py` - Flask TTS API with auth and rate limiting
 - `run_gui.py` / `gui.py` - desktop GUI
 
+Notable subpackages:
+- `rex/email_backends/` - email backend adapters (base interface, stub, IMAP/SMTP, multi-account config/router)
+
 ## Commands
 
 ### Install
@@ -97,22 +100,22 @@ Notable top-level modules and entrypoints:
 - Heavy voice-recognition dependencies must be optional extras only (for example in `pyproject.toml` optional dependency groups) and guarded at runtime.
 - Any dependency change for integrations must include explicit lockability verification (`pipenv lock --clear`) in the PR verification notes.
 
-## Planned integration config keys (implement with docs/tests in the same PR)
-- Add runtime config section for multi-account email:
+## Email integration config keys (implemented)
+- Runtime config section for multi-account email in `config/rex_config.json`:
   - `email.default_account_id`
   - `email.accounts[]` with per-account IMAP/SMTP server settings and `credential_ref`
-- Notification routing may include metadata key `email_account_id` for explicit account selection.
-- Credentials should remain split by concern:
+- Notification routing uses metadata key `email_account_id` for explicit account selection.
+- Credentials are split by concern:
   - non-secret server/runtime values in `config/rex_config.json`
   - secrets in `.env` or `config/credentials.json` via `CredentialManager`
+- Email backend code lives in `rex/email_backends/` (base, stub, imap_smtp, account_config, account_router).
 
-## Planned CLI additions for integration management
+## Email CLI commands (implemented)
 - `rex email accounts list`
 - `rex email accounts set-active --account-id <id>`
 - `rex email test-connection [--account-id <id>]`
 - `rex email send --account-id <id> --to <recipient> --subject <subject> --body <body>`
-
-When these commands are added, update CLI help text, docs, and tests in the same PR.
+- `rex email unread [--limit N] [-v]` (pre-existing)
 
 ## Integration testing rules
 - Integration tests must not require real network credentials.
