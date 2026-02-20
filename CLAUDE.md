@@ -146,6 +146,19 @@ Notable subpackages:
 - Any Node job that is added must fail on real lint/test/build errors.
 - CI and tests enforce clean-repo isolation after test runs (tracked files must remain unchanged; coverage artifacts are excluded).
 
+## Lint preflight (must follow before pushing)
+Before pushing any branch, run Ruff and Black on all changed Python files against the base branch:
+```bash
+BASE_REF="master"
+git fetch origin "$BASE_REF"
+files=$(git diff --name-only "origin/$BASE_REF...HEAD" -- '*.py')
+echo "$files" | xargs ruff check --fix
+echo "$files" | xargs ruff check
+echo "$files" | xargs black
+echo "$files" | xargs black --check --diff
+```
+Fix all reported issues before committing. Do not push code that fails Ruff or Black.
+
 ## Commit and PR title rules (CI enforced)
 This repo enforces Conventional Commits via a commitlint GitHub Action. It lints both:
 - Every commit message in the PR, and
