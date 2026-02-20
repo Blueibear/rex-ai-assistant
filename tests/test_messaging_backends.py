@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -17,7 +16,6 @@ from rex.messaging_backends.account_config import (
 from rex.messaging_backends.base import InboundSms, SmsBackend, SmsSendResult
 from rex.messaging_backends.factory import create_sms_backend
 from rex.messaging_backends.stub import StubSmsBackend
-
 
 # --- Base interface tests ---
 
@@ -76,9 +74,7 @@ def test_stub_send_sms(stub_backend: StubSmsBackend):
 
 def test_stub_send_sms_custom_from(stub_backend: StubSmsBackend):
     """Stub send accepts a custom from_number."""
-    result = stub_backend.send_sms(
-        to="+15551234567", body="Hello", from_number="+15559999999"
-    )
+    result = stub_backend.send_sms(to="+15551234567", body="Hello", from_number="+15559999999")
     assert result.ok is True
     sent = stub_backend.sent_messages
     assert sent[0]["from"] == "+15559999999"
@@ -265,7 +261,9 @@ def test_load_messaging_config_valid():
 
 def test_messaging_account_config_extra_forbid():
     """MessagingAccountConfig rejects unknown fields."""
-    with pytest.raises(Exception):
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
         MessagingAccountConfig(
             id="x",
             from_number="+1",

@@ -70,9 +70,7 @@ class MessagingConfig(BaseModel):
         description="List of configured messaging accounts",
     )
 
-    def get_account(
-        self, account_id: str | None = None
-    ) -> MessagingAccountConfig | None:
+    def get_account(self, account_id: str | None = None) -> MessagingAccountConfig | None:
         """Resolve an account by ID using the routing precedence.
 
         Routing order:

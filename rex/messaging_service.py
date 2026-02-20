@@ -20,14 +20,14 @@ import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
 # Global SMS service instance
-_sms_service: Optional["SMSService"] = None
+_sms_service: SMSService | None = None
 
 
 def _utc_now() -> datetime:
@@ -70,7 +70,7 @@ class Message(BaseModel):
         default_factory=_utc_now,
         description="Message timestamp (UTC)",
     )
-    thread_id: Optional[str] = Field(
+    thread_id: str | None = Field(
         default=None,
         description="Thread identifier for grouping related messages",
     )
@@ -104,9 +104,7 @@ class MessagingService(ABC):
     """
 
     @abstractmethod
-    def send(
-        self, message: Message, account_id: str | None = None
-    ) -> Message:
+    def send(self, message: Message, account_id: str | None = None) -> Message:
         """Send a message via this channel.
 
         Args:
@@ -167,8 +165,8 @@ class SMSService(MessagingService):
 
     def __init__(
         self,
-        mock_file: Optional[Path] = None,
-        from_number: Optional[str] = None,
+        mock_file: Path | None = None,
+        from_number: str | None = None,
         *,
         backend: Any | None = None,
         raw_config: dict[str, Any] | None = None,
@@ -246,9 +244,7 @@ class SMSService(MessagingService):
         participants = sorted([to, from_])
         return f"sms_thread_{hash(tuple(participants)) & 0xFFFFFFFF:08x}"
 
-    def send(
-        self, message: Message, account_id: str | None = None
-    ) -> Message:
+    def send(self, message: Message, account_id: str | None = None) -> Message:
         """Send an SMS message.
 
         When a backend is configured, delegates to ``SmsBackend.send_sms()``.
@@ -287,9 +283,7 @@ class SMSService(MessagingService):
 
         return self._send_via_mock(message)
 
-    def _send_via_backend(
-        self, message: Message, *, account_id: str | None = None
-    ) -> Message:
+    def _send_via_backend(self, message: Message, *, account_id: str | None = None) -> Message:
         """Delegate send to the configured backend."""
         from rex.messaging_backends.base import SmsBackend
 

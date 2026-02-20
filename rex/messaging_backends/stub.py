@@ -112,9 +112,7 @@ class StubSmsBackend(SmsBackend):
     def _ensure_fixture(self) -> None:
         self._fixture_path.parent.mkdir(parents=True, exist_ok=True)
         if not self._fixture_path.exists():
-            self._fixture_path.write_text(
-                json.dumps({"messages": []}, indent=2), encoding="utf-8"
-            )
+            self._fixture_path.write_text(json.dumps({"messages": []}, indent=2), encoding="utf-8")
 
     def _load_records(self) -> list[dict[str, Any]]:
         try:

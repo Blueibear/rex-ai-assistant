@@ -74,9 +74,7 @@ def _create_twilio(
     """Attempt to create a Twilio backend; fall back to stub on failure."""
     acct = config.get_account(account_id)
     if acct is None:
-        logger.warning(
-            "Twilio backend configured but no accounts defined; falling back to stub"
-        )
+        logger.warning("Twilio backend configured but no accounts defined; falling back to stub")
         return StubSmsBackend(fixture_path=fixture_path)
 
     try:
@@ -90,14 +88,11 @@ def _create_twilio(
         )
     except ValueError as exc:
         logger.warning(
-            "Failed to create Twilio backend for account '%s': %s. "
-            "Falling back to stub.",
+            "Failed to create Twilio backend for account '%s': %s. " "Falling back to stub.",
             acct.id,
             exc,
         )
-        return StubSmsBackend(
-            fixture_path=fixture_path, default_from=acct.from_number
-        )
+        return StubSmsBackend(fixture_path=fixture_path, default_from=acct.from_number)
     except Exception as exc:
         logger.error(
             "Unexpected error creating Twilio backend: %s. Falling back to stub.",

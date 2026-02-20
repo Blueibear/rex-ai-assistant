@@ -10,19 +10,17 @@ Provides a Flask Blueprint with routes for:
 
 from __future__ import annotations
 
-import json
 import os
 import time
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
-from flask import Blueprint, Response, jsonify, request, send_from_directory
+from flask import Blueprint, jsonify, request, send_from_directory
 
 from rex.config_manager import (
     DEFAULT_CONFIG,
-    SECRET_ENV_VARS,
     load_config,
     save_config,
 )
@@ -63,7 +61,7 @@ def _get_dashboard_dir() -> Path:
     return Path(__file__).parent
 
 
-def _is_loopback_address(addr: Optional[str]) -> bool:
+def _is_loopback_address(addr: str | None) -> bool:
     """Check if an address is a loopback address."""
     if not addr:
         return False
@@ -72,7 +70,7 @@ def _is_loopback_address(addr: Optional[str]) -> bool:
     return addr in {"127.0.0.1", "::1"}
 
 
-def _get_session_from_request() -> Optional[Session]:
+def _get_session_from_request() -> Session | None:
     """Extract and validate session from request."""
     # Check Authorization header
     auth_header = request.headers.get("Authorization", "")
@@ -101,6 +99,7 @@ def _allow_local_without_auth() -> bool:
 
 def require_auth(f):
     """Decorator to require authentication for API endpoints."""
+
     @wraps(f)
     def decorated(*args, **kwargs):
         # Check if local access is allowed
@@ -123,8 +122,15 @@ def require_auth(f):
 
 # Additional sensitive keys specific to settings display
 _SETTINGS_SENSITIVE_PATTERNS = {
-    "password", "secret", "token", "api_key", "apikey", "key",
-    "credential", "auth", "private",
+    "password",
+    "secret",
+    "token",
+    "api_key",
+    "apikey",
+    "key",
+    "credential",
+    "auth",
+    "private",
 }
 
 
@@ -263,13 +269,15 @@ def dashboard_status():
 
     uptime_seconds = int(time.time() - _SERVER_START_TIME)
 
-    return jsonify({
-        "version": version,
-        "uptime_seconds": uptime_seconds,
-        "auth_enabled": is_password_required(),
-        "server_time": datetime.now().isoformat(),
-        "status": "ok",
-    })
+    return jsonify(
+        {
+            "version": version,
+            "uptime_seconds": uptime_seconds,
+            "auth_enabled": is_password_required(),
+            "server_time": datetime.now().isoformat(),
+            "status": "ok",
+        }
+    )
 
 
 # --- Authentication Endpoints ---
@@ -291,11 +299,13 @@ def dashboard_login():
         if _allow_local_without_auth() and _is_loopback_address(request.remote_addr):
             # Create session for local user
             session = get_session_manager().create_session(user_key="local")
-            response = jsonify({
-                "token": session.token,
-                "expires_at": session.expires_at.isoformat(),
-                "message": "Logged in (local access)",
-            })
+            response = jsonify(
+                {
+                    "token": session.token,
+                    "expires_at": session.expires_at.isoformat(),
+                    "message": "Logged in (local access)",
+                }
+            )
             response.set_cookie(
                 "rex_dashboard_token",
                 session.token,
@@ -316,10 +326,12 @@ def dashboard_login():
     session = get_session_manager().create_session(user_key="dashboard")
     logger.info("Dashboard login successful from %s", request.remote_addr)
 
-    response = jsonify({
-        "token": session.token,
-        "expires_at": session.expires_at.isoformat(),
-    })
+    response = jsonify(
+        {
+            "token": session.token,
+            "expires_at": session.expires_at.isoformat(),
+        }
+    )
 
     # Set secure cookie
     response.set_cookie(
@@ -362,11 +374,13 @@ def get_settings():
         for path in _RESTART_REQUIRED_SETTINGS:
             settings_meta[path] = {"restart_required": True}
 
-        return jsonify({
-            "settings": redacted,
-            "defaults": DEFAULT_CONFIG,
-            "metadata": settings_meta,
-        })
+        return jsonify(
+            {
+                "settings": redacted,
+                "defaults": DEFAULT_CONFIG,
+                "metadata": settings_meta,
+            }
+        )
     except Exception as e:
         logger.error("Failed to load settings: %s", e)
         return jsonify({"error": f"Failed to load settings: {e}"}), 500
@@ -406,7 +420,9 @@ def update_settings():
                 continue
 
             if not _is_valid_setting_value(expected_value, value):
-                invalid_updates[key_path] = f"Invalid value type (expected {type(expected_value).__name__})"
+                invalid_updates[key_path] = (
+                    f"Invalid value type (expected {type(expected_value).__name__})"
+                )
                 continue
 
             # Check if this is a sensitive key that shouldn't be set via API
@@ -423,19 +439,26 @@ def update_settings():
             updated_keys.append(key_path)
 
         if invalid_updates:
-            return jsonify({
-                "error": "Invalid settings update",
-                "invalid": invalid_updates,
-            }), 400
+            return (
+                jsonify(
+                    {
+                        "error": "Invalid settings update",
+                        "invalid": invalid_updates,
+                    }
+                ),
+                400,
+            )
 
         if updated_keys:
             save_config(config)
             logger.info("Settings updated: %s", updated_keys)
 
-        return jsonify({
-            "updated": updated_keys,
-            "restart_required": restart_required,
-        })
+        return jsonify(
+            {
+                "updated": updated_keys,
+                "restart_required": restart_required,
+            }
+        )
 
     except Exception as e:
         logger.error("Failed to update settings: %s", e)
@@ -449,6 +472,7 @@ def _get_llm():
     """Get or create the LLM client."""
     # Import here to avoid circular imports and allow lazy loading
     from rex.llm_client import LanguageModel
+
     return LanguageModel()
 
 
@@ -498,11 +522,13 @@ def chat():
         while len(_CHAT_HISTORY) > _CHAT_HISTORY_MAX:
             _CHAT_HISTORY.pop(0)
 
-        return jsonify({
-            "reply": reply,
-            "timestamp": entry["timestamp"],
-            "elapsed_ms": elapsed_ms,
-        })
+        return jsonify(
+            {
+                "reply": reply,
+                "timestamp": entry["timestamp"],
+                "elapsed_ms": elapsed_ms,
+            }
+        )
 
     except Exception as e:
         logger.error("Chat error: %s", e, exc_info=True)
@@ -521,14 +547,16 @@ def chat_history():
     limit = min(int(request.args.get("limit", 50)), 100)
     offset = int(request.args.get("offset", 0))
 
-    history = _CHAT_HISTORY[offset:offset + limit]
+    history = _CHAT_HISTORY[offset : offset + limit]
 
-    return jsonify({
-        "history": history,
-        "total": len(_CHAT_HISTORY),
-        "limit": limit,
-        "offset": offset,
-    })
+    return jsonify(
+        {
+            "history": history,
+            "total": len(_CHAT_HISTORY),
+            "limit": limit,
+            "offset": offset,
+        }
+    )
 
 
 # --- Scheduler/Reminders Endpoints ---
@@ -544,25 +572,29 @@ def list_jobs():
 
         jobs_data = []
         for job in jobs:
-            jobs_data.append({
-                "job_id": job.job_id,
-                "name": job.name,
-                "schedule": job.schedule,
-                "enabled": job.enabled,
-                "next_run": job.next_run.isoformat() if job.next_run else None,
-                "last_run_at": job.last_run_at.isoformat() if job.last_run_at else None,
-                "run_count": job.run_count,
-                "max_runs": job.max_runs,
-                "callback_name": job.callback_name,
-                "workflow_id": job.workflow_id,
-                "metadata": job.metadata,
-            })
+            jobs_data.append(
+                {
+                    "job_id": job.job_id,
+                    "name": job.name,
+                    "schedule": job.schedule,
+                    "enabled": job.enabled,
+                    "next_run": job.next_run.isoformat() if job.next_run else None,
+                    "last_run_at": job.last_run_at.isoformat() if job.last_run_at else None,
+                    "run_count": job.run_count,
+                    "max_runs": job.max_runs,
+                    "callback_name": job.callback_name,
+                    "workflow_id": job.workflow_id,
+                    "metadata": job.metadata,
+                }
+            )
 
-        return jsonify({
-            "jobs": jobs_data,
-            "total": len(jobs_data),
-            "metrics": scheduler.get_metrics(),
-        })
+        return jsonify(
+            {
+                "jobs": jobs_data,
+                "total": len(jobs_data),
+                "metrics": scheduler.get_metrics(),
+            }
+        )
 
     except Exception as e:
         logger.error("Failed to list jobs: %s", e)
@@ -597,7 +629,10 @@ def create_job():
 
     # Validate schedule format
     if not schedule.startswith(("interval:", "at:")):
-        return jsonify({"error": "Invalid schedule format. Use 'interval:SECONDS' or 'at:HH:MM'"}), 400
+        return (
+            jsonify({"error": "Invalid schedule format. Use 'interval:SECONDS' or 'at:HH:MM'"}),
+            400,
+        )
 
     try:
         scheduler = get_scheduler()
@@ -612,13 +647,18 @@ def create_job():
 
         logger.info("Created job: %s (%s)", job.name, job.job_id)
 
-        return jsonify({
-            "job_id": job.job_id,
-            "name": job.name,
-            "schedule": job.schedule,
-            "enabled": job.enabled,
-            "next_run": job.next_run.isoformat() if job.next_run else None,
-        }), 201
+        return (
+            jsonify(
+                {
+                    "job_id": job.job_id,
+                    "name": job.name,
+                    "schedule": job.schedule,
+                    "enabled": job.enabled,
+                    "next_run": job.next_run.isoformat() if job.next_run else None,
+                }
+            ),
+            201,
+        )
 
     except Exception as e:
         logger.error("Failed to create job: %s", e)
@@ -636,19 +676,21 @@ def get_job(job_id: str):
         if job is None:
             return jsonify({"error": "Job not found"}), 404
 
-        return jsonify({
-            "job_id": job.job_id,
-            "name": job.name,
-            "schedule": job.schedule,
-            "enabled": job.enabled,
-            "next_run": job.next_run.isoformat() if job.next_run else None,
-            "last_run_at": job.last_run_at.isoformat() if job.last_run_at else None,
-            "run_count": job.run_count,
-            "max_runs": job.max_runs,
-            "callback_name": job.callback_name,
-            "workflow_id": job.workflow_id,
-            "metadata": job.metadata,
-        })
+        return jsonify(
+            {
+                "job_id": job.job_id,
+                "name": job.name,
+                "schedule": job.schedule,
+                "enabled": job.enabled,
+                "next_run": job.next_run.isoformat() if job.next_run else None,
+                "last_run_at": job.last_run_at.isoformat() if job.last_run_at else None,
+                "run_count": job.run_count,
+                "max_runs": job.max_runs,
+                "callback_name": job.callback_name,
+                "workflow_id": job.workflow_id,
+                "metadata": job.metadata,
+            }
+        )
 
     except Exception as e:
         logger.error("Failed to get job: %s", e)
@@ -668,11 +710,13 @@ def run_job(job_id: str):
 
         success = scheduler.run_job(job_id, manual=True)
 
-        return jsonify({
-            "job_id": job_id,
-            "success": success,
-            "message": "Job executed" if success else "Job execution failed",
-        })
+        return jsonify(
+            {
+                "job_id": job_id,
+                "success": success,
+                "message": "Job executed" if success else "Job execution failed",
+            }
+        )
 
     except Exception as e:
         logger.error("Failed to run job: %s", e)
@@ -712,13 +756,15 @@ def update_job(job_id: str):
 
         logger.info("Updated job: %s", job_id)
 
-        return jsonify({
-            "job_id": updated_job.job_id,
-            "name": updated_job.name,
-            "schedule": updated_job.schedule,
-            "enabled": updated_job.enabled,
-            "next_run": updated_job.next_run.isoformat() if updated_job.next_run else None,
-        })
+        return jsonify(
+            {
+                "job_id": updated_job.job_id,
+                "name": updated_job.name,
+                "schedule": updated_job.schedule,
+                "enabled": updated_job.enabled,
+                "next_run": updated_job.next_run.isoformat() if updated_job.next_run else None,
+            }
+        )
 
     except Exception as e:
         logger.error("Failed to update job: %s", e)
@@ -738,10 +784,12 @@ def delete_job(job_id: str):
 
         logger.info("Deleted job: %s", job_id)
 
-        return jsonify({
-            "job_id": job_id,
-            "deleted": True,
-        })
+        return jsonify(
+            {
+                "job_id": job_id,
+                "deleted": True,
+            }
+        )
 
     except Exception as e:
         logger.error("Failed to delete job: %s", e)
@@ -780,11 +828,13 @@ def list_notifications():
         )
         unread_count = store.count_unread(user_id=user_id)
 
-        return jsonify({
-            "notifications": [n.to_dict() for n in notifications],
-            "total": len(notifications),
-            "unread_count": unread_count,
-        })
+        return jsonify(
+            {
+                "notifications": [n.to_dict() for n in notifications],
+                "total": len(notifications),
+                "unread_count": unread_count,
+            }
+        )
 
     except Exception as e:
         logger.error("Failed to list notifications: %s", e)
