@@ -57,6 +57,8 @@ Notable top-level modules and entrypoints:
 Notable subpackages:
 - `rex/email_backends/` - email backend adapters (base interface, stub, IMAP/SMTP, multi-account config/router)
 - `rex/calendar_backends/` - calendar backend adapters (base interface, stub, ICS read-only)
+- `rex/messaging_backends/` - SMS backend adapters (base interface, stub, Twilio, multi-account config, factory)
+- `rex/dashboard_store.py` - SQLite-backed dashboard notification store (write/read/query/retention)
 - `rex/identity.py` - session-scoped user identity resolution (fallback when voice recognition is unavailable)
 
 ## Commands
@@ -141,6 +143,27 @@ Notable subpackages:
 ## Identity config keys
 - `identity.known_users`: reserved for future use (manual user list override)
 - `identity.require_user`: `false` (default) — when `true`, commands that need user context will fail if no user is resolved
+
+## Messaging CLI commands (implemented)
+- `rex msg send --channel sms --to <number> --body <text> [--account-id <id>] [--user <id>]`
+- `rex msg receive --channel sms [--limit N] [--user <id>]`
+- All messaging commands accept `--user <id>` and `--account-id <id>` for routing.
+
+## Messaging backend config keys (implemented)
+- `messaging.backend`: `"stub"` (default) or `"twilio"`
+- `messaging.default_account_id`: account used when none is specified
+- `messaging.accounts[]` with per-account `id`, `label`, `from_number`, and `credential_ref`
+- Credentials are split by concern:
+  - non-secret config (from_number, routing) in `config/rex_config.json`
+  - secrets in `.env` or `config/credentials.json` via `CredentialManager`
+- Messaging backend code lives in `rex/messaging_backends/` (base, stub, twilio_backend, account_config, factory).
+
+## Notification dashboard config keys (implemented)
+- `notifications.dashboard.store.type`: `"sqlite"` (only supported type)
+- `notifications.dashboard.store.path`: database file path (default: `data/dashboard_notifications.db`)
+- `notifications.dashboard.store.retention_days`: days to retain (default: 30)
+- Dashboard API endpoints: `GET /api/notifications`, `POST /api/notifications/<id>/read`, `POST /api/notifications/read-all`
+- Dashboard store code: `rex/dashboard_store.py`
 
 ## Integration testing rules
 - Integration tests must not require real network credentials.

@@ -28,6 +28,9 @@ The dashboard is then available at:
     PATCH /api/scheduler/jobs/<id> - Update job
     DELETE /api/scheduler/jobs/<id> - Delete job
     POST /api/scheduler/jobs/<id>/run - Run job now
+    GET  /api/notifications         - List dashboard notifications
+    POST /api/notifications/<id>/read - Mark notification as read
+    POST /api/notifications/read-all  - Mark all notifications as read
 
 Configuration:
     Environment variables:
@@ -41,15 +44,15 @@ Configuration:
     - dashboard.enabled: Enable/disable dashboard (default: true)
 """
 
-from rex.dashboard.routes import dashboard_bp
 from rex.dashboard.auth import (
     Session,
     SessionManager,
-    get_session_manager,
     get_dashboard_password,
-    verify_password,
+    get_session_manager,
     is_password_required,
+    verify_password,
 )
+from rex.dashboard.routes import dashboard_bp
 
 __all__ = [
     "dashboard_bp",

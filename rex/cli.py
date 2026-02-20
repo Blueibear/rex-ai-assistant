@@ -2041,6 +2041,8 @@ def cmd_msg(args: argparse.Namespace) -> int:
     """Manage messaging."""
     from rex.messaging_service import Message, get_sms_service
 
+    user_id = _resolve_cli_user(args)
+    account_id = getattr(args, "account_id", None)
     subcommand = args.msg_command
 
     if subcommand == "send":
@@ -2054,12 +2056,14 @@ def cmd_msg(args: argparse.Namespace) -> int:
                 from_=sms_service.from_number,
                 body=args.body,
             )
-            sent = sms_service.send(message)
+            sent = sms_service.send(message, account_id=account_id)
             print("Message sent successfully")
             print(f"  ID: {sent.id}")
             print(f"  To: {sent.to}")
             print(f"  Thread: {sent.thread_id}")
             print(f"  Timestamp: {sent.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+            if user_id:
+                print(f"  User: {user_id}")
             return 0
 
         print(f"Error: Unsupported channel '{channel}'. Currently only 'sms' is supported.")
@@ -2103,6 +2107,7 @@ def cmd_notify(args: argparse.Namespace) -> int:
     """Manage notifications."""
     from rex.notification import NotificationRequest, get_escalation_manager, get_notifier
 
+    user_id = _resolve_cli_user(args)
     notifier = get_notifier()
     escalation_manager = get_escalation_manager()
     subcommand = args.notify_command
@@ -2113,11 +2118,16 @@ def cmd_notify(args: argparse.Namespace) -> int:
         else:
             channel_list = ["dashboard"]
 
+        metadata: dict = {}
+        if user_id:
+            metadata["user_id"] = user_id
+
         notification = NotificationRequest(
             priority=args.priority,
             title=args.title,
             body=args.body,
             channel_preferences=channel_list,
+            metadata=metadata,
         )
 
         notifier.send(notification)
@@ -2892,8 +2902,19 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     # msg (messaging)
     msg_parser = subparsers.add_parser(
         "msg",
-        help="Send and receive messages (beta - stub scaffold)",
-        description="Manage messaging through various channels (SMS, Telegram, etc.). NOTE: This integration is currently in beta. Real SMS delivery requires valid Twilio credentials; other channels are stub scaffolds.",
+        help="Send and receive messages (SMS via Twilio or stub)",
+        description="Manage messaging through various channels (SMS, Telegram, etc.). Real SMS delivery requires Twilio credentials configured via CredentialManager; defaults to stub/mock mode for offline development.",
+    )
+    msg_parser.add_argument(
+        "--user",
+        type=str,
+        help="Override the active user identity",
+    )
+    msg_parser.add_argument(
+        "--account-id",
+        type=str,
+        help="Messaging account ID to use (overrides default)",
+        dest="account_id",
     )
     msg_subparsers = msg_parser.add_subparsers(
         title="messaging commands",
@@ -2935,6 +2956,11 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         "notify",
         help="Send and manage notifications",
         description="Multi-channel notification system with priority routing.",
+    )
+    notify_parser.add_argument(
+        "--user",
+        type=str,
+        help="Override the active user identity",
     )
     notify_subparsers = notify_parser.add_subparsers(
         title="notification commands",

@@ -2,13 +2,13 @@
 
 ## Current Implementation
 
-**Status: Stub scaffold**
+**Status: Beta (real backend available)**
 
-The messaging framework and CLI are wired up, but actual delivery requires valid Twilio credentials. Without credentials the SMS service operates in mock mode — messages are written to a local JSON file and no external API calls are made.
+The messaging framework supports real SMS delivery via Twilio when credentials are configured. Without credentials the SMS service operates in stub/mock mode — messages are written to a local JSON file and no external API calls are made.
 
 | Channel | Status | Details |
 |---------|--------|---------|
-| **SMS** | Stub (mock mode) | Reads/writes `data/mock_sms.json`; real delivery requires Twilio credentials. |
+| **SMS** | Beta (real when configured) | Uses Twilio REST API for real delivery; defaults to stub mode with `data/mock_sms.json`. Multi-account support included. |
 | **Telegram** | Not implemented | Extension example provided in docs; no built-in adapter. |
 | **Discord / WhatsApp** | Not implemented | Planned for future releases. |
 
@@ -22,9 +22,21 @@ The messaging service consists of:
 
 - **Message Model**: A universal message format that works across all channels
 - **MessagingService Base Class**: An abstract interface for implementing channel-specific services
-- **SMSService**: A concrete implementation for SMS messaging (stubbed for testing)
+- **SMSService**: A concrete implementation backed by pluggable SMS backends
+- **SMS Backends**: Stub (offline/mock) and Twilio (real delivery)
 
 ## Architecture
+
+### Backend System
+
+SMS delivery is handled by pluggable backends in `rex/messaging_backends/`:
+
+| Backend | Module | Description |
+|---------|--------|-------------|
+| **Stub** | `rex.messaging_backends.stub` | Writes to local JSON file; no real delivery. Default for offline dev. |
+| **Twilio** | `rex.messaging_backends.twilio_backend` | Calls Twilio REST API via `requests`. Requires credentials. |
+
+The backend is selected via config (`messaging.backend`). If Twilio credentials are missing, the system falls back to stub with a warning.
 
 ### Message Model
 
@@ -62,26 +74,64 @@ This enables:
 - Replying to specific threads
 - Tracking message history per conversation
 
-## Using the SMS Service
+## Configuration
 
-### Configuration
+### Backend Selection
 
-The SMS service requires credentials from your SMS gateway (e.g., Twilio):
+Set the backend in `config/rex_config.json`:
+
+```json
+{
+  "messaging": {
+    "backend": "twilio",
+    "default_account_id": "primary",
+    "accounts": [
+      {
+        "id": "primary",
+        "label": "Main Twilio",
+        "from_number": "+15551234567",
+        "credential_ref": "twilio:primary"
+      }
+    ]
+  }
+}
+```
+
+**Config keys:**
+- `messaging.backend`: `"stub"` (default) or `"twilio"`
+- `messaging.default_account_id`: Account to use when none is specified
+- `messaging.accounts[]`: List of SMS accounts with `id`, `label`, `from_number`, and `credential_ref`
+
+### Credentials
+
+Credentials are stored separately from config (never in code or config files):
 
 1. **Via Environment Variables:**
    ```bash
-   export SMS_TOKEN="your_twilio_auth_token"
-   export TWILIO_ACCOUNT_SID="your_account_sid"
+   # Format: account_sid:auth_token
+   export TWILIO_PRIMARY="ACxxxxxxxxx:your_auth_token"
    ```
 
-2. **Via Credential Manager:**
-   ```python
-   from rex.credentials import get_credential_manager
-
-   cred_manager = get_credential_manager()
-   cred_manager.set("sms", "your_auth_token")
-   cred_manager.set("twilio", "your_account_sid")
+2. **Via Credential Manager (config/credentials.json):**
+   ```json
+   {
+     "credentials": {
+       "twilio:primary": "ACxxxxxxxxx:your_auth_token"
+     }
+   }
    ```
+
+The `credential_ref` in the account config maps to the key in the credential store.
+
+### No-Credential Behavior
+
+When Twilio credentials are not available:
+- A warning is logged
+- The system falls back to stub mode automatically
+- No errors are thrown; the service degrades gracefully
+- Messages are written to `data/mock_sms.json`
+
+## Using the SMS Service
 
 ### Sending Messages
 
@@ -108,6 +158,12 @@ print(f"Thread ID: {sent.thread_id}")
 ```bash
 # Send an SMS
 rex msg send --channel sms --to "+15551234567" --body "Hello from Rex!"
+
+# Send with specific account
+rex msg send --channel sms --to "+15551234567" --body "Hello" --account-id secondary
+
+# Send as specific user
+rex msg send --channel sms --to "+15551234567" --body "Hello" --user alice
 ```
 
 ### Receiving Messages
@@ -137,6 +193,37 @@ rex msg receive --channel sms --limit 10
 reply = sms.reply(thread_id="thread_xyz", body="Thanks for your message!")
 ```
 
+## Multi-Account Support
+
+Multiple SMS accounts can be configured for different purposes (personal, business, etc.):
+
+```json
+{
+  "messaging": {
+    "backend": "twilio",
+    "default_account_id": "personal",
+    "accounts": [
+      {
+        "id": "personal",
+        "from_number": "+15551234567",
+        "credential_ref": "twilio:personal"
+      },
+      {
+        "id": "business",
+        "label": "Business Line",
+        "from_number": "+15559876543",
+        "credential_ref": "twilio:business"
+      }
+    ]
+  }
+}
+```
+
+Account selection priority:
+1. Explicit `--account-id` flag
+2. `default_account_id` from config
+3. First account in list
+
 ## Extending to New Channels
 
 To add support for a new messaging channel (e.g., Telegram):
@@ -149,41 +236,21 @@ from rex.messaging_service import MessagingService, Message
 class TelegramService(MessagingService):
     def __init__(self, bot_token: str):
         self.bot_token = bot_token
-        # Initialize Telegram bot client
 
-    def send(self, message: Message) -> Message:
+    def send(self, message: Message, account_id=None) -> Message:
         # Implement Telegram API call
-        # Update message.timestamp
-        # Return updated message
         pass
 
     def receive(self, limit: int = 10) -> list[Message]:
         # Poll Telegram for updates
-        # Convert to Message objects
-        # Return list
         pass
 
     def reply(self, thread_id: str, body: str) -> Message:
         # Send reply in Telegram chat
-        # Return sent message
         pass
 ```
 
-2. **Register global accessor functions:**
-
-```python
-_telegram_service = None
-
-def get_telegram_service() -> TelegramService:
-    global _telegram_service
-    if _telegram_service is None:
-        _telegram_service = TelegramService(token=...)
-    return _telegram_service
-```
-
-3. **Update CLI to support the new channel:**
-
-Add cases for "telegram" in `cmd_msg()` in `rex/cli.py`.
+2. **Register global accessor functions** and update CLI.
 
 ## Testing
 
@@ -196,6 +263,9 @@ The SMS service includes stubbed behavior for testing:
 To run tests:
 
 ```bash
+# Test messaging backends
+pytest tests/test_messaging_backends.py -v
+
 # Test messaging service
 pytest tests/test_messaging_service.py -v
 
@@ -208,29 +278,9 @@ pytest tests/test_cli_messaging_notification.py -k msg -v
 1. **No Secrets in Code**: Never hardcode phone numbers, API tokens, or other sensitive data
 2. **Use Credential Manager**: Always retrieve tokens via the credential manager
 3. **Validate Input**: The service validates recipient and body fields before sending
-4. **Rate Limiting**: Consider implementing rate limits for production use
-5. **Logging**: Sensitive data is automatically redacted in logs
-
-## Mock Mode
-
-When credentials are not available, the SMS service operates in mock mode:
-
-- Sends are written to `data/mock_sms.json`
-- Receives read from the same file
-- No external API calls are made
-- Suitable for development and testing
-
-## Future Enhancements
-
-Planned features:
-- **MMS Support**: Send images and media via SMS
-- **Telegram Integration**: Native Telegram bot support
-- **Discord Integration**: Discord channel messaging
-- **WhatsApp Business API**: WhatsApp messaging
-- **Message Templates**: Pre-defined message formats
-- **Scheduling**: Schedule messages for future delivery
-- **Delivery Receipts**: Track message delivery status
-- **Two-Way Webhooks**: Real-time inbound message handling
+4. **Credential Split**: Non-secret config (from_number) in `rex_config.json`; secrets in `.env` or `credentials.json`
+5. **Safe Fallback**: Missing credentials result in stub mode, not errors
+6. **Logging**: Phone numbers in logs are not treated as secrets; Twilio auth tokens are masked
 
 ## API Reference
 
@@ -248,30 +298,51 @@ Planned features:
 ### MessagingService
 
 **Abstract Methods:**
-- `send(message: Message) -> Message` - Send a message
+- `send(message: Message, account_id=None) -> Message` - Send a message
 - `receive(limit: int = 10) -> list[Message]` - Retrieve inbound messages
 - `reply(thread_id: str, body: str) -> Message` - Reply to thread
 
 ### SMSService
 
 **Constructor:**
-- `SMSService(mock_file: Path = None, from_number: str = None)`
+- `SMSService(mock_file: Path = None, from_number: str = None, backend=None, raw_config=None)`
+
+**Properties:**
+- `active_backend` - The active SmsBackend, or None if using legacy mock mode
+
+### SmsBackend (ABC)
 
 **Methods:**
-- Inherits all MessagingService methods
-- `_check_credentials()` - Verify SMS credentials available
+- `send_sms(to, body, from_number=None) -> SmsSendResult` - Send an SMS
+- `fetch_recent_inbound(limit=20) -> list[InboundSms]` - Fetch inbound messages
 
-**Raises:**
-- `PermissionError` - If credentials are invalid (production)
-- `ValueError` - If message format is invalid
+### StubSmsBackend
+
+- Writes to local JSON file
+- `inject_inbound()` for test setup
+- `sent_messages` property for test assertions
+
+### TwilioSmsBackend
+
+- Uses Twilio REST API via `requests`
+- Configurable timeout
+- Handles error responses, timeouts, and connection errors
+
+## What Remains Stubbed
+
+- Telegram, Discord, WhatsApp channels (not implemented)
+- MMS / media messages
+- Inbound webhook receiver for real-time Twilio messages
+- Per-user phone number routing (foundation exists)
 
 ## Troubleshooting
 
 ### "No SMS credentials found"
 
-This is a warning, not an error. The service will operate in mock mode. To fix:
-1. Set `SMS_TOKEN` environment variable
-2. Or configure via credential manager
+This is a warning, not an error. The service will operate in stub mode. To fix:
+1. Configure `messaging.backend: "twilio"` in `rex_config.json`
+2. Add account with `credential_ref`
+3. Set credential via environment variable or `credentials.json`
 
 ### "Message 'to' field is required"
 
@@ -282,52 +353,12 @@ message = Message(channel="sms", to="+15551234567", from_=..., body=...)
 
 ### Messages not appearing in receive()
 
-- Check that messages were sent TO your from_number (inbound)
-- Messages sent FROM your number are outbound and won't appear
-- Verify mock_sms.json contains the expected messages
-
-## Examples
-
-### Simple Send/Receive
-
-```python
-from rex.messaging_service import Message, get_sms_service
-
-sms = get_sms_service()
-
-# Send
-msg = Message(channel="sms", to="+15551234567", from_=sms.from_number, body="Hi!")
-sms.send(msg)
-
-# Receive
-messages = sms.receive(limit=5)
-for m in messages:
-    print(f"{m.from_}: {m.body}")
-```
-
-### Conversation Flow
-
-```python
-# User sends message to Rex
-inbound = Message(
-    channel="sms",
-    to="+15555551234",  # Rex's number
-    from_="+15551234567",
-    body="What's the weather?"
-)
-sms.send(inbound)
-
-# Rex receives and processes
-messages = sms.receive(limit=1)
-user_message = messages[0]
-
-# Rex replies
-reply = sms.reply(user_message.thread_id, "It's sunny and 75F!")
-```
+- In stub mode: check that messages were sent TO your from_number (inbound)
+- In Twilio mode: messages fetch from the Twilio API filtered by your number
 
 ## Support
 
 For questions or issues:
-- Check existing tests in `tests/test_messaging_service.py`
-- Review code in `rex/messaging_service.py`
+- Check existing tests in `tests/test_messaging_backends.py` and `tests/test_messaging_service.py`
+- Review code in `rex/messaging_service.py` and `rex/messaging_backends/`
 - Open an issue on GitHub

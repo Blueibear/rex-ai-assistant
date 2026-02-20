@@ -79,6 +79,20 @@
     "known_users": null,
     "require_user": false
   },
+  "messaging": {
+    "backend": "stub",
+    "default_account_id": null,
+    "accounts": []
+  },
+  "notifications": {
+    "dashboard": {
+      "store": {
+        "type": "sqlite",
+        "path": null,
+        "retention_days": 30
+      }
+    }
+  },
   "ui": {
     "start_minimized": false
   }

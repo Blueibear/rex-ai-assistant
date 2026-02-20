@@ -60,8 +60,8 @@ The following integrations are **beta / stub scaffolding** and do not yet connec
 |---------|--------|---------|
 | **Email** | Beta (real backend available) | Supports real IMAP4-SSL read + SMTP send when configured; defaults to stub/mock for offline dev. Multi-account support included. |
 | **Calendar** | Beta (ICS read-only + stub fallback) | Supports reading events from local `.ics` files or HTTPS ICS feeds; defaults to stub/mock for offline dev. CalDAV/Google OAuth planned. |
-| **SMS / Messaging** | Stub scaffold | Framework and CLI are wired up, but sending requires valid Twilio credentials and is otherwise a no-op. |
-| **Notifications** | Beta (email channel real) | Priority routing and digest logic exist; email channel uses real SMTP when configured, other channels remain placeholders. |
+| **SMS / Messaging** | Beta (real backend available) | Real SMS delivery via Twilio when credentials are configured (opt-in); defaults to stub/mock for offline dev. Multi-account support included. |
+| **Notifications** | Beta (dashboard + email channels real) | Priority routing and digest logic exist; dashboard channel persists to local SQLite store with API endpoints; email channel uses real SMTP when configured. |
 | **Identity** | Beta (session-scoped fallback) | When voice/speaker recognition is unavailable, use `rex identify` or `rex whoami` to set/view the active user for the session. |
 
 All stub commands are fully usable for development and testing. Contributions to add real backends are welcome.

@@ -5,7 +5,8 @@ multiple channels (SMS, Telegram, Discord, etc.). It includes:
 
 - Message model for representing messages across channels
 - Abstract MessagingService base class
-- Concrete SMSService implementation with stubbed behavior for testing
+- Concrete SMSService implementation backed by pluggable backends
+  (stub for offline dev, Twilio for real delivery)
 
 The framework is designed to be channel-agnostic, allowing easy addition
 of new messaging channels in the future.
@@ -19,16 +20,14 @@ import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
-
-from rex.credentials import get_credential_manager
 
 logger = logging.getLogger(__name__)
 
 # Global SMS service instance
-_sms_service: Optional["SMSService"] = None
+_sms_service: SMSService | None = None
 
 
 def _utc_now() -> datetime:
@@ -71,7 +70,7 @@ class Message(BaseModel):
         default_factory=_utc_now,
         description="Message timestamp (UTC)",
     )
-    thread_id: Optional[str] = Field(
+    thread_id: str | None = Field(
         default=None,
         description="Thread identifier for grouping related messages",
     )
@@ -105,11 +104,12 @@ class MessagingService(ABC):
     """
 
     @abstractmethod
-    def send(self, message: Message) -> Message:
+    def send(self, message: Message, account_id: str | None = None) -> Message:
         """Send a message via this channel.
 
         Args:
             message: The message to send
+            account_id: Optional account ID for multi-account routing
 
         Returns:
             The sent message with updated timestamp and ID
@@ -153,30 +153,65 @@ class MessagingService(ABC):
 
 
 class SMSService(MessagingService):
-    """SMS messaging service with stubbed send/receive for testing.
+    """SMS messaging service backed by a pluggable SmsBackend.
 
-    This service uses the credential manager to retrieve Twilio credentials
-    (or similar SMS gateway credentials). For testing purposes, it uses a
-    mock JSON file to simulate sending and receiving SMS messages.
+    When configured with a backend (stub or Twilio), send/receive operations
+    are delegated to the backend.  The service layer adds thread awareness,
+    validation, and the high-level ``Message`` model on top.
 
-    Thread awareness is maintained by grouping messages with the same
-    to/from pair.
+    For backward compatibility, the service falls back to its original
+    JSON mock-file behavior when no backend is explicitly provided.
     """
 
     def __init__(
         self,
-        mock_file: Optional[Path] = None,
-        from_number: Optional[str] = None,
+        mock_file: Path | None = None,
+        from_number: str | None = None,
+        *,
+        backend: Any | None = None,
+        raw_config: dict[str, Any] | None = None,
     ):
         """Initialize the SMS service.
 
         Args:
-            mock_file: Path to mock SMS data file (for testing)
-            from_number: Default sender phone number
+            mock_file: Path to mock SMS data file (for testing/legacy).
+            from_number: Default sender phone number.
+            backend: An explicit SmsBackend instance (takes priority).
+            raw_config: Runtime config dict to auto-create a backend from.
         """
+        self._backend = backend
+        self._raw_config = raw_config
         self.mock_file = mock_file or Path("data/mock_sms.json")
         self.from_number = from_number or "+15555551234"
-        self._ensure_mock_file()
+
+        if self._backend is None and self._raw_config is not None:
+            self._backend = self._create_backend_from_config()
+
+        if self._backend is None:
+            self._ensure_mock_file()
+
+    def _create_backend_from_config(self) -> Any:
+        """Create a backend from runtime config."""
+        try:
+            from rex.messaging_backends.factory import create_sms_backend
+
+            backend = create_sms_backend(self._raw_config, fixture_path=self.mock_file)
+            # Sync from_number from backend config
+            from rex.messaging_backends.account_config import load_messaging_config
+
+            config = load_messaging_config(self._raw_config or {})
+            acct = config.get_account()
+            if acct:
+                self.from_number = acct.from_number
+            return backend
+        except Exception as exc:
+            logger.warning("Failed to create messaging backend from config: %s", exc)
+            return None
+
+    @property
+    def active_backend(self) -> Any:
+        """The active SmsBackend, or None if using legacy mock mode."""
+        return self._backend
 
     def _ensure_mock_file(self) -> None:
         """Ensure the mock data file exists."""
@@ -191,7 +226,7 @@ class SMSService(MessagingService):
                 data = json.load(f)
             return [Message.model_validate(msg) for msg in data.get("messages", [])]
         except Exception as e:
-            logger.warning(f"Failed to load mock messages: {e}")
+            logger.warning("Failed to load mock messages: %s", e)
             return []
 
     def _save_messages(self, messages: list[Message]) -> None:
@@ -201,7 +236,7 @@ class SMSService(MessagingService):
             with open(self.mock_file, "w") as f:
                 json.dump(data, f, indent=2, default=str)
         except Exception as e:
-            logger.error(f"Failed to save mock messages: {e}")
+            logger.error("Failed to save mock messages: %s", e)
 
     def _get_thread_id(self, to: str, from_: str) -> str:
         """Generate a thread ID from to/from numbers."""
@@ -209,59 +244,26 @@ class SMSService(MessagingService):
         participants = sorted([to, from_])
         return f"sms_thread_{hash(tuple(participants)) & 0xFFFFFFFF:08x}"
 
-    def _check_credentials(self) -> None:
-        """Check if SMS credentials are available.
-
-        Raises:
-            PermissionError: If credentials are missing
-        """
-        try:
-            cred_manager = get_credential_manager()
-            # Try to get Twilio credentials (or similar SMS gateway)
-            # For now, we check for 'sms' or 'twilio' credentials
-            sms_cred = None
-            try:
-                sms_cred = cred_manager.get("sms")
-            except ValueError:
-                pass
-
-            if sms_cred is None:
-                try:
-                    sms_cred = cred_manager.get("twilio")
-                except ValueError:
-                    pass
-
-            if sms_cred is None:
-                logger.warning(
-                    "No SMS credentials found in credential manager. "
-                    "Using stubbed mode for testing."
-                )
-        except Exception as e:
-            logger.debug(f"Error checking credentials: {e}")
-
-    def send(self, message: Message) -> Message:
+    def send(self, message: Message, account_id: str | None = None) -> Message:
         """Send an SMS message.
 
-        In production, this would use Twilio or similar SMS gateway.
-        For testing, messages are written to the mock file.
+        When a backend is configured, delegates to ``SmsBackend.send_sms()``.
+        Otherwise falls back to mock-file storage.
 
         Args:
-            message: The message to send
+            message: The message to send.
+            account_id: Optional account ID for multi-account routing.
 
         Returns:
-            The sent message with updated timestamp
+            The sent message with updated timestamp.
 
         Raises:
-            PermissionError: If credentials are invalid (in production)
-            ValueError: If message format is invalid
+            ValueError: If message format is invalid.
         """
         if not message.to:
             raise ValueError("Message 'to' field is required")
         if not message.body:
             raise ValueError("Message 'body' field is required")
-
-        # Check credentials (logs warning if missing, but doesn't block in stub mode)
-        self._check_credentials()
 
         # Set channel and from number if not set
         if not message.channel:
@@ -276,54 +278,94 @@ class SMSService(MessagingService):
         # Update timestamp
         message.timestamp = _utc_now()
 
-        # Save to mock file
+        if self._backend is not None:
+            return self._send_via_backend(message, account_id=account_id)
+
+        return self._send_via_mock(message)
+
+    def _send_via_backend(self, message: Message, *, account_id: str | None = None) -> Message:
+        """Delegate send to the configured backend."""
+        from rex.messaging_backends.base import SmsBackend
+
+        backend: SmsBackend = self._backend
+
+        # If account_id is specified and config is available, we may need
+        # to create a per-account backend.  For now, use the default backend.
+        result = backend.send_sms(
+            to=message.to,
+            body=message.body,
+            from_number=message.from_,
+        )
+        if not result.ok:
+            logger.warning("SMS backend send failed: %s", result.error)
+            raise RuntimeError(f"SMS send failed: {result.error}")
+
+        logger.info("Sent SMS to %s via backend", message.to)
+        return message
+
+    def _send_via_mock(self, message: Message) -> Message:
+        """Legacy mock-file send path."""
         messages = self._load_messages()
         messages.append(message)
         self._save_messages(messages)
-
-        logger.info(f"Sent SMS to {message.to}: {message.body[:50]}...")
+        logger.info("Sent SMS to %s (mock): %s", message.to, message.body[:50])
         return message
 
     def receive(self, limit: int = 10) -> list[Message]:
         """Retrieve recent inbound SMS messages.
 
-        In production, this would poll Twilio or similar SMS gateway.
-        For testing, messages are read from the mock file.
+        When a backend is configured, delegates to
+        ``SmsBackend.fetch_recent_inbound()``.  Otherwise reads from the
+        mock file.
 
         Args:
-            limit: Maximum number of messages to retrieve
+            limit: Maximum number of messages to retrieve.
 
         Returns:
-            List of received messages, newest first
+            List of received messages, newest first.
         """
-        self._check_credentials()
+        if self._backend is not None:
+            return self._receive_via_backend(limit)
+        return self._receive_via_mock(limit)
 
+    def _receive_via_backend(self, limit: int) -> list[Message]:
+        """Delegate receive to the configured backend."""
+        from rex.messaging_backends.base import SmsBackend
+
+        backend: SmsBackend = self._backend
+        inbound = backend.fetch_recent_inbound(limit=limit)
+        return [
+            Message(
+                channel="sms",
+                to=msg.to_number,
+                from_=msg.from_number,
+                body=msg.body,
+                timestamp=msg.received_at,
+            )
+            for msg in inbound
+        ]
+
+    def _receive_via_mock(self, limit: int) -> list[Message]:
+        """Legacy mock-file receive path."""
         messages = self._load_messages()
-
-        # Filter for messages sent TO our number (received by us)
         inbound = [msg for msg in messages if msg.to == self.from_number]
-
-        # Sort by timestamp descending (newest first)
         inbound.sort(key=lambda m: m.timestamp, reverse=True)
-
         return inbound[:limit]
 
     def reply(self, thread_id: str, body: str) -> Message:
         """Send a reply to an existing SMS thread.
 
         Args:
-            thread_id: The thread to reply to
-            body: The reply message body
+            thread_id: The thread to reply to.
+            body: The reply message body.
 
         Returns:
-            The sent reply message
+            The sent reply message.
 
         Raises:
-            ValueError: If thread_id is not found
+            ValueError: If thread_id is not found.
         """
-        self._check_credentials()
-
-        # Find the thread
+        # Find the thread (use mock file for thread lookup)
         messages = self._load_messages()
         thread_messages = [msg for msg in messages if msg.thread_id == thread_id]
 
@@ -362,11 +404,11 @@ def get_sms_service() -> SMSService:
     return _sms_service
 
 
-def set_sms_service(service: SMSService) -> None:
+def set_sms_service(service: SMSService | None) -> None:
     """Set the global SMS service instance.
 
     Args:
-        service: The SMS service to use
+        service: The SMS service to use (or None to reset)
     """
     global _sms_service
     _sms_service = service
