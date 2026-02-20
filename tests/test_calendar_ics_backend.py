@@ -261,6 +261,44 @@ class TestICSCalendarBackend:
         backend = ICSCalendarBackend(source="http://example.com/calendar.ics")
         assert backend.connect() is False
 
+    def test_file_scheme_rejected(self):
+        """Explicit file:// scheme is rejected as unsafe URL input."""
+        from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+        backend = ICSCalendarBackend(source="file:///tmp/calendar.ics")
+        ok, message = backend.test_connection()
+        assert ok is False
+        assert "Only HTTPS URLs" in message
+
+    def test_localhost_rejected_for_https(self):
+        """HTTPS localhost URL is rejected to reduce SSRF risk."""
+        from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+        backend = ICSCalendarBackend(source="https://localhost/calendar.ics")
+        ok, message = backend.test_connection()
+        assert ok is False
+        assert "localhost" in message
+
+    def test_private_ip_rejected_for_https(self):
+        """Resolved private IPs are rejected for HTTPS sources."""
+        from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+        with patch("socket.getaddrinfo", return_value=[(0, 0, 0, "", ("192.168.1.10", 0))]):
+            backend = ICSCalendarBackend(source="https://calendar.example.com/feed.ics")
+            ok, message = backend.test_connection()
+            assert ok is False
+            assert "local or reserved" in message
+
+    def test_windows_path_not_treated_as_url(self, tmp_path: Path):
+        """Windows-style drive path should be handled as a file path."""
+        from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+        backend = ICSCalendarBackend(source="C:\\calendar\\work.ics")
+        with patch.object(
+            backend, "_read_file", return_value=SAMPLE_ICS.read_text(encoding="utf-8")
+        ):
+            assert backend.connect() is True
+
 
 # ---------------------------------------------------------------
 # Backend factory tests

@@ -28,7 +28,10 @@ When ``source`` is a URL, the feed is fetched with ``requests.get``
 from __future__ import annotations
 
 import logging
+import socket
+from ipaddress import ip_address
 from pathlib import Path
+from urllib.parse import urlparse
 
 from rex.calendar_backends.base import CalendarBackend
 from rex.calendar_backends.ics_parser import parse_ics
@@ -37,6 +40,7 @@ from rex.calendar_service import CalendarEvent
 logger = logging.getLogger(__name__)
 
 _DEFAULT_TIMEOUT = 15  # seconds
+_ALLOWED_URL_SCHEMES = {"https"}
 
 
 class ICSCalendarBackend(CalendarBackend):
@@ -113,16 +117,16 @@ class ICSCalendarBackend(CalendarBackend):
 
     @property
     def _is_url(self) -> bool:
-        return self._source.startswith("https://") or self._source.startswith("http://")
+        if _looks_like_windows_path(self._source):
+            return False
+        parsed = urlparse(self._source)
+        return bool(parsed.scheme)
 
     @property
     def _source_label(self) -> str:
         if self._is_url:
-            return (
-                f"URL ({self._source[:60]}...)"
-                if len(self._source) > 60
-                else f"URL ({self._source})"
-            )
+            safe = _sanitize_url_for_logs(self._source)
+            return f"URL ({safe})"
         return f"file ({self._source})"
 
     def _read_source(self) -> str:
@@ -145,10 +149,11 @@ class ICSCalendarBackend(CalendarBackend):
         """Fetch ICS content from an HTTPS URL."""
         import requests
 
-        if not self._source.startswith("https://"):
-            raise ValueError(
-                f"Only HTTPS URLs are supported for ICS feeds (got {self._source[:30]}...)"
-            )
+        parsed = urlparse(self._source)
+        scheme = (parsed.scheme or "").lower()
+        if scheme not in _ALLOWED_URL_SCHEMES:
+            raise ValueError(f"Only HTTPS URLs are supported for ICS feeds (got scheme: {scheme})")
+        _validate_remote_host(parsed.hostname)
 
         response = requests.get(
             self._source,
@@ -157,6 +162,37 @@ class ICSCalendarBackend(CalendarBackend):
         )
         response.raise_for_status()
         return response.text
+
+
+def _looks_like_windows_path(source: str) -> bool:
+    return len(source) >= 3 and source[1] == ":" and source[2] in {"\\", "/"}
+
+
+def _sanitize_url_for_logs(source: str) -> str:
+    parsed = urlparse(source)
+    host = parsed.hostname or ""
+    port = f":{parsed.port}" if parsed.port else ""
+    path = parsed.path or ""
+    return f"{parsed.scheme}://{host}{port}{path}"
+
+
+def _validate_remote_host(hostname: str | None) -> None:
+    if not hostname:
+        raise ValueError("ICS URL is missing a hostname")
+
+    lowered = hostname.strip().lower()
+    if lowered in {"localhost", "localhost.localdomain"}:
+        raise ValueError("ICS URL host must not be localhost or local network")
+
+    try:
+        addresses = {ai[4][0] for ai in socket.getaddrinfo(hostname, None)}
+    except socket.gaierror as exc:
+        raise ValueError(f"Could not resolve ICS URL host: {hostname}") from exc
+
+    for addr in addresses:
+        ip = ip_address(addr)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            raise ValueError("ICS URL host resolves to a local or reserved address")
 
 
 __all__ = ["ICSCalendarBackend"]

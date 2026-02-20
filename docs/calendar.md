@@ -218,6 +218,20 @@ Configure the calendar backend in `config/rex_config.json`:
 
 HTTP (non-HTTPS) URLs are rejected for security.
 
+For HTTPS feeds, Rex also rejects `localhost` and hosts that resolve to local/private/reserved
+IP ranges to reduce SSRF risk.
+
+### ICS Parsing Notes and Limits
+
+- `DTSTART`/`DTEND` values support `DATE` and `DATE-TIME` forms.
+- All-day events (`VALUE=DATE`) are represented with `all_day=True` and an end time of +1 day when
+  `DTEND` is omitted.
+- Folded lines (RFC 5545 continuations) are unfolded before parsing.
+- Multiple `VEVENT` blocks are supported.
+- `RRULE` is currently not expanded; each `VEVENT` is treated as one event.
+- `TZID` parameters are accepted but timezone conversion is not performed; floating/non-UTC
+  datetimes are currently treated as UTC.
+
 ### Stub / Mock Data
 
 When `calendar.backend` is `"stub"` (the default), mock data comes from `data/mock_calendar.json`.
