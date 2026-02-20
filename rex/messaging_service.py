@@ -288,13 +288,35 @@ class SMSService(MessagingService):
         from rex.messaging_backends.base import SmsBackend
 
         backend: SmsBackend = self._backend
+        from_number = message.from_
 
-        # If account_id is specified and config is available, we may need
-        # to create a per-account backend.  For now, use the default backend.
+        if account_id and self._raw_config is not None:
+            try:
+                from rex.messaging_backends.account_config import load_messaging_config
+                from rex.messaging_backends.factory import create_sms_backend
+
+                config = load_messaging_config(self._raw_config)
+                account = config.get_account(account_id)
+                if account is None:
+                    raise ValueError(f"Unknown messaging account: {account_id}")
+
+                backend = create_sms_backend(
+                    self._raw_config,
+                    account_id=account_id,
+                    fixture_path=self.mock_file,
+                )
+                from_number = account.from_number
+            except Exception as exc:
+                logger.warning(
+                    "Failed account-specific SMS backend routing for '%s': %s",
+                    account_id,
+                    exc,
+                )
+
         result = backend.send_sms(
             to=message.to,
             body=message.body,
-            from_number=message.from_,
+            from_number=from_number,
         )
         if not result.ok:
             logger.warning("SMS backend send failed: %s", result.error)
