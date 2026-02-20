@@ -11,10 +11,11 @@ import json
 import logging
 import os
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any
 
 from rex.event_bus import EventBus
 
@@ -30,13 +31,9 @@ def _runtime_calendar_path() -> Path:
     data/mock_calendar.json is never modified at runtime.
     """
     if os.name == "nt":
-        base = Path(
-            os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
-        )
+        base = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local")))
     else:
-        base = Path(
-            os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share"))
-        )
+        base = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share")))
     return base / "rex-ai" / "calendar.json"
 
 
@@ -113,7 +110,7 @@ class CalendarEvent:
             "all_day": self.all_day,
         }
 
-    def overlaps_with(self, other: "CalendarEvent") -> bool:
+    def overlaps_with(self, other: CalendarEvent) -> bool:
         """Return True if this event overlaps with another event."""
         return self.start_time < other.end_time and self.end_time > other.start_time
 
@@ -138,7 +135,7 @@ class CalendarService:
 
     def __init__(
         self,
-        event_bus: Optional[EventBus] = None,
+        event_bus: EventBus | None = None,
         *,
         mock_data_path: Path | str | None = None,
         mock_events: list[CalendarEvent] | None = None,
@@ -174,7 +171,9 @@ class CalendarService:
             self._events = self._load_events()
             self.connected = True
             logger.info("Calendar service connected (mock mode)")
-            self._event_bus.publish("calendar.connected", {"connected": True, "count": len(self._events)})
+            self._event_bus.publish(
+                "calendar.connected", {"connected": True, "count": len(self._events)}
+            )
             return True
         except Exception as e:
             logger.error("Failed to connect calendar service: %s", e, exc_info=True)
@@ -189,9 +188,7 @@ class CalendarService:
 
         # Upcoming includes events that start within horizon or are currently ongoing
         upcoming = [
-            event
-            for event in events
-            if (event.start_time <= horizon) and (event.end_time > now)
+            event for event in events if (event.start_time <= horizon) and (event.end_time > now)
         ]
         upcoming.sort(key=lambda e: e.start_time)
 
@@ -241,7 +238,7 @@ class CalendarService:
         end_time: datetime,
         *,
         location: str | None = None,
-        attendees: Optional[Iterable[str]] = None,
+        attendees: Iterable[str] | None = None,
         description: str | None = None,
         all_day: bool = False,
     ) -> CalendarEvent:
@@ -341,7 +338,7 @@ class CalendarService:
 
     def find_conflicts(
         self,
-        events: Optional[list[CalendarEvent]] = None,
+        events: list[CalendarEvent] | None = None,
     ) -> list[tuple[CalendarEvent, CalendarEvent]]:
         """
         Find overlapping event pairs.
@@ -482,7 +479,7 @@ class CalendarService:
         self,
         hours: int = 72,
         *,
-        now: Optional[datetime] = None,
+        now: datetime | None = None,
     ) -> list[CalendarEvent]:
         """Get events that ended within the specified time window.
 
@@ -497,10 +494,7 @@ class CalendarService:
         window_start = check_time - timedelta(hours=hours)
 
         events = self._load_events()
-        past_events = [
-            e for e in events
-            if e.end_time <= check_time and e.end_time >= window_start
-        ]
+        past_events = [e for e in events if e.end_time <= check_time and e.end_time >= window_start]
         past_events.sort(key=lambda e: e.end_time, reverse=True)
         return past_events
 
@@ -510,7 +504,7 @@ class CalendarService:
         *,
         lookback_hours: int = 72,
         expire_hours: int = 168,
-        now: Optional[datetime] = None,
+        now: datetime | None = None,
     ) -> int:
         """Generate follow-up cues from recent past calendar events.
 
@@ -588,10 +582,19 @@ class CalendarService:
 
         title_lower = event.title.lower()
         holiday_keywords = [
-            "holiday", "day off", "vacation", "pto",
-            "christmas", "thanksgiving", "easter", "new year",
-            "independence day", "memorial day", "labor day",
-            "birthday", "anniversary",
+            "holiday",
+            "day off",
+            "vacation",
+            "pto",
+            "christmas",
+            "thanksgiving",
+            "easter",
+            "new year",
+            "independence day",
+            "memorial day",
+            "labor day",
+            "birthday",
+            "anniversary",
         ]
         for keyword in holiday_keywords:
             if keyword in title_lower:
@@ -624,16 +627,83 @@ class CalendarService:
 
 
 # Global calendar service instance (optional convenience)
-_calendar_service: Optional[CalendarService] = None
+_calendar_service: CalendarService | None = None
 
 
-def get_calendar_service(event_bus: Optional[EventBus] = None) -> CalendarService:
-    """Get the global calendar service instance."""
+def get_calendar_service(
+    event_bus: EventBus | None = None,
+    config: dict | None = None,
+) -> CalendarService:
+    """Get the global calendar service instance.
+
+    When ``config`` contains ``calendar.backend = "ics"``, the service is
+    backed by an :class:`~rex.calendar_backends.ics_backend.ICSCalendarBackend`.
+    Otherwise the existing stub/mock behaviour is used.
+    """
     global _calendar_service
-    if _calendar_service is None:
+    if _calendar_service is not None:
+        return _calendar_service
+
+    # Determine backend from config
+    backend_name = "stub"
+    cal_cfg: dict = {}
+    if config:
+        cal_cfg = config.get("calendar", {})
+        backend_name = cal_cfg.get("backend", "stub")
+
+    if not config:
+        # Try loading from disk
+        try:
+            _config_path = Path("config/rex_config.json")
+            project_root = Path(__file__).resolve().parent.parent
+            cfg_file = project_root / _config_path
+            if cfg_file.exists():
+                import json as _json
+
+                disk_config = _json.loads(cfg_file.read_text(encoding="utf-8"))
+                cal_cfg = disk_config.get("calendar", {})
+                backend_name = cal_cfg.get("backend", "stub")
+        except Exception:
+            pass
+
+    if backend_name == "ics":
+        _calendar_service = _create_ics_backed_service(cal_cfg, event_bus)
+    else:
         _calendar_service = CalendarService(event_bus=event_bus)
         _calendar_service.connect()
+
     return _calendar_service
+
+
+def _create_ics_backed_service(
+    cal_cfg: dict,
+    event_bus: EventBus | None = None,
+) -> CalendarService:
+    """Create a CalendarService whose events come from an ICS backend."""
+    from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+    ics_cfg = cal_cfg.get("ics", {})
+    source = ics_cfg.get("source", "")
+    url_timeout = int(ics_cfg.get("url_timeout", 15))
+
+    if not source:
+        logger.warning("calendar.backend is 'ics' but no source configured; using stub")
+        svc = CalendarService(event_bus=event_bus)
+        svc.connect()
+        return svc
+
+    backend = ICSCalendarBackend(source=source, url_timeout=url_timeout)
+    ok = backend.connect()
+    if not ok:
+        logger.warning("ICS backend failed to connect; falling back to stub")
+        svc = CalendarService(event_bus=event_bus)
+        svc.connect()
+        return svc
+
+    events = backend.fetch_events()
+    svc = CalendarService(event_bus=event_bus, mock_events=events)
+    svc.connected = True
+    return svc
 
 
 def set_calendar_service(service: CalendarService) -> None:

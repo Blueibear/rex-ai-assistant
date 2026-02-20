@@ -1192,6 +1192,9 @@ def cmd_calendar(args: argparse.Namespace) -> int:
     calendar_service = get_calendar_service()
     subcommand = args.calendar_command
 
+    if subcommand == "test-connection":
+        return _cmd_calendar_test_connection()
+
     if subcommand == "upcoming":
         if not calendar_service.connected:
             if not calendar_service.connect():
@@ -1244,6 +1247,112 @@ def cmd_calendar(args: argparse.Namespace) -> int:
         return 0
 
     print("Unknown calendar subcommand. Use 'rex calendar --help'")
+    return 1
+
+
+def _cmd_calendar_test_connection() -> int:
+    """Verify calendar backend configuration."""
+    from rex.calendar_backends.factory import create_calendar_backend
+
+    backend = create_calendar_backend()
+    ok, message = backend.test_connection()
+    name = backend.backend_name
+
+    if ok:
+        print(f"Calendar backend '{name}': OK")
+        if message:
+            print(f"  {message}")
+        return 0
+    else:
+        print(f"Calendar backend '{name}': FAILED")
+        if message:
+            print(f"  {message}")
+        return 1
+
+
+def cmd_whoami(args: argparse.Namespace) -> int:
+    """Show the active user for this session."""
+    from rex.identity import get_session_user, list_known_users, resolve_active_user
+
+    session_user = get_session_user()
+    resolved = resolve_active_user()
+
+    if resolved:
+        source = "session" if session_user == resolved else "config"
+        print(f"Active user: {resolved} (source: {source})")
+    else:
+        print("No active user set.")
+        print()
+        print("Set one with:")
+        print("  rex identify --user <id>     (non-interactive)")
+        print("  rex identify                 (interactive selection)")
+
+    known = list_known_users()
+    if known:
+        print()
+        print("Known users:")
+        for u in known:
+            marker = " *" if u["id"] == resolved else ""
+            role_str = f" ({u['role']})" if u.get("role") else ""
+            print(f"  {u['id']}: {u['name']}{role_str}{marker}")
+
+    return 0
+
+
+def cmd_identify(args: argparse.Namespace) -> int:
+    """Set the active user for this session."""
+    from rex.identity import list_known_users, set_session_user
+
+    explicit = getattr(args, "user", None)
+
+    if explicit:
+        set_session_user(explicit)
+        print(f"Active user set to: {explicit}")
+        return 0
+
+    # Interactive selection
+    known = list_known_users()
+    if not known:
+        print("No known users found in Memory/ profiles.")
+        print("Create a user profile directory under Memory/<user_id>/core.json first.")
+        return 1
+
+    print("Select a user:")
+    for i, u in enumerate(known, 1):
+        role_str = f" ({u['role']})" if u.get("role") else ""
+        print(f"  {i}. {u['name']} [{u['id']}]{role_str}")
+
+    print()
+    try:
+        choice = input("Enter number or user ID: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return 1
+
+    if not choice:
+        print("No selection made.")
+        return 1
+
+    # Try numeric selection
+    try:
+        idx = int(choice) - 1
+        if 0 <= idx < len(known):
+            selected = known[idx]["id"]
+            set_session_user(selected)
+            print(f"Active user set to: {selected}")
+            return 0
+    except ValueError:
+        pass
+
+    # Try by user ID
+    valid_ids = [u["id"] for u in known]
+    if choice in valid_ids:
+        set_session_user(choice)
+        print(f"Active user set to: {choice}")
+        return 0
+
+    print(f"Unknown user: {choice}")
+    print(f"Valid users: {', '.join(valid_ids)}")
     return 1
 
 
@@ -2514,6 +2623,12 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Manage email (supports real IMAP/SMTP and stub mode)",
         description="Read, send, and triage emails. Supports real IMAP/SMTP backends when configured, or stub/mock data for offline development.",
     )
+    email_parser.add_argument(
+        "--user",
+        type=str,
+        default=None,
+        help="User context for this command (overrides session/config active user)",
+    )
     email_subparsers = email_parser.add_subparsers(
         title="email commands",
         dest="email_command",
@@ -2595,8 +2710,14 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     # calendar
     calendar_parser = subparsers.add_parser(
         "calendar",
-        help="Manage calendar (beta - stub/mock data)",
-        description="View and manage calendar events. NOTE: This integration is currently in beta and uses stub/mock data. No real calendar provider is connected.",
+        help="Manage calendar (ICS read-only backend available + stub fallback)",
+        description="View and manage calendar events. Supports ICS read-only backend or stub/mock data.",
+    )
+    calendar_parser.add_argument(
+        "--user",
+        type=str,
+        default=None,
+        help="User context for this command (overrides session/config active user)",
     )
     calendar_subparsers = calendar_parser.add_subparsers(
         title="calendar commands",
@@ -2620,7 +2741,38 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     )
     calendar_upcoming.set_defaults(func=cmd_calendar, calendar_command="upcoming")
 
+    calendar_test_conn = calendar_subparsers.add_parser(
+        "test-connection",
+        help="Verify calendar backend configuration",
+        description="Check that the configured calendar backend can connect and parse events.",
+    )
+    calendar_test_conn.set_defaults(func=cmd_calendar, calendar_command="test-connection")
+
     calendar_parser.set_defaults(func=cmd_calendar, calendar_command="upcoming")
+
+    # identity (whoami / identify)
+    whoami_parser = subparsers.add_parser(
+        "whoami",
+        help="Show the active user for this session",
+        description="Display the currently active user identity (from config, session, or --user flag).",
+    )
+    whoami_parser.set_defaults(func=cmd_whoami, command="whoami")
+
+    identify_parser = subparsers.add_parser(
+        "identify",
+        help="Set the active user for this session",
+        description=(
+            "Select or set the active user identity. "
+            "Used when voice/speaker recognition is unavailable or uncertain."
+        ),
+    )
+    identify_parser.add_argument(
+        "--user",
+        type=str,
+        default=None,
+        help="Set active user non-interactively (e.g. --user cole)",
+    )
+    identify_parser.set_defaults(func=cmd_identify, command="identify")
 
     # reminders
     reminders_parser = subparsers.add_parser(

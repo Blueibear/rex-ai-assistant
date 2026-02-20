@@ -1,0 +1,439 @@
+"""Tests for the ICS calendar backend and parser.
+
+All tests are offline and deterministic — no network calls are made.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+from rex.calendar_backends.ics_parser import parse_ics
+from rex.calendar_service import CalendarEvent
+
+FIXTURE_DIR = Path(__file__).parent / "fixtures"
+SAMPLE_ICS = FIXTURE_DIR / "sample_calendar.ics"
+
+
+# ---------------------------------------------------------------
+# ICS parser tests
+# ---------------------------------------------------------------
+
+
+class TestICSParser:
+    """Tests for rex.calendar_backends.ics_parser.parse_ics."""
+
+    def test_parse_sample_fixture(self):
+        """Parse the sample ICS fixture and verify event count."""
+        text = SAMPLE_ICS.read_text(encoding="utf-8")
+        events = parse_ics(text)
+        assert len(events) == 4
+
+    def test_event_fields(self):
+        """Verify parsed fields for a known event."""
+        text = SAMPLE_ICS.read_text(encoding="utf-8")
+        events = parse_ics(text)
+        # Events are sorted by start_time; find Team Standup
+        standup = [e for e in events if e.title == "Team Standup"]
+        assert len(standup) == 1
+        evt = standup[0]
+        assert evt.event_id == "evt-ics-001@rex-ai"
+        assert evt.start_time == datetime(2026, 2, 20, 14, 0, tzinfo=timezone.utc)
+        assert evt.end_time == datetime(2026, 2, 20, 15, 0, tzinfo=timezone.utc)
+        assert evt.location == "Zoom"
+        assert evt.description == "Daily team standup meeting"
+        assert "alice@example.com" in evt.attendees
+        assert "bob@example.com" in evt.attendees
+        assert evt.all_day is False
+
+    def test_all_day_event(self):
+        """Verify all-day event parsing."""
+        text = SAMPLE_ICS.read_text(encoding="utf-8")
+        events = parse_ics(text)
+        holiday = [e for e in events if e.title == "Company Holiday"]
+        assert len(holiday) == 1
+        evt = holiday[0]
+        assert evt.all_day is True
+        assert evt.start_time.date() == datetime(2026, 3, 1).date()
+
+    def test_duration_event(self):
+        """Verify DURATION-based end time calculation."""
+        text = SAMPLE_ICS.read_text(encoding="utf-8")
+        events = parse_ics(text)
+        review = [e for e in events if e.title == "Architecture Review"]
+        assert len(review) == 1
+        evt = review[0]
+        expected_end = datetime(2026, 2, 25, 10, 30, tzinfo=timezone.utc)
+        assert evt.end_time == expected_end
+
+    def test_events_sorted_by_start_time(self):
+        """Verify events are returned sorted by start_time."""
+        text = SAMPLE_ICS.read_text(encoding="utf-8")
+        events = parse_ics(text)
+        for i in range(len(events) - 1):
+            assert events[i].start_time <= events[i + 1].start_time
+
+    def test_empty_ics(self):
+        """Empty ICS content returns no events."""
+        events = parse_ics("")
+        assert events == []
+
+    def test_ics_no_vevent(self):
+        """ICS with no VEVENT blocks returns empty list."""
+        text = "BEGIN:VCALENDAR\nVERSION:2.0\nEND:VCALENDAR\n"
+        events = parse_ics(text)
+        assert events == []
+
+    def test_missing_summary_skipped(self):
+        """VEVENT without SUMMARY is skipped."""
+        text = (
+            "BEGIN:VCALENDAR\n"
+            "BEGIN:VEVENT\n"
+            "UID:no-summary\n"
+            "DTSTART:20260101T120000Z\n"
+            "DTEND:20260101T130000Z\n"
+            "END:VEVENT\n"
+            "END:VCALENDAR\n"
+        )
+        events = parse_ics(text)
+        assert events == []
+
+    def test_missing_dtstart_skipped(self):
+        """VEVENT without DTSTART is skipped."""
+        text = (
+            "BEGIN:VCALENDAR\n"
+            "BEGIN:VEVENT\n"
+            "UID:no-dtstart\n"
+            "SUMMARY:Missing Start\n"
+            "DTEND:20260101T130000Z\n"
+            "END:VEVENT\n"
+            "END:VCALENDAR\n"
+        )
+        events = parse_ics(text)
+        assert events == []
+
+    def test_line_unfolding(self):
+        """Long lines folded with leading whitespace are unfolded."""
+        text = (
+            "BEGIN:VCALENDAR\n"
+            "BEGIN:VEVENT\n"
+            "UID:fold-test\n"
+            "DTSTART:20260301T100000Z\n"
+            "DTEND:20260301T110000Z\n"
+            "SUMMARY:This is a very long \n"
+            " event title that wraps\n"
+            "END:VEVENT\n"
+            "END:VCALENDAR\n"
+        )
+        events = parse_ics(text)
+        assert len(events) == 1
+        # RFC 5545: continuation space is consumed, but the trailing space
+        # before the fold is preserved, giving "long event".
+        assert events[0].title == "This is a very long event title that wraps"
+
+    def test_escaped_characters(self):
+        """ICS escaped characters are unescaped in text fields."""
+        text = (
+            "BEGIN:VCALENDAR\n"
+            "BEGIN:VEVENT\n"
+            "UID:escape-test\n"
+            "DTSTART:20260301T100000Z\n"
+            "DTEND:20260301T110000Z\n"
+            "SUMMARY:Meeting\\, Planning\n"
+            "DESCRIPTION:Line 1\\nLine 2\\nLine 3\n"
+            "END:VEVENT\n"
+            "END:VCALENDAR\n"
+        )
+        events = parse_ics(text)
+        assert len(events) == 1
+        assert events[0].title == "Meeting, Planning"
+        assert "Line 1\nLine 2\nLine 3" == events[0].description
+
+    def test_returns_calendar_event_type(self):
+        """Parsed results are CalendarEvent instances."""
+        text = SAMPLE_ICS.read_text(encoding="utf-8")
+        events = parse_ics(text)
+        for evt in events:
+            assert isinstance(evt, CalendarEvent)
+
+
+# ---------------------------------------------------------------
+# ICS backend tests
+# ---------------------------------------------------------------
+
+
+class TestICSCalendarBackend:
+    """Tests for rex.calendar_backends.ics_backend.ICSCalendarBackend."""
+
+    def test_connect_from_file(self, tmp_path: Path):
+        """Backend connects and parses a local ICS file."""
+        from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+        ics_file = tmp_path / "test.ics"
+        ics_file.write_text(SAMPLE_ICS.read_text(encoding="utf-8"), encoding="utf-8")
+
+        backend = ICSCalendarBackend(source=str(ics_file))
+        assert backend.connect() is True
+        assert backend.is_connected is True
+
+        events = backend.fetch_events()
+        assert len(events) == 4
+
+    def test_connect_file_not_found(self, tmp_path: Path):
+        """Backend returns False when ICS file doesn't exist."""
+        from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+        backend = ICSCalendarBackend(source=str(tmp_path / "nonexistent.ics"))
+        assert backend.connect() is False
+        assert backend.is_connected is False
+
+    def test_test_connection_file(self, tmp_path: Path):
+        """test_connection reports success for a valid file."""
+        from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+        ics_file = tmp_path / "test.ics"
+        ics_file.write_text(SAMPLE_ICS.read_text(encoding="utf-8"), encoding="utf-8")
+
+        backend = ICSCalendarBackend(source=str(ics_file))
+        ok, message = backend.test_connection()
+        assert ok is True
+        assert "4 event(s)" in message
+
+    def test_test_connection_missing_file(self, tmp_path: Path):
+        """test_connection reports failure for missing file."""
+        from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+        backend = ICSCalendarBackend(source=str(tmp_path / "nope.ics"))
+        ok, message = backend.test_connection()
+        assert ok is False
+        assert "not found" in message
+
+    def test_disconnect(self, tmp_path: Path):
+        """disconnect clears connected state."""
+        from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+        ics_file = tmp_path / "test.ics"
+        ics_file.write_text(SAMPLE_ICS.read_text(encoding="utf-8"), encoding="utf-8")
+
+        backend = ICSCalendarBackend(source=str(ics_file))
+        backend.connect()
+        assert backend.is_connected is True
+        backend.disconnect()
+        assert backend.is_connected is False
+
+    def test_backend_name(self):
+        """Backend reports its name correctly."""
+        from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+        backend = ICSCalendarBackend(source="/tmp/test.ics")
+        assert backend.backend_name == "ics"
+
+    def test_url_fetch_mocked(self):
+        """URL-based source fetches via requests (mocked)."""
+        from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+        ics_text = SAMPLE_ICS.read_text(encoding="utf-8")
+        mock_response = MagicMock()
+        mock_response.text = ics_text
+        mock_response.raise_for_status = MagicMock()
+
+        # requests is imported inside _fetch_url, so patch at the top level
+        with patch("requests.get", return_value=mock_response) as mock_get:
+            backend = ICSCalendarBackend(
+                source="https://example.com/calendar.ics",
+                url_timeout=10,
+            )
+            assert backend.connect() is True
+            events = backend.fetch_events()
+            assert len(events) == 4
+
+            mock_get.assert_called_once_with(
+                "https://example.com/calendar.ics",
+                timeout=10,
+                headers={"Accept": "text/calendar, text/plain"},
+            )
+
+    def test_http_url_rejected(self):
+        """Non-HTTPS URLs are rejected."""
+        from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+        backend = ICSCalendarBackend(source="http://example.com/calendar.ics")
+        assert backend.connect() is False
+
+
+# ---------------------------------------------------------------
+# Backend factory tests
+# ---------------------------------------------------------------
+
+
+class TestCalendarBackendFactory:
+    """Tests for rex.calendar_backends.factory.create_calendar_backend."""
+
+    def test_default_returns_stub(self):
+        """No config returns stub backend."""
+        from rex.calendar_backends.factory import create_calendar_backend
+        from rex.calendar_backends.stub import StubCalendarBackend
+
+        backend = create_calendar_backend(config={})
+        assert isinstance(backend, StubCalendarBackend)
+
+    def test_explicit_stub(self):
+        """Explicit stub config returns stub backend."""
+        from rex.calendar_backends.factory import create_calendar_backend
+        from rex.calendar_backends.stub import StubCalendarBackend
+
+        backend = create_calendar_backend(config={"calendar": {"backend": "stub"}})
+        assert isinstance(backend, StubCalendarBackend)
+
+    def test_ics_backend_created(self, tmp_path: Path):
+        """ICS config creates ICS backend."""
+        from rex.calendar_backends.factory import create_calendar_backend
+        from rex.calendar_backends.ics_backend import ICSCalendarBackend
+
+        ics_file = tmp_path / "cal.ics"
+        ics_file.write_text(SAMPLE_ICS.read_text(encoding="utf-8"), encoding="utf-8")
+
+        config = {
+            "calendar": {
+                "backend": "ics",
+                "ics": {
+                    "source": str(ics_file),
+                    "url_timeout": 5,
+                },
+            }
+        }
+        backend = create_calendar_backend(config=config)
+        assert isinstance(backend, ICSCalendarBackend)
+
+    def test_ics_no_source_falls_back_to_stub(self):
+        """ICS config without source falls back to stub."""
+        from rex.calendar_backends.factory import create_calendar_backend
+        from rex.calendar_backends.stub import StubCalendarBackend
+
+        config = {
+            "calendar": {
+                "backend": "ics",
+                "ics": {"source": ""},
+            }
+        }
+        backend = create_calendar_backend(config=config)
+        assert isinstance(backend, StubCalendarBackend)
+
+    def test_get_backend_names(self):
+        """get_backend_names returns known backends."""
+        from rex.calendar_backends.factory import get_backend_names
+
+        names = get_backend_names()
+        assert "stub" in names
+        assert "ics" in names
+
+
+# ---------------------------------------------------------------
+# CalendarService with ICS backend integration
+# ---------------------------------------------------------------
+
+
+class TestCalendarServiceICSIntegration:
+    """Test that CalendarService works with events loaded from ICS backend."""
+
+    def test_get_calendar_service_with_ics_config(self, tmp_path: Path):
+        """get_calendar_service returns service backed by ICS events."""
+        from rex.calendar_service import (
+            CalendarService,
+            get_calendar_service,
+            set_calendar_service,
+        )
+
+        # Reset global state
+        set_calendar_service(None)
+
+        ics_file = tmp_path / "cal.ics"
+        ics_file.write_text(SAMPLE_ICS.read_text(encoding="utf-8"), encoding="utf-8")
+
+        config = {
+            "calendar": {
+                "backend": "ics",
+                "ics": {"source": str(ics_file)},
+            }
+        }
+
+        try:
+            svc = get_calendar_service(config=config)
+            assert isinstance(svc, CalendarService)
+            assert svc.connected is True
+            events = svc.get_all_events()
+            assert len(events) == 4
+        finally:
+            set_calendar_service(None)
+
+    def test_ics_events_are_queryable(self, tmp_path: Path):
+        """Events from ICS source are queryable via CalendarService methods."""
+        from rex.calendar_service import get_calendar_service, set_calendar_service
+
+        set_calendar_service(None)
+
+        ics_file = tmp_path / "cal.ics"
+        ics_file.write_text(SAMPLE_ICS.read_text(encoding="utf-8"), encoding="utf-8")
+
+        config = {
+            "calendar": {
+                "backend": "ics",
+                "ics": {"source": str(ics_file)},
+            }
+        }
+
+        try:
+            svc = get_calendar_service(config=config)
+            # Query a range that includes Team Standup (2026-02-20 14:00 UTC)
+            start = datetime(2026, 2, 20, 0, 0, tzinfo=timezone.utc)
+            end = datetime(2026, 2, 21, 0, 0, tzinfo=timezone.utc)
+            day_events = svc.get_events(start, end)
+            titles = [e.title for e in day_events]
+            assert "Team Standup" in titles
+            assert "1-on-1 with Manager" in titles
+        finally:
+            set_calendar_service(None)
+
+
+# ---------------------------------------------------------------
+# Stub backend tests
+# ---------------------------------------------------------------
+
+
+class TestStubCalendarBackend:
+    """Tests for rex.calendar_backends.stub.StubCalendarBackend."""
+
+    def test_connect(self):
+        """Stub backend connects successfully."""
+        from rex.calendar_backends.stub import StubCalendarBackend
+
+        backend = StubCalendarBackend()
+        assert backend.connect() is True
+        assert backend.is_connected is True
+
+    def test_fetch_events(self):
+        """Stub backend returns mock events."""
+        from rex.calendar_backends.stub import StubCalendarBackend
+
+        backend = StubCalendarBackend()
+        backend.connect()
+        events = backend.fetch_events()
+        assert len(events) > 0
+        for evt in events:
+            assert isinstance(evt, CalendarEvent)
+
+    def test_backend_name(self):
+        """Stub backend reports its name."""
+        from rex.calendar_backends.stub import StubCalendarBackend
+
+        backend = StubCalendarBackend()
+        assert backend.backend_name == "stub"
+
+    def test_test_connection(self):
+        """Stub backend test_connection always succeeds."""
+        from rex.calendar_backends.stub import StubCalendarBackend
+
+        backend = StubCalendarBackend()
+        ok, message = backend.test_connection()
+        assert ok is True
