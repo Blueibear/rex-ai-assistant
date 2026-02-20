@@ -5,16 +5,12 @@ All tests use mocks/fakes — no real network calls.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from rex.email_backends.base import EmailBackend, EmailEnvelope, SendResult
-from rex.email_backends.stub import StubEmailBackend
 from rex.email_backends.imap_smtp import ImapSmtpEmailBackend
-
+from rex.email_backends.stub import StubEmailBackend
 
 # ---------------------------------------------------------------------------
 # Stub backend tests
@@ -64,7 +60,14 @@ class TestStubEmailBackend:
         fixture.write_text(
             json.dumps(
                 [
-                    {"id": f"e{i}", "from_addr": "a@b.com", "subject": f"Msg {i}", "snippet": "", "received_at": "2026-01-01T10:00:00", "labels": ["unread"]}
+                    {
+                        "id": f"e{i}",
+                        "from_addr": "a@b.com",
+                        "subject": f"Msg {i}",
+                        "snippet": "",
+                        "received_at": "2026-01-01T10:00:00",
+                        "labels": ["unread"],
+                    }
                     for i in range(5)
                 ]
             ),
@@ -92,7 +95,18 @@ class TestStubEmailBackend:
 
         fixture = tmp_path / "emails.json"
         fixture.write_text(
-            json.dumps([{"id": "e1", "from_addr": "a@b.com", "subject": "S", "snippet": "", "received_at": "2026-01-01T10:00:00", "labels": ["unread"]}]),
+            json.dumps(
+                [
+                    {
+                        "id": "e1",
+                        "from_addr": "a@b.com",
+                        "subject": "S",
+                        "snippet": "",
+                        "received_at": "2026-01-01T10:00:00",
+                        "labels": ["unread"],
+                    }
+                ]
+            ),
             encoding="utf-8",
         )
         backend = StubEmailBackend(fixture_path=fixture)
@@ -317,7 +331,5 @@ class TestBackendInterface:
         ["connect", "fetch_unread", "list_mailboxes", "mark_as_read", "send", "disconnect"],
     )
     def test_imap_smtp_has_method(self, method):
-        backend = ImapSmtpEmailBackend(
-            imap_host="x", smtp_host="x", username="x", password="x"
-        )
+        backend = ImapSmtpEmailBackend(imap_host="x", smtp_host="x", username="x", password="x")
         assert hasattr(backend, method)

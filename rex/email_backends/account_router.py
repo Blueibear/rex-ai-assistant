@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 from rex.email_backends.account_config import EmailAccountConfig, EmailConfig
 from rex.email_backends.base import EmailBackend
@@ -22,10 +21,10 @@ logger = logging.getLogger(__name__)
 
 def resolve_backend(
     email_config: EmailConfig,
-    account_id: Optional[str] = None,
-    credential_getter: Optional[object] = None,
-    stub_fixture: Optional[Path] = None,
-) -> tuple[EmailBackend, Optional[EmailAccountConfig]]:
+    account_id: str | None = None,
+    credential_getter: object | None = None,
+    stub_fixture: Path | None = None,
+) -> tuple[EmailBackend, EmailAccountConfig | None]:
     """Return an ``EmailBackend`` for the requested account.
 
     Args:
@@ -47,8 +46,7 @@ def resolve_backend(
     cred_token = _get_credential(account.credential_ref, credential_getter)
     if cred_token is None:
         logger.warning(
-            "No credential found for ref '%s' (account '%s'); "
-            "falling back to stub backend",
+            "No credential found for ref '%s' (account '%s'); " "falling back to stub backend",
             account.credential_ref,
             account.id,
         )
@@ -79,8 +77,8 @@ def resolve_backend(
 
 def _get_credential(
     credential_ref: str,
-    credential_getter: Optional[object],
-) -> Optional[str]:
+    credential_getter: object | None,
+) -> str | None:
     if credential_getter is None:
         return None
     try:
@@ -93,7 +91,7 @@ def _get_credential(
 def _parse_credential_token(
     token: str,
     account: EmailAccountConfig,
-) -> tuple[Optional[str], Optional[str]]:
+) -> tuple[str | None, str | None]:
     """Split a credential token into (username, password).
 
     Accepted formats:

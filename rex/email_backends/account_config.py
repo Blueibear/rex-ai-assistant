@@ -27,7 +27,7 @@ Example config fragment::
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -78,7 +78,7 @@ class EmailConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    default_account_id: Optional[str] = Field(
+    default_account_id: str | None = Field(
         default=None,
         description="Account ID used when no explicit account is specified",
     )
@@ -87,7 +87,7 @@ class EmailConfig(BaseModel):
         description="List of configured email accounts",
     )
 
-    def get_account(self, account_id: Optional[str] = None) -> Optional[EmailAccountConfig]:
+    def get_account(self, account_id: str | None = None) -> EmailAccountConfig | None:
         """Resolve an account by ID using the routing precedence.
 
         Routing order:

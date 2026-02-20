@@ -10,7 +10,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from rex.email_backends.base import EmailBackend, EmailEnvelope, SendResult
 
@@ -22,7 +22,7 @@ _DEFAULT_FIXTURE = Path("data/mock_emails.json")
 class StubEmailBackend(EmailBackend):
     """JSON-fixture email backend for offline development and tests."""
 
-    def __init__(self, fixture_path: Optional[Path] = None) -> None:
+    def __init__(self, fixture_path: Path | None = None) -> None:
         self._fixture_path = fixture_path or _DEFAULT_FIXTURE
         self._emails: list[EmailEnvelope] = []
         self._connected = False
@@ -48,7 +48,7 @@ class StubEmailBackend(EmailBackend):
             if not self.connect():
                 return []
         unread = [e for e in self._emails if "unread" in e.labels]
-        return unread[:max(0, limit)]
+        return unread[: max(0, limit)]
 
     def list_mailboxes(self) -> list[str]:
         return ["INBOX"]
@@ -80,7 +80,7 @@ class StubEmailBackend(EmailBackend):
         to_addrs: list[str],
         subject: str,
         body: str,
-        reply_to: Optional[str] = None,
+        reply_to: str | None = None,
     ) -> SendResult:
         logger.info(
             "[STUB] Would send email from=%s to=%s subject=%r",
@@ -175,7 +175,7 @@ class StubEmailBackend(EmailBackend):
         return list(self._sent)
 
 
-def _parse_dt(value: Any) -> Optional[datetime]:
+def _parse_dt(value: Any) -> datetime | None:
     if value is None:
         return None
     if isinstance(value, datetime):

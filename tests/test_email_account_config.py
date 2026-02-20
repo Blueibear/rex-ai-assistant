@@ -69,7 +69,7 @@ class TestEmailAccountConfig:
         assert acct.smtp.host == "smtp.gmail.com"
 
     def test_missing_required_field(self):
-        with pytest.raises(Exception):
+        with pytest.raises((TypeError, ValueError)):
             EmailAccountConfig(id="bad", address="a@b.com")  # missing imap/smtp
 
 
@@ -191,5 +191,5 @@ class TestLoadEmailConfig:
                 "accounts": [{"id": "bad"}],  # missing required fields
             }
         }
-        with pytest.raises(Exception):
+        with pytest.raises((TypeError, ValueError)):
             load_email_config(raw)

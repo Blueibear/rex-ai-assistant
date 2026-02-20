@@ -9,11 +9,6 @@ Covers:
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import MagicMock
-
-import pytest
-
 from rex.email_backends.account_config import (
     EmailAccountConfig,
     EmailConfig,

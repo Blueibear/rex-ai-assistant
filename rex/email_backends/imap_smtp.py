@@ -19,7 +19,6 @@ import smtplib
 import ssl
 from datetime import datetime, timezone
 from email.message import EmailMessage
-from typing import Optional
 
 from rex.email_backends.base import EmailBackend, EmailEnvelope, SendResult
 
@@ -57,9 +56,9 @@ class ImapSmtpEmailBackend(EmailBackend):
         password: str,
         use_starttls: bool = True,
         timeout: int = _DEFAULT_TIMEOUT,
-        ssl_context: Optional[ssl.SSLContext] = None,
-        imap_client_factory: Optional[object] = None,
-        smtp_client_factory: Optional[object] = None,
+        ssl_context: ssl.SSLContext | None = None,
+        imap_client_factory: object | None = None,
+        smtp_client_factory: object | None = None,
     ) -> None:
         self._imap_host = imap_host
         self._imap_port = imap_port
@@ -74,7 +73,7 @@ class ImapSmtpEmailBackend(EmailBackend):
         self._imap_factory = imap_client_factory
         self._smtp_factory = smtp_client_factory
 
-        self._imap: Optional[imaplib.IMAP4_SSL] = None
+        self._imap: imaplib.IMAP4_SSL | None = None
         self._connected = False
 
     # ------------------------------------------------------------------
@@ -143,7 +142,7 @@ class ImapSmtpEmailBackend(EmailBackend):
             logger.error("IMAP fetch_unread failed: %s", exc)
             return []
 
-    def _fetch_envelope(self, msg_num: bytes) -> Optional[EmailEnvelope]:
+    def _fetch_envelope(self, msg_num: bytes) -> EmailEnvelope | None:
         assert self._imap is not None
         status, parts = self._imap.fetch(msg_num, "(RFC822.HEADER)")
         if status != "OK" or not parts or not parts[0]:
@@ -201,9 +200,7 @@ class ImapSmtpEmailBackend(EmailBackend):
         if not self._connected or self._imap is None:
             return False
         try:
-            status, data = self._imap.search(
-                None, f'(HEADER Message-ID "{message_id}")'
-            )
+            status, data = self._imap.search(None, f'(HEADER Message-ID "{message_id}")')
             if status != "OK" or not data or not data[0]:
                 return False
             for num in data[0].split():
@@ -224,7 +221,7 @@ class ImapSmtpEmailBackend(EmailBackend):
         to_addrs: list[str],
         subject: str,
         body: str,
-        reply_to: Optional[str] = None,
+        reply_to: str | None = None,
     ) -> SendResult:
         try:
             msg = EmailMessage()
@@ -301,7 +298,7 @@ class ImapSmtpEmailBackend(EmailBackend):
         return self._connected
 
 
-def _parse_email_date(date_str: str) -> Optional[datetime]:
+def _parse_email_date(date_str: str) -> datetime | None:
     if not date_str:
         return None
     try:

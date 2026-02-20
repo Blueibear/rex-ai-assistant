@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime
 
 
 @dataclass(frozen=True)
@@ -35,8 +34,8 @@ class SendResult:
     """Outcome of an email send operation."""
 
     ok: bool
-    message_id: Optional[str] = None
-    error: Optional[str] = None
+    message_id: str | None = None
+    error: str | None = None
 
 
 class EmailBackend(abc.ABC):
@@ -79,7 +78,7 @@ class EmailBackend(abc.ABC):
         to_addrs: list[str],
         subject: str,
         body: str,
-        reply_to: Optional[str] = None,
+        reply_to: str | None = None,
     ) -> SendResult:
         """Send an email."""
 
@@ -87,7 +86,7 @@ class EmailBackend(abc.ABC):
     # Lifecycle
     # ------------------------------------------------------------------
 
-    def disconnect(self) -> None:
+    def disconnect(self) -> None:  # noqa: B027
         """Release any held resources (connections, sockets)."""
 
     @property

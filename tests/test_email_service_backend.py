@@ -11,14 +11,13 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-from rex.email_service import EmailService, EmailSummary
 from rex.email_backends.base import EmailEnvelope, SendResult
 from rex.email_backends.stub import StubEmailBackend
+from rex.email_service import EmailService, EmailSummary
 
 
 @pytest.fixture
