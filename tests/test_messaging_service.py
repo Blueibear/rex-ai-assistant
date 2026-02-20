@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
-from rex.messaging_service import Message, MessagingService, SMSService, get_sms_service, set_sms_service
+from rex.messaging_service import (
+    Message,
+    MessagingService,
+    SMSService,
+    get_sms_service,
+    set_sms_service,
+)
 
 
 @pytest.fixture
@@ -246,3 +253,92 @@ def test_messaging_service_abstract_base():
     """Test that MessagingService is abstract."""
     with pytest.raises(TypeError):
         MessagingService()  # type: ignore
+
+
+def test_sms_service_send_uses_explicit_account_backend(tmp_path):
+    """Explicit account_id creates account-specific backend routing."""
+    mock_file = tmp_path / "mock_sms.json"
+
+    raw_config = {
+        "messaging": {
+            "backend": "stub",
+            "default_account_id": "primary",
+            "accounts": [
+                {
+                    "id": "primary",
+                    "label": "Primary",
+                    "from_number": "+15550000001",
+                    "credential_ref": "twilio:primary",
+                },
+                {
+                    "id": "secondary",
+                    "label": "Secondary",
+                    "from_number": "+15550000002",
+                    "credential_ref": "twilio:secondary",
+                },
+            ],
+        }
+    }
+
+    service = SMSService(mock_file=mock_file, raw_config=raw_config)
+
+    with patch("rex.messaging_backends.factory.create_sms_backend") as mock_factory:
+        per_account_backend = mock_factory.return_value
+        per_account_backend.send_sms.return_value.ok = True
+        per_account_backend.send_sms.return_value.error = None
+
+        msg = Message(
+            channel="sms",
+            to="+15551234567",
+            from_=service.from_number,
+            body="hello",
+        )
+        service.send(msg, account_id="secondary")
+
+        mock_factory.assert_called_with(
+            raw_config,
+            account_id="secondary",
+            fixture_path=mock_file,
+        )
+        per_account_backend.send_sms.assert_called_once()
+        assert per_account_backend.send_sms.call_args.kwargs["from_number"] == "+15550000002"
+
+
+def test_sms_service_send_invalid_account_falls_back_to_default_backend(tmp_path):
+    """Unknown account_id should not crash and should use the existing backend."""
+    mock_file = tmp_path / "mock_sms.json"
+
+    class _Backend:
+        def __init__(self):
+            self.calls = []
+
+        def send_sms(self, *, to, body, from_number=None):
+            self.calls.append((to, body, from_number))
+
+            class _Result:
+                ok = True
+                error = None
+
+            return _Result()
+
+    backend = _Backend()
+    raw_config = {
+        "messaging": {
+            "backend": "stub",
+            "accounts": [
+                {
+                    "id": "primary",
+                    "label": "Primary",
+                    "from_number": "+15550000001",
+                    "credential_ref": "twilio:primary",
+                }
+            ],
+        }
+    }
+    service = SMSService(mock_file=mock_file, raw_config=raw_config, backend=backend)
+
+    msg = Message(channel="sms", to="+15551230000", from_=service.from_number, body="x")
+    service.send(msg, account_id="missing")
+
+    assert backend.calls
+    assert backend.calls[0][2] == service.from_number

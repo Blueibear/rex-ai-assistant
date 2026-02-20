@@ -13,10 +13,11 @@ import importlib
 import json
 import os
 import sys
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from rex.dashboard_store import DashboardStore, set_dashboard_store
 
 # Skip all tests if Flask is not available
 pytest.importorskip("flask")
@@ -37,17 +38,23 @@ def app_client(monkeypatch, tmp_path):
 
     # Create temp config
     config_path = tmp_path / "rex_config.json"
-    config_path.write_text(json.dumps({
-        "models": {"llm_provider": "echo", "llm_model": "test"},
-        "runtime": {"log_level": "DEBUG"},
-    }))
+    config_path.write_text(
+        json.dumps(
+            {
+                "models": {"llm_provider": "echo", "llm_model": "test"},
+                "runtime": {"log_level": "DEBUG"},
+            }
+        )
+    )
 
     # Reset scheduler singleton before importing
     from rex import scheduler as scheduler_module
+
     scheduler_module._SCHEDULER = None
 
     # Create a new scheduler with temp path
     from rex.scheduler import Scheduler, set_scheduler
+
     test_scheduler = Scheduler(jobs_file=scheduler_path)
     set_scheduler(test_scheduler)
 
@@ -599,3 +606,92 @@ class TestRedactionHelper:
         assert redacted["items"][0]["name"] == "one"
         assert redacted["items"][1]["token"] == "[REDACTED]"
         assert redacted["items"][1]["name"] == "two"
+
+
+class TestNotificationEndpoints:
+    """Test dashboard notification API endpoints."""
+
+    def test_list_notifications(self, app_client, auth_headers, tmp_path):
+        """List endpoint returns stored notifications."""
+        client, _ = app_client
+        store = DashboardStore(db_path=tmp_path / "dashboard_notifications.db")
+        store.write(
+            notification_id="notif_1",
+            priority="urgent",
+            title="CPU Alert",
+            body="CPU usage high",
+            user_id="james",
+        )
+        store.write(
+            notification_id="notif_2",
+            priority="normal",
+            title="FYI",
+            body="All good",
+            user_id="james",
+        )
+
+        set_dashboard_store(store)
+        try:
+            response = client.get(
+                "/api/notifications?limit=10&unread=true&user_id=james",
+                headers=auth_headers,
+                environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+            )
+            assert response.status_code == 200
+            payload = response.get_json()
+            assert payload["total"] == 2
+            assert payload["unread_count"] == 2
+            assert payload["notifications"][0]["id"] in {"notif_1", "notif_2"}
+        finally:
+            set_dashboard_store(None)
+
+    def test_mark_notification_read_and_mark_all(self, app_client, auth_headers, tmp_path):
+        """Mark-read endpoints update read state."""
+        client, _ = app_client
+        store = DashboardStore(db_path=tmp_path / "dashboard_notifications.db")
+        store.write(notification_id="notif_1", title="A", body="a", user_id="james")
+        store.write(notification_id="notif_2", title="B", body="b", user_id="james")
+
+        set_dashboard_store(store)
+        try:
+            read_one = client.post(
+                "/api/notifications/notif_1/read",
+                headers=auth_headers,
+                environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+            )
+            assert read_one.status_code == 200
+            assert read_one.get_json()["read"] is True
+
+            read_all = client.post(
+                "/api/notifications/read-all?user_id=james",
+                headers=auth_headers,
+                environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+            )
+            assert read_all.status_code == 200
+            assert read_all.get_json()["marked_read"] == 1
+        finally:
+            set_dashboard_store(None)
+
+    def test_notification_endpoints_require_auth(self, app_client, tmp_path):
+        """Notification endpoints require auth when local bypass is disabled."""
+        client, _ = app_client
+        store = DashboardStore(db_path=tmp_path / "dashboard_notifications.db")
+        set_dashboard_store(store)
+
+        try:
+            os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "0"
+
+            response = client.get(
+                "/api/notifications",
+                environ_overrides={"REMOTE_ADDR": "8.8.8.8"},
+            )
+            assert response.status_code == 401
+
+            response = client.post(
+                "/api/notifications/read-all",
+                environ_overrides={"REMOTE_ADDR": "8.8.8.8"},
+            )
+            assert response.status_code == 401
+        finally:
+            os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "1"
+            set_dashboard_store(None)
