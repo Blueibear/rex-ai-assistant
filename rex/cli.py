@@ -959,6 +959,7 @@ def cmd_scheduler(args: argparse.Namespace) -> int:
 
 def cmd_email(args: argparse.Namespace) -> int:
     """Manage email."""
+    _ = _resolve_cli_user(args)
     email_service = get_email_service()
     subcommand = args.email_command
 
@@ -1187,8 +1188,23 @@ def _load_email_config_safe():
         return None
 
 
+def _resolve_cli_user(args: argparse.Namespace) -> str | None:
+    """Resolve active user context for commands that accept ``--user``."""
+    from rex.identity import resolve_active_user
+
+    explicit_user = getattr(args, "user", None)
+    try:
+        from rex.config_manager import load_config as _load_json_config
+
+        config = _load_json_config()
+    except Exception:
+        config = None
+    return resolve_active_user(explicit_user, config=config)
+
+
 def cmd_calendar(args: argparse.Namespace) -> int:
     """Manage calendar."""
+    _ = _resolve_cli_user(args)
     calendar_service = get_calendar_service()
     subcommand = args.calendar_command
 

@@ -1,8 +1,6 @@
 """Tests for scheduler, email, and calendar CLI commands."""
 
-import json
 from datetime import datetime, timedelta
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,7 +11,7 @@ from rex.cli import cmd_calendar, cmd_email, cmd_scheduler
 @pytest.fixture
 def mock_scheduler():
     """Mock scheduler instance."""
-    with patch('rex.cli.get_scheduler') as mock:
+    with patch("rex.cli.get_scheduler") as mock:
         scheduler = MagicMock()
         mock.return_value = scheduler
         yield scheduler
@@ -22,7 +20,7 @@ def mock_scheduler():
 @pytest.fixture
 def mock_email_service():
     """Mock email service instance."""
-    with patch('rex.cli.get_email_service') as mock:
+    with patch("rex.cli.get_email_service") as mock:
         service = MagicMock()
         service.connected = False
         mock.return_value = service
@@ -32,7 +30,7 @@ def mock_email_service():
 @pytest.fixture
 def mock_calendar_service():
     """Mock calendar service instance."""
-    with patch('rex.cli.get_calendar_service') as mock:
+    with patch("rex.cli.get_calendar_service") as mock:
         service = MagicMock()
         service.connected = False
         mock.return_value = service
@@ -46,7 +44,7 @@ class TestSchedulerCLI:
         """Test listing scheduler jobs when none exist."""
         mock_scheduler.list_jobs.return_value = []
 
-        args = MagicMock(scheduler_command='list', verbose=False)
+        args = MagicMock(scheduler_command="list", verbose=False)
         result = cmd_scheduler(args)
 
         assert result == 0
@@ -58,26 +56,26 @@ class TestSchedulerCLI:
         from rex.scheduler import ScheduledJob
 
         job1 = ScheduledJob(
-            job_id='job1',
-            name='Job 1',
-            schedule='interval:600',
+            job_id="job1",
+            name="Job 1",
+            schedule="interval:600",
             enabled=True,
             next_run=datetime.now() + timedelta(minutes=10),
-            run_count=5
+            run_count=5,
         )
         job2 = ScheduledJob(
-            job_id='job2',
-            name='Job 2',
-            schedule='interval:3600',
+            job_id="job2",
+            name="Job 2",
+            schedule="interval:3600",
             enabled=False,
             next_run=datetime.now() + timedelta(hours=1),
             run_count=2,
-            max_runs=10
+            max_runs=10,
         )
 
         mock_scheduler.list_jobs.return_value = [job1, job2]
 
-        args = MagicMock(scheduler_command='list', verbose=False)
+        args = MagicMock(scheduler_command="list", verbose=False)
         result = cmd_scheduler(args)
 
         assert result == 0
@@ -94,19 +92,19 @@ class TestSchedulerCLI:
         from rex.scheduler import ScheduledJob
 
         job = ScheduledJob(
-            job_id='job1',
-            name='Job 1',
-            schedule='interval:600',
+            job_id="job1",
+            name="Job 1",
+            schedule="interval:600",
             enabled=True,
             next_run=datetime.now(),
             run_count=0,
-            callback_name='test_callback',
-            workflow_id='workflow-123'
+            callback_name="test_callback",
+            workflow_id="workflow-123",
         )
 
         mock_scheduler.list_jobs.return_value = [job]
 
-        args = MagicMock(scheduler_command='list', verbose=True)
+        args = MagicMock(scheduler_command="list", verbose=True)
         result = cmd_scheduler(args)
 
         assert result == 0
@@ -118,12 +116,12 @@ class TestSchedulerCLI:
         """Test running a job successfully."""
         mock_scheduler.run_job.return_value = True
 
-        with patch('rex.cli.initialize_scheduler_system'):
-            args = MagicMock(scheduler_command='run', job_id='test-job')
+        with patch("rex.cli.initialize_scheduler_system"):
+            args = MagicMock(scheduler_command="run", job_id="test-job")
             result = cmd_scheduler(args)
 
         assert result == 0
-        mock_scheduler.run_job.assert_called_once_with('test-job', force=True)
+        mock_scheduler.run_job.assert_called_once_with("test-job", force=True)
         captured = capsys.readouterr()
         assert "executed successfully" in captured.out
 
@@ -131,8 +129,8 @@ class TestSchedulerCLI:
         """Test running a job that fails."""
         mock_scheduler.run_job.return_value = False
 
-        with patch('rex.cli.initialize_scheduler_system'):
-            args = MagicMock(scheduler_command='run', job_id='test-job')
+        with patch("rex.cli.initialize_scheduler_system"):
+            args = MagicMock(scheduler_command="run", job_id="test-job")
             result = cmd_scheduler(args)
 
         assert result == 1
@@ -141,8 +139,8 @@ class TestSchedulerCLI:
 
     def test_scheduler_init(self, capsys):
         """Test initializing scheduler system."""
-        with patch('rex.cli.initialize_scheduler_system') as mock_init:
-            args = MagicMock(scheduler_command='init')
+        with patch("rex.cli.initialize_scheduler_system") as mock_init:
+            args = MagicMock(scheduler_command="init")
             result = cmd_scheduler(args)
 
         assert result == 0
@@ -152,7 +150,7 @@ class TestSchedulerCLI:
 
     def test_scheduler_unknown_command(self, mock_scheduler, capsys):
         """Test unknown scheduler subcommand."""
-        args = MagicMock(scheduler_command='unknown')
+        args = MagicMock(scheduler_command="unknown")
         result = cmd_scheduler(args)
 
         assert result == 1
@@ -168,7 +166,7 @@ class TestEmailCLI:
         mock_email_service.connect.return_value = True
         mock_email_service.fetch_unread.return_value = []
 
-        args = MagicMock(email_command='unread', limit=10, verbose=False)
+        args = MagicMock(email_command="unread", limit=10, verbose=False)
         result = cmd_email(args)
 
         assert result == 0
@@ -180,19 +178,19 @@ class TestEmailCLI:
         from rex.email_service import EmailSummary
 
         email1 = EmailSummary(
-            id='email-1',
-            from_addr='test@example.com',
-            subject='Test Email',
-            snippet='This is a test',
+            id="email-1",
+            from_addr="test@example.com",
+            subject="Test Email",
+            snippet="This is a test",
             received_at=datetime.now(),
-            importance_score=0.8
+            importance_score=0.8,
         )
 
         mock_email_service.connect.return_value = True
         mock_email_service.fetch_unread.return_value = [email1]
-        mock_email_service.categorize.return_value = 'important'
+        mock_email_service.categorize.return_value = "important"
 
-        args = MagicMock(email_command='unread', limit=10, verbose=False)
+        args = MagicMock(email_command="unread", limit=10, verbose=False)
         result = cmd_email(args)
 
         assert result == 0
@@ -207,19 +205,19 @@ class TestEmailCLI:
         from rex.email_service import EmailSummary
 
         email = EmailSummary(
-            id='email-1',
-            from_addr='test@example.com',
-            subject='Test',
-            snippet='Test snippet text',
+            id="email-1",
+            from_addr="test@example.com",
+            subject="Test",
+            snippet="Test snippet text",
             received_at=datetime.now(),
-            importance_score=0.9
+            importance_score=0.9,
         )
 
         mock_email_service.connect.return_value = True
         mock_email_service.fetch_unread.return_value = [email]
-        mock_email_service.categorize.return_value = 'general'
+        mock_email_service.categorize.return_value = "general"
 
-        args = MagicMock(email_command='unread', limit=10, verbose=True)
+        args = MagicMock(email_command="unread", limit=10, verbose=True)
         result = cmd_email(args)
 
         assert result == 0
@@ -231,7 +229,7 @@ class TestEmailCLI:
         """Test email command when connection fails."""
         mock_email_service.connect.return_value = False
 
-        args = MagicMock(email_command='unread', limit=10, verbose=False)
+        args = MagicMock(email_command="unread", limit=10, verbose=False)
         result = cmd_email(args)
 
         assert result == 1
@@ -243,19 +241,31 @@ class TestEmailCLI:
         mock_email_service.connect.return_value = True
         mock_email_service.fetch_unread.return_value = []
 
-        args = MagicMock(email_command='unread', limit=5, verbose=False)
+        args = MagicMock(email_command="unread", limit=5, verbose=False)
         cmd_email(args)
 
         mock_email_service.fetch_unread.assert_called_once_with(limit=5)
 
     def test_email_unknown_command(self, mock_email_service, capsys):
         """Test unknown email subcommand."""
-        args = MagicMock(email_command='unknown')
+        args = MagicMock(email_command="unknown")
         result = cmd_email(args)
 
         assert result == 1
         captured = capsys.readouterr()
         assert "Unknown email subcommand" in captured.out
+
+    def test_email_resolves_user_context(self, mock_email_service):
+        """Email command resolves active user context (including --user override)."""
+        mock_email_service.connect.return_value = True
+        mock_email_service.fetch_unread.return_value = []
+
+        with patch("rex.cli._resolve_cli_user", return_value="cole") as mock_resolve:
+            args = MagicMock(email_command="unread", limit=10, verbose=False, user="cole")
+            result = cmd_email(args)
+
+        assert result == 0
+        mock_resolve.assert_called_once_with(args)
 
 
 class TestCalendarCLI:
@@ -266,7 +276,7 @@ class TestCalendarCLI:
         mock_calendar_service.connect.return_value = True
         mock_calendar_service.get_upcoming_events.return_value = []
 
-        args = MagicMock(calendar_command='upcoming', days=7, conflicts=False, verbose=False)
+        args = MagicMock(calendar_command="upcoming", days=7, conflicts=False, verbose=False)
         result = cmd_calendar(args)
 
         assert result == 0
@@ -281,19 +291,19 @@ class TestCalendarCLI:
         end = start + timedelta(hours=1)
 
         event = CalendarEvent(
-            id='event-1',
-            title='Team Meeting',
+            id="event-1",
+            title="Team Meeting",
             start_time=start,
             end_time=end,
-            attendees=['alice@example.com'],
-            location='Office',
-            all_day=False
+            attendees=["alice@example.com"],
+            location="Office",
+            all_day=False,
         )
 
         mock_calendar_service.connect.return_value = True
         mock_calendar_service.get_upcoming_events.return_value = [event]
 
-        args = MagicMock(calendar_command='upcoming', days=7, conflicts=False, verbose=False)
+        args = MagicMock(calendar_command="upcoming", days=7, conflicts=False, verbose=False)
         result = cmd_calendar(args)
 
         assert result == 0
@@ -311,18 +321,18 @@ class TestCalendarCLI:
         end = start + timedelta(hours=1)
 
         event = CalendarEvent(
-            id='event-1',
-            title='Meeting',
+            id="event-1",
+            title="Meeting",
             start_time=start,
             end_time=end,
-            description='Important meeting',
-            all_day=False
+            description="Important meeting",
+            all_day=False,
         )
 
         mock_calendar_service.connect.return_value = True
         mock_calendar_service.get_upcoming_events.return_value = [event]
 
-        args = MagicMock(calendar_command='upcoming', days=7, conflicts=False, verbose=True)
+        args = MagicMock(calendar_command="upcoming", days=7, conflicts=False, verbose=True)
         result = cmd_calendar(args)
 
         assert result == 0
@@ -336,17 +346,17 @@ class TestCalendarCLI:
         start = datetime.now() + timedelta(days=1)
 
         event = CalendarEvent(
-            id='event-1',
-            title='Conference',
+            id="event-1",
+            title="Conference",
             start_time=start,
             end_time=start + timedelta(days=1),
-            all_day=True
+            all_day=True,
         )
 
         mock_calendar_service.connect.return_value = True
         mock_calendar_service.get_upcoming_events.return_value = [event]
 
-        args = MagicMock(calendar_command='upcoming', days=7, conflicts=False, verbose=False)
+        args = MagicMock(calendar_command="upcoming", days=7, conflicts=False, verbose=False)
         result = cmd_calendar(args)
 
         assert result == 0
@@ -360,26 +370,26 @@ class TestCalendarCLI:
         start = datetime.now() + timedelta(days=1)
 
         event1 = CalendarEvent(
-            id='event-1',
-            title='Meeting 1',
+            id="event-1",
+            title="Meeting 1",
             start_time=start,
             end_time=start + timedelta(hours=2),
-            all_day=False
+            all_day=False,
         )
 
         event2 = CalendarEvent(
-            id='event-2',
-            title='Meeting 2',
+            id="event-2",
+            title="Meeting 2",
             start_time=start + timedelta(hours=1),
             end_time=start + timedelta(hours=3),
-            all_day=False
+            all_day=False,
         )
 
         mock_calendar_service.connect.return_value = True
         mock_calendar_service.get_upcoming_events.return_value = [event1, event2]
         mock_calendar_service.find_conflicts.return_value = [(event1, event2)]
 
-        args = MagicMock(calendar_command='upcoming', days=7, conflicts=True, verbose=False)
+        args = MagicMock(calendar_command="upcoming", days=7, conflicts=True, verbose=False)
         result = cmd_calendar(args)
 
         assert result == 0
@@ -393,7 +403,7 @@ class TestCalendarCLI:
         mock_calendar_service.connect.return_value = True
         mock_calendar_service.get_upcoming_events.return_value = []
 
-        args = MagicMock(calendar_command='upcoming', days=14, conflicts=False, verbose=False)
+        args = MagicMock(calendar_command="upcoming", days=14, conflicts=False, verbose=False)
         cmd_calendar(args)
 
         mock_calendar_service.get_upcoming_events.assert_called_once_with(days=14)
@@ -402,7 +412,7 @@ class TestCalendarCLI:
         """Test calendar command when connection fails."""
         mock_calendar_service.connect.return_value = False
 
-        args = MagicMock(calendar_command='upcoming', days=7, conflicts=False, verbose=False)
+        args = MagicMock(calendar_command="upcoming", days=7, conflicts=False, verbose=False)
         result = cmd_calendar(args)
 
         assert result == 1
@@ -411,9 +421,23 @@ class TestCalendarCLI:
 
     def test_calendar_unknown_command(self, mock_calendar_service, capsys):
         """Test unknown calendar subcommand."""
-        args = MagicMock(calendar_command='unknown')
+        args = MagicMock(calendar_command="unknown")
         result = cmd_calendar(args)
 
         assert result == 1
         captured = capsys.readouterr()
         assert "Unknown calendar subcommand" in captured.out
+
+    def test_calendar_resolves_user_context(self, mock_calendar_service):
+        """Calendar command resolves active user context (including --user override)."""
+        mock_calendar_service.connect.return_value = True
+        mock_calendar_service.get_upcoming_events.return_value = []
+
+        with patch("rex.cli._resolve_cli_user", return_value="alex") as mock_resolve:
+            args = MagicMock(
+                calendar_command="upcoming", days=7, conflicts=False, verbose=False, user="alex"
+            )
+            result = cmd_calendar(args)
+
+        assert result == 0
+        mock_resolve.assert_called_once_with(args)
