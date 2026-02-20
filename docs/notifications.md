@@ -2,14 +2,14 @@
 
 ## Current Implementation
 
-**Status: Stub scaffold**
+**Status: Beta**
 
-The notification system provides priority routing, digest logic, quiet hours, and escalation management. Delivery channels are currently placeholders — no live email, SMS, or dashboard delivery occurs.
+The notification system provides priority routing, digest logic, quiet hours, and escalation management. The email channel now uses real SMTP delivery when configured; other channels remain placeholders.
 
 | Channel | Status | Details |
 |---------|--------|---------|
 | **Dashboard** | Placeholder | Logs to console; no web UI yet. |
-| **Email** | Placeholder | Delegates to email service, which itself uses mock data. |
+| **Email** | Beta (real when configured) | Uses `EmailService.send()` with real SMTP when a backend is configured. Falls back to logged stub in offline/dev mode. Supports multi-account selection via `email_account_id` metadata. |
 | **SMS** | Placeholder | Delegates to SMS service, which requires real Twilio credentials to deliver. |
 | **Home Assistant TTS** | Stub | Logs intent; no Home Assistant API call. |
 

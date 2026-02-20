@@ -33,8 +33,9 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import Optional, Sequence
+from pathlib import Path
 
 
 def get_browser_service():
@@ -118,13 +119,13 @@ def cmd_chat(args: argparse.Namespace) -> int:
     """Start the interactive chat interface."""
     import asyncio
 
+    from rex import settings
     from rex.assistant import Assistant
     from rex.logging_utils import configure_logging
     from rex.plugins import load_plugins, shutdown_plugins
     from rex.services import initialize_services
-    from rex import settings
 
-    async def _chat_loop(assistant: "Assistant") -> None:
+    async def _chat_loop(assistant: Assistant) -> None:
         """Interactive CLI loop for chatting with Rex."""
         print("Rex assistant ready. Type 'exit' or 'quit' to stop.")
         while True:
@@ -339,8 +340,8 @@ def cmd_run_workflow(args: argparse.Namespace) -> int:
 
 def cmd_approvals(args: argparse.Namespace) -> int:
     """List and manage pending approvals."""
-    from rex.workflow_runner import approve_workflow, deny_workflow, list_pending_approvals
     from rex.workflow import WorkflowApproval
+    from rex.workflow_runner import approve_workflow, deny_workflow, list_pending_approvals
 
     if args.approve:
         approval_id = args.approve
@@ -445,11 +446,11 @@ def cmd_workflows(args: argparse.Namespace) -> int:
 
 def cmd_plan(args: argparse.Namespace) -> int:
     """Generate a workflow plan from a high-level goal."""
+    from rex.autonomy_modes import AutonomyMode, get_mode
+    from rex.executor import ExecutionBudget, Executor
     from rex.planner import Planner, UnableToPlanError
-    from rex.tool_registry import get_tool_registry
     from rex.policy_engine import get_policy_engine
-    from rex.autonomy_modes import get_mode, AutonomyMode
-    from rex.executor import Executor, ExecutionBudget
+    from rex.tool_registry import get_tool_registry
 
     goal = args.goal
     print(f"Planning workflow for goal: {goal}")
@@ -483,7 +484,9 @@ def cmd_plan(args: argparse.Namespace) -> int:
     print("Validating workflow...")
     if not planner.validate_workflow(workflow):
         print("Error: Workflow validation failed.")
-        print("The workflow contains steps that cannot be executed (missing tools or policy denials).")
+        print(
+            "The workflow contains steps that cannot be executed (missing tools or policy denials)."
+        )
         return 1
 
     print("Validation passed.")
@@ -538,7 +541,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
     print("Workflow planned successfully.")
     print()
     print("To execute, run:")
-    print(f"  rex plan \"{goal}\" --execute")
+    print(f'  rex plan "{goal}" --execute')
     print()
     print("Or run the workflow file:")
     print(f"  rex run-workflow data/workflows/{workflow.workflow_id}.json")
@@ -547,8 +550,8 @@ def cmd_plan(args: argparse.Namespace) -> int:
 
 def cmd_executor_resume(args: argparse.Namespace) -> int:
     """Resume a blocked executor workflow."""
+    from rex.executor import ExecutionBudget, Executor
     from rex.workflow import Workflow
-    from rex.executor import Executor, ExecutionBudget
 
     workflow_id = args.workflow_id
 
@@ -992,8 +995,196 @@ def cmd_email(args: argparse.Namespace) -> int:
         print(f"Total: {len(unread)} unread emails")
         return 0
 
+    if subcommand == "accounts":
+        return _cmd_email_accounts(args)
+
+    if subcommand == "send":
+        return _cmd_email_send(args)
+
+    if subcommand == "test-connection":
+        return _cmd_email_test_connection(args)
+
     print("Unknown email subcommand. Use 'rex email --help'")
     return 1
+
+
+def _cmd_email_accounts(args: argparse.Namespace) -> int:
+    """Handle 'rex email accounts' subcommands."""
+    accounts_cmd = getattr(args, "accounts_command", "list")
+
+    if accounts_cmd == "list":
+        email_config = _load_email_config_safe()
+        if not email_config or not email_config.accounts:
+            print("No email accounts configured.")
+            print()
+            print("To configure accounts, add an 'email' section to config/rex_config.json.")
+            print("See docs/email.md for details.")
+            return 0
+
+        print("Email Accounts")
+        print("=" * 60)
+        print()
+
+        default_id = email_config.default_account_id
+        for acct in email_config.accounts:
+            is_default = " (default)" if acct.id == default_id else ""
+            print(f"  {acct.id}{is_default}")
+            if acct.label:
+                print(f"    Label:   {acct.label}")
+            print(f"    Address: {acct.address}")
+            print(f"    IMAP:    {acct.imap.host}:{acct.imap.port} (SSL={acct.imap.ssl})")
+            print(f"    SMTP:    {acct.smtp.host}:{acct.smtp.port} (STARTTLS={acct.smtp.starttls})")
+            print(f"    Cred:    {acct.credential_ref}")
+            print()
+
+        print(f"Total: {len(email_config.accounts)} account(s)")
+        return 0
+
+    if accounts_cmd == "set-active":
+        account_id = getattr(args, "account_id", None)
+        if not account_id:
+            print("Error: --account-id is required")
+            return 1
+
+        email_config = _load_email_config_safe()
+        if not email_config:
+            print("Error: No email configuration found")
+            return 1
+
+        ids = email_config.list_account_ids()
+        if account_id not in ids:
+            print(f"Error: Account '{account_id}' not found. Available: {', '.join(ids)}")
+            return 1
+
+        # Update the config file
+        try:
+            import json as _json
+
+            config_path = Path("config/rex_config.json")
+            if config_path.exists():
+                config_data = _json.loads(config_path.read_text(encoding="utf-8"))
+            else:
+                config_data = {}
+
+            if "email" not in config_data:
+                config_data["email"] = {}
+            config_data["email"]["default_account_id"] = account_id
+            config_path.write_text(_json.dumps(config_data, indent=2) + "\n", encoding="utf-8")
+            print(f"Default email account set to '{account_id}'")
+            return 0
+        except Exception as exc:
+            print(f"Error updating config: {exc}")
+            return 1
+
+    print("Unknown accounts subcommand. Use 'rex email accounts --help'")
+    return 1
+
+
+def _cmd_email_send(args: argparse.Namespace) -> int:
+    """Handle 'rex email send'."""
+    to = getattr(args, "to", None)
+    subject = getattr(args, "subject", None)
+    body = getattr(args, "body", None)
+    account_id = getattr(args, "account_id", None)
+
+    if not to or not subject or not body:
+        print("Error: --to, --subject, and --body are required")
+        return 1
+
+    email_service = get_email_service()
+    if not email_service.connected:
+        if not email_service.connect():
+            print("Error: Failed to connect to email service")
+            return 1
+
+    result = email_service.send(
+        to=to,
+        subject=subject,
+        body=body,
+        account_id=account_id,
+    )
+
+    if result.get("ok"):
+        msg_id = result.get("message_id") or "(stub)"
+        print(f"Email sent successfully (message_id: {msg_id})")
+        return 0
+
+    print(f"Error: {result.get('error', 'Unknown error')}")
+    return 1
+
+
+def _cmd_email_test_connection(args: argparse.Namespace) -> int:
+    """Handle 'rex email test-connection'."""
+    account_id = getattr(args, "account_id", None)
+
+    email_config = _load_email_config_safe()
+    if not email_config or not email_config.accounts:
+        print("No email accounts configured. Using stub backend.")
+        print("Connection test: OK (stub mode)")
+        return 0
+
+    acct = email_config.get_account(account_id)
+    if acct is None:
+        available = ", ".join(email_config.list_account_ids())
+        print(f"Error: Account not found. Available: {available}")
+        return 1
+
+    print(f"Testing connection for account '{acct.id}' ({acct.address})...")
+    print(f"  IMAP: {acct.imap.host}:{acct.imap.port}")
+    print(f"  SMTP: {acct.smtp.host}:{acct.smtp.port}")
+
+    # Check credentials
+    try:
+        from rex.credentials import get_credential_manager
+
+        cm = get_credential_manager()
+        token = cm.get_token(acct.credential_ref)
+        if not token:
+            print(f"  Credential ({acct.credential_ref}): NOT FOUND")
+            print()
+            print("Error: No credentials available for this account.")
+            print(f"Set the environment variable for '{acct.credential_ref}' or")
+            print("add it to config/credentials.json.")
+            return 1
+        print(f"  Credential ({acct.credential_ref}): available")
+    except Exception as exc:
+        print(f"  Credential check error: {exc}")
+        return 1
+
+    # Try IMAP connect
+    try:
+        from rex.email_backends.account_router import resolve_backend
+
+        backend, _ = resolve_backend(
+            email_config,
+            account_id=acct.id,
+            credential_getter=cm.get_token,
+        )
+        if backend.connect():
+            print("  IMAP connection: OK")
+            backend.disconnect()
+        else:
+            print("  IMAP connection: FAILED")
+            return 1
+    except Exception as exc:
+        print(f"  IMAP connection error: {exc}")
+        return 1
+
+    print()
+    print("Connection test passed.")
+    return 0
+
+
+def _load_email_config_safe():
+    """Load EmailConfig from rex_config.json, returning None on failure."""
+    try:
+        from rex.config_manager import load_config as _load_json_config
+        from rex.email_backends.account_config import load_email_config
+
+        raw_config = _load_json_config()
+        return load_email_config(raw_config)
+    except Exception:
+        return None
 
 
 def cmd_calendar(args: argparse.Namespace) -> int:
@@ -1022,7 +1213,11 @@ def cmd_calendar(args: argparse.Namespace) -> int:
             if getattr(event, "all_day", False):
                 time_str = event.start_time.strftime("%Y-%m-%d") + " (All day)"
             else:
-                time_str = event.start_time.strftime("%Y-%m-%d %H:%M") + " - " + event.end_time.strftime("%H:%M")
+                time_str = (
+                    event.start_time.strftime("%Y-%m-%d %H:%M")
+                    + " - "
+                    + event.end_time.strftime("%H:%M")
+                )
 
             print(f"{event.id}: {event.title}")
             print(f"  When: {time_str}")
@@ -1052,7 +1247,7 @@ def cmd_calendar(args: argparse.Namespace) -> int:
     return 1
 
 
-def _parse_ttl(ttl_str: str) -> Optional[timedelta]:
+def _parse_ttl(ttl_str: str) -> timedelta | None:
     """Parse TTL string like '7d', '24h', '30m', '1w', '10s' into timedelta."""
     ttl_str = ttl_str.strip().lower()
     if not ttl_str:
@@ -1333,6 +1528,7 @@ def cmd_browser(args: argparse.Namespace) -> int:
     """Manage browser automation."""
     import json
     from pathlib import Path
+
     from rex.browser_automation import run_browser_script_sync
 
     subcommand = args.browser_command
@@ -1344,7 +1540,7 @@ def cmd_browser(args: argparse.Namespace) -> int:
             return 1
 
         try:
-            with open(script_path, "r", encoding="utf-8") as f:
+            with open(script_path, encoding="utf-8") as f:
                 script_data = json.load(f)
 
             steps = script_data.get("steps", [])
@@ -1649,7 +1845,7 @@ def cmd_code(args: argparse.Namespace) -> int:
                 print(f"Error: Patch file not found: {patch_file}")
                 return 1
 
-            with open(patch_file, "r", encoding="utf-8") as f:
+            with open(patch_file, encoding="utf-8") as f:
                 patch_content = f.read()
 
             result = service.apply_patch(args.path, patch_content)
@@ -1834,7 +2030,9 @@ def cmd_notify(args: argparse.Namespace) -> int:
             for notif in notifications:
                 print(f"  - {notif['id']}: {notif['title']}")
                 print(f"    Created: {notif['timestamp']}")
-                body_preview = notif["body"][:60] + "..." if len(notif["body"]) > 60 else notif["body"]
+                body_preview = (
+                    notif["body"][:60] + "..." if len(notif["body"]) > 60 else notif["body"]
+                )
                 print(f"    Body: {body_preview}")
                 print()
 
@@ -1948,7 +2146,9 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Run environment diagnostics",
         description="Check Python version, config files, environment variables, and external dependencies.",
     )
-    doctor_parser.add_argument("-v", "--verbose", action="store_true", help="Show detailed diagnostic information")
+    doctor_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Show detailed diagnostic information"
+    )
     doctor_parser.set_defaults(func=cmd_doctor)
 
     # chat
@@ -1965,7 +2165,9 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Show version information",
         description="Display Rex version and optionally dependency versions.",
     )
-    version_parser.add_argument("-v", "--verbose", action="store_true", help="Show dependency versions")
+    version_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Show dependency versions"
+    )
     version_parser.set_defaults(func=cmd_version)
 
     # tools
@@ -1974,7 +2176,9 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="List registered tools and their status",
         description="Display all registered tools with health status and credential availability.",
     )
-    tools_parser.add_argument("-v", "--verbose", action="store_true", help="Show detailed tool information")
+    tools_parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Show detailed tool information"
+    )
     tools_parser.add_argument("-a", "--all", action="store_true", help="Include disabled tools")
     tools_parser.set_defaults(func=cmd_tools)
 
@@ -1985,8 +2189,12 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         description="Load and execute a workflow definition. Supports dry-run and resume modes.",
     )
     workflow_parser.add_argument("workflow", type=str, help="Path to the workflow JSON file")
-    workflow_parser.add_argument("--dry-run", action="store_true", help="Preview workflow without executing")
-    workflow_parser.add_argument("--resume", action="store_true", help="Resume a blocked workflow after approval")
+    workflow_parser.add_argument(
+        "--dry-run", action="store_true", help="Preview workflow without executing"
+    )
+    workflow_parser.add_argument(
+        "--resume", action="store_true", help="Resume a blocked workflow after approval"
+    )
     workflow_parser.set_defaults(func=cmd_run_workflow)
 
     # approvals
@@ -1995,10 +2203,18 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="List and manage pending approvals",
         description="View, approve, or deny pending workflow approvals.",
     )
-    approvals_parser.add_argument("--approve", type=str, metavar="ID", help="Approve the specified approval request")
-    approvals_parser.add_argument("--deny", type=str, metavar="ID", help="Deny the specified approval request")
-    approvals_parser.add_argument("--show", type=str, metavar="ID", help="Show details of a specific approval")
-    approvals_parser.add_argument("--reason", type=str, help="Reason for approval or denial decision")
+    approvals_parser.add_argument(
+        "--approve", type=str, metavar="ID", help="Approve the specified approval request"
+    )
+    approvals_parser.add_argument(
+        "--deny", type=str, metavar="ID", help="Deny the specified approval request"
+    )
+    approvals_parser.add_argument(
+        "--show", type=str, metavar="ID", help="Show details of a specific approval"
+    )
+    approvals_parser.add_argument(
+        "--reason", type=str, help="Reason for approval or denial decision"
+    )
     approvals_parser.set_defaults(func=cmd_approvals)
 
     # workflows
@@ -2021,13 +2237,33 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Generate a workflow plan from a high-level goal",
         description="Use the planner to generate a multi-step workflow from a natural language goal.",
     )
-    plan_parser.add_argument("goal", type=str, help="High-level goal (e.g., 'send monthly newsletter')")
-    plan_parser.add_argument("--save", action="store_true", help="Save the generated workflow to disk")
-    plan_parser.add_argument("--execute", action="store_true", help="Execute the workflow immediately")
-    plan_parser.add_argument("--force", action="store_true", help="Force execution even if autonomy mode is OFF")
-    plan_parser.add_argument("--max-actions", type=int, default=0, help="Maximum number of actions to execute (0=unlimited)")
-    plan_parser.add_argument("--max-messages", type=int, default=0, help="Maximum number of messages to send (0=unlimited)")
-    plan_parser.add_argument("--max-time", type=int, default=0, help="Maximum execution time in seconds (0=unlimited)")
+    plan_parser.add_argument(
+        "goal", type=str, help="High-level goal (e.g., 'send monthly newsletter')"
+    )
+    plan_parser.add_argument(
+        "--save", action="store_true", help="Save the generated workflow to disk"
+    )
+    plan_parser.add_argument(
+        "--execute", action="store_true", help="Execute the workflow immediately"
+    )
+    plan_parser.add_argument(
+        "--force", action="store_true", help="Force execution even if autonomy mode is OFF"
+    )
+    plan_parser.add_argument(
+        "--max-actions",
+        type=int,
+        default=0,
+        help="Maximum number of actions to execute (0=unlimited)",
+    )
+    plan_parser.add_argument(
+        "--max-messages",
+        type=int,
+        default=0,
+        help="Maximum number of messages to send (0=unlimited)",
+    )
+    plan_parser.add_argument(
+        "--max-time", type=int, default=0, help="Maximum execution time in seconds (0=unlimited)"
+    )
     plan_parser.set_defaults(func=cmd_plan)
 
     # executor resume
@@ -2048,9 +2284,21 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         description="Resume execution of a workflow that was blocked pending approval.",
     )
     executor_resume.add_argument("workflow_id", type=str, help="Workflow ID to resume")
-    executor_resume.add_argument("--max-actions", type=int, default=0, help="Maximum number of actions to execute (0=unlimited)")
-    executor_resume.add_argument("--max-messages", type=int, default=0, help="Maximum number of messages to send (0=unlimited)")
-    executor_resume.add_argument("--max-time", type=int, default=0, help="Maximum execution time in seconds (0=unlimited)")
+    executor_resume.add_argument(
+        "--max-actions",
+        type=int,
+        default=0,
+        help="Maximum number of actions to execute (0=unlimited)",
+    )
+    executor_resume.add_argument(
+        "--max-messages",
+        type=int,
+        default=0,
+        help="Maximum number of messages to send (0=unlimited)",
+    )
+    executor_resume.add_argument(
+        "--max-time", type=int, default=0, help="Maximum execution time in seconds (0=unlimited)"
+    )
     executor_resume.set_defaults(func=cmd_executor_resume)
 
     executor_parser.set_defaults(func=cmd_executor_resume, executor_command="resume")
@@ -2072,8 +2320,12 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Show recent working memory entries",
         description="Display the most recent entries from working memory.",
     )
-    memory_recent.add_argument("count", type=int, nargs="?", default=10, help="Number of entries to show (default: 10)")
-    memory_recent.add_argument("--show-sensitive", action="store_true", help="No-op (kept for compatibility)")
+    memory_recent.add_argument(
+        "count", type=int, nargs="?", default=10, help="Number of entries to show (default: 10)"
+    )
+    memory_recent.add_argument(
+        "--show-sensitive", action="store_true", help="No-op (kept for compatibility)"
+    )
     memory_recent.set_defaults(func=cmd_memory, memory_command="recent")
 
     memory_add = memory_subparsers.add_parser(
@@ -2081,10 +2333,16 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Add a long-term memory entry",
         description="Add a new entry to long-term memory with category and JSON content.",
     )
-    memory_add.add_argument("category", type=str, help="Category for the entry (e.g., preferences, facts)")
-    memory_add.add_argument("content", type=str, help='JSON content for the entry (e.g., \'{"key": "value"}\')')
+    memory_add.add_argument(
+        "category", type=str, help="Category for the entry (e.g., preferences, facts)"
+    )
+    memory_add.add_argument(
+        "content", type=str, help='JSON content for the entry (e.g., \'{"key": "value"}\')'
+    )
     memory_add.add_argument("--ttl", type=str, help="Time to live (e.g., 7d, 24h, 30m, 1w, 10s)")
-    memory_add.add_argument("--sensitive", action="store_true", help="Mark this entry as containing sensitive data")
+    memory_add.add_argument(
+        "--sensitive", action="store_true", help="Mark this entry as containing sensitive data"
+    )
     memory_add.set_defaults(func=cmd_memory, memory_command="add")
 
     memory_search = memory_subparsers.add_parser(
@@ -2092,9 +2350,13 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Search long-term memory",
         description="Search for entries in long-term memory by keyword or category.",
     )
-    memory_search.add_argument("keyword", type=str, nargs="?", help="Keyword to search for in content")
+    memory_search.add_argument(
+        "keyword", type=str, nargs="?", help="Keyword to search for in content"
+    )
     memory_search.add_argument("--category", type=str, help="Filter by category")
-    memory_search.add_argument("--show-sensitive", action="store_true", help="Show content of sensitive entries")
+    memory_search.add_argument(
+        "--show-sensitive", action="store_true", help="Show content of sensitive entries"
+    )
     memory_search.set_defaults(func=cmd_memory, memory_command="search")
 
     memory_forget = memory_subparsers.add_parser(
@@ -2146,7 +2408,9 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         description="Read and index a text file for later search and retrieval.",
     )
     kb_ingest.add_argument("path", type=str, help="Path to the file to ingest")
-    kb_ingest.add_argument("--title", type=str, help="Title for the document (defaults to filename)")
+    kb_ingest.add_argument(
+        "--title", type=str, help="Title for the document (defaults to filename)"
+    )
     kb_ingest.add_argument("--tags", type=str, help="Comma-separated list of tags")
     kb_ingest.set_defaults(func=cmd_kb, kb_command="ingest")
 
@@ -2156,7 +2420,9 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         description="Search for documents matching a query.",
     )
     kb_search.add_argument("query", type=str, help="Search query")
-    kb_search.add_argument("--max-results", type=int, default=5, help="Maximum number of results (default: 5)")
+    kb_search.add_argument(
+        "--max-results", type=int, default=5, help="Maximum number of results (default: 5)"
+    )
     kb_search.add_argument("-v", "--verbose", action="store_true", help="Show content snippets")
     kb_search.set_defaults(func=cmd_kb, kb_command="search")
 
@@ -2165,7 +2431,9 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="List all documents",
         description="List all documents in the knowledge base.",
     )
-    kb_list.add_argument("--limit", type=int, default=20, help="Maximum number of documents to list (default: 20)")
+    kb_list.add_argument(
+        "--limit", type=int, default=20, help="Maximum number of documents to list (default: 20)"
+    )
     kb_list.set_defaults(func=cmd_kb, kb_command="list")
 
     kb_show = kb_subparsers.add_parser(
@@ -2218,7 +2486,9 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="List all scheduled jobs",
         description="Display all registered jobs with their schedules and status.",
     )
-    scheduler_list.add_argument("-v", "--verbose", action="store_true", help="Show detailed job information")
+    scheduler_list.add_argument(
+        "-v", "--verbose", action="store_true", help="Show detailed job information"
+    )
     scheduler_list.set_defaults(func=cmd_scheduler, scheduler_command="list")
 
     scheduler_run = scheduler_subparsers.add_parser(
@@ -2241,8 +2511,8 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     # email
     email_parser = subparsers.add_parser(
         "email",
-        help="Manage email (beta - stub/mock data)",
-        description="Read and triage emails from your inbox. NOTE: This integration is currently in beta and uses stub/mock data. No real IMAP/SMTP connection is made.",
+        help="Manage email (supports real IMAP/SMTP and stub mode)",
+        description="Read, send, and triage emails. Supports real IMAP/SMTP backends when configured, or stub/mock data for offline development.",
     )
     email_subparsers = email_parser.add_subparsers(
         title="email commands",
@@ -2255,9 +2525,70 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Fetch unread emails",
         description="Display unread emails with categorization.",
     )
-    email_unread.add_argument("--limit", type=int, default=10, help="Maximum number of emails to fetch (default: 10)")
-    email_unread.add_argument("-v", "--verbose", action="store_true", help="Show detailed email information")
+    email_unread.add_argument(
+        "--limit", type=int, default=10, help="Maximum number of emails to fetch (default: 10)"
+    )
+    email_unread.add_argument(
+        "-v", "--verbose", action="store_true", help="Show detailed email information"
+    )
     email_unread.set_defaults(func=cmd_email, email_command="unread")
+
+    # email accounts
+    email_accounts = email_subparsers.add_parser(
+        "accounts",
+        help="Manage email accounts",
+        description="List and manage configured email accounts.",
+    )
+    email_accounts_sub = email_accounts.add_subparsers(
+        title="accounts commands",
+        dest="accounts_command",
+        metavar="COMMAND",
+    )
+
+    email_accounts_list = email_accounts_sub.add_parser(
+        "list",
+        help="List configured email accounts",
+    )
+    email_accounts_list.set_defaults(
+        func=cmd_email, email_command="accounts", accounts_command="list"
+    )
+
+    email_accounts_set_active = email_accounts_sub.add_parser(
+        "set-active",
+        help="Set the default email account",
+    )
+    email_accounts_set_active.add_argument(
+        "--account-id",
+        type=str,
+        required=True,
+        help="Account ID to set as default",
+    )
+    email_accounts_set_active.set_defaults(
+        func=cmd_email, email_command="accounts", accounts_command="set-active"
+    )
+
+    email_accounts.set_defaults(func=cmd_email, email_command="accounts", accounts_command="list")
+
+    # email send
+    email_send = email_subparsers.add_parser(
+        "send",
+        help="Send an email",
+        description="Send an email via the configured backend.",
+    )
+    email_send.add_argument("--to", type=str, required=True, help="Recipient email address")
+    email_send.add_argument("--subject", type=str, required=True, help="Email subject")
+    email_send.add_argument("--body", type=str, required=True, help="Email body text")
+    email_send.add_argument("--account-id", type=str, default=None, help="Account ID to send from")
+    email_send.set_defaults(func=cmd_email, email_command="send")
+
+    # email test-connection
+    email_test_conn = email_subparsers.add_parser(
+        "test-connection",
+        help="Test email account connection",
+        description="Verify IMAP/SMTP connectivity for a configured account.",
+    )
+    email_test_conn.add_argument("--account-id", type=str, default=None, help="Account ID to test")
+    email_test_conn.set_defaults(func=cmd_email, email_command="test-connection")
 
     email_parser.set_defaults(func=cmd_email, email_command="unread")
 
@@ -2278,9 +2609,15 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Show upcoming events",
         description="Display upcoming calendar events.",
     )
-    calendar_upcoming.add_argument("--days", type=int, default=7, help="Number of days to look ahead (default: 7)")
-    calendar_upcoming.add_argument("--conflicts", action="store_true", help="Check for scheduling conflicts")
-    calendar_upcoming.add_argument("-v", "--verbose", action="store_true", help="Show detailed event information")
+    calendar_upcoming.add_argument(
+        "--days", type=int, default=7, help="Number of days to look ahead (default: 7)"
+    )
+    calendar_upcoming.add_argument(
+        "--conflicts", action="store_true", help="Check for scheduling conflicts"
+    )
+    calendar_upcoming.add_argument(
+        "-v", "--verbose", action="store_true", help="Show detailed event information"
+    )
     calendar_upcoming.set_defaults(func=cmd_calendar, calendar_command="upcoming")
 
     calendar_parser.set_defaults(func=cmd_calendar, calendar_command="upcoming")
@@ -2303,7 +2640,9 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         description="Create a new one-off reminder at a specific date/time.",
     )
     reminders_add.add_argument("title", type=str, help="Reminder title/description")
-    reminders_add.add_argument("--at", type=str, required=True, help="When to remind (YYYY-MM-DD HH:MM)")
+    reminders_add.add_argument(
+        "--at", type=str, required=True, help="When to remind (YYYY-MM-DD HH:MM)"
+    )
     reminders_add.add_argument(
         "--follow-up",
         dest="followup",
@@ -2360,7 +2699,9 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="List cues",
         description="List all follow-up cues with their status.",
     )
-    cues_list.add_argument("--status", type=str, choices=["pending", "asked", "dismissed"], help="Filter by status")
+    cues_list.add_argument(
+        "--status", type=str, choices=["pending", "asked", "dismissed"], help="Filter by status"
+    )
     cues_list.set_defaults(func=cmd_cues, cues_command="list")
 
     cues_dismiss = cues_subparsers.add_parser(
@@ -2397,8 +2738,12 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Send a message",
         description="Send a message via a specific channel.",
     )
-    msg_send.add_argument("--channel", type=str, default="sms", help="Channel to send via (default: sms)")
-    msg_send.add_argument("--to", type=str, required=True, help="Recipient (phone number, user ID, etc.)")
+    msg_send.add_argument(
+        "--channel", type=str, default="sms", help="Channel to send via (default: sms)"
+    )
+    msg_send.add_argument(
+        "--to", type=str, required=True, help="Recipient (phone number, user ID, etc.)"
+    )
     msg_send.add_argument("--body", type=str, required=True, help="Message body text")
     msg_send.set_defaults(func=cmd_msg, msg_command="send")
 
@@ -2407,8 +2752,12 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Receive recent messages",
         description="List recent inbound messages from a channel.",
     )
-    msg_receive.add_argument("--channel", type=str, default="sms", help="Channel to receive from (default: sms)")
-    msg_receive.add_argument("--limit", type=int, default=10, help="Maximum number of messages (default: 10)")
+    msg_receive.add_argument(
+        "--channel", type=str, default="sms", help="Channel to receive from (default: sms)"
+    )
+    msg_receive.add_argument(
+        "--limit", type=int, default=10, help="Maximum number of messages (default: 10)"
+    )
     msg_receive.set_defaults(func=cmd_msg, msg_command="receive")
 
     msg_parser.set_defaults(func=cmd_msg, msg_command="receive")
@@ -2430,10 +2779,18 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Send a notification",
         description="Send a notification with priority and channel preferences.",
     )
-    notify_send.add_argument("--priority", type=str, default="normal", choices=["urgent", "normal", "digest"], help="Priority level (default: normal)")
+    notify_send.add_argument(
+        "--priority",
+        type=str,
+        default="normal",
+        choices=["urgent", "normal", "digest"],
+        help="Priority level (default: normal)",
+    )
     notify_send.add_argument("--title", type=str, required=True, help="Notification title")
     notify_send.add_argument("--body", type=str, required=True, help="Notification body")
-    notify_send.add_argument("--channels", type=str, help="Comma-separated list of channels (e.g., sms,email,dashboard)")
+    notify_send.add_argument(
+        "--channels", type=str, help="Comma-separated list of channels (e.g., sms,email,dashboard)"
+    )
     notify_send.set_defaults(func=cmd_notify, notify_command="send")
 
     notify_list_digests = notify_subparsers.add_parser(
@@ -2448,7 +2805,9 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Flush digest queues",
         description="Send all queued digest notifications immediately.",
     )
-    notify_flush.add_argument("--channel", type=str, help="Specific channel to flush (default: all)")
+    notify_flush.add_argument(
+        "--channel", type=str, help="Specific channel to flush (default: all)"
+    )
     notify_flush.set_defaults(func=cmd_notify, notify_command="flush-digests")
 
     notify_ack = notify_subparsers.add_parser(
@@ -2479,7 +2838,9 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         description="Execute a browser automation script from a JSON file.",
     )
     browser_run.add_argument("script", type=str, help="Path to the script JSON file")
-    browser_run.add_argument("--headed", action="store_true", help="Run in headed mode (show browser)")
+    browser_run.add_argument(
+        "--headed", action="store_true", help="Run in headed mode (show browser)"
+    )
     browser_run.set_defaults(func=cmd_browser, browser_command="run")
 
     browser_sessions = browser_subparsers.add_parser(
@@ -2542,7 +2903,9 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         description="Delete a file (moves to trash by default).",
     )
     os_delete.add_argument("path", type=str, help="File path to delete")
-    os_delete.add_argument("--permanent", action="store_true", help="Permanently delete (skip trash)")
+    os_delete.add_argument(
+        "--permanent", action="store_true", help="Permanently delete (skip trash)"
+    )
     os_delete.set_defaults(func=cmd_os, os_command="delete")
 
     os_trash = os_subparsers.add_parser(
@@ -2579,7 +2942,13 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         description="List pull requests for a repository.",
     )
     gh_prs.add_argument("repo", type=str, help="Repository in format 'owner/repo'")
-    gh_prs.add_argument("--state", type=str, default="open", choices=["open", "closed", "all"], help="PR state filter")
+    gh_prs.add_argument(
+        "--state",
+        type=str,
+        default="open",
+        choices=["open", "closed", "all"],
+        help="PR state filter",
+    )
     gh_prs.set_defaults(func=cmd_gh, gh_command="prs")
 
     gh_issue_create = gh_subparsers.add_parser(
