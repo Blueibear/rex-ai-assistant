@@ -1,20 +1,30 @@
 # Calendar Integration
 
-The Rex AI Assistant includes calendar integration that allows Rex to read and write calendar events, detect conflicts, and keep you informed of upcoming appointments. This enables Rex to proactively manage your schedule and trigger workflows based on calendar events.
+**Implementation Status: Beta (ICS read-only backend available + stub fallback)**
+
+The Rex AI Assistant includes calendar integration that allows Rex to read calendar events, detect conflicts, and keep you informed of upcoming appointments. This enables Rex to proactively manage your schedule and trigger workflows based on calendar events.
 
 ## Overview
 
 The calendar service provides:
-- Read and write access to calendar events
+- Read access to calendar events from ICS files or HTTPS ICS feeds
+- Stub/mock data for offline development and testing
 - Upcoming event queries
 - Conflict detection
-- Event creation and management
+- Event creation and management (stub backend only)
 - Integration with the scheduler for automated syncing
 - Event publishing for reactive workflows
 
 ## Current Implementation
 
-**Note**: The current implementation uses mock/stub functionality for testing. Real calendar API integration (Google Calendar, Outlook Calendar, etc.) will be added in future releases.
+The calendar service supports two backends:
+
+| Backend | Status | Capabilities |
+|---------|--------|-------------|
+| **stub** (default) | Production-ready for dev/test | Read/write mock events from JSON |
+| **ics** | Beta | Read-only from local `.ics` files or HTTPS ICS feeds |
+
+CalDAV and Google Calendar OAuth backends are planned for future releases.
 
 ## Architecture
 
@@ -163,13 +173,54 @@ rex calendar upcoming
 rex calendar upcoming --days 14          # Next 14 days
 rex calendar upcoming --conflicts        # Include conflict detection
 rex calendar upcoming -v                 # Verbose with descriptions
+rex calendar upcoming --user cole        # Override active user context
+```
+
+### Test Backend Connection
+
+Verify the configured calendar backend:
+
+```bash
+rex calendar test-connection
 ```
 
 ## Configuration
 
-### Mock Data
+### Backend Selection
 
-The calendar service currently uses mock data from `data/mock_calendar.json`. This file contains sample events for testing.
+Configure the calendar backend in `config/rex_config.json`:
+
+```json
+{
+  "calendar": {
+    "backend": "ics",
+    "ics": {
+      "source": "/path/to/calendar.ics",
+      "url_timeout": 15
+    }
+  }
+}
+```
+
+#### Config Keys
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `calendar.backend` | string | `"stub"` | Backend to use: `"stub"` or `"ics"` |
+| `calendar.ics.source` | string | `null` | Path to local `.ics` file or HTTPS URL |
+| `calendar.ics.url_timeout` | int | `15` | Timeout in seconds for HTTPS ICS feed fetch |
+
+#### ICS Source Options
+
+`calendar.ics.source` accepts:
+- **Local file path**: absolute or project-relative path to a `.ics` file
+- **HTTPS URL**: an `https://` URL to an ICS feed (e.g. Google Calendar public feed)
+
+HTTP (non-HTTPS) URLs are rejected for security.
+
+### Stub / Mock Data
+
+When `calendar.backend` is `"stub"` (the default), mock data comes from `data/mock_calendar.json`.
 
 **Example mock_calendar.json:**
 
@@ -184,42 +235,22 @@ The calendar service currently uses mock data from `data/mock_calendar.json`. Th
     "location": "Conference Room A",
     "description": "Daily team standup meeting",
     "all_day": false
-  },
-  {
-    "id": "event-002",
-    "title": "Conference",
-    "start_time": "2026-02-10T00:00:00",
-    "end_time": "2026-02-11T23:59:59",
-    "attendees": [],
-    "location": "Convention Center",
-    "description": "Annual AI conference",
-    "all_day": true
   }
 ]
 ```
 
-### Credentials
+### Test Connection
 
-Calendar credentials should be configured in the credential manager:
+Verify your calendar backend configuration without side effects:
 
-```python
-from rex.credentials import get_credential_manager
-
-cred_manager = get_credential_manager()
-
-# Future: Real calendar API credentials
-# cred_manager.set_credential('calendar', {
-#     'access_token': 'your-token',
-#     'refresh_token': 'your-refresh-token',
-#     'client_id': 'your-client-id',
-#     'client_secret': 'your-client-secret'
-# })
+```bash
+rex calendar test-connection
 ```
 
-**For Google Calendar:**
-- Use OAuth2 authentication
-- Request calendar.readonly or calendar scope
-- Store access and refresh tokens securely
+### Credentials
+
+For future CalDAV/Google OAuth backends, credentials will be stored via the credential manager.
+Secrets belong in `.env` only (never in `rex_config.json`).
 
 ## Scheduled Calendar Syncing
 
@@ -351,37 +382,12 @@ for event in upcoming:
             print(f"   Location: {event.location}")
 ```
 
-## Future: Real Calendar API Integration
+## Future: Additional Calendar Backends
 
-Future releases will include real calendar API support:
-
-```python
-# Google Calendar example
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
-
-class CalendarService:
-    def connect(self):
-        # Authenticate with Google Calendar
-        creds = Credentials(
-            token=access_token,
-            refresh_token=refresh_token,
-            client_id=client_id,
-            client_secret=client_secret
-        )
-        self.service = build('calendar', 'v3', credentials=creds)
-
-    def get_events(self, start, end):
-        # Fetch events from Google Calendar
-        events_result = self.service.events().list(
-            calendarId='primary',
-            timeMin=start.isoformat() + 'Z',
-            timeMax=end.isoformat() + 'Z',
-            singleEvents=True,
-            orderBy='startTime'
-        ).execute()
-        # Parse and return CalendarEvent objects
-```
+Planned backend rollout order (per CLAUDE.md):
+1. **ICS read-only** (implemented) - local files and HTTPS feeds
+2. **CalDAV** - standard protocol for read/write calendar access
+3. **Google Calendar OAuth** - direct Google Calendar API integration
 
 ## Event Types
 
@@ -457,15 +463,14 @@ If conflicts aren't detected:
 
 Planned improvements for calendar integration:
 
-- Real calendar API support (Google Calendar, Outlook Calendar, etc.)
-- OAuth2 authentication flow
-- Recurring event support (RRULE)
+- CalDAV backend for standard read/write calendar access
+- Google Calendar OAuth2 backend
+- Recurring event support (RRULE expansion)
 - Event reminders and notifications
 - Attendee management (invites, responses)
 - Calendar sharing
 - Multiple calendar support
 - Free/busy time queries
-- Meeting room booking
-- Time zone handling
+- Time zone handling improvements
 - Event search functionality
 - Calendar sync across multiple accounts

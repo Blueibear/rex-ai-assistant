@@ -68,6 +68,17 @@
     "rate_limit": "30/minute",
     "allowed_origins": ["*"]
   },
+  "calendar": {
+    "backend": "stub",
+    "ics": {
+      "source": null,
+      "url_timeout": 15
+    }
+  },
+  "identity": {
+    "known_users": null,
+    "require_user": false
+  },
   "ui": {
     "start_minimized": false
   }

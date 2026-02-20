@@ -56,6 +56,8 @@ Notable top-level modules and entrypoints:
 
 Notable subpackages:
 - `rex/email_backends/` - email backend adapters (base interface, stub, IMAP/SMTP, multi-account config/router)
+- `rex/calendar_backends/` - calendar backend adapters (base interface, stub, ICS read-only)
+- `rex/identity.py` - session-scoped user identity resolution (fallback when voice recognition is unavailable)
 
 ## Commands
 
@@ -116,6 +118,29 @@ Notable subpackages:
 - `rex email test-connection [--account-id <id>]`
 - `rex email send --account-id <id> --to <recipient> --subject <subject> --body <body>`
 - `rex email unread [--limit N] [-v]` (pre-existing)
+- All email commands accept `--user <id>` to override the active user context.
+
+## Calendar CLI commands (implemented)
+- `rex calendar upcoming [--days N] [--conflicts] [-v] [--user <id>]`
+- `rex calendar test-connection`
+
+## Calendar backend config keys (implemented)
+- `calendar.backend`: `"stub"` (default) or `"ics"`
+- `calendar.ics.source`: local `.ics` file path or HTTPS URL
+- `calendar.ics.url_timeout`: fetch timeout in seconds (default 15)
+- Calendar backend code lives in `rex/calendar_backends/` (base, stub, ics_backend, ics_parser, factory).
+
+## Identity CLI commands (implemented)
+- `rex whoami` — show the active user for the session (from session state, config, or explicit flag)
+- `rex identify --user <id>` — set the active user non-interactively
+- `rex identify` — interactive selection from known Memory/ profiles
+- Identity resolution priority: `--user` flag > session state > `runtime.active_user` > `runtime.user_id`
+- Session state stored in OS-appropriate temp dir (`rex-ai/session.json`), not persisted to repo.
+- Identity module: `rex/identity.py`
+
+## Identity config keys
+- `identity.known_users`: reserved for future use (manual user list override)
+- `identity.require_user`: `false` (default) — when `true`, commands that need user context will fail if no user is resolved
 
 ## Integration testing rules
 - Integration tests must not require real network credentials.
