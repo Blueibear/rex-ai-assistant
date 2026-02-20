@@ -83,6 +83,43 @@ Notable top-level modules and entrypoints:
 - Supported GPU installs are requirements-file based because CUDA wheels require `--extra-index-url`.
 - Keep GPU guidance aligned across `INSTALL.md`, `README.md`, and requirements files in the same PR.
 
+## Integration backend strategy (email/calendar/notifications/sms/voice)
+- Email backend target is provider-agnostic IMAP4 over SSL (read) + SMTP STARTTLS/SSL (send).
+- Multi-account email support is required for production readiness: account-aware routing, active/default selection, and explicit fallback order.
+- Notification priority, digest, quiet-hours, and escalation behavior must remain stable while channel delivery backends are upgraded.
+- Calendar backend rollout order: ICS read-only first (safest, easiest to test), then CalDAV/Google OAuth later.
+- SMS backend must keep Twilio as optional functionality and must retain safe no-credential failure behavior.
+- Voice speaker recognition must be scaffolded behind optional dependencies; default installs must stay lightweight.
+
+## Dependency and lockfile rules (non-negotiable)
+- Keep `Pipfile` and `Pipfile.lock` Dependabot/pipenv lock friendly on clean Linux (no CUDA runtime assumptions).
+- Do **not** add heavy ML/CUDA dependencies to `Pipfile` default packages.
+- Heavy voice-recognition dependencies must be optional extras only (for example in `pyproject.toml` optional dependency groups) and guarded at runtime.
+- Any dependency change for integrations must include explicit lockability verification (`pipenv lock --clear`) in the PR verification notes.
+
+## Planned integration config keys (implement with docs/tests in the same PR)
+- Add runtime config section for multi-account email:
+  - `email.default_account_id`
+  - `email.accounts[]` with per-account IMAP/SMTP server settings and `credential_ref`
+- Notification routing may include metadata key `email_account_id` for explicit account selection.
+- Credentials should remain split by concern:
+  - non-secret server/runtime values in `config/rex_config.json`
+  - secrets in `.env` or `config/credentials.json` via `CredentialManager`
+
+## Planned CLI additions for integration management
+- `rex email accounts list`
+- `rex email accounts set-active --account-id <id>`
+- `rex email test-connection [--account-id <id>]`
+- `rex email send --account-id <id> --to <recipient> --subject <subject> --body <body>`
+
+When these commands are added, update CLI help text, docs, and tests in the same PR.
+
+## Integration testing rules
+- Integration tests must not require real network credentials.
+- Use deterministic mocks/fixtures/fake transports for IMAP/SMTP/Twilio/ICS.
+- Add both success and failure-path tests for each backend adapter.
+- Never log raw secrets (tokens, passwords, app passwords, OAuth refresh tokens).
+
 ## Testing
 - Pytest configuration source-of-truth is `[tool.pytest.ini_options]` in `pyproject.toml`; do not reintroduce `pytest.ini`.
 - Default pytest addopts do **not** include coverage flags. `pytest -q` works after a base install (`pip install -e .`) without pytest-cov.
