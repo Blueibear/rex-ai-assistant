@@ -2,13 +2,16 @@
 
 ## Current Implementation
 
-**Status: Beta (real backend available)**
+**Status: Beta (real backend available, inbound webhook supported when configured)**
 
 The messaging framework supports real SMS delivery via Twilio when credentials are configured. Without credentials the SMS service operates in stub/mock mode — messages are written to a local JSON file and no external API calls are made.
 
+Inbound SMS support is available via a Twilio webhook receiver. When `messaging.inbound.enabled` is `true`, incoming messages are persisted to a local SQLite store and are retrievable via `rex msg receive`.
+
 | Channel | Status | Details |
 |---------|--------|---------|
-| **SMS** | Beta (real when configured) | Uses Twilio REST API for real delivery; defaults to stub mode with `data/mock_sms.json`. Multi-account support included. |
+| **SMS (outbound)** | Beta (real when configured) | Uses Twilio REST API for real delivery; defaults to stub mode with `data/mock_sms.json`. Multi-account support included. |
+| **SMS (inbound)** | Beta (webhook when configured) | Twilio webhook receiver with HMAC-SHA1 signature verification. Messages persisted to SQLite and routed by phone number to the matching account. |
 | **Telegram** | Not implemented | Extension example provided in docs; no built-in adapter. |
 | **Discord / WhatsApp** | Not implemented | Planned for future releases. |
 
@@ -24,6 +27,7 @@ The messaging service consists of:
 - **MessagingService Base Class**: An abstract interface for implementing channel-specific services
 - **SMSService**: A concrete implementation backed by pluggable SMS backends
 - **SMS Backends**: Stub (offline/mock) and Twilio (real delivery)
+- **Inbound Webhook**: A Flask blueprint that receives Twilio inbound SMS via a POST endpoint
 
 ## Architecture
 
@@ -35,6 +39,9 @@ SMS delivery is handled by pluggable backends in `rex/messaging_backends/`:
 |---------|--------|-------------|
 | **Stub** | `rex.messaging_backends.stub` | Writes to local JSON file; no real delivery. Default for offline dev. |
 | **Twilio** | `rex.messaging_backends.twilio_backend` | Calls Twilio REST API via `requests`. Requires credentials. |
+| **Inbound Store** | `rex.messaging_backends.inbound_store` | SQLite-backed persistence for webhook-received inbound messages. |
+| **Inbound Webhook** | `rex.messaging_backends.inbound_webhook` | Flask blueprint for receiving Twilio inbound SMS with signature verification. |
+| **Signature Verification** | `rex.messaging_backends.twilio_signature` | HMAC-SHA1 signature validation using stdlib only (no Twilio SDK). |
 
 The backend is selected via config (`messaging.backend`). If Twilio credentials are missing, the system falls back to stub with a warning.
 
@@ -102,6 +109,46 @@ Set the backend in `config/rex_config.json`:
 - `messaging.default_account_id`: Account to use when none is specified
 - `messaging.accounts[]`: List of SMS accounts with `id`, `label`, `from_number`, and `credential_ref`
 
+### Inbound SMS Configuration
+
+To receive inbound SMS via webhook, add the `inbound` section:
+
+```json
+{
+  "messaging": {
+    "backend": "twilio",
+    "default_account_id": "primary",
+    "accounts": [
+      {
+        "id": "primary",
+        "from_number": "+15551234567",
+        "credential_ref": "twilio:primary"
+      }
+    ],
+    "inbound": {
+      "enabled": true,
+      "auth_token_ref": "twilio:inbound",
+      "store_path": "data/inbound_sms.db",
+      "retention_days": 90
+    }
+  }
+}
+```
+
+**Inbound config keys:**
+- `messaging.inbound.enabled`: `false` (default) — set to `true` to enable the webhook endpoint
+- `messaging.inbound.auth_token_ref`: Credential ref for the Twilio auth token used for webhook signature verification (default: `"twilio:inbound"`)
+- `messaging.inbound.store_path`: SQLite database path for inbound messages (default: `data/inbound_sms.db`)
+- `messaging.inbound.retention_days`: Days to retain inbound messages before automatic cleanup (default: `90`)
+
+**Inbound webhook endpoint:**
+- `POST /webhooks/twilio/sms` — receives inbound SMS from Twilio
+
+**Routing behavior:**
+- The `To` phone number in the Twilio request is matched against `messaging.accounts[].from_number`
+- If a match is found, the message is associated with that account ID
+- If no match is found, the message is stored as "unrouted" with a warning logged
+
 ### Credentials
 
 Credentials are stored separately from config (never in code or config files):
@@ -116,12 +163,15 @@ Credentials are stored separately from config (never in code or config files):
    ```json
    {
      "credentials": {
-       "twilio:primary": "ACxxxxxxxxx:your_auth_token"
+       "twilio:primary": "ACxxxxxxxxx:your_auth_token",
+       "twilio:inbound": "your_twilio_auth_token_for_signature_verification"
      }
    }
    ```
 
 The `credential_ref` in the account config maps to the key in the credential store.
+
+For inbound webhook signature verification, the `auth_token_ref` specifies which credential to use for HMAC-SHA1 validation.
 
 ### No-Credential Behavior
 
@@ -170,7 +220,7 @@ rex msg send --channel sms --to "+15551234567" --body "Hello" --user alice
 
 **Python API:**
 ```python
-# Get recent inbound messages
+# Get recent inbound messages (includes webhook-received messages)
 messages = sms.receive(limit=10)
 
 for msg in messages:
@@ -184,6 +234,8 @@ for msg in messages:
 # Receive recent SMS messages
 rex msg receive --channel sms --limit 10
 ```
+
+When the inbound store is enabled, `rex msg receive` merges messages from both the backend (Twilio API or stub) and the inbound webhook store. Messages are sorted newest-first and deduplicated.
 
 ### Replying to Messages
 
@@ -223,6 +275,61 @@ Account selection priority:
 1. Explicit `--account-id` flag
 2. `default_account_id` from config
 3. First account in list
+
+For inbound messages received via webhook, routing is automatic: the `To` number is matched against configured account `from_number` values.
+
+## Inbound SMS Webhook
+
+### How It Works
+
+1. Twilio sends a POST request to `/webhooks/twilio/sms` when an SMS is received
+2. The webhook verifies the request signature using HMAC-SHA1 (stdlib `hmac` + `hashlib`)
+3. The inbound message is routed to the correct account by matching the `To` number
+4. The message is persisted to a local SQLite database
+5. An empty TwiML `<Response/>` is returned to Twilio
+
+### Security
+
+- **Signature verification**: All requests are verified using Twilio's HMAC-SHA1 algorithm. Requests with invalid or missing signatures are rejected with HTTP 403.
+- **No secrets logged**: Auth tokens are never logged. Phone numbers and message bodies are logged at DEBUG level only.
+- **No bypass for localhost**: Signature verification applies equally to all source addresses.
+
+### Local Dev Simulation
+
+To test inbound SMS locally without a real Twilio account:
+
+1. Enable inbound in config:
+   ```json
+   {
+     "messaging": {
+       "inbound": {
+         "enabled": true,
+         "auth_token_ref": "twilio:inbound"
+       }
+     }
+   }
+   ```
+
+2. Set a test auth token:
+   ```bash
+   export REX_TWILIO_INBOUND="test_token_for_dev"
+   ```
+
+3. Start the Flask app that registers the webhook blueprint.
+
+4. Send a test POST:
+   ```bash
+   # Compute a valid signature for the test token and send
+   curl -X POST http://localhost:5000/webhooks/twilio/sms \
+     -d "MessageSid=SM0001&From=+15559999999&To=+15551111111&Body=Test"
+   ```
+
+   Note: In production, signature verification must remain enabled. For local dev you can disable it via the blueprint configuration.
+
+5. Check received messages:
+   ```bash
+   rex msg receive --channel sms
+   ```
 
 ## Extending to New Channels
 
@@ -269,6 +376,18 @@ pytest tests/test_messaging_backends.py -v
 # Test messaging service
 pytest tests/test_messaging_service.py -v
 
+# Test inbound webhook
+pytest tests/test_inbound_webhook.py -v
+
+# Test inbound store
+pytest tests/test_inbound_store.py -v
+
+# Test Twilio signature verification
+pytest tests/test_twilio_signature.py -v
+
+# Test SMS + inbound store integration
+pytest tests/test_sms_inbound_integration.py -v
+
 # Test CLI commands
 pytest tests/test_cli_messaging_notification.py -k msg -v
 ```
@@ -281,6 +400,7 @@ pytest tests/test_cli_messaging_notification.py -k msg -v
 4. **Credential Split**: Non-secret config (from_number) in `rex_config.json`; secrets in `.env` or `credentials.json`
 5. **Safe Fallback**: Missing credentials result in stub mode, not errors
 6. **Logging**: Phone numbers in logs are not treated as secrets; Twilio auth tokens are masked
+7. **Webhook Signature Verification**: Inbound webhook validates Twilio HMAC-SHA1 signatures using constant-time comparison
 
 ## API Reference
 
@@ -305,7 +425,7 @@ pytest tests/test_cli_messaging_notification.py -k msg -v
 ### SMSService
 
 **Constructor:**
-- `SMSService(mock_file: Path = None, from_number: str = None, backend=None, raw_config=None)`
+- `SMSService(mock_file: Path = None, from_number: str = None, backend=None, raw_config=None, inbound_store=None)`
 
 **Properties:**
 - `active_backend` - The active SmsBackend, or None if using legacy mock mode
@@ -328,11 +448,25 @@ pytest tests/test_cli_messaging_notification.py -k msg -v
 - Configurable timeout
 - Handles error responses, timeouts, and connection errors
 
+### InboundSmsStore
+
+- SQLite-backed persistence for webhook-received inbound messages
+- `write(record)` - Store an inbound message
+- `query_recent(limit, user_id, account_id)` - Query recent messages with optional filters
+- `count(user_id)` - Count stored messages
+- `cleanup_old()` - Remove records older than retention period
+
+### Inbound Webhook Blueprint
+
+- `POST /webhooks/twilio/sms` - Receive inbound SMS from Twilio
+- Validates Twilio signature (HMAC-SHA1)
+- Routes by `To` number to matching account
+- Returns empty TwiML `<Response/>`
+
 ## What Remains Stubbed
 
 - Telegram, Discord, WhatsApp channels (not implemented)
 - MMS / media messages
-- Inbound webhook receiver for real-time Twilio messages
 - Per-user phone number routing (foundation exists)
 
 ## Troubleshooting
@@ -355,6 +489,13 @@ message = Message(channel="sms", to="+15551234567", from_=..., body=...)
 
 - In stub mode: check that messages were sent TO your from_number (inbound)
 - In Twilio mode: messages fetch from the Twilio API filtered by your number
+- If using inbound webhook: check that `messaging.inbound.enabled` is `true` and that the webhook endpoint is receiving POST requests
+
+### Inbound webhook returning 403
+
+- Verify that the `auth_token_ref` credential is set correctly
+- Ensure the Twilio auth token matches the one configured in your Twilio account
+- Check that the webhook URL configured in Twilio matches the URL your server is listening on
 
 ## Support
 
