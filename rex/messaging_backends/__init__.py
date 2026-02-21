@@ -3,6 +3,7 @@
 from rex.messaging_backends.account_config import (
     MessagingAccountConfig,
     MessagingConfig,
+    MessagingInboundConfig,
     load_messaging_config,
 )
 from rex.messaging_backends.base import SmsBackend, SmsSendResult
@@ -12,6 +13,7 @@ from rex.messaging_backends.stub import StubSmsBackend
 __all__ = [
     "MessagingAccountConfig",
     "MessagingConfig",
+    "MessagingInboundConfig",
     "SmsSendResult",
     "SmsBackend",
     "StubSmsBackend",

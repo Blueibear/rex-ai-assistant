@@ -18,7 +18,13 @@ Example config fragment::
             "from_number": "+15551234567",
             "credential_ref": "twilio:primary"
           }
-        ]
+        ],
+        "inbound": {
+          "enabled": true,
+          "auth_token_ref": "twilio:inbound",
+          "store_path": "data/inbound_sms.db",
+          "retention_days": 90
+        }
       }
     }
 """
@@ -52,6 +58,32 @@ class MessagingAccountConfig(BaseModel):
     )
 
 
+class MessagingInboundConfig(BaseModel):
+    """Configuration for inbound SMS webhook and persistence."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable the inbound SMS webhook endpoint and message store",
+    )
+    auth_token_ref: str = Field(
+        default="twilio:inbound",
+        description=(
+            "Credential ref for the Twilio auth token used for webhook "
+            "signature verification (looked up via CredentialManager)"
+        ),
+    )
+    store_path: str | None = Field(
+        default=None,
+        description="SQLite database path for inbound messages (default: data/inbound_sms.db)",
+    )
+    retention_days: int = Field(
+        default=90,
+        description="Days to retain inbound messages before automatic cleanup",
+    )
+
+
 class MessagingConfig(BaseModel):
     """Top-level messaging configuration with multi-account support."""
 
@@ -68,6 +100,10 @@ class MessagingConfig(BaseModel):
     accounts: list[MessagingAccountConfig] = Field(
         default_factory=list,
         description="List of configured messaging accounts",
+    )
+    inbound: MessagingInboundConfig = Field(
+        default_factory=MessagingInboundConfig,
+        description="Inbound SMS webhook and persistence configuration",
     )
 
     def get_account(self, account_id: str | None = None) -> MessagingAccountConfig | None:
@@ -123,5 +159,6 @@ def load_messaging_config(raw_config: dict[str, Any]) -> MessagingConfig:
 __all__ = [
     "MessagingAccountConfig",
     "MessagingConfig",
+    "MessagingInboundConfig",
     "load_messaging_config",
 ]

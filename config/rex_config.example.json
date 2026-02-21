@@ -82,7 +82,13 @@
   "messaging": {
     "backend": "stub",
     "default_account_id": null,
-    "accounts": []
+    "accounts": [],
+    "inbound": {
+      "enabled": false,
+      "auth_token_ref": "twilio:inbound",
+      "store_path": null,
+      "retention_days": 90
+    }
   },
   "notifications": {
     "dashboard": {
