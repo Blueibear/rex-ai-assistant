@@ -400,6 +400,7 @@ class VoiceLoop:
         transcribe: Callable[[np.ndarray], Awaitable[str]],
         speak: Callable[[str], Awaitable[None]],
         acknowledge: Optional[Callable[[], Awaitable[None]]] = None,
+        identify_speaker: Optional[Callable[[], Optional[str]]] = None,
     ) -> None:
         self._assistant = assistant
         self._wake_listener = wake_listener
@@ -408,6 +409,7 @@ class VoiceLoop:
         self._transcribe = transcribe
         self._speak = speak
         self._acknowledge = acknowledge
+        self._identify_speaker = identify_speaker
 
     async def run(self, max_interactions: Optional[int] = None) -> None:
         """Run the voice loop for a specified number of interactions."""
@@ -421,6 +423,13 @@ class VoiceLoop:
 
                     # Record user speech
                     audio = await self._record_phrase()
+
+                    # Optionally identify the speaker from voice
+                    if self._identify_speaker is not None:
+                        try:
+                            self._identify_speaker()
+                        except Exception as exc:
+                            logger.warning("Voice identity check failed: %s", exc)
 
                     # Transcribe to text
                     transcript = await self._transcribe(audio)
