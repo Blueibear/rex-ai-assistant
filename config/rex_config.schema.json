@@ -251,6 +251,42 @@
         }
       }
     },
+    "voice_identity": {
+      "type": "object",
+      "description": "Voice identity speaker-recognition scaffolding settings",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable voice identity before STT in the voice loop",
+          "default": false
+        },
+        "accept_threshold": {
+          "type": "number",
+          "description": "Cosine similarity threshold for recognized speaker",
+          "default": 0.85,
+          "minimum": 0,
+          "maximum": 1
+        },
+        "review_threshold": {
+          "type": "number",
+          "description": "Cosine similarity threshold for review decision",
+          "default": 0.65,
+          "minimum": 0,
+          "maximum": 1
+        },
+        "embedding_dim": {
+          "type": "integer",
+          "description": "Expected embedding vector dimensionality",
+          "default": 192,
+          "minimum": 1
+        },
+        "model_id": {
+          "type": "string",
+          "description": "Identifier for active embedding model",
+          "default": "synthetic"
+        }
+      }
+    },
     "search": {
       "type": "object",
       "description": "Web search configuration",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import re
 import sys
@@ -92,6 +93,7 @@ def _require_sounddevice():
 logger = logging.getLogger(__name__)
 
 RecorderCallable = Callable[[float], Awaitable[np.ndarray] | np.ndarray]
+IdentifySpeakerCallable = Callable[[np.ndarray], str | None] | Callable[[], str | None]
 
 
 @dataclass
@@ -408,7 +410,7 @@ class VoiceLoop:
         transcribe: Callable[[np.ndarray], Awaitable[str]],
         speak: Callable[[str], Awaitable[None]],
         acknowledge: Callable[[], Awaitable[None]] | None = None,
-        identify_speaker: Callable[[], str | None] | None = None,
+        identify_speaker: IdentifySpeakerCallable | None = None,
     ) -> None:
         self._assistant = assistant
         self._wake_listener = wake_listener
@@ -418,6 +420,31 @@ class VoiceLoop:
         self._speak = speak
         self._acknowledge = acknowledge
         self._identify_speaker = identify_speaker
+        self._identify_speaker_accepts_audio = self._resolve_identify_speaker_signature(
+            identify_speaker
+        )
+
+    @staticmethod
+    def _resolve_identify_speaker_signature(
+        identify_speaker: IdentifySpeakerCallable | None,
+    ) -> bool:
+        """Return True when identify_speaker accepts an audio argument."""
+        if identify_speaker is None:
+            return False
+        try:
+            signature = inspect.signature(identify_speaker)
+        except (TypeError, ValueError):
+            return False
+
+        for parameter in signature.parameters.values():
+            if parameter.kind in (
+                inspect.Parameter.POSITIONAL_ONLY,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                inspect.Parameter.VAR_POSITIONAL,
+            ):
+                return True
+
+        return False
 
     async def run(self, max_interactions: int | None = None) -> None:
         """Run the voice loop for a specified number of interactions."""
@@ -435,7 +462,10 @@ class VoiceLoop:
                     # Optionally identify the speaker from voice
                     if self._identify_speaker is not None:
                         try:
-                            self._identify_speaker()
+                            if self._identify_speaker_accepts_audio:
+                                self._identify_speaker(audio)
+                            else:
+                                self._identify_speaker()
                         except Exception as exc:
                             logger.warning("Voice identity check failed: %s", exc)
 

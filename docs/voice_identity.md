@@ -10,7 +10,7 @@ The voice identity subsystem provides the architecture for speaker recognition w
 - **Per-user embeddings store** at `Memory/<user>/voice_embeddings.json` with versioned metadata (model ID, sample count, timestamps).
 - **Speaker recognizer** that returns a decision (`recognized`, `review`, `unknown`) with configurable thresholds.
 - **Fallback identity flow** that integrates with the existing session-scoped identity system (`rex.identity`) when recognition is uncertain.
-- **Voice loop hook** (`identify_speaker` callback) that optionally consults voice identity before processing speech.
+- **Voice loop hook** (`identify_speaker` callback) that optionally consults voice identity before processing speech. The callback may accept the captured audio frame for embedding extraction.
 
 ## What is NOT implemented yet
 
@@ -94,7 +94,7 @@ Each enrolled user has a file at `Memory/<user>/voice_embeddings.json`:
 
 1. The voice loop records audio after wake word detection.
 2. If `voice_identity.enabled` is `true` and an `identify_speaker` callback is provided, it runs before transcription.
-3. The callback computes (or retrieves) an embedding for the audio and calls `SpeakerRecognizer.recognize()`.
+3. The callback receives the captured audio frame (or can ignore it) and computes/retrieves an embedding before calling `SpeakerRecognizer.recognize()`.
 4. Based on the decision:
    - **recognized**: `set_session_user(best_user_id)` is called, and all downstream commands see the recognized user.
    - **review**: If the existing session user matches the best guess, it is accepted silently. Otherwise, the existing identity chain (`--user` flag, session state, config) is used.
