@@ -2,10 +2,10 @@ import asyncio
 
 import pytest
 
-np = pytest.importorskip("numpy")
-
 from rex.assistant_errors import AudioDeviceError, SpeechToTextError
 from rex.voice_loop import VoiceLoop
+
+np = pytest.importorskip("numpy")
 
 
 class DummyListener:
@@ -73,7 +73,7 @@ def test_voice_loop_processes_interaction():
     asyncio.run(loop.run(max_interactions=1))
 
     assert assistant.calls == ["hello world"]
-    assert spoken == ["ok."] # Voice loop adds period for TTS
+    assert spoken == ["ok."]  # Voice loop adds period for TTS
 
 
 @pytest.mark.unit
@@ -104,6 +104,58 @@ def test_voice_loop_handles_transcription_error():
     assert spoken == []
 
 
+@pytest.mark.unit
+def test_voice_loop_identify_speaker_receives_audio_frame():
+    assistant = DummyAssistant()
+    listener = DummyListener()
+    captured = []
+
+    def identify(audio: np.ndarray) -> str | None:
+        captured.append(audio.tolist())
+        return "alice"
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=listener,
+        detection_source=_constant_frame,
+        record_phrase=_record_phrase,
+        transcribe=_transcribe,
+        speak=_speak,
+        acknowledge=None,
+        identify_speaker=identify,
+    )
+
+    asyncio.run(loop.run(max_interactions=1))
+
+    assert captured == [[1.0, 1.0, 1.0, 1.0]]
+
+
+@pytest.mark.unit
+def test_voice_loop_identify_speaker_without_args_still_supported():
+    assistant = DummyAssistant()
+    listener = DummyListener()
+    calls = []
+
+    def identify() -> str | None:
+        calls.append("called")
+        return "alice"
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=listener,
+        detection_source=_constant_frame,
+        record_phrase=_record_phrase,
+        transcribe=_transcribe,
+        speak=_speak,
+        acknowledge=None,
+        identify_speaker=identify,
+    )
+
+    asyncio.run(loop.run(max_interactions=1))
+
+    assert calls == ["called"]
+
+
 def test_voice_loop_propagates_audio_errors():
     assistant = DummyAssistant()
     listener = DummyListener()
@@ -125,4 +177,3 @@ def test_voice_loop_propagates_audio_errors():
     asyncio.run(loop.run(max_interactions=1))
 
     assert assistant.calls == []
-
