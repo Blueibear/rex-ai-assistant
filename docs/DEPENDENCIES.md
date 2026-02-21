@@ -132,6 +132,30 @@ python gui.py           # Test GUI loads
 - **torch**: Must use CPU builds (no CUDA). Not in Pipfile due to CUDA transitive deps on Linux PyPI.
 - **TTS**: Requires transformers compatibility shim
 - **numpy**: Keep <2.0 in requirements-cpu.txt for compatibility with numba/TTS/other scientific packages
+- **speechbrain / resemblyzer**: Voice identity optional extras only (`pip install '.[voice-id]'`). Not in Pipfile or default dependencies.
+
+## Optional Extras Policy
+
+Heavy ML and audio dependencies are split into optional extras in `pyproject.toml` so the base install and `Pipfile.lock` remain lightweight and lockable.
+
+| Extra group | Packages | Use case |
+|-------------|----------|----------|
+| `audio` | numpy, sounddevice, soundfile, simpleaudio | Audio I/O for voice loop |
+| `ml` | torch, torchvision, torchaudio, transformers, TTS, whisper, openwakeword | Full ML stack |
+| `voice-id` | speechbrain, resemblyzer | Speaker recognition embeddings |
+| `sms` | twilio | Twilio SMS backend |
+| `dev` | pytest, pytest-cov, pytest-asyncio, build, black, ruff, mypy | Development tools |
+
+**Install command for voice identity extras:**
+
+```bash
+pip install '.[voice-id]'
+```
+
+**Rules:**
+- Pipfile and Pipfile.lock must remain lockable on clean Linux without CUDA or heavy ML packages.
+- Heavy deps belong in optional extras groups only, never in default `[project.dependencies]` or `[packages]` in Pipfile.
+- Runtime code must guard imports of optional packages and fall back cleanly when they are missing.
 
 ## Dependabot Configuration
 

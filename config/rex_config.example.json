@@ -93,6 +93,13 @@
       }
     }
   },
+  "voice_identity": {
+    "enabled": false,
+    "accept_threshold": 0.85,
+    "review_threshold": 0.65,
+    "embedding_dim": 192,
+    "model_id": "synthetic"
+  },
   "ui": {
     "start_minimized": false
   }

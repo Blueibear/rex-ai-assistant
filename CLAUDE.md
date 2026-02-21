@@ -60,6 +60,7 @@ Notable subpackages:
 - `rex/messaging_backends/` - SMS backend adapters (base interface, stub, Twilio, multi-account config, factory)
 - `rex/dashboard_store.py` - SQLite-backed dashboard notification store (write/read/query/retention)
 - `rex/identity.py` - session-scoped user identity resolution (fallback when voice recognition is unavailable)
+- `rex/voice_identity/` - voice speaker recognition scaffolding (types, embeddings store, recognizer, fallback flow, optional dep guards)
 
 ## Commands
 
@@ -143,6 +144,31 @@ Notable subpackages:
 ## Identity config keys
 - `identity.known_users`: reserved for future use (manual user list override)
 - `identity.require_user`: `false` (default) — when `true`, commands that need user context will fail if no user is resolved
+
+## Voice identity module (scaffolding)
+- Module: `rex/voice_identity/` (types, embeddings_store, recognizer, fallback_flow, optional_deps)
+- Pure-Python cosine similarity; no numpy/torch in default install.
+- Per-user embeddings stored as JSON at `Memory/<user>/voice_embeddings.json`.
+- Recognizer returns `recognized`, `review`, or `unknown` based on configurable thresholds.
+- Fallback flow integrates with `rex/identity.py` (session-scoped identity resolution).
+- Voice loop (`rex/voice_loop.py`) accepts an optional `identify_speaker` callback.
+- Heavy deps (speechbrain, resemblyzer) are in `pyproject.toml` optional extras group `voice-id`.
+- Install: `pip install '.[voice-id]'`
+- Tests: `pytest -q tests/test_voice_identity_fallback.py tests/test_optional_voice_id_imports.py`
+- Docs: `docs/voice_identity.md`
+
+## Voice identity config keys (scaffolding)
+- `voice_identity.enabled`: `false` (default) — enable voice identity in the voice loop
+- `voice_identity.accept_threshold`: `0.85` — minimum cosine similarity for `recognized`
+- `voice_identity.review_threshold`: `0.65` — minimum cosine similarity for `review`
+- `voice_identity.embedding_dim`: `192` — expected dimensionality of embedding vectors
+- `voice_identity.model_id`: `"synthetic"` — identifier for the active embedding model
+
+## Optional extras policy
+- Heavy ML/audio dependencies live in `pyproject.toml` optional extras groups, never in default `[project.dependencies]` or Pipfile `[packages]`.
+- Available extras: `audio`, `ml`, `voice-id`, `sms`, `dev`, `devtools`, `test`, `full`.
+- Runtime code must guard imports of optional packages and fall back cleanly when missing.
+- Pipfile/Pipfile.lock must remain lockable on clean Linux (`pipenv lock --clear`).
 
 ## Messaging CLI commands (implemented)
 - `rex msg send --channel sms --to <number> --body <text> [--account-id <id>] [--user <id>]`
