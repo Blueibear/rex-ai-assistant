@@ -1,0 +1,169 @@
+"""Flask blueprint for the Twilio inbound SMS webhook.
+
+Provides a ``POST /webhooks/twilio/sms`` endpoint that:
+1. Validates the Twilio request signature (HMAC-SHA1, stdlib only).
+2. Routes the inbound message to the correct messaging account by matching
+   the ``To`` phone number against ``messaging.accounts[].from_number``.
+3. Persists the message in the inbound SMS store.
+4. Returns an empty TwiML ``<Response/>`` so Twilio does not retry.
+
+Security:
+- Signature verification is mandatory unless explicitly disabled (dev only).
+- Secrets (auth token) are never logged.
+- All external input is treated as untrusted; phone numbers and body are
+  stored as-is but never interpolated into logs at INFO level.
+
+The blueprint is registered with the main Flask app at startup only when
+``messaging.inbound.enabled`` is ``true`` in the runtime config.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from flask import Blueprint, Response, request
+
+from rex.messaging_backends.inbound_store import (
+    InboundSmsRecord,
+    InboundSmsStore,
+)
+from rex.messaging_backends.twilio_signature import validate_twilio_signature
+
+logger = logging.getLogger(__name__)
+
+# Content-Type for TwiML responses
+_TWIML_CONTENT_TYPE = "text/xml"
+
+# Empty TwiML response — tells Twilio not to take further action
+_EMPTY_TWIML = '<?xml version="1.0" encoding="UTF-8"?><Response/>'
+
+
+def _build_account_phone_map(raw_config: dict[str, Any]) -> dict[str, str]:
+    """Build a mapping of normalized phone number -> account ID.
+
+    Args:
+        raw_config: Full runtime config dict.
+
+    Returns:
+        Dict mapping ``from_number`` to ``account.id`` for each configured
+        messaging account.
+    """
+    mapping: dict[str, str] = {}
+    messaging = raw_config.get("messaging", {})
+    if not isinstance(messaging, dict):
+        return mapping
+    for acct in messaging.get("accounts", []):
+        if isinstance(acct, dict):
+            number = acct.get("from_number", "")
+            acct_id = acct.get("id", "")
+            if number and acct_id:
+                mapping[_normalize_phone(number)] = acct_id
+    return mapping
+
+
+def _normalize_phone(number: str) -> str:
+    """Normalize a phone number by stripping whitespace.
+
+    We do minimal normalization: strip leading/trailing whitespace.
+    Twilio already sends E.164 format.
+    """
+    return number.strip()
+
+
+def create_inbound_sms_blueprint(
+    *,
+    auth_token: str,
+    inbound_store: InboundSmsStore,
+    raw_config: dict[str, Any] | None = None,
+    signature_verification: bool = True,
+) -> Blueprint:
+    """Create and configure the inbound SMS webhook blueprint.
+
+    Each call creates a fresh ``Blueprint`` instance so that multiple Flask
+    apps can be created (e.g. in tests) without hitting Flask's
+    "already registered" guard.
+
+    Args:
+        auth_token: Twilio Auth Token for signature verification.
+        inbound_store: The inbound SMS store instance.
+        raw_config: Full runtime config dict for account routing.
+        signature_verification: Whether to enforce Twilio signature
+            verification.  Should only be ``False`` in local dev.
+
+    Returns:
+        A configured Flask Blueprint ready to be registered.
+    """
+    bp = Blueprint(
+        "inbound_sms",
+        __name__,
+        url_prefix="/webhooks/twilio",
+    )
+    phone_map = _build_account_phone_map(raw_config or {})
+
+    @bp.route("/sms", methods=["POST"])
+    def receive_sms() -> Response:
+        """Handle an inbound SMS from Twilio."""
+        # --- Signature verification ---
+        if signature_verification:
+            twilio_sig = request.headers.get("X-Twilio-Signature", "")
+            # Reconstruct the full URL that Twilio signed
+            url = request.url
+            params = dict(request.form)
+
+            if not validate_twilio_signature(auth_token, url, params, twilio_sig):
+                logger.warning("Twilio signature verification failed")
+                return Response("Forbidden", status=403, content_type="text/plain")
+
+        # --- Extract message fields ---
+        form = request.form
+        message_sid = form.get("MessageSid", "")
+        from_number = form.get("From", "")
+        to_number = form.get("To", "")
+        body = form.get("Body", "")
+
+        # --- Route to account by To number ---
+        normalized_to = _normalize_phone(to_number)
+        account_id = phone_map.get(normalized_to)
+        routed = account_id is not None
+
+        if not routed:
+            logger.warning(
+                "Inbound SMS to unrecognized number; storing as unrouted "
+                "(configure messaging.accounts with matching from_number)"
+            )
+
+        # --- Persist ---
+        record = InboundSmsRecord(
+            sid=message_sid,
+            from_number=from_number,
+            to_number=to_number,
+            body=body,
+            account_id=account_id,
+            routed=routed,
+        )
+
+        try:
+            inbound_store.write(record)
+            logger.debug("Inbound SMS stored (id=%s, routed=%s)", record.id, routed)
+        except Exception:
+            logger.exception("Failed to persist inbound SMS")
+            # Still return 200 so Twilio does not retry endlessly
+            return Response(
+                _EMPTY_TWIML,
+                status=200,
+                content_type=_TWIML_CONTENT_TYPE,
+            )
+
+        return Response(
+            _EMPTY_TWIML,
+            status=200,
+            content_type=_TWIML_CONTENT_TYPE,
+        )
+
+    return bp
+
+
+__all__ = [
+    "create_inbound_sms_blueprint",
+]

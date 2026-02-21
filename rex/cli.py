@@ -2074,7 +2074,11 @@ def cmd_msg(args: argparse.Namespace) -> int:
 
         if channel == "sms":
             sms_service = get_sms_service()
-            messages = sms_service.receive(limit=args.limit)
+            messages = sms_service.receive(
+                limit=args.limit,
+                user_id=user_id,
+                account_id=account_id,
+            )
 
             if not messages:
                 print("No messages received.")

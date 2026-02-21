@@ -170,6 +170,7 @@ class SMSService(MessagingService):
         *,
         backend: Any | None = None,
         raw_config: dict[str, Any] | None = None,
+        inbound_store: Any | None = None,
     ):
         """Initialize the SMS service.
 
@@ -178,9 +179,13 @@ class SMSService(MessagingService):
             from_number: Default sender phone number.
             backend: An explicit SmsBackend instance (takes priority).
             raw_config: Runtime config dict to auto-create a backend from.
+            inbound_store: An optional ``InboundSmsStore`` for webhook-received
+                messages.  When present, ``receive()`` merges results from both
+                the backend and the inbound store.
         """
         self._backend = backend
         self._raw_config = raw_config
+        self._inbound_store = inbound_store
         self.mock_file = mock_file or Path("data/mock_sms.json")
         self.from_number = from_number or "+15555551234"
 
@@ -333,22 +338,54 @@ class SMSService(MessagingService):
         logger.info("Sent SMS to %s (mock): %s", message.to, message.body[:50])
         return message
 
-    def receive(self, limit: int = 10) -> list[Message]:
+    def receive(
+        self,
+        limit: int = 10,
+        *,
+        user_id: str | None = None,
+        account_id: str | None = None,
+    ) -> list[Message]:
         """Retrieve recent inbound SMS messages.
 
         When a backend is configured, delegates to
         ``SmsBackend.fetch_recent_inbound()``.  Otherwise reads from the
-        mock file.
+        mock file.  If an inbound store is attached, its records are merged
+        into the results (deduplicated by message ID, sorted newest-first).
 
         Args:
             limit: Maximum number of messages to retrieve.
+            user_id: Filter by user ID when reading from the inbound store.
+            account_id: Filter by account ID when reading from the inbound store.
 
         Returns:
             List of received messages, newest first.
         """
+        # Collect messages from the primary source
         if self._backend is not None:
-            return self._receive_via_backend(limit)
-        return self._receive_via_mock(limit)
+            primary = self._receive_via_backend(limit)
+        else:
+            primary = self._receive_via_mock(limit)
+
+        # Merge inbound store records when available
+        if self._inbound_store is not None:
+            store_msgs = self._receive_from_inbound_store(
+                limit, user_id=user_id, account_id=account_id
+            )
+            # Merge and deduplicate by ID, keeping newest first
+            seen_ids: set[str] = set()
+            merged: list[Message] = []
+            for msg in primary:
+                if msg.id not in seen_ids:
+                    seen_ids.add(msg.id)
+                    merged.append(msg)
+            for msg in store_msgs:
+                if msg.id not in seen_ids:
+                    seen_ids.add(msg.id)
+                    merged.append(msg)
+            merged.sort(key=lambda m: m.timestamp, reverse=True)
+            return merged[:limit]
+
+        return primary
 
     def _receive_via_backend(self, limit: int) -> list[Message]:
         """Delegate receive to the configured backend."""
@@ -373,6 +410,34 @@ class SMSService(MessagingService):
         inbound = [msg for msg in messages if msg.to == self.from_number]
         inbound.sort(key=lambda m: m.timestamp, reverse=True)
         return inbound[:limit]
+
+    def _receive_from_inbound_store(
+        self,
+        limit: int,
+        *,
+        user_id: str | None = None,
+        account_id: str | None = None,
+    ) -> list[Message]:
+        """Fetch messages from the inbound webhook store."""
+        try:
+            records = self._inbound_store.query_recent(
+                limit=limit, user_id=user_id, account_id=account_id
+            )
+            results: list[Message] = []
+            for rec in records:
+                msg = Message(
+                    id=rec.id,
+                    channel="sms",
+                    to=rec.to_number,
+                    from_=rec.from_number,
+                    body=rec.body,
+                    timestamp=rec.received_at,
+                )
+                results.append(msg)
+            return results
+        except Exception as exc:
+            logger.warning("Failed to read from inbound store: %s", exc)
+            return []
 
     def reply(self, thread_id: str, body: str) -> Message:
         """Send a reply to an existing SMS thread.
