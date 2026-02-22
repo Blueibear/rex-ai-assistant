@@ -11,7 +11,7 @@ import sys
 _repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
-from utils.env_loader import load as _load_env
+from utils.env_loader import load as _load_env  # noqa: E402
 
 _load_env()
 
@@ -97,6 +97,75 @@ def _check_rate_limiter() -> CheckResult:
     )
 
 
+def _check_inbound_webhook() -> list[CheckResult]:
+    """Check inbound SMS webhook readiness.
+
+    Loads the runtime config and validates that, when inbound is enabled,
+    the required auth token credential is resolvable.  Never prints secrets.
+    """
+    checks: list[CheckResult] = []
+
+    try:
+        from rex.config_manager import load_config
+        from rex.messaging_backends.inbound_store import load_inbound_store_config
+    except ImportError:
+        # Messaging backends not installed or importable — skip silently
+        return checks
+
+    try:
+        raw_config = load_config()
+    except Exception:
+        checks.append(
+            (
+                "Inbound SMS webhook",
+                True,
+                "config not loaded (messaging section may be absent); skipped",
+            )
+        )
+        return checks
+
+    inbound_cfg = load_inbound_store_config(raw_config)
+
+    if not inbound_cfg.enabled:
+        checks.append(
+            (
+                "Inbound SMS webhook",
+                True,
+                "disabled in config (messaging.inbound.enabled = false)",
+            )
+        )
+        return checks
+
+    # Enabled — verify auth token is resolvable
+    try:
+        from rex.credentials import get_credential_manager
+
+        cred_mgr = get_credential_manager()
+        token = cred_mgr.get_token(inbound_cfg.auth_token_ref)
+    except Exception:
+        token = None
+
+    if token:
+        checks.append(
+            (
+                "Inbound SMS webhook",
+                True,
+                f"enabled; auth token resolved (ref: {inbound_cfg.auth_token_ref})",
+            )
+        )
+    else:
+        checks.append(
+            (
+                "Inbound SMS webhook",
+                False,
+                f"enabled but auth token not found (ref: {inbound_cfg.auth_token_ref}). "
+                "Set the credential via .env or config/credentials.json.",
+            )
+        )
+
+    return checks
+
+
 def run_checks() -> list[CheckResult]:
     results: list[CheckResult] = []
     results.append(_check_python())
@@ -104,6 +173,7 @@ def run_checks() -> list[CheckResult]:
     results.append(_check_torch_cuda())
     results.extend(_check_env_vars())
     results.append(_check_rate_limiter())
+    results.extend(_check_inbound_webhook())
     return results
 
 

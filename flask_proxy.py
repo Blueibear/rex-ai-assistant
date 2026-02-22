@@ -71,6 +71,15 @@ CORS(
 if _DASHBOARD_AVAILABLE and dashboard_bp is not None:
     app.register_blueprint(dashboard_bp)
 
+# Register inbound SMS webhook blueprint (config-driven; disabled by default)
+try:
+    from rex.messaging_backends.webhook_wiring import register_inbound_sms_webhook
+
+    _INBOUND_SMS_REGISTERED = register_inbound_sms_webhook(app)
+except Exception as _inbound_exc:
+    app.logger.debug("Inbound SMS webhook wiring skipped: %s", _inbound_exc)
+    _INBOUND_SMS_REGISTERED = False
+
 # --- Optional Plugin: Web Search ---
 search_web = None
 try:
@@ -135,6 +144,8 @@ _DASHBOARD_PREFIXES = (
     "/api/scheduler",
     "/api/notifications",
 )
+# Webhook routes have their own authentication (e.g. Twilio signature)
+_WEBHOOK_PREFIXES = ("/webhooks/",)
 
 
 # --- Request Hooks ---
@@ -146,6 +157,10 @@ def load_user_memory():
 
     # Skip main auth for dashboard routes (they have their own auth)
     if any(request.path.startswith(prefix) for prefix in _DASHBOARD_PREFIXES):
+        return
+
+    # Skip main auth for webhook routes (they use their own auth, e.g. Twilio signature)
+    if any(request.path.startswith(prefix) for prefix in _WEBHOOK_PREFIXES):
         return
 
     if _TESTING_MODE:
