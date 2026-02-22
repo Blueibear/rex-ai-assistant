@@ -129,7 +129,8 @@ To receive inbound SMS via webhook, add the `inbound` section:
       "enabled": true,
       "auth_token_ref": "twilio:inbound",
       "store_path": "data/inbound_sms.db",
-      "retention_days": 90
+      "retention_days": 90,
+      "rate_limit": "120 per minute"
     }
   }
 }
@@ -140,6 +141,7 @@ To receive inbound SMS via webhook, add the `inbound` section:
 - `messaging.inbound.auth_token_ref`: Credential ref for the Twilio auth token used for webhook signature verification (default: `"twilio:inbound"`)
 - `messaging.inbound.store_path`: SQLite database path for inbound messages (default: `data/inbound_sms.db`)
 - `messaging.inbound.retention_days`: Days to retain inbound messages before automatic cleanup (default: `90`)
+- `messaging.inbound.rate_limit`: Flask-Limiter rate limit string for the webhook endpoint (default: `"120 per minute"`)
 
 **Inbound webhook endpoint:**
 - `POST /webhooks/twilio/sms` — receives inbound SMS from Twilio
