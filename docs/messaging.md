@@ -280,6 +280,74 @@ Account selection priority:
 
 For inbound messages received via webhook, routing is automatic: the `To` number is matched against configured account `from_number` values.
 
+## User Routing
+
+Inbound SMS messages can be automatically associated with a Rex user profile
+at ingest time. This enables per-user filtering with `rex msg receive --user <id>`
+and `SMSService.receive(user_id=...)`.
+
+### How it works
+
+Each messaging account can declare an `owner_user_id` — the user profile that
+owns the phone number. When the inbound webhook receives a message, it matches
+the `To` number to an account and tags the stored record with that account's
+`owner_user_id`.
+
+```json
+{
+  "messaging": {
+    "accounts": [
+      {
+        "id": "personal",
+        "from_number": "+15551111111",
+        "credential_ref": "twilio:personal",
+        "owner_user_id": "alice"
+      },
+      {
+        "id": "business",
+        "from_number": "+15552222222",
+        "credential_ref": "twilio:business"
+      }
+    ]
+  }
+}
+```
+
+In this example:
+- Messages to `+15551111111` are stored with `user_id="alice"`.
+- Messages to `+15552222222` have no `user_id` (the field is null).
+
+### Filtering by user
+
+**CLI:**
+```bash
+# Show only messages for alice
+rex msg receive --channel sms --user alice
+
+# Combine with account filter
+rex msg receive --channel sms --user alice --account-id personal
+```
+
+**Python API:**
+```python
+sms = get_sms_service()
+messages = sms.receive(limit=10, user_id="alice")
+```
+
+### Behavior when not configured
+
+When `owner_user_id` is not set on an account (or is `null`), inbound messages
+are still stored and retrievable — they simply have no `user_id` attached.
+Filtering by `--user` will exclude these messages (only messages explicitly
+tagged with the requested user are returned).
+
+### Schema migration
+
+Existing inbound SMS databases created before this feature are migrated
+automatically. The store detects the missing `user_id` column via
+`PRAGMA table_info` and runs an idempotent `ALTER TABLE` at startup. No
+data is lost.
+
 ## Inbound SMS Webhook
 
 ### Hosting
@@ -530,7 +598,7 @@ pytest tests/test_cli_messaging_notification.py -k msg -v
 
 - Telegram, Discord, WhatsApp channels (not implemented)
 - MMS / media messages
-- Per-user phone number routing (foundation exists)
+- From-number-based user mapping (inbound caller -> user; currently only To-number -> account owner is implemented)
 
 ## Troubleshooting
 

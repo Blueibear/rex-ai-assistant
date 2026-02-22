@@ -178,7 +178,8 @@ Notable subpackages:
 ## Messaging backend config keys (implemented)
 - `messaging.backend`: `"stub"` (default) or `"twilio"`
 - `messaging.default_account_id`: account used when none is specified
-- `messaging.accounts[]` with per-account `id`, `label`, `from_number`, and `credential_ref`
+- `messaging.accounts[]` with per-account `id`, `label`, `from_number`, `credential_ref`, and `owner_user_id`
+- `messaging.accounts[].owner_user_id`: optional user profile ID — inbound SMS to this account's `from_number` is tagged with this user_id at ingest time
 - `messaging.inbound.enabled`: `false` (default) — enable the inbound SMS webhook endpoint and store
 - `messaging.inbound.auth_token_ref`: `"twilio:inbound"` — credential ref for Twilio auth token used for webhook signature verification
 - `messaging.inbound.store_path`: SQLite path for inbound messages (default: `data/inbound_sms.db`)
@@ -190,6 +191,7 @@ Notable subpackages:
 - Credentials are split by concern:
   - non-secret config (from_number, routing) in `config/rex_config.json`
   - secrets in `.env` or `config/credentials.json` via `CredentialManager`
+- Inbound store migration: existing SQLite databases are auto-migrated to add the `user_id` column if absent (idempotent `ALTER TABLE` via `PRAGMA table_info` check at startup)
 - Messaging backend code lives in `rex/messaging_backends/` (base, stub, twilio_backend, account_config, factory, inbound_store, inbound_webhook, twilio_signature, webhook_wiring).
 
 ## Notification dashboard config keys (implemented)
