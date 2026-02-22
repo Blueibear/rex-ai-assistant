@@ -232,3 +232,34 @@ class TestSMSServiceWithInboundStore:
         messages = svc.receive(limit=10)
         assert len(messages) == 1
         assert messages[0].body == "Webhook in mock mode"
+
+    def test_receive_deterministic_order_when_timestamps_equal(
+        self, stub_backend, inbound_store
+    ) -> None:
+        """When timestamps are equal, ordering is deterministic by message id."""
+        svc = SMSService(backend=stub_backend, inbound_store=inbound_store)
+        now = datetime.now(timezone.utc)
+
+        inbound_store.write(
+            InboundSmsRecord(
+                id="inb_a",
+                sid="SMA",
+                from_number="+1555",
+                to_number="+1666",
+                body="A",
+                received_at=now,
+            )
+        )
+        inbound_store.write(
+            InboundSmsRecord(
+                id="inb_b",
+                sid="SMB",
+                from_number="+1555",
+                to_number="+1666",
+                body="B",
+                received_at=now,
+            )
+        )
+
+        messages = svc.receive(limit=10)
+        assert [m.id for m in messages][:2] == ["inb_b", "inb_a"]

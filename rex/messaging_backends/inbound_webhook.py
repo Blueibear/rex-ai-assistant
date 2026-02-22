@@ -23,6 +23,7 @@ import logging
 from typing import Any
 
 from flask import Blueprint, Response, request
+from werkzeug.datastructures import MultiDict
 
 from rex.messaging_backends.inbound_store import (
     InboundSmsRecord,
@@ -107,9 +108,16 @@ def create_inbound_sms_blueprint(
         # --- Signature verification ---
         if signature_verification:
             twilio_sig = request.headers.get("X-Twilio-Signature", "")
-            # Reconstruct the full URL that Twilio signed
+            # Reconstruct the full URL that Twilio signed.
+            # In production behind a reverse proxy, configure Werkzeug
+            # ProxyFix/trusted proxy headers so request.url matches the
+            # externally visible Twilio webhook URL exactly.
             url = request.url
-            params = dict(request.form)
+            params: list[tuple[str, str]] = []
+            form: MultiDict[str, str] = request.form
+            for key in form.keys():
+                for value in form.getlist(key):
+                    params.append((key, value))
 
             if not validate_twilio_signature(auth_token, url, params, twilio_sig):
                 logger.warning("Twilio signature verification failed")
