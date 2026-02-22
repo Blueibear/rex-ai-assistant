@@ -183,11 +183,14 @@ Notable subpackages:
 - `messaging.inbound.auth_token_ref`: `"twilio:inbound"` — credential ref for Twilio auth token used for webhook signature verification
 - `messaging.inbound.store_path`: SQLite path for inbound messages (default: `data/inbound_sms.db`)
 - `messaging.inbound.retention_days`: days to retain inbound messages (default: 90)
-- Inbound webhook endpoint: `POST /webhooks/twilio/sms`
+- `messaging.inbound.rate_limit`: rate limit for the webhook endpoint (default: `"120 per minute"`, Flask-Limiter format)
+- Inbound webhook endpoint: `POST /webhooks/twilio/sms` (hosted by `flask_proxy.py`)
+- Webhook wiring: `register_inbound_sms_webhook()` in `rex/messaging_backends/webhook_wiring.py` reads config, resolves credentials, and registers the blueprint at startup
+- Reverse proxy: when behind a reverse proxy, configure `ProxyFix` and `REX_TRUSTED_PROXIES` so `request.url` matches the externally visible URL for Twilio signature verification
 - Credentials are split by concern:
   - non-secret config (from_number, routing) in `config/rex_config.json`
   - secrets in `.env` or `config/credentials.json` via `CredentialManager`
-- Messaging backend code lives in `rex/messaging_backends/` (base, stub, twilio_backend, account_config, factory, inbound_store, inbound_webhook, twilio_signature).
+- Messaging backend code lives in `rex/messaging_backends/` (base, stub, twilio_backend, account_config, factory, inbound_store, inbound_webhook, twilio_signature, webhook_wiring).
 
 ## Notification dashboard config keys (implemented)
 - `notifications.dashboard.store.type`: `"sqlite"` (only supported type)

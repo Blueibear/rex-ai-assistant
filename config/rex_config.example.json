@@ -87,7 +87,8 @@
       "enabled": false,
       "auth_token_ref": "twilio:inbound",
       "store_path": null,
-      "retention_days": 90
+      "retention_days": 90,
+      "rate_limit": "120 per minute"
     }
   },
   "notifications": {

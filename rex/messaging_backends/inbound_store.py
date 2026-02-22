@@ -49,6 +49,10 @@ class InboundStoreConfig(BaseModel):
         default="twilio:inbound",
         description="Credential ref for the Twilio auth token used for signature verification",
     )
+    rate_limit: str = Field(
+        default="120 per minute",
+        description="Rate limit for the inbound webhook endpoint (Flask-Limiter format)",
+    )
 
 
 def load_inbound_store_config(raw_config: dict[str, Any]) -> InboundStoreConfig:

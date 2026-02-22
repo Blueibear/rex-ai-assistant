@@ -12,6 +12,7 @@ Security:
 - Secrets (auth token) are never logged.
 - All external input is treated as untrusted; phone numbers and body are
   stored as-is but never interpolated into logs at INFO level.
+- Rate limiting is applied when a Flask-Limiter instance is provided.
 
 The blueprint is registered with the main Flask app at startup only when
 ``messaging.inbound.enabled`` is ``true`` in the runtime config.
@@ -78,6 +79,8 @@ def create_inbound_sms_blueprint(
     inbound_store: InboundSmsStore,
     raw_config: dict[str, Any] | None = None,
     signature_verification: bool = True,
+    limiter: Any | None = None,
+    rate_limit_string: str = "120 per minute",
 ) -> Blueprint:
     """Create and configure the inbound SMS webhook blueprint.
 
@@ -91,6 +94,10 @@ def create_inbound_sms_blueprint(
         raw_config: Full runtime config dict for account routing.
         signature_verification: Whether to enforce Twilio signature
             verification.  Should only be ``False`` in local dev.
+        limiter: Optional Flask-Limiter instance.  When provided the
+            webhook route is decorated with the given *rate_limit_string*.
+        rate_limit_string: Rate limit specification in Flask-Limiter format
+            (default: ``"120 per minute"``).
 
     Returns:
         A configured Flask Blueprint ready to be registered.
@@ -102,7 +109,18 @@ def create_inbound_sms_blueprint(
     )
     phone_map = _build_account_phone_map(raw_config or {})
 
-    @bp.route("/sms", methods=["POST"])
+    # Build rate-limit decorator (no-op when limiter is not available)
+    if limiter is not None and rate_limit_string:
+        try:
+            _rate_decorator = limiter.limit(rate_limit_string)
+        except Exception:
+            logger.warning(
+                "Failed to create rate limit decorator; proceeding without rate limiting"
+            )
+            _rate_decorator = None
+    else:
+        _rate_decorator = None
+
     def receive_sms() -> Response:
         """Handle an inbound SMS from Twilio."""
         # --- Signature verification ---
@@ -168,6 +186,13 @@ def create_inbound_sms_blueprint(
             status=200,
             content_type=_TWIML_CONTENT_TYPE,
         )
+
+    # Apply rate-limit decorator before registering the route so that
+    # Flask-Limiter wraps the view function correctly.
+    if _rate_decorator is not None:
+        receive_sms = _rate_decorator(receive_sms)
+
+    bp.add_url_rule("/sms", "receive_sms", receive_sms, methods=["POST"])
 
     return bp
 

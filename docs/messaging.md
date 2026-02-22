@@ -280,6 +280,18 @@ For inbound messages received via webhook, routing is automatic: the `To` number
 
 ## Inbound SMS Webhook
 
+### Hosting
+
+The inbound SMS webhook is hosted by `flask_proxy.py` (the main dashboard/proxy Flask app). At startup, the app calls `register_inbound_sms_webhook()` which:
+
+1. Reads `messaging.inbound` from `config/rex_config.json`
+2. If `enabled` is `true`, resolves the Twilio auth token via `CredentialManager`
+3. Initializes the SQLite inbound store
+4. Creates and registers the webhook Flask blueprint with rate limiting
+5. The endpoint becomes available at `POST /webhooks/twilio/sms`
+
+If `enabled` is `false` (the default), no route is registered and no network exposure is added.
+
 ### How It Works
 
 1. Twilio sends a POST request to `/webhooks/twilio/sms` when an SMS is received
@@ -293,6 +305,42 @@ For inbound messages received via webhook, routing is automatic: the `To` number
 - **Signature verification**: All requests are verified using Twilio's HMAC-SHA1 algorithm. Requests with invalid or missing signatures are rejected with HTTP 403.
 - **No secrets logged**: Auth tokens are never logged. Phone numbers and message bodies are logged at DEBUG level only.
 - **No bypass for localhost**: Signature verification applies equally to all source addresses.
+- **Rate limiting**: The webhook endpoint is rate-limited via Flask-Limiter (default: `120 per minute`). Configurable via `messaging.inbound.rate_limit`. Requests exceeding the limit receive HTTP 429.
+
+### Rate Limiting
+
+The webhook rate limit is configurable via `messaging.inbound.rate_limit` in `config/rex_config.json`:
+
+```json
+{
+  "messaging": {
+    "inbound": {
+      "enabled": true,
+      "rate_limit": "120 per minute"
+    }
+  }
+}
+```
+
+The format follows Flask-Limiter syntax (e.g., `"60 per minute"`, `"10 per second"`). If Flask-Limiter is not installed, rate limiting is skipped gracefully.
+
+### Reverse Proxy Requirements
+
+When running behind a reverse proxy (nginx, Caddy, Cloudflare Tunnel, etc.), Twilio signature verification requires that `request.url` matches the externally visible webhook URL exactly. To ensure this:
+
+1. Configure Werkzeug `ProxyFix` middleware or set trusted proxy headers so Flask reconstructs the correct scheme, host, and path.
+2. Set `REX_TRUSTED_PROXIES` to include your proxy's IP addresses (comma-separated, default: `127.0.0.1,::1`).
+3. The URL configured in the Twilio console (e.g., `https://yourdomain.example.com/webhooks/twilio/sms`) must match the URL Flask sees after proxy header processing.
+
+If signature verification fails behind a proxy, the most common cause is a scheme mismatch (`http` vs `https`) or a missing `X-Forwarded-Proto` header.
+
+### Doctor Validation
+
+Run `python scripts/doctor.py` to validate inbound webhook readiness:
+
+- If inbound is disabled: reports PASS (expected default).
+- If inbound is enabled and auth token is resolved: reports PASS.
+- If inbound is enabled but auth token is missing: reports WARN with credential ref hint.
 
 ### Local Dev Simulation
 
@@ -310,12 +358,25 @@ To test inbound SMS locally without a real Twilio account:
    }
    ```
 
-2. Set a test auth token:
+2. Set a test auth token via `config/credentials.json`:
+   ```json
+   {
+     "credentials": {
+       "twilio:inbound": "test_token_for_dev"
+     }
+   }
+   ```
+
+   Or via environment variable:
    ```bash
    export REX_TWILIO_INBOUND="test_token_for_dev"
    ```
 
-3. Start the Flask app that registers the webhook blueprint.
+3. Start the Flask proxy app:
+   ```bash
+   python flask_proxy.py
+   ```
+   You should see a log line: `Inbound SMS webhook registered at /webhooks/twilio/sms`.
 
 4. Send a test POST:
    ```bash
@@ -324,7 +385,7 @@ To test inbound SMS locally without a real Twilio account:
      -d "MessageSid=SM0001&From=+15559999999&To=+15551111111&Body=Test"
    ```
 
-   Note: In production, signature verification must remain enabled. For local dev you can disable it via the blueprint configuration.
+   Note: In production, signature verification must remain enabled. The test above will return 403 unless a valid signature is provided. For local dev testing with the test client, use the test helpers in `tests/test_inbound_webhook_wiring.py`.
 
 5. Check received messages:
    ```bash
