@@ -11,7 +11,7 @@ import sys
 _repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
-from utils.env_loader import load as _load_env
+from utils.env_loader import load as _load_env  # noqa: E402
 
 _load_env()
 
