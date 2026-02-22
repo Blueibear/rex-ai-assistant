@@ -66,6 +66,12 @@ class TestComputeSignature:
         sig_b = compute_twilio_signature(_AUTH_TOKEN, _URL, params_b)
         assert sig_a == sig_b
 
+    def test_duplicate_params_supported(self) -> None:
+        """Duplicate form keys are handled deterministically."""
+        dup_params = [("MediaUrl", "a"), ("Body", "hello"), ("MediaUrl", "b")]
+        sig = compute_twilio_signature(_AUTH_TOKEN, _URL, dup_params)
+        assert validate_twilio_signature(_AUTH_TOKEN, _URL, dup_params, sig) is True
+
 
 class TestValidateSignature:
     """Tests for validate_twilio_signature."""

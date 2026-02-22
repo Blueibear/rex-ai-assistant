@@ -382,7 +382,7 @@ class SMSService(MessagingService):
                 if msg.id not in seen_ids:
                     seen_ids.add(msg.id)
                     merged.append(msg)
-            merged.sort(key=lambda m: m.timestamp, reverse=True)
+            merged.sort(key=lambda m: (m.timestamp, m.id), reverse=True)
             return merged[:limit]
 
         return primary
