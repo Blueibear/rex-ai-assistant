@@ -1,14 +1,15 @@
 # Windows Computer Control
 
-**Implementation Status: Client Foundation Only (Cycle 5.1)**
+**Implementation Status: Client Foundation + Agent Server (Cycle 5.1 + 5.3)**
 
-This document covers the client-side foundation for remote Windows computer
-control introduced in Phase 5, Cycle 5.1.  The Windows agent server is **not
-included yet** — that is Cycle 5.3.
+This document covers the full Windows computer control stack:
+- **Client** (`rex/computers/`) — queries the agent from any Rex host machine
+- **Agent server** (`rex/computers/agent_server.py`) — lightweight HTTP server
+  that runs on the Windows target machine and executes allowlisted commands
 
 ---
 
-## What exists now (Cycle 5.1)
+## What exists now
 
 | Component | Status |
 |-----------|--------|
@@ -16,20 +17,23 @@ included yet** — that is Cycle 5.3.
 | HTTP client (`AgentClient`) | Implemented |
 | High-level service (`ComputerService`) | Implemented |
 | CLI commands (`rex pc ...`) | Implemented |
+| Windows agent server | **Implemented (Cycle 5.3)** |
 | Offline tests | Implemented |
-| Windows agent server | **Not yet** (Cycle 5.3) |
 
 The client code lives in `rex/computers/`:
 
 - `config.py` — Pydantic v2 models for the `computers[]` config section
 - `client.py` — `AgentClient` HTTP client (uses `requests` or stdlib `urllib`)
 - `service.py` — `ComputerService` facade used by the CLI
+- `agent_server.py` — Flask HTTP agent server (Cycle 5.3)
+
+The agent entry-point script is `scripts/windows_agent.py`.
 
 ---
 
-## Expected agent endpoints (contract)
+## Agent API contract
 
-The client expects the following HTTP endpoints on the agent server.  All
+The client expects the following HTTP endpoints on the agent server. All
 requests include the `X-Auth-Token` header.
 
 ### `GET /health`
@@ -69,17 +73,86 @@ Response:
 {
   "exit_code": 0,
   "stdout": "DESKTOP-ABC\\alice\n",
-  "stderr": ""
+  "stderr": "",
+  "duration_ms": 42
 }
 ```
 
-The agent server is responsible for running only allowlisted commands on its
-side.  The client also enforces its own allowlist before making any network
-call.
+The `duration_ms` field is additional agent metadata; the Rex client ignores it
+but it is useful for debugging.
+
+Error responses (auth, allowlist, rate limit) use standard HTTP status codes:
+
+| Status | Meaning |
+|--------|---------|
+| 400 | Malformed request body |
+| 401 | Missing or invalid `X-Auth-Token` |
+| 403 | Command not on the agent-side allowlist |
+| 429 | Rate limit exceeded |
+
+Both the client and the agent enforce their own allowlists independently
+(defence in depth).
 
 ---
 
-## How to configure a computer entry
+## Running the agent on Windows
+
+### Quick start
+
+```powershell
+# 1. Install Rex (on the target machine)
+pip install rex-ai-assistant
+
+# 2. Set the auth token
+$env:REX_AGENT_TOKEN = "your-secret-token"
+
+# 3. Set the allowlist (comma-separated command names)
+$env:REX_AGENT_ALLOWLIST = "whoami,ipconfig,systeminfo"
+
+# 4. Start the agent
+rex-agent
+```
+
+Or without installing as a script:
+
+```powershell
+python scripts/windows_agent.py
+```
+
+### Configuration (environment variables)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REX_AGENT_TOKEN` | — | **Required.** Auth token for incoming requests. |
+| `REX_AGENT_TOKEN_ENV` | `REX_AGENT_TOKEN` | Name of the env var that holds the token (useful when the token is in a differently-named var). |
+| `REX_AGENT_HOST` | `127.0.0.1` | Bind address. Only change if you need network access (see security notes). |
+| `REX_AGENT_PORT` | `7777` | Listen port. |
+| `REX_AGENT_ALLOWLIST` | `whoami` | Comma-separated list of commands allowed for remote execution. |
+| `REX_AGENT_RATE_LIMIT` | `60` | Max requests per client IP per minute. Set `0` to disable. |
+| `REX_AGENT_TIMEOUT` | `30` | Subprocess execution timeout in seconds. |
+| `REX_AGENT_MAX_OUTPUT` | `65536` | Maximum bytes of stdout/stderr returned per `/run` call. |
+| `REX_LOG_LEVEL` | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`). |
+
+### curl examples
+
+```bash
+# Health check
+curl -H "X-Auth-Token: your-secret-token" http://127.0.0.1:7777/health
+
+# Host status
+curl -H "X-Auth-Token: your-secret-token" http://127.0.0.1:7777/status
+
+# Run a command
+curl -X POST \
+     -H "X-Auth-Token: your-secret-token" \
+     -H "Content-Type: application/json" \
+     -d '{"command":"whoami","args":[]}' \
+     http://127.0.0.1:7777/run
+```
+
+---
+
+## How to configure a computer entry (Rex client side)
 
 Add a `computers` array to `config/rex_config.json`:
 
@@ -93,7 +166,7 @@ Add a `computers` array to `config/rex_config.json`:
       "auth_token_ref": "PC_DESKTOP_TOKEN",
       "enabled": true,
       "allowlists": {
-        "commands": ["whoami", "dir", "ipconfig", "systeminfo"]
+        "commands": ["whoami", "ipconfig", "systeminfo"]
       },
       "connect_timeout": 5.0,
       "read_timeout": 30.0
@@ -142,56 +215,98 @@ rex pc run --id desktop --yes -- ipconfig
 
 ---
 
-## Security notes
+## Security model
 
 ### Tokens
 
 - Auth tokens are **never** stored in `config/rex_config.json`.
 - `auth_token_ref` is a lookup key; the actual token lives in `.env` or
   `config/credentials.json`.
-- Tokens are never logged — only the computer `id` and base URL hostname
+- The agent reads its token from an environment variable (never from disk
+  config that might be committed to source control).
+- Tokens are **never** logged — only the computer `id` and remote address
   appear in log output.
 
-### Allowlist enforcement
+### Allowlist enforcement (defence in depth)
 
-- `allowlists.commands` is enforced **client-side** before any HTTP request
-  is made.  A command not in the list raises `AllowlistDeniedError`
-  immediately, with no network activity.
-- `rex pc run` requires an explicit `--yes` flag as a high-risk safety guard
-  before any remote execution is attempted.
-- The agent server should enforce its own allowlist as well (defence in depth).
+Allowlists are enforced **twice**:
+
+1. **Client-side** (`rex/computers/service.py`): before any HTTP request is
+   made. A command not in the client list raises `AllowlistDeniedError`
+   immediately with no network activity.
+2. **Agent-side** (`rex/computers/agent_server.py`): at the HTTP endpoint
+   before any subprocess is spawned. A command not in the agent list returns
+   HTTP 403 and the subprocess is **never called**.
+
+### Subprocess safety
+
+- `subprocess.run` is called with `shell=False` — no shell injection possible.
+- The command payload must be a JSON array (`command` + `args`), not a string
+  passed to a shell.
+- Execution timeout is enforced; timed-out processes return exit code `-1` with
+  a descriptive message in `stderr`.
 
 ### Localhost recommendation
 
-The default `base_url` in the example config uses `http://127.0.0.1:7777`.
-For production use over a network, use HTTPS and a reverse proxy with TLS.
-Avoid exposing the agent port on public interfaces without authentication.
+The agent binds to `127.0.0.1` by default.  **Do not change `REX_AGENT_HOST`
+to `0.0.0.0` without placing the agent behind a TLS-terminating reverse proxy.**
+Token auth over plain HTTP on a non-loopback interface exposes the token to
+network eavesdroppers.
+
+### Reverse proxy guidance (optional)
+
+If you need to access the agent from a remote Rex host, the recommended setup is:
+
+1. **TLS termination** via nginx, Caddy, or a cloud load balancer.
+2. Keep the agent bound to `127.0.0.1` and proxy to it locally.
+3. Use `REX_AGENT_HOST=127.0.0.1` always; never expose the agent port on a
+   public interface.
+
+Example nginx snippet:
+
+```nginx
+server {
+    listen 7778 ssl;
+    ssl_certificate     /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+    location / {
+        proxy_pass http://127.0.0.1:7777;
+        proxy_set_header X-Auth-Token $http_x_auth_token;
+    }
+}
+```
+
+### Rate limiting
+
+The agent enforces a fixed-window per-IP rate limit (default: 60 req/min).
+Adjust with `REX_AGENT_RATE_LIMIT`. Set to `0` to disable (not recommended for
+network-exposed deployments).
 
 ### Disabled computers
 
 A computer with `"enabled": false` is excluded from `rex pc list` output and
-cannot be targeted by `rex pc status` or `rex pc run`.  This allows you to
-define computers in config without activating them.
-
----
-
-## Deferred items (Cycle 5.2 and 5.3)
-
-- **Cycle 5.2**: Policy / approval integration for `rex pc run` — wire into
-  the existing `policy_engine` so commands can be marked approval-required.
-  (Current mitigation: `rex pc run` requires explicit `--yes`.)
-- **Cycle 5.3**: Windows agent server — the lightweight HTTP server that runs
-  on the target Windows machine, processes requests, enforces server-side
-  allowlists, and streams command output.
-- **Future**: TLS / mTLS support, per-user computer access controls, audit
-  logging of remote command executions.
+cannot be targeted by `rex pc status` or `rex pc run`.
 
 ---
 
 ## Running the tests
 
-All tests are offline (no real network required):
+All tests are offline (no real network or subprocess required):
 
 ```bash
-pytest -q tests/test_computers.py
+# Run all computer-related tests
+pytest -q tests/test_computers.py tests/test_windows_agent.py
+
+# Or the full suite
+pytest -q
 ```
+
+---
+
+## Deferred items (future cycles)
+
+- **Cycle 5.2**: Policy / approval integration for `rex pc run` — wire into
+  the existing `policy_engine` so commands can be marked approval-required.
+  (Current mitigation: `rex pc run` requires explicit `--yes`.)
+- **Future**: TLS / mTLS support, per-user computer access controls, persistent
+  audit log to file, Windows Service wrapper for the agent.
