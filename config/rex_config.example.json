@@ -117,5 +117,24 @@
   },
   "ui": {
     "start_minimized": false
-  }
+  },
+  "computers": [
+    {
+      "id": "desktop",
+      "label": "Main Desktop",
+      "base_url": "http://127.0.0.1:7777",
+      "auth_token_ref": "PC_DESKTOP_TOKEN",
+      "enabled": true,
+      "allowlists": {
+        "commands": [
+          "whoami",
+          "dir",
+          "ipconfig",
+          "systeminfo"
+        ]
+      },
+      "connect_timeout": 5.0,
+      "read_timeout": 30.0
+    }
+  ]
 }

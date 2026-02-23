@@ -22,6 +22,7 @@ This module provides the main CLI entry point with subcommands:
     rex code         - VS Code operations
     rex msg          - Messaging (SMS)
     rex notify       - Notifications
+    rex pc           - Remote Windows computer control (agent API, client-only foundation)
 
 Usage:
     rex [command] [options]
@@ -2204,6 +2205,140 @@ def cmd_notify(args: argparse.Namespace) -> int:
     return 1
 
 
+def get_computer_service():
+    from rex.computers.service import get_computer_service as _get_computer_service
+
+    return _get_computer_service()
+
+
+def cmd_pc(args: argparse.Namespace) -> int:
+    """Manage remote Windows computers via the agent API."""
+    subcommand = args.pc_command
+
+    if subcommand == "list":
+        from rex.computers.service import get_computer_service as _svc
+
+        include_disabled = getattr(args, "all", False)
+        service = _svc()
+        computers = service.list_computers(include_disabled=include_disabled)
+
+        if not computers:
+            if include_disabled:
+                print("No computers configured.")
+            else:
+                print("No enabled computers configured.")
+                print("Use 'rex pc list --all' to include disabled entries.")
+            return 0
+
+        print("Configured Computers")
+        print("=" * 60)
+        print()
+
+        for c in computers:
+            status_tag = "[ENABLED]" if c.enabled else "[DISABLED]"
+            label = f" ({c.label})" if c.label else ""
+            print(f"{c.id}{label}  {status_tag}")
+            print(f"  URL: {c.base_url}")
+            if c.allowed_commands:
+                print(f"  Allowed commands: {', '.join(c.allowed_commands)}")
+            else:
+                print("  Allowed commands: (none configured)")
+            print()
+
+        enabled = sum(1 for c in computers if c.enabled)
+        print(f"Total: {len(computers)} computer(s), {enabled} enabled")
+        return 0
+
+    if subcommand == "status":
+        from rex.computers.service import (
+            ComputerDisabledError,
+            ComputerNotFoundError,
+            MissingTokenError,
+        )
+        from rex.computers.service import (
+            get_computer_service as _svc,
+        )
+
+        computer_id = args.id
+        service = _svc()
+
+        try:
+            result = service.status(computer_id)
+        except ComputerNotFoundError as e:
+            print(f"Error: {e}")
+            return 1
+        except ComputerDisabledError as e:
+            print(f"Error: {e}")
+            return 1
+        except MissingTokenError as e:
+            print(f"Error: {e}")
+            return 1
+
+        if not result.ok:
+            print(f"Error: Could not reach computer {computer_id!r}: {result.error}")
+            return 1
+
+        print(f"Status: {computer_id}")
+        print("=" * 60)
+        print(f"  Hostname : {result.hostname}")
+        print(f"  OS       : {result.os}")
+        print(f"  User     : {result.user}")
+        print(f"  Time     : {result.time}")
+        return 0
+
+    if subcommand == "run":
+        from rex.computers.service import (
+            AllowlistDeniedError,
+            ComputerDisabledError,
+            ComputerNotFoundError,
+            MissingTokenError,
+        )
+        from rex.computers.service import (
+            get_computer_service as _svc,
+        )
+
+        computer_id = args.id
+        # args.cmd is a list from argparse nargs=argparse.REMAINDER
+        cmd_parts = list(args.cmd)
+        if not cmd_parts:
+            print("Error: No command specified. Usage: rex pc run --id <id> -- <command> [args]")
+            return 1
+
+        command = cmd_parts[0]
+        cmd_args = cmd_parts[1:] if len(cmd_parts) > 1 else []
+
+        service = _svc()
+
+        try:
+            result = service.run(computer_id, command, args=cmd_args)
+        except ComputerNotFoundError as e:
+            print(f"Error: {e}")
+            return 1
+        except ComputerDisabledError as e:
+            print(f"Error: {e}")
+            return 1
+        except MissingTokenError as e:
+            print(f"Error: {e}")
+            return 1
+        except AllowlistDeniedError as e:
+            print(f"Error: {e}")
+            return 1
+
+        if result.stdout:
+            print(result.stdout, end="")
+        if result.stderr:
+            print(result.stderr, end="", file=sys.stderr)
+
+        if not result.ok and result.error:
+            print(f"Error: {result.error}")
+            return 1
+
+        return result.exit_code if result.exit_code >= 0 else (0 if result.ok else 1)
+
+    print("Unknown pc subcommand. Use 'rex pc --help'")
+    return 1
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser with all subcommands."""
     parser = argparse.ArgumentParser(
@@ -2264,6 +2399,13 @@ Calendar commands:
   rex calendar upcoming
   rex calendar upcoming --days 14
   rex calendar upcoming --conflicts
+
+Computer commands:
+  rex pc list
+  rex pc list --all
+  rex pc status --id desktop
+  rex pc run --id desktop -- whoami
+  rex pc run --id desktop -- ipconfig
 
 For more information, visit: https://github.com/Blueibear/rex-ai-assistant
 """,
@@ -3214,6 +3356,61 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     code_test.set_defaults(func=cmd_code, code_command="test")
 
     code_parser.set_defaults(func=cmd_code, code_command="open")
+
+    # pc (Windows computer control)
+    pc_parser = subparsers.add_parser(
+        "pc",
+        help="Manage remote Windows computers via the agent API (client-only foundation)",
+        description=(
+            "Control remote Windows computers through a lightweight agent API. "
+            "Requires the Rex agent server to be running on the target machine (Cycle 5.3). "
+            "All commands are allowlist-checked client-side before any network call is made."
+        ),
+    )
+    pc_subparsers = pc_parser.add_subparsers(
+        title="pc commands",
+        dest="pc_command",
+        metavar="COMMAND",
+    )
+
+    pc_list = pc_subparsers.add_parser(
+        "list",
+        help="List configured computers",
+        description="Show all configured remote computers and their status.",
+    )
+    pc_list.add_argument(
+        "--all",
+        action="store_true",
+        help="Include disabled computers in the listing",
+    )
+    pc_list.set_defaults(func=cmd_pc, pc_command="list")
+
+    pc_status = pc_subparsers.add_parser(
+        "status",
+        help="Check agent status on a remote computer",
+        description="Query the agent API for host information (hostname, OS, user, time).",
+    )
+    pc_status.add_argument("--id", type=str, required=True, help="Computer ID from config")
+    pc_status.set_defaults(func=cmd_pc, pc_command="status")
+
+    pc_run = pc_subparsers.add_parser(
+        "run",
+        help="Run an allowlisted command on a remote computer",
+        description=(
+            "Execute a command on a remote computer via the agent API. "
+            "The command must appear in the computer's allowlists.commands config. "
+            "Use '--' to separate the rex options from the remote command and its arguments."
+        ),
+    )
+    pc_run.add_argument("--id", type=str, required=True, help="Computer ID from config")
+    pc_run.add_argument(
+        "cmd",
+        nargs=argparse.REMAINDER,
+        help="Command and arguments to run on the remote computer (e.g. -- whoami)",
+    )
+    pc_run.set_defaults(func=cmd_pc, pc_command="run")
+
+    pc_parser.set_defaults(func=cmd_pc, pc_command="list")
 
     return parser
 

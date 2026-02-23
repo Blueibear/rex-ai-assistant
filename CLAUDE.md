@@ -61,6 +61,7 @@ Notable subpackages:
 - `rex/dashboard_store.py` - SQLite-backed dashboard notification store (write/read/query/retention)
 - `rex/identity.py` - session-scoped user identity resolution (fallback when voice recognition is unavailable)
 - `rex/voice_identity/` - voice speaker recognition scaffolding (types, embeddings store, recognizer, fallback flow, optional dep guards)
+- `rex/computers/` - Windows computer control client foundation (config, HTTP client, service; Cycle 5.1)
 
 ## Commands
 
@@ -200,6 +201,31 @@ Notable subpackages:
 - `notifications.dashboard.store.retention_days`: days to retain (default: 30)
 - Dashboard API endpoints: `GET /api/notifications`, `POST /api/notifications/<id>/read`, `POST /api/notifications/read-all`
 - Dashboard store code: `rex/dashboard_store.py`
+
+## Windows computer control config keys (Cycle 5.1 client foundation)
+- `computers[]`: list of remote computer entries; each entry has:
+  - `id`: unique identifier string (e.g. `"desktop"`)
+  - `label`: human-friendly name (optional, default `""`)
+  - `base_url`: http(s) URL of the agent API on the remote machine (e.g. `"http://127.0.0.1:7777"`)
+  - `auth_token_ref`: CredentialManager lookup key for the bearer token — **never store the token in config**; put it in `.env` or `config/credentials.json`
+  - `enabled`: `true` (default) — disabled computers are hidden from list output and cannot be targeted
+  - `allowlists.commands[]`: list of command names permitted for remote execution (enforced client-side before any network call)
+  - `connect_timeout`: connection timeout in seconds (default `5.0`)
+  - `read_timeout`: read timeout in seconds (default `30.0`)
+- Computer client code lives in `rex/computers/` (config, client, service).
+- Docs: `docs/computers.md`
+
+## Windows computer control CLI commands (Cycle 5.1 client foundation)
+- `rex pc list` — list enabled computers
+- `rex pc list --all` — list all computers including disabled
+- `rex pc status --id <id>` — query agent for host info (hostname, OS, user, time)
+- `rex pc run --id <id> -- <command> [args]` — run an allowlisted command on the remote computer
+
+Safety rules:
+- `allowlists.commands` is enforced **client-side** before any network call.
+- Auth tokens are resolved via `CredentialManager` from `auth_token_ref`; tokens are never logged.
+- Disabled computers produce a clear error; unknown IDs produce a clear error.
+- All tests are offline (fake in-process HTTP server; no real network calls).
 
 ## Integration testing rules
 - Integration tests must not require real network credentials.
