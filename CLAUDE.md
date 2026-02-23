@@ -219,12 +219,13 @@ Notable subpackages:
 - `rex pc list` — list enabled computers
 - `rex pc list --all` — list all computers including disabled
 - `rex pc status --id <id>` — query agent for host info (hostname, OS, user, time)
-- `rex pc run --id <id> -- <command> [args]` — run an allowlisted command on the remote computer
+- `rex pc run --id <id> --yes -- <command> [args]` — run an allowlisted command on the remote computer (explicit high-risk confirmation required)
 
 Safety rules:
 - `allowlists.commands` is enforced **client-side** before any network call.
 - Auth tokens are resolved via `CredentialManager` from `auth_token_ref`; tokens are never logged.
 - Disabled computers produce a clear error; unknown IDs produce a clear error.
+- `rex pc run` requires explicit `--yes` confirmation before remote execution.
 - All tests are offline (fake in-process HTTP server; no real network calls).
 
 ## Integration testing rules

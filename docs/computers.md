@@ -135,9 +135,9 @@ The `auth_token_ref` value (`PC_DESKTOP_TOKEN`) is looked up via
 rex pc list                         # show enabled computers
 rex pc list --all                   # include disabled computers
 rex pc status --id <id>             # query agent for host info
-rex pc run --id <id> -- <cmd>       # run an allowlisted command
-rex pc run --id desktop -- whoami
-rex pc run --id desktop -- ipconfig
+rex pc run --id <id> --yes -- <cmd> # run an allowlisted command
+rex pc run --id desktop --yes -- whoami
+rex pc run --id desktop --yes -- ipconfig
 ```
 
 ---
@@ -157,6 +157,8 @@ rex pc run --id desktop -- ipconfig
 - `allowlists.commands` is enforced **client-side** before any HTTP request
   is made.  A command not in the list raises `AllowlistDeniedError`
   immediately, with no network activity.
+- `rex pc run` requires an explicit `--yes` flag as a high-risk safety guard
+  before any remote execution is attempted.
 - The agent server should enforce its own allowlist as well (defence in depth).
 
 ### Localhost recommendation
@@ -177,6 +179,7 @@ define computers in config without activating them.
 
 - **Cycle 5.2**: Policy / approval integration for `rex pc run` — wire into
   the existing `policy_engine` so commands can be marked approval-required.
+  (Current mitigation: `rex pc run` requires explicit `--yes`.)
 - **Cycle 5.3**: Windows agent server — the lightweight HTTP server that runs
   on the target Windows machine, processes requests, enforces server-side
   allowlists, and streams command output.

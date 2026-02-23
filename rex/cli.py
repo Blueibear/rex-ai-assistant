@@ -2307,6 +2307,11 @@ def cmd_pc(args: argparse.Namespace) -> int:
         command = cmd_parts[0]
         cmd_args = cmd_parts[1:] if len(cmd_parts) > 1 else []
 
+        if not getattr(args, "yes", False):
+            print("Refusing to run remote command without explicit confirmation.")
+            print("Remote execution is high-risk. Re-run with '--yes' if you intend to proceed.")
+            return 1
+
         service = _svc()
 
         try:
@@ -2404,8 +2409,8 @@ Computer commands:
   rex pc list
   rex pc list --all
   rex pc status --id desktop
-  rex pc run --id desktop -- whoami
-  rex pc run --id desktop -- ipconfig
+  rex pc run --id desktop --yes -- whoami
+  rex pc run --id desktop --yes -- ipconfig
 
 For more information, visit: https://github.com/Blueibear/rex-ai-assistant
 """,
@@ -3399,10 +3404,16 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         description=(
             "Execute a command on a remote computer via the agent API. "
             "The command must appear in the computer's allowlists.commands config. "
+            "Use --yes to explicitly confirm high-risk remote execution. "
             "Use '--' to separate the rex options from the remote command and its arguments."
         ),
     )
     pc_run.add_argument("--id", type=str, required=True, help="Computer ID from config")
+    pc_run.add_argument(
+        "--yes",
+        action="store_true",
+        help="Confirm you want to execute a high-risk remote command",
+    )
     pc_run.add_argument(
         "cmd",
         nargs=argparse.REMAINDER,
