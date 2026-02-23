@@ -156,10 +156,29 @@ class InboundSmsStore:
         self._init_db()
 
     def _init_db(self) -> None:
-        """Create the table and indexes if they do not exist."""
+        """Create the table and indexes if they do not exist.
+
+        Also runs lightweight migrations for columns added after the
+        initial schema (e.g. ``user_id``).  Each migration is idempotent
+        and safe to re-run.
+        """
         with self._connect() as conn:
             conn.execute(_CREATE_TABLE_SQL)
             conn.execute(_CREATE_INDEX_SQL)
+            self._migrate_add_user_id(conn)
+
+    @staticmethod
+    def _migrate_add_user_id(conn: sqlite3.Connection) -> None:
+        """Add ``user_id`` column if the table was created before it existed.
+
+        Uses ``PRAGMA table_info`` to detect the column; the ALTER TABLE
+        is only executed when the column is absent.  This keeps the
+        migration idempotent and safe for concurrent opens.
+        """
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(inbound_sms)").fetchall()}
+        if "user_id" not in columns:
+            conn.execute("ALTER TABLE inbound_sms ADD COLUMN user_id TEXT")
+            logger.info("Migrated inbound_sms: added user_id column")
 
     @contextmanager
     def _connect(self) -> Generator[sqlite3.Connection, None, None]:

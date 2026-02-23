@@ -41,27 +41,45 @@ _TWIML_CONTENT_TYPE = "text/xml"
 _EMPTY_TWIML = '<?xml version="1.0" encoding="UTF-8"?><Response/>'
 
 
-def _build_account_phone_map(raw_config: dict[str, Any]) -> dict[str, str]:
-    """Build a mapping of normalized phone number -> account ID.
+class _AccountPhoneMapping:
+    """Phone-number to account-ID and owner-user-ID lookup tables."""
+
+    __slots__ = ("phone_to_account", "phone_to_user")
+
+    def __init__(
+        self,
+        phone_to_account: dict[str, str],
+        phone_to_user: dict[str, str],
+    ) -> None:
+        self.phone_to_account = phone_to_account
+        self.phone_to_user = phone_to_user
+
+
+def _build_account_phone_map(raw_config: dict[str, Any]) -> _AccountPhoneMapping:
+    """Build mappings of normalized phone number -> account ID / user ID.
 
     Args:
         raw_config: Full runtime config dict.
 
     Returns:
-        Dict mapping ``from_number`` to ``account.id`` for each configured
-        messaging account.
+        An ``_AccountPhoneMapping`` with both account and user lookups.
     """
-    mapping: dict[str, str] = {}
+    phone_to_account: dict[str, str] = {}
+    phone_to_user: dict[str, str] = {}
     messaging = raw_config.get("messaging", {})
     if not isinstance(messaging, dict):
-        return mapping
+        return _AccountPhoneMapping(phone_to_account, phone_to_user)
     for acct in messaging.get("accounts", []):
         if isinstance(acct, dict):
             number = acct.get("from_number", "")
             acct_id = acct.get("id", "")
             if number and acct_id:
-                mapping[_normalize_phone(number)] = acct_id
-    return mapping
+                normalized = _normalize_phone(number)
+                phone_to_account[normalized] = acct_id
+                owner = acct.get("owner_user_id")
+                if owner:
+                    phone_to_user[normalized] = owner
+    return _AccountPhoneMapping(phone_to_account, phone_to_user)
 
 
 def _normalize_phone(number: str) -> str:
@@ -107,7 +125,7 @@ def create_inbound_sms_blueprint(
         __name__,
         url_prefix="/webhooks/twilio",
     )
-    phone_map = _build_account_phone_map(raw_config or {})
+    mapping = _build_account_phone_map(raw_config or {})
 
     # Build rate-limit decorator (no-op when limiter is not available)
     if limiter is not None and rate_limit_string:
@@ -150,8 +168,11 @@ def create_inbound_sms_blueprint(
 
         # --- Route to account by To number ---
         normalized_to = _normalize_phone(to_number)
-        account_id = phone_map.get(normalized_to)
+        account_id = mapping.phone_to_account.get(normalized_to)
         routed = account_id is not None
+
+        # Resolve owner user_id from account mapping
+        user_id = mapping.phone_to_user.get(normalized_to)
 
         if not routed:
             logger.warning(
@@ -166,6 +187,7 @@ def create_inbound_sms_blueprint(
             to_number=to_number,
             body=body,
             account_id=account_id,
+            user_id=user_id,
             routed=routed,
         )
 

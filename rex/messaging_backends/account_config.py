@@ -16,7 +16,8 @@ Example config fragment::
             "id": "primary",
             "label": "Main Twilio",
             "from_number": "+15551234567",
-            "credential_ref": "twilio:primary"
+            "credential_ref": "twilio:primary",
+            "owner_user_id": "alice"
           }
         ],
         "inbound": {
@@ -54,6 +55,13 @@ class MessagingAccountConfig(BaseModel):
         description=(
             "Key used to look up credentials via CredentialManager. "
             "The credential token is expected to be in 'account_sid:auth_token' format."
+        ),
+    )
+    owner_user_id: str | None = Field(
+        default=None,
+        description=(
+            "User profile ID that owns this account. Inbound SMS received "
+            "on this account's from_number will be tagged with this user_id."
         ),
     )
 

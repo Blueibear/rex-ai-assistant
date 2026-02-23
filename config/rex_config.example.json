@@ -82,7 +82,15 @@
   "messaging": {
     "backend": "stub",
     "default_account_id": null,
-    "accounts": [],
+    "accounts": [
+      {
+        "id": "primary",
+        "label": "",
+        "from_number": "+15551234567",
+        "credential_ref": "twilio:primary",
+        "owner_user_id": null
+      }
+    ],
     "inbound": {
       "enabled": false,
       "auth_token_ref": "twilio:inbound",
