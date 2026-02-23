@@ -15,6 +15,7 @@ Coverage targets
 
 from __future__ import annotations
 
+import argparse
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -23,6 +24,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from rex.cli import cmd_pc
 from rex.computers.client import AUTH_HEADER, AgentClient
 from rex.computers.config import (
     ComputerAllowlists,
@@ -328,10 +330,13 @@ class TestAllowlistEnforcement:
 
     def test_disallowed_command_raises_before_network(self) -> None:
         svc = _make_service([_make_config(commands=["whoami"])])
-        # We patch the client to ensure no network call happens.
-        # If the allowlist check fires first, the exception appears immediately.
+        # Ensure allowlist deny happens before any client creation/network attempt.
+        svc._make_client = MagicMock()  # type: ignore[method-assign]
+
         with pytest.raises(AllowlistDeniedError, match="del"):
             svc.run("desktop", "del")
+
+        svc._make_client.assert_not_called()  # type: ignore[union-attr]
 
     def test_empty_allowlist_blocks_everything(self) -> None:
         svc = _make_service([_make_config(commands=[])])
@@ -579,3 +584,35 @@ class TestComputerServiceWithFakeServer:
 
         with pytest.raises(AllowlistDeniedError):
             svc.run("desktop", "rm")
+
+
+class TestPcCliSafetyGuard:
+    def test_run_requires_yes_flag(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        get_service = MagicMock()
+        monkeypatch.setattr("rex.computers.service.get_computer_service", get_service)
+
+        args = argparse.Namespace(pc_command="run", id="desktop", cmd=["whoami"], yes=False)
+        code = cmd_pc(args)
+
+        assert code == 1
+        get_service.assert_not_called()
+        out = capsys.readouterr().out
+        assert "without explicit confirmation" in out
+        assert "--yes" in out
+
+    def test_run_with_yes_calls_service(self) -> None:
+        service = MagicMock()
+        service.run.return_value = type(
+            "RunResult", (), {"stdout": "", "stderr": "", "ok": True, "error": None, "exit_code": 0}
+        )()
+
+        from unittest.mock import patch
+
+        args = argparse.Namespace(pc_command="run", id="desktop", cmd=["whoami"], yes=True)
+        with patch("rex.computers.service.get_computer_service", return_value=service):
+            code = cmd_pc(args)
+
+        assert code == 0
+        service.run.assert_called_once_with("desktop", "whoami", args=[])
