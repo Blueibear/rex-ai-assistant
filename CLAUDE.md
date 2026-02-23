@@ -204,6 +204,7 @@ Notable subpackages:
 ## Integration testing rules
 - Integration tests must not require real network credentials.
 - Use deterministic mocks/fixtures/fake transports for IMAP/SMTP/Twilio/ICS.
+- When mocking HTTPS URL fetches, also mock `socket.getaddrinfo` (used by SSRF validation) so the test does not depend on DNS resolution.
 - Add both success and failure-path tests for each backend adapter.
 - Never log raw secrets (tokens, passwords, app passwords, OAuth refresh tokens).
 

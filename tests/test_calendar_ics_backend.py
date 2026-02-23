@@ -238,8 +238,13 @@ class TestICSCalendarBackend:
         mock_response.text = ics_text
         mock_response.raise_for_status = MagicMock()
 
-        # requests is imported inside _fetch_url, so patch at the top level
-        with patch("requests.get", return_value=mock_response) as mock_get:
+        # Mock both DNS resolution (SSRF check) and the HTTP request itself
+        # so the test stays fully offline.
+        fake_addrinfo = [(0, 0, 0, "", ("93.184.216.34", 0))]
+        with (
+            patch("socket.getaddrinfo", return_value=fake_addrinfo),
+            patch("requests.get", return_value=mock_response) as mock_get,
+        ):
             backend = ICSCalendarBackend(
                 source="https://example.com/calendar.ics",
                 url_timeout=10,
