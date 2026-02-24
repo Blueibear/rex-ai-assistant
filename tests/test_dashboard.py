@@ -695,3 +695,163 @@ class TestNotificationEndpoints:
         finally:
             os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "1"
             set_dashboard_store(None)
+
+
+class TestNotificationsInboxUI:
+    """Tests for the notification inbox UI page and end-to-end API integration."""
+
+    def test_notifications_page_returns_html(self, app_client):
+        """GET /dashboard/notifications returns 200 with HTML."""
+        client, _ = app_client
+
+        response = client.get(
+            "/dashboard/notifications",
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200
+        assert b"<!DOCTYPE html>" in response.data
+
+    def test_notifications_page_contains_inbox_markup(self, app_client):
+        """The notifications page contains the inbox section markup."""
+        client, _ = app_client
+
+        response = client.get(
+            "/dashboard/notifications",
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200
+        # Key section and filter elements must be present in the SPA template
+        assert b"notifications-section" in response.data
+        assert b"notif-list" in response.data
+        assert b"notif-filter-unread" in response.data
+        assert b"notif-filter-priority" in response.data
+        assert b"notif-filter-channel" in response.data
+        assert b"mark-all-read-btn" in response.data
+
+    def test_notifications_ui_does_not_require_auth_at_html_level(self, app_client):
+        """The HTML page itself is served without auth (auth is enforced at API level)."""
+        client, _ = app_client
+
+        os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "0"
+        try:
+            response = client.get(
+                "/dashboard/notifications",
+                environ_overrides={"REMOTE_ADDR": "8.8.8.8"},
+            )
+            # HTML page is always served; auth is only required for /api/* endpoints
+            assert response.status_code == 200
+            assert b"<!DOCTYPE html>" in response.data
+        finally:
+            os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "1"
+
+    def test_notifications_api_requires_auth_remote(self, app_client, tmp_path):
+        """API endpoint /api/notifications requires auth from remote addresses."""
+        client, _ = app_client
+        store = DashboardStore(db_path=tmp_path / "notif_ui_auth.db")
+        set_dashboard_store(store)
+
+        try:
+            os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "0"
+            response = client.get(
+                "/api/notifications",
+                environ_overrides={"REMOTE_ADDR": "8.8.8.8"},
+            )
+            assert response.status_code == 401
+        finally:
+            os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "1"
+            set_dashboard_store(None)
+
+    def test_mark_read_end_to_end(self, app_client, auth_headers, tmp_path):
+        """Mark-read action end-to-end through the Flask app updates store state."""
+        client, _ = app_client
+        store = DashboardStore(db_path=tmp_path / "notif_ui_mark_read.db")
+        store.write(notification_id="ui_e2e_1", title="E2E test", body="body", user_id="james")
+        set_dashboard_store(store)
+
+        try:
+            resp = client.post(
+                "/api/notifications/ui_e2e_1/read",
+                headers=auth_headers,
+                environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+            )
+            assert resp.status_code == 200
+            assert resp.get_json()["read"] is True
+
+            # Verify persisted in store
+            notifs = store.query_recent(limit=10)
+            notif = next((n for n in notifs if n.id == "ui_e2e_1"), None)
+            assert notif is not None
+            assert notif.read is True
+        finally:
+            set_dashboard_store(None)
+
+    def test_mark_all_read_end_to_end(self, app_client, auth_headers, tmp_path):
+        """Mark-all-read action end-to-end through the Flask app updates store state."""
+        client, _ = app_client
+        store = DashboardStore(db_path=tmp_path / "notif_ui_mark_all.db")
+        store.write(notification_id="ui_e2e_a", title="A", body="a", user_id="alice")
+        store.write(notification_id="ui_e2e_b", title="B", body="b", user_id="alice")
+        store.write(notification_id="ui_e2e_c", title="C", body="c", user_id="bob")
+        set_dashboard_store(store)
+
+        try:
+            resp = client.post(
+                "/api/notifications/read-all?user_id=alice",
+                headers=auth_headers,
+                environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+            )
+            assert resp.status_code == 200
+            assert resp.get_json()["marked_read"] == 2
+
+            # Bob's notification must remain unread
+            assert store.count_unread(user_id="bob") == 1
+        finally:
+            set_dashboard_store(None)
+
+    def test_list_notifications_with_unread_filter(self, app_client, auth_headers, tmp_path):
+        """Unread filter returns only unread notifications."""
+        client, _ = app_client
+        store = DashboardStore(db_path=tmp_path / "notif_ui_unread.db")
+        store.write(notification_id="unread_1", title="Unread", body="b1")
+        store.write(notification_id="unread_2", title="Unread2", body="b2")
+        # mark one as read
+        store.mark_as_read("unread_1")
+        set_dashboard_store(store)
+
+        try:
+            resp = client.get(
+                "/api/notifications?unread=true",
+                headers=auth_headers,
+                environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+            )
+            assert resp.status_code == 200
+            payload = resp.get_json()
+            ids = [n["id"] for n in payload["notifications"]]
+            assert "unread_2" in ids
+            assert "unread_1" not in ids
+        finally:
+            set_dashboard_store(None)
+
+    def test_list_notifications_with_priority_filter(self, app_client, auth_headers, tmp_path):
+        """Priority filter returns only matching notifications."""
+        client, _ = app_client
+        store = DashboardStore(db_path=tmp_path / "notif_ui_priority.db")
+        store.write(notification_id="p_urgent", priority="urgent", title="Urgent", body="u")
+        store.write(notification_id="p_normal", priority="normal", title="Normal", body="n")
+        set_dashboard_store(store)
+
+        try:
+            resp = client.get(
+                "/api/notifications?priority=urgent",
+                headers=auth_headers,
+                environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+            )
+            assert resp.status_code == 200
+            payload = resp.get_json()
+            ids = [n["id"] for n in payload["notifications"]]
+            assert "p_urgent" in ids
+            assert "p_normal" not in ids
+        finally:
+            set_dashboard_store(None)

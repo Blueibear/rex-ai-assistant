@@ -730,13 +730,186 @@ html, body {
     }
 }
 
+/* Notification Inbox Section */
+.notif-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 0.75rem 1rem;
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.notif-filter-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.notif-filter-item input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.notif-filter-select {
+    padding: 0.375rem 0.625rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    background-color: var(--surface-color);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.notif-filter-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.notif-summary {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    padding: 0 0.25rem;
+}
+
+.notif-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.notif-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+}
+
+.notif-item {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 0.875rem 1rem;
+    transition: border-color 0.15s ease;
+}
+
+.notif-item.unread {
+    border-left: 3px solid var(--primary-color);
+    background-color: rgba(59, 130, 246, 0.03);
+}
+
+.notif-item.read {
+    opacity: 0.75;
+}
+
+.notif-item-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.375rem;
+}
+
+.notif-priority-badge {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.notif-priority-urgent {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: var(--error-color);
+}
+
+.notif-priority-normal {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: var(--primary-color);
+}
+
+.notif-priority-digest {
+    background-color: rgba(107, 114, 128, 0.15);
+    color: var(--secondary-color);
+}
+
+.notif-channel {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.notif-timestamp {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-left: auto;
+}
+
+.notif-read-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.notif-mark-read-btn {
+    flex-shrink: 0;
+}
+
+.notif-item-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    margin-bottom: 0.25rem;
+}
+
+.notif-item-body {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Unread count badge on nav link */
+.notif-badge {
+    display: inline-block;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.25rem;
+    border-radius: 9999px;
+    background-color: var(--error-color);
+    color: white;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.25rem;
+    margin-left: 0.375rem;
+    vertical-align: middle;
+}
+
 /* Print styles */
 @media print {
     .sidebar,
     .mobile-nav,
     .chat-input-container,
     .save-bar,
-    .reminder-actions {
+    .reminder-actions,
+    .notif-filters,
+    .notif-mark-read-btn,
+    #mark-all-read-btn {
         display: none;
     }
 

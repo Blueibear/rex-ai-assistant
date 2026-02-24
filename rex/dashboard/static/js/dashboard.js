@@ -14,7 +14,12 @@
         settings: null,
         pendingSettings: {},
         chatHistory: [],
+        notifications: [],
+        notifFilters: { unread: false, priority: '', channel: '' },
     };
+
+    // Notification polling timer handle
+    let _notifPollTimer = null;
 
     // API helper
     async function api(endpoint, options = {}) {
@@ -102,6 +107,7 @@
         state.authenticated = false;
         localStorage.removeItem('rex_dashboard_token');
 
+        stopNotifPolling();
         showLogin();
     }
 
@@ -117,12 +123,29 @@
         hide('#login-screen');
         show('#dashboard-screen');
 
-        // Load initial data
-        switchSection(state.currentSection);
+        // Detect section from URL path so /dashboard/notifications deep-links correctly
+        const initialSection = _sectionFromPath(window.location.pathname);
+        switchSection(initialSection || state.currentSection);
+    }
+
+    function _sectionFromPath(pathname) {
+        const map = {
+            '/dashboard/notifications': 'notifications',
+            '/dashboard/reminders': 'reminders',
+            '/dashboard/settings': 'settings',
+            '/dashboard/status': 'status',
+            '/dashboard/chat': 'chat',
+        };
+        return map[pathname] || null;
     }
 
     // Section navigation
     function switchSection(sectionId) {
+        // Stop notification polling when leaving notifications section
+        if (state.currentSection === 'notifications' && sectionId !== 'notifications') {
+            stopNotifPolling();
+        }
+
         state.currentSection = sectionId;
 
         // Update nav links
@@ -145,6 +168,10 @@
                 break;
             case 'reminders':
                 loadReminders();
+                break;
+            case 'notifications':
+                loadNotifications();
+                startNotifPolling();
                 break;
             case 'status':
                 loadStatus();
@@ -541,6 +568,127 @@
         }
     }
 
+    // --- Notifications functionality ---
+
+    function _buildNotifParams() {
+        const params = new URLSearchParams();
+        params.set('limit', '200');
+        if (state.notifFilters.unread) {
+            params.set('unread', 'true');
+        }
+        if (state.notifFilters.priority) {
+            params.set('priority', state.notifFilters.priority);
+        }
+        return params.toString();
+    }
+
+    async function loadNotifications() {
+        const container = $('#notif-list');
+        if (!container) return;
+
+        try {
+            const qs = _buildNotifParams();
+            const data = await api(`/api/notifications?${qs}`);
+            state.notifications = data.notifications || [];
+            renderNotifications(state.notifications, data.unread_count);
+            updateNotifBadge(data.unread_count);
+        } catch (error) {
+            container.innerHTML = `<div class="error-message">Failed to load notifications: ${escapeHtml(error.message)}</div>`;
+        }
+    }
+
+    function renderNotifications(notifications, unreadCount) {
+        const container = $('#notif-list');
+        const summaryEl = $('#notif-summary');
+        if (!container) return;
+
+        // Apply client-side channel filter
+        const chanFilter = state.notifFilters.channel;
+        const filtered = chanFilter
+            ? notifications.filter(n => n.channel === chanFilter)
+            : notifications;
+
+        // Update summary
+        if (summaryEl) {
+            summaryEl.textContent = unreadCount > 0
+                ? `${unreadCount} unread notification${unreadCount !== 1 ? 's' : ''}`
+                : 'No unread notifications';
+        }
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="notif-empty">No notifications to display.</div>';
+            return;
+        }
+
+        container.innerHTML = filtered.map(n => {
+            const ts = n.timestamp ? new Date(n.timestamp).toLocaleString() : '';
+            const readClass = n.read ? 'read' : 'unread';
+            const priorityClass = `notif-priority-${escapeHtml(n.priority || 'normal')}`;
+            return `
+                <div class="notif-item ${readClass}" data-id="${escapeHtml(n.id)}">
+                    <div class="notif-item-header">
+                        <span class="notif-priority-badge ${priorityClass}">${escapeHtml(n.priority || 'normal')}</span>
+                        <span class="notif-channel">${escapeHtml(n.channel || '')}</span>
+                        <span class="notif-timestamp">${escapeHtml(ts)}</span>
+                        ${!n.read ? `
+                            <button class="btn btn-secondary btn-sm notif-mark-read-btn"
+                                onclick="window.dashboardHandlers.markNotifRead('${escapeHtml(n.id)}')">
+                                Mark read
+                            </button>
+                        ` : '<span class="notif-read-label">Read</span>'}
+                    </div>
+                    <div class="notif-item-title">${escapeHtml(n.title)}</div>
+                    <div class="notif-item-body">${escapeHtml(n.body)}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function updateNotifBadge(unreadCount) {
+        const badge = $('#notif-badge');
+        if (!badge) return;
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+            show(badge);
+        } else {
+            hide(badge);
+        }
+    }
+
+    async function markNotifRead(notifId) {
+        try {
+            await api(`/api/notifications/${notifId}/read`, { method: 'POST' });
+            loadNotifications();
+        } catch (error) {
+            alert(`Failed to mark notification as read: ${error.message}`);
+        }
+    }
+
+    async function markAllNotifsRead() {
+        try {
+            await api('/api/notifications/read-all', { method: 'POST' });
+            loadNotifications();
+        } catch (error) {
+            alert(`Failed to mark all notifications as read: ${error.message}`);
+        }
+    }
+
+    function startNotifPolling() {
+        stopNotifPolling();
+        _notifPollTimer = setInterval(() => {
+            if (state.currentSection === 'notifications') {
+                loadNotifications();
+            }
+        }, 30000); // poll every 30 seconds
+    }
+
+    function stopNotifPolling() {
+        if (_notifPollTimer !== null) {
+            clearInterval(_notifPollTimer);
+            _notifPollTimer = null;
+        }
+    }
+
     // Status functionality
     async function loadStatus() {
         const container = $('#status-container');
@@ -683,6 +831,22 @@
         $('#reminder-modal').addEventListener('click', (e) => {
             if (e.target.id === 'reminder-modal') hideReminderModal();
         });
+
+        // Notifications filters
+        $('#notif-filter-unread').addEventListener('change', (e) => {
+            state.notifFilters.unread = e.target.checked;
+            loadNotifications();
+        });
+        $('#notif-filter-priority').addEventListener('change', (e) => {
+            state.notifFilters.priority = e.target.value;
+            loadNotifications();
+        });
+        $('#notif-filter-channel').addEventListener('change', (e) => {
+            state.notifFilters.channel = e.target.value;
+            // Channel filter is applied client-side; no API call needed, just re-render
+            renderNotifications(state.notifications, 0);
+        });
+        $('#mark-all-read-btn').addEventListener('click', markAllNotifsRead);
     }
 
     // Expose handlers for inline onclick
@@ -691,6 +855,7 @@
         runReminder,
         toggleReminder,
         deleteReminder,
+        markNotifRead,
     };
 
     // Start app
