@@ -38,10 +38,10 @@
             credentials: 'same-origin',
         });
 
-        if (response.status === 401) {
-            // Session expired
+        if ((response.status === 401 || response.status === 403) && state.authenticated) {
+            // Session expired or unauthorized for current token
             handleLogout();
-            throw new Error('Session expired');
+            throw new Error(response.status === 401 ? 'Session expired' : 'Access denied');
         }
 
         const data = await response.json();
@@ -645,14 +645,17 @@
     }
 
     function updateNotifBadge(unreadCount) {
-        const badge = $('#notif-badge');
-        if (!badge) return;
-        if (unreadCount > 0) {
-            badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
-            show(badge);
-        } else {
-            hide(badge);
-        }
+        const badges = [$('#notif-badge'), $('#notif-badge-mobile')].filter(Boolean);
+        if (badges.length === 0) return;
+
+        badges.forEach((badge) => {
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+                show(badge);
+            } else {
+                hide(badge);
+            }
+        });
     }
 
     async function markNotifRead(notifId) {
@@ -844,7 +847,8 @@
         $('#notif-filter-channel').addEventListener('change', (e) => {
             state.notifFilters.channel = e.target.value;
             // Channel filter is applied client-side; no API call needed, just re-render
-            renderNotifications(state.notifications, 0);
+            const unreadCount = state.notifications.filter(n => !n.read).length;
+            renderNotifications(state.notifications, unreadCount);
         });
         $('#mark-all-read-btn').addEventListener('click', markAllNotifsRead);
     }

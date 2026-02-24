@@ -729,6 +729,7 @@ class TestNotificationsInboxUI:
         assert b"notif-filter-priority" in response.data
         assert b"notif-filter-channel" in response.data
         assert b"mark-all-read-btn" in response.data
+        assert b"notif-badge-mobile" in response.data
 
     def test_notifications_ui_does_not_require_auth_at_html_level(self, app_client):
         """The HTML page itself is served without auth (auth is enforced at API level)."""
