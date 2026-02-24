@@ -95,6 +95,22 @@ class TestAuth:
         )
         assert resp.status_code == 401
 
+    def test_options_health_requires_token(self, client) -> None:
+        resp = client.open("/health", method="OPTIONS")
+        assert resp.status_code == 401
+
+    def test_options_run_requires_token(self, client) -> None:
+        resp = client.open("/run", method="OPTIONS")
+        assert resp.status_code == 401
+
+    def test_options_run_wrong_token_returns_401(self, client) -> None:
+        resp = client.open("/run", method="OPTIONS", headers={AUTH_HEADER: "bad-token"})
+        assert resp.status_code == 401
+
+    def test_options_run_valid_token_is_allowed(self, client) -> None:
+        resp = client.open("/run", method="OPTIONS", headers=_auth_headers())
+        assert resp.status_code == 200
+
 
 # ===========================================================================
 # /health tests
