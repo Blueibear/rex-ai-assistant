@@ -173,7 +173,7 @@ def create_app(
 
     limiter = _RateLimiter(limit=_rate_limit, window_seconds=60)
 
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=None)
 
     # ------------------------------------------------------------------
     # Auth helper
@@ -209,28 +209,39 @@ def create_app(
         return None
 
     # ------------------------------------------------------------------
+    # Global request guards
+    # ------------------------------------------------------------------
+
+    @app.before_request
+    def _guard_request() -> Response | tuple[Response, int] | None:
+        """Enforce auth and rate limits for all agent API routes.
+
+        Applying guards at ``before_request`` ensures protections also apply to
+        automatically generated methods such as ``OPTIONS``.
+        """
+        if request.path not in {"/health", "/status", "/run"}:
+            return None
+
+        auth_err = _check_auth()
+        if auth_err is not None:
+            return auth_err
+
+        rate_err = _check_rate_limit()
+        if rate_err is not None:
+            return rate_err
+
+        return None
+
+    # ------------------------------------------------------------------
     # Routes
     # ------------------------------------------------------------------
 
     @app.route("/health", methods=["GET"])
     def health() -> tuple[Response, int]:
-        auth_err = _check_auth()
-        if auth_err is not None:
-            return auth_err  # type: ignore[return-value]
-        rate_err = _check_rate_limit()
-        if rate_err is not None:
-            return rate_err  # type: ignore[return-value]
         return jsonify({"status": "ok"}), 200
 
     @app.route("/status", methods=["GET"])
     def status() -> tuple[Response, int]:
-        auth_err = _check_auth()
-        if auth_err is not None:
-            return auth_err  # type: ignore[return-value]
-        rate_err = _check_rate_limit()
-        if rate_err is not None:
-            return rate_err  # type: ignore[return-value]
-
         now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
         try:
             current_user = getuser()
@@ -251,13 +262,6 @@ def create_app(
 
     @app.route("/run", methods=["POST"])
     def run() -> tuple[Response, int]:
-        auth_err = _check_auth()
-        if auth_err is not None:
-            return auth_err  # type: ignore[return-value]
-        rate_err = _check_rate_limit()
-        if rate_err is not None:
-            return rate_err  # type: ignore[return-value]
-
         payload: Any = request.get_json(silent=True)
         if not payload or not isinstance(payload, dict):
             return jsonify({"error": "Request body must be JSON"}), 400
