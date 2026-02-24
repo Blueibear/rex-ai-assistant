@@ -98,6 +98,11 @@ DEFAULT_POLICIES: list[ActionPolicy] = [
         allow_auto=False,
     ),
     ActionPolicy(
+        tool_name="pc_run",
+        risk=RiskLevel.HIGH,
+        allow_auto=False,
+    ),
+    ActionPolicy(
         tool_name="file_write",
         risk=RiskLevel.HIGH,
         allow_auto=False,
@@ -226,7 +231,9 @@ class PolicyEngine:
         # Check denied recipients first
         if policy.denied_recipients and recipient:
             if self._matches_list(recipient, policy.denied_recipients):
-                logger.info("Denying tool=%s: recipient %s is on deny list", tool_call.tool, recipient)
+                logger.info(
+                    "Denying tool=%s: recipient %s is on deny list", tool_call.tool, recipient
+                )
                 return PolicyDecision(
                     allowed=False,
                     reason=f"Recipient '{recipient}' is on the deny list",

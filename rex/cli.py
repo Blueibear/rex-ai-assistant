@@ -2287,6 +2287,7 @@ def cmd_pc(args: argparse.Namespace) -> int:
         return 0
 
     if subcommand == "run":
+        from rex.computers.pc_run_policy import check_pc_run_policy
         from rex.computers.service import (
             AllowlistDeniedError,
             ComputerDisabledError,
@@ -2307,12 +2308,89 @@ def cmd_pc(args: argparse.Namespace) -> int:
         command = cmd_parts[0]
         cmd_args = cmd_parts[1:] if len(cmd_parts) > 1 else []
 
+        # ------------------------------------------------------------------
+        # Policy + approvals gate (evaluated BEFORE the --yes guard so that
+        # --yes cannot bypass the approval requirement).
+        # ------------------------------------------------------------------
+
+        # Resolve the active user for the approval record (best-effort).
+        initiated_by: str | None = None
+        try:
+            from rex.identity import resolve_active_user
+
+            initiated_by = resolve_active_user(getattr(args, "user", None))
+        except Exception:  # noqa: BLE001
+            pass
+
+        # Check the client-side allowlist without a network call so the
+        # approval payload can record the decision outcome.
+        service = _svc()
+        allowlist_matched = False
+        allowlist_rule: str | None = None
+        try:
+            allowlist_matched, _allowed_cmds = service.get_command_allowed(computer_id, command)
+            allowlist_rule = command if allowlist_matched else None
+        except (ComputerNotFoundError, ComputerDisabledError) as e:
+            # Let service.run() surface this error with a consistent message.
+            print(f"Error: {e}")
+            return 1
+
+        # Deny non-allowlisted commands before creating any approval record.
+        if not allowlist_matched:
+            cfg_allowed = ", ".join(_allowed_cmds) if _allowed_cmds else "(none)"
+            print(
+                f"Error: Command {command!r} is not on the allowlist for"
+                f" computer {computer_id!r}."
+            )
+            print(f"  Allowed commands: {cfg_allowed}")
+            return 1
+
+        # Consult the policy engine and approval store.
+        policy_decision, approval = check_pc_run_policy(
+            computer_id=computer_id,
+            command=command,
+            args=cmd_args,
+            allowlist_matched=allowlist_matched,
+            allowlist_rule=allowlist_rule,
+            initiated_by=initiated_by,
+        )
+
+        if policy_decision.denied:
+            print(f"Error: Remote execution denied by policy: {policy_decision.reason}")
+            return 1
+
+        if policy_decision.requires_approval:
+            if approval is None or approval.status != "approved":
+                # New pending approval (or existing unactioned one): block.
+                if approval is not None:
+                    print("Approval required before remote execution can proceed.")
+                    print()
+                    print(f"  Approval ID : {approval.approval_id}")
+                    print(f"  Computer    : {computer_id}")
+                    print(f"  Command     : {command}")
+                    if cmd_args:
+                        print(f"  Args        : {cmd_args}")
+                    if initiated_by:
+                        print(f"  Requested by: {initiated_by}")
+                    print()
+                    print(f"  To approve : rex approvals --approve {approval.approval_id}")
+                    print(f"  To deny    : rex approvals --deny {approval.approval_id}")
+                    print()
+                    print("After approving, re-run this command to execute.")
+                else:
+                    print("Error: Approval required but could not create approval record.")
+                return 1
+            # approval.status == "approved": fall through to --yes guard.
+
+        # ------------------------------------------------------------------
+        # Second-layer --yes confirmation guard.
+        # Reached only when policy allows auto-execute OR an approved approval
+        # was found.  --yes is still required to confirm the final action.
+        # ------------------------------------------------------------------
         if not getattr(args, "yes", False):
             print("Refusing to run remote command without explicit confirmation.")
             print("Remote execution is high-risk. Re-run with '--yes' if you intend to proceed.")
             return 1
-
-        service = _svc()
 
         try:
             result = service.run(computer_id, command, args=cmd_args)

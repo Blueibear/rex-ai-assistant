@@ -116,7 +116,9 @@ caddy.zip
 OLLAMA_INTEGRATION_GUIDE.txt
 
 # Test artifacts in data/ subdirectories
+data/approvals/
 data/cues/
 data/notifications/
 data/scheduler/
+data/workflows/
 data/*.db

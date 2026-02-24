@@ -587,32 +587,127 @@ class TestComputerServiceWithFakeServer:
 
 
 class TestPcCliSafetyGuard:
-    def test_run_requires_yes_flag(
-        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        get_service = MagicMock()
-        monkeypatch.setattr("rex.computers.service.get_computer_service", get_service)
+    """Tests for the rex pc run safety guards (policy + approvals + --yes)."""
 
-        args = argparse.Namespace(pc_command="run", id="desktop", cmd=["whoami"], yes=False)
+    def _make_service(self, *, allowlist_ok: bool = True) -> MagicMock:
+        """Build a mock ComputerService whose allowlist check is controllable."""
+        service = MagicMock()
+        service.get_command_allowed.return_value = (
+            allowlist_ok,
+            ["whoami", "dir", "ipconfig"],
+        )
+        service.run.return_value = type(
+            "RunResult",
+            (),
+            {"stdout": "", "stderr": "", "ok": True, "error": None, "exit_code": 0},
+        )()
+        return service
+
+    def test_run_requires_approval_before_execution(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        tmp_path: pytest.TempPathFactory,
+    ) -> None:
+        """Without a prior approval, rex pc run refuses and shows the approval ID."""
+        import tempfile
+
+        approval_dir = tempfile.mkdtemp()
+        from pathlib import Path
+
+        monkeypatch.setattr(
+            "rex.computers.pc_run_policy.DEFAULT_APPROVAL_DIR",
+            Path(approval_dir),
+        )
+        service = self._make_service()
+        monkeypatch.setattr("rex.computers.service.get_computer_service", lambda: service)
+
+        args = argparse.Namespace(
+            pc_command="run", id="desktop", cmd=["whoami"], yes=True, user=None
+        )
         code = cmd_pc(args)
 
         assert code == 1
-        get_service.assert_not_called()
+        service.run.assert_not_called()
+        out = capsys.readouterr().out
+        assert "Approval required" in out
+        assert "rex approvals --approve" in out
+
+    def test_run_without_yes_still_refused_after_approval(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        tmp_path: pytest.TempPathFactory,
+    ) -> None:
+        """Even with an approved approval, --yes is still required."""
+        import tempfile
+        from pathlib import Path
+
+        from rex.computers.pc_run_policy import PC_RUN_WORKFLOW_ID, _command_step_id
+        from rex.workflow import WorkflowApproval
+
+        approval_dir = Path(tempfile.mkdtemp())
+        monkeypatch.setattr("rex.computers.pc_run_policy.DEFAULT_APPROVAL_DIR", approval_dir)
+
+        # Pre-create an approved approval
+        step_id = _command_step_id("desktop", "whoami", [])
+        approval = WorkflowApproval(
+            workflow_id=PC_RUN_WORKFLOW_ID,
+            step_id=step_id,
+            status="approved",
+            requested_by="cli",
+            step_description="test",
+            tool_call_summary="{}",
+        )
+        approval.save(approval_dir)
+
+        service = self._make_service()
+        monkeypatch.setattr("rex.computers.service.get_computer_service", lambda: service)
+
+        args = argparse.Namespace(
+            pc_command="run", id="desktop", cmd=["whoami"], yes=False, user=None
+        )
+        code = cmd_pc(args)
+
+        assert code == 1
+        service.run.assert_not_called()
         out = capsys.readouterr().out
         assert "without explicit confirmation" in out
         assert "--yes" in out
 
-    def test_run_with_yes_calls_service(self) -> None:
-        service = MagicMock()
-        service.run.return_value = type(
-            "RunResult", (), {"stdout": "", "stderr": "", "ok": True, "error": None, "exit_code": 0}
-        )()
+    def test_run_with_approved_approval_and_yes_calls_service(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """With an approved approval and --yes, service.run is called."""
+        import tempfile
+        from pathlib import Path
 
-        from unittest.mock import patch
+        from rex.computers.pc_run_policy import PC_RUN_WORKFLOW_ID, _command_step_id
+        from rex.workflow import WorkflowApproval
 
-        args = argparse.Namespace(pc_command="run", id="desktop", cmd=["whoami"], yes=True)
-        with patch("rex.computers.service.get_computer_service", return_value=service):
-            code = cmd_pc(args)
+        approval_dir = Path(tempfile.mkdtemp())
+        monkeypatch.setattr("rex.computers.pc_run_policy.DEFAULT_APPROVAL_DIR", approval_dir)
+
+        # Pre-create an approved approval
+        step_id = _command_step_id("desktop", "whoami", [])
+        approval = WorkflowApproval(
+            workflow_id=PC_RUN_WORKFLOW_ID,
+            step_id=step_id,
+            status="approved",
+            requested_by="cli",
+            step_description="test",
+            tool_call_summary="{}",
+        )
+        approval.save(approval_dir)
+
+        service = self._make_service()
+        monkeypatch.setattr("rex.computers.service.get_computer_service", lambda: service)
+
+        args = argparse.Namespace(
+            pc_command="run", id="desktop", cmd=["whoami"], yes=True, user=None
+        )
+        code = cmd_pc(args)
 
         assert code == 0
         service.run.assert_called_once_with("desktop", "whoami", args=[])
