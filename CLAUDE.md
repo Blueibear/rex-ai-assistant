@@ -14,6 +14,7 @@ Primary goals: reliability, security by default, and smooth day-to-day usage on 
   - `rex` -> `rex.cli:main`
   - `rex-config` -> `rex.config:cli`
   - `rex-speak-api` -> `rex_speak_api:main`
+  - `rex-agent` -> `rex.computers.agent_server:main`
 
 ### Core components
 - API: Flask (Flask-CORS, Flask-Limiter)
@@ -61,7 +62,7 @@ Notable subpackages:
 - `rex/dashboard_store.py` - SQLite-backed dashboard notification store (write/read/query/retention)
 - `rex/identity.py` - session-scoped user identity resolution (fallback when voice recognition is unavailable)
 - `rex/voice_identity/` - voice speaker recognition scaffolding (types, embeddings store, recognizer, fallback flow, optional dep guards)
-- `rex/computers/` - Windows computer control client foundation (config, HTTP client, service; Cycle 5.1)
+- `rex/computers/` - Windows computer control client + agent server (config, HTTP client, service, agent; Cycles 5.1 + 5.3)
 
 ## Commands
 
@@ -227,6 +228,32 @@ Safety rules:
 - Disabled computers produce a clear error; unknown IDs produce a clear error.
 - `rex pc run` requires explicit `--yes` confirmation before remote execution.
 - All tests are offline (fake in-process HTTP server; no real network calls).
+
+## Windows Agent server (Cycle 5.3)
+- Agent server code: `rex/computers/agent_server.py`
+- Entry-point script: `scripts/windows_agent.py`
+- Installed script entry point: `rex-agent` → `rex.computers.agent_server:main`
+- Run the agent: `rex-agent` (after `pip install .`) or `python scripts/windows_agent.py`
+- Docs: `docs/computers.md` (covers both client and agent)
+- Tests: `pytest -q tests/test_windows_agent.py`
+
+## Windows Agent server config (environment variables)
+- `REX_AGENT_TOKEN`: **required** — auth token for incoming requests (never committed to source control)
+- `REX_AGENT_TOKEN_ENV`: name of the env var that holds the token (default: `REX_AGENT_TOKEN`)
+- `REX_AGENT_HOST`: bind address (default: `127.0.0.1` — do not expose on public interfaces without TLS)
+- `REX_AGENT_PORT`: listen port (default: `7777`)
+- `REX_AGENT_ALLOWLIST`: comma-separated command names allowed for execution (default: `whoami`)
+- `REX_AGENT_RATE_LIMIT`: max requests per IP per minute (default: `60`; `0` disables rate limiting)
+- `REX_AGENT_TIMEOUT`: subprocess execution timeout in seconds (default: `30`)
+- `REX_AGENT_MAX_OUTPUT`: max stdout/stderr bytes returned per `/run` call (default: `65536`)
+
+Agent security rules:
+- Binds to `127.0.0.1` by default; never expose on a public interface without TLS.
+- Token auth on every request via `X-Auth-Token` header; tokens are never logged.
+- Server-side allowlist enforced before any subprocess is spawned (defence in depth on top of client-side allowlist).
+- `subprocess.run` called with `shell=False`; command payload must be an argv list.
+- Output truncated to `REX_AGENT_MAX_OUTPUT` bytes.
+- Audit log: every `/run` attempt is logged with timestamp, remote addr, command, exit code, duration (no tokens).
 
 ## Integration testing rules
 - Integration tests must not require real network credentials.
