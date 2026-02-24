@@ -187,6 +187,7 @@ Notable subpackages:
 - `messaging.inbound.store_path`: SQLite path for inbound messages (default: `data/inbound_sms.db`)
 - `messaging.inbound.retention_days`: days to retain inbound messages (default: 90)
 - `messaging.inbound.rate_limit`: rate limit for the webhook endpoint (default: `"120 per minute"`, Flask-Limiter format)
+- `messaging.inbound.cleanup_schedule`: scheduler interval for automatic retention cleanup (default: `"interval:86400"` — daily); only active when `enabled=true`; set to `null` to disable
 - Inbound webhook endpoint: `POST /webhooks/twilio/sms` (hosted by `flask_proxy.py`)
 - Webhook wiring: `register_inbound_sms_webhook()` in `rex/messaging_backends/webhook_wiring.py` reads config, resolves credentials, and registers the blueprint at startup
 - Reverse proxy: when behind a reverse proxy, configure `ProxyFix` and `REX_TRUSTED_PROXIES` so `request.url` matches the externally visible URL for Twilio signature verification
@@ -200,8 +201,18 @@ Notable subpackages:
 - `notifications.dashboard.store.type`: `"sqlite"` (only supported type)
 - `notifications.dashboard.store.path`: database file path (default: `data/dashboard_notifications.db`)
 - `notifications.dashboard.store.retention_days`: days to retain (default: 30)
+- `notifications.dashboard.store.cleanup_schedule`: scheduler interval for automatic retention cleanup (default: `"interval:86400"` — daily); set to `null` to disable
 - Dashboard API endpoints: `GET /api/notifications`, `POST /api/notifications/<id>/read`, `POST /api/notifications/read-all`
 - Dashboard store code: `rex/dashboard_store.py`
+
+## Retention cleanup scheduling (Cycle 4.7)
+- Module: `rex/retention.py` — registers scheduler jobs for dashboard and inbound SMS cleanup.
+- Dashboard cleanup job: `dashboard_retention_cleanup` — runs `DashboardStore.cleanup_old()` on the configured schedule.
+- Inbound SMS cleanup job: `inbound_sms_retention_cleanup` — runs `InboundSmsStore.cleanup_old()` only when `messaging.inbound.enabled=true`.
+- Both jobs are idempotent: registering twice is a no-op; running twice removes nothing new.
+- Wiring: `wire_retention_cleanup()` is called at startup from both `flask_proxy.py` and `rex/services.py` (via `_try_register_retention_jobs`).
+- To run manually (debugging): `rex scheduler run dashboard_retention_cleanup` / `rex scheduler run inbound_sms_retention_cleanup`
+- Tests: `pytest -q tests/test_retention_scheduling.py` (fully offline, uses `tmp_path`)
 
 ## Windows computer control config keys (Cycle 5.1 client foundation)
 - `computers[]`: list of remote computer entries; each entry has:

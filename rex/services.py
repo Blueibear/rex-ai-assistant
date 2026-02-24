@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from typing import Callable
 
 from rex.calendar_service import CalendarService
@@ -56,7 +56,9 @@ def initialize_services(
 
     # Initialize notification system
     if notifications_path:
-        notifications_path = Path(notifications_path) if isinstance(notifications_path, str) else notifications_path
+        notifications_path = (
+            Path(notifications_path) if isinstance(notifications_path, str) else notifications_path
+        )
     escalation_manager = EscalationManager()
     notifier = Notifier(
         storage_path=notifications_path,
@@ -67,7 +69,9 @@ def initialize_services(
     scheduler.register_handler("email_triage", lambda job: email.triage_unread())
     scheduler.register_handler("calendar_sync", lambda job: calendar.refresh_upcoming())
     scheduler.register_handler("flush_digests", lambda job: notifier.flush_digests())
-    scheduler.register_handler("check_escalations", lambda job: _check_escalations(notifier, escalation_manager))
+    scheduler.register_handler(
+        "check_escalations", lambda job: _check_escalations(notifier, escalation_manager)
+    )
 
     _register_default_jobs(scheduler)
 
@@ -123,6 +127,32 @@ def _register_default_jobs(scheduler: Scheduler) -> None:
     for name, interval, handler in defaults:
         if scheduler.find_job_by_name(name) is None:
             scheduler.add_job(name, interval, handler)
+
+    # Register retention cleanup jobs (config-driven; skipped safely if config
+    # is unavailable or stores are disabled).
+    _try_register_retention_jobs(scheduler)
+
+
+def _try_register_retention_jobs(scheduler: Scheduler) -> None:
+    """Attempt to register retention cleanup jobs from config.
+
+    Failures are logged at DEBUG level and do not prevent startup.
+    """
+    import logging
+
+    _log = logging.getLogger(__name__)
+    try:
+        from rex.config_manager import load_config
+        from rex.retention import setup_retention_jobs
+
+        raw_config = load_config()
+        results = setup_retention_jobs(raw_config, scheduler)
+        if any(results.values()):
+            _log.info("Retention cleanup jobs registered: %s", results)
+        else:
+            _log.debug("No retention cleanup jobs registered (check config)")
+    except Exception as exc:
+        _log.debug("Retention cleanup jobs setup skipped: %s", exc)
 
 
 __all__ = ["AppServices", "initialize_services", "reset_services"]

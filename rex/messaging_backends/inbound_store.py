@@ -53,6 +53,14 @@ class InboundStoreConfig(BaseModel):
         default="120 per minute",
         description="Rate limit for the inbound webhook endpoint (Flask-Limiter format)",
     )
+    cleanup_schedule: str | None = Field(
+        default="interval:86400",
+        description=(
+            "Scheduler interval for automatic retention cleanup "
+            "(e.g. 'interval:86400' for daily).  Only active when enabled=true. "
+            "Set to null to disable."
+        ),
+    )
 
 
 def load_inbound_store_config(raw_config: dict[str, Any]) -> InboundStoreConfig:
