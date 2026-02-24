@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
+from typing import Any
 
 from wake_acknowledgment import ensure_wake_acknowledgment_sound
 
@@ -92,8 +93,14 @@ def _require_sounddevice():
 
 logger = logging.getLogger(__name__)
 
-RecorderCallable = Callable[[float], Awaitable[np.ndarray] | np.ndarray]
-IdentifySpeakerCallable = Callable[[np.ndarray], str | None] | Callable[[], str | None]
+# Safe runtime alias: resolves to np.ndarray when numpy is available, Any otherwise.
+# Module-level type alias assignments are evaluated eagerly (even with
+# `from __future__ import annotations`), so we must not reference np.ndarray
+# unconditionally — np is None when numpy is not installed.
+_NDArray = np.ndarray if np is not None else Any
+
+RecorderCallable = Callable[[float], Awaitable[_NDArray] | _NDArray]
+IdentifySpeakerCallable = Callable[[_NDArray], str | None] | Callable[[], str | None]
 
 
 @dataclass
