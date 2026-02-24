@@ -49,6 +49,13 @@ class DashboardStoreConfig(BaseModel):
         default=30,
         description="Days to retain notifications before automatic cleanup",
     )
+    cleanup_schedule: str | None = Field(
+        default="interval:86400",
+        description=(
+            "Scheduler interval for automatic retention cleanup "
+            "(e.g. 'interval:86400' for daily).  Set to null to disable."
+        ),
+    )
 
 
 def load_dashboard_store_config(raw_config: dict[str, Any]) -> DashboardStoreConfig:

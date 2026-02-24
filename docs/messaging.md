@@ -142,6 +142,39 @@ To receive inbound SMS via webhook, add the `inbound` section:
 - `messaging.inbound.store_path`: SQLite database path for inbound messages (default: `data/inbound_sms.db`)
 - `messaging.inbound.retention_days`: Days to retain inbound messages before automatic cleanup (default: `90`)
 - `messaging.inbound.rate_limit`: Flask-Limiter rate limit string for the webhook endpoint (default: `"120 per minute"`)
+- `messaging.inbound.cleanup_schedule`: Scheduler interval for retention cleanup (default: `"interval:86400"` — daily). Only active when `enabled=true`. Set to `null` to disable automatic cleanup.
+
+### Inbound SMS Retention Cleanup Scheduling
+
+When `messaging.inbound.enabled` is `true`, a scheduled background job
+automatically purges records older than `retention_days`.
+
+**How it works:**
+- At startup, `wire_retention_cleanup()` registers an `inbound_sms_retention_cleanup`
+  job in the global scheduler (only when `enabled=true` and `cleanup_schedule`
+  is non-null).
+- The scheduler background thread runs cleanup at the configured interval.
+- Each run calls `InboundSmsStore.cleanup_old()`, which is idempotent.
+- When `messaging.inbound.enabled=false`, no cleanup job is ever registered.
+
+**To disable automatic cleanup** while keeping inbound enabled, set
+`cleanup_schedule` to `null`:
+
+```json
+{
+  "messaging": {
+    "inbound": {
+      "enabled": true,
+      "cleanup_schedule": null
+    }
+  }
+}
+```
+
+**To run cleanup manually** (one-shot via CLI):
+```bash
+rex scheduler run inbound_sms_retention_cleanup
+```
 
 **Inbound webhook endpoint:**
 - `POST /webhooks/twilio/sms` — receives inbound SMS from Twilio

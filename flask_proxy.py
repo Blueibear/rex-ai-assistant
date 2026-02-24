@@ -80,6 +80,15 @@ except Exception as _inbound_exc:
     app.logger.debug("Inbound SMS webhook wiring skipped: %s", _inbound_exc)
     _INBOUND_SMS_REGISTERED = False
 
+# Wire retention cleanup scheduler jobs (config-driven; safe to skip on failure)
+try:
+    from rex.retention import wire_retention_cleanup
+
+    _RETENTION_CLEANUP_WIRED = wire_retention_cleanup()
+except Exception as _retention_exc:
+    app.logger.debug("Retention cleanup wiring skipped: %s", _retention_exc)
+    _RETENTION_CLEANUP_WIRED = False
+
 # --- Optional Plugin: Web Search ---
 search_web = None
 try:

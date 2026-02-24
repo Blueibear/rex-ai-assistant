@@ -96,7 +96,8 @@
       "auth_token_ref": "twilio:inbound",
       "store_path": null,
       "retention_days": 90,
-      "rate_limit": "120 per minute"
+      "rate_limit": "120 per minute",
+      "cleanup_schedule": "interval:86400"
     }
   },
   "notifications": {
@@ -104,7 +105,8 @@
       "store": {
         "type": "sqlite",
         "path": null,
-        "retention_days": 30
+        "retention_days": 30,
+        "cleanup_schedule": "interval:86400"
       }
     }
   },

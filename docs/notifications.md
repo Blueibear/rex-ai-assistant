@@ -78,6 +78,41 @@ Configure the dashboard notification store in `config/rex_config.json`:
 - `notifications.dashboard.store.type`: `"sqlite"` (only supported type currently)
 - `notifications.dashboard.store.path`: Database file path (default: `data/dashboard_notifications.db`)
 - `notifications.dashboard.store.retention_days`: Days to retain notifications (default: 30)
+- `notifications.dashboard.store.cleanup_schedule`: Scheduler interval for retention cleanup (default: `"interval:86400"` — daily). Set to `null` to disable automatic cleanup.
+
+### Retention Cleanup Scheduling
+
+Dashboard notification cleanup runs as a scheduled background job.  Old
+notifications (older than `retention_days`) are pruned automatically once per
+day by default.
+
+**How it works:**
+- At startup, `wire_retention_cleanup()` registers a `dashboard_retention_cleanup`
+  job in the global scheduler.
+- The scheduler background thread runs the cleanup at the configured interval.
+- Each run calls `DashboardStore.cleanup_old()`, which is idempotent — multiple
+  runs on the same data are safe.
+- If `cleanup_schedule` is `null`, no job is registered and no automatic cleanup
+  occurs.
+
+**To disable automatic cleanup**, set `cleanup_schedule` to `null` in config:
+
+```json
+{
+  "notifications": {
+    "dashboard": {
+      "store": {
+        "cleanup_schedule": null
+      }
+    }
+  }
+}
+```
+
+**To run cleanup manually** (one-shot via CLI):
+```bash
+rex scheduler run dashboard_retention_cleanup
+```
 
 ### Security Notes
 
