@@ -325,10 +325,52 @@ In tests, channel dispatch is mocked:
 - Dashboard store uses temp SQLite database
 - All operations are simulated
 
+## Notification Inbox UI
+
+The dashboard includes a notification inbox page backed by `DashboardStore` and the existing
+notification API endpoints.
+
+### Accessing the Inbox
+
+Open the dashboard and click **Notifications** in the sidebar (or mobile bottom navigation),
+or navigate directly to:
+
+```
+http://localhost:5001/dashboard/notifications
+```
+
+The page uses the same single-page application as the main dashboard.  Authentication is
+enforced at the API level — the HTML page itself is always served; the JavaScript layer
+authenticates before fetching notification data.
+
+### Filters
+
+| Filter | Type | Description |
+|--------|------|-------------|
+| Unread only | Checkbox | When checked, only unread notifications are fetched from the server via `?unread=true`. |
+| Priority | Dropdown | Filter by `urgent`, `normal`, or `digest` (server-side via `?priority=`). |
+| Channel | Dropdown | Filter by delivery channel (`dashboard`, `email`, `sms`, `home_assistant_tts`). Applied client-side from the fetched result set. |
+
+### Actions
+
+- **Mark read** — button on each unread notification calls `POST /api/notifications/<id>/read`.
+- **Mark all read** — header button calls `POST /api/notifications/read-all`; optionally scoped to a user via `?user_id=`.
+
+Both actions reload the list and refresh the unread count badge on the nav link.
+
+### Polling
+
+The inbox polls `GET /api/notifications` every **30 seconds** while the Notifications section
+is active.  Polling stops automatically when you switch to another section or log out.
+
+### Unread Badge
+
+The **Notifications** nav link shows a red badge with the current unread count.  The badge
+is refreshed every time the notifications list is loaded.
+
 ## What Remains Stubbed
 
 - Home Assistant TTS channel (logs only)
-- Web UI for notification inbox (API endpoints exist)
 - WebSocket real-time push for new notifications
 - Notification templates
 - Per-user channel preferences (foundation exists via metadata)

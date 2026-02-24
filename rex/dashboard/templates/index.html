@@ -38,6 +38,12 @@
                     <li><a href="#" data-section="chat" class="nav-link active">Chat</a></li>
                     <li><a href="#" data-section="settings" class="nav-link">Settings</a></li>
                     <li><a href="#" data-section="reminders" class="nav-link">Reminders</a></li>
+                    <li>
+                        <a href="#" data-section="notifications" class="nav-link">
+                            Notifications
+                            <span id="notif-badge" class="notif-badge hidden">0</span>
+                        </a>
+                    </li>
                     <li><a href="#" data-section="status" class="nav-link">Status</a></li>
                 </ul>
                 <div class="nav-footer">
@@ -92,6 +98,37 @@
                     </div>
                 </section>
 
+                <!-- Notifications Section -->
+                <section id="notifications-section" class="content-section hidden">
+                    <header class="section-header">
+                        <h1>Notifications</h1>
+                        <button id="mark-all-read-btn" class="btn btn-secondary">Mark all read</button>
+                    </header>
+                    <div class="notif-filters">
+                        <label class="notif-filter-item">
+                            <input type="checkbox" id="notif-filter-unread">
+                            Unread only
+                        </label>
+                        <select id="notif-filter-priority" class="notif-filter-select">
+                            <option value="">All priorities</option>
+                            <option value="urgent">Urgent</option>
+                            <option value="normal">Normal</option>
+                            <option value="digest">Digest</option>
+                        </select>
+                        <select id="notif-filter-channel" class="notif-filter-select">
+                            <option value="">All channels</option>
+                            <option value="dashboard">Dashboard</option>
+                            <option value="email">Email</option>
+                            <option value="sms">SMS</option>
+                            <option value="home_assistant_tts">Home Assistant</option>
+                        </select>
+                    </div>
+                    <div id="notif-summary" class="notif-summary"></div>
+                    <div id="notif-list" class="notif-list">
+                        <div class="loading">Loading notifications...</div>
+                    </div>
+                </section>
+
                 <!-- Status Section -->
                 <section id="status-section" class="content-section hidden">
                     <header class="section-header">
@@ -113,6 +150,9 @@
                 </a>
                 <a href="#" data-section="reminders" class="mobile-nav-link">
                     <span class="nav-icon">Reminders</span>
+                </a>
+                <a href="#" data-section="notifications" class="mobile-nav-link">
+                    <span class="nav-icon">Alerts</span>
                 </a>
                 <a href="#" data-section="status" class="mobile-nav-link">
                     <span class="nav-icon">Status</span>

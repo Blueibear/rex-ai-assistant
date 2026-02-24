@@ -245,6 +245,20 @@ def dashboard_ui():
     return "Dashboard template not found", 404
 
 
+@dashboard_bp.route("/dashboard/notifications")
+def notifications_ui():
+    """Serve the notification inbox UI.
+
+    Returns the same SPA as the main dashboard.  The JavaScript layer
+    detects the ``/dashboard/notifications`` path on load and
+    automatically activates the Notifications section.
+    """
+    template_path = _get_dashboard_dir() / "templates" / "index.html"
+    if template_path.exists():
+        return template_path.read_text(encoding="utf-8")
+    return "Dashboard template not found", 404
+
+
 @dashboard_bp.route("/dashboard/assets/<path:filename>")
 def dashboard_assets(filename: str):
     """Serve static assets (CSS/JS)."""
