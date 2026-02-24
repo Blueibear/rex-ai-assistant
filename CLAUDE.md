@@ -62,7 +62,7 @@ Notable subpackages:
 - `rex/dashboard_store.py` - SQLite-backed dashboard notification store (write/read/query/retention)
 - `rex/identity.py` - session-scoped user identity resolution (fallback when voice recognition is unavailable)
 - `rex/voice_identity/` - voice speaker recognition scaffolding (types, embeddings store, recognizer, fallback flow, optional dep guards)
-- `rex/computers/` - Windows computer control client + agent server (config, HTTP client, service, agent; Cycles 5.1 + 5.3)
+- `rex/computers/` - Windows computer control client + agent server (config, HTTP client, service, policy/approvals, agent; Cycles 5.1 + 5.2b + 5.3)
 
 ## Commands
 
@@ -224,21 +224,28 @@ Notable subpackages:
   - `allowlists.commands[]`: list of command names permitted for remote execution (enforced client-side before any network call)
   - `connect_timeout`: connection timeout in seconds (default `5.0`)
   - `read_timeout`: read timeout in seconds (default `30.0`)
-- Computer client code lives in `rex/computers/` (config, client, service).
+- Computer client code lives in `rex/computers/` (config, client, service, pc_run_policy).
 - Docs: `docs/computers.md`
 
-## Windows computer control CLI commands (Cycle 5.1 client foundation)
+## Windows computer control CLI commands (Cycle 5.1 + 5.2b)
 - `rex pc list` — list enabled computers
 - `rex pc list --all` — list all computers including disabled
 - `rex pc status --id <id>` — query agent for host info (hostname, OS, user, time)
-- `rex pc run --id <id> --yes -- <command> [args]` — run an allowlisted command on the remote computer (explicit high-risk confirmation required)
+- `rex pc run --id <id> --yes -- <command> [args]` — run an allowlisted command on the remote computer (requires policy approval + `--yes`)
+
+`rex pc run` two-step flow (Cycle 5.2b):
+1. First run creates a pending approval: `rex pc run --id desktop --yes -- whoami`
+2. User approves: `rex approvals --approve <approval_id>`
+3. Re-run executes: `rex pc run --id desktop --yes -- whoami`
 
 Safety rules:
-- `allowlists.commands` is enforced **client-side** before any network call.
-- Auth tokens are resolved via `CredentialManager` from `auth_token_ref`; tokens are never logged.
+- `allowlists.commands` is enforced **client-side** before any approval is created or network call is made.
+- Policy engine (`tool_name="pc_run"`, `risk=HIGH`) requires explicit approval before execution.
+- `--yes` is required even after approval — it is a second layer, not a bypass.
+- Auth tokens are resolved via `CredentialManager` from `auth_token_ref`; tokens are never logged or stored in approvals.
 - Disabled computers produce a clear error; unknown IDs produce a clear error.
-- `rex pc run` requires explicit `--yes` confirmation before remote execution.
 - All tests are offline (fake in-process HTTP server; no real network calls).
+- Tests: `pytest -q tests/test_computers.py tests/test_pc_run_policy.py`
 
 ## Windows Agent server (Cycle 5.3)
 - Agent server code: `rex/computers/agent_server.py`

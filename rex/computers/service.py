@@ -132,6 +132,30 @@ class ComputerService:
         client = self._make_client(computer_id)
         return client.status()
 
+    def get_command_allowed(self, computer_id: str, command: str) -> tuple[bool, list[str]]:
+        """Check whether *command* is allowlisted for *computer_id*.
+
+        This performs only client-side config checks — no network call is made.
+        Use this to include the allowlist decision in an approval payload before
+        calling :meth:`run`.
+
+        Args:
+            computer_id: The ``id`` field from config.
+            command: Command name to check.
+
+        Returns:
+            A ``(allowed, allowed_commands)`` tuple where *allowed* is ``True``
+            if the command is on the allowlist, and *allowed_commands* is the
+            full list of permitted command names.
+
+        Raises:
+            :class:`ComputerNotFoundError`: If the computer ID is unknown.
+            :class:`ComputerDisabledError`: If the computer is disabled.
+        """
+        cfg = self._resolve_computer(computer_id)
+        allowed_cmds = list(cfg.allowlists.commands)
+        return cfg.is_command_allowed(command), allowed_cmds
+
     def run(
         self,
         computer_id: str,

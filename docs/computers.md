@@ -1,11 +1,13 @@
 # Windows Computer Control
 
-**Implementation Status: Client Foundation + Agent Server (Cycle 5.1 + 5.3)**
+**Implementation Status: Client Foundation + Agent Server + Policy/Approvals (Cycle 5.1 + 5.2b + 5.3)**
 
 This document covers the full Windows computer control stack:
 - **Client** (`rex/computers/`) — queries the agent from any Rex host machine
 - **Agent server** (`rex/computers/agent_server.py`) — lightweight HTTP server
   that runs on the Windows target machine and executes allowlisted commands
+- **Policy + approvals** (`rex/computers/pc_run_policy.py`) — gates `rex pc run`
+  through the policy engine before any network call is made
 
 ---
 
@@ -18,6 +20,7 @@ This document covers the full Windows computer control stack:
 | High-level service (`ComputerService`) | Implemented |
 | CLI commands (`rex pc ...`) | Implemented |
 | Windows agent server | **Implemented (Cycle 5.3)** |
+| Policy + approvals for `rex pc run` | **Implemented (Cycle 5.2b)** |
 | Offline tests | Implemented |
 
 The client code lives in `rex/computers/`:
@@ -25,6 +28,7 @@ The client code lives in `rex/computers/`:
 - `config.py` — Pydantic v2 models for the `computers[]` config section
 - `client.py` — `AgentClient` HTTP client (uses `requests` or stdlib `urllib`)
 - `service.py` — `ComputerService` facade used by the CLI
+- `pc_run_policy.py` — policy + approval gating for `rex pc run` (Cycle 5.2b)
 - `agent_server.py` — Flask HTTP agent server (Cycle 5.3)
 
 The agent entry-point script is `scripts/windows_agent.py`.
@@ -208,9 +212,54 @@ The `auth_token_ref` value (`PC_DESKTOP_TOKEN`) is looked up via
 rex pc list                         # show enabled computers
 rex pc list --all                   # include disabled computers
 rex pc status --id <id>             # query agent for host info
-rex pc run --id <id> --yes -- <cmd> # run an allowlisted command
+rex pc run --id <id> --yes -- <cmd> # run an allowlisted command (requires approval)
+```
+
+### Two-step execution flow for `rex pc run`
+
+Remote execution requires **both** an explicit approval record **and** `--yes`.
+
+**Step 1 — Request execution (creates a pending approval)**
+
+```
 rex pc run --id desktop --yes -- whoami
-rex pc run --id desktop --yes -- ipconfig
+```
+
+Output:
+
+```
+Approval required before remote execution can proceed.
+
+  Approval ID : apr_abc123def456
+  Computer    : desktop
+  Command     : whoami
+
+  To approve : rex approvals --approve apr_abc123def456
+  To deny    : rex approvals --deny apr_abc123def456
+
+After approving, re-run this command to execute.
+```
+
+**Step 2 — Review and approve**
+
+```
+rex approvals                                   # list pending approvals
+rex approvals --show apr_abc123def456           # inspect the approval record
+rex approvals --approve apr_abc123def456        # approve execution
+```
+
+**Step 3 — Re-run to execute**
+
+```
+rex pc run --id desktop --yes -- whoami
+```
+
+Now the command executes. `--yes` is still required even after approval.
+
+**To deny** (blocks the pending approval without executing):
+
+```
+rex approvals --deny apr_abc123def456 --reason "not authorised"
 ```
 
 ---
@@ -227,14 +276,35 @@ rex pc run --id desktop --yes -- ipconfig
 - Tokens are **never** logged — only the computer `id` and remote address
   appear in log output.
 
+### Policy + approvals gate (Cycle 5.2b)
+
+`rex pc run` is classified as `HIGH`-risk in the policy engine
+(`tool_name="pc_run"`).  Before any network call is made:
+
+1. The client-side allowlist is checked (no network).  Non-allowlisted commands
+   are refused immediately.
+2. The policy engine is consulted.  The default policy requires an explicit
+   approval record (`requires_approval=True`).
+3. If no approved approval exists, a pending approval record is written to
+   `data/approvals/` and the user is told how to approve it.
+4. After the user approves via `rex approvals --approve <id>`, re-running the
+   command finds the approved record and proceeds.
+5. The `--yes` flag is still required even after approval — it acts as a second
+   layer of explicit confirmation and **cannot** bypass the approval requirement.
+
+The approval payload includes computer ID, command, args, allowlist decision,
+and user identity.  **Auth tokens are never stored in the approval record.**
+
 ### Allowlist enforcement (defence in depth)
 
-Allowlists are enforced **twice**:
+Allowlists are enforced at three layers:
 
-1. **Client-side** (`rex/computers/service.py`): before any HTTP request is
+1. **Policy gate** (`rex/computers/pc_run_policy.py`): before any approval is
+   created, non-allowlisted commands are rejected with a clear message.
+2. **Client-side** (`rex/computers/service.py`): before any HTTP request is
    made. A command not in the client list raises `AllowlistDeniedError`
    immediately with no network activity.
-2. **Agent-side** (`rex/computers/agent_server.py`): at the HTTP endpoint
+3. **Agent-side** (`rex/computers/agent_server.py`): at the HTTP endpoint
    before any subprocess is spawned. A command not in the agent list returns
    HTTP 403 and the subprocess is **never called**.
 
@@ -294,19 +364,17 @@ cannot be targeted by `rex pc status` or `rex pc run`.
 All tests are offline (no real network or subprocess required):
 
 ```bash
-# Run all computer-related tests
-pytest -q tests/test_computers.py tests/test_windows_agent.py
+# Run computer and policy tests
+python -m pytest -q tests/test_computers.py tests/test_windows_agent.py tests/test_pc_run_policy.py
 
 # Or the full suite
-pytest -q
+python -m pytest -q
 ```
 
 ---
 
 ## Deferred items (future cycles)
 
-- **Cycle 5.2**: Policy / approval integration for `rex pc run` — wire into
-  the existing `policy_engine` so commands can be marked approval-required.
-  (Current mitigation: `rex pc run` requires explicit `--yes`.)
 - **Future**: TLS / mTLS support, per-user computer access controls, persistent
-  audit log to file, Windows Service wrapper for the agent.
+  audit log to file, Windows Service wrapper for the agent, configurable
+  per-computer policy overrides in `config/rex_config.json`.
