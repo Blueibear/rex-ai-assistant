@@ -273,6 +273,27 @@ Agent security rules:
 - Output truncated to `REX_AGENT_MAX_OUTPUT` bytes.
 - Audit log: every `/run` attempt is logged with timestamp, remote addr, command, exit code, duration (no tokens).
 
+## WordPress integration config keys (Cycle 6.1 read-only)
+- `wordpress.sites[]` with per-site fields: `id`, `base_url`, `enabled`, `auth_method`, `credential_ref`, `timeout_seconds`
+- `auth_method` values: `none` (default), `application_password`, `basic`
+- `credential_ref`: CredentialManager key returning `"username:password"` format; ignored when `auth_method=none`
+- WordPress backend code lives in `rex/wordpress/` (config, client, service)
+- Docs: `docs/wordpress_woocommerce.md`
+
+## WordPress CLI commands (Cycle 6.1)
+- `rex wp health --site <id>` — check reachability and WP detection; includes auth check if auth configured
+
+## WooCommerce integration config keys (Cycle 6.1 read-only)
+- `woocommerce.sites[]` with per-site fields: `id`, `base_url`, `enabled`, `consumer_key_ref`, `consumer_secret_ref`, `timeout_seconds`
+- `consumer_key_ref`: CredentialManager key for the WC consumer key
+- `consumer_secret_ref`: CredentialManager key for the WC consumer secret
+- WooCommerce backend code lives in `rex/woocommerce/` (config, client, service)
+- Docs: `docs/wordpress_woocommerce.md`
+
+## WooCommerce CLI commands (Cycle 6.1)
+- `rex wc orders list --site <id> [--status <status>] [--limit N]` — list orders via WC REST API v3
+- `rex wc products list --site <id> [--low-stock] [--limit N]` — list products; `--low-stock` applies client-side filter
+
 ## Integration testing rules
 - Integration tests must not require real network credentials.
 - Use deterministic mocks/fixtures/fake transports for IMAP/SMTP/Twilio/ICS.

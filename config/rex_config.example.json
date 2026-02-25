@@ -138,5 +138,29 @@
       "connect_timeout": 5.0,
       "read_timeout": 30.0
     }
-  ]
+  ],
+  "wordpress": {
+    "sites": [
+      {
+        "id": "myblog",
+        "base_url": "https://example.com",
+        "enabled": true,
+        "auth_method": "application_password",
+        "credential_ref": "wp:myblog",
+        "timeout_seconds": 15
+      }
+    ]
+  },
+  "woocommerce": {
+    "sites": [
+      {
+        "id": "myshop",
+        "base_url": "https://example.com",
+        "enabled": true,
+        "consumer_key_ref": "wc:myshop:key",
+        "consumer_secret_ref": "wc:myshop:secret",
+        "timeout_seconds": 30
+      }
+    ]
+  }
 }

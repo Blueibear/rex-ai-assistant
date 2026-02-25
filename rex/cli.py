@@ -23,6 +23,8 @@ This module provides the main CLI entry point with subcommands:
     rex msg          - Messaging (SMS)
     rex notify       - Notifications
     rex pc           - Remote Windows computer control (agent API, client-only foundation)
+    rex wp           - WordPress site monitoring (read-only)
+    rex wc           - WooCommerce monitoring (read-only)
 
 Usage:
     rex [command] [options]
@@ -2422,6 +2424,187 @@ def cmd_pc(args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_wp(args: argparse.Namespace) -> int:
+    """WordPress site monitoring (read-only)."""
+    subcommand = args.wp_command
+
+    if subcommand == "health":
+        from rex.wordpress.service import (
+            WordPressMissingCredentialError,
+            WordPressSiteDisabledError,
+            WordPressSiteNotFoundError,
+            get_wordpress_service,
+        )
+
+        site_id = args.site
+        service = get_wordpress_service()
+
+        try:
+            result = service.health(site_id)
+        except WordPressSiteNotFoundError as e:
+            print(f"Error: {e}")
+            return 1
+        except WordPressSiteDisabledError as e:
+            print(f"Error: {e}")
+            return 1
+        except WordPressMissingCredentialError as e:
+            print(f"Error: {e}")
+            return 1
+
+        print(f"WordPress Health: {site_id}")
+        print("=" * 60)
+        print(f"  Reachable    : {'Yes' if result.reachable else 'No'}")
+        print(f"  WP detected  : {'Yes' if result.wp_detected else 'No'}")
+        if result.site_name:
+            print(f"  Site name    : {result.site_name}")
+        if result.site_url:
+            print(f"  Site URL     : {result.site_url}")
+        if result.auth_ok is not None:
+            print(f"  Auth check   : {'OK' if result.auth_ok else 'FAILED'}")
+        if result.error:
+            print(f"  Error        : {result.error}")
+        print()
+        status = "OK" if result.ok else "FAILED"
+        print(f"Overall status: {status}")
+        return 0 if result.ok else 1
+
+    print("Unknown wp subcommand. Use 'rex wp --help'")
+    return 1
+
+
+def cmd_wc(args: argparse.Namespace) -> int:
+    """WooCommerce monitoring (read-only)."""
+    subcommand = args.wc_command
+
+    if subcommand == "orders":
+        wc_orders_cmd = getattr(args, "wc_orders_command", None)
+        if wc_orders_cmd == "list":
+            from rex.woocommerce.service import (
+                WooCommerceMissingCredentialError,
+                WooCommerceSiteDisabledError,
+                WooCommerceSiteNotFoundError,
+                get_woocommerce_service,
+            )
+
+            site_id = args.site
+            status_filter = getattr(args, "status", None)
+            limit = getattr(args, "limit", 10)
+            service = get_woocommerce_service()
+
+            try:
+                result = service.list_orders(site_id, status=status_filter, limit=limit)
+            except WooCommerceSiteNotFoundError as e:
+                print(f"Error: {e}")
+                return 1
+            except WooCommerceSiteDisabledError as e:
+                print(f"Error: {e}")
+                return 1
+            except WooCommerceMissingCredentialError as e:
+                print(f"Error: {e}")
+                return 1
+
+            if not result.ok:
+                print(f"Error: {result.error}")
+                return 1
+
+            status_label = f" [{status_filter}]" if status_filter else ""
+            print(f"WooCommerce Orders: {site_id}{status_label}")
+            print("=" * 60)
+
+            if not result.orders:
+                print("No orders found.")
+                return 0
+
+            for order in result.orders:
+                order_id = order.get("id", "?")
+                order_status = order.get("status", "unknown")
+                total = order.get("total", "0.00")
+                currency = order.get("currency", "")
+                date_created = str(order.get("date_created", ""))[:10]
+                billing = order.get("billing", {})
+                customer = ""
+                if billing:
+                    first = billing.get("first_name", "")
+                    last = billing.get("last_name", "")
+                    customer = f" | {first} {last}".rstrip()
+                print(
+                    f"  #{order_id}  [{order_status}]  {currency} {total}"
+                    f"  {date_created}{customer}"
+                )
+
+            print()
+            print(f"Total: {len(result.orders)} order(s)")
+            return 0
+
+        print("Unknown wc orders subcommand. Use 'rex wc orders --help'")
+        return 1
+
+    if subcommand == "products":
+        wc_products_cmd = getattr(args, "wc_products_command", None)
+        if wc_products_cmd == "list":
+            from rex.woocommerce.service import (
+                WooCommerceMissingCredentialError,
+                WooCommerceSiteDisabledError,
+                WooCommerceSiteNotFoundError,
+                get_woocommerce_service,
+            )
+
+            site_id = args.site
+            limit = getattr(args, "limit", 10)
+            low_stock = getattr(args, "low_stock", False)
+            service = get_woocommerce_service()
+
+            try:
+                result = service.list_products(site_id, limit=limit, low_stock=low_stock)
+            except WooCommerceSiteNotFoundError as e:
+                print(f"Error: {e}")
+                return 1
+            except WooCommerceSiteDisabledError as e:
+                print(f"Error: {e}")
+                return 1
+            except WooCommerceMissingCredentialError as e:
+                print(f"Error: {e}")
+                return 1
+
+            if not result.ok:
+                print(f"Error: {result.error}")
+                return 1
+
+            stock_label = " [low-stock]" if low_stock else ""
+            print(f"WooCommerce Products: {site_id}{stock_label}")
+            print("=" * 60)
+
+            if not result.products:
+                no_msg = "No low-stock products found." if low_stock else "No products found."
+                print(no_msg)
+                return 0
+
+            for product in result.products:
+                product_id = product.get("id", "?")
+                name = product.get("name", "Unknown")
+                stock_status = product.get("stock_status", "")
+                qty = product.get("stock_quantity")
+                manage = product.get("manage_stock", False)
+                stock_info = ""
+                if manage and qty is not None:
+                    stock_info = f"  stock={qty}"
+                elif stock_status:
+                    stock_info = f"  [{stock_status}]"
+                price = product.get("price", "")
+                price_str = f"  ${price}" if price else ""
+                print(f"  #{product_id}  {name}{price_str}{stock_info}")
+
+            print()
+            print(f"Total: {len(result.products)} product(s)")
+            return 0
+
+        print("Unknown wc products subcommand. Use 'rex wc products --help'")
+        return 1
+
+    print("Unknown wc subcommand. Use 'rex wc --help'")
+    return 1
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser with all subcommands."""
     parser = argparse.ArgumentParser(
@@ -2489,6 +2672,15 @@ Computer commands:
   rex pc status --id desktop
   rex pc run --id desktop --yes -- whoami
   rex pc run --id desktop --yes -- ipconfig
+
+WordPress commands:
+  rex wp health --site myblog
+
+WooCommerce commands:
+  rex wc orders list --site myshop
+  rex wc orders list --site myshop --status pending --limit 20
+  rex wc products list --site myshop
+  rex wc products list --site myshop --low-stock
 
 For more information, visit: https://github.com/Blueibear/rex-ai-assistant
 """,
@@ -3500,6 +3692,139 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     pc_run.set_defaults(func=cmd_pc, pc_command="run")
 
     pc_parser.set_defaults(func=cmd_pc, pc_command="list")
+
+    # wp (WordPress read-only monitoring)
+    wp_parser = subparsers.add_parser(
+        "wp",
+        help="WordPress site monitoring (read-only)",
+        description=(
+            "Monitor WordPress sites via the WP REST API. "
+            "Requires a site entry in wordpress.sites[] in rex_config.json. "
+            "Credentials are looked up via CredentialManager — never stored in config."
+        ),
+    )
+    wp_subparsers = wp_parser.add_subparsers(
+        title="wp commands",
+        dest="wp_command",
+        metavar="COMMAND",
+    )
+
+    wp_health = wp_subparsers.add_parser(
+        "health",
+        help="Check that a WordPress site is reachable and looks like WP",
+        description=(
+            "Calls GET /wp-json to verify reachability and WP detection. "
+            "If auth is configured, also calls GET /wp-json/wp/v2/users/me."
+        ),
+    )
+    wp_health.add_argument(
+        "--site",
+        type=str,
+        required=True,
+        help="WordPress site ID from wordpress.sites[] in config",
+    )
+    wp_health.set_defaults(func=cmd_wp, wp_command="health")
+
+    wp_parser.set_defaults(func=cmd_wp, wp_command="health")
+
+    # wc (WooCommerce read-only monitoring)
+    wc_parser = subparsers.add_parser(
+        "wc",
+        help="WooCommerce monitoring (read-only)",
+        description=(
+            "Monitor WooCommerce stores via the WC REST API v3. "
+            "Requires a site entry in woocommerce.sites[] in rex_config.json. "
+            "Consumer key and secret are looked up via CredentialManager — never stored in config."
+        ),
+    )
+    wc_subparsers = wc_parser.add_subparsers(
+        title="wc commands",
+        dest="wc_command",
+        metavar="COMMAND",
+    )
+
+    # wc orders
+    wc_orders_parser = wc_subparsers.add_parser(
+        "orders",
+        help="Manage WooCommerce orders",
+        description="WooCommerce orders subcommands.",
+    )
+    wc_orders_subparsers = wc_orders_parser.add_subparsers(
+        title="orders commands",
+        dest="wc_orders_command",
+        metavar="COMMAND",
+    )
+
+    wc_orders_list = wc_orders_subparsers.add_parser(
+        "list",
+        help="List WooCommerce orders",
+        description="Fetch orders from a WooCommerce site via the REST API v3.",
+    )
+    wc_orders_list.add_argument(
+        "--site",
+        type=str,
+        required=True,
+        help="WooCommerce site ID from woocommerce.sites[] in config",
+    )
+    wc_orders_list.add_argument(
+        "--status",
+        type=str,
+        default=None,
+        help=(
+            "Filter orders by status "
+            "(e.g. pending, processing, completed, on-hold, cancelled, refunded, failed)"
+        ),
+    )
+    wc_orders_list.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Maximum number of orders to return (default: 10, max: 100)",
+    )
+    wc_orders_list.set_defaults(func=cmd_wc, wc_command="orders", wc_orders_command="list")
+
+    wc_orders_parser.set_defaults(func=cmd_wc, wc_command="orders", wc_orders_command="list")
+
+    # wc products
+    wc_products_parser = wc_subparsers.add_parser(
+        "products",
+        help="Manage WooCommerce products",
+        description="WooCommerce products subcommands.",
+    )
+    wc_products_subparsers = wc_products_parser.add_subparsers(
+        title="products commands",
+        dest="wc_products_command",
+        metavar="COMMAND",
+    )
+
+    wc_products_list = wc_products_subparsers.add_parser(
+        "list",
+        help="List WooCommerce products",
+        description="Fetch products from a WooCommerce site via the REST API v3.",
+    )
+    wc_products_list.add_argument(
+        "--site",
+        type=str,
+        required=True,
+        help="WooCommerce site ID from woocommerce.sites[] in config",
+    )
+    wc_products_list.add_argument(
+        "--low-stock",
+        dest="low_stock",
+        action="store_true",
+        help="Filter to low-stock and out-of-stock products (client-side filter)",
+    )
+    wc_products_list.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Maximum number of products to return (default: 10, max: 100)",
+    )
+    wc_products_list.set_defaults(func=cmd_wc, wc_command="products", wc_products_command="list")
+
+    wc_products_parser.set_defaults(func=cmd_wc, wc_command="products", wc_products_command="list")
+
+    wc_parser.set_defaults(func=cmd_wc, wc_command="orders")
 
     return parser
 
