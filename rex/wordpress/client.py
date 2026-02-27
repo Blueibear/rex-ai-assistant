@@ -24,8 +24,11 @@ Uses ``requests`` (already in ``[project.dependencies]``).
 from __future__ import annotations
 
 import logging
+import socket
 from dataclasses import dataclass
+from ipaddress import ip_address
 from typing import Any
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +77,7 @@ class WordPressClient:
         timeout: int = 15,
         site_id: str = "",
     ) -> None:
-        self._base_url = base_url.rstrip("/")
+        self._base_url = _validate_base_url(base_url)
         self._auth = auth
         self._timeout = timeout
         self._label = site_id or self._base_url
@@ -97,8 +100,9 @@ class WordPressClient:
         try:
             data = self._get(url, auth=None)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("WP health check failed for %s: %s", self._label, exc)
-            return WPHealthResult(ok=False, reachable=False, error=str(exc))
+            message = _safe_error_message(exc)
+            logger.warning("WP health check failed for %s: %s", self._label, message)
+            return WPHealthResult(ok=False, reachable=False, error=message)
 
         if not isinstance(data, dict):
             return WPHealthResult(
@@ -165,6 +169,63 @@ class WordPressClient:
         )
         resp.raise_for_status()
         return resp.json()
+
+
+def _validate_base_url(base_url: str) -> str:
+    """Validate and normalize base_url for safe read-only requests."""
+    parsed = urlparse(base_url)
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in {"http", "https"}:
+        raise ValueError(f"base_url must use http or https scheme, got: {scheme!r}")
+    if not parsed.netloc:
+        raise ValueError("base_url must include a host (netloc)")
+    if parsed.username or parsed.password:
+        raise ValueError("base_url must not include embedded credentials")
+    _validate_remote_host(parsed.hostname)
+    return base_url.rstrip("/")
+
+
+def _validate_remote_host(hostname: str | None) -> None:
+    """Reject localhost/private/reserved targets to reduce SSRF risk."""
+    if not hostname:
+        raise ValueError("base_url is missing a hostname")
+
+    lowered = hostname.strip().lower()
+    if lowered in {"localhost", "localhost.localdomain"}:
+        raise ValueError("base_url host must not be localhost or local network")
+
+    try:
+        addresses = {ai[4][0] for ai in socket.getaddrinfo(hostname, None)}
+    except socket.gaierror as exc:
+        raise ValueError(f"Could not resolve base_url host: {hostname}") from exc
+
+    for addr in addresses:
+        ip = ip_address(addr)
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise ValueError("base_url host resolves to a local or reserved address")
+
+
+def _safe_error_message(exc: Exception) -> str:
+    """Return a non-sensitive error message for CLI/logging output."""
+    import requests  # noqa: PLC0415
+
+    if isinstance(exc, requests.Timeout):
+        return "Request timed out"
+    if isinstance(exc, requests.HTTPError):
+        status_code = exc.response.status_code if exc.response is not None else "unknown"
+        return f"HTTP error from WordPress API (status={status_code})"
+    if isinstance(exc, requests.RequestException):
+        return "Request to WordPress API failed"
+    if isinstance(exc, ValueError):
+        return str(exc)
+    return "Unexpected error while querying WordPress API"
 
 
 __all__ = [

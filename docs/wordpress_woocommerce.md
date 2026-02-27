@@ -200,6 +200,11 @@ from low-stock results (stock level cannot be determined).
   must be stored in `.env` or `config/credentials.json`.
 - **Credentials are never logged**: URL paths, query parameters, and response
   bodies do not appear in log output. Only the site `id` label is logged.
+- **Error messages are sanitized**: request failures are normalized to avoid
+  leaking credential material from exception strings.
+- **SSRF hardening**: `base_url` must not contain embedded credentials and must
+  resolve to non-local, non-reserved addresses (localhost/private/link-local/
+  multicast/unspecified are rejected).
 - **Read-only**: This cycle implements only read operations. Write actions
   (updating order status, creating coupons, etc.) are deferred to Cycle 6.3
   and will require explicit policy approval.
