@@ -289,19 +289,33 @@ Agent security rules:
 - `consumer_key_ref`: CredentialManager key for the WC consumer key
 - `consumer_secret_ref`: CredentialManager key for the WC consumer secret
 - `base_url` security: must be `http(s)`, must not embed credentials, and host must not resolve to localhost/private/reserved ranges (SSRF hardening)
-- WooCommerce backend code lives in `rex/woocommerce/` (config, client, service)
+- WooCommerce backend code lives in `rex/woocommerce/` (config, client, service, write_policy)
 - Docs: `docs/wordpress_woocommerce.md`
 
-## WooCommerce CLI commands (Cycle 6.1)
+## WooCommerce CLI commands (Cycle 6.1 read + Cycle 6.3 write)
 - `rex wc orders list --site <id> [--status <status>] [--limit N]` — list orders via WC REST API v3
+- `rex wc orders set-status --site <id> --order-id <n> --status <s> [--note "<text>"] [--yes] [--user <id>]` — update order status (approval-gated, HIGH risk)
 - `rex wc products list --site <id> [--low-stock] [--limit N]` — list products; `--low-stock` applies client-side filter
+- `rex wc coupons create --site <id> --code <code> --amount <n> --type <percent|fixed_cart|fixed_product> [--expires YYYY-MM-DD] [--usage-limit N] [--yes] [--user <id>]` — create coupon (approval-gated, HIGH risk)
+- `rex wc coupons disable --site <id> --coupon-id <n> [--yes] [--user <id>]` — disable coupon (approval-gated, HIGH risk)
+
+## WooCommerce write action policy (Cycle 6.3)
+- Write actions (`wc_order_set_status`, `wc_coupon_create`, `wc_coupon_disable`) are classified as HIGH risk and require an approved `WorkflowApproval` record before any network call is made.
+- Two-step flow: (1) first run creates a pending approval and prints its ID; (2) `rex approvals --approve <id>`; (3) re-run with `--yes` executes the write.
+- `--yes` is a second-layer guard applied after approval — both are required.
+- Approval records are stored in `data/approvals/` with `workflow_id="wc_write"`.
+- Deterministic `step_id`: same command + site + parameters always maps to the same approval record (no duplicates on repeated runs).
+- Consumer keys/secrets are never stored in approval payload on disk.
+- Policy module: `rex/woocommerce/write_policy.py`
 
 ## Integration testing rules
 - Integration tests must not require real network credentials.
 - Use deterministic mocks/fixtures/fake transports for IMAP/SMTP/Twilio/ICS.
 - When mocking HTTPS URL fetches (WordPress/WooCommerce/ICS), also mock `socket.getaddrinfo` (used by SSRF validation) so the test does not depend on DNS resolution.
+- For WooCommerce write tests: mock `requests.put` and `requests.post` (in addition to `requests.get`) and also mock `socket.getaddrinfo`.
 - Add both success and failure-path tests for each backend adapter.
 - Never log raw secrets (tokens, passwords, app passwords, OAuth refresh tokens).
+- WooCommerce write tests must verify that no network call is made when an approval is missing or pending.
 
 ## Testing
 - Pytest configuration source-of-truth is `[tool.pytest.ini_options]` in `pyproject.toml`; do not reintroduce `pytest.ini`.
