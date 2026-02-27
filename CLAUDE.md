@@ -277,6 +277,7 @@ Agent security rules:
 - `wordpress.sites[]` with per-site fields: `id`, `base_url`, `enabled`, `auth_method`, `credential_ref`, `timeout_seconds`
 - `auth_method` values: `none` (default), `application_password`, `basic`
 - `credential_ref`: CredentialManager key returning `"username:password"` format; ignored when `auth_method=none`
+- `base_url` security: must be `http(s)`, must not embed credentials, and host must not resolve to localhost/private/reserved ranges (SSRF hardening)
 - WordPress backend code lives in `rex/wordpress/` (config, client, service)
 - Docs: `docs/wordpress_woocommerce.md`
 
@@ -287,6 +288,7 @@ Agent security rules:
 - `woocommerce.sites[]` with per-site fields: `id`, `base_url`, `enabled`, `consumer_key_ref`, `consumer_secret_ref`, `timeout_seconds`
 - `consumer_key_ref`: CredentialManager key for the WC consumer key
 - `consumer_secret_ref`: CredentialManager key for the WC consumer secret
+- `base_url` security: must be `http(s)`, must not embed credentials, and host must not resolve to localhost/private/reserved ranges (SSRF hardening)
 - WooCommerce backend code lives in `rex/woocommerce/` (config, client, service)
 - Docs: `docs/wordpress_woocommerce.md`
 
@@ -297,7 +299,7 @@ Agent security rules:
 ## Integration testing rules
 - Integration tests must not require real network credentials.
 - Use deterministic mocks/fixtures/fake transports for IMAP/SMTP/Twilio/ICS.
-- When mocking HTTPS URL fetches, also mock `socket.getaddrinfo` (used by SSRF validation) so the test does not depend on DNS resolution.
+- When mocking HTTPS URL fetches (WordPress/WooCommerce/ICS), also mock `socket.getaddrinfo` (used by SSRF validation) so the test does not depend on DNS resolution.
 - Add both success and failure-path tests for each backend adapter.
 - Never log raw secrets (tokens, passwords, app passwords, OAuth refresh tokens).
 

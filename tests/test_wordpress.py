@@ -40,6 +40,18 @@ from rex.wordpress.service import (
 # ---------------------------------------------------------------------------
 
 
+def _mock_public_addrinfo(*_args, **_kwargs):
+    """Return a stable public address for SSRF-safe URL validation in tests."""
+    return [(0, 0, 0, "", ("93.184.216.34", 0))]
+
+
+@pytest.fixture(autouse=True)
+def _patch_getaddrinfo():
+    """Keep tests fully offline by mocking DNS used in SSRF checks."""
+    with patch("socket.getaddrinfo", side_effect=_mock_public_addrinfo):
+        yield
+
+
 def _make_site_config(
     *,
     site_id: str = "myblog",
@@ -387,6 +399,49 @@ class TestWordPressClientHealth:
 
         kwargs = mock_get.call_args[1]
         assert kwargs.get("timeout") == 42
+
+
+class TestWordPressClientSecurity:
+    """Security-focused tests for URL validation and error sanitization."""
+
+    def test_rejects_localhost_base_url(self):
+        """localhost is rejected to reduce SSRF risk."""
+        with pytest.raises(ValueError, match="localhost"):
+            WordPressClient("https://localhost")
+
+    def test_rejects_embedded_credentials_in_base_url(self):
+        """Embedded credentials in base_url are rejected."""
+        with pytest.raises(ValueError, match="embedded credentials"):
+            WordPressClient("https://user:pass@example.com")
+
+    def test_timeout_error_message_sanitized(self):
+        """Timeout errors are normalized without leaking request details."""
+        import requests
+
+        client = WordPressClient("https://example.com")
+        with patch("requests.get", side_effect=requests.Timeout("secret-token")):
+            result = client.health()
+
+        assert result.ok is False
+        assert result.error == "Request timed out"
+
+    def test_http_error_message_sanitized(self):
+        """HTTP errors expose only status code in user-facing errors."""
+        import requests
+
+        client = WordPressClient("https://example.com")
+        response = requests.Response()
+        response.status_code = 401
+        err = requests.HTTPError("https://user:pass@example.com", response=response)
+
+        with patch("requests.get") as mock_get:
+            mock_resp = MagicMock()
+            mock_resp.raise_for_status.side_effect = err
+            mock_get.return_value = mock_resp
+            result = client.health()
+
+        assert result.ok is False
+        assert result.error == "HTTP error from WordPress API (status=401)"
 
 
 # ---------------------------------------------------------------------------
