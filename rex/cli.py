@@ -2536,6 +2536,9 @@ def cmd_wc(args: argparse.Namespace) -> int:
             print(f"Total: {len(result.orders)} order(s)")
             return 0
 
+        if wc_orders_cmd == "set-status":
+            return _cmd_wc_order_set_status(args)
+
         print("Unknown wc orders subcommand. Use 'rex wc orders --help'")
         return 1
 
@@ -2601,8 +2604,392 @@ def cmd_wc(args: argparse.Namespace) -> int:
         print("Unknown wc products subcommand. Use 'rex wc products --help'")
         return 1
 
+    if subcommand == "coupons":
+        wc_coupons_cmd = getattr(args, "wc_coupons_command", None)
+
+        if wc_coupons_cmd == "create":
+            return _cmd_wc_coupon_create(args)
+
+        if wc_coupons_cmd == "disable":
+            return _cmd_wc_coupon_disable(args)
+
+        print("Unknown wc coupons subcommand. Use 'rex wc coupons --help'")
+        return 1
+
     print("Unknown wc subcommand. Use 'rex wc --help'")
     return 1
+
+
+# ---------------------------------------------------------------------------
+# WooCommerce write action helpers (Cycle 6.3)
+# ---------------------------------------------------------------------------
+
+_WC_WRITE_HELP = (
+    "Write actions require policy approval before they can execute.\n"
+    "  Step 1: Run the command to create a pending approval record.\n"
+    "  Step 2: Approve it:  rex approvals --approve <id>\n"
+    "  Step 3: Re-run with --yes to execute."
+)
+
+
+def _resolve_wc_initiated_by(args: argparse.Namespace) -> str | None:
+    """Resolve the active user identity for approval records (best-effort)."""
+    try:
+        from rex.identity import resolve_active_user
+
+        return resolve_active_user(getattr(args, "user", None))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _cmd_wc_order_set_status(args: argparse.Namespace) -> int:
+    """Handle ``rex wc orders set-status``."""
+    import sys
+
+    from rex.woocommerce.service import (
+        WooCommerceMissingCredentialError,
+        WooCommerceSiteDisabledError,
+        WooCommerceSiteNotFoundError,
+        get_woocommerce_service,
+    )
+    from rex.woocommerce.write_policy import (
+        WC_ORDER_SET_STATUS_TOOL,
+        check_wc_write_policy,
+    )
+
+    site_id: str = args.site
+    order_id: int = args.order_id
+    new_status: str = args.status
+    note: str | None = getattr(args, "note", None)
+    yes: bool = getattr(args, "yes", False)
+
+    initiated_by = _resolve_wc_initiated_by(args)
+
+    # ------------------------------------------------------------------
+    # Policy + approvals gate (evaluated BEFORE the --yes guard).
+    # ------------------------------------------------------------------
+    identifiers = {"order_id": order_id, "status": new_status}
+    params = {"order_id": order_id, "status": new_status}
+    if note:
+        params["note"] = note
+
+    policy_decision, approval = check_wc_write_policy(
+        action=WC_ORDER_SET_STATUS_TOOL,
+        site_id=site_id,
+        identifiers=identifiers,
+        params=params,
+        step_description=f"Update order #{order_id} status to {new_status!r} on site {site_id!r}",
+        initiated_by=initiated_by,
+    )
+
+    if policy_decision.denied:
+        print(f"Error: WooCommerce write action denied by policy: {policy_decision.reason}")
+        return 1
+
+    if policy_decision.requires_approval:
+        if approval is None or approval.status != "approved":
+            if approval is not None:
+                print("Approval required before this WooCommerce write action can proceed.")
+                print()
+                print(f"  Approval ID : {approval.approval_id}")
+                print(f"  Site        : {site_id}")
+                print(f"  Action      : set order #{order_id} status → {new_status!r}")
+                if note:
+                    print(f"  Note        : {note!r}")
+                if initiated_by:
+                    print(f"  Requested by: {initiated_by}")
+                print()
+                print(f"  To approve : rex approvals --approve {approval.approval_id}")
+                print(f"  To deny    : rex approvals --deny {approval.approval_id}")
+                print()
+                print("After approving, re-run this command with --yes to execute.")
+                print()
+                print(_WC_WRITE_HELP)
+            else:
+                print("Error: Approval required but could not create approval record.")
+            return 1
+
+    # ------------------------------------------------------------------
+    # Second-layer --yes confirmation guard.
+    # ------------------------------------------------------------------
+    if not yes:
+        print("Refusing to update order status without explicit confirmation.")
+        print(
+            f"Re-run with '--yes' to update order #{order_id} status to {new_status!r} "
+            f"on site {site_id!r}."
+        )
+        return 1
+
+    # Execute
+    service = get_woocommerce_service()
+    try:
+        result = service.set_order_status(site_id, order_id, status=new_status)
+    except WooCommerceSiteNotFoundError as e:
+        print(f"Error: {e}")
+        return 1
+    except WooCommerceSiteDisabledError as e:
+        print(f"Error: {e}")
+        return 1
+    except WooCommerceMissingCredentialError as e:
+        print(f"Error: {e}")
+        return 1
+
+    if not result.ok:
+        print(f"Error: {result.error}")
+        return 1
+
+    updated_id = (result.data or {}).get("id", order_id)
+    updated_status = (result.data or {}).get("status", new_status)
+    print(f"Order #{updated_id} status updated to {updated_status!r}.")
+
+    if note:
+        note_result = service.add_order_note(site_id, order_id, note=note, customer_note=False)
+        if not note_result.ok:
+            print(f"Warning: Order note could not be added: {note_result.error}", file=sys.stderr)
+        else:
+            print("Order note added.")
+
+    return 0
+
+
+def _cmd_wc_coupon_create(args: argparse.Namespace) -> int:
+    """Handle ``rex wc coupons create``."""
+    from rex.woocommerce.service import (
+        WooCommerceMissingCredentialError,
+        WooCommerceSiteDisabledError,
+        WooCommerceSiteNotFoundError,
+        get_woocommerce_service,
+    )
+    from rex.woocommerce.write_policy import (
+        WC_COUPON_CREATE_TOOL,
+        check_wc_write_policy,
+    )
+
+    site_id: str = args.site
+    code: str = args.code.strip()
+    amount_str: str = args.amount
+    discount_type: str = args.type
+    expires: str | None = getattr(args, "expires", None)
+    usage_limit: int | None = getattr(args, "usage_limit", None)
+    yes: bool = getattr(args, "yes", False)
+
+    # Local input validation
+    if not code:
+        print("Error: --code must be a non-empty string.")
+        return 1
+
+    try:
+        amount_val = float(amount_str)
+        if amount_val <= 0:
+            raise ValueError("amount must be positive")
+    except ValueError:
+        print(f"Error: --amount must be a positive number, got: {amount_str!r}")
+        return 1
+
+    allowed_types = {"percent", "fixed_cart", "fixed_product"}
+    if discount_type not in allowed_types:
+        print(f"Error: --type must be one of {sorted(allowed_types)}, got: {discount_type!r}")
+        return 1
+
+    if expires is not None:
+        try:
+            from datetime import datetime
+
+            datetime.strptime(expires, "%Y-%m-%d")
+        except ValueError:
+            print(f"Error: --expires must be in YYYY-MM-DD format, got: {expires!r}")
+            return 1
+
+    initiated_by = _resolve_wc_initiated_by(args)
+
+    # ------------------------------------------------------------------
+    # Policy + approvals gate.
+    # ------------------------------------------------------------------
+    identifiers = {"code": code, "amount": amount_str, "discount_type": discount_type}
+    params: dict = {
+        "code": code,
+        "amount": amount_str,
+        "discount_type": discount_type,
+    }
+    if expires:
+        params["date_expires"] = expires
+    if usage_limit is not None:
+        params["usage_limit"] = usage_limit
+
+    policy_decision, approval = check_wc_write_policy(
+        action=WC_COUPON_CREATE_TOOL,
+        site_id=site_id,
+        identifiers=identifiers,
+        params=params,
+        step_description=(
+            f"Create coupon {code!r} ({discount_type} {amount_str}) on site {site_id!r}"
+        ),
+        initiated_by=initiated_by,
+    )
+
+    if policy_decision.denied:
+        print(f"Error: WooCommerce write action denied by policy: {policy_decision.reason}")
+        return 1
+
+    if policy_decision.requires_approval:
+        if approval is None or approval.status != "approved":
+            if approval is not None:
+                print("Approval required before this WooCommerce write action can proceed.")
+                print()
+                print(f"  Approval ID  : {approval.approval_id}")
+                print(f"  Site         : {site_id}")
+                print(f"  Action       : create coupon {code!r}")
+                print(f"  Type / Amount: {discount_type} / {amount_str}")
+                if expires:
+                    print(f"  Expires      : {expires}")
+                if usage_limit is not None:
+                    print(f"  Usage limit  : {usage_limit}")
+                if initiated_by:
+                    print(f"  Requested by : {initiated_by}")
+                print()
+                print(f"  To approve : rex approvals --approve {approval.approval_id}")
+                print(f"  To deny    : rex approvals --deny {approval.approval_id}")
+                print()
+                print("After approving, re-run this command with --yes to execute.")
+                print()
+                print(_WC_WRITE_HELP)
+            else:
+                print("Error: Approval required but could not create approval record.")
+            return 1
+
+    # ------------------------------------------------------------------
+    # Second-layer --yes confirmation guard.
+    # ------------------------------------------------------------------
+    if not yes:
+        print("Refusing to create coupon without explicit confirmation.")
+        print(f"Re-run with '--yes' to create coupon {code!r} on site {site_id!r}.")
+        return 1
+
+    # Execute
+    service = get_woocommerce_service()
+    try:
+        result = service.create_coupon(
+            site_id,
+            code=code,
+            amount=amount_str,
+            discount_type=discount_type,
+            date_expires=expires,
+            usage_limit=usage_limit,
+        )
+    except WooCommerceSiteNotFoundError as e:
+        print(f"Error: {e}")
+        return 1
+    except WooCommerceSiteDisabledError as e:
+        print(f"Error: {e}")
+        return 1
+    except WooCommerceMissingCredentialError as e:
+        print(f"Error: {e}")
+        return 1
+
+    if not result.ok:
+        print(f"Error: {result.error}")
+        return 1
+
+    created_id = (result.data or {}).get("id", "?")
+    created_code = (result.data or {}).get("code", code)
+    print(f"Coupon created: #{created_id} code={created_code!r}")
+    return 0
+
+
+def _cmd_wc_coupon_disable(args: argparse.Namespace) -> int:
+    """Handle ``rex wc coupons disable``."""
+    from rex.woocommerce.service import (
+        WooCommerceMissingCredentialError,
+        WooCommerceSiteDisabledError,
+        WooCommerceSiteNotFoundError,
+        get_woocommerce_service,
+    )
+    from rex.woocommerce.write_policy import (
+        WC_COUPON_DISABLE_TOOL,
+        check_wc_write_policy,
+    )
+
+    site_id: str = args.site
+    coupon_id: int = args.coupon_id
+    yes: bool = getattr(args, "yes", False)
+
+    # Local input validation
+    if coupon_id <= 0:
+        print(f"Error: --coupon-id must be a positive integer, got: {coupon_id}")
+        return 1
+
+    initiated_by = _resolve_wc_initiated_by(args)
+
+    # ------------------------------------------------------------------
+    # Policy + approvals gate.
+    # ------------------------------------------------------------------
+    identifiers = {"coupon_id": coupon_id}
+    params = {"coupon_id": coupon_id}
+
+    policy_decision, approval = check_wc_write_policy(
+        action=WC_COUPON_DISABLE_TOOL,
+        site_id=site_id,
+        identifiers=identifiers,
+        params=params,
+        step_description=f"Disable coupon #{coupon_id} on site {site_id!r}",
+        initiated_by=initiated_by,
+    )
+
+    if policy_decision.denied:
+        print(f"Error: WooCommerce write action denied by policy: {policy_decision.reason}")
+        return 1
+
+    if policy_decision.requires_approval:
+        if approval is None or approval.status != "approved":
+            if approval is not None:
+                print("Approval required before this WooCommerce write action can proceed.")
+                print()
+                print(f"  Approval ID : {approval.approval_id}")
+                print(f"  Site        : {site_id}")
+                print(f"  Action      : disable coupon #{coupon_id}")
+                if initiated_by:
+                    print(f"  Requested by: {initiated_by}")
+                print()
+                print(f"  To approve : rex approvals --approve {approval.approval_id}")
+                print(f"  To deny    : rex approvals --deny {approval.approval_id}")
+                print()
+                print("After approving, re-run this command with --yes to execute.")
+                print()
+                print(_WC_WRITE_HELP)
+            else:
+                print("Error: Approval required but could not create approval record.")
+            return 1
+
+    # ------------------------------------------------------------------
+    # Second-layer --yes confirmation guard.
+    # ------------------------------------------------------------------
+    if not yes:
+        print("Refusing to disable coupon without explicit confirmation.")
+        print(f"Re-run with '--yes' to disable coupon #{coupon_id} on site {site_id!r}.")
+        return 1
+
+    # Execute
+    service = get_woocommerce_service()
+    try:
+        result = service.disable_coupon(site_id, coupon_id)
+    except WooCommerceSiteNotFoundError as e:
+        print(f"Error: {e}")
+        return 1
+    except WooCommerceSiteDisabledError as e:
+        print(f"Error: {e}")
+        return 1
+    except WooCommerceMissingCredentialError as e:
+        print(f"Error: {e}")
+        return 1
+
+    if not result.ok:
+        print(f"Error: {result.error}")
+        return 1
+
+    updated_id = (result.data or {}).get("id", coupon_id)
+    updated_status = (result.data or {}).get("status", "draft")
+    print(f"Coupon #{updated_id} disabled (status={updated_status!r}).")
+    return 0
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -2679,8 +3066,14 @@ WordPress commands:
 WooCommerce commands:
   rex wc orders list --site myshop
   rex wc orders list --site myshop --status pending --limit 20
+  rex wc orders set-status --site myshop --order-id 101 --status completed
+  rex wc orders set-status --site myshop --order-id 101 --status completed --yes
   rex wc products list --site myshop
   rex wc products list --site myshop --low-stock
+  rex wc coupons create --site myshop --code SAVE10 --amount 10 --type percent
+  rex wc coupons create --site myshop --code SAVE10 --amount 10 --type percent --yes
+  rex wc coupons disable --site myshop --coupon-id 55
+  rex wc coupons disable --site myshop --coupon-id 55 --yes
 
 For more information, visit: https://github.com/Blueibear/rex-ai-assistant
 """,
@@ -3785,6 +4178,61 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
 
     wc_orders_parser.set_defaults(func=cmd_wc, wc_command="orders", wc_orders_command="list")
 
+    wc_orders_set_status = wc_orders_subparsers.add_parser(
+        "set-status",
+        help="Update a WooCommerce order status (requires approval + --yes)",
+        description=(
+            "Update the status of a WooCommerce order via the REST API v3.\n\n"
+            "This is a write action gated by policy approval:\n"
+            "  Step 1: Run without --yes to create a pending approval.\n"
+            "  Step 2: Approve: rex approvals --approve <id>\n"
+            "  Step 3: Re-run with --yes to execute."
+        ),
+    )
+    wc_orders_set_status.add_argument(
+        "--site",
+        type=str,
+        required=True,
+        help="WooCommerce site ID from woocommerce.sites[] in config",
+    )
+    wc_orders_set_status.add_argument(
+        "--order-id",
+        dest="order_id",
+        type=int,
+        required=True,
+        help="WooCommerce order ID",
+    )
+    wc_orders_set_status.add_argument(
+        "--status",
+        type=str,
+        required=True,
+        help=(
+            "New order status "
+            "(e.g. pending, processing, on-hold, completed, cancelled, refunded, failed)"
+        ),
+    )
+    wc_orders_set_status.add_argument(
+        "--note",
+        type=str,
+        default=None,
+        help="Optional internal note to add to the order after the status change",
+    )
+    wc_orders_set_status.add_argument(
+        "--yes",
+        action="store_true",
+        default=False,
+        help="Confirm execution (required after approval is granted)",
+    )
+    wc_orders_set_status.add_argument(
+        "--user",
+        type=str,
+        default=None,
+        help="Override active user identity for the approval record",
+    )
+    wc_orders_set_status.set_defaults(
+        func=cmd_wc, wc_command="orders", wc_orders_command="set-status"
+    )
+
     # wc products
     wc_products_parser = wc_subparsers.add_parser(
         "products",
@@ -3823,6 +4271,123 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     wc_products_list.set_defaults(func=cmd_wc, wc_command="products", wc_products_command="list")
 
     wc_products_parser.set_defaults(func=cmd_wc, wc_command="products", wc_products_command="list")
+
+    # wc coupons (write, approval-gated)
+    wc_coupons_parser = wc_subparsers.add_parser(
+        "coupons",
+        help="Manage WooCommerce coupons (write actions, require approval)",
+        description="WooCommerce coupon write commands (approval-gated).",
+    )
+    wc_coupons_subparsers = wc_coupons_parser.add_subparsers(
+        title="coupons commands",
+        dest="wc_coupons_command",
+        metavar="COMMAND",
+    )
+
+    wc_coupons_create = wc_coupons_subparsers.add_parser(
+        "create",
+        help="Create a WooCommerce coupon (requires approval + --yes)",
+        description=(
+            "Create a new WooCommerce coupon via the REST API v3.\n\n"
+            "This is a write action gated by policy approval:\n"
+            "  Step 1: Run without --yes to create a pending approval.\n"
+            "  Step 2: Approve: rex approvals --approve <id>\n"
+            "  Step 3: Re-run with --yes to execute."
+        ),
+    )
+    wc_coupons_create.add_argument(
+        "--site",
+        type=str,
+        required=True,
+        help="WooCommerce site ID from woocommerce.sites[] in config",
+    )
+    wc_coupons_create.add_argument(
+        "--code",
+        type=str,
+        required=True,
+        help="Coupon code (non-empty string)",
+    )
+    wc_coupons_create.add_argument(
+        "--amount",
+        type=str,
+        required=True,
+        help="Discount amount (positive number, e.g. '10' or '10.00')",
+    )
+    wc_coupons_create.add_argument(
+        "--type",
+        dest="type",
+        type=str,
+        required=True,
+        choices=["percent", "fixed_cart", "fixed_product"],
+        help="Discount type: percent, fixed_cart, or fixed_product",
+    )
+    wc_coupons_create.add_argument(
+        "--expires",
+        type=str,
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="Optional expiry date in YYYY-MM-DD format",
+    )
+    wc_coupons_create.add_argument(
+        "--usage-limit",
+        dest="usage_limit",
+        type=int,
+        default=None,
+        help="Optional maximum number of times the coupon can be used",
+    )
+    wc_coupons_create.add_argument(
+        "--yes",
+        action="store_true",
+        default=False,
+        help="Confirm execution (required after approval is granted)",
+    )
+    wc_coupons_create.add_argument(
+        "--user",
+        type=str,
+        default=None,
+        help="Override active user identity for the approval record",
+    )
+    wc_coupons_create.set_defaults(func=cmd_wc, wc_command="coupons", wc_coupons_command="create")
+
+    wc_coupons_disable = wc_coupons_subparsers.add_parser(
+        "disable",
+        help="Disable a WooCommerce coupon (requires approval + --yes)",
+        description=(
+            "Disable a WooCommerce coupon by setting its status to 'draft'.\n\n"
+            "This is a write action gated by policy approval:\n"
+            "  Step 1: Run without --yes to create a pending approval.\n"
+            "  Step 2: Approve: rex approvals --approve <id>\n"
+            "  Step 3: Re-run with --yes to execute."
+        ),
+    )
+    wc_coupons_disable.add_argument(
+        "--site",
+        type=str,
+        required=True,
+        help="WooCommerce site ID from woocommerce.sites[] in config",
+    )
+    wc_coupons_disable.add_argument(
+        "--coupon-id",
+        dest="coupon_id",
+        type=int,
+        required=True,
+        help="WooCommerce coupon ID",
+    )
+    wc_coupons_disable.add_argument(
+        "--yes",
+        action="store_true",
+        default=False,
+        help="Confirm execution (required after approval is granted)",
+    )
+    wc_coupons_disable.add_argument(
+        "--user",
+        type=str,
+        default=None,
+        help="Override active user identity for the approval record",
+    )
+    wc_coupons_disable.set_defaults(func=cmd_wc, wc_command="coupons", wc_coupons_command="disable")
+
+    wc_coupons_parser.set_defaults(func=cmd_wc, wc_command="coupons", wc_coupons_command="create")
 
     wc_parser.set_defaults(func=cmd_wc, wc_command="orders")
 
