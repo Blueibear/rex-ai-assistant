@@ -1,7 +1,8 @@
-"""HTTP client for the WooCommerce REST API v3 (read-only, Cycle 6.1).
+"""HTTP client for the WooCommerce REST API v3 (Cycle 6.1 read + Cycle 6.3 write).
 
 API endpoints used
 ------------------
+Read (Cycle 6.1):
 - ``GET /wp-json/wc/v3/orders``
     List orders.  Supports ``status`` and ``per_page`` query params.
     Response: list of order objects.
@@ -9,6 +10,19 @@ API endpoints used
 - ``GET /wp-json/wc/v3/products``
     List products.  Supports ``per_page`` query param.
     Response: list of product objects.
+
+Write (Cycle 6.3, approval-gated):
+- ``PUT /wp-json/wc/v3/orders/<order_id>``
+    Update an order (e.g. change status).
+
+- ``POST /wp-json/wc/v3/orders/<order_id>/notes``
+    Add a note to an order.
+
+- ``POST /wp-json/wc/v3/coupons``
+    Create a new coupon.
+
+- ``PUT /wp-json/wc/v3/coupons/<coupon_id>``
+    Update a coupon (e.g. disable by setting status to ``"draft"``).
 
 Authentication
 --------------
@@ -63,6 +77,15 @@ class ProductsResult:
 
     ok: bool
     products: list[dict[str, Any]] = field(default_factory=list)
+    error: str | None = None
+
+
+@dataclass
+class WriteResult:
+    """Result of a write (PUT/POST) call against the WooCommerce REST API."""
+
+    ok: bool
+    data: dict[str, Any] | None = None
     error: str | None = None
 
 
@@ -193,6 +216,175 @@ class WooCommerceClient:
         return ProductsResult(ok=True, products=products)
 
     # ------------------------------------------------------------------
+    # Write API (Cycle 6.3, approval-gated)
+    # ------------------------------------------------------------------
+
+    def set_order_status(
+        self,
+        order_id: int,
+        *,
+        status: str,
+    ) -> WriteResult:
+        """Update the status of a WooCommerce order.
+
+        Calls ``PUT /wp-json/wc/v3/orders/<order_id>`` with
+        ``{"status": "<status>"}``.
+
+        Args:
+            order_id: The WooCommerce order ID.
+            status: New order status (e.g. ``"completed"``, ``"cancelled"``).
+
+        Returns:
+            :class:`WriteResult` with the updated order data on success.
+        """
+        logger.debug(
+            "WC set_order_status for %s: order=%d status=%r",
+            self._label,
+            order_id,
+            status,
+        )
+        try:
+            data = self._put(f"/orders/{order_id}", payload={"status": status})
+        except Exception as exc:  # noqa: BLE001
+            message = _safe_error_message(exc)
+            logger.warning(
+                "WC set_order_status failed for %s order=%d: %s",
+                self._label,
+                order_id,
+                message,
+            )
+            return WriteResult(ok=False, error=message)
+
+        if not isinstance(data, dict):
+            return WriteResult(ok=False, error="Unexpected response format from orders PUT")
+        return WriteResult(ok=True, data=data)
+
+    def add_order_note(
+        self,
+        order_id: int,
+        *,
+        note: str,
+        customer_note: bool = False,
+    ) -> WriteResult:
+        """Add a note to a WooCommerce order.
+
+        Calls ``POST /wp-json/wc/v3/orders/<order_id>/notes``.
+
+        Args:
+            order_id: The WooCommerce order ID.
+            note: The note text.
+            customer_note: When ``True``, the note is visible to the customer.
+                Defaults to ``False`` (internal note only).
+
+        Returns:
+            :class:`WriteResult` with the created note data on success.
+        """
+        logger.debug(
+            "WC add_order_note for %s: order=%d customer_note=%s",
+            self._label,
+            order_id,
+            customer_note,
+        )
+        try:
+            data = self._post(
+                f"/orders/{order_id}/notes",
+                payload={"note": note, "customer_note": customer_note},
+            )
+        except Exception as exc:  # noqa: BLE001
+            message = _safe_error_message(exc)
+            logger.warning(
+                "WC add_order_note failed for %s order=%d: %s",
+                self._label,
+                order_id,
+                message,
+            )
+            return WriteResult(ok=False, error=message)
+
+        if not isinstance(data, dict):
+            return WriteResult(ok=False, error="Unexpected response format from order notes POST")
+        return WriteResult(ok=True, data=data)
+
+    def create_coupon(
+        self,
+        *,
+        code: str,
+        amount: str,
+        discount_type: str,
+        date_expires: str | None = None,
+        usage_limit: int | None = None,
+    ) -> WriteResult:
+        """Create a new WooCommerce coupon.
+
+        Calls ``POST /wp-json/wc/v3/coupons``.
+
+        Args:
+            code: Coupon code (non-empty string).
+            amount: Discount amount as a string (e.g. ``"10"`` or ``"10.00"``).
+            discount_type: ``"percent"``, ``"fixed_cart"``, or ``"fixed_product"``.
+            date_expires: Optional expiry date in ``"YYYY-MM-DD"`` format.
+            usage_limit: Optional maximum number of times the coupon can be used.
+
+        Returns:
+            :class:`WriteResult` with the created coupon data on success.
+        """
+        payload: dict[str, Any] = {
+            "code": code,
+            "amount": amount,
+            "discount_type": discount_type,
+        }
+        if date_expires is not None:
+            payload["date_expires"] = f"{date_expires}T00:00:00"
+        if usage_limit is not None:
+            payload["usage_limit"] = usage_limit
+
+        logger.debug(
+            "WC create_coupon for %s: code=%r type=%r amount=%r",
+            self._label,
+            code,
+            discount_type,
+            amount,
+        )
+        try:
+            data = self._post("/coupons", payload=payload)
+        except Exception as exc:  # noqa: BLE001
+            message = _safe_error_message(exc)
+            logger.warning("WC create_coupon failed for %s: %s", self._label, message)
+            return WriteResult(ok=False, error=message)
+
+        if not isinstance(data, dict):
+            return WriteResult(ok=False, error="Unexpected response format from coupons POST")
+        return WriteResult(ok=True, data=data)
+
+    def disable_coupon(self, coupon_id: int) -> WriteResult:
+        """Disable a WooCommerce coupon by setting its status to ``"draft"``.
+
+        Calls ``PUT /wp-json/wc/v3/coupons/<coupon_id>`` with
+        ``{"status": "draft"}``.
+
+        Args:
+            coupon_id: The WooCommerce coupon ID.
+
+        Returns:
+            :class:`WriteResult` with the updated coupon data on success.
+        """
+        logger.debug("WC disable_coupon for %s: coupon_id=%d", self._label, coupon_id)
+        try:
+            data = self._put(f"/coupons/{coupon_id}", payload={"status": "draft"})
+        except Exception as exc:  # noqa: BLE001
+            message = _safe_error_message(exc)
+            logger.warning(
+                "WC disable_coupon failed for %s coupon_id=%d: %s",
+                self._label,
+                coupon_id,
+                message,
+            )
+            return WriteResult(ok=False, error=message)
+
+        if not isinstance(data, dict):
+            return WriteResult(ok=False, error="Unexpected response format from coupons PUT")
+        return WriteResult(ok=True, data=data)
+
+    # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
@@ -220,6 +412,64 @@ class WooCommerceClient:
             headers=_ACCEPT_JSON,
             auth=self._auth,
             params=params,
+            timeout=self._timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def _put(self, path: str, *, payload: dict[str, Any]) -> Any:
+        """Perform a PUT request against the WC API and return parsed JSON.
+
+        Args:
+            path: API path relative to ``/wp-json/wc/v3``
+                  (e.g. ``"/orders/101"``).
+            payload: JSON body to send.
+
+        Returns:
+            Parsed JSON response (typically a dict).
+
+        Raises:
+            requests.HTTPError: On 4xx/5xx responses.
+            requests.ConnectionError: If the host is unreachable.
+            ValueError: If the response is not valid JSON.
+        """
+        import requests  # noqa: PLC0415
+
+        url = f"{self._base_url}/wp-json/wc/v3{path}"
+        resp = requests.put(
+            url,
+            json=payload,
+            headers=_ACCEPT_JSON,
+            auth=self._auth,
+            timeout=self._timeout,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def _post(self, path: str, *, payload: dict[str, Any]) -> Any:
+        """Perform a POST request against the WC API and return parsed JSON.
+
+        Args:
+            path: API path relative to ``/wp-json/wc/v3``
+                  (e.g. ``"/coupons"``).
+            payload: JSON body to send.
+
+        Returns:
+            Parsed JSON response (typically a dict).
+
+        Raises:
+            requests.HTTPError: On 4xx/5xx responses.
+            requests.ConnectionError: If the host is unreachable.
+            ValueError: If the response is not valid JSON.
+        """
+        import requests  # noqa: PLC0415
+
+        url = f"{self._base_url}/wp-json/wc/v3{path}"
+        resp = requests.post(
+            url,
+            json=payload,
+            headers=_ACCEPT_JSON,
+            auth=self._auth,
             timeout=self._timeout,
         )
         resp.raise_for_status()
@@ -338,5 +588,6 @@ __all__ = [
     "OrdersResult",
     "ProductsResult",
     "WooCommerceClient",
+    "WriteResult",
     "_filter_low_stock",
 ]

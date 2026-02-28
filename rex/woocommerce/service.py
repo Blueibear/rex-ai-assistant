@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from rex.woocommerce.client import OrdersResult, ProductsResult, WooCommerceClient
+from rex.woocommerce.client import OrdersResult, ProductsResult, WooCommerceClient, WriteResult
 from rex.woocommerce.config import WooCommerceConfig, WooCommerceSiteConfig, load_woocommerce_config
 
 logger = logging.getLogger(__name__)
@@ -109,6 +109,117 @@ class WooCommerceService:
         """
         client = self._make_client(site_id)
         return client.list_products(limit=limit, low_stock=low_stock)
+
+    # ------------------------------------------------------------------
+    # Write API (Cycle 6.3, approval-gated)
+    # ------------------------------------------------------------------
+
+    def set_order_status(
+        self,
+        site_id: str,
+        order_id: int,
+        *,
+        status: str,
+    ) -> WriteResult:
+        """Update the status of a WooCommerce order.
+
+        Args:
+            site_id: The ``id`` field from config.
+            order_id: The WooCommerce order ID.
+            status: New order status (e.g. ``"completed"``).
+
+        Returns:
+            :class:`~rex.woocommerce.client.WriteResult`.
+
+        Raises:
+            :class:`WooCommerceSiteNotFoundError`: If the site ID is unknown.
+            :class:`WooCommerceSiteDisabledError`: If the site is disabled.
+            :class:`WooCommerceMissingCredentialError`: If a required credential
+                is not configured.
+        """
+        client = self._make_client(site_id)
+        return client.set_order_status(order_id, status=status)
+
+    def add_order_note(
+        self,
+        site_id: str,
+        order_id: int,
+        *,
+        note: str,
+        customer_note: bool = False,
+    ) -> WriteResult:
+        """Add a note to a WooCommerce order.
+
+        Args:
+            site_id: The ``id`` field from config.
+            order_id: The WooCommerce order ID.
+            note: The note text.
+            customer_note: When ``True``, the note is visible to the customer.
+
+        Returns:
+            :class:`~rex.woocommerce.client.WriteResult`.
+
+        Raises:
+            :class:`WooCommerceSiteNotFoundError`: If the site ID is unknown.
+            :class:`WooCommerceSiteDisabledError`: If the site is disabled.
+            :class:`WooCommerceMissingCredentialError`: If a required credential
+                is not configured.
+        """
+        client = self._make_client(site_id)
+        return client.add_order_note(order_id, note=note, customer_note=customer_note)
+
+    def create_coupon(
+        self,
+        site_id: str,
+        *,
+        code: str,
+        amount: str,
+        discount_type: str,
+        date_expires: str | None = None,
+        usage_limit: int | None = None,
+    ) -> WriteResult:
+        """Create a new WooCommerce coupon.
+
+        Args:
+            site_id: The ``id`` field from config.
+            code: Coupon code (non-empty string).
+            amount: Discount amount as a string (e.g. ``"10"``).
+            discount_type: ``"percent"``, ``"fixed_cart"``, or ``"fixed_product"``.
+            date_expires: Optional expiry date in ``"YYYY-MM-DD"`` format.
+            usage_limit: Optional maximum usage count.
+
+        Returns:
+            :class:`~rex.woocommerce.client.WriteResult`.
+
+        Raises:
+            :class:`WooCommerceSiteNotFoundError`, :class:`WooCommerceSiteDisabledError`,
+            :class:`WooCommerceMissingCredentialError`.
+        """
+        client = self._make_client(site_id)
+        return client.create_coupon(
+            code=code,
+            amount=amount,
+            discount_type=discount_type,
+            date_expires=date_expires,
+            usage_limit=usage_limit,
+        )
+
+    def disable_coupon(self, site_id: str, coupon_id: int) -> WriteResult:
+        """Disable a WooCommerce coupon by setting its status to ``"draft"``.
+
+        Args:
+            site_id: The ``id`` field from config.
+            coupon_id: The WooCommerce coupon ID.
+
+        Returns:
+            :class:`~rex.woocommerce.client.WriteResult`.
+
+        Raises:
+            :class:`WooCommerceSiteNotFoundError`, :class:`WooCommerceSiteDisabledError`,
+            :class:`WooCommerceMissingCredentialError`.
+        """
+        client = self._make_client(site_id)
+        return client.disable_coupon(coupon_id)
 
     # ------------------------------------------------------------------
     # Internal helpers
