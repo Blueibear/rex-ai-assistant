@@ -24,7 +24,7 @@ This module provides the main CLI entry point with subcommands:
     rex notify       - Notifications
     rex pc           - Remote Windows computer control (agent API, client-only foundation)
     rex wp           - WordPress site monitoring (read-only)
-    rex wc           - WooCommerce monitoring (read-only)
+    rex wc           - WooCommerce monitoring + approval-gated write actions
 
 Usage:
     rex [command] [options]
@@ -2473,7 +2473,7 @@ def cmd_wp(args: argparse.Namespace) -> int:
 
 
 def cmd_wc(args: argparse.Namespace) -> int:
-    """WooCommerce monitoring (read-only)."""
+    """WooCommerce monitoring + approval-gated write actions."""
     subcommand = args.wc_command
 
     if subcommand == "orders":
@@ -4120,12 +4120,13 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
 
     wp_parser.set_defaults(func=cmd_wp, wp_command="health")
 
-    # wc (WooCommerce read-only monitoring)
+    # wc (WooCommerce monitoring + approval-gated writes)
     wc_parser = subparsers.add_parser(
         "wc",
-        help="WooCommerce monitoring (read-only)",
+        help="WooCommerce monitoring + approval-gated write actions",
         description=(
-            "Monitor WooCommerce stores via the WC REST API v3. "
+            "Monitor WooCommerce stores and run approval-gated write actions "
+            "via the WC REST API v3. "
             "Requires a site entry in woocommerce.sites[] in rex_config.json. "
             "Consumer key and secret are looked up via CredentialManager — never stored in config."
         ),
