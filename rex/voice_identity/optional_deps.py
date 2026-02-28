@@ -40,3 +40,47 @@ def import_resemblyzer():
 def check_voice_id_available() -> bool:
     """Return True if at least one real embedding backend is available."""
     return find_spec("speechbrain") is not None or find_spec("resemblyzer") is not None
+
+
+def get_embedding_backend(model_id: str = "synthetic", dim: int = 192):
+    """Return the appropriate embedding backend for the given model ID.
+
+    For ``model_id="synthetic"``, returns a
+    :class:`~rex.voice_identity.embedding_backends.SyntheticEmbeddingBackend`
+    using stdlib-only hashing.
+
+    For ``model_id="speechbrain"`` or ``"ecapa"``, checks that speechbrain is
+    installed and returns a
+    :class:`~rex.voice_identity.embedding_backends.SpeechBrainBackend`.
+    The model is **not** loaded until the first call to ``embed()``.
+
+    Args:
+        model_id: Backend identifier.  Valid values: ``"synthetic"``,
+            ``"speechbrain"``, ``"ecapa"``.
+        dim: Embedding dimensionality (only used by the synthetic backend).
+
+    Returns:
+        An object implementing the embedding backend interface.
+
+    Raises:
+        ImportError: If a real backend is requested but the required package
+            is missing.  The error message includes the install hint.
+        ValueError: If ``model_id`` is not recognised.
+    """
+    from rex.voice_identity.embedding_backends import (
+        SpeechBrainBackend,
+        SyntheticEmbeddingBackend,
+    )
+
+    if model_id == "synthetic":
+        return SyntheticEmbeddingBackend(dim=dim)
+
+    if model_id in ("speechbrain", "ecapa"):
+        if find_spec("speechbrain") is None:
+            raise ImportError(f"speechbrain is required for model_id={model_id!r}. {_INSTALL_HINT}")
+        return SpeechBrainBackend()
+
+    raise ValueError(
+        f"Unknown voice identity model_id: {model_id!r}. "
+        "Valid values: 'synthetic', 'speechbrain'."
+    )
