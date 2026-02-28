@@ -508,6 +508,115 @@ class VoiceLoop:
             logger.error("Audio device error: %s", exc)
 
 
+def _build_voice_id_callback() -> IdentifySpeakerCallable | None:
+    """Build an identify_speaker callback if voice identity is enabled.
+
+    Reads the voice_identity config section, loads enrolled embeddings, and
+    returns a callback that:
+    - Converts a numpy audio array to PCM bytes
+    - Generates an embedding via the configured backend
+    - Runs recognition against all enrolled users
+    - Calls resolve_speaker_identity() to update the session user
+
+    Returns None when voice identity is disabled or no users are enrolled.
+    All errors are caught and logged; the callback never raises.
+    """
+    try:
+        from rex.config_manager import load_config as _load_json_config
+        from rex.voice_identity.types import VoiceIdentityConfig
+
+        raw_cfg = _load_json_config()
+        vi_dict = raw_cfg.get("voice_identity", {})
+        vi_cfg = VoiceIdentityConfig(
+            enabled=vi_dict.get("enabled", False),
+            accept_threshold=float(vi_dict.get("accept_threshold", 0.85)),
+            review_threshold=float(vi_dict.get("review_threshold", 0.65)),
+            embedding_dim=int(vi_dict.get("embedding_dim", 192)),
+            model_id=str(vi_dict.get("model_id", "synthetic")),
+        )
+    except Exception as exc:
+        logger.debug("Could not load voice_identity config: %s", exc)
+        return None
+
+    if not vi_cfg.enabled:
+        return None
+
+    try:
+        from rex.voice_identity.embeddings_store import EmbeddingsStore
+        from rex.voice_identity.optional_deps import get_embedding_backend
+        from rex.voice_identity.recognizer import SpeakerRecognizer
+
+        memory_dir = Path(__file__).resolve().parent.parent / "Memory"
+        store = EmbeddingsStore(memory_dir)
+        enrolled = store.load_all()
+
+        if not enrolled:
+            logger.info(
+                "Voice identity enabled but no users are enrolled. "
+                "Use 'rex voice-id enroll' to enroll users."
+            )
+            return None
+
+        backend = get_embedding_backend(vi_cfg.model_id, dim=vi_cfg.embedding_dim)
+        recognizer = SpeakerRecognizer(vi_cfg)
+
+        logger.info(
+            "Voice identity active: backend=%s, enrolled=%d user(s), " "accept=%.2f, review=%.2f",
+            vi_cfg.model_id,
+            len(enrolled),
+            vi_cfg.accept_threshold,
+            vi_cfg.review_threshold,
+        )
+    except ImportError as exc:
+        logger.warning(
+            "Voice identity backend unavailable: %s. "
+            "Install optional extras: pip install '.[voice-id]'",
+            exc,
+        )
+        return None
+    except Exception as exc:
+        logger.warning("Failed to initialise voice identity: %s", exc)
+        return None
+
+    def _identify(audio: _NDArray) -> str | None:
+        try:
+            # Convert numpy float32 array to raw bytes for the embedding backend
+            np_mod = _lazy_import_numpy()
+            if np_mod is not None:
+                pcm_bytes = np_mod.asarray(audio, dtype=np_mod.float32).tobytes()
+            else:
+                # Fallback: use bytes() if numpy unavailable at call time
+                pcm_bytes = bytes(audio)
+
+            vector = backend.embed(pcm_bytes)
+            result = recognizer.recognize(vector, enrolled)
+
+            from rex.voice_identity.fallback_flow import resolve_speaker_identity
+
+            resolved = resolve_speaker_identity(result)
+
+            if result.decision.value == "recognized":
+                logger.info(
+                    "Voice recognized: user=%s score=%.3f",
+                    result.best_user_id,
+                    result.score,
+                )
+            elif result.decision.value == "review":
+                logger.info(
+                    "Voice uncertain (review): best_match=%s score=%.3f. "
+                    "Run 'rex identify' to set user manually.",
+                    result.best_user_id,
+                    result.score,
+                )
+
+            return resolved
+        except Exception as exc:
+            logger.warning("Voice identity check failed: %s", exc)
+            return None
+
+    return _identify
+
+
 def build_voice_loop(
     assistant,
     *,
@@ -520,7 +629,12 @@ def build_voice_loop(
     speaker_wav: str | None = None,
     wake_sound_path: Path | None = None,
 ) -> VoiceLoop:
-    """Build a VoiceLoop with default components."""
+    """Build a VoiceLoop with default components.
+
+    When ``voice_identity.enabled=true`` is set in ``config/rex_config.json``
+    and at least one user is enrolled, an ``identify_speaker`` callback is
+    built and wired into the voice loop automatically.
+    """
     from .wakeword.listener import build_default_detector
 
     mic = AsyncMicrophone(
@@ -538,6 +652,8 @@ def build_voice_loop(
     tts = TextToSpeech(language=language, default_speaker=speaker_wav)
     ack = WakeAcknowledgement(sound_path=wake_sound_path)
 
+    identify_speaker = _build_voice_id_callback()
+
     return VoiceLoop(
         assistant,
         wake_listener=wake_listener,
@@ -546,6 +662,7 @@ def build_voice_loop(
         transcribe=lambda audio: stt.transcribe(audio, sample_rate),
         speak=lambda text: tts.speak(text, speaker_wav=speaker_wav),
         acknowledge=ack.play,
+        identify_speaker=identify_speaker,
     )
 
 

@@ -147,24 +147,54 @@ Notable subpackages:
 - `identity.known_users`: reserved for future use (manual user list override)
 - `identity.require_user`: `false` (default) — when `true`, commands that need user context will fail if no user is resolved
 
-## Voice identity module (scaffolding)
-- Module: `rex/voice_identity/` (types, embeddings_store, recognizer, fallback_flow, optional_deps)
+## Voice identity module (Phase 7.1 MVP)
+- Module: `rex/voice_identity/` (types, embeddings_store, recognizer, fallback_flow, optional_deps, embedding_backends, calibration)
 - Pure-Python cosine similarity; no numpy/torch in default install.
 - Per-user embeddings stored as JSON at `Memory/<user>/voice_embeddings.json`.
 - Recognizer returns `recognized`, `review`, or `unknown` based on configurable thresholds.
 - Fallback flow integrates with `rex/identity.py` (session-scoped identity resolution).
-- Voice loop (`rex/voice_loop.py`) accepts an optional `identify_speaker` callback.
+- Voice loop (`rex/voice_loop.py`) automatically builds and wires an `identify_speaker` callback when `voice_identity.enabled=true` and users are enrolled.
 - Heavy deps (speechbrain, resemblyzer) are in `pyproject.toml` optional extras group `voice-id`.
 - Install: `pip install '.[voice-id]'`
-- Tests: `pytest -q tests/test_voice_identity_fallback.py tests/test_optional_voice_id_imports.py`
+- Tests: `pytest -q tests/test_voice_identity_fallback.py tests/test_optional_voice_id_imports.py tests/test_voice_id_mvp.py`
 - Docs: `docs/voice_identity.md`
 
-## Voice identity config keys (scaffolding)
+## Voice identity CLI commands (Phase 7.1)
+- `rex voice-id status [--user <uid>]` — show config, enrolled users, backend status
+- `rex voice-id list` — list all users with stored voice embeddings
+- `rex voice-id enroll --user <uid> --wav <path> [--label <text>] [--replace] [--yes]` — enroll user from WAV file
+- `rex voice-id calibrate [--yes] [--write-config]` — compute and optionally write recommended thresholds
+
+Enrollment behavior:
+- `voice_identity.enabled` must be `true` in config; refuses with clear error if disabled.
+- If a real backend is configured but optional deps are missing, refuses with the install hint.
+- `--replace` wipes existing enrollment before writing new embedding.
+- `--yes` is required to confirm the write.
+
+Calibration behavior:
+- With multiple enrolled users: computes pairwise inter-user cosine similarity; derives conservative thresholds.
+- With one enrolled user: returns default thresholds with a note to enroll more users.
+- `--write-config --yes` writes recommended thresholds to `config/rex_config.json`.
+
+## Voice identity config keys (Phase 7.1)
 - `voice_identity.enabled`: `false` (default) — enable voice identity in the voice loop
 - `voice_identity.accept_threshold`: `0.85` — minimum cosine similarity for `recognized`
 - `voice_identity.review_threshold`: `0.65` — minimum cosine similarity for `review`
 - `voice_identity.embedding_dim`: `192` — expected dimensionality of embedding vectors
-- `voice_identity.model_id`: `"synthetic"` — identifier for the active embedding model
+- `voice_identity.model_id`: `"synthetic"` — backend identifier; `"synthetic"` (stdlib) or `"speechbrain"` (requires voice-id extras)
+
+## Voice identity testing rules
+- All voice identity tests must be offline: no network, no model downloads, no DNS.
+- Use `SyntheticEmbeddingBackend` for all test embeddings; never import numpy/speechbrain/resemblyzer in tests.
+- Create test WAV files with stdlib `wave` module + `struct.pack`; always write to `tmp_path`.
+- Use `unittest.mock.patch("rex.config_manager.load_config")` to inject test config without touching real config files.
+- Never write calibration output to `config/rex_config.json` in tests; use `tmp_path` config copies only.
+- When testing `get_embedding_backend("speechbrain")`, skip with `pytest.skip()` if speechbrain is installed to avoid false positives.
+
+## Voice identity pitfalls to avoid
+- `SpeechBrainBackend._load_model()` must only be called inside `embed()`, never at `__init__` time.
+- `get_embedding_backend` and `import_speechbrain` must not have side effects at import time.
+- Do not cross-use embeddings produced by different backends (synthetic vs speechbrain vectors are incompatible).
 
 ## Optional extras policy
 - Heavy ML/audio dependencies live in `pyproject.toml` optional extras groups, never in default `[project.dependencies]` or Pipfile `[packages]`.
