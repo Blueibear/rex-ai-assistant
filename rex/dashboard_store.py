@@ -163,7 +163,8 @@ class DashboardStore:
     def _init_db(self) -> None:
         """Create the notifications table if it does not exist."""
         with self._connect() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS notifications (
                     id TEXT PRIMARY KEY,
                     priority TEXT NOT NULL DEFAULT 'normal',
@@ -175,15 +176,20 @@ class DashboardStore:
                     user_id TEXT,
                     metadata_json TEXT NOT NULL DEFAULT '{}'
                 )
-                """)
-            conn.execute("""
+                """
+            )
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_notifications_timestamp
                 ON notifications (timestamp DESC)
-                """)
-            conn.execute("""
+                """
+            )
+            conn.execute(
+                """
                 CREATE INDEX IF NOT EXISTS idx_notifications_user_id
                 ON notifications (user_id)
-                """)
+                """
+            )
 
     # ------------------------------------------------------------------
     # Write
@@ -227,6 +233,23 @@ class DashboardStore:
                 (nid, priority, title, body, channel, ts, user_id, meta_json),
             )
         logger.debug("Dashboard notification stored: %s", nid)
+
+        # Best-effort event publish; must never affect write path.
+        try:
+            from rex.dashboard.sse import NotificationEvent, get_broadcaster
+
+            unread_count = self.count_unread(user_id=user_id)
+            get_broadcaster().publish(
+                NotificationEvent(
+                    type="created",
+                    notification_id=nid,
+                    user_id=user_id,
+                    unread_count=unread_count,
+                )
+            )
+        except Exception as exc:
+            logger.debug("Dashboard SSE publish skipped: %s", exc)
+
         return nid
 
     # ------------------------------------------------------------------
@@ -319,17 +342,21 @@ class DashboardStore:
     # Update
     # ------------------------------------------------------------------
 
-    def mark_as_read(self, notification_id: str) -> bool:
+    def mark_as_read(self, notification_id: str, *, user_id: str | None = None) -> bool:
         """Mark a notification as read.
 
         Returns:
             True if the notification was found and updated.
         """
+        if user_id is not None:
+            sql = "UPDATE notifications SET read = 1 WHERE id = ? AND read = 0 AND user_id = ?"
+            params = (notification_id, user_id)
+        else:
+            sql = "UPDATE notifications SET read = 1 WHERE id = ? AND read = 0"
+            params = (notification_id,)
+
         with self._connect() as conn:
-            cursor = conn.execute(
-                "UPDATE notifications SET read = 1 WHERE id = ? AND read = 0",
-                (notification_id,),
-            )
+            cursor = conn.execute(sql, params)
         return cursor.rowcount > 0
 
     def mark_all_read(self, *, user_id: str | None = None) -> int:

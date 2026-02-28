@@ -60,6 +60,7 @@ Notable subpackages:
 - `rex/calendar_backends/` - calendar backend adapters (base interface, stub, ICS read-only)
 - `rex/messaging_backends/` - SMS backend adapters (base interface, stub, Twilio, multi-account config, factory)
 - `rex/dashboard_store.py` - SQLite-backed dashboard notification store (write/read/query/retention)
+- `rex/dashboard/sse.py` - in-process SSE broadcaster for dashboard real-time notification updates
 - `rex/identity.py` - session-scoped user identity resolution (fallback when voice recognition is unavailable)
 - `rex/voice_identity/` - voice speaker recognition scaffolding (types, embeddings store, recognizer, fallback flow, optional dep guards)
 - `rex/computers/` - Windows computer control client + agent server (config, HTTP client, service, policy/approvals, agent; Cycles 5.1 + 5.2b + 5.3)

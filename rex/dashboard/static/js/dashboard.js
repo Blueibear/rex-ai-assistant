@@ -20,6 +20,7 @@
 
     // Notification polling timer handle
     let _notifPollTimer = null;
+    let _notifEventSource = null;
 
     // API helper
     async function api(endpoint, options = {}) {
@@ -108,6 +109,7 @@
         localStorage.removeItem('rex_dashboard_token');
 
         stopNotifPolling();
+        stopNotifStream();
         showLogin();
     }
 
@@ -144,6 +146,7 @@
         // Stop notification polling when leaving notifications section
         if (state.currentSection === 'notifications' && sectionId !== 'notifications') {
             stopNotifPolling();
+            stopNotifStream();
         }
 
         state.currentSection = sectionId;
@@ -171,7 +174,7 @@
                 break;
             case 'notifications':
                 loadNotifications();
-                startNotifPolling();
+                startNotifRealtime();
                 break;
             case 'status':
                 loadStatus();
@@ -676,6 +679,39 @@
         }
     }
 
+    function startNotifRealtime() {
+        stopNotifPolling();
+        stopNotifStream();
+
+        if (!window.EventSource) {
+            startNotifPolling();
+            return;
+        }
+
+        const token = state.token ? `?token=${encodeURIComponent(state.token)}` : '';
+        _notifEventSource = new EventSource(`/api/notifications/stream${token}`, { withCredentials: true });
+
+        _notifEventSource.addEventListener('init', (event) => {
+            try {
+                const data = JSON.parse(event.data || '{}');
+                updateNotifBadge(data.unread_count || 0);
+            } catch (_) {
+                // ignore malformed init payload
+            }
+        });
+
+        _notifEventSource.addEventListener('notification', () => {
+            if (state.currentSection === 'notifications') {
+                loadNotifications();
+            }
+        });
+
+        _notifEventSource.onerror = () => {
+            stopNotifStream();
+            startNotifPolling();
+        };
+    }
+
     function startNotifPolling() {
         stopNotifPolling();
         _notifPollTimer = setInterval(() => {
@@ -689,6 +725,13 @@
         if (_notifPollTimer !== null) {
             clearInterval(_notifPollTimer);
             _notifPollTimer = null;
+        }
+    }
+
+    function stopNotifStream() {
+        if (_notifEventSource) {
+            _notifEventSource.close();
+            _notifEventSource = null;
         }
     }
 

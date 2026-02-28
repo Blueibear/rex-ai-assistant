@@ -10,6 +10,7 @@ Provides a Flask Blueprint with routes for:
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from datetime import datetime
@@ -17,7 +18,15 @@ from functools import wraps
 from pathlib import Path
 from typing import Any
 
-from flask import Blueprint, jsonify, request, send_from_directory
+from flask import (
+    Blueprint,
+    Response,
+    current_app,
+    jsonify,
+    request,
+    send_from_directory,
+    stream_with_context,
+)
 
 from rex.config_manager import (
     DEFAULT_CONFIG,
@@ -89,7 +98,26 @@ def _get_session_from_request() -> Session | None:
     if token:
         return get_session_manager().validate_session(token)
 
+    # Optional token query param for EventSource clients that cannot set headers.
+    if request.path == "/api/notifications/stream":
+        token = request.args.get("token")
+        if token and _is_safe_query_token_request():
+            return get_session_manager().validate_session(token)
+
     return None
+
+
+def _is_safe_query_token_request() -> bool:
+    """Limit query-token auth to secure contexts (HTTPS or localhost)."""
+    forwarded_proto = request.headers.get("X-Forwarded-Proto", "")
+    is_secure = request.is_secure or forwarded_proto.lower() == "https"
+    if not is_secure and not _is_loopback_address(request.remote_addr):
+        return False
+
+    origin = request.headers.get("Origin")
+    if not origin:
+        return True
+    return origin.rstrip("/") == request.host_url.rstrip("/")
 
 
 def _allow_local_without_auth() -> bool:
@@ -106,6 +134,13 @@ def require_auth(f):
         if _allow_local_without_auth() and _is_loopback_address(request.remote_addr):
             if not is_password_required():
                 # No password configured and local access - allow
+                request.dashboard_session = Session(
+                    token="local",
+                    created_at=datetime.now(),
+                    expires_at=datetime.now(),
+                    user_key=os.getenv("REX_ACTIVE_USER", "local"),
+                    metadata={"local_bypass": True},
+                )
                 return f(*args, **kwargs)
 
         # Check for valid session
@@ -312,7 +347,9 @@ def dashboard_login():
         # No password configured - check if local access is allowed
         if _allow_local_without_auth() and _is_loopback_address(request.remote_addr):
             # Create session for local user
-            session = get_session_manager().create_session(user_key="local")
+            session = get_session_manager().create_session(
+                user_key=os.getenv("REX_ACTIVE_USER", "local")
+            )
             response = jsonify(
                 {
                     "token": session.token,
@@ -337,7 +374,9 @@ def dashboard_login():
         return jsonify({"error": "Invalid password"}), 401
 
     # Create session
-    session = get_session_manager().create_session(user_key="dashboard")
+    session = get_session_manager().create_session(
+        user_key=os.getenv("REX_ACTIVE_USER", "dashboard")
+    )
     logger.info("Dashboard login successful from %s", request.remote_addr)
 
     response = jsonify(
@@ -832,7 +871,10 @@ def list_notifications():
         limit = min(int(request.args.get("limit", 50)), 200)
         unread_only = request.args.get("unread", "").lower() == "true"
         priority = request.args.get("priority")
-        user_id = request.args.get("user_id")
+        session = request.dashboard_session
+        user_id = request.args.get("user_id") or session.user_key
+        if user_id != session.user_key:
+            return jsonify({"error": "Forbidden user scope"}), 403
 
         notifications = store.query_recent(
             limit=limit,
@@ -863,7 +905,8 @@ def mark_notification_read(notification_id: str):
         from rex.dashboard_store import get_dashboard_store
 
         store = get_dashboard_store()
-        found = store.mark_as_read(notification_id)
+        session = request.dashboard_session
+        found = store.mark_as_read(notification_id, user_id=session.user_key)
 
         if not found:
             return jsonify({"error": "Notification not found or already read"}), 404
@@ -887,7 +930,10 @@ def mark_all_notifications_read():
         from rex.dashboard_store import get_dashboard_store
 
         store = get_dashboard_store()
-        user_id = request.args.get("user_id")
+        session = request.dashboard_session
+        user_id = request.args.get("user_id") or session.user_key
+        if user_id != session.user_key:
+            return jsonify({"error": "Forbidden user scope"}), 403
         count = store.mark_all_read(user_id=user_id)
 
         return jsonify({"marked_read": count})
@@ -895,6 +941,56 @@ def mark_all_notifications_read():
     except Exception as e:
         logger.error("Failed to mark all notifications read: %s", e)
         return jsonify({"error": f"Failed to mark all notifications read: {e}"}), 500
+
+
+@dashboard_bp.route("/api/notifications/stream", methods=["GET"])
+@require_auth
+def stream_notifications():
+    """Stream notification events via Server-Sent Events (SSE)."""
+    from rex.dashboard.sse import get_broadcaster
+    from rex.dashboard_store import get_dashboard_store
+
+    session = request.dashboard_session
+    store = get_dashboard_store()
+    broadcaster = get_broadcaster()
+
+    max_events = 100
+    timeout = 15.0
+    if current_app.testing:
+        max_events = max(1, min(int(request.args.get("max_events", 100)), 1000))
+        timeout = max(0.01, min(float(request.args.get("timeout", 15.0)), 60.0))
+
+    subscriber = broadcaster.subscribe(max_events=max_events)
+
+    def generate():
+        unread_count = store.count_unread(user_id=session.user_key)
+        yield f'event: init\ndata: {{"unread_count": {unread_count}}}\n\n'
+
+        for chunk in broadcaster.stream(subscriber, timeout=timeout):
+            if "data:" not in chunk:
+                yield chunk
+                continue
+
+            # Emit only events scoped to this authenticated user.
+            line = next((ln for ln in chunk.splitlines() if ln.startswith("data: ")), None)
+            if line is None:
+                continue
+            try:
+                payload = json.loads(line[6:])
+            except json.JSONDecodeError:
+                continue
+            event_user_id = payload.get("user_id")
+            if event_user_id is None:
+                continue
+            if event_user_id != session.user_key:
+                continue
+            yield chunk
+
+    response = Response(stream_with_context(generate()), mimetype="text/event-stream")
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["Connection"] = "keep-alive"
+    response.headers["X-Accel-Buffering"] = "no"
+    return response
 
 
 __all__ = ["dashboard_bp"]
