@@ -20,6 +20,8 @@
 
     // Notification polling timer handle
     let _notifPollTimer = null;
+    // SSE EventSource handle for real-time notifications
+    let _notifEventSource = null;
 
     // API helper
     async function api(endpoint, options = {}) {
@@ -676,8 +678,58 @@
         }
     }
 
-    function startNotifPolling() {
-        stopNotifPolling();
+    // --- Real-time SSE + polling fallback ---
+
+    function _startSSEStream() {
+        // Close any existing stream before opening a new one
+        _stopSSEStream();
+
+        if (typeof EventSource === 'undefined') {
+            // Browser does not support SSE; fall back to polling
+            _startPollFallback();
+            return;
+        }
+
+        try {
+            const url = `/api/notifications/stream?token=${encodeURIComponent(state.token || '')}`;
+            _notifEventSource = new EventSource(url);
+
+            _notifEventSource.onmessage = function(event) {
+                try {
+                    const payload = JSON.parse(event.data);
+                    if (payload.type === 'init') {
+                        // Initial unread count from the stream
+                        updateNotifBadge(payload.unread_count);
+                    } else if (payload.type === 'notification') {
+                        // A new notification was persisted — refresh the list
+                        loadNotifications();
+                    }
+                } catch (e) {
+                    console.warn('SSE parse error:', e);
+                }
+            };
+
+            _notifEventSource.onerror = function() {
+                // SSE connection failed or lost — fall back to polling
+                console.warn('SSE stream error; falling back to polling');
+                _stopSSEStream();
+                _startPollFallback();
+            };
+        } catch (e) {
+            console.warn('Failed to open SSE stream:', e);
+            _startPollFallback();
+        }
+    }
+
+    function _stopSSEStream() {
+        if (_notifEventSource !== null) {
+            _notifEventSource.close();
+            _notifEventSource = null;
+        }
+    }
+
+    function _startPollFallback() {
+        _stopPollFallback();
         _notifPollTimer = setInterval(() => {
             if (state.currentSection === 'notifications') {
                 loadNotifications();
@@ -685,11 +737,21 @@
         }, 30000); // poll every 30 seconds
     }
 
-    function stopNotifPolling() {
+    function _stopPollFallback() {
         if (_notifPollTimer !== null) {
             clearInterval(_notifPollTimer);
             _notifPollTimer = null;
         }
+    }
+
+    function startNotifPolling() {
+        stopNotifPolling();
+        _startSSEStream();
+    }
+
+    function stopNotifPolling() {
+        _stopSSEStream();
+        _stopPollFallback();
     }
 
     // Status functionality

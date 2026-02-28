@@ -393,10 +393,50 @@ authenticates before fetching notification data.
 
 Both actions reload the list and refresh the unread count badge on the nav link.
 
-### Polling
+### Real-Time Push (Server-Sent Events)
 
-The inbox polls `GET /api/notifications` every **30 seconds** while the Notifications section
-is active.  Polling stops automatically when you switch to another section or log out.
+When the Notifications section is active the dashboard UI opens a Server-Sent Events
+(SSE) connection to `GET /api/notifications/stream`.  New notifications are pushed to
+the browser as they are persisted, so the list and unread badge update within seconds.
+
+**Endpoint:**
+
+```
+GET /api/notifications/stream?token=<session_token>&user_id=<optional>
+```
+
+**Authentication:** The stream endpoint requires a valid dashboard session.  Because
+`EventSource` cannot set custom headers, the token can be passed via the `token` query
+parameter (or via the `rex_dashboard_token` cookie which is set on login).
+
+**Initial event:** The first SSE event has `type: "init"` and includes the current
+`unread_count`.
+
+**Notification events:** Each newly persisted notification triggers an event with
+`type: "notification"` and fields `id`, `priority`, `title`, `channel`, `timestamp`,
+and `user_id`.
+
+**Keep-alive:** A comment line (`: keepalive <timestamp>`) is sent every 30 seconds
+to prevent proxies from closing idle connections.
+
+**Fallback:** If the SSE connection fails (network error, unsupported browser, 401/403),
+the UI automatically falls back to the existing 30-second polling.  On logout or
+section switch the stream is closed cleanly.
+
+**Known limitations:**
+
+- The in-process broadcaster only works within a single Python process.  If you run
+  multiple Flask workers (e.g. gunicorn with `--workers N`), each worker has its own
+  broadcaster instance and clients connected to one worker will not see events published
+  in another.  For single-process deployments (the default) this is not an issue.
+- The `max_events` and `timeout_seconds` query parameters are honoured only when the
+  Flask app is in testing mode (`app.config["TESTING"] = True`).
+
+### Polling Fallback
+
+The inbox falls back to polling `GET /api/notifications` every **30 seconds** when the
+SSE stream is unavailable or unsupported.  Polling stops automatically when you switch
+to another section or log out.
 
 ### Unread Badge
 
@@ -406,7 +446,7 @@ is refreshed every time the notifications list is loaded.
 ## What Remains Stubbed
 
 - Home Assistant TTS channel (logs only)
-- WebSocket real-time push for new notifications
+- Multi-process SSE broadcast (current broadcaster is in-process only; does not work across gunicorn workers)
 - Notification templates
 - Per-user channel preferences (foundation exists via metadata)
 - Snooze/postpone functionality
