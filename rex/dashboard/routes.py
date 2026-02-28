@@ -17,7 +17,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Any
 
-from flask import Blueprint, jsonify, request, send_from_directory
+from flask import Blueprint, Response, jsonify, request, send_from_directory
 
 from rex.config_manager import (
     DEFAULT_CONFIG,
@@ -86,6 +86,11 @@ def _get_session_from_request() -> Session | None:
 
     # Check cookie
     token = request.cookies.get("rex_dashboard_token")
+    if token:
+        return get_session_manager().validate_session(token)
+
+    # Check query param (needed for EventSource which cannot set headers)
+    token = request.args.get("token")
     if token:
         return get_session_manager().validate_session(token)
 
@@ -895,6 +900,66 @@ def mark_all_notifications_read():
     except Exception as e:
         logger.error("Failed to mark all notifications read: %s", e)
         return jsonify({"error": f"Failed to mark all notifications read: {e}"}), 500
+
+
+@dashboard_bp.route("/api/notifications/stream", methods=["GET"])
+@require_auth
+def notification_stream():
+    """Server-Sent Events stream for real-time notification updates.
+
+    Pushes new notification events to connected clients so the UI can
+    update without polling.  Falls back gracefully — if anything fails
+    the client should resume polling.
+
+    Query params (testing only, honoured when ``app.config["TESTING"]``):
+    - max_events: Stop after this many data events.
+    - timeout_seconds: Keep-alive / poll interval in seconds.
+    """
+    from rex.dashboard.sse import get_broadcaster
+    from rex.dashboard_store import get_dashboard_store
+
+    broadcaster = get_broadcaster()
+
+    # Testing helpers — only active when TESTING flag is set
+    testing = request.args.get("_testing") == "1" or (
+        hasattr(request, "environ")
+        and request.environ.get("flask.app", request.app).config.get("TESTING")
+    )
+    max_events: int | None = None
+    timeout_seconds: float = 30.0
+    if testing:
+        raw_max = request.args.get("max_events")
+        if raw_max is not None:
+            max_events = int(raw_max)
+        raw_timeout = request.args.get("timeout_seconds")
+        if raw_timeout is not None:
+            timeout_seconds = float(raw_timeout)
+
+    # Build initial payload with current unread count
+    try:
+        store = get_dashboard_store()
+        user_id = request.args.get("user_id")
+        unread_count = store.count_unread(user_id=user_id)
+        initial_data = {"type": "init", "unread_count": unread_count}
+    except Exception:
+        initial_data = {"type": "init", "unread_count": 0}
+
+    def generate():
+        yield from broadcaster.subscribe(
+            timeout=timeout_seconds,
+            max_events=max_events,
+            initial_data=initial_data,
+        )
+
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 __all__ = ["dashboard_bp"]

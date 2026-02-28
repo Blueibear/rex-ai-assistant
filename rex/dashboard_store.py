@@ -227,6 +227,23 @@ class DashboardStore:
                 (nid, priority, title, body, channel, ts, user_id, meta_json),
             )
         logger.debug("Dashboard notification stored: %s", nid)
+        # Broadcast to SSE subscribers (best-effort; never block writes)
+        try:
+            from rex.dashboard.sse import get_broadcaster
+
+            get_broadcaster().publish(
+                {
+                    "type": "notification",
+                    "id": nid,
+                    "priority": priority,
+                    "title": title,
+                    "channel": channel,
+                    "timestamp": ts,
+                    "user_id": user_id,
+                }
+            )
+        except Exception:
+            pass
         return nid
 
     # ------------------------------------------------------------------
