@@ -116,7 +116,7 @@ Install the voice-id extras: pip install '.[voice-id]'
 Analyses enrolled embeddings to recommend `accept_threshold` and
 `review_threshold` values.
 
-- **No users enrolled**: returns an error indicating enrollment is needed.
+- **No users enrolled**: prints a report with fallback thresholds and a note to enroll users.
 - **Single user**: returns conservative defaults with a note to enroll more users.
 - **Multiple users**: computes pairwise inter-user cosine similarity and
   recommends thresholds that keep false-accept rates low.

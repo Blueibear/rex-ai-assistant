@@ -267,6 +267,17 @@ class TestEnrollment:
         store.save("dave", VoiceEmbedding(vector=v, model_id="synthetic", sample_count=1))
         assert (base / "dave" / "voice_embeddings.json").exists()
 
+    def test_store_rejects_path_traversal_user_id(self, tmp_path):
+        store = EmbeddingsStore(tmp_path)
+        vector = SyntheticEmbeddingBackend(dim=4).embed(b"x")
+
+        with pytest.raises(ValueError, match="simple name"):
+            store.save(
+                "../evil", VoiceEmbedding(vector=vector, model_id="synthetic", sample_count=1)
+            )
+
+        assert not (tmp_path / ".." / "evil" / "voice_embeddings.json").exists()
+
 
 # ---------------------------------------------------------------------------
 # C. Calibration tests
@@ -386,6 +397,19 @@ class TestCalibration:
             result["voice_identity"]["accept_threshold"]
             > result["voice_identity"]["review_threshold"]
         )
+
+    def test_corrupted_store_data_falls_back_to_config_defaults(self, tmp_path):
+        store = EmbeddingsStore(tmp_path)
+        bad_file = tmp_path / "alice" / "voice_embeddings.json"
+        bad_file.parent.mkdir(parents=True)
+        bad_file.write_text("{not-valid-json", encoding="utf-8")
+
+        report = calibrate(store, self._cfg())
+
+        assert report.enrolled_users == []
+        assert report.recommended_accept_threshold == 0.85
+        assert report.recommended_review_threshold == 0.65
+        assert any("No users enrolled" in note for note in report.notes)
 
 
 # ---------------------------------------------------------------------------

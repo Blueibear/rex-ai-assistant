@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePath
 
 from rex.voice_identity.types import VoiceEmbedding
 
@@ -44,7 +44,11 @@ class EmbeddingsStore:
 
     def load(self, user_id: str) -> VoiceEmbedding | None:
         """Load the stored embedding for *user_id*, or ``None``."""
-        path = self._path_for(user_id)
+        try:
+            path = self._path_for(user_id)
+        except ValueError as exc:
+            logger.warning("Invalid user_id for embeddings load: %s", exc)
+            return None
         if not path.exists():
             return None
         try:
@@ -73,7 +77,11 @@ class EmbeddingsStore:
 
     def delete(self, user_id: str) -> bool:
         """Remove the stored embedding for *user_id*. Returns ``True`` if deleted."""
-        path = self._path_for(user_id)
+        try:
+            path = self._path_for(user_id)
+        except ValueError as exc:
+            logger.warning("Invalid user_id for embeddings delete: %s", exc)
+            return False
         if path.exists():
             path.unlink()
             return True
@@ -104,4 +112,17 @@ class EmbeddingsStore:
 
     def _path_for(self, user_id: str) -> Path:
         """Return the JSON file path for a given user."""
-        return self._base_dir / user_id / _FILENAME
+        if not isinstance(user_id, str):
+            raise ValueError("user_id must be a string")
+
+        candidate = user_id.strip()
+        if not candidate:
+            raise ValueError("user_id must not be empty")
+
+        parts = PurePath(candidate).parts
+        if len(parts) != 1 or parts[0] != candidate:
+            raise ValueError("user_id must be a simple name without path separators")
+        if candidate in {".", ".."}:
+            raise ValueError("user_id must not be '.' or '..'")
+
+        return self._base_dir / candidate / _FILENAME
