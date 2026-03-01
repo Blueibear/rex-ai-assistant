@@ -1,7 +1,7 @@
 """Local notification dashboard store using SQLite.
 
 Persists notifications delivered via the ``dashboard`` channel so they can
-be retrieved by a dashboard UI or API endpoint.  The store supports:
+be retrieved by a dashboard UI or API endpoint. The store supports:
 
 - Writing new notifications
 - Querying recent/unread/by-priority notifications
@@ -53,7 +53,7 @@ class DashboardStoreConfig(BaseModel):
         default="interval:86400",
         description=(
             "Scheduler interval for automatic retention cleanup "
-            "(e.g. 'interval:86400' for daily).  Set to null to disable."
+            "(e.g. 'interval:86400' for daily). Set to null to disable."
         ),
     )
 
@@ -227,23 +227,23 @@ class DashboardStore:
                 (nid, priority, title, body, channel, ts, user_id, meta_json),
             )
         logger.debug("Dashboard notification stored: %s", nid)
-        # Broadcast to SSE subscribers (best-effort; never block writes)
-        try:
-            from rex.dashboard.sse import get_broadcaster
 
+        # Best-effort event publish; must never affect write path.
+        try:
+            from rex.dashboard.sse import NotificationEvent, get_broadcaster
+
+            unread_count = self.count_unread(user_id=user_id)
             get_broadcaster().publish(
-                {
-                    "type": "notification",
-                    "id": nid,
-                    "priority": priority,
-                    "title": title,
-                    "channel": channel,
-                    "timestamp": ts,
-                    "user_id": user_id,
-                }
+                NotificationEvent(
+                    type="notification",
+                    notification_id=nid,
+                    user_id=user_id,
+                    unread_count=unread_count,
+                )
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Dashboard SSE publish skipped: %s", exc)
+
         return nid
 
     # ------------------------------------------------------------------
@@ -323,7 +323,7 @@ class DashboardStore:
         """
         if user_id is not None:
             sql = "SELECT COUNT(*) FROM notifications WHERE read = 0 AND user_id = ?"
-            params: tuple = (user_id,)
+            params: tuple[Any, ...] = (user_id,)
         else:
             sql = "SELECT COUNT(*) FROM notifications WHERE read = 0"
             params = ()
@@ -336,17 +336,21 @@ class DashboardStore:
     # Update
     # ------------------------------------------------------------------
 
-    def mark_as_read(self, notification_id: str) -> bool:
+    def mark_as_read(self, notification_id: str, *, user_id: str | None = None) -> bool:
         """Mark a notification as read.
 
         Returns:
             True if the notification was found and updated.
         """
+        if user_id is not None:
+            sql = "UPDATE notifications SET read = 1 WHERE id = ? AND read = 0 AND user_id = ?"
+            params = (notification_id, user_id)
+        else:
+            sql = "UPDATE notifications SET read = 1 WHERE id = ? AND read = 0"
+            params = (notification_id,)
+
         with self._connect() as conn:
-            cursor = conn.execute(
-                "UPDATE notifications SET read = 1 WHERE id = ? AND read = 0",
-                (notification_id,),
-            )
+            cursor = conn.execute(sql, params)
         return cursor.rowcount > 0
 
     def mark_all_read(self, *, user_id: str | None = None) -> int:
@@ -360,7 +364,7 @@ class DashboardStore:
         """
         if user_id is not None:
             sql = "UPDATE notifications SET read = 1 WHERE read = 0 AND user_id = ?"
-            params: tuple = (user_id,)
+            params: tuple[Any, ...] = (user_id,)
         else:
             sql = "UPDATE notifications SET read = 1 WHERE read = 0"
             params = ()

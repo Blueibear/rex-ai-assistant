@@ -1,174 +1,194 @@
 """Server-Sent Events (SSE) broadcaster for dashboard notifications.
 
 Provides an in-process, thread-safe broadcaster that pushes notification
-events to connected SSE clients.  The broadcaster uses stdlib only
-(``queue``, ``threading``, ``time``) and has no external dependencies.
+events to connected SSE clients. Uses stdlib only (queue, threading, time).
 
-Usage::
+Typical usage:
 
-    from rex.dashboard.sse import get_broadcaster
+    from rex.dashboard.sse import get_broadcaster, NotificationEvent
 
     broadcaster = get_broadcaster()
+    subscriber = broadcaster.subscribe()
 
-    # Subscribe (returns a generator suitable for Flask SSE responses)
     def sse_stream():
-        for event in broadcaster.subscribe(timeout=30.0, max_events=None):
-            yield event
+        for chunk in broadcaster.stream(subscriber, timeout=15.0):
+            yield chunk
 
-    # Publish (called from DashboardStore.write or routes)
-    broadcaster.publish({"id": "notif_1", "title": "Hello", ...})
+    broadcaster.publish(
+        NotificationEvent(
+            type="notification",
+            notification_id="notif_123",
+            user_id="james",
+            unread_count=5,
+        )
+    )
 
 Design notes:
-
-- Each subscriber gets its own ``queue.Queue`` that receives copies of
-  published events.  When the subscriber disconnects (generator is
-  garbage-collected or explicitly closed) the queue is automatically
-  removed.
-- ``subscribe()`` yields SSE-formatted ``data: ...\\n\\n`` strings.
-- The broadcaster is a singleton obtained via ``get_broadcaster()``.
-- ``max_events`` and ``timeout`` parameters on ``subscribe`` are
-  intended for testing; production clients typically leave them unset.
+- Each subscriber has its own bounded queue. When full, the oldest event is dropped.
+- stream() yields SSE-formatted strings and periodic keep-alive comments.
+- publish() accepts either a NotificationEvent or a JSON-serializable dict payload.
 """
 
 from __future__ import annotations
 
 import json
-import logging
 import queue
 import threading
 import time
+from collections.abc import Iterator
+from dataclasses import dataclass
 from typing import Any
 
-logger = logging.getLogger(__name__)
+
+@dataclass(frozen=True)
+class NotificationEvent:
+    """Dashboard notification event payload."""
+
+    type: str
+    notification_id: str
+    user_id: str | None
+    unread_count: int | None = None
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "type": self.type,
+            "notification_id": self.notification_id,
+            "user_id": self.user_id,
+            "unread_count": self.unread_count,
+        }
 
 
-class SSEBroadcaster:
-    """Thread-safe in-process broadcaster for SSE notification events."""
+class _Subscriber:
+    def __init__(self, max_events: int) -> None:
+        self.queue: queue.Queue[dict[str, Any]] = queue.Queue(maxsize=max_events)
+        self.closed = False
+
+
+class NotificationBroadcaster:
+    """Thread-safe in-process notification event broadcaster."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._subscribers: list[queue.Queue[str | None]] = []
+        self._subscribers: set[_Subscriber] = set()
 
-    def publish(self, event_data: dict[str, Any]) -> int:
-        """Publish an event to all connected subscribers.
-
-        Args:
-            event_data: Dictionary payload to send as a JSON SSE event.
-
-        Returns:
-            Number of subscribers that received the event.
-        """
-        payload = f"data: {json.dumps(event_data)}\n\n"
-        delivered = 0
+    def subscribe(self, *, max_events: int = 100) -> _Subscriber:
+        """Create and register a subscriber with a bounded queue."""
+        subscriber = _Subscriber(max_events=max_events)
         with self._lock:
-            dead: list[queue.Queue[str | None]] = []
-            for q in self._subscribers:
-                try:
-                    q.put_nowait(payload)
-                    delivered += 1
-                except queue.Full:
-                    # Subscriber is too slow; drop them
-                    dead.append(q)
-            for q in dead:
-                self._subscribers.remove(q)
-        if delivered:
-            logger.debug("SSE broadcast delivered to %d subscriber(s)", delivered)
-        return delivered
+            self._subscribers.add(subscriber)
+        return subscriber
 
-    def subscribe(
+    def unsubscribe(self, subscriber: _Subscriber) -> None:
+        """Remove and close a subscriber."""
+        with self._lock:
+            self._subscribers.discard(subscriber)
+        subscriber.closed = True
+
+    def publish(self, event: NotificationEvent | dict[str, Any]) -> None:
+        """Publish an event to all active subscribers without blocking."""
+        if isinstance(event, NotificationEvent):
+            payload = event.to_payload()
+        elif isinstance(event, dict):
+            payload = event
+        else:
+            raise TypeError("event must be NotificationEvent or dict[str, Any]")
+
+        with self._lock:
+            subscribers = list(self._subscribers)
+
+        stale: list[_Subscriber] = []
+        for subscriber in subscribers:
+            if subscriber.closed:
+                stale.append(subscriber)
+                continue
+
+            try:
+                subscriber.queue.put_nowait(payload)
+                continue
+            except queue.Full:
+                pass
+
+            # Drop the oldest event, then retry once.
+            try:
+                subscriber.queue.get_nowait()
+            except queue.Empty:
+                stale.append(subscriber)
+                continue
+
+            try:
+                subscriber.queue.put_nowait(payload)
+            except queue.Full:
+                stale.append(subscriber)
+
+        if stale:
+            with self._lock:
+                for subscriber in stale:
+                    self._subscribers.discard(subscriber)
+                    subscriber.closed = True
+
+    def stream(
         self,
+        subscriber: _Subscriber,
         *,
-        timeout: float = 30.0,
-        max_events: int | None = None,
-        initial_data: dict[str, Any] | None = None,
-    ):
-        """Yield SSE-formatted event strings.
-
-        This is a generator intended to be returned from a Flask SSE
-        endpoint.
-
-        Args:
-            timeout: Seconds to wait for an event before sending a
-                keep-alive comment.  Also controls how quickly the
-                generator notices a ``max_events`` limit or shutdown.
-            max_events: Maximum number of data events to yield before
-                stopping.  ``None`` means unlimited (production default).
-            initial_data: Optional initial payload sent as the first
-                event (e.g. current unread count).
-        """
-        q: queue.Queue[str | None] = queue.Queue(maxsize=256)
-        with self._lock:
-            self._subscribers.append(q)
+        timeout: float = 15.0,
+        keepalive_interval: float = 15.0,
+    ) -> Iterator[str]:
+        """Yield SSE payload chunks for a subscriber."""
+        last_keepalive = time.monotonic()
         try:
-            # Send initial data event if provided
-            if initial_data is not None:
-                yield f"data: {json.dumps(initial_data)}\n\n"
-
-            event_count = 0
-            while True:
-                if max_events is not None and event_count >= max_events:
-                    break
+            while not subscriber.closed:
                 try:
-                    item = q.get(timeout=timeout)
+                    payload = subscriber.queue.get(timeout=timeout)
                 except queue.Empty:
-                    # Send keep-alive comment
-                    yield f": keepalive {int(time.time())}\n\n"
+                    now = time.monotonic()
+                    if now - last_keepalive >= keepalive_interval:
+                        last_keepalive = now
+                        yield ": keep-alive\n\n"
                     continue
 
-                if item is None:
-                    # Sentinel: shutdown
-                    break
-
-                yield item
-                event_count += 1
+                last_keepalive = time.monotonic()
+                data = json.dumps(payload)
+                yield f"event: notification\ndata: {data}\n\n"
         finally:
-            with self._lock:
-                if q in self._subscribers:
-                    self._subscribers.remove(q)
+            self.unsubscribe(subscriber)
 
     def shutdown(self) -> None:
-        """Signal all subscribers to disconnect."""
+        """Close and remove all subscribers."""
         with self._lock:
-            for q in self._subscribers:
-                try:
-                    q.put_nowait(None)
-                except queue.Full:
-                    pass
+            subscribers = list(self._subscribers)
             self._subscribers.clear()
+        for subscriber in subscribers:
+            subscriber.closed = True
 
     @property
     def subscriber_count(self) -> int:
-        """Return the current number of active subscribers."""
         with self._lock:
             return len(self._subscribers)
 
 
-# ------------------------------------------------------------------
-# Singleton
-# ------------------------------------------------------------------
-
-_broadcaster: SSEBroadcaster | None = None
+_broadcaster: NotificationBroadcaster | None = None
 _broadcaster_lock = threading.Lock()
 
 
-def get_broadcaster() -> SSEBroadcaster:
-    """Get the global SSE broadcaster instance (lazy singleton)."""
+def get_broadcaster() -> NotificationBroadcaster:
+    """Get singleton broadcaster instance (lazy, thread-safe)."""
     global _broadcaster
     if _broadcaster is None:
         with _broadcaster_lock:
             if _broadcaster is None:
-                _broadcaster = SSEBroadcaster()
+                _broadcaster = NotificationBroadcaster()
     return _broadcaster
 
 
-def set_broadcaster(broadcaster: SSEBroadcaster | None) -> None:
-    """Replace the global SSE broadcaster (for testing)."""
+def set_broadcaster(broadcaster: NotificationBroadcaster | None) -> None:
+    """Set singleton broadcaster (primarily for tests)."""
     global _broadcaster
     _broadcaster = broadcaster
 
 
 __all__ = [
-    "SSEBroadcaster",
+    "NotificationBroadcaster",
+    "NotificationEvent",
     "get_broadcaster",
     "set_broadcaster",
 ]

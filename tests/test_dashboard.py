@@ -792,14 +792,14 @@ class TestNotificationsInboxUI:
         """Mark-all-read action end-to-end through the Flask app updates store state."""
         client, _ = app_client
         store = DashboardStore(db_path=tmp_path / "notif_ui_mark_all.db")
-        store.write(notification_id="ui_e2e_a", title="A", body="a", user_id="alice")
-        store.write(notification_id="ui_e2e_b", title="B", body="b", user_id="alice")
+        store.write(notification_id="ui_e2e_a", title="A", body="a", user_id="james")
+        store.write(notification_id="ui_e2e_b", title="B", body="b", user_id="james")
         store.write(notification_id="ui_e2e_c", title="C", body="c", user_id="bob")
         set_dashboard_store(store)
 
         try:
             resp = client.post(
-                "/api/notifications/read-all?user_id=alice",
+                "/api/notifications/read-all?user_id=james",
                 headers=auth_headers,
                 environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
             )
@@ -815,8 +815,8 @@ class TestNotificationsInboxUI:
         """Unread filter returns only unread notifications."""
         client, _ = app_client
         store = DashboardStore(db_path=tmp_path / "notif_ui_unread.db")
-        store.write(notification_id="unread_1", title="Unread", body="b1")
-        store.write(notification_id="unread_2", title="Unread2", body="b2")
+        store.write(notification_id="unread_1", title="Unread", body="b1", user_id="james")
+        store.write(notification_id="unread_2", title="Unread2", body="b2", user_id="james")
         # mark one as read
         store.mark_as_read("unread_1")
         set_dashboard_store(store)
@@ -839,8 +839,12 @@ class TestNotificationsInboxUI:
         """Priority filter returns only matching notifications."""
         client, _ = app_client
         store = DashboardStore(db_path=tmp_path / "notif_ui_priority.db")
-        store.write(notification_id="p_urgent", priority="urgent", title="Urgent", body="u")
-        store.write(notification_id="p_normal", priority="normal", title="Normal", body="n")
+        store.write(
+            notification_id="p_urgent", priority="urgent", title="Urgent", body="u", user_id="james"
+        )
+        store.write(
+            notification_id="p_normal", priority="normal", title="Normal", body="n", user_id="james"
+        )
         set_dashboard_store(store)
 
         try:

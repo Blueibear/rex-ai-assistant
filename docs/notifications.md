@@ -210,7 +210,30 @@ POST /api/notifications/<id>/read
 POST /api/notifications/read-all?user_id=alice
 ```
 
+**Real-time stream (SSE):**
+```
+GET /api/notifications/stream
+```
+
+The stream sends:
+- `event: init` with current `unread_count`
+- `event: notification` for new notifications scoped to the authenticated user
+- periodic keep-alive comments (`: keep-alive`)
+
 All endpoints require authentication (see dashboard auth docs).
+
+### SSE Authentication and token query parameter safety
+
+`/api/notifications/stream` uses normal dashboard auth (Authorization header, `X-Dashboard-Token`, or session cookie).
+
+Because browser `EventSource` cannot set custom headers, a `token` query parameter is accepted only for safer contexts:
+- HTTPS requests (or localhost loopback in development)
+- same-origin usage patterns
+
+Security notes:
+- Prefer cookie/session auth when possible.
+- Query tokens can appear in browser history and intermediary logs; avoid sharing stream URLs.
+- Do not use query-token auth over plain HTTP on non-localhost hosts.
 
 ### Python API
 
