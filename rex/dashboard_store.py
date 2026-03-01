@@ -1,7 +1,7 @@
 """Local notification dashboard store using SQLite.
 
 Persists notifications delivered via the ``dashboard`` channel so they can
-be retrieved by a dashboard UI or API endpoint.  The store supports:
+be retrieved by a dashboard UI or API endpoint. The store supports:
 
 - Writing new notifications
 - Querying recent/unread/by-priority notifications
@@ -53,7 +53,7 @@ class DashboardStoreConfig(BaseModel):
         default="interval:86400",
         description=(
             "Scheduler interval for automatic retention cleanup "
-            "(e.g. 'interval:86400' for daily).  Set to null to disable."
+            "(e.g. 'interval:86400' for daily). Set to null to disable."
         ),
     )
 
@@ -241,7 +241,7 @@ class DashboardStore:
             unread_count = self.count_unread(user_id=user_id)
             get_broadcaster().publish(
                 NotificationEvent(
-                    type="created",
+                    type="notification",
                     notification_id=nid,
                     user_id=user_id,
                     unread_count=unread_count,
@@ -329,7 +329,7 @@ class DashboardStore:
         """
         if user_id is not None:
             sql = "SELECT COUNT(*) FROM notifications WHERE read = 0 AND user_id = ?"
-            params: tuple = (user_id,)
+            params: tuple[Any, ...] = (user_id,)
         else:
             sql = "SELECT COUNT(*) FROM notifications WHERE read = 0"
             params = ()
@@ -370,7 +370,7 @@ class DashboardStore:
         """
         if user_id is not None:
             sql = "UPDATE notifications SET read = 1 WHERE read = 0 AND user_id = ?"
-            params: tuple = (user_id,)
+            params: tuple[Any, ...] = (user_id,)
         else:
             sql = "UPDATE notifications SET read = 1 WHERE read = 0"
             params = ()

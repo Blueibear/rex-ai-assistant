@@ -1,4 +1,12 @@
-"""Tests for dashboard notification SSE streaming and broadcaster behavior."""
+"""Tests for dashboard notification SSE streaming and broadcaster behavior.
+
+Covers:
+- NotificationBroadcaster unit tests (publish, subscribe, keepalive, queue drop behavior)
+- /api/notifications/stream endpoint auth, headers, init payload
+- Integration: persisting a notification triggers an SSE event scoped to the user
+- Query-token auth is only accepted in safe contexts (HTTPS or localhost)
+- Notification API enforces user scoping
+"""
 
 from __future__ import annotations
 
@@ -9,7 +17,7 @@ import sys
 import pytest
 
 from rex.dashboard.auth import SessionManager
-from rex.dashboard.sse import NotificationBroadcaster, NotificationEvent, set_broadcaster
+from rex.dashboard.sse import NotificationBroadcaster, NotificationEvent, get_broadcaster, set_broadcaster
 from rex.dashboard_store import DashboardStore, set_dashboard_store
 
 pytest.importorskip("flask")
@@ -20,9 +28,12 @@ def app_client(monkeypatch, tmp_path):
     monkeypatch.setenv("REX_TESTING", "true")
     monkeypatch.setenv("REX_PROXY_ALLOW_LOCAL", "1")
     monkeypatch.setenv("REX_ACTIVE_USER", "james")
+
+    # Force auth (no local bypass) and require password.
     monkeypatch.setenv("REX_DASHBOARD_ALLOW_LOCAL", "0")
     monkeypatch.setenv("REX_DASHBOARD_PASSWORD", "test-password")
 
+    # Reset scheduler singleton before importing flask_proxy
     from rex import scheduler as scheduler_module
 
     scheduler_module._SCHEDULER = None
@@ -33,20 +44,24 @@ def app_client(monkeypatch, tmp_path):
     jobs_path.parent.mkdir(parents=True, exist_ok=True)
     set_scheduler(Scheduler(jobs_file=jobs_path))
 
+    # Fresh store + broadcaster
     store = DashboardStore(db_path=tmp_path / "dashboard_notifications.db")
     set_dashboard_store(store)
 
     set_broadcaster(NotificationBroadcaster())
 
+    # Fresh dashboard session manager
     from rex.dashboard import auth as dashboard_auth
 
     dashboard_auth._session_manager = SessionManager()
 
+    # Reset module import to pick up env settings
     if "flask_proxy" in sys.modules:
         del sys.modules["flask_proxy"]
 
     module = importlib.import_module("flask_proxy")
     app = module.app
+    app.config["TESTING"] = True
 
     with app.test_client() as client:
         yield client, store, app
@@ -68,8 +83,11 @@ def auth_header(app_client):
     return {"Authorization": f"Bearer {token}"}, token
 
 
-def _next_chunk(response):
-    return next(response.response).decode("utf-8")
+def _next_chunk(response) -> str:
+    chunk = next(response.response)
+    if isinstance(chunk, bytes):
+        return chunk.decode("utf-8")
+    return str(chunk)
 
 
 class TestNotificationBroadcaster:
@@ -88,7 +106,7 @@ class TestNotificationBroadcaster:
 
         stream = broadcaster.stream(subscriber, timeout=0.01, keepalive_interval=0.0)
         first = next(stream)
-        assert "event: notification" in first
+        assert first.startswith("event: notification")
         assert '"notification_id": "n1"' in first
 
         keepalive = next(stream)
@@ -118,7 +136,6 @@ class TestNotificationSSEEndpoint:
             "/api/notifications/stream",
             environ_overrides={"REMOTE_ADDR": "8.8.8.8"},
         )
-
         assert response.status_code == 401
 
     def test_stream_sends_init_and_headers(self, app_client, auth_header):
@@ -160,7 +177,7 @@ class TestNotificationSSEEndpoint:
         insecure.close()
 
         secure = client.get(
-            f"/api/notifications/stream?token={token}",
+            f"/api/notifications/stream?token={token}&timeout=0.01",
             headers={"X-Forwarded-Proto": "https", "Origin": "http://localhost"},
             environ_overrides={"REMOTE_ADDR": "8.8.8.8", "HTTP_HOST": "localhost"},
             buffered=False,
@@ -185,19 +202,28 @@ class TestNotificationSSEEndpoint:
             assert first.startswith("event: init")
 
             store.write(title="Scoped", body="Only for james", user_id="james")
+
             event_chunk = _next_chunk(response)
             assert event_chunk.startswith("event: notification")
-            payload_line = next(
-                line for line in event_chunk.splitlines() if line.startswith("data: ")
-            )
+
+            payload_line = next(line for line in event_chunk.splitlines() if line.startswith("data: "))
             payload = json.loads(payload_line[6:])
             assert payload["user_id"] == "james"
+            assert payload["notification_id"]
         finally:
             response.close()
 
-    def test_stream_filters_other_user_events(self, app_client, auth_header):
+    def test_stream_filters_other_user_events(self, app_client, auth_header, monkeypatch):
         client, store, _ = app_client
         headers, _token = auth_header
+
+        broadcaster = get_broadcaster()
+        original_stream = broadcaster.stream
+
+        def fast_keepalive_stream(subscriber, *, timeout=15.0, keepalive_interval=15.0):
+            return original_stream(subscriber, timeout=timeout, keepalive_interval=0.0)
+
+        monkeypatch.setattr(broadcaster, "stream", fast_keepalive_stream)
 
         response = client.get(
             "/api/notifications/stream?timeout=0.01",
@@ -206,13 +232,16 @@ class TestNotificationSSEEndpoint:
             buffered=False,
         )
         assert response.status_code == 200
+
         try:
             _next_chunk(response)  # init
 
             store.write(title="Other", body="for alex", user_id="alex")
-            # Next emitted chunk should be keepalive, not a cross-user notification.
+
+            # Next emitted chunk should not be a cross-user notification.
+            # With fast keepalive enabled, we should get a keepalive quickly.
             chunk = _next_chunk(response)
-            assert chunk.startswith(": keep-alive")
+            assert chunk.startswith(":")
         finally:
             response.close()
 

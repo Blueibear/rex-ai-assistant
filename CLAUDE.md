@@ -233,8 +233,21 @@ Calibration behavior:
 - `notifications.dashboard.store.path`: database file path (default: `data/dashboard_notifications.db`)
 - `notifications.dashboard.store.retention_days`: days to retain (default: 30)
 - `notifications.dashboard.store.cleanup_schedule`: scheduler interval for automatic retention cleanup (default: `"interval:86400"` — daily); set to `null` to disable
-- Dashboard API endpoints: `GET /api/notifications`, `POST /api/notifications/<id>/read`, `POST /api/notifications/read-all`
+- Dashboard API endpoints: `GET /api/notifications`, `POST /api/notifications/<id>/read`, `POST /api/notifications/read-all`, `GET /api/notifications/stream` (SSE)
 - Dashboard store code: `rex/dashboard_store.py`
+
+## Real-time notification push (Phase 8.1)
+- SSE stream endpoint: `GET /api/notifications/stream` — Server-Sent Events for real-time push
+- Authentication: `@require_auth` — token via Bearer header, cookie, or `?token=` query param (needed for EventSource)
+- SSE broadcaster module: `rex/dashboard/sse.py` — stdlib-only in-process broadcaster (queue + threading)
+- Broadcasting hook: `DashboardStore.write()` publishes to the broadcaster after every successful insert
+- Dashboard UI (`rex/dashboard/static/js/dashboard.js`): tries EventSource first, falls back to 30-second polling on error
+- Initial event: `{"type": "init", "unread_count": N}`
+- Notification event: `{"type": "notification", "id": "...", "priority": "...", "title": "...", ...}`
+- Testing query params (only honoured when `app.config["TESTING"]`): `max_events`, `timeout_seconds`, `_testing=1`
+- Known limitation: in-process broadcaster; does not work across gunicorn workers
+- Tests: `pytest -q tests/test_notification_sse.py`
+- Docs: `docs/notifications.md`
 
 ## Retention cleanup scheduling (Cycle 4.7)
 - Module: `rex/retention.py` — registers scheduler jobs for dashboard and inbound SMS cleanup.

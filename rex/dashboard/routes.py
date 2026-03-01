@@ -188,10 +188,9 @@ def _redact_settings(config: dict[str, Any]) -> dict[str, Any]:
                 else:
                     result[k] = deep_redact(v, k)
             return result
-        elif isinstance(obj, list):
+        if isinstance(obj, list):
             return [deep_redact(item, key) for item in obj]
-        else:
-            return obj
+        return obj
 
     return deep_redact(redacted)
 
@@ -213,7 +212,7 @@ _RESTART_REQUIRED_SETTINGS = {
 def _get_nested(data: dict[str, Any], path: str, default: Any = None) -> Any:
     """Get value from nested dict using dot notation path."""
     keys = path.split(".")
-    value = data
+    value: Any = data
     for key in keys:
         if isinstance(value, dict):
             value = value.get(key, default)
@@ -225,11 +224,12 @@ def _get_nested(data: dict[str, Any], path: str, default: Any = None) -> Any:
 def _set_nested(data: dict[str, Any], path: str, value: Any) -> None:
     """Set value in nested dict using dot notation path."""
     keys = path.split(".")
+    current: Any = data
     for key in keys[:-1]:
-        if key not in data:
-            data[key] = {}
-        data = data[key]
-    data[keys[-1]] = value
+        if key not in current:
+            current[key] = {}
+        current = current[key]
+    current[keys[-1]] = value
 
 
 _MISSING = object()
@@ -284,9 +284,9 @@ def dashboard_ui():
 def notifications_ui():
     """Serve the notification inbox UI.
 
-    Returns the same SPA as the main dashboard.  The JavaScript layer
-    detects the ``/dashboard/notifications`` path on load and
-    automatically activates the Notifications section.
+    Returns the same SPA as the main dashboard. The JavaScript layer
+    detects the /dashboard/notifications path on load and activates
+    the Notifications section.
     """
     template_path = _get_dashboard_dir() / "templates" / "index.html"
     if template_path.exists():
@@ -346,7 +346,6 @@ def dashboard_login():
     if not is_password_required():
         # No password configured - check if local access is allowed
         if _allow_local_without_auth() and _is_loopback_address(request.remote_addr):
-            # Create session for local user
             session = get_session_manager().create_session(
                 user_key=os.getenv("REX_ACTIVE_USER", "local")
             )
@@ -365,8 +364,7 @@ def dashboard_login():
                 max_age=int((session.expires_at - session.created_at).total_seconds()),
             )
             return response
-        else:
-            return jsonify({"error": "Password not configured and remote access denied"}), 403
+        return jsonify({"error": "Password not configured and remote access denied"}), 403
 
     # Verify password
     if not verify_password(password):
@@ -386,7 +384,6 @@ def dashboard_login():
         }
     )
 
-    # Set secure cookie
     response.set_cookie(
         "rex_dashboard_token",
         session.token,
@@ -422,8 +419,7 @@ def get_settings():
         config = load_config()
         redacted = _redact_settings(config)
 
-        # Add metadata about settings
-        settings_meta = {}
+        settings_meta: dict[str, Any] = {}
         for path in _RESTART_REQUIRED_SETTINGS:
             settings_meta[path] = {"restart_required": True}
 
@@ -453,14 +449,13 @@ def update_settings():
 
     try:
         config = load_config()
-        updated_keys = []
+        updated_keys: list[str] = []
         restart_required = False
-        invalid_updates = {}
+        invalid_updates: dict[str, str] = {}
 
         for key_path, value in data.items():
-            # Validate key path (prevent arbitrary key creation)
             if not key_path or ".." in key_path:
-                invalid_updates[key_path] = "Invalid key path"
+                invalid_updates[str(key_path)] = "Invalid key path"
                 continue
 
             if not _has_nested(DEFAULT_CONFIG, key_path):
@@ -478,13 +473,10 @@ def update_settings():
                 )
                 continue
 
-            # Check if this is a sensitive key that shouldn't be set via API
             key_lower = key_path.lower()
             if any(pattern in key_lower for pattern in _SETTINGS_SENSITIVE_PATTERNS):
-                # Allow setting but log warning
                 logger.warning("Sensitive setting updated via API: %s", key_path)
 
-            # Check if restart is required
             if key_path in _RESTART_REQUIRED_SETTINGS:
                 restart_required = True
 
@@ -523,7 +515,6 @@ def update_settings():
 
 def _get_llm():
     """Get or create the LLM client."""
-    # Import here to avoid circular imports and allow lazy loading
     from rex.llm_client import LanguageModel
 
     return LanguageModel()
@@ -544,25 +535,20 @@ def chat():
         return jsonify({"error": "Message is required"}), 400
 
     try:
-        # Get LLM client
         llm = _get_llm()
 
-        # Build conversation context from history
-        messages = []
-        for entry in _CHAT_HISTORY[-10:]:  # Last 10 messages for context
+        messages: list[dict[str, str]] = []
+        for entry in _CHAT_HISTORY[-10:]:
             messages.append({"role": "user", "content": entry.get("user_message", "")})
             if entry.get("assistant_reply"):
                 messages.append({"role": "assistant", "content": entry["assistant_reply"]})
 
-        # Add current message
         messages.append({"role": "user", "content": message})
 
-        # Generate reply
         start_time = time.time()
         reply = llm.generate(messages=messages)
         elapsed_ms = int((time.time() - start_time) * 1000)
 
-        # Store in history
         entry = {
             "user_message": message,
             "assistant_reply": reply,
@@ -571,7 +557,6 @@ def chat():
         }
         _CHAT_HISTORY.append(entry)
 
-        # Trim history if needed
         while len(_CHAT_HISTORY) > _CHAT_HISTORY_MAX:
             _CHAT_HISTORY.pop(0)
 
@@ -623,7 +608,7 @@ def list_jobs():
         scheduler = get_scheduler()
         jobs = scheduler.list_jobs()
 
-        jobs_data = []
+        jobs_data: list[dict[str, Any]] = []
         for job in jobs:
             jobs_data.append(
                 {
@@ -657,17 +642,7 @@ def list_jobs():
 @dashboard_bp.route("/api/scheduler/jobs", methods=["POST"])
 @require_auth
 def create_job():
-    """Create a new scheduled job.
-
-    Request body: {
-        "name": "Job name",
-        "schedule": "interval:600" or "at:14:30",
-        "enabled": true,
-        "callback_name": "optional_callback",
-        "workflow_id": "optional_workflow",
-        "metadata": {}
-    }
-    """
+    """Create a new scheduled job."""
     data = request.get_json(silent=True) or {}
 
     name = data.get("name", "").strip()
@@ -680,7 +655,6 @@ def create_job():
     workflow_id = data.get("workflow_id")
     metadata = data.get("metadata", {})
 
-    # Validate schedule format
     if not schedule.startswith(("interval:", "at:")):
         return (
             jsonify({"error": "Invalid schedule format. Use 'interval:SECONDS' or 'at:HH:MM'"}),
@@ -779,10 +753,7 @@ def run_job(job_id: str):
 @dashboard_bp.route("/api/scheduler/jobs/<job_id>", methods=["PATCH"])
 @require_auth
 def update_job(job_id: str):
-    """Update a job (enable/disable, change schedule, etc).
-
-    Request body: {"enabled": true/false, "schedule": "...", ...}
-    """
+    """Update a job (enable/disable, change schedule, etc)."""
     data = request.get_json(silent=True) or {}
 
     if not data:
@@ -795,7 +766,6 @@ def update_job(job_id: str):
         if job is None:
             return jsonify({"error": "Job not found"}), 404
 
-        # Filter to allowed update fields
         allowed_fields = {"enabled", "schedule", "name", "max_runs", "metadata"}
         updates = {k: v for k, v in data.items() if k in allowed_fields}
 
@@ -855,14 +825,7 @@ def delete_job(job_id: str):
 @dashboard_bp.route("/api/notifications", methods=["GET"])
 @require_auth
 def list_notifications():
-    """List recent dashboard notifications.
-
-    Query params:
-    - limit: Max entries to return (default: 50, max: 200)
-    - unread: If "true", return only unread notifications
-    - priority: Filter by priority level (urgent, normal, digest)
-    - user_id: Filter by user ID
-    """
+    """List recent dashboard notifications."""
     try:
         from rex.dashboard_store import get_dashboard_store
 
@@ -921,11 +884,7 @@ def mark_notification_read(notification_id: str):
 @dashboard_bp.route("/api/notifications/read-all", methods=["POST"])
 @require_auth
 def mark_all_notifications_read():
-    """Mark all notifications as read.
-
-    Query params:
-    - user_id: Scope to a specific user (optional)
-    """
+    """Mark all notifications as read."""
     try:
         from rex.dashboard_store import get_dashboard_store
 
@@ -963,28 +922,38 @@ def stream_notifications():
     subscriber = broadcaster.subscribe(max_events=max_events)
 
     def generate():
-        unread_count = store.count_unread(user_id=session.user_key)
-        yield f'event: init\ndata: {{"unread_count": {unread_count}}}\n\n'
+        try:
+            init_payload = {"unread_count": store.count_unread(user_id=session.user_key)}
+            yield f"event: init\ndata: {json.dumps(init_payload)}\n\n"
 
-        for chunk in broadcaster.stream(subscriber, timeout=timeout):
-            if "data:" not in chunk:
+            for chunk in broadcaster.stream(subscriber, timeout=timeout):
+                if "data:" not in chunk:
+                    yield chunk
+                    continue
+
+                line = next((ln for ln in chunk.splitlines() if ln.startswith("data: ")), None)
+                if line is None:
+                    continue
+
+                try:
+                    payload = json.loads(line[6:])
+                except json.JSONDecodeError:
+                    continue
+
+                event_user_id = payload.get("user_id")
+                if event_user_id is None:
+                    continue
+                if event_user_id != session.user_key:
+                    continue
+
                 yield chunk
-                continue
-
-            # Emit only events scoped to this authenticated user.
-            line = next((ln for ln in chunk.splitlines() if ln.startswith("data: ")), None)
-            if line is None:
-                continue
-            try:
-                payload = json.loads(line[6:])
-            except json.JSONDecodeError:
-                continue
-            event_user_id = payload.get("user_id")
-            if event_user_id is None:
-                continue
-            if event_user_id != session.user_key:
-                continue
-            yield chunk
+        finally:
+            unsubscribe = getattr(broadcaster, "unsubscribe", None)
+            if callable(unsubscribe):
+                try:
+                    unsubscribe(subscriber)
+                except Exception:
+                    pass
 
     response = Response(stream_with_context(generate()), mimetype="text/event-stream")
     response.headers["Cache-Control"] = "no-cache"

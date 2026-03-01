@@ -20,6 +20,7 @@
 
     // Notification polling timer handle
     let _notifPollTimer = null;
+    // SSE EventSource handle for real-time notifications
     let _notifEventSource = null;
 
     // API helper
@@ -679,6 +680,7 @@
         }
     }
 
+    // Real-time notifications using SSE, with polling fallback
     function startNotifRealtime() {
         stopNotifPolling();
         stopNotifStream();
@@ -688,28 +690,37 @@
             return;
         }
 
-        const token = state.token ? `?token=${encodeURIComponent(state.token)}` : '';
-        _notifEventSource = new EventSource(`/api/notifications/stream${token}`, { withCredentials: true });
+        // Server supports query token for this endpoint only.
+        // If token is missing, the server may still accept cookie auth.
+        const tokenQS = state.token ? `?token=${encodeURIComponent(state.token)}` : '';
+        const url = `/api/notifications/stream${tokenQS}`;
 
-        _notifEventSource.addEventListener('init', (event) => {
-            try {
-                const data = JSON.parse(event.data || '{}');
-                updateNotifBadge(data.unread_count || 0);
-            } catch (_) {
-                // ignore malformed init payload
-            }
-        });
+        try {
+            _notifEventSource = new EventSource(url, { withCredentials: true });
 
-        _notifEventSource.addEventListener('notification', () => {
-            if (state.currentSection === 'notifications') {
-                loadNotifications();
-            }
-        });
+            _notifEventSource.addEventListener('init', (event) => {
+                try {
+                    const data = JSON.parse(event.data || '{}');
+                    updateNotifBadge(data.unread_count || 0);
+                } catch (_) {
+                    // ignore malformed init payload
+                }
+            });
 
-        _notifEventSource.onerror = () => {
+            _notifEventSource.addEventListener('notification', () => {
+                if (state.currentSection === 'notifications') {
+                    loadNotifications();
+                }
+            });
+
+            _notifEventSource.onerror = () => {
+                stopNotifStream();
+                startNotifPolling();
+            };
+        } catch (e) {
             stopNotifStream();
             startNotifPolling();
-        };
+        }
     }
 
     function startNotifPolling() {

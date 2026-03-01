@@ -28,9 +28,10 @@ The dashboard is then available at:
     PATCH /api/scheduler/jobs/<id> - Update job
     DELETE /api/scheduler/jobs/<id> - Delete job
     POST /api/scheduler/jobs/<id>/run - Run job now
-    GET  /api/notifications         - List dashboard notifications
-    POST /api/notifications/<id>/read - Mark notification as read
-    POST /api/notifications/read-all  - Mark all notifications as read
+    GET  /api/notifications              - List dashboard notifications
+    POST /api/notifications/<id>/read    - Mark notification as read
+    POST /api/notifications/read-all     - Mark all notifications as read
+    GET  /api/notifications/stream       - SSE real-time notification stream
 
 Configuration:
     Environment variables:
