@@ -488,9 +488,54 @@ class Notifier:
             raise
 
     def _send_to_ha_tts(self, notification: NotificationRequest) -> None:
-        """Send notification to Home Assistant TTS (stub)."""
-        logger.info(f"[HA_TTS] Would announce: {notification.title}")
-        # In a real implementation, this would call Home Assistant TTS API
+        """Send notification to Home Assistant TTS.
+
+        Calls the HA REST API when the channel is configured and enabled.
+        Falls back to a logged stub when HA TTS is not configured or when
+        the optional ``requests`` package is unavailable.
+
+        Per-notification overrides via ``metadata``:
+
+        - ``ha_entity_id``: target media player entity (overrides default)
+        - ``ha_tts_domain``: TTS service domain (overrides default)
+        - ``ha_tts_service``: TTS service name (overrides default)
+        """
+        try:
+            from rex.ha_tts.client import build_ha_tts_client
+
+            client = build_ha_tts_client()
+        except Exception as exc:
+            logger.warning("[HA_TTS] Could not build HA TTS client: %s", exc)
+            client = None
+
+        if client is None:
+            # Channel disabled or not configured — log stub and return silently.
+            logger.info("[HA_TTS] Channel not configured; would announce: %s", notification.title)
+            return
+
+        message = (
+            f"{notification.title}: {notification.body}"
+            if notification.body
+            else notification.title
+        )
+        entity_id = notification.metadata.get("ha_entity_id") or None
+
+        # Honour per-notification TTS domain/service overrides only when they
+        # are explicitly set in metadata; do not accept arbitrary service names.
+        tts_domain = notification.metadata.get("ha_tts_domain") or client.tts_domain
+        tts_service = notification.metadata.get("ha_tts_service") or client.tts_service
+
+        result = client.speak(
+            message,
+            entity_id=entity_id,
+            extra_data=(
+                {"tts_domain": tts_domain, "tts_service": tts_service}
+                if (tts_domain != client.tts_domain or tts_service != client.tts_service)
+                else None
+            ),
+        )
+        if not result.ok:
+            raise RuntimeError(result.error or "HA TTS announcement failed")
 
     def flush_digests(self, channel: str | None = None) -> int:
         """Flush digest queues and send summaries.
