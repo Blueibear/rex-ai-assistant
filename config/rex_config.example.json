@@ -108,6 +108,16 @@
         "retention_days": 30,
         "cleanup_schedule": "interval:86400"
       }
+    },
+    "ha_tts": {
+      "enabled": false,
+      "base_url": null,
+      "token_ref": "ha:tts_token",
+      "default_entity_id": null,
+      "default_tts_domain": "tts",
+      "default_tts_service": "speak",
+      "timeout_seconds": 10.0,
+      "allow_http": false
     }
   },
   "voice_identity": {

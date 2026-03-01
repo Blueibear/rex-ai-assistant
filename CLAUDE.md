@@ -343,6 +343,27 @@ Agent security rules:
 - `rex wc coupons create --site <id> --code <code> --amount <n> --type <percent|fixed_cart|fixed_product> [--expires YYYY-MM-DD] [--usage-limit N] [--yes] [--user <id>]` — create coupon (approval-gated, HIGH risk)
 - `rex wc coupons disable --site <id> --coupon-id <n> [--yes] [--user <id>]` — disable coupon (approval-gated, HIGH risk)
 
+## Home Assistant TTS notification channel config keys (Cycle 8.3a)
+- `notifications.ha_tts.enabled`: `false` (default) — enable the HA TTS channel; disabled by default.
+- `notifications.ha_tts.base_url`: HTTPS URL of the Home Assistant instance (e.g. `"https://homeassistant.local:8123"`).
+- `notifications.ha_tts.token_ref`: `CredentialManager` lookup key for the long-lived HA access token. **Never store the token directly in config.**
+- `notifications.ha_tts.default_entity_id`: default media player entity for TTS announcements.
+- `notifications.ha_tts.default_tts_domain`: TTS service domain (default `"tts"`).
+- `notifications.ha_tts.default_tts_service`: TTS service within the domain (default `"speak"`).
+- `notifications.ha_tts.timeout_seconds`: HTTP request timeout (default `10.0`).
+- `notifications.ha_tts.allow_http`: accept `http://` base URLs (default `false`; keep `false` in production).
+- SSRF hardening: scheme check, no embedded credentials, DNS-based IP class check (loopback/private/link-local/reserved/multicast/unspecified all rejected).
+- Token never logged. Errors mapped to sanitised messages before surfacing to callers.
+- HA TTS channel code lives in `rex/ha_tts/` (config, client).
+- Docs: `docs/home_assistant.md`
+- Tests: `pytest -q tests/test_ha_tts.py` (fully offline; mocks `socket.getaddrinfo` and `requests.post`)
+
+## Home Assistant CLI commands (Cycle 8.3a)
+- `rex ha tts test` — send a test TTS announcement; reports channel status even when disabled (no network call)
+- `rex ha tts test --message "<text>"` — custom announcement text
+- `rex ha tts test --entity-id <entity>` — override the target media player entity
+- Per-notification metadata overrides: `ha_entity_id`, `ha_tts_domain`, `ha_tts_service`
+
 ## WooCommerce write action policy (Cycle 6.3)
 - Write actions (`wc_order_set_status`, `wc_coupon_create`, `wc_coupon_disable`) are classified as HIGH risk and require an approved `WorkflowApproval` record before any network call is made.
 - Two-step flow: (1) first run creates a pending approval and prints its ID; (2) `rex approvals --approve <id>`; (3) re-run with `--yes` executes the write.
@@ -360,6 +381,8 @@ Agent security rules:
 - Add both success and failure-path tests for each backend adapter.
 - Never log raw secrets (tokens, passwords, app passwords, OAuth refresh tokens).
 - WooCommerce write tests must verify that no network call is made when an approval is missing or pending.
+- HA TTS tests must mock both `socket.getaddrinfo` (for SSRF validation) and `requests.post` (for HTTP calls). No real network calls in tests.
+- HA TTS tests must verify that no HTTP call is made when the channel is disabled or `build_ha_tts_client()` returns `None`.
 
 ## Testing
 - Pytest configuration source-of-truth is `[tool.pytest.ini_options]` in `pyproject.toml`; do not reintroduce `pytest.ini`.
@@ -485,3 +508,39 @@ Do not update CLAUDE.md for:
 PR requirements:
 - Every PR must include a short Verification section describing how you tested the change
 - If CLAUDE.md was updated, mention it explicitly in the PR description
+
+## Conflict resolution and remote verification rules (must follow)
+
+When asked to "resolve PR conflicts" or "rebase on master":
+
+1. **Always attempt the rebase/merge first:**
+   ```bash
+   git fetch origin --prune
+   git rebase origin/master   # or: git merge origin/master
+   ```
+2. Only after running these commands may you claim "no conflicts exist."
+3. If remote fetch fails (missing credentials, network error), say **exactly once**:
+   - "Cannot fetch remote in this environment."
+   - Provide the exact commands the maintainer should run locally to surface conflicts.
+   - Do **not** repeat the blocker message in subsequent messages.
+4. Do not claim conflicts are resolved when you have not actually run a rebase/merge.
+
+## Ruff and Black gating rules (must follow, CI-enforced)
+
+Before every push, run Ruff and Black on all changed Python files:
+
+```bash
+BASE_REF="master"
+git fetch origin "$BASE_REF"
+files=$(git diff --name-only "origin/$BASE_REF...HEAD" -- '*.py')
+python -m ruff check --fix $files
+python -m ruff check $files          # must exit 0
+python -m black $files
+python -m black --check --diff $files  # must exit 0
+```
+
+Rules:
+- Both `ruff check` and `black --check` must exit 0 before any push.
+- Fix all reported issues before committing; do not push failing files.
+- These are **hard requirements**, not suggestions. CI will reject non-compliant code.
+- Do not use `# noqa` or `# fmt: skip` to suppress lint errors unless the suppression is genuinely justified and documented in a comment.

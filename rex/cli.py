@@ -26,6 +26,7 @@ This module provides the main CLI entry point with subcommands:
     rex wp           - WordPress site monitoring (read-only)
     rex wc           - WooCommerce monitoring + approval-gated write actions
     rex voice-id     - Voice speaker identity enrollment, calibration, and status
+    rex ha           - Home Assistant integration commands (TTS test)
 
 Usage:
     rex [command] [options]
@@ -2208,6 +2209,73 @@ def cmd_notify(args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_ha(args: argparse.Namespace) -> int:
+    """Home Assistant integration commands."""
+    ha_command = getattr(args, "ha_command", None)
+    if ha_command == "tts":
+        return _cmd_ha_tts(args)
+    print("Unknown ha subcommand. Use 'rex ha --help'")
+    return 1
+
+
+def _cmd_ha_tts(args: argparse.Namespace) -> int:
+    """Handle 'rex ha tts <subcommand>'."""
+    tts_command = getattr(args, "ha_tts_command", None)
+    if tts_command == "test":
+        return _cmd_ha_tts_test(args)
+    print("Unknown ha tts subcommand. Use 'rex ha tts --help'")
+    return 1
+
+
+def _cmd_ha_tts_test(args: argparse.Namespace) -> int:
+    """Send a test TTS announcement via the Home Assistant channel."""
+    from rex.ha_tts.config import load_ha_tts_config
+
+    cfg = load_ha_tts_config()
+
+    if not cfg.enabled:
+        print("HA TTS channel: disabled")
+        print("  Set notifications.ha_tts.enabled=true in config/rex_config.json to enable.")
+        return 0
+
+    if not cfg.base_url or not cfg.token_ref:
+        print("HA TTS channel: configured but incomplete")
+        if not cfg.base_url:
+            print("  Missing: notifications.ha_tts.base_url")
+        if not cfg.token_ref:
+            print("  Missing: notifications.ha_tts.token_ref")
+        return 1
+
+    entity_id = getattr(args, "entity_id", None) or cfg.default_entity_id
+    if not entity_id:
+        print("Error: no entity_id specified and no default_entity_id configured.")
+        print(
+            "  Pass --entity-id <entity> or set notifications.ha_tts.default_entity_id in config."
+        )
+        return 1
+
+    message = args.message
+
+    print("HA TTS channel: sending test announcement")
+    print(f"  base_url : {cfg.base_url}")
+    print(f"  entity_id: {entity_id}")
+    print(f"  message  : {message!r}")
+
+    from rex.ha_tts.client import build_ha_tts_client
+
+    client = build_ha_tts_client()
+    if client is None:
+        print("Error: could not build HA TTS client (check logs for details).")
+        return 1
+
+    result = client.speak(message, entity_id=entity_id)
+    if result.ok:
+        print("OK: announcement sent successfully.")
+        return 0
+    print(f"Error: {result.error}")
+    return 1
+
+
 def cmd_voice_id(args: argparse.Namespace) -> int:
     """Manage voice identity enrollment, calibration, and status."""
     subcommand = getattr(args, "voice_id_command", None)
@@ -3350,6 +3418,10 @@ WooCommerce commands:
   rex wc coupons create --site myshop --code SAVE10 --amount 10 --type percent --yes
   rex wc coupons disable --site myshop --coupon-id 55
   rex wc coupons disable --site myshop --coupon-id 55 --yes
+
+Home Assistant commands:
+  rex ha tts test
+  rex ha tts test --message "Hello from Rex" --entity-id media_player.living_room
 
 For more information, visit: https://github.com/Blueibear/rex-ai-assistant
 """,
@@ -4667,6 +4739,64 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     wc_coupons_parser.set_defaults(func=cmd_wc, wc_command="coupons", wc_coupons_command="create")
 
     wc_parser.set_defaults(func=cmd_wc, wc_command="orders")
+
+    # ha (Home Assistant integration commands)
+    ha_parser = subparsers.add_parser(
+        "ha",
+        help="Home Assistant integration commands",
+        description=(
+            "Commands for interacting with the Home Assistant integration.\n\n"
+            "The HA TTS channel must be configured in config/rex_config.json\n"
+            "under notifications.ha_tts before use."
+        ),
+    )
+    ha_subparsers = ha_parser.add_subparsers(
+        title="ha commands",
+        dest="ha_command",
+        metavar="COMMAND",
+    )
+
+    # ha tts
+    ha_tts_parser = ha_subparsers.add_parser(
+        "tts",
+        help="Home Assistant TTS commands",
+        description="Commands for the Home Assistant TTS notification channel.",
+    )
+    ha_tts_subparsers = ha_tts_parser.add_subparsers(
+        title="ha tts commands",
+        dest="ha_tts_command",
+        metavar="COMMAND",
+    )
+
+    # ha tts test
+    ha_tts_test = ha_tts_subparsers.add_parser(
+        "test",
+        help="Send a test TTS announcement via Home Assistant",
+        description=(
+            "Send a test TTS announcement to verify the Home Assistant TTS\n"
+            "channel is configured correctly.  Requires notifications.ha_tts\n"
+            "to be enabled in config/rex_config.json."
+        ),
+    )
+    ha_tts_test.add_argument(
+        "--message",
+        type=str,
+        default="Rex Home Assistant TTS test announcement.",
+        help="Text to announce (default: test message)",
+    )
+    ha_tts_test.add_argument(
+        "--entity-id",
+        dest="entity_id",
+        type=str,
+        default=None,
+        help=(
+            "Target media player entity ID " "(overrides notifications.ha_tts.default_entity_id)"
+        ),
+    )
+    ha_tts_test.set_defaults(func=cmd_ha, ha_command="tts", ha_tts_command="test")
+
+    ha_tts_parser.set_defaults(func=cmd_ha, ha_command="tts", ha_tts_command="test")
+    ha_parser.set_defaults(func=cmd_ha, ha_command="tts")
 
     # voice-id (voice speaker identity enrollment, calibration, and status)
     voice_id_parser = subparsers.add_parser(
