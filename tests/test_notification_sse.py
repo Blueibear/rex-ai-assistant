@@ -17,7 +17,12 @@ import sys
 import pytest
 
 from rex.dashboard.auth import SessionManager
-from rex.dashboard.sse import NotificationBroadcaster, NotificationEvent, get_broadcaster, set_broadcaster
+from rex.dashboard.sse import (
+    NotificationBroadcaster,
+    NotificationEvent,
+    get_broadcaster,
+    set_broadcaster,
+)
 from rex.dashboard_store import DashboardStore, set_dashboard_store
 
 pytest.importorskip("flask")
@@ -206,7 +211,9 @@ class TestNotificationSSEEndpoint:
             event_chunk = _next_chunk(response)
             assert event_chunk.startswith("event: notification")
 
-            payload_line = next(line for line in event_chunk.splitlines() if line.startswith("data: "))
+            payload_line = next(
+                line for line in event_chunk.splitlines() if line.startswith("data: ")
+            )
             payload = json.loads(payload_line[6:])
             assert payload["user_id"] == "james"
             assert payload["notification_id"]
