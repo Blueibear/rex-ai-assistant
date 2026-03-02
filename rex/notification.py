@@ -520,20 +520,24 @@ class Notifier:
         )
         entity_id = notification.metadata.get("ha_entity_id") or None
 
-        # Honour per-notification TTS domain/service overrides only when they
-        # are explicitly set in metadata; do not accept arbitrary service names.
-        tts_domain = notification.metadata.get("ha_tts_domain") or client.tts_domain
-        tts_service = notification.metadata.get("ha_tts_service") or client.tts_service
+        # Honour per-notification TTS domain/service overrides. These values
+        # control the REST API path in HaTtsClient.speak(), so apply them on the
+        # client for this call only and restore immediately afterwards.
+        tts_domain = notification.metadata.get("ha_tts_domain")
+        tts_service = notification.metadata.get("ha_tts_service")
 
-        result = client.speak(
-            message,
-            entity_id=entity_id,
-            extra_data=(
-                {"tts_domain": tts_domain, "tts_service": tts_service}
-                if (tts_domain != client.tts_domain or tts_service != client.tts_service)
-                else None
-            ),
-        )
+        original_domain = client.tts_domain
+        original_service = client.tts_service
+        try:
+            if tts_domain:
+                client.tts_domain = tts_domain
+            if tts_service:
+                client.tts_service = tts_service
+            result = client.speak(message, entity_id=entity_id)
+        finally:
+            client.tts_domain = original_domain
+            client.tts_service = original_service
+
         if not result.ok:
             raise RuntimeError(result.error or "HA TTS announcement failed")
 

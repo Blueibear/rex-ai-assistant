@@ -23,6 +23,7 @@ import socket
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 from rex.ha_tts.client import (
     HaTtsClient,
@@ -87,10 +88,9 @@ class TestHaTtsConfig:
         assert cfg.token_ref == "ha:mytoken"
         assert cfg.default_entity_id == "media_player.living_room"
 
-    def test_extra_fields_ignored(self):
-        # Pydantic v2 model_validate should not raise on extra fields
-        cfg = HaTtsConfig.model_validate({"enabled": True, "unknown_key": "value"})
-        assert cfg.enabled is True
+    def test_extra_fields_forbidden(self):
+        with pytest.raises(ValidationError):
+            HaTtsConfig.model_validate({"enabled": True, "unknown_key": "value"})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -504,6 +504,30 @@ class TestNotificationHaTtsChannel:
 
         call_kwargs = mock_client.speak.call_args
         assert call_kwargs[1].get("entity_id") == "media_player.bedroom"
+
+    def test_metadata_domain_and_service_override(self, tmp_path):
+        from rex.notification import NotificationRequest, Notifier
+
+        mock_client = MagicMock()
+        mock_client.speak.return_value = TtsResult(ok=True)
+        mock_client.tts_domain = "tts"
+        mock_client.tts_service = "speak"
+
+        notifier = Notifier(storage_path=tmp_path)
+        req = NotificationRequest(
+            title="Hi",
+            body="body",
+            priority="normal",
+            channel_preferences=["ha_tts"],
+            metadata={"ha_tts_domain": "custom_tts", "ha_tts_service": "announce"},
+        )
+
+        with patch("rex.ha_tts.client.build_ha_tts_client", return_value=mock_client):
+            notifier._send_to_ha_tts(req)
+
+        assert mock_client.speak.called
+        assert mock_client.tts_domain == "tts"
+        assert mock_client.tts_service == "speak"
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -39,7 +39,7 @@ from pydantic import BaseModel, ConfigDict
 class HaTtsConfig(BaseModel):
     """Parsed ``notifications.ha_tts`` configuration block."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid", strict=True)
 
     enabled: bool = False
     base_url: str | None = None
