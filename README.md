@@ -1,4 +1,4 @@
-# Rex AI Assistant
+# AskRex Assistant
 
 > A local-first, voice-activated AI companion that runs entirely on your machine with wake word detection, speech recognition, LLM chat, and text-to-speech.
 
