@@ -1,9 +1,9 @@
 {
-  "primary_agent_name": "codex",
-  "primary_agent_command_template": "SET_ME",
+  "primary_agent_name": "claude-code",
+  "primary_agent_command_template": "powershell -NoProfile -ExecutionPolicy Bypass -File \"scripts\\run_primary_agent.ps1\" -RepoRoot \"{repo_root}\" -PromptFile \"{prompt_file}\" -LogFile \"{log_file}\" -Iteration {iteration}",
   "verifier_enabled": true,
-  "verifier_name": "codex-verify",
-  "verifier_command_template": "SET_ME",
+  "verifier_name": "claude-code-verifier",
+  "verifier_command_template": "powershell -NoProfile -ExecutionPolicy Bypass -File \"scripts\\run_verifier_agent.ps1\" -RepoRoot \"{repo_root}\" -PromptFile \"{prompt_file}\" -LogFile \"{log_file}\" -Iteration {iteration}",
   "repo_root": ".",
   "task_board_path": "RALPH_TASK_BOARD.md",
   "loop_prompt_path": "RALPH_CIRCLE_PROMPT.md",
