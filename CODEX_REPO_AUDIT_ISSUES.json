@@ -1,0 +1,350 @@
+{
+  "issues": [
+    {
+      "id": "COR-001",
+      "title": "Planner, registry, and router disagree on executable tools",
+      "category": "correctness",
+      "severity": "High",
+      "priority": "P1",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "rex/planner.py",
+          "detail": "Planner emits send_email, calendar_create_event, home_assistant_call_service, weather_now, time_now, and web_search."
+        },
+        {
+          "type": "file",
+          "path": "rex/tool_registry.py",
+          "detail": "Registry registers time_now, weather_now, web_search, send_email, and home_assistant."
+        },
+        {
+          "type": "file",
+          "path": "rex/tool_router.py",
+          "detail": "execute_tool hard-codes supported_tools to time_now, weather_now, and web_search, with weather_now and web_search returning not implemented."
+        },
+        {
+          "type": "command",
+          "detail": "Direct execute_tool checks returned real output for time_now, not implemented for weather_now/web_search, and unknown tool errors for send_email/calendar_create_event/home_assistant_call_service when policy was bypassed."
+        }
+      ],
+      "suggested_fix": "Create one authoritative executable tool catalog, make Planner use only that catalog, implement real handlers for any documented tools that remain exposed, and add integration tests proving every planner-emitted tool runs end to end through execute_tool.",
+      "scope": "large"
+    },
+    {
+      "id": "SEC-001",
+      "title": "Docker build context can capture secrets and local state",
+      "category": "security",
+      "severity": "Critical",
+      "priority": "P0",
+      "evidence": [
+        {
+          "type": "file",
+          "path": ".dockerignore",
+          "detail": "Does not exclude .env, .venv, venv, config, data, tests, or most local caches."
+        },
+        {
+          "type": "file",
+          "path": "Dockerfile",
+          "detail": "Runtime stage copies the full repo with COPY . ."
+        },
+        {
+          "type": "command",
+          "detail": "This workspace contains a local .env and gitignored runtime state, so a normal docker build would include workstation-specific content unless excluded."
+        }
+      ],
+      "suggested_fix": "Replace broad COPY operations with an allowlist of runtime files, expand .dockerignore to exclude secrets, virtualenvs, caches, docs, tests, and local runtime data, and document expected runtime mounts explicitly.",
+      "scope": "medium"
+    },
+    {
+      "id": "DEP-001",
+      "title": "Dependency and packaging artifacts disagree on the supported runtime matrix",
+      "category": "dependency management",
+      "severity": "High",
+      "priority": "P1",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "requirements-cpu.txt",
+          "detail": "CPU-only file pins torch==2.7.1+cu118."
+        },
+        {
+          "type": "file",
+          "path": "Dockerfile",
+          "detail": "Installs torch==2.7.1, torchvision==0.20.1, and torchaudio==2.5.1, which does not match the other manifests."
+        },
+        {
+          "type": "file",
+          "path": "pyproject.toml",
+          "detail": "Optional ml dependencies allow torch>=2.6.0,<2.9.0, torchvision>=0.17.0,<0.23.0, torchaudio>=2.6.0,<2.9.0."
+        },
+        {
+          "type": "command",
+          "detail": "scripts/validate_deployment.py still expects torch 2.5.x and failed the environment in this workspace."
+        }
+      ],
+      "suggested_fix": "Define a canonical supported install matrix for base, CPU, cu118, and cu124, then sync pyproject extras, requirements files, Dockerfile, Pipfile notes, and validation scripts to that matrix.",
+      "scope": "medium"
+    },
+    {
+      "id": "QLT-001",
+      "title": "Core quality gates are not green",
+      "category": "code quality",
+      "severity": "High",
+      "priority": "P1",
+      "evidence": [
+        {
+          "type": "command",
+          "detail": "ruff check rex reported 339 errors."
+        },
+        {
+          "type": "command",
+          "detail": "black --check rex would reformat 37 files."
+        },
+        {
+          "type": "command",
+          "detail": "mypy rex found 272 errors in 53 files."
+        }
+      ],
+      "suggested_fix": "Run a staged cleanup for import order, unused code, formatting, and structural typing in the core package, then enforce the resulting baseline in CI at least for touched files.",
+      "scope": "large"
+    },
+    {
+      "id": "TST-001",
+      "title": "Repo-integrity tests are brittle and fail on pre-existing dirtiness",
+      "category": "testing",
+      "severity": "Medium",
+      "priority": "P2",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "tests/test_repo_integrity.py",
+          "detail": "Fails whenever git status shows tracked modifications, regardless of whether the tests caused them."
+        },
+        {
+          "type": "file",
+          "path": "tests/test_repository_integrity.py",
+          "detail": "Uses the same clean-worktree assumption."
+        },
+        {
+          "type": "command",
+          "detail": "Main pytest run ended with exactly two failures, both caused by the pre-existing dirty tracked file requirements-gpu-cu124.txt."
+        }
+      ],
+      "suggested_fix": "Capture a git-status baseline at test start and compare against that baseline, or scope the check to files modified during the test session rather than the whole worktree state.",
+      "scope": "small"
+    },
+    {
+      "id": "OPS-001",
+      "title": "Security audit script produces high false-positive noise",
+      "category": "developer experience",
+      "severity": "Medium",
+      "priority": "P2",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "scripts/security_audit.py",
+          "detail": "Current scan behavior does not exclude .mypy_cache and similar generated directories."
+        },
+        {
+          "type": "command",
+          "detail": "scripts/security_audit.py scanned 10398 files and reported 295 placeholder findings, including many from .mypy_cache."
+        }
+      ],
+      "suggested_fix": "Restrict the scan to tracked source files or a curated source allowlist, exclude generated caches and virtualenvs, and separate source findings from documentation findings.",
+      "scope": "small"
+    },
+    {
+      "id": "OPS-002",
+      "title": "Deployment validation script is stale and contradicts the current repo",
+      "category": "deployment/reliability",
+      "severity": "Medium",
+      "priority": "P2",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "scripts/validate_deployment.py",
+          "detail": "Validation logic still expects older torch and env-driven runtime assumptions."
+        },
+        {
+          "type": "command",
+          "detail": "scripts/validate_deployment.py exited non-zero with Score: 5/7 checks passed."
+        },
+        {
+          "type": "command",
+          "detail": "The script flagged missing REX_ACTIVE_USER and expected torch 2.5.x even though the repo now centers JSON runtime config and different torch versions."
+        }
+      ],
+      "suggested_fix": "Rewrite the deployment validator to check the current JSON runtime config model, current torch ranges, and current entrypoints instead of stale env-var and version assumptions.",
+      "scope": "small"
+    },
+    {
+      "id": "DOC-001",
+      "title": "Runtime configuration documentation is inconsistent with the code",
+      "category": "documentation",
+      "severity": "High",
+      "priority": "P1",
+      "evidence": [
+        {
+          "type": "file",
+          "path": ".env.example",
+          "detail": "Describes .env as secrets-only and directs runtime settings to config/rex_config.json."
+        },
+        {
+          "type": "file",
+          "path": "README.md",
+          "detail": "Still presents large env-var configuration sections and an env-variable-centric GUI story."
+        },
+        {
+          "type": "file",
+          "path": "README.windows.md",
+          "detail": "Still instructs users to configure runtime behavior via environment variables."
+        },
+        {
+          "type": "file",
+          "path": "rex/config_manager.py",
+          "detail": "Warns that legacy non-secret env vars are ignored at runtime."
+        }
+      ],
+      "suggested_fix": "Standardize all setup and runtime docs around one configuration model, keeping .env for secrets only unless a setting is truly env-backed, and update GUI wording to match.",
+      "scope": "medium"
+    },
+    {
+      "id": "DOC-002",
+      "title": "Windows quickstart and startup instructions are wrong",
+      "category": "documentation",
+      "severity": "High",
+      "priority": "P1",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "README.windows.md",
+          "detail": "Says python rex_assistant.py starts a wake-word assistant and tells users to configure via environment variables."
+        },
+        {
+          "type": "command",
+          "detail": "Running python rex_assistant.py showed a text chat loop: Rex assistant ready. Type 'exit' or 'quit' to stop."
+        }
+      ],
+      "suggested_fix": "Rewrite the Windows guide to distinguish text chat, voice loop, dashboard, and TTS API entrypoints, and update the config instructions to the current JSON-plus-secrets model.",
+      "scope": "small"
+    },
+    {
+      "id": "DOC-003",
+      "title": "Architecture, release, and status documents are stale or false",
+      "category": "documentation",
+      "severity": "Medium",
+      "priority": "P2",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "docs/ARCHITECTURE.md",
+          "detail": "Claims rex/voice_loop.py is a compatibility wrapper to rex/voice_loop_optimized.py."
+        },
+        {
+          "type": "file",
+          "path": ".github/workflows/ci.yml",
+          "detail": "Targets master."
+        },
+        {
+          "type": "file",
+          "path": ".github/workflows/release-please.yml",
+          "detail": "Targets main."
+        },
+        {
+          "type": "file",
+          "path": "STABILIZATION_REPORT.md",
+          "detail": "Claims the project is production-ready despite current lint/type/deployment results."
+        }
+      ],
+      "suggested_fix": "Archive or relabel stale status reports, update architecture docs to match the current code, and make branch/release documentation and automation agree on one branch strategy.",
+      "scope": "medium"
+    },
+    {
+      "id": "ARC-001",
+      "title": "Voice loop and root-level entry surfaces are duplicated and drifting",
+      "category": "architecture",
+      "severity": "Medium",
+      "priority": "P2",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "voice_loop.py",
+          "detail": "Contains a full voice-loop implementation rather than a thin wrapper."
+        },
+        {
+          "type": "file",
+          "path": "rex/voice_loop.py",
+          "detail": "Also contains a full implementation."
+        },
+        {
+          "type": "file",
+          "path": "rex/voice_loop_optimized.py",
+          "detail": "Presents itself as the canonical implementation."
+        },
+        {
+          "type": "command",
+          "detail": "mypy rex surfaced multiple voice-loop-related type issues, reinforcing that this surface is already drifting."
+        }
+      ],
+      "suggested_fix": "Pick one canonical voice-loop implementation, reduce the others to thin wrappers or remove them, and update docs/tests to point to the single maintained path.",
+      "scope": "large"
+    },
+    {
+      "id": "INC-001",
+      "title": "Audit replay is explicitly stubbed",
+      "category": "incomplete functionality",
+      "severity": "Medium",
+      "priority": "P3",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "rex/replay.py",
+          "detail": "Replay reconstructs a ToolCall and returns a placeholder result instead of executing the tool."
+        }
+      ],
+      "suggested_fix": "Either implement dry-run replay through the existing tool router with clear side-effect rules or remove replay from active capability claims until it is real.",
+      "scope": "medium"
+    },
+    {
+      "id": "INC-002",
+      "title": "Scheduler workflow triggering is explicitly stubbed",
+      "category": "incomplete functionality",
+      "severity": "Medium",
+      "priority": "P2",
+      "evidence": [
+        {
+          "type": "file",
+          "path": "rex/scheduler.py",
+          "detail": "The module notes that workflow triggering is stubbed and logs would trigger workflow for workflow_id jobs."
+        }
+      ],
+      "suggested_fix": "Wire scheduled workflow jobs into WorkflowRunner or remove the workflow_id scheduling story from the exposed feature surface until it is implemented.",
+      "scope": "medium"
+    },
+    {
+      "id": "DX-001",
+      "title": "Repo root mixes product code, legacy wrappers, reports, and operational artifacts",
+      "category": "developer experience",
+      "severity": "Low",
+      "priority": "P3",
+      "evidence": [
+        {
+          "type": "command",
+          "detail": "Root inventory showed entrypoints, wrappers, logs, reports, helper scripts, and historical notes all in the top-level directory."
+        },
+        {
+          "type": "file",
+          "path": "flask_proxy.py",
+          "detail": "A major active runtime surface lives at the repo root instead of inside the canonical package."
+        },
+        {
+          "type": "file",
+          "path": "STABILIZATION_REPORT.md",
+          "detail": "Historical status reporting is also stored at the repo root alongside runtime code."
+        }
+      ],
+      "suggested_fix": "Move historical reports to a reports/archive area, consolidate scripts, keep only deliberate entrypoints at the root, and clearly mark compatibility wrappers.",
+      "scope": "medium"
+    }
+  ]
+}
