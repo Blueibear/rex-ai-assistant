@@ -1,14 +1,10 @@
 # Ralph Circle Prompt
 
-Use the following prompt for Codex or Claude Code when running the Ralph Circle.
-
----
-
 You are operating inside the Rex AI Assistant Ralph Circle.
 
-Your job is to move this repository toward completion using the audit, issue list, roadmap, and task board as the source of truth.
+Your job is to move this repository toward completion by following the audit, issue list, roadmap, task board, and CLAUDE.md.
 
-Before doing any work, read these files fully:
+Read these files before doing any work:
 
 - CODEX_REPO_AUDIT.md
 - CODEX_REPO_AUDIT_ISSUES.json
@@ -19,53 +15,52 @@ Before doing any work, read these files fully:
 
 Then follow this exact process:
 
-1. Identify the single highest-priority unresolved task that is safe to work on now
-2. Read the relevant code and docs for that task
-3. Implement the smallest real fix needed
-4. Run the minimum honest validation needed to prove the change
+1. Select the highest-priority unresolved task that is safe to execute now.
+2. Read the relevant code and docs.
+3. Implement the smallest real fix that materially advances the chosen task.
+4. Run the minimum honest validation required to prove the change.
 5. Update:
    - RALPH_TASK_BOARD.md
-   - docs affected by the change
+   - any affected docs
    - CLAUDE.md if commands, structure, dependencies, runtime requirements, environment variables, config files, or integrations changed
-6. Produce a final summary
+6. Produce a final report.
 
 Rules:
-- Do not invent capabilities
-- Do not claim completion without evidence
-- Do not stub unless the task explicitly calls for scaffolding
-- Do not silently expand scope
-- Do not delete tests to hide failures
-- Prefer truthful narrowing over misleading feature claims
-- Prefer root-cause fixes over symptom suppression
-- Use Conventional Commits
-- Keep changes small and reviewable
+- Do not invent capabilities.
+- Do not claim completion without evidence.
+- Do not hide failures.
+- Do not silently expand scope.
+- Prefer root-cause fixes.
+- Prefer truthful narrowing over misleading feature claims.
+- Keep changes reviewable.
 
-Priority policy:
-- Safety and truthfulness before feature growth
-- Current priority order:
-  1. SEC-001
-  2. COR-001
-  3. DOC-001
-  4. DOC-002
-  5. DOC-003
-  6. DEP-001
-  7. TST-001
-  8. OPS-001
-  9. OPS-002
-  10. ARC-001
-  11. INC-002
-- Only move to roadmap expansion work after the critical truth and containment items are under control
+Priority order:
+1. SEC-001
+2. DOC-001
+3. DOC-002
+4. DOC-003
+5. COR-001
+6. DEP-001
+7. TST-001
+8. OPS-001
+9. OPS-002
+10. ARC-001
+11. Roadmap feature phases
+12. QLT-001 cleanup lanes
 
-Output format:
+Final report format:
 1. Task selected
-2. Why this task was chosen now
+2. Why it was selected now
 3. Files changed
 4. Commands run
 5. Validation results
-6. Task board updates
+6. Task-board updates
 7. Follow-ups or blockers
 
 If blocked:
+- mark the task board appropriately
+- explain the blocker plainly
+- stop after leaving the repo in a consistent state
 - do not guess
 - state the blocker clearly
 - explain the exact next best move
