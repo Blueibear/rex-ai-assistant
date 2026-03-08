@@ -1,112 +1,81 @@
 # Ralph Task Board
 Last updated: 2026-03-08
 
-This is the live execution queue for the Ralph Circle.
-
 Legend:
 - [ ] not started
 - [~] in progress
 - [x] done
-- [!] blocked pending human decision or external validation
+- [!] blocked pending human decision, external dependency, or live verification
 
-## Critical path now
+## Current critical path
 
-### P0 - Security and containment
-- [ ] SEC-001 - Lock down Docker packaging
-  - tighten `.dockerignore`
-  - remove broad runtime `COPY . .`
-  - document runtime mounts
-  - validate build context no longer captures secrets or local state
+### P0
+- [ ] SEC-001 - Docker build context can capture secrets and local state
 
-### P1 - Truthfulness of exposed behavior
-- [ ] COR-001 - Make the planner, registry, and router agree on executable tools
-  - choose canonical executable tool catalog
-  - make planner emit only supported tools
-  - implement or remove misleading tool exposure
-  - add end-to-end execution tests
+### P1
+- [ ] DOC-001 - Runtime configuration documentation is inconsistent with the code
+- [ ] DOC-002 - Windows quickstart and startup instructions are wrong
+- [ ] DOC-003 - Architecture, release, and status documents are stale or false
+- [ ] COR-001 - Planner, registry, and router disagree on executable tools
+- [ ] DEP-001 - Dependency and packaging artifacts disagree on the supported runtime matrix
 
-- [ ] DOC-001 - Rewrite runtime configuration docs around JSON runtime config plus secrets-only `.env`
-- [ ] DOC-002 - Rewrite Windows quickstart and startup instructions
-- [ ] DOC-003 - Correct or archive stale architecture, release, and status documents
+### P2
+- [ ] TST-001 - Repo-integrity tests are brittle and fail on pre-existing dirtiness
+- [ ] OPS-001 - Security audit script produces high false-positive noise
+- [ ] OPS-002 - Deployment validation script is stale and contradicts the current repo
+- [ ] ARC-001 - Voice loop and root-level entry surfaces are duplicated and drifting
 
-### P1 - Environment and dependency alignment
-- [ ] DEP-001 - Unify dependency and packaging runtime matrix
-  - align `pyproject.toml`
-  - align requirements files
-  - align Dockerfile
-  - align validation scripts
+## Roadmap phases after critical truth work
 
-## Near-term stability work
-
-### P2 - Validation and test correctness
-- [ ] TST-001 - Fix repo-integrity tests to compare against a baseline state
-- [ ] OPS-001 - Reduce false positives in `scripts/security_audit.py`
-- [ ] OPS-002 - Rewrite `scripts/validate_deployment.py` around the current runtime model
-
-### P2 - Runtime architecture cleanup
-- [ ] ARC-001 - Choose one canonical voice-loop implementation and reduce others to wrappers or remove them
-- [ ] INC-002 - Either implement scheduler workflow triggering or remove the implied feature claim
-
-## Roadmap execution after truth and stability
-
-### Phase 4 - Notifications
+### Phase 4
 - [ ] C4.5 - Minimal notification inbox UI
-- [ ] C4.6 - Codex verification for notification UI
+- [ ] C4.6 - Verify UI, API, persistence, and security
 - [ ] C4.7 - Retention cleanup scheduling
-- [ ] C4.8 - Codex verification for retention scheduling
+- [ ] C4.8 - Verify scheduling correctness and idempotency
 
-### Phase 5 - Windows computer control
+### Phase 5
 - [ ] C5.2b - Policy engine integration for `rex pc run`
-- [ ] C5.4 - Codex verify Windows agent server if needed
-- [ ] C5.5 - Windows service wrapper and boot persistence
-- [ ] C5.6 - Codex verify Windows service docs and rollback
+- [ ] C5.4 - Verify Windows agent server if needed
+- [ ] C5.5 - Windows service or scheduled-task wrapper and boot persistence
+- [ ] C5.6 - Verify install docs, safety defaults, and rollback steps
 
-### Phase 6 - WordPress and WooCommerce
-- [ ] C6.1 - Read-only monitoring
-- [ ] C6.2 - Codex verify read-only monitoring
-- [ ] C6.3 - Approval-gated write actions
-- [ ] C6.4 - Codex verify write actions
+### Phase 6
+- [ ] C6.1 - WordPress and WooCommerce read-only monitoring
+- [ ] C6.2 - Verify security, pagination, and error handling
+- [ ] C6.3 - Write actions with policy approval
+- [ ] C6.4 - Verify approval gating and audit logs
 
-### Phase 7 - Voice identity MVP
-- [ ] C7.1 - Enrollment and calibration
-- [ ] C7.2 - Codex verify voice identity MVP
+### Phase 7
+- [ ] C7.1 - Voice identity enrollment and calibration
+- [ ] C7.2 - Verify safety, false-positive controls, and fallback UX
 
-### Phase 8 - Real-time notifications and follow-ups
-- [ ] C8.1 - SSE push for notifications
-- [ ] C8.2 - Codex verify SSE auth and stability
-- [ ] C8.3 - Optional follow-up hardening
+### Phase 8
+- [ ] C8.1 - Real-time push with SSE
+- [ ] C8.2 - Verify SSE auth and stability
+- [ ] C8.3 - Optional remaining hardening
 
-## Quality debt lane
-
-- [ ] QLT-001A - stage 1 ruff cleanup for touched core files only
-- [ ] QLT-001B - stage 2 black normalization for touched core files only
-- [ ] QLT-001C - stage 3 mypy cleanup in highest-risk modules
-- [ ] DX-001 - clean up repo root and archive historical reports
+### Phase 9
+- [ ] QLT-001A - Touched-file Ruff cleanup
+- [ ] QLT-001B - Touched-file Black normalization
+- [ ] QLT-001C - Highest-risk mypy cleanup
 
 ## Human decision queue
 
-- [ ] Decide canonical default branch strategy: `master` vs `main`
-- [ ] Decide canonical voice-loop implementation
-- [ ] Decide whether scheduler workflow execution should be real or explicitly de-scoped
-- [ ] Decide whether replay should be implemented or removed from active claims
+- [ ] Decide canonical branch strategy: `master` or `main`
+- [ ] Decide canonical voice-loop surface
+- [ ] Decide whether scheduler-triggered workflow execution becomes real or is formally de-scoped
+- [ ] Decide whether replay remains stub-only or becomes a real recovery feature
 
 ## Current batch target
 
-Batch ID: BATCH-001
+- [ ] BATCH-001 - Resolve SEC-001, DOC-001, and DOC-002 only
 
-Objective:
-- complete SEC-001
-- complete DOC-001
-- complete DOC-002
-- make no unrelated code changes
+## Loop stop conditions
 
-Validation required:
-- docker build context review
-- targeted tests if docs or scripts change
-- security audit if Docker artifacts change
-- final summary with changed files and exact commands run
-
-Stop conditions:
-- if Docker packaging changes reveal dependency matrix conflicts broader than SEC-001
-- if docs cannot be corrected without first choosing unresolved branch or entrypoint strategy
-- if any proposed fix requires silently changing actual runtime behavior
+The autonomous runner must stop if:
+- any task is marked `[!]`
+- the primary agent exits non-zero
+- the verifier exits non-zero
+- the task board stops changing for too many iterations
+- git backup fails
+- max iterations is reached
