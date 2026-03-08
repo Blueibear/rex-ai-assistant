@@ -1,281 +1,240 @@
 # Rex AI Assistant Application Roadmap
 Last updated: 2026-03-08
 
-This file is the execution roadmap for the Ralph Circle. It merges the current Codex audit with the existing Rex roadmap so the agent works from repo truth, not wishful thinking.
+This roadmap is the execution compass for the Ralph Circle.
+It is grounded in:
+- CODEX_REPO_AUDIT.md
+- CODEX_REPO_AUDIT_ISSUES.json
+- ROADMAP_BIBLE_UPDATED_2026-02-24_v2.md
+- CLAUDE.md
 
-## Current reality
+## Project reality
 
-Rex is not production-ready yet.
+Rex is a large, real assistant platform with meaningful code, a broad CLI surface, many integrations, and a strong test suite.
+It is not production-ready yet.
 
-Right now the repo is best described as:
-- a large prototype
-- with several real or near-real subsystems
-- but with important truth, packaging, validation, and documentation drift
+The highest-value truths from the current audit are:
 
-Current hard truths from the audit:
-- Docker packaging is unsafe as written and can capture secrets or local state
-- planner, registry, and router do not agree on what tools are actually executable
-- dependency and packaging artifacts disagree about the supported runtime matrix
-- quality gates are not green
-- documentation does not fully match executable reality
+1. The repo is much more real than a toy, but still prototype-grade.
+2. The planner, registry, and router do not currently agree on what is executable.
+3. Packaging and deployment are not safe enough yet.
+4. Documentation drifts from executable reality.
+5. Quality gates and deployment validation are not green.
 
-The Ralph Circle must treat those items as first-order work, not side quests.
+## Global definition of done
 
-## Definition of done for the whole project
+The project is only considered done when all of the following are true:
 
-Rex is only considered complete when all of the following are true:
+- Install and setup paths are accurate and documented
+- Critical audit issues are resolved or explicitly de-scoped truthfully
+- Tests pass reliably without brittle integrity assumptions
+- The planner and execution surface agree on what is real
+- Security and deployment tooling are trustworthy
+- Runtime modes and entrypoints are clearly documented
+- Docs match code
+- Roadmap phases through current target completion are closed and verified
+- The task board contains no unresolved work items
 
-- clean install path works and is documented
-- tests pass reliably
-- one real smoke path works end to end
-- security and validation tooling are trustworthy
-- docs match reality
-- runtime modes are clear and stable
-- the voice loop is reliable on the intended machine
-- the supported tool and automation surface is truthful
-- packaging and deployment are safe
-- no major subsystem is claiming capabilities it does not actually provide
+## Execution order
 
-## Phase 0 - Truth and containment
+The Ralph Circle must use this order:
+
+1. Truth and containment
+2. Execution-surface correctness
+3. Dependency and validation alignment
+4. Entry surface consolidation
+5. Roadmap feature phases
+6. Quality debt paydown
+
+## Phase 0: Truth and containment
 
 Goal:
-Stop unsafe packaging and stop misleading users about what the repo can currently do.
+Stop unsafe packaging and stop misleading claims.
 
-Priority issues:
+Primary issues:
 - SEC-001
 - DOC-001
 - DOC-002
 - DOC-003
 
 Tasks:
-- tighten `.dockerignore`
-- replace broad Docker `COPY` patterns with an allowlist approach
-- fix README and Windows docs so they match the JSON config plus secrets-only `.env` model
-- archive or relabel stale status reports
-- resolve branch strategy drift between CI, release automation, and docs
+- Fix Docker build context exposure
+- Standardize runtime-config documentation
+- Rewrite Windows quickstart to reflect real entrypoints
+- Archive, relabel, or correct stale architecture and status docs
+- Align branch strategy docs with automation reality
 
 Exit criteria:
-- Docker build context no longer captures secrets or local runtime state
-- top-level docs no longer contradict executable reality
-- branch strategy is clearly documented and aligned
+- Docker build context no longer captures local secrets or runtime state
+- Setup docs consistently describe JSON runtime config plus secrets-only `.env`
+- Windows guide correctly distinguishes text chat, voice loop, dashboard, and TTS API
+- Stale “production-ready” or false status docs are corrected or archived
 
-## Phase 1 - Execution surface truthfulness
+## Phase 1: Execution-surface correctness
 
 Goal:
-Make the planner and tool execution surface internally consistent.
+Make the autonomous surface truthful.
 
-Priority issues:
+Primary issues:
 - COR-001
 - INC-002
 
 Tasks:
-- define one authoritative executable tool catalog
-- make planner emit only actually executable tools
-- either implement or remove misleading tool exposure for:
-  - `web_search`
-  - `send_email`
-  - `calendar_create_event`
-  - `home_assistant_call_service`
-- either implement scheduled workflow execution or explicitly de-scope it
-- add integration tests proving every planner-emitted tool executes end to end
+- Define one authoritative executable tool catalog
+- Ensure Planner emits only executable tools
+- Implement or de-scope misleadingly exposed tools
+- Clarify scheduler workflow-triggering status
+- Add integration tests proving planner-emitted tools execute end to end
 
 Exit criteria:
-- every tool the planner emits is actually executable
-- docs no longer imply workflow execution that does not exist
-- scheduler workflow behavior is either real or clearly removed from claims
+- Every planner-emitted tool is truly executable or removed from that path
+- Tool docs and autonomous docs match the real execution surface
+- Scheduler workflow execution is either implemented or truthfully documented as not supported
 
-## Phase 2 - Dependency, validation, and packaging alignment
+## Phase 2: Dependency and validation alignment
 
 Goal:
-Make installation and validation coherent.
+Make install and validation coherent.
 
-Priority issues:
+Primary issues:
 - DEP-001
-- OPS-002
 - TST-001
 - OPS-001
+- OPS-002
 
 Tasks:
-- define a canonical supported runtime matrix for base, CPU, cu118, and cu124
-- align `pyproject.toml`, requirements files, Dockerfile, and validation scripts
-- fix repo-integrity tests so they compare against a baseline instead of failing on pre-existing dirtiness
-- rewrite stale deployment validation logic
-- reduce false positives in the security audit script
+- Define one supported runtime matrix
+- Align requirements files, pyproject, Dockerfile, and validation scripts
+- Fix brittle repo-integrity tests
+- Reduce false positives in the security audit script
+- Rewrite deployment validation around current reality
 
 Exit criteria:
-- one coherent dependency matrix exists
-- deployment validation matches current repo reality
-- integrity tests fail only for new dirtiness caused by the session
-- security audit output is useful instead of noisy
+- Dependency matrix is coherent
+- Validation scripts reflect the current runtime model
+- Integrity tests compare against a session baseline instead of pre-existing dirtiness
+- Security audit output is useful, not noisy
 
-## Phase 3 - Core runtime and entrypoint consolidation
+## Phase 3: Runtime surface consolidation
 
 Goal:
-Choose and document the canonical runtime surfaces.
+Reduce entrypoint drift and duplicated runtime surfaces.
 
-Priority issues:
+Primary issues:
 - ARC-001
-- DOC-002
-- DOC-003
 
 Tasks:
-- choose the canonical voice-loop implementation
-- reduce duplicate voice surfaces to wrappers or remove them
-- define the official runtime modes:
-  - text CLI
-  - voice loop
-  - dashboard or API
-  - service mode if supported
-- document official entrypoints clearly
-- make config loading happen once, early, and consistently
+- Choose and document canonical runtime modes
+- Reduce duplicated voice-loop surfaces
+- Clarify official startup paths
+- Ensure config loading happens once, early, and consistently
 
 Exit criteria:
-- one canonical voice-loop path exists
-- runtime modes are clear
-- Windows and general setup docs point to the correct entrypoints
-- config flow is consistent
+- One canonical voice runtime path is documented
+- Runtime modes are clearly separated
+- Startup docs are truthful and minimal
 
-## Phase 4 - Notification usability
+## Phase 4: Productionize notifications
 
-Goal:
-Finish notification usability end to end.
+Source:
+ROADMAP_BIBLE_UPDATED_2026-02-24_v2.md
 
-Roadmap source:
-- Cycle 4.5
-- Cycle 4.6
-- Cycle 4.7
-- Cycle 4.8
-
-Tasks:
-- minimal notification inbox UI
-- notification filters
-- mark read and mark all read actions
-- retention cleanup scheduling for notifications and inbound SMS
-- Codex verification after implementation
+Cycles:
+- 4.5 Minimal notification inbox UI
+- 4.6 Codex verify UI/API/persistence/security
+- 4.7 Retention cleanup scheduling
+- 4.8 Codex verify scheduling correctness and idempotency
 
 Exit criteria:
-- notification inbox works in dashboard
-- persistence works
-- retention cleanup is scheduled and idempotent
-- verification report is complete
+- Notification UI exists and works with real and stub stores
+- Mark read and mark all read work
+- Retention cleanup is wired safely and idempotently
+- Verification reports are complete
 
-## Phase 5 - Windows computer control hardening
+## Phase 5: Windows computer control hardening
 
-Goal:
-Make Windows computer control safe, auditable, and operationally usable.
+Source:
+ROADMAP_BIBLE_UPDATED_2026-02-24_v2.md
 
-Roadmap source:
-- Cycle 5.2b
-- Cycle 5.4
-- Cycle 5.5
-- Cycle 5.6
-
-Tasks:
-- route `rex pc run` through policy engine
-- ensure approval gating is enforced
-- validate Windows agent behavior
-- add Windows Scheduled Task or service wrapper docs and scripts
-- verify install and rollback steps
+Cycles:
+- 5.2b Policy engine integration for `rex pc run`
+- 5.4 Codex verify agent server if needed
+- 5.5 Windows service or scheduled-task wrapper and boot persistence
+- 5.6 Codex verify install docs, safety defaults, rollback
 
 Exit criteria:
-- computer control is approval-gated
-- allowlist enforcement works
-- Windows service or task mode is documented and validated
-- Codex verification is complete
+- `rex pc run` flows through policy approval
+- Allowlist rules still block denied commands
+- Windows agent service-wrapper docs are real and tested
+- Verification reports are complete
 
-## Phase 6 - WordPress and WooCommerce
+## Phase 6: WordPress and WooCommerce integration
 
-Goal:
-Complete read-only monitoring first, then gated write actions.
+Source:
+ROADMAP_BIBLE_UPDATED_2026-02-24_v2.md
 
-Roadmap source:
-- Cycle 6.1
-- Cycle 6.2
-- Cycle 6.3
-- Cycle 6.4
-
-Tasks:
-- WordPress health checks
-- WooCommerce order and product listing
-- approval-gated writes for order status and coupon actions
-- security, pagination, and error-handling verification
+Cycles:
+- 6.1 Read-only monitoring
+- 6.2 Codex verify security, pagination, error handling
+- 6.3 Write actions with policy approval
+- 6.4 Codex verify approval gating and audit logs
 
 Exit criteria:
-- read-only monitoring is stable
-- write actions are approval-gated
-- verification reports are complete
+- WordPress health monitoring works
+- WooCommerce read paths work
+- Write actions are approval-gated
+- Verification reports are complete
 
-## Phase 7 - Voice identity MVP
+## Phase 7: Voice identity MVP
 
-Goal:
-Make voice identity usable while keeping it optional.
+Source:
+ROADMAP_BIBLE_UPDATED_2026-02-24_v2.md
 
-Roadmap source:
-- Cycle 7.1
-- Cycle 7.2
-
-Tasks:
-- enrollment CLI
-- embedding persistence per user
-- threshold calibration
-- unknown speaker behavior
-- fallback identity flow
-- verification of safety and false-positive controls
+Cycles:
+- 7.1 Enrollment and calibration
+- 7.2 Codex verify safety and fallback UX
 
 Exit criteria:
-- enrollment works
-- calibration works
-- fallback flow works
-- optional dependency policy remains intact
+- Enrollment CLI exists
+- Embedding persistence works
+- Threshold calibration works
+- Unknown-speaker behavior is defined
+- Verification report is complete
 
-## Phase 8 - Real-time notifications and follow-up hardening
+## Phase 8: Real-time notifications and remaining hardening
 
-Goal:
-Make the system feel responsive and tighten remaining gaps.
+Source:
+ROADMAP_BIBLE_UPDATED_2026-02-24_v2.md
 
-Roadmap source:
-- Cycle 8.1
-- Cycle 8.2
-- Cycle 8.3
-
-Tasks:
-- SSE notification stream
-- authenticated dashboard subscription
-- UI live updates
-- optional follow-up work such as calendar RRULE and TZID upgrades and Home Assistant TTS completion
+Cycles:
+- 8.1 SSE-based real-time push
+- 8.2 Codex verify SSE auth and stability
+- 8.3 Optional follow-ups
 
 Exit criteria:
-- SSE is stable and authenticated
-- dashboard updates live
-- verification report is complete
+- Authenticated SSE path works
+- UI subscribes and updates correctly
+- Verification report is complete
 
-## Phase 9 - Repo hygiene and debt paydown
+## Phase 9: Repo hygiene and debt paydown
 
-Goal:
-Reduce friction and stop future drift.
-
-Priority issues:
+Primary issues:
 - QLT-001
-- DX-001
 
 Tasks:
-- staged ruff cleanup
-- staged black normalization
-- staged mypy cleanup
-- root cleanup and archival of historical reports and artifacts
+- Stage 1: touched-file Ruff cleanup
+- Stage 2: touched-file Black normalization
+- Stage 3: highest-risk mypy cleanup
+- Keep debt paydown isolated from feature work
 
 Exit criteria:
-- quality gates are green or intentionally baseline-gated
-- repo layout is cleaner
-- no accidental behavioral changes from cleanup work
+- Touched-file quality gates are trustworthy
+- No accidental behavioral changes are hidden inside cleanup work
 
-## Ralph Circle operating strategy
+## Operating policy
 
-The Ralph Circle must follow this execution order:
-
-1. always fix truth and safety issues before growth
-2. prefer narrowing exposed capability over pretending unfinished capability is done
-3. do not expand feature surface while the execution surface is lying
-4. complete one bounded batch at a time
-5. after each Claude batch, require Codex verification
-6. update docs and CLAUDE.md whenever commands, structure, dependencies, config, or integrations change
+The Ralph Circle must always prefer:
+- truthful narrowing over inflated capability claims
+- bounded batches over broad rewrites
+- verification over optimism
+- root-cause fixes over cosmetic suppression
