@@ -8,36 +8,36 @@ Read:
 - RALPH_RULES.md
 - CLAUDE.md
 
-Work only on this batch:
-
-Batch ID: BATCH-001
-
-Scope:
+Work only on:
 - SEC-001
 - DOC-001
 - DOC-002
 
 Objectives:
-- lock down Docker packaging so build context does not capture secrets or local state
-- make runtime configuration docs match the current JSON runtime config plus secrets-only `.env` model
-- fix Windows quickstart so it points to the real current entrypoints and runtime behavior
+- Fix Docker packaging so build context does not capture local secrets or runtime state
+- Rewrite runtime configuration docs to match JSON runtime config plus secrets-only `.env`
+- Rewrite Windows quickstart so it truthfully distinguishes the real runtime entrypoints
 
 Constraints:
-- do not work on unrelated feature additions
-- do not attempt broad refactors
-- do not claim production readiness
-- do not modify issue priorities
-- update CLAUDE.md if commands, runtime requirements, or documentation rules need correction
+- No unrelated feature work
+- No broad refactors
+- No production-readiness claims
+- No issue-priority reshuffling
 
 Required validation:
-- review Dockerfile and `.dockerignore`
-- run relevant targeted tests if code changes require it
-- run `python scripts/security_audit.py` if packaging files change
+- inspect and update `.dockerignore`
+- inspect and update `Dockerfile`
 - run `python -m rex --help`
-- include exact commands run and outcomes in the summary
+- run `python scripts/security_audit.py` if packaging files changed
+- run targeted tests only if touched code requires them
+- include exact commands and results in the final summary
 
 Definition of done:
-- SEC-001 is resolved or materially advanced with validated file changes
+- SEC-001 is resolved or materially advanced with real file changes
+- DOC-001 is resolved
+- DOC-002 is resolved
+- RALPH_TASK_BOARD.md is updated accurately
+- final summary is complete and honest
 - DOC-001 is resolved
 - DOC-002 is resolved
 - task board is updated accurately
