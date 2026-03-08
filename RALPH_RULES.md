@@ -63,6 +63,12 @@ Prefer truthful narrowing over misleading expansion.
   - validation results
   - task-board updates
   - blockers or follow-ups
+ 
+Commit every completed task.
+
+Commit message format:
+
+ralph: <task-id> <short description>
 
 ## Verification rules
 
