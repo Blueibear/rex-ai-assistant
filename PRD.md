@@ -272,10 +272,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want Rex responses spoken aloud so that I receive audio feedback without looking at a screen.
 
 **Acceptance Criteria:**
-- [ ] TTS engine loads
-- [ ] audio generated
-- [ ] audio plays automatically
-- [ ] Typecheck passes
+- [x] TTS engine loads
+- [x] audio generated
+- [x] audio plays automatically
+- [x] Typecheck passes
 
 ---
 

@@ -183,3 +183,16 @@
   - Three consecutive calls to a deterministic mock always return the same value
   - 13 new tests pass, mypy rex/ still clean (121 files)
 ---
+## Iteration 19 - US-019: Text to speech pipeline
+- What was implemented: Added tests/test_us019_text_to_speech.py with 13 tests covering all 3 acceptance criteria (TTS engine loads, audio generated, audio plays automatically).
+- Files changed: tests/test_us019_text_to_speech.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - TextToSpeech is in rex/voice_loop.py; fully implemented; only test coverage needed
+  - Patching "rex.voice_loop._lazy_import_tts" and "rex.voice_loop.import_module" together avoids real TTS import errors
+  - Do NOT reload(rex.voice_loop) to test XTTS init — it triggers real TTS.api import which fails with fake torch; instead patch _lazy_import_tts directly
+  - _clean_text() adds trailing period to text; assert with trailing period in engine.say() calls
+  - simpleaudio (sa) patched at module level via patch("rex.voice_loop.sa", fake_sa)
+  - edge_tts.Communicate is async; fake must use AsyncMock with async save method
+  - Error recovery: speak() wraps entire logic in try/except and falls back to print(f"Rex: {text}")
+  - 13 new tests pass, mypy rex/ still clean (121 files)
+---
