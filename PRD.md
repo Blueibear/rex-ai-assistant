@@ -248,10 +248,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want wake word detection to trigger listening so that I can activate Rex hands-free.
 
 **Acceptance Criteria:**
-- [ ] wake word detection triggers listening
-- [ ] microphone stream initializes
-- [ ] wake word does not trigger on common conversational speech
-- [ ] Typecheck passes
+- [x] wake word detection triggers listening
+- [x] microphone stream initializes
+- [x] wake word does not trigger on common conversational speech
+- [x] Typecheck passes
 
 ---
 
