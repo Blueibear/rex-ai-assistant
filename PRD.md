@@ -284,11 +284,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want to speak to Rex and receive a spoken response so that I can have a complete voice-driven interaction.
 
 **Acceptance Criteria:**
-- [ ] wake word triggers listening
-- [ ] STT produces transcript
-- [ ] LLM response generated
-- [ ] response spoken aloud
-- [ ] Typecheck passes
+- [x] wake word triggers listening
+- [x] STT produces transcript
+- [x] LLM response generated
+- [x] response spoken aloud
+- [x] Typecheck passes
 
 ---
 

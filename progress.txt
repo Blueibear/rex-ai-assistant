@@ -183,6 +183,18 @@
   - Three consecutive calls to a deterministic mock always return the same value
   - 13 new tests pass, mypy rex/ still clean (121 files)
 ---
+## Iteration 20 - US-020: Full voice interaction loop
+- What was implemented: Added tests/test_us020_full_voice_loop.py with 15 tests covering all 4 acceptance criteria.
+- Files changed: tests/test_us020_full_voice_loop.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - VoiceLoop is in rex/voice_loop.py; fully implemented; only test coverage needed
+  - async generator wake listener: define `async def _listen(_detection_source): yield True` on a MagicMock
+  - VoiceLoop.run() appends a period to LLM response if it doesn't end with one
+  - SpeechToTextError is caught per-interaction (loop continues); AudioDeviceError breaks inner and outer loops
+  - transcribe returning empty string skips LLM entirely (continue in loop)
+  - max_interactions caps iterations even when wake listener yields more
+  - 15 new tests pass, mypy rex/ still clean (121 files)
+---
 ## Iteration 19 - US-019: Text to speech pipeline
 - What was implemented: Added tests/test_us019_text_to_speech.py with 13 tests covering all 3 acceptance criteria (TTS engine loads, audio generated, audio plays automatically).
 - Files changed: tests/test_us019_text_to_speech.py (new), PRD.md, progress.txt
