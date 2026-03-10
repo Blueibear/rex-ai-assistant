@@ -86,3 +86,12 @@
   - unused-ignore errors: remove the existing ignore comment entirely
   - 1639 tests pass, 26 skipped
 ---
+## Iteration 10 - US-010: Validate CLI entrypoints
+- What was implemented: Verified all CLI entrypoints already work. No code changes needed.
+- Files changed: PRD.md, progress.txt
+- Learnings for future iterations:
+  - `python -m rex.cli --help` → shows rex CLI usage
+  - `python -m rex.config --help` → shows rex-config usage (RuntimeWarning about sys.modules is cosmetic)
+  - `from rex.computers.agent_server import main` imports cleanly
+  - 157 CLI tests pass
+---

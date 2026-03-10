@@ -159,10 +159,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want all CLI entrypoints to launch successfully so that I can access Rex from the command line.
 
 **Acceptance Criteria:**
-- [ ] `rex` CLI launches
-- [ ] `rex-config` launches
-- [ ] `rex-agent` launches
-- [ ] Typecheck passes
+- [x] `rex` CLI launches
+- [x] `rex-config` launches
+- [x] `rex-agent` launches
+- [x] Typecheck passes
 
 ---
 
