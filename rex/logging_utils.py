@@ -16,7 +16,7 @@ DEFAULT_ERROR_FILE = Path("logs/error.log")
 try:  # pragma: no cover - avoid circular imports during package init
     from .config import settings
 except Exception:  # pragma: no cover - fallback when config not initialised
-    settings = None  # type: ignore[assignment]
+    settings = None
 
 
 def _resolve_path(candidate: str | os.PathLike[str], default: Path) -> Path:
@@ -81,7 +81,7 @@ def configure_logging(
             )
             error_handler.setLevel(logging.ERROR)
 
-            handlers_list.extend([file_handler, error_handler])
+            handlers_list.extend([file_handler, error_handler])  # type: ignore[list-item]
 
         handlers = tuple(handlers_list)
 

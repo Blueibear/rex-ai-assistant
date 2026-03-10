@@ -65,7 +65,7 @@ def load_profile(name: str, profiles_dir: str = DEFAULT_PROFILES_DIR) -> dict[st
     profile = json.loads(profile_path.read_text(encoding="utf-8"))
     schema_path = Path(profiles_dir) / "profile.schema.json"
     _validate_profile(profile, schema_path)
-    return profile
+    return profile  # type: ignore[no-any-return]
 
 
 def apply_profile(base_config: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]:

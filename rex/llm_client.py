@@ -138,14 +138,14 @@ class OpenAIStrategy:
         self.model_name = model_name
         self._client_factory = client_factory
         self._cached_client = None
-        self.tools = []  # Will be set by LanguageModel
+        self.tools: list[Any] = []  # Will be set by LanguageModel
 
     def _get_client(self) -> Any:
         if self._cached_client is None:
             self._cached_client = self._client_factory()
         return self._cached_client
 
-    def generate(self, prompt: str, config: GenerationConfig, *, messages=None, tools=None) -> str:
+    def generate(self, prompt: str, config: GenerationConfig, *, messages=None, tools=None) -> Any:
         payload = messages or [{"role": "user", "content": prompt}]
 
         # Prepare API call parameters
@@ -227,7 +227,7 @@ class OllamaStrategy:
                     api_key=self.api_key,
                 )
             else:
-                response = self._client.chat(
+                response = self._client.chat(  # type: ignore[union-attr]
                     model=self.model_name,
                     messages=payload,
                     options=options,
@@ -282,8 +282,8 @@ class LanguageModel:
         )
 
         self._openai_client = None
-        self._tools = []  # OpenAI tool definitions
-        self._tool_functions = {}  # Map of tool name -> callable
+        self._tools: list[Any] = []  # OpenAI tool definitions
+        self._tool_functions: dict[str, Any] = {}  # Map of tool name -> callable
         self.strategy = self._init_strategy()
 
     def _init_strategy(self) -> LLMStrategy:
@@ -312,7 +312,7 @@ class LanguageModel:
             return OfflineTransformersStrategy(self.model_name)
 
         try:
-            return strategy_cls(self.model_name)
+            return strategy_cls(self.model_name)  # type: ignore[call-arg]
         except Exception as exc:
             logger.warning(
                 "LLM backend init failed (%s). Falling back to echo. (%s)", self.provider, exc
@@ -423,7 +423,7 @@ class LanguageModel:
 
             for round_num in range(max_tool_rounds):
                 try:
-                    result = self.strategy.generate(
+                    result = self.strategy.generate(  # type: ignore[call-arg]
                         prompt_text,
                         config or self.generation,
                         messages=current_messages,
@@ -444,7 +444,7 @@ class LanguageModel:
                     # Add assistant message to conversation
                     assistant_msg = {
                         "role": "assistant",
-                        "content": result.content or "",
+                        "content": result.content or "",  # type: ignore[attr-defined]
                         "tool_calls": [
                             {
                                 "id": tc.id,
@@ -457,7 +457,7 @@ class LanguageModel:
                             for tc in result.tool_calls
                         ],
                     }
-                    current_messages.append(assistant_msg)
+                    current_messages.append(assistant_msg)  # type: ignore[arg-type]
 
                     # Execute each tool call and add results
                     for tool_call in result.tool_calls:

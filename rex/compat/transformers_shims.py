@@ -67,7 +67,7 @@ def ensure_transformers_compatibility() -> None:
                 return
 
         # Monkey-patch transformers to expose BeamSearchScorer at top level
-        transformers.BeamSearchScorer = beam_search_scorer
+        transformers.BeamSearchScorer = beam_search_scorer  # type: ignore[assignment, misc]
         logger.info("Successfully patched transformers.BeamSearchScorer for backward compatibility")
 
     except ImportError:

@@ -16,7 +16,7 @@ try:
 except Exception as exc:  # pragma: no cover - defensive guard for import-time config failures
     _config_import_error = exc
 
-    def reload_settings(*args, **kwargs):  # type: ignore[no-redef]
+    def reload_settings(*args, **kwargs):  # type: ignore[misc]
         raise RuntimeError("Rex configuration failed to load.") from _config_import_error
 
     settings = None  # type: ignore[assignment]

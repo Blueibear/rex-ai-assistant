@@ -142,7 +142,7 @@ class SpeechBrainBackend:
         if find_spec("speechbrain") is None:
             raise ImportError(f"speechbrain is not installed. {_INSTALL_HINT}")
         try:
-            from speechbrain.pretrained import EncoderClassifier  # type: ignore[import-untyped]
+            from speechbrain.pretrained import EncoderClassifier
 
             self._model = EncoderClassifier.from_hparams(
                 source=self._model_source,
@@ -175,14 +175,14 @@ class SpeechBrainBackend:
         if self._model is None:
             self._load_model()
         try:
-            import numpy as np  # type: ignore[import-untyped]
-            import torch  # type: ignore[import-untyped]
+            import numpy as np
+            import torch
 
             audio_np = np.frombuffer(audio_bytes, dtype=np.float32)
             audio_tensor = torch.tensor(audio_np).unsqueeze(0)
             lengths = torch.tensor([1.0])
             with torch.no_grad():
-                embedding = self._model.encode_batch(audio_tensor, lengths)
-            return embedding.squeeze().tolist()
+                embedding = self._model.encode_batch(audio_tensor, lengths)  # type: ignore[attr-defined]
+            return embedding.squeeze().tolist()  # type: ignore[no-any-return]
         except Exception as exc:
             raise RuntimeError(f"SpeechBrain embedding failed: {exc}") from exc

@@ -99,15 +99,15 @@ logger = logging.getLogger(__name__)
 # unconditionally — np is None when numpy is not installed.
 _NDArray = np.ndarray if np is not None else Any
 
-RecorderCallable = Callable[[float], Awaitable[_NDArray] | _NDArray]
-IdentifySpeakerCallable = Callable[[_NDArray], str | None] | Callable[[], str | None]
+RecorderCallable = Callable[[float], Awaitable[_NDArray] | _NDArray]  # type: ignore[operator, valid-type]
+IdentifySpeakerCallable = Callable[[_NDArray], str | None] | Callable[[], str | None]  # type: ignore[operator, valid-type]
 
 
 @dataclass
 class SynthesizedAudio:
     """Container for synthesized audio data."""
 
-    data: np.ndarray
+    data: np.ndarray  # type: ignore[name-defined]
     sample_rate: int
 
 
@@ -120,22 +120,22 @@ class AsyncMicrophone:
         sample_rate: int,
         detection_seconds: float,
         capture_seconds: float,
-        recorder: RecorderCallable | None = None,
+        recorder: RecorderCallable | None = None,  # type: ignore[valid-type]
     ) -> None:
         self.sample_rate = sample_rate
         self._detection_seconds = detection_seconds
         self._capture_seconds = capture_seconds
         self._recorder = recorder
 
-    async def detection_frame(self) -> np.ndarray:
+    async def detection_frame(self) -> np.ndarray:  # type: ignore[name-defined]
         """Record a short frame for wake word detection."""
         return await self._record(self._detection_seconds)
 
-    async def record_phrase(self, duration: float | None = None) -> np.ndarray:
+    async def record_phrase(self, duration: float | None = None) -> np.ndarray:  # type: ignore[name-defined]
         """Record user speech after wake word."""
         return await self._record(duration or self._capture_seconds)
 
-    async def _record(self, duration: float) -> np.ndarray:
+    async def _record(self, duration: float) -> np.ndarray:  # type: ignore[name-defined]
         """Internal recording method."""
         np = _require_numpy()
         if duration <= 0:
@@ -151,7 +151,7 @@ class AsyncMicrophone:
 
         frames = max(int(self.sample_rate * duration), 1)
 
-        def _capture() -> np.ndarray:
+        def _capture() -> np.ndarray:  # type: ignore[name-defined]
             recording = sd.rec(frames, samplerate=self.sample_rate, channels=1, dtype="float32")
             sd.wait()
             return recording.reshape(-1)
@@ -216,7 +216,7 @@ class SpeechToText:
         except Exception as exc:
             raise SpeechToTextError(str(exc)) from exc
 
-    async def transcribe(self, audio: np.ndarray, sample_rate: int) -> str:
+    async def transcribe(self, audio: np.ndarray, sample_rate: int) -> str:  # type: ignore[name-defined]
         """Transcribe audio to text."""
 
         def _transcribe() -> str:
@@ -315,7 +315,7 @@ class TextToSpeech:
             try:
 
                 def _synthesize(_chunk=chunk, _chunk_path=chunk_path) -> None:
-                    self._tts.tts_to_file(
+                    self._tts.tts_to_file(  # type: ignore[union-attr]
                         text=_chunk,
                         speaker_wav=speaker_wav or self._default_speaker,
                         language=self._language,
@@ -412,12 +412,12 @@ class VoiceLoop:
         assistant,
         *,
         wake_listener,
-        detection_source: Callable[[], Awaitable[np.ndarray]],
-        record_phrase: Callable[[], Awaitable[np.ndarray]],
-        transcribe: Callable[[np.ndarray], Awaitable[str]],
+        detection_source: Callable[[], Awaitable[np.ndarray]],  # type: ignore[name-defined]
+        record_phrase: Callable[[], Awaitable[np.ndarray]],  # type: ignore[name-defined]
+        transcribe: Callable[[np.ndarray], Awaitable[str]],  # type: ignore[name-defined]
         speak: Callable[[str], Awaitable[None]],
         acknowledge: Callable[[], Awaitable[None]] | None = None,
-        identify_speaker: IdentifySpeakerCallable | None = None,
+        identify_speaker: IdentifySpeakerCallable | None = None,  # type: ignore[valid-type]
     ) -> None:
         self._assistant = assistant
         self._wake_listener = wake_listener
@@ -433,7 +433,7 @@ class VoiceLoop:
 
     @staticmethod
     def _resolve_identify_speaker_signature(
-        identify_speaker: IdentifySpeakerCallable | None,
+        identify_speaker: IdentifySpeakerCallable | None,  # type: ignore[valid-type]
     ) -> bool:
         """Return True when identify_speaker accepts an audio argument."""
         if identify_speaker is None:
@@ -508,7 +508,7 @@ class VoiceLoop:
             logger.error("Audio device error: %s", exc)
 
 
-def _build_voice_id_callback() -> IdentifySpeakerCallable | None:
+def _build_voice_id_callback() -> IdentifySpeakerCallable | None:  # type: ignore[valid-type]
     """Build an identify_speaker callback if voice identity is enabled.
 
     Reads the voice_identity config section, loads enrolled embeddings, and
@@ -578,7 +578,7 @@ def _build_voice_id_callback() -> IdentifySpeakerCallable | None:
         logger.warning("Failed to initialise voice identity: %s", exc)
         return None
 
-    def _identify(audio: _NDArray) -> str | None:
+    def _identify(audio: _NDArray) -> str | None:  # type: ignore[valid-type]
         try:
             # Convert numpy float32 array to raw bytes for the embedding backend
             np_mod = _lazy_import_numpy()

@@ -149,7 +149,7 @@ def load_memory_profile(user_key: str, memory_root: str | Path = MEMORY_ROOT) ->
                 f"Memory profile '{core_path}' exceeds {max_memory_bytes} bytes; refusing to load."
             )
     with open(core_path, encoding="utf-8") as handle:
-        return json.load(handle)
+        return json.load(handle)  # type: ignore[no-any-return]
 
 
 def load_all_profiles(memory_root: str | Path = MEMORY_ROOT) -> dict[str, dict]:
@@ -200,7 +200,7 @@ def _normalise_voice_path(
     original = Path(expanded)
 
     if _looks_like_placeholder(raw_path):
-        return ensure_placeholder_voice(DEFAULT_PLACEHOLDER_RELATIVE_PATH, repo_root=repo_root)
+        return ensure_placeholder_voice(DEFAULT_PLACEHOLDER_RELATIVE_PATH, repo_root=repo_root)  # type: ignore[arg-type]
 
     candidates = []
     if original.is_absolute():

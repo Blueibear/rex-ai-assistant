@@ -353,7 +353,7 @@ class DashboardStore:
             params = (notification_id, user_id)
         else:
             sql = "UPDATE notifications SET read = 1 WHERE id = ? AND read = 0"
-            params = (notification_id,)
+            params = (notification_id,)  # type: ignore[assignment]
 
         with self._connect() as conn:
             cursor = conn.execute(sql, params)

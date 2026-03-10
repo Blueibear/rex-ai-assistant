@@ -19,7 +19,7 @@ def _load_manifest(path: Path) -> dict[str, Any]:
     if manifest_path.is_file():
         try:
             with manifest_path.open("r", encoding="utf-8") as handle:
-                return json.load(handle)
+                return json.load(handle)  # type: ignore[no-any-return]
         except json.JSONDecodeError as exc:
             raise PluginError(f"Invalid manifest {manifest_path}: {exc}") from exc
     return {}

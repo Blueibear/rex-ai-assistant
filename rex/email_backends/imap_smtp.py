@@ -144,7 +144,7 @@ class ImapSmtpEmailBackend(EmailBackend):
 
     def _fetch_envelope(self, msg_num: bytes) -> EmailEnvelope | None:
         assert self._imap is not None
-        status, parts = self._imap.fetch(msg_num, "(RFC822.HEADER)")
+        status, parts = self._imap.fetch(msg_num, "(RFC822.HEADER)")  # type: ignore[arg-type]
         if status != "OK" or not parts or not parts[0]:
             return None
 
@@ -259,7 +259,7 @@ class ImapSmtpEmailBackend(EmailBackend):
 
     def _create_smtp_connection(self) -> smtplib.SMTP:
         if self._smtp_factory is not None:
-            return self._smtp_factory()  # type: ignore[operator]
+            return self._smtp_factory()  # type: ignore[no-any-return, operator]
 
         if self._use_starttls:
             conn = smtplib.SMTP(

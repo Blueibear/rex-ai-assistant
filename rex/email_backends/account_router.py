@@ -82,7 +82,7 @@ def _get_credential(
     if credential_getter is None:
         return None
     try:
-        return credential_getter(credential_ref)  # type: ignore[operator]
+        return credential_getter(credential_ref)  # type: ignore[no-any-return, operator]
     except Exception as exc:
         logger.debug("credential_getter(%r) raised: %s", credential_ref, exc)
         return None

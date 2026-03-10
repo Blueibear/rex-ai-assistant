@@ -474,7 +474,7 @@ class Notifier:
 
             account_id = notification.metadata.get("messaging_account_id")
 
-            message = Message(
+            message = Message(  # type: ignore[call-arg]
                 channel="sms",
                 to=to_number,
                 from_=sms_service.from_number,

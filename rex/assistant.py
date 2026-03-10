@@ -106,7 +106,7 @@ class Assistant:
 
         # Preferred path: singleton/getter engine API
         try:
-            from .followup_engine import get_followup_engine  # type: ignore
+            from .followup_engine import get_followup_engine
 
             engine = get_followup_engine()
             self._followup_engine = engine
@@ -133,7 +133,7 @@ class Assistant:
                 logger.warning("Failed to initialize calendar service: %s", exc)
                 calendar_service = None
 
-            engine = FollowupEngine.from_settings(  # type: ignore[attr-defined]
+            engine = FollowupEngine.from_settings(
                 self._settings,
                 calendar_service=calendar_service,
             )
@@ -207,7 +207,7 @@ class Assistant:
         self._history.append(ConversationTurn("assistant", completion))
         self._history = [
             ConversationTurn(**item) if isinstance(item, dict) else item
-            for item in trim_history(self._history, limit=self._history_limit)
+            for item in trim_history(self._history, limit=self._history_limit)  # type: ignore[arg-type]
         ]
 
         self._log_turn(transcript, completion)
@@ -234,7 +234,7 @@ class Assistant:
         engine = self._followup_engine
         if engine and hasattr(engine, "format_followups"):
             try:
-                followups = engine.format_followups()  # type: ignore[call-arg]
+                followups = engine.format_followups()
                 if followups:
                     history_lines.append(str(followups))
             except Exception as exc:
@@ -255,7 +255,7 @@ class Assistant:
             # Mark cue as asked if supported
             if engine and hasattr(engine, "mark_current_cue_asked"):
                 try:
-                    engine.mark_current_cue_asked(self._user_id)  # type: ignore[call-arg]
+                    engine.mark_current_cue_asked(self._user_id)
                 except Exception as exc:
                     logger.debug("mark_current_cue_asked failed: %s", exc)
 

@@ -230,7 +230,7 @@ class ComputerService:
                 f"Set the environment variable referenced by auth_token_ref={cfg.auth_token_ref!r} "
                 "in your .env file or config/credentials.json."
             )
-        return token
+        return token  # type: ignore[no-any-return]
 
     def _make_client(self, computer_id: str, *, cfg: ComputerConfig | None = None) -> AgentClient:
         """Build an :class:`AgentClient` for the given computer.

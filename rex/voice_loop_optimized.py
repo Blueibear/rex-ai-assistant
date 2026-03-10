@@ -86,7 +86,7 @@ def _require_numpy():
 
 logger = logging.getLogger(__name__)
 
-RecorderCallable = Callable[[float], Awaitable[np.ndarray] | np.ndarray]
+RecorderCallable = Callable[[float], Awaitable[np.ndarray] | np.ndarray]  # type: ignore[operator, valid-type]
 
 
 class AsyncMicrophone:
@@ -98,7 +98,7 @@ class AsyncMicrophone:
         sample_rate: int,
         detection_seconds: float,
         capture_seconds: float,
-        recorder: RecorderCallable | None = None,
+        recorder: RecorderCallable | None = None,  # type: ignore[valid-type]
         vad_threshold: float = 0.01,
         silence_duration: float = 1.0,
     ) -> None:
@@ -129,7 +129,7 @@ class AsyncMicrophone:
         silence_chunks = 0
         has_voice = False
 
-        def _capture_chunk() -> np.ndarray:
+        def _capture_chunk() -> np.ndarray:  # type: ignore[name-defined]
             recording = sd.rec(
                 chunk_frames, samplerate=self.sample_rate, channels=1, dtype="float32"
             )
@@ -153,7 +153,7 @@ class AsyncMicrophone:
         except Exception as exc:
             raise AudioDeviceError(str(exc)) from exc
 
-        return np.concatenate(chunks) if chunks else np.zeros(chunk_frames, dtype=np.float32)
+        return np.concatenate(chunks) if chunks else np.zeros(chunk_frames, dtype=np.float32)  # type: ignore[no-any-return]
 
     async def _record(self, duration: float) -> np.ndarray:
         if duration <= 0:
@@ -171,7 +171,7 @@ class AsyncMicrophone:
 
         frames = max(int(self.sample_rate * duration), 1)
 
-        def _capture() -> np.ndarray:
+        def _capture() -> np.ndarray:  # type: ignore[name-defined]
             recording = sd.rec(frames, samplerate=self.sample_rate, channels=1, dtype="float32")
             sd.wait()
             return recording.reshape(-1)
@@ -180,7 +180,7 @@ class AsyncMicrophone:
             data = await asyncio.to_thread(_capture)
         except Exception as exc:
             raise AudioDeviceError(str(exc)) from exc
-        return np.asarray(data, dtype=np.float32)
+        return np.asarray(data, dtype=np.float32)  # type: ignore[no-any-return]
 
 
 class WakeAcknowledgement:
@@ -333,7 +333,7 @@ class TextToSpeech:
             try:
 
                 def _synthesize(chunk=chunk, chunk_path=chunk_path) -> None:
-                    self._tts.tts_to_file(
+                    self._tts.tts_to_file(  # type: ignore[union-attr]
                         text=chunk,
                         speaker_wav=speaker_wav or self._default_speaker,
                         language=self._language,

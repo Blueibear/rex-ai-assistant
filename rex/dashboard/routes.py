@@ -89,18 +89,18 @@ def _get_session_from_request() -> Session | None:
             return get_session_manager().validate_session(token)
 
     # Check X-Dashboard-Token header
-    token = request.headers.get("X-Dashboard-Token")
+    token = request.headers.get("X-Dashboard-Token")  # type: ignore[assignment]
     if token:
         return get_session_manager().validate_session(token)
 
     # Check cookie
-    token = request.cookies.get("rex_dashboard_token")
+    token = request.cookies.get("rex_dashboard_token")  # type: ignore[assignment]
     if token:
         return get_session_manager().validate_session(token)
 
     # Optional token query param for EventSource clients that cannot set headers.
     if request.path == "/api/notifications/stream":
-        token = request.args.get("token")
+        token = request.args.get("token")  # type: ignore[assignment]
         if token and _is_safe_query_token_request():
             return get_session_manager().validate_session(token)
 
@@ -134,7 +134,7 @@ def require_auth(f):
         if _allow_local_without_auth() and _is_loopback_address(request.remote_addr):
             if not is_password_required():
                 # No password configured and local access - allow
-                request.dashboard_session = Session(
+                request.dashboard_session = Session(  # type: ignore[attr-defined]
                     token="local",
                     created_at=datetime.now(),
                     expires_at=datetime.now(),
@@ -149,7 +149,7 @@ def require_auth(f):
             return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
 
         # Attach session to request context for use in handlers
-        request.dashboard_session = session
+        request.dashboard_session = session  # type: ignore[attr-defined]
         return f(*args, **kwargs)
 
     return decorated
@@ -192,7 +192,7 @@ def _redact_settings(config: dict[str, Any]) -> dict[str, Any]:
             return [deep_redact(item, key) for item in obj]
         return obj
 
-    return deep_redact(redacted)
+    return deep_redact(redacted)  # type: ignore[no-any-return]
 
 
 # Settings that require restart when changed
@@ -834,7 +834,7 @@ def list_notifications():
         limit = min(int(request.args.get("limit", 50)), 200)
         unread_only = request.args.get("unread", "").lower() == "true"
         priority = request.args.get("priority")
-        session = request.dashboard_session
+        session = request.dashboard_session  # type: ignore[attr-defined]
         user_id = request.args.get("user_id") or session.user_key
         if user_id != session.user_key:
             return jsonify({"error": "Forbidden user scope"}), 403
@@ -868,7 +868,7 @@ def mark_notification_read(notification_id: str):
         from rex.dashboard_store import get_dashboard_store
 
         store = get_dashboard_store()
-        session = request.dashboard_session
+        session = request.dashboard_session  # type: ignore[attr-defined]
         found = store.mark_as_read(notification_id, user_id=session.user_key)
 
         if not found:
@@ -889,7 +889,7 @@ def mark_all_notifications_read():
         from rex.dashboard_store import get_dashboard_store
 
         store = get_dashboard_store()
-        session = request.dashboard_session
+        session = request.dashboard_session  # type: ignore[attr-defined]
         user_id = request.args.get("user_id") or session.user_key
         if user_id != session.user_key:
             return jsonify({"error": "Forbidden user scope"}), 403
@@ -909,7 +909,7 @@ def stream_notifications():
     from rex.dashboard.sse import get_broadcaster
     from rex.dashboard_store import get_dashboard_store
 
-    session = request.dashboard_session
+    session = request.dashboard_session  # type: ignore[attr-defined]
     store = get_dashboard_store()
     broadcaster = get_broadcaster()
 

@@ -404,7 +404,7 @@ class WooCommerceClient:
             requests.ConnectionError: If the host is unreachable.
             ValueError: If the response is not valid JSON.
         """
-        import requests  # noqa: PLC0415  (base dep, always available)
+        import requests  # noqa: PLC0415  (base dep, always available)  # type: ignore[import-untyped]
 
         url = f"{self._base_url}/wp-json/wc/v3{path}"
         resp = requests.get(

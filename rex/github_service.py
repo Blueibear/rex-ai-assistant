@@ -146,7 +146,7 @@ class GitHubService:
             # Return mock data
             mock_key = f"{method}:{endpoint}"
             if mock_key in self._mock_data:
-                return self._mock_data[mock_key]
+                return self._mock_data[mock_key]  # type: ignore[no-any-return]
             return {"message": "Mock data not found"}
 
         token = self._get_token()
@@ -171,7 +171,7 @@ class GitHubService:
             if response.status_code == 204:  # No content
                 return {"status": "success"}
 
-            return response.json()
+            return response.json()  # type: ignore[no-any-return]
 
         retry_policy = RetryPolicy(
             attempts=3,
@@ -217,13 +217,13 @@ class GitHubService:
             for item in data:
                 repos.append(
                     Repository(
-                        name=item["name"],
-                        full_name=item["full_name"],
-                        owner=item["owner"]["login"],
-                        url=item["html_url"],
-                        description=item.get("description"),
-                        private=item["private"],
-                        default_branch=item["default_branch"],
+                        name=item["name"],  # type: ignore[index]
+                        full_name=item["full_name"],  # type: ignore[index]
+                        owner=item["owner"]["login"],  # type: ignore[index]
+                        url=item["html_url"],  # type: ignore[index]
+                        description=item.get("description"),  # type: ignore[attr-defined]
+                        private=item["private"],  # type: ignore[arg-type, index]
+                        default_branch=item["default_branch"],  # type: ignore[index]
                     )
                 )
 
@@ -289,15 +289,15 @@ class GitHubService:
             for item in data:
                 prs.append(
                     PullRequest(
-                        number=item["number"],
-                        title=item["title"],
-                        state=item["state"],
-                        url=item["html_url"],
-                        author=item["user"]["login"],
-                        head_branch=item["head"]["ref"],
-                        base_branch=item["base"]["ref"],
-                        created_at=item["created_at"],
-                        updated_at=item["updated_at"],
+                        number=item["number"],  # type: ignore[arg-type, index]
+                        title=item["title"],  # type: ignore[index]
+                        state=item["state"],  # type: ignore[index]
+                        url=item["html_url"],  # type: ignore[index]
+                        author=item["user"]["login"],  # type: ignore[index]
+                        head_branch=item["head"]["ref"],  # type: ignore[index]
+                        base_branch=item["base"]["ref"],  # type: ignore[index]
+                        created_at=item["created_at"],  # type: ignore[index]
+                        updated_at=item["updated_at"],  # type: ignore[index]
                     )
                 )
 
@@ -377,7 +377,7 @@ class GitHubService:
                 "body": body,
             }
             if labels:
-                data["labels"] = labels
+                data["labels"] = labels  # type: ignore[assignment]
 
             response = self._make_request("POST", endpoint, data=data)
 

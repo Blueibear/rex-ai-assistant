@@ -51,7 +51,7 @@ class ManagedService:
         name: str,
         start_func: Callable[[], None],
         stop_func: Callable[[], None],
-        health_check_func: Callable[[], bool] = None,
+        health_check_func: Callable[[], bool] = None,  # type: ignore[assignment]
         metrics_func: Callable[[], dict] | None = None,
         max_restart_attempts: int = 5,
         backoff_multiplier: float = 1.5,
@@ -60,7 +60,7 @@ class ManagedService:
         self.name = name
         self.start_func = start_func
         self.stop_func = stop_func
-        self.health_check_func = health_check_func or (lambda: True)
+        self.health_check_func = health_check_func or (lambda: True)  # type: ignore[truthy-function]
         self.metrics_func = metrics_func or (lambda: {})
         self.max_restart_attempts = max_restart_attempts
         self.backoff_multiplier = backoff_multiplier
@@ -109,7 +109,7 @@ class ServiceSupervisor:
         name: str,
         start_func: Callable[[], None],
         stop_func: Callable[[], None],
-        health_check_func: Callable[[], bool] = None,
+        health_check_func: Callable[[], bool] = None,  # type: ignore[assignment]
         metrics_func: Callable[[], dict] | None = None,
         max_restart_attempts: int = 5,
         backoff_multiplier: float = 1.5,

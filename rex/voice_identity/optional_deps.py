@@ -22,7 +22,7 @@ def import_speechbrain():
     if find_spec("speechbrain") is None:
         logger.info("speechbrain is not installed. %s", _INSTALL_HINT)
         return None
-    import speechbrain  # type: ignore[import-untyped]
+    import speechbrain
 
     return speechbrain
 
@@ -32,7 +32,7 @@ def import_resemblyzer():
     if find_spec("resemblyzer") is None:
         logger.info("resemblyzer is not installed. %s", _INSTALL_HINT)
         return None
-    import resemblyzer  # type: ignore[import-untyped]
+    import resemblyzer
 
     return resemblyzer
 

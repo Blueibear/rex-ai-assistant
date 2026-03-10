@@ -127,7 +127,7 @@ def redact_sensitive_keys(
             if isinstance(key, str) and _SENSITIVE_KEY_PATTERN.search(key):
                 result[key] = redacted_value
             else:
-                result[key] = redact_sensitive_keys(value, redacted_value=redacted_value)
+                result[key] = redact_sensitive_keys(value, redacted_value=redacted_value)  # type: ignore[assignment]
         return result
     elif isinstance(data, list):
         return [redact_sensitive_keys(item, redacted_value=redacted_value) for item in data]

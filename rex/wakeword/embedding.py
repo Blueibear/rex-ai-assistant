@@ -65,7 +65,7 @@ def load_embedding(path: str | Path) -> np.ndarray:
     norm = np.linalg.norm(array)
     if norm > 0:
         array = array / norm
-    return array
+    return array  # type: ignore[no-any-return]
 
 
 def save_embedding(path: str | Path, embedding: np.ndarray) -> None:

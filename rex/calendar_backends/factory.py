@@ -43,14 +43,14 @@ _CONFIG_PATH = Path("config/rex_config.json")
 def _load_calendar_config(config: dict[str, Any] | None = None) -> dict[str, Any]:
     """Return the ``calendar`` section from the config dict or file."""
     if config is not None:
-        return config.get("calendar", {})
+        return config.get("calendar", {})  # type: ignore[no-any-return]
 
     try:
         project_root = Path(__file__).resolve().parent.parent.parent
         path = project_root / _CONFIG_PATH
         if path.exists():
             data = json.loads(path.read_text(encoding="utf-8"))
-            return data.get("calendar", {})
+            return data.get("calendar", {})  # type: ignore[no-any-return]
     except Exception as exc:
         logger.debug("Could not load calendar config: %s", exc)
 

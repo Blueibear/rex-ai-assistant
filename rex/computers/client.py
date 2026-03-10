@@ -243,7 +243,7 @@ class AgentClient:
     # --- requests backend ---
 
     def _get_requests(self, url: str) -> Any:
-        import requests  # type: ignore[import]
+        import requests
 
         resp = requests.get(
             url,
@@ -254,7 +254,7 @@ class AgentClient:
         return resp.json()
 
     def _post_requests(self, url: str, payload: dict[str, Any]) -> Any:
-        import requests  # type: ignore[import]
+        import requests
 
         resp = requests.post(
             url,

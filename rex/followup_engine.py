@@ -282,7 +282,7 @@ class FollowupEngine:
 
             cue = pending[0]
             self._current_cue_id[user_id] = cue.cue_id
-            return cue.prompt
+            return cue.prompt  # type: ignore[no-any-return]
         except Exception as exc:
             logger.warning("Failed to get followup prompt: %s", exc)
             return None

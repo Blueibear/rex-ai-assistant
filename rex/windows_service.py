@@ -48,7 +48,7 @@ class RexNodeService(win32serviceutil.ServiceFramework):
             "--port",
             port,
         ]
-        self.process = subprocess.Popen(cmd)
+        self.process = subprocess.Popen(cmd)  # type: ignore[assignment]
         win32event.WaitForSingleObject(self.stop_event, win32event.INFINITE)
 
 

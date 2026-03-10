@@ -101,7 +101,7 @@ def setup_calendar_job() -> ScheduledJob:
             # Publish event
             event = Event(
                 event_type="calendar.update",
-                payload={"count": len(events), "events": [e.model_dump() for e in events]},
+                payload={"count": len(events), "events": [e.model_dump() for e in events]},  # type: ignore[attr-defined]
             )
             event_bus.publish(event)
 

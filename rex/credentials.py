@@ -203,7 +203,7 @@ class CredentialManager:
                 scopes: list[str] = []
             elif isinstance(cred_data, dict):
                 # Full format with metadata
-                token = cred_data.get("token")
+                token = cred_data.get("token")  # type: ignore[assignment]
                 if not token:
                     continue
                 expires_at_str = cred_data.get("expires_at")

@@ -292,7 +292,7 @@ class SMSService(MessagingService):
         """Delegate send to the configured backend."""
         from rex.messaging_backends.base import SmsBackend
 
-        backend: SmsBackend = self._backend
+        backend: SmsBackend = self._backend  # type: ignore[assignment]
         from_number = message.from_
 
         if account_id and self._raw_config is not None:
@@ -391,10 +391,10 @@ class SMSService(MessagingService):
         """Delegate receive to the configured backend."""
         from rex.messaging_backends.base import SmsBackend
 
-        backend: SmsBackend = self._backend
+        backend: SmsBackend = self._backend  # type: ignore[assignment]
         inbound = backend.fetch_recent_inbound(limit=limit)
         return [
-            Message(
+            Message(  # type: ignore[call-arg]
                 channel="sms",
                 to=msg.to_number,
                 from_=msg.from_number,
@@ -420,12 +420,12 @@ class SMSService(MessagingService):
     ) -> list[Message]:
         """Fetch messages from the inbound webhook store."""
         try:
-            records = self._inbound_store.query_recent(
+            records = self._inbound_store.query_recent(  # type: ignore[union-attr]
                 limit=limit, user_id=user_id, account_id=account_id
             )
             results: list[Message] = []
             for rec in records:
-                msg = Message(
+                msg = Message(  # type: ignore[call-arg]
                     id=rec.id,
                     channel="sms",
                     to=rec.to_number,
@@ -465,7 +465,7 @@ class SMSService(MessagingService):
         # Reply to the sender of the latest message
         to = latest.from_ if latest.to == self.from_number else latest.to
 
-        reply_msg = Message(
+        reply_msg = Message(  # type: ignore[call-arg]
             channel="sms",
             to=to,
             from_=self.from_number,

@@ -19,10 +19,10 @@ try:
     from dotenv import load_dotenv, set_key
 except ImportError:
 
-    def load_dotenv(*args, **kwargs):
+    def load_dotenv(*args, **kwargs):  # type: ignore[misc]
         return False
 
-    def set_key(env_path: str, key: str, value: str):
+    def set_key(env_path: str, key: str, value: str):  # type: ignore[misc]
         path = Path(env_path)
         lines = (
             [line for line in path.read_text().splitlines() if not line.startswith(f"{key}=")]
@@ -512,7 +512,7 @@ def cli(argv: Optional[List[str]] = None) -> int:
         parser.print_help()
         return 0
 
-    return args.func(args)
+    return args.func(args)  # type: ignore[no-any-return]
 
 
 settings = load_config()

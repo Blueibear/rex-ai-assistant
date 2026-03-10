@@ -218,7 +218,7 @@ class MqttAudioRouter:
             return
 
         try:
-            tts_audio = await self._text_to_speech.synthesise(
+            tts_audio = await self._text_to_speech.synthesise(  # type: ignore[attr-defined]
                 reply,
                 speaker_wav=self._voice_reference,
             )

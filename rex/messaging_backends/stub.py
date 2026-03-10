@@ -119,7 +119,7 @@ class StubSmsBackend(SmsBackend):
             raw = self._fixture_path.read_text(encoding="utf-8")
             data = json.loads(raw)
             if isinstance(data, dict):
-                return data.get("messages", [])
+                return data.get("messages", [])  # type: ignore[no-any-return]
             return []
         except Exception as exc:
             logger.warning("Failed to load stub SMS records: %s", exc)

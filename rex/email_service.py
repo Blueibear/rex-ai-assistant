@@ -27,19 +27,19 @@ logger = logging.getLogger(__name__)
 
 # Optional EventBus import for compatibility with earlier implementation
 try:
-    from rex.event_bus import EventBus  # type: ignore
+    from rex.event_bus import EventBus
 except Exception:  # pragma: no cover
     EventBus = Any  # type: ignore
 
 # Optional credentials manager import
 try:
-    from rex.credentials import get_credential_manager  # type: ignore
+    from rex.credentials import get_credential_manager
 except Exception:  # pragma: no cover
     get_credential_manager = None  # type: ignore
 
 # Optional Pydantic import (nice to have, not required at runtime)
 try:
-    from pydantic import BaseModel, ConfigDict, Field, field_serializer  # type: ignore
+    from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
     class EmailSummary(BaseModel):
         """Summary of an email message."""
@@ -176,7 +176,7 @@ class EmailService:
                     self._backend = backend
 
             if self._backend is not None:
-                result = self._backend.connect()  # type: ignore[union-attr]
+                result = self._backend.connect()  # type: ignore[attr-defined]
                 self.connected = bool(result)
                 if self.connected:
                     logger.info("Email service connected via backend")
@@ -239,7 +239,7 @@ class EmailService:
         if self._event_bus is None:
             return
         try:
-            self._event_bus.publish(topic, payload)  # type: ignore[attr-defined]
+            self._event_bus.publish(topic, payload)
         except Exception as e:
             logger.debug("EventBus publish failed for %s: %s", topic, e)
 
@@ -380,7 +380,7 @@ class EmailService:
                 return []
 
         if self._backend is not None:
-            envelopes = self._backend.fetch_unread(limit=limit)  # type: ignore[union-attr]
+            envelopes = self._backend.fetch_unread(limit=limit)  # type: ignore[attr-defined]
             result = [self._envelope_to_summary(env) for env in envelopes]
             self._publish(
                 "email.unread",
@@ -441,10 +441,10 @@ class EmailService:
             return False
 
         if self._backend is not None:
-            result = self._backend.mark_as_read(email_id)  # type: ignore[union-attr]
+            result = self._backend.mark_as_read(email_id)  # type: ignore[attr-defined]
             if result:
                 self._publish("email.read", {"id": email_id})
-            return result
+            return result  # type: ignore[no-any-return]
 
         for email in self._mock_emails:
             if email.id == email_id:
@@ -496,7 +496,7 @@ class EmailService:
 
         if send_backend is not None and hasattr(send_backend, "send"):
             sender = from_addr or getattr(resolved_account, "address", "") or ""
-            result = send_backend.send(  # type: ignore[union-attr]
+            result = send_backend.send(
                 from_addr=sender,
                 to_addrs=to_addrs,
                 subject=subject,

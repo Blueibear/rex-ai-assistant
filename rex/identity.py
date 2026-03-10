@@ -52,7 +52,7 @@ def _load_session() -> dict:
     path = _session_state_path()
     if path.exists():
         try:
-            return json.loads(path.read_text(encoding="utf-8"))
+            return json.loads(path.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
         except Exception:
             return {}
     return {}
@@ -119,10 +119,10 @@ def resolve_active_user(
         runtime = config.get("runtime", {})
         active = runtime.get("active_user")
         if active:
-            return active
+            return active  # type: ignore[no-any-return]
         uid = runtime.get("user_id")
         if uid and uid != "default":
-            return uid
+            return uid  # type: ignore[no-any-return]
 
     return None
 
@@ -166,7 +166,7 @@ def list_known_users() -> list[dict]:
         List of dicts with ``id`` and ``name`` keys.
     """
     memory_dir = Path(__file__).resolve().parent.parent / "Memory"
-    users = []
+    users = []  # type: ignore[var-annotated]
     if not memory_dir.is_dir():
         return users
     for entry in sorted(memory_dir.iterdir()):

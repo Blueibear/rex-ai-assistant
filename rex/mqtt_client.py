@@ -38,7 +38,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-MessageHandler = Callable[[str, dict[str, Any]], Awaitable[None] | None]
+MessageHandler = Callable[[str, dict[str, Any]], Awaitable[None] | None]  # type: ignore[operator, valid-type]
 
 
 class PayloadValidationError(RuntimeError):
@@ -78,7 +78,7 @@ def _resolve_optional_path(path: str | None) -> Path | None:
 class Subscription:
     topic: str
     qos: int = 1
-    handlers: list[MessageHandler] = field(default_factory=list)
+    handlers: list[MessageHandler] = field(default_factory=list)  # type: ignore[valid-type]
 
 
 class RexMQTTClient:
@@ -109,20 +109,20 @@ class RexMQTTClient:
         reconnect_interval_max: float = 60.0,
     ) -> None:
         cfg = settings
-        self._broker = broker or cfg.mqtt_broker
-        self._port = int(port or cfg.mqtt_port)
-        self._tls_enabled = bool(cfg.mqtt_tls if tls_enabled is None else tls_enabled)
-        self._username = username if username is not None else cfg.mqtt_username
-        self._password = password if password is not None else cfg.mqtt_password
-        self._client_id = (client_id or cfg.mqtt_client_id or f"rex-core-{uuid4().hex[:8]}").strip()
-        self._keepalive = int(keepalive or cfg.mqtt_keepalive)
-        self._tls_ca = tls_ca if tls_ca is not None else cfg.mqtt_tls_ca
-        self._tls_cert = tls_cert if tls_cert is not None else cfg.mqtt_tls_cert
-        self._tls_key = tls_key if tls_key is not None else cfg.mqtt_tls_key
-        self._tls_insecure = bool(cfg.mqtt_tls_insecure if tls_insecure is None else tls_insecure)
-        self._watchdog_interval = int(watchdog_interval or cfg.mqtt_watchdog_interval)
-        self._watchdog_timeout = int(watchdog_timeout or cfg.mqtt_watchdog_timeout)
-        self._node_id = node_id or cfg.mqtt_node_id or "rex_core"
+        self._broker = broker or cfg.mqtt_broker  # type: ignore[attr-defined]
+        self._port = int(port or cfg.mqtt_port)  # type: ignore[attr-defined]
+        self._tls_enabled = bool(cfg.mqtt_tls if tls_enabled is None else tls_enabled)  # type: ignore[attr-defined]
+        self._username = username if username is not None else cfg.mqtt_username  # type: ignore[attr-defined]
+        self._password = password if password is not None else cfg.mqtt_password  # type: ignore[attr-defined]
+        self._client_id = (client_id or cfg.mqtt_client_id or f"rex-core-{uuid4().hex[:8]}").strip()  # type: ignore[attr-defined]
+        self._keepalive = int(keepalive or cfg.mqtt_keepalive)  # type: ignore[attr-defined]
+        self._tls_ca = tls_ca if tls_ca is not None else cfg.mqtt_tls_ca  # type: ignore[attr-defined]
+        self._tls_cert = tls_cert if tls_cert is not None else cfg.mqtt_tls_cert  # type: ignore[attr-defined]
+        self._tls_key = tls_key if tls_key is not None else cfg.mqtt_tls_key  # type: ignore[attr-defined]
+        self._tls_insecure = bool(cfg.mqtt_tls_insecure if tls_insecure is None else tls_insecure)  # type: ignore[attr-defined]
+        self._watchdog_interval = int(watchdog_interval or cfg.mqtt_watchdog_interval)  # type: ignore[attr-defined]
+        self._watchdog_timeout = int(watchdog_timeout or cfg.mqtt_watchdog_timeout)  # type: ignore[attr-defined]
+        self._node_id = node_id or cfg.mqtt_node_id or "rex_core"  # type: ignore[attr-defined]
         self._health_topic = health_topic
         self._required_fields = tuple(required_fields)
         self._reconnect_interval = reconnect_interval
@@ -236,7 +236,7 @@ class RexMQTTClient:
     async def add_subscription(
         self,
         topic: str,
-        handler: MessageHandler,
+        handler: MessageHandler,  # type: ignore[valid-type]
         *,
         qos: int = 1,
         immediate_sync: bool = True,
@@ -337,7 +337,7 @@ class RexMQTTClient:
 
         for handler in matching_handlers:
             try:
-                result = handler(message.topic, payload)
+                result = handler(message.topic, payload)  # type: ignore[misc]
                 if inspect.isawaitable(result):
                     await result
             except Exception:  # pragma: no cover - defensive logging

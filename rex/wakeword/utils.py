@@ -138,11 +138,11 @@ def _ensure_builtin_keyword_resources(keywords: Iterable[str], backend: str) -> 
 class EmbeddingWakeWordModel:
     """Wake word model that compares embeddings with cosine similarity."""
 
-    def __init__(self, embedding: np.ndarray, *, label: str) -> None:
+    def __init__(self, embedding: np.ndarray, *, label: str) -> None:  # type: ignore[name-defined]
         self._embedding = embedding
         self._label = label
 
-    def predict(self, audio_frame: np.ndarray) -> dict[str, float]:
+    def predict(self, audio_frame: np.ndarray) -> dict[str, float]:  # type: ignore[name-defined]
         if np is None:
             raise RuntimeError("numpy is required for embedding wake word detection")
         candidate = compute_embedding(audio_frame, bins=self._embedding.size)
@@ -267,7 +267,7 @@ def load_wakeword_model(
 
 def detect_wakeword(
     model: WakeWordModel,
-    audio_frame: np.ndarray,
+    audio_frame: np.ndarray,  # type: ignore[name-defined]
     *,
     threshold: float = 0.5,
 ) -> bool:
@@ -285,7 +285,7 @@ def detect_wakeword(
         audio_frame = (scaled * np.iinfo(np.int16).max).astype(np.int16)
         print("[wakeword] Converted audio_frame to int16 format")
 
-    predictions = model.predict(audio_frame)
+    predictions = model.predict(audio_frame)  # type: ignore[attr-defined]
     print(f"[wakeword] Predictions: {predictions}")
 
     triggered = any(score >= threshold for score in predictions.values())

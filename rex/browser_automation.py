@@ -95,25 +95,25 @@ class BrowserSession:
                 "playwright install chromium"
             )
 
-        self._playwright = await async_playwright().start()
+        self._playwright = await async_playwright().start()  # type: ignore[assignment]
 
         # Check for persistent context
         context_path = self.storage_path / self.session_name
 
         if context_path.exists():
             # Load persistent context
-            self._context = await self._playwright.chromium.launch_persistent_context(
+            self._context = await self._playwright.chromium.launch_persistent_context(  # type: ignore[attr-defined]
                 str(context_path),
                 headless=self.headless,
             )
             self._page = (
-                self._context.pages[0] if self._context.pages else await self._context.new_page()
+                self._context.pages[0] if self._context.pages else await self._context.new_page()  # type: ignore[attr-defined]
             )
         else:
             # Create new browser and context
-            self._browser = await self._playwright.chromium.launch(headless=self.headless)
-            self._context = await self._browser.new_context()
-            self._page = await self._context.new_page()
+            self._browser = await self._playwright.chromium.launch(headless=self.headless)  # type: ignore[attr-defined]
+            self._context = await self._browser.new_context()  # type: ignore[attr-defined]
+            self._page = await self._context.new_page()  # type: ignore[attr-defined]
 
     async def close(self) -> None:
         """Close the browser session."""
@@ -315,12 +315,12 @@ class BrowserSession:
         await self.click(submit_selector)
 
         # Wait for navigation
-        await self._page.wait_for_load_state("networkidle")
+        await self._page.wait_for_load_state("networkidle")  # type: ignore[attr-defined]
 
         return {
             "status": "success",
-            "url": self._page.url,
-            "title": await self._page.title(),
+            "url": self._page.url,  # type: ignore[attr-defined]
+            "title": await self._page.title(),  # type: ignore[attr-defined]
         }
 
     async def download_file(self, url: str, dest_path: str) -> dict[str, Any]:

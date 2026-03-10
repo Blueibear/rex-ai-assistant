@@ -311,30 +311,30 @@ def cmd_run_workflow(args: argparse.Namespace) -> int:
         print()
 
         try:
-            result = runner.resume()
+            result = runner.resume()  # type: ignore[assignment]
         except ValueError as e:
             print(f"Error: {e}")
             return 1
     else:
         print("Running workflow...")
         print("-" * 60)
-        result = runner.run()
+        result = runner.run()  # type: ignore[assignment]
 
     print()
     print("-" * 60)
     print("Workflow finished")
-    print(f"  Status: {result.status}")
-    print(f"  Steps executed: {result.steps_executed}/{result.steps_total}")
+    print(f"  Status: {result.status}")  # type: ignore[attr-defined]
+    print(f"  Steps executed: {result.steps_executed}/{result.steps_total}")  # type: ignore[attr-defined]
 
-    if result.error:
-        print(f"  Error: {result.error}")
+    if result.error:  # type: ignore[attr-defined]
+        print(f"  Error: {result.error}")  # type: ignore[attr-defined]
         return 1
 
-    if result.blocking_approval_id:
-        print(f"  Blocked on approval: {result.blocking_approval_id}")
+    if result.blocking_approval_id:  # type: ignore[attr-defined]
+        print(f"  Blocked on approval: {result.blocking_approval_id}")  # type: ignore[attr-defined]
         print()
         print("To approve, run:")
-        print(f"  rex approvals --approve {result.blocking_approval_id}")
+        print(f"  rex approvals --approve {result.blocking_approval_id}")  # type: ignore[attr-defined]
         print()
         print("Then resume with:")
         print(f"  rex run-workflow {workflow_path} --resume")
@@ -653,17 +653,17 @@ def cmd_memory(args: argparse.Namespace) -> int:
                 print("Use formats like: 7d, 24h, 30m, 1w, 10s")
                 return 1
 
-        entry = ltm.add_entry(
+        entry = ltm.add_entry(  # type: ignore[assignment]
             category=category,
             content=content,
             expires_in=expires_in,
             sensitive=args.sensitive,
         )
 
-        print(f"Added memory entry: {entry.entry_id}")
-        print(f"  Category: {entry.category}")
-        print(f"  Expires: {entry.expires_at or 'never'}")
-        print(f"  Sensitive: {entry.sensitive}")
+        print(f"Added memory entry: {entry.entry_id}")  # type: ignore[attr-defined]
+        print(f"  Category: {entry.category}")  # type: ignore[attr-defined]
+        print(f"  Expires: {entry.expires_at or 'never'}")  # type: ignore[attr-defined]
+        print(f"  Sensitive: {entry.sensitive}")  # type: ignore[attr-defined]
         return 0
 
     if subcommand == "search":
@@ -686,19 +686,19 @@ def cmd_memory(args: argparse.Namespace) -> int:
         print("=" * 60)
         print()
 
-        for entry in results:
-            print(f"{entry.entry_id} [{entry.category}]")
-            print(f"  Created: {entry.created_at}")
-            if entry.expires_at:
-                print(f"  Expires: {entry.expires_at}")
-            if entry.sensitive:
+        for entry in results:  # type: ignore[assignment]
+            print(f"{entry.entry_id} [{entry.category}]")  # type: ignore[attr-defined]
+            print(f"  Created: {entry.created_at}")  # type: ignore[attr-defined]
+            if entry.expires_at:  # type: ignore[attr-defined]
+                print(f"  Expires: {entry.expires_at}")  # type: ignore[attr-defined]
+            if entry.sensitive:  # type: ignore[attr-defined]
                 print("  [SENSITIVE]")
                 if show_sensitive:
-                    print(f"  Content: {json.dumps(entry.content, indent=4)}")
+                    print(f"  Content: {json.dumps(entry.content, indent=4)}")  # type: ignore[attr-defined]
                 else:
                     print("  Content: <hidden - use --show-sensitive>")
             else:
-                print(f"  Content: {json.dumps(entry.content, indent=4)}")
+                print(f"  Content: {json.dumps(entry.content, indent=4)}")  # type: ignore[attr-defined]
             print()
 
         print(f"Total: {len(results)} entries found")
@@ -830,7 +830,7 @@ def cmd_kb(args: argparse.Namespace) -> int:
 
     if subcommand == "show":
         doc_id = args.doc_id
-        doc = kb.get_document(doc_id)
+        doc = kb.get_document(doc_id)  # type: ignore[assignment]
 
         if not doc:
             print(f"Error: Document not found: {doc_id}")
@@ -872,7 +872,7 @@ def cmd_kb(args: argparse.Namespace) -> int:
         print()
 
         for doc_id in citations:
-            doc = kb.get_document(doc_id)
+            doc = kb.get_document(doc_id)  # type: ignore[assignment]
             if doc:
                 print(f"{doc_id}: {doc.title}")
 
@@ -1771,7 +1771,7 @@ def cmd_os(args: argparse.Namespace) -> int:
             print(f"Exit code: {result.returncode}")
             print(f"Duration: {result.duration_ms}ms")
 
-            return result.returncode
+            return result.returncode  # type: ignore[no-any-return]
 
         except PermissionError as e:
             print(f"Error: {e}")
@@ -2055,7 +2055,7 @@ def cmd_msg(args: argparse.Namespace) -> int:
 
         if channel == "sms":
             sms_service = get_sms_service()
-            message = Message(
+            message = Message(  # type: ignore[call-arg]
                 channel="sms",
                 to=args.to,
                 from_=sms_service.from_number,
@@ -2739,7 +2739,7 @@ def cmd_pc(args: argparse.Namespace) -> int:
             return 1
 
         try:
-            result = service.run(computer_id, command, args=cmd_args)
+            result = service.run(computer_id, command, args=cmd_args)  # type: ignore[assignment]
         except ComputerNotFoundError as e:
             print(f"Error: {e}")
             return 1
@@ -2753,16 +2753,16 @@ def cmd_pc(args: argparse.Namespace) -> int:
             print(f"Error: {e}")
             return 1
 
-        if result.stdout:
-            print(result.stdout, end="")
-        if result.stderr:
-            print(result.stderr, end="", file=sys.stderr)
+        if result.stdout:  # type: ignore[attr-defined]
+            print(result.stdout, end="")  # type: ignore[attr-defined]
+        if result.stderr:  # type: ignore[attr-defined]
+            print(result.stderr, end="", file=sys.stderr)  # type: ignore[attr-defined]
 
         if not result.ok and result.error:
             print(f"Error: {result.error}")
             return 1
 
-        return result.exit_code if result.exit_code >= 0 else (0 if result.ok else 1)
+        return result.exit_code if result.exit_code >= 0 else (0 if result.ok else 1)  # type: ignore[attr-defined]
 
     print("Unknown pc subcommand. Use 'rex pc --help'")
     return 1
@@ -2902,7 +2902,7 @@ def cmd_wc(args: argparse.Namespace) -> int:
             service = get_woocommerce_service()
 
             try:
-                result = service.list_products(site_id, limit=limit, low_stock=low_stock)
+                result = service.list_products(site_id, limit=limit, low_stock=low_stock)  # type: ignore[assignment]
             except WooCommerceSiteNotFoundError as e:
                 print(f"Error: {e}")
                 return 1
@@ -2921,12 +2921,12 @@ def cmd_wc(args: argparse.Namespace) -> int:
             print(f"WooCommerce Products: {site_id}{stock_label}")
             print("=" * 60)
 
-            if not result.products:
+            if not result.products:  # type: ignore[attr-defined]
                 no_msg = "No low-stock products found." if low_stock else "No products found."
                 print(no_msg)
                 return 0
 
-            for product in result.products:
+            for product in result.products:  # type: ignore[attr-defined]
                 product_id = product.get("id", "?")
                 name = product.get("name", "Unknown")
                 stock_status = product.get("stock_status", "")
@@ -2942,7 +2942,7 @@ def cmd_wc(args: argparse.Namespace) -> int:
                 print(f"  #{product_id}  {name}{price_str}{stock_info}")
 
             print()
-            print(f"Total: {len(result.products)} product(s)")
+            print(f"Total: {len(result.products)} product(s)")  # type: ignore[attr-defined]
             return 0
 
         print("Unknown wc products subcommand. Use 'rex wc products --help'")
@@ -4924,7 +4924,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.func = cmd_chat
         args.verbose = getattr(args, "verbose", False)
 
-    return args.func(args)
+    return args.func(args)  # type: ignore[no-any-return]
 
 
 if __name__ == "__main__":

@@ -46,7 +46,7 @@ class SessionManager:
         self._lock = threading.RLock()
         self._expiry_seconds = expiry_seconds
 
-    def create_session(self, user_key: str = "dashboard", metadata: dict = None) -> Session:
+    def create_session(self, user_key: str = "dashboard", metadata: dict = None) -> Session:  # type: ignore[assignment]
         """Create a new session and return the session object."""
         token = secrets.token_urlsafe(32)
         now = datetime.now()

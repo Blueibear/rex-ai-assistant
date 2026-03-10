@@ -182,9 +182,9 @@ class AuditLogger:
             action_id=entry.action_id,
             task_id=entry.task_id,
             tool=entry.tool,
-            tool_call_args=redacted_args,
+            tool_call_args=redacted_args,  # type: ignore[arg-type]
             policy_decision=entry.policy_decision,
-            tool_result=redacted_result,
+            tool_result=redacted_result,  # type: ignore[arg-type]
             error=entry.error,
             redacted=True,
             requested_by=entry.requested_by,

@@ -16,7 +16,7 @@ def normalize_keyword(value: str) -> str:
 def split_keywords(value: str | None) -> list[str]:
     if not has_text(value):
         return []
-    return [part.strip().replace("_", " ") for part in value.split(",") if part.strip()]
+    return [part.strip().replace("_", " ") for part in value.split(",") if part.strip()]  # type: ignore[union-attr]
 
 
 def resolve_keyword(
@@ -27,7 +27,7 @@ def resolve_keyword(
 ) -> str | None:
     for candidate in (keyword, wakeword, default):
         if has_text(candidate):
-            return candidate.strip()
+            return candidate.strip()  # type: ignore[union-attr]
     return None
 
 
@@ -61,7 +61,7 @@ def select_fallback_keyword(
 
     normalized_map = {normalize_keyword(item): item for item in available}
     if has_text(fallback_keyword):
-        selected = normalized_map.get(normalize_keyword(fallback_keyword))
+        selected = normalized_map.get(normalize_keyword(fallback_keyword))  # type: ignore[arg-type]
         if selected:
             return selected
 

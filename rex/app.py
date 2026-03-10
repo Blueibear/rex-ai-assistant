@@ -130,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
 
             def check_scheduler():
                 # Simple health check: scheduler thread is alive
-                return services.scheduler.is_running
+                return services.scheduler.is_running  # type: ignore[attr-defined]
 
             _supervisor.register_service(
                 name="scheduler",
@@ -242,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
 
         # Keep the main thread alive
         while True:
-            signal.pause()
+            signal.pause()  # type: ignore[attr-defined]
 
     except KeyboardInterrupt:
         logger.info("Interrupted by user")

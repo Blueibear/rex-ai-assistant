@@ -16,10 +16,10 @@ from typing import TYPE_CHECKING, Any
 try:
     import requests
 except ImportError as exc:
-    requests = None
+    requests = None  # type: ignore[assignment]
     _REQUESTS_IMPORT_ERROR = exc
 else:
-    _REQUESTS_IMPORT_ERROR = None
+    _REQUESTS_IMPORT_ERROR = None  # type: ignore[assignment]
 if TYPE_CHECKING:
     from flask import Blueprint
 
@@ -222,7 +222,7 @@ class HABridge:
     ) -> dict[str, Any]:
         if not script_id:
             raise ValueError("script identifier is required")
-        return self._request(
+        return self._request(  # type: ignore[no-any-return]
             "POST",
             "/api/services/script/turn_on",
             json={"entity_id": script_id, "variables": variables or {}},
@@ -290,9 +290,9 @@ class HABridge:
                 service = "set_percentage" if entity_id.startswith("fan.") else "turn_on"
                 data = {"entity_id": entity_id}
                 if entity_id.startswith("light.") or entity_id.startswith("switch."):
-                    data["brightness_pct"] = level
+                    data["brightness_pct"] = level  # type: ignore[assignment]
                 else:
-                    data["percentage"] = level
+                    data["percentage"] = level  # type: ignore[assignment]
                 return IntentMatch(
                     domain=entity_id.split(".", 1)[0],
                     service=service,
@@ -496,4 +496,4 @@ def create_blueprint(bridge: HABridge | None = None) -> Blueprint:
             logger.warning("Failed to execute Home Assistant script: %s", exc)
             return jsonify({"error": str(exc)}), 500
 
-    return bp
+    return bp  # type: ignore[no-any-return]

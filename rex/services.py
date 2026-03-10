@@ -44,15 +44,15 @@ def initialize_services(
         return _SERVICES
 
     event_bus = get_event_bus()
-    scheduler = Scheduler(storage_path=storage_path, now_func=now_func)
+    scheduler = Scheduler(storage_path=storage_path, now_func=now_func)  # type: ignore[arg-type]
     set_scheduler(scheduler)
-    email = EmailService(event_bus, mock_data_path=email_mock_path)
+    email = EmailService(event_bus, mock_data_path=email_mock_path)  # type: ignore[arg-type]
     calendar = CalendarService(event_bus, mock_data_path=calendar_mock_path)
 
     # Initialize messaging service
     if sms_mock_path:
         sms_mock_path = Path(sms_mock_path) if isinstance(sms_mock_path, str) else sms_mock_path
-    sms = SMSService(mock_file=sms_mock_path)
+    sms = SMSService(mock_file=sms_mock_path)  # type: ignore[arg-type]
 
     # Initialize notification system
     if notifications_path:
@@ -61,14 +61,14 @@ def initialize_services(
         )
     escalation_manager = EscalationManager()
     notifier = Notifier(
-        storage_path=notifications_path,
+        storage_path=notifications_path,  # type: ignore[arg-type]
         escalation_manager=escalation_manager,
     )
 
     # Register scheduler handlers
-    scheduler.register_handler("email_triage", lambda job: email.triage_unread())
-    scheduler.register_handler("calendar_sync", lambda job: calendar.refresh_upcoming())
-    scheduler.register_handler("flush_digests", lambda job: notifier.flush_digests())
+    scheduler.register_handler("email_triage", lambda job: email.triage_unread())  # type: ignore[arg-type]
+    scheduler.register_handler("calendar_sync", lambda job: calendar.refresh_upcoming())  # type: ignore[arg-type]
+    scheduler.register_handler("flush_digests", lambda job: notifier.flush_digests())  # type: ignore[arg-type]
     scheduler.register_handler(
         "check_escalations", lambda job: _check_escalations(notifier, escalation_manager)
     )

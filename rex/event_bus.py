@@ -79,7 +79,7 @@ class EventBus:
     @overload
     def subscribe(self, event_type: str, handler: EventHandler) -> None: ...
 
-    def subscribe(self, event_type: str, fn: Callable[..., Any]):  # type: ignore[override]
+    def subscribe(self, event_type: str, fn: Callable[..., Any]):  # type: ignore[misc]
         """
         Subscribe to an event type.
 
@@ -101,16 +101,16 @@ class EventBus:
                 is_legacy = False
 
             if is_legacy:
-                cb = fn  # type: ignore[assignment]
-                self._legacy_subscribers[event_type].append(cb)  # type: ignore[arg-type]
+                cb = fn
+                self._legacy_subscribers[event_type].append(cb)
 
                 def _unsubscribe() -> None:
-                    self._safe_remove_legacy(event_type, cb)  # type: ignore[arg-type]
+                    self._safe_remove_legacy(event_type, cb)
 
                 return _unsubscribe
 
-            handler = fn  # type: ignore[assignment]
-            self._handlers[event_type].append(handler)  # type: ignore[arg-type]
+            handler = fn
+            self._handlers[event_type].append(handler)
             return None
 
     def unsubscribe(self, event_type: str, handler: EventHandler) -> bool:
@@ -142,7 +142,7 @@ class EventBus:
     @overload
     def publish(self, event: Event) -> None: ...
 
-    def publish(self, arg1: Any, arg2: Any = None):  # type: ignore[override]
+    def publish(self, arg1: Any, arg2: Any = None):  # type: ignore[misc]
         """
         Publish an event.
 

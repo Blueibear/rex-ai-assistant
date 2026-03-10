@@ -123,7 +123,7 @@ class TwilioSmsBackend(SmsBackend):
         try:
             resp = requests.get(
                 url,
-                params=params,
+                params=params,  # type: ignore[arg-type]
                 auth=(self._account_sid, self._auth_token),
                 timeout=self._timeout,
             )
