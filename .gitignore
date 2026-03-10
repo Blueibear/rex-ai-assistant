@@ -122,3 +122,5 @@ data/notifications/
 data/scheduler/
 data/workflows/
 data/*.db
+
+*.bundle
