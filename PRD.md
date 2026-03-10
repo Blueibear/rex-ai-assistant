@@ -197,11 +197,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want the OpenAI provider to execute prompts reliably so that Rex can generate responses using OpenAI models.
 
 **Acceptance Criteria:**
-- [ ] provider initializes
-- [ ] prompt execution works
-- [ ] response returned
-- [ ] failure handled gracefully
-- [ ] Typecheck passes
+- [x] provider initializes
+- [x] prompt execution works
+- [x] response returned
+- [x] failure handled gracefully
+- [x] Typecheck passes
 
 ---
 

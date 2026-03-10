@@ -103,3 +103,26 @@
   - Failures handled safely: warnings shown, summary at end, no crash
   - 34 doctor tests pass
 ---
+## Iteration 12 - US-012: Validate configuration loading
+- What was implemented: Added tests/test_config_loading.py with 20 unit tests covering all 3 acceptance criteria.
+- Files changed: tests/test_config_loading.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `build_app_config(json_cfg)` accepts a dict directly - cleanest way to test config loading without file I/O
+  - `load_config(json_config=..., reload=True)` bypasses cache and builds AppConfig from provided dict
+  - `load_config as load_json_config` from config_manager creates missing dirs/files automatically
+  - Secrets (OPENAI_API_KEY, BRAVE_API_KEY, HA_TOKEN, REX_SPEAK_API_KEY) all read via os.getenv() in build_app_config
+  - monkeypatch.setenv/delenv works cleanly for testing env var behavior
+  - load_json_config handles invalid JSON by backing up file and returning DEFAULT_CONFIG
+  - 20 new tests pass, mypy clean
+---
+## Iteration 13 - US-013: OpenAI provider
+- What was implemented: Added tests/test_us013_openai_provider.py with 6 tests covering all 4 acceptance criteria.
+- Files changed: tests/test_us013_openai_provider.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - OpenAIStrategy and LanguageModel are fully implemented; only test coverage was needed
+  - monkeypatch.setattr(LanguageModel, "_ensure_openai_client", lambda self: fake_client) cleanly injects mock client
+  - AppConfig(llm_model=None) causes mypy arg-type errors in test files - pre-existing issue (not introduced here); mypy on rex/ still passes
+  - "Typecheck passes" = mypy rex/ returns zero errors (test files are excluded)
+  - Repo integrity tests (test_no_tracked_files_modified) require git commit before running full suite; pre-existing dirty files cause failures
+  - 1663 tests pass, 26 skipped after new tests added
+---
