@@ -73,10 +73,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want the planner registry to match the router interface so that the planner can be invoked without runtime errors.
 
 **Acceptance Criteria:**
-- [ ] planner imports successfully
-- [ ] registry interfaces match router usage
-- [ ] runtime errors removed
-- [ ] Typecheck passes
+- [x] planner imports successfully
+- [x] registry interfaces match router usage
+- [x] runtime errors removed
+- [x] Typecheck passes
 
 ---
 

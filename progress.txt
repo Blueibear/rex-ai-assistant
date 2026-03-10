@@ -20,3 +20,12 @@
   - asyncio-mqtt deprecation warning is cosmetic only; does not affect imports
   - Legacy env var OLLAMA_HOST warning is cosmetic; safe to ignore in tests
 ---
+## Iteration 3 - US-003: Fix planner registry mismatch
+- What was implemented: Verified planner and registry interfaces already match. No code changes needed.
+- Files changed: PRD.md (marked US-003 complete), progress.txt
+- Learnings for future iterations:
+  - ToolRegistry has has_tool(), validate_credentials_for_tool(), check_credentials() - all used by Planner
+  - PolicyEngine.decide() returns decision with .denied and .requires_approval attributes
+  - Planner, ToolRegistry, PolicyEngine all import cleanly
+  - 37 planner+executor tests pass, 93 tool_router/registry/contracts tests pass
+---
