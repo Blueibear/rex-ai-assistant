@@ -217,7 +217,9 @@ class HABridge:
             result.append({"friendly_name": alias, "entity_id": entity_id})
         return result
 
-    def call_script(self, script_id: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+    def call_script(
+        self, script_id: str, variables: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         if not script_id:
             raise ValueError("script identifier is required")
         return self._request(

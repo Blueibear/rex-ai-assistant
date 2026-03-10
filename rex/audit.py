@@ -174,9 +174,7 @@ class AuditLogger:
         """
         redacted_args = redact_sensitive_keys(entry.tool_call_args)
         redacted_result = (
-            redact_sensitive_keys(entry.tool_result)
-            if entry.tool_result is not None
-            else None
+            redact_sensitive_keys(entry.tool_result) if entry.tool_result is not None else None
         )
 
         return LogEntry(

@@ -65,8 +65,7 @@ class ActionPolicy(BaseModel):
     )
     denied_domains: list[str] | None = Field(
         default=None,
-        description="List of denied domains. "
-        "If a domain is in this list, the action is denied.",
+        description="List of denied domains. " "If a domain is in this list, the action is denied.",
     )
 
     model_config = {

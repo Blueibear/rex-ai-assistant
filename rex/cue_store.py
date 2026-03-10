@@ -391,7 +391,11 @@ class CueStore:
     ) -> bool:
         """Check if a cue already exists for a given source."""
         for cue in self._cues.values():
-            if cue.user_id == user_id and cue.source_type == source_type and cue.source_id == source_id:
+            if (
+                cue.user_id == user_id
+                and cue.source_type == source_type
+                and cue.source_id == source_id
+            ):
                 return True
         return False
 

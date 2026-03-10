@@ -27,6 +27,7 @@ from rex.policy_engine import get_policy_engine
 @dataclass
 class CommandResult:
     """Result of a command execution."""
+
     success: bool
     command: list[str]
     stdout: str
@@ -78,9 +79,30 @@ class OSAutomationService:
         else:
             # Default safe commands
             self.allowed_commands = {
-                "ls", "cat", "echo", "pwd", "whoami", "date", "head", "tail",
-                "grep", "find", "wc", "sort", "uniq", "which", "man",
-                "file", "stat", "du", "df", "tree", "diff", "cmp", "md5sum", "sha256sum",
+                "ls",
+                "cat",
+                "echo",
+                "pwd",
+                "whoami",
+                "date",
+                "head",
+                "tail",
+                "grep",
+                "find",
+                "wc",
+                "sort",
+                "uniq",
+                "which",
+                "man",
+                "file",
+                "stat",
+                "du",
+                "df",
+                "tree",
+                "diff",
+                "cmp",
+                "md5sum",
+                "sha256sum",
             }
 
     def run_command(
@@ -157,19 +179,21 @@ class OSAutomationService:
             )
 
             # Audit log
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="execute_shell_command",
-                tool_call_args={"command": run_cmd, "cwd": cwd},
-                policy_decision="allowed",
-                tool_result={
-                    "returncode": result.returncode,
-                    "stdout_length": len(result.stdout),
-                    "stderr_length": len(result.stderr),
-                },
-                error=None if result.returncode == 0 else result.stderr,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="execute_shell_command",
+                    tool_call_args={"command": run_cmd, "cwd": cwd},
+                    policy_decision="allowed",
+                    tool_result={
+                        "returncode": result.returncode,
+                        "stdout_length": len(result.stdout),
+                        "stderr_length": len(result.stderr),
+                    },
+                    error=None if result.returncode == 0 else result.stderr,
+                    duration_ms=duration_ms,
+                )
+            )
 
             return cmd_result
 
@@ -177,15 +201,17 @@ class OSAutomationService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Command timed out after {timeout}s"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="execute_shell_command",
-                tool_call_args={"command": run_cmd},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="execute_shell_command",
+                    tool_call_args={"command": run_cmd},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 
@@ -193,15 +219,17 @@ class OSAutomationService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Command execution failed: {str(e)}"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="execute_shell_command",
-                tool_call_args={"command": run_cmd},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="execute_shell_command",
+                    tool_call_args={"command": run_cmd},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 
@@ -270,15 +298,17 @@ class OSAutomationService:
             }
 
             # Audit log
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="file_copy",
-                tool_call_args={"src": src, "dst": dst},
-                policy_decision="allowed",
-                tool_result=result,
-                error=None,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="file_copy",
+                    tool_call_args={"src": src, "dst": dst},
+                    policy_decision="allowed",
+                    tool_result=result,
+                    error=None,
+                    duration_ms=duration_ms,
+                )
+            )
 
             return result
 
@@ -286,15 +316,17 @@ class OSAutomationService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Copy failed: {str(e)}"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="file_copy",
-                tool_call_args={"src": src, "dst": dst},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="file_copy",
+                    tool_call_args={"src": src, "dst": dst},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 
@@ -334,15 +366,17 @@ class OSAutomationService:
             }
 
             # Audit log
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="file_move",
-                tool_call_args={"src": src, "dst": dst},
-                policy_decision="allowed",
-                tool_result=result,
-                error=None,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="file_move",
+                    tool_call_args={"src": src, "dst": dst},
+                    policy_decision="allowed",
+                    tool_result=result,
+                    error=None,
+                    duration_ms=duration_ms,
+                )
+            )
 
             return result
 
@@ -350,15 +384,17 @@ class OSAutomationService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Move failed: {str(e)}"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="file_move",
-                tool_call_args={"src": src, "dst": dst},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="file_move",
+                    tool_call_args={"src": src, "dst": dst},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 
@@ -419,15 +455,17 @@ class OSAutomationService:
             }
 
             # Audit log
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="file_delete",
-                tool_call_args={"path": path, "backup": backup},
-                policy_decision="allowed",
-                tool_result=result,
-                error=None,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="file_delete",
+                    tool_call_args={"path": path, "backup": backup},
+                    policy_decision="allowed",
+                    tool_result=result,
+                    error=None,
+                    duration_ms=duration_ms,
+                )
+            )
 
             return result
 
@@ -435,15 +473,17 @@ class OSAutomationService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Delete failed: {str(e)}"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="file_delete",
-                tool_call_args={"path": path, "backup": backup},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="file_delete",
+                    tool_call_args={"path": path, "backup": backup},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 
@@ -461,12 +501,14 @@ class OSAutomationService:
         for file_path in self.trash_path.iterdir():
             if file_path.is_file():
                 stat = file_path.stat()
-                files.append({
-                    "name": file_path.name,
-                    "path": str(file_path),
-                    "size": stat.st_size,
-                    "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                })
+                files.append(
+                    {
+                        "name": file_path.name,
+                        "path": str(file_path),
+                        "size": stat.st_size,
+                        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    }
+                )
 
         return sorted(files, key=lambda x: x["modified"], reverse=True)
 

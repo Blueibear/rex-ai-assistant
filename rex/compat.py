@@ -21,7 +21,7 @@ def ensure_transformers_compatibility() -> None:
         import transformers
 
         # Check if BeamSearchScorer is already available (might be an older version)
-        if hasattr(transformers, 'BeamSearchScorer'):
+        if hasattr(transformers, "BeamSearchScorer"):
             return
 
         # Try multiple import locations (transformers has moved it around in different versions)
@@ -53,12 +53,12 @@ def ensure_transformers_compatibility() -> None:
 
         # Patch it into the transformers module namespace (multiple methods for robustness)
         transformers.BeamSearchScorer = BeamSearchScorer
-        transformers.__dict__['BeamSearchScorer'] = BeamSearchScorer
+        transformers.__dict__["BeamSearchScorer"] = BeamSearchScorer
 
         # Also patch it into sys.modules['transformers'] to ensure it's visible to all imports
-        if 'transformers' in sys.modules:
-            sys.modules['transformers'].BeamSearchScorer = BeamSearchScorer
-            sys.modules['transformers'].__dict__['BeamSearchScorer'] = BeamSearchScorer
+        if "transformers" in sys.modules:
+            sys.modules["transformers"].BeamSearchScorer = BeamSearchScorer
+            sys.modules["transformers"].__dict__["BeamSearchScorer"] = BeamSearchScorer
 
     except (ImportError, AttributeError):
         # If transformers isn't installed or BeamSearchScorer doesn't exist,

@@ -47,6 +47,7 @@ try:
 except ImportError:
     sd = None
 
+
 def _lazy_import_whisper():
     if find_spec("whisper") is None:
         return None
@@ -82,6 +83,7 @@ def _require_numpy():
         raise AudioDeviceError("numpy is required for audio processing")
     return np
 
+
 logger = logging.getLogger(__name__)
 
 RecorderCallable = Callable[[float], Awaitable[np.ndarray] | np.ndarray]
@@ -89,6 +91,7 @@ RecorderCallable = Callable[[float], Awaitable[np.ndarray] | np.ndarray]
 
 class AsyncMicrophone:
     """Optimized microphone recording with Voice Activity Detection."""
+
     def __init__(
         self,
         *,
@@ -127,7 +130,9 @@ class AsyncMicrophone:
         has_voice = False
 
         def _capture_chunk() -> np.ndarray:
-            recording = sd.rec(chunk_frames, samplerate=self.sample_rate, channels=1, dtype="float32")
+            recording = sd.rec(
+                chunk_frames, samplerate=self.sample_rate, channels=1, dtype="float32"
+            )
             sd.wait()
             return recording.reshape(-1)
 
@@ -254,7 +259,9 @@ class TextToSpeech:
         self._edge_voice = getattr(settings, "tts_voice", None) or "en-US-AndrewNeural"
 
         if self._provider == "xtts":
-            logger.warning("[TTS] XTTS is slow (~3-4s). Recommend 'edge' or 'windows' for <1s latency")
+            logger.warning(
+                "[TTS] XTTS is slow (~3-4s). Recommend 'edge' or 'windows' for <1s latency"
+            )
 
         self._tts = None
         if self._provider == "xtts":
@@ -324,6 +331,7 @@ class TextToSpeech:
                 chunk_path = tmp.name
 
             try:
+
                 def _synthesize(chunk=chunk, chunk_path=chunk_path) -> None:
                     self._tts.tts_to_file(
                         text=chunk,
@@ -353,6 +361,7 @@ class TextToSpeech:
         try:
             sf.write(output_path, combined_audio, sample_rate)
             if sa is not None and Path(output_path).exists():
+
                 def _play() -> None:
                     wave_obj = sa.WaveObject.from_wave_file(output_path)
                     play_obj = wave_obj.play()

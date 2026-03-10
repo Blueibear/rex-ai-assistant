@@ -99,11 +99,7 @@ def main(argv: list[str] | None = None) -> int:
             "credential_manager",
         }
         if args.services:
-            services_to_manage = {
-                name.strip()
-                for name in args.services.split(",")
-                if name.strip()
-            }
+            services_to_manage = {name.strip() for name in args.services.split(",") if name.strip()}
         else:
             services_to_manage = default_services
         unknown_services = services_to_manage - default_services
@@ -185,6 +181,7 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         if "memory_store" in services_to_manage:
+
             def start_memory_store():
                 get_working_memory()
                 get_long_term_memory()
@@ -213,6 +210,7 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         if "credential_manager" in services_to_manage:
+
             def start_credential_manager():
                 get_credential_manager()
                 logger.info("Credential manager initialized")

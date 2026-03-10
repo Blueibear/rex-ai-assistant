@@ -20,8 +20,12 @@ logger = logging.getLogger(__name__)
 
 # Plugin safety configuration from environment
 PLUGIN_TIMEOUT = _parse_int("REX_PLUGIN_TIMEOUT", os.getenv("REX_PLUGIN_TIMEOUT"), default=30)
-PLUGIN_OUTPUT_LIMIT = _parse_int("REX_PLUGIN_OUTPUT_LIMIT", os.getenv("REX_PLUGIN_OUTPUT_LIMIT"), default=1048576)  # 1MB
-PLUGIN_RATE_LIMIT = _parse_int("REX_PLUGIN_RATE_LIMIT", os.getenv("REX_PLUGIN_RATE_LIMIT"), default=10)  # requests per minute
+PLUGIN_OUTPUT_LIMIT = _parse_int(
+    "REX_PLUGIN_OUTPUT_LIMIT", os.getenv("REX_PLUGIN_OUTPUT_LIMIT"), default=1048576
+)  # 1MB
+PLUGIN_RATE_LIMIT = _parse_int(
+    "REX_PLUGIN_RATE_LIMIT", os.getenv("REX_PLUGIN_RATE_LIMIT"), default=10
+)  # requests per minute
 
 
 class Plugin(Protocol):

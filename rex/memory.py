@@ -148,7 +148,7 @@ class WorkingMemory:
 
         # Trim to max entries
         if len(self._entries) > self.max_entries:
-            self._entries = self._entries[-self.max_entries:]
+            self._entries = self._entries[-self.max_entries :]
 
         self._save()
 
@@ -327,9 +327,7 @@ class LongTermMemory:
         """Save entries to disk."""
         self.storage_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            entries_data = [
-                entry.model_dump(mode="json") for entry in self._entries.values()
-            ]
+            entries_data = [entry.model_dump(mode="json") for entry in self._entries.values()]
             with open(self.storage_path, "w", encoding="utf-8") as f:
                 json.dump({"entries": entries_data}, f, indent=2, default=str)
         except OSError as e:
@@ -436,6 +434,7 @@ class LongTermMemory:
 
     def _matches_keyword(self, content: dict[str, Any], keyword: str) -> bool:
         """Check if content matches keyword (recursive substring search)."""
+
         def search_value(value: Any) -> bool:
             if isinstance(value, str):
                 return keyword in value.lower()
@@ -479,10 +478,7 @@ class LongTermMemory:
         Returns:
             Number of entries deleted.
         """
-        expired_ids = [
-            entry_id for entry_id, entry in self._entries.items()
-            if entry.is_expired()
-        ]
+        expired_ids = [entry_id for entry_id, entry in self._entries.items() if entry.is_expired()]
 
         for entry_id in expired_ids:
             del self._entries[entry_id]

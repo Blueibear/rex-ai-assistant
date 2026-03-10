@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Repository:
     """GitHub repository information."""
+
     name: str
     full_name: str
     owner: str
@@ -45,6 +46,7 @@ class Repository:
 @dataclass
 class PullRequest:
     """GitHub pull request information."""
+
     number: int
     title: str
     state: str
@@ -59,6 +61,7 @@ class PullRequest:
 @dataclass
 class Issue:
     """GitHub issue information."""
+
     number: int
     title: str
     state: str
@@ -212,28 +215,32 @@ class GitHubService:
 
             repos = []
             for item in data:
-                repos.append(Repository(
-                    name=item["name"],
-                    full_name=item["full_name"],
-                    owner=item["owner"]["login"],
-                    url=item["html_url"],
-                    description=item.get("description"),
-                    private=item["private"],
-                    default_branch=item["default_branch"],
-                ))
+                repos.append(
+                    Repository(
+                        name=item["name"],
+                        full_name=item["full_name"],
+                        owner=item["owner"]["login"],
+                        url=item["html_url"],
+                        description=item.get("description"),
+                        private=item["private"],
+                        default_branch=item["default_branch"],
+                    )
+                )
 
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
             # Audit log
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="github_list_repos",
-                tool_call_args={"type": type_filter},
-                policy_decision="allowed",
-                tool_result={"count": len(repos)},
-                error=None,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_list_repos",
+                    tool_call_args={"type": type_filter},
+                    policy_decision="allowed",
+                    tool_result={"count": len(repos)},
+                    error=None,
+                    duration_ms=duration_ms,
+                )
+            )
 
             return repos
 
@@ -241,15 +248,17 @@ class GitHubService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Failed to list repositories: {str(e)}"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="github_list_repos",
-                tool_call_args={"type": type_filter},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_list_repos",
+                    tool_call_args={"type": type_filter},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 
@@ -278,30 +287,34 @@ class GitHubService:
 
             prs = []
             for item in data:
-                prs.append(PullRequest(
-                    number=item["number"],
-                    title=item["title"],
-                    state=item["state"],
-                    url=item["html_url"],
-                    author=item["user"]["login"],
-                    head_branch=item["head"]["ref"],
-                    base_branch=item["base"]["ref"],
-                    created_at=item["created_at"],
-                    updated_at=item["updated_at"],
-                ))
+                prs.append(
+                    PullRequest(
+                        number=item["number"],
+                        title=item["title"],
+                        state=item["state"],
+                        url=item["html_url"],
+                        author=item["user"]["login"],
+                        head_branch=item["head"]["ref"],
+                        base_branch=item["base"]["ref"],
+                        created_at=item["created_at"],
+                        updated_at=item["updated_at"],
+                    )
+                )
 
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
             # Audit log
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="github_list_prs",
-                tool_call_args={"repo": repo, "state": state},
-                policy_decision="allowed",
-                tool_result={"count": len(prs)},
-                error=None,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_list_prs",
+                    tool_call_args={"repo": repo, "state": state},
+                    policy_decision="allowed",
+                    tool_result={"count": len(prs)},
+                    error=None,
+                    duration_ms=duration_ms,
+                )
+            )
 
             return prs
 
@@ -309,15 +322,17 @@ class GitHubService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Failed to list pull requests: {str(e)}"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="github_list_prs",
-                tool_call_args={"repo": repo, "state": state},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_list_prs",
+                    tool_call_args={"repo": repo, "state": state},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 
@@ -380,15 +395,17 @@ class GitHubService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
             # Audit log
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="github_create_issue",
-                tool_call_args={"repo": repo, "title": title},
-                policy_decision="allowed",
-                tool_result={"issue_number": issue.number, "url": issue.url},
-                error=None,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_create_issue",
+                    tool_call_args={"repo": repo, "title": title},
+                    policy_decision="allowed",
+                    tool_result={"issue_number": issue.number, "url": issue.url},
+                    error=None,
+                    duration_ms=duration_ms,
+                )
+            )
 
             return issue
 
@@ -396,15 +413,17 @@ class GitHubService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Failed to create issue: {str(e)}"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="github_create_issue",
-                tool_call_args={"repo": repo, "title": title},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_create_issue",
+                    tool_call_args={"repo": repo, "title": title},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 
@@ -455,15 +474,17 @@ class GitHubService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
             # Audit log
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="github_comment_issue",
-                tool_call_args={"repo": repo, "issue_number": issue_number},
-                policy_decision="allowed",
-                tool_result=result,
-                error=None,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_comment_issue",
+                    tool_call_args={"repo": repo, "issue_number": issue_number},
+                    policy_decision="allowed",
+                    tool_result=result,
+                    error=None,
+                    duration_ms=duration_ms,
+                )
+            )
 
             return result
 
@@ -471,15 +492,17 @@ class GitHubService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Failed to comment: {str(e)}"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="github_comment_issue",
-                tool_call_args={"repo": repo, "issue_number": issue_number},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_comment_issue",
+                    tool_call_args={"repo": repo, "issue_number": issue_number},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 
@@ -545,15 +568,17 @@ class GitHubService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
             # Audit log
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="github_create_pr",
-                tool_call_args={"repo": repo, "title": title},
-                policy_decision="allowed",
-                tool_result={"pr_number": pr.number, "url": pr.url},
-                error=None,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_create_pr",
+                    tool_call_args={"repo": repo, "title": title},
+                    policy_decision="allowed",
+                    tool_result={"pr_number": pr.number, "url": pr.url},
+                    error=None,
+                    duration_ms=duration_ms,
+                )
+            )
 
             return pr
 
@@ -561,15 +586,17 @@ class GitHubService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Failed to create PR: {str(e)}"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="github_create_pr",
-                tool_call_args={"repo": repo, "title": title},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_create_pr",
+                    tool_call_args={"repo": repo, "title": title},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 
@@ -659,15 +686,17 @@ class GitHubService:
             }
 
             # Audit log
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="github_apply_patch",
-                tool_call_args={"repo_path": repo_path, "branch": branch},
-                policy_decision="allowed",
-                tool_result=result,
-                error=None,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_apply_patch",
+                    tool_call_args={"repo_path": repo_path, "branch": branch},
+                    policy_decision="allowed",
+                    tool_result=result,
+                    error=None,
+                    duration_ms=duration_ms,
+                )
+            )
 
             return result
 
@@ -675,15 +704,17 @@ class GitHubService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Patch application failed: {e.stderr.decode()}"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="github_apply_patch",
-                tool_call_args={"repo_path": repo_path, "branch": branch},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_apply_patch",
+                    tool_call_args={"repo_path": repo_path, "branch": branch},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 
@@ -691,15 +722,17 @@ class GitHubService:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             error_msg = f"Patch application failed: {str(e)}"
 
-            self._audit_logger.log(LogEntry(
-                action_id=action_id,
-                tool="github_apply_patch",
-                tool_call_args={"repo_path": repo_path, "branch": branch},
-                policy_decision="allowed",
-                tool_result=None,
-                error=error_msg,
-                duration_ms=duration_ms,
-            ))
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_apply_patch",
+                    tool_call_args={"repo_path": repo_path, "branch": branch},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
 
             raise RuntimeError(error_msg) from e
 

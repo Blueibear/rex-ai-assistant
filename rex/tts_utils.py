@@ -37,7 +37,9 @@ def chunk_text_for_xtts(text: str, *, max_tokens: int = 300) -> list[str]:
     if not normalized:
         return []
 
-    sentences = [sentence.strip() for sentence in _SENTENCE_SPLIT_RE.split(normalized) if sentence.strip()]
+    sentences = [
+        sentence.strip() for sentence in _SENTENCE_SPLIT_RE.split(normalized) if sentence.strip()
+    ]
     if not sentences:
         return [normalized]
 

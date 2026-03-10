@@ -34,7 +34,7 @@ except ImportError:
         raise ImportError(
             "aiomqtt (or asyncio-mqtt) is required for Rex MQTT features. "
             "Install via `pip install aiomqtt`."
-    ) from exc
+        ) from exc
 
 logger = logging.getLogger(__name__)
 

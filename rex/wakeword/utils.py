@@ -21,6 +21,7 @@ def _import_optional(module_name: str):
 
 np = _import_optional("numpy")
 
+
 def _lazy_import_openwakeword():
     module = _import_optional("openwakeword")
     if module is None:
@@ -55,6 +56,7 @@ def _get_openwakeword():
         _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL = _lazy_import_openwakeword()
         openwakeword = _OPENWAKEWORD_MODULE
     return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
+
 
 from .embedding import compute_embedding, load_embedding  # noqa: E402
 from .selection import (  # noqa: E402

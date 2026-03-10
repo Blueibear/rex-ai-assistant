@@ -322,7 +322,9 @@ def _infer_category(workflow: Workflow) -> str:
         return "fs.operation"
 
     # Browser automation
-    if any(tool in tools_used for tool in ("browser_navigate", "browser_click", "browser_screenshot")):
+    if any(
+        tool in tools_used for tool in ("browser_navigate", "browser_click", "browser_screenshot")
+    ):
         return "browser.automation"
 
     # Default: general workflow

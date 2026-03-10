@@ -160,9 +160,9 @@ class ScheduledJob:
             "enabled": self.enabled,
             "next_run": _ensure_tz(self.next_run).isoformat(),
             "last_run_at": _ensure_tz(self.last_run_at).isoformat() if self.last_run_at else None,
-            "last_scheduled_run": _ensure_tz(self.last_scheduled_run).isoformat()
-            if self.last_scheduled_run
-            else None,
+            "last_scheduled_run": (
+                _ensure_tz(self.last_scheduled_run).isoformat() if self.last_scheduled_run else None
+            ),
             "max_runs": self.max_runs,
             "run_count": self.run_count,
             "callback_name": self.callback_name,
@@ -375,7 +375,12 @@ class Scheduler:
             )
         """
         # Detect legacy positional signature
-        if len(args) >= 3 and isinstance(args[0], str) and isinstance(args[1], (int, float)) and isinstance(args[2], str):
+        if (
+            len(args) >= 3
+            and isinstance(args[0], str)
+            and isinstance(args[1], (int, float))
+            and isinstance(args[2], str)
+        ):
             name = args[0]
             interval_seconds = int(args[1])
             handler_name = args[2]
@@ -531,7 +536,11 @@ class Scheduler:
             if callback_name and callback_name in self._callbacks:
                 self._callbacks[callback_name](job)
             elif job.workflow_id:
-                logger.info("Job %s would trigger workflow %s (integration stub)", job.job_id, job.workflow_id)
+                logger.info(
+                    "Job %s would trigger workflow %s (integration stub)",
+                    job.job_id,
+                    job.workflow_id,
+                )
             else:
                 logger.warning("Job %s has no callback_name or workflow_id", job.job_id)
         except Exception as e:
@@ -597,12 +606,14 @@ class Scheduler:
                 "total_runs": self._metrics.total_runs,
                 "successful_runs": self._metrics.successful_runs,
                 "failed_runs": self._metrics.failed_runs,
-                "last_run_at": self._metrics.last_run_at.isoformat()
-                if self._metrics.last_run_at
-                else None,
-                "last_failure_at": self._metrics.last_failure_at.isoformat()
-                if self._metrics.last_failure_at
-                else None,
+                "last_run_at": (
+                    self._metrics.last_run_at.isoformat() if self._metrics.last_run_at else None
+                ),
+                "last_failure_at": (
+                    self._metrics.last_failure_at.isoformat()
+                    if self._metrics.last_failure_at
+                    else None
+                ),
             }
 
     # -------------------------

@@ -220,7 +220,9 @@ class EventBus:
     def get_subscription_count(self, event_type: str) -> int:
         """Count subscribers for a specific event type (not including wildcard)."""
         with self._lock:
-            return len(self._legacy_subscribers.get(event_type, [])) + len(self._handlers.get(event_type, []))
+            return len(self._legacy_subscribers.get(event_type, [])) + len(
+                self._handlers.get(event_type, [])
+            )
 
     def get_stats(self) -> dict[str, Any]:
         """Get event bus statistics."""

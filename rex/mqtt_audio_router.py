@@ -179,6 +179,7 @@ class MqttAudioRouter:
         final_payload: dict[str, Any],
     ) -> None:
         start = session.created_at
+
         def duration_ms():
             return round((time.perf_counter() - start) * 1000, 2)
 

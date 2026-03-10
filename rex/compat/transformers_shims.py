@@ -56,6 +56,7 @@ def ensure_transformers_compatibility() -> None:
             # Last resort: try to import directly
             try:
                 from transformers.generation.beam_search import BeamSearchScorer
+
                 beam_search_scorer = BeamSearchScorer
                 logger.info("Found BeamSearchScorer via direct import")
             except ImportError:

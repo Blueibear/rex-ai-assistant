@@ -61,6 +61,7 @@ def load_config() -> dict[str, Any]:
     """
     try:
         from rex.config_manager import load_config as _load_config_impl
+
         return _load_config_impl()
     except Exception:
         return {}
@@ -222,7 +223,11 @@ class FollowupEngine:
                 title = getattr(event, "title", None)
                 event_id = getattr(event, "event_id", None)
 
-                if not isinstance(end_time, datetime) or not isinstance(title, str) or not isinstance(event_id, str):
+                if (
+                    not isinstance(end_time, datetime)
+                    or not isinstance(title, str)
+                    or not isinstance(event_id, str)
+                ):
                     continue
 
                 end_time_utc = _ensure_utc(end_time)
@@ -456,4 +461,3 @@ __all__ = [
     "set_followup_engine",
     "load_config",
 ]
-

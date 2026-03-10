@@ -436,11 +436,7 @@ class Workflow(BaseModel):
         """Get the set of idempotency keys for successfully executed steps."""
         keys: set[str] = set()
         for step in self.steps:
-            if (
-                step.idempotency_key
-                and step.result is not None
-                and step.result.success
-            ):
+            if step.idempotency_key and step.result is not None and step.result.success:
                 keys.add(step.idempotency_key)
         return keys
 
@@ -611,8 +607,10 @@ def _always_false(state: dict[str, Any]) -> bool:
 
 def _state_has_key(key: str) -> ConditionFunc:
     """Create a condition that checks if a key exists in state."""
+
     def check(state: dict[str, Any]) -> bool:
         return key in state
+
     return check
 
 

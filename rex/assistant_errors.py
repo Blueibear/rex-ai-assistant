@@ -47,7 +47,6 @@ class AuthenticationError(AssistantError):
     """Raised when API authentication fails."""
 
 
-
 __all__ = [
     "AssistantError",
     "ConfigurationError",

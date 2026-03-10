@@ -194,9 +194,7 @@ class Assistant:
 
             plugin_enrichments = await self._run_plugins(transcript)
             if plugin_enrichments:
-                completion = (
-                    f"{completion}\n\nAdditional info:\n" + "\n".join(plugin_enrichments)
-                )
+                completion = f"{completion}\n\nAdditional info:\n" + "\n".join(plugin_enrichments)
 
             if self._ha_bridge and self._ha_bridge.enabled:
                 completion = await loop.run_in_executor(
@@ -220,9 +218,7 @@ class Assistant:
         results: list[str] = []
         for spec in self._plugins:
             try:
-                result = await loop.run_in_executor(
-                    None, spec.plugin.process, transcript
-                )
+                result = await loop.run_in_executor(None, spec.plugin.process, transcript)
             except Exception as exc:  # pragma: no cover - defensive guard
                 logger.warning("Plugin %s failed: %s", spec.name, exc)
                 continue
@@ -295,4 +291,3 @@ class Assistant:
 
 
 __all__ = ["Assistant", "ConversationTurn", "PluginSpec"]
-

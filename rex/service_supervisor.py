@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ServiceHealthStatus:
     """Health status of a single service."""
+
     name: str
     is_running: bool
     last_checked: datetime = field(default_factory=datetime.utcnow)
@@ -33,6 +34,7 @@ class ServiceHealthStatus:
 @dataclass
 class ServiceMetrics:
     """Cumulative metrics for service supervision."""
+
     total_restarts: int = 0
     total_crashes: int = 0
     total_uptime_seconds: float = 0.0
@@ -241,9 +243,7 @@ class ServiceSupervisor:
             return
 
         # Calculate backoff
-        backoff_seconds = service.initial_backoff_seconds * (
-            service.backoff_multiplier ** attempt
-        )
+        backoff_seconds = service.initial_backoff_seconds * (service.backoff_multiplier**attempt)
         logger.info(
             f"Restarting service {service.name} in {backoff_seconds:.1f}s (attempt {attempt + 1}/{service.max_restart_attempts})"
         )
@@ -300,9 +300,7 @@ class ServiceSupervisor:
         """Run HTTP health check server."""
         try:
             handler = self._create_health_handler()
-            self._http_server = HTTPServer(
-                ("127.0.0.1", self.health_check_port), handler
-            )
+            self._http_server = HTTPServer(("127.0.0.1", self.health_check_port), handler)
             logger.info(f"Health server listening on port {self.health_check_port}")
             self._http_server.serve_forever()
         except Exception as e:
@@ -320,9 +318,7 @@ class ServiceSupervisor:
                     self.end_headers()
 
                     status = supervisor.get_all_status()
-                    all_healthy = all(
-                        s.is_running for s in status.values()
-                    )
+                    all_healthy = all(s.is_running for s in status.values())
 
                     response = {
                         "status": "healthy" if all_healthy else "degraded",
