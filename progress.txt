@@ -95,3 +95,11 @@
   - `from rex.computers.agent_server import main` imports cleanly
   - 157 CLI tests pass
 ---
+## Iteration 11 - US-011: Validate doctor command
+- What was implemented: Verified doctor command already works. No code changes needed.
+- Files changed: PRD.md, progress.txt
+- Learnings for future iterations:
+  - `python scripts/doctor.py` runs diagnostics: Python version, ffmpeg, CUDA, API keys, rate limiter
+  - Failures handled safely: warnings shown, summary at end, no crash
+  - 34 doctor tests pass
+---

@@ -171,10 +171,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want the doctor command to run diagnostics so that I can verify my installation is healthy.
 
 **Acceptance Criteria:**
-- [ ] doctor command runs
-- [ ] diagnostics printed
-- [ ] failures handled safely
-- [ ] Typecheck passes
+- [x] doctor command runs
+- [x] diagnostics printed
+- [x] failures handled safely
+- [x] Typecheck passes
 
 ---
 
