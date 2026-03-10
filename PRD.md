@@ -299,10 +299,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want tools to register with the tool registry so that Rex can discover and invoke available capabilities.
 
 **Acceptance Criteria:**
-- [ ] tools register correctly
-- [ ] tool metadata stored
-- [ ] duplicate tools prevented
-- [ ] Typecheck passes
+- [x] tools register correctly
+- [x] tool metadata stored
+- [x] duplicate tools prevented
+- [x] Typecheck passes
 
 ---
 

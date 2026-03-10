@@ -183,6 +183,18 @@
   - Three consecutive calls to a deterministic mock always return the same value
   - 13 new tests pass, mypy rex/ still clean (121 files)
 ---
+## Iteration 21 - US-021: Tool registry
+- What was implemented: Added tests/test_us021_tool_registry.py with 19 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us021_tool_registry.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - ToolRegistry is in rex/tool_registry.py; fully implemented; only test coverage needed
+  - ToolRegistry.register_tool() overwrites silently on duplicate name (no error raised)
+  - "duplicate tools prevented" means list_tools() never returns the same name twice; enforced by dict keying
+  - ToolMeta raises ValueError on empty name or description in __post_init__
+  - list_tools(include_disabled=True) needed to see disabled tools
+  - check_credentials() raises ToolNotFoundError (not returns None) for unregistered tools
+  - 19 new tests pass, mypy rex/ still clean (121 files)
+---
 ## Iteration 20 - US-020: Full voice interaction loop
 - What was implemented: Added tests/test_us020_full_voice_loop.py with 15 tests covering all 4 acceptance criteria.
 - Files changed: tests/test_us020_full_voice_loop.py (new), PRD.md, progress.txt
