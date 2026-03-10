@@ -222,10 +222,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want the local LLM provider to execute prompts so that Rex can run without cloud API dependencies.
 
 **Acceptance Criteria:**
-- [ ] local model reachable
-- [ ] prompt execution works
-- [ ] response returned
-- [ ] Typecheck passes
+- [x] local model reachable
+- [x] prompt execution works
+- [x] response returned
+- [x] Typecheck passes
 
 ---
 

@@ -138,3 +138,14 @@
   - monkeypatch.setattr(LanguageModel, "_ensure_anthropic_client", ...) works cleanly for test injection
   - mypy rex/ still passes with 121 source files
 ---
+## Iteration 15 - US-015: Local LLM provider
+- What was implemented: Added tests/test_us015_local_llm_provider.py with 10 tests covering OllamaStrategy and OfflineTransformersStrategy.
+- Files changed: tests/test_us015_local_llm_provider.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - OllamaStrategy and OfflineTransformersStrategy are in rex/llm_client.py but NOT re-exported from root llm_client.py compat shim
+  - Must import OllamaStrategy/OfflineTransformersStrategy from rex.llm_client directly
+  - OLLAMA_AVAILABLE is a module-level flag in rex.llm_client; monkeypatch target is "rex.llm_client.OLLAMA_AVAILABLE"
+  - OllamaStrategy uses import_module("ollama") at init; patch.dict(sys.modules, {"ollama": fake_module}) injects the fake cleanly
+  - OllamaStrategy error handling catches exceptions and returns a friendly string (does not raise)
+  - 10 new tests pass, mypy rex/ still clean (121 files)
+---
