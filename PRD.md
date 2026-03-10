@@ -234,10 +234,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want provider routing to be configurable so that Rex can switch between LLM backends based on user preference.
 
 **Acceptance Criteria:**
-- [ ] provider selection configurable
-- [ ] routing logic implemented
-- [ ] fallback behavior works
-- [ ] Typecheck passes
+- [x] provider selection configurable
+- [x] routing logic implemented
+- [x] fallback behavior works
+- [x] Typecheck passes
 
 ---
 

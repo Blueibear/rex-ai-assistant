@@ -149,3 +149,14 @@
   - OllamaStrategy error handling catches exceptions and returns a friendly string (does not raise)
   - 10 new tests pass, mypy rex/ still clean (121 files)
 ---
+## Iteration 16 - US-016: Provider routing
+- What was implemented: Added tests/test_us016_provider_routing.py with 11 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us016_provider_routing.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Strategy classes (AnthropicStrategy, OpenAIStrategy, OllamaStrategy, etc.) must be imported from rex.llm_client, NOT the compat shim llm_client.py
+  - LanguageModel can be imported from either llm_client (compat shim) or rex.llm_client
+  - Routing logic already fully implemented in LanguageModel._init_strategy(); only test coverage was needed
+  - monkeypatch on "rex.llm_client.TORCH_AVAILABLE" / "rex.llm_client.OLLAMA_AVAILABLE" works for toggling availability flags
+  - Provider override kwarg takes precedence over AppConfig.llm_provider
+  - 11 new tests pass, mypy rex/ still clean (121 files)
+---
