@@ -40,3 +40,12 @@
   - Rex has no dependency conflicts of its own
   - 1639 tests pass, 26 skipped
 ---
+## Iteration 5 - US-005: Verify editable install
+- What was implemented: Verified pip install -e . already works. No code changes needed.
+- Files changed: PRD.md (marked US-005 complete), progress.txt
+- Learnings for future iterations:
+  - `pip install -e .` builds editable wheel and installs successfully
+  - CLI entrypoints (rex, rex-config, rex-speak-api, rex-agent) available after editable install
+  - All 3 entrypoint modules import cleanly after editable install
+  - 1639 tests pass, 26 skipped
+---

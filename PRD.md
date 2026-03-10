@@ -99,9 +99,9 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want `pip install -e .` to succeed so that development workflows function correctly.
 
 **Acceptance Criteria:**
-- [ ] `pip install -e .` succeeds
-- [ ] CLI entrypoints load
-- [ ] Typecheck passes
+- [x] `pip install -e .` succeeds
+- [x] CLI entrypoints load
+- [x] Typecheck passes
 
 ---
 
