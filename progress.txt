@@ -49,3 +49,12 @@
   - All 3 entrypoint modules import cleanly after editable install
   - 1639 tests pass, 26 skipped
 ---
+## Iteration 6 - US-006: Validate optional extras
+- What was implemented: Verified all optional extras install cleanly. No code changes needed.
+- Files changed: PRD.md (marked US-006 complete), progress.txt
+- Learnings for future iterations:
+  - `.[test]`, `.[sms]`, `.[audio]`, `.[devtools]` extras all install successfully
+  - `ml` and `full` extras have heavy deps (torch, TTS) already installed in environment
+  - Missing extras handled gracefully: test_optional_voice_id_imports.py and test_voice_loop_optional_imports.py cover ImportError guards (14 tests pass)
+  - 1639 tests pass, 26 skipped
+---

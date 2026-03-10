@@ -110,10 +110,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want optional extras to install cleanly so that users can opt into additional capabilities without breaking the base install.
 
 **Acceptance Criteria:**
-- [ ] base install works without extras
-- [ ] extras install successfully
-- [ ] missing extras handled gracefully
-- [ ] Typecheck passes
+- [x] base install works without extras
+- [x] extras install successfully
+- [x] missing extras handled gracefully
+- [x] Typecheck passes
 
 ---
 
