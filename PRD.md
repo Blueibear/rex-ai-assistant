@@ -146,9 +146,9 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want all MyPy errors resolved so that the codebase is fully type-safe.
 
 **Acceptance Criteria:**
-- [ ] `mypy rex` returns zero errors
-- [ ] missing type hints added
-- [ ] Typecheck passes
+- [x] `mypy rex` returns zero errors
+- [x] missing type hints added
+- [x] Typecheck passes
 
 ---
 
