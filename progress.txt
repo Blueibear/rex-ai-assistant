@@ -58,3 +58,12 @@
   - Missing extras handled gracefully: test_optional_voice_id_imports.py and test_voice_loop_optional_imports.py cover ImportError guards (14 tests pass)
   - 1639 tests pass, 26 skipped
 ---
+## Iteration 7 - US-007: Fix Ruff violations
+- What was implemented: Applied ruff --fix and --unsafe-fixes to auto-fix 353 violations, then manually fixed remaining 7.
+- Files changed: 44 rex/ files (auto-fix), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `ruff check rex --fix` fixes safe violations; `--unsafe-fixes --fix` fixes UP045/UP006/UP035 type annotation modernizations
+  - test_repo_integrity.py and test_repository_integrity.py check `git status --porcelain` for modified files - MUST commit before running tests or they fail
+  - Remaining 7 manual fixes: F811 (duplicate class+alias), F401 (intentional import, use noqa), UP035 (remove unused List import), B023 (capture loop vars as defaults), E402 (noqa for post-function imports)
+  - 1639 tests pass, 26 skipped
+---

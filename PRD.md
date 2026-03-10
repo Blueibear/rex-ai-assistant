@@ -124,9 +124,9 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want all Ruff lint violations resolved so that the codebase meets code quality standards.
 
 **Acceptance Criteria:**
-- [ ] `ruff check rex` returns zero errors
-- [ ] unnecessary ignores removed
-- [ ] Typecheck passes
+- [x] `ruff check rex` returns zero errors
+- [x] unnecessary ignores removed
+- [x] Typecheck passes
 
 ---
 
