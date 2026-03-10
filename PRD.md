@@ -61,10 +61,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want all package imports to succeed so that the codebase loads cleanly without errors.
 
 **Acceptance Criteria:**
-- [ ] `import rex` succeeds
-- [ ] no circular imports occur
-- [ ] CLI loads without runtime error
-- [ ] Typecheck passes
+- [x] `import rex` succeeds
+- [x] no circular imports occur
+- [x] CLI loads without runtime error
+- [x] Typecheck passes
 
 ---
 

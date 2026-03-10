@@ -10,3 +10,13 @@
   - Pre-existing mypy errors exist in rex/ package (unrelated to test isolation) - these are for US-009
   - The "Typecheck passes" criterion per story means: no new type errors introduced by that story's changes
 ---
+## Iteration 2 - US-002: Validate package imports
+- What was implemented: Verified package imports already work. No code changes needed.
+- Files changed: PRD.md (marked US-002 complete), progress.txt
+- Learnings for future iterations:
+  - `import rex` succeeds cleanly
+  - All rex.* submodules import without circular dependency errors
+  - CLI entrypoints (rex.cli, rex.config, rex.computers.agent_server) import cleanly
+  - asyncio-mqtt deprecation warning is cosmetic only; does not affect imports
+  - Legacy env var OLLAMA_HOST warning is cosmetic; safe to ignore in tests
+---
