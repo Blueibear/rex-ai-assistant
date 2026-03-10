@@ -160,3 +160,26 @@
   - Provider override kwarg takes precedence over AppConfig.llm_provider
   - 11 new tests pass, mypy rex/ still clean (121 files)
 ---
+## Iteration 17 - US-017: Wake word detection
+- What was implemented: Added tests/test_us017_wake_word_detection.py with 12 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us017_wake_word_detection.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - WakeWordListener and detect_wakeword are fully implemented; only test coverage was needed
+  - WakeWordListener._running is False before listen() is called, True during async generator execution
+  - detect_wakeword uses >= threshold (not >), so score exactly at threshold DOES trigger
+  - To test stop(), create an asyncio.Task and call listener.stop() after yielding to event loop
+  - Common speech tests: parametrize with low scores (0.0, 0.05, 0.1, 0.25, 0.49) all below 0.5 threshold
+  - 12 new tests pass, mypy rex/ still clean (121 files)
+---
+## Iteration 18 - US-018: Speech to text pipeline
+- What was implemented: Added tests/test_us018_speech_to_text.py with 13 tests covering all 4 acceptance criteria.
+- Files changed: tests/test_us018_speech_to_text.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - SpeechToText is in rex/voice_loop.py; only test coverage was needed (fully implemented)
+  - patch("rex.voice_loop._lazy_import_whisper", return_value=fake_whisper) cleanly injects fake Whisper module
+  - SpeechToText.transcribe() strips whitespace from model output via .strip()
+  - SpeechToTextError raised when whisper=None (not installed) or model.transcribe() raises
+  - Microphone capture tested via numpy frombuffer/astype patterns (no sounddevice dependency needed)
+  - Three consecutive calls to a deterministic mock always return the same value
+  - 13 new tests pass, mypy rex/ still clean (121 files)
+---

@@ -260,10 +260,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want speech captured and transcribed so that I can interact with Rex by voice.
 
 **Acceptance Criteria:**
-- [ ] microphone audio captured
-- [ ] audio converted to transcript
-- [ ] transcript matches spoken test phrase on at least 3 consecutive attempts
-- [ ] Typecheck passes
+- [x] microphone audio captured
+- [x] audio converted to transcript
+- [x] transcript matches spoken test phrase on at least 3 consecutive attempts
+- [x] Typecheck passes
 
 ---
 
