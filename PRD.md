@@ -1,0 +1,1036 @@
+# PRD: Rex AI Assistant Completion
+
+IMPORTANT
+
+Stories must remain atomic.
+
+If a story becomes too large, it must be split into smaller stories before implementation.
+
+A story is complete only when all acceptance criteria checkboxes are checked.
+
+---
+
+## Introduction
+
+Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM support, OS automation, smart home integration, and a web-based dashboard. This PRD covers the work required to bring the Rex codebase from its current state to a fully functional, installable, and tested system — across repository stability, code quality, runtime validation, integrations, and UI.
+
+---
+
+## Goals
+
+- Establish a stable, importable, installable codebase with clean tests and no runtime errors
+- Provide reliable CLI access to all Rex capabilities
+- Enable voice interaction via wake word detection, speech-to-text, and text-to-speech
+- Support multiple LLM providers (OpenAI, Anthropic, local) with configurable routing
+- Deliver a web-based dashboard with chat and voice interfaces
+- Integrate with Home Assistant, Plex, GitHub, email, and calendar
+- Support extensibility through a plugin architecture and workflow engine
+- Enable OS-level automation including application launching and browser control
+- Maintain queryable long-term memory and a local knowledge base
+- Ship with CI, documentation, and enforced code quality standards
+
+---
+
+## Non-Goals
+
+- No mobile app interface
+- No multi-user account management or authentication beyond the dashboard login
+- No cloud hosting, deployment pipelines, or container orchestration
+- No third-party plugin marketplace or plugin distribution
+- No real-time collaboration or shared sessions between users
+- No billing, usage metering, or API rate limiting
+
+---
+
+# PHASE 1 — Repository Stability
+
+### US-001: Restore test isolation
+
+**Description:** As a developer, I want tests to use temporary directories so that running the test suite does not modify tracked repository files.
+
+**Acceptance Criteria:**
+- [x] tests use temporary directories
+- [x] repository files remain unchanged after pytest
+- [x] git status remains clean
+- [x] Typecheck passes
+
+---
+
+### US-002: Validate package imports
+
+**Description:** As a developer, I want all package imports to succeed so that the codebase loads cleanly without errors.
+
+**Acceptance Criteria:**
+- [ ] `import rex` succeeds
+- [ ] no circular imports occur
+- [ ] CLI loads without runtime error
+- [ ] Typecheck passes
+
+---
+
+### US-003: Fix planner registry mismatch
+
+**Description:** As a developer, I want the planner registry to match the router interface so that the planner can be invoked without runtime errors.
+
+**Acceptance Criteria:**
+- [ ] planner imports successfully
+- [ ] registry interfaces match router usage
+- [ ] runtime errors removed
+- [ ] Typecheck passes
+
+---
+
+# PHASE 2 — Install Reliability
+
+### US-004: Verify standard installation
+
+**Description:** As a developer, I want `pip install .` to succeed so that users can install Rex without manual intervention.
+
+**Acceptance Criteria:**
+- [ ] `pip install .` succeeds
+- [ ] CLI entrypoints available
+- [ ] dependency conflicts resolved
+- [ ] Typecheck passes
+
+---
+
+### US-005: Verify editable install
+
+**Description:** As a developer, I want `pip install -e .` to succeed so that development workflows function correctly.
+
+**Acceptance Criteria:**
+- [ ] `pip install -e .` succeeds
+- [ ] CLI entrypoints load
+- [ ] Typecheck passes
+
+---
+
+### US-006: Validate optional extras
+
+**Description:** As a developer, I want optional extras to install cleanly so that users can opt into additional capabilities without breaking the base install.
+
+**Acceptance Criteria:**
+- [ ] base install works without extras
+- [ ] extras install successfully
+- [ ] missing extras handled gracefully
+- [ ] Typecheck passes
+
+---
+
+# PHASE 3 — Code Quality
+
+### US-007: Fix Ruff violations
+
+**Description:** As a developer, I want all Ruff lint violations resolved so that the codebase meets code quality standards.
+
+**Acceptance Criteria:**
+- [ ] `ruff check rex` returns zero errors
+- [ ] unnecessary ignores removed
+- [ ] Typecheck passes
+
+---
+
+### US-008: Apply Black formatting
+
+**Description:** As a developer, I want the codebase formatted with Black so that code style is consistent across all files.
+
+**Acceptance Criteria:**
+- [ ] code formatted with Black
+- [ ] `black --check .` passes
+- [ ] Typecheck passes
+
+---
+
+### US-009: Fix MyPy errors
+
+**Description:** As a developer, I want all MyPy errors resolved so that the codebase is fully type-safe.
+
+**Acceptance Criteria:**
+- [ ] `mypy rex` returns zero errors
+- [ ] missing type hints added
+- [ ] Typecheck passes
+
+---
+
+# PHASE 4 — CLI Runtime
+
+### US-010: Validate CLI entrypoints
+
+**Description:** As a user, I want all CLI entrypoints to launch successfully so that I can access Rex from the command line.
+
+**Acceptance Criteria:**
+- [ ] `rex` CLI launches
+- [ ] `rex-config` launches
+- [ ] `rex-agent` launches
+- [ ] Typecheck passes
+
+---
+
+### US-011: Validate doctor command
+
+**Description:** As a user, I want the doctor command to run diagnostics so that I can verify my installation is healthy.
+
+**Acceptance Criteria:**
+- [ ] doctor command runs
+- [ ] diagnostics printed
+- [ ] failures handled safely
+- [ ] Typecheck passes
+
+---
+
+### US-012: Validate configuration loading
+
+**Description:** As a user, I want configuration to load from file and environment variables so that I can customize Rex behavior without code changes.
+
+**Acceptance Criteria:**
+- [ ] config loads from config file
+- [ ] environment overrides supported
+- [ ] missing config handled safely
+- [ ] Typecheck passes
+
+---
+
+# PHASE 5 — LLM Providers
+
+### US-013: OpenAI provider
+
+**Description:** As a developer, I want the OpenAI provider to execute prompts reliably so that Rex can generate responses using OpenAI models.
+
+**Acceptance Criteria:**
+- [ ] provider initializes
+- [ ] prompt execution works
+- [ ] response returned
+- [ ] failure handled gracefully
+- [ ] Typecheck passes
+
+---
+
+### US-014: Anthropic provider
+
+**Description:** As a developer, I want the Anthropic provider to execute prompts reliably so that Rex can generate responses using Claude models.
+
+**Acceptance Criteria:**
+- [ ] provider initializes
+- [ ] prompt execution works
+- [ ] response returned
+- [ ] Typecheck passes
+
+---
+
+### US-015: Local LLM provider
+
+**Description:** As a developer, I want the local LLM provider to execute prompts so that Rex can run without cloud API dependencies.
+
+**Acceptance Criteria:**
+- [ ] local model reachable
+- [ ] prompt execution works
+- [ ] response returned
+- [ ] Typecheck passes
+
+---
+
+### US-016: Provider routing
+
+**Description:** As a developer, I want provider routing to be configurable so that Rex can switch between LLM backends based on user preference.
+
+**Acceptance Criteria:**
+- [ ] provider selection configurable
+- [ ] routing logic implemented
+- [ ] fallback behavior works
+- [ ] Typecheck passes
+
+---
+
+# PHASE 6 — Voice Assistant
+
+### US-017: Wake word detection
+
+**Description:** As a user, I want wake word detection to trigger listening so that I can activate Rex hands-free.
+
+**Acceptance Criteria:**
+- [ ] wake word detection triggers listening
+- [ ] microphone stream initializes
+- [ ] wake word does not trigger on common conversational speech
+- [ ] Typecheck passes
+
+---
+
+### US-018: Speech to text pipeline
+
+**Description:** As a user, I want speech captured and transcribed so that I can interact with Rex by voice.
+
+**Acceptance Criteria:**
+- [ ] microphone audio captured
+- [ ] audio converted to transcript
+- [ ] transcript matches spoken test phrase on at least 3 consecutive attempts
+- [ ] Typecheck passes
+
+---
+
+### US-019: Text to speech pipeline
+
+**Description:** As a user, I want Rex responses spoken aloud so that I receive audio feedback without looking at a screen.
+
+**Acceptance Criteria:**
+- [ ] TTS engine loads
+- [ ] audio generated
+- [ ] audio plays automatically
+- [ ] Typecheck passes
+
+---
+
+### US-020: Full voice interaction loop
+
+**Description:** As a user, I want to speak to Rex and receive a spoken response so that I can have a complete voice-driven interaction.
+
+**Acceptance Criteria:**
+- [ ] wake word triggers listening
+- [ ] STT produces transcript
+- [ ] LLM response generated
+- [ ] response spoken aloud
+- [ ] Typecheck passes
+
+---
+
+# PHASE 7 — Tool and Capability Framework
+
+### US-021: Tool registry
+
+**Description:** As a developer, I want tools to register with the tool registry so that Rex can discover and invoke available capabilities.
+
+**Acceptance Criteria:**
+- [ ] tools register correctly
+- [ ] tool metadata stored
+- [ ] duplicate tools prevented
+- [ ] Typecheck passes
+
+---
+
+### US-022: Tool router
+
+**Description:** As a developer, I want tool routing to dispatch execution correctly so that user requests reach the appropriate tool.
+
+**Acceptance Criteria:**
+- [ ] tools routed correctly
+- [ ] execution dispatched
+- [ ] errors handled safely
+- [ ] Typecheck passes
+
+---
+
+### US-023: Capability discovery
+
+**Description:** As a user, I want Rex to discover and expose its capabilities so that I know what actions are available.
+
+**Acceptance Criteria:**
+- [ ] capabilities enumerated
+- [ ] tools discoverable
+- [ ] capability metadata exposed
+- [ ] Typecheck passes
+
+---
+
+# PHASE 8 — Planner and Reasoning
+
+### US-024: Planner initialization
+
+**Description:** As a developer, I want the planner to initialize successfully so that multi-step reasoning is available.
+
+**Acceptance Criteria:**
+- [ ] planner loads successfully
+- [ ] dependencies resolved
+- [ ] planner callable
+- [ ] Typecheck passes
+
+---
+
+### US-025: Planner task execution
+
+**Description:** As a user, I want the planner to accept tasks and execute tool calls so that Rex can complete multi-step actions autonomously.
+
+**Acceptance Criteria:**
+- [ ] tasks accepted
+- [ ] task plan generated
+- [ ] tool calls executed
+- [ ] Typecheck passes
+
+---
+
+# PHASE 9 — Workflow Engine
+
+### US-026: Workflow definitions
+
+**Description:** As a developer, I want workflow definitions stored and validated so that automated sequences can be reliably triggered.
+
+**Acceptance Criteria:**
+- [ ] workflows defined
+- [ ] schema validated
+- [ ] workflows stored
+- [ ] Typecheck passes
+
+---
+
+### US-027: Workflow runner
+
+**Description:** As a user, I want workflows to execute step by step so that Rex can complete multi-stage automations.
+
+**Acceptance Criteria:**
+- [ ] workflows executed
+- [ ] step transitions work
+- [ ] errors handled
+- [ ] Typecheck passes
+
+---
+
+# PHASE 10 — Event System
+
+### US-028: Event bus
+
+**Description:** As a developer, I want an event bus to publish events and notify subscribers so that system components communicate without tight coupling.
+
+**Acceptance Criteria:**
+- [ ] events published
+- [ ] subscribers receive events
+- [ ] event propagation works
+- [ ] Typecheck passes
+
+---
+
+### US-029: Event triggers
+
+**Description:** As a developer, I want events to trigger workflows so that Rex can react to system events automatically.
+
+**Acceptance Criteria:**
+- [ ] triggers registered
+- [ ] events trigger workflows
+- [ ] errors logged
+- [ ] Typecheck passes
+
+---
+
+# PHASE 11 — Notification System
+
+### US-030: Notification routing
+
+**Description:** As a developer, I want notifications routed to the correct destination so that users receive alerts through their preferred channel.
+
+**Acceptance Criteria:**
+- [ ] notifications generated
+- [ ] routing rules applied
+- [ ] delivery attempted
+- [ ] Typecheck passes
+
+---
+
+### US-031: Dashboard notifications
+
+**Description:** As a user, I want dashboard notifications streamed in real time so that I see alerts without refreshing the page.
+
+**Acceptance Criteria:**
+- [ ] SSE endpoint works
+- [ ] notifications streamed
+- [ ] disconnect handled
+- [ ] Typecheck passes
+
+---
+
+# PHASE 12 — Memory System
+
+### US-032: Memory storage
+
+**Description:** As a user, I want Rex to persist memories so that context from previous interactions is available in future sessions.
+
+**Acceptance Criteria:**
+- [ ] memory records saved
+- [ ] storage persistent
+- [ ] retrieval possible
+- [ ] Typecheck passes
+
+---
+
+### US-033: User profiles
+
+**Description:** As a user, I want Rex to store and retrieve my preferences so that it adapts to my personal configuration.
+
+**Acceptance Criteria:**
+- [ ] user profiles created
+- [ ] preferences stored
+- [ ] retrieval works
+- [ ] Typecheck passes
+
+---
+
+# PHASE 13 — Plugin Architecture
+
+### US-034: Plugin discovery
+
+**Description:** As a developer, I want plugins discovered automatically from the plugin folder so that capabilities can be added without modifying core code.
+
+**Acceptance Criteria:**
+- [ ] plugin loader scans plugin folder
+- [ ] plugins detected
+- [ ] plugin metadata loaded
+- [ ] Typecheck passes
+
+---
+
+### US-035: Plugin execution
+
+**Description:** As a developer, I want plugin tools to be callable and isolated so that plugin failures do not crash the assistant.
+
+**Acceptance Criteria:**
+- [ ] plugin tools callable
+- [ ] failures isolated
+- [ ] plugins unload safely
+- [ ] Typecheck passes
+
+---
+
+# PHASE 14 — Automation Engine
+
+### US-036: Scheduler
+
+**Description:** As a user, I want tasks scheduled and executed automatically so that Rex acts without requiring manual triggers.
+
+**Acceptance Criteria:**
+- [ ] scheduler initializes
+- [ ] tasks scheduled
+- [ ] tasks executed
+- [ ] Typecheck passes
+
+---
+
+### US-037: Automation registry
+
+**Description:** As a developer, I want automations stored and retrievable so that scheduled tasks persist across restarts.
+
+**Acceptance Criteria:**
+- [ ] automations stored
+- [ ] automations retrieved
+- [ ] persistence works
+- [ ] Typecheck passes
+
+---
+
+# PHASE 15 — OS Automation
+
+### US-038: Application launching
+
+**Description:** As a user, I want Rex to launch applications on my behalf so that I can control my desktop by voice or text.
+
+**Acceptance Criteria:**
+- [ ] applications launch
+- [ ] execution verified
+- [ ] failures handled
+- [ ] Typecheck passes
+
+---
+
+### US-039: Browser automation
+
+**Description:** As a user, I want Rex to automate browser actions so that I can delegate web tasks.
+
+**Acceptance Criteria:**
+- [ ] browser launches
+- [ ] navigation works
+- [ ] page actions executed
+- [ ] Typecheck passes
+
+---
+
+# PHASE 16 — Knowledge Base
+
+### US-040: Knowledge ingestion
+
+**Description:** As a developer, I want documents ingested and indexed so that Rex can answer questions from local knowledge.
+
+**Acceptance Criteria:**
+- [ ] documents ingested
+- [ ] data indexed
+- [ ] query containing a keyword from an indexed document returns that document in results
+- [ ] Typecheck passes
+
+---
+
+### US-041: Knowledge queries
+
+**Description:** As a user, I want to query the knowledge base and receive results so that Rex can surface stored information.
+
+**Acceptance Criteria:**
+- [ ] queries executed
+- [ ] query returns at least one result when indexed content contains the queried term
+- [ ] errors handled
+- [ ] Typecheck passes
+
+---
+
+# PHASE 17 — Home Assistant Integration
+
+### US-042: Home Assistant API connection
+
+**Description:** As a developer, I want Rex to connect to the Home Assistant API so that smart home devices are accessible.
+
+**Acceptance Criteria:**
+- [ ] API reachable
+- [ ] authentication works
+- [ ] entities retrieved
+- [ ] Typecheck passes
+
+---
+
+### US-043: Device control
+
+**Description:** As a user, I want Rex to control lights and switches so that I can manage my home by voice.
+
+**Acceptance Criteria:**
+- [ ] lights controlled
+- [ ] switches controlled
+- [ ] responses returned
+- [ ] Typecheck passes
+
+---
+
+# PHASE 18 — Messaging
+
+### US-044: Email integration
+
+**Description:** As a user, I want Rex to send email on my behalf so that I can compose and send messages by voice or text.
+
+**Acceptance Criteria:**
+- [ ] email backend connects
+- [ ] send works
+- [ ] errors handled
+- [ ] Typecheck passes
+
+---
+
+### US-045: Calendar integration
+
+**Description:** As a user, I want Rex to retrieve and create calendar events so that I can manage my schedule through conversation.
+
+**Acceptance Criteria:**
+- [ ] events retrieved
+- [ ] events created
+- [ ] errors handled
+- [ ] Typecheck passes
+
+---
+
+# PHASE 19 — Dashboard
+
+### US-046: Dashboard server
+
+**Description:** As a developer, I want the dashboard server to start and serve a health endpoint so that the UI has a reliable backend.
+
+**Acceptance Criteria:**
+- [ ] server starts
+- [ ] API reachable
+- [ ] health endpoint works
+- [ ] Typecheck passes
+
+---
+
+### US-047: Dashboard authentication
+
+**Description:** As a user, I want to log into the dashboard so that my data and configuration are protected.
+
+**Acceptance Criteria:**
+- [ ] login works
+- [ ] sessions created
+- [ ] invalid logins rejected
+- [ ] Typecheck passes
+
+---
+
+# PHASE 20 — Plex Integration
+
+### US-048: Plex API client
+
+**Description:** As a developer, I want Rex to connect to the Plex API so that media library data is accessible.
+
+**Acceptance Criteria:**
+- [ ] Plex reachable
+- [ ] libraries retrieved
+- [ ] authentication works
+- [ ] Typecheck passes
+
+---
+
+### US-049: Plex playback control
+
+**Description:** As a user, I want Rex to control Plex playback so that I can manage media by voice.
+
+**Acceptance Criteria:**
+- [ ] play command works
+- [ ] pause command works
+- [ ] stop command works
+- [ ] Typecheck passes
+
+---
+
+# PHASE 21 — Web UI
+
+### US-050: Web UI server
+
+**Description:** As a user, I want the web UI to load and render so that I can access Rex from a browser.
+
+**Acceptance Criteria:**
+- [ ] UI server starts
+- [ ] UI accessible
+- [ ] interface renders
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-051: Chat interface
+
+**Description:** As a user, I want to send messages and see responses in the chat interface so that I can interact with Rex without a terminal.
+
+**Acceptance Criteria:**
+- [ ] messages sent
+- [ ] responses displayed
+- [ ] session maintained
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-052: Voice interface
+
+**Description:** As a user, I want to speak through the web UI and hear responses so that I have a browser-based voice interface.
+
+**Acceptance Criteria:**
+- [ ] microphone input works
+- [ ] audio sent to backend
+- [ ] response audio plays
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+# PHASE 22 — Security
+
+### US-053: Secret management
+
+**Description:** As a developer, I want secrets loaded from the environment so that credentials are never stored in the repository.
+
+**Acceptance Criteria:**
+- [ ] secrets loaded from environment
+- [ ] secrets not stored in repo
+- [ ] missing secrets detected
+- [ ] Typecheck passes
+
+---
+
+### US-054: API key validation
+
+**Description:** As a developer, I want API keys validated on each request so that unauthorized access is rejected.
+
+**Acceptance Criteria:**
+- [ ] API keys validated
+- [ ] unauthorized rejected
+- [ ] failures logged
+- [ ] Typecheck passes
+
+---
+
+# PHASE 23 — GitHub Integration
+
+### US-055: GitHub API client
+
+**Description:** As a developer, I want Rex to connect to the GitHub API so that repository data is accessible.
+
+**Acceptance Criteria:**
+- [ ] GitHub reachable
+- [ ] repos listed
+- [ ] authentication works
+- [ ] Typecheck passes
+
+---
+
+### US-056: GitHub actions
+
+**Description:** As a user, I want Rex to retrieve issues and trigger commits so that I can interact with GitHub by voice or text.
+
+**Acceptance Criteria:**
+- [ ] issues retrieved
+- [ ] commits triggered
+- [ ] errors handled
+- [ ] Typecheck passes
+
+---
+
+# PHASE 24 — CI and Documentation
+
+### US-057: CI pipeline
+
+**Description:** As a developer, I want CI to run lint, typecheck, and tests on every PR so that regressions are caught before merging.
+
+**Acceptance Criteria:**
+- [ ] CI runs on PR
+- [ ] lint executed
+- [ ] typecheck executed
+- [ ] tests executed
+- [ ] Typecheck passes
+
+---
+
+### US-058: Documentation updates
+
+**Description:** As a developer, I want documentation updated to match the current codebase so that developers can onboard without digging through source code.
+
+**Acceptance Criteria:**
+- [ ] README updated
+- [ ] install docs updated
+- [ ] CLI usage documented
+- [ ] developer docs updated
+- [ ] Typecheck passes
+
+---
+
+# PHASE 25 — Tool Execution Validation
+
+### US-059: Tool execution logging
+
+**Description:** As a developer, I want tool executions logged with timestamps and parameters so that I can audit and debug tool behavior.
+
+**Acceptance Criteria:**
+- [ ] tool executions logged
+- [ ] execution timestamps recorded
+- [ ] tool parameters stored
+- [ ] Typecheck passes
+
+---
+
+### US-060: Tool execution error handling
+
+**Description:** As a developer, I want tool failures captured and recorded so that the assistant remains stable when a tool errors.
+
+**Acceptance Criteria:**
+- [ ] tool failures captured
+- [ ] failure reason recorded
+- [ ] execution does not crash assistant
+- [ ] Typecheck passes
+
+---
+
+# PHASE 26 — Planner Improvements
+
+### US-061: Planner prompt generation
+
+**Description:** As a developer, I want the planner to build prompts that include the task description and available tools so that the LLM has full context for reasoning.
+
+**Acceptance Criteria:**
+- [ ] planner builds prompts correctly
+- [ ] task description included
+- [ ] available tools listed
+- [ ] Typecheck passes
+
+---
+
+### US-062: Planner tool selection
+
+**Description:** As a developer, I want the planner to select the most appropriate tool from multiple options so that tasks are executed efficiently.
+
+**Acceptance Criteria:**
+- [ ] planner selects appropriate tools
+- [ ] multiple tool options supported
+- [ ] tool selection validated
+- [ ] Typecheck passes
+
+---
+
+### US-063: Planner fallback behavior
+
+**Description:** As a developer, I want the planner to fall back gracefully when a tool fails so that multi-step tasks recover where possible.
+
+**Acceptance Criteria:**
+- [ ] planner detects tool failure
+- [ ] alternate strategy attempted
+- [ ] errors logged
+- [ ] Typecheck passes
+
+---
+
+# PHASE 27 — Workflow Enhancements
+
+### US-064: Workflow state persistence
+
+**Description:** As a developer, I want workflow state saved and restored across restarts so that long-running workflows survive interruptions.
+
+**Acceptance Criteria:**
+- [ ] workflow state saved
+- [ ] state restored after restart
+- [ ] step progress tracked
+- [ ] Typecheck passes
+
+---
+
+### US-065: Workflow step validation
+
+**Description:** As a developer, I want workflow step inputs validated before execution so that invalid configurations are rejected early.
+
+**Acceptance Criteria:**
+- [ ] step inputs validated
+- [ ] invalid steps rejected
+- [ ] workflow execution halted on failure
+- [ ] Typecheck passes
+
+---
+
+# PHASE 28 — Event System Reliability
+
+### US-066: Event subscription validation
+
+**Description:** As a developer, I want event subscribers managed safely so that duplicate subscriptions are prevented and removal is supported.
+
+**Acceptance Criteria:**
+- [ ] subscribers registered
+- [ ] subscriber removal supported
+- [ ] duplicate subscriptions prevented
+- [ ] Typecheck passes
+
+---
+
+### US-067: Event queue stability
+
+**Description:** As a developer, I want the event queue to handle load safely so that events are not lost and processing remains sequential.
+
+**Acceptance Criteria:**
+- [ ] events queued safely
+- [ ] queue overflow prevented
+- [ ] events processed sequentially
+- [ ] Typecheck passes
+
+---
+
+# PHASE 29 — Notification Delivery
+
+### US-068: Notification persistence
+
+**Description:** As a developer, I want notifications persisted to the database with timestamps so that delivery history is auditable.
+
+**Acceptance Criteria:**
+- [ ] notifications stored in database
+- [ ] notifications retrieved
+- [ ] timestamps recorded
+- [ ] Typecheck passes
+
+---
+
+### US-069: Notification retry logic
+
+**Description:** As a developer, I want failed notifications retried with a limited attempt count so that transient failures recover without infinite loops.
+
+**Acceptance Criteria:**
+- [ ] failed notifications retried
+- [ ] retry attempts limited
+- [ ] failures logged
+- [ ] Typecheck passes
+
+---
+
+# PHASE 30 — Memory Retrieval
+
+### US-070: Memory search
+
+**Description:** As a user, I want to search memory entries and receive results so that past context is retrievable on demand.
+
+**Acceptance Criteria:**
+- [ ] memory entries searchable
+- [ ] search for a stored memory keyword returns that memory entry in results
+- [ ] query failures handled
+- [ ] Typecheck passes
+
+---
+
+### US-071: Memory cleanup
+
+**Description:** As a developer, I want expired memories cleaned up on a schedule so that the memory store remains lean and performant.
+
+**Acceptance Criteria:**
+- [ ] expired memories removed
+- [ ] cleanup scheduled
+- [ ] memory store compacted
+- [ ] Typecheck passes
+
+---
+
+# PHASE 31 — OS Automation Reliability
+
+### US-072: Process monitoring
+
+**Description:** As a developer, I want launched processes monitored for crashes so that Rex can detect and restart failed processes.
+
+**Acceptance Criteria:**
+- [ ] launched processes monitored
+- [ ] crashes detected
+- [ ] process restart supported
+- [ ] Typecheck passes
+
+---
+
+### US-073: File system safety
+
+**Description:** As a developer, I want file system operations validated and unsafe paths rejected so that OS automation cannot cause unintended damage.
+
+**Acceptance Criteria:**
+- [ ] file operations validated
+- [ ] unsafe paths rejected
+- [ ] errors handled
+- [ ] Typecheck passes
+
+---
+
+# PHASE 32 — Knowledge Base Improvements
+
+### US-074: Document indexing
+
+**Description:** As a developer, I want documents indexed and the index stored persistently so that knowledge is available after restart.
+
+**Acceptance Criteria:**
+- [ ] documents indexed
+- [ ] index stored
+- [ ] indexing failures logged
+- [ ] Typecheck passes
+
+---
+
+### US-075: Knowledge refresh
+
+**Description:** As a developer, I want the knowledge index refreshed when documents change so that search results stay current.
+
+**Acceptance Criteria:**
+- [ ] documents updated
+- [ ] index refreshed
+- [ ] stale entries removed
+- [ ] Typecheck passes
+
+---
+
+# PHASE 33 — Web UI Reliability
+
+### US-076: UI error handling
+
+**Description:** As a user, I want frontend errors displayed clearly and backend errors logged so that problems are diagnosable without digging through server output.
+
+**Acceptance Criteria:**
+- [ ] frontend errors detected
+- [ ] error messages displayed
+- [ ] backend errors logged
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-077: UI reconnect behavior
+
+**Description:** As a user, I want the UI to reconnect automatically after a connection loss so that temporary network issues do not require a manual page refresh.
+
+**Acceptance Criteria:**
+- [ ] SSE reconnect supported
+- [ ] reconnect attempts limited
+- [ ] UI recovers after connection loss
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser

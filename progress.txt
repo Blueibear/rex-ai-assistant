@@ -1,0 +1,12 @@
+## Iteration 1 - US-001: Restore test isolation
+- What was implemented: Verified test isolation was already in place. No code changes needed.
+- Files changed: PRD.md (marked US-001 complete), progress.txt (this file)
+- Learnings for future iterations:
+  - All 1639 tests pass (26 skipped) with clean git status after full run
+  - Tests already use pytest tmp_path and tempfile.TemporaryDirectory() for all file I/O
+  - conftest.py is minimal: adds root to sys.path, sets REX_TESTING=true, creates tests/fixtures/ dir
+  - conftest.py passes mypy cleanly with --ignore-missing-imports
+  - pytest 7.4 was installed; upgraded to 9.0.2 to satisfy pyproject.toml minversion=8.0
+  - Pre-existing mypy errors exist in rex/ package (unrelated to test isolation) - these are for US-009
+  - The "Typecheck passes" criterion per story means: no new type errors introduced by that story's changes
+---
