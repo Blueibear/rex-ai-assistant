@@ -183,10 +183,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want configuration to load from file and environment variables so that I can customize Rex behavior without code changes.
 
 **Acceptance Criteria:**
-- [ ] config loads from config file
-- [ ] environment overrides supported
-- [ ] missing config handled safely
-- [ ] Typecheck passes
+- [x] config loads from config file
+- [x] environment overrides supported
+- [x] missing config handled safely
+- [x] Typecheck passes
 
 ---
 
