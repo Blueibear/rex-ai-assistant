@@ -87,10 +87,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want `pip install .` to succeed so that users can install Rex without manual intervention.
 
 **Acceptance Criteria:**
-- [ ] `pip install .` succeeds
-- [ ] CLI entrypoints available
-- [ ] dependency conflicts resolved
-- [ ] Typecheck passes
+- [x] `pip install .` succeeds
+- [x] CLI entrypoints available
+- [x] dependency conflicts resolved
+- [x] Typecheck passes
 
 ---
 

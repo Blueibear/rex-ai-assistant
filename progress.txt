@@ -29,3 +29,14 @@
   - Planner, ToolRegistry, PolicyEngine all import cleanly
   - 37 planner+executor tests pass, 93 tool_router/registry/contracts tests pass
 ---
+## Iteration 4 - US-004: Verify standard installation
+- What was implemented: Verified pip install . already works. No code changes needed.
+- Files changed: PRD.md (marked US-004 complete), progress.txt
+- Learnings for future iterations:
+  - `pip install .` completes successfully; wheel built and installed without errors
+  - CLI entrypoints (rex, rex-config, rex-speak-api, rex-agent) installed to AppData\Roaming\Python\Python311\Scripts
+  - All 3 entrypoint modules import cleanly: rex.cli, rex.config, rex.computers.agent_server
+  - `pip check` shows conflicts from OTHER pre-installed system packages (esphome, langchain, wpgen), NOT from rex itself
+  - Rex has no dependency conflicts of its own
+  - 1639 tests pass, 26 skipped
+---
