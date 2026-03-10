@@ -135,9 +135,9 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want the codebase formatted with Black so that code style is consistent across all files.
 
 **Acceptance Criteria:**
-- [ ] code formatted with Black
-- [ ] `black --check .` passes
-- [ ] Typecheck passes
+- [x] code formatted with Black
+- [x] `black --check .` passes
+- [x] Typecheck passes
 
 ---
 

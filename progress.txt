@@ -67,3 +67,12 @@
   - Remaining 7 manual fixes: F811 (duplicate class+alias), F401 (intentional import, use noqa), UP035 (remove unused List import), B023 (capture loop vars as defaults), E402 (noqa for post-function imports)
   - 1639 tests pass, 26 skipped
 ---
+## Iteration 8 - US-008: Apply Black formatting
+- What was implemented: Ran `python -m black rex` to format 38 files.
+- Files changed: 38 rex/ files, PRD.md, progress.txt
+- Learnings for future iterations:
+  - `python -m black rex` reformats 38 files; `--check` passes after formatting
+  - Ruff still passes after Black formatting (no conflicts)
+  - MUST commit before running tests (repo integrity tests check git status)
+  - 1639 tests pass, 26 skipped
+---
