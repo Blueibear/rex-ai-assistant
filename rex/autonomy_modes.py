@@ -33,7 +33,6 @@ import json
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Any
 
 from rex.workflow import Workflow
 
@@ -167,7 +166,7 @@ class AutonomyConfig:
         logger.info("Saved autonomy config to %s", path)
 
     @classmethod
-    def load(cls, path: Path | str | None = None) -> "AutonomyConfig":
+    def load(cls, path: Path | str | None = None) -> AutonomyConfig:
         """Load autonomy config from JSON file.
 
         Args:
@@ -186,7 +185,7 @@ class AutonomyConfig:
             return cls()
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
 
             default_mode_str = data.get("default_mode", "suggest")

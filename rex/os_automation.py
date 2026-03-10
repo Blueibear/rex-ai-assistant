@@ -20,8 +20,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 from rex.audit import LogEntry, get_audit_logger
-from rex.policy_engine import get_policy_engine
 from rex.contracts.core import ToolCall
+from rex.policy_engine import get_policy_engine
 
 
 @dataclass
@@ -70,7 +70,7 @@ class OSAutomationService:
 
         # Load allowed commands from config or use defaults
         if config_path and Path(config_path).exists():
-            with open(config_path, 'r') as f:
+            with open(config_path) as f:
                 config = json.load(f)
                 self.allowed_commands = set(config.get("allowed_commands", []))
         elif allowed_commands:

@@ -24,7 +24,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, DefaultDict, Optional, overload
+from typing import Any, overload
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +63,8 @@ class EventBus:
         self._lock = threading.RLock()
 
         # Store both styles separately to avoid signature confusion
-        self._legacy_subscribers: DefaultDict[str, list[LegacyCallback]] = defaultdict(list)
-        self._handlers: DefaultDict[str, list[EventHandler]] = defaultdict(list)
+        self._legacy_subscribers: defaultdict[str, list[LegacyCallback]] = defaultdict(list)
+        self._handlers: defaultdict[str, list[EventHandler]] = defaultdict(list)
         self._subscriptions = self._handlers
 
         self._event_count = 0
@@ -214,10 +214,8 @@ class EventBus:
     def iter_subscribers(self, event_type: str) -> Iterable[Callable[..., Any]]:
         """Return a snapshot iterable of all subscribers for an event type (including both styles)."""
         with self._lock:
-            for cb in self._legacy_subscribers.get(event_type, []):
-                yield cb
-            for h in self._handlers.get(event_type, []):
-                yield h
+            yield from self._legacy_subscribers.get(event_type, [])
+            yield from self._handlers.get(event_type, [])
 
     def get_subscription_count(self, event_type: str) -> int:
         """Count subscribers for a specific event type (not including wildcard)."""
@@ -241,7 +239,7 @@ class EventBus:
                 },
             }
 
-    def clear_subscriptions(self, event_type: Optional[str] = None) -> None:
+    def clear_subscriptions(self, event_type: str | None = None) -> None:
         """
         Clear subscriptions.
 
@@ -261,7 +259,7 @@ class EventBus:
 
 
 # Global event bus instance
-_EVENT_BUS: Optional[EventBus] = None
+_EVENT_BUS: EventBus | None = None
 _EVENT_BUS_LOCK = threading.Lock()
 
 

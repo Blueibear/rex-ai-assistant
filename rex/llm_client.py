@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Sequence
+from dataclasses import dataclass
 from importlib import import_module
 from importlib.util import find_spec
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Protocol, Sequence
+from typing import Any, Protocol
 
 from rex.assistant_errors import ConfigurationError
 from rex.config import AppConfig, load_config
@@ -44,7 +45,7 @@ class LLMStrategy(Protocol):
         prompt: str,
         config: GenerationConfig,
         *,
-        messages: Optional[List[Dict[str, str]]] = None,
+        messages: list[dict[str, str]] | None = None,
     ) -> str:
         ...
 
@@ -175,7 +176,7 @@ class OllamaStrategy:
     def __init__(
         self,
         model_name: str,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         base_url: str = "http://localhost:11434",
         use_cloud: bool = False
     ) -> None:
@@ -183,7 +184,7 @@ class OllamaStrategy:
             raise ConfigurationError("Ollama backend requires the `ollama` package.")
         try:
             ollama = import_module("ollama")
-            client_cls = getattr(ollama, "Client")
+            client_cls = ollama.Client
         except Exception as exc:
             raise ConfigurationError("Ollama backend requires the `ollama` package.") from exc
         self.model_name = model_name
@@ -237,7 +238,7 @@ class OllamaStrategy:
             )
 
 
-_STRATEGIES: Dict[str, type[LLMStrategy]] = {
+_STRATEGIES: dict[str, type[LLMStrategy]] = {
     EchoStrategy.name: EchoStrategy,
     TransformersStrategy.name: TransformersStrategy,
 }
@@ -248,7 +249,7 @@ def register_strategy(name: str, strategy: type[LLMStrategy]) -> None:
 
 
 class LanguageModel:
-    def __init__(self, config: Optional[AppConfig] = None, **overrides) -> None:
+    def __init__(self, config: AppConfig | None = None, **overrides) -> None:
         self.config = config or load_config()
         self.provider = (overrides.get("provider") or self.config.llm_provider).lower()
         if self.provider == "openai":
@@ -315,7 +316,7 @@ class LanguageModel:
         self._openai_client = OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
         return self._openai_client
 
-    def register_tool(self, name: str, description: str, parameters: Dict[str, Any], function: Any) -> None:
+    def register_tool(self, name: str, description: str, parameters: dict[str, Any], function: Any) -> None:
         """Register a tool/function that the LLM can call.
 
         Args:
@@ -360,10 +361,10 @@ class LanguageModel:
             logger.error(f"Tool execution failed: {e}")
             return f"Error executing {function_name}: {str(e)}"
 
-    def _format_messages(self, messages: Sequence[Dict[str, str]]) -> str:
+    def _format_messages(self, messages: Sequence[dict[str, str]]) -> str:
         return "\n".join(f"{m.get('role', 'user').capitalize()}: {m.get('content', '').strip()}" for m in messages if isinstance(m, dict)).strip()
 
-    def generate(self, prompt: Optional[str] = None, *, messages: Optional[Sequence[Dict[str, str]]] = None, config: Optional[GenerationConfig] = None, max_tool_rounds: int = 3) -> str:
+    def generate(self, prompt: str | None = None, *, messages: Sequence[dict[str, str]] | None = None, config: GenerationConfig | None = None, max_tool_rounds: int = 3) -> str:
         if messages is not None:
             prompt_text = self._format_messages(messages)
             normalized_messages = [{"role": str(m.get("role", "")), "content": str(m.get("content", ""))} for m in messages if isinstance(m, dict)]

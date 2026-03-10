@@ -16,34 +16,26 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import re
 import tempfile
+from collections.abc import Awaitable
 from contextlib import suppress
-from pathlib import Path
-from typing import Awaitable, Callable, Optional
-
 from importlib import import_module
 from importlib.util import find_spec
+from pathlib import Path
+from typing import Callable
 
 try:  # pragma: no cover - optional dependency
     import numpy as np
 except ImportError:
     np = None  # type: ignore[assignment]
 
-from .assistant import Assistant
-from .assistant_errors import AudioDeviceError, SpeechToTextError, TextToSpeechError, WakeWordError
-from .config import settings
-from .memory import (
-    extract_voice_reference,
-    load_all_profiles,
-    load_users_map,
-    resolve_user_key,
-)
-from .wakeword.listener import WakeWordListener, build_default_detector
 from wake_acknowledgment import ensure_wake_acknowledgment_sound
-from .wakeword.utils import load_wakeword_model
+
+from .assistant_errors import AudioDeviceError, SpeechToTextError, TextToSpeechError
+from .config import settings
 from .tts_utils import chunk_text_for_xtts
+from .wakeword.listener import build_default_detector
 
 try:
     import simpleaudio as sa
@@ -117,7 +109,7 @@ class AsyncMicrophone:
     async def detection_frame(self) -> np.ndarray:
         return await self._record(self._detection_seconds)
 
-    async def record_phrase(self, duration: Optional[float] = None) -> np.ndarray:
+    async def record_phrase(self, duration: float | None = None) -> np.ndarray:
         return await self._record_with_vad(duration or self._capture_seconds)
 
     async def _record_with_vad(self, max_duration: float) -> np.ndarray:
@@ -187,7 +179,7 @@ class AsyncMicrophone:
 
 
 class WakeAcknowledgement:
-    def __init__(self, sound_path: Optional[Path] = None) -> None:
+    def __init__(self, sound_path: Path | None = None) -> None:
         default_path = Path(__file__).resolve().parents[1] / "assets" / "wake_acknowledgment.wav"
         self._sound_path = Path(sound_path) if sound_path else default_path
         if not self._sound_path.exists():
@@ -252,7 +244,7 @@ class SpeechToText:
 
 
 class TextToSpeech:
-    def __init__(self, *, language: str, default_speaker: Optional[str] = None) -> None:
+    def __init__(self, *, language: str, default_speaker: str | None = None) -> None:
         self._language = language
         self._default_speaker = default_speaker
         self._tts_speed = getattr(settings, "tts_speed", 1.08)
@@ -282,7 +274,7 @@ class TextToSpeech:
             except Exception as exc:
                 logger.warning("XTTS init failed: %s", exc)
 
-    async def speak(self, text: str, *, speaker_wav: Optional[str] = None) -> None:
+    async def speak(self, text: str, *, speaker_wav: str | None = None) -> None:
         if not text:
             return
 
@@ -313,7 +305,7 @@ class TextToSpeech:
         text = ". ".join(sentences[:2])
         return text + "." if text and not text.endswith(".") else text
 
-    async def _speak_xtts(self, text: str, speaker_wav: Optional[str]) -> None:
+    async def _speak_xtts(self, text: str, speaker_wav: str | None) -> None:
         if self._tts is None:
             raise TextToSpeechError("XTTS not initialized")
         np = _require_numpy()
@@ -332,7 +324,7 @@ class TextToSpeech:
                 chunk_path = tmp.name
 
             try:
-                def _synthesize() -> None:
+                def _synthesize(chunk=chunk, chunk_path=chunk_path) -> None:
                     self._tts.tts_to_file(
                         text=chunk,
                         speaker_wav=speaker_wav or self._default_speaker,
@@ -431,7 +423,7 @@ class VoiceLoop:
         record_phrase: Callable[[], Awaitable[np.ndarray]],
         transcribe: Callable[[np.ndarray], Awaitable[str]],
         speak: Callable[[str], Awaitable[None]],
-        acknowledge: Optional[Callable[[], Awaitable[None]]] = None,
+        acknowledge: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         self._assistant = assistant
         self._wake_listener = wake_listener
@@ -441,7 +433,7 @@ class VoiceLoop:
         self._speak = speak
         self._acknowledge = acknowledge
 
-    async def run(self, max_interactions: Optional[int] = None) -> None:
+    async def run(self, max_interactions: int | None = None) -> None:
         """Run the voice loop for a specified number of interactions."""
         interactions = 0
 
@@ -493,13 +485,12 @@ def build_voice_loop(
     whisper_model: str = "tiny",  # Optimized default
     device: str = "cpu",
     language: str = "en",
-    speaker_wav: Optional[str] = None,
-    wake_sound_path: Optional[Path] = None,
+    speaker_wav: str | None = None,
+    wake_sound_path: Path | None = None,
     vad_threshold: float = 0.01,
     silence_duration: float = 1.0,
 ) -> VoiceLoop:
     """Build an optimized VoiceLoop with VAD and faster defaults."""
-    from .wakeword.listener import build_default_detector
 
     mic = AsyncMicrophone(
         sample_rate=sample_rate,

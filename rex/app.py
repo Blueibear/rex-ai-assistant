@@ -16,11 +16,11 @@ import logging
 import signal
 import sys
 
+from rex.credentials import get_credential_manager
 from rex.logging_utils import configure_logging
 from rex.memory import get_long_term_memory, get_working_memory
 from rex.service_supervisor import ServiceSupervisor
 from rex.services import initialize_services
-from rex.credentials import get_credential_manager
 
 logger = logging.getLogger(__name__)
 

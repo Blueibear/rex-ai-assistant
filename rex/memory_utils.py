@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import os
 from collections import deque
+from collections.abc import Iterable
 from datetime import datetime
 from pathlib import Path
-from typing import Deque, Dict, Iterable, List, Optional
 
 from .assistant_errors import ConfigurationError
 from .config import load_config, settings
@@ -28,19 +28,19 @@ def _sanitize_user_key(user_key: str) -> str:
     """Sanitize user key to prevent path traversal attacks."""
     if not user_key or not isinstance(user_key, str):
         raise ConfigurationError("User key must be a non-empty string.")
-    
+
     # Remove any path separators and parent directory references
     sanitized = user_key.strip().replace("..", "").replace("/", "").replace("\\", "")
-    
+
     # Only allow alphanumeric, dash, underscore
     if not all(c.isalnum() or c in "-_" for c in sanitized):
         raise ConfigurationError(
             f"Invalid user key '{user_key}': must contain only alphanumeric, dash, or underscore."
         )
-    
+
     if not sanitized:
         raise ConfigurationError("User key cannot be empty after sanitization.")
-    
+
     return sanitized.lower()
 
 
@@ -49,15 +49,15 @@ def _validate_path_within(path: Path, base: Path, *, max_depth: int = MAX_PATH_D
     try:
         resolved = path.resolve()
         base_resolved = base.resolve()
-        
+
         # Check if path is within base directory
         resolved.relative_to(base_resolved)
-        
+
         # Check depth to prevent deep recursion attacks
         depth = len(resolved.relative_to(base_resolved).parts)
         if depth > max_depth:
             raise ConfigurationError(f"Path depth {depth} exceeds maximum {max_depth}.")
-        
+
         return resolved
     except (ValueError, OSError) as exc:
         raise ConfigurationError(f"Invalid path: {path} (must be within {base})") from exc
@@ -81,14 +81,14 @@ def _metadata_path(user_key: str, memory_root: Path) -> Path:
     return user_dir / HISTORY_META
 
 
-def load_users_map(users_path: str | Path = USERS_PATH) -> Dict[str, str]:
+def load_users_map(users_path: str | Path = USERS_PATH) -> dict[str, str]:
     try:
-        with open(users_path, "r", encoding="utf-8") as handle:
+        with open(users_path, encoding="utf-8") as handle:
             data = json.load(handle)
     except FileNotFoundError:
         return {}
 
-    mapping: Dict[str, str] = {}
+    mapping: dict[str, str] = {}
     for email, user in data.items():
         if isinstance(email, str) and isinstance(user, str):
             mapping[email.lower()] = user.lower()
@@ -96,12 +96,12 @@ def load_users_map(users_path: str | Path = USERS_PATH) -> Dict[str, str]:
 
 
 def resolve_user_key(
-    identifier: Optional[str],
-    users_map: Dict[str, str],
+    identifier: str | None,
+    users_map: dict[str, str],
     *,
     memory_root: str | Path = MEMORY_ROOT,
-    profiles: Optional[Dict[str, dict]] = None,
-) -> Optional[str]:
+    profiles: dict[str, dict] | None = None,
+) -> str | None:
     if not identifier:
         return None
 
@@ -148,12 +148,12 @@ def load_memory_profile(user_key: str, memory_root: str | Path = MEMORY_ROOT) ->
             raise ConfigurationError(
                 f"Memory profile '{core_path}' exceeds {max_memory_bytes} bytes; refusing to load."
             )
-    with open(core_path, "r", encoding="utf-8") as handle:
+    with open(core_path, encoding="utf-8") as handle:
         return json.load(handle)
 
 
-def load_all_profiles(memory_root: str | Path = MEMORY_ROOT) -> Dict[str, dict]:
-    profiles: Dict[str, dict] = {}
+def load_all_profiles(memory_root: str | Path = MEMORY_ROOT) -> dict[str, dict]:
+    profiles: dict[str, dict] = {}
     memory_root = Path(memory_root)
     if not memory_root.is_dir():
         return profiles
@@ -169,7 +169,7 @@ def load_all_profiles(memory_root: str | Path = MEMORY_ROOT) -> Dict[str, dict]:
         except ConfigurationError:
             # Skip directories with invalid names
             continue
-            
+
         try:
             profile = load_memory_profile(sanitized, memory_root)
         except (FileNotFoundError, json.JSONDecodeError, ConfigurationError):
@@ -192,10 +192,10 @@ def _looks_like_placeholder(path: str) -> bool:
 def _normalise_voice_path(
     raw_path: str,
     *,
-    user_key: Optional[str] = None,
+    user_key: str | None = None,
     memory_root: str | Path = MEMORY_ROOT,
     repo_root: str | Path = REPO_ROOT,
-) -> Optional[str]:
+) -> str | None:
     expanded = os.path.expanduser(raw_path)
     original = Path(expanded)
 
@@ -226,10 +226,10 @@ def _normalise_voice_path(
 def extract_voice_reference(
     profile: dict,
     *,
-    user_key: Optional[str] = None,
+    user_key: str | None = None,
     memory_root: str | Path = MEMORY_ROOT,
     repo_root: str | Path = REPO_ROOT,
-) -> Optional[str]:
+) -> str | None:
     voice_sample = profile.get("voice_sample")
     if isinstance(voice_sample, str) and voice_sample.strip():
         resolved = _normalise_voice_path(
@@ -257,9 +257,9 @@ def extract_voice_reference(
     return None
 
 
-def trim_history(history: Iterable[dict], *, limit: Optional[int] = None) -> List[dict]:
+def trim_history(history: Iterable[dict], *, limit: int | None = None) -> list[dict]:
     max_items = limit or settings.max_memory_items
-    recent: Deque[dict] = deque(maxlen=max_items)
+    recent: deque[dict] = deque(maxlen=max_items)
     for item in history:
         recent.append(item)
     return list(recent)
@@ -267,10 +267,10 @@ def trim_history(history: Iterable[dict], *, limit: Optional[int] = None) -> Lis
 
 def append_history_entry(
     user_key: str,
-    entry: Dict[str, str],
+    entry: dict[str, str],
     *,
     memory_root: str | Path = MEMORY_ROOT,
-    max_turns: Optional[int] = None,
+    max_turns: int | None = None,
 ) -> None:
     cfg = load_config()
     limit = max_turns or cfg.memory_max_turns
@@ -289,7 +289,7 @@ def append_history_entry(
     history_path = _history_path(sanitized_key, memory_root_path)
     metadata_path = _metadata_path(sanitized_key, memory_root_path)
 
-    existing: List[str] = []
+    existing: list[str] = []
     if history_path.is_file():
         with history_path.open("r", encoding="utf-8") as handle:
             existing = handle.readlines()
@@ -307,9 +307,9 @@ def append_history_entry(
 def load_recent_history(
     user_key: str,
     *,
-    limit: Optional[int] = None,
+    limit: int | None = None,
     memory_root: str | Path = MEMORY_ROOT,
-) -> List[Dict[str, str]]:
+) -> list[dict[str, str]]:
     history_path = _history_path(user_key, Path(memory_root))
     if not history_path.is_file():
         return []
@@ -320,7 +320,7 @@ def load_recent_history(
     if limit is not None:
         lines = lines[-limit:]
 
-    entries: List[Dict[str, str]] = []
+    entries: list[dict[str, str]] = []
     for line in lines:
         try:
             entries.append(json.loads(line))
@@ -331,7 +331,7 @@ def load_recent_history(
 
 def export_transcript(
     user_key: str,
-    conversation: Iterable[Dict[str, str]],
+    conversation: Iterable[dict[str, str]],
     *,
     transcripts_dir: Path | None = None,
 ) -> Path:

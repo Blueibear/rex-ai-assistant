@@ -17,23 +17,23 @@ See Also:
     rex.policy_engine: Policy engine for tool call evaluation
 """
 
-from rex.contracts.version import CONTRACT_VERSION, get_version_info
 from rex.contracts.core import (
-    EvidenceRef,
-    ToolCall,
-    ToolResult,
-    Approval,
     Action,
-    Task,
-    Notification,
-    EvidenceKind,
+    Approval,
     ApprovalStatus,
-    RiskLevel,
-    TaskStatus,
+    EvidenceKind,
+    EvidenceRef,
+    Notification,
     NotificationChannel,
     NotificationPriority,
+    RiskLevel,
+    Task,
+    TaskStatus,
+    ToolCall,
+    ToolResult,
     redact_sensitive_keys,
 )
+from rex.contracts.version import CONTRACT_VERSION, get_version_info
 
 __all__ = [
     # Version

@@ -21,7 +21,6 @@ import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Callable
 
 
 class Status(Enum):
@@ -347,7 +346,7 @@ def check_config_permissions(root: Path | None) -> CheckResult:
 def check_package_installation() -> CheckResult:
     """Check if Rex is properly installed as a package."""
     try:
-        import rex
+        import rex  # noqa: F401
         from rex.contracts import CONTRACT_VERSION
 
         return CheckResult(

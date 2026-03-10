@@ -12,7 +12,7 @@ import time
 from collections import defaultdict, deque
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, List, Protocol
+from typing import Any, Protocol
 
 from rex.config import _parse_int
 

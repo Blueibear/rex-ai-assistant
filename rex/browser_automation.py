@@ -20,9 +20,9 @@ from pathlib import Path
 from typing import Any, Literal, Optional
 
 from rex.audit import LogEntry, get_audit_logger
+from rex.contracts.core import ToolCall
 from rex.credentials import get_credential_manager
 from rex.policy_engine import get_policy_engine
-from rex.contracts.core import ToolCall
 
 async_playwright = None
 if find_spec("playwright") is not None:
@@ -516,7 +516,7 @@ class BrowserAutomationService:
         Returns:
             List of step results
         """
-        with open(script_path, 'r') as f:
+        with open(script_path) as f:
             script_data = json.load(f)
 
         steps = script_data.get("steps", [])

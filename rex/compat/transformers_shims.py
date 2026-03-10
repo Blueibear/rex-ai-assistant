@@ -46,7 +46,7 @@ def ensure_transformers_compatibility() -> None:
                     module = __import__(location, fromlist=["BeamSearchScorer"])
 
                 if hasattr(module, "BeamSearchScorer"):
-                    beam_search_scorer = getattr(module, "BeamSearchScorer")
+                    beam_search_scorer = module.BeamSearchScorer
                     logger.info(f"Found BeamSearchScorer in {location}")
                     break
             except (ImportError, AttributeError):
@@ -66,7 +66,7 @@ def ensure_transformers_compatibility() -> None:
                 return
 
         # Monkey-patch transformers to expose BeamSearchScorer at top level
-        setattr(transformers, "BeamSearchScorer", beam_search_scorer)
+        transformers.BeamSearchScorer = beam_search_scorer
         logger.info("Successfully patched transformers.BeamSearchScorer for backward compatibility")
 
     except ImportError:

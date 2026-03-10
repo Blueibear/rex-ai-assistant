@@ -17,14 +17,14 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Optional
 
 import requests
 
 from rex.audit import LogEntry, get_audit_logger
+from rex.contracts.core import ToolCall
 from rex.credentials import get_credential_manager
 from rex.policy_engine import get_policy_engine
-from rex.contracts.core import ToolCall
 from rex.retry import RetryPolicy, retry_call
 
 logger = logging.getLogger(__name__)
@@ -110,7 +110,7 @@ class GitHubService:
         # Load mock data if in mock mode
         self._mock_data = {}
         if self.mock_mode and Path(self.mock_data_path).exists():
-            with open(self.mock_data_path, 'r') as f:
+            with open(self.mock_data_path) as f:
                 self._mock_data = json.load(f)
 
     def _get_token(self) -> str:

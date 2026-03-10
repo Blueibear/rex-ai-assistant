@@ -8,7 +8,6 @@ expect legacy transformers exports (e.g., Coqui TTS).
 from __future__ import annotations
 
 import sys
-from types import ModuleType
 
 
 def ensure_transformers_compatibility() -> None:
@@ -61,7 +60,7 @@ def ensure_transformers_compatibility() -> None:
             sys.modules['transformers'].BeamSearchScorer = BeamSearchScorer
             sys.modules['transformers'].__dict__['BeamSearchScorer'] = BeamSearchScorer
 
-    except (ImportError, AttributeError) as e:
+    except (ImportError, AttributeError):
         # If transformers isn't installed or BeamSearchScorer doesn't exist,
         # skip the patch - TTS will fail later with a clearer error
         pass

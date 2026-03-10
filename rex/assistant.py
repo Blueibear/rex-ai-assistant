@@ -8,7 +8,6 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from .calendar_service import get_calendar_service
 from .config import Settings, settings
@@ -51,8 +50,8 @@ class Assistant:
         self._user_id = user_id or getattr(self._settings, "user_id", None) or "default"
 
         # Follow-up engine for natural conversation cues
-        self._followup_engine: Optional[object] = None
-        self._pending_followup: Optional[str] = None
+        self._followup_engine: object | None = None
+        self._pending_followup: str | None = None
         self._followup_injected = False
         self._init_followup_engine()
 
@@ -164,7 +163,7 @@ class Assistant:
         return self._pending_followup is not None and not self._followup_injected
 
     @property
-    def pending_followup_prompt(self) -> Optional[str]:
+    def pending_followup_prompt(self) -> str | None:
         """Get the pending follow-up prompt if any."""
         return self._pending_followup if self.has_pending_followup else None
 

@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 try:
     import requests
@@ -66,7 +66,7 @@ class IntentMatch:
     domain: str
     service: str
     entity_id: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
     description: str
     source: str
 
@@ -112,12 +112,12 @@ class HABridge:
     def __init__(
         self,
         *,
-        base_url: Optional[str] = None,
-        token: Optional[str] = None,
-        secret: Optional[str] = None,
-        verify_ssl: Optional[bool] = None,
-        timeout: Optional[float] = None,
-        entity_map: Optional[Dict[str, str]] = None,
+        base_url: str | None = None,
+        token: str | None = None,
+        secret: str | None = None,
+        verify_ssl: bool | None = None,
+        timeout: float | None = None,
+        entity_map: dict[str, str] | None = None,
     ) -> None:
         cfg = settings
         self._base_url = (base_url or cfg.ha_base_url or "").rstrip("/")
@@ -132,7 +132,7 @@ class HABridge:
         }
         _require_requests()
         self._session = requests.Session()
-        self._entity_cache: Dict[str, str] = {}
+        self._entity_cache: dict[str, str] = {}
         self._entity_cache_ts: float = 0.0
         self._entity_cache_ttl: float = 60.0
         self._lock = threading.Lock()
@@ -154,7 +154,7 @@ class HABridge:
     # Transcript and response handling
     # ------------------------------------------------------------------ #
 
-    def process_transcript(self, transcript: str) -> Optional[str]:
+    def process_transcript(self, transcript: str) -> str | None:
         """Detect and execute intents from a user transcript."""
         if not self.enabled:
             return None
@@ -172,7 +172,7 @@ class HABridge:
         if not self.enabled or "[[ha:" not in response.lower():
             return response
 
-        messages: List[str] = []
+        messages: list[str] = []
         sanitized = response
 
         for tag in list(self._TAG_PATTERN.finditer(response)):
@@ -199,7 +199,7 @@ class HABridge:
                 messages.append(f"Home Assistant error: {message}")
 
         if messages:
-            suffix = " ".join(messages)
+            " ".join(messages)
             sanitized = f"{sanitized.rstrip()} {' '.join(messages)}".strip()
         return sanitized
 
@@ -207,7 +207,7 @@ class HABridge:
     # HTTP endpoints helpers
     # ------------------------------------------------------------------ #
 
-    def list_entities(self) -> List[Dict[str, Any]]:
+    def list_entities(self) -> list[dict[str, Any]]:
         """Return cached Home Assistant entities (refreshing as needed)."""
         if not self.enabled:
             raise RuntimeError("Home Assistant bridge is not configured.")
@@ -217,12 +217,12 @@ class HABridge:
             result.append({"friendly_name": alias, "entity_id": entity_id})
         return result
 
-    def call_script(self, script_id: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def call_script(self, script_id: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
         if not script_id:
             raise ValueError("script identifier is required")
         return self._request(
             "POST",
-            f"/api/services/script/turn_on",
+            "/api/services/script/turn_on",
             json={"entity_id": script_id, "variables": variables or {}},
         )
 
@@ -230,7 +230,7 @@ class HABridge:
     # Internal helpers
     # ------------------------------------------------------------------ #
 
-    def _match_transcript(self, transcript: str) -> Optional[IntentMatch]:
+    def _match_transcript(self, transcript: str) -> IntentMatch | None:
         text = transcript.strip().lower()
         if not text:
             return None
@@ -334,9 +334,9 @@ class HABridge:
 
         return None
 
-    def _execute_intent(self, intent: IntentMatch) -> Tuple[bool, str]:
+    def _execute_intent(self, intent: IntentMatch) -> tuple[bool, str]:
         try:
-            response = self._request(
+            self._request(
                 "POST",
                 f"/api/services/{intent.domain}/{intent.service}",
                 json=intent.data,
@@ -347,8 +347,8 @@ class HABridge:
             logger.warning("Home Assistant request failed: %s", exc)
             return False, str(exc)
 
-    def _parse_params(self, params: str) -> Dict[str, Any]:
-        data: Dict[str, Any] = {}
+    def _parse_params(self, params: str) -> dict[str, Any]:
+        data: dict[str, Any] = {}
         if not params:
             return data
         parts = re.split(r"[;\s]+", params.strip())
@@ -367,7 +367,7 @@ class HABridge:
                     data[key] = value
         return data
 
-    def _resolve_entity(self, name: str) -> Optional[str]:
+    def _resolve_entity(self, name: str) -> str | None:
         key = name.strip().lower()
         if not key:
             return None
@@ -398,7 +398,7 @@ class HABridge:
                 logger.debug("Failed to refresh Home Assistant entities: %s", exc)
                 return
 
-            cache: Dict[str, str] = {}
+            cache: dict[str, str] = {}
             for item in payload if isinstance(payload, list) else []:
                 entity_id = item.get("entity_id")
                 friendly = (item.get("attributes") or {}).get("friendly_name")
@@ -443,7 +443,7 @@ class HABridge:
             logger.debug("Unable to write HA bridge log.", exc_info=True)
 
 
-def create_blueprint(bridge: Optional[HABridge] = None) -> Blueprint:
+def create_blueprint(bridge: HABridge | None = None) -> Blueprint:
     """Create a Flask blueprint exposing HA bridge helpers."""
     Blueprint, jsonify, request = _require_flask()
     bridge = bridge or HABridge()

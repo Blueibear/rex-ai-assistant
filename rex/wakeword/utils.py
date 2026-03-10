@@ -56,8 +56,8 @@ def _get_openwakeword():
         openwakeword = _OPENWAKEWORD_MODULE
     return _OPENWAKEWORD_MODULE, _WAKEWORD_MODEL
 
-from .embedding import compute_embedding, load_embedding
-from .selection import (
+from .embedding import compute_embedding, load_embedding  # noqa: E402
+from .selection import (  # noqa: E402
     list_openwakeword_keywords,
     normalize_keyword,
     select_fallback_keyword,

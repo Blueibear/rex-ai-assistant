@@ -20,8 +20,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 from rex.audit import LogEntry, get_audit_logger
-from rex.policy_engine import get_policy_engine
 from rex.contracts.core import ToolCall
+from rex.policy_engine import get_policy_engine
 
 
 @dataclass
@@ -90,7 +90,7 @@ class VSCodeService:
                 raise FileNotFoundError(f"File not found: {file_path}")
 
             # Read file content
-            with open(full_path, 'r', encoding='utf-8') as f:
+            with open(full_path, encoding='utf-8') as f:
                 content = f.read()
 
             # Get file metadata
@@ -173,7 +173,7 @@ class VSCodeService:
                 raise FileNotFoundError(f"File not found: {file_path}")
 
             # Read current file content
-            with open(full_path, 'r', encoding='utf-8') as f:
+            with open(full_path, encoding='utf-8') as f:
                 original_lines = f.readlines()
 
             # Parse and apply patch
@@ -267,7 +267,7 @@ class VSCodeService:
                     match = re.match(r'@@ -(\d+),?(\d*) \+(\d+),?(\d*) @@', line)
                     if match:
                         old_start = int(match.group(1))
-                        new_start = int(match.group(3))
+                        int(match.group(3))
 
                         # Collect hunk lines
                         hunk_lines = []
@@ -521,7 +521,7 @@ class VSCodeService:
         if not full_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        with open(full_path, 'r', encoding='utf-8') as f:
+        with open(full_path, encoding='utf-8') as f:
             original_content = f.read()
 
         original_lines = original_content.splitlines(keepends=True)

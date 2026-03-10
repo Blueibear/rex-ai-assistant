@@ -200,7 +200,7 @@ class KnowledgeBase:
         # Load documents
         if self.docs_path.exists():
             try:
-                with open(self.docs_path, "r", encoding="utf-8") as f:
+                with open(self.docs_path, encoding="utf-8") as f:
                     data = json.load(f)
                     for doc_data in data.get("documents", []):
                         doc = KnowledgeDocument.model_validate(doc_data)
@@ -213,7 +213,7 @@ class KnowledgeBase:
         # Load index
         if self.index_path.exists():
             try:
-                with open(self.index_path, "r", encoding="utf-8") as f:
+                with open(self.index_path, encoding="utf-8") as f:
                     data = json.load(f)
                     for word, doc_ids in data.get("index", {}).items():
                         self._index[word] = set(doc_ids)
@@ -453,12 +453,12 @@ class KnowledgeBase:
 
         # Apply tag filter if specified
         if tags:
-            tag_set = set(t.lower() for t in tags)
+            tag_set = {t.lower() for t in tags}
             doc_scores = {
                 doc_id: score
                 for doc_id, score in doc_scores.items()
                 if doc_id in self._documents
-                and tag_set.issubset(set(t.lower() for t in self._documents[doc_id].tags))
+                and tag_set.issubset({t.lower() for t in self._documents[doc_id].tags})
             }
 
         # Also search for substring matches in content and title
@@ -523,10 +523,10 @@ class KnowledgeBase:
         docs = list(self._documents.values())
 
         if tags:
-            tag_set = set(t.lower() for t in tags)
+            tag_set = {t.lower() for t in tags}
             docs = [
                 d for d in docs
-                if tag_set.issubset(set(t.lower() for t in d.tags))
+                if tag_set.issubset({t.lower() for t in d.tags})
             ]
 
         # Sort by created_at descending

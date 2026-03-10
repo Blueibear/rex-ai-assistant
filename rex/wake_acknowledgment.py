@@ -6,7 +6,6 @@ import math
 import os
 import struct
 import wave
-from typing import Optional
 
 DEFAULT_WAKE_ACK_RELATIVE_PATH = os.path.join("assets", "wake_acknowledgment.wav")
 _LEGACY_WAKE_ACK_RELATIVE_PATHS = (
@@ -44,9 +43,9 @@ def _cleanup_legacy_acknowledgment_samples(base_directory: str) -> None:
 
 
 def ensure_wake_acknowledgment_sound(
-    path: Optional[str] = None,
+    path: str | None = None,
     *,
-    repo_root: Optional[str] = None,
+    repo_root: str | None = None,
 ) -> str:
     """Return the absolute path to the wake confirmation sound sample.
 

@@ -34,11 +34,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-from rex.audit import get_audit_logger, AuditLogger
+from rex.audit import AuditLogger, get_audit_logger
 from rex.contracts import EvidenceRef
 from rex.policy_engine import PolicyEngine, get_policy_engine
-from rex.workflow import Workflow, WorkflowStep, StepResult
-from rex.workflow_runner import WorkflowRunner, RunResult
+from rex.workflow import StepResult, Workflow, WorkflowStep
+from rex.workflow_runner import RunResult, WorkflowRunner
 
 logger = logging.getLogger(__name__)
 

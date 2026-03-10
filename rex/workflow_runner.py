@@ -35,31 +35,27 @@ Usage:
 from __future__ import annotations
 
 import logging
-import time
-import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from rex.audit import LogEntry, get_audit_logger, AuditLogger
+from rex.audit import AuditLogger, LogEntry, get_audit_logger
 from rex.contracts import ToolCall
 from rex.policy import PolicyDecision
 from rex.policy_engine import PolicyEngine, get_policy_engine
 from rex.tool_router import (
     execute_tool,
-    PolicyDeniedError,
-    ApprovalRequiredError,
 )
 from rex.workflow import (
-    Workflow,
-    WorkflowStep,
-    WorkflowApproval,
-    StepResult,
-    get_condition,
-    generate_approval_id,
-    DEFAULT_WORKFLOW_DIR,
     DEFAULT_APPROVAL_DIR,
+    DEFAULT_WORKFLOW_DIR,
+    StepResult,
+    Workflow,
+    WorkflowApproval,
+    WorkflowStep,
+    generate_approval_id,
+    get_condition,
 )
 
 logger = logging.getLogger(__name__)
@@ -349,7 +345,6 @@ class WorkflowRunner:
         blocking_reason: str | None = None
 
         # Temporarily save current state
-        original_status = self.workflow.status
         original_step_index = self.workflow.current_step_index
 
         for i, step in enumerate(self.workflow.steps):
@@ -646,7 +641,7 @@ class WorkflowRunner:
         self,
         step: WorkflowStep,
         reason: str,
-    ) -> "ApprovalBlockedError":
+    ) -> ApprovalBlockedError:
         """Create an approval request and block the workflow.
 
         Args:
@@ -832,7 +827,7 @@ def list_pending_approvals(
     pending = []
     for file_path in approval_dir.glob("*.json"):
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 approval = WorkflowApproval.model_validate_json(f.read())
                 if approval.status == "pending":
                     pending.append(approval)

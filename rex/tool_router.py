@@ -26,7 +26,6 @@ from rex.audit import LogEntry, get_audit_logger
 from rex.contracts import ToolCall
 from rex.policy_engine import PolicyEngine, get_policy_engine
 from rex.tool_registry import (
-    MissingCredentialError,
     ToolRegistry,
     get_tool_registry,
 )

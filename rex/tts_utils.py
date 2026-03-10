@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from typing import List
 
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 _TOKEN_RE = re.compile(r"\S+")
@@ -14,7 +13,7 @@ def _count_tokens(text: str) -> int:
     return len(_TOKEN_RE.findall(text))
 
 
-def _split_long_sentence(sentence: str, max_tokens: int) -> List[str]:
+def _split_long_sentence(sentence: str, max_tokens: int) -> list[str]:
     """Split an overlong sentence into max-token chunks."""
     tokens = _TOKEN_RE.findall(sentence)
     if not tokens:
@@ -24,7 +23,7 @@ def _split_long_sentence(sentence: str, max_tokens: int) -> List[str]:
     return [" ".join(tokens[i : i + max_tokens]) for i in range(0, len(tokens), max_tokens)]
 
 
-def chunk_text_for_xtts(text: str, *, max_tokens: int = 300) -> List[str]:
+def chunk_text_for_xtts(text: str, *, max_tokens: int = 300) -> list[str]:
     """Chunk text into XTTS-safe segments while preserving sentence boundaries.
 
     XTTS enforces a ~400 token limit. We chunk at 300 tokens to stay within
@@ -42,8 +41,8 @@ def chunk_text_for_xtts(text: str, *, max_tokens: int = 300) -> List[str]:
     if not sentences:
         return [normalized]
 
-    chunks: List[str] = []
-    current: List[str] = []
+    chunks: list[str] = []
+    current: list[str] = []
     current_tokens = 0
 
     for sentence in sentences:

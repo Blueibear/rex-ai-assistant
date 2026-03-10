@@ -12,11 +12,12 @@ import json
 import logging
 import ssl
 import time
+from collections.abc import Awaitable, Iterable
 from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable
 from uuid import uuid4
 
 from rex.assistant_errors import ConfigurationError
@@ -24,11 +25,11 @@ from rex.config import settings
 
 try:
     # Try new package name first (asyncio-mqtt was renamed to aiomqtt)
-    from aiomqtt import Client, MqttError, Message
+    from aiomqtt import Client, Message, MqttError
 except ImportError:
     try:
         # Fall back to old package name for backwards compatibility
-        from asyncio_mqtt import Client, MqttError, Message
+        from asyncio_mqtt import Client, Message, MqttError
     except ImportError as exc:  # pragma: no cover - handled during runtime
         raise ImportError(
             "aiomqtt (or asyncio-mqtt) is required for Rex MQTT features. "
@@ -37,7 +38,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-MessageHandler = Callable[[str, Dict[str, Any]], Awaitable[None] | None]
+MessageHandler = Callable[[str, dict[str, Any]], Awaitable[None] | None]
 
 
 class PayloadValidationError(RuntimeError):
@@ -66,7 +67,7 @@ def _now_iso() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
 
 
-def _resolve_optional_path(path: Optional[str]) -> Optional[Path]:
+def _resolve_optional_path(path: str | None) -> Path | None:
     if not path:
         return None
     resolved = Path(path).expanduser()
@@ -77,31 +78,31 @@ def _resolve_optional_path(path: Optional[str]) -> Optional[Path]:
 class Subscription:
     topic: str
     qos: int = 1
-    handlers: List[MessageHandler] = field(default_factory=list)
+    handlers: list[MessageHandler] = field(default_factory=list)
 
 
 class RexMQTTClient:
     """High-level MQTT client with TLS, watchdog, and payload validation."""
 
-    DEFAULT_SUBSCRIPTIONS: Tuple[str, ...] = ("rex/audio_in", "rex/audio_out", "rex/ha_cmd")
+    DEFAULT_SUBSCRIPTIONS: tuple[str, ...] = ("rex/audio_in", "rex/audio_out", "rex/ha_cmd")
 
     def __init__(
         self,
         *,
-        broker: Optional[str] = None,
-        port: Optional[int] = None,
-        tls_enabled: Optional[bool] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        client_id: Optional[str] = None,
-        keepalive: Optional[int] = None,
-        tls_ca: Optional[str] = None,
-        tls_cert: Optional[str] = None,
-        tls_key: Optional[str] = None,
-        tls_insecure: Optional[bool] = None,
-        watchdog_interval: Optional[int] = None,
-        watchdog_timeout: Optional[int] = None,
-        node_id: Optional[str] = None,
+        broker: str | None = None,
+        port: int | None = None,
+        tls_enabled: bool | None = None,
+        username: str | None = None,
+        password: str | None = None,
+        client_id: str | None = None,
+        keepalive: int | None = None,
+        tls_ca: str | None = None,
+        tls_cert: str | None = None,
+        tls_key: str | None = None,
+        tls_insecure: bool | None = None,
+        watchdog_interval: int | None = None,
+        watchdog_timeout: int | None = None,
+        node_id: str | None = None,
         health_topic: str = "rex/health/core",
         required_fields: Iterable[str] = ("node_id", "timestamp"),
         reconnect_interval: float = 5.0,
@@ -127,13 +128,13 @@ class RexMQTTClient:
         self._reconnect_interval = reconnect_interval
         self._reconnect_interval_max = reconnect_interval_max
 
-        self._subscriptions: Dict[str, Subscription] = {
+        self._subscriptions: dict[str, Subscription] = {
             topic: Subscription(topic=topic) for topic in self.DEFAULT_SUBSCRIPTIONS
         }
 
-        self._client: Optional[Client] = None
-        self._connection_task: Optional[asyncio.Task[None]] = None
-        self._watchdog_task: Optional[asyncio.Task[None]] = None
+        self._client: Client | None = None
+        self._connection_task: asyncio.Task[None] | None = None
+        self._watchdog_task: asyncio.Task[None] | None = None
         self._stop_event = asyncio.Event()
         self._connected_event = asyncio.Event()
         self._last_message_at = time.monotonic()
@@ -148,7 +149,7 @@ class RexMQTTClient:
     def is_connected(self) -> bool:
         return self._connected_event.is_set()
 
-    async def start(self, *, wait_connected: bool = True, timeout: Optional[float] = 20.0) -> None:
+    async def start(self, *, wait_connected: bool = True, timeout: float | None = 20.0) -> None:
         """Start the MQTT connection loop and optional watchdog."""
         if self._connection_task is None or self._connection_task.done():
             self._stop_event.clear()
@@ -185,7 +186,7 @@ class RexMQTTClient:
 
         self._connected_event.clear()
 
-    async def wait_connected(self, *, timeout: Optional[float] = None) -> None:
+    async def wait_connected(self, *, timeout: float | None = None) -> None:
         """Block until the client is connected or timeout expires."""
         if timeout is None:
             await self._connected_event.wait()
@@ -198,7 +199,7 @@ class RexMQTTClient:
     async def publish(
         self,
         topic: str,
-        payload: Dict[str, Any] | str | bytes,
+        payload: dict[str, Any] | str | bytes,
         *,
         qos: int = 1,
         retain: bool = False,
@@ -376,7 +377,7 @@ class RexMQTTClient:
                         logger.exception("Failed to publish MQTT watchdog heartbeat.")
             await asyncio.sleep(self._watchdog_interval)
 
-    def _build_tls_context(self) -> Optional[ssl.SSLContext]:
+    def _build_tls_context(self) -> ssl.SSLContext | None:
         """Create an SSL context based on configuration."""
         ca_path = _resolve_optional_path(self._tls_ca)
         cert_path = _resolve_optional_path(self._tls_cert)
@@ -395,7 +396,7 @@ class RexMQTTClient:
 
     def _validate_payload(
         self,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         *,
         context: str,
         check_timestamp: bool = True,
@@ -431,7 +432,7 @@ class RexMQTTClient:
                 raise PayloadValidationError(f"{error_prefix}timestamp is in the future.")
 
 
-_default_client: Optional[RexMQTTClient] = None
+_default_client: RexMQTTClient | None = None
 
 
 def get_mqtt_client() -> RexMQTTClient:

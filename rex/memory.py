@@ -117,7 +117,7 @@ class WorkingMemory:
         """Load entries from disk."""
         if self.storage_path.exists():
             try:
-                with open(self.storage_path, "r", encoding="utf-8") as f:
+                with open(self.storage_path, encoding="utf-8") as f:
                     data = json.load(f)
                     self._entries = data.get("entries", [])
                     logger.debug(f"Loaded {len(self._entries)} working memory entries")
@@ -313,7 +313,7 @@ class LongTermMemory:
         """Load entries from disk."""
         if self.storage_path.exists():
             try:
-                with open(self.storage_path, "r", encoding="utf-8") as f:
+                with open(self.storage_path, encoding="utf-8") as f:
                     data = json.load(f)
                     for entry_data in data.get("entries", []):
                         entry = MemoryEntry.model_validate(entry_data)

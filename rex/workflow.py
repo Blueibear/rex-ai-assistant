@@ -32,7 +32,6 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -267,7 +266,7 @@ class WorkflowApproval(BaseModel):
         cls,
         approval_id: str,
         approval_dir: Path | str | None = None,
-    ) -> "WorkflowApproval | None":
+    ) -> WorkflowApproval | None:
         """Load an approval from disk.
 
         Args:
@@ -286,7 +285,7 @@ class WorkflowApproval(BaseModel):
             return None
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 return cls.model_validate_json(f.read())
         except Exception as e:
             logger.warning("Failed to load approval %s: %s", approval_id, e)
@@ -470,7 +469,7 @@ class Workflow(BaseModel):
         cls,
         workflow_id: str,
         workflow_dir: Path | str | None = None,
-    ) -> "Workflow | None":
+    ) -> Workflow | None:
         """Load a workflow from disk by ID.
 
         Args:
@@ -489,14 +488,14 @@ class Workflow(BaseModel):
             return None
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 return cls.model_validate_json(f.read())
         except Exception as e:
             logger.warning("Failed to load workflow %s: %s", workflow_id, e)
             return None
 
     @classmethod
-    def load_from_file(cls, file_path: Path | str) -> "Workflow":
+    def load_from_file(cls, file_path: Path | str) -> Workflow:
         """Load a workflow from a specific file path.
 
         Args:
@@ -514,7 +513,7 @@ class Workflow(BaseModel):
             raise FileNotFoundError(f"Workflow file not found: {file_path}")
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
         except OSError as e:
             raise ValueError(f"Failed to read workflow file: {e}") from e
@@ -529,7 +528,7 @@ class Workflow(BaseModel):
         cls,
         workflow_dir: Path | str | None = None,
         status: str | None = None,
-    ) -> list["Workflow"]:
+    ) -> list[Workflow]:
         """List all workflows in the workflow directory.
 
         Args:
@@ -549,7 +548,7 @@ class Workflow(BaseModel):
         workflows = []
         for file_path in workflow_dir.glob("*.json"):
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     wf = cls.model_validate_json(f.read())
                     if status is None or wf.status == status:
                         workflows.append(wf)
