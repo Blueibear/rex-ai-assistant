@@ -27,6 +27,7 @@ TORCH_AVAILABLE = _module_available("torch")
 TRANSFORMERS_AVAILABLE = _module_available("transformers")
 OPENAI_AVAILABLE = _module_available("openai")
 OLLAMA_AVAILABLE = _module_available("ollama")
+ANTHROPIC_AVAILABLE = _module_available("anthropic")
 
 
 @dataclass
@@ -247,6 +248,39 @@ class OllamaStrategy:
             )
 
 
+class AnthropicStrategy:
+    name = "anthropic"
+
+    def __init__(self, model_name: str, client_factory) -> None:
+        self.model_name = model_name
+        self._client_factory = client_factory
+        self._cached_client = None
+
+    def _get_client(self) -> Any:
+        if self._cached_client is None:
+            self._cached_client = self._client_factory()
+        return self._cached_client
+
+    def generate(self, prompt: str, config: GenerationConfig, *, messages=None) -> str:
+        payload = messages or [{"role": "user", "content": prompt}]
+        # Anthropic requires alternating user/assistant turns; filter system messages
+        system_parts = [m["content"] for m in payload if m.get("role") == "system"]
+        user_messages = [m for m in payload if m.get("role") != "system"]
+        system_text = "\n".join(system_parts) if system_parts else None
+
+        api_params: dict[str, Any] = {
+            "model": self.model_name,
+            "max_tokens": config.max_new_tokens,
+            "messages": user_messages,
+        }
+        if system_text:
+            api_params["system"] = system_text
+
+        response = self._get_client().messages.create(**api_params)
+        content = response.content[0].text if response.content else ""
+        return content.strip() or "(silence)"
+
+
 _STRATEGIES: dict[str, type[LLMStrategy]] = {
     EchoStrategy.name: EchoStrategy,
     TransformersStrategy.name: TransformersStrategy,
@@ -265,12 +299,21 @@ class LanguageModel:
             self.model_name = (
                 overrides.get("model") or self.config.openai_model or self.config.llm_model
             )
+        elif self.provider == "anthropic":
+            self.model_name = (
+                overrides.get("model") or self.config.anthropic_model or self.config.llm_model
+            )
         else:
             self.model_name = overrides.get("model") or self.config.llm_model
         self.api_key = (
             overrides.get("openai_api_key")
             or self.config.openai_api_key
             or os.getenv("OPENAI_API_KEY")
+        )
+        self.anthropic_api_key = (
+            overrides.get("anthropic_api_key")
+            or self.config.anthropic_api_key
+            or os.getenv("ANTHROPIC_API_KEY")
         )
 
         self.generation = GenerationConfig(
@@ -282,13 +325,33 @@ class LanguageModel:
         )
 
         self._openai_client = None
+        self._anthropic_client = None
         self._tools: list[Any] = []  # OpenAI tool definitions
         self._tool_functions: dict[str, Any] = {}  # Map of tool name -> callable
         self.strategy = self._init_strategy()
 
+    def _ensure_anthropic_client(self) -> Any:
+        if self._anthropic_client is not None:
+            return self._anthropic_client
+        if not ANTHROPIC_AVAILABLE:
+            raise ConfigurationError("Anthropic backend requires the `anthropic` package.")
+        try:
+            Anthropic = import_module("anthropic").Anthropic
+        except Exception as exc:
+            raise ConfigurationError(
+                "Anthropic backend requires the `anthropic` package."
+            ) from exc
+        if not self.anthropic_api_key:
+            raise ConfigurationError("Missing Anthropic API key.")
+        self._anthropic_client = Anthropic(api_key=self.anthropic_api_key)
+        return self._anthropic_client
+
     def _init_strategy(self) -> LLMStrategy:
         if self.provider == "openai":
             return OpenAIStrategy(self.model_name, self._ensure_openai_client)
+
+        if self.provider == "anthropic":
+            return AnthropicStrategy(self.model_name, self._ensure_anthropic_client)
 
         if self.provider == "ollama":
             return OllamaStrategy(

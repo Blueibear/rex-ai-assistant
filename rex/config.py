@@ -139,6 +139,9 @@ class AppConfig:
     openai_model: Optional[str] = None
     openai_base_url: Optional[str] = None
 
+    anthropic_api_key: Optional[str] = None
+    anthropic_model: Optional[str] = None
+
     ollama_api_key: Optional[str] = None
     ollama_base_url: str = "http://localhost:11434"
     ollama_use_cloud: bool = False
@@ -180,6 +183,8 @@ class AppConfig:
                 raise ValueError("llm_model must not contain path traversal components.")
         if provider == "openai" and not self.openai_model:
             raise ValueError("openai.model must be set when llm_provider is 'openai'.")
+        if provider == "anthropic" and not self.anthropic_model:
+            raise ValueError("anthropic.model must be set when llm_provider is 'anthropic'.")
         if self.llm_backend is None:
             self.llm_backend = self.llm_provider
         if self.temperature is None:
@@ -313,6 +318,9 @@ def build_app_config(json_config: dict) -> AppConfig:
         openai_model=_get_nested(json_config, "openai.model"),
         openai_base_url=_get_nested(json_config, "openai.base_url"),
         openai_api_key=os.getenv("OPENAI_API_KEY"),  # SECRET from env
+        # Anthropic from JSON + secrets from env
+        anthropic_model=_get_nested(json_config, "anthropic.model"),
+        anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),  # SECRET from env
         # All secrets from env only
         brave_api_key=os.getenv("BRAVE_API_KEY"),
         speak_api_key=os.getenv("REX_SPEAK_API_KEY"),

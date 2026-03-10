@@ -210,10 +210,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want the Anthropic provider to execute prompts reliably so that Rex can generate responses using Claude models.
 
 **Acceptance Criteria:**
-- [ ] provider initializes
-- [ ] prompt execution works
-- [ ] response returned
-- [ ] Typecheck passes
+- [x] provider initializes
+- [x] prompt execution works
+- [x] response returned
+- [x] Typecheck passes
 
 ---
 

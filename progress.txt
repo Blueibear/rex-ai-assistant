@@ -126,3 +126,15 @@
   - Repo integrity tests (test_no_tracked_files_modified) require git commit before running full suite; pre-existing dirty files cause failures
   - 1663 tests pass, 26 skipped after new tests added
 ---
+## Iteration 14 - US-014: Anthropic provider
+- What was implemented: Added AnthropicStrategy to llm_client.py, anthropic_api_key/anthropic_model to AppConfig, wired into LanguageModel, added to credentials mapping, added 5 acceptance tests.
+- Files changed: rex/llm_client.py, rex/config.py, rex/credentials.py, tests/test_us014_anthropic_provider.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Anthropic SDK messages.create() takes model, max_tokens, messages, and optional system (not temperature)
+  - System messages must be extracted from the messages list and passed as "system" kwarg separately
+  - Pattern: add ANTHROPIC_AVAILABLE flag, _ensure_anthropic_client() lazy loader, AnthropicStrategy class following same structure as OpenAIStrategy
+  - AppConfig validation: add __post_init__ check for anthropic provider requiring anthropic_model
+  - build_app_config() reads ANTHROPIC_API_KEY from env and anthropic.model from JSON
+  - monkeypatch.setattr(LanguageModel, "_ensure_anthropic_client", ...) works cleanly for test injection
+  - mypy rex/ still passes with 121 source files
+---
