@@ -418,3 +418,15 @@
   - patch target: "rex.app_launcher.subprocess.Popen" for injecting mock processes in tests
   - 23 new tests pass, mypy clean (1 source file)
 ---
+## Iteration 40 - US-040: Knowledge ingestion
+- What was implemented: rex/knowledge_base.py already fully implements KnowledgeBase with ingest_text/ingest_file, word-based indexing, search, and JSON persistence; added tests/test_us040_knowledge_ingestion.py with 20 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us040_knowledge_ingestion.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - KnowledgeBase accepts docs_path and index_path kwargs for temp-backed test isolation
+  - set_knowledge_base(None) resets the global singleton; use type: ignore[arg-type]
+  - _index is a defaultdict(set) of word -> set of doc_ids; directly inspectable in tests
+  - Stop words (a, an, the, ...) are excluded from indexing; use non-stop-word keywords in tests
+  - search() uses exact match (+2), prefix match (+1), and substring bonus (+3 content, +5 title) for ranking
+  - ingest_file() raises FileNotFoundError for missing files; title defaults to Path.stem
+  - 20 new tests pass, mypy rex/ still clean (124 files)
+---
