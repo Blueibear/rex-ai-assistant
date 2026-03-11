@@ -535,3 +535,14 @@
   - "Verify changes work in browser" criterion: started Flask server on localhost:15050, confirmed HTTP 200 via urllib; kapture extension not installed in this env
   - 21 new tests pass, mypy rex/ still clean (125 files)
 ---
+## Iteration 51 - US-051: Chat interface
+- What was implemented: Backend /api/chat and /api/chat/history already fully implemented in routes.py; frontend chat UI in index.html and dashboard.js also already present. Added tests/test_us051_chat_interface.py with 24 tests covering all 5 acceptance criteria.
+- Files changed: tests/test_us051_chat_interface.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - routes_module._CHAT_HISTORY is a module-level list; clear it with autouse fixture for test isolation
+  - patch("rex.dashboard.routes._get_llm", return_value=mock_llm) cleanly injects mock LLM (not a lambda - routes imports _get_llm, so patch at usage site)
+  - require_auth allows local access (remote_addr=127.0.0.1) when REX_DASHBOARD_ALLOW_LOCAL=1 (default) and no password configured
+  - /api/chat/history supports ?limit= and ?offset= query params; limit capped at 100
+  - Chat history entries include user_message, assistant_reply, timestamp, elapsed_ms
+  - 24 new tests pass, mypy rex/ still clean (125 files)
+---

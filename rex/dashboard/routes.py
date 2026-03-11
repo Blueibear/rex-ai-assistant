@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import time
 from datetime import datetime
 from functools import wraps
@@ -960,6 +961,102 @@ def stream_notifications():
     response.headers["Connection"] = "keep-alive"
     response.headers["X-Accel-Buffering"] = "no"
     return response
+
+
+# --- Voice Endpoints ---
+
+
+def _transcribe_audio_file(audio_path: str) -> str:
+    """Transcribe an audio file using Whisper.
+
+    Separated as a standalone function so tests can patch it.
+    """
+    try:
+        import whisper as _whisper
+    except ImportError as exc:
+        raise ImportError("openai-whisper is required for voice transcription") from exc
+
+    model = _whisper.load_model("base")
+    result = model.transcribe(audio_path, language="en", fp16=False)
+    return str(result.get("text", "")).strip()
+
+
+@dashboard_bp.route("/api/voice", methods=["POST"])
+@require_auth
+def voice_chat():
+    """Accept audio from the browser microphone, transcribe, and return an LLM reply.
+
+    Accepts multipart/form-data with an 'audio' field containing the recorded blob.
+    Returns {"transcript": "...", "reply": "...", "timestamp": "..."}.
+    """
+    audio_file = request.files.get("audio")
+    if audio_file is None:
+        return jsonify({"error": "No audio file provided"}), 400
+
+    # Pick a temp file extension from the content-type so ffmpeg/whisper can load it.
+    content_type = audio_file.content_type or ""
+    if "webm" in content_type:
+        suffix = ".webm"
+    elif "ogg" in content_type:
+        suffix = ".ogg"
+    elif "mp4" in content_type or "m4a" in content_type:
+        suffix = ".mp4"
+    else:
+        suffix = ".wav"
+
+    tmp_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp_path = tmp.name
+            audio_file.save(tmp)
+
+        # Transcribe
+        try:
+            transcript = _transcribe_audio_file(tmp_path)
+        except ImportError:
+            return jsonify({"error": "Speech-to-text not available"}), 503
+        except Exception as exc:
+            logger.error("Transcription error: %s", exc)
+            return jsonify({"error": f"Transcription failed: {exc}"}), 500
+
+        if not transcript or not transcript.strip():
+            return jsonify({"error": "No speech detected"}), 422
+
+        # Generate LLM reply
+        try:
+            llm = _get_llm()
+            messages: list[dict[str, str]] = [{"role": "user", "content": transcript}]
+            reply = llm.generate(messages=messages)
+        except Exception as exc:
+            logger.error("LLM error during voice chat: %s", exc)
+            return jsonify({"error": f"Failed to generate reply: {exc}"}), 500
+
+        # Persist to shared chat history
+        entry: dict[str, Any] = {
+            "user_message": transcript,
+            "assistant_reply": reply,
+            "timestamp": datetime.now().isoformat(),
+            "elapsed_ms": 0,
+            "source": "voice",
+        }
+        _CHAT_HISTORY.append(entry)
+        while len(_CHAT_HISTORY) > _CHAT_HISTORY_MAX:
+            _CHAT_HISTORY.pop(0)
+
+        return jsonify(
+            {
+                "transcript": transcript,
+                "reply": reply,
+                "timestamp": entry["timestamp"],
+            }
+        )
+
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
 
 
 __all__ = ["dashboard_bp"]

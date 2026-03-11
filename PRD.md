@@ -701,11 +701,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want to speak through the web UI and hear responses so that I have a browser-based voice interface.
 
 **Acceptance Criteria:**
-- [ ] microphone input works
-- [ ] audio sent to backend
-- [ ] response audio plays
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] microphone input works
+- [x] audio sent to backend
+- [x] response audio plays
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

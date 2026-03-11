@@ -18,6 +18,13 @@
         notifFilters: { unread: false, priority: '', channel: '' },
     };
 
+    // Voice recording state
+    const voiceState = {
+        mediaRecorder: null,
+        chunks: [],
+        recording: false,
+    };
+
     // Notification polling timer handle
     let _notifPollTimer = null;
     // SSE EventSource handle for real-time notifications
@@ -812,6 +819,124 @@
         return div.innerHTML;
     }
 
+    // Voice interface
+
+    function setVoiceStatus(text, isRecording) {
+        const statusEl = $('#voice-status');
+        const voiceBtn = $('#voice-btn');
+        if (!statusEl || !voiceBtn) return;
+
+        if (text) {
+            statusEl.textContent = text;
+            statusEl.classList.remove('hidden');
+        } else {
+            statusEl.classList.add('hidden');
+        }
+
+        voiceBtn.textContent = isRecording ? 'Stop' : 'Mic';
+        voiceBtn.classList.toggle('recording', isRecording);
+    }
+
+    function speakReply(text) {
+        if (!text || !window.speechSynthesis) return;
+        const utterance = new SpeechSynthesisUtterance(text);
+        window.speechSynthesis.speak(utterance);
+    }
+
+    async function startVoiceRecording() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert('Microphone not supported in this browser.');
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            voiceState.chunks = [];
+            voiceState.mediaRecorder = new MediaRecorder(stream);
+
+            voiceState.mediaRecorder.addEventListener('dataavailable', (e) => {
+                if (e.data.size > 0) voiceState.chunks.push(e.data);
+            });
+
+            voiceState.mediaRecorder.addEventListener('stop', async () => {
+                // Stop all tracks so the mic indicator clears
+                stream.getTracks().forEach(t => t.stop());
+
+                const blob = new Blob(voiceState.chunks, { type: voiceState.mediaRecorder.mimeType || 'audio/webm' });
+                voiceState.chunks = [];
+                voiceState.recording = false;
+
+                setVoiceStatus('Transcribing...', false);
+
+                try {
+                    const formData = new FormData();
+                    formData.append('audio', blob, 'recording.webm');
+
+                    const headers = {};
+                    if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
+
+                    const response = await fetch('/api/voice', {
+                        method: 'POST',
+                        headers,
+                        credentials: 'same-origin',
+                        body: formData,
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        setVoiceStatus(`Error: ${data.error || 'Voice request failed'}`, false);
+                        return;
+                    }
+
+                    setVoiceStatus('', false);
+
+                    // Display in chat
+                    const container = $('#chat-messages');
+                    const placeholder = container.querySelector('.chat-placeholder');
+                    if (placeholder) placeholder.remove();
+
+                    container.innerHTML += `<div class="chat-message user">${escapeHtml(data.transcript)}</div>`;
+                    container.innerHTML += `<div class="chat-message assistant">${escapeHtml(data.reply)}</div>`;
+                    container.scrollTop = container.scrollHeight;
+
+                    state.chatHistory.push({
+                        user_message: data.transcript,
+                        assistant_reply: data.reply,
+                        timestamp: data.timestamp,
+                    });
+
+                    // Speak the reply aloud
+                    speakReply(data.reply);
+
+                } catch (err) {
+                    setVoiceStatus(`Error: ${err.message}`, false);
+                }
+            });
+
+            voiceState.mediaRecorder.start();
+            voiceState.recording = true;
+            setVoiceStatus('Recording... (click Mic to stop)', true);
+
+        } catch (err) {
+            setVoiceStatus(`Microphone error: ${err.message}`, false);
+        }
+    }
+
+    function stopVoiceRecording() {
+        if (voiceState.mediaRecorder && voiceState.mediaRecorder.state !== 'inactive') {
+            voiceState.mediaRecorder.stop();
+        }
+    }
+
+    function handleVoiceBtnClick() {
+        if (voiceState.recording) {
+            stopVoiceRecording();
+        } else {
+            startVoiceRecording();
+        }
+    }
+
     // Initialize
     async function init() {
         // Check for existing session
@@ -868,6 +993,7 @@
 
         // Chat
         $('#chat-form').addEventListener('submit', handleChatSubmit);
+        $('#voice-btn').addEventListener('click', handleVoiceBtnClick);
 
         // Settings
         $('#settings-search').addEventListener('input', (e) => {
