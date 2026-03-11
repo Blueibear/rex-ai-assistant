@@ -1029,8 +1029,8 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want the UI to reconnect automatically after a connection loss so that temporary network issues do not require a manual page refresh.
 
 **Acceptance Criteria:**
-- [ ] SSE reconnect supported
-- [ ] reconnect attempts limited
-- [ ] UI recovers after connection loss
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] SSE reconnect supported
+- [x] reconnect attempts limited
+- [x] UI recovers after connection loss
+- [x] Typecheck passes
+- [x] Verify changes work in browser

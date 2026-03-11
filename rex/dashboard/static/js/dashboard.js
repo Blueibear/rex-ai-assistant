@@ -29,6 +29,10 @@
     let _notifPollTimer = null;
     // SSE EventSource handle for real-time notifications
     let _notifEventSource = null;
+    // SSE reconnect state
+    const _SSE_MAX_RECONNECT = 5;
+    let _sseReconnectCount = 0;
+    let _sseReconnectTimer = null;
 
     // API helper
     async function api(endpoint, options = {}) {
@@ -118,6 +122,7 @@
 
         stopNotifPolling();
         stopNotifStream();
+        stopNotifReconnect();
         showLogin();
     }
 
@@ -151,10 +156,11 @@
 
     // Section navigation
     function switchSection(sectionId) {
-        // Stop notification polling when leaving notifications section
+        // Stop notification polling/streaming when leaving notifications section
         if (state.currentSection === 'notifications' && sectionId !== 'notifications') {
             stopNotifPolling();
             stopNotifStream();
+            stopNotifReconnect();
         }
 
         state.currentSection = sectionId;
@@ -687,15 +693,23 @@
         }
     }
 
-    // Real-time notifications using SSE, with polling fallback
+    // Real-time notifications using SSE, with limited reconnect and polling fallback
     function startNotifRealtime() {
         stopNotifPolling();
         stopNotifStream();
+        stopNotifReconnect();
+        _sseReconnectCount = 0;
 
         if (!window.EventSource) {
             startNotifPolling();
             return;
         }
+
+        _connectNotifStream();
+    }
+
+    function _connectNotifStream() {
+        stopNotifStream();
 
         // Server supports query token for this endpoint only.
         // If token is missing, the server may still accept cookie auth.
@@ -706,6 +720,9 @@
             _notifEventSource = new EventSource(url, { withCredentials: true });
 
             _notifEventSource.addEventListener('init', (event) => {
+                // Successful connection — reset reconnect counter
+                _sseReconnectCount = 0;
+                _setNotifStreamStatus('');
                 try {
                     const data = JSON.parse(event.data || '{}');
                     updateNotifBadge(data.unread_count || 0);
@@ -722,12 +739,37 @@
 
             _notifEventSource.onerror = () => {
                 stopNotifStream();
-                startNotifPolling();
+                _sseReconnectCount += 1;
+
+                if (_sseReconnectCount <= _SSE_MAX_RECONNECT) {
+                    // Exponential backoff: 2, 4, 8, 16, 32 seconds
+                    const delayMs = Math.pow(2, _sseReconnectCount) * 1000;
+                    _setNotifStreamStatus(
+                        `Connection lost. Reconnecting in ${Math.round(delayMs / 1000)}s… (attempt ${_sseReconnectCount}/${_SSE_MAX_RECONNECT})`
+                    );
+                    _sseReconnectTimer = setTimeout(() => {
+                        _sseReconnectTimer = null;
+                        _connectNotifStream();
+                    }, delayMs);
+                } else {
+                    // Max reconnect attempts reached — fall back to polling
+                    _setNotifStreamStatus('');
+                    startNotifPolling();
+                }
             };
         } catch (e) {
             stopNotifStream();
             startNotifPolling();
         }
+    }
+
+    function _setNotifStreamStatus(message) {
+        const el = $('#notif-summary');
+        if (!el) return;
+        if (message) {
+            el.textContent = message;
+        }
+        // Don't clear the element when message is empty — loadNotifications() will update it
     }
 
     function startNotifPolling() {
@@ -750,6 +792,13 @@
         if (_notifEventSource) {
             _notifEventSource.close();
             _notifEventSource = null;
+        }
+    }
+
+    function stopNotifReconnect() {
+        if (_sseReconnectTimer !== null) {
+            clearTimeout(_sseReconnectTimer);
+            _sseReconnectTimer = null;
         }
     }
 

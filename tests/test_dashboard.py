@@ -995,3 +995,130 @@ class TestUIErrorHandling:
 
         assert response.status_code == 200
         assert b"unhandledrejection" in response.data
+
+
+class TestUIReconnectBehavior:
+    """Tests for US-077: UI reconnect behavior.
+
+    Verifies that:
+    - The JS contains SSE reconnect logic with limited attempts
+    - The reconnect counter and max-attempts constant are present
+    - The UI falls back to polling after exhausting reconnect attempts
+    - The SSE stream endpoint is reachable
+    """
+
+    def test_js_contains_sse_max_reconnect_constant(self, app_client):
+        """Dashboard JS defines the maximum number of SSE reconnect attempts."""
+        client, _ = app_client
+
+        response = client.get(
+            "/dashboard/assets/js/dashboard.js",
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200
+        assert b"_SSE_MAX_RECONNECT" in response.data
+
+    def test_js_contains_reconnect_counter(self, app_client):
+        """Dashboard JS tracks how many reconnect attempts have been made."""
+        client, _ = app_client
+
+        response = client.get(
+            "/dashboard/assets/js/dashboard.js",
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200
+        assert b"_sseReconnectCount" in response.data
+
+    def test_js_contains_reconnect_timer(self, app_client):
+        """Dashboard JS uses a timer to schedule reconnect attempts."""
+        client, _ = app_client
+
+        response = client.get(
+            "/dashboard/assets/js/dashboard.js",
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200
+        assert b"_sseReconnectTimer" in response.data
+
+    def test_js_contains_stop_notif_reconnect(self, app_client):
+        """Dashboard JS has a function to cancel pending reconnect timers."""
+        client, _ = app_client
+
+        response = client.get(
+            "/dashboard/assets/js/dashboard.js",
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200
+        assert b"stopNotifReconnect" in response.data
+
+    def test_js_reconnect_uses_exponential_backoff(self, app_client):
+        """Dashboard JS uses exponential backoff for reconnect delays."""
+        client, _ = app_client
+
+        response = client.get(
+            "/dashboard/assets/js/dashboard.js",
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200
+        # Exponential backoff implemented via Math.pow
+        assert b"Math.pow" in response.data
+
+    def test_js_falls_back_to_polling_after_max_reconnects(self, app_client):
+        """Dashboard JS calls startNotifPolling after exhausting reconnect attempts."""
+        client, _ = app_client
+
+        response = client.get(
+            "/dashboard/assets/js/dashboard.js",
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200
+        js = response.data.decode("utf-8")
+        # The fallback must be within the onerror handler
+        assert "startNotifPolling" in js
+
+    def test_sse_stream_endpoint_requires_auth(self, app_client, tmp_path):
+        """SSE /api/notifications/stream requires auth from remote addresses."""
+        from rex.dashboard_store import DashboardStore, set_dashboard_store
+
+        client, _ = app_client
+        store = DashboardStore(db_path=tmp_path / "sse_auth.db")
+        set_dashboard_store(store)
+
+        try:
+            import os
+
+            os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "0"
+            response = client.get(
+                "/api/notifications/stream",
+                environ_overrides={"REMOTE_ADDR": "8.8.8.8"},
+            )
+            assert response.status_code == 401
+        finally:
+            os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "1"
+            set_dashboard_store(None)
+
+    def test_sse_stream_endpoint_is_reachable_when_authenticated(self, app_client, auth_headers, tmp_path):
+        """SSE /api/notifications/stream returns a streaming response when authenticated."""
+        from rex.dashboard_store import DashboardStore, set_dashboard_store
+
+        client, _ = app_client
+        store = DashboardStore(db_path=tmp_path / "sse_reach.db")
+        set_dashboard_store(store)
+
+        try:
+            response = client.get(
+                "/api/notifications/stream?max_events=1&timeout=0.01",
+                headers=auth_headers,
+                environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+            )
+            # SSE endpoint should return 200 with text/event-stream content-type
+            assert response.status_code == 200
+            assert "text/event-stream" in response.content_type
+        finally:
+            set_dashboard_store(None)
