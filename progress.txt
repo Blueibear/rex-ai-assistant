@@ -557,3 +557,15 @@
   - test_us018 fails in full suite (pre-existing isolation issue unrelated to this story); passes in isolation and with new tests
   - 17 new tests pass, mypy rex/ still clean (126 files)
 ---
+## Iteration 53 - US-053: Secret management
+- What was implemented: CredentialManager already fully implements all acceptance criteria; only test coverage needed. Added tests/test_us053_secret_management.py with 16 tests.
+- Files changed: tests/test_us053_secret_management.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - CredentialManager.get_token() returns None for missing secrets (not an exception)
+  - CredentialManager tries REX_<ENV_VAR> first, then <ENV_VAR> without prefix
+  - .env is already in .gitignore; git ls-files .env returns empty (not tracked)
+  - config/credentials.json also not tracked by git
+  - mask_token(None) → "[empty]"; use this pattern to signal missing secret to callers
+  - set_credential_manager(original) in autouse fixture isolates global state
+  - 16 new tests pass, mypy rex/ still clean (126 files)
+---
