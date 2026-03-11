@@ -1366,11 +1366,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want a coverage report generated for every module so that gaps are visible and a target threshold can be set.
 
 **Acceptance Criteria:**
-- [ ] `pytest --cov=rex --cov-report=term-missing` runs without error
-- [ ] coverage report saved to `coverage.txt` or equivalent
-- [ ] modules with below-50% coverage listed explicitly in the report
-- [ ] agreed minimum coverage threshold documented in `pyproject.toml` or `setup.cfg`
-- [ ] Typecheck passes
+- [x] `pytest --cov=rex --cov-report=term-missing` runs without error
+- [x] coverage report saved to `coverage.txt` or equivalent
+- [x] modules with below-50% coverage listed explicitly in the report
+- [x] agreed minimum coverage threshold documented in `pyproject.toml` or `setup.cfg`
+- [x] Typecheck passes
 
 ---
 
