@@ -545,10 +545,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want documents ingested and indexed so that Rex can answer questions from local knowledge.
 
 **Acceptance Criteria:**
-- [ ] documents ingested
-- [ ] data indexed
-- [ ] query containing a keyword from an indexed document returns that document in results
-- [ ] Typecheck passes
+- [x] documents ingested
+- [x] data indexed
+- [x] query containing a keyword from an indexed document returns that document in results
+- [x] Typecheck passes
 
 ---
 
