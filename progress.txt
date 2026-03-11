@@ -1,4 +1,15 @@
 
+## Iteration 73 - US-086: Twilio adapter interface
+- What was implemented: Created `rex/messaging_backends/twilio_adapter.py` with `TwilioAdapter` as a `runtime_checkable` Protocol with `send_sms(to: str, body: str) -> dict[str, Any]`. Added `send_sms()` to `SmsSenderStub` (delegates to existing `send()`). Exported `TwilioAdapter` from `rex/messaging_backends/__init__.py`. 27 tests in `tests/test_us086_twilio_adapter.py`.
+- Files changed: rex/messaging_backends/twilio_adapter.py (new), rex/messaging_backends/sms_sender_stub.py, rex/messaging_backends/__init__.py, tests/test_us086_twilio_adapter.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `runtime_checkable` Protocol allows `isinstance(obj, TwilioAdapter)` at runtime — needed for registry swap tests
+  - `SmsSenderStub.send_sms()` delegates to `send()` so both methods share the same `_log`
+  - Protocol approach (not ABC) means adding a new adapter just requires implementing `send_sms` — no base class needed
+  - Pre-existing mypy errors in logging_utils.py/dashboard/routes.py are unrelated to messaging_backends
+  - 27 tests pass, new source files are mypy-clean
+---
+
 ## Iteration 63 - US-063: Planner fallback behavior
 - What was implemented: Added `plan_with_fallback(goal, fallback_goals, requested_by)` and `execute_step_with_fallback(primary_step, fallback_steps, executor)` to rex/planner.py. Added 16 tests in tests/test_us063_planner_fallback.py covering all 3 acceptance criteria.
 - Files changed: rex/planner.py, tests/test_us063_planner_fallback.py, PRD.md, progress.txt
@@ -92,6 +103,17 @@
   - `stub_send_invite()` returns `{"status": "ok", "invite": invite}` on success, `{"status": "error", "reason": ...}` when title missing
   - monkeypatch `socket.socket.connect` to verify no network calls in stub tests
   - 46 tests pass, mypy clean on 2 new source files
+---
+
+## Iteration 72 - US-085: SMS receive stub
+- What was implemented: `sms_receiver_stub.py` and `test_us085_sms_receiver_stub.py` already existed from prior work. Ran 32 tests — all passed. Marked AC checkboxes in PRD.md and committed.
+- Files changed: PRD.md (US-085 checkboxes), progress.txt
+- Learnings for future iterations:
+  - `SmsReceiverStub.inject(from_number, body, *, to_number, sid, received_at)` routes through configurable handler
+  - `received_messages` / `handler_responses` return copies; `clear()` resets both
+  - Default handler returns `InboundSmsHandlerResult(status="received", ...)`; custom handlers fully replace it
+  - No-network assertion uses `patch.object(socket.socket, "connect", ...)` — same pattern as SmsSenderStub
+  - 32 tests pass, implementation was already complete
 ---
 
 ## Iteration 71 - US-084: SMS send stub

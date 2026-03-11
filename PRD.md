@@ -1152,10 +1152,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want a well-defined Twilio adapter interface so that the stub and the real Twilio client are interchangeable without changing any calling code.
 
 **Acceptance Criteria:**
-- [ ] `TwilioAdapter` abstract class or Protocol defined with at minimum `send_sms(to: str, body: str)` signature
-- [ ] `SmsSenderStub` fully implements `TwilioAdapter`
-- [ ] swapping stub for a real Twilio client requires no changes outside the adapter registration point
-- [ ] Typecheck passes
+- [x] `TwilioAdapter` abstract class or Protocol defined with at minimum `send_sms(to: str, body: str)` signature
+- [x] `SmsSenderStub` fully implements `TwilioAdapter`
+- [x] swapping stub for a real Twilio client requires no changes outside the adapter registration point
+- [x] Typecheck passes
 
 ---
 

@@ -15,6 +15,7 @@ from rex.messaging_backends.sms_receiver_stub import (
 )
 from rex.messaging_backends.sms_sender_stub import SentSmsRecord, SmsSenderStub
 from rex.messaging_backends.stub import StubSmsBackend
+from rex.messaging_backends.twilio_adapter import TwilioAdapter
 
 __all__ = [
     "InboundSmsHandlerResult",
@@ -28,6 +29,7 @@ __all__ = [
     "SmsReceiverStub",
     "SmsSenderStub",
     "StubSmsBackend",
+    "TwilioAdapter",
     "create_sms_backend",
     "load_messaging_config",
 ]

@@ -68,6 +68,25 @@ class SmsSenderStub:
         return {"ok": True, "sid": sid, "to": to, "body": body}
 
     # ------------------------------------------------------------------
+    # TwilioAdapter interface (US-086)
+    # ------------------------------------------------------------------
+
+    def send_sms(self, to: str, body: str) -> dict[str, Any]:
+        """Implement ``TwilioAdapter.send_sms``.
+
+        Delegates to :meth:`send` so that callers using the Protocol interface
+        get the same stub behaviour as direct ``send`` callers.
+
+        Args:
+            to: Destination phone number (E.164 format preferred).
+            body: Message body text.
+
+        Returns:
+            The same dict returned by :meth:`send`.
+        """
+        return self.send(to, body)
+
+    # ------------------------------------------------------------------
     # Test helpers
     # ------------------------------------------------------------------
 
