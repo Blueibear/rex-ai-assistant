@@ -363,6 +363,16 @@
   - Files starting with '_' (including __init__.py) are skipped by the loader
   - 12 new tests pass, mypy rex/ still clean (122 files)
 ---
+## Iteration 36 - US-036: Scheduler
+- What was implemented: rex/scheduler.py already fully implements Scheduler with background loop, persistence, and callback execution; added tests/test_us036_scheduler.py with 26 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us036_scheduler.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Scheduler supports both legacy add_job(name, interval, handler_name) and new-style add_job(job_id=..., name=..., schedule=...) APIs
+  - set_scheduler(None) resets the global instance; pass None with type: ignore[arg-type]
+  - To test run_due_jobs(), manually set job.next_run to past (job object from get_job() is mutable)
+  - Scheduler.start()/stop() manage a daemon background thread; _running attribute is authoritative
+  - 26 new tests pass, mypy rex/ still clean (122 files)
+---
 ## Iteration 35 - US-035: Plugin execution
 - What was implemented: Added tests/test_us035_plugin_execution.py with 14 tests covering all 3 acceptance criteria.
 - Files changed: tests/test_us035_plugin_execution.py (new), PRD.md, progress.txt
