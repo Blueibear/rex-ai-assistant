@@ -35,12 +35,19 @@ def _configure_text_io() -> None:
 EXCLUDE_DIRS = {
     ".git",
     ".venv",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".tox",
+    ".nox",
+    ".cache",
     "venv",
     "source",
     "node_modules",
     "dist",
     "build",
     "__pycache__",
+    "htmlcov",
     "backups",
     "logs",
 }
@@ -288,7 +295,7 @@ def main(argv: list[str] | None = None) -> int:
     print()
 
     # Scan all files
-    for filepath in repo_root.rglob("*"):
+    for filepath in sorted(repo_root.rglob("*")):
         if filepath.is_file() and should_scan_file(filepath):
             files_scanned += 1
             merge, placeholder, secret = scan_file(
