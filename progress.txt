@@ -22,6 +22,18 @@
   - 24 tests pass, mypy clean on 2 new source files
 ---
 
+## Iteration 68 - US-081: Calendar free/busy stub
+- What was implemented: Created `rex/calendar_backends/free_busy_stub.py` with `CalendarStub` (extends `CalendarBackend`) and `FreeBusyBlock`. Builds 12 mock events across Mon–Fri using configurable anchor date (default 2026-03-09). `get_free_busy(start, end)` returns overlapping busy blocks sorted by start. Exported from `rex/calendar_backends/__init__.py`. 39 tests in `tests/test_us081_calendar_stub.py`.
+- Files changed: rex/calendar_backends/free_busy_stub.py (new), rex/calendar_backends/__init__.py, tests/test_us081_calendar_stub.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `FreeBusyBlock.overlaps(window_start, window_end)` uses strict `start < window_end and end > window_start` (exclusive window end)
+  - `_ensure_utc()` helper normalizes naive datetimes before comparison
+  - `DEFAULT_ANCHOR = date(2026, 3, 9)` gives a stable Monday for deterministic tests
+  - `test_adjacent_event_not_in_window` confirms events ending exactly at window_start are excluded
+  - `from typing import Any  # noqa: E402` at bottom needed for monkeypatch type hints — move to top next time
+  - 39 tests pass, mypy clean
+---
+
 ## Iteration 67 - US-080: Email triage rules engine
 - What was implemented: Created `rex/email_backends/triage_rules.py` with `TriageRulesEngine`, `TriageRule` dataclass, and `load_rules_from_file()`. Engine loads JSON config, evaluates rules in order (first match wins), auto-reloads on mtime change. `categorize_with_fallback()` delegates to built-in when no rule fires. 24 tests in `tests/test_us080_triage_rules_engine.py`.
 - Files changed: rex/email_backends/triage_rules.py (new), rex/email_backends/__init__.py, tests/test_us080_triage_rules_engine.py (new), PRD.md, progress.txt
@@ -43,6 +55,19 @@
   - Test helper `_env()` uses same message_id for all envelopes — avoid set-based uniqueness logic in tests
   - filter_by_category() raises ValueError for unknown category names
   - 45 tests pass, mypy clean
+---
+
+## Iteration 69 - US-082: Free time finder
+- What was implemented: Created `rex/calendar_backends/free_time_finder.py` with `TimeSlot` dataclass and `find_free_slots()`. Algorithm walks day-by-day, clips to working hours, merges/sorts busy blocks, then steps through free gaps emitting slots. Exported from `rex/calendar_backends/__init__.py`. 32 tests in `tests/test_us082_free_time_finder.py`.
+- Files changed: rex/calendar_backends/free_time_finder.py (new), rex/calendar_backends/__init__.py, tests/test_us082_free_time_finder.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `find_free_slots(busy_blocks, range_start, range_end, duration_minutes, ...)` signature
+  - `day_start_hour`/`day_end_hour` (default 9/18) clip each calendar day to working hours
+  - `slot_step_minutes` (default 30) controls how densely slots are packed within each gap
+  - `max_slots` stops early once N slots collected (useful for pagination)
+  - Algorithm: for each gap between busy blocks (clipped to window), step from gap_start to gap_end-duration, yield TimeSlot per step
+  - `_ensure_utc()` copied locally to avoid circular import from free_busy_stub
+  - 32 tests pass, mypy clean on 2 new files
 ---
 
 ## Iteration 64 - US-064: Workflow state persistence

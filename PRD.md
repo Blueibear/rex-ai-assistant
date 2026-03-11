@@ -1097,11 +1097,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want Rex to find available meeting slots from my calendar so that I can ask "when am I free?" and get usable suggestions.
 
 **Acceptance Criteria:**
-- [ ] given a date range and meeting duration, returns a list of available time slots
-- [ ] overlapping calendar events are excluded from returned slots
-- [ ] returns at least three candidate slots when the calendar is not fully booked
-- [ ] works correctly against stub/mock calendar data in beta
-- [ ] Typecheck passes
+- [x] given a date range and meeting duration, returns a list of available time slots
+- [x] overlapping calendar events are excluded from returned slots
+- [x] returns at least three candidate slots when the calendar is not fully booked
+- [x] works correctly against stub/mock calendar data in beta
+- [x] Typecheck passes
 
 ---
 

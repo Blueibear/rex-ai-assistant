@@ -7,5 +7,12 @@ pattern used by ``rex.email_backends``.
 
 from rex.calendar_backends.base import CalendarBackend
 from rex.calendar_backends.free_busy_stub import CalendarStub, FreeBusyBlock
+from rex.calendar_backends.free_time_finder import TimeSlot, find_free_slots
 
-__all__ = ["CalendarBackend", "CalendarStub", "FreeBusyBlock"]
+__all__ = [
+    "CalendarBackend",
+    "CalendarStub",
+    "FreeBusyBlock",
+    "TimeSlot",
+    "find_free_slots",
+]
