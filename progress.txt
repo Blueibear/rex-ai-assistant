@@ -1,4 +1,27 @@
 
+## Iteration 75 - US-088: Notification priority levels
+- What was implemented: Created `rex/notification_priority.py` with `NotificationPriority(str, Enum)` with values: critical, high, medium, low. `from_str()` classmethod normalises legacy/"normal"/unknown → MEDIUM. Updated `DashboardStore.write()` to accept `NotificationPriority | str` (default MEDIUM). Updated `query_recent` to normalise priority on read via `NotificationPriority.from_str()`. Re-exported `NotificationPriority` from `dashboard_store.__all__`. Fixed `test_us068` that used invalid `priority="urgent"` → `priority="high"`. 35 tests in `tests/test_us088_notification_priority.py`.
+- Files changed: rex/notification_priority.py (new), rex/dashboard_store.py, tests/test_us088_notification_priority.py (new), tests/test_us068_notification_persistence.py (fix), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `NotificationPriority(str, Enum)` lets values compare equal to plain strings ("high" == NotificationPriority.HIGH)
+  - `_missing_` classmethod on Enum makes `NotificationPriority("unknown")` return MEDIUM; but `from_str()` is safer (handles None + strips)
+  - Legacy DB rows with `priority="normal"` or `priority=""` are transparently normalised to "medium" on read
+  - Existing test_us068 used `priority="urgent"` (invalid) — updated to `priority="high"` since normalisation maps unknowns to medium
+  - 35 tests pass, 88 related notification tests all pass
+---
+
+## Iteration 74 - US-087: Multi-channel message router
+- What was implemented: Created `rex/messaging_backends/message_router.py` with `MessageRouter`, `MessagePayload`, `RouteResult`, `RouterConfig`, `UnknownChannelError`, and `ChannelNotConfiguredError`. Router dispatches to dashboard (NotificationBroadcaster), email (EmailBackend), and SMS (TwilioAdapter) based on channel string. `active_channel` property settable at runtime. Unknown channel raises `UnknownChannelError`; unconfigured backend raises `ChannelNotConfiguredError`. 34 tests in `tests/test_us087_message_router.py`.
+- Files changed: rex/messaging_backends/message_router.py (new), rex/messaging_backends/__init__.py, tests/test_us087_message_router.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `RouterConfig(active_channel=...)` dataclass makes channel configurable without code changes
+  - `TYPE_CHECKING` guard for backend imports avoids circular/optional import issues at module load
+  - `ChannelNotConfiguredError` (backend is None) is separate from `UnknownChannelError` (invalid channel string)
+  - `StubEmailBackend(fixture_path=None)` still works for send() tests even without a fixture file
+  - Pre-existing mypy error in logging_utils.py; new source files are mypy-clean
+  - 34 tests pass, 2994 total pass
+---
+
 ## Iteration 73 - US-086: Twilio adapter interface
 - What was implemented: Created `rex/messaging_backends/twilio_adapter.py` with `TwilioAdapter` as a `runtime_checkable` Protocol with `send_sms(to: str, body: str) -> dict[str, Any]`. Added `send_sms()` to `SmsSenderStub` (delegates to existing `send()`). Exported `TwilioAdapter` from `rex/messaging_backends/__init__.py`. 27 tests in `tests/test_us086_twilio_adapter.py`.
 - Files changed: rex/messaging_backends/twilio_adapter.py (new), rex/messaging_backends/sms_sender_stub.py, rex/messaging_backends/__init__.py, tests/test_us086_twilio_adapter.py (new), PRD.md, progress.txt

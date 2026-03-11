@@ -1194,12 +1194,12 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want routing rules that deliver critical and high notifications immediately while queuing medium and low ones so that users are not interrupted by low-priority alerts.
 
 **Acceptance Criteria:**
-- [ ] critical and high priority notifications dispatched to configured delivery channels immediately on creation
-- [ ] medium and low priority notifications placed in the digest queue instead of immediate delivery
-- [ ] routing rules configurable without code changes
-- [ ] unit test confirms a critical notification bypasses the digest queue
-- [ ] unit test confirms a low notification is placed in the digest queue
-- [ ] Typecheck passes
+- [x] critical and high priority notifications dispatched to configured delivery channels immediately on creation
+- [x] medium and low priority notifications placed in the digest queue instead of immediate delivery
+- [x] routing rules configurable without code changes
+- [x] unit test confirms a critical notification bypasses the digest queue
+- [x] unit test confirms a low notification is placed in the digest queue
+- [x] Typecheck passes
 
 ---
 
