@@ -834,10 +834,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want the planner to select the most appropriate tool from multiple options so that tasks are executed efficiently.
 
 **Acceptance Criteria:**
-- [ ] planner selects appropriate tools
-- [ ] multiple tool options supported
-- [ ] tool selection validated
-- [ ] Typecheck passes
+- [x] planner selects appropriate tools
+- [x] multiple tool options supported
+- [x] tool selection validated
+- [x] Typecheck passes
 
 ---
 

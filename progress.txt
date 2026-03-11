@@ -662,3 +662,13 @@
   - mypy rex/planner.py clean (pre-existing errors in other files are unrelated)
   - 14 new tests pass
 ---
+
+## Iteration 62 - US-062: Planner tool selection
+- What was implemented: Added select_tool(candidates: list[str]) -> str | None to Planner class. Iterates candidates in priority order; skips tools that are unregistered, disabled, or missing credentials; returns first suitable tool or None. Added 14 tests in test_us062_planner_tool_selection.py.
+- Files changed: rex/planner.py (select_tool method), tests/test_us062_planner_tool_selection.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - tool_registry.check_credentials(name) raises ToolNotFoundError if tool not registered; call has_tool() first
+  - tool_registry.get_tool(name) returns ToolMeta; check meta.enabled before accepting
+  - Disabled tool: ToolMeta(name=..., enabled=False) — register it, then select_tool skips it
+  - 14 new tests pass; mypy rex/planner.py clean
+---

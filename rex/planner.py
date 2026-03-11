@@ -430,6 +430,43 @@ class Planner:
             )
         ]
 
+    def select_tool(self, candidates: list[str]) -> str | None:
+        """Select the most appropriate tool from a list of candidates.
+
+        Iterates through the candidates in priority order and returns the first
+        tool that is registered, enabled, and has all credentials available.
+
+        Args:
+            candidates: Ordered list of tool names to consider, from most
+                preferred to least preferred.
+
+        Returns:
+            The name of the first suitable tool, or None if no candidate is
+            available.
+        """
+        for tool_name in candidates:
+            if not self.tool_registry.has_tool(tool_name):
+                logger.debug("select_tool: '%s' not registered, skipping", tool_name)
+                continue
+
+            meta = self.tool_registry.get_tool(tool_name)
+            if meta is not None and not meta.enabled:
+                logger.debug("select_tool: '%s' is disabled, skipping", tool_name)
+                continue
+
+            all_available, missing = self.tool_registry.check_credentials(tool_name)
+            if not all_available:
+                logger.debug(
+                    "select_tool: '%s' missing credentials %s, skipping", tool_name, missing
+                )
+                continue
+
+            logger.debug("select_tool: selected '%s'", tool_name)
+            return tool_name
+
+        logger.warning("select_tool: no suitable tool found among %s", candidates)
+        return None
+
     def build_prompt(self, goal: str) -> str:
         """Build a prompt for LLM-assisted planning.
 
