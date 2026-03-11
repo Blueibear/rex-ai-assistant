@@ -363,10 +363,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want workflow definitions stored and validated so that automated sequences can be reliably triggered.
 
 **Acceptance Criteria:**
-- [ ] workflows defined
-- [ ] schema validated
-- [ ] workflows stored
-- [ ] Typecheck passes
+- [x] workflows defined
+- [x] schema validated
+- [x] workflows stored
+- [x] Typecheck passes
 
 ---
 
