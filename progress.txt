@@ -384,3 +384,14 @@
   - shutdown_plugins() wraps each plugin.shutdown() in try/except — exceptions are logged, not re-raised
   - 14 new tests pass, mypy rex/ still clean (122 files)
 ---
+## Iteration 37 - US-037: Automation Registry
+- What was implemented: Created rex/automation_registry.py with Automation dataclass, AutomationRegistry class (store/get/get_by_name/list_all/update/remove/clear), JSON persistence, and global singleton helpers. Added tests/test_us037_automation_registry.py with 27 tests covering all 3 acceptance criteria.
+- Files changed: rex/automation_registry.py (new), tests/test_us037_automation_registry.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - No existing automation registry existed; had to build from scratch following scheduler/memory patterns
+  - Automation dataclass: automation_id, name, trigger (dict), action (dict), enabled, created_at, updated_at, metadata
+  - Storage: JSON list of dicts; loads on __init__, saves on every mutation
+  - Empty registry does NOT write the file (no store() called = no file created)
+  - set_automation_registry(None) resets the global; get_automation_registry() creates default instance if None
+  - 27 new tests pass, mypy clean (1 source file)
+---
