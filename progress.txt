@@ -1,4 +1,28 @@
 
+## Iteration 77 - US-090: Digest mode
+- What was implemented: Created `rex/digest_job.py` with `DigestJob`, `DigestJobConfig`, `DigestResult`. `DigestJob.run()` drains the `PriorityNotificationRouter` digest queue, builds a grouped message, writes to `DashboardStore` (or logs as stub if no store). `configure_from_dict()` allows runtime config changes. `last_run` tracks most recent run. 39 tests in `tests/test_us090_digest_mode.py`.
+- Files changed: rex/digest_job.py (new), tests/test_us090_digest_mode.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `drain_digest_queue()` on the router already clears the queue — no separate clear step needed
+  - `DigestJob` accepts optional `DashboardStore`; when None → logs "STUB delivery" (satisfies beta stub AC)
+  - `_build_digest_message()` static method returns `(title, body)` tuple; body lists all entries as numbered lines
+  - `store.write()` receives `metadata={"digest": True, "entry_count": N}` for traceability
+  - Pre-existing mypy error in `logging_utils.py` is unrelated to new files
+  - 39 tests pass, new source files are mypy-clean
+---
+
+## Iteration 76 - US-089: Priority routing rules
+- What was implemented: Created `rex/priority_notification_router.py` with `PriorityNotificationRouter`, `RoutableNotification`, `RoutingResult`, `PriorityRoutingConfig`, `DigestEntry`. Critical/high → dispatched immediately; medium/low → digest queue. `configure()` and `configure_from_dict()` update rules at runtime without code changes. Optional `immediate_dispatcher` callback invoked per channel. 33 tests in `tests/test_us089_priority_routing_rules.py`.
+- Files changed: rex/priority_notification_router.py (new), tests/test_us089_priority_routing_rules.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `PriorityRoutingConfig.from_dict()` uses `NotificationPriority.from_str()` so unknown strings silently map to MEDIUM
+  - `ImmediateDispatcher = Callable[[RoutableNotification, str], None]` type alias makes injection clean
+  - `drain_digest_queue()` removes + returns all entries; `digest_queue` property returns a copy (safe for test assertions)
+  - Dispatcher errors caught, logged, stored in `RoutingResult.error` — don't crash the router
+  - `frozenset` used for priority sets in config (hashable, prevents accidental mutation)
+  - 33 tests pass, mypy clean
+---
+
 ## Iteration 75 - US-088: Notification priority levels
 - What was implemented: Created `rex/notification_priority.py` with `NotificationPriority(str, Enum)` with values: critical, high, medium, low. `from_str()` classmethod normalises legacy/"normal"/unknown → MEDIUM. Updated `DashboardStore.write()` to accept `NotificationPriority | str` (default MEDIUM). Updated `query_recent` to normalise priority on read via `NotificationPriority.from_str()`. Re-exported `NotificationPriority` from `dashboard_store.__all__`. Fixed `test_us068` that used invalid `priority="urgent"` → `priority="high"`. 35 tests in `tests/test_us088_notification_priority.py`.
 - Files changed: rex/notification_priority.py (new), rex/dashboard_store.py, tests/test_us088_notification_priority.py (new), tests/test_us068_notification_persistence.py (fix), PRD.md, progress.txt
