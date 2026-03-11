@@ -10,6 +10,7 @@ Provides GitHub API integration with:
 - Credential manager integration
 """
 
+import base64
 import json
 import logging
 import subprocess
@@ -591,6 +592,173 @@ class GitHubService:
                     action_id=action_id,
                     tool="github_create_pr",
                     tool_call_args={"repo": repo, "title": title},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
+
+            raise RuntimeError(error_msg) from e
+
+    def list_issues(
+        self,
+        repo: str,
+        state: str = "open",
+    ) -> list[Issue]:
+        """
+        List issues for a repository.
+
+        Args:
+            repo: Repository in format "owner/repo"
+            state: Issue state filter ("open", "closed", "all")
+
+        Returns:
+            List of Issue objects (pull requests excluded)
+        """
+        action_id = str(uuid.uuid4())
+        start_time = datetime.now()
+
+        try:
+            endpoint = f"/repos/{repo}/issues"
+            params = {"state": state, "per_page": 100}
+            data = self._make_request("GET", endpoint, params=params)
+
+            issues = []
+            for item in data:
+                # GitHub issues endpoint also returns PRs; skip them
+                if "pull_request" in item:
+                    continue
+                issues.append(
+                    Issue(
+                        number=item["number"],  # type: ignore[arg-type, index]
+                        title=item["title"],  # type: ignore[index]
+                        state=item["state"],  # type: ignore[index]
+                        url=item["html_url"],  # type: ignore[index]
+                        author=item["user"]["login"],  # type: ignore[index]
+                        created_at=item["created_at"],  # type: ignore[index]
+                        updated_at=item["updated_at"],  # type: ignore[index]
+                        labels=[label["name"] for label in item.get("labels", [])],  # type: ignore[attr-defined]
+                    )
+                )
+
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_list_issues",
+                    tool_call_args={"repo": repo, "state": state},
+                    policy_decision="allowed",
+                    tool_result={"count": len(issues)},
+                    error=None,
+                    duration_ms=duration_ms,
+                )
+            )
+
+            return issues
+
+        except Exception as e:
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+            error_msg = f"Failed to list issues: {str(e)}"
+
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_list_issues",
+                    tool_call_args={"repo": repo, "state": state},
+                    policy_decision="allowed",
+                    tool_result=None,
+                    error=error_msg,
+                    duration_ms=duration_ms,
+                )
+            )
+
+            raise RuntimeError(error_msg) from e
+
+    def create_commit(
+        self,
+        repo: str,
+        path: str,
+        message: str,
+        content: str,
+        branch: str = "main",
+        sha: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """
+        Create or update a file in a repository via the GitHub Contents API.
+
+        This creates a commit on the specified branch with the provided file content.
+
+        Args:
+            repo: Repository in format "owner/repo"
+            path: File path within the repository
+            message: Commit message
+            content: File content (plain text; base64-encoded internally)
+            branch: Branch to commit to
+            sha: Blob SHA of the existing file (required when updating)
+
+        Returns:
+            Dictionary with commit sha, url, and message
+        """
+        # Policy check for write operation
+        tool_call = ToolCall(
+            tool="github_create_commit",
+            args={"repo": repo, "path": path, "branch": branch},
+            requested_by="user",
+            created_at=datetime.now(),
+        )
+        decision = self._policy_engine.decide(tool_call, metadata={})
+
+        if not decision.allowed:
+            raise PermissionError(f"Policy denied commit creation: {decision.reason}")
+
+        action_id = str(uuid.uuid4())
+        start_time = datetime.now()
+
+        try:
+            endpoint = f"/repos/{repo}/contents/{path}"
+            payload: dict[str, Any] = {
+                "message": message,
+                "content": base64.b64encode(content.encode()).decode(),
+                "branch": branch,
+            }
+            if sha:
+                payload["sha"] = sha
+
+            response = self._make_request("PUT", endpoint, data=payload)
+
+            result: dict[str, Any] = {
+                "sha": response.get("commit", {}).get("sha", ""),
+                "url": response.get("commit", {}).get("html_url", ""),
+                "message": message,
+            }
+
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_create_commit",
+                    tool_call_args={"repo": repo, "path": path, "branch": branch},
+                    policy_decision="allowed",
+                    tool_result=result,
+                    error=None,
+                    duration_ms=duration_ms,
+                )
+            )
+
+            return result
+
+        except Exception as e:
+            duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+            error_msg = f"Failed to create commit: {str(e)}"
+
+            self._audit_logger.log(
+                LogEntry(
+                    action_id=action_id,
+                    tool="github_create_commit",
+                    tool_call_args={"repo": repo, "path": path, "branch": branch},
                     policy_decision="allowed",
                     tool_result=None,
                     error=error_msg,

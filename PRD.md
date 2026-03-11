@@ -754,10 +754,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want Rex to retrieve issues and trigger commits so that I can interact with GitHub by voice or text.
 
 **Acceptance Criteria:**
-- [ ] issues retrieved
-- [ ] commits triggered
-- [ ] errors handled
-- [ ] Typecheck passes
+- [x] issues retrieved
+- [x] commits triggered
+- [x] errors handled
+- [x] Typecheck passes
 
 ---
 
