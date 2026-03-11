@@ -337,10 +337,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want the planner to initialize successfully so that multi-step reasoning is available.
 
 **Acceptance Criteria:**
-- [ ] planner loads successfully
-- [ ] dependencies resolved
-- [ ] planner callable
-- [ ] Typecheck passes
+- [x] planner loads successfully
+- [x] dependencies resolved
+- [x] planner callable
+- [x] Typecheck passes
 
 ---
 

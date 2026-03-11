@@ -231,3 +231,24 @@
   - route_if_tool_request() returns a safe string message on model_fn exception
   - 17 new tests pass, mypy rex/ still clean (121 files)
 ---
+## Iteration 23 - US-023: Capability discovery
+- What was implemented: Added tests/test_us023_capability_discovery.py with 21 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us023_capability_discovery.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - ToolRegistry already fully implements capability discovery: list_tools(), get_tool_status(), get_all_status()
+  - get_all_status() returns list of dicts with 11 keys: name, description, version, enabled, capabilities, required_credentials, credentials_available, missing_credentials, health_ok, health_message, ready
+  - list_tools(include_disabled=True) needed to enumerate disabled tools
+  - get_all_status() covers ALL tools (enabled and disabled) unlike list_tools() default
+  - 21 new tests pass, mypy rex/ still clean
+---
+## Iteration 24 - US-024: Planner initialization
+- What was implemented: Added tests/test_us024_planner_initialization.py with 15 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us024_planner_initialization.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Planner is fully implemented in rex/planner.py; only test coverage was needed
+  - Planner() instantiates with no args using global get_tool_registry() and get_policy_engine()
+  - reset_tool_registry() and reset_policy_engine() should be called in autouse fixture to isolate tests
+  - plan() raises UnableToPlanError for empty/whitespace goals and unrecognized patterns
+  - validate_workflow() returns bool; test it after plan() returns a workflow
+  - 15 new tests pass, mypy rex/ still clean
+---
