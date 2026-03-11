@@ -583,10 +583,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want Rex to control lights and switches so that I can manage my home by voice.
 
 **Acceptance Criteria:**
-- [ ] lights controlled
-- [ ] switches controlled
-- [ ] responses returned
-- [ ] Typecheck passes
+- [x] lights controlled
+- [x] switches controlled
+- [x] responses returned
+- [x] Typecheck passes
 
 ---
 

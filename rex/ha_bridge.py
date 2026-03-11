@@ -217,6 +217,74 @@ class HABridge:
             result.append({"friendly_name": alias, "entity_id": entity_id})
         return result
 
+    def control_light(
+        self,
+        entity_id: str,
+        action: str,
+        *,
+        brightness_pct: int | None = None,
+    ) -> dict[str, Any]:
+        """Turn on/off a light entity with optional brightness.
+
+        Args:
+            entity_id: The HA entity id (e.g. ``light.living_room``).
+            action: ``"turn_on"`` or ``"turn_off"``.
+            brightness_pct: Optional 0-100 brightness percentage (only used with turn_on).
+
+        Returns:
+            The raw HA API response dict.
+        """
+        if not entity_id:
+            raise ValueError("entity_id is required")
+        action = action.lower()
+        if action not in ("turn_on", "turn_off"):
+            raise ValueError(f"action must be 'turn_on' or 'turn_off', got {action!r}")
+        data: dict[str, Any] = {"entity_id": entity_id}
+        if action == "turn_on" and brightness_pct is not None:
+            data["brightness_pct"] = max(0, min(100, int(brightness_pct)))
+        intent = IntentMatch(
+            domain="light",
+            service=action,
+            entity_id=entity_id,
+            data=data,
+            description=f"{action.replace('_', ' ')} {entity_id}",
+            source="api",
+        )
+        success, message = self._execute_intent(intent)
+        self._log_event(intent, success, message)
+        return {"success": success, "message": message, "entity_id": entity_id}
+
+    def control_switch(
+        self,
+        entity_id: str,
+        action: str,
+    ) -> dict[str, Any]:
+        """Turn on/off a switch entity.
+
+        Args:
+            entity_id: The HA entity id (e.g. ``switch.garage``).
+            action: ``"turn_on"`` or ``"turn_off"``.
+
+        Returns:
+            The raw HA API response dict.
+        """
+        if not entity_id:
+            raise ValueError("entity_id is required")
+        action = action.lower()
+        if action not in ("turn_on", "turn_off"):
+            raise ValueError(f"action must be 'turn_on' or 'turn_off', got {action!r}")
+        intent = IntentMatch(
+            domain="switch",
+            service=action,
+            entity_id=entity_id,
+            data={"entity_id": entity_id},
+            description=f"{action.replace('_', ' ')} {entity_id}",
+            source="api",
+        )
+        success, message = self._execute_intent(intent)
+        self._log_event(intent, success, message)
+        return {"success": success, "message": message, "entity_id": entity_id}
+
     def call_script(
         self, script_id: str, variables: dict[str, Any] | None = None
     ) -> dict[str, Any]:
