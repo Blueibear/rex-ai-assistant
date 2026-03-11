@@ -623,10 +623,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want the dashboard server to start and serve a health endpoint so that the UI has a reliable backend.
 
 **Acceptance Criteria:**
-- [ ] server starts
-- [ ] API reachable
-- [ ] health endpoint works
-- [ ] Typecheck passes
+- [x] server starts
+- [x] API reachable
+- [x] health endpoint works
+- [x] Typecheck passes
 
 ---
 

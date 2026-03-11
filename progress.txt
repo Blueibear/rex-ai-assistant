@@ -472,6 +472,15 @@
   - Generator throw pattern for raising in factory lambda: `lambda: (_ for _ in ()).throw(OSError(...))`
   - 18 new tests pass, mypy rex/ still clean (124 files)
 ---
+## Iteration 46 - US-046: Dashboard server
+- What was implemented: dashboard_bp already fully implemented in rex/dashboard/; added tests/test_us046_dashboard_server.py with 13 tests covering all 3 acceptance criteria (server starts, API reachable, health endpoint works).
+- Files changed: tests/test_us046_dashboard_server.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Flask test client via app.test_client() works cleanly with dashboard_bp registered on a Flask(__name__) app
+  - /api/dashboard/status is publicly accessible (no auth required); returns status/version/uptime/server_time/auth_enabled
+  - dashboard_bp uses url_prefix="" so routes are at root level (/api/dashboard/status not /dashboard/api/dashboard/status)
+  - 13 new tests pass, mypy rex/ still clean (124 files)
+---
 ## Iteration 45 - US-045: Calendar integration
 - What was implemented: CalendarService already fully implements event retrieval, creation, and error handling; added tests/test_us045_calendar_integration.py with 23 tests covering all 3 acceptance criteria.
 - Files changed: tests/test_us045_calendar_integration.py (new), PRD.md, progress.txt
