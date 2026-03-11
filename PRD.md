@@ -1140,10 +1140,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want a stub SMS receiver that can inject test inbound messages so that inbound SMS handling can be built and tested without a live Twilio webhook.
 
 **Acceptance Criteria:**
-- [ ] `SmsReceiverStub` class exposes a method to inject a test inbound message
-- [ ] injected messages are routed through the same handler as real inbound SMS would be
-- [ ] handler produces a response or triggers the expected downstream action
-- [ ] Typecheck passes
+- [x] `SmsReceiverStub` class exposes a method to inject a test inbound message
+- [x] injected messages are routed through the same handler as real inbound SMS would be
+- [x] handler produces a response or triggers the expected downstream action
+- [x] Typecheck passes
 
 ---
 

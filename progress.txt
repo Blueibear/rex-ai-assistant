@@ -82,3 +82,26 @@
   - list_workflows(workflow_dir, status="running") filters by status field
   - 24 new tests pass, mypy rex/ still clean (126 files)
 ---
+
+## Iteration 70 - US-083: Meeting invite scaffold
+- What was implemented: Created `rex/calendar_backends/meeting_invite.py` with `MeetingInvite` dataclass, `parse_invite_from_text()` (regex NL parser), `format_invite_for_review()`, and `stub_send_invite()`. Exported from `rex/calendar_backends/__init__.py`. 46 tests in `tests/test_us083_meeting_invite.py`.
+- Files changed: rex/calendar_backends/meeting_invite.py (new), rex/calendar_backends/__init__.py, tests/test_us083_meeting_invite.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - NL parser uses regex heuristics: `_RE_EMAIL` for attendees, `_RE_TIME_RANGE` + `_RE_DATE` for "from HH:MM to HH:MM on YYYY-MM-DD", `_RE_DATETIME` as ISO fallback
+  - `format_invite_for_review()` returns plain-text block with "for review" in header
+  - `stub_send_invite()` returns `{"status": "ok", "invite": invite}` on success, `{"status": "error", "reason": ...}` when title missing
+  - monkeypatch `socket.socket.connect` to verify no network calls in stub tests
+  - 46 tests pass, mypy clean on 2 new source files
+---
+
+## Iteration 71 - US-084: SMS send stub
+- What was implemented: Created `rex/messaging_backends/sms_sender_stub.py` with `SmsSenderStub` class and `SentSmsRecord` dataclass. In-memory log via `self._log: list[SentSmsRecord]`. `send(to, body)` stores record and returns `{"ok": True, "sid": ..., "to": ..., "body": ...}`. `sent_messages` property returns copy of log. `clear()` resets log. Exported from `rex/messaging_backends/__init__.py`. 29 tests in `tests/test_us084_sms_sender_stub.py`.
+- Files changed: rex/messaging_backends/sms_sender_stub.py (new), rex/messaging_backends/__init__.py, tests/test_us084_sms_sender_stub.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `SmsSenderStub` is in-memory (unlike `StubSmsBackend` which uses a JSON file) — no I/O at all
+  - `send(to: str, body: str)` method name matches AC literal; US-086 TwilioAdapter Protocol will use same signature
+  - `SentSmsRecord` dataclass has: sid (str), to (str), body (str), sent_at (datetime with UTC tzinfo)
+  - `sent_messages` returns `list(self._log)` copy so callers can't mutate internal state
+  - No-network tests use `patch.object(socket.socket, "connect", ...)` to detect accidental calls
+  - 29 tests pass, mypy clean on 2 new source files
+---
