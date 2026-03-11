@@ -19,6 +19,7 @@ Compatibility goals:
 from __future__ import annotations
 
 import logging
+import queue
 import threading
 from collections import defaultdict
 from collections.abc import Callable, Iterable
@@ -262,6 +263,154 @@ class EventBus:
             logger.debug("Cleared subscriptions for event type: %s", event_type)
 
 
+class EventQueue:
+    """
+    Bounded, sequentially-processed event queue backed by an EventBus.
+
+    Events are placed in a bounded queue to prevent unbounded memory growth.
+    A single worker thread processes events in order, ensuring sequential delivery.
+    When the queue is full, new events are dropped with a warning.
+    """
+
+    DEFAULT_MAXSIZE = 1000
+
+    def __init__(self, bus: EventBus, maxsize: int = DEFAULT_MAXSIZE) -> None:
+        if maxsize <= 0:
+            raise ValueError("maxsize must be a positive integer")
+        self._bus = bus
+        self._maxsize = maxsize
+        self._queue: queue.Queue[Event | None] = queue.Queue(maxsize=maxsize)
+        self._worker: threading.Thread | None = None
+        self._running = False
+        self._lock = threading.Lock()
+        self._dropped_count = 0
+        self._processed_count = 0
+
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
+
+    def start(self) -> None:
+        """Start the background worker thread."""
+        with self._lock:
+            if self._running:
+                return
+            self._running = True
+            self._worker = threading.Thread(
+                target=self._process_events,
+                name="EventQueue-worker",
+                daemon=True,
+            )
+            self._worker.start()
+
+    def stop(self, timeout: float = 5.0) -> None:
+        """Stop the worker thread, waiting up to *timeout* seconds."""
+        with self._lock:
+            if not self._running:
+                return
+            self._running = False
+
+        # Wake up the worker so it can exit
+        try:
+            self._queue.put_nowait(None)
+        except queue.Full:
+            pass
+
+        if self._worker is not None:
+            self._worker.join(timeout=timeout)
+            self._worker = None
+
+    # ------------------------------------------------------------------
+    # Enqueueing
+    # ------------------------------------------------------------------
+
+    def enqueue(self, event: Event) -> bool:
+        """
+        Add *event* to the queue.
+
+        Returns True if the event was queued, False if the queue was full
+        and the event was dropped.
+        """
+        try:
+            self._queue.put_nowait(event)
+            return True
+        except queue.Full:
+            with self._lock:
+                self._dropped_count += 1
+            logger.warning(
+                "EventQueue overflow (maxsize=%d): dropping event %s",
+                self._maxsize,
+                event.event_type,
+            )
+            return False
+
+    # ------------------------------------------------------------------
+    # Worker
+    # ------------------------------------------------------------------
+
+    def _process_events(self) -> None:
+        """Worker loop — runs in a dedicated daemon thread."""
+        while True:
+            try:
+                item = self._queue.get(timeout=0.1)
+            except queue.Empty:
+                if not self._running:
+                    break
+                continue
+
+            if item is None:
+                # Sentinel: time to exit
+                self._queue.task_done()
+                break
+
+            try:
+                self._bus._publish_event(item)
+            except Exception as exc:  # noqa: BLE001
+                logger.error(
+                    "EventQueue: unhandled error publishing %s: %s",
+                    item.event_type,
+                    exc,
+                    exc_info=True,
+                )
+            finally:
+                self._queue.task_done()
+                with self._lock:
+                    self._processed_count += 1
+
+    # ------------------------------------------------------------------
+    # Introspection
+    # ------------------------------------------------------------------
+
+    @property
+    def qsize(self) -> int:
+        """Approximate number of events currently in the queue."""
+        return self._queue.qsize()
+
+    @property
+    def is_full(self) -> bool:
+        """True when the queue has reached its maxsize."""
+        return self._queue.full()
+
+    @property
+    def is_running(self) -> bool:
+        """True while the worker thread is active."""
+        return self._running
+
+    def get_metrics(self) -> dict[str, int]:
+        """Return queue metrics."""
+        with self._lock:
+            return {
+                "processed": self._processed_count,
+                "dropped": self._dropped_count,
+                "queued": self._queue.qsize(),
+                "maxsize": self._maxsize,
+            }
+
+    def join(self) -> None:
+        """Block until all currently-queued events have been processed."""
+        self._queue.join()
+
+
 # Global event bus instance
 _EVENT_BUS: EventBus | None = None
 _EVENT_BUS_LOCK = threading.Lock()
@@ -284,4 +433,4 @@ def set_event_bus(event_bus: EventBus) -> None:
         _EVENT_BUS = event_bus
 
 
-__all__ = ["Event", "EventBus", "get_event_bus", "set_event_bus"]
+__all__ = ["Event", "EventBus", "EventQueue", "get_event_bus", "set_event_bus"]
