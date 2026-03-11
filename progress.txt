@@ -604,3 +604,13 @@
   - Unused type: ignore comments cause mypy errors; only add them when mypy actually reports an error on that line
   - 13 new tests pass, mypy clean at 126 source files
 ---
+
+## Iteration 57 - US-057: CI pipeline
+- What was implemented: Added mypy typecheck job to .github/workflows/ci.yml; wrote 9 tests validating CI config structure (PR trigger, lint, typecheck, tests, coverage).
+- Files changed: .github/workflows/ci.yml (typecheck job added), tests/test_us057_ci_pipeline.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - CI workflow already had lint (ruff+black) and test (pytest+cov) jobs; only missing typecheck (mypy) job
+  - mypy rex --ignore-missing-imports returns "Success: no issues found in 126 source files"
+  - Test pattern for CI: read the .yml file as text and assert expected strings/keywords are present
+  - mypy does not support -q flag; use 2>&1 | tail to limit output
+---

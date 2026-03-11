@@ -498,7 +498,42 @@ Rex includes a centralized credential vault and tool registry. See:
 - [docs/credentials.md](docs/credentials.md) - Credential management
 - [docs/tools.md](docs/tools.md) - Tool registry and health checks
 
-### 6. Health Check & Diagnostics
+### 6. GitHub Integration
+
+Rex can interact with GitHub repositories, issues, and pull requests.
+
+**Requires:** Store your GitHub personal access token in the credential manager:
+```bash
+# Token is read from the credential manager under the name "github"
+# Set GITHUB_TOKEN in your .env or configure via rex credential commands
+```
+
+**List repositories:**
+```bash
+rex gh repos
+rex gh repos --type owner   # only repos you own
+```
+
+**List pull requests:**
+```bash
+rex gh prs owner/repo
+rex gh prs owner/repo --state closed
+```
+
+**Create an issue:**
+```bash
+rex gh issue-create owner/repo --title "Bug: something broke" --body "Steps to reproduce..."
+rex gh issue-create owner/repo --title "Feature request" --body "..." --labels bug,enhancement
+```
+
+**Create a pull request:**
+```bash
+rex gh pr-create owner/repo --head feature-branch --base main --title "Add feature" --body "..."
+```
+
+See [docs/github.md](docs/github.md) for full API reference and credential setup.
+
+### 7. Health Check & Diagnostics
 
 Run the doctor script to verify your setup:
 
@@ -521,7 +556,7 @@ Platform: Darwin 22.6.0 (arm64)
 Summary: 1 warning(s) detected.
 ```
 
-### 7. Testing Individual Components
+### 8. Testing Individual Components
 
 **Test Whisper transcription:**
 ```bash
@@ -538,7 +573,7 @@ python manual_search_demo.py "Python programming tutorials"
 python record_wakeword.py
 ```
 
-### 8. Autonomous Workflows (Phase 9)
+### 9. Autonomous Workflows
 
 Rex can autonomously plan and execute multi-step workflows from natural language goals.
 

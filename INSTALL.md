@@ -307,7 +307,7 @@ nvidia-smi  # Check CUDA version
 
 Run the built-in diagnostics:
 ```bash
-python scripts/environment_doctor.py
+python scripts/doctor.py
 ```
 
 This will check:
