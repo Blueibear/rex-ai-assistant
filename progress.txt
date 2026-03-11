@@ -672,3 +672,14 @@
   - Disabled tool: ToolMeta(name=..., enabled=False) — register it, then select_tool skips it
   - 14 new tests pass; mypy rex/planner.py clean
 ---
+
+## Iteration 65 - US-065: Workflow step validation
+- What was implemented: Added `validate_inputs()` to `WorkflowStep` and `validate_workflow_steps()` to `rex/workflow.py`; integrated validation at the start of `WorkflowRunner.run()` to halt execution on invalid steps; added 14 tests.
+- Files changed: rex/workflow.py, rex/workflow_runner.py, tests/test_us065_workflow_step_validation.py, PRD.md
+- Learnings for future iterations:
+  - `WorkflowStep.validate_inputs()` checks: description non-empty, tool_call.tool non-empty if tool_call provided
+  - `validate_workflow_steps(workflow)` returns dict[step_id, list[str]] of errors; empty = valid
+  - Validation runs before `mark_running()` in `WorkflowRunner.run()` and returns RunResult with status="failed" on any errors
+  - Pre-existing flapping failures in test_us018_speech_to_text.py (10 tests) are unrelated to this story
+  - 14 new tests pass, mypy clean on changed files
+---
