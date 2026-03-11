@@ -950,10 +950,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want expired memories cleaned up on a schedule so that the memory store remains lean and performant.
 
 **Acceptance Criteria:**
-- [ ] expired memories removed
-- [ ] cleanup scheduled
-- [ ] memory store compacted
-- [ ] Typecheck passes
+- [x] expired memories removed
+- [x] cleanup scheduled
+- [x] memory store compacted
+- [x] Typecheck passes
 
 ---
 

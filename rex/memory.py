@@ -489,6 +489,22 @@ class LongTermMemory:
 
         return len(expired_ids)
 
+    def compact(self) -> int:
+        """Remove expired entries and rewrite storage to reclaim space.
+
+        Unlike run_retention_policy which only saves when entries were deleted,
+        compact always rewrites the storage file to ensure it contains only
+        current entries with no stale data.
+
+        Returns:
+            Number of expired entries removed.
+        """
+        removed = self.run_retention_policy()
+        # Always rewrite storage to compact the file
+        self._save()
+        logger.info(f"Memory store compacted: {removed} expired entries removed, {len(self)} active entries retained")
+        return removed
+
     def list_categories(self) -> list[str]:
         """List all unique categories.
 
@@ -651,6 +667,39 @@ def get_recent_context(n: int = 5) -> list[str]:
     return wm.get_recent(n)
 
 
+def schedule_memory_cleanup(
+    scheduler: Any,
+    interval_seconds: int = 3600,
+    job_id: str = "memory_cleanup",
+) -> None:
+    """Register a scheduled memory cleanup job with the scheduler.
+
+    Registers a callback that runs compact() on the global long-term memory
+    at the given interval. Expired entries are removed and the store is
+    compacted on each run.
+
+    Args:
+        scheduler: A Scheduler instance from rex.scheduler.
+        interval_seconds: How often to run cleanup (default: 3600 = 1 hour).
+        job_id: Unique ID for the scheduler job.
+    """
+
+    def _cleanup_callback(job: Any) -> None:  # noqa: ARG001
+        ltm = get_long_term_memory()
+        removed = ltm.compact()
+        logger.info(f"Scheduled memory cleanup complete: {removed} entries removed")
+
+    # Register callback and add the job
+    scheduler.register_callback("memory_cleanup", _cleanup_callback)
+    scheduler.add_job(
+        job_id=job_id,
+        name="Memory Cleanup",
+        schedule=f"interval:{interval_seconds}",
+        callback_name="memory_cleanup",
+    )
+    logger.info(f"Memory cleanup scheduled every {interval_seconds}s (job_id={job_id})")
+
+
 # Update __all__ to include new exports
 __all__ = [
     # Legacy memory utilities
@@ -678,4 +727,5 @@ __all__ = [
     "add_fact",
     "remember_context",
     "get_recent_context",
+    "schedule_memory_cleanup",
 ]
