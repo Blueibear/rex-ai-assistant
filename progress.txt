@@ -341,3 +341,13 @@
   - set_broadcaster(None) in autouse fixture isolates singleton state per test
   - 18 new tests pass, mypy rex/ still clean (122 files)
 ---
+## Iteration 33 - US-033: User profiles
+- What was implemented: Added create_user_profile(), get_user_profile(), update_user_preferences() to rex/identity.py; added tests/test_us033_user_profiles.py with 16 tests covering all 3 acceptance criteria.
+- Files changed: rex/identity.py, tests/test_us033_user_profiles.py, PRD.md, progress.txt
+- Learnings for future iterations:
+  - User profiles are stored as Memory/<user_id>/core.json JSON files
+  - create_user_profile() validates user_id (no empty, no path separators), raises FileExistsError if profile exists and overwrite=False
+  - update_user_preferences() does a shallow merge into existing preferences dict
+  - All three functions accept memory_dir=Path override for test isolation (no monkeypatching needed)
+  - 16 new tests pass, mypy rex/ still clean (122 files)
+---

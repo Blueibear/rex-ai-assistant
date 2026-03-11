@@ -186,11 +186,131 @@ def list_known_users() -> list[dict]:
     return users
 
 
+def create_user_profile(
+    user_id: str,
+    name: str,
+    role: str = "",
+    preferences: dict | None = None,
+    *,
+    memory_dir: Path | None = None,
+    overwrite: bool = False,
+) -> Path:
+    """Create a user profile in the Memory directory.
+
+    Args:
+        user_id: Unique identifier for the user (used as directory name).
+        name: Display name for the user.
+        role: Optional role description (e.g. 'Owner and primary user').
+        preferences: Optional dict of user preferences to embed in the profile.
+        memory_dir: Override the Memory directory (defaults to repo Memory/).
+        overwrite: If False (default), raise FileExistsError when profile exists.
+
+    Returns:
+        Path to the created core.json file.
+
+    Raises:
+        ValueError: If user_id is empty or contains path separators.
+        FileExistsError: If the profile already exists and overwrite is False.
+    """
+    if not user_id or "/" in user_id or "\\" in user_id:
+        raise ValueError(f"Invalid user_id: {user_id!r}")
+
+    base = memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
+    profile_dir = base / user_id
+    core_path = profile_dir / "core.json"
+
+    if core_path.exists() and not overwrite:
+        raise FileExistsError(f"User profile already exists: {core_path}")
+
+    profile_dir.mkdir(parents=True, exist_ok=True)
+
+    import datetime
+
+    now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    data: dict = {
+        "name": name,
+        "role": role,
+        "user": user_id,
+        "preferences": preferences or {},
+        "created_at": now,
+        "last_updated": now,
+    }
+    core_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    logger.info("Created user profile: %s", core_path)
+    return core_path
+
+
+def get_user_profile(
+    user_id: str,
+    *,
+    memory_dir: Path | None = None,
+) -> dict | None:
+    """Load a user profile from Memory.
+
+    Args:
+        user_id: The user ID (directory name) to load.
+        memory_dir: Override the Memory directory.
+
+    Returns:
+        Profile dict, or None if not found.
+    """
+    base = memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
+    core_path = base / user_id / "core.json"
+    if not core_path.exists():
+        return None
+    try:
+        return json.loads(core_path.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
+    except Exception as exc:
+        logger.warning("Failed to load profile for %s: %s", user_id, exc)
+        return None
+
+
+def update_user_preferences(
+    user_id: str,
+    preferences: dict,
+    *,
+    memory_dir: Path | None = None,
+) -> bool:
+    """Merge preferences into an existing user profile.
+
+    Args:
+        user_id: The user ID to update.
+        preferences: Dict of preference key/value pairs to merge.
+        memory_dir: Override the Memory directory.
+
+    Returns:
+        True if the profile was updated, False if not found.
+    """
+    base = memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
+    core_path = base / user_id / "core.json"
+    if not core_path.exists():
+        return False
+    try:
+        import datetime
+
+        data = json.loads(core_path.read_text(encoding="utf-8"))
+        existing_prefs = data.get("preferences", {})
+        if not isinstance(existing_prefs, dict):
+            existing_prefs = {}
+        existing_prefs.update(preferences)
+        data["preferences"] = existing_prefs
+        data["last_updated"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        core_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        logger.info("Updated preferences for user %s", user_id)
+        return True
+    except Exception as exc:
+        logger.warning("Failed to update preferences for %s: %s", user_id, exc)
+        return False
+
+
 __all__ = [
     "clear_session_user",
+    "create_user_profile",
     "get_session_user",
+    "get_user_profile",
     "list_known_users",
     "require_active_user",
     "resolve_active_user",
     "set_session_user",
+    "update_user_preferences",
 ]

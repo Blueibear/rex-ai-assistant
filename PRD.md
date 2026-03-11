@@ -453,10 +453,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want Rex to store and retrieve my preferences so that it adapts to my personal configuration.
 
 **Acceptance Criteria:**
-- [ ] user profiles created
-- [ ] preferences stored
-- [ ] retrieval works
-- [ ] Typecheck passes
+- [x] user profiles created
+- [x] preferences stored
+- [x] retrieval works
+- [x] Typecheck passes
 
 ---
 
