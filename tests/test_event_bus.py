@@ -260,6 +260,40 @@ def test_handler_error_handling_variant_b(event_bus: EventBus) -> None:
     not _is_variant_b(),
     reason="Newer EventBus.publish(Event) API not available in this build.",
 )
+def test_duplicate_subscription_prevented_variant_b(event_bus: EventBus) -> None:
+    """Subscribing the same handler twice should register it only once."""
+
+    def handler(event):
+        return None
+
+    event_bus.subscribe("test.event", handler)  # type: ignore[arg-type]
+    event_bus.subscribe("test.event", handler)  # type: ignore[arg-type]
+    assert event_bus.get_subscription_count("test.event") == 1  # type: ignore[attr-defined]
+
+
+@pytest.mark.skipif(
+    not _is_variant_a(),
+    reason="Legacy EventBus.publish(event_type, payload) API not available in this build.",
+)
+def test_duplicate_subscription_prevented_variant_a() -> None:
+    """Legacy: subscribing the same callback twice should register it only once."""
+    bus = EventBus()
+    received: list[tuple[str, dict[str, object]]] = []
+
+    def handler(event_type: str, payload: dict[str, object]) -> None:
+        received.append((event_type, payload))
+
+    bus.subscribe("test.event", handler)  # type: ignore[arg-type]
+    bus.subscribe("test.event", handler)  # type: ignore[arg-type]
+    bus.publish("test.event", {"x": 1})  # type: ignore[arg-type]
+    # Should only receive the event once, not twice
+    assert len(received) == 1
+
+
+@pytest.mark.skipif(
+    not _is_variant_b(),
+    reason="Newer EventBus.publish(Event) API not available in this build.",
+)
 def test_clear_subscriptions_variant_b(event_bus: EventBus) -> None:
     def handler(event):
         return None

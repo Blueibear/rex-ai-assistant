@@ -102,7 +102,8 @@ class EventBus:
 
             if is_legacy:
                 cb = fn
-                self._legacy_subscribers[event_type].append(cb)
+                if cb not in self._legacy_subscribers[event_type]:
+                    self._legacy_subscribers[event_type].append(cb)
 
                 def _unsubscribe() -> None:
                     self._safe_remove_legacy(event_type, cb)
@@ -110,7 +111,8 @@ class EventBus:
                 return _unsubscribe
 
             handler = fn
-            self._handlers[event_type].append(handler)
+            if handler not in self._handlers[event_type]:
+                self._handlers[event_type].append(handler)
             return None
 
     def unsubscribe(self, event_type: str, handler: EventHandler) -> bool:
