@@ -609,10 +609,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want Rex to retrieve and create calendar events so that I can manage my schedule through conversation.
 
 **Acceptance Criteria:**
-- [ ] events retrieved
-- [ ] events created
-- [ ] errors handled
-- [ ] Typecheck passes
+- [x] events retrieved
+- [x] events created
+- [x] errors handled
+- [x] Typecheck passes
 
 ---
 

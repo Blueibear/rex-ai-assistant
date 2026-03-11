@@ -472,3 +472,14 @@
   - Generator throw pattern for raising in factory lambda: `lambda: (_ for _ in ()).throw(OSError(...))`
   - 18 new tests pass, mypy rex/ still clean (124 files)
 ---
+## Iteration 45 - US-045: Calendar integration
+- What was implemented: CalendarService already fully implements event retrieval, creation, and error handling; added tests/test_us045_calendar_integration.py with 23 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us045_calendar_integration.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - CalendarService accepts mock_events (in-memory), mock_data_path (temp file), or neither (runtime dir)
+  - set_calendar_service(None) resets the global; but pass type: ignore[arg-type] since signature expects CalendarService
+  - get_events() returns [] when not connected AND _events is None (both conditions must be true)
+  - connect() with corrupt JSON file may return True (catches exception and falls back to defaults)
+  - CalendarEvent does not validate start < end; reversed times are stored as provided
+  - 23 new tests pass, mypy rex/ still clean (124 files)
+---
