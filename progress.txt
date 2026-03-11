@@ -461,3 +461,14 @@
   - brightness_pct clamped to 0-100 range in control_light(); no brightness key sent for turn_off
   - 21 new tests pass, mypy rex/ still clean (124 files)
 ---
+## Iteration 44 - US-044: Email integration
+- What was implemented: StubEmailBackend and ImapSmtpEmailBackend fully implemented; added tests/test_us044_email_integration.py with 18 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us044_email_integration.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - ImapSmtpEmailBackend accepts imap_client_factory and smtp_client_factory callables for DI in tests
+  - imap_mock.login.side_effect = imaplib.IMAP4.error(...) triggers the auth-failure path
+  - smtp_mock.login.side_effect = smtplib.SMTPAuthenticationError(535, b"...") triggers SMTP auth-failure path
+  - StubEmailBackend with missing fixture path: connect() returns True but loads empty list (not an error)
+  - Generator throw pattern for raising in factory lambda: `lambda: (_ for _ in ()).throw(OSError(...))`
+  - 18 new tests pass, mypy rex/ still clean (124 files)
+---
