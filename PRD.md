@@ -389,10 +389,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want an event bus to publish events and notify subscribers so that system components communicate without tight coupling.
 
 **Acceptance Criteria:**
-- [ ] events published
-- [ ] subscribers receive events
-- [ ] event propagation works
-- [ ] Typecheck passes
+- [x] events published
+- [x] subscribers receive events
+- [x] event propagation works
+- [x] Typecheck passes
 
 ---
 
