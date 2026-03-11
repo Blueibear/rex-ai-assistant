@@ -1110,11 +1110,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want Rex to draft a meeting invite with attendees, time, and agenda from a natural language request so that I can schedule by describing what I want.
 
 **Acceptance Criteria:**
-- [ ] `MeetingInvite` data structure contains: title, attendees list, start time, end time, agenda
-- [ ] Rex can populate all invite fields from a natural language description
-- [ ] completed invite is displayed to the user for review before any action
-- [ ] stub send logs the invite and returns success without calling any real calendar API
-- [ ] Typecheck passes
+- [x] `MeetingInvite` data structure contains: title, attendees list, start time, end time, agenda
+- [x] Rex can populate all invite fields from a natural language description
+- [x] completed invite is displayed to the user for review before any action
+- [x] stub send logs the invite and returns success without calling any real calendar API
+- [x] Typecheck passes
 
 ---
 
