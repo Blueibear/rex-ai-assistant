@@ -860,10 +860,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want workflow state saved and restored across restarts so that long-running workflows survive interruptions.
 
 **Acceptance Criteria:**
-- [ ] workflow state saved
-- [ ] state restored after restart
-- [ ] step progress tracked
-- [ ] Typecheck passes
+- [x] workflow state saved
+- [x] state restored after restart
+- [x] step progress tracked
+- [x] Typecheck passes
 
 ---
 
