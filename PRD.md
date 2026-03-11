@@ -597,10 +597,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want Rex to send email on my behalf so that I can compose and send messages by voice or text.
 
 **Acceptance Criteria:**
-- [ ] email backend connects
-- [ ] send works
-- [ ] errors handled
-- [ ] Typecheck passes
+- [x] email backend connects
+- [x] send works
+- [x] errors handled
+- [x] Typecheck passes
 
 ---
 

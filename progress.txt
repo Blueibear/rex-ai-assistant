@@ -451,3 +451,13 @@
   - Blueprint validates HASS_SECRET header (403 if wrong); empty secret means no auth required
   - 17 new tests pass, mypy rex/ still clean (124 files)
 ---
+## Iteration 43 - US-043: Device control
+- What was implemented: Added control_light() and control_switch() methods to rex/ha_bridge.py; added tests/test_us043_device_control.py with 21 tests covering all 3 acceptance criteria.
+- Files changed: rex/ha_bridge.py, tests/test_us043_device_control.py, PRD.md, progress.txt
+- Learnings for future iterations:
+  - _make_bridge() helper: patch "rex.ha_bridge.requests" context manager during HABridge() construction, then replace bridge._session with a MagicMock after
+  - bridge._session.request.call_args.kwargs["url"] contains the full URL and .kwargs["json"] contains the POST body
+  - _execute_intent() catches requests.RequestException and returns (False, str(exc)); HTTPError side_effect triggers this path
+  - brightness_pct clamped to 0-100 range in control_light(); no brightness key sent for turn_off
+  - 21 new tests pass, mypy rex/ still clean (124 files)
+---
