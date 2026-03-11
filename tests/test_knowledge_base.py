@@ -589,3 +589,177 @@ class TestEdgeCases:
 
         doc = kb.ingest_file(utf8_file)
         assert "café" in doc.content
+
+
+# =============================================================================
+# Knowledge Refresh Tests (US-075)
+# =============================================================================
+
+
+class TestKnowledgeRefresh:
+    """Tests for document refresh functionality."""
+
+    def test_refresh_document_updates_content(self, tmp_path):
+        """Test that refreshing a document re-reads its source file."""
+        docs_path = tmp_path / "docs.json"
+        index_path = tmp_path / "index.json"
+        kb = KnowledgeBase(docs_path=docs_path, index_path=index_path)
+
+        source_file = tmp_path / "source.txt"
+        source_file.write_text("original content")
+
+        doc = kb.ingest_file(source_file, title="Source Doc")
+        assert "original" in doc.content
+
+        # Update the file
+        source_file.write_text("updated content with newword")
+
+        updated = kb.refresh_document(doc.doc_id)
+        assert updated is not None
+        assert "updated" in updated.content
+        assert "original" not in updated.content
+
+    def test_refresh_document_updates_index(self, tmp_path):
+        """Test that refreshing a document updates the search index."""
+        docs_path = tmp_path / "docs.json"
+        index_path = tmp_path / "index.json"
+        kb = KnowledgeBase(docs_path=docs_path, index_path=index_path)
+
+        source_file = tmp_path / "indexed.txt"
+        source_file.write_text("oldterm is here")
+        doc = kb.ingest_file(source_file)
+
+        # Confirm old term is searchable
+        assert len(kb.search("oldterm")) == 1
+
+        # Update file with new term, old term removed
+        source_file.write_text("newterm replaces everything")
+        kb.refresh_document(doc.doc_id)
+
+        # Old term should no longer match
+        assert len(kb.search("oldterm")) == 0
+        # New term should match
+        assert len(kb.search("newterm")) == 1
+
+    def test_refresh_document_removes_stale_index_entries(self, tmp_path):
+        """Test that stale index entries are removed after refresh."""
+        docs_path = tmp_path / "docs.json"
+        index_path = tmp_path / "index.json"
+        kb = KnowledgeBase(docs_path=docs_path, index_path=index_path)
+
+        source_file = tmp_path / "stale.txt"
+        source_file.write_text("staleword content")
+        doc = kb.ingest_file(source_file)
+
+        assert "staleword" in kb._index
+
+        # Overwrite file without the stale word
+        source_file.write_text("completely different text")
+        kb.refresh_document(doc.doc_id)
+
+        # Stale word should be gone from index
+        assert "staleword" not in kb._index
+
+    def test_refresh_document_not_found(self, tmp_path):
+        """Test refresh returns None for unknown doc_id."""
+        docs_path = tmp_path / "docs.json"
+        index_path = tmp_path / "index.json"
+        kb = KnowledgeBase(docs_path=docs_path, index_path=index_path)
+
+        result = kb.refresh_document("nonexistent_id")
+        assert result is None
+
+    def test_refresh_document_no_source_path(self, tmp_path):
+        """Test refresh returns None for documents without a source path."""
+        docs_path = tmp_path / "docs.json"
+        index_path = tmp_path / "index.json"
+        kb = KnowledgeBase(docs_path=docs_path, index_path=index_path)
+
+        doc = kb.ingest_text(content="No source here.", title="Text Only")
+        result = kb.refresh_document(doc.doc_id)
+        assert result is None
+
+    def test_refresh_document_missing_file_raises(self, tmp_path):
+        """Test refresh raises FileNotFoundError when source file is gone."""
+        docs_path = tmp_path / "docs.json"
+        index_path = tmp_path / "index.json"
+        kb = KnowledgeBase(docs_path=docs_path, index_path=index_path)
+
+        source_file = tmp_path / "gone.txt"
+        source_file.write_text("content before deletion")
+        doc = kb.ingest_file(source_file)
+
+        source_file.unlink()
+
+        with pytest.raises(FileNotFoundError):
+            kb.refresh_document(doc.doc_id)
+
+    def test_refresh_all_refreshes_file_backed_docs(self, tmp_path):
+        """Test refresh_all updates all documents with source paths."""
+        docs_path = tmp_path / "docs.json"
+        index_path = tmp_path / "index.json"
+        kb = KnowledgeBase(docs_path=docs_path, index_path=index_path)
+
+        file1 = tmp_path / "f1.txt"
+        file2 = tmp_path / "f2.txt"
+        file1.write_text("file one original")
+        file2.write_text("file two original")
+
+        doc1 = kb.ingest_file(file1)
+        doc2 = kb.ingest_file(file2)
+
+        # Update both files
+        file1.write_text("file one updated")
+        file2.write_text("file two updated")
+
+        results = kb.refresh_all()
+        assert results[doc1.doc_id] == "refreshed"
+        assert results[doc2.doc_id] == "refreshed"
+
+        assert "updated" in kb.get_document(doc1.doc_id).content
+        assert "updated" in kb.get_document(doc2.doc_id).content
+
+    def test_refresh_all_skips_text_only_docs(self, tmp_path):
+        """Test refresh_all skips documents without a source path."""
+        docs_path = tmp_path / "docs.json"
+        index_path = tmp_path / "index.json"
+        kb = KnowledgeBase(docs_path=docs_path, index_path=index_path)
+
+        doc = kb.ingest_text(content="No file.", title="Text Doc")
+        results = kb.refresh_all()
+        assert results[doc.doc_id] == "skipped"
+
+    def test_refresh_all_records_error_for_missing_file(self, tmp_path):
+        """Test refresh_all records error when source file is missing."""
+        docs_path = tmp_path / "docs.json"
+        index_path = tmp_path / "index.json"
+        kb = KnowledgeBase(docs_path=docs_path, index_path=index_path)
+
+        source_file = tmp_path / "deleted.txt"
+        source_file.write_text("will be deleted")
+        doc = kb.ingest_file(source_file)
+
+        source_file.unlink()
+
+        results = kb.refresh_all()
+        assert results[doc.doc_id].startswith("error:")
+
+    def test_refresh_persists_to_disk(self, tmp_path):
+        """Test that refresh saves updated content to disk."""
+        docs_path = tmp_path / "docs.json"
+        index_path = tmp_path / "index.json"
+
+        source_file = tmp_path / "persist.txt"
+        source_file.write_text("before refresh")
+
+        kb1 = KnowledgeBase(docs_path=docs_path, index_path=index_path)
+        doc = kb1.ingest_file(source_file)
+
+        source_file.write_text("after refresh")
+        kb1.refresh_document(doc.doc_id)
+
+        # Load fresh instance and verify persisted content
+        kb2 = KnowledgeBase(docs_path=docs_path, index_path=index_path)
+        stored = kb2.get_document(doc.doc_id)
+        assert stored is not None
+        assert "after" in stored.content

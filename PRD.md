@@ -1002,10 +1002,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want the knowledge index refreshed when documents change so that search results stay current.
 
 **Acceptance Criteria:**
-- [ ] documents updated
-- [ ] index refreshed
-- [ ] stale entries removed
-- [ ] Typecheck passes
+- [x] documents updated
+- [x] index refreshed
+- [x] stale entries removed
+- [x] Typecheck passes
 
 ---
 

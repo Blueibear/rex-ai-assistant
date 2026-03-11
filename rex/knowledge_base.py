@@ -630,6 +630,87 @@ class KnowledgeBase:
 
         return docs
 
+    def refresh_document(self, doc_id: str) -> KnowledgeDocument | None:
+        """Refresh a document by re-reading its source file.
+
+        Reads the current content of the document's source file, updates the
+        stored content, and rebuilds the index entries for that document.
+        Stale index entries for the old content are removed.
+
+        Args:
+            doc_id: The document ID to refresh.
+
+        Returns:
+            The updated KnowledgeDocument, or None if the document does not
+            exist or has no source path.
+
+        Raises:
+            FileNotFoundError: If the source file no longer exists.
+        """
+        doc = self._documents.get(doc_id)
+        if doc is None:
+            logger.warning(f"refresh_document: document not found: {doc_id}")
+            return None
+
+        if not doc.source_path:
+            logger.warning(f"refresh_document: no source path for document: {doc_id}")
+            return None
+
+        source = Path(doc.source_path)
+        if not source.exists():
+            raise FileNotFoundError(f"Source file not found: {source}")
+
+        try:
+            new_content = source.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            new_content = source.read_text(encoding="latin-1")
+
+        # Remove stale index entries for this document
+        self._unindex_document(doc_id)
+
+        # Update content and word count
+        updated = doc.model_copy(
+            update={
+                "content": new_content,
+                "word_count": len(new_content.split()),
+            }
+        )
+        self._documents[doc_id] = updated
+
+        # Re-index with new content
+        self._index_document(updated)
+        self._save()
+
+        logger.info(f"Refreshed document: {doc_id} - {updated.title}")
+        return updated
+
+    def refresh_all(self) -> dict[str, str]:
+        """Refresh all documents that have a source path.
+
+        Re-reads each document's source file, updates content, and rebuilds
+        index entries. Documents without a source path are skipped. Documents
+        whose source file has been deleted are recorded as errors.
+
+        Returns:
+            Dict mapping doc_id to status string: "refreshed", "skipped",
+            or "error: <reason>".
+        """
+        results: dict[str, str] = {}
+        for doc_id, doc in list(self._documents.items()):
+            if not doc.source_path:
+                results[doc_id] = "skipped"
+                continue
+            try:
+                self.refresh_document(doc_id)
+                results[doc_id] = "refreshed"
+            except FileNotFoundError as exc:
+                logger.warning(f"refresh_all: {exc}")
+                results[doc_id] = f"error: {exc}"
+            except Exception as exc:  # pragma: no cover
+                logger.error(f"refresh_all: unexpected error for {doc_id}: {exc}")
+                results[doc_id] = f"error: {exc}"
+        return results
+
     def list_tags(self) -> list[str]:
         """List all unique tags across all documents.
 
