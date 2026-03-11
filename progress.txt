@@ -592,3 +592,15 @@
   - mock_manager.get_token.assert_called_with("cred_name") verifies credential lookup key
   - 11 new tests pass; mypy rex/ still clean (126 source files)
 ---
+
+## Iteration 56 - US-056: GitHub actions
+- What was implemented: Added list_issues() and create_commit() methods to GitHubService. list_issues() fetches GET /repos/{repo}/issues and filters out pull requests. create_commit() uses PUT /repos/{repo}/contents/{path} (GitHub Contents API) with base64-encoded content. Added 13 acceptance tests in test_us056_github_actions.py.
+- Files changed: rex/github_service.py, tests/test_us056_github_actions.py, PRD.md, progress.txt
+- Learnings for future iterations:
+  - Policy engine is stored in self._policy_engine during __init__; must create service INSIDE the patch context, not before it, for policy mocking to work
+  - GitHub Contents API (PUT /repos/{owner}/{repo}/contents/{path}) creates commits; requires base64-encoded content
+  - When updating existing file, sha (blob SHA) must be passed in payload
+  - list_issues() must filter items with "pull_request" key (GitHub issues endpoint returns PRs too)
+  - Unused type: ignore comments cause mypy errors; only add them when mypy actually reports an error on that line
+  - 13 new tests pass, mypy clean at 126 source files
+---

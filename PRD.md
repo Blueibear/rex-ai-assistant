@@ -768,11 +768,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want CI to run lint, typecheck, and tests on every PR so that regressions are caught before merging.
 
 **Acceptance Criteria:**
-- [ ] CI runs on PR
-- [ ] lint executed
-- [ ] typecheck executed
-- [ ] tests executed
-- [ ] Typecheck passes
+- [x] CI runs on PR
+- [x] lint executed
+- [x] typecheck executed
+- [x] tests executed
+- [x] Typecheck passes
 
 ---
 
