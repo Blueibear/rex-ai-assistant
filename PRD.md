@@ -688,11 +688,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want to send messages and see responses in the chat interface so that I can interact with Rex without a terminal.
 
 **Acceptance Criteria:**
-- [ ] messages sent
-- [ ] responses displayed
-- [ ] session maintained
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] messages sent
+- [x] responses displayed
+- [x] session maintained
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
