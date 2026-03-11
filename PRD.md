@@ -675,11 +675,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want the web UI to load and render so that I can access Rex from a browser.
 
 **Acceptance Criteria:**
-- [ ] UI server starts
-- [ ] UI accessible
-- [ ] interface renders
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] UI server starts
+- [x] UI accessible
+- [x] interface renders
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
