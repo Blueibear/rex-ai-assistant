@@ -1350,12 +1350,12 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want security headers set on all HTTP responses so that browsers and clients are protected from common web vulnerabilities.
 
 **Acceptance Criteria:**
-- [ ] `Content-Security-Policy` header present on all HTML responses
-- [ ] `X-Frame-Options: DENY` or `SAMEORIGIN` set
-- [ ] `X-Content-Type-Options: nosniff` set
-- [ ] CORS policy restricts allowed origins to configured whitelist (not wildcard `*` in production)
-- [ ] `Strict-Transport-Security` header set if HTTPS is used
-- [ ] Typecheck passes
+- [x] `Content-Security-Policy` header present on all HTML responses
+- [x] `X-Frame-Options: DENY` or `SAMEORIGIN` set
+- [x] `X-Content-Type-Options: nosniff` set
+- [x] CORS policy restricts allowed origins to configured whitelist (not wildcard `*` in production)
+- [x] `Strict-Transport-Security` header set if HTTPS is used
+- [x] Typecheck passes
 
 ---
 

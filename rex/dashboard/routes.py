@@ -63,6 +63,38 @@ _SERVER_START_TIME = time.time()
 _CHAT_HISTORY: list[dict[str, Any]] = []
 _CHAT_HISTORY_MAX = 100
 
+# Content-Security-Policy applied to HTML responses
+_CSP_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data:; "
+    "font-src 'self'; "
+    "connect-src 'self'; "
+    "frame-ancestors 'none'"
+)
+
+
+# --- Security Headers ---
+
+
+@dashboard_bp.after_request
+def add_security_headers(response: Response) -> Response:
+    """Attach security headers to every dashboard response."""
+    # Prevent clickjacking
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    # Prevent MIME-type sniffing
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    # CSP on HTML responses
+    if "text/html" in (response.content_type or ""):
+        response.headers.setdefault("Content-Security-Policy", _CSP_POLICY)
+    # HSTS only when the connection is HTTPS
+    if request.is_secure:
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+    return response
+
 
 # --- Helper Functions ---
 
