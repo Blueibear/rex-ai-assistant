@@ -12,12 +12,9 @@ import sys
 import textwrap
 from pathlib import Path
 
-import pytest
-
 # Import the audit module directly so we can unit-test scan_file / helpers.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import security_audit  # noqa: E402
-
 
 # ---------------------------------------------------------------------------
 # Merge-marker tests
@@ -31,7 +28,8 @@ class TestMergeMarkerDetection:
         """A genuine merge conflict block must be detected."""
         f = tmp_path / "conflict.py"
         f.write_text(
-            textwrap.dedent("""\
+            textwrap.dedent(
+                """\
                 x = 1
                 <<<<<<< HEAD
                 y = 2
@@ -39,7 +37,8 @@ class TestMergeMarkerDetection:
                 y = 3
                 >>>>>>> feature-branch
                 z = 4
-            """)
+            """
+            )
         )
         merge, _, _ = security_audit.scan_file(f)
         assert len(merge) == 3, f"Expected 3 merge markers, got {len(merge)}: {merge}"
@@ -48,12 +47,14 @@ class TestMergeMarkerDetection:
         """Markdown decorative '====...' separators should NOT trigger."""
         f = tmp_path / "doc.md"
         f.write_text(
-            textwrap.dedent("""\
+            textwrap.dedent(
+                """\
                 MERGE CONFLICT MARKERS
                 ==================================================
                 Some text here
                 ========================================
-            """)
+            """
+            )
         )
         merge, _, _ = security_audit.scan_file(f)
         assert merge == [], f"Expected no merge markers, got: {merge}"
@@ -62,14 +63,16 @@ class TestMergeMarkerDetection:
         """Merge-like tokens inside fenced code blocks in .md should be skipped."""
         f = tmp_path / "example.md"
         f.write_text(
-            textwrap.dedent("""\
+            textwrap.dedent(
+                """\
                 # Example
                 ```
                 <<<<<<< HEAD
                 =======
                 >>>>>>> branch
                 ```
-            """)
+            """
+            )
         )
         merge, _, _ = security_audit.scan_file(f)
         assert merge == [], f"Expected no merge markers inside fenced block, got: {merge}"
@@ -145,9 +148,7 @@ class TestStrictMarkdownSecrets:
         """In strict mode, a secret inside a Markdown fenced block IS detected."""
         f = tmp_path / "leaked.md"
         f.write_text(f"# Oops\n```\n{self._RSA_PK_HEADER}\n```\n")
-        _, _, secrets = security_audit.scan_file(
-            f, strict_markdown_secrets=True
-        )
+        _, _, secrets = security_audit.scan_file(f, strict_markdown_secrets=True)
         assert len(secrets) >= 1, "Strict mode should detect secret in fenced block"
         assert any("Private key" in s for s in secrets)
 
@@ -156,9 +157,7 @@ class TestStrictMarkdownSecrets:
         fake_key = "sk-" + "B" * 48
         f = tmp_path / "readme.md"
         f.write_text(f"# Config\n```\nOPENAI_KEY={fake_key}\n```\n")
-        _, _, secrets = security_audit.scan_file(
-            f, strict_markdown_secrets=True
-        )
+        _, _, secrets = security_audit.scan_file(f, strict_markdown_secrets=True)
         assert len(secrets) >= 1, "Strict mode should detect OpenAI key in fenced block"
         assert any("OpenAI" in s for s in secrets)
 
@@ -166,27 +165,25 @@ class TestStrictMarkdownSecrets:
         """In strict mode, merge markers inside fenced blocks ARE detected."""
         f = tmp_path / "conflict.md"
         f.write_text(
-            textwrap.dedent("""\
+            textwrap.dedent(
+                """\
                 # Example
                 ```
                 <<<<<<< HEAD
                 =======
                 >>>>>>> branch
                 ```
-            """)
+            """
+            )
         )
-        merge, _, _ = security_audit.scan_file(
-            f, strict_markdown_secrets=True
-        )
+        merge, _, _ = security_audit.scan_file(f, strict_markdown_secrets=True)
         assert len(merge) == 3, f"Expected 3 merge markers in strict mode, got {len(merge)}"
 
     def test_default_mode_still_skips_fenced_blocks(self, tmp_path: Path):
         """Without the flag, fenced-block secrets remain suppressed."""
         f = tmp_path / "safe.md"
         f.write_text(f"# Docs\n```\n{self._RSA_PK_HEADER}\n```\n")
-        _, _, secrets = security_audit.scan_file(
-            f, strict_markdown_secrets=False
-        )
+        _, _, secrets = security_audit.scan_file(f, strict_markdown_secrets=False)
         assert secrets == [], "Default mode should still skip fenced-block secrets"
 
     def test_allowlisted_file_skips_fenced_even_in_strict(self, tmp_path: Path):
@@ -198,7 +195,9 @@ class TestStrictMarkdownSecrets:
             strict_markdown_secrets=True,
             allowlisted_paths={f.resolve()},
         )
-        assert secrets == [], "Allowlisted file should skip fenced-block secrets even in strict mode"
+        assert (
+            secrets == []
+        ), "Allowlisted file should skip fenced-block secrets even in strict mode"
 
     def test_non_allowlisted_file_detected_in_strict(self, tmp_path: Path):
         """A non-allowlisted file is scanned inside fenced blocks in strict mode."""
@@ -266,6 +265,22 @@ class TestPlaceholderClassification:
     def test_no_extension_classified_as_needs_review(self):
         finding = "Makefile:5: TODO target"
         assert security_audit.classify_placeholder_finding(finding) == "needs-review"
+
+
+class TestScanPathExclusions:
+    """Tests for directory exclusion logic in should_scan_file."""
+
+    def test_ignores_mypy_cache_files(self):
+        path = Path(".mypy_cache") / "3.12" / "module.meta.json"
+        assert security_audit.should_scan_file(path) is False
+
+    def test_ignores_pytest_cache_files(self):
+        path = Path(".pytest_cache") / "v" / "cache" / "lastfailed"
+        assert security_audit.should_scan_file(path) is False
+
+    def test_ignores_ruff_cache_files(self):
+        path = Path(".ruff_cache") / "0.14.11" / "example.py"
+        assert security_audit.should_scan_file(path) is False
 
 
 class TestPlaceholderBucketOutput:
