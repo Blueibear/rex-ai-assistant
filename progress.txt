@@ -418,6 +418,15 @@
   - patch target: "rex.app_launcher.subprocess.Popen" for injecting mock processes in tests
   - 23 new tests pass, mypy clean (1 source file)
 ---
+## Iteration 41 - US-041: Knowledge queries
+- What was implemented: Fixed bug in KnowledgeBase.search() where tag filter ran before substring scoring causing KeyError; moved tag filter to after all scoring. Added tests/test_us041_knowledge_queries.py with 20 tests covering all 3 acceptance criteria.
+- Files changed: rex/knowledge_base.py (bug fix), tests/test_us041_knowledge_queries.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - knowledge_base.py had a bug: tag filter converted defaultdict to regular dict BEFORE substring match loop, causing KeyError for docs excluded by the filter. Fix: move tag filter to AFTER substring scoring.
+  - search() returns [] for empty query, whitespace-only, or stop-word-only queries (all filtered by _tokenize)
+  - get_citations() uses substring match on content and title; returns list of doc_ids
+  - 20 new tests pass, mypy rex/ still clean (124 files)
+---
 ## Iteration 40 - US-040: Knowledge ingestion
 - What was implemented: rex/knowledge_base.py already fully implements KnowledgeBase with ingest_text/ingest_file, word-based indexing, search, and JSON persistence; added tests/test_us040_knowledge_ingestion.py with 20 tests covering all 3 acceptance criteria.
 - Files changed: tests/test_us040_knowledge_ingestion.py (new), PRD.md, progress.txt

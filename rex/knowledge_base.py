@@ -551,16 +551,6 @@ class KnowledgeBase:
                     for doc_id in doc_ids:
                         doc_scores[doc_id] += 1
 
-        # Apply tag filter if specified
-        if tags:
-            tag_set = {t.lower() for t in tags}
-            doc_scores = {
-                doc_id: score
-                for doc_id, score in doc_scores.items()
-                if doc_id in self._documents
-                and tag_set.issubset({t.lower() for t in self._documents[doc_id].tags})
-            }
-
         # Also search for substring matches in content and title
         query_lower = query.lower()
         for doc_id, doc in self._documents.items():
@@ -569,6 +559,16 @@ class KnowledgeBase:
                 doc_scores[doc_id] += 3
             if query_lower in doc.title.lower():
                 doc_scores[doc_id] += 5
+
+        # Apply tag filter if specified (after all scoring so substring bonuses are included)
+        if tags:
+            tag_set = {t.lower() for t in tags}
+            doc_scores = {
+                doc_id: score
+                for doc_id, score in doc_scores.items()
+                if doc_id in self._documents
+                and tag_set.issubset({t.lower() for t in self._documents[doc_id].tags})
+            }
 
         # Sort by score (descending) and return top results
         sorted_docs = sorted(doc_scores.items(), key=lambda x: x[1], reverse=True)

@@ -557,10 +557,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want to query the knowledge base and receive results so that Rex can surface stored information.
 
 **Acceptance Criteria:**
-- [ ] queries executed
-- [ ] query returns at least one result when indexed content contains the queried term
-- [ ] errors handled
-- [ ] Typecheck passes
+- [x] queries executed
+- [x] query returns at least one result when indexed content contains the queried term
+- [x] errors handled
+- [x] Typecheck passes
 
 ---
 
