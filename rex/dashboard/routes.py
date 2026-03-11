@@ -343,6 +343,12 @@ def dashboard_login():
     data = request.get_json(silent=True) or {}
     password = data.get("password", "")
 
+    # Validate password field type and length
+    if not isinstance(password, str):
+        return jsonify({"error": "password must be a string"}), 400
+    if len(password) > 1024:
+        return jsonify({"error": "password exceeds maximum length"}), 400
+
     # Check if password is required
     if not is_password_required():
         # No password configured - check if local access is allowed
@@ -530,7 +536,12 @@ def chat():
     Response: {"reply": "...", "timestamp": "..."}
     """
     data = request.get_json(silent=True) or {}
-    message = data.get("message", "").strip()
+    raw_message = data.get("message", "")
+    if not isinstance(raw_message, str):
+        return jsonify({"error": "message must be a string"}), 400
+    if len(raw_message) > 32_000:
+        return jsonify({"error": "message exceeds maximum length of 32000 characters"}), 400
+    message = raw_message.strip()
 
     if not message:
         return jsonify({"error": "Message is required"}), 400
@@ -646,15 +657,28 @@ def create_job():
     """Create a new scheduled job."""
     data = request.get_json(silent=True) or {}
 
-    name = data.get("name", "").strip()
+    raw_name = data.get("name", "")
+    if not isinstance(raw_name, str):
+        return jsonify({"error": "name must be a string"}), 400
+    if len(raw_name) > 256:
+        return jsonify({"error": "name exceeds maximum length of 256 characters"}), 400
+    name = raw_name.strip()
     if not name:
         return jsonify({"error": "Job name is required"}), 400
 
     schedule = data.get("schedule", "interval:3600")
+    if not isinstance(schedule, str):
+        return jsonify({"error": "schedule must be a string"}), 400
+    if len(schedule) > 256:
+        return jsonify({"error": "schedule exceeds maximum length of 256 characters"}), 400
     enabled = data.get("enabled", True)
+    if not isinstance(enabled, bool):
+        return jsonify({"error": "enabled must be a boolean"}), 400
     callback_name = data.get("callback_name")
     workflow_id = data.get("workflow_id")
     metadata = data.get("metadata", {})
+    if not isinstance(metadata, dict):
+        return jsonify({"error": "metadata must be an object"}), 400
 
     if not schedule.startswith(("interval:", "at:")):
         return (

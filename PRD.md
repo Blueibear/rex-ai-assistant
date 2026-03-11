@@ -1311,11 +1311,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want all HTTP endpoint inputs validated and sanitized so that malformed or malicious payloads cannot crash the server or cause unexpected behavior.
 
 **Acceptance Criteria:**
-- [ ] all POST and PUT endpoints validated to reject missing or malformed required fields with a 400 response
-- [ ] string inputs checked for length limits where unbounded input could cause resource exhaustion
-- [ ] no endpoint passes raw user input directly to a shell command, file path, or SQL query without sanitization
-- [ ] at least one test per endpoint confirms a malformed payload returns 400, not 500
-- [ ] Typecheck passes
+- [x] all POST and PUT endpoints validated to reject missing or malformed required fields with a 400 response
+- [x] string inputs checked for length limits where unbounded input could cause resource exhaustion
+- [x] no endpoint passes raw user input directly to a shell command, file path, or SQL query without sanitization
+- [x] at least one test per endpoint confirms a malformed payload returns 400, not 500
+- [x] Typecheck passes
 
 ---
 

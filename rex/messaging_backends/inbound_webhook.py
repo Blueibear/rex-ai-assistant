@@ -160,11 +160,15 @@ def create_inbound_sms_blueprint(
                 return Response("Forbidden", status=403, content_type="text/plain")
 
         # --- Extract message fields ---
+        # Twilio SMS body max is 1600 chars; clamp to prevent DB resource exhaustion.
+        _MAX_BODY = 1600
+        _MAX_SID = 64
+        _MAX_PHONE = 20
         form = request.form
-        message_sid = form.get("MessageSid", "")
-        from_number = form.get("From", "")
-        to_number = form.get("To", "")
-        body = form.get("Body", "")
+        message_sid = form.get("MessageSid", "")[:_MAX_SID]
+        from_number = form.get("From", "")[:_MAX_PHONE]
+        to_number = form.get("To", "")[:_MAX_PHONE]
+        body = form.get("Body", "")[:_MAX_BODY]
 
         # --- Route to account by To number ---
         normalized_to = _normalize_phone(to_number)

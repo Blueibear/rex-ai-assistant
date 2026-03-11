@@ -557,6 +557,12 @@ def create_blueprint(bridge: HABridge | None = None) -> Blueprint:
         variables = payload.get("variables") or {}
         if not script_id:
             return jsonify({"error": "script field is required"}), 400
+        if not isinstance(script_id, str):
+            return jsonify({"error": "script must be a string"}), 400
+        if len(script_id) > 256:
+            return jsonify({"error": "script exceeds maximum length of 256 characters"}), 400
+        if not isinstance(variables, dict):
+            return jsonify({"error": "variables must be an object"}), 400
         try:
             bridge.call_script(script_id, variables)
             return jsonify({"status": "ok", "script": script_id})
