@@ -1059,11 +1059,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want incoming emails automatically categorized (urgent, action_required, fyi, newsletter) so that I can see what needs attention without reading everything.
 
 **Acceptance Criteria:**
-- [ ] triage assigns one of four categories: urgent, action_required, fyi, newsletter
-- [ ] categorization logic uses sender address, subject keywords, and body patterns
-- [ ] triage results are queryable (e.g., "show urgent emails" returns only urgent-tagged items)
-- [ ] test using mock inbox data confirms at least one email correctly categorized into each category
-- [ ] Typecheck passes
+- [x] triage assigns one of four categories: urgent, action_required, fyi, newsletter
+- [x] categorization logic uses sender address, subject keywords, and body patterns
+- [x] triage results are queryable (e.g., "show urgent emails" returns only urgent-tagged items)
+- [x] test using mock inbox data confirms at least one email correctly categorized into each category
+- [x] Typecheck passes
 
 ---
 
