@@ -441,10 +441,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want Rex to persist memories so that context from previous interactions is available in future sessions.
 
 **Acceptance Criteria:**
-- [ ] memory records saved
-- [ ] storage persistent
-- [ ] retrieval possible
-- [ ] Typecheck passes
+- [x] memory records saved
+- [x] storage persistent
+- [x] retrieval possible
+- [x] Typecheck passes
 
 ---
 
