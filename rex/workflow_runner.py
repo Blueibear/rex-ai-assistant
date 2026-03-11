@@ -56,6 +56,7 @@ from rex.workflow import (
     WorkflowStep,
     generate_approval_id,
     get_condition,
+    validate_workflow_steps,
 )
 
 logger = logging.getLogger(__name__)
@@ -166,6 +167,23 @@ class WorkflowRunner:
             RunResult with execution summary.
         """
         steps_executed = 0
+
+        # Validate all step inputs before executing
+        validation_errors = validate_workflow_steps(self.workflow)
+        if validation_errors:
+            all_errors = [e for errs in validation_errors.values() for e in errs]
+            error_msg = "Step validation failed: " + "; ".join(all_errors)
+            logger.error(error_msg)
+            self.workflow.mark_failed(error_msg)
+            self._save_workflow()
+            return RunResult(
+                workflow_id=self.workflow.workflow_id,
+                status="failed",
+                steps_executed=0,
+                steps_total=len(self.workflow.steps),
+                error=error_msg,
+                blocking_approval_id=None,
+            )
 
         # Mark as running if not already blocked
         if self.workflow.status != "blocked":

@@ -872,10 +872,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want workflow step inputs validated before execution so that invalid configurations are rejected early.
 
 **Acceptance Criteria:**
-- [ ] step inputs validated
-- [ ] invalid steps rejected
-- [ ] workflow execution halted on failure
-- [ ] Typecheck passes
+- [x] step inputs validated
+- [x] invalid steps rejected
+- [x] workflow execution halted on failure
+- [x] Typecheck passes
 
 ---
 

@@ -173,6 +173,19 @@ class WorkflowStep(BaseModel):
         }
     }
 
+    def validate_inputs(self) -> list[str]:
+        """Validate the step's inputs and return a list of error messages.
+
+        Returns:
+            A list of validation error strings. Empty list means valid.
+        """
+        errors: list[str] = []
+        if not self.description.strip():
+            errors.append(f"Step {self.step_id}: description must not be empty")
+        if self.tool_call is not None and not self.tool_call.tool.strip():
+            errors.append(f"Step {self.step_id}: tool_call.tool must not be empty")
+        return errors
+
 
 class WorkflowApproval(BaseModel):
     """An approval request for a workflow step.
@@ -619,6 +632,24 @@ register_condition("always_true", _always_true)
 register_condition("always_false", _always_false)
 
 
+def validate_workflow_steps(workflow: Workflow) -> dict[str, list[str]]:
+    """Validate the inputs of every step in a workflow.
+
+    Args:
+        workflow: The workflow whose steps to validate.
+
+    Returns:
+        Mapping of step_id to a list of validation error strings.
+        Empty dict means all steps are valid.
+    """
+    errors: dict[str, list[str]] = {}
+    for step in workflow.steps:
+        step_errors = step.validate_inputs()
+        if step_errors:
+            errors[step.step_id] = step_errors
+    return errors
+
+
 __all__ = [
     "WorkflowStep",
     "Workflow",
@@ -633,4 +664,5 @@ __all__ = [
     "ConditionFunc",
     "DEFAULT_WORKFLOW_DIR",
     "DEFAULT_APPROVAL_DIR",
+    "validate_workflow_steps",
 ]
