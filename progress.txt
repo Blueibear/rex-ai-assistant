@@ -252,3 +252,13 @@
   - validate_workflow() returns bool; test it after plan() returns a workflow
   - 15 new tests pass, mypy rex/ still clean
 ---
+## Iteration 25 - US-025: Planner task execution
+- What was implemented: Added tests/test_us025_planner_task_execution.py with 19 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us025_planner_task_execution.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Planner+Executor integration fully implemented; only test coverage was needed
+  - execute_tool mock must return dict[str, Any], NOT a plain string — StepResult.output is dict[str, Any] | None (Pydantic validation fails on str)
+  - patch target is "rex.workflow_runner.execute_tool" (where it is used, not where it is defined)
+  - Executor(workflow, budget=ExecutionBudget()) runs cleanly with patched execute_tool
+  - 19 new tests pass, mypy rex/ still clean
+---

@@ -349,10 +349,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want the planner to accept tasks and execute tool calls so that Rex can complete multi-step actions autonomously.
 
 **Acceptance Criteria:**
-- [ ] tasks accepted
-- [ ] task plan generated
-- [ ] tool calls executed
-- [ ] Typecheck passes
+- [x] tasks accepted
+- [x] task plan generated
+- [x] tool calls executed
+- [x] Typecheck passes
 
 ---
 
