@@ -395,6 +395,17 @@
   - set_automation_registry(None) resets the global; get_automation_registry() creates default instance if None
   - 27 new tests pass, mypy clean (1 source file)
 ---
+## Iteration 39 - US-039: Browser Automation
+- What was implemented: rex/browser_automation.py already fully implements BrowserSession, run_browser_script, BrowserAutomationService with playwright backend; added tests/test_us039_browser_automation.py with 16 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us039_browser_automation.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - BrowserSession uses async_playwright (module-level None guard); patch "rex.browser_automation.async_playwright" with a MagicMock whose .return_value.start is AsyncMock
+  - Mock hierarchy: playwright_ctx → playwright_instance → chromium.launch → browser → new_context → context → new_page → page
+  - asyncio.sleep in wait() is at module level; patch "rex.browser_automation.asyncio.sleep" to verify wait calls
+  - run_browser_script() creates BrowserSession internally; patch BrowserSession.__init__ to redirect storage_path to tmp_path
+  - check_policy=False skips policy engine checks for isolated unit testing
+  - 16 new tests pass, mypy rex/ still clean
+---
 ## Iteration 38 - US-038: Application Launching
 - What was implemented: Created rex/app_launcher.py with AppLauncher class (register/unregister/launch/list_apps), LaunchResult dataclass, AppNotRegisteredError, global singleton helpers. Added tests/test_us038_application_launching.py with 23 tests covering all 3 acceptance criteria.
 - Files changed: rex/app_launcher.py (new), tests/test_us038_application_launching.py (new), PRD.md, progress.txt

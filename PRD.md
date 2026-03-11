@@ -531,10 +531,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want Rex to automate browser actions so that I can delegate web tasks.
 
 **Acceptance Criteria:**
-- [ ] browser launches
-- [ ] navigation works
-- [ ] page actions executed
-- [ ] Typecheck passes
+- [x] browser launches
+- [x] navigation works
+- [x] page actions executed
+- [x] Typecheck passes
 
 ---
 
