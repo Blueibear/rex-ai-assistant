@@ -716,10 +716,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want secrets loaded from the environment so that credentials are never stored in the repository.
 
 **Acceptance Criteria:**
-- [ ] secrets loaded from environment
-- [ ] secrets not stored in repo
-- [ ] missing secrets detected
-- [ ] Typecheck passes
+- [x] secrets loaded from environment
+- [x] secrets not stored in repo
+- [x] missing secrets detected
+- [x] Typecheck passes
 
 ---
 
