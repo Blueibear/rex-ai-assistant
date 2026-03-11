@@ -733,3 +733,26 @@
   - search() with no args returns all non-expired entries; safe to call on empty store
   - 11 new tests pass; mypy rex/memory.py clean
 ---
+
+## Iteration 72 - US-071: Memory cleanup
+- What was implemented: Added `compact()` method to `LongTermMemory` that removes expired entries and rewrites the storage file. Added `schedule_memory_cleanup(scheduler, interval_seconds, job_id)` that registers a callback and job with the scheduler.
+- Files changed: rex/memory.py, tests/test_memory_cleanup.py, PRD.md
+- Learnings for future iterations:
+  - `run_retention_policy()` was already implemented; `compact()` wraps it and always rewrites storage
+  - Use `Any` type for scheduler parameter to avoid mypy `attr-defined` errors on duck-typed objects
+  - Capture registered callbacks in tests via side_effect to verify they invoke the right behavior
+  - `# type: ignore[union-attr]` is wrong for `object` type — use `Any` instead
+---
+## Iteration 72 - US-072: Process Monitoring
+- What was implemented: Created rex/process_monitor.py with ProcessMonitor class; 30 tests in tests/test_us072_process_monitoring.py
+- Files changed: rex/process_monitor.py (new), tests/test_us072_process_monitoring.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - ProcessMonitor tracks processes via PID -> ProcessRecord mapping
+  - subprocess.Popen type hint should be Popen[bytes] (not Popen with type: ignore) to satisfy mypy
+  - crashed = not running AND returncode != 0 (clean exit returncode=0 is NOT crashed)
+  - restart() uses subprocess.Popen directly with stored executable (not launcher) to get the new process handle
+  - patch target for Popen in restart tests: "rex.process_monitor.subprocess.Popen"
+  - RestartLimitExceededError raised when restart_count >= max_restarts (not >)
+  - watch() with no executable makes restart() return success=False with descriptive error
+  - 30 new tests pass, mypy rex/ still clean (127 files)
+---

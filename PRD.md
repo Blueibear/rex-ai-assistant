@@ -964,10 +964,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want launched processes monitored for crashes so that Rex can detect and restart failed processes.
 
 **Acceptance Criteria:**
-- [ ] launched processes monitored
-- [ ] crashes detected
-- [ ] process restart supported
-- [ ] Typecheck passes
+- [x] launched processes monitored
+- [x] crashes detected
+- [x] process restart supported
+- [x] Typecheck passes
 
 ---
 
