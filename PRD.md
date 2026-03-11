@@ -1072,11 +1072,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want triage rules stored in config and evaluated in priority order so that categorization can be customized per user without code changes.
 
 **Acceptance Criteria:**
-- [ ] triage rules stored in config file (JSON or YAML)
-- [ ] rules support matching on: sender address, subject pattern, body keyword
-- [ ] rules evaluated in declared priority order; first match wins
-- [ ] adding or modifying a rule takes effect without restarting or modifying source code
-- [ ] Typecheck passes
+- [x] triage rules stored in config file (JSON or YAML)
+- [x] rules support matching on: sender address, subject pattern, body keyword
+- [x] rules evaluated in declared priority order; first match wins
+- [x] adding or modifying a rule takes effect without restarting or modifying source code
+- [x] Typecheck passes
 
 ---
 

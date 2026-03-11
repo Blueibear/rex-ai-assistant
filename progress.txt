@@ -22,6 +22,18 @@
   - 24 tests pass, mypy clean on 2 new source files
 ---
 
+## Iteration 66 - US-079: Email triage categorization
+- What was implemented: Created `rex/email_backends/triage.py` with `categorize()`, `triage_emails()`, and `filter_by_category()`. Categories: urgent/action_required/newsletter/fyi. Patterns check sender address, subject keywords, and body/snippet. Exported from `rex/email_backends/__init__.py`. 45 tests in `tests/test_us079_email_triage.py`.
+- Files changed: rex/email_backends/triage.py (new), rex/email_backends/__init__.py, tests/test_us079_email_triage.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Priority order: urgent → action_required → newsletter → fyi (first match wins)
+  - mock-fyi-001 (newsletter@techdigest + "This week in AI — March 2026 edition") categorizes as newsletter — covers all 4 categories in mock data
+  - `_match(text, patterns)` helper lowercases text then uses re.search on each pattern
+  - Test helper `_env()` uses same message_id for all envelopes — avoid set-based uniqueness logic in tests
+  - filter_by_category() raises ValueError for unknown category names
+  - 45 tests pass, mypy clean
+---
+
 ## Iteration 64 - US-064: Workflow state persistence
 - What was implemented: Added 24 tests in tests/test_us064_workflow_state_persistence.py covering all 3 acceptance criteria. No production code changes needed — Workflow already has save()/load()/current_step_index.
 - Files changed: tests/test_us064_workflow_state_persistence.py (new), PRD.md, progress.txt

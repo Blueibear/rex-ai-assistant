@@ -11,6 +11,11 @@ from rex.email_backends.triage import (
     filter_by_category,
     triage_emails,
 )
+from rex.email_backends.triage_rules import (
+    TriageRule,
+    TriageRulesEngine,
+    load_rules_from_file,
+)
 
 __all__ = [
     "EmailBackend",
@@ -20,9 +25,12 @@ __all__ = [
     "SendResult",
     "StubEmailBackend",
     "TRIAGE_CATEGORIES",
+    "TriageRule",
+    "TriageRulesEngine",
     "categorize",
     "filter_by_category",
     "load_email_config",
+    "load_rules_from_file",
     "resolve_backend",
     "triage_emails",
 ]
