@@ -1164,11 +1164,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want outbound messages routed to the correct channel (dashboard, email, SMS) based on configuration so that Rex can deliver messages where the user prefers without hardcoding a channel.
 
 **Acceptance Criteria:**
-- [ ] router accepts a message payload and a target channel identifier
-- [ ] routes correctly to dashboard, email, and SMS backends based on channel value
-- [ ] unknown or unconfigured channel raises a handled error and does not crash the assistant
-- [ ] active channel configurable without code changes
-- [ ] Typecheck passes
+- [x] router accepts a message payload and a target channel identifier
+- [x] routes correctly to dashboard, email, and SMS backends based on channel value
+- [x] unknown or unconfigured channel raises a handled error and does not crash the assistant
+- [x] active channel configurable without code changes
+- [x] Typecheck passes
 
 ---
 
