@@ -1,4 +1,15 @@
 
+## Iteration 79 - US-092: Auto-escalation
+- What was implemented: Created `rex/escalation_job.py` with `EscalationConfig`, `TrackedNotification`, `EscalationAttempt`, `EscalationResult`, and `EscalationJob`. Config supports `timeout_minutes_by_priority` (default: {HIGH: 15}) and `max_attempts` (default: 3). `track()` registers notifications; `acknowledge()` halts escalation; `run()` escalates unacknowledged notifications past their timeout and stops at max_attempts. Stub logs warnings without real delivery. 43 tests in `tests/test_us092_auto_escalation.py`.
+- Files changed: rex/escalation_job.py (new), tests/test_us092_auto_escalation.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Timeout reference uses `last_escalated_at` if set, else `created_at` — enables re-escalation after each interval
+  - `timeout_minutes=0` in tests makes escalation trigger immediately (no need to freeze time)
+  - Only HIGH is in the default escalation set; CRITICAL/MEDIUM/LOW are not escalated by default
+  - Pre-existing mypy error in logging_utils.py is unrelated; new source files are mypy-clean
+  - 43 tests pass
+---
+
 ## Iteration 78 - US-091: Quiet hours
 - What was implemented: Created `rex/quiet_hours.py` with `QuietHoursConfig`, `QuietHoursGuard`, `SubmitResult`. Config has `start`/`end` (`time`) and `enabled` toggle, with `from_dict()` for runtime reconfiguration. `is_quiet()` handles both same-day and overnight windows. `QuietHoursGuard.submit()` holds non-critical notifications during quiet hours; critical always bypasses. `release_held()` routes held notifications through the underlying router and clears the hold queue. 43 tests in `tests/test_us091_quiet_hours.py`.
 - Files changed: rex/quiet_hours.py (new), tests/test_us091_quiet_hours.py (new), PRD.md, progress.txt

@@ -1235,9 +1235,9 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want unacknowledged high-priority notifications to escalate after a configurable timeout so that important alerts are not silently missed.
 
 **Acceptance Criteria:**
-- [ ] escalation timeout configurable per priority level (default: 15 minutes for high)
-- [ ] escalation job checks for unacknowledged high-priority notifications past their timeout
-- [ ] each escalation attempt logged with timestamp, notification ID, and attempt number
-- [ ] escalation stops after a configurable maximum attempt count (default: 3)
-- [ ] escalation stub logs events without making real deliveries in beta
-- [ ] Typecheck passes
+- [x] escalation timeout configurable per priority level (default: 15 minutes for high)
+- [x] escalation job checks for unacknowledged high-priority notifications past their timeout
+- [x] each escalation attempt logged with timestamp, notification ID, and attempt number
+- [x] escalation stops after a configurable maximum attempt count (default: 3)
+- [x] escalation stub logs events without making real deliveries in beta
+- [x] Typecheck passes
