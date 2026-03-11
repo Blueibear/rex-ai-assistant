@@ -1127,11 +1127,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want a stub SMS sender that logs outbound messages so that SMS-triggered workflows can be built and tested without Twilio credentials.
 
 **Acceptance Criteria:**
-- [ ] `SmsSenderStub` class accepts a phone number and message body
-- [ ] sent messages written to a structured in-memory log accessible for test assertions
-- [ ] stub implements the same interface as the real Twilio adapter (US-086)
-- [ ] calling `send` on the stub makes no network calls
-- [ ] Typecheck passes
+- [x] `SmsSenderStub` class accepts a phone number and message body
+- [x] sent messages written to a structured in-memory log accessible for test assertions
+- [x] stub implements the same interface as the real Twilio adapter (US-086)
+- [x] calling `send` on the stub makes no network calls
+- [x] Typecheck passes
 
 ---
 
