@@ -322,3 +322,13 @@
   - Notifier(storage_path=tmp_path/"notifications") creates an isolated temp-backed instance
   - 20 new tests pass, mypy rex/ still clean (122 files)
 ---
+## Iteration 31 - US-031: Dashboard notifications
+- What was implemented: rex/dashboard/sse.py was already fully implemented; test file tests/test_us031_dashboard_notifications.py already existed as untracked. Ran tests and committed.
+- Files changed: tests/test_us031_dashboard_notifications.py (added to git), PRD.md, progress.txt
+- Learnings for future iterations:
+  - NotificationBroadcaster uses per-subscriber bounded queues; overflow drops oldest event
+  - stream() yields SSE chunks (event: notification\ndata: ...\n\n) and keep-alive comments (: keep-alive\n\n)
+  - subscribe() / unsubscribe() / shutdown() all thread-safe via threading.Lock
+  - set_broadcaster(None) in autouse fixture isolates singleton state per test
+  - 18 new tests pass, mypy rex/ still clean (122 files)
+---
