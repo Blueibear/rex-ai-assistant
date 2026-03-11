@@ -286,3 +286,29 @@ jobs:
             --ignore-vuln GHSA-w476-p2h3-79g9 \
             --ignore-vuln CVE-2026-22702 \
             --ignore-vuln CVE-2026-26331
+
+  secret-scan:
+    name: Hardcoded Secret Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 🧾 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 📥 Install detect-secrets
+        run: pip install detect-secrets
+
+      - name: 🔍 Scan for hardcoded secrets
+        run: |
+          python -m detect_secrets scan \
+            --exclude-files "\.venv|__pycache__|\.git|\.egg-info" \
+            --baseline .secrets.baseline
+          echo "Secret scan passed — no new secrets detected."

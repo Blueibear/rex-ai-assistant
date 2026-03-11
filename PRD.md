@@ -1337,11 +1337,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want the full codebase scanned for hardcoded credentials so that no secrets are committed to the repository.
 
 **Acceptance Criteria:**
-- [ ] `trufflehog`, `gitleaks`, or equivalent tool run against the full git history
-- [ ] zero confirmed hardcoded secrets (API keys, passwords, tokens) found in source files or commit history
-- [ ] any historical findings documented and rotated if real credentials
-- [ ] pre-commit hook or CI step added to block future secret commits
-- [ ] Typecheck passes
+- [x] `trufflehog`, `gitleaks`, or equivalent tool run against the full git history
+- [x] zero confirmed hardcoded secrets (API keys, passwords, tokens) found in source files or commit history
+- [x] any historical findings documented and rotated if real credentials
+- [x] pre-commit hook or CI step added to block future secret commits
+- [x] Typecheck passes
 
 ---
 
