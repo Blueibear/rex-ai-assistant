@@ -479,10 +479,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want plugin tools to be callable and isolated so that plugin failures do not crash the assistant.
 
 **Acceptance Criteria:**
-- [ ] plugin tools callable
-- [ ] failures isolated
-- [ ] plugins unload safely
-- [ ] Typecheck passes
+- [x] plugin tools callable
+- [x] failures isolated
+- [x] plugins unload safely
+- [x] Typecheck passes
 
 ---
 
