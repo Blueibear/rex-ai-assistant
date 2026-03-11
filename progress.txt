@@ -1,4 +1,16 @@
 
+## Iteration 82 - US-095: Authentication and session security review
+- What was implemented: Added `LoginRateLimiter` class to `rex/dashboard/auth.py` with per-IP failed-attempt tracking and timed lockout. Default 5 attempts / 300s window, overridable via `REX_LOGIN_MAX_ATTEMPTS` / `REX_LOGIN_LOCKOUT_SECONDS`. Added `get_login_rate_limiter()` singleton. Integrated into `dashboard_login` route: pre-check lockout before processing, `record_failure()` on wrong password, `record_success()` on correct. All other ACs (crypto random tokens, invalidation on logout, no token logging) were already satisfied by existing code — verified with tests. Fixed `test_us047`'s autouse fixture to also reset `_login_rate_limiter` between tests to prevent global state pollution. 29 tests in `tests/test_us095_auth_session_security.py`, all passing.
+- Files changed: rex/dashboard/auth.py, rex/dashboard/routes.py, tests/test_us095_auth_session_security.py (new), tests/test_us047_dashboard_auth.py (fixture fix), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `secrets.token_urlsafe(32)` = 256 bits entropy (>128 required) — already in place
+  - `LoginRateLimiter` uses `time.monotonic()` (not wall clock) for accurate window tracking
+  - Global singletons (`_login_rate_limiter`) pollute test state — autouse fixtures must reset all singletons, not just `_session_manager`
+  - `window_seconds=0` in tests makes attempts expire immediately (no need to freeze time)
+  - Pre-existing failures: test_cli.py, test_dashboard.py, test_dashboard_store.py — unrelated to auth
+  - 29 tests pass, mypy clean (pre-existing logging_utils.py error unrelated)
+---
+
 ## Iteration 81 - US-094: Input validation audit and remediation for HTTP endpoints
 - What was implemented: Audited all POST/PATCH endpoints. Added type + length checks: login (password: str, max 1024), chat (message: str, max 32000), scheduler/jobs POST (name str max 256, schedule str max 256, enabled bool, metadata dict), ha/script (script str max 256, variables dict). Clamped Twilio inbound SMS fields before DB persist (Body: 1600, SID: 64, phone: 20). 33 tests in tests/test_us094_input_validation.py, all passing.
 - Files changed: rex/dashboard/routes.py, rex/ha_bridge.py, rex/messaging_backends/inbound_webhook.py, tests/test_us094_input_validation.py (new), PRD.md, progress.txt
