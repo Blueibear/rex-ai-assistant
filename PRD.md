@@ -924,10 +924,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want failed notifications retried with a limited attempt count so that transient failures recover without infinite loops.
 
 **Acceptance Criteria:**
-- [ ] failed notifications retried
-- [ ] retry attempts limited
-- [ ] failures logged
-- [ ] Typecheck passes
+- [x] failed notifications retried
+- [x] retry attempts limited
+- [x] failures logged
+- [x] Typecheck passes
 
 ---
 
