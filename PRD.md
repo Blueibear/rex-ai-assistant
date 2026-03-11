@@ -976,10 +976,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want file system operations validated and unsafe paths rejected so that OS automation cannot cause unintended damage.
 
 **Acceptance Criteria:**
-- [ ] file operations validated
-- [ ] unsafe paths rejected
-- [ ] errors handled
-- [ ] Typecheck passes
+- [x] file operations validated
+- [x] unsafe paths rejected
+- [x] errors handled
+- [x] Typecheck passes
 
 ---
 
