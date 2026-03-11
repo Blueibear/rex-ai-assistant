@@ -262,3 +262,26 @@
   - Executor(workflow, budget=ExecutionBudget()) runs cleanly with patched execute_tool
   - 19 new tests pass, mypy rex/ still clean
 ---
+## Iteration 26 - US-026: Workflow definitions
+- What was implemented: Added tests/test_us026_workflow_definitions.py with 32 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us026_workflow_definitions.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Workflow, WorkflowStep, WorkflowApproval all fully implemented in rex/workflow.py; only test coverage needed
+  - make_step/make_workflow helpers must use kwargs.setdefault() not hardcode fields, so callers can override them
+  - Workflow.list_workflows() returns empty list when directory doesn't exist (no error)
+  - Workflow.load_from_file() raises FileNotFoundError for missing files, ValueError for invalid JSON
+  - clear_condition_registry() needed before testing get_condition() to isolate from global state
+  - 32 new tests pass, mypy rex/ still clean (121 files)
+---
+## Iteration 27 - US-027: Workflow runner
+- What was implemented: Added tests/test_us027_workflow_runner.py with 19 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us027_workflow_runner.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - WorkflowRunner is fully implemented in rex/workflow_runner.py; only test coverage needed
+  - patch target for tool execution is "rex.workflow_runner.execute_tool" (where it's imported, not rex.tool_router)
+  - get_executed_idempotency_keys() checks step.result is not None and step.result.success on actual step objects — NOT a state dict; must pre-populate step.result to simulate already-executed key
+  - WorkflowRunner accepts policy_engine, audit_logger, workflow_dir, approval_dir as kwargs for clean test injection
+  - approve_workflow(approval_id, approval_dir=...) / deny_workflow(approval_id, ...) are standalone helpers for changing approval status
+  - After blocking, runner.policy_engine can be reassigned to make_allowed_policy() before resume() to allow execution
+  - 19 new tests pass, mypy rex/ still clean (121 files)
+---

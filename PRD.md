@@ -375,10 +375,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want workflows to execute step by step so that Rex can complete multi-stage automations.
 
 **Acceptance Criteria:**
-- [ ] workflows executed
-- [ ] step transitions work
-- [ ] errors handled
-- [ ] Typecheck passes
+- [x] workflows executed
+- [x] step transitions work
+- [x] errors handled
+- [x] Typecheck passes
 
 ---
 
