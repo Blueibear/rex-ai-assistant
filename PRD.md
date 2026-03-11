@@ -571,10 +571,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want Rex to connect to the Home Assistant API so that smart home devices are accessible.
 
 **Acceptance Criteria:**
-- [ ] API reachable
-- [ ] authentication works
-- [ ] entities retrieved
-- [ ] Typecheck passes
+- [x] API reachable
+- [x] authentication works
+- [x] entities retrieved
+- [x] Typecheck passes
 
 ---
 

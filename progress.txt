@@ -439,3 +439,15 @@
   - ingest_file() raises FileNotFoundError for missing files; title defaults to Path.stem
   - 20 new tests pass, mypy rex/ still clean (124 files)
 ---
+## Iteration 42 - US-042: Home Assistant API connection
+- What was implemented: rex/ha_bridge.py fully implemented; added tests/test_us042_ha_api_connection.py with 17 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us042_ha_api_connection.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - HABridge.__init__ calls _require_requests() which imports requests at init; patch "rex.ha_bridge.requests" context manager around HABridge() construction, then set bridge._session directly after
+  - bridge.enabled is True only when both _base_url and _token are non-empty strings
+  - _request() prepends self._base_url to path, adds Bearer auth header and Content-Type automatically
+  - list_entities() forces a cache refresh (force=True), then returns {friendly_name, entity_id} dicts from the cache
+  - create_blueprint() returns a Flask Blueprint with /ha/intents, /ha/entities, /ha/script routes
+  - Blueprint validates HASS_SECRET header (403 if wrong); empty secret means no auth required
+  - 17 new tests pass, mypy rex/ still clean (124 files)
+---
