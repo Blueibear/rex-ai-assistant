@@ -395,3 +395,15 @@
   - set_automation_registry(None) resets the global; get_automation_registry() creates default instance if None
   - 27 new tests pass, mypy clean (1 source file)
 ---
+## Iteration 38 - US-038: Application Launching
+- What was implemented: Created rex/app_launcher.py with AppLauncher class (register/unregister/launch/list_apps), LaunchResult dataclass, AppNotRegisteredError, global singleton helpers. Added tests/test_us038_application_launching.py with 23 tests covering all 3 acceptance criteria.
+- Files changed: rex/app_launcher.py (new), tests/test_us038_application_launching.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - No existing app launcher existed; built from scratch following automation_registry/scheduler patterns
+  - AppLauncher uses subprocess.Popen (non-blocking) with shell=False for safety; stdout/stderr redirected to DEVNULL
+  - LaunchResult.pid is set from proc.pid on success; None on failure
+  - FileNotFoundError, PermissionError, generic Exception all return LaunchResult(success=False) without raising
+  - AppNotRegisteredError IS raised (not swallowed) when name is not in registry
+  - patch target: "rex.app_launcher.subprocess.Popen" for injecting mock processes in tests
+  - 23 new tests pass, mypy clean (1 source file)
+---
