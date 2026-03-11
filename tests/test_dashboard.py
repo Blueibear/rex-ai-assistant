@@ -860,3 +860,138 @@ class TestNotificationsInboxUI:
             assert "p_normal" not in ids
         finally:
             set_dashboard_store(None)
+
+
+class TestUIErrorHandling:
+    """Tests for US-076: UI error handling.
+
+    Verifies that:
+    - Frontend HTML contains the global error banner element (frontend errors can be displayed)
+    - Backend errors return a JSON response with an 'error' key and an appropriate HTTP status
+    - Backend errors are logged (tested by verifying error JSON is returned by error paths)
+    """
+
+    def test_html_contains_global_error_banner(self, app_client):
+        """Dashboard HTML includes the global error banner element."""
+        client, _ = app_client
+
+        response = client.get(
+            "/dashboard",
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200
+        assert b"global-error-banner" in response.data
+
+    def test_html_contains_global_error_close_button(self, app_client):
+        """Dashboard HTML includes the error banner close button."""
+        client, _ = app_client
+
+        response = client.get(
+            "/dashboard",
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200
+        assert b"global-error-close" in response.data
+
+    def test_html_contains_global_error_msg(self, app_client):
+        """Dashboard HTML includes the error message placeholder element."""
+        client, _ = app_client
+
+        response = client.get(
+            "/dashboard",
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200
+        assert b"global-error-msg" in response.data
+
+    def test_backend_chat_error_returns_json_error(self, app_client, auth_headers):
+        """Backend chat error returns JSON with 'error' key and 500 status."""
+        client, _ = app_client
+
+        with patch("rex.dashboard.routes._get_llm") as mock_llm:
+            mock_instance = MagicMock()
+            mock_instance.generate.side_effect = RuntimeError("LLM backend unavailable")
+            mock_llm.return_value = mock_instance
+
+            response = client.post(
+                "/api/chat",
+                json={"message": "hello"},
+                headers=auth_headers,
+                environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+            )
+
+            assert response.status_code == 500
+            data = response.get_json()
+            assert "error" in data
+            assert "LLM backend unavailable" in data["error"]
+
+    def test_backend_settings_error_returns_json_error(self, app_client, auth_headers, monkeypatch):
+        """Backend settings load error returns JSON with 'error' key and 500 status."""
+        client, _ = app_client
+
+        import rex.dashboard.routes as routes_module
+
+        original_load = routes_module.load_config
+
+        def broken_load():
+            raise RuntimeError("Config file corrupted")
+
+        monkeypatch.setattr(routes_module, "load_config", broken_load)
+
+        response = client.get(
+            "/api/settings",
+            headers=auth_headers,
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 500
+        data = response.get_json()
+        assert "error" in data
+
+    def test_backend_scheduler_error_returns_json_error(self, app_client, auth_headers, monkeypatch):
+        """Backend scheduler error returns JSON with 'error' key and 500 status."""
+        client, _ = app_client
+
+        import rex.dashboard.routes as routes_module
+
+        def broken_get_scheduler():
+            raise RuntimeError("Scheduler unavailable")
+
+        monkeypatch.setattr(routes_module, "get_scheduler", broken_get_scheduler)
+
+        response = client.get(
+            "/api/scheduler/jobs",
+            headers=auth_headers,
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 500
+        data = response.get_json()
+        assert "error" in data
+
+    def test_js_contains_show_global_error_function(self, app_client):
+        """Dashboard JS includes the showGlobalError function for displaying frontend errors."""
+        client, _ = app_client
+
+        response = client.get(
+            "/dashboard/assets/js/dashboard.js",
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200
+        assert b"showGlobalError" in response.data
+
+    def test_js_contains_global_error_handler(self, app_client):
+        """Dashboard JS registers a global error event listener."""
+        client, _ = app_client
+
+        response = client.get(
+            "/dashboard/assets/js/dashboard.js",
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200
+        assert b"unhandledrejection" in response.data

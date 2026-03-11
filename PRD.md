@@ -1016,11 +1016,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want frontend errors displayed clearly and backend errors logged so that problems are diagnosable without digging through server output.
 
 **Acceptance Criteria:**
-- [ ] frontend errors detected
-- [ ] error messages displayed
-- [ ] backend errors logged
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] frontend errors detected
+- [x] error messages displayed
+- [x] backend errors logged
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

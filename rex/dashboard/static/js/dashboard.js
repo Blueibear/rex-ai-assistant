@@ -819,6 +819,20 @@
         return div.innerHTML;
     }
 
+    // Global error display
+    function showGlobalError(message) {
+        const banner = $('#global-error-banner');
+        const msg = $('#global-error-msg');
+        if (!banner || !msg) return;
+        msg.textContent = message;
+        banner.classList.remove('hidden');
+    }
+
+    function hideGlobalError() {
+        const banner = $('#global-error-banner');
+        if (banner) banner.classList.add('hidden');
+    }
+
     // Voice interface
 
     function setVoiceStatus(text, isRecording) {
@@ -978,6 +992,25 @@
             }
             showLogin();
         }
+
+        // Global error banner close button
+        const closeBtn = $('#global-error-close');
+        if (closeBtn) closeBtn.addEventListener('click', hideGlobalError);
+
+        // Capture uncaught JS errors and display them in the global banner
+        window.addEventListener('error', (event) => {
+            const message = (event.error && event.error.message) || event.message || 'Unknown error';
+            console.error('Uncaught error:', message);
+            showGlobalError(`Error: ${message}`);
+        });
+
+        // Capture unhandled promise rejections
+        window.addEventListener('unhandledrejection', (event) => {
+            const reason = event.reason;
+            const message = reason instanceof Error ? reason.message : String(reason || 'Unknown error');
+            console.error('Unhandled rejection:', message);
+            showGlobalError(`Error: ${message}`);
+        });
 
         // Set up event listeners
         $('#login-form').addEventListener('submit', handleLogin);
