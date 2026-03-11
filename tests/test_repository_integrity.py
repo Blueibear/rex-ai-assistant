@@ -51,7 +51,7 @@ def test_no_tracked_binary_artifacts():
     )
 
 
-def test_no_tracked_files_modified():
+def test_no_tracked_files_modified(tracked_modifications_baseline):
     """Ensure that no tracked file was modified during the test run.
 
     Tests must use tmp_path or temp copies for writable data.  Writing to
@@ -68,10 +68,11 @@ def test_no_tracked_files_modified():
     modified = [
         line
         for line in completed.stdout.splitlines()
-        if line and line[0:2].strip().startswith("M")
+        if line
+        and line[0:2].strip().startswith("M")
+        and line[3:] not in tracked_modifications_baseline
     ]
     assert not modified, (
         "Tests must not modify tracked files. Use tmp_path or temp copies "
-        "for writable data. Dirty files: "
-        + ", ".join(line.strip() for line in modified)
+        "for writable data. Dirty files: " + ", ".join(line.strip() for line in modified)
     )

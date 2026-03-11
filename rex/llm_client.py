@@ -333,16 +333,14 @@ class LanguageModel:
     def _ensure_anthropic_client(self) -> Any:
         if self._anthropic_client is not None:
             return self._anthropic_client
+        if not self.anthropic_api_key:
+            raise ConfigurationError("Missing Anthropic API key.")
         if not ANTHROPIC_AVAILABLE:
             raise ConfigurationError("Anthropic backend requires the `anthropic` package.")
         try:
             Anthropic = import_module("anthropic").Anthropic
         except Exception as exc:
-            raise ConfigurationError(
-                "Anthropic backend requires the `anthropic` package."
-            ) from exc
-        if not self.anthropic_api_key:
-            raise ConfigurationError("Missing Anthropic API key.")
+            raise ConfigurationError("Anthropic backend requires the `anthropic` package.") from exc
         self._anthropic_client = Anthropic(api_key=self.anthropic_api_key)
         return self._anthropic_client
 
@@ -385,18 +383,18 @@ class LanguageModel:
     def _ensure_openai_client(self):
         if self._openai_client is not None:
             return self._openai_client
-        if not OPENAI_AVAILABLE:
-            raise ConfigurationError("OpenAI backend requires the `openai` package.")
-        try:
-            OpenAI = import_module("openai").OpenAI
-        except Exception as exc:
-            raise ConfigurationError("OpenAI backend requires the `openai` package.") from exc
         base_url = self.config.openai_base_url
         api_key = self.api_key
         if not api_key and base_url:
             api_key = "local"
         if not api_key:
             raise ConfigurationError("Missing OpenAI API key.")
+        if not OPENAI_AVAILABLE:
+            raise ConfigurationError("OpenAI backend requires the `openai` package.")
+        try:
+            OpenAI = import_module("openai").OpenAI
+        except Exception as exc:
+            raise ConfigurationError("OpenAI backend requires the `openai` package.") from exc
         self._openai_client = (
             OpenAI(api_key=api_key, base_url=base_url) if base_url else OpenAI(api_key=api_key)
         )
