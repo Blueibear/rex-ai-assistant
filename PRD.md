@@ -635,10 +635,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want to log into the dashboard so that my data and configuration are protected.
 
 **Acceptance Criteria:**
-- [ ] login works
-- [ ] sessions created
-- [ ] invalid logins rejected
-- [ ] Typecheck passes
+- [x] login works
+- [x] sessions created
+- [x] invalid logins rejected
+- [x] Typecheck passes
 
 ---
 
