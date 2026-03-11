@@ -430,6 +430,33 @@ class Planner:
             )
         ]
 
+    def build_prompt(self, goal: str) -> str:
+        """Build a prompt for LLM-assisted planning.
+
+        Includes the task description and a list of available tools so the LLM
+        has full context for reasoning.
+
+        Args:
+            goal: Natural language description of the goal.
+
+        Returns:
+            A formatted prompt string containing the task and tool list.
+        """
+        tools = self.tool_registry.list_tools()
+        if tools:
+            tool_lines = "\n".join(
+                f"- {t.name}: {t.description}" for t in tools
+            )
+            tools_section = f"Available tools:\n{tool_lines}"
+        else:
+            tools_section = "Available tools: none"
+
+        return (
+            f"Task: {goal}\n\n"
+            f"{tools_section}\n\n"
+            "Plan the steps needed to accomplish this task using the available tools."
+        )
+
     def _plan_report(self, match: re.Match, goal: str) -> list[WorkflowStep]:
         """Generate steps for creating and sending a report."""
         steps = []

@@ -822,10 +822,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want the planner to build prompts that include the task description and available tools so that the LLM has full context for reasoning.
 
 **Acceptance Criteria:**
-- [ ] planner builds prompts correctly
-- [ ] task description included
-- [ ] available tools listed
-- [ ] Typecheck passes
+- [x] planner builds prompts correctly
+- [x] task description included
+- [x] available tools listed
+- [x] Typecheck passes
 
 ---
 

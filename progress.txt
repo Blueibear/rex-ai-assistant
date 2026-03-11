@@ -650,3 +650,15 @@
   - PolicyDeniedError and ApprovalRequiredError DO propagate (they are raised before the try block); route_if_tool_request() catches them and returns safe string
   - 15 new tests pass; mypy rex/tool_router.py clean
 ---
+
+## Iteration 61 - US-061: Planner prompt generation
+- What was implemented: Added build_prompt(goal) method to Planner class in rex/planner.py. Method returns a formatted string with "Task: <goal>", "Available tools:\n- name: description" for each tool, and an instruction line. Added tests/test_us061_planner_prompt_generation.py with 14 tests covering all 3 acceptance criteria.
+- Files changed: rex/planner.py (build_prompt method added), tests/test_us061_planner_prompt_generation.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Planner is rule-based (not LLM-based); "prompt generation" means adding a build_prompt() method for future LLM integration
+  - build_prompt() uses tool_registry.list_tools() to get ToolMeta objects with .name and .description
+  - With no tools registered, list_tools() returns [] → prompt shows "Available tools: none"
+  - _make_planner() helper creates a fresh Planner with explicit ToolRegistry (bypasses global singleton)
+  - mypy rex/planner.py clean (pre-existing errors in other files are unrelated)
+  - 14 new tests pass
+---
