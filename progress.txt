@@ -285,3 +285,16 @@
   - After blocking, runner.policy_engine can be reassigned to make_allowed_policy() before resume() to allow execution
   - 19 new tests pass, mypy rex/ still clean (121 files)
 ---
+## Iteration 28 - US-028: Event bus
+- What was implemented: Added tests/test_us028_event_bus.py with 17 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us028_event_bus.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - EventBus is fully implemented in rex/event_bus.py; only test coverage was needed
+  - EventBus supports both legacy API (publish(str, dict) -> Event, subscribe(str, callback(str,dict)) -> unsubscribe) and rich API (publish(Event), subscribe(str, handler(Event)), unsubscribe(str, handler))
+  - Legacy API detection: callback functions with co_argcount >= 2 treated as legacy
+  - Wildcard subscriptions via "*" receive all published events
+  - Error isolation: bad handler logs error but doesn't stop other handlers
+  - set_event_bus(EventBus()) in autouse fixture isolates global bus state per test
+  - Thread-safety: _lock is RLock; handlers snapshot taken under lock, executed outside
+  - 17 new tests pass, mypy rex/ still clean (121 files)
+---
