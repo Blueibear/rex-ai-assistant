@@ -502,3 +502,15 @@
   - CalendarEvent does not validate start < end; reversed times are stored as provided
   - 23 new tests pass, mypy rex/ still clean (124 files)
 ---
+## Iteration 48 - US-048: Plex API client
+- What was implemented: Created rex/plex_client.py with PlexClient (ping, get_libraries, search), PlexLibrary/PlexMediaItem dataclasses, PlexConnectionError/PlexAuthError exceptions, and global singleton helpers. Added tests/test_us048_plex_api_client.py with 27 tests covering all 4 acceptance criteria.
+- Files changed: rex/plex_client.py (new), tests/test_us048_plex_api_client.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - PlexClient accepts a session= kwarg for DI in tests (same pattern as ImapSmtpEmailBackend)
+  - 401 response raises PlexAuthError; OSError raises PlexConnectionError
+  - Token sent via X-Plex-Token header (not query param) and Accept: application/json set on session
+  - session.headers.update() called at construction time; assert via call_args[0][0] dict
+  - _make_response() helper: set raise_for_status side_effect for error codes, return MagicMock otherwise
+  - type: ignore[union-attr] on _requests_module.Session() triggers unused-ignore when requests IS available; omit the comment
+  - 27 new tests pass, mypy rex/ still clean (125 files)
+---

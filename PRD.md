@@ -649,10 +649,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want Rex to connect to the Plex API so that media library data is accessible.
 
 **Acceptance Criteria:**
-- [ ] Plex reachable
-- [ ] libraries retrieved
-- [ ] authentication works
-- [ ] Typecheck passes
+- [x] Plex reachable
+- [x] libraries retrieved
+- [x] authentication works
+- [x] Typecheck passes
 
 ---
 
