@@ -808,10 +808,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want tool failures captured and recorded so that the assistant remains stable when a tool errors.
 
 **Acceptance Criteria:**
-- [ ] tool failures captured
-- [ ] failure reason recorded
-- [ ] execution does not crash assistant
-- [ ] Typecheck passes
+- [x] tool failures captured
+- [x] failure reason recorded
+- [x] execution does not crash assistant
+- [x] Typecheck passes
 
 ---
 

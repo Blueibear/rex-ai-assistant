@@ -639,3 +639,14 @@
   - Pre-existing mypy errors in twilio_backend/ics_backend/ha_tts/logging_utils do not affect audit.py or tool_router.py
   - 13 new tests pass; mypy rex/audit.py and rex/tool_router.py clean
 ---
+
+## Iteration 60 - US-060: Tool execution error handling
+- What was implemented: Error handling already implemented in execute_tool() (try/except around tool body, _log_audit_entry() stores error); only test coverage needed. Added tests/test_us060_tool_execution_error_handling.py with 15 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us060_tool_execution_error_handling.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - execute_tool() try/except catches RuntimeError, ValueError, and any Exception from tool body; returns _error_result(str(e)) instead of raising
+  - audit logger failure is also caught in _log_audit_entry() try/except — won't crash execution
+  - To simulate broken audit logger: replace isolated_audit_logger.log with lambda that raises (not patching Path.mkdir which is read-only on Windows)
+  - PolicyDeniedError and ApprovalRequiredError DO propagate (they are raised before the try block); route_if_tool_request() catches them and returns safe string
+  - 15 new tests pass; mypy rex/tool_router.py clean
+---
