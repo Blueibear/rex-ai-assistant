@@ -781,11 +781,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want documentation updated to match the current codebase so that developers can onboard without digging through source code.
 
 **Acceptance Criteria:**
-- [ ] README updated
-- [ ] install docs updated
-- [ ] CLI usage documented
-- [ ] developer docs updated
-- [ ] Typecheck passes
+- [x] README updated
+- [x] install docs updated
+- [x] CLI usage documented
+- [x] developer docs updated
+- [x] Typecheck passes
 
 ---
 

@@ -614,3 +614,17 @@
   - Test pattern for CI: read the .yml file as text and assert expected strings/keywords are present
   - mypy does not support -q flag; use 2>&1 | tail to limit output
 ---
+
+## Iteration 58 - US-058: Documentation updates
+- What was implemented: Updated docs to match current codebase.
+  - Fixed stale script reference in INSTALL.md (scripts/environment_doctor.py → scripts/doctor.py)
+  - Added GitHub integration section (rex gh subcommands) to README
+  - Numbered README sections consistently (added §6 GitHub, renumbered §7–9)
+  - Created docs/github.md developer reference for GitHubService (CLI usage, Python API, mock mode, policy controls, error handling)
+- Files changed: INSTALL.md, README.md, docs/github.md (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - test_no_tracked_files_modified fails if there are pre-existing uncommitted tracked file changes at test time
+  - Safe pattern: commit all implementation changes before running full test suite so working tree is clean
+  - test_us018_speech_to_text ConsistentTranscription tests are pre-existing flaky failures in full suite (audio hardware); documented in earlier iterations
+  - docs/github.md follows same structure as other integration docs in docs/
+---
