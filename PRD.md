@@ -1324,11 +1324,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want authentication and session management reviewed against baseline security requirements so that sessions cannot be hijacked or forged.
 
 **Acceptance Criteria:**
-- [ ] session tokens are cryptographically random (min 128 bits of entropy)
-- [ ] session tokens invalidated on logout
-- [ ] authentication endpoints have a failed-attempt rate limit or lockout
-- [ ] tokens are not logged in plaintext anywhere in the logging output
-- [ ] Typecheck passes
+- [x] session tokens are cryptographically random (min 128 bits of entropy)
+- [x] session tokens invalidated on logout
+- [x] authentication endpoints have a failed-attempt rate limit or lockout
+- [x] tokens are not logged in plaintext anywhere in the logging output
+- [x] Typecheck passes
 
 ---
 

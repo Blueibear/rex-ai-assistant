@@ -18,13 +18,16 @@ from rex.dashboard.auth import SessionManager, get_session_manager
 
 @pytest.fixture(autouse=True)
 def isolate_session_manager(monkeypatch):
-    """Give each test a fresh SessionManager so state does not bleed between tests."""
+    """Give each test a fresh SessionManager and LoginRateLimiter so state does not bleed between tests."""
     import rex.dashboard.auth as auth_module
     import rex.dashboard.routes as routes_module
+    from rex.dashboard.auth import LoginRateLimiter
 
     fresh = SessionManager(expiry_seconds=3600)
     monkeypatch.setattr(auth_module, "_session_manager", fresh)
     monkeypatch.setattr(routes_module, "get_session_manager", lambda: fresh)
+    fresh_limiter = LoginRateLimiter()
+    monkeypatch.setattr(auth_module, "_login_rate_limiter", fresh_limiter)
     yield fresh
 
 

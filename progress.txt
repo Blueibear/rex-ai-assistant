@@ -1,4 +1,31 @@
 
+## Iteration 81 - US-094: Input validation audit and remediation for HTTP endpoints
+- What was implemented: Audited all POST/PATCH endpoints. Added type + length checks: login (password: str, max 1024), chat (message: str, max 32000), scheduler/jobs POST (name str max 256, schedule str max 256, enabled bool, metadata dict), ha/script (script str max 256, variables dict). Clamped Twilio inbound SMS fields before DB persist (Body: 1600, SID: 64, phone: 20). 33 tests in tests/test_us094_input_validation.py, all passing.
+- Files changed: rex/dashboard/routes.py, rex/ha_bridge.py, rex/messaging_backends/inbound_webhook.py, tests/test_us094_input_validation.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Explore agent produced a complete endpoint summary — use subagent for multi-file endpoint audit
+  - ha_bridge exposes blueprint via `create_blueprint(bridge=HABridge)`, not `create_ha_blueprint`
+  - inbound_webhook: `create_inbound_sms_blueprint(auth_token, inbound_store, ...)` - no `url_prefix` or `mapping` params (built internally)
+  - InboundSmsStore method is `query_recent(limit=N)` not `get_recent(limit=N)`
+  - Twilio webhook must always return 200; use truncation not 400 for oversized payloads
+  - PATCH /api/scheduler/jobs/<id> validates unknown fields after 404 check, so non-existent job returns 404 before "no valid fields" 400
+  - Black reformats class method signatures with long type annotations; run black after writing test files
+  - 33 tests pass, mypy clean (pre-existing logging_utils.py error unrelated)
+---
+
+## Iteration 80 - US-093: Dependency vulnerability scan and remediation
+- What was implemented: Ran pip-audit 2.10.0 against the installed environment. Fixed 7 direct-dep CVE clusters by raising min version pins in pyproject.toml: flask→3.1.3, flask-cors→6.0.0, jinja2→3.1.6, werkzeug→3.1.6, urllib3→2.6.3, cryptography→46.0.5, pillow→12.1.1. Created docs/security/VULNERABILITY-SCAN.md documenting ~90 accepted-risk CVEs (transitive/optional deps) with per-item justifications. Added security-scan CI job to .github/workflows/ci.yml using pip-audit with --ignore-vuln for all accepted-risk CVE IDs. 13 tests in tests/test_us093_dependency_scan.py, all passing.
+- Files changed: pyproject.toml, docs/security/VULNERABILITY-SCAN.md (new), .github/workflows/ci.yml, tests/test_us093_dependency_scan.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - pip-audit installed as user package but invoked via `python -m pip_audit` (not bare `pip-audit` which may not be on PATH)
+  - pip-audit exits 0 (clean) or 1 (vulns found); both are valid run outcomes for the test
+  - --ignore-vuln takes one CVE ID per flag; no file-based ignore list in pip-audit 2.x
+  - PYSEC-* and GHSA-* IDs also work with --ignore-vuln alongside CVE-* IDs
+  - gradio was installed as a dev/exploration tool but is NOT in pyproject.toml — document as accepted risk anyway since pip-audit scans the whole env
+  - flask-cors 4→6 is a major version bump but the `CORS(app, resources={...})` dict API is unchanged; safe to raise min version
+  - 13 tests pass, mypy clean
+---
+
 ## Iteration 79 - US-092: Auto-escalation
 - What was implemented: Created `rex/escalation_job.py` with `EscalationConfig`, `TrackedNotification`, `EscalationAttempt`, `EscalationResult`, and `EscalationJob`. Config supports `timeout_minutes_by_priority` (default: {HIGH: 15}) and `max_attempts` (default: 3). `track()` registers notifications; `acknowledge()` halts escalation; `run()` escalates unacknowledged notifications past their timeout and stops at max_attempts. Stub logs warnings without real delivery. 43 tests in `tests/test_us092_auto_escalation.py`.
 - Files changed: rex/escalation_job.py (new), tests/test_us092_auto_escalation.py (new), PRD.md, progress.txt

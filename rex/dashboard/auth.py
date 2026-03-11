@@ -11,6 +11,7 @@ import hmac
 import os
 import secrets
 import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
@@ -173,6 +174,78 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(f"{token}:{_TOKEN_SECRET}".encode()).hexdigest()[:16]
 
 
+# Login rate-limiter defaults (overridable via env vars)
+_LOGIN_MAX_ATTEMPTS = int(os.getenv("REX_LOGIN_MAX_ATTEMPTS", "5"))
+_LOGIN_LOCKOUT_SECONDS = int(os.getenv("REX_LOGIN_LOCKOUT_SECONDS", "300"))
+
+
+class LoginRateLimiter:
+    """Per-IP failed-login attempt tracker with timed lockout.
+
+    An IP is locked out once it accumulates ``max_attempts`` failures
+    within ``window_seconds``.  A successful login resets the counter.
+    """
+
+    def __init__(
+        self,
+        max_attempts: int = _LOGIN_MAX_ATTEMPTS,
+        window_seconds: int = _LOGIN_LOCKOUT_SECONDS,
+    ) -> None:
+        self._max_attempts = max_attempts
+        self._window_seconds = window_seconds
+        # {ip: [timestamp, ...]}
+        self._attempts: dict[str, list[float]] = {}
+        self._lock = threading.Lock()
+
+    def _prune(self, ip: str, now: float) -> None:
+        """Remove attempts older than the window (must hold lock)."""
+        cutoff = now - self._window_seconds
+        self._attempts[ip] = [t for t in self._attempts.get(ip, []) if t > cutoff]
+
+    def is_locked_out(self, ip: str) -> bool:
+        """Return True if the IP is currently locked out."""
+        with self._lock:
+            now = time.monotonic()
+            self._prune(ip, now)
+            return len(self._attempts.get(ip, [])) >= self._max_attempts
+
+    def record_failure(self, ip: str) -> bool:
+        """Record a failed attempt and return True if the IP is now locked out."""
+        with self._lock:
+            now = time.monotonic()
+            self._prune(ip, now)
+            self._attempts.setdefault(ip, []).append(now)
+            return len(self._attempts[ip]) >= self._max_attempts
+
+    def record_success(self, ip: str) -> None:
+        """Reset the failed-attempt counter for this IP."""
+        with self._lock:
+            self._attempts.pop(ip, None)
+
+    def remaining_attempts(self, ip: str) -> int:
+        """Return how many failures remain before lockout."""
+        with self._lock:
+            now = time.monotonic()
+            self._prune(ip, now)
+            used = len(self._attempts.get(ip, []))
+            return max(0, self._max_attempts - used)
+
+
+# Global login rate-limiter instance
+_login_rate_limiter: LoginRateLimiter | None = None
+_login_rate_limiter_lock = threading.Lock()
+
+
+def get_login_rate_limiter() -> LoginRateLimiter:
+    """Get the global login rate-limiter instance."""
+    global _login_rate_limiter
+    if _login_rate_limiter is None:
+        with _login_rate_limiter_lock:
+            if _login_rate_limiter is None:
+                _login_rate_limiter = LoginRateLimiter()
+    return _login_rate_limiter
+
+
 __all__ = [
     "Session",
     "SessionManager",
@@ -182,4 +255,6 @@ __all__ = [
     "is_password_required",
     "hash_token",
     "SESSION_EXPIRY_SECONDS",
+    "LoginRateLimiter",
+    "get_login_rate_limiter",
 ]

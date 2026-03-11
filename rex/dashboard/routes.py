@@ -37,6 +37,7 @@ from rex.config_manager import (
 from rex.contracts import redact_sensitive_keys
 from rex.dashboard.auth import (
     Session,
+    get_login_rate_limiter,
     get_session_manager,
     is_password_required,
     verify_password,
@@ -340,6 +341,14 @@ def dashboard_login():
     Request body: {"password": "..."}
     Response: {"token": "...", "expires_at": "..."}
     """
+    client_ip = request.remote_addr or "unknown"
+    rate_limiter = get_login_rate_limiter()
+
+    # Check rate limit before processing credentials
+    if rate_limiter.is_locked_out(client_ip):
+        logger.warning("Login blocked (rate limit) for %s", client_ip)
+        return jsonify({"error": "Too many failed login attempts. Try again later."}), 429
+
     data = request.get_json(silent=True) or {}
     password = data.get("password", "")
 
@@ -375,8 +384,15 @@ def dashboard_login():
 
     # Verify password
     if not verify_password(password):
-        logger.warning("Failed dashboard login attempt from %s", request.remote_addr)
+        locked_out = rate_limiter.record_failure(client_ip)
+        logger.warning("Failed dashboard login attempt from %s", client_ip)
+        if locked_out:
+            logger.warning("IP %s locked out after too many failed logins", client_ip)
+            return jsonify({"error": "Too many failed login attempts. Try again later."}), 429
         return jsonify({"error": "Invalid password"}), 401
+
+    # Success — reset rate-limit counter
+    rate_limiter.record_success(client_ip)
 
     # Create session
     session = get_session_manager().create_session(
