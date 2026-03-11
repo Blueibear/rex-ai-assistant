@@ -704,3 +704,13 @@
   - Pre-existing failures: test_repo_integrity (uncommitted changes), test_us018 (asyncio event loop), not caused by this work
   - Full suite: 2544 passed, 26 skipped, 10 failed (all pre-existing)
 ---
+## Iteration 68 - US-068: Notification persistence
+- What was implemented: Added tests/test_us068_notification_persistence.py with 5 tests covering all acceptance criteria.
+- Files changed: tests/test_us068_notification_persistence.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - DashboardStore (rex/dashboard_store.py) already provides full SQLite persistence: write(), query_recent(), timestamps
+  - No new implementation needed — only test coverage was missing
+  - DashboardStore.write() auto-generates IDs and ISO UTC timestamps; query_recent(priority=...) filters by priority
+  - Testing persistence across instances: create a second DashboardStore(db_path=same_path) and query
+  - mypy rex/ passes cleanly; 5 new tests pass
+---

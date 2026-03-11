@@ -912,10 +912,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want notifications persisted to the database with timestamps so that delivery history is auditable.
 
 **Acceptance Criteria:**
-- [ ] notifications stored in database
-- [ ] notifications retrieved
-- [ ] timestamps recorded
-- [ ] Typecheck passes
+- [x] notifications stored in database
+- [x] notifications retrieved
+- [x] timestamps recorded
+- [x] Typecheck passes
 
 ---
 
