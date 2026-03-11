@@ -481,6 +481,16 @@
   - dashboard_bp uses url_prefix="" so routes are at root level (/api/dashboard/status not /dashboard/api/dashboard/status)
   - 13 new tests pass, mypy rex/ still clean (124 files)
 ---
+## Iteration 47 - US-047: Dashboard authentication
+- What was implemented: dashboard/auth.py and routes.py already fully implement login/session/rejection; added tests/test_us047_dashboard_auth.py with 17 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us047_dashboard_auth.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - isolate_session_manager fixture: monkeypatch auth_module._session_manager AND routes_module.get_session_manager (both reference the global)
+  - Non-loopback testing: pass environ_base={"REMOTE_ADDR": "10.0.0.1"} to test_client calls AND set REX_DASHBOARD_ALLOW_LOCAL=0
+  - response.headers.getlist("Set-Cookie") returns raw strings, not cookie objects — check with `"rex_dashboard_token" in c`
+  - Bearer token and X-Dashboard-Token headers both accepted by _get_session_from_request()
+  - 17 new tests pass, mypy rex/ still clean (124 files)
+---
 ## Iteration 45 - US-045: Calendar integration
 - What was implemented: CalendarService already fully implements event retrieval, creation, and error handling; added tests/test_us045_calendar_integration.py with 23 tests covering all 3 acceptance criteria.
 - Files changed: tests/test_us045_calendar_integration.py (new), PRD.md, progress.txt
