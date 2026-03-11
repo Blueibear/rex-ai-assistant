@@ -494,6 +494,107 @@ class Planner:
             "Plan the steps needed to accomplish this task using the available tools."
         )
 
+    def plan_with_fallback(
+        self,
+        goal: str,
+        fallback_goals: list[str] | None = None,
+        requested_by: str | None = None,
+    ) -> Workflow:
+        """Generate a workflow, falling back to alternate goals on failure.
+
+        Tries to plan the primary ``goal`` first.  If planning fails (e.g. no
+        matching pattern or no tools available), each entry in
+        ``fallback_goals`` is tried in order.  All failures are logged.
+
+        Args:
+            goal: Primary natural-language goal.
+            fallback_goals: Ordered list of alternate goals to try when the
+                primary goal cannot be planned.
+            requested_by: Who requested the plan (for audit trail).
+
+        Returns:
+            A Workflow for the first goal that could be planned successfully.
+
+        Raises:
+            UnableToPlanError: If the primary goal and all fallbacks fail.
+        """
+        candidates = [goal] + list(fallback_goals or [])
+        last_error: Exception | None = None
+
+        for attempt, candidate in enumerate(candidates):
+            try:
+                workflow = self.plan(candidate, requested_by=requested_by)
+                if attempt > 0:
+                    logger.info(
+                        "plan_with_fallback: succeeded on fallback #%d ('%s')",
+                        attempt,
+                        candidate,
+                    )
+                return workflow
+            except PlannerError as exc:
+                logger.warning(
+                    "plan_with_fallback: attempt %d failed for '%s': %s",
+                    attempt,
+                    candidate,
+                    exc,
+                )
+                last_error = exc
+
+        raise UnableToPlanError(
+            f"All planning attempts failed. Primary goal: '{goal}'. "
+            f"Fallbacks tried: {fallback_goals}. "
+            f"Last error: {last_error}"
+        )
+
+    def execute_step_with_fallback(
+        self,
+        primary_step: WorkflowStep,
+        fallback_steps: list[WorkflowStep],
+        executor: Any,
+    ) -> Any:
+        """Execute a workflow step, falling back to alternates on failure.
+
+        Calls ``executor(step)`` with the primary step.  If it raises an
+        exception, each fallback step is tried in order.  All failures are
+        logged so the caller has a full audit trail.
+
+        Args:
+            primary_step: The preferred step to execute first.
+            fallback_steps: Ordered list of alternate steps to try.
+            executor: Callable that accepts a WorkflowStep and returns a result.
+                May raise any exception to signal failure.
+
+        Returns:
+            The result returned by the first successful executor call.
+
+        Raises:
+            Exception: Re-raises the last failure if every step fails.
+        """
+        all_steps = [primary_step] + list(fallback_steps)
+        last_exc: Exception | None = None
+
+        for attempt, step in enumerate(all_steps):
+            tool_name = step.tool_call.tool if step.tool_call else "<no tool>"
+            try:
+                result = executor(step)
+                if attempt > 0:
+                    logger.info(
+                        "execute_step_with_fallback: succeeded on fallback #%d (tool='%s')",
+                        attempt,
+                        tool_name,
+                    )
+                return result
+            except Exception as exc:  # noqa: BLE001
+                logger.error(
+                    "execute_step_with_fallback: attempt %d failed (tool='%s'): %s",
+                    attempt,
+                    tool_name,
+                    exc,
+                )
+                last_exc = exc
+
+        raise last_exc  # type: ignore[misc]
+
     def _plan_report(self, match: re.Match, goal: str) -> list[WorkflowStep]:
         """Generate steps for creating and sending a report."""
         steps = []

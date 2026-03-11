@@ -846,10 +846,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want the planner to fall back gracefully when a tool fails so that multi-step tasks recover where possible.
 
 **Acceptance Criteria:**
-- [ ] planner detects tool failure
-- [ ] alternate strategy attempted
-- [ ] errors logged
-- [ ] Typecheck passes
+- [x] planner detects tool failure
+- [x] alternate strategy attempted
+- [x] errors logged
+- [x] Typecheck passes
 
 ---
 
