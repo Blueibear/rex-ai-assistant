@@ -546,3 +546,14 @@
   - Chat history entries include user_message, assistant_reply, timestamp, elapsed_ms
   - 24 new tests pass, mypy rex/ still clean (125 files)
 ---
+## Iteration 52 - US-052: Voice interface
+- What was implemented: Added /api/voice endpoint to routes.py; added #voice-btn and #voice-status to index.html; added MediaRecorder + speechSynthesis voice logic to dashboard.js; added tests/test_us052_voice_interface.py with 17 tests.
+- Files changed: rex/dashboard/routes.py, rex/dashboard/templates/index.html, rex/dashboard/static/js/dashboard.js, tests/test_us052_voice_interface.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Pattern: add `_transcribe_audio_file(path: str) -> str` standalone function so tests can patch `rex.dashboard.routes._transcribe_audio_file` directly without mocking whisper
+  - /api/voice accepts multipart/form-data with "audio" field; returns {transcript, reply, timestamp}; 400 if no audio, 422 if empty transcript, 503 if whisper not installed
+  - speechSynthesis.speak(new SpeechSynthesisUtterance(text)) plays audio on the browser side (no server-side TTS needed)
+  - MediaRecorder API used for recording; FormData used to send blob to backend
+  - test_us018 fails in full suite (pre-existing isolation issue unrelated to this story); passes in isolation and with new tests
+  - 17 new tests pass, mypy rex/ still clean (126 files)
+---
