@@ -415,10 +415,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want notifications routed to the correct destination so that users receive alerts through their preferred channel.
 
 **Acceptance Criteria:**
-- [ ] notifications generated
-- [ ] routing rules applied
-- [ ] delivery attempted
-- [ ] Typecheck passes
+- [x] notifications generated
+- [x] routing rules applied
+- [x] delivery attempted
+- [x] Typecheck passes
 
 ---
 
