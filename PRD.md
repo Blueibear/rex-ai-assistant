@@ -493,10 +493,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want tasks scheduled and executed automatically so that Rex acts without requiring manual triggers.
 
 **Acceptance Criteria:**
-- [ ] scheduler initializes
-- [ ] tasks scheduled
-- [ ] tasks executed
-- [ ] Typecheck passes
+- [x] scheduler initializes
+- [x] tasks scheduled
+- [x] tasks executed
+- [x] Typecheck passes
 
 ---
 
