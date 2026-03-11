@@ -1,4 +1,16 @@
 
+## Iteration 78 - US-091: Quiet hours
+- What was implemented: Created `rex/quiet_hours.py` with `QuietHoursConfig`, `QuietHoursGuard`, `SubmitResult`. Config has `start`/`end` (`time`) and `enabled` toggle, with `from_dict()` for runtime reconfiguration. `is_quiet()` handles both same-day and overnight windows. `QuietHoursGuard.submit()` holds non-critical notifications during quiet hours; critical always bypasses. `release_held()` routes held notifications through the underlying router and clears the hold queue. 43 tests in `tests/test_us091_quiet_hours.py`.
+- Files changed: rex/quiet_hours.py (new), tests/test_us091_quiet_hours.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Overnight window: `start >= end` → `t >= start or t < end` (e.g. 22:00–07:00)
+  - Same-day window: `start < end` → `start <= t < end` (e.g. 08:00–12:00)
+  - `_BYPASS_PRIORITIES = frozenset({CRITICAL})` — only critical bypasses; HIGH is held
+  - `release_held()` routes through the router (→ digest queue for medium/low) in received order
+  - `held_notifications` returns `list(self._held)` copy so callers can't mutate internal state
+  - 43 tests pass, new source files are mypy-clean
+---
+
 ## Iteration 77 - US-090: Digest mode
 - What was implemented: Created `rex/digest_job.py` with `DigestJob`, `DigestJobConfig`, `DigestResult`. `DigestJob.run()` drains the `PriorityNotificationRouter` digest queue, builds a grouped message, writes to `DashboardStore` (or logs as stub if no store). `configure_from_dict()` allows runtime config changes. `last_run` tracks most recent run. 39 tests in `tests/test_us090_digest_mode.py`.
 - Files changed: rex/digest_job.py (new), tests/test_us090_digest_mode.py (new), PRD.md, progress.txt
