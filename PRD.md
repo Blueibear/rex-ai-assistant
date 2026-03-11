@@ -886,10 +886,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want event subscribers managed safely so that duplicate subscriptions are prevented and removal is supported.
 
 **Acceptance Criteria:**
-- [ ] subscribers registered
-- [ ] subscriber removal supported
-- [ ] duplicate subscriptions prevented
-- [ ] Typecheck passes
+- [x] subscribers registered
+- [x] subscriber removal supported
+- [x] duplicate subscriptions prevented
+- [x] Typecheck passes
 
 ---
 
@@ -898,10 +898,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want the event queue to handle load safely so that events are not lost and processing remains sequential.
 
 **Acceptance Criteria:**
-- [ ] events queued safely
-- [ ] queue overflow prevented
-- [ ] events processed sequentially
-- [ ] Typecheck passes
+- [x] events queued safely
+- [x] queue overflow prevented
+- [x] events processed sequentially
+- [x] Typecheck passes
 
 ---
 

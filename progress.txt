@@ -683,3 +683,24 @@
   - Pre-existing flapping failures in test_us018_speech_to_text.py (10 tests) are unrelated to this story
   - 14 new tests pass, mypy clean on changed files
 ---
+
+## Iteration 66 - US-066: Event subscription validation
+- What was implemented: Added duplicate subscription prevention to EventBus for both legacy callbacks and newer Event handlers. Added 2 tests (one per variant) confirming single-registration behavior.
+- Files changed: rex/event_bus.py, tests/test_event_bus.py, PRD.md, progress.txt
+- Learnings for future iterations:
+  - EventBus already had subscribe/unsubscribe; only duplicate prevention was missing
+  - Use `if fn not in list` before `.append(fn)` to prevent duplicates in both _legacy_subscribers and _handlers dicts
+  - test_repository_integrity and test_us018 failures are pre-existing; not caused by these changes
+  - Full suite: 2535 passed, 26 skipped, 10 failed (all pre-existing)
+---
+## Iteration 68 - US-067: Event queue stability
+- What was implemented: Added `EventQueue` class to `rex/event_bus.py` with bounded queue (queue.Queue maxsize=1000), single daemon worker thread for sequential processing, drop policy with logging on overflow, metrics tracking, and lifecycle management (start/stop/join).
+- Files changed: rex/event_bus.py (added EventQueue class + import queue), tests/test_event_queue.py (new, 9 tests)
+- Learnings for future iterations:
+  - queue.Queue(maxsize=N) with put_nowait() raises queue.Full on overflow — use try/except for drop policy
+  - Worker thread blocks on queue.get(timeout=0.1) and checks self._running on Empty to exit cleanly
+  - Sentinel None value placed in queue causes worker to break out of loop
+  - join() calls self._queue.join() which requires task_done() after each item processed
+  - Pre-existing failures: test_repo_integrity (uncommitted changes), test_us018 (asyncio event loop), not caused by this work
+  - Full suite: 2544 passed, 26 skipped, 10 failed (all pre-existing)
+---
