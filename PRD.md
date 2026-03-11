@@ -311,10 +311,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want tool routing to dispatch execution correctly so that user requests reach the appropriate tool.
 
 **Acceptance Criteria:**
-- [ ] tools routed correctly
-- [ ] execution dispatched
-- [ ] errors handled safely
-- [ ] Typecheck passes
+- [x] tools routed correctly
+- [x] execution dispatched
+- [x] errors handled safely
+- [x] Typecheck passes
 
 ---
 
