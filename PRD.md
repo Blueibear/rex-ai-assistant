@@ -1208,12 +1208,12 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want low-priority notifications batched into periodic digests so that I receive a single summary instead of many individual interruptions.
 
 **Acceptance Criteria:**
-- [ ] digest job runs on a configurable interval (default: 60 minutes)
-- [ ] digest collects all queued medium and low notifications since the last digest run
-- [ ] digest payload delivered to the dashboard notification endpoint as a single grouped message
-- [ ] digest job logs output when no real delivery backend is configured (beta stub behavior)
-- [ ] digest queue is cleared after each successful run
-- [ ] Typecheck passes
+- [x] digest job runs on a configurable interval (default: 60 minutes)
+- [x] digest collects all queued medium and low notifications since the last digest run
+- [x] digest payload delivered to the dashboard notification endpoint as a single grouped message
+- [x] digest job logs output when no real delivery backend is configured (beta stub behavior)
+- [x] digest queue is cleared after each successful run
+- [x] Typecheck passes
 
 ---
 
