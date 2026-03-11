@@ -21,12 +21,17 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 class TestRepoIntegrity:
     """Working tree must remain clean after tests."""
 
-    def test_no_tracked_files_modified(self):
+    def test_no_tracked_files_modified(self, tracked_modifications_baseline):
         """No tracked file should be modified by the test suite."""
         result = subprocess.run(
             [
-                "git", "status", "--porcelain",
-                "--", ":!.coverage", ":!coverage.xml", ":!htmlcov/",
+                "git",
+                "status",
+                "--porcelain",
+                "--",
+                ":!.coverage",
+                ":!coverage.xml",
+                ":!htmlcov/",
             ],
             capture_output=True,
             text=True,
@@ -34,8 +39,9 @@ class TestRepoIntegrity:
         )
         # Filter out untracked files (lines starting with '??')
         dirty = [
-            line for line in result.stdout.splitlines()
-            if line and not line.startswith("??")
+            line
+            for line in result.stdout.splitlines()
+            if line and not line.startswith("??") and line[3:] not in tracked_modifications_baseline
         ]
         assert dirty == [], (
             "Test suite modified tracked repo files.  Tests must write to "

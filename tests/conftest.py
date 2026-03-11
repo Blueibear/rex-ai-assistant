@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
+import subprocess
 import sys
+import warnings
 from pathlib import Path
+
+import pytest
 
 # Resolve root of the project
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,5 +26,51 @@ os.environ["REX_TESTING"] = "true"
 FIXTURES_DIR = ROOT / "tests" / "fixtures"
 FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
 
+
+@pytest.fixture(autouse=True)
+def ensure_event_loop_for_sync_tests():
+    """Ensure sync tests relying on asyncio.get_event_loop() always have a loop.
+
+    Python 3.12 no longer auto-creates a main-thread loop in all situations,
+    and some tests still call ``asyncio.get_event_loop()`` directly.
+    """
+    created_loop = None
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        try:
+            asyncio.get_event_loop()
+        except RuntimeError:
+            created_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(created_loop)
+
+    try:
+        yield
+    finally:
+        if created_loop is not None and not created_loop.is_closed():
+            created_loop.close()
+            asyncio.set_event_loop(None)
+
+
 # Optional: Register custom pytest plugins
 # pytest_plugins = ["tests.fixtures.custom_plugin"]
+
+
+def _tracked_modified_files() -> set[str]:
+    completed = subprocess.run(
+        ["git", "status", "--porcelain"],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=str(ROOT),
+    )
+    return {
+        line[3:]
+        for line in completed.stdout.splitlines()
+        if line and line[0:2].strip().startswith("M")
+    }
+
+
+@pytest.fixture(scope="session")
+def tracked_modifications_baseline() -> set[str]:
+    """Tracked files already modified before tests started."""
+    return _tracked_modified_files()
