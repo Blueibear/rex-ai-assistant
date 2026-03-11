@@ -1,4 +1,15 @@
 
+## Iteration 84 - US-097: HTTP security headers
+- What was implemented: Added `@dashboard_bp.after_request` hook in `rex/dashboard/routes.py` that sets: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy` (on HTML responses, with `frame-ancestors 'none'` and `default-src 'self'`), and `Strict-Transport-Security` (only on HTTPS connections). CORS was already correctly configured with explicit origins via `REX_ALLOWED_ORIGINS`. 16 tests in `tests/test_us097_security_headers.py`, all passing.
+- Files changed: rex/dashboard/routes.py, tests/test_us097_security_headers.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `request.is_secure` checks `wsgi.url_scheme == 'https'` in Werkzeug — use `base_url="https://localhost/"` in test client (not `environ_base`) to trigger it
+  - `response.headers.setdefault()` is idempotent — won't overwrite headers already set by a handler
+  - CSP only on HTML: check `"text/html" in (response.content_type or "")`
+  - CORS wildcard check: verify `flask_proxy.py` uses `REX_ALLOWED_ORIGINS` not literal `"*"`
+  - 16 tests pass, mypy clean (pre-existing logging_utils.py error unrelated)
+---
+
 ## Iteration 83 - US-096: Hardcoded credential and secret scan
 - What was implemented: Installed `detect-secrets` 1.5.0, ran full repo scan (69 findings), manually reviewed all findings (all false positives: test fixtures, docstring examples, placeholder values, sentinel strings). Generated `.secrets.baseline` with all reviewed findings. Created `.pre-commit-config.yaml` with detect-secrets hook. Added `secret-scan` CI job to `.github/workflows/ci.yml`. Documented all findings + rationale in `docs/security/SECRET-SCAN.md`. 20 tests in `tests/test_us096_secret_scan.py`, all passing.
 - Files changed: .secrets.baseline (new), .pre-commit-config.yaml (new), .github/workflows/ci.yml, docs/security/SECRET-SCAN.md (new), tests/test_us096_secret_scan.py (new), PRD.md, progress.txt
