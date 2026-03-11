@@ -363,3 +363,14 @@
   - Files starting with '_' (including __init__.py) are skipped by the loader
   - 12 new tests pass, mypy rex/ still clean (122 files)
 ---
+## Iteration 35 - US-035: Plugin execution
+- What was implemented: Added tests/test_us035_plugin_execution.py with 14 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us035_plugin_execution.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - PluginSafetyWrapper already implements isolation: rate limiting, output truncation, timeout, and exception propagation
+  - Exceptions from plugin.process() propagate as-is (re-raised after logging); callers must catch them
+  - Rate limit: monkeypatch "rex.plugins.PLUGIN_RATE_LIMIT" BEFORE load_plugins() — the deque maxlen is set at PluginSafetyWrapper.__init__ time
+  - Output truncation: monkeypatch "rex.plugins.PLUGIN_OUTPUT_LIMIT" BEFORE load_plugins() for it to take effect in _truncate_output
+  - shutdown_plugins() wraps each plugin.shutdown() in try/except — exceptions are logged, not re-raised
+  - 14 new tests pass, mypy rex/ still clean (122 files)
+---
