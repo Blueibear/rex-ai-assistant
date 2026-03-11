@@ -661,10 +661,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want Rex to control Plex playback so that I can manage media by voice.
 
 **Acceptance Criteria:**
-- [ ] play command works
-- [ ] pause command works
-- [ ] stop command works
-- [ ] Typecheck passes
+- [x] play command works
+- [x] pause command works
+- [x] stop command works
+- [x] Typecheck passes
 
 ---
 

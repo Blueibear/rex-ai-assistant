@@ -159,6 +159,80 @@ class PlexClient:
             )
         return items
 
+    # ------------------------------------------------------------------
+    # Playback control
+    # ------------------------------------------------------------------
+
+    def _player_command(
+        self,
+        command: str,
+        client_id: str,
+        *,
+        command_id: int = 1,
+        extra_params: dict[str, Any] | None = None,
+    ) -> bool:
+        """Send a player command to *client_id* via the Plex server.
+
+        Returns True on success, False on failure.
+        """
+        params: dict[str, Any] = {
+            "commandID": command_id,
+            "X-Plex-Target-Client-Identifier": client_id,
+        }
+        if extra_params:
+            params.update(extra_params)
+        url = f"{self._base_url}/player/playback/{command}"
+        try:
+            resp = self._session.get(url, params=params, timeout=10)
+        except Exception as exc:
+            logger.warning("Plex player command %s failed: %s", command, exc)
+            return False
+        if resp.status_code == 401:
+            logger.warning("Plex player command %s rejected: auth error", command)
+            return False
+        try:
+            resp.raise_for_status()
+        except Exception as exc:
+            logger.warning("Plex player command %s error: %s", command, exc)
+            return False
+        return True
+
+    def play(
+        self,
+        client_id: str,
+        *,
+        rating_key: str | None = None,
+        command_id: int = 1,
+    ) -> bool:
+        """Send a play command to *client_id*.
+
+        Optionally starts playback of a specific item identified by *rating_key*.
+        Returns True on success, False on failure.
+        """
+        extra: dict[str, Any] = {}
+        if rating_key:
+            key_path = f"/library/metadata/{rating_key}"
+            extra["key"] = key_path
+            extra["containerKey"] = key_path
+            extra["type"] = "video"
+        return self._player_command(
+            "play", client_id, command_id=command_id, extra_params=extra
+        )
+
+    def pause(self, client_id: str, *, command_id: int = 1) -> bool:
+        """Send a pause command to *client_id*.
+
+        Returns True on success, False on failure.
+        """
+        return self._player_command("pause", client_id, command_id=command_id)
+
+    def stop(self, client_id: str, *, command_id: int = 1) -> bool:
+        """Send a stop command to *client_id*.
+
+        Returns True on success, False on failure.
+        """
+        return self._player_command("stop", client_id, command_id=command_id)
+
 
 # ---------------------------------------------------------------------------
 # Global singleton helpers
