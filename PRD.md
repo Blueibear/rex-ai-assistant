@@ -1181,11 +1181,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want notifications to carry a priority level so that routing and delivery decisions can be based on urgency rather than treating all notifications equally.
 
 **Acceptance Criteria:**
-- [ ] `NotificationPriority` enum defined with values: critical, high, medium, low
-- [ ] all notification creation paths accept a `priority` parameter
-- [ ] priority stored alongside notification record in the database
-- [ ] existing notifications without a stored priority default to `medium` on read
-- [ ] Typecheck passes
+- [x] `NotificationPriority` enum defined with values: critical, high, medium, low
+- [x] all notification creation paths accept a `priority` parameter
+- [x] priority stored alongside notification record in the database
+- [x] existing notifications without a stored priority default to `medium` on read
+- [x] Typecheck passes
 
 ---
 

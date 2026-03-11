@@ -68,6 +68,6 @@ def test_multiple_notifications_persist(store: DashboardStore) -> None:
 
 def test_notification_stored_with_priority(store: DashboardStore) -> None:
     """Priority field is persisted and returned correctly."""
-    store.write(title="Urgent Note", body="Act now", priority="urgent")
-    results = store.query_recent(priority="urgent", limit=10)
+    store.write(title="Urgent Note", body="Act now", priority="high")
+    results = store.query_recent(priority="high", limit=10)
     assert any(n.title == "Urgent Note" for n in results)

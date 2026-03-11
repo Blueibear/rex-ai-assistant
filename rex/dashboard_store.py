@@ -26,6 +26,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from rex.notification_priority import NotificationPriority
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_DB_PATH = Path("data/dashboard_notifications.db")
@@ -199,7 +201,7 @@ class DashboardStore:
         self,
         *,
         notification_id: str | None = None,
-        priority: str = "normal",
+        priority: NotificationPriority | str = NotificationPriority.MEDIUM,
         title: str,
         body: str,
         channel: str = "dashboard",
@@ -223,6 +225,11 @@ class DashboardStore:
         nid = notification_id or f"dash_{uuid.uuid4().hex[:16]}"
         ts = datetime.now(timezone.utc).isoformat()
         meta_json = json.dumps(metadata or {})
+        # Normalise priority: accept enum or string; unknown strings → medium.
+        if isinstance(priority, NotificationPriority):
+            priority_str = priority.value
+        else:
+            priority_str = NotificationPriority.from_str(priority).value
         with self._connect() as conn:
             conn.execute(
                 """
@@ -230,7 +237,7 @@ class DashboardStore:
                     (id, priority, title, body, channel, timestamp, read, user_id, metadata_json)
                 VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
                 """,
-                (nid, priority, title, body, channel, ts, user_id, meta_json),
+                (nid, priority_str, title, body, channel, ts, user_id, meta_json),
             )
         logger.debug("Dashboard notification stored: %s", nid)
 
@@ -306,7 +313,9 @@ class DashboardStore:
         return [
             DashboardNotification(
                 id=row["id"],
-                priority=row["priority"],
+                # Normalise priority on read: legacy values (e.g. "normal")
+                # and any unrecognised strings default to "medium".
+                priority=NotificationPriority.from_str(row["priority"]).value,
                 title=row["title"],
                 body=row["body"],
                 channel=row["channel"],
@@ -425,6 +434,7 @@ __all__ = [
     "DashboardNotification",
     "DashboardStore",
     "DashboardStoreConfig",
+    "NotificationPriority",
     "get_dashboard_store",
     "load_dashboard_store_config",
     "set_dashboard_store",
