@@ -351,3 +351,15 @@
   - All three functions accept memory_dir=Path override for test isolation (no monkeypatching needed)
   - 16 new tests pass, mypy rex/ still clean (122 files)
 ---
+## Iteration 34 - US-034: Plugin discovery
+- What was implemented: rex/plugins/__init__.py already fully implements Plugin protocol, PluginSpec, PluginSafetyWrapper, load_plugins, and shutdown_plugins; added tests/test_us034_plugin_discovery.py with 12 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us034_plugin_discovery.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - rex/plugins/__init__.py is the primary plugin system (class-based with lifecycle: initialize/process/shutdown)
+  - rex/plugin_loader.py is a simpler dict-based loader; both are tested in test_plugin_loader.py
+  - PluginSafetyWrapper wraps every loaded plugin; converts non-string/list/dict return values to str via str(output)[:limit]
+  - So asserting plugin.process() returns True (bool) will fail; assert in (True, "True") instead
+  - load_plugins returns empty list for nonexistent directories (not an error)
+  - Files starting with '_' (including __init__.py) are skipped by the loader
+  - 12 new tests pass, mypy rex/ still clean (122 files)
+---

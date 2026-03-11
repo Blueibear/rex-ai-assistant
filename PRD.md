@@ -467,10 +467,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want plugins discovered automatically from the plugin folder so that capabilities can be added without modifying core code.
 
 **Acceptance Criteria:**
-- [ ] plugin loader scans plugin folder
-- [ ] plugins detected
-- [ ] plugin metadata loaded
-- [ ] Typecheck passes
+- [x] plugin loader scans plugin folder
+- [x] plugins detected
+- [x] plugin metadata loaded
+- [x] Typecheck passes
 
 ---
 
