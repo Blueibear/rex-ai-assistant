@@ -322,6 +322,15 @@
   - Notifier(storage_path=tmp_path/"notifications") creates an isolated temp-backed instance
   - 20 new tests pass, mypy rex/ still clean (122 files)
 ---
+## Iteration 32 - US-032: Memory storage
+- What was implemented: rex/memory.py already fully implements WorkingMemory and LongTermMemory with persistence; added tests/test_us032_memory_storage.py with 5 focused acceptance tests.
+- Files changed: tests/test_us032_memory_storage.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - WorkingMemory and LongTermMemory both persist to JSON files and reload cleanly on new instance creation
+  - LongTermMemory.get_entry() returns None for expired entries; use _entries dict directly to test expired state
+  - set_working_memory() / set_long_term_memory() reset globals for isolation in tests that use convenience functions
+  - 5 new tests pass, mypy rex/ still clean (122 files)
+---
 ## Iteration 31 - US-031: Dashboard notifications
 - What was implemented: rex/dashboard/sse.py was already fully implemented; test file tests/test_us031_dashboard_notifications.py already existed as untracked. Ran tests and committed.
 - Files changed: tests/test_us031_dashboard_notifications.py (added to git), PRD.md, progress.txt
