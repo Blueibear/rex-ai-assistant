@@ -505,10 +505,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want automations stored and retrievable so that scheduled tasks persist across restarts.
 
 **Acceptance Criteria:**
-- [ ] automations stored
-- [ ] automations retrieved
-- [ ] persistence works
-- [ ] Typecheck passes
+- [x] automations stored
+- [x] automations retrieved
+- [x] persistence works
+- [x] Typecheck passes
 
 ---
 
