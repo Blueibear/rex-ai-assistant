@@ -756,3 +756,13 @@
   - watch() with no executable makes restart() return success=False with descriptive error
   - 30 new tests pass, mypy rex/ still clean (127 files)
 ---
+
+## Iteration 73 - US-073: File system safety
+- What was implemented: Verified existing implementation in rex/os_automation.py already satisfies all criteria. Tests in tests/test_os_automation.py (13 tests) already pass.
+- Files changed: PRD.md (marked complete), progress.txt
+- Learnings for future iterations:
+  - OSAutomationService._sanitize_path() rejects paths outside self.data_path using Path.relative_to()
+  - copy_file/move_file/delete_file all route through _sanitize_path before touching disk
+  - Disallowed commands raise PermissionError; failed file ops raise RuntimeError
+  - 13 tests pass, mypy rex/os_automation.py clean
+---

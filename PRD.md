@@ -990,10 +990,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want documents indexed and the index stored persistently so that knowledge is available after restart.
 
 **Acceptance Criteria:**
-- [ ] documents indexed
-- [ ] index stored
-- [ ] indexing failures logged
-- [ ] Typecheck passes
+- [x] documents indexed
+- [x] index stored
+- [x] indexing failures logged
+- [x] Typecheck passes
 
 ---
 
