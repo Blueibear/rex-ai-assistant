@@ -177,6 +177,112 @@ jobs:
             coverage.xml
             htmlcov/
 
+  security-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
 
+    steps:
+      - name: 🧾 Checkout repository
+        uses: actions/checkout@v4
 
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
+      - name: 📥 Install pip-audit
+        run: |
+          python -m pip install --upgrade "pip>=26.0"
+          pip install pip-audit
+
+      - name: 🔒 Run dependency vulnerability scan
+        # Accepted-risk CVEs for transitive/optional dependencies are listed in
+        # docs/security/VULNERABILITY-SCAN.md with per-item justifications.
+        # New findings NOT in this ignore list will fail the build.
+        run: |
+          pip-audit \
+            --ignore-vuln CVE-2025-53643 \
+            --ignore-vuln CVE-2025-69223 \
+            --ignore-vuln CVE-2025-69224 \
+            --ignore-vuln CVE-2025-69225 \
+            --ignore-vuln CVE-2025-69226 \
+            --ignore-vuln CVE-2025-69227 \
+            --ignore-vuln CVE-2025-69228 \
+            --ignore-vuln CVE-2025-69229 \
+            --ignore-vuln CVE-2025-69230 \
+            --ignore-vuln CVE-2025-6176 \
+            --ignore-vuln CVE-2024-23342 \
+            --ignore-vuln CVE-2025-57808 \
+            --ignore-vuln PYSEC-2023-234 \
+            --ignore-vuln CVE-2025-68146 \
+            --ignore-vuln CVE-2026-22701 \
+            --ignore-vuln CVE-2025-66034 \
+            --ignore-vuln CVE-2024-1727 \
+            --ignore-vuln CVE-2024-1728 \
+            --ignore-vuln CVE-2024-1729 \
+            --ignore-vuln CVE-2024-2206 \
+            --ignore-vuln CVE-2024-4325 \
+            --ignore-vuln CVE-2024-4940 \
+            --ignore-vuln CVE-2024-8021 \
+            --ignore-vuln CVE-2024-8966 \
+            --ignore-vuln CVE-2024-10569 \
+            --ignore-vuln CVE-2024-10648 \
+            --ignore-vuln CVE-2024-12217 \
+            --ignore-vuln CVE-2024-48052 \
+            --ignore-vuln CVE-2025-23042 \
+            --ignore-vuln CVE-2025-48889 \
+            --ignore-vuln CVE-2026-27167 \
+            --ignore-vuln CVE-2026-28414 \
+            --ignore-vuln CVE-2026-28415 \
+            --ignore-vuln CVE-2026-28416 \
+            --ignore-vuln GHSA-26jh-r8g2-6fpr \
+            --ignore-vuln PYSEC-2024-184 \
+            --ignore-vuln PYSEC-2024-196 \
+            --ignore-vuln PYSEC-2024-197 \
+            --ignore-vuln PYSEC-2024-198 \
+            --ignore-vuln PYSEC-2024-199 \
+            --ignore-vuln PYSEC-2024-213 \
+            --ignore-vuln PYSEC-2024-214 \
+            --ignore-vuln PYSEC-2024-215 \
+            --ignore-vuln PYSEC-2024-216 \
+            --ignore-vuln PYSEC-2024-217 \
+            --ignore-vuln PYSEC-2024-218 \
+            --ignore-vuln PYSEC-2024-219 \
+            --ignore-vuln PYSEC-2024-220 \
+            --ignore-vuln PYSEC-2024-255 \
+            --ignore-vuln CVE-2025-57804 \
+            --ignore-vuln CVE-2025-65106 \
+            --ignore-vuln CVE-2025-68664 \
+            --ignore-vuln CVE-2026-26013 \
+            --ignore-vuln CVE-2025-6985 \
+            --ignore-vuln CVE-2025-69534 \
+            --ignore-vuln CVE-2025-68480 \
+            --ignore-vuln CVE-2025-14009 \
+            --ignore-vuln CVE-2025-67221 \
+            --ignore-vuln CVE-2026-1703 \
+            --ignore-vuln CVE-2025-4565 \
+            --ignore-vuln CVE-2026-0994 \
+            --ignore-vuln CVE-2026-23490 \
+            --ignore-vuln CVE-2025-55197 \
+            --ignore-vuln CVE-2025-62707 \
+            --ignore-vuln CVE-2025-62708 \
+            --ignore-vuln CVE-2025-66019 \
+            --ignore-vuln CVE-2026-22690 \
+            --ignore-vuln CVE-2026-22691 \
+            --ignore-vuln CVE-2026-24688 \
+            --ignore-vuln CVE-2026-27024 \
+            --ignore-vuln CVE-2026-27025 \
+            --ignore-vuln CVE-2026-27026 \
+            --ignore-vuln CVE-2026-27628 \
+            --ignore-vuln CVE-2026-28351 \
+            --ignore-vuln CVE-2026-28804 \
+            --ignore-vuln CVE-2026-24486 \
+            --ignore-vuln CVE-2024-47874 \
+            --ignore-vuln CVE-2025-54121 \
+            --ignore-vuln CVE-2025-47287 \
+            --ignore-vuln CVE-2025-64712 \
+            --ignore-vuln CVE-2025-13327 \
+            --ignore-vuln GHSA-w476-p2h3-79g9 \
+            --ignore-vuln CVE-2026-22702 \
+            --ignore-vuln CVE-2026-26331

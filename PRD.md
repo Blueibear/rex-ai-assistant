@@ -1241,3 +1241,588 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 - [x] escalation stops after a configurable maximum attempt count (default: 3)
 - [x] escalation stub logs events without making real deliveries in beta
 - [x] Typecheck passes
+
+---
+
+# PRD: Rex Production Readiness Review
+---
+
+## Introduction
+
+This PRD covers the full production readiness review of the Rex codebase. The goal is a clean, audited, well-tested, observable, and deployable system with no open security issues, no missing operational documentation, and a passing production smoke test suite. Work in this PRD begins after the core feature buildout (PRD.md) and technical debt cleanup (PRD-repo-quality.md) are complete.
+
+No new features are introduced here. Every story is purely a quality, security, reliability, or operational concern.
+
+---
+
+## Goals
+
+- Identify and remediate all critical and high security vulnerabilities before deployment
+- Establish and enforce a minimum test coverage threshold across all modules
+- Ensure consistent, structured error handling and logging throughout the system
+- Harden configuration and secrets management for production environments
+- Validate database connection reliability, migration state, and query safety
+- Produce a uniform, well-documented API surface with input validation and rate limiting
+- Establish a performance baseline with no known blocking I/O in async paths
+- Deliver complete operational documentation: deployment guide, config reference, runbook, API reference
+- Verify the full system starts cleanly, accepts traffic, and passes a production smoke test suite
+- Produce a signed-off production readiness checklist with no open items
+
+---
+
+## Non-Goals
+
+- No new features or integrations
+- No refactoring of working code purely for aesthetics
+- No migration to a different framework, ORM, or runtime
+- No performance optimization beyond identifying and fixing async blocking issues
+- No multi-region or high-availability deployment architecture
+- No automated rollback or blue/green deployment pipelines
+
+---
+
+## Technical Considerations
+
+- All stories in this PRD operate on the existing codebase; no new dependencies should be introduced without justification.
+- Security scan tools: `pip-audit` (preferred) or `safety`. Either is acceptable.
+- Structured logging should use Python's stdlib `logging` module with a JSON formatter — do not introduce a new logging library unless `structlog` is already a dependency.
+- Coverage tooling: `pytest-cov`. Threshold should be agreed before US-102 (suggested minimum: 80% overall, 70% per module).
+- Rate limiting: use an existing middleware approach compatible with the dashboard server framework already in use; do not add a full API gateway.
+- Smoke tests should be standalone scripts or a dedicated pytest marker (`@pytest.mark.smoke`) that can be run in isolation against a live local instance.
+
+---
+
+# PHASE 37 — Security Audit
+
+### US-093: Dependency vulnerability scan and remediation
+
+**Description:** As a developer, I want all dependencies scanned for known CVEs so that Rex does not ship with vulnerable packages.
+
+**Acceptance Criteria:**
+- [x] `pip-audit` (or `safety check`) runs against the current lock file / installed packages
+- [x] all critical and high severity findings remediated or explicitly documented as accepted risk with justification
+- [x] scan added as a CI step that fails on new critical/high findings
+- [x] Typecheck passes
+
+---
+
+### US-094: Input validation audit and remediation for HTTP endpoints
+
+**Description:** As a developer, I want all HTTP endpoint inputs validated and sanitized so that malformed or malicious payloads cannot crash the server or cause unexpected behavior.
+
+**Acceptance Criteria:**
+- [ ] all POST and PUT endpoints validated to reject missing or malformed required fields with a 400 response
+- [ ] string inputs checked for length limits where unbounded input could cause resource exhaustion
+- [ ] no endpoint passes raw user input directly to a shell command, file path, or SQL query without sanitization
+- [ ] at least one test per endpoint confirms a malformed payload returns 400, not 500
+- [ ] Typecheck passes
+
+---
+
+### US-095: Authentication and session security review
+
+**Description:** As a developer, I want authentication and session management reviewed against baseline security requirements so that sessions cannot be hijacked or forged.
+
+**Acceptance Criteria:**
+- [ ] session tokens are cryptographically random (min 128 bits of entropy)
+- [ ] session tokens invalidated on logout
+- [ ] authentication endpoints have a failed-attempt rate limit or lockout
+- [ ] tokens are not logged in plaintext anywhere in the logging output
+- [ ] Typecheck passes
+
+---
+
+### US-096: Hardcoded credential and secret scan
+
+**Description:** As a developer, I want the full codebase scanned for hardcoded credentials so that no secrets are committed to the repository.
+
+**Acceptance Criteria:**
+- [ ] `trufflehog`, `gitleaks`, or equivalent tool run against the full git history
+- [ ] zero confirmed hardcoded secrets (API keys, passwords, tokens) found in source files or commit history
+- [ ] any historical findings documented and rotated if real credentials
+- [ ] pre-commit hook or CI step added to block future secret commits
+- [ ] Typecheck passes
+
+---
+
+### US-097: HTTP security headers
+
+**Description:** As a developer, I want security headers set on all HTTP responses so that browsers and clients are protected from common web vulnerabilities.
+
+**Acceptance Criteria:**
+- [ ] `Content-Security-Policy` header present on all HTML responses
+- [ ] `X-Frame-Options: DENY` or `SAMEORIGIN` set
+- [ ] `X-Content-Type-Options: nosniff` set
+- [ ] CORS policy restricts allowed origins to configured whitelist (not wildcard `*` in production)
+- [ ] `Strict-Transport-Security` header set if HTTPS is used
+- [ ] Typecheck passes
+
+---
+
+# PHASE 38 — Test Coverage
+
+### US-098: Measure and document baseline test coverage
+
+**Description:** As a developer, I want a coverage report generated for every module so that gaps are visible and a target threshold can be set.
+
+**Acceptance Criteria:**
+- [ ] `pytest --cov=rex --cov-report=term-missing` runs without error
+- [ ] coverage report saved to `coverage.txt` or equivalent
+- [ ] modules with below-50% coverage listed explicitly in the report
+- [ ] agreed minimum coverage threshold documented in `pyproject.toml` or `setup.cfg`
+- [ ] Typecheck passes
+
+---
+
+### US-099: Fill unit test gaps — planner, tool registry, workflow engine
+
+**Description:** As a developer, I want every public method in the planner, tool registry, and workflow engine modules covered by at least one unit test so that regressions in core reasoning paths are caught.
+
+**Acceptance Criteria:**
+- [ ] all public methods of `rex/planner/` have at least one passing unit test
+- [ ] all public methods of the tool registry and tool router have at least one passing unit test
+- [ ] all public methods of the workflow engine have at least one passing unit test
+- [ ] no new tests rely on external services or live credentials
+- [ ] Typecheck passes
+
+---
+
+### US-100: Fill unit test gaps — memory, notifications, event system
+
+**Description:** As a developer, I want memory storage, notification routing, and the event bus covered by unit tests so that regressions in stateful components are caught.
+
+**Acceptance Criteria:**
+- [ ] memory store and memory search have at least one passing unit test each
+- [ ] notification routing rules have at least one passing unit test covering each priority level
+- [ ] event bus publish and subscriber notification have at least one passing unit test
+- [ ] no new tests rely on a running database; use in-memory or mock storage
+- [ ] Typecheck passes
+
+---
+
+### US-101: Fill unit test gaps — LLM providers, integrations, voice pipeline
+
+**Description:** As a developer, I want LLM provider adapters, external integrations, and the voice pipeline covered by unit tests using mocks so that integration failures are caught without live credentials.
+
+**Acceptance Criteria:**
+- [ ] each LLM provider (OpenAI, Anthropic, local) has at least one unit test using a mock HTTP client
+- [ ] Home Assistant, Plex, and GitHub adapter methods have at least one unit test using stub/mock data
+- [ ] STT and TTS pipeline components have at least one unit test using mock audio data
+- [ ] no new tests make real network calls
+- [ ] Typecheck passes
+
+---
+
+### US-102: Enforce coverage threshold in CI
+
+**Description:** As a developer, I want CI to fail if coverage drops below the agreed threshold so that new code cannot land without tests.
+
+**Acceptance Criteria:**
+- [ ] `pytest --cov=rex --cov-fail-under=<threshold>` runs in CI
+- [ ] CI job fails when overall coverage is below the configured threshold
+- [ ] threshold value stored in `pyproject.toml` and documented
+- [ ] Typecheck passes
+
+---
+
+# PHASE 39 — Error Handling and Resilience
+
+### US-103: Global unhandled exception handler
+
+**Description:** As a developer, I want unhandled exceptions caught at the application boundary and logged with full context so that crashes produce actionable error records rather than silent failures.
+
+**Acceptance Criteria:**
+- [ ] a top-level exception handler wraps the main application entry points
+- [ ] unhandled exceptions logged with: exception type, message, full traceback, and timestamp
+- [ ] application exits with a non-zero exit code on fatal error
+- [ ] handler does not swallow exceptions silently
+- [ ] Typecheck passes
+
+---
+
+### US-104: Consistent error response envelope
+
+**Description:** As a developer, I want all API error responses to use a consistent JSON envelope so that clients can reliably parse errors without special-casing each endpoint.
+
+**Acceptance Criteria:**
+- [ ] all error responses return JSON with at minimum: `error.code` (string), `error.message` (string)
+- [ ] HTTP status codes are semantically correct (400 for bad input, 401 for auth failure, 500 for server error)
+- [ ] no endpoint returns a plain-text error or an unstructured exception traceback to the client
+- [ ] at least one test per error condition verifies the response shape
+- [ ] Typecheck passes
+
+---
+
+### US-105: Retry with exponential backoff for external service calls
+
+**Description:** As a developer, I want transient failures in external service calls retried with exponential backoff so that brief network interruptions do not surface as user-visible errors.
+
+**Acceptance Criteria:**
+- [ ] LLM provider calls retried up to a configurable max attempt count (default: 3) on transient errors (timeout, 429, 503)
+- [ ] retry delay doubles between attempts with configurable base delay (default: 1s)
+- [ ] non-retryable errors (400, 401, 403) are not retried
+- [ ] retry behavior covered by at least one unit test using a mock that fails N times then succeeds
+- [ ] Typecheck passes
+
+---
+
+### US-106: Graceful shutdown
+
+**Description:** As a developer, I want the application to handle SIGTERM cleanly so that in-flight requests complete and resources are released before the process exits.
+
+**Acceptance Criteria:**
+- [ ] SIGTERM signal registered and handled in the main process
+- [ ] on SIGTERM, no new requests accepted and in-flight requests given up to a configurable drain timeout (default: 10s) to complete
+- [ ] open database connections and background jobs closed cleanly on shutdown
+- [ ] process exits with code 0 after clean shutdown
+- [ ] Typecheck passes
+
+---
+
+# PHASE 40 — Logging and Observability
+
+### US-107: Structured JSON logging
+
+**Description:** As a developer, I want all log output formatted as structured JSON so that logs are machine-parseable and easily ingested by log aggregation tools.
+
+**Acceptance Criteria:**
+- [ ] all log output from `rex/` emitted as JSON (one object per line)
+- [ ] each log entry includes at minimum: `timestamp` (ISO 8601), `level`, `logger` (module name), `message`
+- [ ] no log lines use bare `print()` statements
+- [ ] existing test output remains readable (JSON logging can be disabled in test mode via config)
+- [ ] Typecheck passes
+
+---
+
+### US-108: Log level configuration per environment
+
+**Description:** As a developer, I want log verbosity configurable per environment so that production runs at INFO and development can run at DEBUG without code changes.
+
+**Acceptance Criteria:**
+- [ ] log level configurable via environment variable (e.g., `LOG_LEVEL=DEBUG`)
+- [ ] default log level is `INFO` when `LOG_LEVEL` is not set
+- [ ] per-module log level overrides supported via config
+- [ ] DEBUG-level logs do not appear in output when `LOG_LEVEL=INFO`
+- [ ] Typecheck passes
+
+---
+
+### US-109: Request and response logging middleware
+
+**Description:** As a developer, I want every inbound HTTP request and outgoing response logged with method, path, status code, and duration so that API traffic is traceable without a separate APM tool.
+
+**Acceptance Criteria:**
+- [ ] middleware logs each request: method, path, client IP (anonymized or configurable), timestamp
+- [ ] middleware logs each response: status code, duration in milliseconds
+- [ ] request and response log entries share a common request ID for correlation
+- [ ] request body and response body are NOT logged by default (to avoid PII leakage)
+- [ ] Typecheck passes
+
+---
+
+### US-110: Liveness and readiness health check endpoints
+
+**Description:** As a developer, I want separate liveness and readiness endpoints so that process supervisors and load balancers can distinguish between a starting process and a failed one.
+
+**Acceptance Criteria:**
+- [ ] `GET /health/live` returns 200 when the process is running, regardless of dependency state
+- [ ] `GET /health/ready` returns 200 only when all critical dependencies (database, config) are available
+- [ ] `GET /health/ready` returns 503 with a JSON body describing which dependencies are unavailable
+- [ ] both endpoints respond in under 500ms under normal conditions
+- [ ] Typecheck passes
+
+---
+
+# PHASE 41 — Configuration Hardening
+
+### US-111: Startup config validation with fail-fast
+
+**Description:** As a developer, I want the application to validate all required configuration and environment variables at startup and exit immediately with a clear error if any are missing or invalid so that misconfigured deployments fail loudly rather than silently misbehaving.
+
+**Acceptance Criteria:**
+- [ ] a config validation step runs before any other initialization
+- [ ] missing required environment variables produce a specific error message naming the missing variable and exit code 1
+- [ ] invalid values (e.g., non-numeric port, malformed URL) produce a descriptive error and exit code 1
+- [ ] optional variables with defaults do not cause startup failure
+- [ ] Typecheck passes
+
+---
+
+### US-112: .env.example and environment variable reference
+
+**Description:** As a developer, I want a `.env.example` file in the repo root documenting every environment variable so that new developers can configure the application without reading source code.
+
+**Acceptance Criteria:**
+- [ ] `.env.example` exists at the repo root
+- [ ] every environment variable consumed by the application is present in `.env.example` with a comment describing its purpose and acceptable values
+- [ ] required variables are clearly marked as required; optional variables show their default
+- [ ] `.env` is in `.gitignore` and not committed
+- [ ] Typecheck passes
+
+---
+
+### US-113: Production configuration defaults
+
+**Description:** As a developer, I want the application to enforce safe production defaults so that debug features, verbose tracing, and development shortcuts are disabled when running in production mode.
+
+**Acceptance Criteria:**
+- [ ] `DEBUG` mode disabled when `ENVIRONMENT=production` (or equivalent)
+- [ ] stack traces not returned to API clients in production
+- [ ] development-only endpoints or routes disabled or unreachable in production mode
+- [ ] production mode detectable from a single `ENVIRONMENT` environment variable
+- [ ] Typecheck passes
+
+---
+
+# PHASE 42 — Database Production Readiness
+
+### US-114: Database connection pool configuration
+
+**Description:** As a developer, I want the database connection pool size and timeout configured explicitly so that Rex does not exhaust database connections under load or hang indefinitely on unavailable connections.
+
+**Acceptance Criteria:**
+- [ ] connection pool min/max size configurable via environment variables
+- [ ] connection acquisition timeout configured (default: 5s); acquisition failure raises a handled error
+- [ ] idle connection timeout configured to prevent stale connections
+- [ ] pool settings logged at startup at INFO level
+- [ ] Typecheck passes
+
+---
+
+### US-115: Migration state validation on startup
+
+**Description:** As a developer, I want the application to check that all database migrations have been applied before accepting traffic so that schema mismatches are caught immediately rather than at runtime.
+
+**Acceptance Criteria:**
+- [ ] on startup, the migration state is queried and compared against the expected schema version
+- [ ] if unapplied migrations exist, the application logs the pending migration names and exits with code 1
+- [ ] migration check runs before any request handler is registered
+- [ ] check can be disabled via a `SKIP_MIGRATION_CHECK` environment variable for emergency use
+- [ ] Typecheck passes
+
+---
+
+### US-116: Query timeout enforcement
+
+**Description:** As a developer, I want all database queries to have a timeout so that a slow query cannot block a request indefinitely.
+
+**Acceptance Criteria:**
+- [ ] a default query timeout applied to all database operations (default: 10s, configurable)
+- [ ] queries that exceed the timeout raise a handled exception, not a hang
+- [ ] timeout errors logged with query context (excluding any PII in query parameters)
+- [ ] at least one test verifies timeout behavior using a mock that delays beyond the threshold
+- [ ] Typecheck passes
+
+---
+
+# PHASE 43 — API Polish
+
+### US-117: Consistent error response envelope enforcement
+
+**Description:** As a developer, I want a middleware or base handler to enforce the standard error envelope on every error response so that individual endpoint authors cannot accidentally return unstructured errors.
+
+**Acceptance Criteria:**
+- [ ] error formatting logic lives in one place (middleware or exception handler), not duplicated per endpoint
+- [ ] a test hitting each endpoint with a deliberately bad request confirms the standard envelope is returned
+- [ ] 500-level errors include an `error.request_id` field for log correlation
+- [ ] Typecheck passes
+
+---
+
+### US-118: Request payload schema validation on all POST and PUT endpoints
+
+**Description:** As a developer, I want request payloads validated against a schema at the framework level so that handler logic can assume valid input and validation errors are returned consistently.
+
+**Acceptance Criteria:**
+- [ ] every POST and PUT endpoint declares a required schema (Pydantic model, dataclass, or equivalent)
+- [ ] requests with missing required fields return 400 with the specific field name(s) missing
+- [ ] requests with incorrect field types return 400 with a descriptive message
+- [ ] validation runs before any business logic executes
+- [ ] Typecheck passes
+
+---
+
+### US-119: Rate limiting on public-facing API endpoints
+
+**Description:** As a developer, I want rate limits applied to public-facing endpoints so that a single client cannot exhaust server resources through excessive requests.
+
+**Acceptance Criteria:**
+- [ ] rate limiter applied to all unauthenticated or public endpoints
+- [ ] rate limit configurable (default: 60 requests/minute per IP)
+- [ ] requests exceeding the limit receive a 429 response with a `Retry-After` header
+- [ ] rate limiter does not apply to health check endpoints
+- [ ] Typecheck passes
+
+---
+
+# PHASE 44 — Performance Baseline
+
+### US-120: Response time baseline for core API endpoints
+
+**Description:** As a developer, I want a documented response time baseline for core endpoints so that performance regressions are detectable in future test runs.
+
+**Acceptance Criteria:**
+- [ ] response times measured for at minimum: health check, chat message send, notification list, config load
+- [ ] measurements taken with a local warm instance (min 10 requests, median reported)
+- [ ] baseline documented in `docs/performance-baseline.md`
+- [ ] any endpoint with p50 > 500ms flagged for investigation
+- [ ] Typecheck passes
+
+---
+
+### US-121: Audit and fix blocking I/O in async handlers
+
+**Description:** As a developer, I want all async request handlers free of blocking synchronous I/O calls so that the event loop is never stalled by a slow operation.
+
+**Acceptance Criteria:**
+- [ ] all async handler functions audited for synchronous file I/O, `time.sleep()`, and synchronous HTTP calls
+- [ ] any blocking calls found replaced with async equivalents or offloaded to a thread executor
+- [ ] findings and changes documented in a comment or commit message
+- [ ] Typecheck passes
+
+---
+
+### US-122: Memory usage baseline and leak detection
+
+**Description:** As a developer, I want memory usage profiled under a representative workload so that obvious leaks are caught before production deployment.
+
+**Acceptance Criteria:**
+- [ ] `tracemalloc` or `memray` used to profile memory during a simulated workload (min 100 requests)
+- [ ] baseline RSS memory usage documented in `docs/performance-baseline.md`
+- [ ] any object type accumulating unboundedly across requests flagged and investigated
+- [ ] no confirmed memory leaks (unbounded growth) present at release
+- [ ] Typecheck passes
+
+---
+
+# PHASE 45 — Documentation and Runbook
+
+### US-123: Production deployment guide
+
+**Description:** As a developer, I want a step-by-step production deployment guide so that a new operator can deploy Rex without tribal knowledge.
+
+**Acceptance Criteria:**
+- [ ] `docs/deployment.md` exists and covers: prerequisites, environment setup, installation steps, first-run verification
+- [ ] guide documents how to apply database migrations before starting the service
+- [ ] guide documents how to verify the service is healthy after deployment
+- [ ] guide tested by following steps on a clean environment and confirming successful startup
+- [ ] Typecheck passes
+
+---
+
+### US-124: Environment variable and configuration reference
+
+**Description:** As a developer, I want a single reference document listing every configuration option so that operators can tune Rex for their environment without reading source code.
+
+**Acceptance Criteria:**
+- [ ] `docs/configuration.md` exists and lists every environment variable with: name, description, default, required/optional
+- [ ] document organized into logical sections (server, database, LLM providers, integrations, logging)
+- [ ] document consistent with `.env.example` (no variables in one but not the other)
+- [ ] Typecheck passes
+
+---
+
+### US-125: Operations runbook
+
+**Description:** As an operator, I want a runbook covering common operational tasks so that I can start, stop, restart, and diagnose Rex without escalating to a developer.
+
+**Acceptance Criteria:**
+- [ ] `docs/runbook.md` exists and covers: start/stop/restart procedure, log access and filtering, health check verification, what to do if a service fails to start
+- [ ] runbook documents the expected process list and how to verify each component is running
+- [ ] at least five common error scenarios documented with diagnosis steps and resolution
+- [ ] Typecheck passes
+
+---
+
+### US-126: API reference documentation
+
+**Description:** As a developer or integrator, I want all public API endpoints documented so that I can build integrations without reading source code.
+
+**Acceptance Criteria:**
+- [ ] `docs/api.md` or equivalent documents every public endpoint: method, path, request schema, response schema, error codes
+- [ ] authentication requirements documented per endpoint
+- [ ] at least one example request and response shown per endpoint
+- [ ] document consistent with the actual running API (no phantom or missing endpoints)
+- [ ] Typecheck passes
+
+---
+
+# PHASE 46 — Deployment Readiness
+
+### US-127: Service startup sequence and dependency ordering
+
+**Description:** As a developer, I want the startup sequence to enforce dependency ordering so that services that depend on the database or config do not start before those dependencies are ready.
+
+**Acceptance Criteria:**
+- [ ] startup sequence documented and enforced in code: config validation → database connection → migration check → service initialization → begin accepting traffic
+- [ ] if any step fails, subsequent steps do not run
+- [ ] startup sequence logged at INFO level so the log stream shows exactly where a failure occurred
+- [ ] Typecheck passes
+
+---
+
+### US-128: Process supervisor configuration
+
+**Description:** As an operator, I want Rex services managed by a process supervisor so that crashed services restart automatically and startup on system boot is handled without manual intervention.
+
+**Acceptance Criteria:**
+- [ ] a `systemd` unit file (or `supervisor` config, whichever matches the target deployment environment) provided for all long-running Rex processes
+- [ ] unit file configures automatic restart on failure (with a backoff limit to prevent restart loops)
+- [ ] unit file documented in `docs/deployment.md`
+- [ ] starting the unit file on a clean system results in the service coming up and passing the liveness check
+- [ ] Typecheck passes
+
+---
+
+### US-129: Production smoke test suite
+
+**Description:** As a developer, I want a smoke test suite that verifies all critical paths against a running instance so that a deployment can be validated in minutes without a full regression run.
+
+**Acceptance Criteria:**
+- [ ] smoke tests marked with `@pytest.mark.smoke` and runnable via `pytest -m smoke`
+- [ ] smoke tests cover at minimum: health check, authentication, chat message round-trip, notification creation, CLI entrypoints
+- [ ] smoke tests connect to a running local instance (not mocks)
+- [ ] all smoke tests pass against a freshly started local instance
+- [ ] smoke test run time under 2 minutes
+- [ ] Typecheck passes
+
+---
+
+# PHASE 47 — Final Production Sign-off
+
+### US-130: Full test suite clean run
+
+**Description:** As a developer, I want the complete test suite to pass with zero failures and zero errors so that there are no known regressions at release.
+
+**Acceptance Criteria:**
+- [ ] `pytest` exits with code 0
+- [ ] zero test failures, zero test errors
+- [ ] zero tests marked `xfail` that are unexpectedly passing (review any xfail markers)
+- [ ] test run completes in under 10 minutes on the reference machine
+- [ ] Typecheck passes
+
+---
+
+### US-131: Final security scan
+
+**Description:** As a developer, I want a final end-to-end security scan run immediately before release so that no vulnerabilities introduced during the production readiness phase have been missed.
+
+**Acceptance Criteria:**
+- [ ] `pip-audit` (or equivalent) returns zero critical or high CVEs
+- [ ] secret scan (`gitleaks` or equivalent) returns zero confirmed findings against the full git history including all new commits
+- [ ] security headers verified present on a live local instance using `curl -I`
+- [ ] findings (if any) documented with remediation status
+- [ ] Typecheck passes
+
+---
+
+### US-132: Production readiness checklist sign-off
+
+**Description:** As a developer, I want a completed production readiness checklist committed to the repository so that there is a permanent record that every gate was passed before the first production deployment.
+
+**Acceptance Criteria:**
+- [ ] `docs/production-readiness-checklist.md` exists and contains a checklist item for every phase in this PRD
+- [ ] every checklist item marked complete with the US number that completed it
+- [ ] any items explicitly waived documented with justification
+- [ ] document committed to the repository and reviewed by at least one other person before deployment
+- [ ] Typecheck passes
