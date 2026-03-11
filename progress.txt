@@ -569,3 +569,14 @@
   - set_credential_manager(original) in autouse fixture isolates global state
   - 16 new tests pass, mypy rex/ still clean (126 files)
 ---
+## Iteration 54 - US-054: API key validation
+- What was implemented: Created rex/api_key_auth.py with validate_api_key(), ApiKeyValidator class, and require_api_key() Flask decorator. Added 26 tests in tests/test_us054_api_key_validation.py.
+- Files changed: rex/api_key_auth.py (new), tests/test_us054_api_key_validation.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - require_api_key supports both @require_api_key and @require_api_key(env_var=...) forms via func=None check
+  - hmac.compare_digest() is the standard constant-time comparison; avoids timing attacks
+  - _extract_key_from_request() checks X-API-Key first, then Authorization (strips Bearer/Token prefix)
+  - ApiKeyValidator.check() logs at WARNING for both missing env var and wrong key
+  - caplog.at_level(logging.WARNING, logger="rex.api_key_auth") scopes log capture to module
+  - All 26 tests pass; mypy rex/api_key_auth.py returns zero errors
+---

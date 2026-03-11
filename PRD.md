@@ -728,10 +728,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want API keys validated on each request so that unauthorized access is rejected.
 
 **Acceptance Criteria:**
-- [ ] API keys validated
-- [ ] unauthorized rejected
-- [ ] failures logged
-- [ ] Typecheck passes
+- [x] API keys validated
+- [x] unauthorized rejected
+- [x] failures logged
+- [x] Typecheck passes
 
 ---
 
