@@ -298,3 +298,13 @@
   - Thread-safety: _lock is RLock; handlers snapshot taken under lock, executed outside
   - 17 new tests pass, mypy rex/ still clean (121 files)
 ---
+## Iteration 29 - US-029: Event triggers
+- What was implemented: Created rex/event_triggers.py with EventTriggerRegistry class and global helpers; added tests/test_us029_event_triggers.py with 17 tests covering all 3 acceptance criteria.
+- Files changed: rex/event_triggers.py (new), tests/test_us029_event_triggers.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - EventBus detects legacy vs new-style callbacks via co_argcount; bound methods (self + event) have co_argcount==2 so they are treated as legacy (called with (event_type, payload)) — wrap with a lambda to get a 1-arg callable
+  - Store the lambda as self._bus_handler at __init__ time so the same object can be passed to both subscribe and unsubscribe
+  - Subscribe to "*" wildcard on the bus to receive all event types, then dispatch to per-type trigger lists internally
+  - set_trigger_registry() in test fixture is needed to isolate global registry state per test
+  - 17 new tests pass, mypy rex/event_triggers.py clean
+---

@@ -401,10 +401,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want events to trigger workflows so that Rex can react to system events automatically.
 
 **Acceptance Criteria:**
-- [ ] triggers registered
-- [ ] events trigger workflows
-- [ ] errors logged
-- [ ] Typecheck passes
+- [x] triggers registered
+- [x] events trigger workflows
+- [x] errors logged
+- [x] Typecheck passes
 
 ---
 
