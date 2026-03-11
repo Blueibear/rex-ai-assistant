@@ -1085,10 +1085,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want a stub calendar that returns mock free/busy data so that scheduling features can be built and tested without live credentials.
 
 **Acceptance Criteria:**
-- [ ] `CalendarStub` class returns mock free/busy blocks for a configurable date range
-- [ ] stub implements the same interface as the real calendar backend (US-045)
-- [ ] tests can query availability without any live credentials or network calls
-- [ ] Typecheck passes
+- [x] `CalendarStub` class returns mock free/busy blocks for a configurable date range
+- [x] stub implements the same interface as the real calendar backend (US-045)
+- [x] tests can query availability without any live credentials or network calls
+- [x] Typecheck passes
 
 ---
 

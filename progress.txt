@@ -22,6 +22,17 @@
   - 24 tests pass, mypy clean on 2 new source files
 ---
 
+## Iteration 67 - US-080: Email triage rules engine
+- What was implemented: Created `rex/email_backends/triage_rules.py` with `TriageRulesEngine`, `TriageRule` dataclass, and `load_rules_from_file()`. Engine loads JSON config, evaluates rules in order (first match wins), auto-reloads on mtime change. `categorize_with_fallback()` delegates to built-in when no rule fires. 24 tests in `tests/test_us080_triage_rules_engine.py`.
+- Files changed: rex/email_backends/triage_rules.py (new), rex/email_backends/__init__.py, tests/test_us080_triage_rules_engine.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - config/ is in .gitignore — don't attempt to git add config/*.json
+  - Auto-reload uses `_path.stat().st_mtime` comparison; `reload()` resets `_mtime = -1.0` to force re-read
+  - `categorize()` returns `str | None` (None = no rule matched); `categorize_with_fallback()` calls built-in
+  - All match fields are optional; empty match dict `{}` is a catch-all (matches every email)
+  - 24 tests pass, mypy clean
+---
+
 ## Iteration 66 - US-079: Email triage categorization
 - What was implemented: Created `rex/email_backends/triage.py` with `categorize()`, `triage_emails()`, and `filter_by_category()`. Categories: urgent/action_required/newsletter/fyi. Patterns check sender address, subject keywords, and body/snippet. Exported from `rex/email_backends/__init__.py`. 45 tests in `tests/test_us079_email_triage.py`.
 - Files changed: rex/email_backends/triage.py (new), rex/email_backends/__init__.py, tests/test_us079_email_triage.py (new), PRD.md, progress.txt
