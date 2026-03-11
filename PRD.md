@@ -1034,3 +1034,210 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 - [x] UI recovers after connection loss
 - [x] Typecheck passes
 - [x] Verify changes work in browser
+
+---
+
+# PHASE 34 — Email Triage & Scheduling (beta — stub/mock data only)
+
+> **Beta scope:** All stories in this phase use stub implementations and mock data. No live email or calendar credentials are required. The stub interfaces must match the real backend interfaces so live credentials can be wired in without changing calling code.
+
+### US-078: Email inbox stub and mock data
+
+**Description:** As a developer, I want a stub email inbox that returns mock data so that triage features can be built and tested without live credentials.
+
+**Acceptance Criteria:**
+- [x] `EmailInboxStub` class (or equivalent) exists and returns a list of mock email objects
+- [x] mock emails cover at least three categories: urgent, action_required, and fyi
+- [x] stub implements the same interface as the real email backend (US-044)
+- [x] tests can instantiate and query the stub without any live credentials or network calls
+- [x] Typecheck passes
+
+---
+
+### US-079: Email triage categorization
+
+**Description:** As a user, I want incoming emails automatically categorized (urgent, action_required, fyi, newsletter) so that I can see what needs attention without reading everything.
+
+**Acceptance Criteria:**
+- [ ] triage assigns one of four categories: urgent, action_required, fyi, newsletter
+- [ ] categorization logic uses sender address, subject keywords, and body patterns
+- [ ] triage results are queryable (e.g., "show urgent emails" returns only urgent-tagged items)
+- [ ] test using mock inbox data confirms at least one email correctly categorized into each category
+- [ ] Typecheck passes
+
+---
+
+### US-080: Email triage rules engine
+
+**Description:** As a developer, I want triage rules stored in config and evaluated in priority order so that categorization can be customized per user without code changes.
+
+**Acceptance Criteria:**
+- [ ] triage rules stored in config file (JSON or YAML)
+- [ ] rules support matching on: sender address, subject pattern, body keyword
+- [ ] rules evaluated in declared priority order; first match wins
+- [ ] adding or modifying a rule takes effect without restarting or modifying source code
+- [ ] Typecheck passes
+
+---
+
+### US-081: Calendar free/busy stub
+
+**Description:** As a developer, I want a stub calendar that returns mock free/busy data so that scheduling features can be built and tested without live credentials.
+
+**Acceptance Criteria:**
+- [ ] `CalendarStub` class returns mock free/busy blocks for a configurable date range
+- [ ] stub implements the same interface as the real calendar backend (US-045)
+- [ ] tests can query availability without any live credentials or network calls
+- [ ] Typecheck passes
+
+---
+
+### US-082: Free time finder
+
+**Description:** As a user, I want Rex to find available meeting slots from my calendar so that I can ask "when am I free?" and get usable suggestions.
+
+**Acceptance Criteria:**
+- [ ] given a date range and meeting duration, returns a list of available time slots
+- [ ] overlapping calendar events are excluded from returned slots
+- [ ] returns at least three candidate slots when the calendar is not fully booked
+- [ ] works correctly against stub/mock calendar data in beta
+- [ ] Typecheck passes
+
+---
+
+### US-083: Meeting invite scaffold
+
+**Description:** As a user, I want Rex to draft a meeting invite with attendees, time, and agenda from a natural language request so that I can schedule by describing what I want.
+
+**Acceptance Criteria:**
+- [ ] `MeetingInvite` data structure contains: title, attendees list, start time, end time, agenda
+- [ ] Rex can populate all invite fields from a natural language description
+- [ ] completed invite is displayed to the user for review before any action
+- [ ] stub send logs the invite and returns success without calling any real calendar API
+- [ ] Typecheck passes
+
+---
+
+# PHASE 35 — SMS Multi-Channel Messaging (beta — stub scaffolding)
+
+> **Beta scope:** All stories in this phase are stub scaffolding. No real SMS messages are sent. Real delivery requires Twilio credentials to be wired into the `TwilioAdapter` interface defined in US-086.
+
+### US-084: SMS send stub
+
+**Description:** As a developer, I want a stub SMS sender that logs outbound messages so that SMS-triggered workflows can be built and tested without Twilio credentials.
+
+**Acceptance Criteria:**
+- [ ] `SmsSenderStub` class accepts a phone number and message body
+- [ ] sent messages written to a structured in-memory log accessible for test assertions
+- [ ] stub implements the same interface as the real Twilio adapter (US-086)
+- [ ] calling `send` on the stub makes no network calls
+- [ ] Typecheck passes
+
+---
+
+### US-085: SMS receive stub
+
+**Description:** As a developer, I want a stub SMS receiver that can inject test inbound messages so that inbound SMS handling can be built and tested without a live Twilio webhook.
+
+**Acceptance Criteria:**
+- [ ] `SmsReceiverStub` class exposes a method to inject a test inbound message
+- [ ] injected messages are routed through the same handler as real inbound SMS would be
+- [ ] handler produces a response or triggers the expected downstream action
+- [ ] Typecheck passes
+
+---
+
+### US-086: Twilio adapter interface
+
+**Description:** As a developer, I want a well-defined Twilio adapter interface so that the stub and the real Twilio client are interchangeable without changing any calling code.
+
+**Acceptance Criteria:**
+- [ ] `TwilioAdapter` abstract class or Protocol defined with at minimum `send_sms(to: str, body: str)` signature
+- [ ] `SmsSenderStub` fully implements `TwilioAdapter`
+- [ ] swapping stub for a real Twilio client requires no changes outside the adapter registration point
+- [ ] Typecheck passes
+
+---
+
+### US-087: Multi-channel message router
+
+**Description:** As a developer, I want outbound messages routed to the correct channel (dashboard, email, SMS) based on configuration so that Rex can deliver messages where the user prefers without hardcoding a channel.
+
+**Acceptance Criteria:**
+- [ ] router accepts a message payload and a target channel identifier
+- [ ] routes correctly to dashboard, email, and SMS backends based on channel value
+- [ ] unknown or unconfigured channel raises a handled error and does not crash the assistant
+- [ ] active channel configurable without code changes
+- [ ] Typecheck passes
+
+---
+
+# PHASE 36 — Smart Notifications (beta — stub scaffolding)
+
+> **Beta scope:** Digest delivery, escalation, and quiet-hour release are stub scaffolding — they log output rather than making real deliveries. Core priority tagging and routing rules are fully implemented.
+
+### US-088: Notification priority levels
+
+**Description:** As a developer, I want notifications to carry a priority level so that routing and delivery decisions can be based on urgency rather than treating all notifications equally.
+
+**Acceptance Criteria:**
+- [ ] `NotificationPriority` enum defined with values: critical, high, medium, low
+- [ ] all notification creation paths accept a `priority` parameter
+- [ ] priority stored alongside notification record in the database
+- [ ] existing notifications without a stored priority default to `medium` on read
+- [ ] Typecheck passes
+
+---
+
+### US-089: Priority routing rules
+
+**Description:** As a developer, I want routing rules that deliver critical and high notifications immediately while queuing medium and low ones so that users are not interrupted by low-priority alerts.
+
+**Acceptance Criteria:**
+- [ ] critical and high priority notifications dispatched to configured delivery channels immediately on creation
+- [ ] medium and low priority notifications placed in the digest queue instead of immediate delivery
+- [ ] routing rules configurable without code changes
+- [ ] unit test confirms a critical notification bypasses the digest queue
+- [ ] unit test confirms a low notification is placed in the digest queue
+- [ ] Typecheck passes
+
+---
+
+### US-090: Digest mode
+
+**Description:** As a user, I want low-priority notifications batched into periodic digests so that I receive a single summary instead of many individual interruptions.
+
+**Acceptance Criteria:**
+- [ ] digest job runs on a configurable interval (default: 60 minutes)
+- [ ] digest collects all queued medium and low notifications since the last digest run
+- [ ] digest payload delivered to the dashboard notification endpoint as a single grouped message
+- [ ] digest job logs output when no real delivery backend is configured (beta stub behavior)
+- [ ] digest queue is cleared after each successful run
+- [ ] Typecheck passes
+
+---
+
+### US-091: Quiet hours
+
+**Description:** As a user, I want to configure quiet hours so that non-critical notifications are held until I'm available rather than interrupting me at night or during focus time.
+
+**Acceptance Criteria:**
+- [ ] quiet hours configured as start time and end time in user config
+- [ ] non-critical (medium, low) notifications generated during quiet hours are held in queue
+- [ ] critical notifications bypass quiet hours and deliver immediately regardless of schedule
+- [ ] held notifications are released and delivered when quiet hours end
+- [ ] Typecheck passes
+
+---
+
+### US-092: Auto-escalation
+
+**Description:** As a developer, I want unacknowledged high-priority notifications to escalate after a configurable timeout so that important alerts are not silently missed.
+
+**Acceptance Criteria:**
+- [ ] escalation timeout configurable per priority level (default: 15 minutes for high)
+- [ ] escalation job checks for unacknowledged high-priority notifications past their timeout
+- [ ] each escalation attempt logged with timestamp, notification ID, and attempt number
+- [ ] escalation stops after a configurable maximum attempt count (default: 3)
+- [ ] escalation stub logs events without making real deliveries in beta
+- [ ] Typecheck passes
