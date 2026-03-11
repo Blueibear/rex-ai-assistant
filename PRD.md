@@ -1222,11 +1222,11 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want to configure quiet hours so that non-critical notifications are held until I'm available rather than interrupting me at night or during focus time.
 
 **Acceptance Criteria:**
-- [ ] quiet hours configured as start time and end time in user config
-- [ ] non-critical (medium, low) notifications generated during quiet hours are held in queue
-- [ ] critical notifications bypass quiet hours and deliver immediately regardless of schedule
-- [ ] held notifications are released and delivered when quiet hours end
-- [ ] Typecheck passes
+- [x] quiet hours configured as start time and end time in user config
+- [x] non-critical (medium, low) notifications generated during quiet hours are held in queue
+- [x] critical notifications bypass quiet hours and deliver immediately regardless of schedule
+- [x] held notifications are released and delivered when quiet hours end
+- [x] Typecheck passes
 
 ---
 
