@@ -519,10 +519,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want Rex to launch applications on my behalf so that I can control my desktop by voice or text.
 
 **Acceptance Criteria:**
-- [ ] applications launch
-- [ ] execution verified
-- [ ] failures handled
-- [ ] Typecheck passes
+- [x] applications launch
+- [x] execution verified
+- [x] failures handled
+- [x] Typecheck passes
 
 ---
 
