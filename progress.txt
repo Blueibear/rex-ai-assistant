@@ -628,3 +628,14 @@
   - test_us018_speech_to_text ConsistentTranscription tests are pre-existing flaky failures in full suite (audio hardware); documented in earlier iterations
   - docs/github.md follows same structure as other integration docs in docs/
 ---
+
+## Iteration 59 - US-059: Tool execution logging
+- What was implemented: execute_tool() already logs to AuditLogger via _log_audit_entry(); only test coverage was needed. Added tests/test_us059_tool_execution_logging.py with 13 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us059_tool_execution_logging.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - AuditLogger singleton is at rex.audit._default_audit_logger; set it directly (audit_module._default_audit_logger = AuditLogger(log_path=...)) then call reset_audit_logger() in teardown
+  - execute_tool() logs on every path: success, unknown tool, policy denied, approval required, credential missing - only skip_audit_log=True suppresses it
+  - LogEntry has timestamp (UTC datetime), tool_call_args (dict), duration_ms (int), action_id (unique per call), policy_decision
+  - Pre-existing mypy errors in twilio_backend/ics_backend/ha_tts/logging_utils do not affect audit.py or tool_router.py
+  - 13 new tests pass; mypy rex/audit.py and rex/tool_router.py clean
+---

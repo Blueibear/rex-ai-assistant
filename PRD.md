@@ -796,10 +796,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want tool executions logged with timestamps and parameters so that I can audit and debug tool behavior.
 
 **Acceptance Criteria:**
-- [ ] tool executions logged
-- [ ] execution timestamps recorded
-- [ ] tool parameters stored
-- [ ] Typecheck passes
+- [x] tool executions logged
+- [x] execution timestamps recorded
+- [x] tool parameters stored
+- [x] Typecheck passes
 
 ---
 
