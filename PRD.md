@@ -938,10 +938,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want to search memory entries and receive results so that past context is retrievable on demand.
 
 **Acceptance Criteria:**
-- [ ] memory entries searchable
-- [ ] search for a stored memory keyword returns that memory entry in results
-- [ ] query failures handled
-- [ ] Typecheck passes
+- [x] memory entries searchable
+- [x] search for a stored memory keyword returns that memory entry in results
+- [x] query failures handled
+- [x] Typecheck passes
 
 ---
 

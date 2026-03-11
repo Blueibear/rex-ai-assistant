@@ -714,3 +714,22 @@
   - Testing persistence across instances: create a second DashboardStore(db_path=same_path) and query
   - mypy rex/ passes cleanly; 5 new tests pass
 ---
+## Iteration 69 - US-069: Notification retry logic
+- What was implemented: Added tests/test_us069_notification_retry.py with 10 tests verifying retry behavior in Notifier._dispatch_to_channel
+- Files changed: tests/test_us069_notification_retry.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - rex/retry.py has RetryPolicy(attempts=3) and retry_call(); already integrated into notification.py _dispatch_to_channel for non-dashboard channels
+  - Dashboard channel bypasses retry (dispatched directly); email/sms/ha_tts all use retry_call
+  - Must patch "rex.retry.time.sleep" (not time.sleep) to avoid real sleeps in tests
+  - on_retry lambda in _dispatch_to_channel calls logger.warning; patch "rex.notification.logger" to verify
+  - 10 new tests pass, mypy rex/ clean (126 files)
+---
+## Iteration 70 - US-070: Memory search
+- What was implemented: LongTermMemory.search() already implemented with full keyword, category, and expiry filtering. Added 11 tests in tests/test_us070_memory_search.py covering all 3 acceptance criteria.
+- Files changed: tests/test_us070_memory_search.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - LongTermMemory.search(keyword=...) does case-insensitive substring match on keys, values, and category
+  - Corrupt storage file → LongTermMemory starts with empty dict (no exception raised to caller)
+  - search() with no args returns all non-expired entries; safe to call on empty store
+  - 11 new tests pass; mypy rex/memory.py clean
+---
