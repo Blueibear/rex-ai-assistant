@@ -308,3 +308,17 @@
   - set_trigger_registry() in test fixture is needed to isolate global registry state per test
   - 17 new tests pass, mypy rex/event_triggers.py clean
 ---
+## Iteration 30 - US-030: Notification routing
+- What was implemented: Added tests/test_us030_notification_routing.py with 20 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us030_notification_routing.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Notifier is fully implemented in rex/notification.py; only test coverage was needed
+  - Urgent routing: _send_urgent() dispatches to ALL channel_preferences
+  - Normal routing: _send_normal() dispatches to first available channel and breaks on success
+  - Digest routing: _queue_digest() adds to digest_queues dict (not dispatched immediately)
+  - Idempotency: same notification.id or same idempotency_key will be skipped on second send()
+  - _dispatch_to_channel is a clean patch target for isolating delivery behavior in tests
+  - EscalationManager.should_suppress() returns False for urgent regardless of DND/quiet hours
+  - Notifier(storage_path=tmp_path/"notifications") creates an isolated temp-backed instance
+  - 20 new tests pass, mypy rex/ still clean (122 files)
+---
