@@ -580,3 +580,15 @@
   - caplog.at_level(logging.WARNING, logger="rex.api_key_auth") scopes log capture to module
   - All 26 tests pass; mypy rex/api_key_auth.py returns zero errors
 ---
+## Iteration 55 - US-055: GitHub API client
+- What was implemented: Added tests/test_us055_github_api_client.py with 11 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us055_github_api_client.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - GitHubService is in rex/github_service.py; fully implemented; only test coverage needed
+  - mock_mode=True with service._mock_data dict injects fake responses using "METHOD:/endpoint" keys
+  - patch("requests.request", ...) intercepts real HTTP calls; call_args[1]["headers"] checks headers
+  - _get_token() calls get_credential_manager() fresh each time; patch "rex.github_service.get_credential_manager"
+  - Empty/whitespace token raises ValueError; None token also raises ValueError via strip() check
+  - mock_manager.get_token.assert_called_with("cred_name") verifies credential lookup key
+  - 11 new tests pass; mypy rex/ still clean (126 source files)
+---

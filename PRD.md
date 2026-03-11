@@ -742,10 +742,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a developer, I want Rex to connect to the GitHub API so that repository data is accessible.
 
 **Acceptance Criteria:**
-- [ ] GitHub reachable
-- [ ] repos listed
-- [ ] authentication works
-- [ ] Typecheck passes
+- [x] GitHub reachable
+- [x] repos listed
+- [x] authentication works
+- [x] Typecheck passes
 
 ---
 
