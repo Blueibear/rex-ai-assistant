@@ -323,10 +323,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want Rex to discover and expose its capabilities so that I know what actions are available.
 
 **Acceptance Criteria:**
-- [ ] capabilities enumerated
-- [ ] tools discoverable
-- [ ] capability metadata exposed
-- [ ] Typecheck passes
+- [x] capabilities enumerated
+- [x] tools discoverable
+- [x] capability metadata exposed
+- [x] Typecheck passes
 
 ---
 

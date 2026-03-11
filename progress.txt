@@ -220,3 +220,14 @@
   - Error recovery: speak() wraps entire logic in try/except and falls back to print(f"Rex: {text}")
   - 13 new tests pass, mypy rex/ still clean (121 files)
 ---
+## Iteration 22 - US-022: Tool router
+- What was implemented: Added tests/test_us022_tool_router.py with 17 tests covering all 3 acceptance criteria.
+- Files changed: tests/test_us022_tool_router.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Tool router fully implemented in rex/tool_router.py; only test coverage was needed
+  - execute_tool() accepts skip_policy_check=True and skip_audit_log=True for clean unit tests
+  - monkeypatch.setattr("rex.tool_router.execute_tool", ...) cleanly injects errors for error-path testing
+  - PolicyDeniedError, ApprovalRequiredError, CredentialMissingError all caught by route_if_tool_request()
+  - route_if_tool_request() returns a safe string message on model_fn exception
+  - 17 new tests pass, mypy rex/ still clean (121 files)
+---
