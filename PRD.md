@@ -427,10 +427,10 @@ Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM 
 **Description:** As a user, I want dashboard notifications streamed in real time so that I see alerts without refreshing the page.
 
 **Acceptance Criteria:**
-- [ ] SSE endpoint works
-- [ ] notifications streamed
-- [ ] disconnect handled
-- [ ] Typecheck passes
+- [x] SSE endpoint works
+- [x] notifications streamed
+- [x] disconnect handled
+- [x] Typecheck passes
 
 ---
 
