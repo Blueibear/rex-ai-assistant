@@ -1420,11 +1420,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want LLM provider adapters, external integrations, and the voice pipeline covered by unit tests using mocks so that integration failures are caught without live credentials.
 
 **Acceptance Criteria:**
-- [ ] each LLM provider (OpenAI, Anthropic, local) has at least one unit test using a mock HTTP client
-- [ ] Home Assistant, Plex, and GitHub adapter methods have at least one unit test using stub/mock data
-- [ ] STT and TTS pipeline components have at least one unit test using mock audio data
-- [ ] no new tests make real network calls
-- [ ] Typecheck passes
+- [x] each LLM provider (OpenAI, Anthropic, local) has at least one unit test using a mock HTTP client
+- [x] Home Assistant, Plex, and GitHub adapter methods have at least one unit test using stub/mock data
+- [x] STT and TTS pipeline components have at least one unit test using mock audio data
+- [x] no new tests make real network calls
+- [x] Typecheck passes
 
 ---
 
