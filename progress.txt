@@ -1,4 +1,14 @@
 
+## Iteration 115 - US-130: Full test suite clean run
+- What was implemented: Fixed 5 pre-existing test failures to achieve 4154 passed / 47 skipped / 0 failed. (1) test_dashboard_store: changed priority="urgent"/"normal" → "high"/"medium" (US-088 NotificationPriority.from_str() normalizes legacy values to "medium"). (2) test_dashboard: same fix for notification priority filter test. (3) test_cli: set other legacy env vars to "" (not pop) so .env loader (override=False) can't restore them — ensures OPENAI_BASE_URL is shown individually in the warning output. (4) test_us115_migration_state_validation: patched rex.startup.run_startup_sequence instead of rex.migrations.validate_migration_state directly — US-127 moved the direct call inside run_startup_sequence, and the test was patching at the wrong level while also setting REX_TESTING=1 which skips the startup entirely. (5) rex/messaging_backends/inbound_webhook.py: changed `-> Response` to `-> "Response | tuple[Response, int]"` to fix mypy error on 403 return. Run time: 168s (under 10 min). mypy rex/ clean (0 errors in 154 files).
+- Files changed: tests/test_dashboard_store.py, tests/test_dashboard.py, tests/test_cli.py, tests/test_us115_migration_state_validation.py, rex/messaging_backends/inbound_webhook.py, PRD.md
+- Learnings for future iterations:
+  - NotificationPriority normalizes "urgent"/"normal"/"digest" → "medium"; always use valid enum values (critical/high/medium/low) in tests
+  - load_dotenv(override=False) won't overwrite keys already in os.environ, even if set to ""; use `env[key] = ""` (not pop) to suppress .env values in subprocess tests
+  - When a module-level call is refactored to go inside a guarded function (run_startup_sequence behind `if not _TESTING_MODE`), integration tests that patch the inner function will fail in testing mode — patch the outer function instead
+  - Return type `-> Response` doesn't allow tuple returns; use `-> Response | tuple[Response, int]` for Flask routes that mix response styles
+---
+
 ## Iteration 114 - US-129: Production smoke test suite
 - What was implemented: Added `smoke` marker to `pyproject.toml`. Created `tests/test_us129_smoke.py` with 34 tests across 6 classes: TestHealthCheck (7 tests — /health/live + /health/ready), TestAuthentication (6 tests — 403 enforcement, public endpoints), TestChatRoundTrip (4 tests — /api/chat + /api/chat/history), TestNotifications (4 tests — /api/notifications + /api/dashboard/status), TestCLIEntrypoints (6 tests — importability of rex.cli, rex.config, flask_proxy, rex_speak_api, agent_server, plus `python -m rex --help`), TestSmokeSuiteStructure (7 always-on structural tests). Server-dependent tests (21) skip gracefully when no local instance is running. CLI tests (6) and structural tests (7) run unconditionally (13 always pass). All tests pass (13 pass, 21 skip). mypy clean.
 - Files changed: pyproject.toml (added smoke marker), tests/test_us129_smoke.py (new), PRD.md
