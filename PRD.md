@@ -8,6 +8,21 @@ If a story becomes too large, it must be split into smaller stories before imple
 
 A story is complete only when all acceptance criteria checkboxes are checked.
 
+ IMPORTANT
+
+ Stories must remain atomic.
+
+ If a story becomes too large, it must be split into smaller stories before implementation.
+
+ A story is complete only when all acceptance criteria checkboxes are checked.
+
++## Codex task selection rule
++
++- A "task" means one full User Story section (US-###), not an individual acceptance criteria checkbox line.
++- Choose the first US-### that contains any unchecked acceptance criteria ([ ]).
++- Complete the full story in one iteration. If it cannot be completed in one iteration, split the story first.
++- Only mark acceptance criteria as [x] when the full US is complete and tests pass.
+
 ---
 
 ## Introduction
@@ -1379,11 +1394,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want every public method in the planner, tool registry, and workflow engine modules covered by at least one unit test so that regressions in core reasoning paths are caught.
 
 **Acceptance Criteria:**
-- [ ] all public methods of `rex/planner/` have at least one passing unit test
-- [ ] all public methods of the tool registry and tool router have at least one passing unit test
-- [ ] all public methods of the workflow engine have at least one passing unit test
-- [ ] no new tests rely on external services or live credentials
-- [ ] Typecheck passes
+- [x] all public methods of `rex/planner/` have at least one passing unit test
+- [x] all public methods of the tool registry and tool router have at least one passing unit test
+- [x] all public methods of the workflow engine have at least one passing unit test
+- [x] no new tests rely on external services or live credentials
+- [x] Typecheck passes
 
 ---
 
