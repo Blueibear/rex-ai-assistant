@@ -1486,11 +1486,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want the application to handle SIGTERM cleanly so that in-flight requests complete and resources are released before the process exits.
 
 **Acceptance Criteria:**
-- [ ] SIGTERM signal registered and handled in the main process
-- [ ] on SIGTERM, no new requests accepted and in-flight requests given up to a configurable drain timeout (default: 10s) to complete
-- [ ] open database connections and background jobs closed cleanly on shutdown
-- [ ] process exits with code 0 after clean shutdown
-- [ ] Typecheck passes
+- [x] SIGTERM signal registered and handled in the main process
+- [x] on SIGTERM, no new requests accepted and in-flight requests given up to a configurable drain timeout (default: 10s) to complete
+- [x] open database connections and background jobs closed cleanly on shutdown
+- [x] process exits with code 0 after clean shutdown
+- [x] Typecheck passes
 
 ---
 

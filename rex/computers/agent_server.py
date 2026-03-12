@@ -53,6 +53,7 @@ from typing import Any
 
 from flask import Flask, Response, jsonify, request
 from rex.exception_handler import wrap_entrypoint
+from rex.graceful_shutdown import get_shutdown_handler
 
 logger = logging.getLogger("rex.agent_server")
 
@@ -212,6 +213,13 @@ def create_app(
     # ------------------------------------------------------------------
     # Global request guards
     # ------------------------------------------------------------------
+
+    @app.before_request
+    def _reject_during_shutdown() -> Response | tuple[Response, int] | None:
+        """Return 503 when a SIGTERM-triggered shutdown is in progress."""
+        if get_shutdown_handler().is_shutting_down:
+            return jsonify({"error": "Server is shutting down"}), 503
+        return None
 
     @app.before_request
     def _guard_request() -> Response | tuple[Response, int] | None:
@@ -438,6 +446,9 @@ def main() -> None:
     logger.info(
         "Rate limit: %d req/min per IP", _parse_int_env("REX_AGENT_RATE_LIMIT", _DEFAULT_RATE_LIMIT)
     )
+
+    shutdown = get_shutdown_handler()
+    shutdown.install()
 
     app.run(host=host, port=port, debug=False)
 

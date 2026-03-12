@@ -1,4 +1,14 @@
 
+## Iteration 92 - US-106: Graceful shutdown
+- What was implemented: Created `rex/graceful_shutdown.py` with `GracefulShutdown` class (SIGTERM handler, drain-and-exit thread, cleanup callbacks). `install()` registers the SIGTERM handler; `_drain_and_exit()` waits up to `drain_timeout` seconds then runs cleanups and `sys.exit(0)`. `trigger_shutdown()` helper for tests. Module-level singleton via `get_shutdown_handler()` / `reset_shutdown_handler()`. Integrated into `rex_speak_api.py` (before_request 503 + handler.install() in main) and `rex/computers/agent_server.py` (before_request 503 + handler.install() in main). 33 tests in `tests/test_us106_graceful_shutdown.py`, all passing.
+- Files changed: rex/graceful_shutdown.py (new), rex_speak_api.py, rex/computers/agent_server.py, tests/test_us106_graceful_shutdown.py (new), PRD.md
+- Learnings for future iterations:
+  - `threading.Event().wait(timeout=N)` provides a clean drain sleep that doesn't block indefinitely
+  - `trigger_shutdown()` test helper sets the flag without spawning a drain thread — keeps tests fast
+  - `reset_shutdown_handler()` autouse fixture prevents singleton state leaking between tests
+  - 33 tests pass, mypy clean on new source file
+---
+
 ## Iteration 91 - US-105: Retry with exponential backoff for LLM provider calls
 - What was implemented: Enhanced `rex/retry.py` with `RetryConfig` dataclass (max_attempts=3, base_delay=1.0), `with_retry()` function, and `NonRetryableError` exception. HTTP-aware logic classifies 429/503/timeout as transient (retried) and 400/401/403 as non-retryable (raised immediately as NonRetryableError). Exponential backoff doubles the delay each attempt (base_delay * 2^n). Integrated `with_retry` into `OpenAIStrategy.generate`, `AnthropicStrategy.generate`, and `OllamaStrategy.generate` in `rex/llm_client.py`. 41 tests in `tests/test_us105_retry_backoff.py`, all passing.
 - Files changed: rex/retry.py (enhanced), rex/llm_client.py (retry integrated), tests/test_us105_retry_backoff.py (new), PRD.md

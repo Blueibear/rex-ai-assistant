@@ -18,6 +18,7 @@ from importlib.util import find_spec
 from typing import TYPE_CHECKING
 
 from rex.config import _parse_int, load_config
+from rex.graceful_shutdown import get_shutdown_handler, reset_shutdown_handler
 from rex.http_errors import BAD_REQUEST, INTERNAL_ERROR, TOO_MANY_REQUESTS, UNAUTHORIZED, error_response
 from rex.exception_handler import wrap_entrypoint
 from rex.ha_bridge import create_blueprint as create_ha_blueprint
@@ -166,6 +167,19 @@ else:
     _RATE_LIMIT_SPEC = None
 
 # ------------------------------------------------------------------------------
+# Graceful-shutdown guard
+# ------------------------------------------------------------------------------
+
+
+@app.before_request
+def _reject_during_shutdown() -> "Optional[Tuple[Response, int]]":
+    """Return 503 when a SIGTERM-triggered shutdown is in progress."""
+    if get_shutdown_handler().is_shutting_down:
+        resp, status = error_response("SERVICE_UNAVAILABLE", "Server is shutting down", 503)
+        return resp, status
+    return None
+
+
 # Error Handlers
 # ------------------------------------------------------------------------------
 
@@ -372,6 +386,8 @@ def speak() -> Response:
 def main() -> None:
     if not get_api_key():
         raise RuntimeError("REX_SPEAK_API_KEY must be set")
+    shutdown = get_shutdown_handler()
+    shutdown.install()
     app.run(host="0.0.0.0", port=int(os.getenv("REX_SPEAK_PORT", "5005")))
 
 
