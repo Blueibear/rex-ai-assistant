@@ -243,7 +243,15 @@ class TestLegacyEnvWarning:
         that includes the variable name and the migration command."""
         import os
 
+        from rex.config_manager import ENV_TO_CONFIG_MAPPING
+
         env = os.environ.copy()
+        # Suppress all other legacy env vars so OPENAI_BASE_URL is shown explicitly.
+        # Setting to "" prevents the .env loader from overwriting (override=False)
+        # while os.getenv() returns "" which is falsy → no warning emitted for those.
+        for key in ENV_TO_CONFIG_MAPPING:
+            if key != "OPENAI_BASE_URL":
+                env[key] = ""
         env["OPENAI_BASE_URL"] = "http://example.com/v1"
         # Remove cached module state by using a fresh subprocess
         result = subprocess.run(

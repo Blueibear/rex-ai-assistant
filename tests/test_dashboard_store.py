@@ -68,7 +68,7 @@ def test_write_notification(store: DashboardStore):
     nid = store.write(
         title="Test Alert",
         body="Something happened",
-        priority="urgent",
+        priority="high",
         user_id="alice",
     )
     assert nid.startswith("dash_")
@@ -76,7 +76,7 @@ def test_write_notification(store: DashboardStore):
     notifications = store.query_recent()
     assert len(notifications) == 1
     assert notifications[0].title == "Test Alert"
-    assert notifications[0].priority == "urgent"
+    assert notifications[0].priority == "high"
     assert notifications[0].user_id == "alice"
     assert notifications[0].read is False
 
@@ -143,13 +143,13 @@ def test_query_recent_unread_only(store: DashboardStore):
 
 def test_query_recent_by_priority(store: DashboardStore):
     """Filter by priority."""
-    store.write(title="Urgent", body="B", priority="urgent")
-    store.write(title="Normal", body="B", priority="normal")
-    store.write(title="Digest", body="B", priority="digest")
+    store.write(title="High", body="B", priority="high")
+    store.write(title="Medium", body="B", priority="medium")
+    store.write(title="Low", body="B", priority="low")
 
-    urgent = store.query_recent(priority="urgent")
-    assert len(urgent) == 1
-    assert urgent[0].title == "Urgent"
+    high = store.query_recent(priority="high")
+    assert len(high) == 1
+    assert high[0].title == "High"
 
 
 def test_query_recent_by_user(store: DashboardStore):

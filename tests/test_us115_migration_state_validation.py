@@ -283,21 +283,30 @@ class TestMigrationRegistry:
 
 class TestFlaskProxyIntegration:
     def test_validate_called_before_blueprints(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """validate_migration_state is called before blueprint registration in flask_proxy."""
+        """The startup sequence (which includes migration validation) runs before
+        blueprint registration in flask_proxy.
+
+        Since flask_proxy calls run_startup_sequence() (which internally calls
+        validate_migration_state) before registering blueprints, we patch
+        run_startup_sequence to record the call order.
+        """
         import importlib
         import sys
 
         call_order: list[str] = []
 
-        # Patch validate_migration_state to record call order
-        import rex.migrations as mig_mod
+        # Patch run_startup_sequence in rex.startup to record call order
+        import rex.startup as startup_mod
 
-        original_validate = mig_mod.validate_migration_state
+        original_run = startup_mod.run_startup_sequence
 
-        def fake_validate(db_path: Path | None = None) -> None:
+        def fake_run_startup() -> None:
             call_order.append("validate")
 
-        monkeypatch.setattr(mig_mod, "validate_migration_state", fake_validate)
+        monkeypatch.setattr(startup_mod, "run_startup_sequence", fake_run_startup)
+
+        # Also patch log_service_ready to be a no-op
+        monkeypatch.setattr(startup_mod, "log_service_ready", lambda: None)
 
         # Patch Flask.register_blueprint to record call order
         from flask import Flask
@@ -310,22 +319,28 @@ class TestFlaskProxyIntegration:
 
         monkeypatch.setattr(Flask, "register_blueprint", fake_register)
 
-        # Re-import flask_proxy so the patched functions are used
-        monkeypatch.setenv("REX_TESTING", "1")
+        # Re-import flask_proxy WITHOUT _TESTING_MODE so startup sequence runs
+        # (SKIP_MIGRATION_CHECK=1 prevents real DB ops inside fake_run_startup)
+        monkeypatch.delenv("REX_TESTING", raising=False)
         monkeypatch.setenv("SKIP_MIGRATION_CHECK", "1")
         if "flask_proxy" in sys.modules:
             del sys.modules["flask_proxy"]
 
         importlib.import_module("flask_proxy")
 
-        # validate must appear before the first register_blueprint call
-        assert "validate" in call_order
+        # restore
+        monkeypatch.setenv("REX_TESTING", "1")
+
+        # validate (startup) must appear before the first register_blueprint call
+        assert "validate" in call_order, (
+            f"Expected startup sequence to be called. call_order={call_order}"
+        )
         first_validate = call_order.index("validate")
         blueprint_calls = [i for i, v in enumerate(call_order) if v == "register_blueprint"]
         assert blueprint_calls, "No register_blueprint calls found"
         assert first_validate < blueprint_calls[0], (
-            f"validate called at index {first_validate} but first "
+            f"startup called at index {first_validate} but first "
             f"register_blueprint at {blueprint_calls[0]}"
         )
 
-        monkeypatch.setattr(mig_mod, "validate_migration_state", original_validate)
+        monkeypatch.setattr(startup_mod, "run_startup_sequence", original_run)

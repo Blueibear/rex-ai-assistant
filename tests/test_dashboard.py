@@ -840,16 +840,16 @@ class TestNotificationsInboxUI:
         client, _ = app_client
         store = DashboardStore(db_path=tmp_path / "notif_ui_priority.db")
         store.write(
-            notification_id="p_urgent", priority="urgent", title="Urgent", body="u", user_id="james"
+            notification_id="p_urgent", priority="high", title="High Priority", body="u", user_id="james"
         )
         store.write(
-            notification_id="p_normal", priority="normal", title="Normal", body="n", user_id="james"
+            notification_id="p_normal", priority="medium", title="Medium Priority", body="n", user_id="james"
         )
         set_dashboard_store(store)
 
         try:
             resp = client.get(
-                "/api/notifications?priority=urgent",
+                "/api/notifications?priority=high",
                 headers=auth_headers,
                 environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
             )

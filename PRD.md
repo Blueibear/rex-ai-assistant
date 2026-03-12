@@ -1810,11 +1810,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want the complete test suite to pass with zero failures and zero errors so that there are no known regressions at release.
 
 **Acceptance Criteria:**
-- [ ] `pytest` exits with code 0
-- [ ] zero test failures, zero test errors
-- [ ] zero tests marked `xfail` that are unexpectedly passing (review any xfail markers)
-- [ ] test run completes in under 10 minutes on the reference machine
-- [ ] Typecheck passes
+- [x] `pytest` exits with code 0
+- [x] zero test failures, zero test errors
+- [x] zero tests marked `xfail` that are unexpectedly passing (review any xfail markers)
+- [x] test run completes in under 10 minutes on the reference machine
+- [x] Typecheck passes
 
 ---
 
