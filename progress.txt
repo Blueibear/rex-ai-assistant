@@ -1,4 +1,14 @@
 
+## Iteration 105 - US-120: Response time baseline for core API endpoints
+- What was implemented: Created `tests/test_us120_performance_baseline.py` with 11 tests measuring p50 response times for health check, notification list, config load, and chat (stub). All endpoints measured with 10+ requests using Flask test client warm-up. p50 threshold: 500ms. Created `docs/performance-baseline.md` documenting methodology, measurements, flagging criteria, and how to re-run. All tests pass. mypy clean.
+- Files changed: tests/test_us120_performance_baseline.py (new), docs/performance-baseline.md (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Use `time.perf_counter()` for high-resolution in-process timing (not `time.monotonic()`)
+  - Warm-up request discarded before measurements to avoid cold-start inflation
+  - `statistics.median(durations)` is p50; `# type: ignore[type-arg]` on Flask fixture causes mypy unused-ignore error — use `# noqa: ANN201` instead
+  - `# type: ignore[return]` also triggers unused-ignore — just use noqa for unannotated test fixtures
+---
+
 ## Iteration 104 - US-119: Rate limiting on public-facing API endpoints
 - What was implemented: Created `rex/rate_limiter.py` with `install_rate_limiter(app, limit_str=None)` using Flask-Limiter 3.x. Default limit reads from `API_RATE_LIMIT` env var (default: "60 per minute"). `default_limits_exempt_when=_is_health_endpoint` exempts `/health/live` and `/health/ready`. Custom `on_breach` callback returns standard error envelope with `error.code="TOO_MANY_REQUESTS"` and `Retry-After` header (calculated from `request_limit.reset_at` unix timestamp). Idempotent via `app.extensions["rex_rate_limiter_installed"]`. Integrated into `flask_proxy.py` after `install_error_envelope_handler`. 14 tests in `tests/test_us119_rate_limiting.py`, all passing. mypy clean.
 - Files changed: rex/rate_limiter.py (new), flask_proxy.py (import + install_rate_limiter call), tests/test_us119_rate_limiting.py (new), PRD.md, progress.txt

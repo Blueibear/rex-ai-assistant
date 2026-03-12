@@ -1677,11 +1677,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want a documented response time baseline for core endpoints so that performance regressions are detectable in future test runs.
 
 **Acceptance Criteria:**
-- [ ] response times measured for at minimum: health check, chat message send, notification list, config load
-- [ ] measurements taken with a local warm instance (min 10 requests, median reported)
-- [ ] baseline documented in `docs/performance-baseline.md`
-- [ ] any endpoint with p50 > 500ms flagged for investigation
-- [ ] Typecheck passes
+- [x] response times measured for at minimum: health check, chat message send, notification list, config load
+- [x] measurements taken with a local warm instance (min 10 requests, median reported)
+- [x] baseline documented in `docs/performance-baseline.md`
+- [x] any endpoint with p50 > 500ms flagged for investigation
+- [x] Typecheck passes
 
 ---
 
