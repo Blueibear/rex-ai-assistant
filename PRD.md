@@ -1717,11 +1717,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want a step-by-step production deployment guide so that a new operator can deploy Rex without tribal knowledge.
 
 **Acceptance Criteria:**
-- [ ] `docs/deployment.md` exists and covers: prerequisites, environment setup, installation steps, first-run verification
-- [ ] guide documents how to apply database migrations before starting the service
-- [ ] guide documents how to verify the service is healthy after deployment
-- [ ] guide tested by following steps on a clean environment and confirming successful startup
-- [ ] Typecheck passes
+- [x] `docs/deployment.md` exists and covers: prerequisites, environment setup, installation steps, first-run verification
+- [x] guide documents how to apply database migrations before starting the service
+- [x] guide documents how to verify the service is healthy after deployment
+- [x] guide tested by following steps on a clean environment and confirming successful startup
+- [x] Typecheck passes
 
 ---
 

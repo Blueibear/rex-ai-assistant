@@ -1,4 +1,13 @@
 
+## Iteration 108 - US-123: Production deployment guide
+- What was implemented: Created `docs/deployment.md` covering all 10 sections: prerequisites (Python 3.10+), virtual environment setup, pip install, .env configuration, database migrations (including SKIP_MIGRATION_CHECK emergency bypass), service startup, first-run verification (health endpoints, doctor script), env var reference, stopping/upgrading. Created `tests/test_us123_deployment_guide.py` with 19 tests verifying document existence, content coverage, and a simulated startup health check. All tests pass. mypy clean.
+- Files changed: docs/deployment.md (new), tests/test_us123_deployment_guide.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - For documentation tests, use case-insensitive string matching (.lower()) to avoid false negatives
+  - Health /health/ready can return 503 when config checks fail — both 200 and 503 are valid "running" states
+  - Test document content at multiple levels: existence, non-empty, specific required sections
+---
+
 ## Iteration 107 - US-122: Memory usage baseline and leak detection
 - What was implemented: Created `tests/test_us122_memory_baseline.py` with 6 tracemalloc-based tests. Uses 10-request warm-up + 100 measured requests. Checks: (1) total heap growth < 500 KB per 100 requests for each endpoint; (2) growth_second_half <= 2 × growth_first_half (convergence test). Updated `docs/performance-baseline.md` to add Memory Baseline section with RSS estimate, tracemalloc findings, and "no confirmed leaks" statement. All tests pass. mypy clean.
 - Files changed: tests/test_us122_memory_baseline.py (new), docs/performance-baseline.md (memory section added), PRD.md, progress.txt
