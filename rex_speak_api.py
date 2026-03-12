@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 
 from rex.config import _parse_int, load_config
 from rex.graceful_shutdown import get_shutdown_handler, reset_shutdown_handler
+from rex.health import check_config, create_health_blueprint
 from rex.request_logging import install_request_logging
 from rex.http_errors import BAD_REQUEST, INTERNAL_ERROR, TOO_MANY_REQUESTS, UNAUTHORIZED, error_response
 from rex.exception_handler import wrap_entrypoint
@@ -55,6 +56,7 @@ from rex.memory_utils import (
 
 app = Flask(__name__)
 install_request_logging(app)
+app.register_blueprint(create_health_blueprint(checks=[check_config]))
 
 ALLOWED_ORIGINS = os.getenv(
     "REX_ALLOWED_ORIGINS",

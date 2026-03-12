@@ -8,6 +8,7 @@ from flask import Flask, abort, jsonify, request
 from flask import g as flask_g
 from flask_cors import CORS
 from rex.http_errors import BAD_REQUEST, INTERNAL_ERROR, SERVICE_UNAVAILABLE, error_response
+from rex.health import check_config, create_health_blueprint
 from rex.request_logging import install_request_logging
 
 import utils.env_loader  # noqa: F401  # Auto-loads .env on import
@@ -42,6 +43,7 @@ else:
 # --- Flask Setup ---
 app = Flask(__name__)
 install_request_logging(app)
+app.register_blueprint(create_health_blueprint(checks=[check_config]))
 
 # CORS Configuration: Restrict origins based on environment
 # Default to localhost for development; override via REX_ALLOWED_ORIGINS env var

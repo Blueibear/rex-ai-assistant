@@ -54,6 +54,7 @@ from typing import Any
 from flask import Flask, Response, jsonify, request
 from rex.exception_handler import wrap_entrypoint
 from rex.graceful_shutdown import get_shutdown_handler
+from rex.health import check_config, create_health_blueprint
 from rex.request_logging import install_request_logging
 
 logger = logging.getLogger("rex.agent_server")
@@ -178,6 +179,7 @@ def create_app(
 
     app = Flask(__name__, static_folder=None)
     install_request_logging(app)
+    app.register_blueprint(create_health_blueprint(checks=[check_config]))
 
     # ------------------------------------------------------------------
     # Auth helper
