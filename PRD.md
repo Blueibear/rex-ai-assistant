@@ -1527,11 +1527,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want every inbound HTTP request and outgoing response logged with method, path, status code, and duration so that API traffic is traceable without a separate APM tool.
 
 **Acceptance Criteria:**
-- [ ] middleware logs each request: method, path, client IP (anonymized or configurable), timestamp
-- [ ] middleware logs each response: status code, duration in milliseconds
-- [ ] request and response log entries share a common request ID for correlation
-- [ ] request body and response body are NOT logged by default (to avoid PII leakage)
-- [ ] Typecheck passes
+- [x] middleware logs each request: method, path, client IP (anonymized or configurable), timestamp
+- [x] middleware logs each response: status code, duration in milliseconds
+- [x] request and response log entries share a common request ID for correlation
+- [x] request body and response body are NOT logged by default (to avoid PII leakage)
+- [x] Typecheck passes
 
 ---
 

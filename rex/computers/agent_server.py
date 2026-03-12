@@ -54,6 +54,7 @@ from typing import Any
 from flask import Flask, Response, jsonify, request
 from rex.exception_handler import wrap_entrypoint
 from rex.graceful_shutdown import get_shutdown_handler
+from rex.request_logging import install_request_logging
 
 logger = logging.getLogger("rex.agent_server")
 
@@ -176,6 +177,7 @@ def create_app(
     limiter = _RateLimiter(limit=_rate_limit, window_seconds=60)
 
     app = Flask(__name__, static_folder=None)
+    install_request_logging(app)
 
     # ------------------------------------------------------------------
     # Auth helper
