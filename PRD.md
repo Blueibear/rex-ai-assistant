@@ -1823,11 +1823,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want a final end-to-end security scan run immediately before release so that no vulnerabilities introduced during the production readiness phase have been missed.
 
 **Acceptance Criteria:**
-- [ ] `pip-audit` (or equivalent) returns zero critical or high CVEs
-- [ ] secret scan (`gitleaks` or equivalent) returns zero confirmed findings against the full git history including all new commits
-- [ ] security headers verified present on a live local instance using `curl -I`
-- [ ] findings (if any) documented with remediation status
-- [ ] Typecheck passes
+- [x] `pip-audit` (or equivalent) returns zero critical or high CVEs
+- [x] secret scan (`gitleaks` or equivalent) returns zero confirmed findings against the full git history including all new commits
+- [x] security headers verified present on a live local instance using `curl -I`
+- [x] findings (if any) documented with remediation status
+- [x] Typecheck passes
 
 ---
 

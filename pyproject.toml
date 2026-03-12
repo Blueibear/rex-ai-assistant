@@ -242,3 +242,44 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
+
+# Optional dependencies without type stubs — suppress import errors
+[[tool.mypy.overrides]]
+module = "aiomqtt"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "edge_tts"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pyttsx3"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "whisper"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "openwakeword.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "simpleaudio"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "sounddevice"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "speechbrain"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "speechbrain.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "resemblyzer"
+ignore_missing_imports = true
