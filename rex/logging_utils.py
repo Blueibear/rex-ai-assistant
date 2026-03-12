@@ -6,7 +6,7 @@ import json
 import logging
 import os
 import sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -14,6 +14,16 @@ from pathlib import Path
 LOG_FORMAT = "[%(asctime)s] %(levelname)s - %(message)s"
 DEFAULT_LOG_FILE = Path("logs/rex.log")
 DEFAULT_ERROR_FILE = Path("logs/error.log")
+
+# Mapping from string name → logging constant
+_LEVEL_NAMES: dict[str, int] = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "WARN": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+}
 
 
 class JsonFormatter(logging.Formatter):
@@ -49,6 +59,71 @@ def _json_logging_enabled() -> bool:
     # Default: plain text in tests, JSON in production
     return "PYTEST_CURRENT_TEST" not in os.environ
 
+
+def _env_log_level() -> int:
+    """Return the log level from the environment.
+
+    Resolution order:
+    1. ``LOG_LEVEL`` env var (e.g. ``LOG_LEVEL=DEBUG``).
+    2. ``REX_LOG_LEVEL`` env var (legacy name).
+    3. Default: ``INFO``.
+
+    Unknown values are silently ignored and the next source is tried.
+    """
+    for var in ("LOG_LEVEL", "REX_LOG_LEVEL"):
+        raw = os.environ.get(var, "").strip().upper()
+        if raw in _LEVEL_NAMES:
+            return _LEVEL_NAMES[raw]
+    return logging.INFO
+
+
+def _env_module_levels() -> dict[str, int]:
+    """Return per-module log-level overrides from the environment.
+
+    Any env var of the form ``LOG_LEVEL_<module>=<level>`` (case-insensitive
+    for the level) is treated as a per-module override.  The module name is the
+    part after ``LOG_LEVEL_`` with underscores preserved as-is.
+
+    Example::
+
+        LOG_LEVEL_rex.http_errors=DEBUG
+        LOG_LEVEL_rex.llm_client=WARNING
+
+    Returns:
+        ``dict`` mapping logger name → ``logging`` level constant.
+    """
+    prefix = "LOG_LEVEL_"
+    prefix_upper = prefix.upper()
+    result: dict[str, int] = {}
+    for key, val in os.environ.items():
+        # Compare upper-cased key to handle Windows (which stores keys in upper case).
+        if key.upper().startswith(prefix_upper):
+            module = key[len(prefix):].lower()
+            level_name = val.strip().upper()
+            if module and level_name in _LEVEL_NAMES:
+                result[module] = _LEVEL_NAMES[level_name]
+    return result
+
+
+def apply_module_log_levels(module_levels: Mapping[str, int | str]) -> None:
+    """Apply per-module log-level overrides.
+
+    Each entry sets the named logger's effective level independently of the
+    root logger.  This is additive — previously configured overrides are not
+    removed.
+
+    Args:
+        module_levels: Mapping of logger name → level (int constant or string
+            like ``"DEBUG"``).
+    """
+    for module, level in module_levels.items():
+        if isinstance(level, str):
+            resolved: int = _LEVEL_NAMES.get(level.strip().upper(), logging.INFO)
+        else:
+            resolved = level
+        logging.getLogger(module).setLevel(resolved)
+
+
 try:  # pragma: no cover - avoid circular imports during package init
     from .config import settings as settings
 except Exception:  # pragma: no cover - fallback when config not initialised
@@ -61,18 +136,42 @@ def _resolve_path(candidate: str | os.PathLike[str], default: Path) -> Path:
 
 
 def configure_logging(
-    level: int = logging.INFO, handlers: Iterable[logging.Handler] | None = None
+    level: int | None = None,
+    handlers: Iterable[logging.Handler] | None = None,
+    module_levels: Mapping[str, int | str] | None = None,
 ) -> None:
     """Configure application-wide logging with optional file handlers.
 
-    By default, logs to stdout. File logging is enabled only if:
+    Log level resolution (when ``level`` is ``None``):
+    1. ``LOG_LEVEL`` environment variable.
+    2. ``REX_LOG_LEVEL`` environment variable (legacy).
+    3. Default: ``INFO``.
+
+    Per-module overrides can be supplied via ``module_levels`` or via env vars
+    of the form ``LOG_LEVEL_<module>=<level>`` (e.g.
+    ``LOG_LEVEL_rex.http_errors=DEBUG``).
+
+    By default, logs to stdout.  File logging is enabled only if:
     - runtime.file_logging_enabled=true in rex_config.json (default: false)
     - Or explicitly requested via handlers parameter
 
     This makes logging container-friendly and follows 12-factor app principles.
+
+    Args:
+        level: Root log level.  When ``None`` the value is read from the
+            ``LOG_LEVEL`` / ``REX_LOG_LEVEL`` environment variable (default
+            ``INFO``).
+        handlers: Custom log handlers.  When ``None`` a StreamHandler to
+            stdout is used (plus file handlers if configured).
+        module_levels: Per-module level overrides applied after the root
+            logger is configured.
     """
+    effective_level = level if level is not None else _env_log_level()
+
     root_logger = logging.getLogger()
     if root_logger.handlers:
+        # Already configured — still apply any new module-level overrides.
+        _apply_all_module_levels(module_levels)
         return
 
     if handlers is None:
@@ -130,7 +229,17 @@ def configure_logging(
     for h in handler_list:
         h.setFormatter(formatter)
 
-    logging.basicConfig(level=level, handlers=handler_list)
+    logging.basicConfig(level=effective_level, handlers=handler_list)
+    _apply_all_module_levels(module_levels)
+
+
+def _apply_all_module_levels(module_levels: Mapping[str, int | str] | None) -> None:
+    """Apply explicit overrides then env-var overrides."""
+    env_overrides = _env_module_levels()
+    if env_overrides:
+        apply_module_log_levels(env_overrides)
+    if module_levels:
+        apply_module_log_levels(module_levels)
 
 
 def get_logger(name: str, *, level: int | None = None) -> logging.Logger:

@@ -1514,11 +1514,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want log verbosity configurable per environment so that production runs at INFO and development can run at DEBUG without code changes.
 
 **Acceptance Criteria:**
-- [ ] log level configurable via environment variable (e.g., `LOG_LEVEL=DEBUG`)
-- [ ] default log level is `INFO` when `LOG_LEVEL` is not set
-- [ ] per-module log level overrides supported via config
-- [ ] DEBUG-level logs do not appear in output when `LOG_LEVEL=INFO`
-- [ ] Typecheck passes
+- [x] log level configurable via environment variable (e.g., `LOG_LEVEL=DEBUG`)
+- [x] default log level is `INFO` when `LOG_LEVEL` is not set
+- [x] per-module log level overrides supported via config
+- [x] DEBUG-level logs do not appear in output when `LOG_LEVEL=INFO`
+- [x] Typecheck passes
 
 ---
 

@@ -1,4 +1,14 @@
 
+## Iteration 94 - US-108: Log level configuration per environment
+- What was implemented: Added `_env_log_level()` to `rex/logging_utils.py` reading `LOG_LEVEL` then `REX_LOG_LEVEL` env vars (default: INFO). Added `_env_module_levels()` scanning `LOG_LEVEL_<module>=<level>` env vars (with Windows case handling via `key.upper().startswith()`). Added `apply_module_log_levels(Mapping[str, int|str])` to set per-module logger levels. Modified `configure_logging(level=None, ..., module_levels=None)` to use `_env_log_level()` when level is None and apply env+explicit module overrides via `_apply_all_module_levels()`. Updated `rex/app.py` to convert string log level to int via `_LEVEL_NAMES`. 30 tests in `tests/test_us108_log_level_configuration.py`, all passing.
+- Files changed: rex/logging_utils.py, rex/app.py, tests/test_us108_log_level_configuration.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Windows stores env var keys in uppercase — use `key.upper().startswith(prefix_upper)` then `key[len(prefix):].lower()` to get correct module names
+  - `dict[str, int]` is not assignable to `dict[str, int | str]` (dict is invariant) — use `Mapping[str, int | str]` for the parameter type
+  - `_LEVEL_NAMES` with "WARN" → WARNING alias needed for compatibility
+  - 30 tests pass, mypy clean on both files
+---
+
 ## Iteration 93 - US-107: Structured JSON logging
 - What was implemented: Verified `rex/logging_utils.py` already has `JsonFormatter` (emits single-line JSON with timestamp/level/logger/message), `_json_logging_enabled()` (auto-off in pytest via PYTEST_CURRENT_TEST, on in production; overridable via REX_JSON_LOGS env var), and `configure_logging()` (applies JsonFormatter when enabled). Fixed pre-existing mypy error at line 55: `settings = None  # type: ignore[assignment]` in except block. All print() in rex/ are docstring examples or CLI user-facing output (not log lines). 30 tests in tests/test_us107_structured_json_logging.py already existed and pass.
 - Files changed: rex/logging_utils.py (mypy fix), PRD.md, progress.txt

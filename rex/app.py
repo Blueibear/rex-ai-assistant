@@ -17,7 +17,7 @@ import signal
 import sys
 
 from rex.credentials import get_credential_manager
-from rex.logging_utils import configure_logging
+from rex.logging_utils import _LEVEL_NAMES, configure_logging
 from rex.memory import get_long_term_memory, get_working_memory
 from rex.service_supervisor import ServiceSupervisor
 from rex.services import initialize_services
@@ -87,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # Configure logging
-    configure_logging(level=args.log_level)
+    configure_logging(level=_LEVEL_NAMES.get(args.log_level.upper(), None))
     logger.info(f"Starting Rex runtime on health port {args.port}")
 
     try:
