@@ -1,4 +1,15 @@
 
+## Iteration 102 - US-117: Consistent error response envelope enforcement
+- What was implemented: Added `install_error_envelope_handler(app)` to `rex/http_errors.py`. Registers two Flask error handlers: (1) `werkzeug.exceptions.HTTPException` — maps 4xx/5xx to standard envelope using `_HTTP_STATUS_TO_CODE` lookup; (2) bare `Exception` — catches unhandled exceptions as 500, includes `g.request_id` as `error.request_id`. Added optional `request_id` kwarg to `error_response()`. Handler is idempotent via `app.extensions["rex_error_envelope_installed"]`. Called from `flask_proxy.py` immediately after `install_request_logging(app)`. 19 tests in `tests/test_us117_error_envelope_enforcement.py`, all passing. mypy clean.
+- Files changed: rex/http_errors.py (install_error_envelope_handler, request_id kwarg on error_response), flask_proxy.py (import + call), tests/test_us117_error_envelope_enforcement.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Use `app.extensions` dict with a sentinel key for idempotency guard (same pattern as install_request_logging)
+  - `werkzeug.exceptions.HTTPException` catches all abort()/HTTP errors from routes; bare `Exception` catches unhandled app errors — register both
+  - `g.request_id` may be absent if before_request didn't run (e.g., test without request logging) — use `getattr(g, "request_id", None)`
+  - `error_response()` `request_id` kwarg with `None` default avoids including the key when absent
+  - Pre-existing test_flask_proxy.py whoami/search failures are unrelated to this change (confirmed via stash comparison)
+---
+
 ## Iteration 101 - US-116: Query timeout enforcement
 - What was implemented: Added `QueryTimeoutError` exception and `query_timeout: float = 10.0` field to `PoolConfig` (reads `DB_QUERY_TIMEOUT` env var; -1 disables). `ConnectionPool.connect(*, query_context="")` now installs a SQLite progress handler (every 100 instructions) that returns 1 (interrupt) when `time.monotonic() > deadline`. `sqlite3.OperationalError("interrupted")` is caught and re-raised as `QueryTimeoutError` with a WARNING log including the timeout duration and `query_context` string (not query parameters/PII). Handler is cleared in `finally`. 21 tests in `tests/test_us116_query_timeout.py`, all passing. mypy clean.
 - Files changed: rex/db_pool.py (QueryTimeoutError, query_timeout in PoolConfig, connect() progress handler), tests/test_us116_query_timeout.py (new), PRD.md, progress.txt

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from flask import Flask, abort, jsonify, request
 from flask import g as flask_g
 from flask_cors import CORS
-from rex.http_errors import BAD_REQUEST, INTERNAL_ERROR, SERVICE_UNAVAILABLE, error_response
+from rex.http_errors import BAD_REQUEST, INTERNAL_ERROR, SERVICE_UNAVAILABLE, error_response, install_error_envelope_handler
 from rex.health import check_config, create_health_blueprint
 from rex.migrations import validate_migration_state
 from rex.production_config import apply_production_defaults
@@ -48,6 +48,7 @@ validate_migration_state()
 # --- Flask Setup ---
 app = Flask(__name__)
 install_request_logging(app)
+install_error_envelope_handler(app)
 app.register_blueprint(create_health_blueprint(checks=[check_config]))
 
 # CORS Configuration: Restrict origins based on environment

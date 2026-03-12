@@ -1637,10 +1637,10 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want a middleware or base handler to enforce the standard error envelope on every error response so that individual endpoint authors cannot accidentally return unstructured errors.
 
 **Acceptance Criteria:**
-- [ ] error formatting logic lives in one place (middleware or exception handler), not duplicated per endpoint
-- [ ] a test hitting each endpoint with a deliberately bad request confirms the standard envelope is returned
-- [ ] 500-level errors include an `error.request_id` field for log correlation
-- [ ] Typecheck passes
+- [x] error formatting logic lives in one place (middleware or exception handler), not duplicated per endpoint
+- [x] a test hitting each endpoint with a deliberately bad request confirms the standard envelope is returned
+- [x] 500-level errors include an `error.request_id` field for log correlation
+- [x] Typecheck passes
 
 ---
 
