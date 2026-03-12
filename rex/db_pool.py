@@ -1,9 +1,9 @@
 """Database connection pool for SQLite.
 
 Provides a thread-safe connection pool with configurable min/max size,
-acquisition timeout, and idle connection timeout.  All settings are
-readable from environment variables so they can be adjusted without
-code changes.
+acquisition timeout, idle connection timeout, and per-query execution
+timeout.  All settings are readable from environment variables so they
+can be adjusted without code changes.
 
 Environment variables
 ---------------------
@@ -11,6 +11,8 @@ DB_POOL_MIN_SIZE        Minimum connections kept open (default: 1)
 DB_POOL_MAX_SIZE        Maximum concurrent connections (default: 5)
 DB_POOL_ACQUIRE_TIMEOUT Seconds to wait for an available connection (default: 5.0)
 DB_POOL_IDLE_TIMEOUT    Seconds after which an idle connection is replaced (default: 300.0)
+DB_QUERY_TIMEOUT        Seconds before a running query is interrupted (default: 10.0).
+                        Set to -1 to disable.
 """
 
 from __future__ import annotations
@@ -27,9 +29,16 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Number of SQLite VM instructions between progress-handler calls.
+_PROGRESS_HANDLER_INTERVAL = 100
+
 
 class ConnectionPoolError(Exception):
     """Raised when a connection cannot be acquired from the pool."""
+
+
+class QueryTimeoutError(Exception):
+    """Raised when a query exceeds the configured execution timeout."""
 
 
 @dataclass
@@ -41,12 +50,15 @@ class PoolConfig:
         max_size: Maximum number of concurrent connections.
         acquire_timeout: Seconds to wait for an available connection before raising.
         idle_timeout: Seconds of inactivity after which a connection is replaced.
+        query_timeout: Seconds before a running query is interrupted and
+            ``QueryTimeoutError`` is raised.  Set to ``-1.0`` to disable.
     """
 
     min_size: int = 1
     max_size: int = 5
     acquire_timeout: float = 5.0
     idle_timeout: float = 300.0
+    query_timeout: float = 10.0
 
     @classmethod
     def from_env(cls) -> "PoolConfig":
@@ -80,6 +92,7 @@ class PoolConfig:
             max_size=_int("DB_POOL_MAX_SIZE", 5),
             acquire_timeout=_float("DB_POOL_ACQUIRE_TIMEOUT", 5.0),
             idle_timeout=_float("DB_POOL_IDLE_TIMEOUT", 300.0),
+            query_timeout=_float("DB_QUERY_TIMEOUT", 10.0),
         )
 
 
@@ -228,18 +241,52 @@ class ConnectionPool:
             self._condition.notify()
 
     @contextmanager
-    def connect(self) -> Generator[sqlite3.Connection, None, None]:
+    def connect(
+        self, *, query_context: str = ""
+    ) -> Generator[sqlite3.Connection, None, None]:
         """Context manager that acquires, yields, and releases a connection.
 
-        Commits on clean exit; rolls back on exception.
+        Commits on clean exit; rolls back on exception.  If
+        ``config.query_timeout`` is positive, installs a SQLite progress
+        handler that interrupts any query exceeding the timeout and raises
+        :class:`QueryTimeoutError`.
+
+        Args:
+            query_context: Optional description of the operation (e.g.
+                ``"fetch_notifications"``).  Logged on timeout; must NOT
+                contain query parameters or PII.
 
         Raises:
             ConnectionPoolError: Propagated from :meth:`acquire`.
+            QueryTimeoutError: If a query exceeds the configured timeout.
         """
         conn = self.acquire()
+        timeout = self._config.query_timeout
+        if timeout > 0:
+            deadline = time.monotonic() + timeout
+
+            def _progress_handler() -> int:
+                return 1 if time.monotonic() > deadline else 0
+
+            conn.set_progress_handler(_progress_handler, _PROGRESS_HANDLER_INTERVAL)
         try:
             yield conn
             conn.commit()
+        except sqlite3.OperationalError as exc:
+            try:
+                conn.rollback()
+            except Exception:  # noqa: BLE001
+                pass
+            if "interrupted" in str(exc).lower():
+                ctx_msg = f" [context: {query_context}]" if query_context else ""
+                logger.warning(
+                    "Query timeout after %.1fs%s", timeout, ctx_msg
+                )
+                raise QueryTimeoutError(
+                    f"Query exceeded timeout of {timeout:.1f}s"
+                    + (f" ({query_context})" if query_context else "")
+                ) from exc
+            raise
         except Exception:
             try:
                 conn.rollback()
@@ -247,6 +294,8 @@ class ConnectionPool:
                 pass
             raise
         finally:
+            if timeout > 0:
+                conn.set_progress_handler(None, 0)
             self.release(conn)
 
     @property
@@ -282,4 +331,5 @@ __all__ = [
     "ConnectionPool",
     "ConnectionPoolError",
     "PoolConfig",
+    "QueryTimeoutError",
 ]

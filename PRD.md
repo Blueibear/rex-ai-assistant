@@ -1622,11 +1622,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want all database queries to have a timeout so that a slow query cannot block a request indefinitely.
 
 **Acceptance Criteria:**
-- [ ] a default query timeout applied to all database operations (default: 10s, configurable)
-- [ ] queries that exceed the timeout raise a handled exception, not a hang
-- [ ] timeout errors logged with query context (excluding any PII in query parameters)
-- [ ] at least one test verifies timeout behavior using a mock that delays beyond the threshold
-- [ ] Typecheck passes
+- [x] a default query timeout applied to all database operations (default: 10s, configurable)
+- [x] queries that exceed the timeout raise a handled exception, not a hang
+- [x] timeout errors logged with query context (excluding any PII in query parameters)
+- [x] at least one test verifies timeout behavior using a mock that delays beyond the threshold
+- [x] Typecheck passes
 
 ---
 
