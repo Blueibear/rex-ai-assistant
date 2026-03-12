@@ -1,4 +1,16 @@
 
+## Iteration 91 - US-105: Retry with exponential backoff for LLM provider calls
+- What was implemented: Enhanced `rex/retry.py` with `RetryConfig` dataclass (max_attempts=3, base_delay=1.0), `with_retry()` function, and `NonRetryableError` exception. HTTP-aware logic classifies 429/503/timeout as transient (retried) and 400/401/403 as non-retryable (raised immediately as NonRetryableError). Exponential backoff doubles the delay each attempt (base_delay * 2^n). Integrated `with_retry` into `OpenAIStrategy.generate`, `AnthropicStrategy.generate`, and `OllamaStrategy.generate` in `rex/llm_client.py`. 41 tests in `tests/test_us105_retry_backoff.py`, all passing.
+- Files changed: rex/retry.py (enhanced), rex/llm_client.py (retry integrated), tests/test_us105_retry_backoff.py (new), PRD.md
+- Learnings for future iterations:
+  - `_get_status_code(exc)` checks `exc.status_code` first, then `exc.response.status_code` — covers both openai-style and requests-style exceptions
+  - `_is_transient()` falls back to checking exception type name for "timeout"/"connection" when no status code present
+  - Ruff auto-fixed `field` import (unused) and `time` import (unused in test file) — run ruff --fix before committing
+  - `# type: ignore[misc]` on a `raise last_exc` line caused mypy "unused type: ignore" — remove it; mypy 1.x handles this correctly
+  - Pre-existing failures (test_cli.py, test_dashboard.py x2, test_dashboard_store.py x2) are unrelated — 4 failures unchanged
+  - 41 tests pass, mypy clean on both new/modified source files
+---
+
 ## Iteration 90 - US-104: Consistent error response envelope
 - What was implemented: Created `rex/http_errors.py` with `error_response(code, message, http_status)` helper and standard error code constants. All error returns in `rex/dashboard/routes.py`, `rex/ha_bridge.py`, `rex_speak_api.py`, `rex/api_key_auth.py`, `flask_proxy.py`, and `rex/messaging_backends/inbound_webhook.py` updated to use `{"error": {"code": "...", "message": "..."}}` envelope. Inbound webhook's plain-text 403 changed to JSON. 27 tests in `tests/test_us104_error_envelope.py`, all passing.
 - Files changed: rex/http_errors.py (new), rex/dashboard/routes.py, rex/ha_bridge.py, rex_speak_api.py, rex/api_key_auth.py, flask_proxy.py, rex/messaging_backends/inbound_webhook.py, tests/test_us104_error_envelope.py (new), tests/test_us094_input_validation.py, tests/test_rex_speak_api.py, tests/test_flask_proxy.py, tests/test_dashboard.py, PRD.md
