@@ -1769,10 +1769,10 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want the startup sequence to enforce dependency ordering so that services that depend on the database or config do not start before those dependencies are ready.
 
 **Acceptance Criteria:**
-- [ ] startup sequence documented and enforced in code: config validation → database connection → migration check → service initialization → begin accepting traffic
-- [ ] if any step fails, subsequent steps do not run
-- [ ] startup sequence logged at INFO level so the log stream shows exactly where a failure occurred
-- [ ] Typecheck passes
+- [x] startup sequence documented and enforced in code: config validation → database connection → migration check → service initialization → begin accepting traffic
+- [x] if any step fails, subsequent steps do not run
+- [x] startup sequence logged at INFO level so the log stream shows exactly where a failure occurred
+- [x] Typecheck passes
 
 ---
 

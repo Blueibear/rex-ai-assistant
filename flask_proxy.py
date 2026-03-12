@@ -9,10 +9,10 @@ from flask import g as flask_g
 from flask_cors import CORS
 from rex.http_errors import BAD_REQUEST, INTERNAL_ERROR, SERVICE_UNAVAILABLE, error_response, install_error_envelope_handler
 from rex.health import check_config, create_health_blueprint
-from rex.migrations import validate_migration_state
 from rex.production_config import apply_production_defaults
 from rex.rate_limiter import install_rate_limiter
 from rex.request_logging import install_request_logging
+from rex.startup import log_service_ready, run_startup_sequence
 
 import utils.env_loader  # noqa: F401  # Auto-loads .env on import
 from memory_utils import load_memory_profile, load_users_map, resolve_user_key
@@ -43,8 +43,9 @@ if _TESTING_MODE:
 else:
     g = flask_g
 
-# --- Migration check — must run before any request handler is registered ---
-validate_migration_state()
+# --- Startup sequence — config → database → migration → service init ---
+if not _TESTING_MODE:
+    run_startup_sequence()
 
 # --- Flask Setup ---
 app = Flask(__name__)
@@ -116,6 +117,9 @@ except Exception as e:
 USERS_MAP = load_users_map()
 PROXY_TOKEN = os.getenv("REX_PROXY_TOKEN")
 ALLOW_LOCAL = os.getenv("REX_PROXY_ALLOW_LOCAL") == "1"
+
+if not _TESTING_MODE:
+    log_service_ready()
 
 
 # --- Helpers ---
