@@ -1,4 +1,13 @@
 
+## Iteration 96 - US-110: Liveness and readiness health check endpoints
+- What was implemented: Created `rex/health.py` with `create_health_blueprint(checks, url_prefix)` returning a Flask Blueprint with `/health/live` (always 200) and `/health/ready` (200 when all checks pass, 503 with JSON `{"status":"unavailable","unavailable":{name:reason}}` when any check fails or raises). Built-in `check_config()` and `check_dashboard_db()` helpers. Blueprint-based so it can be registered on any Flask app with optional URL prefix. 25 tests, all passing. mypy clean.
+- Files changed: rex/health.py (new), tests/test_us110_health_check_endpoints.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Flask Blueprint is the right abstraction for reusable route groups — register with `app.register_blueprint(bp)`
+  - `check.__name__` provides the check function name as the key in the unavailable dict — works for named functions, falls back to `repr(check)` for lambdas
+  - `# type: ignore[return]` on route functions is unnecessary in modern mypy with Flask stubs — don't add it
+---
+
 ## Iteration 95 - US-109: Request and response logging middleware
 - What was implemented: Created `rex/request_logging.py` with `install_request_logging(app)`. Adds `before_request` hook that generates UUID4 `g.request_id`, records `g.request_start`, and logs method/path/client_ip. Adds `after_request` hook that logs status code and duration_ms sharing the same `request_id`. IP anonymisation via `_anonymize_ip()` masks last IPv4 octet and last 64 bits of IPv6; full IP logging opt-in via `REX_LOG_FULL_IP=1`. `install_request_logging` is idempotent via `app.extensions[_INSTALLED_KEY]` guard. Integrated into `flask_proxy.py`, `rex_speak_api.py`, and `rex/computers/agent_server.py`. Fixed `test_request_id_set_in_g` (used nested incompatible Flask context managers) and added idempotent-install guard to implementation. 31 tests in `tests/test_us109_request_response_logging.py`, all passing.
 - Files changed: rex/request_logging.py (new), flask_proxy.py, rex_speak_api.py, rex/computers/agent_server.py, tests/test_us109_request_response_logging.py (new), PRD.md, progress.txt

@@ -1540,11 +1540,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want separate liveness and readiness endpoints so that process supervisors and load balancers can distinguish between a starting process and a failed one.
 
 **Acceptance Criteria:**
-- [ ] `GET /health/live` returns 200 when the process is running, regardless of dependency state
-- [ ] `GET /health/ready` returns 200 only when all critical dependencies (database, config) are available
-- [ ] `GET /health/ready` returns 503 with a JSON body describing which dependencies are unavailable
-- [ ] both endpoints respond in under 500ms under normal conditions
-- [ ] Typecheck passes
+- [x] `GET /health/live` returns 200 when the process is running, regardless of dependency state
+- [x] `GET /health/ready` returns 200 only when all critical dependencies (database, config) are available
+- [x] `GET /health/ready` returns 503 with a JSON body describing which dependencies are unavailable
+- [x] both endpoints respond in under 500ms under normal conditions
+- [x] Typecheck passes
 
 ---
 
