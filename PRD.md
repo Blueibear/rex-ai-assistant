@@ -1662,11 +1662,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want rate limits applied to public-facing endpoints so that a single client cannot exhaust server resources through excessive requests.
 
 **Acceptance Criteria:**
-- [ ] rate limiter applied to all unauthenticated or public endpoints
-- [ ] rate limit configurable (default: 60 requests/minute per IP)
-- [ ] requests exceeding the limit receive a 429 response with a `Retry-After` header
-- [ ] rate limiter does not apply to health check endpoints
-- [ ] Typecheck passes
+- [x] rate limiter applied to all unauthenticated or public endpoints
+- [x] rate limit configurable (default: 60 requests/minute per IP)
+- [x] requests exceeding the limit receive a 429 response with a `Retry-After` header
+- [x] rate limiter does not apply to health check endpoints
+- [x] Typecheck passes
 
 ---
 

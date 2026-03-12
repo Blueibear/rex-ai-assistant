@@ -1,4 +1,15 @@
 
+## Iteration 104 - US-119: Rate limiting on public-facing API endpoints
+- What was implemented: Created `rex/rate_limiter.py` with `install_rate_limiter(app, limit_str=None)` using Flask-Limiter 3.x. Default limit reads from `API_RATE_LIMIT` env var (default: "60 per minute"). `default_limits_exempt_when=_is_health_endpoint` exempts `/health/live` and `/health/ready`. Custom `on_breach` callback returns standard error envelope with `error.code="TOO_MANY_REQUESTS"` and `Retry-After` header (calculated from `request_limit.reset_at` unix timestamp). Idempotent via `app.extensions["rex_rate_limiter_installed"]`. Integrated into `flask_proxy.py` after `install_error_envelope_handler`. 14 tests in `tests/test_us119_rate_limiting.py`, all passing. mypy clean.
+- Files changed: rex/rate_limiter.py (new), flask_proxy.py (import + install_rate_limiter call), tests/test_us119_rate_limiting.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Flask-Limiter 3.x `RequestLimit.reset_at` is a Unix timestamp (int/float), NOT a datetime — use `reset_at - time.time()` directly
+  - `default_limits_exempt_when=callable` is the correct parameter for exempting routes from the global limit
+  - `on_breach` replaces the default 429 response; return a fully constructed Flask response (jsonify + status + headers)
+  - `storage_uri="memory://"` for in-process rate limiting (no Redis needed in dev/test)
+  - Flask-Limiter's `headers_enabled=True` sets X-RateLimit-* headers automatically
+---
+
 ## Iteration 103 - US-118: Request payload schema validation on POST endpoints
 - What was implemented: Created `rex/validation.py` with Pydantic models `LoginRequest`, `ChatRequest`, `CreateJobRequest` and a `validate_json_body(schema_cls)` decorator. The decorator parses the JSON body, validates against the Pydantic schema, stores the result in `g.validated_body`, and returns 400 with field name(s) on failure before calling the handler. Applied to `dashboard_login`, `chat`, and `create_job` in `rex/dashboard/routes.py` — removed duplicate manual validation from those handlers. `enabled: bool = Field(default=True, strict=True)` prevents string coercion. 34 tests in `tests/test_us118_request_validation.py`, all passing. mypy clean.
 - Files changed: rex/validation.py (new), rex/dashboard/routes.py (import + decorators on 3 endpoints), tests/test_us118_request_validation.py (new), PRD.md, progress.txt
