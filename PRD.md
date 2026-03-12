@@ -1702,11 +1702,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want memory usage profiled under a representative workload so that obvious leaks are caught before production deployment.
 
 **Acceptance Criteria:**
-- [ ] `tracemalloc` or `memray` used to profile memory during a simulated workload (min 100 requests)
-- [ ] baseline RSS memory usage documented in `docs/performance-baseline.md`
-- [ ] any object type accumulating unboundedly across requests flagged and investigated
-- [ ] no confirmed memory leaks (unbounded growth) present at release
-- [ ] Typecheck passes
+- [x] `tracemalloc` or `memray` used to profile memory during a simulated workload (min 100 requests)
+- [x] baseline RSS memory usage documented in `docs/performance-baseline.md`
+- [x] any object type accumulating unboundedly across requests flagged and investigated
+- [x] no confirmed memory leaks (unbounded growth) present at release
+- [x] Typecheck passes
 
 ---
 

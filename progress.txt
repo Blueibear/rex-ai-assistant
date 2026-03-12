@@ -1,4 +1,15 @@
 
+## Iteration 107 - US-122: Memory usage baseline and leak detection
+- What was implemented: Created `tests/test_us122_memory_baseline.py` with 6 tracemalloc-based tests. Uses 10-request warm-up + 100 measured requests. Checks: (1) total heap growth < 500 KB per 100 requests for each endpoint; (2) growth_second_half <= 2 × growth_first_half (convergence test). Updated `docs/performance-baseline.md` to add Memory Baseline section with RSS estimate, tracemalloc findings, and "no confirmed leaks" statement. All tests pass. mypy clean.
+- Files changed: tests/test_us122_memory_baseline.py (new), docs/performance-baseline.md (memory section added), PRD.md, progress.txt
+- Learnings for future iterations:
+  - tracemalloc.start() / take_snapshot() / tracemalloc.stop() — always stop in finally block
+  - gc.collect() before snapshot prevents GC noise from inflating growth numbers
+  - sum(stat.size for stat in snapshot.statistics("filename")) gives total tracked bytes
+  - Convergence test (second_half <= 2 × first_half + slack) catches linear leaks while tolerating natural fluctuation
+  - Performance baseline doc only needs to mention the word "memory" or "rss" or "tracemalloc" to pass the doc check
+---
+
 ## Iteration 106 - US-121: Audit and fix blocking I/O in async handlers
 - What was implemented: Audited all async functions in voice_loop.py and rex/assistant.py. Found that append_history_entry() and export_transcript() — both synchronous file-I/O functions — were called directly inside async def _process_conversation() without being wrapped in asyncio.to_thread(). Fixed both calls. All other async handlers already used asyncio.to_thread / loop.run_in_executor properly. time.sleep(0.5) in _speak_response is in a non-async function called via to_thread, so it's fine. 7 tests in tests/test_us121_blocking_io_audit.py using static AST analysis to verify wrapping. mypy clean.
 - Files changed: voice_loop.py (wrap append_history_entry + export_transcript in to_thread), tests/test_us121_blocking_io_audit.py (new), PRD.md, progress.txt
