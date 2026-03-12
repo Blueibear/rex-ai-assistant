@@ -543,19 +543,23 @@ class AsyncRexAssistant:
             return
 
         logger.info("User (%s): %s", self.active_user, transcript)
-        append_history_entry(
+        # Offload synchronous file I/O to a thread so the event loop is not blocked.
+        await asyncio.to_thread(
+            append_history_entry,
             self.active_user,
             {"role": "user", "text": transcript},
         )
 
         response = await asyncio.to_thread(self.language_model.generate, transcript)
-        append_history_entry(
+        await asyncio.to_thread(
+            append_history_entry,
             self.active_user,
             {"role": "assistant", "text": response},
         )
 
         if self.config.conversation_export:
-            export_transcript(
+            await asyncio.to_thread(
+                export_transcript,
                 self.active_user,
                 [
                     {"role": "user", "text": transcript},

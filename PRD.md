@@ -1690,10 +1690,10 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want all async request handlers free of blocking synchronous I/O calls so that the event loop is never stalled by a slow operation.
 
 **Acceptance Criteria:**
-- [ ] all async handler functions audited for synchronous file I/O, `time.sleep()`, and synchronous HTTP calls
-- [ ] any blocking calls found replaced with async equivalents or offloaded to a thread executor
-- [ ] findings and changes documented in a comment or commit message
-- [ ] Typecheck passes
+- [x] all async handler functions audited for synchronous file I/O, `time.sleep()`, and synchronous HTTP calls
+- [x] any blocking calls found replaced with async equivalents or offloaded to a thread executor
+- [x] findings and changes documented in a comment or commit message
+- [x] Typecheck passes
 
 ---
 

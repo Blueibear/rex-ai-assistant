@@ -1,4 +1,14 @@
 
+## Iteration 106 - US-121: Audit and fix blocking I/O in async handlers
+- What was implemented: Audited all async functions in voice_loop.py and rex/assistant.py. Found that append_history_entry() and export_transcript() — both synchronous file-I/O functions — were called directly inside async def _process_conversation() without being wrapped in asyncio.to_thread(). Fixed both calls. All other async handlers already used asyncio.to_thread / loop.run_in_executor properly. time.sleep(0.5) in _speak_response is in a non-async function called via to_thread, so it's fine. 7 tests in tests/test_us121_blocking_io_audit.py using static AST analysis to verify wrapping. mypy clean.
+- Files changed: voice_loop.py (wrap append_history_entry + export_transcript in to_thread), tests/test_us121_blocking_io_audit.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - ast.parse + ast.walk can find all asyncio.to_thread call targets for static verification
+  - time.sleep() inside a non-async function called via to_thread is acceptable (it runs in a thread pool)
+  - The fix pattern: `await asyncio.to_thread(fn, arg1, arg2)` replaces `fn(arg1, arg2)` in async context
+  - AST unparsing: ast.unparse(node) is Python 3.9+ and produces canonical source for the node
+---
+
 ## Iteration 105 - US-120: Response time baseline for core API endpoints
 - What was implemented: Created `tests/test_us120_performance_baseline.py` with 11 tests measuring p50 response times for health check, notification list, config load, and chat (stub). All endpoints measured with 10+ requests using Flask test client warm-up. p50 threshold: 500ms. Created `docs/performance-baseline.md` documenting methodology, measurements, flagging criteria, and how to re-run. All tests pass. mypy clean.
 - Files changed: tests/test_us120_performance_baseline.py (new), docs/performance-baseline.md (new), PRD.md, progress.txt
