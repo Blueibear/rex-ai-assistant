@@ -1,4 +1,17 @@
 
+## Iteration 87 - US-101: Fill unit test gaps — LLM providers, integrations, voice pipeline
+- What was implemented: Verified existing tests fully satisfy all US-101 acceptance criteria. OpenAI: test_llm_client.py::test_openai_provider (monkeypatches _ensure_openai_client). Anthropic: test_us014_anthropic_provider.py (5 tests, fake client factory). Local: test_us015_local_llm_provider.py (10 tests, OfflineTransformersStrategy). HA bridge: test_us042_ha_api_connection.py (17 tests, mocked requests.Session). Plex: test_us048 + test_us049 (50 tests, stub HTTP). GitHub: test_us055 + test_github_service (19 tests, mock_mode + mock data). STT: test_us018_speech_to_text.py (13 tests, np.zeros audio). TTS: test_us019_text_to_speech.py (13 tests, mock audio data). No production code changes needed. 161 tests pass, mypy clean (142 source files).
+- Files changed: PRD.md (US-101 checkboxes), progress.txt
+- Learnings for future iterations:
+  - All six areas (3 LLM providers + 3 integrations + 2 voice pipeline) were already covered by prior US implementations
+  - test_llm_client.py covers OpenAI with a fake SimpleNamespace client via monkeypatch
+  - test_us014_anthropic_provider.py covers Anthropic with _make_fake_anthropic_client()
+  - test_us042_ha_api_connection.py mocks requests module for HA bridge
+  - PlexClient and GitHubService already have mock_mode/stub HTTP patterns
+  - STT/TTS tests use np.zeros(16000) for mock audio buffers
+  - 161 tests pass, implementation was already complete
+---
+
 ## Iteration 86 - US-100: Fill unit test gaps — memory, notifications, event system
 - What was implemented: Verified existing tests fully satisfy all US-100 acceptance criteria. test_us032_memory_storage.py (5 tests, LongTermMemory + WorkingMemory store/persist), test_us070_memory_search.py (11 tests, LongTermMemory search), test_us028_event_bus.py (17 tests, publish + subscriber notification), test_us089_priority_routing_rules.py (33 tests, all 4 priority levels). No production code changes needed. All 66 tests pass, mypy clean (pre-existing logging_utils.py error unrelated).
 - Files changed: PRD.md (US-100 checkboxes), progress.txt
