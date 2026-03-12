@@ -1,0 +1,35 @@
+[Unit]
+Description=Rex AI Assistant – TTS API (rex-speak-api)
+Documentation=https://github.com/Blueibear/rex-ai-assistant/blob/master/docs/deployment.md
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=rex
+Group=rex
+WorkingDirectory=/opt/rex-ai-assistant
+EnvironmentFile=/opt/rex-ai-assistant/.env
+ExecStart=/opt/rex-ai-assistant/.venv/bin/rex-speak-api
+
+# Restart policy – restart on any non-zero exit, but back off after 5 quick
+# failures within 120 seconds (prevents tight restart loops).
+Restart=on-failure
+RestartSec=5s
+StartLimitIntervalSec=120s
+StartLimitBurst=5
+
+# Resource limits
+TimeoutStartSec=60
+TimeoutStopSec=30
+KillMode=mixed
+KillSignal=SIGTERM
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/rex-ai-assistant
+
+[Install]
+WantedBy=multi-user.target

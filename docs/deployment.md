@@ -224,6 +224,88 @@ Restart the service after upgrading.
 
 ---
 
+## 11. Process Supervisor Configuration (systemd)
+
+Rex ships systemd unit files under `deploy/systemd/`. They configure automatic
+restart on failure and are suitable for Linux hosts running systemd (the default
+on Ubuntu, Debian, RHEL, Fedora, and most server distros).
+
+### Services provided
+
+| Unit file | Process | Entry point |
+|-----------|---------|-------------|
+| `rex-api.service` | Flask API + Dashboard | `python flask_proxy.py` |
+| `rex-tts.service` | TTS API | `rex-speak-api` |
+| `rex-voice.service` | Voice loop | `python rex_loop.py` |
+| `rex-agent.service` | Agent / OS-automation server | `rex-agent` |
+
+### Installation
+
+> **Prerequisites:** the application must be installed at
+> `/opt/rex-ai-assistant` with a virtual environment at
+> `/opt/rex-ai-assistant/.venv` and a populated `.env` file.
+> A dedicated system user `rex` must exist.
+
+```bash
+# Create the system user (no login shell, no home directory creation)
+sudo useradd --system --no-create-home --shell /usr/sbin/nologin rex
+
+# Copy unit files
+sudo cp deploy/systemd/*.service /etc/systemd/system/
+
+# Set correct ownership of the install directory
+sudo chown -R rex:rex /opt/rex-ai-assistant
+
+# Reload systemd and enable the services
+sudo systemctl daemon-reload
+sudo systemctl enable rex-api rex-tts rex-voice rex-agent
+sudo systemctl start rex-api rex-tts rex-voice rex-agent
+```
+
+### Restart policy
+
+All units share the same restart policy:
+
+| Setting | Value | Effect |
+|---------|-------|--------|
+| `Restart` | `on-failure` | Restart only if the process exits with a non-zero code or is killed by a signal |
+| `RestartSec` | `5s` | Wait 5 seconds before each restart attempt |
+| `StartLimitBurst` | `5` | Allow at most 5 restart attempts … |
+| `StartLimitIntervalSec` | `120s` | … within a rolling 120-second window |
+
+If the burst limit is reached, systemd marks the unit as **failed** and stops
+retrying. This prevents a misconfigured service from consuming all system
+resources in a tight restart loop. To manually clear the failure state and
+retry:
+
+```bash
+sudo systemctl reset-failed rex-api
+sudo systemctl start rex-api
+```
+
+### Liveness verification after start
+
+```bash
+# Check unit status
+sudo systemctl status rex-api
+
+# Confirm the liveness endpoint responds
+curl http://localhost:5000/health/live
+# Expected: {"status": "ok"}
+```
+
+### Viewing logs
+
+```bash
+# Follow live logs for the API service
+sudo journalctl -fu rex-api
+
+# Show the last 100 lines for the voice loop
+sudo journalctl -u rex-voice -n 100
+```
+
+---
+
 ## Troubleshooting
 
 | Symptom | Likely Cause | Fix |
@@ -232,3 +314,4 @@ Restart the service after upgrading.
 | `/health/ready` returns 503 | Missing config or failing check | Check logs; run `python scripts/doctor.py` |
 | `CORS` errors in browser | `REX_ALLOWED_ORIGINS` missing your origin | Add origin to the env var |
 | Rate limit 429 on all requests | `API_RATE_LIMIT` too low | Increase limit or whitelist internal IPs |
+| Unit enters failed state after 5 restarts | Persistent startup error | Check `journalctl -u rex-api -n 50`; fix root cause; run `systemctl reset-failed rex-api && systemctl start rex-api` |

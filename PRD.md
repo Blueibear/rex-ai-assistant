@@ -1781,11 +1781,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As an operator, I want Rex services managed by a process supervisor so that crashed services restart automatically and startup on system boot is handled without manual intervention.
 
 **Acceptance Criteria:**
-- [ ] a `systemd` unit file (or `supervisor` config, whichever matches the target deployment environment) provided for all long-running Rex processes
-- [ ] unit file configures automatic restart on failure (with a backoff limit to prevent restart loops)
-- [ ] unit file documented in `docs/deployment.md`
-- [ ] starting the unit file on a clean system results in the service coming up and passing the liveness check
-- [ ] Typecheck passes
+- [x] a `systemd` unit file (or `supervisor` config, whichever matches the target deployment environment) provided for all long-running Rex processes
+- [x] unit file configures automatic restart on failure (with a backoff limit to prevent restart loops)
+- [x] unit file documented in `docs/deployment.md`
+- [x] starting the unit file on a clean system results in the service coming up and passing the liveness check
+- [x] Typecheck passes
 
 ---
 
