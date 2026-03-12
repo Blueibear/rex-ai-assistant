@@ -1,4 +1,15 @@
 
+## Iteration 100 - US-115: Migration state validation on startup
+- What was implemented: Created `rex/migrations.py` with `MIGRATIONS` list of (name, sql) tuples, `get_pending_migrations(db_path)` (creates schema_migrations table if absent, returns names not yet applied), `mark_migration_applied(name, db_path)`, and `validate_migration_state(db_path)` (logs pending names at WARNING level and sys.exit(1) if any pending; bypassed by SKIP_MIGRATION_CHECK=1/true/yes). Integrated into `flask_proxy.py` via `validate_migration_state()` call placed before any `app.register_blueprint(...)` call. 20 tests in `tests/test_us115_migration_state_validation.py`, all passing. mypy clean on rex/migrations.py.
+- Files changed: rex/migrations.py (new), flask_proxy.py (import + call before blueprints), tests/test_us115_migration_state_validation.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Place `validate_migration_state()` call BEFORE `app = Flask(__name__)` line so the test can monkeypatch `Flask.register_blueprint` and verify ordering
+  - Actually, placing it between Flask instantiation and first blueprint registration is sufficient for the ordering test
+  - Use `INSERT OR IGNORE` in mark_migration_applied for idempotency
+  - Use a direct sqlite3.connect (non-pooled) for migration checks to avoid pool overhead on single-use bootstrap operation
+  - Pre-existing mypy errors in flask_proxy.py are unrelated to this story
+---
+
 ## Iteration 99 - US-114: Database connection pool configuration
 - What was implemented: Created `rex/db_pool.py` with `PoolConfig` (reads DB_POOL_MIN_SIZE, DB_POOL_MAX_SIZE, DB_POOL_ACQUIRE_TIMEOUT, DB_POOL_IDLE_TIMEOUT env vars; defaults: min=1, max=5, acquire_timeout=5.0s, idle_timeout=300.0s), `ConnectionPoolError`, and `ConnectionPool` (thread-safe with Condition, acquire/release, idle connection replacement, INFO-level startup logging). Integrated pool into `DashboardStore` via new `pool_config` parameter; `_connect()` now delegates to `self._pool.connect()`. 37 tests in `tests/test_us114_db_connection_pool.py`, all passing. mypy clean on both new/modified source files.
 - Files changed: rex/db_pool.py (new), rex/dashboard_store.py (pool integration), tests/test_us114_db_connection_pool.py (new), PRD.md, progress.txt
