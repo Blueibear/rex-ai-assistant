@@ -1742,10 +1742,10 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As an operator, I want a runbook covering common operational tasks so that I can start, stop, restart, and diagnose Rex without escalating to a developer.
 
 **Acceptance Criteria:**
-- [ ] `docs/runbook.md` exists and covers: start/stop/restart procedure, log access and filtering, health check verification, what to do if a service fails to start
-- [ ] runbook documents the expected process list and how to verify each component is running
-- [ ] at least five common error scenarios documented with diagnosis steps and resolution
-- [ ] Typecheck passes
+- [x] `docs/runbook.md` exists and covers: start/stop/restart procedure, log access and filtering, health check verification, what to do if a service fails to start
+- [x] runbook documents the expected process list and how to verify each component is running
+- [x] at least five common error scenarios documented with diagnosis steps and resolution
+- [x] Typecheck passes
 
 ---
 

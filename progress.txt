@@ -1,4 +1,13 @@
 
+## Iteration 110 - US-125: Operations runbook
+- What was implemented: Created `docs/runbook.md` with 7 sections: Process List (flask_proxy, rex_speak_api, rex_loop with verification commands), Start Procedure, Stop Procedure, Restart Procedure, Health Check Verification (/health/live and /health/ready), Log Access and Filtering (grep/tail examples, LOG_LEVEL table), What to Do if a Service Fails to Start, and 7 Error Scenarios (migration error, /health/ready 503, 429 rate limit, CORS, DB timeout, audio device, LLM provider). Created `tests/test_us125_operations_runbook.py` with 26 tests. All tests pass. mypy clean.
+- Files changed: docs/runbook.md (new), tests/test_us125_operations_runbook.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Runbook scenario headings using "### Scenario N:" pattern enable regex counting in tests
+  - Health endpoints /health/live vs /health/ready distinction matters: live=process alive, ready=dependencies OK
+  - 503 from /health/ready does not mean service is down — important operational nuance to document
+---
+
 ## Iteration 109 - US-124: Environment variable and configuration reference
 - What was implemented: Created `docs/configuration.md` with all env vars organized into logical sections (Server, Database, LLM Providers, Integrations, Logging, Testing/Dev). Each section uses a Markdown table with Name, Default, Required, and Description columns. Updated `.env.example` to add missing DB pool vars (DB_POOL_MIN_SIZE, DB_POOL_MAX_SIZE, DB_POOL_ACQUIRE_TIMEOUT, DB_POOL_IDLE_TIMEOUT, DB_QUERY_TIMEOUT), SKIP_MIGRATION_CHECK, and API_RATE_LIMIT. Created `tests/test_us124_configuration_reference.py` with 20 tests verifying existence, required sections, column presence, and bidirectional consistency between .env.example and configuration.md. All tests pass. mypy clean.
 - Files changed: docs/configuration.md (new), .env.example (added 7 vars), tests/test_us124_configuration_reference.py (new), PRD.md, progress.txt
