@@ -1433,10 +1433,10 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want CI to fail if coverage drops below the agreed threshold so that new code cannot land without tests.
 
 **Acceptance Criteria:**
-- [ ] `pytest --cov=rex --cov-fail-under=<threshold>` runs in CI
-- [ ] CI job fails when overall coverage is below the configured threshold
-- [ ] threshold value stored in `pyproject.toml` and documented
-- [ ] Typecheck passes
+- [x] `pytest --cov=rex --cov-fail-under=<threshold>` runs in CI
+- [x] CI job fails when overall coverage is below the configured threshold
+- [x] threshold value stored in `pyproject.toml` and documented
+- [x] Typecheck passes
 
 ---
 
