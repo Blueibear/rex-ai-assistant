@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sys
 from collections.abc import Iterable
+from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -13,10 +15,44 @@ LOG_FORMAT = "[%(asctime)s] %(levelname)s - %(message)s"
 DEFAULT_LOG_FILE = Path("logs/rex.log")
 DEFAULT_ERROR_FILE = Path("logs/error.log")
 
+
+class JsonFormatter(logging.Formatter):
+    """Emit each log record as a single-line JSON object.
+
+    Fields: timestamp (ISO 8601), level, logger, message.
+    Optional: exception (if exc_info is set).
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        entry: dict[str, str] = {
+            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info:
+            entry["exception"] = self.formatException(record.exc_info)
+        return json.dumps(entry)
+
+
+def _json_logging_enabled() -> bool:
+    """Return True if JSON structured logging should be used.
+
+    Resolution order:
+    1. ``REX_JSON_LOGS`` env var (``1``/``true`` → on; ``0``/``false`` → off).
+    2. Auto-detect: off when running under pytest (``PYTEST_CURRENT_TEST`` is set),
+       on otherwise so that production deployments get structured output by default.
+    """
+    val = os.environ.get("REX_JSON_LOGS")
+    if val is not None:
+        return val.lower() not in ("0", "false", "no")
+    # Default: plain text in tests, JSON in production
+    return "PYTEST_CURRENT_TEST" not in os.environ
+
 try:  # pragma: no cover - avoid circular imports during package init
-    from .config import settings
+    from .config import settings as settings
 except Exception:  # pragma: no cover - fallback when config not initialised
-    settings = None
+    settings = None  # type: ignore[assignment]
 
 
 def _resolve_path(candidate: str | os.PathLike[str], default: Path) -> Path:
@@ -85,7 +121,16 @@ def configure_logging(
 
         handlers = tuple(handlers_list)
 
-    logging.basicConfig(level=level, format=LOG_FORMAT, handlers=list(handlers))
+    if _json_logging_enabled():
+        formatter: logging.Formatter = JsonFormatter()
+    else:
+        formatter = logging.Formatter(LOG_FORMAT)
+
+    handler_list = list(handlers)
+    for h in handler_list:
+        h.setFormatter(formatter)
+
+    logging.basicConfig(level=level, handlers=handler_list)
 
 
 def get_logger(name: str, *, level: int | None = None) -> logging.Logger:

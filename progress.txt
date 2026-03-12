@@ -1,4 +1,15 @@
 
+## Iteration 93 - US-107: Structured JSON logging
+- What was implemented: Verified `rex/logging_utils.py` already has `JsonFormatter` (emits single-line JSON with timestamp/level/logger/message), `_json_logging_enabled()` (auto-off in pytest via PYTEST_CURRENT_TEST, on in production; overridable via REX_JSON_LOGS env var), and `configure_logging()` (applies JsonFormatter when enabled). Fixed pre-existing mypy error at line 55: `settings = None  # type: ignore[assignment]` in except block. All print() in rex/ are docstring examples or CLI user-facing output (not log lines). 30 tests in tests/test_us107_structured_json_logging.py already existed and pass.
+- Files changed: rex/logging_utils.py (mypy fix), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `settings = None  # type: ignore[assignment]` in except block fixes mypy "Incompatible types in assignment" when the try block imports a typed symbol
+  - `_json_logging_enabled()` auto-detects pytest via `PYTEST_CURRENT_TEST` env var — JSON off in tests by default
+  - print() in docstring usage examples are NOT log lines — no changes needed
+  - print() in rex/cli.py are user-facing CLI output (chat responses, version info) — acceptable
+  - 30 tests pass, mypy clean (1 pre-existing error fixed)
+---
+
 ## Iteration 92 - US-106: Graceful shutdown
 - What was implemented: Created `rex/graceful_shutdown.py` with `GracefulShutdown` class (SIGTERM handler, drain-and-exit thread, cleanup callbacks). `install()` registers the SIGTERM handler; `_drain_and_exit()` waits up to `drain_timeout` seconds then runs cleanups and `sys.exit(0)`. `trigger_shutdown()` helper for tests. Module-level singleton via `get_shutdown_handler()` / `reset_shutdown_handler()`. Integrated into `rex_speak_api.py` (before_request 503 + handler.install() in main) and `rex/computers/agent_server.py` (before_request 503 + handler.install() in main). 33 tests in `tests/test_us106_graceful_shutdown.py`, all passing.
 - Files changed: rex/graceful_shutdown.py (new), rex_speak_api.py, rex/computers/agent_server.py, tests/test_us106_graceful_shutdown.py (new), PRD.md

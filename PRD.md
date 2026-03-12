@@ -1501,11 +1501,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want all log output formatted as structured JSON so that logs are machine-parseable and easily ingested by log aggregation tools.
 
 **Acceptance Criteria:**
-- [ ] all log output from `rex/` emitted as JSON (one object per line)
-- [ ] each log entry includes at minimum: `timestamp` (ISO 8601), `level`, `logger` (module name), `message`
-- [ ] no log lines use bare `print()` statements
-- [ ] existing test output remains readable (JSON logging can be disabled in test mode via config)
-- [ ] Typecheck passes
+- [x] all log output from `rex/` emitted as JSON (one object per line)
+- [x] each log entry includes at minimum: `timestamp` (ISO 8601), `level`, `logger` (module name), `message`
+- [x] no log lines use bare `print()` statements
+- [x] existing test output remains readable (JSON logging can be disabled in test mode via config)
+- [x] Typecheck passes
 
 ---
 
