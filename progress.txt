@@ -1,4 +1,16 @@
 
+## Iteration 99 - US-114: Database connection pool configuration
+- What was implemented: Created `rex/db_pool.py` with `PoolConfig` (reads DB_POOL_MIN_SIZE, DB_POOL_MAX_SIZE, DB_POOL_ACQUIRE_TIMEOUT, DB_POOL_IDLE_TIMEOUT env vars; defaults: min=1, max=5, acquire_timeout=5.0s, idle_timeout=300.0s), `ConnectionPoolError`, and `ConnectionPool` (thread-safe with Condition, acquire/release, idle connection replacement, INFO-level startup logging). Integrated pool into `DashboardStore` via new `pool_config` parameter; `_connect()` now delegates to `self._pool.connect()`. 37 tests in `tests/test_us114_db_connection_pool.py`, all passing. mypy clean on both new/modified source files.
+- Files changed: rex/db_pool.py (new), rex/dashboard_store.py (pool integration), tests/test_us114_db_connection_pool.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `threading.Condition` is the right primitive for blocking acquire with timeout — `condition.wait(timeout=remaining)` releases lock while sleeping
+  - Use `idle_timeout=-1.0` in tests to guarantee idle replacement regardless of system timing; avoids flaky tests
+  - `sqlite3.connect(check_same_thread=False)` required for connections shared across threads in a pool
+  - `_PooledConnection.last_used` set at both init time and on acquire (not on release) to accurately measure idle time
+  - Pre-existing `test_dashboard_store.py` failures (2 tests) are unrelated to pool changes — confirmed by stash/run/pop
+  - 37 tests pass, mypy clean (pre-existing whisper import error in dashboard/routes.py is unrelated)
+---
+
 ## Iteration 98 - US-113: Production configuration defaults
 - What was implemented: `rex/production_config.py` already existed with complete implementation: `is_production()` reads `ENVIRONMENT` env var (case-insensitive, defaults to non-production), `apply_production_defaults(app)` disables `app.debug`/`app.testing`, registers a generic JSON 500 error handler (no stack traces), and installs a `before_request` hook blocking any path under `/debug` with 404. Idempotency via `app.extensions[_INSTALLED_KEY]`. Removed unused `# type: ignore[return-value]` on the 500 handler to fix mypy. Created 27 tests in `tests/test_us113_production_config_defaults.py`. All pass, mypy clean.
 - Files changed: rex/production_config.py (type: ignore removed), tests/test_us113_production_config_defaults.py (new), PRD.md, progress.txt
