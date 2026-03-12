@@ -1,4 +1,15 @@
 
+## Iteration 86 - US-100: Fill unit test gaps — memory, notifications, event system
+- What was implemented: Verified existing tests fully satisfy all US-100 acceptance criteria. test_us032_memory_storage.py (5 tests, LongTermMemory + WorkingMemory store/persist), test_us070_memory_search.py (11 tests, LongTermMemory search), test_us028_event_bus.py (17 tests, publish + subscriber notification), test_us089_priority_routing_rules.py (33 tests, all 4 priority levels). No production code changes needed. All 66 tests pass, mypy clean (pre-existing logging_utils.py error unrelated).
+- Files changed: PRD.md (US-100 checkboxes), progress.txt
+- Learnings for future iterations:
+  - All three areas (memory, event bus, priority routing) were already covered by prior US implementations
+  - WorkingMemory/LongTermMemory tests use tmp_path — no live DB
+  - EventBus tests cover both legacy (2-arg) and new (Event) handler styles
+  - Priority routing tests cover all 4 levels: CRITICAL, HIGH, MEDIUM, LOW
+  - 66 tests pass, implementation was already complete
+---
+
 ## Iteration 85 - US-099: Fill unit test gaps — planner, tool registry, workflow engine
 - What was implemented: Created `tests/test_us099_unit_test_gaps_planner_registry_workflow.py` with 71 tests covering all public methods of `Planner` (plan, validate_workflow, select_tool, build_prompt, plan_with_fallback, execute_step_with_fallback), `ToolRegistry` (register_tool, unregister_tool, get_tool, has_tool, list_tools, check_credentials, validate_credentials_for_tool, check_health, check_all_health, get_tool_status, get_all_status) and module-level functions, all `tool_router` public functions (parse_tool_request, execute_tool, format_tool_result, route_if_tool_request), and all `Workflow`/`WorkflowStep`/`WorkflowApproval`/`WorkflowRunner` public methods. All tests pass; no external services used.
 - Files changed: tests/test_us099_unit_test_gaps_planner_registry_workflow.py (new), PRD.md, progress.txt
