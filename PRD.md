@@ -1581,11 +1581,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want the application to enforce safe production defaults so that debug features, verbose tracing, and development shortcuts are disabled when running in production mode.
 
 **Acceptance Criteria:**
-- [ ] `DEBUG` mode disabled when `ENVIRONMENT=production` (or equivalent)
-- [ ] stack traces not returned to API clients in production
-- [ ] development-only endpoints or routes disabled or unreachable in production mode
-- [ ] production mode detectable from a single `ENVIRONMENT` environment variable
-- [ ] Typecheck passes
+- [x] `DEBUG` mode disabled when `ENVIRONMENT=production` (or equivalent)
+- [x] stack traces not returned to API clients in production
+- [x] development-only endpoints or routes disabled or unreachable in production mode
+- [x] production mode detectable from a single `ENVIRONMENT` environment variable
+- [x] Typecheck passes
 
 ---
 
