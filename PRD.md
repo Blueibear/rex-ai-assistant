@@ -1407,11 +1407,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want memory storage, notification routing, and the event bus covered by unit tests so that regressions in stateful components are caught.
 
 **Acceptance Criteria:**
-- [ ] memory store and memory search have at least one passing unit test each
-- [ ] notification routing rules have at least one passing unit test covering each priority level
-- [ ] event bus publish and subscriber notification have at least one passing unit test
-- [ ] no new tests rely on a running database; use in-memory or mock storage
-- [ ] Typecheck passes
+- [x] memory store and memory search have at least one passing unit test each
+- [x] notification routing rules have at least one passing unit test covering each priority level
+- [x] event bus publish and subscriber notification have at least one passing unit test
+- [x] no new tests rely on a running database; use in-memory or mock storage
+- [x] Typecheck passes
 
 ---
 

@@ -1,4 +1,19 @@
 
+## Iteration 85 - US-099: Fill unit test gaps — planner, tool registry, workflow engine
+- What was implemented: Created `tests/test_us099_unit_test_gaps_planner_registry_workflow.py` with 71 tests covering all public methods of `Planner` (plan, validate_workflow, select_tool, build_prompt, plan_with_fallback, execute_step_with_fallback), `ToolRegistry` (register_tool, unregister_tool, get_tool, has_tool, list_tools, check_credentials, validate_credentials_for_tool, check_health, check_all_health, get_tool_status, get_all_status) and module-level functions, all `tool_router` public functions (parse_tool_request, execute_tool, format_tool_result, route_if_tool_request), and all `Workflow`/`WorkflowStep`/`WorkflowApproval`/`WorkflowRunner` public methods. All tests pass; no external services used.
+- Files changed: tests/test_us099_unit_test_gaps_planner_registry_workflow.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `Planner(tool_registry=registry, policy_engine=get_policy_engine())` — uses `tool_registry` kwarg, not `registry`
+  - `Workflow(title="...")` — `title` is required, `workflow_id` auto-generated with `wf_` prefix
+  - `WorkflowStep(description="...")` — `description` is required, no `tool`/`args` fields; tool calls use `ToolCall(tool=..., args=...)` in `tool_call` field
+  - `advance()` returns `True` when steps remain, `False` when workflow completed (sets status="completed")
+  - `mark_blocked(approval_id)` sets `wf.blocking_approval_id`, not `wf.approval_id`
+  - `ToolRegistry.check_credentials()` uses `CredentialManager.set_token()`, not `os.environ`; construct `ToolRegistry(credential_manager=cm)`
+  - `parse_tool_request()` requires `TOOL_REQUEST: {...}` prefix format; plain JSON or plain text returns `None`
+  - `Workflow.model_copy(update={"description": "   "})` to test invalid state while bypassing Pydantic constructor validation
+  - 71 tests pass, pre-existing failures (test_cli.py, test_dashboard.py, test_dashboard_store.py) unrelated
+---
+
 ## Iteration 84 - US-097: HTTP security headers
 - What was implemented: Added `@dashboard_bp.after_request` hook in `rex/dashboard/routes.py` that sets: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy` (on HTML responses, with `frame-ancestors 'none'` and `default-src 'self'`), and `Strict-Transport-Security` (only on HTTPS connections). CORS was already correctly configured with explicit origins via `REX_ALLOWED_ORIGINS`. 16 tests in `tests/test_us097_security_headers.py`, all passing.
 - Files changed: rex/dashboard/routes.py, tests/test_us097_security_headers.py (new), PRD.md, progress.txt
