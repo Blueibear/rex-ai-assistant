@@ -168,6 +168,7 @@ markers = [
     "gpu: Tests that require GPU acceleration",
     "network: Tests that require network access",
     "asyncio: mark a test as using asyncio",
+    "smoke: Smoke tests that verify critical paths against a running local instance",
 ]
 
 [tool.coverage.run]

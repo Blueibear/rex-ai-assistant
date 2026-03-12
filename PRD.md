@@ -1794,12 +1794,12 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want a smoke test suite that verifies all critical paths against a running instance so that a deployment can be validated in minutes without a full regression run.
 
 **Acceptance Criteria:**
-- [ ] smoke tests marked with `@pytest.mark.smoke` and runnable via `pytest -m smoke`
-- [ ] smoke tests cover at minimum: health check, authentication, chat message round-trip, notification creation, CLI entrypoints
-- [ ] smoke tests connect to a running local instance (not mocks)
-- [ ] all smoke tests pass against a freshly started local instance
-- [ ] smoke test run time under 2 minutes
-- [ ] Typecheck passes
+- [x] smoke tests marked with `@pytest.mark.smoke` and runnable via `pytest -m smoke`
+- [x] smoke tests cover at minimum: health check, authentication, chat message round-trip, notification creation, CLI entrypoints
+- [x] smoke tests connect to a running local instance (not mocks)
+- [x] all smoke tests pass against a freshly started local instance
+- [x] smoke test run time under 2 minutes
+- [x] Typecheck passes
 
 ---
 
