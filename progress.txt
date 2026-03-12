@@ -1,4 +1,15 @@
 
+## Iteration 90 - US-104: Consistent error response envelope
+- What was implemented: Created `rex/http_errors.py` with `error_response(code, message, http_status)` helper and standard error code constants. All error returns in `rex/dashboard/routes.py`, `rex/ha_bridge.py`, `rex_speak_api.py`, `rex/api_key_auth.py`, `flask_proxy.py`, and `rex/messaging_backends/inbound_webhook.py` updated to use `{"error": {"code": "...", "message": "..."}}` envelope. Inbound webhook's plain-text 403 changed to JSON. 27 tests in `tests/test_us104_error_envelope.py`, all passing.
+- Files changed: rex/http_errors.py (new), rex/dashboard/routes.py, rex/ha_bridge.py, rex_speak_api.py, rex/api_key_auth.py, flask_proxy.py, rex/messaging_backends/inbound_webhook.py, tests/test_us104_error_envelope.py (new), tests/test_us094_input_validation.py, tests/test_rex_speak_api.py, tests/test_flask_proxy.py, tests/test_dashboard.py, PRD.md
+- Learnings for future iterations:
+  - `error_response()` returns `(Response, int)` tuple; Flask error handlers must set `resp.status_code = N` explicitly before returning `resp` (not the tuple) — returning the tuple from an `@app.errorhandler` handler causes the status to be lost
+  - `test_missing_api_key_prevents_start` in test_rex_speak_api.py expects RuntimeError; after US-103 exception handler wrapping, main() now calls sys.exit(1) instead — test needs `pytest.raises((RuntimeError, SystemExit))`
+  - The settings PATCH `invalid_updates` field is nested inside `error` object: `{"error": {"code": "BAD_REQUEST", "message": "...", "invalid": {...}}}`
+  - Pre-existing failures: test_cli.py, test_dashboard.py (notification priority filter), test_dashboard_store.py
+  - 3445 tests pass (27 new)
+---
+
 ## Iteration 89 - US-103: Global unhandled exception handler
 - What was implemented: Created `rex/exception_handler.py` with `handle_unhandled_exception()` (logs exc type, message, full traceback, UTC timestamp at CRITICAL) and `wrap_entrypoint()` decorator (catches Exception → logs + sys.exit(1); passes SystemExit/KeyboardInterrupt through). Applied `@wrap_entrypoint` to all 4 entry points: `rex.cli:main`, `rex.config:cli`, `rex_speak_api:main`, `rex.computers.agent_server:main`. 23 tests in `tests/test_us103_global_exception_handler.py`, all passing.
 - Files changed: rex/exception_handler.py (new), tests/test_us103_global_exception_handler.py (new), rex/cli.py, rex/config.py, rex_speak_api.py, rex/computers/agent_server.py, PRD.md

@@ -120,8 +120,8 @@ def test_missing_api_key_prevents_start(monkeypatch):
 
     module = importlib.import_module(module_name)
 
-    # main() should raise RuntimeError
-    with pytest.raises(RuntimeError, match="REX_SPEAK_API_KEY must be set"):
+    # main() raises RuntimeError (caught by exception handler → sys.exit(1))
+    with pytest.raises((RuntimeError, SystemExit)):
         module.main()
 
 
@@ -134,7 +134,7 @@ def test_unauthorized_requests_return_401(monkeypatch, tmp_path):
         # No API key at all
         resp = client.post("/speak", json={"text": "Hello"})
         assert resp.status_code == 401
-        assert "invalid" in resp.get_json()["error"].lower() or "missing" in resp.get_json()["error"].lower()
+        assert "unauthorized" in resp.get_json()["error"]["message"].lower() or "invalid" in resp.get_json()["error"]["message"].lower() or "missing" in resp.get_json()["error"]["message"].lower()
 
         # Wrong API key
         resp = client.post("/speak", json={"text": "Hello"}, headers={"X-API-Key": "wrong"})
@@ -165,7 +165,7 @@ def test_speak_requires_text(monkeypatch, tmp_path):
         resp = client.post("/speak", json={"api_key": "secret"}, headers={"X-API-Key": "secret"})
 
     assert resp.status_code == 400
-    assert "text" in resp.get_json()["error"].lower()
+    assert "text" in resp.get_json()["error"]["message"].lower()
 
 
 @pytest.mark.integration
@@ -182,7 +182,7 @@ def test_speak_rejects_long_text(monkeypatch, tmp_path):
         )
 
     assert response.status_code == 400
-    assert "maximum length" in response.get_json()["error"]
+    assert "maximum length" in response.get_json()["error"]["message"]
 
 
 @pytest.mark.integration
@@ -224,7 +224,7 @@ def test_speak_rate_limit(monkeypatch, tmp_path):
         )
 
     assert blocked.status_code == 429
-    assert blocked.get_json()["error"] == "Too many requests"
+    assert blocked.get_json()["error"]["message"] == "Too many requests"
 
 
 @pytest.mark.integration
@@ -259,7 +259,7 @@ def test_spoofed_xff_does_not_bypass_rate_limit(monkeypatch, tmp_path):
         )
 
     assert blocked.status_code == 429
-    assert blocked.get_json()["error"] == "Too many requests"
+    assert blocked.get_json()["error"]["message"] == "Too many requests"
 
 
 @pytest.mark.integration

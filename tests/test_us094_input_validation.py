@@ -78,7 +78,7 @@ class TestLoginValidation:
         monkeypatch.setattr(routes_module, "is_password_required", lambda: True)
         resp = client.post("/api/dashboard/login", json={"password": "p" * 1025})
         assert resp.status_code == 400
-        assert "password" in resp.get_json()["error"].lower()
+        assert "password" in resp.get_json()["error"]["message"].lower()
 
     def test_password_not_string_returns_400(
         self, client: Any, monkeypatch: pytest.MonkeyPatch
@@ -143,7 +143,7 @@ class TestChatValidation:
         )
         assert resp.status_code == 400
         body = resp.get_json()
-        assert "message" in body["error"].lower() or "length" in body["error"].lower()
+        assert "message" in body["error"]["message"].lower() or "length" in body["error"]["message"].lower()
 
     def test_message_not_string_returns_400(
         self, client: Any, monkeypatch: pytest.MonkeyPatch
@@ -190,7 +190,7 @@ class TestCreateJobValidation:
             headers=self._headers(token),
         )
         assert resp.status_code == 400
-        assert "name" in resp.get_json()["error"].lower()
+        assert "name" in resp.get_json()["error"]["message"].lower()
 
     def test_name_not_string_returns_400(
         self, client: Any, monkeypatch: pytest.MonkeyPatch
@@ -351,7 +351,7 @@ class TestVoiceValidation:
         )
         assert resp.status_code == 400
         body = resp.get_json()
-        assert "audio" in body.get("error", "").lower()
+        assert "audio" in body.get("error", {}).get("message", "").lower()
 
 
 # ---------------------------------------------------------------------------

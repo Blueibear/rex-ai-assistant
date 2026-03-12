@@ -42,6 +42,17 @@ from rex.dashboard.auth import (
     is_password_required,
     verify_password,
 )
+from rex.http_errors import (
+    BAD_REQUEST,
+    FORBIDDEN,
+    INTERNAL_ERROR,
+    NOT_FOUND,
+    SERVICE_UNAVAILABLE,
+    TOO_MANY_REQUESTS,
+    UNAUTHORIZED,
+    UNPROCESSABLE,
+    error_response,
+)
 from rex.logging_utils import get_logger
 from rex.scheduler import get_scheduler
 
@@ -180,7 +191,7 @@ def require_auth(f):
         # Check for valid session
         session = _get_session_from_request()
         if session is None:
-            return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
+            return error_response(UNAUTHORIZED, "Authentication required", 401)
 
         # Attach session to request context for use in handlers
         request.dashboard_session = session  # type: ignore[attr-defined]
@@ -379,16 +390,16 @@ def dashboard_login():
     # Check rate limit before processing credentials
     if rate_limiter.is_locked_out(client_ip):
         logger.warning("Login blocked (rate limit) for %s", client_ip)
-        return jsonify({"error": "Too many failed login attempts. Try again later."}), 429
+        return error_response(TOO_MANY_REQUESTS, "Too many failed login attempts. Try again later.", 429)
 
     data = request.get_json(silent=True) or {}
     password = data.get("password", "")
 
     # Validate password field type and length
     if not isinstance(password, str):
-        return jsonify({"error": "password must be a string"}), 400
+        return error_response(BAD_REQUEST, "password must be a string", 400)
     if len(password) > 1024:
-        return jsonify({"error": "password exceeds maximum length"}), 400
+        return error_response(BAD_REQUEST, "password exceeds maximum length", 400)
 
     # Check if password is required
     if not is_password_required():
@@ -412,7 +423,7 @@ def dashboard_login():
                 max_age=int((session.expires_at - session.created_at).total_seconds()),
             )
             return response
-        return jsonify({"error": "Password not configured and remote access denied"}), 403
+        return error_response(FORBIDDEN, "Password not configured and remote access denied", 403)
 
     # Verify password
     if not verify_password(password):
@@ -420,8 +431,8 @@ def dashboard_login():
         logger.warning("Failed dashboard login attempt from %s", client_ip)
         if locked_out:
             logger.warning("IP %s locked out after too many failed logins", client_ip)
-            return jsonify({"error": "Too many failed login attempts. Try again later."}), 429
-        return jsonify({"error": "Invalid password"}), 401
+            return error_response(TOO_MANY_REQUESTS, "Too many failed login attempts. Try again later.", 429)
+        return error_response(UNAUTHORIZED, "Invalid password", 401)
 
     # Success — reset rate-limit counter
     rate_limiter.record_success(client_ip)
@@ -487,7 +498,7 @@ def get_settings():
         )
     except Exception as e:
         logger.error("Failed to load settings: %s", e)
-        return jsonify({"error": f"Failed to load settings: {e}"}), 500
+        return error_response(INTERNAL_ERROR, f"Failed to load settings: {e}", 500)
 
 
 @dashboard_bp.route("/api/settings", methods=["PATCH"])
@@ -500,7 +511,7 @@ def update_settings():
     data = request.get_json(silent=True) or {}
 
     if not data:
-        return jsonify({"error": "No updates provided"}), 400
+        return error_response(BAD_REQUEST, "No updates provided", 400)
 
     try:
         config = load_config()
@@ -542,8 +553,11 @@ def update_settings():
             return (
                 jsonify(
                     {
-                        "error": "Invalid settings update",
-                        "invalid": invalid_updates,
+                        "error": {
+                            "code": BAD_REQUEST,
+                            "message": "Invalid settings update",
+                            "invalid": invalid_updates,
+                        }
                     }
                 ),
                 400,
@@ -562,7 +576,7 @@ def update_settings():
 
     except Exception as e:
         logger.error("Failed to update settings: %s", e)
-        return jsonify({"error": f"Failed to update settings: {e}"}), 500
+        return error_response(INTERNAL_ERROR, f"Failed to update settings: {e}", 500)
 
 
 # --- Chat Endpoints ---
@@ -586,13 +600,13 @@ def chat():
     data = request.get_json(silent=True) or {}
     raw_message = data.get("message", "")
     if not isinstance(raw_message, str):
-        return jsonify({"error": "message must be a string"}), 400
+        return error_response(BAD_REQUEST, "message must be a string", 400)
     if len(raw_message) > 32_000:
-        return jsonify({"error": "message exceeds maximum length of 32000 characters"}), 400
+        return error_response(BAD_REQUEST, "message exceeds maximum length of 32000 characters", 400)
     message = raw_message.strip()
 
     if not message:
-        return jsonify({"error": "Message is required"}), 400
+        return error_response(BAD_REQUEST, "Message is required", 400)
 
     try:
         llm = _get_llm()
@@ -630,7 +644,7 @@ def chat():
 
     except Exception as e:
         logger.error("Chat error: %s", e, exc_info=True)
-        return jsonify({"error": f"Failed to generate reply: {e}"}), 500
+        return error_response(INTERNAL_ERROR, f"Failed to generate reply: {e}", 500)
 
 
 @dashboard_bp.route("/api/chat/history", methods=["GET"])
@@ -696,7 +710,7 @@ def list_jobs():
 
     except Exception as e:
         logger.error("Failed to list jobs: %s", e)
-        return jsonify({"error": f"Failed to list jobs: {e}"}), 500
+        return error_response(INTERNAL_ERROR, f"Failed to list jobs: {e}", 500)
 
 
 @dashboard_bp.route("/api/scheduler/jobs", methods=["POST"])
@@ -707,31 +721,30 @@ def create_job():
 
     raw_name = data.get("name", "")
     if not isinstance(raw_name, str):
-        return jsonify({"error": "name must be a string"}), 400
+        return error_response(BAD_REQUEST, "name must be a string", 400)
     if len(raw_name) > 256:
-        return jsonify({"error": "name exceeds maximum length of 256 characters"}), 400
+        return error_response(BAD_REQUEST, "name exceeds maximum length of 256 characters", 400)
     name = raw_name.strip()
     if not name:
-        return jsonify({"error": "Job name is required"}), 400
+        return error_response(BAD_REQUEST, "Job name is required", 400)
 
     schedule = data.get("schedule", "interval:3600")
     if not isinstance(schedule, str):
-        return jsonify({"error": "schedule must be a string"}), 400
+        return error_response(BAD_REQUEST, "schedule must be a string", 400)
     if len(schedule) > 256:
-        return jsonify({"error": "schedule exceeds maximum length of 256 characters"}), 400
+        return error_response(BAD_REQUEST, "schedule exceeds maximum length of 256 characters", 400)
     enabled = data.get("enabled", True)
     if not isinstance(enabled, bool):
-        return jsonify({"error": "enabled must be a boolean"}), 400
+        return error_response(BAD_REQUEST, "enabled must be a boolean", 400)
     callback_name = data.get("callback_name")
     workflow_id = data.get("workflow_id")
     metadata = data.get("metadata", {})
     if not isinstance(metadata, dict):
-        return jsonify({"error": "metadata must be an object"}), 400
+        return error_response(BAD_REQUEST, "metadata must be an object", 400)
 
     if not schedule.startswith(("interval:", "at:")):
-        return (
-            jsonify({"error": "Invalid schedule format. Use 'interval:SECONDS' or 'at:HH:MM'"}),
-            400,
+        return error_response(
+            BAD_REQUEST, "Invalid schedule format. Use 'interval:SECONDS' or 'at:HH:MM'", 400
         )
 
     try:
@@ -762,7 +775,7 @@ def create_job():
 
     except Exception as e:
         logger.error("Failed to create job: %s", e)
-        return jsonify({"error": f"Failed to create job: {e}"}), 500
+        return error_response(INTERNAL_ERROR, f"Failed to create job: {e}", 500)
 
 
 @dashboard_bp.route("/api/scheduler/jobs/<job_id>", methods=["GET"])
@@ -774,7 +787,7 @@ def get_job(job_id: str):
         job = scheduler.get_job(job_id)
 
         if job is None:
-            return jsonify({"error": "Job not found"}), 404
+            return error_response(NOT_FOUND, "Job not found", 404)
 
         return jsonify(
             {
@@ -794,7 +807,7 @@ def get_job(job_id: str):
 
     except Exception as e:
         logger.error("Failed to get job: %s", e)
-        return jsonify({"error": f"Failed to get job: {e}"}), 500
+        return error_response(INTERNAL_ERROR, f"Failed to get job: {e}", 500)
 
 
 @dashboard_bp.route("/api/scheduler/jobs/<job_id>/run", methods=["POST"])
@@ -806,7 +819,7 @@ def run_job(job_id: str):
         job = scheduler.get_job(job_id)
 
         if job is None:
-            return jsonify({"error": "Job not found"}), 404
+            return error_response(NOT_FOUND, "Job not found", 404)
 
         success = scheduler.run_job(job_id, manual=True)
 
@@ -820,7 +833,7 @@ def run_job(job_id: str):
 
     except Exception as e:
         logger.error("Failed to run job: %s", e)
-        return jsonify({"error": f"Failed to run job: {e}"}), 500
+        return error_response(INTERNAL_ERROR, f"Failed to run job: {e}", 500)
 
 
 @dashboard_bp.route("/api/scheduler/jobs/<job_id>", methods=["PATCH"])
@@ -830,25 +843,25 @@ def update_job(job_id: str):
     data = request.get_json(silent=True) or {}
 
     if not data:
-        return jsonify({"error": "No updates provided"}), 400
+        return error_response(BAD_REQUEST, "No updates provided", 400)
 
     try:
         scheduler = get_scheduler()
         job = scheduler.get_job(job_id)
 
         if job is None:
-            return jsonify({"error": "Job not found"}), 404
+            return error_response(NOT_FOUND, "Job not found", 404)
 
         allowed_fields = {"enabled", "schedule", "name", "max_runs", "metadata"}
         updates = {k: v for k, v in data.items() if k in allowed_fields}
 
         if not updates:
-            return jsonify({"error": "No valid updates provided"}), 400
+            return error_response(BAD_REQUEST, "No valid updates provided", 400)
 
         updated_job = scheduler.update_job(job_id, **updates)
 
         if updated_job is None:
-            return jsonify({"error": "Failed to update job"}), 500
+            return error_response(INTERNAL_ERROR, "Failed to update job", 500)
 
         logger.info("Updated job: %s", job_id)
 
@@ -864,7 +877,7 @@ def update_job(job_id: str):
 
     except Exception as e:
         logger.error("Failed to update job: %s", e)
-        return jsonify({"error": f"Failed to update job: {e}"}), 500
+        return error_response(INTERNAL_ERROR, f"Failed to update job: {e}", 500)
 
 
 @dashboard_bp.route("/api/scheduler/jobs/<job_id>", methods=["DELETE"])
@@ -876,7 +889,7 @@ def delete_job(job_id: str):
         existed = scheduler.remove_job(job_id)
 
         if not existed:
-            return jsonify({"error": "Job not found"}), 404
+            return error_response(NOT_FOUND, "Job not found", 404)
 
         logger.info("Deleted job: %s", job_id)
 
@@ -889,7 +902,7 @@ def delete_job(job_id: str):
 
     except Exception as e:
         logger.error("Failed to delete job: %s", e)
-        return jsonify({"error": f"Failed to delete job: {e}"}), 500
+        return error_response(INTERNAL_ERROR, f"Failed to delete job: {e}", 500)
 
 
 # --- Notification Endpoints ---
@@ -910,7 +923,7 @@ def list_notifications():
         session = request.dashboard_session  # type: ignore[attr-defined]
         user_id = request.args.get("user_id") or session.user_key
         if user_id != session.user_key:
-            return jsonify({"error": "Forbidden user scope"}), 403
+            return error_response(FORBIDDEN, "Forbidden user scope", 403)
 
         notifications = store.query_recent(
             limit=limit,
@@ -930,7 +943,7 @@ def list_notifications():
 
     except Exception as e:
         logger.error("Failed to list notifications: %s", e)
-        return jsonify({"error": f"Failed to list notifications: {e}"}), 500
+        return error_response(INTERNAL_ERROR, f"Failed to list notifications: {e}", 500)
 
 
 @dashboard_bp.route("/api/notifications/<notification_id>/read", methods=["POST"])
@@ -945,13 +958,13 @@ def mark_notification_read(notification_id: str):
         found = store.mark_as_read(notification_id, user_id=session.user_key)
 
         if not found:
-            return jsonify({"error": "Notification not found or already read"}), 404
+            return error_response(NOT_FOUND, "Notification not found or already read", 404)
 
         return jsonify({"id": notification_id, "read": True})
 
     except Exception as e:
         logger.error("Failed to mark notification read: %s", e)
-        return jsonify({"error": f"Failed to mark notification read: {e}"}), 500
+        return error_response(INTERNAL_ERROR, f"Failed to mark notification read: {e}", 500)
 
 
 @dashboard_bp.route("/api/notifications/read-all", methods=["POST"])
@@ -965,14 +978,14 @@ def mark_all_notifications_read():
         session = request.dashboard_session  # type: ignore[attr-defined]
         user_id = request.args.get("user_id") or session.user_key
         if user_id != session.user_key:
-            return jsonify({"error": "Forbidden user scope"}), 403
+            return error_response(FORBIDDEN, "Forbidden user scope", 403)
         count = store.mark_all_read(user_id=user_id)
 
         return jsonify({"marked_read": count})
 
     except Exception as e:
         logger.error("Failed to mark all notifications read: %s", e)
-        return jsonify({"error": f"Failed to mark all notifications read: {e}"}), 500
+        return error_response(INTERNAL_ERROR, f"Failed to mark all notifications read: {e}", 500)
 
 
 @dashboard_bp.route("/api/notifications/stream", methods=["GET"])
@@ -1063,7 +1076,7 @@ def voice_chat():
     """
     audio_file = request.files.get("audio")
     if audio_file is None:
-        return jsonify({"error": "No audio file provided"}), 400
+        return error_response(BAD_REQUEST, "No audio file provided", 400)
 
     # Pick a temp file extension from the content-type so ffmpeg/whisper can load it.
     content_type = audio_file.content_type or ""
@@ -1086,13 +1099,13 @@ def voice_chat():
         try:
             transcript = _transcribe_audio_file(tmp_path)
         except ImportError:
-            return jsonify({"error": "Speech-to-text not available"}), 503
+            return error_response(SERVICE_UNAVAILABLE, "Speech-to-text not available", 503)
         except Exception as exc:
             logger.error("Transcription error: %s", exc)
-            return jsonify({"error": f"Transcription failed: {exc}"}), 500
+            return error_response(INTERNAL_ERROR, f"Transcription failed: {exc}", 500)
 
         if not transcript or not transcript.strip():
-            return jsonify({"error": "No speech detected"}), 422
+            return error_response(UNPROCESSABLE, "No speech detected", 422)
 
         # Generate LLM reply
         try:
@@ -1101,7 +1114,7 @@ def voice_chat():
             reply = llm.generate(messages=messages)
         except Exception as exc:
             logger.error("LLM error during voice chat: %s", exc)
-            return jsonify({"error": f"Failed to generate reply: {exc}"}), 500
+            return error_response(INTERNAL_ERROR, f"Failed to generate reply: {exc}", 500)
 
         # Persist to shared chat history
         entry: dict[str, Any] = {

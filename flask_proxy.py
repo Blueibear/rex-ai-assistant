@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from flask import Flask, abort, jsonify, request
 from flask import g as flask_g
 from flask_cors import CORS
+from rex.http_errors import BAD_REQUEST, INTERNAL_ERROR, SERVICE_UNAVAILABLE, error_response
 
 import utils.env_loader  # noqa: F401  # Auto-loads .env on import
 from memory_utils import load_memory_profile, load_users_map, resolve_user_key
@@ -228,17 +229,17 @@ def whoami():
 @app.route("/search")
 def search():
     if not search_web:
-        return jsonify({"error": "Web search plugin is not installed."}), 503
+        return error_response(SERVICE_UNAVAILABLE, "Web search plugin is not installed.", 503)
 
     query = request.args.get("q")
     if not query:
-        return jsonify({"error": "Missing query"}), 400
+        return error_response(BAD_REQUEST, "Missing query", 400)
 
     try:
         result = search_web(query)
     except Exception as e:
         app.logger.exception("Web search failed")
-        return jsonify({"error": f"Search provider error: {e}"}), 502
+        return error_response(INTERNAL_ERROR, f"Search provider error: {e}", 502)
 
     return jsonify({"query": query, "result": result})
 
@@ -247,7 +248,7 @@ def search():
 def contracts():
     """Return contract schema metadata for discoverability."""
     if not _CONTRACTS_AVAILABLE:
-        return jsonify({"error": "Contracts module not available"}), 503
+        return error_response(SERVICE_UNAVAILABLE, "Contracts module not available", 503)
 
     model_names = [model.__name__ for model in ALL_MODELS]
     return jsonify(

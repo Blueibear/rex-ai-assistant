@@ -18,6 +18,7 @@ from importlib.util import find_spec
 from typing import TYPE_CHECKING
 
 from rex.config import _parse_int, load_config
+from rex.http_errors import BAD_REQUEST, INTERNAL_ERROR, TOO_MANY_REQUESTS, UNAUTHORIZED, error_response
 from rex.exception_handler import wrap_entrypoint
 from rex.ha_bridge import create_blueprint as create_ha_blueprint
 from rex.tts_utils import chunk_text_for_xtts
@@ -171,21 +172,25 @@ else:
 
 @app.errorhandler(AuthenticationError)
 def _handle_auth_error(exc: AuthenticationError) -> Tuple[Response, int]:
-    return jsonify({"error": str(exc)}), 401
+    resp, status = error_response(UNAUTHORIZED, str(exc), 401)
+    resp.status_code = status
+    return resp  # type: ignore[return-value]
 
 
 @app.errorhandler(TextToSpeechError)
 def _handle_tts_error(exc: TextToSpeechError) -> Tuple[Response, int]:
-    return jsonify({"error": str(exc)}), 500
+    resp, status = error_response(INTERNAL_ERROR, str(exc), 500)
+    resp.status_code = status
+    return resp  # type: ignore[return-value]
 
 
 @app.errorhandler(RateLimitExceeded)
 def _handle_rate_limit(exc: RateLimitExceeded) -> Response:
-    response = jsonify({"error": "Too many requests"})
-    response.status_code = 429
+    resp, _ = error_response(TOO_MANY_REQUESTS, "Too many requests", 429)
+    resp.status_code = 429
     if getattr(exc, "retry_after", None):
-        response.headers["Retry-After"] = str(int(exc.retry_after))
-    return response
+        resp.headers["Retry-After"] = str(int(exc.retry_after))
+    return resp
 
 
 # ------------------------------------------------------------------------------
@@ -347,9 +352,9 @@ def speak() -> Response:
     payload = request.get_json(silent=True) or {}
     text = payload.get("text")
     if not text or not isinstance(text, str):
-        return jsonify({"error": "Text is required"}), 400
+        return error_response(BAD_REQUEST, "Text is required", 400)
     if len(text) > MAX_TEXT_LENGTH:
-        return jsonify({"error": "Text exceeds maximum length"}), 400
+        return error_response(BAD_REQUEST, "Text exceeds maximum length", 400)
 
     language = payload.get("language") or "en"
     user_key = payload.get("user") or DEFAULT_USER

@@ -73,7 +73,7 @@ def test_search_returns_error_when_plugin_missing(monkeypatch):
 
     assert response.status_code == 503
     payload = response.get_json()
-    assert payload["error"].startswith("Web search plugin is not installed")
+    assert payload["error"]["message"].startswith("Web search plugin is not installed")
 
 
 def test_search_uses_plugin_when_available(monkeypatch):

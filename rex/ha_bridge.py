@@ -519,16 +519,24 @@ def create_blueprint(bridge: HABridge | None = None) -> Blueprint:
     bridge = bridge or HABridge()
     bp = Blueprint("ha_bridge", __name__)
 
+    from rex.http_errors import (  # noqa: PLC0415
+        BAD_REQUEST,
+        FORBIDDEN,
+        INTERNAL_ERROR,
+        SERVICE_UNAVAILABLE,
+        error_response,
+    )
+
     @bp.before_request
     def _validate_secret() -> Any:
         secret = bridge.secret
         if secret and request.headers.get("HASS_SECRET") != secret:
-            return jsonify({"error": "Forbidden"}), 403
+            return error_response(FORBIDDEN, "Forbidden", 403)
         return None
 
     def _require_enabled():
         if not bridge.enabled:
-            return jsonify({"error": "Home Assistant bridge disabled"}), 503
+            return error_response(SERVICE_UNAVAILABLE, "Home Assistant bridge disabled", 503)
         return None
 
     @bp.route("/ha/intents", methods=["GET"])
@@ -546,7 +554,7 @@ def create_blueprint(bridge: HABridge | None = None) -> Blueprint:
             return jsonify({"entities": entities})
         except Exception as exc:
             logger.warning("Failed to list Home Assistant entities: %s", exc)
-            return jsonify({"error": str(exc)}), 500
+            return error_response(INTERNAL_ERROR, str(exc), 500)
 
     @bp.route("/ha/script", methods=["POST"])
     def run_script():
@@ -556,18 +564,18 @@ def create_blueprint(bridge: HABridge | None = None) -> Blueprint:
         script_id = payload.get("script")
         variables = payload.get("variables") or {}
         if not script_id:
-            return jsonify({"error": "script field is required"}), 400
+            return error_response(BAD_REQUEST, "script field is required", 400)
         if not isinstance(script_id, str):
-            return jsonify({"error": "script must be a string"}), 400
+            return error_response(BAD_REQUEST, "script must be a string", 400)
         if len(script_id) > 256:
-            return jsonify({"error": "script exceeds maximum length of 256 characters"}), 400
+            return error_response(BAD_REQUEST, "script exceeds maximum length of 256 characters", 400)
         if not isinstance(variables, dict):
-            return jsonify({"error": "variables must be an object"}), 400
+            return error_response(BAD_REQUEST, "variables must be an object", 400)
         try:
             bridge.call_script(script_id, variables)
             return jsonify({"status": "ok", "script": script_id})
         except Exception as exc:
             logger.warning("Failed to execute Home Assistant script: %s", exc)
-            return jsonify({"error": str(exc)}), 500
+            return error_response(INTERNAL_ERROR, str(exc), 500)
 
     return bp  # type: ignore[no-any-return]

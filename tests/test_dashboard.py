@@ -271,8 +271,8 @@ class TestSettingsRedaction:
 
         assert response.status_code == 400
         data = response.get_json()
-        assert "invalid" in data
-        assert "runtime.unknown_key" in data["invalid"]
+        assert "invalid" in data["error"]
+        assert "runtime.unknown_key" in data["error"]["invalid"]
 
     def test_settings_patch_rejects_type_mismatch(self, app_client, auth_headers):
         """Test that PATCH /api/settings rejects invalid value types."""
@@ -287,8 +287,8 @@ class TestSettingsRedaction:
 
         assert response.status_code == 400
         data = response.get_json()
-        assert "invalid" in data
-        assert "runtime.log_level" in data["invalid"]
+        assert "invalid" in data["error"]
+        assert "runtime.log_level" in data["error"]["invalid"]
 
 
 class TestSchedulerAPI:
@@ -926,7 +926,7 @@ class TestUIErrorHandling:
             assert response.status_code == 500
             data = response.get_json()
             assert "error" in data
-            assert "LLM backend unavailable" in data["error"]
+            assert "LLM backend unavailable" in data["error"]["message"]
 
     def test_backend_settings_error_returns_json_error(self, app_client, auth_headers, monkeypatch):
         """Backend settings load error returns JSON with 'error' key and 500 status."""

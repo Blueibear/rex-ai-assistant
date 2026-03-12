@@ -163,7 +163,9 @@ def require_api_key(
             remote = request.remote_addr or "unknown"
 
             if not validator.check(provided, remote_addr=remote):
-                return jsonify({"error": "Unauthorized"}), 401
+                from rex.http_errors import UNAUTHORIZED, error_response  # noqa: PLC0415
+
+                return error_response(UNAUTHORIZED, "Unauthorized", 401)
 
             return view_fn(*args, **kwargs)
 

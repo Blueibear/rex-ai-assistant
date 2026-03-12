@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from flask import Blueprint, Response, request
+from flask import Blueprint, Response, jsonify, request
 from werkzeug.datastructures import MultiDict
 
 from rex.messaging_backends.inbound_store import (
@@ -157,7 +157,10 @@ def create_inbound_sms_blueprint(
 
             if not validate_twilio_signature(auth_token, url, params, twilio_sig):
                 logger.warning("Twilio signature verification failed")
-                return Response("Forbidden", status=403, content_type="text/plain")
+                return (
+                    jsonify({"error": {"code": "FORBIDDEN", "message": "Forbidden"}}),
+                    403,
+                )
 
         # --- Extract message fields ---
         # Twilio SMS body max is 1600 chars; clamp to prevent DB resource exhaustion.

@@ -1460,11 +1460,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want all API error responses to use a consistent JSON envelope so that clients can reliably parse errors without special-casing each endpoint.
 
 **Acceptance Criteria:**
-- [ ] all error responses return JSON with at minimum: `error.code` (string), `error.message` (string)
-- [ ] HTTP status codes are semantically correct (400 for bad input, 401 for auth failure, 500 for server error)
-- [ ] no endpoint returns a plain-text error or an unstructured exception traceback to the client
-- [ ] at least one test per error condition verifies the response shape
-- [ ] Typecheck passes
+- [x] all error responses return JSON with at minimum: `error.code` (string), `error.message` (string)
+- [x] HTTP status codes are semantically correct (400 for bad input, 401 for auth failure, 500 for server error)
+- [x] no endpoint returns a plain-text error or an unstructured exception traceback to the client
+- [x] at least one test per error condition verifies the response shape
+- [x] Typecheck passes
 
 ---
 
