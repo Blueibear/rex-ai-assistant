@@ -26,6 +26,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from rex.db_pool import ConnectionPool, ConnectionPoolError, PoolConfig
 from rex.notification_priority import NotificationPriority
 
 logger = logging.getLogger(__name__)
@@ -140,27 +141,26 @@ class DashboardStore:
     Args:
         db_path: Path to the SQLite database file.
         retention_days: Notifications older than this are purged on cleanup.
+        pool_config: Connection pool configuration.  Reads from environment
+            variables when not supplied.
     """
 
     def __init__(
         self,
         db_path: Path | None = None,
         retention_days: int = _DEFAULT_RETENTION_DAYS,
+        pool_config: PoolConfig | None = None,
     ) -> None:
         self._db_path = db_path or _DEFAULT_DB_PATH
         self._retention_days = retention_days
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._pool = ConnectionPool(self._db_path, pool_config)
         self._init_db()
 
     @contextmanager
     def _connect(self) -> Generator[sqlite3.Connection, None, None]:
-        conn = sqlite3.connect(str(self._db_path))
-        conn.row_factory = sqlite3.Row
-        try:
+        with self._pool.connect() as conn:
             yield conn
-            conn.commit()
-        finally:
-            conn.close()
 
     def _init_db(self) -> None:
         """Create the notifications table if it does not exist."""
@@ -431,10 +431,12 @@ def set_dashboard_store(store: DashboardStore | None) -> None:
 
 
 __all__ = [
+    "ConnectionPoolError",
     "DashboardNotification",
     "DashboardStore",
     "DashboardStoreConfig",
     "NotificationPriority",
+    "PoolConfig",
     "get_dashboard_store",
     "load_dashboard_store_config",
     "set_dashboard_store",

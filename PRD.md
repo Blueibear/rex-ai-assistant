@@ -1596,11 +1596,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want the database connection pool size and timeout configured explicitly so that Rex does not exhaust database connections under load or hang indefinitely on unavailable connections.
 
 **Acceptance Criteria:**
-- [ ] connection pool min/max size configurable via environment variables
-- [ ] connection acquisition timeout configured (default: 5s); acquisition failure raises a handled error
-- [ ] idle connection timeout configured to prevent stale connections
-- [ ] pool settings logged at startup at INFO level
-- [ ] Typecheck passes
+- [x] connection pool min/max size configurable via environment variables
+- [x] connection acquisition timeout configured (default: 5s); acquisition failure raises a handled error
+- [x] idle connection timeout configured to prevent stale connections
+- [x] pool settings logged at startup at INFO level
+- [x] Typecheck passes
 
 ---
 
