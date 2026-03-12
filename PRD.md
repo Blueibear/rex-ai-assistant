@@ -1473,11 +1473,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want transient failures in external service calls retried with exponential backoff so that brief network interruptions do not surface as user-visible errors.
 
 **Acceptance Criteria:**
-- [ ] LLM provider calls retried up to a configurable max attempt count (default: 3) on transient errors (timeout, 429, 503)
-- [ ] retry delay doubles between attempts with configurable base delay (default: 1s)
-- [ ] non-retryable errors (400, 401, 403) are not retried
-- [ ] retry behavior covered by at least one unit test using a mock that fails N times then succeeds
-- [ ] Typecheck passes
+- [x] LLM provider calls retried up to a configurable max attempt count (default: 3) on transient errors (timeout, 429, 503)
+- [x] retry delay doubles between attempts with configurable base delay (default: 1s)
+- [x] non-retryable errors (400, 401, 403) are not retried
+- [x] retry behavior covered by at least one unit test using a mock that fails N times then succeeds
+- [x] Typecheck passes
 
 ---
 

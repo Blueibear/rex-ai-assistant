@@ -13,6 +13,7 @@ from typing import Any, Protocol
 from rex.assistant_errors import ConfigurationError
 from rex.config import AppConfig, load_config
 from rex.logging_utils import get_logger
+from rex.retry import RetryConfig, with_retry
 
 logger = get_logger(__name__)
 
@@ -135,11 +136,17 @@ class TransformersStrategy:
 class OpenAIStrategy:
     name = "openai"
 
-    def __init__(self, model_name: str, client_factory) -> None:
+    def __init__(
+        self,
+        model_name: str,
+        client_factory,
+        retry_config: RetryConfig | None = None,
+    ) -> None:
         self.model_name = model_name
         self._client_factory = client_factory
         self._cached_client = None
         self.tools: list[Any] = []  # Will be set by LanguageModel
+        self._retry_config = retry_config or RetryConfig()
 
     def _get_client(self) -> Any:
         if self._cached_client is None:
@@ -164,15 +171,18 @@ class OpenAIStrategy:
             # Don't force tool use, let model decide
             # api_params["tool_choice"] = "auto"
 
-        response = self._get_client().chat.completions.create(**api_params)
-        message = response.choices[0].message
+        def _call() -> Any:
+            response = self._get_client().chat.completions.create(**api_params)
+            message = response.choices[0].message
 
-        # Check if model wants to call a tool
-        if hasattr(message, "tool_calls") and message.tool_calls:
-            return message  # Return full message object for tool handling
+            # Check if model wants to call a tool
+            if hasattr(message, "tool_calls") and message.tool_calls:
+                return message  # Return full message object for tool handling
 
-        content = getattr(message, "content", "") or ""
-        return content.strip() or "(silence)"
+            content = getattr(message, "content", "") or ""
+            return content.strip() or "(silence)"
+
+        return with_retry(_call, config=self._retry_config)
 
 
 class OllamaStrategy:
@@ -184,6 +194,7 @@ class OllamaStrategy:
         api_key: str | None = None,
         base_url: str = "http://localhost:11434",
         use_cloud: bool = False,
+        retry_config: RetryConfig | None = None,
     ) -> None:
         if not OLLAMA_AVAILABLE:
             raise ConfigurationError("Ollama backend requires the `ollama` package.")
@@ -198,6 +209,7 @@ class OllamaStrategy:
         self.api_key = api_key
         self._ollama = ollama
         self._client_cls = client_cls
+        self._retry_config = retry_config or RetryConfig()
 
         if use_cloud and not api_key:
             raise ConfigurationError("Ollama cloud requires an API key.")
@@ -219,7 +231,8 @@ class OllamaStrategy:
             "top_k": config.top_k,
             "seed": config.seed,
         }
-        try:
+
+        def _call() -> str:
             if self.use_cloud:
                 response = self._ollama.chat(
                     model=self.model_name,
@@ -235,6 +248,9 @@ class OllamaStrategy:
                 )
             content = response.get("message", {}).get("content", "")
             return content.strip() or "(silence)"
+
+        try:
+            return with_retry(_call, config=self._retry_config)
         except Exception as exc:
             logger.error(
                 "Ollama generation failed (model=%s, host=%s): %s",
@@ -251,10 +267,16 @@ class OllamaStrategy:
 class AnthropicStrategy:
     name = "anthropic"
 
-    def __init__(self, model_name: str, client_factory) -> None:
+    def __init__(
+        self,
+        model_name: str,
+        client_factory,
+        retry_config: RetryConfig | None = None,
+    ) -> None:
         self.model_name = model_name
         self._client_factory = client_factory
         self._cached_client = None
+        self._retry_config = retry_config or RetryConfig()
 
     def _get_client(self) -> Any:
         if self._cached_client is None:
@@ -276,9 +298,12 @@ class AnthropicStrategy:
         if system_text:
             api_params["system"] = system_text
 
-        response = self._get_client().messages.create(**api_params)
-        content = response.content[0].text if response.content else ""
-        return content.strip() or "(silence)"
+        def _call() -> str:
+            response = self._get_client().messages.create(**api_params)
+            content = response.content[0].text if response.content else ""
+            return content.strip() or "(silence)"
+
+        return with_retry(_call, config=self._retry_config)
 
 
 _STRATEGIES: dict[str, type[LLMStrategy]] = {
@@ -558,4 +583,5 @@ __all__ = [
     "register_strategy",
     "TORCH_AVAILABLE",
     "TRANSFORMERS_AVAILABLE",
+    "RetryConfig",
 ]
