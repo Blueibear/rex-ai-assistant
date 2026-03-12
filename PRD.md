@@ -1754,11 +1754,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer or integrator, I want all public API endpoints documented so that I can build integrations without reading source code.
 
 **Acceptance Criteria:**
-- [ ] `docs/api.md` or equivalent documents every public endpoint: method, path, request schema, response schema, error codes
-- [ ] authentication requirements documented per endpoint
-- [ ] at least one example request and response shown per endpoint
-- [ ] document consistent with the actual running API (no phantom or missing endpoints)
-- [ ] Typecheck passes
+- [x] `docs/api.md` or equivalent documents every public endpoint: method, path, request schema, response schema, error codes
+- [x] authentication requirements documented per endpoint
+- [x] at least one example request and response shown per endpoint
+- [x] document consistent with the actual running API (no phantom or missing endpoints)
+- [x] Typecheck passes
 
 ---
 

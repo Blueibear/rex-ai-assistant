@@ -1,4 +1,13 @@
 
+## Iteration 111 - US-126: API reference documentation
+- What was implemented: Created `docs/api.md` documenting all 18+ public endpoints across flask_proxy, dashboard API, and TTS API. Each endpoint has method, path, authentication requirements, request schema (where applicable), response schema with JSON example, and error codes. Documented the standard error envelope format, rate limiting (429 + Retry-After), health endpoint exemptions, and both bearer-token and session-based auth. Created `tests/test_us126_api_reference.py` with 35 tests. All tests pass. mypy clean.
+- Files changed: docs/api.md (new), tests/test_us126_api_reference.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Consistency test: extract routes from source with regex, compare against doc paths — catches phantom endpoints
+  - Parameterised route paths like `<job_id>` need normalization to `{id}` for comparison
+  - SSE endpoint needs special mention of `text/event-stream` MIME type and reconnect behavior
+---
+
 ## Iteration 110 - US-125: Operations runbook
 - What was implemented: Created `docs/runbook.md` with 7 sections: Process List (flask_proxy, rex_speak_api, rex_loop with verification commands), Start Procedure, Stop Procedure, Restart Procedure, Health Check Verification (/health/live and /health/ready), Log Access and Filtering (grep/tail examples, LOG_LEVEL table), What to Do if a Service Fails to Start, and 7 Error Scenarios (migration error, /health/ready 503, 429 rate limit, CORS, DB timeout, audio device, LLM provider). Created `tests/test_us125_operations_runbook.py` with 26 tests. All tests pass. mypy clean.
 - Files changed: docs/runbook.md (new), tests/test_us125_operations_runbook.py (new), PRD.md, progress.txt
