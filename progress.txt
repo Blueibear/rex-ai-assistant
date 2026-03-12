@@ -1,4 +1,14 @@
 
+## Iteration 112 - US-127: Service startup sequence and dependency ordering
+- What was implemented: `rex/startup.py` already existed with the 4-step sequence (config validation → database connectivity → migration check → service ready). Fixed `flask_proxy.py` which had a `NameError` — `validate_migration_state()` was called but no longer imported after a previous iteration swapped the import to `rex.startup`. Fixed by calling `run_startup_sequence()` (guarded by `not _TESTING_MODE`) and adding `log_service_ready()` after Flask setup. Created `tests/test_us127_startup_sequence.py` with 23 tests covering: module exports, INFO-level logging per step, dependency order, failure-halts-subsequent-steps behavior, and AST-based checks that flask_proxy calls the right functions. All tests pass. mypy clean.
+- Files changed: flask_proxy.py (replaced validate_migration_state() call with run_startup_sequence() + log_service_ready()), rex/startup.py (new — already existed unstaged), tests/test_us127_startup_sequence.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - When a prior iteration swaps an import but leaves the old call site, module-level code will `NameError` at import time — always check git diff for orphaned call sites
+  - Guard startup sequence calls with `not _TESTING_MODE` so test imports of flask_proxy don't trigger DB/migration checks
+  - Use `patch("rex.startup._check_database_connectivity")` not `patch("rex.startup._run_database_connectivity")` to test failure handling inside the step function
+  - AST walking for call sites: `ast.walk(tree)` + isinstance(node, ast.Call) + isinstance(node.func, ast.Name) catches all bare-name calls
+---
+
 ## Iteration 111 - US-126: API reference documentation
 - What was implemented: Created `docs/api.md` documenting all 18+ public endpoints across flask_proxy, dashboard API, and TTS API. Each endpoint has method, path, authentication requirements, request schema (where applicable), response schema with JSON example, and error codes. Documented the standard error envelope format, rate limiting (429 + Retry-After), health endpoint exemptions, and both bearer-token and session-based auth. Created `tests/test_us126_api_reference.py` with 35 tests. All tests pass. mypy clean.
 - Files changed: docs/api.md (new), tests/test_us126_api_reference.py (new), PRD.md, progress.txt
