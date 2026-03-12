@@ -141,7 +141,8 @@ def validate_startup_env(
 
     for spec in specs:
         value = env.get(spec.name)
-        if value is None:
+        if not value:
+            # Treat missing (None) and empty string the same: not provided.
             if spec.required:
                 errors.append(
                     f"Required environment variable {spec.name!r} is not set."

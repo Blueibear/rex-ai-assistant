@@ -56,6 +56,7 @@ from rex.exception_handler import wrap_entrypoint
 from rex.graceful_shutdown import get_shutdown_handler
 from rex.health import check_config, create_health_blueprint
 from rex.request_logging import install_request_logging
+from rex.startup_validation import check_startup_env
 
 logger = logging.getLogger("rex.agent_server")
 
@@ -425,6 +426,7 @@ def main() -> None:
     Reads all configuration from environment variables.  Refuses to start if
     ``REX_AGENT_TOKEN`` (or the var named by ``REX_AGENT_TOKEN_ENV``) is not set.
     """
+    check_startup_env()
     if not logger.handlers:
         logging.basicConfig(
             level=os.getenv("REX_LOG_LEVEL", "INFO").upper(),

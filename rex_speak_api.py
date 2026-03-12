@@ -21,6 +21,7 @@ from rex.config import _parse_int, load_config
 from rex.graceful_shutdown import get_shutdown_handler, reset_shutdown_handler
 from rex.health import check_config, create_health_blueprint
 from rex.request_logging import install_request_logging
+from rex.startup_validation import check_startup_env
 from rex.http_errors import BAD_REQUEST, INTERNAL_ERROR, TOO_MANY_REQUESTS, UNAUTHORIZED, error_response
 from rex.exception_handler import wrap_entrypoint
 from rex.ha_bridge import create_blueprint as create_ha_blueprint
@@ -388,6 +389,7 @@ def speak() -> Response:
 
 @wrap_entrypoint
 def main() -> None:
+    check_startup_env()
     if not get_api_key():
         raise RuntimeError("REX_SPEAK_API_KEY must be set")
     shutdown = get_shutdown_handler()
