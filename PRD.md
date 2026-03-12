@@ -1609,11 +1609,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want the application to check that all database migrations have been applied before accepting traffic so that schema mismatches are caught immediately rather than at runtime.
 
 **Acceptance Criteria:**
-- [ ] on startup, the migration state is queried and compared against the expected schema version
-- [ ] if unapplied migrations exist, the application logs the pending migration names and exits with code 1
-- [ ] migration check runs before any request handler is registered
-- [ ] check can be disabled via a `SKIP_MIGRATION_CHECK` environment variable for emergency use
-- [ ] Typecheck passes
+- [x] on startup, the migration state is queried and compared against the expected schema version
+- [x] if unapplied migrations exist, the application logs the pending migration names and exits with code 1
+- [x] migration check runs before any request handler is registered
+- [x] check can be disabled via a `SKIP_MIGRATION_CHECK` environment variable for emergency use
+- [x] Typecheck passes
 
 ---
 

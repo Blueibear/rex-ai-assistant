@@ -9,6 +9,8 @@ from flask import g as flask_g
 from flask_cors import CORS
 from rex.http_errors import BAD_REQUEST, INTERNAL_ERROR, SERVICE_UNAVAILABLE, error_response
 from rex.health import check_config, create_health_blueprint
+from rex.migrations import validate_migration_state
+from rex.production_config import apply_production_defaults
 from rex.request_logging import install_request_logging
 
 import utils.env_loader  # noqa: F401  # Auto-loads .env on import
@@ -39,6 +41,9 @@ if _TESTING_MODE:
     g = SimpleNamespace()
 else:
     g = flask_g
+
+# --- Migration check — must run before any request handler is registered ---
+validate_migration_state()
 
 # --- Flask Setup ---
 app = Flask(__name__)
