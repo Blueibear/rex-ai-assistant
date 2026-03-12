@@ -1730,10 +1730,10 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want a single reference document listing every configuration option so that operators can tune Rex for their environment without reading source code.
 
 **Acceptance Criteria:**
-- [ ] `docs/configuration.md` exists and lists every environment variable with: name, description, default, required/optional
-- [ ] document organized into logical sections (server, database, LLM providers, integrations, logging)
-- [ ] document consistent with `.env.example` (no variables in one but not the other)
-- [ ] Typecheck passes
+- [x] `docs/configuration.md` exists and lists every environment variable with: name, description, default, required/optional
+- [x] document organized into logical sections (server, database, LLM providers, integrations, logging)
+- [x] document consistent with `.env.example` (no variables in one but not the other)
+- [x] Typecheck passes
 
 ---
 

@@ -1,4 +1,13 @@
 
+## Iteration 109 - US-124: Environment variable and configuration reference
+- What was implemented: Created `docs/configuration.md` with all env vars organized into logical sections (Server, Database, LLM Providers, Integrations, Logging, Testing/Dev). Each section uses a Markdown table with Name, Default, Required, and Description columns. Updated `.env.example` to add missing DB pool vars (DB_POOL_MIN_SIZE, DB_POOL_MAX_SIZE, DB_POOL_ACQUIRE_TIMEOUT, DB_POOL_IDLE_TIMEOUT, DB_QUERY_TIMEOUT), SKIP_MIGRATION_CHECK, and API_RATE_LIMIT. Created `tests/test_us124_configuration_reference.py` with 20 tests verifying existence, required sections, column presence, and bidirectional consistency between .env.example and configuration.md. All tests pass. mypy clean.
+- Files changed: docs/configuration.md (new), .env.example (added 7 vars), tests/test_us124_configuration_reference.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - `_vars_in_config_md()` regex `\`([A-Z][A-Z0-9_]*)\`` matches backtick-quoted names — log level words (DEBUG, INFO, WARNING, ERROR, CRITICAL) also match, so allowlist them
+  - For bidirectional consistency tests, an allowlist for dev-only / internal vars prevents false positives
+  - Markdown tables need "Default" and "Required" column headers; the test checks for these literally
+---
+
 ## Iteration 108 - US-123: Production deployment guide
 - What was implemented: Created `docs/deployment.md` covering all 10 sections: prerequisites (Python 3.10+), virtual environment setup, pip install, .env configuration, database migrations (including SKIP_MIGRATION_CHECK emergency bypass), service startup, first-run verification (health endpoints, doctor script), env var reference, stopping/upgrading. Created `tests/test_us123_deployment_guide.py` with 19 tests verifying document existence, content coverage, and a simulated startup health check. All tests pass. mypy clean.
 - Files changed: docs/deployment.md (new), tests/test_us123_deployment_guide.py (new), PRD.md, progress.txt
