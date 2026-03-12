@@ -1,4 +1,15 @@
 
+## Iteration 98 - US-113: Production configuration defaults
+- What was implemented: `rex/production_config.py` already existed with complete implementation: `is_production()` reads `ENVIRONMENT` env var (case-insensitive, defaults to non-production), `apply_production_defaults(app)` disables `app.debug`/`app.testing`, registers a generic JSON 500 error handler (no stack traces), and installs a `before_request` hook blocking any path under `/debug` with 404. Idempotency via `app.extensions[_INSTALLED_KEY]`. Removed unused `# type: ignore[return-value]` on the 500 handler to fix mypy. Created 27 tests in `tests/test_us113_production_config_defaults.py`. All pass, mypy clean.
+- Files changed: rex/production_config.py (type: ignore removed), tests/test_us113_production_config_defaults.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Implementation was already present in the git untracked file `rex/production_config.py` — always check for untracked files before writing new modules
+  - `app.config["PROPAGATE_EXCEPTIONS"] = False` needed in tests for the 500 error handler to be exercised (not pytest)
+  - `app.error_handler_spec[None]` contains the registered error handlers keyed by status code — useful for asserting absence of a handler
+  - `# type: ignore[return-value]` on `error_response(...)` was outdated; current mypy handles the tuple return correctly
+  - 27 tests pass, mypy clean on both files
+---
+
 ## Iteration 97 - US-111: Startup config validation with fail-fast
 - What was implemented: Created `rex/startup_validation.py` with `EnvVarSpec` dataclass, `_validate_int()`, `_validate_url()` validators, `validate_startup_env(specs, env)` (returns list of error strings), and `check_startup_env(specs, env, exit_on_error)` (calls sys.exit(1) on errors by default). Built-in `_ENV_SPECS` covers REX_SPEAK_PORT (int), OPENAI_BASE_URL, HA_BASE_URL, OLLAMA_BASE_URL (URL). No built-in specs are required — all optional. 78 tests across two test files, all passing. mypy clean.
 - Files changed: rex/startup_validation.py (rewritten), tests/test_us111_startup_config_validation.py (new), PRD.md, progress.txt
