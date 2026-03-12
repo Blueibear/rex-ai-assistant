@@ -1555,11 +1555,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want the application to validate all required configuration and environment variables at startup and exit immediately with a clear error if any are missing or invalid so that misconfigured deployments fail loudly rather than silently misbehaving.
 
 **Acceptance Criteria:**
-- [ ] a config validation step runs before any other initialization
-- [ ] missing required environment variables produce a specific error message naming the missing variable and exit code 1
-- [ ] invalid values (e.g., non-numeric port, malformed URL) produce a descriptive error and exit code 1
-- [ ] optional variables with defaults do not cause startup failure
-- [ ] Typecheck passes
+- [x] a config validation step runs before any other initialization
+- [x] missing required environment variables produce a specific error message naming the missing variable and exit code 1
+- [x] invalid values (e.g., non-numeric port, malformed URL) produce a descriptive error and exit code 1
+- [x] optional variables with defaults do not cause startup failure
+- [x] Typecheck passes
 
 ---
 

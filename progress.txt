@@ -1,4 +1,14 @@
 
+## Iteration 97 - US-111: Startup config validation with fail-fast
+- What was implemented: Created `rex/startup_validation.py` with `EnvVarSpec` dataclass, `_validate_int()`, `_validate_url()` validators, `validate_startup_env(specs, env)` (returns list of error strings), and `check_startup_env(specs, env, exit_on_error)` (calls sys.exit(1) on errors by default). Built-in `_ENV_SPECS` covers REX_SPEAK_PORT (int), OPENAI_BASE_URL, HA_BASE_URL, OLLAMA_BASE_URL (URL). No built-in specs are required — all optional. 78 tests across two test files, all passing. mypy clean.
+- Files changed: rex/startup_validation.py (rewritten), tests/test_us111_startup_config_validation.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - EnvVarSpec dataclass approach is more testable than global registration — callers pass specs and env dict
+  - Validator not called when var is unset (None) — only called when value is present
+  - Two test files for same US both run fine since they test the same API
+  - float-string like "3.14" should fail _validate_int since int("3.14") raises ValueError
+---
+
 ## Iteration 96 - US-110: Liveness and readiness health check endpoints
 - What was implemented: Created `rex/health.py` with `create_health_blueprint(checks, url_prefix)` returning a Flask Blueprint with `/health/live` (always 200) and `/health/ready` (200 when all checks pass, 503 with JSON `{"status":"unavailable","unavailable":{name:reason}}` when any check fails or raises). Built-in `check_config()` and `check_dashboard_db()` helpers. Blueprint-based so it can be registered on any Flask app with optional URL prefix. 25 tests, all passing. mypy clean.
 - Files changed: rex/health.py (new), tests/test_us110_health_check_endpoints.py (new), PRD.md, progress.txt
