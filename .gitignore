@@ -126,3 +126,6 @@ data/*.db
 *.bundle
 
 ralph.ps1
+
+coverage.json
+coverage.txt
