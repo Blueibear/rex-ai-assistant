@@ -1447,11 +1447,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want unhandled exceptions caught at the application boundary and logged with full context so that crashes produce actionable error records rather than silent failures.
 
 **Acceptance Criteria:**
-- [ ] a top-level exception handler wraps the main application entry points
-- [ ] unhandled exceptions logged with: exception type, message, full traceback, and timestamp
-- [ ] application exits with a non-zero exit code on fatal error
-- [ ] handler does not swallow exceptions silently
-- [ ] Typecheck passes
+- [x] a top-level exception handler wraps the main application entry points
+- [x] unhandled exceptions logged with: exception type, message, full traceback, and timestamp
+- [x] application exits with a non-zero exit code on fatal error
+- [x] handler does not swallow exceptions silently
+- [x] Typecheck passes
 
 ---
 

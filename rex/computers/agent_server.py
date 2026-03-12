@@ -52,6 +52,7 @@ from getpass import getuser
 from typing import Any
 
 from flask import Flask, Response, jsonify, request
+from rex.exception_handler import wrap_entrypoint
 
 logger = logging.getLogger("rex.agent_server")
 
@@ -405,6 +406,7 @@ def _build_default_app() -> Flask:
     return create_app()
 
 
+@wrap_entrypoint
 def main() -> None:
     """Entry point for the Windows agent server.
 

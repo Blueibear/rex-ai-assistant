@@ -18,6 +18,7 @@ from importlib.util import find_spec
 from typing import TYPE_CHECKING
 
 from rex.config import _parse_int, load_config
+from rex.exception_handler import wrap_entrypoint
 from rex.ha_bridge import create_blueprint as create_ha_blueprint
 from rex.tts_utils import chunk_text_for_xtts
 
@@ -362,6 +363,7 @@ def speak() -> Response:
 # ------------------------------------------------------------------------------
 
 
+@wrap_entrypoint
 def main() -> None:
     if not get_api_key():
         raise RuntimeError("REX_SPEAK_API_KEY must be set")

@@ -39,6 +39,8 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+
+from rex.exception_handler import wrap_entrypoint
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -4912,6 +4914,7 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     return parser
 
 
+@wrap_entrypoint
 def main(argv: Sequence[str] | None = None) -> int:
     """Main entry point for the Rex CLI."""
     parser = create_parser()

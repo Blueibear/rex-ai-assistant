@@ -12,6 +12,8 @@ import json
 import os
 import sys
 from dataclasses import asdict, dataclass, field
+
+from rex.exception_handler import wrap_entrypoint
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -461,6 +463,7 @@ def _cmd_migrate_legacy_env(args: argparse.Namespace) -> int:
     return 0
 
 
+@wrap_entrypoint
 def cli(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="rex-config",
