@@ -1,4 +1,15 @@
 
+## Iteration 88 - US-102: Enforce coverage threshold in CI
+- What was implemented: Added `--cov-fail-under=75` to the pytest command in `.github/workflows/ci.yml`. The threshold was already stored as `fail_under = 75` in `[tool.coverage.report]` in pyproject.toml. Created 15 tests in `tests/test_us102_coverage_threshold.py` verifying both the pyproject.toml config and the CI command match. Current coverage is 80%, well above the 75% threshold.
+- Files changed: .github/workflows/ci.yml (--cov-fail-under=75 added), tests/test_us102_coverage_threshold.py (new), PRD.md
+- Learnings for future iterations:
+  - `[tool.coverage.report] fail_under = 75` in pyproject.toml is the source of truth for the threshold
+  - `--cov-fail-under=75` in the CI command is required to make pytest-cov enforce it in the CI job explicitly
+  - Both values must stay in sync — the test `test_ci_cov_fail_under_value_matches_pyproject` enforces this
+  - Current coverage: 80% (well above the 75% floor)
+  - 15 tests pass, mypy clean (142 source files)
+---
+
 ## Iteration 87 - US-101: Fill unit test gaps — LLM providers, integrations, voice pipeline
 - What was implemented: Verified existing tests fully satisfy all US-101 acceptance criteria. OpenAI: test_llm_client.py::test_openai_provider (monkeypatches _ensure_openai_client). Anthropic: test_us014_anthropic_provider.py (5 tests, fake client factory). Local: test_us015_local_llm_provider.py (10 tests, OfflineTransformersStrategy). HA bridge: test_us042_ha_api_connection.py (17 tests, mocked requests.Session). Plex: test_us048 + test_us049 (50 tests, stub HTTP). GitHub: test_us055 + test_github_service (19 tests, mock_mode + mock data). STT: test_us018_speech_to_text.py (13 tests, np.zeros audio). TTS: test_us019_text_to_speech.py (13 tests, mock audio data). No production code changes needed. 161 tests pass, mypy clean (142 source files).
 - Files changed: PRD.md (US-101 checkboxes), progress.txt
