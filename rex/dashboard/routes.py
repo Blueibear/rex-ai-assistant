@@ -55,6 +55,7 @@ from rex.http_errors import (
 )
 from rex.logging_utils import get_logger
 from rex.scheduler import get_scheduler
+from rex.validation import ChatRequest, CreateJobRequest, LoginRequest, validate_json_body
 
 logger = get_logger(__name__)
 
@@ -378,12 +379,15 @@ def dashboard_status():
 
 
 @dashboard_bp.route("/api/dashboard/login", methods=["POST"])
+@validate_json_body(LoginRequest)
 def dashboard_login():
     """Authenticate and create a session.
 
     Request body: {"password": "..."}
     Response: {"token": "...", "expires_at": "..."}
     """
+    from flask import g  # noqa: PLC0415
+
     client_ip = request.remote_addr or "unknown"
     rate_limiter = get_login_rate_limiter()
 
@@ -392,14 +396,8 @@ def dashboard_login():
         logger.warning("Login blocked (rate limit) for %s", client_ip)
         return error_response(TOO_MANY_REQUESTS, "Too many failed login attempts. Try again later.", 429)
 
-    data = request.get_json(silent=True) or {}
-    password = data.get("password", "")
-
-    # Validate password field type and length
-    if not isinstance(password, str):
-        return error_response(BAD_REQUEST, "password must be a string", 400)
-    if len(password) > 1024:
-        return error_response(BAD_REQUEST, "password exceeds maximum length", 400)
+    body: LoginRequest = g.validated_body
+    password = body.password
 
     # Check if password is required
     if not is_password_required():
@@ -591,22 +589,17 @@ def _get_llm():
 
 @dashboard_bp.route("/api/chat", methods=["POST"])
 @require_auth
+@validate_json_body(ChatRequest)
 def chat():
     """Send a chat message and get a reply.
 
     Request body: {"message": "..."}
     Response: {"reply": "...", "timestamp": "..."}
     """
-    data = request.get_json(silent=True) or {}
-    raw_message = data.get("message", "")
-    if not isinstance(raw_message, str):
-        return error_response(BAD_REQUEST, "message must be a string", 400)
-    if len(raw_message) > 32_000:
-        return error_response(BAD_REQUEST, "message exceeds maximum length of 32000 characters", 400)
-    message = raw_message.strip()
+    from flask import g  # noqa: PLC0415
 
-    if not message:
-        return error_response(BAD_REQUEST, "Message is required", 400)
+    body: ChatRequest = g.validated_body
+    message = body.message.strip()
 
     try:
         llm = _get_llm()
@@ -715,32 +708,18 @@ def list_jobs():
 
 @dashboard_bp.route("/api/scheduler/jobs", methods=["POST"])
 @require_auth
+@validate_json_body(CreateJobRequest)
 def create_job():
     """Create a new scheduled job."""
-    data = request.get_json(silent=True) or {}
+    from flask import g  # noqa: PLC0415
 
-    raw_name = data.get("name", "")
-    if not isinstance(raw_name, str):
-        return error_response(BAD_REQUEST, "name must be a string", 400)
-    if len(raw_name) > 256:
-        return error_response(BAD_REQUEST, "name exceeds maximum length of 256 characters", 400)
-    name = raw_name.strip()
-    if not name:
-        return error_response(BAD_REQUEST, "Job name is required", 400)
-
-    schedule = data.get("schedule", "interval:3600")
-    if not isinstance(schedule, str):
-        return error_response(BAD_REQUEST, "schedule must be a string", 400)
-    if len(schedule) > 256:
-        return error_response(BAD_REQUEST, "schedule exceeds maximum length of 256 characters", 400)
-    enabled = data.get("enabled", True)
-    if not isinstance(enabled, bool):
-        return error_response(BAD_REQUEST, "enabled must be a boolean", 400)
-    callback_name = data.get("callback_name")
-    workflow_id = data.get("workflow_id")
-    metadata = data.get("metadata", {})
-    if not isinstance(metadata, dict):
-        return error_response(BAD_REQUEST, "metadata must be an object", 400)
+    body: CreateJobRequest = g.validated_body
+    name = body.name.strip()
+    schedule = body.schedule
+    enabled = body.enabled
+    callback_name = body.callback_name
+    workflow_id = body.workflow_id
+    metadata = body.metadata
 
     if not schedule.startswith(("interval:", "at:")):
         return error_response(

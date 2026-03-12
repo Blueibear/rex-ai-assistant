@@ -1,4 +1,14 @@
 
+## Iteration 103 - US-118: Request payload schema validation on POST endpoints
+- What was implemented: Created `rex/validation.py` with Pydantic models `LoginRequest`, `ChatRequest`, `CreateJobRequest` and a `validate_json_body(schema_cls)` decorator. The decorator parses the JSON body, validates against the Pydantic schema, stores the result in `g.validated_body`, and returns 400 with field name(s) on failure before calling the handler. Applied to `dashboard_login`, `chat`, and `create_job` in `rex/dashboard/routes.py` — removed duplicate manual validation from those handlers. `enabled: bool = Field(default=True, strict=True)` prevents string coercion. 34 tests in `tests/test_us118_request_validation.py`, all passing. mypy clean.
+- Files changed: rex/validation.py (new), rex/dashboard/routes.py (import + decorators on 3 endpoints), tests/test_us118_request_validation.py (new), PRD.md, progress.txt
+- Learnings for future iterations:
+  - Pydantic v2 bool field coerces "yes"/"true" strings by default; use Field(strict=True) to require actual JSON booleans
+  - validate_json_body stores model in g.validated_body; handlers: `body: Schema = g.validated_body`
+  - model_validate(raw) is Pydantic v2 API; exc.errors() gives list with "loc" tuple for field paths
+  - Validation before business logic: handler is simply not called when decorator returns 400
+---
+
 ## Iteration 102 - US-117: Consistent error response envelope enforcement
 - What was implemented: Added `install_error_envelope_handler(app)` to `rex/http_errors.py`. Registers two Flask error handlers: (1) `werkzeug.exceptions.HTTPException` — maps 4xx/5xx to standard envelope using `_HTTP_STATUS_TO_CODE` lookup; (2) bare `Exception` — catches unhandled exceptions as 500, includes `g.request_id` as `error.request_id`. Added optional `request_id` kwarg to `error_response()`. Handler is idempotent via `app.extensions["rex_error_envelope_installed"]`. Called from `flask_proxy.py` immediately after `install_request_logging(app)`. 19 tests in `tests/test_us117_error_envelope_enforcement.py`, all passing. mypy clean.
 - Files changed: rex/http_errors.py (install_error_envelope_handler, request_id kwarg on error_response), flask_proxy.py (import + call), tests/test_us117_error_envelope_enforcement.py (new), PRD.md, progress.txt

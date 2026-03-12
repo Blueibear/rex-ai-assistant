@@ -1649,11 +1649,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want request payloads validated against a schema at the framework level so that handler logic can assume valid input and validation errors are returned consistently.
 
 **Acceptance Criteria:**
-- [ ] every POST and PUT endpoint declares a required schema (Pydantic model, dataclass, or equivalent)
-- [ ] requests with missing required fields return 400 with the specific field name(s) missing
-- [ ] requests with incorrect field types return 400 with a descriptive message
-- [ ] validation runs before any business logic executes
-- [ ] Typecheck passes
+- [x] every POST and PUT endpoint declares a required schema (Pydantic model, dataclass, or equivalent)
+- [x] requests with missing required fields return 400 with the specific field name(s) missing
+- [x] requests with incorrect field types return 400 with a descriptive message
+- [x] validation runs before any business logic executes
+- [x] Typecheck passes
 
 ---
 
