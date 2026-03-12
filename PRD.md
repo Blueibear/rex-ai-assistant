@@ -1568,11 +1568,11 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want a `.env.example` file in the repo root documenting every environment variable so that new developers can configure the application without reading source code.
 
 **Acceptance Criteria:**
-- [ ] `.env.example` exists at the repo root
-- [ ] every environment variable consumed by the application is present in `.env.example` with a comment describing its purpose and acceptable values
-- [ ] required variables are clearly marked as required; optional variables show their default
-- [ ] `.env` is in `.gitignore` and not committed
-- [ ] Typecheck passes
+- [x] `.env.example` exists at the repo root
+- [x] every environment variable consumed by the application is present in `.env.example` with a comment describing its purpose and acceptable values
+- [x] required variables are clearly marked as required; optional variables show their default
+- [x] `.env` is in `.gitignore` and not committed
+- [x] Typecheck passes
 
 ---
 
