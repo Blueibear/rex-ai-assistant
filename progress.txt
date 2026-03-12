@@ -1,4 +1,14 @@
 
+## Iteration 113 - US-128: Process supervisor configuration
+- What was implemented: Created `deploy/systemd/` directory with 4 systemd unit files (rex-api.service, rex-tts.service, rex-voice.service, rex-agent.service). Each unit configures `Restart=on-failure`, `RestartSec=5s`, `StartLimitBurst=5`, `StartLimitIntervalSec=120s` for backoff/loop prevention. Added section 11 "Process Supervisor Configuration (systemd)" to `docs/deployment.md` documenting install steps, restart policy table, liveness verification (`/health/live`), log commands (`journalctl`), and a new troubleshooting row. Created `tests/test_us128_process_supervisor.py` with 70 parametrized tests. All pass. mypy clean.
+- Files changed: deploy/systemd/rex-api.service (new), deploy/systemd/rex-tts.service (new), deploy/systemd/rex-voice.service (new), deploy/systemd/rex-agent.service (new), docs/deployment.md (appended section 11 + troubleshooting row), tests/test_us128_process_supervisor.py (new), PRD.md
+- Learnings for future iterations:
+  - systemd unit file tests are purely file-parsing (no execution needed on Windows) — regex on `Restart=`, `StartLimitBurst=`, `WantedBy=`, etc. covers all AC
+  - Place unit files in `deploy/systemd/` (matches convention for config/scripts separation)
+  - `StartLimitBurst` + `StartLimitIntervalSec` together form the burst limit in modern systemd (both needed; older systemd used `[Unit]` section for these but they work in `[Service]` in recent versions)
+  - Documentation tests: check for specific strings (`journalctl`, `systemctl enable`, `deploy/systemd`, `/health/live`) to prove each AC sub-point
+---
+
 ## Iteration 112 - US-127: Service startup sequence and dependency ordering
 - What was implemented: `rex/startup.py` already existed with the 4-step sequence (config validation → database connectivity → migration check → service ready). Fixed `flask_proxy.py` which had a `NameError` — `validate_migration_state()` was called but no longer imported after a previous iteration swapped the import to `rex.startup`. Fixed by calling `run_startup_sequence()` (guarded by `not _TESTING_MODE`) and adding `log_service_ready()` after Flask setup. Created `tests/test_us127_startup_sequence.py` with 23 tests covering: module exports, INFO-level logging per step, dependency order, failure-halts-subsequent-steps behavior, and AST-based checks that flask_proxy calls the right functions. All tests pass. mypy clean.
 - Files changed: flask_proxy.py (replaced validate_migration_state() call with run_startup_sequence() + log_service_ready()), rex/startup.py (new — already existed unstaged), tests/test_us127_startup_sequence.py (new), PRD.md, progress.txt
