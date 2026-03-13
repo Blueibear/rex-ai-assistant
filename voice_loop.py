@@ -264,6 +264,33 @@ class WakeWordListener:
             logger.info("Wake-word listener stopped")
         self._event.set()
 
+    def pause_stream(self) -> None:
+        """Pause the audio input stream without destroying listener state.
+
+        Call this before recording or playback so that the wake-word
+        microphone does not compete with sounddevice.rec() or playback,
+        and so that TTS audio cannot spuriously trigger the wake word.
+        """
+        if self._stream is not None:
+            with contextlib.suppress(Exception):
+                self._stream.stop()
+            logger.debug("Wake-word listener stream paused")
+
+    def resume_stream(self) -> None:
+        """Resume the audio input stream and discard accumulated events.
+
+        Call this after the full interaction (playback) completes so that
+        the listener re-arms for the next wake word within 1 second.
+        Any wake-word events that fired during the pause (e.g. TTS audio
+        picked up by the mic) are discarded by clearing the event.
+        """
+        if self._stream is not None:
+            with contextlib.suppress(Exception):
+                self._stream.start()
+        # Discard spurious detections that accumulated while paused.
+        self._event.clear()
+        logger.debug("Wake-word listener stream resumed and event cleared")
+
     def trigger(self) -> None:
         self.loop.call_soon_threadsafe(self._event.set)
 
@@ -538,6 +565,9 @@ class AsyncRexAssistant:
         logger.info(
             ">>> _handle_interaction() started - playing wake sound and processing conversation..."
         )
+        # Pause the wake-word mic stream so it does not compete with
+        # sounddevice.rec() during recording and cannot pick up TTS audio.
+        self._listener.pause_stream()
         try:
             # Play wake sound first, then record (don't overlap to avoid audio device conflicts)
             await asyncio.to_thread(self._play_wake_sound)
@@ -551,6 +581,13 @@ class AsyncRexAssistant:
             import traceback
 
             logger.error(f"Traceback: {traceback.format_exc()}")
+        finally:
+            # Re-arm the wake-word listener immediately after TTS playback
+            # completes (or on error).  resume_stream() restarts the mic
+            # stream and clears any spurious events — the next
+            # wait_for_wake() call will block until a real wake word fires.
+            self._listener.resume_stream()
+            logger.info("Wake-word listener re-armed after interaction")
 
     async def _process_conversation(self) -> None:
         np = _require_numpy()

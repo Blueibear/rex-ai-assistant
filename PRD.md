@@ -1946,10 +1946,10 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a developer, I want the voice loop to return to the wake-word listening state immediately after TTS playback finishes so that Rex is ready for the next interaction.
 
 **Acceptance Criteria:**
-- [ ] after TTS audio finishes playing, the wake word detector resumes within 1 second
-- [ ] the microphone stream is not left open or blocked after playback
-- [ ] a second voice interaction triggered after the first completes successfully produces a spoken response
-- [ ] Typecheck passes
+- [x] after TTS audio finishes playing, the wake word detector resumes within 1 second
+- [x] the microphone stream is not left open or blocked after playback
+- [x] a second voice interaction triggered after the first completes successfully produces a spoken response
+- [x] Typecheck passes
 
 ---
 
