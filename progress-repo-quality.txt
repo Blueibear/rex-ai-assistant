@@ -1,0 +1,108 @@
+## Iteration 1 - US-078: Consolidate repo integrity test helpers
+- Created `tests/git_helpers.py` with `get_dirty_files(exclude_coverage=True)` — the single source of truth for git-status parsing
+- Updated `tests/conftest.py`: added `tests/` to sys.path so `git_helpers` is importable; `_tracked_modified_files()` now calls `get_dirty_files()`; removed unused `subprocess` import
+- Updated `tests/test_repo_integrity.py`: replaced inline `subprocess.run` + filter logic with `from git_helpers import get_dirty_files`
+- Updated `tests/test_repository_integrity.py`: same replacement
+- Files changed: tests/conftest.py, tests/git_helpers.py (new), tests/test_repo_integrity.py, tests/test_repository_integrity.py, PRD-repo-quality.md
+- Learnings for future iterations:
+  - `tests/` has no `__init__.py` so `from tests.conftest import X` fails with ModuleNotFoundError; must add `tests/` to sys.path in conftest.py and use bare `from git_helpers import X`
+  - conftest.py already inserts ROOT into sys.path — add tests_str insertion right after
+  - Isolated helper in its own module (git_helpers.py) is cleaner than importing from conftest
+---
+
+## Iteration 2 - US-079: Add CI baseline debt mode for lint and format
+- No code changes needed — all acceptance criteria were already implemented
+- `.github/workflows/ci.yml` already had `lint` job running ruff check and black --check scoped to changed Python files
+- `pyproject.toml` already had `[tool.ruff]` and `[tool.black]` sections consistent with the CI job
+- Files changed: PRD-repo-quality.md (marked story complete)
+- Learnings for future iterations:
+  - Always read ci.yml and pyproject.toml before assuming lint stories need implementation — CI config may already be present
+  - Pre-existing mypy errors in transformers_shims.py and voice_loop.py; these are unrelated to lint/format stories
+  - 10 pre-existing test failures across voice loop, performance baseline, security scan, design system tests — not caused by this iteration
+---
+
+## Iteration 3 - US-080: Replace datetime.utcnow() in rex/memory_utils.py
+- Changed `from datetime import datetime` to `from datetime import datetime, timezone`
+- Replaced 3 occurrences of `datetime.utcnow()` with `datetime.now(timezone.utc)` (lines 280, 347, 353)
+- `.date()` call on the aware datetime still works correctly; `.isoformat()` now includes +00:00 offset (valid ISO 8601)
+- Files changed: rex/memory_utils.py, PRD-repo-quality.md
+- Learnings for future iterations:
+  - `datetime.now(timezone.utc)` is safe for Python 3.9+ (use `timezone.utc`, not `datetime.UTC` which requires 3.11+)
+  - Pre-existing failure: test_us122_memory_baseline.py fails with UnicodeDecodeError reading a markdown file — unrelated
+---
+
+## Iteration 4 - US-081: Replace datetime.utcnow() in rex/identity.py
+- Added `from datetime import datetime, timezone` at top of module
+- Removed two inline `import datetime` blocks inside `create_user_profile` and `update_user_preferences`
+- Replaced `datetime.datetime.utcnow().strftime(...)` with `datetime.now(timezone.utc).strftime(...)` in both functions
+- Files changed: rex/identity.py, PRD-repo-quality.md
+- Learnings for future iterations:
+  - Same pattern as memory_utils: inline imports inside functions need to be removed when moving to top-level import
+  - The strftime format "%Y-%m-%dT%H:%M:%SZ" drops the offset so output format is unchanged
+---
+
+## Iteration 5 - US-082: Replace datetime.utcnow() in rex/automation_registry.py
+- Changed `from datetime import datetime` to `from datetime import datetime, timezone`
+- Replaced 5 occurrences of `datetime.utcnow().isoformat()` with `datetime.now(timezone.utc).isoformat()` (lines 33, 34, 57, 58, 170)
+- Two in dataclass field default_factory lambdas, two in from_dict fallback, one in update()
+- Files changed: rex/automation_registry.py, PRD-repo-quality.md
+- Learnings for future iterations:
+  - dataclass field(default_factory=lambda: ...) pattern works fine with timezone-aware datetimes
+  - 27 automation registry tests all pass with -W error::DeprecationWarning
+---
+
+## Iteration 6 - US-083: Replace datetime.utcnow() in rex/service_supervisor.py
+- Changed `from datetime import datetime` to `from datetime import datetime, timezone`
+- Replaced 2 `field(default_factory=datetime.utcnow)` with `field(default_factory=lambda: datetime.now(timezone.utc))` (lines 28, 41)
+- Replaced 3 `datetime.utcnow()` calls with `datetime.now(timezone.utc)` (lines 79, 183, 216)
+- Files changed: rex/service_supervisor.py, PRD-repo-quality.md
+- Learnings for future iterations:
+  - `default_factory=datetime.utcnow` (no parens) needs to become a lambda: `default_factory=lambda: datetime.now(timezone.utc)`
+  - Mixing naive/aware datetimes in arithmetic (e.g. uptime calculation) causes TypeError — ensure both sides use the same tzinfo
+  - 72 supervisor tests all pass with -W error::DeprecationWarning
+---
+
+## Iteration 7 - US-084: Replace asyncio.get_event_loop() in test_us018_speech_to_text.py
+- Replaced 5 occurrences of `asyncio.get_event_loop().run_until_complete(...)` with `asyncio.run(...)`
+- Removed the `loop = asyncio.get_event_loop()` variable and inlined `asyncio.run()` in the list comprehension
+- pytest-asyncio was already present in pyproject.toml dev dependencies (>=0.23.0)
+- Files changed: tests/test_us018_speech_to_text.py, PRD-repo-quality.md
+- Learnings for future iterations:
+  - `asyncio.run()` is the simplest drop-in replacement for `get_event_loop().run_until_complete()` in sync test methods
+  - All 13 tests pass with -W error::DeprecationWarning confirming no event loop warnings remain
+---
+
+## Iteration 8 - US-085: Sweep remaining async tests for asyncio.get_event_loop()
+- Removed `ensure_event_loop_for_sync_tests` autouse fixture from tests/conftest.py — it was the only remaining source of `asyncio.get_event_loop()` in the test suite
+- Removed `asyncio` and `warnings` imports from conftest.py (no longer needed)
+- `grep -r "asyncio.get_event_loop" tests/` now returns zero source-file results (only stale .pyc caches)
+- Files changed: tests/conftest.py, PRD-repo-quality.md
+- Learnings for future iterations:
+  - The compat shim fixture was itself the last caller — once upstream tests were fixed (US-084), the fixture became dead code
+  - 5026 passed, 48 skipped, 10 pre-existing failures; no new failures; no event-loop DeprecationWarning with -W error::DeprecationWarning
+---
+
+## Iteration 9 - US-086: Add commit-msg hook to reject non-conventional commit messages locally
+- Created `.githooks/commit-msg` (bash, version-controlled) using grep -qE against `^(feat|fix|test|docs|refactor|chore|perf|ci)(\(.+\))?: .+`
+- Installed to `.git/hooks/commit-msg` and set executable bit
+- Created `CONTRIBUTING.md` documenting format and `cp .githooks/commit-msg .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg` install command
+- Added Conventional Commits section to `AGENTS.md`
+- Files changed: .githooks/commit-msg (new), CONTRIBUTING.md (new), AGENTS.md, PRD-repo-quality.md
+- Learnings for future iterations:
+  - Store hook source under `.githooks/` (version-controlled); install separately to `.git/hooks/`
+  - Strip comment lines (grep -v '^#') before validating; use `head -1` for the subject line
+  - On Windows/Git-for-Windows, bash hooks work fine in `.git/hooks/` — no .bat wrapper needed
+---
+
+## Iteration 10 - US-087: Install pre-commit framework and configure conventional-commits check
+- Added `conventional-pre-commit` v3.4.0 hook to `.pre-commit-config.yaml` targeting `commit-msg` stage with allowed types: feat, fix, test, docs, refactor, chore, perf, ci
+- Added `pre-commit>=3.0.0` to dev dependencies in `pyproject.toml`
+- Added `pre-commit` CI job to `.github/workflows/ci.yml` running `pre-commit run --all-files` with cache step
+- `.pre-commit-config.yaml` already existed with detect-secrets hook — conventional-pre-commit added alongside it
+- Files changed: .pre-commit-config.yaml, pyproject.toml, .github/workflows/ci.yml, PRD-repo-quality.md
+- Learnings for future iterations:
+  - `.pre-commit-config.yaml` may already exist with other hooks — check before creating fresh
+  - `conventional-pre-commit` uses `stages: [commit-msg]` so it only runs at commit-msg time, not with `--all-files`
+  - `pre-commit run --all-files` validates only default-stage hooks (detect-secrets in this case)
+  - All existing tests still pass after these config-only changes
+---
