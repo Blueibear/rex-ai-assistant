@@ -371,7 +371,7 @@ class TextToSpeech:
 
     async def speak_streaming(
         self,
-        sentences: AsyncIterator[str],  # type: ignore[type-arg]
+        sentences: AsyncIterator[str],
         *,
         speaker_wav: str | None = None,
     ) -> None:

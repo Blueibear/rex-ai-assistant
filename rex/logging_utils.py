@@ -127,7 +127,7 @@ def apply_module_log_levels(module_levels: Mapping[str, int | str]) -> None:
 try:  # pragma: no cover - avoid circular imports during package init
     from .config import settings as settings
 except Exception:  # pragma: no cover - fallback when config not initialised
-    settings = None  # type: ignore[assignment]  # noqa: PGH003
+    settings = None  # noqa: PGH003
 
 
 def _resolve_path(candidate: str | os.PathLike[str], default: Path) -> Path:

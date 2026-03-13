@@ -95,7 +95,7 @@ class BrowserSession:
                 "playwright install chromium"
             )
 
-        self._playwright = await async_playwright().start()  # type: ignore[assignment]
+        self._playwright = await async_playwright().start()
 
         # Check for persistent context
         context_path = self.storage_path / self.session_name
