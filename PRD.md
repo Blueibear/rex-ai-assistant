@@ -2133,12 +2133,12 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want clicking a sidebar item to load the correct panel so that I can navigate between sections of the GUI.
 
 **Acceptance Criteria:**
-- [ ] clicking each sidebar item displays the corresponding panel in the content area
-- [ ] the active sidebar item is visually highlighted
-- [ ] navigation does not reload the page or lose state in already-loaded panels
-- [ ] back/forward browser navigation works correctly if the GUI is web-based
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] clicking each sidebar item displays the corresponding panel in the content area
+- [x] the active sidebar item is visually highlighted
+- [x] navigation does not reload the page or lose state in already-loaded panels
+- [x] back/forward browser navigation works correctly if the GUI is web-based
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

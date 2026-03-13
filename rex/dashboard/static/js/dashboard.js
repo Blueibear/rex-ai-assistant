@@ -25,6 +25,12 @@
         recording: false,
     };
 
+    // Valid section identifiers for navigation
+    const VALID_SECTIONS = ['chat', 'voice', 'schedule', 'overview', 'settings', 'reminders', 'notifications', 'status'];
+
+    // Flag to prevent pushState during popstate-driven navigation
+    let _navigatingFromHistory = false;
+
     // Notification polling timer handle
     let _notifPollTimer = null;
     // SSE EventSource handle for real-time notifications
@@ -138,9 +144,12 @@
         hide('#login-screen');
         show('#dashboard-screen');
 
-        // Detect section from URL path so /dashboard/notifications deep-links correctly
-        const initialSection = _sectionFromPath(window.location.pathname);
-        switchSection(initialSection || state.currentSection);
+        // Detect section from URL hash or path for deep-linking
+        const hashSection = window.location.hash.slice(1);
+        const initialSection = (VALID_SECTIONS.includes(hashSection) ? hashSection : null)
+            || _sectionFromPath(window.location.pathname)
+            || state.currentSection;
+        switchSection(initialSection);
     }
 
     function _sectionFromPath(pathname) {
@@ -174,6 +183,11 @@
         $$('.content-section').forEach(section => {
             section.classList.toggle('hidden', section.id !== `${sectionId}-section`);
         });
+
+        // Update browser history so back/forward navigation works
+        if (!_navigatingFromHistory && VALID_SECTIONS.includes(sectionId)) {
+            history.pushState({section: sectionId}, '', '#' + sectionId);
+        }
 
         // Load section data
         switch (sectionId) {
@@ -1071,6 +1085,18 @@
                 e.preventDefault();
                 switchSection(link.dataset.section);
             });
+        });
+
+        // Back/forward browser navigation
+        window.addEventListener('popstate', (e) => {
+            const section = (e.state && e.state.section)
+                || window.location.hash.slice(1)
+                || 'chat';
+            if (VALID_SECTIONS.includes(section)) {
+                _navigatingFromHistory = true;
+                switchSection(section);
+                _navigatingFromHistory = false;
+            }
         });
 
         // Chat
