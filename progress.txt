@@ -1,4 +1,38 @@
 
+## Iteration 134 - US-149: Scaffold GUI application shell
+- What was implemented: Created rex/gui_app.py with _create_flask_app() (registers dashboard blueprint into a Flask app) and main() (starts server on localhost:8765, opens browser via threading). Added rex-gui entry point to pyproject.toml. Added Voice, Schedule, and Overview sidebar nav links and placeholder content sections to the dashboard HTML. Added min-width:800px/min-height:600px to #app in dashboard.css. Created tests/test_us149_gui_shell.py with 28 tests. All 28 passed, mypy clean.
+- Files changed: rex/gui_app.py (new), pyproject.toml, rex/dashboard/templates/index.html, rex/dashboard/static/css/dashboard.css, tests/test_us149_gui_shell.py (new), PRD.md
+- Learnings for future iterations:
+  - The web-based dashboard is the GUI for this project (not Tkinter) — the "browser" ACs refer to the Flask dashboard served on localhost.
+  - The sidebar and main content area already existed in the HTML template; just add missing nav items (Voice, Schedule, Overview) and their placeholder sections.
+  - _create_flask_app() helper (separate from main()) allows test_client() tests without starting the server.
+---
+
+## Iteration 133 - US-148: Friendly error messages for missing deps and LM Studio connection
+- What was implemented: Created rex/dep_errors.py with friendly_import_error(), is_connection_error(), LMStudioConnectionError, and is_debug_mode() utilities. Updated exception_handler.wrap_entrypoint to call _print_user_error() which prints "Error: <msg>" to stderr without traceback in normal mode, and full traceback when REX_DEBUG=1. Updated LanguageModel.generate() to wrap the final strategy.generate() call and convert ConnectionRefusedError (when openai_base_url is set) to LMStudioConnectionError with "Rex can't reach LM Studio at [url]. Is LM Studio running?" message. Created tests/test_us148_friendly_errors.py with 26 tests. All 26 passed, mypy clean (only pre-existing error in logging_utils.py).
+- Files changed: rex/dep_errors.py (new), rex/exception_handler.py, rex/llm_client.py, tests/test_us148_friendly_errors.py (new), PRD.md
+- Learnings for future iterations:
+  - `return X from Y` is INVALID Python — `from` only works with `raise`. To chain an exception: set `new_exc.__cause__ = original_exc` manually before returning.
+  - When adding user-facing stderr printing to wrap_entrypoint, don't break existing US-103 tests by removing the logger.critical() call — add the print as an extra step, not a replacement.
+  - For detecting httpx/requests connection errors without importing those libs, check `type(exc).__name__` against a frozenset of known names like "ConnectError", "ConnectionError".
+---
+
+## Iteration 132 - US-147: First-run setup detection and guided message
+- What was implemented: Created rex/first_run.py with is_first_run(), print_welcome_message(), and maybe_print_welcome(). Wired maybe_print_welcome() into main() in rex/cli.py. Detects first run by checking if config file is absent, empty, whitespace-only, empty JSON object {}, or corrupt. Prints a 3-step onboarding message on first run; silent on subsequent runs. Created tests/test_us147_first_run.py with 15 tests. All 15 passed, mypy clean.
+- Files changed: rex/first_run.py (new), rex/cli.py, tests/test_us147_first_run.py (new), PRD.md
+- Learnings for future iterations:
+  - Checking "empty config" means: file missing OR zero bytes OR whitespace-only OR `{}` — all should trigger first-run.
+  - Patching `rex.first_run.maybe_print_welcome` (not `rex.cli.maybe_print_welcome`) is needed for the integration test since cli.py imports it lazily inside main().
+---
+
+## Iteration 131 - US-146: Add visual structure to the README (badges, section dividers, call-outs)
+- What was implemented: Added Python version badge (`shields.io/badge/python-3.9%2B-blue`) and license badge (`shields.io/badge/license-MIT-green`) to the existing badge block in README. Converted the inline "**Note for Windows users**" paragraph to a blockquote (`> **Note...**`). Created tests/test_us146_readme_visual.py with 14 tests covering all ACs. All 14 passed.
+- Files changed: README.md, tests/test_us146_readme_visual.py, PRD.md
+- Learnings for future iterations:
+  - GitHub anchor algorithm: lowercase, remove non-(letter/digit/space/hyphen) chars, replace each space (individually) with a hyphen — do NOT collapse multiple spaces first. "Memory & Personalization" → "memory--personalization" (double hyphen because `&` is removed leaving two spaces).
+  - Use `re.sub(r'[^a-z0-9 -]', '', anchor).replace(' ', '-')` to match GitHub anchors, not `re.sub(r'\s+', '-', ...)` which collapses spaces.
+---
+
 ## Iteration 130 - US-145: Move deep technical content into secondary docs
 - What was implemented: Identified 5 README sections >20 lines not relevant to first-time setup: Configuration (125 lines), Usage (267 lines), Docker (24 lines), Memory & Personalization (29 lines), Troubleshooting (88 lines). Created docs/environment-variables.md, docs/usage.md, docs/docker.md, docs/troubleshooting.md. Appended User Profiles section to docs/memory.md. Replaced each README section with a 1-3 line summary + link. Created tests/test_us145_deep_content.py with 34 tests. All 34 passed.
 - Files changed: README.md, docs/environment-variables.md (new), docs/usage.md (new), docs/docker.md (new), docs/troubleshooting.md (new), docs/memory.md, tests/test_us145_deep_content.py (new), PRD.md
