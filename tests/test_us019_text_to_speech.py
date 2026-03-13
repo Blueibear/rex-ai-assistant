@@ -14,10 +14,10 @@ import sys
 import types
 from unittest.mock import AsyncMock, MagicMock, patch
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_fake_tts_class():
     """Return a mock TTS class whose instance records tts_to_file calls."""
@@ -38,6 +38,7 @@ def _make_fake_torch(cuda_available: bool = False):
 # 1. TTS engine loads
 # ---------------------------------------------------------------------------
 
+
 class TestTTSEngineLoads:
     """Verify that TextToSpeech initialises without crashing."""
 
@@ -55,9 +56,11 @@ class TestTTSEngineLoads:
         fake_cls, fake_instance = _make_fake_tts_class()
         fake_torch = _make_fake_torch(cuda_available=False)
 
-        with patch("rex.voice_loop._lazy_import_tts", return_value=fake_cls), patch.dict(
-            sys.modules, {"torch": fake_torch}
-        ), patch("rex.voice_loop.import_module", return_value=fake_torch):
+        with (
+            patch("rex.voice_loop._lazy_import_tts", return_value=fake_cls),
+            patch.dict(sys.modules, {"torch": fake_torch}),
+            patch("rex.voice_loop.import_module", return_value=fake_torch),
+        ):
             from rex.voice_loop import TextToSpeech
 
             tts = TextToSpeech(language="en")
@@ -68,8 +71,9 @@ class TestTTSEngineLoads:
         fake_cls = MagicMock(side_effect=RuntimeError("GPU not found"))
         fake_torch = _make_fake_torch()
 
-        with patch("rex.voice_loop._lazy_import_tts", return_value=fake_cls), patch.dict(
-            sys.modules, {"torch": fake_torch}
+        with (
+            patch("rex.voice_loop._lazy_import_tts", return_value=fake_cls),
+            patch.dict(sys.modules, {"torch": fake_torch}),
         ):
             from rex.voice_loop import TextToSpeech
 
@@ -78,9 +82,10 @@ class TestTTSEngineLoads:
 
     def test_loads_with_edge_provider(self):
         """TextToSpeech initialises cleanly with edge provider (no XTTS needed)."""
-        with patch("rex.voice_loop._lazy_import_tts", return_value=None), patch(
-            "rex.voice_loop.settings"
-        ) as mock_settings:
+        with (
+            patch("rex.voice_loop._lazy_import_tts", return_value=None),
+            patch("rex.voice_loop.settings") as mock_settings,
+        ):
             mock_settings.tts_provider = "edge"
             mock_settings.tts_voice = "en-US-AriaNeural"
             mock_settings.tts_speed = 1.0
@@ -93,9 +98,10 @@ class TestTTSEngineLoads:
 
     def test_loads_with_windows_provider(self):
         """TextToSpeech initialises cleanly with windows/pyttsx3 provider."""
-        with patch("rex.voice_loop._lazy_import_tts", return_value=None), patch(
-            "rex.voice_loop.settings"
-        ) as mock_settings:
+        with (
+            patch("rex.voice_loop._lazy_import_tts", return_value=None),
+            patch("rex.voice_loop.settings") as mock_settings,
+        ):
             mock_settings.tts_provider = "windows"
             mock_settings.tts_voice = None
             mock_settings.tts_speed = 1.0
@@ -109,6 +115,7 @@ class TestTTSEngineLoads:
 # ---------------------------------------------------------------------------
 # 2. Audio generated
 # ---------------------------------------------------------------------------
+
 
 class TestAudioGenerated:
     """Verify that speak() triggers audio synthesis."""
@@ -133,10 +140,11 @@ class TestAudioGenerated:
         fake_sa = MagicMock()
         fake_sa.WaveObject.from_wave_file.return_value = fake_wave_obj
 
-        with patch("rex.voice_loop._lazy_import_tts", return_value=fake_cls), patch.dict(
-            sys.modules, {"torch": fake_torch}
-        ), patch("rex.voice_loop._lazy_import_soundfile", return_value=fake_sf), patch(
-            "rex.voice_loop.sa", fake_sa
+        with (
+            patch("rex.voice_loop._lazy_import_tts", return_value=fake_cls),
+            patch.dict(sys.modules, {"torch": fake_torch}),
+            patch("rex.voice_loop._lazy_import_soundfile", return_value=fake_sf),
+            patch("rex.voice_loop.sa", fake_sa),
         ):
             from rex.voice_loop import TextToSpeech
 
@@ -162,12 +170,12 @@ class TestAudioGenerated:
         fake_sf.read.return_value = (np.zeros(16000, dtype="float32"), 22050)
         fake_sf.write = MagicMock()
 
-        with patch("rex.voice_loop._lazy_import_tts", return_value=None), patch.dict(
-            sys.modules, {"edge_tts": fake_edge_tts}
-        ), patch("rex.voice_loop._lazy_import_soundfile", return_value=fake_sf), patch(
-            "rex.voice_loop.settings"
-        ) as mock_settings, patch(
-            "rex.voice_loop.sa", MagicMock()
+        with (
+            patch("rex.voice_loop._lazy_import_tts", return_value=None),
+            patch.dict(sys.modules, {"edge_tts": fake_edge_tts}),
+            patch("rex.voice_loop._lazy_import_soundfile", return_value=fake_sf),
+            patch("rex.voice_loop.settings") as mock_settings,
+            patch("rex.voice_loop.sa", MagicMock()),
         ):
             mock_settings.tts_provider = "edge"
             mock_settings.tts_voice = "en-US-AriaNeural"
@@ -187,9 +195,11 @@ class TestAudioGenerated:
         fake_pyttsx3 = MagicMock()
         fake_pyttsx3.init.return_value = fake_engine
 
-        with patch("rex.voice_loop._lazy_import_tts", return_value=None), patch.dict(
-            sys.modules, {"pyttsx3": fake_pyttsx3}
-        ), patch("rex.voice_loop.settings") as mock_settings:
+        with (
+            patch("rex.voice_loop._lazy_import_tts", return_value=None),
+            patch.dict(sys.modules, {"pyttsx3": fake_pyttsx3}),
+            patch("rex.voice_loop.settings") as mock_settings,
+        ):
             mock_settings.tts_provider = "windows"
             mock_settings.tts_voice = None
             mock_settings.tts_speed = 1.0
@@ -228,6 +238,7 @@ class TestAudioGenerated:
 # 3. Audio plays automatically
 # ---------------------------------------------------------------------------
 
+
 class TestAudioPlaysAutomatically:
     """Verify that playback is triggered after synthesis."""
 
@@ -248,10 +259,11 @@ class TestAudioPlaysAutomatically:
         fake_sa = MagicMock()
         fake_sa.WaveObject.from_wave_file.return_value = fake_wave_obj
 
-        with patch("rex.voice_loop._lazy_import_tts", return_value=fake_cls), patch.dict(
-            sys.modules, {"torch": fake_torch}
-        ), patch("rex.voice_loop._lazy_import_soundfile", return_value=fake_sf), patch(
-            "rex.voice_loop.sa", fake_sa
+        with (
+            patch("rex.voice_loop._lazy_import_tts", return_value=fake_cls),
+            patch.dict(sys.modules, {"torch": fake_torch}),
+            patch("rex.voice_loop._lazy_import_soundfile", return_value=fake_sf),
+            patch("rex.voice_loop.sa", fake_sa),
         ):
             from rex.voice_loop import TextToSpeech
 
@@ -265,9 +277,10 @@ class TestAudioPlaysAutomatically:
 
     def test_fallback_print_when_no_engine(self, capsys):
         """speak() falls back to print() when provider is unknown."""
-        with patch("rex.voice_loop._lazy_import_tts", return_value=None), patch(
-            "rex.voice_loop.settings"
-        ) as mock_settings:
+        with (
+            patch("rex.voice_loop._lazy_import_tts", return_value=None),
+            patch("rex.voice_loop.settings") as mock_settings,
+        ):
             mock_settings.tts_provider = "unknown_provider"
             mock_settings.tts_voice = None
             mock_settings.tts_speed = 1.0
@@ -286,13 +299,14 @@ class TestAudioPlaysAutomatically:
         fake_cls, fake_instance = _make_fake_tts_class()
         fake_torch = _make_fake_torch()
 
-        # soundfile.read raises to simulate a synthesis failure
         fake_sf = MagicMock()
-        fake_sf.read.side_effect = RuntimeError("soundfile read error")
+        fake_instance.tts_to_file.side_effect = RuntimeError("xtts synthesis error")
 
-        with patch("rex.voice_loop._lazy_import_tts", return_value=fake_cls), patch.dict(
-            sys.modules, {"torch": fake_torch}
-        ), patch("rex.voice_loop._lazy_import_soundfile", return_value=fake_sf):
+        with (
+            patch("rex.voice_loop._lazy_import_tts", return_value=fake_cls),
+            patch.dict(sys.modules, {"torch": fake_torch}),
+            patch("rex.voice_loop._lazy_import_soundfile", return_value=fake_sf),
+        ):
             from rex.voice_loop import TextToSpeech
 
             tts = TextToSpeech(language="en")

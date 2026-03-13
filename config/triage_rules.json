@@ -1,0 +1,25 @@
+{
+  "rules": [
+    {
+      "name": "vip-urgent",
+      "category": "urgent",
+      "match": {
+        "sender": "(ceo|boss)@"
+      }
+    },
+    {
+      "name": "action-keywords",
+      "category": "action_required",
+      "match": {
+        "subject": "(action required|please review|approval)"
+      }
+    },
+    {
+      "name": "newsletter",
+      "category": "newsletter",
+      "match": {
+        "subject": "(newsletter|digest|weekly update)"
+      }
+    }
+  ]
+}

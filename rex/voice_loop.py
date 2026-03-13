@@ -333,6 +333,7 @@ class TextToSpeech:
             chunk_path = tmp.name
 
         try:
+
             def _synthesize(_chunk=chunk, _chunk_path=chunk_path) -> None:
                 self._tts.tts_to_file(  # type: ignore[union-attr]
                     text=_chunk,
@@ -345,6 +346,7 @@ class TextToSpeech:
             await asyncio.to_thread(_synthesize)
 
             if sa is not None and Path(chunk_path).exists():
+
                 def _play(_path=chunk_path) -> None:
                     wave_obj = sa.WaveObject.from_wave_file(_path)
                     play_obj = wave_obj.play()
@@ -549,11 +551,21 @@ class VoiceLoop:
                         logger.info("No speech detected")
                         continue
 
-                    # Get LLM response — voice_mode=True enables conciseness prompt
+                    # Get LLM response — pass voice_mode when supported for concise replies
                     tracker.mark("llm_start")
-                    response = await self._assistant.generate_reply(
-                        transcript, voice_mode=True
-                    )
+                    generate_reply = self._assistant.generate_reply
+                    try:
+                        params = inspect.signature(generate_reply).parameters
+                        if "voice_mode" in params:
+                            response = await generate_reply(transcript, voice_mode=True)
+                        else:
+                            response = await generate_reply(transcript)
+                    except (TypeError, ValueError):
+                        # Fallback for callables without introspectable signatures
+                        try:
+                            response = await generate_reply(transcript, voice_mode=True)
+                        except TypeError:
+                            response = await generate_reply(transcript)
                     tracker.mark("llm_end")
 
                     # Ensure response ends with period for better TTS
@@ -740,9 +752,7 @@ def build_voice_loop(
         record_phrase=mic.record_phrase,
         transcribe=lambda audio: stt.transcribe(audio, sample_rate),
         speak=lambda text: tts.speak(text, speaker_wav=speaker_wav),
-        speak_streaming=lambda sentences: tts.speak_streaming(
-            sentences, speaker_wav=speaker_wav
-        ),
+        speak_streaming=lambda sentences: tts.speak_streaming(sentences, speaker_wav=speaker_wav),
         warmup=lambda: tts.warmup(speaker_wav=speaker_wav),
         acknowledge=ack.play,
         identify_speaker=identify_speaker,

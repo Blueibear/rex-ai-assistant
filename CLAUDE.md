@@ -310,7 +310,7 @@ Do not update this file for formatting only changes.
 
 Before pushing code:
 
-BASE_REF="master"
+BASE_REF="${BASE_REF:-main}"  # use main by default; override if needed
 git fetch origin "$BASE_REF"
 
 files=$(git diff --name-only "origin/$BASE_REF...HEAD" -- '*.py')

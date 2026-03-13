@@ -134,6 +134,7 @@ See `.env.example` for a copy-paste template.
 | `LOG_LEVEL` | `INFO` | No | Root log level: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` |
 | `REX_JSON_LOGS` | auto | No | Enable JSON structured logging (`1`/`true`). Defaults on in production, off under pytest |
 | `REX_LOG_FULL_IP` | `0` | No | Log full client IP addresses (`1` = yes, `0` = anonymize last octet/64 bits) |
+| `REX_VOICE_MAX_TOKENS` | `120` | No | Maximum tokens allowed for voice-mode LLM replies; lower values reduce latency and verbosity |
 
 ---
 

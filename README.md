@@ -28,8 +28,8 @@ Rex AI Assistant is a local-first, voice-activated AI companion that runs entire
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/Blueibear/askrex-assistant.git
-   cd askrex-assistant
+   git clone https://github.com/Blueibear/rex-ai-assistant.git
+   cd rex-ai-assistant
    ```
 
 2. **Run the installer for your platform:**
