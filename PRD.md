@@ -1986,11 +1986,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a developer, I want all user-facing capabilities bundled into a single `pip install rex[full]` so that users do not need to choose between extras.
 
 **Acceptance Criteria:**
-- [ ] `pyproject.toml` defines a `[full]` extra that includes all extras required for the complete Rex experience (voice, integrations, GUI)
-- [ ] `pip install rex[full]` succeeds and installs all required packages
-- [ ] existing extras remain available for advanced users who want minimal installs
-- [ ] install script updated to use `rex[full]`
-- [ ] Typecheck passes
+- [x] `pyproject.toml` defines a `[full]` extra that includes all extras required for the complete Rex experience (voice, integrations, GUI)
+- [x] `pip install rex[full]` succeeds and installs all required packages
+- [x] existing extras remain available for advanced users who want minimal installs
+- [x] install script updated to use `rex[full]`
+- [x] Typecheck passes
 
 ---
 

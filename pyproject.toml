@@ -108,6 +108,12 @@ devtools = [
 ]
 
 full = [
+    # audio
+    "numpy>=1.24.0,<2.0.0",
+    "sounddevice>=0.4.6",
+    "soundfile>=0.12.0",
+    "simpleaudio>=1.0.4; platform_system!='Windows'",
+    # ml / voice
     "torch>=2.6.0,<2.9.0",
     "torchvision>=0.17.0,<0.23.0",
     "torchaudio>=2.6.0,<2.9.0",
@@ -117,15 +123,8 @@ full = [
     "ollama>=0.4.0",
     "openai-whisper>=20230124",
     "openwakeword>=0.6.0",
-    "numpy>=1.24.0,<2.0.0",
-    "sounddevice>=0.4.6",
-    "soundfile>=0.12.0",
-    "simpleaudio>=1.0.4; platform_system!='Windows'",
+    # integrations
     "twilio>=9.0.0",
-    "build>=1.0.0",
-    "black>=24.0.0",
-    "ruff>=0.1.0",
-    "mypy>=1.8.0",
 ]
 
 # GPU-accelerated PyTorch: use requirements-gpu-cu124.txt or requirements-gpu.txt
