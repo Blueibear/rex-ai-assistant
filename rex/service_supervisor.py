@@ -12,7 +12,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Callable
 
@@ -25,7 +25,7 @@ class ServiceHealthStatus:
 
     name: str
     is_running: bool
-    last_checked: datetime = field(default_factory=datetime.utcnow)
+    last_checked: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     last_error: str | None = None
     restart_count: int = 0
     uptime_seconds: float = 0.0
@@ -38,7 +38,7 @@ class ServiceMetrics:
     total_restarts: int = 0
     total_crashes: int = 0
     total_uptime_seconds: float = 0.0
-    last_health_check: datetime = field(default_factory=datetime.utcnow)
+    last_health_check: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     successful_checks: int = 0
     failed_checks: int = 0
 
@@ -76,7 +76,7 @@ class ManagedService:
         """Get current health status."""
         uptime = 0.0
         if self.start_time:
-            uptime = (datetime.utcnow() - self.start_time).total_seconds()
+            uptime = (datetime.now(timezone.utc) - self.start_time).total_seconds()
         return ServiceHealthStatus(
             name=self.name,
             is_running=self.is_running,
@@ -180,7 +180,7 @@ class ServiceSupervisor:
         """Start a single service with error handling."""
         try:
             logger.info(f"Starting service: {service.name}")
-            service.start_time = datetime.utcnow()
+            service.start_time = datetime.now(timezone.utc)
             service.is_running = True
             service.start_func()
             logger.info(f"Service started: {service.name}")
@@ -213,7 +213,7 @@ class ServiceSupervisor:
     def _perform_health_check(self) -> None:
         """Check health of all services and restart if needed."""
         with self._lock:
-            self.metrics.last_health_check = datetime.utcnow()
+            self.metrics.last_health_check = datetime.now(timezone.utc)
             all_healthy = True
 
             for service in self.services.values():
