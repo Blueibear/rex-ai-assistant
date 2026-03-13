@@ -131,3 +131,6 @@ coverage.json
 coverage.txt
 
 .env.backup-legacy
+
+coverage.json
+coverage.txt

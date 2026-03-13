@@ -171,6 +171,10 @@
             stopNotifStream();
             stopNotifReconnect();
         }
+        // Stop voice state SSE when leaving voice section
+        if (state.currentSection === 'voice' && sectionId !== 'voice') {
+            stopVoiceStateStream();
+        }
 
         state.currentSection = sectionId;
 
@@ -191,6 +195,9 @@
 
         // Load section data
         switch (sectionId) {
+            case 'voice':
+                startVoiceStateStream();
+                break;
             case 'chat':
                 loadChatHistory();
                 setTimeout(() => { const inp = $('#chat-input'); if (inp) inp.focus(); }, 0);
@@ -954,6 +961,59 @@
         if (banner) banner.classList.add('hidden');
     }
 
+    // Voice mode toggle (Voice panel)
+
+    let _voiceModeEs = null;
+
+    function _updateVoiceModeUI(stateData) {
+        const btn = $('#voice-mode-btn');
+        const label = $('#voice-state-label');
+        if (!btn || !label) return;
+        const active = stateData.active;
+        const stateName = stateData.state || (active ? 'Listening' : 'Idle');
+        btn.textContent = active ? 'Stop Listening' : 'Start Listening';
+        btn.classList.toggle('listening', active);
+        label.textContent = stateName;
+        const waveform = $('#voice-waveform');
+        if (waveform) {
+            waveform.classList.toggle('hidden', stateName !== 'Listening');
+        }
+    }
+
+    async function toggleVoiceMode() {
+        const btn = $('#voice-mode-btn');
+        if (!btn) return;
+        const currentlyActive = btn.textContent.trim() === 'Stop Listening';
+        try {
+            const data = await api('/api/voice/mode', {
+                method: 'POST',
+                body: JSON.stringify({ active: !currentlyActive }),
+            });
+            _updateVoiceModeUI(data);
+        } catch (err) {
+            console.error('Voice mode toggle error:', err);
+        }
+    }
+
+    function startVoiceStateStream() {
+        if (_voiceModeEs) return; // already open
+        const tokenParam = localStorage.getItem('rex_auth_token') ? `?token=${encodeURIComponent(localStorage.getItem('rex_auth_token'))}` : '';
+        _voiceModeEs = new EventSource('/api/voice/state/stream' + tokenParam);
+        _voiceModeEs.addEventListener('state', (e) => {
+            try {
+                const data = JSON.parse(e.data);
+                _updateVoiceModeUI(data);
+            } catch (_) {}
+        });
+        _voiceModeEs.onerror = () => {
+            if (_voiceModeEs) { _voiceModeEs.close(); _voiceModeEs = null; }
+        };
+    }
+
+    function stopVoiceStateStream() {
+        if (_voiceModeEs) { _voiceModeEs.close(); _voiceModeEs = null; }
+    }
+
     // Voice interface
 
     function setVoiceStatus(text, isRecording) {
@@ -1160,6 +1220,10 @@
         // Chat
         $('#chat-form').addEventListener('submit', handleChatSubmit);
         $('#voice-btn').addEventListener('click', handleVoiceBtnClick);
+
+        // Voice mode toggle (Voice panel)
+        const voiceModeBtn = $('#voice-mode-btn');
+        if (voiceModeBtn) voiceModeBtn.addEventListener('click', toggleVoiceMode);
 
         // Settings
         $('#settings-search').addEventListener('input', (e) => {

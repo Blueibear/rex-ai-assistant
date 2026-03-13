@@ -80,13 +80,25 @@
                     </div>
                 </section>
 
-                <!-- Voice Section (placeholder) -->
+                <!-- Voice Section -->
                 <section id="voice-section" class="content-section hidden">
                     <header class="section-header">
                         <h1>Voice</h1>
                     </header>
-                    <div class="placeholder-content">
-                        <p>Voice controls coming soon.</p>
+                    <div class="voice-mode-panel">
+                        <div class="voice-toggle-area">
+                            <button type="button" id="voice-mode-btn" class="btn btn-primary voice-mode-btn">
+                                Start Listening
+                            </button>
+                            <span id="voice-state-label" class="voice-state-label">Idle</span>
+                        </div>
+                        <div id="voice-waveform" class="voice-waveform hidden" aria-hidden="true">
+                            <span class="waveform-bar"></span>
+                            <span class="waveform-bar"></span>
+                            <span class="waveform-bar"></span>
+                            <span class="waveform-bar"></span>
+                            <span class="waveform-bar"></span>
+                        </div>
                     </div>
                 </section>
 

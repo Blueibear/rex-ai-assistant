@@ -980,3 +980,65 @@ html, body {
     color: var(--text-secondary);
     font-size: 1rem;
 }
+
+/* Voice Mode Panel */
+.voice-mode-panel {
+    padding: 2rem;
+}
+
+.voice-toggle-area {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.voice-mode-btn {
+    min-width: 160px;
+    font-size: 1rem;
+    padding: 0.75rem 1.5rem;
+}
+
+.voice-mode-btn.listening {
+    background-color: var(--error-color, #e53e3e);
+    border-color: var(--error-color, #e53e3e);
+}
+
+.voice-state-label {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    min-width: 100px;
+}
+
+/* Voice waveform animation */
+.voice-waveform {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 40px;
+    margin-top: 1.5rem;
+}
+
+.voice-waveform.hidden {
+    display: none;
+}
+
+.waveform-bar {
+    display: inline-block;
+    width: 6px;
+    height: 100%;
+    background-color: var(--primary-color, #667eea);
+    border-radius: 3px;
+    animation: waveform-bounce 0.8s ease-in-out infinite;
+}
+
+.waveform-bar:nth-child(1) { animation-delay: 0s; }
+.waveform-bar:nth-child(2) { animation-delay: 0.1s; }
+.waveform-bar:nth-child(3) { animation-delay: 0.2s; }
+.waveform-bar:nth-child(4) { animation-delay: 0.1s; }
+.waveform-bar:nth-child(5) { animation-delay: 0s; }
+
+@keyframes waveform-bounce {
+    0%, 100% { transform: scaleY(0.2); }
+    50% { transform: scaleY(1); }
+}

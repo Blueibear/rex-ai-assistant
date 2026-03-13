@@ -2207,12 +2207,12 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want a button in the Voice panel that activates voice mode and shows the current state so that I can start and stop listening without using the CLI.
 
 **Acceptance Criteria:**
-- [ ] Voice panel has a prominent button labeled "Start Listening" / "Stop Listening"
-- [ ] button toggles voice mode on and off via the Rex backend
-- [ ] current voice state (Idle, Listening, Processing, Speaking) displayed as a text label or icon near the button
-- [ ] state updates in real time without requiring a page refresh
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Voice panel has a prominent button labeled "Start Listening" / "Stop Listening"
+- [x] button toggles voice mode on and off via the Rex backend
+- [x] current voice state (Idle, Listening, Processing, Speaking) displayed as a text label or icon near the button
+- [x] state updates in real time without requiring a page refresh
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

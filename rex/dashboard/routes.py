@@ -75,6 +75,12 @@ _SERVER_START_TIME = time.time()
 _CHAT_HISTORY: list[dict[str, Any]] = []
 _CHAT_HISTORY_MAX = 100
 
+# In-memory voice mode state
+# States: Idle, Listening, Processing, Speaking
+_VOICE_STATE: dict[str, Any] = {"active": False, "state": "Idle"}
+# Callbacks registered by the SSE stream to receive state updates
+_VOICE_STATE_LISTENERS: list[Any] = []
+
 # Content-Security-Policy applied to HTML responses
 _CSP_POLICY = (
     "default-src 'self'; "
@@ -1215,6 +1221,85 @@ def voice_chat():
                 os.unlink(tmp_path)
             except Exception:
                 pass
+
+
+def _notify_voice_state_listeners() -> None:
+    """Send current voice state to all SSE listeners."""
+    dead: list[int] = []
+    payload = json.dumps(_VOICE_STATE)
+    for idx, queue in enumerate(_VOICE_STATE_LISTENERS):
+        try:
+            queue.put_nowait(payload)
+        except Exception:
+            dead.append(idx)
+    for idx in reversed(dead):
+        _VOICE_STATE_LISTENERS.pop(idx)
+
+
+@dashboard_bp.route("/api/voice/mode", methods=["GET"])
+@require_auth
+def get_voice_mode() -> Response:
+    """Return current voice mode state.
+
+    Response: {"active": bool, "state": "Idle"|"Listening"|"Processing"|"Speaking"}
+    """
+    return jsonify(_VOICE_STATE)
+
+
+@dashboard_bp.route("/api/voice/mode", methods=["POST"])
+@require_auth
+def set_voice_mode() -> Any:
+    """Toggle or set voice mode.
+
+    Request body: {"active": bool}
+    Response: {"active": bool, "state": "..."}
+    """
+    body = request.get_json(silent=True) or {}
+    if "active" not in body:
+        return error_response(BAD_REQUEST, "Missing 'active' field", 400)
+
+    active = bool(body["active"])
+    _VOICE_STATE["active"] = active
+    _VOICE_STATE["state"] = "Listening" if active else "Idle"
+    _notify_voice_state_listeners()
+    return jsonify(_VOICE_STATE)
+
+
+@dashboard_bp.route("/api/voice/state/stream", methods=["GET"])
+@require_auth
+def stream_voice_state() -> Response:
+    """Stream voice state changes via Server-Sent Events."""
+    import queue as _queue  # noqa: PLC0415
+
+    q: _queue.Queue[str] = _queue.Queue(maxsize=50)
+    _VOICE_STATE_LISTENERS.append(q)
+
+    def generate():
+        # Send initial state immediately
+        yield f"event: state\ndata: {json.dumps(_VOICE_STATE)}\n\n"
+        try:
+            while True:
+                timeout = 15.0
+                if current_app.testing:
+                    timeout = max(0.01, min(float(request.args.get("timeout", 15.0)), 60.0))
+                try:
+                    payload = q.get(timeout=timeout)
+                    yield f"event: state\ndata: {payload}\n\n"
+                except Exception:
+                    # Timeout — send keepalive comment
+                    yield ": keepalive\n\n"
+                    break
+        finally:
+            try:
+                _VOICE_STATE_LISTENERS.remove(q)
+            except ValueError:
+                pass
+
+    response = Response(stream_with_context(generate()), mimetype="text/event-stream")
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["Connection"] = "keep-alive"
+    response.headers["X-Accel-Buffering"] = "no"
+    return response
 
 
 __all__ = ["dashboard_bp"]
