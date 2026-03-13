@@ -175,13 +175,13 @@ Known baseline state going in:
 **Description:** As a developer, I want a `commit-msg` git hook that validates the commit message format before the commit is recorded so that Conventional Commits violations are caught locally and never reach CI.
 
 **Acceptance Criteria:**
-- [ ] a `commit-msg` hook exists at `.git/hooks/commit-msg` (or installed via `pre-commit`)
-- [ ] the hook rejects any message that does not match `^(feat|fix|test|docs|refactor|chore|perf|ci)(\(.+\))?: .+` and exits with a non-zero code and a human-readable error explaining the required format
-- [ ] the hook accepts a correctly formatted message (e.g. `fix(auth): reject expired tokens`) and exits with code 0
-- [ ] attempting `git commit -m "Fix something broken"` fails with a clear error message
-- [ ] attempting `git commit -m "fix: resolve broken TTS playback"` succeeds
-- [ ] hook installation documented in `CONTRIBUTING.md` or `AGENTS.md` with the exact command to run
-- [ ] Typecheck passes
+- [x] a `commit-msg` hook exists at `.git/hooks/commit-msg` (or installed via `pre-commit`)
+- [x] the hook rejects any message that does not match `^(feat|fix|test|docs|refactor|chore|perf|ci)(\(.+\))?: .+` and exits with a non-zero code and a human-readable error explaining the required format
+- [x] the hook accepts a correctly formatted message (e.g. `fix(auth): reject expired tokens`) and exits with code 0
+- [x] attempting `git commit -m "Fix something broken"` fails with a clear error message
+- [x] attempting `git commit -m "fix: resolve broken TTS playback"` succeeds
+- [x] hook installation documented in `CONTRIBUTING.md` or `AGENTS.md` with the exact command to run
+- [x] Typecheck passes
 
 ---
 

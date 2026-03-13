@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# commit-msg hook: enforce Conventional Commits format
+#
+# Accepted types: feat, fix, test, docs, refactor, chore, perf, ci
+# Required format: <type>[(<scope>)]: <description>
+#
+# Examples of VALID messages:
+#   feat: add wake-word sensitivity setting
+#   fix(tts): handle empty transcript gracefully
+#   chore(deps): bump openai to 1.30.0
+#
+# Examples of INVALID messages:
+#   Fix something broken       <- missing type prefix
+#   feat:missing space         <- no space after colon
+#   wip: half-done change      <- unrecognised type
+
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Strip comments (lines starting with #) before validating
+MSG=$(echo "$COMMIT_MSG" | grep -v '^#' | head -1)
+
+PATTERN='^(feat|fix|test|docs|refactor|chore|perf|ci)(\(.+\))?: .+'
+
+if ! echo "$MSG" | grep -qE "$PATTERN"; then
+    echo ""
+    echo "❌  Commit message does not follow Conventional Commits format."
+    echo ""
+    echo "    Required: <type>[(<scope>)]: <short description>"
+    echo "    Types:    feat | fix | test | docs | refactor | chore | perf | ci"
+    echo ""
+    echo "    Examples:"
+    echo "      feat: add wake-word sensitivity setting"
+    echo "      fix(tts): handle empty transcript gracefully"
+    echo "      chore(deps): bump openai to 1.30.0"
+    echo ""
+    echo "    Your message: $MSG"
+    echo ""
+    exit 1
+fi
+
+exit 0

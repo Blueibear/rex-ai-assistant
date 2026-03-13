@@ -84,6 +84,23 @@ Never read secrets from `config/rex_config.json`. Secrets belong in `.env` only.
 `os.getenv("REX_FOO", "default")` returns `""` when `.env` contains `REX_FOO=` (blank value).
 Use `os.getenv("REX_FOO") or "default"` to treat empty-string as missing.
 
+## Conventional Commits enforcement
+
+A `commit-msg` hook lives at `.githooks/commit-msg` (version-controlled source).
+Install it on a fresh clone with:
+
+```bash
+cp .githooks/commit-msg .git/hooks/commit-msg
+chmod +x .git/hooks/commit-msg
+```
+
+The hook rejects any message that does not match:
+`^(feat|fix|test|docs|refactor|chore|perf|ci)(\(.+\))?: .+`
+
+See `CONTRIBUTING.md` for full details and examples.
+
+---
+
 ## Optional dependency imports
 
 Use `_import_optional(module_name)` (defined in `voice_loop.py`) or `find_spec` guards before
