@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import subprocess
 import sys
 import warnings
 from pathlib import Path
@@ -18,6 +17,11 @@ ROOT = Path(__file__).resolve().parents[1]
 root_str = str(ROOT)
 if root_str not in sys.path:
     sys.path.insert(0, root_str)
+
+# Ensure tests directory is in sys.path so test helpers are directly importable
+tests_str = str(ROOT / "tests")
+if tests_str not in sys.path:
+    sys.path.insert(0, tests_str)
 
 # Signal that tests are running (some modules might check this)
 os.environ["REX_TESTING"] = "true"
@@ -56,17 +60,12 @@ def ensure_event_loop_for_sync_tests():
 
 
 def _tracked_modified_files() -> set[str]:
-    completed = subprocess.run(
-        ["git", "status", "--porcelain"],
-        check=True,
-        capture_output=True,
-        text=True,
-        cwd=str(ROOT),
-    )
+    from git_helpers import get_dirty_files  # noqa: PLC0415
+
     return {
         line[3:]
-        for line in completed.stdout.splitlines()
-        if line and line[0:2].strip().startswith("M")
+        for line in get_dirty_files(exclude_coverage=False)
+        if line[0:2].strip().startswith("M")
     }
 
 

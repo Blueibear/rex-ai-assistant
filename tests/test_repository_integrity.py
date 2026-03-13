@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import subprocess
 
+from git_helpers import get_dirty_files
+
 _BINARY_SUFFIXES = (
     ".wav",
     ".mp3",
@@ -57,19 +59,10 @@ def test_no_tracked_files_modified(tracked_modifications_baseline):
     Tests must use tmp_path or temp copies for writable data.  Writing to
     tracked repo files (e.g. data/mock_calendar.json) breaks this invariant.
     """
-    completed = subprocess.run(
-        ["git", "status", "--porcelain"],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    # Lines starting with " M" (unstaged modification) or "M " (staged)
-    # or "MM" indicate modified tracked files.
     modified = [
         line
-        for line in completed.stdout.splitlines()
-        if line
-        and line[0:2].strip().startswith("M")
+        for line in get_dirty_files(exclude_coverage=False)
+        if line[0:2].strip().startswith("M")
         and line[3:] not in tracked_modifications_baseline
     ]
     assert not modified, (
