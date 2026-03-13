@@ -1,4 +1,22 @@
 
+## Iteration 138 - US-153: Chat message input and send
+- What was implemented: All ACs were already implemented in dashboard.js (handleChatSubmit with trim/guard/clear/focus) and index.html (chat-form, chat-input, Send button). Only missing piece was focusing the input when switching to chat section — added `setTimeout(() => inp.focus(), 0)` in the `case 'chat':` block of switchSection. Created tests/test_us153_chat_input.py with 20 tests. All 20 passed.
+- Files changed: rex/dashboard/static/js/dashboard.js, tests/test_us153_chat_input.py (new), PRD.md
+- Learnings for future iterations:
+  - Use `setTimeout(..., 0)` for focus after DOM updates to ensure the element is visible before focusing.
+  - For handleChatSubmit body extraction, use `js.index("handleChatSubmit")` then `js.index("{", fn_idx)` for start and `js.index("\n    }", body_start)` for end — same pattern as US-152.
+  - "Focused by default" means focus() is called when the section is made active, not just on page load.
+---
+
+## Iteration 137 - US-152: Chat message list component
+- What was implemented: The chat message list was already fully implemented in dashboard.js (renderChatMessages, handleChatSubmit with auto-scroll) and dashboard.css (.chat-message.user with flex-end, .chat-message.assistant with flex-start, .chat-messages with overflow-y: auto). Created tests/test_us152_chat_message_list.py with 22 tests. All 22 passed.
+- Files changed: tests/test_us152_chat_message_list.py (new), PRD.md
+- Learnings for future iterations:
+  - When the JS and CSS already implement all ACs, the task is just writing tests that verify correctness — no new code needed.
+  - To find a function body for inspection, use `js.index("function X")` then `js.index("\n    }", start)` to find the closing brace.
+  - For CSS block extraction: find the selector, then find `{` after it, then find `}` after that for the full rule block.
+---
+
 ## Iteration 136 - US-151: Implement active navigation state and panel switching
 - What was implemented: Added `VALID_SECTIONS` array and `_navigatingFromHistory` flag to dashboard.js. Extended `switchSection` to call `history.pushState({section: sectionId}, '', '#' + sectionId)` after updating the DOM. Added `popstate` event listener in `init` that reads `e.state.section` or `location.hash`, sets `_navigatingFromHistory=true`, calls `switchSection`, then resets the flag. Updated `showDashboard` to also read `location.hash.slice(1)` for initial section detection. Created tests/test_us151_nav_state.py with 26 tests. All 26 passed.
 - Files changed: rex/dashboard/static/js/dashboard.js, tests/test_us151_nav_state.py (new), PRD.md
