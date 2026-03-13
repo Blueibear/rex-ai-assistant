@@ -1973,11 +1973,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want to run one command that installs everything Rex needs so that I do not have to understand Python packaging, virtual environments, or optional extras.
 
 **Acceptance Criteria:**
-- [ ] `install.ps1` (Windows) and `install.sh` (Linux/macOS) exist at the repo root
-- [ ] the script creates a virtual environment, installs Rex with all required dependencies, and verifies the install
-- [ ] on success, the script prints a clear "Rex is installed. Run `rex` to start." message
-- [ ] on failure, the script prints a specific error and exits with a non-zero code
-- [ ] Typecheck passes
+- [x] `install.ps1` (Windows) and `install.sh` (Linux/macOS) exist at the repo root
+- [x] the script creates a virtual environment, installs Rex with all required dependencies, and verifies the install
+- [x] on success, the script prints a clear "Rex is installed. Run `rex` to start." message
+- [x] on failure, the script prints a specific error and exits with a non-zero code
+- [x] Typecheck passes
 
 ---
 
