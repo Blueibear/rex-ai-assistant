@@ -193,6 +193,7 @@
         switch (sectionId) {
             case 'chat':
                 loadChatHistory();
+                setTimeout(() => { const inp = $('#chat-input'); if (inp) inp.focus(); }, 0);
                 break;
             case 'settings':
                 loadSettings();

@@ -2163,12 +2163,12 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want a text input at the bottom of the Chat panel so that I can type a message and send it to Rex.
 
 **Acceptance Criteria:**
-- [ ] text input field visible and focused by default when the Chat panel is open
-- [ ] pressing Enter or clicking a Send button submits the message
-- [ ] input clears after send
-- [ ] sending an empty message is a no-op (no empty messages added to the list)
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] text input field visible and focused by default when the Chat panel is open
+- [x] pressing Enter or clicking a Send button submits the message
+- [x] input clears after send
+- [x] sending an empty message is a no-op (no empty messages added to the list)
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
