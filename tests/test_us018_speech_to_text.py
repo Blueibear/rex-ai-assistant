@@ -100,7 +100,7 @@ class TestSpeechToTextTranscribe:
     def test_transcribe_returns_string(self, fake_np):
         """transcribe() returns a non-empty string."""
         stt = self._make_stt("hello rex")
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             stt.transcribe(fake_np.zeros(16000), sample_rate=16000)
         )
         assert isinstance(result, str)
@@ -109,7 +109,7 @@ class TestSpeechToTextTranscribe:
     def test_transcribe_strips_whitespace(self, fake_np):
         """Transcript is stripped of leading/trailing whitespace."""
         stt = self._make_stt("  hello rex  ")
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             stt.transcribe(fake_np.zeros(16000), sample_rate=16000)
         )
         assert result == result.strip()
@@ -118,7 +118,7 @@ class TestSpeechToTextTranscribe:
         """Transcript content matches the phrase returned by the model."""
         phrase = "what is the weather today"
         stt = self._make_stt(phrase)
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             stt.transcribe(fake_np.zeros(16000), sample_rate=16000)
         )
         assert phrase in result
@@ -140,7 +140,7 @@ class TestSpeechToTextTranscribe:
             stt = SpeechToText(model_name="base", device="cpu")
 
         with pytest.raises(SpeechToTextError):
-            asyncio.get_event_loop().run_until_complete(
+            asyncio.run(
                 stt.transcribe(fake_np.zeros(16000), sample_rate=16000)
             )
 
@@ -163,7 +163,7 @@ class TestConsistentTranscription:
 
             stt = SpeechToText(model_name="base", device="cpu")
 
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             stt.transcribe(fake_np.zeros(16000), sample_rate=16000)
         )
         assert phrase in result, f"Attempt {attempt}: expected '{phrase}' in '{result}'"
@@ -178,9 +178,8 @@ class TestConsistentTranscription:
 
             stt = SpeechToText(model_name="base", device="cpu")
 
-        loop = asyncio.get_event_loop()
         results = [
-            loop.run_until_complete(stt.transcribe(fake_np.zeros(16000), sample_rate=16000))
+            asyncio.run(stt.transcribe(fake_np.zeros(16000), sample_rate=16000))
             for _ in range(3)
         ]
         for i, r in enumerate(results):

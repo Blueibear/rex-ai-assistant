@@ -144,12 +144,12 @@ Known baseline state going in:
 **Description:** As a developer, I want `asyncio.get_event_loop()` replaced with `asyncio.run()` or `pytest-asyncio` idioms in `tests/test_us018_speech_to_text.py` so that Python-version fragility and deprecation warnings are removed.
 
 **Acceptance Criteria:**
-- [ ] `asyncio.get_event_loop()` does not appear in `tests/test_us018_speech_to_text.py`
-- [ ] async tests use `asyncio.run()` or `@pytest.mark.asyncio` with `pytest-asyncio` instead
-- [ ] `pytest-asyncio` is listed in dev dependencies if not already present
-- [ ] all tests in `test_us018_speech_to_text.py` pass
-- [ ] no `DeprecationWarning` for event loop emitted by this file during test run
-- [ ] Typecheck passes
+- [x] `asyncio.get_event_loop()` does not appear in `tests/test_us018_speech_to_text.py`
+- [x] async tests use `asyncio.run()` or `@pytest.mark.asyncio` with `pytest-asyncio` instead
+- [x] `pytest-asyncio` is listed in dev dependencies if not already present
+- [x] all tests in `test_us018_speech_to_text.py` pass
+- [x] no `DeprecationWarning` for event loop emitted by this file during test run
+- [x] Typecheck passes
 
 ---
 
