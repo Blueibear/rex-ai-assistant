@@ -1905,11 +1905,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a developer, I want the exact failure point in the voice pipeline documented in `AGENTS.md` so that subsequent fix stories have a precise target.
 
 **Acceptance Criteria:**
-- [ ] a test script or manual procedure exists that triggers the full voice pipeline and captures log output
-- [ ] the log output identifies which stage completes last before audio stops
-- [ ] finding documented in `AGENTS.md` under a "Voice Pipeline Break Point" heading
-- [ ] finding includes: last successful stage, first missing stage, relevant code path (file and function name)
-- [ ] Typecheck passes
+- [x] a test script or manual procedure exists that triggers the full voice pipeline and captures log output
+- [x] the log output identifies which stage completes last before audio stops
+- [x] finding documented in `AGENTS.md` under a "Voice Pipeline Break Point" heading
+- [x] finding includes: last successful stage, first missing stage, relevant code path (file and function name)
+- [x] Typecheck passes
 
 ---
 
