@@ -242,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
 
         # Keep the main thread alive
         while True:
-            signal.pause()  # type: ignore[attr-defined]
+            signal.pause()
 
     except KeyboardInterrupt:
         logger.info("Interrupted by user")

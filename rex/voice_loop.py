@@ -282,7 +282,7 @@ class TextToSpeech:
                 model_name="tts_models/multilingual/multi-dataset/xtts_v2",
                 progress_bar=False,
             )
-            if torch.cuda.is_available():
+            if torch.cuda.is_available() and self._tts is not None:
                 self._tts.to("cuda")
             self._xtts_init_error = None
             return True
@@ -348,8 +348,12 @@ class TextToSpeech:
 
         try:
 
+            tts_engine = self._tts
+            if tts_engine is None:
+                raise TextToSpeechError("XTTS not initialized")
+
             def _synthesize(_chunk=chunk, _chunk_path=chunk_path) -> None:
-                self._tts.tts_to_file(  # type: ignore[union-attr]
+                tts_engine.tts_to_file(
                     text=_chunk,
                     speaker_wav=speaker_wav or self._default_speaker,
                     language=self._language,
@@ -385,7 +389,7 @@ class TextToSpeech:
 
     async def speak_streaming(
         self,
-        sentences: AsyncIterator[str],  # type: ignore[type-arg]
+        sentences: AsyncIterator[str],
         *,
         speaker_wav: str | None = None,
     ) -> None:
