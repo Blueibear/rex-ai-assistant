@@ -8,7 +8,7 @@ import logging
 import re
 import sys
 import tempfile
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from importlib import import_module
@@ -101,6 +101,21 @@ _NDArray = np.ndarray if np is not None else Any
 
 RecorderCallable = Callable[[float], Awaitable[_NDArray] | _NDArray]  # type: ignore[operator, valid-type]
 IdentifySpeakerCallable = Callable[[_NDArray], str | None] | Callable[[], str | None]  # type: ignore[operator, valid-type]
+
+# Sentence-boundary pattern for streaming TTS sentence splitting.
+_SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
+
+
+def _split_into_sentences(text: str) -> list[str]:
+    """Split *text* into sentence-sized chunks for streaming TTS."""
+    sentences = _SENTENCE_BOUNDARY.split(text.strip())
+    return [s.strip() for s in sentences if s.strip()]
+
+
+async def _sentence_stream(text: str) -> AsyncIterator[str]:
+    """Yield sentences from *text* as an async iterator."""
+    for sentence in _split_into_sentences(text):
+        yield sentence
 
 
 @dataclass
@@ -294,10 +309,9 @@ class TextToSpeech:
         return text + "." if text and not text.endswith(".") else text
 
     async def _speak_xtts(self, text: str, speaker_wav: str | None) -> None:
-        """Synthesize speech using XTTS."""
+        """Synthesize speech using XTTS, playing each chunk immediately."""
         if self._tts is None:
             raise TextToSpeechError("XTTS not initialized")
-        np = _require_numpy()
         sf = _lazy_import_soundfile()
         if sf is None:
             raise TextToSpeechError("soundfile is required for XTTS output")
@@ -305,54 +319,61 @@ class TextToSpeech:
         if not chunks:
             return
 
-        audio_segments = []
-        sample_rate = None
-
         for chunk in chunks:
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                chunk_path = tmp.name
+            await self._synthesize_and_play_chunk(chunk, speaker_wav, sf)
 
-            try:
-
-                def _synthesize(_chunk=chunk, _chunk_path=chunk_path) -> None:
-                    self._tts.tts_to_file(  # type: ignore[union-attr]
-                        text=_chunk,
-                        speaker_wav=speaker_wav or self._default_speaker,
-                        language=self._language,
-                        file_path=_chunk_path,
-                        speed=self._tts_speed,
-                    )
-
-                await asyncio.to_thread(_synthesize)
-                data, rate = sf.read(chunk_path, dtype="float32")
-                if sample_rate is None:
-                    sample_rate = rate
-                audio_segments.append(data)
-            finally:
-                with suppress(FileNotFoundError):
-                    Path(chunk_path).unlink()
-
-        if not audio_segments or sample_rate is None:
-            return
-
-        combined_audio = np.concatenate(audio_segments, axis=0)
-
+    async def _synthesize_and_play_chunk(
+        self, chunk: str, speaker_wav: str | None, sf: Any
+    ) -> None:
+        """Synthesize a single text chunk and play it immediately."""
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-            output_path = tmp.name
+            chunk_path = tmp.name
 
         try:
-            sf.write(output_path, combined_audio, sample_rate)
-            if sa is not None and Path(output_path).exists():
+            def _synthesize(_chunk=chunk, _chunk_path=chunk_path) -> None:
+                self._tts.tts_to_file(  # type: ignore[union-attr]
+                    text=_chunk,
+                    speaker_wav=speaker_wav or self._default_speaker,
+                    language=self._language,
+                    file_path=_chunk_path,
+                    speed=self._tts_speed,
+                )
 
-                def _play() -> None:
-                    wave_obj = sa.WaveObject.from_wave_file(output_path)
+            await asyncio.to_thread(_synthesize)
+
+            if sa is not None and Path(chunk_path).exists():
+                def _play(_path=chunk_path) -> None:
+                    wave_obj = sa.WaveObject.from_wave_file(_path)
                     play_obj = wave_obj.play()
                     play_obj.wait_done()
 
                 await asyncio.to_thread(_play)
         finally:
             with suppress(FileNotFoundError):
-                Path(output_path).unlink()
+                Path(chunk_path).unlink()
+
+    async def speak_streaming(
+        self,
+        sentences: AsyncIterator[str],  # type: ignore[type-arg]
+        *,
+        speaker_wav: str | None = None,
+    ) -> None:
+        """Speak each sentence from an async iterator as soon as it arrives.
+
+        This enables first audio to begin playing before the full response is
+        available, reducing perceived latency.
+        """
+        try:
+            async for sentence in sentences:
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+                try:
+                    await self.speak(sentence, speaker_wav=speaker_wav)
+                except Exception as exc:
+                    logger.error("[TTS streaming] chunk failed: %s", exc)
+        except Exception as exc:
+            logger.error("[TTS streaming] failed: %s", exc)
 
     async def _speak_edge(self, text: str) -> None:
         """Synthesize speech using Edge TTS."""
@@ -416,6 +437,7 @@ class VoiceLoop:
         record_phrase: Callable[[], Awaitable[np.ndarray]],  # type: ignore[name-defined]
         transcribe: Callable[[np.ndarray], Awaitable[str]],  # type: ignore[name-defined]
         speak: Callable[[str], Awaitable[None]],
+        speak_streaming: Callable[[AsyncIterator[str]], Awaitable[None]] | None = None,
         acknowledge: Callable[[], Awaitable[None]] | None = None,
         identify_speaker: IdentifySpeakerCallable | None = None,  # type: ignore[valid-type]
     ) -> None:
@@ -425,6 +447,7 @@ class VoiceLoop:
         self._record_phrase = record_phrase
         self._transcribe = transcribe
         self._speak = speak
+        self._speak_streaming = speak_streaming
         self._acknowledge = acknowledge
         self._identify_speaker = identify_speaker
         self._identify_speaker_accepts_audio = self._resolve_identify_speaker_signature(
@@ -497,9 +520,13 @@ class VoiceLoop:
                     if response and not response.endswith("."):
                         response = response + "."
 
-                    # Speak response
+                    # Speak response — use streaming path if available
                     tracker.mark("tts_synthesis_start")
-                    await self._speak(response)
+                    if self._speak_streaming is not None:
+                        tracker.mark("tts_first_chunk")
+                        await self._speak_streaming(_sentence_stream(response))
+                    else:
+                        await self._speak(response)
                     tracker.mark("tts_synthesis_end")
                     tracker.mark("playback_start")
                     tracker.log_summary()
@@ -673,6 +700,9 @@ def build_voice_loop(
         record_phrase=mic.record_phrase,
         transcribe=lambda audio: stt.transcribe(audio, sample_rate),
         speak=lambda text: tts.speak(text, speaker_wav=speaker_wav),
+        speak_streaming=lambda sentences: tts.speak_streaming(
+            sentences, speaker_wav=speaker_wav
+        ),
         acknowledge=ack.play,
         identify_speaker=identify_speaker,
     )

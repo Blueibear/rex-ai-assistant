@@ -958,3 +958,11 @@
   - Identifies TTS synthesis as dominant stage (~45.6%)
 - 30 tests pass in test_us167_voice_latency.py
 ---
+## Iteration 143 - US-168: Implement streaming TTS — play first audio chunk before full response is ready
+- What was implemented: Added _split_into_sentences() and async _sentence_stream() module-level helpers using regex sentence boundary splitting. Added _synthesize_and_play_chunk() to TextToSpeech for immediate per-chunk playback. Modified _speak_xtts() to call _synthesize_and_play_chunk() per chunk (no np.concatenate). Added speak_streaming() to TextToSpeech (async iterates sentences, calls self.speak() for each). Added speak_streaming param to VoiceLoop.__init__ and _speak_streaming field. Updated run() to use streaming path when _speak_streaming is set. Updated build_voice_loop() to pass speak_streaming lambda. Created tests/test_us168_streaming_tts.py with 18 tests. All 18 passed.
+- Files changed: rex/voice_loop.py, tests/test_us168_streaming_tts.py (new), PRD.md
+- Learnings for future iterations:
+  - speak_streaming should delegate to self.speak() rather than duplicating provider dispatch logic.
+  - async def _sentence_stream() must be declared as an async generator (using yield) for AsyncIterator typing.
+---
+

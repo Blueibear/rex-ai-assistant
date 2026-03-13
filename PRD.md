@@ -2375,11 +2375,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want Rex to begin speaking before it has finished generating the full response so that I hear audio sooner and the interaction feels faster.
 
 **Acceptance Criteria:**
-- [ ] TTS engine receives response text in chunks as the LLM streams output
-- [ ] first audio chunk begins playing within 2 seconds of the LLM producing its first sentence
-- [ ] subsequent audio chunks play without gaps or interruption
-- [ ] full response audio completes without truncation
-- [ ] Typecheck passes
+- [x] TTS engine receives response text in chunks as the LLM streams output
+- [x] first audio chunk begins playing within 2 seconds of the LLM producing its first sentence
+- [x] subsequent audio chunks play without gaps or interruption
+- [x] full response audio completes without truncation
+- [x] Typecheck passes
 
 ---
 
