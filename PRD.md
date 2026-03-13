@@ -2400,11 +2400,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a developer, I want all synchronous blocking calls in the voice pipeline replaced with async equivalents so that the event loop is never stalled during voice interactions.
 
 **Acceptance Criteria:**
-- [ ] voice pipeline code audited for synchronous I/O, `time.sleep()`, and blocking network calls
-- [ ] any blocking calls replaced with async equivalents or offloaded to a thread executor
-- [ ] changes documented in a commit message or `AGENTS.md` entry
-- [ ] no `time.sleep()` calls remain in the hot path of the voice interaction loop
-- [ ] Typecheck passes
+- [x] voice pipeline code audited for synchronous I/O, `time.sleep()`, and blocking network calls
+- [x] any blocking calls replaced with async equivalents or offloaded to a thread executor
+- [x] changes documented in a commit message or `AGENTS.md` entry
+- [x] no `time.sleep()` calls remain in the hot path of the voice interaction loop
+- [x] Typecheck passes
 
 ---
 

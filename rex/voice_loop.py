@@ -408,17 +408,17 @@ class TextToSpeech:
             await communicate.save(output_path)
 
             if sa is not None and Path(output_path).exists():
-                # Convert mp3 to wav for playback
-                data, rate = sf.read(output_path)
+                # Convert mp3 to wav and play — all blocking I/O in thread executor.
                 wav_path = output_path.replace(".mp3", ".wav")
-                sf.write(wav_path, data, rate)
 
-                def _play() -> None:
-                    wave_obj = sa.WaveObject.from_wave_file(wav_path)
+                def _convert_and_play(_src=output_path, _dst=wav_path) -> None:
+                    data, rate = sf.read(_src)
+                    sf.write(_dst, data, rate)
+                    wave_obj = sa.WaveObject.from_wave_file(_dst)
                     play_obj = wave_obj.play()
                     play_obj.wait_done()
 
-                await asyncio.to_thread(_play)
+                await asyncio.to_thread(_convert_and_play)
                 with suppress(FileNotFoundError):
                     Path(wav_path).unlink()
         finally:

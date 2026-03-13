@@ -974,3 +974,11 @@
   - build_voice_loop is synchronous — cannot create asyncio tasks there; pass callable for caller to schedule.
 ---
 
+## Iteration 145 - US-170: Audit and reduce blocking operations in the voice pipeline
+- What was implemented: Audited rex/voice_loop.py for all blocking calls. Found sf.read() and sf.write() in _speak_edge() were running on the event loop (not in a thread). Fixed by merging convert+play into a single _convert_and_play() function passed to asyncio.to_thread(). All other blocking calls (sd.wait(), play_obj.wait_done(), whisper transcribe, pyttsx3) were already correctly offloaded to threads. No time.sleep() calls exist in the hot path. Created tests/test_us170_blocking_audit.py with 11 tests. All 11 passed.
+- Files changed: rex/voice_loop.py, tests/test_us170_blocking_audit.py (new), PRD.md
+- Learnings for future iterations:
+  - sf.read() and sf.write() are synchronous file I/O — must be inside asyncio.to_thread even for small files.
+  - Test boundary detection (src.index("\n\n")) can grab just the docstring; use class name as boundary instead.
+---
+
