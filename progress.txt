@@ -1,4 +1,13 @@
 
+## Iteration 130 - US-145: Move deep technical content into secondary docs
+- What was implemented: Identified 5 README sections >20 lines not relevant to first-time setup: Configuration (125 lines), Usage (267 lines), Docker (24 lines), Memory & Personalization (29 lines), Troubleshooting (88 lines). Created docs/environment-variables.md, docs/usage.md, docs/docker.md, docs/troubleshooting.md. Appended User Profiles section to docs/memory.md. Replaced each README section with a 1-3 line summary + link. Created tests/test_us145_deep_content.py with 34 tests. All 34 passed.
+- Files changed: README.md, docs/environment-variables.md (new), docs/usage.md (new), docs/docker.md (new), docs/troubleshooting.md (new), docs/memory.md, tests/test_us145_deep_content.py (new), PRD.md
+- Learnings for future iterations:
+  - Check existing docs/ files before creating new ones — docs/configuration.md and docs/memory.md already existed, so used different filenames (environment-variables.md) and appended a section to memory.md.
+  - Count non-empty lines only when checking "≤20 lines" — blank lines are structural and shouldn't count against the limit.
+  - For "content preserved verbatim" AC, move entire sections including tips, notes, code blocks, and tables.
+---
+
 ## Iteration 129 - US-144: Write a clear Quick Start section (5 steps or fewer)
 - What was implemented: Expanded README Quick Start from 3 steps to 5 numbered steps: (1) clone repo, (2) run install script, (3) configure LM Studio with localhost:1234 URL and config snippet, (4) run Rex, (5) verify it works with doctor.py. Created tests/test_us144_quick_start.py with 17 tests. All 17 passed.
 - Files changed: README.md, tests/test_us144_quick_start.py, PRD.md
