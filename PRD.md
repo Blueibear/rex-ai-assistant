@@ -2348,11 +2348,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want the GUI to remain usable when the window is resized so that it works on different screen sizes and configurations.
 
 **Acceptance Criteria:**
-- [ ] layout remains functional and readable at widths from 800px to 1920px
-- [ ] sidebar collapses to icons or a hamburger menu below 1024px width
-- [ ] no horizontal scrollbars appear at any standard window width
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] layout remains functional and readable at widths from 800px to 1920px
+- [x] sidebar collapses to icons or a hamburger menu below 1024px width
+- [x] no horizontal scrollbars appear at any standard window width
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

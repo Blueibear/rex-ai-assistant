@@ -930,3 +930,14 @@
 - Exposed all 7 load functions in `window.dashboardHandlers` so retry onclick can call them
 - 35 tests pass in test_us165_loading_error_states.py
 ---
+
+---
+## Iteration 150 — US-166: Responsive layout for common window sizes
+
+- Added `overflow-x: hidden` to `html, body`
+- Added `@media (max-width: 1024px)` rule: sidebar collapses to 64px icon mode (`.nav-label` hidden, nav links centered)
+- Added `@media (max-width: 768px)` override: `--sidebar-width: 0px`
+- Wrapped nav link text in `<span class="nav-label">` in HTML for collapsed-mode hiding
+- Sidebar logout button collapses to "X" label at 1024px
+- 15 tests pass in test_us166_responsive_layout.py
+---

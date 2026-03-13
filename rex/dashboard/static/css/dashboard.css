@@ -49,6 +49,7 @@ html, body {
     line-height: 1.5;
     color: var(--text-primary);
     background-color: var(--bg-color);
+    overflow-x: hidden;
 }
 
 #app {
@@ -991,10 +992,49 @@ a:focus-visible {
     }
 }
 
-/* Tablet adjustments */
-@media (min-width: 769px) and (max-width: 1024px) {
+/* Tablet — sidebar collapses to icon mode */
+@media (max-width: 1024px) {
     :root {
-        --sidebar-width: 200px;
+        --sidebar-width: 64px;
+    }
+
+    .sidebar .nav-header h2 {
+        display: none;
+    }
+
+    .nav-label {
+        display: none;
+    }
+
+    .nav-link {
+        padding: 0.75rem;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .sidebar .nav-footer {
+        padding: 0.5rem;
+    }
+
+    .sidebar .nav-footer .btn {
+        font-size: 0;
+        padding: 0.5rem;
+        width: 100%;
+    }
+
+    .sidebar .nav-footer .btn::after {
+        content: "X";
+        font-size: 0.875rem;
+    }
+
+    .main-content {
+        margin-left: var(--sidebar-width);
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --sidebar-width: 0px;
     }
 }
 
