@@ -1958,11 +1958,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a developer, I want an automated test that exercises the full wake-word-to-spoken-response pipeline using mocks so that regressions in voice mode are caught by CI.
 
 **Acceptance Criteria:**
-- [ ] test injects a mock wake word event, a mock STT transcript, a mock LLM response, and asserts TTS was called with the expected text
-- [ ] test asserts the voice loop re-arms after the mock playback completes
-- [ ] test passes without any real microphone, speaker, or network connection
-- [ ] test added to CI and passes on first run
-- [ ] Typecheck passes
+- [x] test injects a mock wake word event, a mock STT transcript, a mock LLM response, and asserts TTS was called with the expected text
+- [x] test asserts the voice loop re-arms after the mock playback completes
+- [x] test passes without any real microphone, speaker, or network connection
+- [x] test added to CI and passes on first run
+- [x] Typecheck passes
 
 ---
 
