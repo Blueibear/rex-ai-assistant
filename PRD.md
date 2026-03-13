@@ -2149,12 +2149,12 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want to see a scrollable list of conversation messages in the Chat panel so that I can read my full conversation history with Rex.
 
 **Acceptance Criteria:**
-- [ ] Chat panel displays messages in chronological order, oldest at top, newest at bottom
-- [ ] user messages and Rex messages are visually distinct (different alignment, color, or label)
-- [ ] message list auto-scrolls to the newest message when a new message arrives
-- [ ] message list is scrollable and handles at least 100 messages without layout issues
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Chat panel displays messages in chronological order, oldest at top, newest at bottom
+- [x] user messages and Rex messages are visually distinct (different alignment, color, or label)
+- [x] message list auto-scrolls to the newest message when a new message arrives
+- [x] message list is scrollable and handles at least 100 messages without layout issues
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
