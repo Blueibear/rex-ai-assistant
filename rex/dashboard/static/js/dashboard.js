@@ -1188,9 +1188,15 @@
         btn.textContent = active ? 'Stop Listening' : 'Start Listening';
         btn.classList.toggle('listening', active);
         label.textContent = stateName;
+        // Apply state-specific CSS class for distinct visual feedback
+        label.classList.remove('voice-state-thinking', 'voice-state-speaking', 'voice-state-listening');
+        if (stateName === 'Thinking') label.classList.add('voice-state-thinking');
+        else if (stateName === 'Speaking') label.classList.add('voice-state-speaking');
+        else if (stateName === 'Listening') label.classList.add('voice-state-listening');
         const waveform = $('#voice-waveform');
         if (waveform) {
-            waveform.classList.toggle('hidden', stateName !== 'Listening');
+            // Show waveform for Listening and Speaking states
+            waveform.classList.toggle('hidden', stateName !== 'Listening' && stateName !== 'Speaking');
         }
         if (stateName === 'Listening') {
             _clearVoiceTranscript();

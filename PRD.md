@@ -2442,11 +2442,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want the GUI voice panel to update its state label in real time during a voice interaction so that I can see exactly what Rex is doing (Listening, Thinking, Speaking).
 
 **Acceptance Criteria:**
-- [ ] GUI Voice panel state label transitions through: Idle → Listening → Thinking → Speaking → Idle during a full voice interaction
-- [ ] each transition occurs within 500ms of the underlying pipeline stage changing
-- [ ] state updates delivered via SSE or WebSocket (not polling)
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] GUI Voice panel state label transitions through: Idle → Listening → Thinking → Speaking → Idle during a full voice interaction
+- [x] each transition occurs within 500ms of the underlying pipeline stage changing
+- [x] state updates delivered via SSE or WebSocket (not polling)
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

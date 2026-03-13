@@ -998,3 +998,11 @@
   - Staggered animation-delay (nth-child offsets) creates wave/bounce effect for 3-dot indicator.
 ---
 
+## Iteration 148 - US-173: Voice pipeline state announcements via GUI status
+- What was implemented: Added PATCH /api/voice/state endpoint in routes.py accepting {"state": "Idle"|"Listening"|"Thinking"|"Speaking"} - validates against _VALID_VOICE_STATES set, updates _VOICE_STATE, and notifies SSE listeners. Updated _updateVoiceModeUI in dashboard.js to: remove old state classes, add voice-state-thinking/speaking/listening class to label, show waveform for both Listening and Speaking states. Added CSS for .voice-state-listening (primary color), .voice-state-thinking (italic), .voice-state-speaking (success color). Created tests/test_us173_voice_state_ui.py with 24 tests. All 24 passed.
+- Files changed: rex/dashboard/routes.py, rex/dashboard/static/js/dashboard.js, rex/dashboard/static/css/dashboard.css, tests/test_us173_voice_state_ui.py (new), PRD.md
+- Learnings for future iterations:
+  - Reusing existing SSE stream (/api/voice/state/stream) is better than new WebSocket; already implemented.
+  - State-specific CSS classes (voice-state-thinking etc.) on label element enable distinct visual styling.
+---
+

@@ -1284,6 +1284,35 @@ def set_voice_mode() -> Any:
     return jsonify(_VOICE_STATE)
 
 
+_VALID_VOICE_STATES = {"Idle", "Listening", "Thinking", "Speaking"}
+
+
+@dashboard_bp.route("/api/voice/state", methods=["PATCH"])
+@require_auth
+def set_voice_state() -> Any:
+    """Set voice pipeline state directly.
+
+    Request body: {"state": "Idle"|"Listening"|"Thinking"|"Speaking"}
+    Response: {"active": bool, "state": "..."}
+
+    Used by the voice pipeline to announce stage transitions (e.g., Thinking
+    when the LLM is generating, Speaking when TTS is playing).
+    """
+    body = request.get_json(silent=True) or {}
+    state = body.get("state")
+    if not state:
+        return error_response(BAD_REQUEST, "Missing 'state' field", 400)
+    if state not in _VALID_VOICE_STATES:
+        return error_response(BAD_REQUEST, f"Invalid state '{state}'", 400)
+    _VOICE_STATE["state"] = state
+    if state == "Idle":
+        _VOICE_STATE["active"] = False
+    elif state in ("Listening", "Thinking", "Speaking"):
+        _VOICE_STATE["active"] = True
+    _notify_voice_state_listeners()
+    return jsonify(_VOICE_STATE)
+
+
 @dashboard_bp.route("/api/voice/state/stream", methods=["GET"])
 @require_auth
 def stream_voice_state() -> Response:

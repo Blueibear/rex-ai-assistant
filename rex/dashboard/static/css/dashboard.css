@@ -1291,6 +1291,19 @@ a:focus-visible {
     min-width: 100px;
 }
 
+.voice-state-label.voice-state-listening {
+    color: var(--primary-color, #667eea);
+}
+
+.voice-state-label.voice-state-thinking {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.voice-state-label.voice-state-speaking {
+    color: var(--success-color, #38a169);
+}
+
 /* Voice waveform animation */
 .voice-waveform {
     display: flex;
