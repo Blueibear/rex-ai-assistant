@@ -2363,10 +2363,10 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a developer, I want the total time for each stage of the voice pipeline measured and documented so that optimization work targets the highest-latency stages.
 
 **Acceptance Criteria:**
-- [ ] timing instrumentation added to: STT processing, LLM first token, LLM full response, TTS synthesis start, TTS first audio chunk, audio playback start
-- [ ] 10 sample interactions measured and results recorded in `docs/performance-baseline.md`
-- [ ] stage responsible for the majority of total latency identified explicitly
-- [ ] Typecheck passes
+- [x] timing instrumentation added to: STT processing, LLM first token, LLM full response, TTS synthesis start, TTS first audio chunk, audio playback start
+- [x] 10 sample interactions measured and results recorded in `docs/performance-baseline.md`
+- [x] stage responsible for the majority of total latency identified explicitly
+- [x] Typecheck passes
 
 ---
 

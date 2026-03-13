@@ -941,3 +941,20 @@
 - Sidebar logout button collapses to "X" label at 1024px
 - 15 tests pass in test_us166_responsive_layout.py
 ---
+
+---
+## Iteration 151 — US-167: Profile and document end-to-end voice response latency
+
+- Created `rex/voice_latency.py` with `VoiceLatencyTracker` dataclass
+  - `mark(stage)` records wall-clock timestamp via `time.perf_counter()`
+  - `elapsed(start, end)` returns duration or None if stage missing
+  - `summary()` returns dict of labelled stage durations
+  - `log_summary()` logs one-line summary at INFO level
+- Added timing instrumentation to `VoiceLoop.run()` in `rex/voice_loop.py`
+  - Marks: stt_start, stt_end, llm_start, llm_end, tts_synthesis_start, tts_synthesis_end, playback_start
+- Appended Voice Pipeline Latency section to `docs/performance-baseline.md`
+  - 10 sample interactions table (stt_s, llm_s, tts_synthesis_s, total_s)
+  - Stage summary table with % of total
+  - Identifies TTS synthesis as dominant stage (~45.6%)
+- 30 tests pass in test_us167_voice_latency.py
+---

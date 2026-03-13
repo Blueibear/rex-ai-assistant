@@ -455,11 +455,15 @@ class VoiceLoop:
 
     async def run(self, max_interactions: int | None = None) -> None:
         """Run the voice loop for a specified number of interactions."""
+        from .voice_latency import VoiceLatencyTracker  # noqa: PLC0415
+
         interactions = 0
 
         try:
             async for _ in self._wake_listener.listen(self._detection_source):
                 try:
+                    tracker = VoiceLatencyTracker()
+
                     if self._acknowledge:
                         await self._acknowledge()
 
@@ -477,20 +481,28 @@ class VoiceLoop:
                             logger.warning("Voice identity check failed: %s", exc)
 
                     # Transcribe to text
+                    tracker.mark("stt_start")
                     transcript = await self._transcribe(audio)
+                    tracker.mark("stt_end")
                     if not transcript:
                         logger.info("No speech detected")
                         continue
 
                     # Get LLM response
+                    tracker.mark("llm_start")
                     response = await self._assistant.generate_reply(transcript)
+                    tracker.mark("llm_end")
 
                     # Ensure response ends with period for better TTS
                     if response and not response.endswith("."):
                         response = response + "."
 
                     # Speak response
+                    tracker.mark("tts_synthesis_start")
                     await self._speak(response)
+                    tracker.mark("tts_synthesis_end")
+                    tracker.mark("playback_start")
+                    tracker.log_summary()
 
                 except SpeechToTextError as exc:
                     logger.error("STT error: %s", exc)
