@@ -10,7 +10,7 @@
     const state = {
         authenticated: false,
         token: null,
-        currentSection: 'chat',
+        currentSection: 'overview',
         settings: null,
         pendingSettings: {},
         chatHistory: [],
@@ -195,6 +195,9 @@
 
         // Load section data
         switch (sectionId) {
+            case 'overview':
+                loadOverview();
+                break;
             case 'voice':
                 startVoiceStateStream();
                 break;
@@ -222,6 +225,66 @@
     }
 
     // Chat functionality
+    async function loadOverview() {
+        const grid = $('#overview-status-grid');
+        if (!grid) return;
+        grid.innerHTML = '<div class="loading">Loading overview...</div>';
+        try {
+            const [status, voiceMode, schedulerData, notifData] = await Promise.all([
+                api('/api/dashboard/status'),
+                api('/api/voice/mode'),
+                api('/api/scheduler/jobs'),
+                api('/api/notifications?limit=50'),
+            ]);
+            renderOverview({ status, voiceMode, schedulerData, notifData });
+        } catch (error) {
+            grid.innerHTML = `<div class="error-message">Failed to load overview: ${error.message}</div>`;
+        }
+    }
+
+    function _overviewIndicator(ok) {
+        return `<span class="overview-indicator ${ok ? 'ok' : 'error'}"></span>`;
+    }
+
+    function renderOverview(data) {
+        const { status, voiceMode, schedulerData, notifData } = data;
+        const grid = $('#overview-status-grid');
+        if (!grid) return;
+        const rexOk = status.status === 'ok';
+        const voiceActive = voiceMode.active === true;
+        const lmStudioOk = rexOk; // LM Studio reachable if backend is up
+        const scheduledCount = schedulerData.total || 0;
+        const unreadCount = notifData.unread_count || 0;
+
+        grid.innerHTML = `
+            <div class="overview-status-card">
+                ${_overviewIndicator(rexOk)}
+                <div class="overview-status-label">Rex Status</div>
+                <div class="overview-status-value">${rexOk ? 'Online' : 'Offline'}</div>
+            </div>
+            <div class="overview-status-card">
+                ${_overviewIndicator(voiceActive)}
+                <div class="overview-status-label">Voice Mode</div>
+                <div class="overview-status-value">${voiceActive ? 'Active' : 'Idle'}</div>
+            </div>
+            <div class="overview-status-card">
+                ${_overviewIndicator(lmStudioOk)}
+                <div class="overview-status-label">LM Studio</div>
+                <div class="overview-status-value">${lmStudioOk ? 'Connected' : 'Unavailable'}</div>
+            </div>
+            <div class="overview-status-card">
+                ${_overviewIndicator(true)}
+                <div class="overview-status-label">Scheduled Items</div>
+                <div class="overview-status-value">${scheduledCount}</div>
+            </div>
+            <div class="overview-status-card">
+                ${_overviewIndicator(unreadCount === 0)}
+                <div class="overview-status-label">Notifications</div>
+                <div class="overview-status-value">${unreadCount} unread</div>
+            </div>
+        `;
+    }
+
     async function loadChatHistory() {
         try {
             const data = await api('/api/chat/history?limit=50');

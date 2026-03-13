@@ -739,6 +739,54 @@ html, body {
     white-space: nowrap;
 }
 
+/* Overview Section */
+.overview-status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+}
+
+.overview-status-card {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+}
+
+.overview-indicator {
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 50%;
+    display: inline-block;
+    margin-bottom: 0.25rem;
+}
+
+.overview-indicator.ok {
+    background-color: var(--success-color);
+}
+
+.overview-indicator.error {
+    background-color: var(--danger-color);
+}
+
+.overview-status-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.overview-status-value {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
 /* Status Section */
 .status-container {
     display: grid;

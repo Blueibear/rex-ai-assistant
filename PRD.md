@@ -2292,12 +2292,12 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want an Overview panel that shows Rex's current status at a glance so that I can quickly see whether everything is working.
 
 **Acceptance Criteria:**
-- [ ] Overview panel displayed by default when the GUI opens
-- [ ] shows: Rex running status (online/offline), active voice mode (on/off), LM Studio connection status, count of scheduled items, count of recent notifications
-- [ ] each status item has a green/red or similar visual indicator
-- [ ] status data fetched from the Rex health endpoints
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Overview panel displayed by default when the GUI opens
+- [x] shows: Rex running status (online/offline), active voice mode (on/off), LM Studio connection status, count of scheduled items, count of recent notifications
+- [x] each status item has a green/red or similar visual indicator
+- [x] status data fetched from the Rex health endpoints
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

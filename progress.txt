@@ -880,3 +880,16 @@
 - Added CSS: `.schedule-coming-up`, `.schedule-coming-up-heading`, `.schedule-coming-up-list`, `.schedule-coming-up-item`, `.schedule-coming-up-name`, `.schedule-coming-up-time`
 - 26 tests pass in test_us161_schedule_coming_up.py
 ---
+
+---
+## Iteration 146 — US-162: Overview panel with Rex status summary
+
+- Changed default section from 'chat' to 'overview'
+- Replaced Overview placeholder with `#overview-status-grid` container
+- Added `loadOverview()` fetching `/api/dashboard/status`, `/api/voice/mode`, `/api/scheduler/jobs`, `/api/notifications` in parallel
+- Added `renderOverview(data)` rendering 5 status cards: Rex Status, Voice Mode, LM Studio, Scheduled Items, Notifications
+- Added `_overviewIndicator(ok)` helper producing green/red indicator dots
+- Added CSS: `.overview-status-grid` (grid layout), `.overview-status-card`, `.overview-indicator` (.ok/.error), `.overview-status-label`, `.overview-status-value`
+- Added `case 'overview': loadOverview(); break;` to section switch
+- 35 tests pass in test_us162_overview_panel.py
+---
