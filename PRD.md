@@ -2177,12 +2177,12 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want messages I send in the chat UI to reach Rex and display Rex's response in the conversation so that the GUI is a functional chat interface.
 
 **Acceptance Criteria:**
-- [ ] submitted message sent to the Rex backend chat endpoint
-- [ ] Rex's response displayed in the message list when received
-- [ ] a loading indicator appears between message send and response arrival
-- [ ] network errors produce a visible error message in the chat, not a silent failure
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] submitted message sent to the Rex backend chat endpoint
+- [x] Rex's response displayed in the message list when received
+- [x] a loading indicator appears between message send and response arrival
+- [x] network errors produce a visible error message in the chat, not a silent failure
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
