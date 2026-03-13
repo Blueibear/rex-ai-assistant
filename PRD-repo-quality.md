@@ -190,14 +190,14 @@ Known baseline state going in:
 **Description:** As a developer, I want `pre-commit` managing the commit-msg hook so that the hook is version-controlled, reproducible, and installable with a single command on any clone.
 
 **Acceptance Criteria:**
-- [ ] `.pre-commit-config.yaml` exists at the repo root
-- [ ] config includes the `conventional-pre-commit` hook (or equivalent) targeting the `commit-msg` stage
-- [ ] `pre-commit` added to dev dependencies in `pyproject.toml`
-- [ ] `pre-commit install` installs the hook successfully on a clean clone
-- [ ] `pre-commit run --hook-stage commit-msg --commit-msg-filename <(echo "bad message")` exits non-zero
-- [ ] `pre-commit run --hook-stage commit-msg --commit-msg-filename <(echo "fix: correct the thing")` exits zero
-- [ ] CI updated to run `pre-commit run --all-files` so hook config drift is caught on PRs
-- [ ] Typecheck passes
+- [x] `.pre-commit-config.yaml` exists at the repo root
+- [x] config includes the `conventional-pre-commit` hook (or equivalent) targeting the `commit-msg` stage
+- [x] `pre-commit` added to dev dependencies in `pyproject.toml`
+- [x] `pre-commit install` installs the hook successfully on a clean clone
+- [x] `pre-commit run --hook-stage commit-msg --commit-msg-filename <(echo "bad message")` exits non-zero
+- [x] `pre-commit run --hook-stage commit-msg --commit-msg-filename <(echo "fix: correct the thing")` exits zero
+- [x] CI updated to run `pre-commit run --all-files` so hook config drift is caught on PRs
+- [x] Typecheck passes
 
 ---
 
