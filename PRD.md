@@ -2119,12 +2119,12 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want the GUI to use a consistent, modern visual design so that it feels like a polished product rather than a developer utility.
 
 **Acceptance Criteria:**
-- [ ] a design token file (CSS variables, theme object, or equivalent) defines: primary color, background color, surface color, text color, accent color, font family, base spacing unit
-- [ ] all GUI components use values from the design token file, not hardcoded colors or sizes
-- [ ] overall appearance is dark or neutral-dark themed (not a default browser/OS chrome look)
-- [ ] typography uses a clean sans-serif font (system font stack or a single loaded font)
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] a design token file (CSS variables, theme object, or equivalent) defines: primary color, background color, surface color, text color, accent color, font family, base spacing unit
+- [x] all GUI components use values from the design token file, not hardcoded colors or sizes
+- [x] overall appearance is dark or neutral-dark themed (not a default browser/OS chrome look)
+- [x] typography uses a clean sans-serif font (system font stack or a single loaded font)
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
