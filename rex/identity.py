@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -224,9 +225,7 @@ def create_user_profile(
 
     profile_dir.mkdir(parents=True, exist_ok=True)
 
-    import datetime
-
-    now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     data: dict = {
         "name": name,
         "role": role,
@@ -286,15 +285,13 @@ def update_user_preferences(
     if not core_path.exists():
         return False
     try:
-        import datetime
-
         data = json.loads(core_path.read_text(encoding="utf-8"))
         existing_prefs = data.get("preferences", {})
         if not isinstance(existing_prefs, dict):
             existing_prefs = {}
         existing_prefs.update(preferences)
         data["preferences"] = existing_prefs
-        data["last_updated"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        data["last_updated"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         core_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         logger.info("Updated preferences for user %s", user_id)
         return True

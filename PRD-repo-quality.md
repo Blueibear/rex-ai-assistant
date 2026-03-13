@@ -100,12 +100,12 @@ Known baseline state going in:
 **Description:** As a developer, I want `datetime.utcnow()` replaced with a timezone-aware UTC call in `rex/identity.py` so that deprecation warnings are eliminated and timestamp behavior is explicit.
 
 **Acceptance Criteria:**
-- [ ] `datetime.utcnow()` does not appear in `rex/identity.py`
-- [ ] timezone-aware UTC equivalent used in its place
-- [ ] `timezone` imported correctly in the module
-- [ ] all existing tests that exercise `identity` pass
-- [ ] no `DeprecationWarning` for `utcnow` emitted by this module during test run
-- [ ] Typecheck passes
+- [x] `datetime.utcnow()` does not appear in `rex/identity.py`
+- [x] timezone-aware UTC equivalent used in its place
+- [x] `timezone` imported correctly in the module
+- [x] all existing tests that exercise `identity` pass
+- [x] no `DeprecationWarning` for `utcnow` emitted by this module during test run
+- [x] Typecheck passes
 
 ---
 
