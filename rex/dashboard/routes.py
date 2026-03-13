@@ -640,6 +640,100 @@ def chat():
         return error_response(INTERNAL_ERROR, f"Failed to generate reply: {e}", 500)
 
 
+@dashboard_bp.route("/api/chat/stream", methods=["POST"])
+@require_auth
+@validate_json_body(ChatRequest)
+def chat_stream():
+    """Stream a chat reply via Server-Sent Events.
+
+    Request body: {"message": "..."}
+    SSE events:
+      event: token   data: {"token": "..."}
+      event: done    data: {"timestamp": "...", "elapsed_ms": N}
+      event: error   data: {"error": "..."}
+    """
+    from flask import g  # noqa: PLC0415
+
+    body: ChatRequest = g.validated_body
+    message = body.message.strip()
+
+    llm = _get_llm()
+
+    messages: list[dict[str, str]] = []
+    for entry in _CHAT_HISTORY[-10:]:
+        messages.append({"role": "user", "content": entry.get("user_message", "")})
+        if entry.get("assistant_reply"):
+            messages.append({"role": "assistant", "content": entry["assistant_reply"]})
+    messages.append({"role": "user", "content": message})
+
+    def generate():
+        start_time = time.time()
+        full_reply: list[str] = []
+
+        try:
+            # Attempt true token streaming for OpenAI-compatible backends
+            strategy = getattr(llm, "strategy", None)
+            openai_client = None
+            if strategy is not None and hasattr(strategy, "_get_client"):
+                try:
+                    openai_client = strategy._get_client()
+                except Exception:
+                    openai_client = None
+
+            if openai_client is not None and hasattr(openai_client, "chat"):
+                # True streaming via OpenAI-compatible API
+                cfg = llm.generation
+                stream_resp = openai_client.chat.completions.create(
+                    model=strategy.model_name,  # type: ignore[union-attr]
+                    messages=messages,
+                    temperature=cfg.temperature,
+                    max_tokens=cfg.max_new_tokens,
+                    top_p=cfg.top_p,
+                    stream=True,
+                )
+                for chunk in stream_resp:
+                    delta = chunk.choices[0].delta if chunk.choices else None
+                    if delta is None:
+                        continue
+                    token = getattr(delta, "content", None) or ""
+                    if token:
+                        full_reply.append(token)
+                        yield f"event: token\ndata: {json.dumps({'token': token})}\n\n"
+            else:
+                # Fallback: generate full reply and simulate word-by-word streaming
+                reply = llm.generate(messages=messages)
+                words = reply.split(" ")
+                for i, word in enumerate(words):
+                    token = word if i == 0 else " " + word
+                    full_reply.append(token)
+                    yield f"event: token\ndata: {json.dumps({'token': token})}\n\n"
+
+            elapsed_ms = int((time.time() - start_time) * 1000)
+            reply_text = "".join(full_reply)
+
+            entry = {
+                "user_message": message,
+                "assistant_reply": reply_text,
+                "timestamp": datetime.now().isoformat(),
+                "elapsed_ms": elapsed_ms,
+            }
+            _CHAT_HISTORY.append(entry)
+            while len(_CHAT_HISTORY) > _CHAT_HISTORY_MAX:
+                _CHAT_HISTORY.pop(0)
+
+            yield f"event: done\ndata: {json.dumps({'timestamp': entry['timestamp'], 'elapsed_ms': elapsed_ms})}\n\n"
+
+        except Exception as exc:
+            logger.error("Chat stream error: %s", exc, exc_info=True)
+            yield f"event: error\ndata: {json.dumps({'error': str(exc)})}\n\n"
+
+    response = Response(stream_with_context(generate()), mimetype="text/event-stream")
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["Connection"] = "keep-alive"
+    response.headers["X-Accel-Buffering"] = "no"
+    return response
+
+
 @dashboard_bp.route("/api/chat/history", methods=["GET"])
 @require_auth
 def chat_history():

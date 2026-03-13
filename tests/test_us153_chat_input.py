@@ -171,16 +171,18 @@ class TestInputClearsAfterSend:
     def test_input_cleared_before_api_call(self):
         js = _js()
         fn_idx = js.index("handleChatSubmit")
-        body_start = js.index("{", fn_idx)
-        body_end = js.index("\n    }", body_start)
-        body = js[body_start:body_end]
+        # Use a wide window — function body is large with streaming implementation
+        body = js[fn_idx: fn_idx + 6000]
         clear_idx = body.find("input.value = ''")
         if clear_idx == -1:
             clear_idx = body.find('input.value = ""')
+        # Accept either api() helper or direct fetch() for the network call
         api_idx = body.find("api(")
+        fetch_idx = body.find("fetch(")
+        net_idx = api_idx if api_idx != -1 else fetch_idx
         assert clear_idx != -1, "input.value clear not found"
-        assert api_idx != -1, "api() call not found"
-        assert clear_idx < api_idx, \
+        assert net_idx != -1, "api() or fetch() call not found"
+        assert clear_idx < net_idx, \
             "input must be cleared before the API call (optimistic UX)"
 
 

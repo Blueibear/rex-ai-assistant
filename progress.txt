@@ -1,4 +1,23 @@
 
+## Iteration 140 - US-155: Chat message streaming display
+- What was implemented: Added /api/chat/stream POST endpoint to routes.py that emits SSE token/done/error events. For OpenAI-compatible backends uses stream=True; for all others falls back to word-by-word simulation. Updated handleChatSubmit in dashboard.js to use fetch() + ReadableStream reader against /api/chat/stream — replaces thinking indicator with a streaming bubble on first token. Updated US-153 and US-154 tests to match new streaming implementation. Created tests/test_us155_chat_streaming.py with 27 tests. All 27 passed.
+- Files changed: rex/dashboard/routes.py, rex/dashboard/static/js/dashboard.js, tests/test_us155_chat_streaming.py (new), tests/test_us154_chat_backend.py, tests/test_us153_chat_input.py, PRD.md
+- Learnings for future iterations:
+  - When a new implementation changes handleChatSubmit (e.g., api() → fetch()), update old tests (US-153, US-154) that check the old call pattern.
+  - Use `fn_body.rindex("catch")` (last match) not `fn_body.index("catch")` (first match) when the function contains inner try/catch blocks (e.g., JSON.parse guard) — the outer error handler is the last catch.
+  - handleChatSubmit body is now ~100 lines; use a 6000-char window for fn_body extraction, not 3000.
+  - The SSE fallback (no OpenAI client) simulates streaming by splitting the full reply on spaces — adequate for tests and non-OpenAI backends.
+---
+
+## Iteration 139 - US-154: Connect chat UI to Rex backend
+- What was implemented: All ACs were already implemented in dashboard.js (handleChatSubmit POSTs to /api/chat, renders data.reply, shows thinking-indicator, catch block shows error.message, finally re-enables input) and routes.py (/api/chat POST and /api/chat/history GET endpoints). Created tests/test_us154_chat_backend.py with 24 tests. All 24 passed.
+- Files changed: tests/test_us154_chat_backend.py (new), PRD.md
+- Learnings for future iterations:
+  - Use a 3000-char window when extracting JS function bodies — 1200 chars is too short for async functions with try/catch/finally; catch and finally appear ~1300-2000 chars in.
+  - For auth tests, use `environ_base={"REMOTE_ADDR": "10.0.0.1"}` AND `monkeypatch.setenv("REX_DASHBOARD_PASSWORD", "...")` AND `monkeypatch.setenv("REX_DASHBOARD_ALLOW_LOCAL", "0")` to force auth enforcement in Flask test client.
+  - The auth_token fixture must also set the same env vars as the test consuming it, since each test call gets a fresh monkeypatch state.
+---
+
 ## Iteration 138 - US-153: Chat message input and send
 - What was implemented: All ACs were already implemented in dashboard.js (handleChatSubmit with trim/guard/clear/focus) and index.html (chat-form, chat-input, Send button). Only missing piece was focusing the input when switching to chat section — added `setTimeout(() => inp.focus(), 0)` in the `case 'chat':` block of switchSection. Created tests/test_us153_chat_input.py with 20 tests. All 20 passed.
 - Files changed: rex/dashboard/static/js/dashboard.js, tests/test_us153_chat_input.py (new), PRD.md

@@ -259,31 +259,88 @@
         container.innerHTML += `<div class="chat-message thinking" id="thinking-indicator">Thinking...</div>`;
         container.scrollTop = container.scrollHeight;
 
+        let assistantBubble = null;
+        let accumulatedReply = '';
+        let lastTimestamp = null;
+
         try {
-            const data = await api('/api/chat', {
+            const headers = { 'Content-Type': 'application/json' };
+            const authToken = localStorage.getItem('rex_auth_token');
+            if (authToken) headers['X-Auth-Token'] = authToken;
+
+            const response = await fetch('/api/chat/stream', {
                 method: 'POST',
+                headers,
                 body: JSON.stringify({ message }),
             });
 
-            // Remove thinking indicator and add response
-            const thinking = $('#thinking-indicator');
-            if (thinking) thinking.remove();
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
 
-            container.innerHTML += `<div class="chat-message assistant">${escapeHtml(data.reply)}</div>`;
-            container.scrollTop = container.scrollHeight;
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const parts = buffer.split('\n\n');
+                buffer = parts.pop() || '';
+
+                for (const part of parts) {
+                    const lines = part.split('\n');
+                    const eventLine = lines.find(l => l.startsWith('event: '));
+                    const dataLine = lines.find(l => l.startsWith('data: '));
+                    if (!eventLine || !dataLine) continue;
+
+                    const eventName = eventLine.slice(7).trim();
+                    let payload;
+                    try { payload = JSON.parse(dataLine.slice(6)); } catch (e) { continue; }
+
+                    if (eventName === 'token') {
+                        // Replace thinking indicator with streaming bubble on first token
+                        const thinking = $('#thinking-indicator');
+                        if (thinking) {
+                            thinking.remove();
+                            const el = document.createElement('div');
+                            el.className = 'chat-message assistant';
+                            el.id = 'streaming-bubble';
+                            container.appendChild(el);
+                            assistantBubble = el;
+                        }
+                        accumulatedReply += payload.token;
+                        if (assistantBubble) {
+                            assistantBubble.textContent = accumulatedReply;
+                        }
+                        container.scrollTop = container.scrollHeight;
+                    } else if (eventName === 'done') {
+                        lastTimestamp = payload.timestamp;
+                        if (assistantBubble) assistantBubble.removeAttribute('id');
+                    } else if (eventName === 'error') {
+                        throw new Error(payload.error || 'Streaming error');
+                    }
+                }
+            }
 
             // Update local history
-            state.chatHistory.push({
-                user_message: message,
-                assistant_reply: data.reply,
-                timestamp: data.timestamp,
-            });
+            if (accumulatedReply) {
+                state.chatHistory.push({
+                    user_message: message,
+                    assistant_reply: accumulatedReply,
+                    timestamp: lastTimestamp || new Date().toISOString(),
+                });
+            }
         } catch (error) {
             const thinking = $('#thinking-indicator');
             if (thinking) {
                 thinking.textContent = `Error: ${error.message}`;
                 thinking.classList.remove('thinking');
                 thinking.style.color = 'var(--error-color)';
+            } else if (assistantBubble) {
+                assistantBubble.textContent += ` [Error: ${error.message}]`;
             }
         } finally {
             input.disabled = false;

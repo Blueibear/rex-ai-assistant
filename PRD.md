@@ -2191,12 +2191,12 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want Rex's response to appear word-by-word as it is generated so that I see immediate feedback instead of waiting for the full response.
 
 **Acceptance Criteria:**
-- [ ] backend streams the response token-by-token or chunk-by-chunk via SSE or WebSocket
-- [ ] chat UI appends tokens to the current message bubble as they arrive
-- [ ] the loading indicator is replaced by the streaming message (not shown simultaneously)
-- [ ] streaming works correctly for responses of at least 500 tokens
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] backend streams the response token-by-token or chunk-by-chunk via SSE or WebSocket
+- [x] chat UI appends tokens to the current message bubble as they arrive
+- [x] the loading indicator is replaced by the streaming message (not shown simultaneously)
+- [x] streaming works correctly for responses of at least 500 tokens
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
