@@ -1480,6 +1480,7 @@
         deleteReminder,
         markNotifRead,
         toggleScheduleJob,
+        navigateTo: switchSection,
     };
 
     // Start app

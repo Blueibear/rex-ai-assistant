@@ -893,3 +893,13 @@
 - Added `case 'overview': loadOverview(); break;` to section switch
 - 35 tests pass in test_us162_overview_panel.py
 ---
+
+---
+## Iteration 147 — US-163: Quick action buttons on the Overview panel
+
+- Added "Quick Actions" section in overview HTML with three buttons: Start Listening (→ voice), Open Chat (→ chat), View Schedule (→ schedule)
+- Buttons call `window.dashboardHandlers.navigateTo(section)` which maps to `switchSection`
+- Exposed `navigateTo: switchSection` in `window.dashboardHandlers`
+- Added CSS: `.overview-quick-actions`, `.overview-quick-actions-heading`, `.overview-quick-actions-row` (flex), `.overview-quick-btn`
+- 18 tests pass in test_us163_overview_quick_actions.py
+---

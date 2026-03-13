@@ -134,6 +134,23 @@
                         <h1>Overview</h1>
                     </header>
                     <div id="overview-status-grid" class="overview-status-grid"></div>
+                    <div class="overview-quick-actions">
+                        <h2 class="overview-quick-actions-heading">Quick Actions</h2>
+                        <div class="overview-quick-actions-row">
+                            <button class="btn btn-primary overview-quick-btn"
+                                onclick="window.dashboardHandlers.navigateTo('voice')">
+                                Start Listening
+                            </button>
+                            <button class="btn btn-secondary overview-quick-btn"
+                                onclick="window.dashboardHandlers.navigateTo('chat')">
+                                Open Chat
+                            </button>
+                            <button class="btn btn-secondary overview-quick-btn"
+                                onclick="window.dashboardHandlers.navigateTo('schedule')">
+                                View Schedule
+                            </button>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- Settings Section -->

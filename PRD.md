@@ -2306,11 +2306,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want quick action buttons on the Overview panel for the most common Rex interactions so that I can trigger them without navigating to another panel.
 
 **Acceptance Criteria:**
-- [ ] at minimum three quick action buttons present: "Start Listening", "Open Chat", "View Schedule"
-- [ ] each button navigates to the relevant panel or triggers the relevant action
-- [ ] buttons are prominently placed and clearly labeled
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] at minimum three quick action buttons present: "Start Listening", "Open Chat", "View Schedule"
+- [x] each button navigates to the relevant panel or triggers the relevant action
+- [x] buttons are prominently placed and clearly labeled
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

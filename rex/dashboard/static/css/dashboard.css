@@ -787,6 +787,27 @@ html, body {
     color: var(--text-primary);
 }
 
+.overview-quick-actions {
+    margin-top: 2rem;
+}
+
+.overview-quick-actions-heading {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+
+.overview-quick-actions-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.overview-quick-btn {
+    min-width: 10rem;
+}
+
 /* Status Section */
 .status-container {
     display: grid;
