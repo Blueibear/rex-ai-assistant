@@ -31,7 +31,12 @@ except Exception:  # pragma: no cover - optional dependency
 from config import load_config, build_app_config
 from logging_utils import get_logger
 from memory_utils import load_recent_history
-from rex.config_manager import load_config as load_json_config, save_config as save_json_config, migrate_legacy_env_to_config, get_legacy_env_warnings
+from rex.config_manager import (
+    load_config as load_json_config,
+    save_config as save_json_config,
+    migrate_legacy_env_to_config,
+    get_legacy_env_warnings,
+)
 from rex.assistant_errors import ConfigurationError
 from rex.wakeword.selection import list_openwakeword_keywords
 from utils.audio_device import enumerate_input_devices
@@ -56,7 +61,7 @@ class GUILogHandler(logging.Handler):
         super().__init__()
         self.gui_log_callback = gui_log_callback
         # Set format
-        formatter = logging.Formatter('%(levelname)s: %(message)s')
+        formatter = logging.Formatter("%(levelname)s: %(message)s")
         self.setFormatter(formatter)
 
     def emit(self, record):
@@ -144,17 +149,25 @@ class AssistantGUI(tk.Tk):
         ttk.Label(device_frame, text="Input Device:").pack(side="left", padx=(0, 10))
 
         self.device_var = tk.StringVar()
-        self.device_combo = ttk.Combobox(device_frame, textvariable=self.device_var, state="readonly", width=40)
+        self.device_combo = ttk.Combobox(
+            device_frame, textvariable=self.device_var, state="readonly", width=40
+        )
         self.device_combo.pack(side="left", fill="x", expand=True, padx=(0, 5))
 
-        ttk.Button(device_frame, text="Refresh", command=self._refresh_audio_devices, width=10).pack(side="left", padx=(0, 5))
-        ttk.Button(device_frame, text="Test Mic", command=self._test_selected_mic, width=10).pack(side="left")
+        ttk.Button(
+            device_frame, text="Refresh", command=self._refresh_audio_devices, width=10
+        ).pack(side="left", padx=(0, 5))
+        ttk.Button(device_frame, text="Test Mic", command=self._test_selected_mic, width=10).pack(
+            side="left"
+        )
 
         # Populate devices
         self._refresh_audio_devices()
 
         # --- Status Section ---
-        ttk.Label(self.dashboard_tab, textvariable=self.status_var, font=("Segoe UI", 14)).pack(pady=10)
+        ttk.Label(self.dashboard_tab, textvariable=self.status_var, font=("Segoe UI", 14)).pack(
+            pady=10
+        )
         ttk.Label(self.dashboard_tab, textvariable=self.user_var).pack(pady=5)
         self.profile_var = tk.StringVar(value=f"Profile: {self.config.active_profile}")
         ttk.Label(self.dashboard_tab, textvariable=self.profile_var).pack(pady=2)
@@ -167,9 +180,17 @@ class AssistantGUI(tk.Tk):
         backend_row.pack(fill="x", pady=2)
         ttk.Label(backend_row, text="Backend:").pack(side="left", padx=(0, 10))
 
-        self.wake_backend_var = tk.StringVar(value=self.json_config.get("wake_word", {}).get("backend", "openwakeword"))
+        self.wake_backend_var = tk.StringVar(
+            value=self.json_config.get("wake_word", {}).get("backend", "openwakeword")
+        )
         backend_options = ["openwakeword", "custom_onnx", "custom_embedding"]
-        self.wake_backend_combo = ttk.Combobox(backend_row, textvariable=self.wake_backend_var, state="readonly", values=backend_options, width=20)
+        self.wake_backend_combo = ttk.Combobox(
+            backend_row,
+            textvariable=self.wake_backend_var,
+            state="readonly",
+            values=backend_options,
+            width=20,
+        )
         self.wake_backend_combo.pack(side="left")
 
         keyword_row = ttk.Frame(wakeword_frame)
@@ -177,35 +198,53 @@ class AssistantGUI(tk.Tk):
         ttk.Label(keyword_row, text="Keyword or Model:").pack(side="left", padx=(0, 10))
 
         self.wake_keyword_var = tk.StringVar()
-        self.wake_keyword_combo = ttk.Combobox(keyword_row, textvariable=self.wake_keyword_var, state="readonly", width=40)
+        self.wake_keyword_combo = ttk.Combobox(
+            keyword_row, textvariable=self.wake_keyword_var, state="readonly", width=40
+        )
         self.wake_keyword_combo.pack(side="left", fill="x", expand=True)
 
-        ttk.Button(keyword_row, text="Refresh", command=self._refresh_wakeword_choices, width=10).pack(side="left", padx=(5, 0))
-        ttk.Button(keyword_row, text="Save", command=self._save_wakeword_config, width=10).pack(side="left", padx=(5, 0))
+        ttk.Button(
+            keyword_row, text="Refresh", command=self._refresh_wakeword_choices, width=10
+        ).pack(side="left", padx=(5, 0))
+        ttk.Button(keyword_row, text="Save", command=self._save_wakeword_config, width=10).pack(
+            side="left", padx=(5, 0)
+        )
 
-        self.wake_backend_combo.bind("<<ComboboxSelected>>", lambda event: self._refresh_wakeword_choices())
+        self.wake_backend_combo.bind(
+            "<<ComboboxSelected>>", lambda event: self._refresh_wakeword_choices()
+        )
         self._refresh_wakeword_choices()
 
         # Wake word info
         wake_keyword = self.config.wakeword_keyword or self.config.wakeword
-        self.wake_var = tk.StringVar(value=f"Wake word: \"{wake_keyword}\" (threshold: {self.config.wakeword_threshold})")
-        ttk.Label(self.dashboard_tab, textvariable=self.wake_var, font=("Segoe UI", 9), foreground="blue").pack(pady=2)
+        self.wake_var = tk.StringVar(
+            value=f'Wake word: "{wake_keyword}" (threshold: {self.config.wakeword_threshold})'
+        )
+        ttk.Label(
+            self.dashboard_tab, textvariable=self.wake_var, font=("Segoe UI", 9), foreground="blue"
+        ).pack(pady=2)
 
         # Button frame
         button_frame = ttk.Frame(self.dashboard_tab)
         button_frame.pack(pady=5)
         self.start_button = ttk.Button(button_frame, text="Start", command=self.start_assistant)
         self.start_button.pack(side="left", padx=5)
-        self.stop_button = ttk.Button(button_frame, text="Stop", command=self.stop_assistant, state="disabled")
+        self.stop_button = ttk.Button(
+            button_frame, text="Stop", command=self.stop_assistant, state="disabled"
+        )
         self.stop_button.pack(side="left", padx=5)
 
         ttk.Label(self.dashboard_tab, text="Recent conversation:").pack(pady=(20, 5))
-        self.history_box = tk.Text(self.dashboard_tab, height=8, width=55, state="disabled", wrap="word")
+        self.history_box = tk.Text(
+            self.dashboard_tab, height=8, width=55, state="disabled", wrap="word"
+        )
         self.history_box.pack(padx=10, pady=(0, 10))
 
         # Log area for errors and status
         ttk.Label(self.dashboard_tab, text="System Log:").pack(pady=(10, 5))
-        self.log_box = tk.Text(self.dashboard_tab, height=6, width=55, state="disabled", wrap="word", bg="#f0f0f0")
+        self.log_box = tk.Text(
+            self.dashboard_tab, height=6, width=55, state="disabled", wrap="word", bg="#f0f0f0"
+        )
         self.log_box.pack(padx=10, pady=(0, 10))
         self._log_to_gui("Ready. Click Start to begin.")
 
@@ -218,15 +257,18 @@ class AssistantGUI(tk.Tk):
             text="☕ Support this project - Buy me a coffee!",
             fg="#0066cc",
             cursor="hand2",
-            font=("Segoe UI", 9, "underline")
+            font=("Segoe UI", 9, "underline"),
         )
         coffee_link.pack()
-        coffee_link.bind("<Button-1>", lambda e: webbrowser.open("https://www.buymeacoffee.com/Blueibear"))
+        coffee_link.bind(
+            "<Button-1>", lambda e: webbrowser.open("https://www.buymeacoffee.com/Blueibear")
+        )
 
     def _create_settings_tab(self) -> None:
         """Create the Settings tab."""
         try:
             from gui_settings_tab import SettingsTab
+
             repo_root = Path(__file__).resolve().parent
             self.settings_tab = SettingsTab(self.notebook, repo_root)
             self.notebook.add(self.settings_tab, text="Settings")
@@ -235,9 +277,7 @@ class AssistantGUI(tk.Tk):
             # Create error tab
             error_frame = ttk.Frame(self.notebook)
             ttk.Label(
-                error_frame,
-                text=f"Failed to load Settings tab:\n{e}",
-                foreground="red"
+                error_frame, text=f"Failed to load Settings tab:\n{e}", foreground="red"
             ).pack(padx=20, pady=20)
             self.notebook.add(error_frame, text="Settings")
 
@@ -328,7 +368,9 @@ class AssistantGUI(tk.Tk):
 
         if backend == "openwakeword":
             options = self._list_builtin_wakewords()
-            current_value = wake_word_config.get("keyword") or wake_word_config.get("wakeword") or ""
+            current_value = (
+                wake_word_config.get("keyword") or wake_word_config.get("wakeword") or ""
+            )
         elif backend == "custom_onnx":
             options = self._list_custom_wakewords(extension="onnx")
             current_value = wake_word_config.get("model_path") or ""
@@ -360,7 +402,9 @@ class AssistantGUI(tk.Tk):
             wake_word_config["model_path"] = selection if selection != "No models found" else None
             wake_word_config["embedding_path"] = None
         else:
-            wake_word_config["embedding_path"] = selection if selection != "No models found" else None
+            wake_word_config["embedding_path"] = (
+                selection if selection != "No models found" else None
+            )
             wake_word_config["model_path"] = None
 
         save_json_config(self.json_config)
@@ -412,6 +456,7 @@ class AssistantGUI(tk.Tk):
         # Get device info
         try:
             from utils.audio_device import enumerate_input_devices
+
             devices = enumerate_input_devices()
             device_obj = next((d for d in devices if d.index == device_idx), None)
             if device_obj:
@@ -441,7 +486,9 @@ class AssistantGUI(tk.Tk):
 
         for sr, blocksize, latency in test_configs:
             try:
-                self._log_to_gui(f"  Testing: sr={sr}, blocksize={blocksize}, latency={latency or 'default'}...")
+                self._log_to_gui(
+                    f"  Testing: sr={sr}, blocksize={blocksize}, latency={latency or 'default'}..."
+                )
 
                 stream_kwargs = {
                     "channels": 1,
@@ -464,6 +511,7 @@ class AssistantGUI(tk.Tk):
                 # Ensure device is fully released
                 sd.stop()
                 import time
+
                 time.sleep(0.5)  # Give Windows time to release device
 
                 self._log_to_gui(f"  ✓ PASS: Device {device_idx} works at {sr} Hz")
@@ -477,11 +525,13 @@ class AssistantGUI(tk.Tk):
         # All tests failed
         self._log_to_gui(f"ERROR: Device {device_idx} failed all test configurations")
         if "DirectSound" in device_hostapi:
-            self._log_to_gui("  💡 Tip: Look for a WASAPI version of this device (more reliable than DirectSound)")
+            self._log_to_gui(
+                "  💡 Tip: Look for a WASAPI version of this device (more reliable than DirectSound)"
+            )
         self._log_to_gui("  Try selecting a different device from the dropdown")
 
     def start_assistant(self) -> None:
-        """Start the voice assistant with comprehensive error handling."""
+        """Start the voice assistant without blocking the GUI thread."""
         if self.running:
             self._log_to_gui("Already running.")
             return
@@ -492,22 +542,45 @@ class AssistantGUI(tk.Tk):
             self._log_to_gui(f"ERROR: {self.profile_error}")
             return
 
+        self._start_in_progress = True
+        self.start_button.configure(state="disabled")
+        self.stop_button.configure(state="disabled")
+        self.status_var.set("Initializing…")
+        self._log_to_gui("Initializing assistant in background...")
+
+        init_thread = threading.Thread(target=self._initialize_and_start_assistant, daemon=True)
+        init_thread.start()
+
+    def _initialize_and_start_assistant(self) -> None:
+        """Initialize assistant in a background thread, then start run thread."""
         try:
-            self._start_in_progress = True
-            # Save audio device selection before starting
             self._save_audio_device()
+            assistant = AsyncRexAssistant(self.config)
+        except Exception as exc:
+            import traceback
 
-            self._log_to_gui("Initializing assistant...")
-            # ALWAYS create a new assistant instance to pick up new device selection
-            self.assistant = AsyncRexAssistant(self.config)
+            error_details = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+            LOGGER.exception("Failed to initialize assistant")
 
-            # Update wake word display with the ACTUAL keyword being used (may differ from config due to fallback)
+            def _on_init_failure(_exc: Exception = exc) -> None:
+                self._log_to_gui(f"ERROR starting assistant:\n{error_details}")
+                self.status_var.set(f"Start Failed: {_exc}")
+                self.running = False
+                self._start_in_progress = False
+                self.start_button.configure(state="normal")
+                self.stop_button.configure(state="disabled")
+
+            self.after(0, _on_init_failure)
+            return
+
+        def _on_init_success() -> None:
+            self.assistant = assistant
             actual_wake_keyword = self.assistant._wake_keyword
-            self.wake_var.set(f"Wake word: \"{actual_wake_keyword}\" (threshold: {self.config.wakeword_threshold})")
-
+            self.wake_var.set(
+                f'Wake word: "{actual_wake_keyword}" (threshold: {self.config.wakeword_threshold})'
+            )
             self.running = True
             self.status_var.set("Starting…")
-            self.start_button.configure(state="disabled")
             self.stop_button.configure(state="normal")
             self._log_to_gui("Starting audio pipeline...")
 
@@ -516,23 +589,17 @@ class AssistantGUI(tk.Tk):
             self._log_to_gui("Assistant thread started.")
             self.status_var.set("Running")
 
-        except Exception as exc:
-            import traceback
-            error_details = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
-            LOGGER.exception("Failed to start assistant")
-            self._log_to_gui(f"ERROR starting assistant:\n{error_details}")
-            self.status_var.set(f"Start Failed: {exc}")
-            self.running = False
-            self._start_in_progress = False
-            self.start_button.configure(state="normal")
-            self.stop_button.configure(state="disabled")
+        self.after(0, _on_init_success)
 
     def _run_assistant(self) -> None:
         """Run the assistant loop with comprehensive error handling."""
+        if self.assistant is None:
+            return
         try:
             asyncio.run(self.assistant.run())
         except Exception as exc:
             import traceback
+
             error_details = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
             LOGGER.exception("Assistant crashed during execution")
             self._log_to_gui(f"Assistant crashed:\n{error_details}")
