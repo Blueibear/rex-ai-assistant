@@ -4919,6 +4919,11 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
 def main(argv: Sequence[str] | None = None) -> int:
     """Main entry point for the Rex CLI."""
     check_startup_env()
+
+    from rex.first_run import maybe_print_welcome
+
+    maybe_print_welcome()
+
     parser = create_parser()
     args = parser.parse_args(argv)
 

@@ -2078,10 +2078,10 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a new user, I want Rex to detect when it is being run for the first time and print a short guided setup message so that I know what to do next.
 
 **Acceptance Criteria:**
-- [ ] Rex detects first run (no config file or empty config file)
-- [ ] on first run, prints a clear "Welcome to Rex. Let's get you set up." message with the 3 most important next steps
-- [ ] first-run message does not appear on subsequent runs once config is present
-- [ ] Typecheck passes
+- [x] Rex detects first run (no config file or empty config file)
+- [x] on first run, prints a clear "Welcome to Rex. Let's get you set up." message with the 3 most important next steps
+- [x] first-run message does not appear on subsequent runs once config is present
+- [x] Typecheck passes
 
 ---
 
