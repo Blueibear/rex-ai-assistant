@@ -1,4 +1,14 @@
 
+## Iteration 127 - US-142: Improve rex doctor to validate the full install
+- What was implemented: Added `check_audio_input_device()`, `check_audio_output_device()`, and `check_lm_studio_reachability()` to `rex/doctor.py`. Changed `_status_symbol` to output [PASS] for OK/INFO/WARNING and [FAIL] for ERROR. Moved `check_core_dependencies()` out of verbose-only mode so required packages are always checked. Updated summary to "Rex is ready to use." vs "Rex is NOT ready to use. Fix the N FAIL item(s) above." Added `import socket` at module level. Created tests/test_us142_rex_doctor.py with 33 tests covering all ACs.
+- Files changed: rex/doctor.py, tests/test_us142_rex_doctor.py, PRD.md
+- Learnings for future iterations:
+  - `sys.version_info` cannot be instantiated; use `collections.namedtuple` with the same field names for mocking it in tests (supports both attribute access and tuple comparison).
+  - `import module` inside a function can't be patched as `patch("rex.doctor.socket.create_connection")` unless the module is imported at the top level of the file — always import at module level when you need to patch it.
+  - sounddevice already has a mypy `[[tool.mypy.overrides]]` entry from US-131; don't add `# type: ignore[import-untyped]` for it (will be flagged as unused).
+  - To test ImportError paths for optional imports inside functions, use `patch("builtins.__import__", side_effect=import_blocker)` where the blocker raises ImportError only for the target module name.
+---
+
 ## Iteration 126 - US-141: Remove or archive legacy install instructions from the main flow
 - What was implemented: Replaced the README Quickstart section (which had full manual venv/pip steps for macOS, Linux, and Windows) with a minimal 2-step quickstart referencing install.sh / install.ps1. Moved the following to docs/advanced-install.md: manual venv+pip steps, interactive installer (python install.py), full/lean install scripts, pip extras reference, GPU acceleration, and development setup. Added a clearly labeled "Advanced / Developer Install" link from README. Also trimmed the Development section from the README. Added tests/test_us141_readme_install.py (16 tests) verifying README Quickstart uses install scripts only and docs/advanced-install.md contains the legacy content.
 - Files changed: README.md, docs/advanced-install.md (new), tests/test_us141_readme_install.py (new), PRD.md

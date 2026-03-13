@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import socket
 import stat
 import sys
 from dataclasses import dataclass, field
@@ -72,14 +73,10 @@ class DiagnosticsReport:
 
 
 def _status_symbol(status: Status) -> str:
-    """Return a symbol for the status level."""
-    symbols = {
-        Status.OK: "[OK]",
-        Status.WARNING: "[WARN]",
-        Status.ERROR: "[ERROR]",
-        Status.INFO: "[INFO]",
-    }
-    return symbols.get(status, "[?]")
+    """Return a PASS/FAIL label for the status level."""
+    if status == Status.ERROR:
+        return "[FAIL]"
+    return "[PASS]"
 
 
 def _find_project_root() -> Path | None:
@@ -437,6 +434,112 @@ def check_gpu_availability() -> CheckResult:
         )
 
 
+def check_audio_input_device() -> CheckResult:
+    """Check if an audio input device (microphone) is available."""
+    try:
+        import sounddevice as sd
+
+        devices = sd.query_devices()
+        input_devices = [d for d in devices if d["max_input_channels"] > 0]
+        if not input_devices:
+            return CheckResult(
+                name="Audio Input",
+                status=Status.ERROR,
+                message="No audio input devices detected",
+                details="Connect a microphone and check system audio settings.",
+            )
+        default = sd.query_devices(kind="input")
+        return CheckResult(
+            name="Audio Input",
+            status=Status.OK,
+            message=f"Input device found: {default['name']}",
+        )
+    except ImportError:
+        return CheckResult(
+            name="Audio Input",
+            status=Status.ERROR,
+            message="sounddevice not installed",
+            details="Run 'pip install sounddevice' or 'pip install .[full]' to enable audio input.",
+        )
+    except Exception as e:
+        return CheckResult(
+            name="Audio Input",
+            status=Status.ERROR,
+            message=f"Audio input check failed: {e}",
+            details="Ensure a microphone is connected and audio drivers are installed.",
+        )
+
+
+def check_audio_output_device() -> CheckResult:
+    """Check if an audio output device (speaker/headphones) is available."""
+    try:
+        import sounddevice as sd
+
+        devices = sd.query_devices()
+        output_devices = [d for d in devices if d["max_output_channels"] > 0]
+        if not output_devices:
+            return CheckResult(
+                name="Audio Output",
+                status=Status.ERROR,
+                message="No audio output devices detected",
+                details="Connect speakers or headphones and check system audio settings.",
+            )
+        default = sd.query_devices(kind="output")
+        return CheckResult(
+            name="Audio Output",
+            status=Status.OK,
+            message=f"Output device found: {default['name']}",
+        )
+    except ImportError:
+        return CheckResult(
+            name="Audio Output",
+            status=Status.ERROR,
+            message="sounddevice not installed",
+            details="Run 'pip install sounddevice' or 'pip install .[full]' to enable audio output.",
+        )
+    except Exception as e:
+        return CheckResult(
+            name="Audio Output",
+            status=Status.ERROR,
+            message=f"Audio output check failed: {e}",
+            details="Ensure speakers or headphones are connected and audio drivers are installed.",
+        )
+
+
+def check_lm_studio_reachability(host: str = "127.0.0.1", port: int = 1234, timeout: float = 3.0) -> CheckResult:
+    """Check if LM Studio local API server is reachable."""
+    import socket
+
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return CheckResult(
+                name="LM Studio",
+                status=Status.OK,
+                message=f"LM Studio reachable at {host}:{port}",
+            )
+    except ConnectionRefusedError:
+        return CheckResult(
+            name="LM Studio",
+            status=Status.WARNING,
+            message=f"LM Studio not running (connection refused on {host}:{port})",
+            details=f"Start LM Studio and enable the local API server on port {port} for local LLM support.",
+        )
+    except (socket.timeout, TimeoutError):
+        return CheckResult(
+            name="LM Studio",
+            status=Status.WARNING,
+            message=f"LM Studio not reachable (timed out after {timeout}s on {host}:{port})",
+            details=f"Ensure LM Studio is running and listening on {host}:{port}.",
+        )
+    except OSError as e:
+        return CheckResult(
+            name="LM Studio",
+            status=Status.WARNING,
+            message=f"LM Studio not reachable: {e}",
+            details=f"Ensure LM Studio is running and listening on {host}:{port}.",
+        )
+
+
 def run_diagnostics(verbose: bool = False) -> int:
     """Run all diagnostic checks and print results.
 
@@ -467,6 +570,17 @@ def run_diagnostics(verbose: bool = False) -> int:
     report.add(check_environment_variables())
     report.add(check_config_permissions(project_root))
 
+    # Required packages (always shown)
+    for result in check_core_dependencies():
+        report.add(result)
+
+    # Audio devices
+    report.add(check_audio_input_device())
+    report.add(check_audio_output_device())
+
+    # LM Studio reachability
+    report.add(check_lm_studio_reachability())
+
     # External dependencies
     for result in check_external_dependencies():
         report.add(result)
@@ -474,17 +588,11 @@ def run_diagnostics(verbose: bool = False) -> int:
     # GPU check
     report.add(check_gpu_availability())
 
-    # Core Python dependencies (only in verbose mode to reduce noise)
-    if verbose:
-        for result in check_core_dependencies():
-            report.add(result)
-
     # Print results
     for result in report.results:
         symbol = _status_symbol(result.status)
         print(f"{symbol:8s} {result.name}: {result.message}")
-        if verbose and result.details:
-            # Indent details
+        if result.details and (verbose or result.status == Status.ERROR):
             for line in result.details.split("\n"):
                 print(f"         {line}")
 
@@ -493,15 +601,10 @@ def run_diagnostics(verbose: bool = False) -> int:
     print("-" * 40)
 
     if report.has_errors():
-        print(f"FAILED: {report.error_count} error(s), {report.warning_count} warning(s)")
-        print("Fix the errors above before running Rex.")
+        print(f"Rex is NOT ready to use. Fix the {report.error_count} FAIL item(s) above.")
         return 1
-    elif report.has_warnings():
-        print(f"PASSED with warnings: {report.warning_count} warning(s)")
-        print("Rex should work, but consider addressing the warnings above.")
-        return 0
     else:
-        print("PASSED: All checks passed!")
+        print("Rex is ready to use.")
         return 0
 
 

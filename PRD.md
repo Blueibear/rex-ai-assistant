@@ -2011,10 +2011,10 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want `rex doctor` to confirm that all components needed for the full Rex experience are working so that I know my install is complete before I try to use it.
 
 **Acceptance Criteria:**
-- [ ] `rex doctor` checks and reports status for: Python version, all required packages, audio input device, audio output device, LM Studio reachability (with timeout), config file presence
-- [ ] each check reports PASS or FAIL with a specific, actionable message on failure
-- [ ] overall result clearly indicates whether Rex is ready to use
-- [ ] Typecheck passes
+- [x] `rex doctor` checks and reports status for: Python version, all required packages, audio input device, audio output device, LM Studio reachability (with timeout), config file presence
+- [x] each check reports PASS or FAIL with a specific, actionable message on failure
+- [x] overall result clearly indicates whether Rex is ready to use
+- [x] Typecheck passes
 
 ---
 
