@@ -1,4 +1,12 @@
 
+## Iteration 126 - US-141: Remove or archive legacy install instructions from the main flow
+- What was implemented: Replaced the README Quickstart section (which had full manual venv/pip steps for macOS, Linux, and Windows) with a minimal 2-step quickstart referencing install.sh / install.ps1. Moved the following to docs/advanced-install.md: manual venv+pip steps, interactive installer (python install.py), full/lean install scripts, pip extras reference, GPU acceleration, and development setup. Added a clearly labeled "Advanced / Developer Install" link from README. Also trimmed the Development section from the README. Added tests/test_us141_readme_install.py (16 tests) verifying README Quickstart uses install scripts only and docs/advanced-install.md contains the legacy content.
+- Files changed: README.md, docs/advanced-install.md (new), tests/test_us141_readme_install.py (new), PRD.md
+- Learnings for future iterations:
+  - Scope legacy-step checks to the Quickstart section only (not the whole README) — troubleshooting sections may legitimately reference pip commands.
+  - Extract the Quickstart section text by scanning for "## Quickstart" to the next "## " heading.
+---
+
 ## Iteration 125 - US-140: Consolidate optional extras into a single [full] install target
 - What was implemented: Cleaned up [full] extra in pyproject.toml to include audio, ml/voice, and integrations (twilio) packages — removed devtools (build, black, ruff, mypy) which are not user-facing. The [full] extra and install script references already existed from US-139. Created tests/test_us140_full_extra.py with 20 tests verifying [full] covers voice/audio/integrations, all existing extras are preserved, and install scripts reference [full].
 - Files changed: pyproject.toml, tests/test_us140_full_extra.py, PRD.md
