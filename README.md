@@ -1,7 +1,7 @@
 # Rex AI Assistant
 
 <p align="center">
-  <img src="https://github.com/Blueibear/rex-ai-assistant/actions/workflows/ci.yml/badge.svg" alt="CI status" />
+  <img src="https://github.com/Blueibear/askrex-assistant/actions/workflows/ci.yml/badge.svg" alt="CI status" />
   <img src="https://img.shields.io/badge/python-3.9%2B-blue" alt="Python 3.9+" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />
   <a href="https://www.buymeacoffee.com/Blueibear" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 28px !important;width: 120px !important;" ></a>
@@ -28,8 +28,8 @@ Rex AI Assistant is a local-first, voice-activated AI companion that runs entire
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/Blueibear/rex-ai-assistant.git
-   cd rex-ai-assistant
+   git clone https://github.com/Blueibear/askrex-assistant.git
+   cd askrex-assistant
    ```
 
 2. **Run the installer for your platform:**
@@ -172,4 +172,4 @@ See [LICENSE](LICENSE) for full details.
 
 ---
 
-**Need help?** Check the [Troubleshooting](#troubleshooting) section or file an issue at https://github.com/Blueibear/rex-ai-assistant/issues
+**Need help?** Check the [Troubleshooting](#troubleshooting) section or file an issue at https://github.com/Blueibear/askrex-assistant/issues

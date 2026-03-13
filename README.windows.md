@@ -18,7 +18,7 @@ with NVIDIA RTX GPU (CUDA). For full project details, see [README.md](README.md)
 ### 2. Clone and create a virtual environment
 
 ```powershell
-git clone https://github.com/Blueibear/rex-ai-assistant.git
+git clone https://github.com/Blueibear/askrex-assistant.git
 cd rex-ai-assistant
 
 python -m venv .venv
