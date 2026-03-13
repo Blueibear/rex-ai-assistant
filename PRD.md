@@ -2051,10 +2051,10 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a developer, I want advanced configuration, architecture details, and developer setup moved to `docs/` so that the README remains concise without losing any information.
 
 **Acceptance Criteria:**
-- [ ] any README section longer than 20 lines that is not relevant to first-time setup moved to a dedicated file in `docs/`
-- [ ] each moved section replaced with a one-line summary and a link in the README
-- [ ] all moved content preserved verbatim (no information lost)
-- [ ] Typecheck passes
+- [x] any README section longer than 20 lines that is not relevant to first-time setup moved to a dedicated file in `docs/`
+- [x] each moved section replaced with a one-line summary and a link in the README
+- [x] all moved content preserved verbatim (no information lost)
+- [x] Typecheck passes
 
 ---
 

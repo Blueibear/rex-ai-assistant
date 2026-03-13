@@ -318,3 +318,35 @@ async def generate_reply(self, user_input: str) -> str:
 | `add_fact(topic, content, ...)` | Add a fact |
 | `remember_context(summary)` | Add to working memory |
 | `get_recent_context(n)` | Get recent working memory |
+
+---
+
+## User Profiles & Personalization
+
+Each user has a dedicated profile in `Memory/<username>/`:
+
+```
+Memory/james/
+├── core.json         # User preferences and voice settings
+├── history.log       # Conversation history
+└── notes.md          # Freeform notes about the user
+```
+
+**Example `core.json`:**
+```json
+{
+  "name": "James",
+  "email": "james@example.com",
+  "preferences": {
+    "preferred_name": "Jim",
+    "timezone": "America/New_York"
+  },
+  "voice": {
+    "sample_path": "Memory/james/voice_sample.wav",
+    "gender": "male",
+    "style": "friendly and warm"
+  }
+}
+```
+
+Rex uses voice cloning with XTTS when a valid `voice.sample_path` is provided.
