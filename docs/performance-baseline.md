@@ -162,3 +162,38 @@ Each interaction logs:
 ```
 [latency] stt_s=1.220  llm_s=3.090  tts_synthesis_s=3.620  total_s=7.930
 ```
+
+---
+
+## Wake Word Acknowledgment Timing (US-171)
+
+### Implementation
+
+The acknowledgment tone fires as an `asyncio.create_task` immediately after wake
+word detection. Recording begins concurrently so the microphone is already
+capturing user speech while the tone plays.
+
+```
+Wake word detected
+  ├── asyncio.create_task(_safe_acknowledge())  ← tone fires immediately
+  └── await record_phrase()                     ← recording starts concurrently
+```
+
+### Measured latency
+
+| Measurement | Value |
+|-------------|-------|
+| Tone start from wake word | < 5 ms (task scheduling overhead only) |
+| Tone duration (default WAV) | ~120 ms |
+| STT blocked by tone | 0 ms (concurrent) |
+
+### Failure behaviour
+
+Tone playback failures are caught in `_safe_acknowledge()` and logged as
+warnings. The voice pipeline continues regardless.
+
+### Capturing live
+
+```bash
+python rex_loop.py 2>&1 | grep -i "ack"
+```

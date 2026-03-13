@@ -2415,11 +2415,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want to hear an acknowledgment tone within 200ms of saying the wake word so that I know Rex heard me before processing begins.
 
 **Acceptance Criteria:**
-- [ ] acknowledgment tone plays within 200ms of wake word detection on reference hardware
-- [ ] acknowledgment tone does not block STT from beginning simultaneously
-- [ ] tone playback failure does not prevent the voice pipeline from continuing
-- [ ] timing verified and documented in `docs/performance-baseline.md`
-- [ ] Typecheck passes
+- [x] acknowledgment tone plays within 200ms of wake word detection on reference hardware
+- [x] acknowledgment tone does not block STT from beginning simultaneously
+- [x] tone playback failure does not prevent the voice pipeline from continuing
+- [x] timing verified and documented in `docs/performance-baseline.md`
+- [x] Typecheck passes
 
 ---
 

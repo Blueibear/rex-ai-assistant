@@ -493,6 +493,14 @@ class VoiceLoop:
 
         return False
 
+    async def _safe_acknowledge(self) -> None:
+        """Play acknowledgement tone, suppressing all errors to keep pipeline running."""
+        try:
+            if self._acknowledge is not None:
+                await self._acknowledge()
+        except Exception as exc:
+            logger.warning("[Ack] Acknowledgement tone failed (non-fatal): %s", exc)
+
     async def warmup(self) -> None:
         """Pre-warm TTS in the background.
 
@@ -514,8 +522,11 @@ class VoiceLoop:
                 try:
                     tracker = VoiceLatencyTracker()
 
+                    # Fire acknowledgment tone concurrently with recording so the
+                    # microphone starts capturing immediately after wake word.
+                    # Playback failure is suppressed to keep the pipeline running.
                     if self._acknowledge:
-                        await self._acknowledge()
+                        asyncio.create_task(self._safe_acknowledge())
 
                     # Record user speech
                     audio = await self._record_phrase()

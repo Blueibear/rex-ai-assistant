@@ -982,3 +982,11 @@
   - Test boundary detection (src.index("\n\n")) can grab just the docstring; use class name as boundary instead.
 ---
 
+## Iteration 146 - US-171: Immediate audio acknowledgment on wake word (verify and enforce)
+- What was implemented: Changed VoiceLoop.run() to fire acknowledgment as asyncio.create_task(self._safe_acknowledge()) instead of await self._acknowledge(). This allows recording to start concurrently with ack playback. Added _safe_acknowledge() method that wraps _acknowledge in try/except, logging failures as warnings without propagating. Documented ack timing in docs/performance-baseline.md with implementation diagram and failure behavior. Created tests/test_us171_wake_ack.py with 14 tests. All 14 passed.
+- Files changed: rex/voice_loop.py, docs/performance-baseline.md, tests/test_us171_wake_ack.py (new), PRD.md
+- Learnings for future iterations:
+  - Using asyncio.create_task fires a coroutine without waiting, allowing concurrent operations.
+  - _safe_acknowledge pattern (try/except wrapper) keeps pipeline alive on audio device failures.
+---
+
