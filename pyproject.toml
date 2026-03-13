@@ -135,6 +135,7 @@ rex = "rex.cli:main"
 rex-config = "rex.config:cli"
 rex-speak-api = "rex_speak_api:main"
 rex-agent = "rex.computers.agent_server:main"
+rex-gui = "rex.gui_app:main"
 
 [project.urls]
 Homepage = "https://github.com/Blueibear/rex-ai-assistant"

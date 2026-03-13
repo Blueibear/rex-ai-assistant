@@ -2104,13 +2104,13 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a developer, I want the GUI application scaffolded with a main window, navigation sidebar, and content area so that feature panels can be added incrementally.
 
 **Acceptance Criteria:**
-- [ ] GUI application launches with a single command (e.g., `rex --gui` or `rex-gui`)
-- [ ] main window renders with a left sidebar for navigation and a main content area
-- [ ] sidebar contains placeholder navigation items for: Chat, Voice, Schedule, Overview
-- [ ] window is resizable and has a minimum usable size (e.g., 800x600)
-- [ ] application closes cleanly without errors
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] GUI application launches with a single command (e.g., `rex --gui` or `rex-gui`)
+- [x] main window renders with a left sidebar for navigation and a main content area
+- [x] sidebar contains placeholder navigation items for: Chat, Voice, Schedule, Overview
+- [x] window is resizable and has a minimum usable size (e.g., 800x600)
+- [x] application closes cleanly without errors
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

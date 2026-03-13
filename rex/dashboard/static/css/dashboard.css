@@ -946,3 +946,16 @@ html, body {
         margin-left: 0;
     }
 }
+
+/* Minimum usable window size */
+#app {
+    min-width: 800px;
+    min-height: 600px;
+}
+
+/* Placeholder section content */
+.placeholder-content {
+    padding: 2rem;
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
