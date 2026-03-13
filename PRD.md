@@ -2277,11 +2277,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want to see items due soon or upcoming events in the Schedule panel so that I have a glanceable view of what is coming up.
 
 **Acceptance Criteria:**
-- [ ] a "Coming Up" section in the Schedule panel shows items due in the next 24 hours
-- [ ] items sorted by next run time, soonest first
-- [ ] each item shows time until next run (e.g., "in 2 hours")
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] a "Coming Up" section in the Schedule panel shows items due in the next 24 hours
+- [x] items sorted by next run time, soonest first
+- [x] each item shows time until next run (e.g., "in 2 hours")
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

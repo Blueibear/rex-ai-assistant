@@ -867,3 +867,16 @@
 - Added `.schedule-item-actions` and `.schedule-toggle-error` CSS classes
 - 20 tests pass in test_us160_schedule_toggle.py
 ---
+
+---
+## Iteration 145 — US-161: Upcoming events and due items panel section
+
+- Added "Coming Up" section in Schedule panel (above the full schedule list)
+- `renderComingUp(jobs)` filters jobs with next_run within 24h, sorts soonest first
+- `_timeUntil(ms)` helper formats duration as "in X minutes" or "in X hours"
+- Each coming-up item shows: name and time-until label
+- Empty state: "Nothing due in the next 24 hours."
+- `loadScheduleJobs()` calls both `renderScheduleJobs` and `renderComingUp`
+- Added CSS: `.schedule-coming-up`, `.schedule-coming-up-heading`, `.schedule-coming-up-list`, `.schedule-coming-up-item`, `.schedule-coming-up-name`, `.schedule-coming-up-time`
+- 26 tests pass in test_us161_schedule_coming_up.py
+---

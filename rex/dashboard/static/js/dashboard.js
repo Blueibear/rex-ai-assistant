@@ -587,10 +587,45 @@
         container.innerHTML = '<div class="loading">Loading schedule...</div>';
         try {
             const data = await api('/api/scheduler/jobs');
-            renderScheduleJobs(data.jobs || []);
+            const jobs = data.jobs || [];
+            renderScheduleJobs(jobs);
+            renderComingUp(jobs);
         } catch (error) {
             container.innerHTML = `<div class="error-message">Failed to load schedule: ${error.message}</div>`;
         }
+    }
+
+    function _timeUntil(ms) {
+        const mins = Math.floor(ms / 60000);
+        if (mins < 60) return `in ${mins} minute${mins !== 1 ? 's' : ''}`;
+        const hours = Math.floor(mins / 60);
+        return `in ${hours} hour${hours !== 1 ? 's' : ''}`;
+    }
+
+    function renderComingUp(jobs) {
+        const container = $('#schedule-coming-up-list');
+        if (!container) return;
+        const now = Date.now();
+        const in24h = now + 24 * 60 * 60 * 1000;
+        const upcoming = jobs
+            .filter(job => {
+                if (!job.next_run) return false;
+                const t = new Date(job.next_run).getTime();
+                return t >= now && t <= in24h;
+            })
+            .sort((a, b) => new Date(a.next_run).getTime() - new Date(b.next_run).getTime());
+        if (upcoming.length === 0) {
+            container.innerHTML = '<div class="schedule-empty">Nothing due in the next 24 hours.</div>';
+            return;
+        }
+        container.innerHTML = upcoming.map(job => {
+            const ms = new Date(job.next_run).getTime() - now;
+            const timeStr = _timeUntil(ms);
+            return `<div class="schedule-coming-up-item">
+                <span class="schedule-coming-up-name">${escapeHtml(job.name)}</span>
+                <span class="schedule-coming-up-time">${timeStr}</span>
+            </div>`;
+        }).join('');
     }
 
     function renderScheduleJobs(jobs) {

@@ -700,6 +700,45 @@ html, body {
     font-size: 0.875rem;
 }
 
+.schedule-coming-up {
+    margin-bottom: 2rem;
+}
+
+.schedule-coming-up-heading {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+}
+
+.schedule-coming-up-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.schedule-coming-up-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+}
+
+.schedule-coming-up-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.schedule-coming-up-time {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
 /* Status Section */
 .status-container {
     display: grid;
