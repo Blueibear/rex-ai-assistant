@@ -550,7 +550,13 @@ class AsyncRexAssistant:
             {"role": "user", "text": transcript},
         )
 
+        import time as _time
         response = await asyncio.to_thread(self.language_model.generate, transcript)
+        logger.debug(
+            "[PIPELINE] stage=llm_response_received ts=%.3f text_len=%d",
+            _time.time(),
+            len(response),
+        )
         await asyncio.to_thread(
             append_history_entry,
             self.active_user,
@@ -646,14 +652,29 @@ class AsyncRexAssistant:
             if not chunks:
                 return
 
+            logger.debug(
+                "[PIPELINE] stage=tts_input_prepared ts=%.3f text_len=%d chunks=%d",
+                time.time(),
+                len(text),
+                len(chunks),
+            )
+
             audio_segments = []
             sample_rate = None
+            total_chunks = len(chunks)
 
-            for chunk in chunks:
+            for chunk_idx, chunk in enumerate(chunks):
                 with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
                     chunk_path = tmp.name
 
                 try:
+                    logger.debug(
+                        "[PIPELINE] stage=tts_engine_called ts=%.3f chunk=%d/%d chunk_len=%d",
+                        time.time(),
+                        chunk_idx + 1,
+                        total_chunks,
+                        len(chunk),
+                    )
                     if speaker_wav:
                         tts.tts_to_file(
                             text=chunk,
@@ -672,6 +693,13 @@ class AsyncRexAssistant:
                             speed=tts_speed,
                         )
                     data, rate = soundfile.read(chunk_path, dtype="float32")
+                    logger.debug(
+                        "[PIPELINE] stage=audio_data_returned ts=%.3f chunk=%d/%d samples=%d",
+                        time.time(),
+                        chunk_idx + 1,
+                        total_chunks,
+                        len(data),
+                    )
                     if sample_rate is None:
                         sample_rate = rate
                     audio_segments.append(data)
@@ -691,6 +719,12 @@ class AsyncRexAssistant:
             # Play the generated audio
             logger.info("[TTS] Playing audio...")
             playback_start = time.time()
+            logger.debug(
+                "[PIPELINE] stage=audio_playback_initiated ts=%.3f total_samples=%d sample_rate=%d",
+                time.time(),
+                len(combined_audio),
+                sample_rate,
+            )
 
             if platform.system() == "Windows":
                 # Use winsound on Windows (more reliable than simpleaudio)
@@ -708,6 +742,11 @@ class AsyncRexAssistant:
 
             playback_duration = time.time() - playback_start
             logger.info(f"[TTS] Audio playback completed in {playback_duration:.2f} seconds")
+            logger.debug(
+                "[PIPELINE] stage=audio_playback_completed ts=%.3f duration_s=%.2f",
+                time.time(),
+                playback_duration,
+            )
         except Exception as exc:
             raise TextToSpeechError(f"Failed to synthesise speech: {exc}")
         finally:

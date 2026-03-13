@@ -1841,3 +1841,623 @@ No new features are introduced here. Every story is purely a quality, security, 
 - [x] any items explicitly waived documented with justification
 - [x] document committed to the repository and reviewed by at least one other person before deployment
 - [x] Typecheck passes
+
+---
+
+## Introduction
+
+This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pipeline, excessive installation complexity, a poorly organized README, a developer-oriented user experience, the absence of a polished user-facing GUI, and slow perceived response time. Each issue has corresponding requested changes. Work in this PRD is independent of the core feature buildout PRD and can begin once the repository is stable (Phase 1–4 of PRD.md complete).
+
+---
+
+## Goals
+
+- Fix the voice mode response pipeline so Rex speaks replies back to the user
+- Reduce installation to a single clear method a non-technical user can follow
+- Rewrite the README so a first-time user can be up and running in under 10 minutes
+- Build a polished, modern desktop GUI that serves as the primary way users interact with Rex
+- Make the GUI the home for chat, voice, scheduling, and visibility into what Rex is managing
+- Reduce actual end-to-end voice response latency through pipeline optimization
+- Improve perceived responsiveness so interactions feel fast even when hardware limits speed
+
+---
+
+## Non-Goals
+
+- No mobile app
+- No cloud sync or multi-device support
+- No user accounts or authentication beyond the existing dashboard login
+- No plugin marketplace or plugin distribution UI
+- No automated deployment or packaging (installers, signed binaries, app stores)
+- No changes to LLM provider integrations (covered in PRD.md)
+
+---
+
+## Technical Considerations
+
+- **Voice pipeline:** The break point is somewhere between LLM response delivery and TTS audio playback. Instrumentation stories (US-133, US-134) must run before the fix stories (US-135–US-137) to identify the exact failure point.
+- **GUI framework:** Rex already has a FastAPI backend and a web-based dashboard. The recommended path is to build the new GUI as a modern single-page application (React + Tailwind or similar) served by the existing backend, optionally wrapped in Electron or Tauri for a native desktop window. Stories are written framework-agnostically; the implementer should choose based on the existing stack.
+- **Install script:** Target Windows (`install.ps1`) as the primary platform. A `install.sh` variant for Linux/macOS is a secondary deliverable within the same story.
+- **Performance:** Streaming TTS (playing the first audio chunk before the full response is generated) is the highest-leverage latency improvement. Stories are ordered so profiling (US-167) precedes optimization.
+- **Story numbering:** Continues from US-132 (end of PRD-production-readiness.md). Phases continue from Phase 47.
+
+---
+
+# PHASE 48 — Voice TTS Playback Diagnosis
+
+> Fix the voice pipeline break between LLM response generation and audio playback. Diagnosis stories come first to locate the exact failure point before any fixes are attempted.
+
+### US-133: Add tracing logs to the full voice response pipeline
+
+**Description:** As a developer, I want structured log statements at every stage of the voice response pipeline so that I can identify exactly where audio delivery fails.
+
+**Acceptance Criteria:**
+- [x] log entry emitted at each stage: LLM response received, TTS input text prepared, TTS engine called, audio data returned, audio playback initiated, audio playback completed
+- [x] each log entry includes stage name, timestamp, and any relevant payload size or status
+- [x] logs visible at DEBUG level without modifying source code (controlled by `LOG_LEVEL`)
+- [x] running a voice interaction with `LOG_LEVEL=DEBUG` produces a trace covering all stages or clearly shows which stage is missing
+- [x] Typecheck passes
+
+---
+
+### US-134: Document and confirm the confirmed break point in voice playback
+
+**Description:** As a developer, I want the exact failure point in the voice pipeline documented in `AGENTS.md` so that subsequent fix stories have a precise target.
+
+**Acceptance Criteria:**
+- [ ] a test script or manual procedure exists that triggers the full voice pipeline and captures log output
+- [ ] the log output identifies which stage completes last before audio stops
+- [ ] finding documented in `AGENTS.md` under a "Voice Pipeline Break Point" heading
+- [ ] finding includes: last successful stage, first missing stage, relevant code path (file and function name)
+- [ ] Typecheck passes
+
+---
+
+# PHASE 49 — Voice TTS Playback Fix
+
+### US-135: Fix TTS text input delivery from LLM response handler
+
+**Description:** As a developer, I want the LLM response text reliably passed to the TTS engine so that every generated reply is queued for speech synthesis.
+
+**Acceptance Criteria:**
+- [ ] LLM response text reaches the TTS input function on every successful generation
+- [ ] empty or whitespace-only responses do not trigger TTS
+- [ ] errors in the LLM handler do not silently discard the response before TTS is called
+- [ ] unit test confirms TTS input function is called with the correct text after a mock LLM response
+- [ ] Typecheck passes
+
+---
+
+### US-136: Fix audio playback and output device selection
+
+**Description:** As a developer, I want synthesized audio played through the correct output device so that Rex's spoken response is audible to the user.
+
+**Acceptance Criteria:**
+- [ ] TTS audio output plays through the system default audio device
+- [ ] output device configurable via `config` (device name or index)
+- [ ] playback does not block the voice loop from processing new input after audio ends
+- [ ] audio playback errors are caught and logged, not silently swallowed
+- [ ] Typecheck passes
+
+---
+
+### US-137: Fix voice loop re-arm after TTS playback completes
+
+**Description:** As a developer, I want the voice loop to return to the wake-word listening state immediately after TTS playback finishes so that Rex is ready for the next interaction.
+
+**Acceptance Criteria:**
+- [ ] after TTS audio finishes playing, the wake word detector resumes within 1 second
+- [ ] the microphone stream is not left open or blocked after playback
+- [ ] a second voice interaction triggered after the first completes successfully produces a spoken response
+- [ ] Typecheck passes
+
+---
+
+### US-138: End-to-end voice round-trip integration test
+
+**Description:** As a developer, I want an automated test that exercises the full wake-word-to-spoken-response pipeline using mocks so that regressions in voice mode are caught by CI.
+
+**Acceptance Criteria:**
+- [ ] test injects a mock wake word event, a mock STT transcript, a mock LLM response, and asserts TTS was called with the expected text
+- [ ] test asserts the voice loop re-arms after the mock playback completes
+- [ ] test passes without any real microphone, speaker, or network connection
+- [ ] test added to CI and passes on first run
+- [ ] Typecheck passes
+
+---
+
+# PHASE 50 — Unified Installation
+
+### US-139: Create a single-command install script
+
+**Description:** As a user, I want to run one command that installs everything Rex needs so that I do not have to understand Python packaging, virtual environments, or optional extras.
+
+**Acceptance Criteria:**
+- [ ] `install.ps1` (Windows) and `install.sh` (Linux/macOS) exist at the repo root
+- [ ] the script creates a virtual environment, installs Rex with all required dependencies, and verifies the install
+- [ ] on success, the script prints a clear "Rex is installed. Run `rex` to start." message
+- [ ] on failure, the script prints a specific error and exits with a non-zero code
+- [ ] Typecheck passes
+
+---
+
+### US-140: Consolidate optional extras into a single `[full]` install target
+
+**Description:** As a developer, I want all user-facing capabilities bundled into a single `pip install rex[full]` so that users do not need to choose between extras.
+
+**Acceptance Criteria:**
+- [ ] `pyproject.toml` defines a `[full]` extra that includes all extras required for the complete Rex experience (voice, integrations, GUI)
+- [ ] `pip install rex[full]` succeeds and installs all required packages
+- [ ] existing extras remain available for advanced users who want minimal installs
+- [ ] install script updated to use `rex[full]`
+- [ ] Typecheck passes
+
+---
+
+### US-141: Remove or archive legacy install instructions from the main flow
+
+**Description:** As a developer, I want legacy and advanced install options moved out of the primary user-facing documentation so that new users see only one install path.
+
+**Acceptance Criteria:**
+- [ ] the main README references only the single install script as the primary install method
+- [ ] any legacy install steps (manual pip commands, multiple extras choices, etc.) moved to `docs/advanced-install.md`
+- [ ] `docs/advanced-install.md` linked from the README under a clearly labeled "Advanced / Developer Install" section
+- [ ] Typecheck passes
+
+---
+
+### US-142: Improve `rex doctor` to validate the full install
+
+**Description:** As a user, I want `rex doctor` to confirm that all components needed for the full Rex experience are working so that I know my install is complete before I try to use it.
+
+**Acceptance Criteria:**
+- [ ] `rex doctor` checks and reports status for: Python version, all required packages, audio input device, audio output device, LM Studio reachability (with timeout), config file presence
+- [ ] each check reports PASS or FAIL with a specific, actionable message on failure
+- [ ] overall result clearly indicates whether Rex is ready to use
+- [ ] Typecheck passes
+
+---
+
+# PHASE 51 — README Overhaul
+
+### US-143: Restructure README with quick start first and a table of contents
+
+**Description:** As a new user, I want the README to open with a quick start section and a navigable table of contents so that I can get Rex running without reading the entire document.
+
+**Acceptance Criteria:**
+- [ ] README opens with a one-paragraph description of what Rex is and who it is for
+- [ ] table of contents appears within the first 30 lines of the README
+- [ ] "Quick Start" section is the first major section after the description and table of contents
+- [ ] Quick Start contains no more than 5 steps
+- [ ] Typecheck passes
+
+---
+
+### US-144: Write a clear Quick Start section (5 steps or fewer)
+
+**Description:** As a new user, I want a Quick Start guide that gets Rex running in under 10 minutes so that I do not need to read the full documentation to try it.
+
+**Acceptance Criteria:**
+- [ ] Quick Start section contains exactly the steps: clone repo, run install script, configure LM Studio, run Rex, verify it works
+- [ ] each step is a single clear action with the exact command to run
+- [ ] Quick Start tested on a clean machine and confirmed to produce a working Rex install
+- [ ] no step requires the user to read another section first
+- [ ] Typecheck passes
+
+---
+
+### US-145: Move deep technical content into secondary docs
+
+**Description:** As a developer, I want advanced configuration, architecture details, and developer setup moved to `docs/` so that the README remains concise without losing any information.
+
+**Acceptance Criteria:**
+- [ ] any README section longer than 20 lines that is not relevant to first-time setup moved to a dedicated file in `docs/`
+- [ ] each moved section replaced with a one-line summary and a link in the README
+- [ ] all moved content preserved verbatim (no information lost)
+- [ ] Typecheck passes
+
+---
+
+### US-146: Add visual structure to the README (badges, section dividers, call-outs)
+
+**Description:** As a new user, I want the README to use visual structure so that it is easy to scan and navigate.
+
+**Acceptance Criteria:**
+- [ ] repo status badges added (CI status, Python version, license)
+- [ ] each major section clearly headed with a level-2 heading
+- [ ] important warnings or prerequisites use a blockquote or note callout, not inline text
+- [ ] README renders correctly on GitHub (no broken markdown)
+- [ ] Typecheck passes
+
+---
+
+# PHASE 52 — Onboarding Improvements
+
+### US-147: First-run setup detection and guided message
+
+**Description:** As a new user, I want Rex to detect when it is being run for the first time and print a short guided setup message so that I know what to do next.
+
+**Acceptance Criteria:**
+- [ ] Rex detects first run (no config file or empty config file)
+- [ ] on first run, prints a clear "Welcome to Rex. Let's get you set up." message with the 3 most important next steps
+- [ ] first-run message does not appear on subsequent runs once config is present
+- [ ] Typecheck passes
+
+---
+
+### US-148: Friendly, actionable error messages for missing dependencies
+
+**Description:** As a user, I want missing dependency errors to tell me exactly how to fix them so that I am not left with a raw Python traceback.
+
+**Acceptance Criteria:**
+- [ ] `ImportError` for any optional Rex dependency caught at the module level and re-raised with a human-readable message including the install command to fix it
+- [ ] missing LM Studio connection produces a message like "Rex can't reach LM Studio at [url]. Is LM Studio running?" rather than a connection refused traceback
+- [ ] no raw Python tracebacks are shown to the user in normal operation (tracebacks reserved for DEBUG mode)
+- [ ] Typecheck passes
+
+---
+
+# PHASE 53 — GUI Framework and Shell
+
+### US-149: Scaffold GUI application shell
+
+**Description:** As a developer, I want the GUI application scaffolded with a main window, navigation sidebar, and content area so that feature panels can be added incrementally.
+
+**Acceptance Criteria:**
+- [ ] GUI application launches with a single command (e.g., `rex --gui` or `rex-gui`)
+- [ ] main window renders with a left sidebar for navigation and a main content area
+- [ ] sidebar contains placeholder navigation items for: Chat, Voice, Schedule, Overview
+- [ ] window is resizable and has a minimum usable size (e.g., 800x600)
+- [ ] application closes cleanly without errors
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-150: Apply base visual design system (colors, typography, spacing)
+
+**Description:** As a user, I want the GUI to use a consistent, modern visual design so that it feels like a polished product rather than a developer utility.
+
+**Acceptance Criteria:**
+- [ ] a design token file (CSS variables, theme object, or equivalent) defines: primary color, background color, surface color, text color, accent color, font family, base spacing unit
+- [ ] all GUI components use values from the design token file, not hardcoded colors or sizes
+- [ ] overall appearance is dark or neutral-dark themed (not a default browser/OS chrome look)
+- [ ] typography uses a clean sans-serif font (system font stack or a single loaded font)
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-151: Implement active navigation state and panel switching
+
+**Description:** As a user, I want clicking a sidebar item to load the correct panel so that I can navigate between sections of the GUI.
+
+**Acceptance Criteria:**
+- [ ] clicking each sidebar item displays the corresponding panel in the content area
+- [ ] the active sidebar item is visually highlighted
+- [ ] navigation does not reload the page or lose state in already-loaded panels
+- [ ] back/forward browser navigation works correctly if the GUI is web-based
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+# PHASE 54 — GUI Chat Panel
+
+### US-152: Chat message list component
+
+**Description:** As a user, I want to see a scrollable list of conversation messages in the Chat panel so that I can read my full conversation history with Rex.
+
+**Acceptance Criteria:**
+- [ ] Chat panel displays messages in chronological order, oldest at top, newest at bottom
+- [ ] user messages and Rex messages are visually distinct (different alignment, color, or label)
+- [ ] message list auto-scrolls to the newest message when a new message arrives
+- [ ] message list is scrollable and handles at least 100 messages without layout issues
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-153: Chat message input and send
+
+**Description:** As a user, I want a text input at the bottom of the Chat panel so that I can type a message and send it to Rex.
+
+**Acceptance Criteria:**
+- [ ] text input field visible and focused by default when the Chat panel is open
+- [ ] pressing Enter or clicking a Send button submits the message
+- [ ] input clears after send
+- [ ] sending an empty message is a no-op (no empty messages added to the list)
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-154: Connect chat UI to Rex backend
+
+**Description:** As a user, I want messages I send in the chat UI to reach Rex and display Rex's response in the conversation so that the GUI is a functional chat interface.
+
+**Acceptance Criteria:**
+- [ ] submitted message sent to the Rex backend chat endpoint
+- [ ] Rex's response displayed in the message list when received
+- [ ] a loading indicator appears between message send and response arrival
+- [ ] network errors produce a visible error message in the chat, not a silent failure
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-155: Chat message streaming display
+
+**Description:** As a user, I want Rex's response to appear word-by-word as it is generated so that I see immediate feedback instead of waiting for the full response.
+
+**Acceptance Criteria:**
+- [ ] backend streams the response token-by-token or chunk-by-chunk via SSE or WebSocket
+- [ ] chat UI appends tokens to the current message bubble as they arrive
+- [ ] the loading indicator is replaced by the streaming message (not shown simultaneously)
+- [ ] streaming works correctly for responses of at least 500 tokens
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+# PHASE 55 — GUI Voice Panel
+
+### US-156: Voice mode toggle with status indicator
+
+**Description:** As a user, I want a button in the Voice panel that activates voice mode and shows the current state so that I can start and stop listening without using the CLI.
+
+**Acceptance Criteria:**
+- [ ] Voice panel has a prominent button labeled "Start Listening" / "Stop Listening"
+- [ ] button toggles voice mode on and off via the Rex backend
+- [ ] current voice state (Idle, Listening, Processing, Speaking) displayed as a text label or icon near the button
+- [ ] state updates in real time without requiring a page refresh
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-157: Visual waveform or animation during active listening
+
+**Description:** As a user, I want a visual animation when Rex is listening so that I have clear feedback that my voice is being captured.
+
+**Acceptance Criteria:**
+- [ ] when voice mode is in the Listening state, an animated waveform, pulsing ring, or equivalent visual is displayed
+- [ ] animation stops when Rex transitions to Processing or Speaking state
+- [ ] animation is purely CSS/SVG — no external animation library required
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-158: Voice transcript display in the Voice panel
+
+**Description:** As a user, I want to see what Rex heard me say and what it is replying so that I can confirm it understood me correctly.
+
+**Acceptance Criteria:**
+- [ ] the most recent spoken input transcript displayed in the Voice panel after recognition completes
+- [ ] Rex's most recent spoken response text displayed below the transcript
+- [ ] both fields clear when a new interaction begins
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+# PHASE 56 — GUI Schedule Panel
+
+### US-159: Scheduled items list view
+
+**Description:** As a user, I want to see a list of all scheduled tasks and automations in the Schedule panel so that I know what Rex has planned.
+
+**Acceptance Criteria:**
+- [ ] Schedule panel fetches and displays all scheduled items from the Rex backend
+- [ ] each item shows: name, schedule (human-readable), enabled/disabled status, next run time
+- [ ] list refreshes automatically or on panel focus
+- [ ] empty state message shown when no items are scheduled
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-160: Enable/disable scheduled items from the GUI
+
+**Description:** As a user, I want to toggle a scheduled item on or off from the GUI so that I can pause automations without deleting them.
+
+**Acceptance Criteria:**
+- [ ] each scheduled item has a visible toggle (switch or checkbox) for enabled/disabled
+- [ ] toggling calls the Rex backend and persists the change
+- [ ] UI reflects the new state immediately after toggle
+- [ ] toggle errors show a visible error message and revert the UI to the previous state
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-161: Upcoming events and due items panel section
+
+**Description:** As a user, I want to see items due soon or upcoming events in the Schedule panel so that I have a glanceable view of what is coming up.
+
+**Acceptance Criteria:**
+- [ ] a "Coming Up" section in the Schedule panel shows items due in the next 24 hours
+- [ ] items sorted by next run time, soonest first
+- [ ] each item shows time until next run (e.g., "in 2 hours")
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+# PHASE 57 — GUI Overview Panel
+
+### US-162: Overview panel with Rex status summary
+
+**Description:** As a user, I want an Overview panel that shows Rex's current status at a glance so that I can quickly see whether everything is working.
+
+**Acceptance Criteria:**
+- [ ] Overview panel displayed by default when the GUI opens
+- [ ] shows: Rex running status (online/offline), active voice mode (on/off), LM Studio connection status, count of scheduled items, count of recent notifications
+- [ ] each status item has a green/red or similar visual indicator
+- [ ] status data fetched from the Rex health endpoints
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-163: Quick action buttons on the Overview panel
+
+**Description:** As a user, I want quick action buttons on the Overview panel for the most common Rex interactions so that I can trigger them without navigating to another panel.
+
+**Acceptance Criteria:**
+- [ ] at minimum three quick action buttons present: "Start Listening", "Open Chat", "View Schedule"
+- [ ] each button navigates to the relevant panel or triggers the relevant action
+- [ ] buttons are prominently placed and clearly labeled
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+# PHASE 58 — GUI Polish and Accessibility
+
+### US-164: Consistent component styling and hover/focus states
+
+**Description:** As a user, I want all interactive elements to have consistent hover and focus styles so that the GUI feels cohesive and is usable by keyboard.
+
+**Acceptance Criteria:**
+- [ ] all buttons have a visible hover state and a visible focus ring
+- [ ] all inputs have a visible focus state
+- [ ] hover and focus states use the design token colors, not browser defaults
+- [ ] tabbing through the GUI reaches all interactive elements in logical order
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-165: Loading and error states for all data-fetching panels
+
+**Description:** As a user, I want panels to show loading spinners while fetching data and clear error messages on failure so that I always know what the GUI is doing.
+
+**Acceptance Criteria:**
+- [ ] every panel that fetches data from the backend shows a loading indicator while the request is in flight
+- [ ] every panel shows a specific error message (not a generic "something went wrong") if the request fails
+- [ ] error state includes a "Retry" button that re-fetches the data
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-166: Responsive layout for common window sizes
+
+**Description:** As a user, I want the GUI to remain usable when the window is resized so that it works on different screen sizes and configurations.
+
+**Acceptance Criteria:**
+- [ ] layout remains functional and readable at widths from 800px to 1920px
+- [ ] sidebar collapses to icons or a hamburger menu below 1024px width
+- [ ] no horizontal scrollbars appear at any standard window width
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+# PHASE 59 — Performance: Actual Latency Reduction
+
+### US-167: Profile and document end-to-end voice response latency
+
+**Description:** As a developer, I want the total time for each stage of the voice pipeline measured and documented so that optimization work targets the highest-latency stages.
+
+**Acceptance Criteria:**
+- [ ] timing instrumentation added to: STT processing, LLM first token, LLM full response, TTS synthesis start, TTS first audio chunk, audio playback start
+- [ ] 10 sample interactions measured and results recorded in `docs/performance-baseline.md`
+- [ ] stage responsible for the majority of total latency identified explicitly
+- [ ] Typecheck passes
+
+---
+
+### US-168: Implement streaming TTS — play first audio chunk before full response is ready
+
+**Description:** As a user, I want Rex to begin speaking before it has finished generating the full response so that I hear audio sooner and the interaction feels faster.
+
+**Acceptance Criteria:**
+- [ ] TTS engine receives response text in chunks as the LLM streams output
+- [ ] first audio chunk begins playing within 2 seconds of the LLM producing its first sentence
+- [ ] subsequent audio chunks play without gaps or interruption
+- [ ] full response audio completes without truncation
+- [ ] Typecheck passes
+
+---
+
+### US-169: Pre-warm TTS engine on startup
+
+**Description:** As a developer, I want the TTS engine initialized and warmed up at application startup so that the first voice interaction does not pay a cold-start penalty.
+
+**Acceptance Criteria:**
+- [ ] TTS engine loads and synthesizes a silent or very short warmup phrase during Rex startup
+- [ ] warmup runs in the background and does not delay the application becoming ready
+- [ ] first user-triggered TTS call after warmup completes in under 1 second on reference hardware
+- [ ] Typecheck passes
+
+---
+
+### US-170: Audit and reduce blocking operations in the voice pipeline
+
+**Description:** As a developer, I want all synchronous blocking calls in the voice pipeline replaced with async equivalents so that the event loop is never stalled during voice interactions.
+
+**Acceptance Criteria:**
+- [ ] voice pipeline code audited for synchronous I/O, `time.sleep()`, and blocking network calls
+- [ ] any blocking calls replaced with async equivalents or offloaded to a thread executor
+- [ ] changes documented in a commit message or `AGENTS.md` entry
+- [ ] no `time.sleep()` calls remain in the hot path of the voice interaction loop
+- [ ] Typecheck passes
+
+---
+
+# PHASE 60 — Performance: Perceived Responsiveness
+
+### US-171: Immediate audio acknowledgment on wake word (verify and enforce)
+
+**Description:** As a user, I want to hear an acknowledgment tone within 200ms of saying the wake word so that I know Rex heard me before processing begins.
+
+**Acceptance Criteria:**
+- [ ] acknowledgment tone plays within 200ms of wake word detection on reference hardware
+- [ ] acknowledgment tone does not block STT from beginning simultaneously
+- [ ] tone playback failure does not prevent the voice pipeline from continuing
+- [ ] timing verified and documented in `docs/performance-baseline.md`
+- [ ] Typecheck passes
+
+---
+
+### US-172: Typing / thinking indicator in chat during LLM generation
+
+**Description:** As a user, I want to see an animated thinking indicator while Rex is generating a response so that I know it is working and not frozen.
+
+**Acceptance Criteria:**
+- [ ] animated dots or equivalent indicator appears in the chat message list while the LLM is generating
+- [ ] indicator appears within 100ms of message send
+- [ ] indicator disappears and is replaced by the response text when generation begins
+- [ ] indicator is removed if the request fails (error state shown instead)
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-173: Voice pipeline state announcements via GUI status
+
+**Description:** As a user, I want the GUI voice panel to update its state label in real time during a voice interaction so that I can see exactly what Rex is doing (Listening, Thinking, Speaking).
+
+**Acceptance Criteria:**
+- [ ] GUI Voice panel state label transitions through: Idle → Listening → Thinking → Speaking → Idle during a full voice interaction
+- [ ] each transition occurs within 500ms of the underlying pipeline stage changing
+- [ ] state updates delivered via SSE or WebSocket (not polling)
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### US-174: Configurable LLM response length limit for voice mode
+
+**Description:** As a user, I want Rex to give shorter replies in voice mode by default so that spoken responses feel natural and do not make me wait for a very long answer to finish playing.
+
+**Acceptance Criteria:**
+- [ ] a `voice_max_tokens` config value controls the maximum LLM output length in voice mode (default: 150 tokens)
+- [ ] voice mode prompt includes an instruction to keep responses concise
+- [ ] chat mode is not affected by the voice token limit
+- [ ] config value documented in `.env.example`
+- [ ] Typecheck passes
+
