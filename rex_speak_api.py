@@ -394,7 +394,7 @@ def main() -> None:
         raise RuntimeError("REX_SPEAK_API_KEY must be set")
     shutdown = get_shutdown_handler()
     shutdown.install()
-    app.run(host="0.0.0.0", port=int(os.getenv("REX_SPEAK_PORT", "5005")))
+    app.run(host="0.0.0.0", port=int(os.getenv("REX_SPEAK_PORT") or "5005"))
 
 
 if __name__ == "__main__":

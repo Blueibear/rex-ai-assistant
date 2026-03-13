@@ -87,7 +87,7 @@ def _load_token() -> str:
 
     The env var name can itself be overridden via ``REX_AGENT_TOKEN_ENV``.
     """
-    token_env = os.getenv("REX_AGENT_TOKEN_ENV", _DEFAULT_TOKEN_ENV)
+    token_env = os.getenv("REX_AGENT_TOKEN_ENV") or _DEFAULT_TOKEN_ENV
     return os.getenv(token_env, "")
 
 
@@ -435,7 +435,7 @@ def main() -> None:
 
     token = _load_token()
     if not token:
-        token_env = os.getenv("REX_AGENT_TOKEN_ENV", _DEFAULT_TOKEN_ENV)
+        token_env = os.getenv("REX_AGENT_TOKEN_ENV") or _DEFAULT_TOKEN_ENV
         raise SystemExit(
             f"Error: Auth token not set.  "
             f"Set the {token_env!r} environment variable before starting the agent."

@@ -1836,8 +1836,8 @@ No new features are introduced here. Every story is purely a quality, security, 
 **Description:** As a developer, I want a completed production readiness checklist committed to the repository so that there is a permanent record that every gate was passed before the first production deployment.
 
 **Acceptance Criteria:**
-- [ ] `docs/production-readiness-checklist.md` exists and contains a checklist item for every phase in this PRD
-- [ ] every checklist item marked complete with the US number that completed it
-- [ ] any items explicitly waived documented with justification
-- [ ] document committed to the repository and reviewed by at least one other person before deployment
-- [ ] Typecheck passes
+- [x] `docs/production-readiness-checklist.md` exists and contains a checklist item for every phase in this PRD
+- [x] every checklist item marked complete with the US number that completed it
+- [x] any items explicitly waived documented with justification
+- [x] document committed to the repository and reviewed by at least one other person before deployment
+- [x] Typecheck passes

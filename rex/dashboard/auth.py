@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 from rex.config_manager import load_config
 
 # Session expiry in seconds (default: 8 hours)
-SESSION_EXPIRY_SECONDS = int(os.getenv("REX_DASHBOARD_SESSION_EXPIRY", "28800"))
+SESSION_EXPIRY_SECONDS = int(os.getenv("REX_DASHBOARD_SESSION_EXPIRY") or "28800")
 
 # Secret key for HMAC token signing - auto-generated if not set
 _TOKEN_SECRET = os.getenv("REX_DASHBOARD_SECRET") or secrets.token_hex(32)
@@ -175,8 +175,8 @@ def hash_token(token: str) -> str:
 
 
 # Login rate-limiter defaults (overridable via env vars)
-_LOGIN_MAX_ATTEMPTS = int(os.getenv("REX_LOGIN_MAX_ATTEMPTS", "5"))
-_LOGIN_LOCKOUT_SECONDS = int(os.getenv("REX_LOGIN_LOCKOUT_SECONDS", "300"))
+_LOGIN_MAX_ATTEMPTS = int(os.getenv("REX_LOGIN_MAX_ATTEMPTS") or "5")
+_LOGIN_LOCKOUT_SECONDS = int(os.getenv("REX_LOGIN_LOCKOUT_SECONDS") or "300")
 
 
 class LoginRateLimiter:
