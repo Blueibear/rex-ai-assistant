@@ -129,7 +129,7 @@ class AppConfig:
     capabilities: List[str] = field(default_factory=list)
 
     audio_input_device: Optional[int] = None
-    audio_output_device: Optional[int] = None
+    audio_output_device: Optional[int | str] = None
 
     debug_logging: bool = False
     file_logging_enabled: bool = False

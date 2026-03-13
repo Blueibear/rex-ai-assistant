@@ -1933,11 +1933,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a developer, I want synthesized audio played through the correct output device so that Rex's spoken response is audible to the user.
 
 **Acceptance Criteria:**
-- [ ] TTS audio output plays through the system default audio device
-- [ ] output device configurable via `config` (device name or index)
-- [ ] playback does not block the voice loop from processing new input after audio ends
-- [ ] audio playback errors are caught and logged, not silently swallowed
-- [ ] Typecheck passes
+- [x] TTS audio output plays through the system default audio device
+- [x] output device configurable via `config` (device name or index)
+- [x] playback does not block the voice loop from processing new input after audio ends
+- [x] audio playback errors are caught and logged, not silently swallowed
+- [x] Typecheck passes
 
 ---
 
