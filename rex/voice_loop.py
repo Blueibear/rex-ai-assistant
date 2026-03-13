@@ -105,6 +105,9 @@ IdentifySpeakerCallable = Callable[[_NDArray], str | None] | Callable[[], str | 
 # Sentence-boundary pattern for streaming TTS sentence splitting.
 _SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
 
+# Short phrase used to pre-warm the TTS engine on startup.
+_WARMUP_PHRASE = "."
+
 
 def _split_into_sentences(text: str) -> list[str]:
     """Split *text* into sentence-sized chunks for streaming TTS."""
@@ -352,6 +355,18 @@ class TextToSpeech:
             with suppress(FileNotFoundError):
                 Path(chunk_path).unlink()
 
+    async def warmup(self, *, speaker_wav: str | None = None) -> None:
+        """Pre-warm the TTS engine by synthesizing a short phrase in the background.
+
+        Call via ``asyncio.create_task(tts.warmup())`` so it does not block startup.
+        """
+        try:
+            logger.info("[TTS] Pre-warming engine...")
+            await self.speak(_WARMUP_PHRASE, speaker_wav=speaker_wav)
+            logger.info("[TTS] Pre-warm complete.")
+        except Exception as exc:
+            logger.warning("[TTS] Pre-warm failed (non-fatal): %s", exc)
+
     async def speak_streaming(
         self,
         sentences: AsyncIterator[str],  # type: ignore[type-arg]
@@ -438,6 +453,7 @@ class VoiceLoop:
         transcribe: Callable[[np.ndarray], Awaitable[str]],  # type: ignore[name-defined]
         speak: Callable[[str], Awaitable[None]],
         speak_streaming: Callable[[AsyncIterator[str]], Awaitable[None]] | None = None,
+        warmup: Callable[[], Awaitable[None]] | None = None,
         acknowledge: Callable[[], Awaitable[None]] | None = None,
         identify_speaker: IdentifySpeakerCallable | None = None,  # type: ignore[valid-type]
     ) -> None:
@@ -448,6 +464,7 @@ class VoiceLoop:
         self._transcribe = transcribe
         self._speak = speak
         self._speak_streaming = speak_streaming
+        self._warmup = warmup
         self._acknowledge = acknowledge
         self._identify_speaker = identify_speaker
         self._identify_speaker_accepts_audio = self._resolve_identify_speaker_signature(
@@ -475,6 +492,16 @@ class VoiceLoop:
                 return True
 
         return False
+
+    async def warmup(self) -> None:
+        """Pre-warm TTS in the background.
+
+        Schedule as a fire-and-forget task::
+
+            asyncio.create_task(voice_loop.warmup())
+        """
+        if self._warmup is not None:
+            await self._warmup()
 
     async def run(self, max_interactions: int | None = None) -> None:
         """Run the voice loop for a specified number of interactions."""
@@ -703,6 +730,7 @@ def build_voice_loop(
         speak_streaming=lambda sentences: tts.speak_streaming(
             sentences, speaker_wav=speaker_wav
         ),
+        warmup=lambda: tts.warmup(speaker_wav=speaker_wav),
         acknowledge=ack.play,
         identify_speaker=identify_speaker,
     )

@@ -2388,10 +2388,10 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a developer, I want the TTS engine initialized and warmed up at application startup so that the first voice interaction does not pay a cold-start penalty.
 
 **Acceptance Criteria:**
-- [ ] TTS engine loads and synthesizes a silent or very short warmup phrase during Rex startup
-- [ ] warmup runs in the background and does not delay the application becoming ready
-- [ ] first user-triggered TTS call after warmup completes in under 1 second on reference hardware
-- [ ] Typecheck passes
+- [x] TTS engine loads and synthesizes a silent or very short warmup phrase during Rex startup
+- [x] warmup runs in the background and does not delay the application becoming ready
+- [x] first user-triggered TTS call after warmup completes in under 1 second on reference hardware
+- [x] Typecheck passes
 
 ---
 

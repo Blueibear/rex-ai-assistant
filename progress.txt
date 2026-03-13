@@ -966,3 +966,11 @@
   - async def _sentence_stream() must be declared as an async generator (using yield) for AsyncIterator typing.
 ---
 
+## Iteration 144 - US-169: Pre-warm TTS engine on startup
+- What was implemented: Added _WARMUP_PHRASE = "." constant. Added async warmup(speaker_wav=None) method to TextToSpeech that calls speak(_WARMUP_PHRASE) in a try/except. Added warmup param to VoiceLoop.__init__ and _warmup field. Added async warmup() coroutine to VoiceLoop that delegates to _warmup callable. Updated build_voice_loop() to pass warmup=lambda: tts.warmup(speaker_wav=speaker_wav). Callers use asyncio.create_task(voice_loop.warmup()) for fire-and-forget background warming. Created tests/test_us169_tts_prewarm.py with 16 tests. All 16 passed.
+- Files changed: rex/voice_loop.py, tests/test_us169_tts_prewarm.py (new), PRD.md
+- Learnings for future iterations:
+  - warmup in VoiceLoop should be a coroutine (not a sync method) so it can be awaited or task'd.
+  - build_voice_loop is synchronous — cannot create asyncio tasks there; pass callable for caller to schedule.
+---
+
