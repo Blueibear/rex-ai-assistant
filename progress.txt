@@ -990,3 +990,11 @@
   - _safe_acknowledge pattern (try/except wrapper) keeps pipeline alive on audio device failures.
 ---
 
+## Iteration 147 - US-172: Typing / thinking indicator in chat during LLM generation
+- What was implemented: Added animated dots CSS (`.thinking-dots`, `.thinking-dot`, `@keyframes thinking-bounce` with staggered `animation-delay`) to dashboard.css. Updated the thinking indicator HTML in `handleChatSubmit` in dashboard.js from plain "Thinking..." text to three `.thinking-dot` spans inside a `.thinking-dots` container. Indicator is added synchronously before fetch (< 100ms), removed on first SSE token, and error-styled on failure. Created tests/test_us172_thinking_indicator.py with 16 tests. All 16 passed.
+- Files changed: rex/dashboard/static/css/dashboard.css, rex/dashboard/static/js/dashboard.js, tests/test_us172_thinking_indicator.py (new), PRD.md
+- Learnings for future iterations:
+  - Thinking indicator pattern: add synchronously before fetch, remove on first data token, error-style in catch.
+  - Staggered animation-delay (nth-child offsets) creates wave/bounce effect for 3-dot indicator.
+---
+

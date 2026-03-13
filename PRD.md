@@ -2428,12 +2428,12 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want to see an animated thinking indicator while Rex is generating a response so that I know it is working and not frozen.
 
 **Acceptance Criteria:**
-- [ ] animated dots or equivalent indicator appears in the chat message list while the LLM is generating
-- [ ] indicator appears within 100ms of message send
-- [ ] indicator disappears and is replaced by the response text when generation begins
-- [ ] indicator is removed if the request fails (error state shown instead)
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] animated dots or equivalent indicator appears in the chat message list while the LLM is generating
+- [x] indicator appears within 100ms of message send
+- [x] indicator disappears and is replaced by the response text when generation begins
+- [x] indicator is removed if the request fails (error state shown instead)
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

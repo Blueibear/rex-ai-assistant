@@ -338,7 +338,7 @@
         if (placeholder) placeholder.remove();
 
         container.innerHTML += `<div class="chat-message user">${escapeHtml(message)}</div>`;
-        container.innerHTML += `<div class="chat-message thinking" id="thinking-indicator">Thinking...</div>`;
+        container.innerHTML += `<div class="chat-message thinking" id="thinking-indicator"><span class="thinking-dots"><span class="thinking-dot"></span><span class="thinking-dot"></span><span class="thinking-dot"></span></span></div>`;
         container.scrollTop = container.scrollHeight;
 
         let assistantBubble = null;
