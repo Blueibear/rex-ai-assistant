@@ -612,8 +612,57 @@
                     <p><strong>Schedule:</strong> ${formatSchedule(job.schedule)}</p>
                     <p><strong>Next run:</strong> ${job.next_run ? new Date(job.next_run).toLocaleString() : 'Not scheduled'}</p>
                 </div>
+                <div class="schedule-item-actions">
+                    <button class="btn btn-secondary btn-sm schedule-toggle-btn"
+                        data-job-id="${escapeHtml(job.job_id)}"
+                        data-enabled="${job.enabled}"
+                        onclick="window.dashboardHandlers.toggleScheduleJob('${escapeHtml(job.job_id)}', ${job.enabled})">
+                        ${job.enabled ? 'Disable' : 'Enable'}
+                    </button>
+                </div>
             </div>
         `).join('');
+    }
+
+    async function toggleScheduleJob(jobId, currentEnabled) {
+        const newEnabled = !currentEnabled;
+        // Optimistic UI update
+        const item = $(`[data-id="${jobId}"]`);
+        const statusEl = item ? item.querySelector('.schedule-item-status') : null;
+        const toggleBtn = item ? item.querySelector('.schedule-toggle-btn') : null;
+        if (statusEl) {
+            statusEl.className = `schedule-item-status ${newEnabled ? 'enabled' : 'disabled'}`;
+            statusEl.textContent = newEnabled ? 'Enabled' : 'Disabled';
+        }
+        if (toggleBtn) {
+            toggleBtn.dataset.enabled = String(newEnabled);
+            toggleBtn.setAttribute('onclick', `window.dashboardHandlers.toggleScheduleJob('${jobId}', ${newEnabled})`);
+            toggleBtn.textContent = newEnabled ? 'Disable' : 'Enable';
+        }
+        try {
+            await api(`/api/scheduler/jobs/${jobId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ enabled: newEnabled }),
+            });
+        } catch (error) {
+            // Revert on failure
+            if (statusEl) {
+                statusEl.className = `schedule-item-status ${currentEnabled ? 'enabled' : 'disabled'}`;
+                statusEl.textContent = currentEnabled ? 'Enabled' : 'Disabled';
+            }
+            if (toggleBtn) {
+                toggleBtn.dataset.enabled = String(currentEnabled);
+                toggleBtn.setAttribute('onclick', `window.dashboardHandlers.toggleScheduleJob('${jobId}', ${currentEnabled})`);
+                toggleBtn.textContent = currentEnabled ? 'Disable' : 'Enable';
+            }
+            const errorEl = document.createElement('div');
+            errorEl.className = 'schedule-toggle-error error-message';
+            errorEl.textContent = `Failed to update: ${error.message}`;
+            if (item) {
+                item.appendChild(errorEl);
+                setTimeout(() => errorEl.remove(), 4000);
+            }
+        }
     }
 
     async function runReminder(jobId) {
@@ -1332,6 +1381,7 @@
         toggleReminder,
         deleteReminder,
         markNotifRead,
+        toggleScheduleJob,
     };
 
     // Start app

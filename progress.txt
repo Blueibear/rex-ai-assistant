@@ -855,3 +855,15 @@
 - Panel fetches on focus (navigateToSection switch case)
 - 36 tests pass in test_us159_schedule_list.py
 ---
+
+---
+## Iteration 144 — US-160: Enable/disable scheduled items from the GUI
+
+- Added `toggleScheduleJob(jobId, currentEnabled)` async function in dashboard.js
+- `renderScheduleJobs` now renders a `.schedule-toggle-btn` per item with Enable/Disable label
+- Optimistic UI update: status badge and button label update immediately
+- On PATCH error: reverts status badge and button to previous state, shows `.schedule-toggle-error` message (auto-removes after 4s)
+- Exposed `toggleScheduleJob` in `window.dashboardHandlers`
+- Added `.schedule-item-actions` and `.schedule-toggle-error` CSS classes
+- 20 tests pass in test_us160_schedule_toggle.py
+---

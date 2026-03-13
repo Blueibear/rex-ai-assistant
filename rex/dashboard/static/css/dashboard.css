@@ -688,6 +688,18 @@ html, body {
     margin: 0.25rem 0;
 }
 
+.schedule-item-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+}
+
+.schedule-toggle-error {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+}
+
 /* Status Section */
 .status-container {
     display: grid;

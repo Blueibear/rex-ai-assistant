@@ -2263,12 +2263,12 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want to toggle a scheduled item on or off from the GUI so that I can pause automations without deleting them.
 
 **Acceptance Criteria:**
-- [ ] each scheduled item has a visible toggle (switch or checkbox) for enabled/disabled
-- [ ] toggling calls the Rex backend and persists the change
-- [ ] UI reflects the new state immediately after toggle
-- [ ] toggle errors show a visible error message and revert the UI to the previous state
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] each scheduled item has a visible toggle (switch or checkbox) for enabled/disabled
+- [x] toggling calls the Rex backend and persists the change
+- [x] UI reflects the new state immediately after toggle
+- [x] toggle errors show a visible error message and revert the UI to the previous state
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
