@@ -5,12 +5,10 @@ Acceptance criteria:
 - execution dispatched
 - errors handled safely
 """
+
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock
-
-import pytest
 
 from rex.tool_router import (
     ApprovalRequiredError,
@@ -21,7 +19,6 @@ from rex.tool_router import (
     parse_tool_request,
     route_if_tool_request,
 )
-
 
 # ---------------------------------------------------------------------------
 # Criterion: tools routed correctly
@@ -93,6 +90,17 @@ def test_execute_tool_time_now_returns_local_time():
     assert result["timezone"] == "America/Chicago"
 
 
+def test_execute_tool_time_now_handles_dallas_texas_aliases():
+    for location in ("Dallas", "Dallas, Texas", "Dallas Texas USA"):
+        result = execute_tool(
+            {"tool": "time_now", "args": {"location": location}},
+            {},
+            skip_policy_check=True,
+            skip_audit_log=True,
+        )
+        assert result["timezone"] == "America/Chicago"
+
+
 def test_execute_tool_dispatches_via_tool_name():
     result = execute_tool(
         {"tool": "time_now", "args": {"location": "UTC"}},
@@ -107,7 +115,7 @@ def test_execute_tool_dispatches_via_tool_name():
 def test_format_tool_result_includes_tool_and_result():
     formatted = format_tool_result("time_now", {"location": "Dallas, TX"}, {"local_time": "12:00"})
     assert formatted.startswith("TOOL_RESULT:")
-    payload = json.loads(formatted[len("TOOL_RESULT:"):].strip())
+    payload = json.loads(formatted[len("TOOL_RESULT:") :].strip())
     assert payload["tool"] == "time_now"
     assert payload["result"] == {"local_time": "12:00"}
 
@@ -168,7 +176,9 @@ def test_route_if_tool_request_handles_credential_missing(monkeypatch):
 
     monkeypatch.setattr("rex.tool_router.execute_tool", raise_cred)
     result = route_if_tool_request(llm_text, {}, lambda _msg: "ok")
-    assert "credential" in result.lower() or "missing" in result.lower() or "cannot" in result.lower()
+    assert (
+        "credential" in result.lower() or "missing" in result.lower() or "cannot" in result.lower()
+    )
 
 
 def test_route_if_tool_request_handles_approval_required(monkeypatch):

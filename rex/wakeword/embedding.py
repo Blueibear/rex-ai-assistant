@@ -13,7 +13,7 @@ except Exception:  # pragma: no cover - optional dependency
 try:  # pragma: no cover - optional dependency
     import torch
 except Exception:  # pragma: no cover - optional dependency
-    torch = None  # type: ignore[assignment]
+    torch = None
 
 DEFAULT_EMBEDDING_BINS = 128
 

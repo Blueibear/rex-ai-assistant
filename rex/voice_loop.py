@@ -261,22 +261,35 @@ class TextToSpeech:
         self._edge_voice = getattr(settings, "tts_voice", None) or "en-US-AndrewNeural"
 
         self._tts = None
+        self._xtts_init_error: str | None = None
         if self._provider == "xtts":
-            tts_class = _lazy_import_tts()
-        else:
-            tts_class = None
+            self._initialize_xtts()
 
-        if self._provider == "xtts" and tts_class is not None:
-            try:
-                torch = import_module("torch")
-                self._tts = tts_class(
-                    model_name="tts_models/multilingual/multi-dataset/xtts_v2",
-                    progress_bar=False,
-                )
-                if torch.cuda.is_available():
-                    self._tts.to("cuda")
-            except Exception as exc:
-                logger.warning("XTTS init failed: %s", exc)
+    def _initialize_xtts(self) -> bool:
+        """Initialize XTTS model, storing diagnostics on failure."""
+        if self._tts is not None:
+            return True
+
+        tts_class = _lazy_import_tts()
+        if tts_class is None:
+            self._xtts_init_error = "Coqui XTTS is not installed"
+            logger.warning("XTTS init skipped: %s", self._xtts_init_error)
+            return False
+
+        try:
+            torch = import_module("torch")
+            self._tts = tts_class(
+                model_name="tts_models/multilingual/multi-dataset/xtts_v2",
+                progress_bar=False,
+            )
+            if torch.cuda.is_available() and self._tts is not None:
+                self._tts.to("cuda")
+            self._xtts_init_error = None
+            return True
+        except Exception as exc:
+            self._xtts_init_error = str(exc)
+            logger.warning("XTTS init failed: %s", exc)
+            return False
 
     async def speak(self, text: str, *, speaker_wav: str | None = None) -> None:
         """Synthesize and play text as speech."""
@@ -313,8 +326,9 @@ class TextToSpeech:
 
     async def _speak_xtts(self, text: str, speaker_wav: str | None) -> None:
         """Synthesize speech using XTTS, playing each chunk immediately."""
-        if self._tts is None:
-            raise TextToSpeechError("XTTS not initialized")
+        if self._tts is None and not self._initialize_xtts():
+            reason = self._xtts_init_error or "unknown initialization error"
+            raise TextToSpeechError(f"XTTS not initialized: {reason}")
         sf = _lazy_import_soundfile()
         if sf is None:
             raise TextToSpeechError("soundfile is required for XTTS output")
@@ -333,8 +347,13 @@ class TextToSpeech:
             chunk_path = tmp.name
 
         try:
+
+            tts_engine = self._tts
+            if tts_engine is None:
+                raise TextToSpeechError("XTTS not initialized")
+
             def _synthesize(_chunk=chunk, _chunk_path=chunk_path) -> None:
-                self._tts.tts_to_file(  # type: ignore[union-attr]
+                tts_engine.tts_to_file(
                     text=_chunk,
                     speaker_wav=speaker_wav or self._default_speaker,
                     language=self._language,
@@ -345,6 +364,7 @@ class TextToSpeech:
             await asyncio.to_thread(_synthesize)
 
             if sa is not None and Path(chunk_path).exists():
+
                 def _play(_path=chunk_path) -> None:
                     wave_obj = sa.WaveObject.from_wave_file(_path)
                     play_obj = wave_obj.play()
@@ -369,7 +389,7 @@ class TextToSpeech:
 
     async def speak_streaming(
         self,
-        sentences: AsyncIterator[str],  # type: ignore[type-arg]
+        sentences: AsyncIterator[str],
         *,
         speaker_wav: str | None = None,
     ) -> None:
@@ -551,9 +571,7 @@ class VoiceLoop:
 
                     # Get LLM response — voice_mode=True enables conciseness prompt
                     tracker.mark("llm_start")
-                    response = await self._assistant.generate_reply(
-                        transcript, voice_mode=True
-                    )
+                    response = await self._assistant.generate_reply(transcript, voice_mode=True)
                     tracker.mark("llm_end")
 
                     # Ensure response ends with period for better TTS
@@ -740,9 +758,7 @@ def build_voice_loop(
         record_phrase=mic.record_phrase,
         transcribe=lambda audio: stt.transcribe(audio, sample_rate),
         speak=lambda text: tts.speak(text, speaker_wav=speaker_wav),
-        speak_streaming=lambda sentences: tts.speak_streaming(
-            sentences, speaker_wav=speaker_wav
-        ),
+        speak_streaming=lambda sentences: tts.speak_streaming(sentences, speaker_wav=speaker_wav),
         warmup=lambda: tts.warmup(speaker_wav=speaker_wav),
         acknowledge=ack.play,
         identify_speaker=identify_speaker,

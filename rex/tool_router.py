@@ -482,9 +482,16 @@ def _execute_time_now(args: dict[str, Any], default_context: dict[str, Any]) -> 
 
 
 def _resolve_timezone(location: str, default_context: dict[str, Any]) -> str | ToolError:
-    normalized = location.strip().lower()
-    if normalized == "dallas, tx":
-        return "America/Chicago"
+    normalized = " ".join(location.strip().lower().replace(",", " ").split())
+    city_aliases = {
+        "dallas": "America/Chicago",
+        "dallas tx": "America/Chicago",
+        "dallas texas": "America/Chicago",
+        "dallas texas usa": "America/Chicago",
+    }
+    alias_timezone = city_aliases.get(normalized)
+    if alias_timezone is not None:
+        return alias_timezone
 
     fallback = default_context.get("timezone")
     if isinstance(fallback, str) and fallback.strip():
