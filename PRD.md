@@ -2234,11 +2234,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want to see what Rex heard me say and what it is replying so that I can confirm it understood me correctly.
 
 **Acceptance Criteria:**
-- [ ] the most recent spoken input transcript displayed in the Voice panel after recognition completes
-- [ ] Rex's most recent spoken response text displayed below the transcript
-- [ ] both fields clear when a new interaction begins
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] the most recent spoken input transcript displayed in the Voice panel after recognition completes
+- [x] Rex's most recent spoken response text displayed below the transcript
+- [x] both fields clear when a new interaction begins
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

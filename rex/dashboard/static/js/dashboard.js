@@ -965,6 +965,25 @@
 
     let _voiceModeEs = null;
 
+    function _clearVoiceTranscript() {
+        const inputEl = $('#voice-input-transcript');
+        const responseEl = $('#voice-response-transcript');
+        if (inputEl) inputEl.textContent = '';
+        if (responseEl) responseEl.textContent = '';
+    }
+
+    async function _fetchVoiceTranscript() {
+        try {
+            const data = await api('/api/voice/transcript');
+            const inputEl = $('#voice-input-transcript');
+            const responseEl = $('#voice-response-transcript');
+            if (inputEl) inputEl.textContent = data.input || '';
+            if (responseEl) responseEl.textContent = data.response || '';
+        } catch (err) {
+            console.error('Voice transcript fetch error:', err);
+        }
+    }
+
     function _updateVoiceModeUI(stateData) {
         const btn = $('#voice-mode-btn');
         const label = $('#voice-state-label');
@@ -977,6 +996,11 @@
         const waveform = $('#voice-waveform');
         if (waveform) {
             waveform.classList.toggle('hidden', stateName !== 'Listening');
+        }
+        if (stateName === 'Listening') {
+            _clearVoiceTranscript();
+        } else if (stateName === 'Idle' && !active) {
+            _fetchVoiceTranscript();
         }
     }
 

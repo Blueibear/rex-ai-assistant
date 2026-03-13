@@ -1042,3 +1042,32 @@ html, body {
     0%, 100% { transform: scaleY(0.2); }
     50% { transform: scaleY(1); }
 }
+
+/* Voice transcript display */
+.voice-transcript-panel {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.voice-transcript-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.voice-transcript-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.voice-transcript-text {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    min-height: 1.4em;
+    font-style: italic;
+}

@@ -81,6 +81,9 @@ _VOICE_STATE: dict[str, Any] = {"active": False, "state": "Idle"}
 # Callbacks registered by the SSE stream to receive state updates
 _VOICE_STATE_LISTENERS: list[Any] = []
 
+# Most recent voice interaction transcript and response
+_VOICE_TRANSCRIPT: dict[str, str] = {"input": "", "response": ""}
+
 # Content-Security-Policy applied to HTML responses
 _CSP_POLICY = (
     "default-src 'self'; "
@@ -1207,6 +1210,9 @@ def voice_chat():
         while len(_CHAT_HISTORY) > _CHAT_HISTORY_MAX:
             _CHAT_HISTORY.pop(0)
 
+        _VOICE_TRANSCRIPT["input"] = transcript
+        _VOICE_TRANSCRIPT["response"] = reply
+
         return jsonify(
             {
                 "transcript": transcript,
@@ -1246,6 +1252,16 @@ def get_voice_mode() -> Response:
     return jsonify(_VOICE_STATE)
 
 
+@dashboard_bp.route("/api/voice/transcript", methods=["GET"])
+@require_auth
+def get_voice_transcript() -> Response:
+    """Return the most recent voice interaction transcript and response.
+
+    Response: {"input": "...", "response": "..."}
+    """
+    return jsonify(_VOICE_TRANSCRIPT)
+
+
 @dashboard_bp.route("/api/voice/mode", methods=["POST"])
 @require_auth
 def set_voice_mode() -> Any:
@@ -1261,6 +1277,9 @@ def set_voice_mode() -> Any:
     active = bool(body["active"])
     _VOICE_STATE["active"] = active
     _VOICE_STATE["state"] = "Listening" if active else "Idle"
+    if active:
+        _VOICE_TRANSCRIPT["input"] = ""
+        _VOICE_TRANSCRIPT["response"] = ""
     _notify_voice_state_listeners()
     return jsonify(_VOICE_STATE)
 
