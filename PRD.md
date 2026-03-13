@@ -2063,11 +2063,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a new user, I want the README to use visual structure so that it is easy to scan and navigate.
 
 **Acceptance Criteria:**
-- [ ] repo status badges added (CI status, Python version, license)
-- [ ] each major section clearly headed with a level-2 heading
-- [ ] important warnings or prerequisites use a blockquote or note callout, not inline text
-- [ ] README renders correctly on GitHub (no broken markdown)
-- [ ] Typecheck passes
+- [x] repo status badges added (CI status, Python version, license)
+- [x] each major section clearly headed with a level-2 heading
+- [x] important warnings or prerequisites use a blockquote or note callout, not inline text
+- [x] README renders correctly on GitHub (no broken markdown)
+- [x] Typecheck passes
 
 ---
 

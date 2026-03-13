@@ -2,6 +2,8 @@
 
 <p align="center">
   <img src="https://github.com/Blueibear/rex-ai-assistant/actions/workflows/ci.yml/badge.svg" alt="CI status" />
+  <img src="https://img.shields.io/badge/python-3.9%2B-blue" alt="Python 3.9+" />
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />
   <a href="https://www.buymeacoffee.com/Blueibear" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 28px !important;width: 120px !important;" ></a>
 </p>
 
@@ -88,7 +90,7 @@ Rex AI Assistant is a local-first, voice-activated AI companion that runs entire
 | **Hardware** | Microphone and speakers for voice mode |
 | **GPU** (optional) | NVIDIA GPU with CUDA 11.8+ for acceleration |
 
-**Note for Windows users**: The `simpleaudio` package (used for audio playback) has build issues on Windows and is automatically disabled. Audio playback functionality will be limited on Windows, but all core features work correctly.
+> **Note for Windows users**: The `simpleaudio` package (used for audio playback) has build issues on Windows and is automatically disabled. Audio playback functionality will be limited on Windows, but all core features work correctly.
 
 ## Configuration (Environment Variables)
 
