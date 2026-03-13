@@ -1,4 +1,23 @@
 
+## Iteration 142 - US-158: Voice transcript display in Voice panel
+- What was implemented: Added _VOICE_TRANSCRIPT dict to routes.py. Updated /api/voice POST to store transcript/reply. Added GET /api/voice/transcript endpoint. Updated set_voice_mode to clear transcript when active=True. Added HTML transcript panel with #voice-input-transcript and #voice-response-transcript. Added CSS for transcript elements. Added _clearVoiceTranscript() and _fetchVoiceTranscript() JS helpers. Updated _updateVoiceModeUI to clear on Listening and fetch on Idle. Created tests/test_us158_voice_transcript.py with 23 tests. All 23 passed.
+- Files changed: rex/dashboard/routes.py, rex/dashboard/templates/index.html, rex/dashboard/static/css/dashboard.css, rex/dashboard/static/js/dashboard.js, tests/test_us158_voice_transcript.py (new), PRD.md
+- Learnings for future iterations:
+  - Auth fixture pattern: ALLOW_LOCAL=0, REMOTE_ADDR=10.0.0.1, /api/dashboard/login, SECRET_KEY in app.config — same as US-156.
+  - monkeypatch.setattr(routes, "_VOICE_TRANSCRIPT", {...}) overrides module-level dict in backend tests.
+  - _fetchVoiceTranscript on Idle state (not active) covers "after recognition completes" AC.
+---
+
+## Iteration 141 - US-157: Visual waveform animation during active listening
+- What was implemented: Added #voice-waveform div with 5 .waveform-bar spans (hidden by default) to the voice panel in index.html. Added CSS: .voice-waveform, .voice-waveform.hidden (display:none), .waveform-bar with animation using @keyframes waveform-bounce (scaleY 0.2→1→0.2) and staggered nth-child animation-delay. Updated _updateVoiceModeUI in dashboard.js to toggle the hidden class based on stateName === 'Listening'. Created tests/test_us157_voice_waveform.py with 22 tests. All 22 passed.
+- Files changed: rex/dashboard/templates/index.html, rex/dashboard/static/css/dashboard.css, rex/dashboard/static/js/dashboard.js, tests/test_us157_voice_waveform.py (new), PRD.md
+- Learnings for future iterations:
+  - The waveform should only show for stateName === 'Listening', not for Processing or Speaking states (or Idle).
+  - Use toggle('hidden', condition) where condition is true when waveform should be hidden.
+  - @keyframes with scaleY is the simplest pure CSS bar-graph waveform — 5 bars with staggered animation-delay creates a wave effect.
+  - Previous iteration (US-156) had already committed the implementation files; only PRD.md needed updating for US-157.
+---
+
 ## Iteration 140 - US-155: Chat message streaming display
 - What was implemented: Added /api/chat/stream POST endpoint to routes.py that emits SSE token/done/error events. For OpenAI-compatible backends uses stream=True; for all others falls back to word-by-word simulation. Updated handleChatSubmit in dashboard.js to use fetch() + ReadableStream reader against /api/chat/stream — replaces thinking indicator with a streaming bubble on first token. Updated US-153 and US-154 tests to match new streaming implementation. Created tests/test_us155_chat_streaming.py with 27 tests. All 27 passed.
 - Files changed: rex/dashboard/routes.py, rex/dashboard/static/js/dashboard.js, tests/test_us155_chat_streaming.py (new), tests/test_us154_chat_backend.py, tests/test_us153_chat_input.py, PRD.md
@@ -822,4 +841,17 @@
   - `sent_messages` returns `list(self._log)` copy so callers can't mutate internal state
   - No-network tests use `patch.object(socket.socket, "connect", ...)` to detect accidental calls
   - 29 tests pass, mypy clean on 2 new source files
+---
+
+---
+## Iteration 143 — US-159: Scheduled items list view
+
+- Replaced the Schedule section placeholder with a real `#schedule-list` container
+- Added `loadScheduleJobs()` and `renderScheduleJobs()` functions in dashboard.js
+- Added `case 'schedule': loadScheduleJobs(); break;` to the section navigation switch
+- Added CSS classes: `.schedule-list`, `.schedule-empty`, `.schedule-item`, `.schedule-item-header`, `.schedule-item-name`, `.schedule-item-status` (.enabled/.disabled), `.schedule-item-details`
+- Items display: name, human-readable schedule (via existing `formatSchedule()`), enabled/disabled badge, next run time
+- Empty state: `<div class="schedule-empty">No items scheduled.</div>`
+- Panel fetches on focus (navigateToSection switch case)
+- 36 tests pass in test_us159_schedule_list.py
 ---

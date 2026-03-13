@@ -205,6 +205,9 @@
             case 'settings':
                 loadSettings();
                 break;
+            case 'schedule':
+                loadScheduleJobs();
+                break;
             case 'reminders':
                 loadReminders();
                 break;
@@ -576,6 +579,41 @@
             return `Daily at ${schedule.split(':').slice(1).join(':')}`;
         }
         return schedule;
+    }
+
+    async function loadScheduleJobs() {
+        const container = $('#schedule-list');
+        if (!container) return;
+        container.innerHTML = '<div class="loading">Loading schedule...</div>';
+        try {
+            const data = await api('/api/scheduler/jobs');
+            renderScheduleJobs(data.jobs || []);
+        } catch (error) {
+            container.innerHTML = `<div class="error-message">Failed to load schedule: ${error.message}</div>`;
+        }
+    }
+
+    function renderScheduleJobs(jobs) {
+        const container = $('#schedule-list');
+        if (!container) return;
+        if (jobs.length === 0) {
+            container.innerHTML = '<div class="schedule-empty">No items scheduled.</div>';
+            return;
+        }
+        container.innerHTML = jobs.map(job => `
+            <div class="schedule-item" data-id="${escapeHtml(job.job_id)}">
+                <div class="schedule-item-header">
+                    <span class="schedule-item-name">${escapeHtml(job.name)}</span>
+                    <span class="schedule-item-status ${job.enabled ? 'enabled' : 'disabled'}">
+                        ${job.enabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                </div>
+                <div class="schedule-item-details">
+                    <p><strong>Schedule:</strong> ${formatSchedule(job.schedule)}</p>
+                    <p><strong>Next run:</strong> ${job.next_run ? new Date(job.next_run).toLocaleString() : 'Not scheduled'}</p>
+                </div>
+            </div>
+        `).join('');
     }
 
     async function runReminder(jobId) {

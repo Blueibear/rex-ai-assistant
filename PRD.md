@@ -2249,12 +2249,12 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want to see a list of all scheduled tasks and automations in the Schedule panel so that I know what Rex has planned.
 
 **Acceptance Criteria:**
-- [ ] Schedule panel fetches and displays all scheduled items from the Rex backend
-- [ ] each item shows: name, schedule (human-readable), enabled/disabled status, next run time
-- [ ] list refreshes automatically or on panel focus
-- [ ] empty state message shown when no items are scheduled
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Schedule panel fetches and displays all scheduled items from the Rex backend
+- [x] each item shows: name, schedule (human-readable), enabled/disabled status, next run time
+- [x] list refreshes automatically or on panel focus
+- [x] empty state message shown when no items are scheduled
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
