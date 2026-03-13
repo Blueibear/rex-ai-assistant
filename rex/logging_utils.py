@@ -98,7 +98,7 @@ def _env_module_levels() -> dict[str, int]:
     for key, val in os.environ.items():
         # Compare upper-cased key to handle Windows (which stores keys in upper case).
         if key.upper().startswith(prefix_upper):
-            module = key[len(prefix):].lower()
+            module = key[len(prefix) :].lower()
             level_name = val.strip().upper()
             if module and level_name in _LEVEL_NAMES:
                 result[module] = _LEVEL_NAMES[level_name]
