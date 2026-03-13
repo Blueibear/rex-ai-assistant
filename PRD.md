@@ -1920,11 +1920,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a developer, I want the LLM response text reliably passed to the TTS engine so that every generated reply is queued for speech synthesis.
 
 **Acceptance Criteria:**
-- [ ] LLM response text reaches the TTS input function on every successful generation
-- [ ] empty or whitespace-only responses do not trigger TTS
-- [ ] errors in the LLM handler do not silently discard the response before TTS is called
-- [ ] unit test confirms TTS input function is called with the correct text after a mock LLM response
-- [ ] Typecheck passes
+- [x] LLM response text reaches the TTS input function on every successful generation
+- [x] empty or whitespace-only responses do not trigger TTS
+- [x] errors in the LLM handler do not silently discard the response before TTS is called
+- [x] unit test confirms TTS input function is called with the correct text after a mock LLM response
+- [x] Typecheck passes
 
 ---
 

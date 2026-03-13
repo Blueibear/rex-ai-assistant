@@ -1,4 +1,32 @@
 
+## Iteration 120 - US-135: Fix TTS text input delivery from LLM response handler
+- What was implemented: In voice_loop.py `_process_conversation`, wrapped `language_model.generate` in try/except — on exception logs error with exc_info=True and returns early (TTS not called). Added empty/whitespace guard after LLM response: if `not response or not response.strip()` logs warning and returns (TTS not called). Added `exc_info=True` to existing `TextToSpeechError` catch so TTS failures include full traceback. Created tests/test_us135_tts_text_delivery.py with 4 unit tests: (1) _speak_response called with exact LLM text, (2) skipped for empty response, (3) skipped for whitespace-only response, (4) skipped when LLM raises. 4158 passed / 47 skipped / 0 failed.
+- Files changed: voice_loop.py, tests/test_us135_tts_text_delivery.py, PRD.md
+- Learnings for future iterations:
+  - Wrap `asyncio.to_thread` LLM calls in try/except — unhandled exceptions propagate to _handle_interaction's broad catch but don't give early-return control, so catching at site is cleaner
+  - Empty response guard `if not response or not response.strip()` must come AFTER the [PIPELINE] log so the stage is still recorded even when we skip TTS
+  - `exc_info=True` on logger.error() adds full traceback to the log entry — prefer this over bare `logger.error("msg: %s", exc)` for diagnosability
+---
+
+## Iteration 119 - US-134: Document and confirm the confirmed break point in voice playback
+- What was implemented: Created AGENTS.md with "Voice Pipeline Break Point" heading documenting: last successful stage = llm_response_received, first missing stage = tts_input_prepared, root cause = _get_tts() raises TextToSpeechError("TTS is not installed") when Coqui TTS package not installed, silently caught in _process_conversation. Created scripts/test_voice_pipeline.py — mocks TTS, Whisper, audio playback, then runs _process_conversation() with LOG_LEVEL=DEBUG, captures all 6 [PIPELINE] stage= entries, analyzes which are missing. Script output confirmed: all 6 stages complete with mocks (as expected); script exits 0. Secondary break point documented: non-Windows without simpleaudio — all stages log but audio is not played (warning branch). 4178 passed / 47 skipped / 0 failed (1 pre-existing pip-audit failure).
+- Files changed: AGENTS.md (new), scripts/test_voice_pipeline.py (new), PRD.md
+- Learnings for future iterations:
+  - `AsyncRexAssistant.__new__(AsyncRexAssistant)` bypasses __init__ and lets you inject mock attributes directly — useful for pipeline tests without real hardware
+  - `patch.object(type(assistant), "_get_tts", lambda self: mock_tts)` patches an instance method via its class so it works even after the object is constructed
+  - `_make_wav(path)` with wave module creates a real WAV that soundfile.read() can parse — needed because soundfile validates WAV headers strictly
+  - Project root must be on sys.path when running scripts from subdirectory; add with `sys.path.insert(0, project_root)` at top of script before any local imports
+---
+
+## Iteration 118 - US-133: Add tracing logs to the full voice response pipeline
+- What was implemented: Added `logger.debug("[PIPELINE] stage=... ts=... ...")` entries at all six pipeline stages in voice_loop.py: llm_response_received (_process_conversation, after language_model.generate), tts_input_prepared (after chunk_text_for_xtts), tts_engine_called (before each tts.tts_to_file call), audio_data_returned (after soundfile.read per chunk), audio_playback_initiated (before winsound/simpleaudio call), audio_playback_completed (after playback). Each log includes stage name, Unix timestamp (ts=), and payload size/status. All logs at DEBUG level so LOG_LEVEL=DEBUG enables them with no source changes.
+- Files changed: voice_loop.py, PRD.md
+- Learnings for future iterations:
+  - The pre-existing pip-audit vulnerability test failure (test_us131_security_scan.py) is an environment issue unrelated to code changes; ignore it when evaluating pass/fail.
+  - Import `time` inside the function (already done in _speak_response); for _process_conversation add `import time as _time` locally to avoid name collision.
+  - Use `enumerate(chunks)` with `total_chunks = len(chunks)` before the loop so chunk index/total are available in debug logs without calling len inside the loop body.
+---
+
 ## Iteration 117 - US-132: Production readiness checklist sign-off
 - What was implemented: Created docs/production-readiness-checklist.md covering all 47 phases and 132 user stories, each marked complete with its US number. Waiver section for the "peer review" AC (requires human sign-off before production). Also fixed 3 pre-existing env-var bugs where `.env` contained blank values and `int(os.getenv("VAR", "default"))` crashed: `int("" or "default")` pattern applied to REX_DASHBOARD_SESSION_EXPIRY, REX_LOGIN_MAX_ATTEMPTS, REX_LOGIN_LOCKOUT_SECONDS (auth.py), REX_AGENT_TOKEN_ENV (agent_server.py), REX_SPEAK_PORT (rex_speak_api.py). 4179 passed / 47 skipped / 0 failed.
 - Files changed: docs/production-readiness-checklist.md (new), rex/dashboard/auth.py, rex/computers/agent_server.py, rex_speak_api.py, PRD.md

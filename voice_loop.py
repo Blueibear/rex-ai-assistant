@@ -551,12 +551,21 @@ class AsyncRexAssistant:
         )
 
         import time as _time
-        response = await asyncio.to_thread(self.language_model.generate, transcript)
+        try:
+            response = await asyncio.to_thread(self.language_model.generate, transcript)
+        except Exception as exc:
+            logger.error("LLM generation failed: %s", exc, exc_info=True)
+            return
         logger.debug(
             "[PIPELINE] stage=llm_response_received ts=%.3f text_len=%d",
             _time.time(),
             len(response),
         )
+
+        if not response or not response.strip():
+            logger.warning("LLM returned empty or whitespace-only response; skipping TTS")
+            return
+
         await asyncio.to_thread(
             append_history_entry,
             self.active_user,
@@ -576,7 +585,7 @@ class AsyncRexAssistant:
         try:
             await asyncio.to_thread(self._speak_response, response)
         except TextToSpeechError as exc:
-            logger.error("TTS failed: %s", exc)
+            logger.error("TTS failed: %s", exc, exc_info=True)
 
     def _record_audio(self) -> np.ndarray:
         np = _require_numpy()
