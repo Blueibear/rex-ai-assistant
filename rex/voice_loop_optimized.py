@@ -28,7 +28,7 @@ from typing import Callable
 try:  # pragma: no cover - optional dependency
     import numpy as np
 except ImportError:
-    np = None  # type: ignore[assignment]
+    np = None
 
 from wake_acknowledgment import ensure_wake_acknowledgment_sound
 
@@ -86,7 +86,7 @@ def _require_numpy():
 
 logger = logging.getLogger(__name__)
 
-RecorderCallable = Callable[[float], Awaitable[np.ndarray] | np.ndarray]  # type: ignore[operator, valid-type]
+RecorderCallable = Callable[[float], Awaitable[np.ndarray] | np.ndarray]
 
 
 class AsyncMicrophone:
@@ -153,7 +153,7 @@ class AsyncMicrophone:
         except Exception as exc:
             raise AudioDeviceError(str(exc)) from exc
 
-        return np.concatenate(chunks) if chunks else np.zeros(chunk_frames, dtype=np.float32)  # type: ignore[no-any-return]
+        return np.concatenate(chunks) if chunks else np.zeros(chunk_frames, dtype=np.float32)
 
     async def _record(self, duration: float) -> np.ndarray:
         if duration <= 0:
@@ -180,7 +180,7 @@ class AsyncMicrophone:
             data = await asyncio.to_thread(_capture)
         except Exception as exc:
             raise AudioDeviceError(str(exc)) from exc
-        return np.asarray(data, dtype=np.float32)  # type: ignore[no-any-return]
+        return np.asarray(data, dtype=np.float32)
 
 
 class WakeAcknowledgement:
