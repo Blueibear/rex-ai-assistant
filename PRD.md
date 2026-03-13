@@ -1999,10 +1999,10 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a developer, I want legacy and advanced install options moved out of the primary user-facing documentation so that new users see only one install path.
 
 **Acceptance Criteria:**
-- [ ] the main README references only the single install script as the primary install method
-- [ ] any legacy install steps (manual pip commands, multiple extras choices, etc.) moved to `docs/advanced-install.md`
-- [ ] `docs/advanced-install.md` linked from the README under a clearly labeled "Advanced / Developer Install" section
-- [ ] Typecheck passes
+- [x] the main README references only the single install script as the primary install method
+- [x] any legacy install steps (manual pip commands, multiple extras choices, etc.) moved to `docs/advanced-install.md`
+- [x] `docs/advanced-install.md` linked from the README under a clearly labeled "Advanced / Developer Install" section
+- [x] Typecheck passes
 
 ---
 
