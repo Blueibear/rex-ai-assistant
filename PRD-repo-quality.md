@@ -70,12 +70,12 @@ Known baseline state going in:
 **Description:** As a developer, I want CI to enforce `ruff` and `black` on changed files only so that new violations cannot land while existing debt is cleaned up incrementally.
 
 **Acceptance Criteria:**
-- [ ] `.github/workflows/ci.yml` contains a job that runs `ruff check` scoped to files changed in the PR
-- [ ] `.github/workflows/ci.yml` contains a job that runs `black --check` scoped to files changed in the PR
-- [ ] CI job fails if any changed file has a lint or format violation
-- [ ] `pyproject.toml` contains `ruff` and `black` configuration consistent with the CI job
-- [ ] a passing PR with no lint violations on changed files results in a green CI run
-- [ ] Typecheck passes
+- [x] `.github/workflows/ci.yml` contains a job that runs `ruff check` scoped to files changed in the PR
+- [x] `.github/workflows/ci.yml` contains a job that runs `black --check` scoped to files changed in the PR
+- [x] CI job fails if any changed file has a lint or format violation
+- [x] `pyproject.toml` contains `ruff` and `black` configuration consistent with the CI job
+- [x] a passing PR with no lint violations on changed files results in a green CI run
+- [x] Typecheck passes
 
 ---
 
