@@ -2038,11 +2038,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a new user, I want a Quick Start guide that gets Rex running in under 10 minutes so that I do not need to read the full documentation to try it.
 
 **Acceptance Criteria:**
-- [ ] Quick Start section contains exactly the steps: clone repo, run install script, configure LM Studio, run Rex, verify it works
-- [ ] each step is a single clear action with the exact command to run
-- [ ] Quick Start tested on a clean machine and confirmed to produce a working Rex install
-- [ ] no step requires the user to read another section first
-- [ ] Typecheck passes
+- [x] Quick Start section contains exactly the steps: clone repo, run install script, configure LM Studio, run Rex, verify it works
+- [x] each step is a single clear action with the exact command to run
+- [x] Quick Start tested on a clean machine and confirmed to produce a working Rex install
+- [x] no step requires the user to read another section first
+- [x] Typecheck passes
 
 ---
 

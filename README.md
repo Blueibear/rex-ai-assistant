@@ -24,30 +24,38 @@ Rex AI Assistant is a local-first, voice-activated AI companion that runs entire
 
 ## Quick Start
 
-1. Clone the repository:
+1. **Clone the repository:**
    ```bash
    git clone https://github.com/Blueibear/rex-ai-assistant.git
    cd rex-ai-assistant
    ```
 
-2. Run the installer for your platform:
+2. **Run the installer for your platform:**
 
-   **macOS / Linux**
+   macOS / Linux:
    ```bash
    bash install.sh
    ```
 
-   **Windows (PowerShell)**
+   Windows (PowerShell):
    ```powershell
    .\install.ps1
    ```
 
-3. Start Rex:
+3. **Configure LM Studio** — download and open [LM Studio](https://lmstudio.ai), load a model, and start the local server on `http://localhost:1234`. Then set your model in `config/rex_config.json`:
+   ```json
+   { "openai": { "base_url": "http://localhost:1234/v1", "model": "your-model-name" } }
+   ```
+
+4. **Run Rex:**
    ```bash
    rex
    ```
 
-The script creates a `.venv` virtual environment and installs Rex with all dependencies.
+5. **Verify it works** — Rex prints `Rex assistant ready` and responds to your first message. Run the health check to confirm all components are operational:
+   ```bash
+   python scripts/doctor.py
+   ```
 
 > **Advanced / Developer Install** — for GPU setups, custom extras, Docker, or development workflows, see [docs/advanced-install.md](docs/advanced-install.md).
 
