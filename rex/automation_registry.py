@@ -12,7 +12,7 @@ import logging
 import threading
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -30,8 +30,8 @@ class Automation:
     trigger: dict[str, Any]
     action: dict[str, Any]
     enabled: bool = True
-    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -54,8 +54,8 @@ class Automation:
             trigger=dict(data.get("trigger") or {}),
             action=dict(data.get("action") or {}),
             enabled=bool(data.get("enabled", True)),
-            created_at=str(data.get("created_at") or datetime.utcnow().isoformat()),
-            updated_at=str(data.get("updated_at") or datetime.utcnow().isoformat()),
+            created_at=str(data.get("created_at") or datetime.now(timezone.utc).isoformat()),
+            updated_at=str(data.get("updated_at") or datetime.now(timezone.utc).isoformat()),
             metadata=dict(data.get("metadata") or {}),
         )
 
@@ -167,7 +167,7 @@ class AutomationRegistry:
             for key, value in updates.items():
                 if hasattr(auto, key):
                     setattr(auto, key, value)
-            auto.updated_at = datetime.utcnow().isoformat()
+            auto.updated_at = datetime.now(timezone.utc).isoformat()
         self._save()
         return auto
 
