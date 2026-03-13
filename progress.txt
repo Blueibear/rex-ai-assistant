@@ -916,3 +916,17 @@
 - Added box-shadow to `.chat-form input:focus` and `.notif-filter-select:focus`
 - 25 tests pass in test_us164_hover_focus_states.py
 ---
+
+---
+## Iteration 149 — US-165: Loading and error states for all data-fetching panels
+
+- Added `_retryErrorHtml(message, handlerKey)` helper returning an error div with a Retry button
+- Added `.panel-error` (flex, red bg) and `.retry-btn` CSS classes
+- Updated all 7 load functions (loadOverview, loadChatHistory, loadSettings, loadReminders, loadScheduleJobs, loadNotifications, loadStatus) to:
+  - Show a loading indicator before the fetch
+  - Use `_retryErrorHtml` in catch blocks with specific error messages
+- Added loading indicator to `loadChatHistory` and `loadNotifications` (were missing)
+- Changed `loadChatHistory` catch to show UI error instead of console-only
+- Exposed all 7 load functions in `window.dashboardHandlers` so retry onclick can call them
+- 35 tests pass in test_us165_loading_error_states.py
+---

@@ -185,6 +185,20 @@ a:focus-visible {
     margin-top: 0.5rem;
 }
 
+.panel-error {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    background-color: rgba(239, 68, 68, 0.08);
+}
+
+.retry-btn {
+    flex-shrink: 0;
+}
+
 /* Global Error Banner */
 .global-error-banner {
     position: fixed;

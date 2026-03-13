@@ -2335,11 +2335,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want panels to show loading spinners while fetching data and clear error messages on failure so that I always know what the GUI is doing.
 
 **Acceptance Criteria:**
-- [ ] every panel that fetches data from the backend shows a loading indicator while the request is in flight
-- [ ] every panel shows a specific error message (not a generic "something went wrong") if the request fails
-- [ ] error state includes a "Retry" button that re-fetches the data
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] every panel that fetches data from the backend shows a loading indicator while the request is in flight
+- [x] every panel shows a specific error message (not a generic "something went wrong") if the request fails
+- [x] error state includes a "Retry" button that re-fetches the data
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

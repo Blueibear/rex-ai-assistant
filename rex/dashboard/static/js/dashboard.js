@@ -225,6 +225,14 @@
     }
 
     // Chat functionality
+    function _retryErrorHtml(message, handlerKey) {
+        return `<div class="panel-error error-message">
+            <span>${escapeHtml(message)}</span>
+            <button class="btn btn-secondary btn-sm retry-btn"
+                onclick="window.dashboardHandlers['${handlerKey}']()">Retry</button>
+        </div>`;
+    }
+
     async function loadOverview() {
         const grid = $('#overview-status-grid');
         if (!grid) return;
@@ -238,7 +246,7 @@
             ]);
             renderOverview({ status, voiceMode, schedulerData, notifData });
         } catch (error) {
-            grid.innerHTML = `<div class="error-message">Failed to load overview: ${error.message}</div>`;
+            grid.innerHTML = _retryErrorHtml(`Failed to load overview: ${error.message}`, 'loadOverview');
         }
     }
 
@@ -286,13 +294,14 @@
     }
 
     async function loadChatHistory() {
+        const container = $('#chat-messages');
+        if (container) container.innerHTML = '<div class="loading">Loading chat history...</div>';
         try {
             const data = await api('/api/chat/history?limit=50');
             state.chatHistory = data.history || [];
             renderChatMessages();
         } catch (error) {
-            console.error('Failed to load chat history:', error);
-            // Don't show error for empty history
+            if (container) container.innerHTML = _retryErrorHtml(`Failed to load chat history: ${error.message}`, 'loadChatHistory');
         }
     }
 
@@ -433,7 +442,7 @@
             renderSettings(data.settings, data.metadata);
             hide('#settings-save-bar');
         } catch (error) {
-            container.innerHTML = `<div class="error-message">Failed to load settings: ${error.message}</div>`;
+            container.innerHTML = _retryErrorHtml(`Failed to load settings: ${error.message}`, 'loadSettings');
         }
     }
 
@@ -590,7 +599,7 @@
             const data = await api('/api/scheduler/jobs');
             renderReminders(data.jobs);
         } catch (error) {
-            container.innerHTML = `<div class="error-message">Failed to load reminders: ${error.message}</div>`;
+            container.innerHTML = _retryErrorHtml(`Failed to load reminders: ${error.message}`, 'loadReminders');
         }
     }
 
@@ -654,7 +663,7 @@
             renderScheduleJobs(jobs);
             renderComingUp(jobs);
         } catch (error) {
-            container.innerHTML = `<div class="error-message">Failed to load schedule: ${error.message}</div>`;
+            container.innerHTML = _retryErrorHtml(`Failed to load schedule: ${error.message}`, 'loadScheduleJobs');
         }
     }
 
@@ -866,6 +875,7 @@
     async function loadNotifications() {
         const container = $('#notif-list');
         if (!container) return;
+        container.innerHTML = '<div class="loading">Loading notifications...</div>';
 
         try {
             const qs = _buildNotifParams();
@@ -874,7 +884,7 @@
             renderNotifications(state.notifications, data.unread_count);
             updateNotifBadge(data.unread_count);
         } catch (error) {
-            container.innerHTML = `<div class="error-message">Failed to load notifications: ${escapeHtml(error.message)}</div>`;
+            container.innerHTML = _retryErrorHtml(`Failed to load notifications: ${error.message}`, 'loadNotifications');
         }
     }
 
@@ -1110,7 +1120,7 @@
                 </div>
             `;
         } catch (error) {
-            container.innerHTML = `<div class="error-message">Failed to load status: ${error.message}</div>`;
+            container.innerHTML = _retryErrorHtml(`Failed to load status: ${error.message}`, 'loadStatus');
         }
     }
 
@@ -1481,6 +1491,13 @@
         markNotifRead,
         toggleScheduleJob,
         navigateTo: switchSection,
+        loadOverview,
+        loadChatHistory,
+        loadSettings,
+        loadReminders,
+        loadScheduleJobs,
+        loadNotifications,
+        loadStatus,
     };
 
     // Start app
