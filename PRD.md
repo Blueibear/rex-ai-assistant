@@ -2025,11 +2025,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a new user, I want the README to open with a quick start section and a navigable table of contents so that I can get Rex running without reading the entire document.
 
 **Acceptance Criteria:**
-- [ ] README opens with a one-paragraph description of what Rex is and who it is for
-- [ ] table of contents appears within the first 30 lines of the README
-- [ ] "Quick Start" section is the first major section after the description and table of contents
-- [ ] Quick Start contains no more than 5 steps
-- [ ] Typecheck passes
+- [x] README opens with a one-paragraph description of what Rex is and who it is for
+- [x] table of contents appears within the first 30 lines of the README
+- [x] "Quick Start" section is the first major section after the description and table of contents
+- [x] Quick Start contains no more than 5 steps
+- [x] Typecheck passes
 
 ---
 

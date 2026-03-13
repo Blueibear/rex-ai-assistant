@@ -1,25 +1,55 @@
-# AskRex Assistant
-
-> A local-first, voice-activated AI companion that runs entirely on your machine with wake word detection, speech recognition, LLM chat, and text-to-speech.
+# Rex AI Assistant
 
 <p align="center">
   <img src="https://github.com/Blueibear/rex-ai-assistant/actions/workflows/ci.yml/badge.svg" alt="CI status" />
   <a href="https://www.buymeacoffee.com/Blueibear" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 28px !important;width: 120px !important;" ></a>
 </p>
 
-## Configuration Changes
+Rex AI Assistant is a local-first, voice-activated AI companion that runs entirely on your machine — no cloud subscription required. It combines wake word detection, offline speech recognition via OpenAI Whisper, LLM-powered responses through Transformers, OpenAI, or Ollama, and text-to-speech synthesis, making it a practical choice for hobbyists, home-automation enthusiasts, and developers who want a private, customisable assistant.
 
-Rex uses a dual-configuration system for better security:
-- **config/rex_config.json** — Runtime settings (audio, models, wake word, etc.)
-- **.env** — Secrets only (API keys, tokens)
+## Table of Contents
 
-Legacy non-secret environment variables (e.g. `OPENAI_BASE_URL`) are ignored at runtime. If any are set, Rex logs a warning. To migrate them into `config/rex_config.json`, run:
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Configuration](#configuration-environment-variables)
+- [Usage](#usage)
+- [Current Limitations](#current-limitations)
+- [Docker](#docker)
+- [Memory & Personalization](#memory--personalization)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
 
-```bash
-rex-config migrate-legacy-env
-```
+## Quick Start
 
-See [CONFIGURATION.md](CONFIGURATION.md) for full details including configuration precedence and the no-overwrite migration rule.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Blueibear/rex-ai-assistant.git
+   cd rex-ai-assistant
+   ```
+
+2. Run the installer for your platform:
+
+   **macOS / Linux**
+   ```bash
+   bash install.sh
+   ```
+
+   **Windows (PowerShell)**
+   ```powershell
+   .\install.ps1
+   ```
+
+3. Start Rex:
+   ```bash
+   rex
+   ```
+
+The script creates a `.venv` virtual environment and installs Rex with all dependencies.
+
+> **Advanced / Developer Install** — for GPU setups, custom extras, Docker, or development workflows, see [docs/advanced-install.md](docs/advanced-install.md).
 
 ## Features
 
@@ -52,45 +82,19 @@ See [CONFIGURATION.md](CONFIGURATION.md) for full details including configuratio
 
 **Note for Windows users**: The `simpleaudio` package (used for audio playback) has build issues on Windows and is automatically disabled. Audio playback functionality will be limited on Windows, but all core features work correctly.
 
-## Current Limitations
+## Configuration (Environment Variables)
 
-The following integrations are **beta / stub scaffolding** and do not yet connect to live services:
+Rex uses a dual-configuration system for better security:
+- **config/rex_config.json** — Runtime settings (audio, models, wake word, etc.)
+- **.env** — Secrets only (API keys, tokens)
 
-| Feature | Status | Details |
-|---------|--------|---------|
-| **Email** | Beta (real backend available) | Supports real IMAP4-SSL read + SMTP send when configured; defaults to stub/mock for offline dev. Multi-account support included. |
-| **Calendar** | Beta (ICS read-only + stub fallback) | Supports reading events from local `.ics` files or HTTPS ICS feeds; defaults to stub/mock for offline dev. CalDAV/Google OAuth planned. |
-| **SMS / Messaging** | Beta (real backend available) | Real SMS delivery and inbound webhook receiver via Twilio when configured (opt-in); defaults to stub/mock for offline dev. Multi-account support and inbound message routing included. |
-| **Notifications** | Beta (dashboard + email channels real) | Priority routing and digest logic exist; dashboard channel persists to local SQLite store with API endpoints; email channel uses real SMTP when configured. |
-| **Identity** | Beta (session-scoped fallback) | When voice/speaker recognition is unavailable, use `rex identify` or `rex whoami` to set/view the active user for the session. |
-| **WordPress** | Beta (read-only) | Health check (`rex wp health`) via WP REST API. Supports `none`, `application_password`, and `basic` auth methods. Write actions deferred to Cycle 6.3. |
-| **WooCommerce** | Beta (read-only) | Orders list and products list (`rex wc orders list`, `rex wc products list`) via WC REST API v3. Client-side low-stock filter supported. Write actions deferred to Cycle 6.3. |
-
-All stub commands are fully usable for development and testing. Contributions to add real backends are welcome.
-
-## Quickstart
-
-### macOS / Linux
+Legacy non-secret environment variables (e.g. `OPENAI_BASE_URL`) are ignored at runtime. If any are set, Rex logs a warning. To migrate them into `config/rex_config.json`, run:
 
 ```bash
-git clone https://github.com/Blueibear/rex-ai-assistant.git
-cd rex-ai-assistant
-bash install.sh
+rex-config migrate-legacy-env
 ```
 
-### Windows (PowerShell)
-
-```powershell
-git clone https://github.com/Blueibear/rex-ai-assistant.git
-cd rex-ai-assistant
-.\install.ps1
-```
-
-The script creates a `.venv` virtual environment and installs Rex with all dependencies. When it completes, run `rex` to start.
-
-> **Advanced / Developer Install** — for GPU setups, custom extras, Docker, or development workflows, see [docs/advanced-install.md](docs/advanced-install.md).
-
-## Configuration (Environment Variables)
+See [CONFIGURATION.md](CONFIGURATION.md) for full details including configuration precedence and the no-overwrite migration rule.
 
 All environment variables can be set in your `.env` file. Copy `.env.example` to `.env` and customize as needed.
 
@@ -471,6 +475,22 @@ rex executor resume <workflow_id>
 
 **See [docs/autonomy.md](docs/autonomy.md) for complete documentation.**
 
+## Current Limitations
+
+The following integrations are **beta / stub scaffolding** and do not yet connect to live services:
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| **Email** | Beta (real backend available) | Supports real IMAP4-SSL read + SMTP send when configured; defaults to stub/mock for offline dev. Multi-account support included. |
+| **Calendar** | Beta (ICS read-only + stub fallback) | Supports reading events from local `.ics` files or HTTPS ICS feeds; defaults to stub/mock for offline dev. CalDAV/Google OAuth planned. |
+| **SMS / Messaging** | Beta (real backend available) | Real SMS delivery and inbound webhook receiver via Twilio when configured (opt-in); defaults to stub/mock for offline dev. Multi-account support and inbound message routing included. |
+| **Notifications** | Beta (dashboard + email channels real) | Priority routing and digest logic exist; dashboard channel persists to local SQLite store with API endpoints; email channel uses real SMTP when configured. |
+| **Identity** | Beta (session-scoped fallback) | When voice/speaker recognition is unavailable, use `rex identify` or `rex whoami` to set/view the active user for the session. |
+| **WordPress** | Beta (read-only) | Health check (`rex wp health`) via WP REST API. Supports `none`, `application_password`, and `basic` auth methods. Write actions deferred to Cycle 6.3. |
+| **WooCommerce** | Beta (read-only) | Orders list and products list (`rex wc orders list`, `rex wc products list`) via WC REST API v3. Client-side low-stock filter supported. Write actions deferred to Cycle 6.3. |
+
+All stub commands are fully usable for development and testing. Contributions to add real backends are welcome.
+
 ## Docker
 
 ### Build and Run
@@ -627,22 +647,6 @@ REX_SPEAK_STORAGE_URI=redis://localhost:6379/0
 1. Use smaller Whisper model: `REX_WHISPER_MODEL=tiny` or `base`
 2. Reduce max tokens: `REX_LLM_MAX_TOKENS=50`
 3. Switch to CPU: `REX_DEVICE=cpu` and `REX_WHISPER_DEVICE=cpu`
-
-## Release & Versioning
-
-This project uses **Release Please** for automated versioning and changelog generation.
-
-- Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)
-- Merging to `main` triggers Release Please to create a release PR
-- Merging the release PR creates a GitHub release with tags and changelog
-
-**Example commit messages:**
-```bash
-feat: add support for custom wake words
-fix: resolve audio device selection on Windows
-docs: update installation guide for GPU setup
-chore: bump dependencies to latest versions
-```
 
 ## Contributing
 
