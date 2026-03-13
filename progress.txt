@@ -1,4 +1,13 @@
 
+## Iteration 125 - US-140: Consolidate optional extras into a single [full] install target
+- What was implemented: Cleaned up [full] extra in pyproject.toml to include audio, ml/voice, and integrations (twilio) packages — removed devtools (build, black, ruff, mypy) which are not user-facing. The [full] extra and install script references already existed from US-139. Created tests/test_us140_full_extra.py with 20 tests verifying [full] covers voice/audio/integrations, all existing extras are preserved, and install scripts reference [full].
+- Files changed: pyproject.toml, tests/test_us140_full_extra.py, PRD.md
+- Learnings for future iterations:
+  - Use tomllib (stdlib in Python 3.11+) to parse pyproject.toml in tests; fall back to tomli for older versions.
+  - The [full] extra was already present from prior work; the task was mainly to verify structure, clean up devtools from it, and write tests.
+  - Pre-existing mypy errors in rex/compat/transformers_shims.py do not block task completion — they predate this work.
+---
+
 ## Iteration 124 - US-139: Create a single-command install script
 - What was implemented: Created install.sh (Linux/macOS) and install.ps1 (Windows) at the repo root. Each script: creates a .venv virtual environment, upgrades pip, runs `pip install .[full]`, verifies via `rex --help`, prints "Rex is installed. Run `rex` to start." on success, and exits non-zero with an ERROR message on any failure. Added tests/test_us139_install_scripts.py with 15 tests (14 pass, 1 skipped on Windows for executable-bit check).
 - Files changed: install.sh, install.ps1, tests/test_us139_install_scripts.py, PRD.md
