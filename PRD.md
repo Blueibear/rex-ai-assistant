@@ -2321,12 +2321,12 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want all interactive elements to have consistent hover and focus styles so that the GUI feels cohesive and is usable by keyboard.
 
 **Acceptance Criteria:**
-- [ ] all buttons have a visible hover state and a visible focus ring
-- [ ] all inputs have a visible focus state
-- [ ] hover and focus states use the design token colors, not browser defaults
-- [ ] tabbing through the GUI reaches all interactive elements in logical order
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] all buttons have a visible hover state and a visible focus ring
+- [x] all inputs have a visible focus state
+- [x] hover and focus states use the design token colors, not browser defaults
+- [x] tabbing through the GUI reaches all interactive elements in logical order
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

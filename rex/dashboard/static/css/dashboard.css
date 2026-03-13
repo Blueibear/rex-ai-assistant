@@ -11,6 +11,9 @@
     --success-color: #10b981;
     --warning-color: #f59e0b;
     --error-color: #ef4444;
+    --danger-color: #ef4444;
+    --danger-hover: #dc2626;
+    --focus-ring: rgba(59, 130, 246, 0.25);
 
     /* Dark theme surfaces */
     --bg-color: #0f172a;
@@ -60,6 +63,27 @@ html, body {
     display: none !important;
 }
 
+/* Focus and Hover — design token colors, not browser defaults */
+.btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px var(--focus-ring);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 1px;
+    box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+a:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
 /* Button Styles */
 .btn {
     display: inline-flex;
@@ -104,7 +128,7 @@ html, body {
 }
 
 .btn-danger:hover:not(:disabled) {
-    background-color: #dc2626;
+    background-color: var(--danger-hover);
 }
 
 .btn-sm {
@@ -145,7 +169,7 @@ html, body {
 .form-group textarea:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .form-group small {
@@ -449,6 +473,7 @@ html, body {
 .chat-form input:focus {
     outline: none;
     border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .chat-form .btn {
@@ -999,6 +1024,7 @@ html, body {
 .notif-filter-select:focus {
     outline: none;
     border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .notif-summary {

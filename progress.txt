@@ -903,3 +903,16 @@
 - Added CSS: `.overview-quick-actions`, `.overview-quick-actions-heading`, `.overview-quick-actions-row` (flex), `.overview-quick-btn`
 - 18 tests pass in test_us163_overview_quick_actions.py
 ---
+
+---
+## Iteration 148 — US-164: Consistent component styling and hover/focus states
+
+- Added `--focus-ring` and `--danger-hover` design tokens to `:root`
+- Added `.btn:focus-visible` with `outline: 2px solid var(--primary-color)`, `outline-offset: 2px`, `box-shadow: 0 0 0 4px var(--focus-ring)`
+- Added `input:focus-visible`, `select:focus-visible`, `textarea:focus-visible` global rules with primary-color outline
+- Added `a:focus-visible` with outline ring
+- Updated `.btn-danger:hover` to use `var(--danger-hover)` instead of hardcoded `#dc2626`
+- Updated `.form-group input:focus` box-shadow to use `var(--focus-ring)`
+- Added box-shadow to `.chat-form input:focus` and `.notif-filter-select:focus`
+- 25 tests pass in test_us164_hover_focus_states.py
+---
