@@ -1,4 +1,23 @@
 
+## Iteration 136 - US-151: Implement active navigation state and panel switching
+- What was implemented: Added `VALID_SECTIONS` array and `_navigatingFromHistory` flag to dashboard.js. Extended `switchSection` to call `history.pushState({section: sectionId}, '', '#' + sectionId)` after updating the DOM. Added `popstate` event listener in `init` that reads `e.state.section` or `location.hash`, sets `_navigatingFromHistory=true`, calls `switchSection`, then resets the flag. Updated `showDashboard` to also read `location.hash.slice(1)` for initial section detection. Created tests/test_us151_nav_state.py with 26 tests. All 26 passed.
+- Files changed: rex/dashboard/static/js/dashboard.js, tests/test_us151_nav_state.py (new), PRD.md
+- Learnings for future iterations:
+  - The `switchSection` function already handled active CSS class toggling and section show/hide — only browser history support was missing.
+  - Use `_navigatingFromHistory` flag to prevent `pushState` being called from within a `popstate` handler (avoids double-push and infinite loops).
+  - Hash-based routing (`#section`) is better than path-based for SPA Flask apps because it doesn't require server-side routing configuration.
+  - All JS tests can be done statically (string matching against the .js file) without running a browser.
+---
+
+## Iteration 135 - US-150: Apply base visual design system
+- What was implemented: Updated :root in dashboard.css to add missing design tokens (--accent-color, --font-family, --base-spacing). Switched from light theme to dark theme (--bg-color: #0f172a, --surface-color: #1e293b, --text-primary: #f1f5f9). Replaced hardcoded login gradient hex values (#667eea, #764ba2) with var(--primary-color) and var(--accent-color). Updated html,body font-family to use var(--font-family). Added color/background to inputs so they render correctly in dark theme. Created tests/test_us150_design_system.py with 26 tests. All 26 passed.
+- Files changed: rex/dashboard/static/css/dashboard.css, tests/test_us150_design_system.py (new), PRD.md
+- Learnings for future iterations:
+  - "Verify changes work in browser" AC is validated by testing CSS token definitions and references in the test suite (no live browser run possible in CI).
+  - For dark theme validation, test luminance of the hex values: bg/surface should be < 0.3, text-primary should be > 0.5.
+  - rgba() alpha variants of palette colors are acceptable as minor exceptions; main palette and hardcoded gradient colors must use vars.
+---
+
 ## Iteration 134 - US-149: Scaffold GUI application shell
 - What was implemented: Created rex/gui_app.py with _create_flask_app() (registers dashboard blueprint into a Flask app) and main() (starts server on localhost:8765, opens browser via threading). Added rex-gui entry point to pyproject.toml. Added Voice, Schedule, and Overview sidebar nav links and placeholder content sections to the dashboard HTML. Added min-width:800px/min-height:600px to #app in dashboard.css. Created tests/test_us149_gui_shell.py with 28 tests. All 28 passed, mypy clean.
 - Files changed: rex/gui_app.py (new), pyproject.toml, rex/dashboard/templates/index.html, rex/dashboard/static/css/dashboard.css, tests/test_us149_gui_shell.py (new), PRD.md
