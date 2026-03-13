@@ -2221,11 +2221,11 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want a visual animation when Rex is listening so that I have clear feedback that my voice is being captured.
 
 **Acceptance Criteria:**
-- [ ] when voice mode is in the Listening state, an animated waveform, pulsing ring, or equivalent visual is displayed
-- [ ] animation stops when Rex transitions to Processing or Speaking state
-- [ ] animation is purely CSS/SVG — no external animation library required
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] when voice mode is in the Listening state, an animated waveform, pulsing ring, or equivalent visual is displayed
+- [x] animation stops when Rex transitions to Processing or Speaking state
+- [x] animation is purely CSS/SVG — no external animation library required
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
