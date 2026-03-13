@@ -1,4 +1,13 @@
 
+## Iteration 124 - US-139: Create a single-command install script
+- What was implemented: Created install.sh (Linux/macOS) and install.ps1 (Windows) at the repo root. Each script: creates a .venv virtual environment, upgrades pip, runs `pip install .[full]`, verifies via `rex --help`, prints "Rex is installed. Run `rex` to start." on success, and exits non-zero with an ERROR message on any failure. Added tests/test_us139_install_scripts.py with 15 tests (14 pass, 1 skipped on Windows for executable-bit check).
+- Files changed: install.sh, install.ps1, tests/test_us139_install_scripts.py, PRD.md
+- Learnings for future iterations:
+  - Install scripts are pure shell/PS1 files — "Typecheck passes" means the project's mypy check passes (no Python changes needed).
+  - Test scripts by checking file content patterns (substring presence) rather than actually executing them, to keep tests fast and hardware-independent.
+  - The executable-bit test must be skipped on Windows (os.name == "nt").
+---
+
 ## Iteration 123 - US-138: End-to-end voice round-trip integration test
 - What was implemented: Created tests/test_us138_voice_roundtrip.py with 16 tests covering the full wake-word→STT→LLM→TTS pipeline using mocks. Tests inject a mock wake word event (listener._event.set()), mock STT via AsyncMock on transcribe(), mock LLM via MagicMock on language_model.generate, and assert _speak_response is called with the LLM text. Additional tests confirm event is cleared after interaction (re-arm), resume_stream() is called, and the loop works for 2 consecutive interactions. All 16 tests pass without any real hardware. 4225 passed / 47 skipped / 1 pre-existing pip-audit failure.
 - Files changed: tests/test_us138_voice_roundtrip.py, PRD.md
