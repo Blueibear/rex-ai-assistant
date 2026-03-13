@@ -1,4 +1,13 @@
 
+## Iteration 123 - US-138: End-to-end voice round-trip integration test
+- What was implemented: Created tests/test_us138_voice_roundtrip.py with 16 tests covering the full wake-word→STT→LLM→TTS pipeline using mocks. Tests inject a mock wake word event (listener._event.set()), mock STT via AsyncMock on transcribe(), mock LLM via MagicMock on language_model.generate, and assert _speak_response is called with the LLM text. Additional tests confirm event is cleared after interaction (re-arm), resume_stream() is called, and the loop works for 2 consecutive interactions. All 16 tests pass without any real hardware. 4225 passed / 47 skipped / 1 pre-existing pip-audit failure.
+- Files changed: tests/test_us138_voice_roundtrip.py, PRD.md
+- Learnings for future iterations:
+  - The pattern for e2e voice pipeline tests: use `patch.object(assistant, "_record_audio", return_value=np.zeros(...))`, `patch.object(assistant, "transcribe", new_callable=AsyncMock, return_value="text")`, and `patch.object(assistant, "_speak_response", side_effect=tts_calls.append)`. These cover the three async-wrapped IO points in `_process_conversation`.
+  - `voice_loop.append_history_entry` (imported from rex.memory_utils) must be patched as `patch("voice_loop.append_history_entry")` to prevent file system I/O in tests.
+  - `asyncio.to_thread(self._speak_response, response)` resolves the mock at call time, so `patch.object` on the instance works correctly — no special thread handling needed.
+---
+
 ## Iteration 122 - US-137: Fix voice loop re-arm after TTS playback completes
 - What was implemented: Added `pause_stream()` and `resume_stream()` methods to `WakeWordListener`. `pause_stream()` calls `self._stream.stop()` (suppresses exceptions) to prevent the wake-word mic from competing with `sounddevice.rec()` during recording or picking up TTS audio. `resume_stream()` calls `self._stream.start()` then `self._event.clear()` to discard spurious wake-word detections that occurred during the interaction. Modified `_handle_interaction()` to call `self._listener.pause_stream()` before the interaction and `self._listener.resume_stream()` in a `finally` block — guaranteeing re-arm even on exceptions. Created tests/test_us137_voice_rearm.py with 17 tests. 3807 passed / 47 skipped / 0 failed (1 pre-existing pip-audit failure).
 - Files changed: voice_loop.py, tests/test_us137_voice_rearm.py, PRD.md
