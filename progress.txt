@@ -1,4 +1,24 @@
 
+## Iteration 122 - US-137: Fix voice loop re-arm after TTS playback completes
+- What was implemented: Added `pause_stream()` and `resume_stream()` methods to `WakeWordListener`. `pause_stream()` calls `self._stream.stop()` (suppresses exceptions) to prevent the wake-word mic from competing with `sounddevice.rec()` during recording or picking up TTS audio. `resume_stream()` calls `self._stream.start()` then `self._event.clear()` to discard spurious wake-word detections that occurred during the interaction. Modified `_handle_interaction()` to call `self._listener.pause_stream()` before the interaction and `self._listener.resume_stream()` in a `finally` block — guaranteeing re-arm even on exceptions. Created tests/test_us137_voice_rearm.py with 17 tests. 3807 passed / 47 skipped / 0 failed (1 pre-existing pip-audit failure).
+- Files changed: voice_loop.py, tests/test_us137_voice_rearm.py, PRD.md
+- Learnings for future iterations:
+  - Do NOT use `asyncio.new_event_loop()` + `loop.run_until_complete()` inside pytest-asyncio tests — the pytest-asyncio runner already has a loop running, so creating a new one raises RuntimeError. Use `@pytest.mark.asyncio` with an `async def` test instead.
+  - `asyncio.Event.is_set()` / `.clear()` are synchronous and can be called without a running loop; no need for a special async context to test them.
+  - Pausing a sounddevice InputStream with `.stop()` (not `.close()`) keeps the stream object alive for later `.start()` — avoids the need to recreate the stream entirely.
+---
+
+## Iteration 121 - US-136: Fix audio playback and output device selection
+- What was implemented: Refactored `_speak_response` in voice_loop.py to separate synthesis (try/except → TextToSpeechError "Failed to synthesise speech") from playback (try/except → logger.error + TextToSpeechError "Audio playback failed"). Playback now uses sounddevice first (supports device=index or device=name), falls back to winsound (Windows) or simpleaudio. Updated `AppConfig.audio_output_device` from `Optional[int]` to `Optional[int | str]` so device names are supported. Created tests/test_us136_audio_playback.py with 10 tests (AC1: default device, AC2: configured index, AC2b: string device name, AC2c: blocking=True, AC2d: stop() called, AC3: _speak_response is sync + dispatched via to_thread, AC4: error logged + raised as TextToSpeechError, AC4b: synthesis error has distinct message). 4192 passed / 47 skipped / 0 failed (1 pre-existing pip-audit failure).
+- Files changed: rex/config.py, voice_loop.py, tests/test_us136_audio_playback.py, PRD.md
+- Learnings for future iterations:
+  - Do NOT patch async method `transcribe` with `return_value="hello"` (a string) — `await "hello"` raises TypeError. Use AsyncMock or patch at a higher level
+  - When patching `asyncio.to_thread` with a fake that calls functions synchronously, be careful: if any function in the call chain loads heavy models (TTS), you'll get slow/broken tests. Better to mock `_get_tts()` explicitly
+  - For AC "does not block event loop" tests, use structural assertions (inspect.iscoroutinefunction, inspect.getsource) instead of behavioral async tests — simpler and more reliable
+  - `Optional[int | str]` with `from __future__ import annotations` works on Python 3.9+ and avoids `Union` import; ruff UP007 fires on `Optional[Union[int, str]]` but not `Optional[int | str]`
+  - After changing type annotation from `Optional[int]` to `Optional[int | str]`, remove the now-unused `Union` import to avoid F401
+---
+
 ## Iteration 120 - US-135: Fix TTS text input delivery from LLM response handler
 - What was implemented: In voice_loop.py `_process_conversation`, wrapped `language_model.generate` in try/except — on exception logs error with exc_info=True and returns early (TTS not called). Added empty/whitespace guard after LLM response: if `not response or not response.strip()` logs warning and returns (TTS not called). Added `exc_info=True` to existing `TextToSpeechError` catch so TTS failures include full traceback. Created tests/test_us135_tts_text_delivery.py with 4 unit tests: (1) _speak_response called with exact LLM text, (2) skipped for empty response, (3) skipped for whitespace-only response, (4) skipped when LLM raises. 4158 passed / 47 skipped / 0 failed.
 - Files changed: voice_loop.py, tests/test_us135_tts_text_delivery.py, PRD.md
