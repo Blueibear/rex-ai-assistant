@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
 import os
 import sys
-import warnings
 from pathlib import Path
 
 import pytest
@@ -29,30 +27,6 @@ os.environ["REX_TESTING"] = "true"
 # Optional: Directory for shared test fixtures
 FIXTURES_DIR = ROOT / "tests" / "fixtures"
 FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
-
-
-@pytest.fixture(autouse=True)
-def ensure_event_loop_for_sync_tests():
-    """Ensure sync tests relying on asyncio.get_event_loop() always have a loop.
-
-    Python 3.12 no longer auto-creates a main-thread loop in all situations,
-    and some tests still call ``asyncio.get_event_loop()`` directly.
-    """
-    created_loop = None
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        try:
-            asyncio.get_event_loop()
-        except RuntimeError:
-            created_loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(created_loop)
-
-    try:
-        yield
-    finally:
-        if created_loop is not None and not created_loop.is_closed():
-            created_loop.close()
-            asyncio.set_event_loop(None)
 
 
 # Optional: Register custom pytest plugins

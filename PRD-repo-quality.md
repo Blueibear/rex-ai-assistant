@@ -158,11 +158,11 @@ Known baseline state going in:
 **Description:** As a developer, I want all remaining uses of `asyncio.get_event_loop()` in the test suite replaced so that the full test run is free of event-loop deprecation warnings.
 
 **Acceptance Criteria:**
-- [ ] `grep -r "asyncio.get_event_loop" tests/` returns zero results
-- [ ] all modified tests use `asyncio.run()` or `@pytest.mark.asyncio` instead
-- [ ] full `pytest` run produces no `DeprecationWarning` related to event loop creation
-- [ ] all previously passing tests continue to pass
-- [ ] Typecheck passes
+- [x] `grep -r "asyncio.get_event_loop" tests/` returns zero results
+- [x] all modified tests use `asyncio.run()` or `@pytest.mark.asyncio` instead
+- [x] full `pytest` run produces no `DeprecationWarning` related to event loop creation
+- [x] all previously passing tests continue to pass
+- [x] Typecheck passes
 
 ---
 
