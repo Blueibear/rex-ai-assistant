@@ -568,13 +568,27 @@ class LanguageModel:
 
         # No tools or not OpenAI - use original simple generation
         try:
-            result = self.strategy.generate(
-                prompt_text, config or self.generation, messages=normalized_messages
-            )
-            return result.strip() if isinstance(result, str) else str(result).strip()
-        except TypeError:
-            result = self.strategy.generate(prompt_text, config or self.generation)
-            return result.strip() if isinstance(result, str) else str(result).strip()
+            try:
+                result = self.strategy.generate(
+                    prompt_text, config or self.generation, messages=normalized_messages
+                )
+                return result.strip() if isinstance(result, str) else str(result).strip()
+            except TypeError:
+                result = self.strategy.generate(prompt_text, config or self.generation)
+                return result.strip() if isinstance(result, str) else str(result).strip()
+        except Exception as exc:
+            from rex.dep_errors import LMStudioConnectionError, is_connection_error
+
+            if (
+                is_connection_error(exc)
+                and self.provider == "openai"
+                and self.config.openai_base_url
+            ):
+                url = self.config.openai_base_url
+                raise LMStudioConnectionError(
+                    f"Rex can't reach LM Studio at {url}. Is LM Studio running?"
+                ) from exc
+            raise
 
 
 __all__ = [

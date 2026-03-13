@@ -2090,10 +2090,10 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want missing dependency errors to tell me exactly how to fix them so that I am not left with a raw Python traceback.
 
 **Acceptance Criteria:**
-- [ ] `ImportError` for any optional Rex dependency caught at the module level and re-raised with a human-readable message including the install command to fix it
-- [ ] missing LM Studio connection produces a message like "Rex can't reach LM Studio at [url]. Is LM Studio running?" rather than a connection refused traceback
-- [ ] no raw Python tracebacks are shown to the user in normal operation (tracebacks reserved for DEBUG mode)
-- [ ] Typecheck passes
+- [x] `ImportError` for any optional Rex dependency caught at the module level and re-raised with a human-readable message including the install command to fix it
+- [x] missing LM Studio connection produces a message like "Rex can't reach LM Studio at [url]. Is LM Studio running?" rather than a connection refused traceback
+- [x] no raw Python tracebacks are shown to the user in normal operation (tracebacks reserved for DEBUG mode)
+- [x] Typecheck passes
 
 ---
 
