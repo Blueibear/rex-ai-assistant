@@ -107,6 +107,7 @@ class AppConfig:
     llm_provider: str = "transformers"
     llm_model: str = "sshleifer/tiny-gpt2"
     llm_max_tokens: int = 120
+    voice_max_tokens: int = 150
     llm_temperature: float = 0.7
     llm_top_p: float = 0.9
     llm_top_k: int = 50

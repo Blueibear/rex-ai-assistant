@@ -1006,3 +1006,11 @@
   - State-specific CSS classes (voice-state-thinking etc.) on label element enable distinct visual styling.
 ---
 
+## Iteration 149 - US-174: Configurable LLM response length limit for voice mode
+- What was implemented: Added voice_max_tokens: int = 150 to Settings in config.py. Added _VOICE_CONCISE_INSTRUCTION class constant to Assistant. Updated _build_prompt() to accept voice_mode=False param; when voice_mode=True, appends _VOICE_CONCISE_INSTRUCTION to prompt history. Updated generate_reply() to accept voice_mode=False param and pass it to _build_prompt(). Updated VoiceLoop.run() to call generate_reply(transcript, voice_mode=True). Added REX_VOICE_MAX_TOKENS entry to .env.example. Created tests/test_us174_voice_max_tokens.py with 16 tests. All 16 passed.
+- Files changed: rex/config.py, rex/assistant.py, rex/voice_loop.py, .env.example, tests/test_us174_voice_max_tokens.py (new), PRD.md
+- Learnings for future iterations:
+  - Signature extraction with src.index(":") stops at type annotation colon (transcript: str), not closing paren. Use fixed-width snippet instead.
+  - voice_mode flag on generate_reply() is cleaner than passing max_tokens because it bundles both the token limit and the prompt instruction.
+---
+

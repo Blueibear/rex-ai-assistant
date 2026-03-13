@@ -2455,9 +2455,9 @@ This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pi
 **Description:** As a user, I want Rex to give shorter replies in voice mode by default so that spoken responses feel natural and do not make me wait for a very long answer to finish playing.
 
 **Acceptance Criteria:**
-- [ ] a `voice_max_tokens` config value controls the maximum LLM output length in voice mode (default: 150 tokens)
-- [ ] voice mode prompt includes an instruction to keep responses concise
-- [ ] chat mode is not affected by the voice token limit
-- [ ] config value documented in `.env.example`
-- [ ] Typecheck passes
+- [x] a `voice_max_tokens` config value controls the maximum LLM output length in voice mode (default: 150 tokens)
+- [x] voice mode prompt includes an instruction to keep responses concise
+- [x] chat mode is not affected by the voice token limit
+- [x] config value documented in `.env.example`
+- [x] Typecheck passes
 

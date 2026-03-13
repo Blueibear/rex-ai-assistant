@@ -549,9 +549,11 @@ class VoiceLoop:
                         logger.info("No speech detected")
                         continue
 
-                    # Get LLM response
+                    # Get LLM response — voice_mode=True enables conciseness prompt
                     tracker.mark("llm_start")
-                    response = await self._assistant.generate_reply(transcript)
+                    response = await self._assistant.generate_reply(
+                        transcript, voice_mode=True
+                    )
                     tracker.mark("llm_end")
 
                     # Ensure response ends with period for better TTS

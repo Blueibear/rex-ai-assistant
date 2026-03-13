@@ -167,7 +167,7 @@ class Assistant:
         """Get the pending follow-up prompt if any."""
         return self._pending_followup if self.has_pending_followup else None
 
-    async def generate_reply(self, transcript: str) -> str:
+    async def generate_reply(self, transcript: str, *, voice_mode: bool = False) -> str:
         if not transcript.strip():
             raise ValueError("Transcript must not be empty")
 
@@ -182,7 +182,7 @@ class Assistant:
             )
 
         if completion is None:
-            prompt = self._build_prompt(transcript)
+            prompt = self._build_prompt(transcript, voice_mode=voice_mode)
             completion = await loop.run_in_executor(None, self._llm.generate, prompt)
             completion = await loop.run_in_executor(
                 None,
@@ -226,9 +226,15 @@ class Assistant:
                 results.append(str(result))
         return results
 
-    def _build_prompt(self, transcript: str) -> str:
+    _VOICE_CONCISE_INSTRUCTION = (
+        "[Respond in 1-3 sentences. Keep your reply short and conversational for voice output.]"
+    )
+
+    def _build_prompt(self, transcript: str, *, voice_mode: bool = False) -> str:
         history_lines = [f"{turn.speaker}: {turn.text}" for turn in self._history[-4:]]
         history_lines.append(f"user: {transcript}")
+        if voice_mode:
+            history_lines.append(self._VOICE_CONCISE_INSTRUCTION)
 
         # Optional: bulk followup formatting if engine supports it
         engine = self._followup_engine
