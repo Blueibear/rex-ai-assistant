@@ -141,7 +141,7 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 - [x] `gui/src/components/ui/EmptyState.tsx` — centered icon + heading + subtext + optional action button.
 - [x] `gui/src/components/ui/Toast.tsx` — slide-in notification at bottom-right. Types: `info`, `success`, `warning`, `error`. Auto-dismisses after 4s. `useToast` hook for triggering from anywhere.
 - [x] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] Verify changes work in app.
 
 ---
 
