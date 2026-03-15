@@ -80,11 +80,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need a secure, typed IPC bridge so React components can call Rex backend functions without direct Node access in the renderer.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/preload/index.ts` defines `contextBridge.exposeInMainWorld('rex', { ... })` with at least: `sendChat`, `getStatus`, `getSettings`, `setSettings`.
-- [ ] `gui/src/types/ipc.ts` exports TypeScript interfaces for every method exposed on `window.rex`.
-- [ ] `gui/src/main/index.ts` registers `ipcMain.handle` listeners for each method (stubs returning `{ ok: true }` for now).
-- [ ] Renderer can call `window.rex.getStatus()` and receive the stub response without errors.
-- [ ] `npm run typecheck` passes.
+- [x] `gui/src/preload/index.ts` defines `contextBridge.exposeInMainWorld('rex', { ... })` with at least: `sendChat`, `getStatus`, `getSettings`, `setSettings`.
+- [x] `gui/src/types/ipc.ts` exports TypeScript interfaces for every method exposed on `window.rex`.
+- [x] `gui/src/main/index.ts` registers `ipcMain.handle` listeners for each method (stubs returning `{ ok: true }` for now).
+- [x] Renderer can call `window.rex.getStatus()` and receive the stub response without errors.
+- [x] `npm run typecheck` passes.
 
 ---
 
