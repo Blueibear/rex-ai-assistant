@@ -257,11 +257,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want a clearly visible button to start and stop voice mode so I know when Rex is listening.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/components/voice/VoiceToggle.tsx` — large circular button. States: `idle` (gray mic icon), `listening` (red pulsing ring), `processing` (spinning accent ring), `speaking` (green waveform icon).
-- [ ] State label shown below button ("Tap to speak", "Listening…", "Thinking…", "Speaking…").
-- [ ] Button is keyboard-accessible (Space to toggle).
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `gui/src/components/voice/VoiceToggle.tsx` — large circular button. States: `idle` (gray mic icon), `listening` (red pulsing ring), `processing` (spinning accent ring), `speaking` (green waveform icon).
+- [x] State label shown below button ("Tap to speak", "Listening…", "Thinking…", "Speaking…").
+- [x] Button is keyboard-accessible (Space to toggle).
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
