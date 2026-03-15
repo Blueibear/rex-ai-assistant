@@ -7,7 +7,8 @@ import type {
   TaskInput,
   TaskRun,
   CalendarEvent,
-  CalendarEventInput
+  CalendarEventInput,
+  Reminder
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -135,7 +136,10 @@ const rexAPI = {
   updateCalendarEvent: (event: CalendarEvent): Promise<CalendarEvent> =>
     ipcRenderer.invoke('rex:updateCalendarEvent', event),
   deleteCalendarEvent: (id: string): Promise<void> =>
-    ipcRenderer.invoke('rex:deleteCalendarEvent', id)
+    ipcRenderer.invoke('rex:deleteCalendarEvent', id),
+  getReminders: (): Promise<Reminder[]> => ipcRenderer.invoke('rex:getReminders'),
+  completeReminder: (id: string): Promise<void> =>
+    ipcRenderer.invoke('rex:completeReminder', id).then(() => undefined)
 }
 
 if (process.contextIsolated) {

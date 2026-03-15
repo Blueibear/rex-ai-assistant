@@ -69,6 +69,16 @@ export interface CalendarEventInput {
   description?: string
 }
 
+export interface Reminder {
+  id: string
+  title: string
+  notes?: string
+  dueAt: string // ISO date string
+  priority: 'low' | 'medium' | 'high'
+  done: boolean
+  repeat?: 'none' | 'daily' | 'weekly' | 'custom'
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
@@ -90,4 +100,6 @@ export interface RexAPI {
   createCalendarEvent: (event: CalendarEventInput) => Promise<CalendarEvent>
   updateCalendarEvent: (event: CalendarEvent) => Promise<CalendarEvent>
   deleteCalendarEvent: (id: string) => Promise<void>
+  getReminders: () => Promise<Reminder[]>
+  completeReminder: (id: string) => Promise<void>
 }

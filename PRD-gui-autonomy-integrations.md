@@ -415,13 +415,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to see all my upcoming and overdue reminders in one place so nothing falls through the cracks.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/pages/RemindersPage.tsx` renders three sections: Overdue, Today, Upcoming (grouped by relative time).
-- [ ] Each reminder card shows: title, due time, priority badge, done checkbox.
-- [ ] Checking the checkbox marks it done (calls `window.rex.completeReminder(id)` stub).
-- [ ] Overdue reminders show card with danger-color left border.
-- [ ] Empty state per section shown when no reminders in that group.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `gui/src/pages/RemindersPage.tsx` renders three sections: Overdue, Today, Upcoming (grouped by relative time).
+- [x] Each reminder card shows: title, due time, priority badge, done checkbox.
+- [x] Checking the checkbox marks it done (calls `window.rex.completeReminder(id)` stub).
+- [x] Overdue reminders show card with danger-color left border.
+- [x] Empty state per section shown when no reminders in that group.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
