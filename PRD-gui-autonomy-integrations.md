@@ -212,13 +212,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want a text input at the bottom of the chat panel so I can type and send messages to Rex.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/components/chat/ChatInput.tsx` renders the Textarea component with a Send button.
-- [ ] Send triggered by Enter key (Shift+Enter inserts newline).
-- [ ] Send button disabled when input is empty or when `sending` prop is true (shows Spinner).
-- [ ] Input cleared after send.
-- [ ] Character count shown when message exceeds 200 characters.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `gui/src/components/chat/ChatInput.tsx` renders the Textarea component with a Send button.
+- [x] Send triggered by Enter key (Shift+Enter inserts newline).
+- [x] Send button disabled when input is empty or when `sending` prop is true (shows Spinner).
+- [x] Input cleared after send.
+- [x] Character count shown when message exceeds 200 characters.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
