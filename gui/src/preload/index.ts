@@ -1,6 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { Settings, VoiceTranscriptEntry, Task, TaskInput, TaskRun } from '../types/ipc'
+import type {
+  Settings,
+  VoiceTranscriptEntry,
+  Task,
+  TaskInput,
+  TaskRun,
+  CalendarEvent,
+  CalendarEventInput
+} from '../types/ipc'
 
 function makeSendChatStream(
   message: string,
@@ -119,7 +127,15 @@ const rexAPI = {
   setTaskEnabled: (taskId: string, enabled: boolean): Promise<Task> =>
     ipcRenderer.invoke('rex:setTaskEnabled', taskId, enabled),
   getTaskHistory: (taskId: string): Promise<TaskRun[]> =>
-    ipcRenderer.invoke('rex:getTaskHistory', taskId)
+    ipcRenderer.invoke('rex:getTaskHistory', taskId),
+  getCalendarEvents: (start: string, end: string): Promise<CalendarEvent[]> =>
+    ipcRenderer.invoke('rex:getCalendarEvents', start, end),
+  createCalendarEvent: (event: CalendarEventInput): Promise<CalendarEvent> =>
+    ipcRenderer.invoke('rex:createCalendarEvent', event),
+  updateCalendarEvent: (event: CalendarEvent): Promise<CalendarEvent> =>
+    ipcRenderer.invoke('rex:updateCalendarEvent', event),
+  deleteCalendarEvent: (id: string): Promise<void> =>
+    ipcRenderer.invoke('rex:deleteCalendarEvent', id)
 }
 
 if (process.contextIsolated) {

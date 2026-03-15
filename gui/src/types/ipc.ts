@@ -48,6 +48,27 @@ export interface TaskInput {
   active: boolean
 }
 
+export interface CalendarEvent {
+  id: string
+  title: string
+  start: string // ISO date string
+  end: string
+  color?: string
+  location?: string
+  description?: string
+  attendees?: string[]
+  source?: 'rex' | 'synced'
+}
+
+export interface CalendarEventInput {
+  title: string
+  start: string // ISO date string
+  end: string
+  color?: string
+  location?: string
+  description?: string
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
@@ -65,4 +86,8 @@ export interface RexAPI {
   deleteTask: (taskId: string) => Promise<void>
   setTaskEnabled: (taskId: string, enabled: boolean) => Promise<Task>
   getTaskHistory: (taskId: string) => Promise<TaskRun[]>
+  getCalendarEvents: (start: string, end: string) => Promise<CalendarEvent[]>
+  createCalendarEvent: (event: CalendarEventInput) => Promise<CalendarEvent>
+  updateCalendarEvent: (event: CalendarEvent) => Promise<CalendarEvent>
+  deleteCalendarEvent: (id: string) => Promise<void>
 }

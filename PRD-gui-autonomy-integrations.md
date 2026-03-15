@@ -397,13 +397,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want my calendar to show real Rex-managed events and let me create new ones from the GUI.
 
 **Acceptance Criteria:**
-- [ ] `window.rex.getCalendarEvents(start: string, end: string): Promise<CalendarEvent[]>` IPC method implemented (calls Rex CalendarService — stub returns mock events when no credentials).
-- [ ] CalendarPage loads events for the visible date range on mount and on range change.
-- [ ] "New Event" button opens a create-event Modal: title, date, time, duration, location, description fields.
-- [ ] Submit calls `window.rex.createCalendarEvent(event): Promise<CalendarEvent>` IPC method.
-- [ ] Edit/Delete in event detail panel call `updateCalendarEvent` / `deleteCalendarEvent` IPC methods (stubs).
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `window.rex.getCalendarEvents(start: string, end: string): Promise<CalendarEvent[]>` IPC method implemented (calls Rex CalendarService — stub returns mock events when no credentials).
+- [x] CalendarPage loads events for the visible date range on mount and on range change.
+- [x] "New Event" button opens a create-event Modal: title, date, time, duration, location, description fields.
+- [x] Submit calls `window.rex.createCalendarEvent(event): Promise<CalendarEvent>` IPC method.
+- [x] Edit/Delete in event detail panel call `updateCalendarEvent` / `deleteCalendarEvent` IPC methods (stubs).
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

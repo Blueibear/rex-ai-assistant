@@ -1,16 +1,6 @@
 import React from 'react'
-
-export interface CalendarEvent {
-  id: string
-  title: string
-  start: string // ISO date string
-  end: string
-  color?: string
-  location?: string
-  description?: string
-  attendees?: string[]
-  source?: 'rex' | 'synced'
-}
+export type { CalendarEvent } from '../../types/ipc'
+import type { CalendarEvent } from '../../types/ipc'
 
 interface CalendarGridProps {
   year: number

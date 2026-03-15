@@ -1,7 +1,12 @@
-import React, { useState } from 'react'
-import { CalendarGrid, CalendarEvent } from '../components/calendar/CalendarGrid'
+import React, { useState, useEffect, useCallback } from 'react'
+import { CalendarGrid } from '../components/calendar/CalendarGrid'
+import type { CalendarEvent } from '../types/ipc'
+import type { CalendarEventInput } from '../types/ipc'
 import { WeekView } from '../components/calendar/WeekView'
 import { EventDetailPanel } from '../components/calendar/EventDetailPanel'
+import { Modal } from '../components/ui/Modal'
+import { useToast } from '../components/ui/Toast'
+import { Spinner } from '../components/ui/Spinner'
 
 type ViewMode = 'month' | 'week'
 
@@ -13,64 +18,211 @@ function getWeekStart(date: Date): Date {
   return d
 }
 
+// Get ISO range for visible calendar period
+function getRangeForPeriod(viewMode: ViewMode, year: number, month: number, weekStart: Date): { start: string; end: string } {
+  if (viewMode === 'month') {
+    const start = new Date(year, month, 1)
+    const end = new Date(year, month + 1, 0, 23, 59, 59)
+    return { start: start.toISOString(), end: end.toISOString() }
+  } else {
+    const end = new Date(weekStart)
+    end.setDate(end.getDate() + 6)
+    end.setHours(23, 59, 59)
+    return { start: weekStart.toISOString(), end: end.toISOString() }
+  }
+}
+
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ]
 
-// Sample stub events for display
-const STUB_EVENTS: CalendarEvent[] = [
-  {
-    id: 'ev1',
-    title: 'Team standup',
-    start: (() => {
-      const d = new Date(); d.setHours(9, 0, 0, 0); return d.toISOString()
-    })(),
-    end: (() => {
-      const d = new Date(); d.setHours(9, 30, 0, 0); return d.toISOString()
-    })(),
-    color: '#3B82F6',
-    location: 'Zoom — link in calendar invite',
-    description: 'Daily 30-minute sync with the team. Share blockers and plan the day.',
-    attendees: ['alice@example.com', 'bob@example.com', 'carol@example.com'],
-    source: 'synced'
-  },
-  {
-    id: 'ev2',
-    title: 'Lunch with Alex',
-    start: (() => {
-      const d = new Date(); d.setHours(12, 0, 0, 0); return d.toISOString()
-    })(),
-    end: (() => {
-      const d = new Date(); d.setHours(13, 0, 0, 0); return d.toISOString()
-    })(),
-    color: '#22C55E',
-    location: 'The Depot Café, 42 Market St',
-    source: 'rex'
-  },
-  {
-    id: 'ev3',
-    title: 'Project review',
-    start: (() => {
-      const d = new Date(); d.setDate(d.getDate() + 2); d.setHours(14, 0, 0, 0); return d.toISOString()
-    })(),
-    end: (() => {
-      const d = new Date(); d.setDate(d.getDate() + 2); d.setHours(15, 30, 0, 0); return d.toISOString()
-    })(),
-    color: '#A855F7',
-    description: 'Quarterly review of the Rex AI roadmap. Bring updated metrics.',
-    attendees: ['james@example.com', 'sarah@example.com'],
-    source: 'rex'
+// Zero-pad helper for datetime-local inputs
+function pad(n: number): string {
+  return n.toString().padStart(2, '0')
+}
+
+function toDatetimeLocal(iso: string): string {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function fromDatetimeLocal(val: string): string {
+  return new Date(val).toISOString()
+}
+
+interface EventFormState {
+  title: string
+  start: string // datetime-local format
+  end: string
+  location: string
+  description: string
+  color: string
+}
+
+function defaultFormState(base?: CalendarEvent): EventFormState {
+  if (base) {
+    return {
+      title: base.title,
+      start: toDatetimeLocal(base.start),
+      end: toDatetimeLocal(base.end),
+      location: base.location ?? '',
+      description: base.description ?? '',
+      color: base.color ?? '#3B82F6'
+    }
   }
+  const now = new Date()
+  const later = new Date(now.getTime() + 60 * 60 * 1000)
+  return {
+    title: '',
+    start: toDatetimeLocal(now.toISOString()),
+    end: toDatetimeLocal(later.toISOString()),
+    location: '',
+    description: '',
+    color: '#3B82F6'
+  }
+}
+
+const COLOR_OPTIONS = [
+  { label: 'Blue', value: '#3B82F6' },
+  { label: 'Green', value: '#22C55E' },
+  { label: 'Purple', value: '#A855F7' },
+  { label: 'Red', value: '#EF4444' },
+  { label: 'Amber', value: '#F59E0B' }
 ]
+
+interface EventFormProps {
+  form: EventFormState
+  onChange: (f: EventFormState) => void
+  error: string
+}
+
+function EventForm({ form, onChange, error }: EventFormProps): React.ReactElement {
+  function set(key: keyof EventFormState, val: string): void {
+    onChange({ ...form, [key]: val })
+  }
+
+  return (
+    <div className="space-y-3">
+      {error && (
+        <p className="text-sm text-danger">{error}</p>
+      )}
+      <div>
+        <label className="block text-xs font-medium text-text-secondary mb-1">Title *</label>
+        <input
+          type="text"
+          value={form.title}
+          onChange={(e) => set('title', e.target.value)}
+          className="w-full px-3 py-2 rounded bg-surface-raised border border-border text-text-primary text-sm focus:outline-none focus:border-accent"
+          placeholder="Event title"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-text-secondary mb-1">Start *</label>
+          <input
+            type="datetime-local"
+            value={form.start}
+            onChange={(e) => set('start', e.target.value)}
+            className="w-full px-3 py-2 rounded bg-surface-raised border border-border text-text-primary text-sm focus:outline-none focus:border-accent"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-text-secondary mb-1">End *</label>
+          <input
+            type="datetime-local"
+            value={form.end}
+            onChange={(e) => set('end', e.target.value)}
+            className="w-full px-3 py-2 rounded bg-surface-raised border border-border text-text-primary text-sm focus:outline-none focus:border-accent"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-text-secondary mb-1">Location</label>
+        <input
+          type="text"
+          value={form.location}
+          onChange={(e) => set('location', e.target.value)}
+          className="w-full px-3 py-2 rounded bg-surface-raised border border-border text-text-primary text-sm focus:outline-none focus:border-accent"
+          placeholder="Location (optional)"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-text-secondary mb-1">Description</label>
+        <textarea
+          value={form.description}
+          onChange={(e) => set('description', e.target.value)}
+          rows={3}
+          className="w-full px-3 py-2 rounded bg-surface-raised border border-border text-text-primary text-sm focus:outline-none focus:border-accent resize-none"
+          placeholder="Description (optional)"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-text-secondary mb-1">Color</label>
+        <div className="flex gap-2">
+          {COLOR_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => set('color', opt.value)}
+              className={[
+                'w-7 h-7 rounded-full transition-all',
+                form.color === opt.value ? 'ring-2 ring-offset-2 ring-accent ring-offset-surface' : ''
+              ].join(' ')}
+              style={{ backgroundColor: opt.value }}
+              aria-label={opt.label}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function CalendarPage(): React.ReactElement {
   const today = new Date()
+  const addToast = useToast()
+
   const [viewMode, setViewMode] = useState<ViewMode>('month')
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
   const [weekStart, setWeekStart] = useState<Date>(() => getWeekStart(today))
+
+  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
+
+  // Create-event modal state
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [createForm, setCreateForm] = useState<EventFormState>(() => defaultFormState())
+  const [createError, setCreateError] = useState('')
+  const [creating, setCreating] = useState(false)
+
+  // Edit-event modal state
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editForm, setEditForm] = useState<EventFormState>(() => defaultFormState())
+  const [editError, setEditError] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [editingEventId, setEditingEventId] = useState<string | null>(null)
+
+  // Load events for the current visible range
+  const loadEvents = useCallback(async (vm: ViewMode, y: number, m: number, ws: Date) => {
+    setLoading(true)
+    try {
+      const { start, end } = getRangeForPeriod(vm, y, m, ws)
+      const fetched = await window.rex.getCalendarEvents(start, end)
+      setEvents(fetched)
+    } catch (err) {
+      addToast('Failed to load calendar events', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [addToast])
+
+  // Reload when the visible period changes
+  useEffect(() => {
+    void loadEvents(viewMode, year, month, weekStart)
+  }, [viewMode, year, month, weekStart, loadEvents])
 
   function prevPeriod(): void {
     if (viewMode === 'month') {
@@ -111,15 +263,95 @@ export function CalendarPage(): React.ReactElement {
     return `${startLabel} – ${endLabel}`
   }
 
-  function handleEditStub(event: CalendarEvent): void {
-    // Stub: edit wired in US-198
-    console.log('Edit event (stub):', event.id)
+  // ---- Create event ----
+  function openCreateModal(): void {
+    setCreateForm(defaultFormState())
+    setCreateError('')
+    setShowCreateModal(true)
   }
 
-  function handleDeleteStub(event: CalendarEvent): void {
-    // Stub: delete wired in US-198
-    console.log('Delete event (stub):', event.id)
+  async function handleCreate(): Promise<void> {
+    if (!createForm.title.trim()) { setCreateError('Title is required.'); return }
+    if (!createForm.start || !createForm.end) { setCreateError('Start and end are required.'); return }
+    if (new Date(createForm.start) >= new Date(createForm.end)) {
+      setCreateError('End must be after start.')
+      return
+    }
+    setCreating(true)
+    setCreateError('')
+    try {
+      const input: CalendarEventInput = {
+        title: createForm.title.trim(),
+        start: fromDatetimeLocal(createForm.start),
+        end: fromDatetimeLocal(createForm.end),
+        color: createForm.color,
+        location: createForm.location.trim() || undefined,
+        description: createForm.description.trim() || undefined
+      }
+      const created = await window.rex.createCalendarEvent(input)
+      setEvents((prev) => [...prev, created])
+      setShowCreateModal(false)
+      addToast('Event created', 'success')
+    } catch {
+      setCreateError('Failed to create event.')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  // ---- Edit event ----
+  function openEditModal(event: CalendarEvent): void {
+    setEditingEventId(event.id)
+    setEditForm(defaultFormState(event))
+    setEditError('')
+    setShowEditModal(true)
     setSelectedEvent(null)
+  }
+
+  async function handleEdit(): Promise<void> {
+    if (!editForm.title.trim()) { setEditError('Title is required.'); return }
+    if (!editForm.start || !editForm.end) { setEditError('Start and end are required.'); return }
+    if (new Date(editForm.start) >= new Date(editForm.end)) {
+      setEditError('End must be after start.')
+      return
+    }
+    if (!editingEventId) return
+    setEditing(true)
+    setEditError('')
+    try {
+      const existing = events.find((e) => e.id === editingEventId)
+      const updated: CalendarEvent = {
+        ...existing,
+        id: editingEventId,
+        title: editForm.title.trim(),
+        start: fromDatetimeLocal(editForm.start),
+        end: fromDatetimeLocal(editForm.end),
+        color: editForm.color,
+        location: editForm.location.trim() || undefined,
+        description: editForm.description.trim() || undefined
+      }
+      const result = await window.rex.updateCalendarEvent(updated)
+      setEvents((prev) => prev.map((e) => (e.id === result.id ? result : e)))
+      setShowEditModal(false)
+      setEditingEventId(null)
+      addToast('Event updated', 'success')
+    } catch {
+      setEditError('Failed to update event.')
+    } finally {
+      setEditing(false)
+    }
+  }
+
+  // ---- Delete event ----
+  async function handleDelete(event: CalendarEvent): Promise<void> {
+    try {
+      await window.rex.deleteCalendarEvent(event.id)
+      setEvents((prev) => prev.filter((e) => e.id !== event.id))
+      setSelectedEvent(null)
+      addToast('Event deleted', 'success')
+    } catch {
+      addToast('Failed to delete event', 'error')
+    }
   }
 
   return (
@@ -158,7 +390,25 @@ export function CalendarPage(): React.ReactElement {
             />
           </svg>
         </button>
-        <h2 className="flex-1 text-base font-semibold text-text-primary">{periodLabel()}</h2>
+        <h2 className="flex-1 text-base font-semibold text-text-primary">
+          {periodLabel()}
+          {loading && <Spinner size="sm" className="inline-block ml-2 align-middle" />}
+        </h2>
+
+        {/* New Event button */}
+        <button
+          onClick={openCreateModal}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium bg-accent text-white hover:bg-accent/90 transition-colors"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path
+              fillRule="evenodd"
+              d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
+              clipRule="evenodd"
+            />
+          </svg>
+          New Event
+        </button>
 
         {/* View toggle segmented control */}
         <div className="flex rounded overflow-hidden border border-border">
@@ -185,13 +435,13 @@ export function CalendarPage(): React.ReactElement {
           <CalendarGrid
             year={year}
             month={month}
-            events={STUB_EVENTS}
+            events={events}
             onEventClick={setSelectedEvent}
           />
         ) : (
           <WeekView
             weekStart={weekStart}
-            events={STUB_EVENTS}
+            events={events}
             onEventClick={setSelectedEvent}
           />
         )}
@@ -201,9 +451,61 @@ export function CalendarPage(): React.ReactElement {
       <EventDetailPanel
         event={selectedEvent}
         onClose={() => setSelectedEvent(null)}
-        onEdit={handleEditStub}
-        onDelete={handleDeleteStub}
+        onEdit={openEditModal}
+        onDelete={(ev) => void handleDelete(ev)}
       />
+
+      {/* Create Event Modal */}
+      {showCreateModal && <Modal
+        onClose={() => setShowCreateModal(false)}
+        title="New Event"
+        footer={
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => setShowCreateModal(false)}
+              className="px-4 py-2 rounded text-sm font-medium bg-surface-raised text-text-primary hover:bg-border transition-colors"
+              disabled={creating}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => void handleCreate()}
+              disabled={creating}
+              className="px-4 py-2 rounded text-sm font-medium bg-accent text-white hover:bg-accent/90 transition-colors disabled:opacity-60"
+            >
+              {creating ? 'Creating…' : 'Create Event'}
+            </button>
+          </div>
+        }
+      >
+        <EventForm form={createForm} onChange={setCreateForm} error={createError} />
+      </Modal>}
+
+      {/* Edit Event Modal */}
+      {showEditModal && <Modal
+        onClose={() => { setShowEditModal(false); setEditingEventId(null) }}
+        title="Edit Event"
+        footer={
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => { setShowEditModal(false); setEditingEventId(null) }}
+              className="px-4 py-2 rounded text-sm font-medium bg-surface-raised text-text-primary hover:bg-border transition-colors"
+              disabled={editing}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => void handleEdit()}
+              disabled={editing}
+              className="px-4 py-2 rounded text-sm font-medium bg-accent text-white hover:bg-accent/90 transition-colors disabled:opacity-60"
+            >
+              {editing ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        }
+      >
+        <EventForm form={editForm} onChange={setEditForm} error={editError} />
+      </Modal>}
     </div>
   )
 }

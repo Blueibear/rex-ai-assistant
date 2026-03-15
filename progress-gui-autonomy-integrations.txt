@@ -1,0 +1,259 @@
+## Iteration 1 - US-175: Bootstrap Electron + React + TypeScript app
+- What was implemented: Manual electron-vite scaffold at gui/ with React 18, TypeScript, Tailwind CSS. App shows "Rex is starting…" text on launch.
+- Files changed: gui/package.json, gui/electron.vite.config.ts, gui/tsconfig.json, gui/tsconfig.node.json, gui/tsconfig.web.json, gui/postcss.config.js, gui/tailwind.config.ts, gui/src/main/index.ts, gui/src/preload/index.ts, gui/src/preload/index.d.ts, gui/src/renderer/index.html, gui/src/renderer/src/main.tsx, gui/src/renderer/src/App.tsx, gui/src/renderer/src/assets/index.css, .gitignore
+- Learnings for future iterations:
+  - `npx create-electron-app` with vite-typescript template creates incomplete scaffold (no React, no tailwind) - build manually instead
+  - electron-vite build outputs to `out/` by default; override via `build.outDir` in config to get `dist-electron/`
+  - `@electron-toolkit/tsconfig` must be installed as dep for the tsconfig extends to resolve
+  - tsconfig.node.json handles main+preload; tsconfig.web.json handles renderer - typecheck runs both
+  - Working dir for all npm commands is /c/Users/james/rex-ai-test/rex-ai-assistant/gui/
+---
+
+## Iteration 2 - US-176: Typed IPC bridge between renderer and main process
+- What was implemented: contextBridge exposes `window.rex` API (sendChat, getStatus, getSettings, setSettings); ipcMain handlers registered as stubs; TypeScript interfaces in src/types/ipc.ts; App.tsx calls window.rex.getStatus() on mount.
+- Files changed: gui/src/preload/index.ts, gui/src/preload/index.d.ts, gui/src/main/index.ts, gui/src/types/ipc.ts, gui/src/renderer/src/App.tsx, gui/tsconfig.node.json, gui/tsconfig.web.json
+- Learnings for future iterations:
+  - src/types/ipc.ts must be added to BOTH tsconfig.node.json (for main/preload) and tsconfig.web.json (for renderer) includes
+  - src/preload/index.d.ts (global Window augmentation) must be included in tsconfig.web.json so renderer knows about window.rex
+  - IPC channel names use prefix pattern `rex:methodName` (e.g., rex:sendChat, rex:getStatus)
+  - Import types in preload with `import type` to avoid bundling issues
+---
+
+## Iteration 3 - US-177: Configure Tailwind CSS and design token CSS variables
+- What was implemented: Created gui/src/styles/tokens.css with 9 CSS custom properties for the dark theme; created gui/src/styles/index.css importing @fontsource/inter, tokens.css, and tailwind directives; updated tailwind.config.ts to use CSS vars in theme extension; updated main.tsx to import from new styles path.
+- Files changed: gui/tailwind.config.ts, gui/src/styles/tokens.css (new), gui/src/styles/index.css (new), gui/src/renderer/src/main.tsx, gui/package.json
+- Learnings for future iterations:
+  - Styles directory is at gui/src/styles/ (not inside renderer src) - import from main.tsx as `../../styles/index.css`
+  - tailwind theme colors should reference CSS vars so tokens can be updated in one place
+  - @fontsource/inter is installed as a runtime dep and imported via CSS `@import '@fontsource/inter'`
+  - gui/package-lock.json is in .gitignore - do not try to stage it
+---
+
+## Iteration 5 - US-179: Build layout and container UI components
+- What was implemented: Card (surface box, padding sm/md/lg/none, hoverable scale, optional header slot), Modal (fixed overlay, title/children/footer slots, Escape key close, focus trap), Tooltip (300ms hover delay, top/bottom/left/right positions), Divider (horizontal rule with optional centered label text).
+- Files changed: gui/src/components/ui/Card.tsx (new), gui/src/components/ui/Modal.tsx (new), gui/src/components/ui/Tooltip.tsx (new), gui/src/components/ui/Divider.tsx (new)
+- Learnings for future iterations:
+  - Modal focus trap: query focusable elements inside ref div, trap Tab/Shift+Tab between first and last; focus first element on mount
+  - Tooltip uses inline `span` wrapper (not div) to avoid block-level layout disruption around inline children
+  - Tooltip timer ref typed as `ReturnType<typeof setTimeout>` to satisfy both browser and Node type environments
+  - No new tsconfig includes needed — all new files are under gui/src/ already covered by tsconfig.web.json
+---
+
+## Iteration 6 - US-180: Build feedback and status UI components
+- What was implemented: Spinner (animated SVG ring, sm/md/lg sizes, accent color), SkeletonLine (shimmer placeholder with width/height props), EmptyState (centered icon+heading+subtext+action button), Toast (slide-in bottom-right notifications, info/success/warning/error types, auto-dismiss 4s, useToast hook via context).
+- Files changed: gui/src/components/ui/Spinner.tsx (new), gui/src/components/ui/SkeletonLine.tsx (new), gui/src/components/ui/EmptyState.tsx (new), gui/src/components/ui/Toast.tsx (new)
+- Learnings for future iterations:
+  - Toast uses React context (ToastProvider + useToast hook) — wrap app root with ToastProvider to use useToast anywhere
+  - Toast slide-in uses requestAnimationFrame to trigger CSS transition after mount; dismiss waits 300ms for exit transition before removing from state
+  - Timer refs in useEffect typed as `ReturnType<typeof setTimeout>` for cross-env compatibility
+  - SkeletonLine uses inline style for width/height (not tailwind) since values are dynamic/arbitrary
+  - No new tsconfig includes needed — all files under gui/src/ already covered by tsconfig.web.json
+---
+
+## Iteration 4 - US-178: Build core interactive UI components
+- What was implemented: Button (primary/secondary/ghost/danger variants, sm/md/lg sizes, loading spinner), Input (label/error/helperText, accent focus ring), Textarea (auto-grows up to 6 lines, same styling as Input), Badge (default/accent/success/warning/danger pill variants). All export TypeScript props interfaces.
+- Files changed: gui/src/components/ui/Button.tsx (new), gui/src/components/ui/Input.tsx (new), gui/src/components/ui/Textarea.tsx (new), gui/src/components/ui/Badge.tsx (new)
+- Learnings for future iterations:
+  - Components directory is gui/src/components/ui/ — create with mkdir -p before writing files
+  - Tailwind colour tokens (e.g., bg-accent, text-danger) resolve correctly via the CSS var aliases in tailwind.config.ts
+  - Use `NonNullable<Props['variant']>` as the Record key type to keep variant maps exhaustive and type-safe
+  - Textarea auto-resize: set height to 'auto' first, then clamp to maxHeight; set overflowY based on whether content exceeds max
+  - typecheck passes without adding new tsconfig includes because components live under gui/src/ which tsconfig.web.json already covers
+---
+
+## Iteration 8 - US-181: Scaffold main window layout with sidebar and content area
+- What was implemented: AppLayout.tsx with fixed 240px sidebar (collapses to 64px icon-only at <900px via useIsNarrow hook), Rex logo/wordmark at top, user avatar + settings shortcut at bottom, topbar showing sectionName prop, scrollable main content area. App.tsx updated to use AppLayout with "Chat" section name.
+- Files changed: gui/src/layouts/AppLayout.tsx (new), gui/src/renderer/src/App.tsx, gui/tsconfig.web.json
+- Learnings for future iterations:
+  - New directories (like layouts/) must be added to tsconfig.web.json includes — add `src/layouts/**/*`
+  - Import path from renderer/src/ to layouts/ is `../../layouts/` (two levels up)
+  - Responsive collapse: use window.innerWidth with a resize event listener in a custom hook; store boolean state
+  - sidebar width via inline style (not tailwind) since it's a dynamic computed value
+---
+
+## Iteration 7 - US-180 Verify: integrate feedback components into app shell
+- What was implemented: Wrapped app root with ToastProvider in main.tsx; updated App.tsx to use Spinner (loading state), SkeletonLine (loading placeholder), EmptyState (error state), and useToast hook (status notification on mount).
+- Files changed: gui/src/renderer/src/main.tsx, gui/src/renderer/src/App.tsx, gui/tsconfig.web.json
+- Learnings for future iterations:
+  - tsconfig.web.json `include` only covered `src/renderer/src/**/*` — components at `src/components/ui/` must be added explicitly as `src/components/**/*`
+  - Import path from `gui/src/renderer/src/` to `gui/src/components/ui/` is `../../components/ui/` (not `../../../`)
+  - Iteration 4 learning "typecheck passes without adding new tsconfig includes" was WRONG for cases where the files are first imported from renderer — the include must be present
+---
+
+## Iteration 9 - US-182: Implement client-side routing for all Rex sections
+- What was implemented: Installed react-router-dom v6; created 10 placeholder page components in gui/src/pages/; configured HashRouter in App.tsx (required for Electron); defined Routes for /chat, /voice, /tasks, /calendar, /reminders, /memories, /email, /sms, /notifications, /settings; default route / redirects to /chat; updated AppLayout.tsx to use NavLink with isActive-based styling for sidebar highlight and useNavigate for settings button.
+- Files changed: gui/package.json (react-router-dom dep added), gui/tsconfig.web.json (added src/pages/**/*), gui/src/pages/*.tsx (10 new files), gui/src/layouts/AppLayout.tsx (NavLink-based nav, removed sectionName prop), gui/src/renderer/src/App.tsx (HashRouter + Routes setup)
+- Learnings for future iterations:
+  - HashRouter is required for Electron (not BrowserRouter) — hash-based routing works without a server
+  - AppLayout sectionName prop removed in favour of deriving it from window.location.hash on mount; sectionName state is updated via NavLink onClick handler
+  - NavLink className prop accepts a function `({ isActive }) => string` to apply active styles
+  - New src/pages/ directory requires explicit addition to tsconfig.web.json includes
+  - @types/react-router-dom is not needed for v6 — types are bundled in the package itself
+---
+
+## Iteration 10 - US-183: Build sidebar navigation with icons and notification badges
+- What was implemented: Installed zustand v5; created notificationsStore (unreadCount: 0, setUnreadCount, increment, clear); updated NavItem interface with optional beta/showUnread flags; Email and SMS items marked beta: true (amber BETA badge); Notifications marked showUnread: true (numeric badge from store, dot in collapsed mode); tsconfig.web.json extended with src/store/**/*
+- Files changed: gui/src/store/notificationsStore.ts (new), gui/src/layouts/AppLayout.tsx, gui/tsconfig.web.json, gui/package.json
+- Learnings for future iterations:
+  - zustand v5 uses `create<State>((set) => ...)` — no default export, named import `{ create }`
+  - New store directory (src/store/) requires explicit addition to tsconfig.web.json includes
+  - package-lock.json is in .gitignore — do not attempt to stage it (results in git error)
+  - Amber beta badge uses Tailwind arbitrary opacity: `bg-amber-500/20 text-amber-400`
+  - Collapsed sidebar unread state: use a small dot (w-2 h-2 rounded-full) positioned absolute on the icon span
+---
+
+## Iteration 11 - US-184: Build chat message list component
+- What was implemented: MessageList.tsx in gui/src/components/chat/ with user/rex message bubbles (accent right-aligned vs surface-raised left-aligned), relative timestamps (relativeTime fn), useEffect auto-scroll via bottomRef, inline Markdown renderer (bold, italic, inline code, code blocks, unordered lists) without external deps.
+- Files changed: gui/src/components/chat/MessageList.tsx (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - No new tsconfig.web.json includes needed — src/components/**/* already covers the new chat/ subdirectory
+  - Implemented Markdown inline without react-markdown to avoid extra deps; covers bold (**text**), italic (*text*), inline code (`code`), fenced code blocks, and unordered lists (-/*)
+  - relativeTime function: use Date.now() - date.getTime() to compute diff in seconds, then format into "Xs ago / N min ago / N hr ago / Nd ago"
+  - Auto-scroll uses useEffect on [messages] dependency + scrollIntoView({behavior:'smooth'}) on a div ref at list bottom
+  - renderInline takes a keyPrefix parameter to generate unique React keys for inline nodes within a block
+---
+
+## Iteration 12 - US-185: Build chat input bar
+- What was implemented: ChatInput.tsx in gui/src/components/chat/ with Textarea + Send button. Enter sends, Shift+Enter newline. Send disabled when empty or sending prop true (shows Spinner). Value cleared after send. Character count appears when > 200 chars.
+- Files changed: gui/src/components/chat/ChatInput.tsx (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Textarea does NOT use forwardRef — do not pass ref prop to it (TypeScript will error in strict mode)
+  - No new tsconfig.web.json includes needed — src/components/**/* already covers the chat/ subdirectory
+  - Send button uses inline button element (not Button component) to have tight control over fixed w-9 h-9 sizing aligned with textarea bottom
+  - Spinner size="sm" with className="text-white" overrides the default accent color for the send button context
+---
+
+## Iteration 13 - US-186: Wire chat panel to Rex backend via IPC
+- What was implemented: rex_chat_bridge.py (JSON-in/JSON-out Python subprocess bridge); gui/src/main/handlers/chat.ts (ipcMain handler that spawns the bridge, writes message to stdin, resolves with reply string); updated sendChat IPC signature from ChatRequest object to plain string; ChatPage.tsx fully wired with MessageList + ChatInput + IPC call + error bubble.
+- Files changed: rex_chat_bridge.py (new), gui/src/main/handlers/chat.ts (new), gui/src/main/index.ts, gui/src/preload/index.ts, gui/src/types/ipc.ts, gui/src/pages/ChatPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - src/main/handlers/ directory is covered by existing tsconfig.node.json include `src/main/**/*` — no tsconfig changes needed
+  - sendChat IPC signature change: ChatRequest object → plain string; ChatResponse object → plain string; update ipc.ts, preload/index.ts together
+  - Python bridge path in handler: join(__dirname, '../../../../rex_chat_bridge.py') resolves correctly from built output at dist-electron/main/
+  - Error bubbles: catch block in ChatPage creates a rex-role message with error text wrapped in backticks so it renders as inline code
+  - py.on('error') must be handled to catch spawn failures (Python not found) separately from close-code failures
+---
+
+## Iteration 14 - US-187: Add streaming response display to chat
+- What was implemented: rex_chat_stream_bridge.py (NDJSON-based streaming Python bridge, falls back to generate_reply if generate_reply_stream absent); chat.ts adds ipcMain.handle('rex:startChatStream') that spawns the bridge, parses NDJSON lines, emits webContents.send per token, falls back to callRexBackend on spawn error; ipc.ts adds sendChatStream to RexAPI; preload/index.ts exposes sendChatStream using ipcRenderer.on listeners + ipcRenderer.invoke; MessageList.tsx adds streaming?: boolean to Message and shows blinking cursor span during streaming; ChatPage.tsx rewrites handleSend to use sendChatStream, appending tokens to a live bubble then finalizing when done.
+- Files changed: rex_chat_stream_bridge.py (new), gui/src/main/handlers/chat.ts, gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/components/chat/MessageList.tsx, gui/src/pages/ChatPage.tsx
+- Learnings for future iterations:
+  - Streaming IPC pattern: use ipcMain.handle to start the stream (returns immediately), then emit events via webContents.send per token/done/error — do NOT try to use ipcMain.handle for each token
+  - Track sentFinal flag in main-side handler to avoid sending chatDone twice (once from NDJSON "done" line, once from process close)
+  - Check event.sender.isDestroyed() before every webContents.send to guard against closed windows
+  - preload listener teardown: keep named function references so removeListener works correctly; anonymous functions cannot be removed
+  - Cursor blink in MessageList: inline-block span with animate-pulse and bg-accent; conditionally render only when streaming===true
+  - ChatPage streaming pattern: create the empty rex bubble before starting stream, then append tokens in-place via setMessages + map; on done set streaming:false
+---
+
+## Iteration 15 - US-188: Build voice toggle and status indicator
+- What was implemented: VoiceToggle.tsx in gui/src/components/voice/ — large circular button with 4 states: idle (gray mic), listening (red + animate-ping pulsing ring), processing (accent bg + animate-spin border-t ring), speaking (green waveform icon). State label below button. Space key toggles. aria-pressed reflects active state.
+- Files changed: gui/src/components/voice/VoiceToggle.tsx (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - src/components/**/* in tsconfig.web.json already covers new voice/ subdirectory — no tsconfig changes needed
+  - Pulsing ring: absolute inset-0 rounded-full animate-ping; separate from button background
+  - Spinning border ring: absolute inset-0 rounded-full border-4 border-transparent border-t-white animate-spin
+  - Inline SVG icons (no external deps): WaveformIcon for speaking state, MicIcon for others
+  - aria-pressed on toggle button reflects whether voice is active (state !== 'idle')
+---
+
+## Iteration 16 - US-189: Build audio waveform visualizer
+- What was implemented: WaveformVisualizer.tsx (canvas-based, requestAnimationFrame); listening state uses Web Audio API AnalyserNode with getUserMedia (falls back to synthetic animation on permission denial); speaking state uses sine-wave synthetic bars; idle/processing draws a single flat subtle line. VoicePage updated to integrate VoiceToggle + WaveformVisualizer.
+- Files changed: gui/src/components/voice/WaveformVisualizer.tsx (new), gui/src/pages/VoicePage.tsx
+- Learnings for future iterations:
+  - src/components/**/* in tsconfig.web.json already covers the voice/ subdirectory — no tsconfig changes needed
+  - Avoid ctx.roundRect (TypeScript DOM types may not include it) — use manual arcTo path for rounded bars instead
+  - AudioContext + AnalyserNode setup is async; wrap in try/catch inside async fn and call with `void fn()` to satisfy no-floating-promises
+  - cancelAnimationFrame(0) is a no-op, so rafRef initialized to 0 is safe to cancel immediately
+  - Idle/processing states don't need an animation loop — draw once and return (no rAF needed)
+  - stopAudio() must be called in both state-change cleanup AND unmount cleanup to avoid zombie mic streams
+---
+
+## Iteration 17 - US-190: Wire voice panel to Rex backend via IPC
+- What was implemented: rex_voice_bridge.py (persistent NDJSON subprocess; emits state/transcript/error events; reads stop command from stdin; falls back to stub loop if real voice deps unavailable); gui/src/main/handlers/voice.ts (registerVoiceHandlers: startVoice spawns bridge and forwards NDJSON events via webContents.send, stopVoice writes stop command and kills process); ipc.ts extended with VoiceTranscriptEntry interface and startVoice/stopVoice on RexAPI; preload/index.ts adds makeStartVoice (registers rex:voiceState/rex:voiceTranscript/rex:voiceError listeners, invokes rex:startVoice, returns Promise<void>) and stopVoice; main/index.ts registers voice handlers; VoicePage.tsx rewritten with IPC toggle, scrollable transcript list below visualizer, EmptyState on error.
+- Files changed: rex_voice_bridge.py (new), gui/src/main/handlers/voice.ts (new), gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/pages/VoicePage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Unused module-level variable (voiceWebContents) triggers TS6133 error — remove if not read
+  - Voice bridge follows same persistent-process + NDJSON pattern as chat stream bridge
+  - startVoice in preload resolves immediately after bridge confirms start; callbacks fire asynchronously via ipcRenderer.on listeners
+  - Module-level voiceCleanup ref allows stopVoice to tear down the same listeners registered by startVoice
+  - VoicePage async toggle: wrap async handler in `() => void handleToggle()` to avoid returning Promise to onClick
+  - Import type VoiceTranscriptEntry directly in VoicePage from types/ipc — no new tsconfig includes needed
+---
+
+## Iteration 18 - US-191: Add live transcript and history display to voice panel
+- What was implemented: TranscriptList updated to accept voiceState and onClear props; partial transcript row (italic "Listening" + animate-pulse cursor span) shown at bottom during `listening` state; ClearButton component with two-click confirmation (armed for 2s, shows Tooltip "Click again to confirm"); transcript panel shown when entries.length > 0 OR voiceState === 'listening'; transcripts state never reset on voice toggle (persists across sessions).
+- Files changed: gui/src/pages/VoicePage.tsx
+- Learnings for future iterations:
+  - Two-click confirmation pattern: first click arms a timer (2000ms) and sets `pendingClear`; second click within window confirms; timer clears on unmount via useEffect cleanup
+  - Partial transcript indicator: no new IPC events needed — render a synthetic row when voiceState === 'listening'; use `animate-pulse` on a thin span for blinking cursor
+  - Show transcript panel when `entries.length > 0 || voiceState === 'listening'` — not just when entries exist
+  - Tooltip component wraps with `inline-flex` span — works fine around block-level button children
+  - No new tsconfig includes needed — all files under existing covered paths
+---
+
+## Iteration 20 - US-193: Build task create and edit form
+- What was implemented: Added `prompt` field to Task interface; added TaskInput interface and saveTask to RexAPI; added saveTask IPC stub in main process; rewrote TasksPage with "New Task" button, task card click-to-edit, Modal with TaskForm (Name, Prompt/Command textarea, Schedule select with conditional time/day/cron inputs, Active toggle), inline validation (name required, cron required for custom-cron), submit calls window.rex.saveTask and updates tasks list in place.
+- Files changed: gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/pages/TasksPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - EmptyState action prop is `action={{ label: string, onClick: () => void }}` — NOT separate `actionLabel`/`onAction` props
+  - `<button>` wrapper around task cards enables click-to-edit without nesting interactive elements
+  - Schedule abstraction: use a ScheduleType union + helper functions (buildScheduleString/parseScheduleType) to convert between form state and display string
+  - Active toggle implemented as `role="switch"` button with translate-x animation — same pattern as iOS toggle
+  - saveTask stub returns a Task with id = task.id ?? `task-${Date.now()}` so both create and edit work from same handler
+---
+
+## Iteration 19 - US-192: Build task list view
+- What was implemented: Task interface added to ipc.ts; getTasks added to RexAPI, preload (ipcRenderer.invoke), and ipcMain handler (3 hardcoded stub tasks: active/paused/error); TasksPage.tsx rewritten with loading Spinner, task cards (name/schedule/nextRun + status Badge), EmptyState when no tasks.
+- Files changed: gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/pages/TasksPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Task interface belongs in ipc.ts alongside other shared types; import it in both preload and main via `import type { ..., Task }`
+  - No new tsconfig includes needed — src/pages/**/* and src/components/**/* already covered
+  - Avoid `text-text-tertiary` — only `text-text-primary` and `text-text-secondary` are defined in tokens.css; use secondary for subdued text
+  - statusVariant helper maps 'active'→'success', 'paused'→'warning', 'error'→'danger' for Badge variants
+---
+
+## Iteration 21 - US-194: Wire tasks page to Rex scheduler backend via IPC
+- What was implemented: rex_tasks_bridge.py (CLI bridge: list/save/delete/set_enabled commands, translates GUI Task format to/from ScheduledJob; stores gui_schedule and prompt in metadata); gui/src/main/handlers/tasks.ts (callTasksBridge helper + registerTaskHandlers with 4 IPC handlers); extended ipc.ts with deleteTask and setTaskEnabled; updated preload/index.ts and main/index.ts (replaced inline stubs with registerTaskHandlers()); rewrote TasksPage with useCallback fetchTasks (called on mount + after every mutation), inline EnableToggle per card (calls setTaskEnabled, stopPropagation to avoid modal), delete button in edit modal, Toast error/success notifications via useToast.
+- Files changed: rex_tasks_bridge.py (new), gui/src/main/handlers/tasks.ts (new), gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/pages/TasksPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Python scheduler stores data in data/scheduler/jobs.json; extra fields (gui_schedule, prompt) go in metadata dict
+  - Bridge pattern: stdin JSON command → stdout JSON response, same as chat/voice bridges
+  - src/main/handlers/ directory already covered by tsconfig.node.json — no tsconfig changes needed
+  - e.stopPropagation() needed on inline toggle clicks to prevent card button onClick from also firing
+  - useCallback for fetchTasks with [addToast] dep avoids stale closure warnings when used inside useEffect
+  - useToast() returns a direct function: `const addToast = useToast(); addToast('msg', 'error')`
+---
+
+## Iteration 22 - US-195: Add task run history and last-result indicator to task cards
+- What was implemented: TaskRun interface added to ipc.ts; optional lastRun field added to Task interface; getTaskHistory(taskId) added to RexAPI, preload, and ipcMain handler (stub returns 2 sample runs — one success, one failed); TasksPage rewritten with div+role="button" cards (allows nested interactive elements), "Last run" row with timestamp+badge on each card, click-to-expand log panel (LogPanel component), left-border danger highlight for error-status tasks, expandedTaskId + historyMap state with lazy load on first expand.
+- Files changed: gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/handlers/tasks.ts, gui/src/pages/TasksPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Cannot nest <button> inside <button> — convert outer to <div role="button" tabIndex={0}> with onKeyDown handler when card needs nested interactive children
+  - border-l-4 + border-l-danger correctly overrides just the left border width/color (Tailwind v3 per-side utilities)
+  - Lazy history load: check `historyMap[task.id] !== undefined` before re-fetching (undefined = not loaded, 'loading' = in-flight, array = done)
+  - LogPanel shown only when `isExpanded && history !== undefined` — avoids flash of empty panel while loading
+  - relativeTime helper: same pattern as MessageList — diff in seconds, format as "Xs ago / N min ago / N hr ago / Nd ago"
+  - No new tsconfig includes needed — all files already covered
+---
+
+## Iteration 23 - US-196: Build calendar month and week view components
+- What was implemented: CalendarGrid.tsx (month grid, 7 cols, day cells with events as colored chips, today highlight, +N more overflow); WeekView.tsx (canvas-less, hour rows 6am–10pm at 48px each, current time red line, events as absolutely positioned buttons); CalendarPage.tsx rewritten with segmented month/week toggle, prev/next/today nav, stub events, inline event detail popover.
+- Files changed: gui/src/components/calendar/CalendarGrid.tsx (new), gui/src/components/calendar/WeekView.tsx (new), gui/src/pages/CalendarPage.tsx
+- Learnings for future iterations:
+  - src/components/**/* in tsconfig.web.json already covers new calendar/ subdirectory — no tsconfig changes needed
+  - WeekView uses absolute positioning within a fixed-height container (HOUR_COUNT * SLOT_HEIGHT px) — events positioned via top/height calculated from start/end hours
+  - scrollIntoView to current time: use scrollRef.current.scrollTop = offsetHours * SLOT_HEIGHT - 80 on mount
+  - ctx.roundRect not used — stick to pure CSS/HTML elements for calendar (no canvas needed)
+  - Stub events built with IIFE `(() => { const d = new Date(); ... return d.toISOString() })()` to avoid module-level mutable Date objects
+---
+
+## Iteration 24 - US-197: Build event detail panel
+- What was implemented: EventDetailPanel.tsx (slide-in from right, w-80, CSS translate-x transition); extended CalendarEvent interface with location/description/attendees/source optional fields; enriched STUB_EVENTS with those fields; CalendarPage replaced temp popover with EventDetailPanel; Escape key closes via useEffect keydown listener; backdrop div closes on click-outside; Edit/Delete are stubs logging to console.
+- Files changed: gui/src/components/calendar/EventDetailPanel.tsx (new), gui/src/components/calendar/CalendarGrid.tsx, gui/src/pages/CalendarPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Slide-in panel: use `translate-x-0` vs `translate-x-full` toggled by isOpen boolean with `transition-transform duration-250`
+  - Backdrop click-outside: render a full-screen div behind the panel; in its onClick check `!panelRef.current.contains(e.target)` to detect outside clicks
+  - CalendarEvent interface extended in CalendarGrid.tsx (single source of truth); WeekView.tsx automatically picks up the new optional fields
+  - No tsconfig changes needed — all new files are in already-covered paths
+---

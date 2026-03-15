@@ -5,11 +5,13 @@ import type { Settings } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
 import { registerVoiceHandlers } from './handlers/voice'
 import { registerTaskHandlers } from './handlers/tasks'
+import { registerCalendarHandlers } from './handlers/calendar'
 
 function registerIpcHandlers(): void {
   registerChatHandlers()
   registerVoiceHandlers()
   registerTaskHandlers()
+  registerCalendarHandlers()
 
   ipcMain.handle('rex:getStatus', () => {
     return { ok: true, status: 'idle' }
