@@ -22,6 +22,14 @@ export interface VoiceTranscriptEntry {
   timestamp: number
 }
 
+export interface TaskRun {
+  id: string
+  taskId: string
+  timestamp: string
+  result: 'success' | 'failed'
+  output: string[]
+}
+
 export interface Task {
   id: string
   name: string
@@ -29,6 +37,7 @@ export interface Task {
   schedule: string
   nextRun: string
   status: 'active' | 'paused' | 'error'
+  lastRun?: { timestamp: string; result: 'success' | 'failed' }
 }
 
 export interface TaskInput {
@@ -55,4 +64,5 @@ export interface RexAPI {
   saveTask: (task: TaskInput) => Promise<Task>
   deleteTask: (taskId: string) => Promise<void>
   setTaskEnabled: (taskId: string, enabled: boolean) => Promise<Task>
+  getTaskHistory: (taskId: string) => Promise<TaskRun[]>
 }

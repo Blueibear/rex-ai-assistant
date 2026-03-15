@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import { join } from 'path'
-import type { Task, TaskInput } from '../../types/ipc'
+import type { Task, TaskInput, TaskRun } from '../../types/ipc'
 
 /**
  * Call rex_tasks_bridge.py with a JSON payload via stdin and resolve the
@@ -79,6 +79,37 @@ async function setTaskEnabled(taskId: string, enabled: boolean): Promise<Task> {
   return result.task as Task
 }
 
+function getTaskHistory(taskId: string): Promise<TaskRun[]> {
+  // Stub: returns 1-2 sample runs so the UI can be exercised without a real backend
+  const now = Date.now()
+  const runs: TaskRun[] = [
+    {
+      id: `run-${taskId}-1`,
+      taskId,
+      timestamp: new Date(now - 3600_000).toISOString(),
+      result: 'success',
+      output: [
+        '[INFO] Task started',
+        '[INFO] Running prompt...',
+        '[INFO] LLM responded in 1.2s',
+        '[INFO] Task completed successfully'
+      ]
+    },
+    {
+      id: `run-${taskId}-2`,
+      taskId,
+      timestamp: new Date(now - 7200_000).toISOString(),
+      result: 'failed',
+      output: [
+        '[INFO] Task started',
+        '[ERROR] Connection refused: rex backend not running',
+        '[ERROR] Task failed after 3 retries'
+      ]
+    }
+  ]
+  return Promise.resolve(runs)
+}
+
 export function registerTaskHandlers(): void {
   ipcMain.handle('rex:getTasks', async (): Promise<Task[]> => {
     return getTasks()
@@ -96,6 +127,13 @@ export function registerTaskHandlers(): void {
     'rex:setTaskEnabled',
     async (_event, taskId: string, enabled: boolean): Promise<Task> => {
       return setTaskEnabled(taskId, enabled)
+    }
+  )
+
+  ipcMain.handle(
+    'rex:getTaskHistory',
+    async (_event, taskId: string): Promise<TaskRun[]> => {
+      return getTaskHistory(taskId)
     }
   )
 }

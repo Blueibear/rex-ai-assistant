@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { Settings, VoiceTranscriptEntry, Task, TaskInput } from '../types/ipc'
+import type { Settings, VoiceTranscriptEntry, Task, TaskInput, TaskRun } from '../types/ipc'
 
 function makeSendChatStream(
   message: string,
@@ -117,7 +117,9 @@ const rexAPI = {
   saveTask: (task: TaskInput): Promise<Task> => ipcRenderer.invoke('rex:saveTask', task),
   deleteTask: (taskId: string): Promise<void> => ipcRenderer.invoke('rex:deleteTask', taskId),
   setTaskEnabled: (taskId: string, enabled: boolean): Promise<Task> =>
-    ipcRenderer.invoke('rex:setTaskEnabled', taskId, enabled)
+    ipcRenderer.invoke('rex:setTaskEnabled', taskId, enabled),
+  getTaskHistory: (taskId: string): Promise<TaskRun[]> =>
+    ipcRenderer.invoke('rex:getTaskHistory', taskId)
 }
 
 if (process.contextIsolated) {

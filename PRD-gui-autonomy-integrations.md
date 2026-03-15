@@ -353,12 +353,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to see whether my last scheduled task run succeeded or failed so I can spot problems without digging through logs.
 
 **Acceptance Criteria:**
-- [ ] Task card shows "Last run" section: timestamp + result badge (`success`, `failed`, `never`).
-- [ ] Clicking "Last run" detail expands an inline log output panel (last 20 lines of task output).
-- [ ] `window.rex.getTaskHistory(taskId): Promise<TaskRun[]>` IPC method added (stub returns 1-2 sample runs).
-- [ ] Failed tasks show the task card with a left-border in danger color.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] Task card shows "Last run" section: timestamp + result badge (`success`, `failed`, `never`).
+- [x] Clicking "Last run" detail expands an inline log output panel (last 20 lines of task output).
+- [x] `window.rex.getTaskHistory(taskId): Promise<TaskRun[]>` IPC method added (stub returns 1-2 sample runs).
+- [x] Failed tasks show the task card with a left-border in danger color.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

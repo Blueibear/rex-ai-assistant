@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import type { Task, TaskInput } from '../types/ipc'
+import type { Task, TaskInput, TaskRun } from '../types/ipc'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { EmptyState } from '../components/ui/EmptyState'
@@ -50,6 +50,18 @@ function parseScheduleDay(schedule: string): string {
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
   if (m && days.includes(m[1].toLowerCase())) return m[1].toLowerCase()
   return 'monday'
+}
+
+// ---------------------------------------------------------------------------
+// Time helper
+// ---------------------------------------------------------------------------
+
+function relativeTime(date: Date): string {
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000)
+  if (diff < 60) return `${diff}s ago`
+  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`
+  return `${Math.floor(diff / 86400)}d ago`
 }
 
 // ---------------------------------------------------------------------------
@@ -364,6 +376,51 @@ function EnableToggle({ enabled, busy, onToggle }: EnableToggleProps): React.Rea
 }
 
 // ---------------------------------------------------------------------------
+// Log panel for task run history
+// ---------------------------------------------------------------------------
+
+interface LogPanelProps {
+  history: TaskRun[] | 'loading'
+}
+
+function LogPanel({ history }: LogPanelProps): React.ReactElement {
+  if (history === 'loading') {
+    return (
+      <div className="flex items-center gap-2 px-4 py-3 bg-surface border border-t-0 border-border rounded-b-lg">
+        <Spinner size="sm" />
+        <span className="text-xs text-text-secondary">Loading history…</span>
+      </div>
+    )
+  }
+
+  if (history.length === 0) {
+    return (
+      <div className="px-4 py-3 bg-surface border border-t-0 border-border rounded-b-lg">
+        <p className="text-xs text-text-secondary">No run history available.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-surface border border-t-0 border-border rounded-b-lg px-4 py-3 space-y-3">
+      {history.map((run) => (
+        <div key={run.id}>
+          <div className="flex items-center gap-2 mb-1">
+            <Badge variant={run.result === 'success' ? 'success' : 'danger'}>
+              {run.result}
+            </Badge>
+            <span className="text-xs text-text-secondary">{relativeTime(new Date(run.timestamp))}</span>
+          </div>
+          <pre className="text-xs text-text-secondary bg-surface-raised rounded px-3 py-2 overflow-x-auto max-h-40 overflow-y-auto font-mono whitespace-pre-wrap">
+            {run.output.slice(-20).join('\n')}
+          </pre>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
@@ -379,6 +436,9 @@ export function TasksPage(): React.ReactElement {
   const [deleting, setDeleting] = useState(false)
   // Map of taskId -> true when setTaskEnabled is in-flight
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set())
+  // Task run history expansion state
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null)
+  const [historyMap, setHistoryMap] = useState<Record<string, TaskRun[] | 'loading'>>({})
 
   const fetchTasks = useCallback((): void => {
     window.rex
@@ -503,6 +563,36 @@ export function TasksPage(): React.ReactElement {
       })
   }
 
+  function handleLastRunExpand(task: Task, e: React.MouseEvent): void {
+    e.stopPropagation()
+
+    if (expandedTaskId === task.id) {
+      setExpandedTaskId(null)
+      return
+    }
+
+    setExpandedTaskId(task.id)
+
+    // Don't re-fetch if already loaded
+    if (historyMap[task.id] !== undefined) return
+
+    setHistoryMap((prev) => ({ ...prev, [task.id]: 'loading' }))
+    window.rex
+      .getTaskHistory(task.id)
+      .then((runs) => {
+        setHistoryMap((prev) => ({ ...prev, [task.id]: runs }))
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Failed to load run history'
+        addToast(msg, 'error')
+        setHistoryMap((prev) => {
+          const next = { ...prev }
+          delete next[task.id]
+          return next
+        })
+      })
+  }
+
   // Loading state
   if (loading) {
     return (
@@ -540,31 +630,75 @@ export function TasksPage(): React.ReactElement {
 
         {/* Task list */}
         <div className="space-y-3">
-          {tasks.map((task) => (
-            <button
-              key={task.id}
-              onClick={() => openEdit(task)}
-              className="w-full text-left bg-surface-raised border border-border rounded-lg px-4 py-4 flex items-start justify-between gap-4 hover:border-accent/50 transition-colors"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="text-text-primary text-sm font-medium truncate">{task.name}</p>
-                <p className="text-text-secondary text-xs mt-0.5">{task.schedule}</p>
-                <p className="text-text-secondary text-xs mt-0.5">
-                  <span>Next run:</span> {task.nextRun}
-                </p>
+          {tasks.map((task) => {
+            const isExpanded = expandedTaskId === task.id
+            const history = historyMap[task.id]
+            const isFailed = task.status === 'error'
+
+            return (
+              <div key={task.id}>
+                {/* Card — using div+role to allow nested interactive elements */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openEdit(task)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') openEdit(task)
+                  }}
+                  className={[
+                    'w-full text-left bg-surface-raised border border-border px-4 py-4',
+                    'flex items-start justify-between gap-4 hover:border-accent/50 transition-colors cursor-pointer',
+                    isExpanded ? 'rounded-t-lg' : 'rounded-lg',
+                    isFailed ? 'border-l-4 border-l-danger' : ''
+                  ].join(' ')}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-text-primary text-sm font-medium truncate">{task.name}</p>
+                    <p className="text-text-secondary text-xs mt-0.5">{task.schedule}</p>
+                    <p className="text-text-secondary text-xs mt-0.5">
+                      <span>Next run:</span> {task.nextRun}
+                    </p>
+
+                    {/* Last run row */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleLastRunExpand(task, e)}
+                      className="mt-1.5 flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors"
+                    >
+                      <span>Last run:</span>
+                      <span>
+                        {task.lastRun
+                          ? relativeTime(new Date(task.lastRun.timestamp))
+                          : 'Never'}
+                      </span>
+                      {task.lastRun ? (
+                        <Badge variant={task.lastRun.result === 'success' ? 'success' : 'danger'}>
+                          {task.lastRun.result}
+                        </Badge>
+                      ) : (
+                        <Badge variant="default">never</Badge>
+                      )}
+                      <span className="ml-0.5 text-[10px]">{isExpanded ? '▲' : '▼'}</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0 mt-0.5">
+                    <Badge variant={statusVariant(task.status)} className="capitalize">
+                      {task.status}
+                    </Badge>
+                    <EnableToggle
+                      enabled={task.status === 'active'}
+                      busy={togglingIds.has(task.id)}
+                      onToggle={(e) => handleToggleEnabled(task, e)}
+                    />
+                  </div>
+                </div>
+
+                {/* Expanded log panel */}
+                {isExpanded && history !== undefined && <LogPanel history={history} />}
               </div>
-              <div className="flex items-center gap-3 shrink-0 mt-0.5">
-                <Badge variant={statusVariant(task.status)} className="capitalize">
-                  {task.status}
-                </Badge>
-                <EnableToggle
-                  enabled={task.status === 'active'}
-                  busy={togglingIds.has(task.id)}
-                  onToggle={(e) => handleToggleEnabled(task, e)}
-                />
-              </div>
-            </button>
-          ))}
+            )
+          })}
         </div>
       </div>
 
