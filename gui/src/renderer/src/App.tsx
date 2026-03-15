@@ -1,11 +1,22 @@
 import React, { useEffect, useState } from 'react'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Spinner } from '../../components/ui/Spinner'
 import { SkeletonLine } from '../../components/ui/SkeletonLine'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { useToast } from '../../components/ui/Toast'
 import { AppLayout } from '../../layouts/AppLayout'
+import { ChatPage } from '../../pages/ChatPage'
+import { VoicePage } from '../../pages/VoicePage'
+import { TasksPage } from '../../pages/TasksPage'
+import { CalendarPage } from '../../pages/CalendarPage'
+import { RemindersPage } from '../../pages/RemindersPage'
+import { MemoriesPage } from '../../pages/MemoriesPage'
+import { EmailPage } from '../../pages/EmailPage'
+import { SmsPage } from '../../pages/SmsPage'
+import { NotificationsPage } from '../../pages/NotificationsPage'
+import { SettingsPage } from '../../pages/SettingsPage'
 
-function App(): React.ReactElement {
+function AppShell(): React.ReactElement {
   const [status, setStatus] = useState<string>('loading…')
   const addToast = useToast()
 
@@ -45,11 +56,29 @@ function App(): React.ReactElement {
   }
 
   return (
-    <AppLayout sectionName="Chat">
-      <div className="flex items-center justify-center h-full text-text-primary">
-        <p className="text-xl font-semibold">Rex is starting… ({status})</p>
-      </div>
+    <AppLayout>
+      <Routes>
+        <Route path="/" element={<Navigate to="/chat" replace />} />
+        <Route path="/chat" element={<ChatPage />} />
+        <Route path="/voice" element={<VoicePage />} />
+        <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/reminders" element={<RemindersPage />} />
+        <Route path="/memories" element={<MemoriesPage />} />
+        <Route path="/email" element={<EmailPage />} />
+        <Route path="/sms" element={<SmsPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+      </Routes>
     </AppLayout>
+  )
+}
+
+function App(): React.ReactElement {
+  return (
+    <HashRouter>
+      <AppShell />
+    </HashRouter>
   )
 }
 

@@ -6,7 +6,8 @@
     "src/preload/index.d.ts",
     "src/types/**/*",
     "src/components/**/*",
-    "src/layouts/**/*"
+    "src/layouts/**/*",
+    "src/pages/**/*"
   ],
   "compilerOptions": {
     "composite": true,

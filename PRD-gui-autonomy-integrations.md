@@ -166,13 +166,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want navigation between sections to update the content area without full reloads so the app feels instant.
 
 **Acceptance Criteria:**
-- [ ] `react-router-dom` (v6+) installed and configured with `HashRouter` (required for Electron).
-- [ ] Routes defined: `/chat`, `/voice`, `/tasks`, `/calendar`, `/reminders`, `/memories`, `/email`, `/sms`, `/notifications`, `/settings`.
-- [ ] Each route renders a placeholder page component with its section title.
-- [ ] Default route (`/`) redirects to `/chat`.
-- [ ] Active route highlighted in sidebar.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `react-router-dom` (v6+) installed and configured with `HashRouter` (required for Electron).
+- [x] Routes defined: `/chat`, `/voice`, `/tasks`, `/calendar`, `/reminders`, `/memories`, `/email`, `/sms`, `/notifications`, `/settings`.
+- [x] Each route renders a placeholder page component with its section title.
+- [x] Default route (`/`) redirects to `/chat`.
+- [x] Active route highlighted in sidebar.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
