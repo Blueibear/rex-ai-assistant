@@ -5,12 +5,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: '#0F1117',
-        surface: '#1A1D27',
-        'surface-raised': '#22263A',
-        accent: '#3B82F6',
-        danger: '#EF4444',
-        success: '#22C55E'
+        bg: 'var(--color-bg)',
+        surface: 'var(--color-surface)',
+        'surface-raised': 'var(--color-surface-raised)',
+        accent: 'var(--color-accent)',
+        'text-primary': 'var(--color-text-primary)',
+        'text-secondary': 'var(--color-text-secondary)',
+        border: 'var(--color-border)',
+        danger: 'var(--color-danger)',
+        success: 'var(--color-success)'
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif']

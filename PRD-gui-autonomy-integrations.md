@@ -92,12 +92,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need Tailwind CSS configured and a set of CSS custom properties for Rex's design language so all components use consistent colors, spacing, and typography.
 
 **Acceptance Criteria:**
-- [ ] `tailwind.config.ts` configured with `content: ['./src/**/*.{ts,tsx}']` and custom theme extension.
-- [ ] `gui/src/styles/tokens.css` defines CSS custom properties: `--color-bg`, `--color-surface`, `--color-surface-raised`, `--color-accent`, `--color-text-primary`, `--color-text-secondary`, `--color-border`, `--color-danger`, `--color-success`. Values implement a dark theme (background `#0F1117`, surface `#1A1D27`, accent `#3B82F6`).
-- [ ] `tokens.css` imported in `gui/src/styles/index.css` which is imported in the app root.
-- [ ] Inter font loaded (via `@fontsource/inter` or CSS import).
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `tailwind.config.ts` configured with `content: ['./src/**/*.{ts,tsx}']` and custom theme extension.
+- [x] `gui/src/styles/tokens.css` defines CSS custom properties: `--color-bg`, `--color-surface`, `--color-surface-raised`, `--color-accent`, `--color-text-primary`, `--color-text-secondary`, `--color-border`, `--color-danger`, `--color-success`. Values implement a dark theme (background `#0F1117`, surface `#1A1D27`, accent `#3B82F6`).
+- [x] `tokens.css` imported in `gui/src/styles/index.css` which is imported in the app root.
+- [x] Inter font loaded (via `@fontsource/inter` or CSS import).
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
