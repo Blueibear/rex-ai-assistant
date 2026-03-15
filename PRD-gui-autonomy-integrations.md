@@ -198,13 +198,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to see a scrolling list of my conversation with Rex so I can follow the dialogue and refer back to earlier messages.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/components/chat/MessageList.tsx` renders a list of message objects (`{ id, role: 'user'|'rex', content, timestamp }`).
-- [ ] User messages appear right-aligned with accent bubble; Rex messages left-aligned with surface bubble.
-- [ ] Timestamps shown in relative format ("2 min ago") below each bubble.
-- [ ] List auto-scrolls to bottom on new message.
-- [ ] Supports Markdown rendering in Rex messages (bold, code blocks, lists).
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `gui/src/components/chat/MessageList.tsx` renders a list of message objects (`{ id, role: 'user'|'rex', content, timestamp }`).
+- [x] User messages appear right-aligned with accent bubble; Rex messages left-aligned with surface bubble.
+- [x] Timestamps shown in relative format ("2 min ago") below each bubble.
+- [x] List auto-scrolls to bottom on new message.
+- [x] Supports Markdown rendering in Rex messages (bold, code blocks, lists).
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
