@@ -297,12 +297,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to see what Rex heard and what it said in text so I can review the voice conversation.
 
 **Acceptance Criteria:**
-- [ ] Voice panel shows a scrollable transcript list below the waveform: alternating user/Rex utterances with timestamps.
-- [ ] Partial (in-progress) transcript shows in italic with blinking cursor during `listening` state.
-- [ ] "Clear history" button at top-right of transcript area (with confirmation tooltip).
-- [ ] Transcript persists across voice sessions within the app session (cleared only on explicit action or app restart).
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] Voice panel shows a scrollable transcript list below the waveform: alternating user/Rex utterances with timestamps.
+- [x] Partial (in-progress) transcript shows in italic with blinking cursor during `listening` state.
+- [x] "Clear history" button at top-right of transcript area (with confirmation tooltip).
+- [x] Transcript persists across voice sessions within the app session (cleared only on explicit action or app restart).
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

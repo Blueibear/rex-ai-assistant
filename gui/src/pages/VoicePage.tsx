@@ -3,9 +3,10 @@ import { VoiceToggle } from '../components/voice/VoiceToggle'
 import type { VoiceState } from '../components/voice/VoiceToggle'
 import { WaveformVisualizer } from '../components/voice/WaveformVisualizer'
 import { EmptyState } from '../components/ui/EmptyState'
+import { Tooltip } from '../components/ui/Tooltip'
 import type { VoiceTranscriptEntry } from '../types/ipc'
 
-// ── Transcript list ───────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatTime(ms: number): string {
   const d = new Date(ms)
@@ -15,42 +16,132 @@ function formatTime(ms: number): string {
   return `${h}:${m}:${s}`
 }
 
-interface TranscriptListProps {
-  entries: VoiceTranscriptEntry[]
+// ── Clear button with two-click confirmation ──────────────────────────────────
+
+interface ClearButtonProps {
+  onClear: () => void
 }
 
-const TranscriptList: React.FC<TranscriptListProps> = ({ entries }) => {
+const ClearButton: React.FC<ClearButtonProps> = ({ onClear }) => {
+  const [pendingClear, setPendingClear] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleClick = useCallback(() => {
+    if (pendingClear) {
+      // Second click — confirm clear
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current)
+        timerRef.current = null
+      }
+      setPendingClear(false)
+      onClear()
+    } else {
+      // First click — arm confirmation
+      setPendingClear(true)
+      timerRef.current = setTimeout(() => {
+        setPendingClear(false)
+        timerRef.current = null
+      }, 2000)
+    }
+  }, [pendingClear, onClear])
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current)
+    }
+  }, [])
+
+  return (
+    <Tooltip
+      text={pendingClear ? 'Click again to confirm' : 'Clear history'}
+      position="left"
+    >
+      <button
+        onClick={handleClick}
+        aria-label="Clear transcript history"
+        className={[
+          'text-xs px-2 py-1 rounded transition-colors',
+          pendingClear
+            ? 'bg-danger/20 text-danger'
+            : 'text-text-muted hover:text-text-primary hover:bg-surface-raised'
+        ].join(' ')}
+      >
+        {pendingClear ? 'Confirm?' : 'Clear'}
+      </button>
+    </Tooltip>
+  )
+}
+
+// ── Transcript list ───────────────────────────────────────────────────────────
+
+interface TranscriptListProps {
+  entries: VoiceTranscriptEntry[]
+  voiceState: VoiceState
+  onClear: () => void
+}
+
+const TranscriptList: React.FC<TranscriptListProps> = ({
+  entries,
+  voiceState,
+  onClear
+}) => {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [entries])
+  }, [entries, voiceState])
+
+  const showPartial = voiceState === 'listening'
 
   return (
-    <div className="w-full max-w-xl mt-6 flex flex-col gap-2 overflow-y-auto max-h-64 px-1">
-      {entries.map((entry, idx) => {
-        const isUser = entry.role === 'user'
-        return (
-          <div
-            key={idx}
-            className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
-          >
+    <div className="w-full max-w-xl mt-6 flex flex-col gap-0">
+      {/* Header with clear button */}
+      <div className="flex items-center justify-between mb-2 px-1">
+        <span className="text-xs text-text-muted uppercase tracking-wide">
+          Transcript
+        </span>
+        <ClearButton onClear={onClear} />
+      </div>
+
+      {/* Scrollable entries */}
+      <div className="flex flex-col gap-2 overflow-y-auto max-h-64 px-1">
+        {entries.map((entry, idx) => {
+          const isUser = entry.role === 'user'
+          return (
             <div
-              className={`max-w-xs px-3 py-2 rounded-xl text-sm leading-relaxed ${
-                isUser
-                  ? 'bg-accent text-white rounded-br-none'
-                  : 'bg-surface-raised text-text-primary rounded-bl-none'
-              }`}
+              key={idx}
+              className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
             >
-              {entry.text}
+              <div
+                className={`max-w-xs px-3 py-2 rounded-xl text-sm leading-relaxed ${
+                  isUser
+                    ? 'bg-accent text-white rounded-br-none'
+                    : 'bg-surface-raised text-text-primary rounded-bl-none'
+                }`}
+              >
+                {entry.text}
+              </div>
+              <span className="text-xs text-text-muted mt-0.5 px-1">
+                {isUser ? 'You' : 'Rex'} · {formatTime(entry.timestamp)}
+              </span>
             </div>
-            <span className="text-xs text-text-muted mt-0.5 px-1">
-              {isUser ? 'You' : 'Rex'} · {formatTime(entry.timestamp)}
-            </span>
+          )
+        })}
+
+        {/* Partial / in-progress row (italic + blinking cursor) */}
+        {showPartial && (
+          <div className="flex flex-col items-end">
+            <div className="max-w-xs px-3 py-2 rounded-xl text-sm leading-relaxed bg-accent/40 text-white rounded-br-none italic opacity-80">
+              Listening
+              <span className="inline-block w-0.5 h-3.5 ml-0.5 align-middle bg-white animate-pulse rounded-sm" />
+            </div>
+            <span className="text-xs text-text-muted mt-0.5 px-1">You</span>
           </div>
-        )
-      })}
-      <div ref={bottomRef} />
+        )}
+
+        <div ref={bottomRef} />
+      </div>
     </div>
   )
 }
@@ -76,6 +167,10 @@ export function VoicePage(): React.ReactElement {
   const [isActive, setIsActive] = useState(false)
   const [transcripts, setTranscripts] = useState<VoiceTranscriptEntry[]>([])
   const [error, setError] = useState<string | null>(null)
+
+  const handleClearTranscripts = useCallback(() => {
+    setTranscripts([])
+  }, [])
 
   const handleToggle = useCallback(async () => {
     if (!isActive) {
@@ -128,11 +223,19 @@ export function VoicePage(): React.ReactElement {
     )
   }
 
+  const showTranscriptPanel = transcripts.length > 0 || voiceState === 'listening'
+
   return (
     <div className="flex flex-col items-center justify-start h-full pt-12 gap-8">
       <WaveformVisualizer state={voiceState} width={320} height={80} />
       <VoiceToggle state={voiceState} onToggle={() => void handleToggle()} />
-      {transcripts.length > 0 && <TranscriptList entries={transcripts} />}
+      {showTranscriptPanel && (
+        <TranscriptList
+          entries={transcripts}
+          voiceState={voiceState}
+          onClear={handleClearTranscripts}
+        />
+      )}
     </div>
   )
 }
