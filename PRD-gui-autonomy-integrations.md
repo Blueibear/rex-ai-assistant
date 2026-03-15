@@ -180,13 +180,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want labeled navigation items with icons so I can identify and reach any section at a glance.
 
 **Acceptance Criteria:**
-- [ ] Sidebar nav items: Chat, Voice, Tasks, Calendar, Reminders, Memories, Email (beta badge), SMS (beta badge), Notifications, Settings.
-- [ ] Each item has an SVG icon (lucide-react or custom inline SVG).
-- [ ] Items marked `(beta)` show a small amber "BETA" badge.
-- [ ] Notifications item shows a numeric unread badge (fed by Zustand store, placeholder value of 0 for now).
-- [ ] Clicking any item navigates to its route and applies the active highlight style.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] Sidebar nav items: Chat, Voice, Tasks, Calendar, Reminders, Memories, Email (beta badge), SMS (beta badge), Notifications, Settings.
+- [x] Each item has an SVG icon (lucide-react or custom inline SVG).
+- [x] Items marked `(beta)` show a small amber "BETA" badge.
+- [x] Notifications item shows a numeric unread badge (fed by Zustand store, placeholder value of 0 for now).
+- [x] Clicking any item navigates to its route and applies the active highlight style.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

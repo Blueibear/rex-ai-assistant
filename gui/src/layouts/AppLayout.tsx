@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
+import { useNotificationsStore } from '../store/notificationsStore'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -9,6 +10,8 @@ interface NavItem {
   path: string
   label: string
   icon: React.ReactElement
+  beta?: boolean
+  showUnread?: boolean
 }
 
 function useIsNarrow(): boolean {
@@ -100,6 +103,7 @@ const navItems: NavItem[] = [
   {
     path: '/email',
     label: 'Email',
+    beta: true,
     icon: (
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
         <rect x="2" y="4" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
@@ -110,6 +114,7 @@ const navItems: NavItem[] = [
   {
     path: '/sms',
     label: 'SMS',
+    beta: true,
     icon: (
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
         <path
@@ -124,6 +129,7 @@ const navItems: NavItem[] = [
   {
     path: '/notifications',
     label: 'Notifications',
+    showUnread: true,
     icon: (
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
         <circle cx="9" cy="3" r="1.5" fill="currentColor" />
@@ -165,11 +171,10 @@ const sectionNames: Record<string, string> = {
 export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
   const narrow = useIsNarrow()
   const navigate = useNavigate()
+  const unreadCount = useNotificationsStore((state) => state.unreadCount)
 
-  // Derive current section name from the active NavLink
   const [sectionName, setSectionName] = useState('Chat')
 
-  // Keep section name in sync with location changes via NavLink callbacks
   useEffect(() => {
     const path = window.location.hash.replace('#', '') || '/chat'
     setSectionName(sectionNames[path] ?? 'Rex')
@@ -216,8 +221,33 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
               }
               title={narrow ? item.label : undefined}
             >
-              <span className="flex-shrink-0">{item.icon}</span>
-              {!narrow && <span>{item.label}</span>}
+              {/* Icon with optional unread dot when collapsed */}
+              <span className="relative flex-shrink-0">
+                {item.icon}
+                {item.showUnread && narrow && unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-accent" aria-hidden="true" />
+                )}
+              </span>
+
+              {!narrow && (
+                <>
+                  <span className="flex-1">{item.label}</span>
+
+                  {/* BETA badge */}
+                  {item.beta && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 leading-none">
+                      BETA
+                    </span>
+                  )}
+
+                  {/* Unread count badge for Notifications */}
+                  {item.showUnread && unreadCount > 0 && (
+                    <span className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-accent text-white text-[10px] font-bold px-1 leading-none">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
