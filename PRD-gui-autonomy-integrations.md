@@ -370,13 +370,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to view my calendar in both month and week layouts so I can plan at different time horizons.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/components/calendar/CalendarGrid.tsx` renders a month grid (7 columns, rows per week).
-- [ ] `gui/src/components/calendar/WeekView.tsx` renders a 7-column, time-slotted week view (hourly rows from 6am–10pm).
-- [ ] Toggle between month and week view via segmented control at top of CalendarPage.
-- [ ] Today's date is highlighted. Current time shown as a horizontal line in week view.
-- [ ] Events (passed as props) render as colored chips in the appropriate day/slot.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `gui/src/components/calendar/CalendarGrid.tsx` renders a month grid (7 columns, rows per week).
+- [x] `gui/src/components/calendar/WeekView.tsx` renders a 7-column, time-slotted week view (hourly rows from 6am–10pm).
+- [x] Toggle between month and week view via segmented control at top of CalendarPage.
+- [x] Today's date is highlighted. Current time shown as a horizontal line in week view.
+- [x] Events (passed as props) render as colored chips in the appropriate day/slot.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
