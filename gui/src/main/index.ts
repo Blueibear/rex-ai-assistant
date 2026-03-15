@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import type { Settings, Reminder } from '../types/ipc'
+import type { Settings, Reminder, ReminderInput } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
 import { registerVoiceHandlers } from './handlers/voice'
 import { registerTaskHandlers } from './handlers/tasks'
@@ -90,6 +90,31 @@ function registerIpcHandlers(): void {
     const r = stubReminders.find((x) => x.id === id)
     if (r) r.done = true
     return { ok: true }
+  })
+
+  ipcMain.handle('rex:saveReminder', (_event, input: ReminderInput): Reminder => {
+    if (input.id) {
+      const existing = stubReminders.find((r) => r.id === input.id)
+      if (existing) {
+        existing.title = input.title
+        existing.notes = input.notes
+        existing.dueAt = input.dueAt
+        existing.priority = input.priority
+        existing.repeat = input.repeat
+        return { ...existing }
+      }
+    }
+    const created: Reminder = {
+      id: `rem-${Date.now()}`,
+      title: input.title,
+      notes: input.notes,
+      dueAt: input.dueAt,
+      priority: input.priority,
+      repeat: input.repeat,
+      done: false
+    }
+    stubReminders.push(created)
+    return { ...created }
   })
 }
 

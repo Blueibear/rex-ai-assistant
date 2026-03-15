@@ -79,6 +79,15 @@ export interface Reminder {
   repeat?: 'none' | 'daily' | 'weekly' | 'custom'
 }
 
+export interface ReminderInput {
+  id?: string
+  title: string
+  notes?: string
+  dueAt: string // ISO date string
+  priority: 'low' | 'medium' | 'high'
+  repeat: 'none' | 'daily' | 'weekly' | 'custom'
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
@@ -102,4 +111,5 @@ export interface RexAPI {
   deleteCalendarEvent: (id: string) => Promise<void>
   getReminders: () => Promise<Reminder[]>
   completeReminder: (id: string) => Promise<void>
+  saveReminder: (reminder: ReminderInput) => Promise<Reminder>
 }

@@ -429,12 +429,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to create and edit reminders from the GUI so I can manage them without the terminal.
 
 **Acceptance Criteria:**
-- [ ] "New Reminder" button opens a Modal with fields: title (text), notes (textarea), due date (date picker), due time (time picker), priority (select: low/medium/high), repeat (select: none/daily/weekly/custom).
-- [ ] Editing an existing reminder opens the same Modal pre-filled.
-- [ ] Inline validation: title required, due date required.
-- [ ] Submit calls `window.rex.saveReminder(reminder): Promise<Reminder>` IPC stub.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] "New Reminder" button opens a Modal with fields: title (text), notes (textarea), due date (date picker), due time (time picker), priority (select: low/medium/high), repeat (select: none/daily/weekly/custom).
+- [x] Editing an existing reminder opens the same Modal pre-filled.
+- [x] Inline validation: title required, due date required.
+- [x] Submit calls `window.rex.saveReminder(reminder): Promise<Reminder>` IPC stub.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
