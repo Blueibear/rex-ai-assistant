@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { CalendarGrid, CalendarEvent } from '../components/calendar/CalendarGrid'
 import { WeekView } from '../components/calendar/WeekView'
+import { EventDetailPanel } from '../components/calendar/EventDetailPanel'
 
 type ViewMode = 'month' | 'week'
 
@@ -28,7 +29,11 @@ const STUB_EVENTS: CalendarEvent[] = [
     end: (() => {
       const d = new Date(); d.setHours(9, 30, 0, 0); return d.toISOString()
     })(),
-    color: '#3B82F6'
+    color: '#3B82F6',
+    location: 'Zoom — link in calendar invite',
+    description: 'Daily 30-minute sync with the team. Share blockers and plan the day.',
+    attendees: ['alice@example.com', 'bob@example.com', 'carol@example.com'],
+    source: 'synced'
   },
   {
     id: 'ev2',
@@ -39,7 +44,9 @@ const STUB_EVENTS: CalendarEvent[] = [
     end: (() => {
       const d = new Date(); d.setHours(13, 0, 0, 0); return d.toISOString()
     })(),
-    color: '#22C55E'
+    color: '#22C55E',
+    location: 'The Depot Café, 42 Market St',
+    source: 'rex'
   },
   {
     id: 'ev3',
@@ -50,7 +57,10 @@ const STUB_EVENTS: CalendarEvent[] = [
     end: (() => {
       const d = new Date(); d.setDate(d.getDate() + 2); d.setHours(15, 30, 0, 0); return d.toISOString()
     })(),
-    color: '#A855F7'
+    color: '#A855F7',
+    description: 'Quarterly review of the Rex AI roadmap. Bring updated metrics.',
+    attendees: ['james@example.com', 'sarah@example.com'],
+    source: 'rex'
   }
 ]
 
@@ -99,6 +109,17 @@ export function CalendarPage(): React.ReactElement {
       ? `${MONTH_NAMES[weekEnd.getMonth()]} ${weekEnd.getDate()}, ${weekEnd.getFullYear()}`
       : `${weekEnd.getDate()}, ${weekEnd.getFullYear()}`
     return `${startLabel} – ${endLabel}`
+  }
+
+  function handleEditStub(event: CalendarEvent): void {
+    // Stub: edit wired in US-198
+    console.log('Edit event (stub):', event.id)
+  }
+
+  function handleDeleteStub(event: CalendarEvent): void {
+    // Stub: delete wired in US-198
+    console.log('Delete event (stub):', event.id)
+    setSelectedEvent(null)
   }
 
   return (
@@ -176,48 +197,13 @@ export function CalendarPage(): React.ReactElement {
         )}
       </div>
 
-      {/* Simple event detail popover (temporary, replaced in US-197) */}
-      {selectedEvent && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center pb-8 pointer-events-none">
-          <div
-            className="bg-surface border border-border rounded-xl shadow-2xl p-4 w-80 pointer-events-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div
-                className="w-3 h-3 rounded-full mt-1 shrink-0"
-                style={{ backgroundColor: selectedEvent.color ?? '#3B82F6' }}
-              />
-              <div className="flex-1">
-                <p className="font-semibold text-text-primary">{selectedEvent.title}</p>
-                <p className="text-xs text-text-secondary mt-0.5">
-                  {new Date(selectedEvent.start).toLocaleString(undefined, {
-                    weekday: 'short', month: 'short', day: 'numeric',
-                    hour: 'numeric', minute: '2-digit'
-                  })}
-                  {' – '}
-                  {new Date(selectedEvent.end).toLocaleTimeString(undefined, {
-                    hour: 'numeric', minute: '2-digit'
-                  })}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="text-text-secondary hover:text-text-primary"
-                aria-label="Close"
-              >
-                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                  <path
-                    fillRule="evenodd"
-                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Event detail slide-in panel */}
+      <EventDetailPanel
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+        onEdit={handleEditStub}
+        onDelete={handleDeleteStub}
+      />
     </div>
   )
 }

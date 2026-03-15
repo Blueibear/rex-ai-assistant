@@ -6,6 +6,10 @@ export interface CalendarEvent {
   start: string // ISO date string
   end: string
   color?: string
+  location?: string
+  description?: string
+  attendees?: string[]
+  source?: 'rex' | 'synced'
 }
 
 interface CalendarGridProps {

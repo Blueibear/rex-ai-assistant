@@ -384,12 +384,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to click a calendar event to see its full details so I can review what's scheduled.
 
 **Acceptance Criteria:**
-- [ ] Clicking an event chip opens a slide-in detail panel (not a full modal) on the right side of the calendar.
-- [ ] Panel shows: title, date/time, duration, location, description, attendees (if available), source (Rex-created vs. synced).
-- [ ] Panel has "Edit" and "Delete" action buttons (stubs for now, wired in US-198).
-- [ ] Panel closes on Escape or clicking outside.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] Clicking an event chip opens a slide-in detail panel (not a full modal) on the right side of the calendar.
+- [x] Panel shows: title, date/time, duration, location, description, attendees (if available), source (Rex-created vs. synced).
+- [x] Panel has "Edit" and "Delete" action buttons (stubs for now, wired in US-198).
+- [x] Panel closes on Escape or clicking outside.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
