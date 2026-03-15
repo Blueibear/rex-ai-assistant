@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import type { Settings } from '../types/ipc'
+import type { Settings, Task } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
 import { registerVoiceHandlers } from './handlers/voice'
 
@@ -20,6 +20,32 @@ function registerIpcHandlers(): void {
   ipcMain.handle('rex:setSettings', (_event, settings: Settings) => {
     console.log('[rex:setSettings]', settings)
     return { ok: true }
+  })
+
+  ipcMain.handle('rex:getTasks', (): Task[] => {
+    return [
+      {
+        id: 'task-1',
+        name: 'Morning briefing',
+        schedule: 'Every day at 8:00am',
+        nextRun: 'Tomorrow 8:00am',
+        status: 'active'
+      },
+      {
+        id: 'task-2',
+        name: 'Weekly summary email',
+        schedule: 'Every Monday at 9:00am',
+        nextRun: 'Mon 9:00am',
+        status: 'paused'
+      },
+      {
+        id: 'task-3',
+        name: 'Server health check',
+        schedule: 'Every hour',
+        nextRun: 'In 23 minutes',
+        status: 'error'
+      }
+    ]
   })
 }
 

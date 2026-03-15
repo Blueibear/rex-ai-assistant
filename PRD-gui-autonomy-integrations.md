@@ -314,11 +314,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to see all my scheduled Rex tasks in a list so I can monitor what's running and when.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/pages/TasksPage.tsx` renders a list of task cards. Each card shows: task name, schedule expression (e.g., "Every day at 9am"), next run time, status badge (`active`, `paused`, `error`).
-- [ ] List fetched from `window.rex.getTasks(): Promise<Task[]>` IPC method (stub returns 2-3 hardcoded tasks).
-- [ ] Empty state shown when no tasks exist.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `gui/src/pages/TasksPage.tsx` renders a list of task cards. Each card shows: task name, schedule expression (e.g., "Every day at 9am"), next run time, status badge (`active`, `paused`, `error`).
+- [x] List fetched from `window.rex.getTasks(): Promise<Task[]>` IPC method (stub returns 2-3 hardcoded tasks).
+- [x] Empty state shown when no tasks exist.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

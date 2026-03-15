@@ -22,6 +22,14 @@ export interface VoiceTranscriptEntry {
   timestamp: number
 }
 
+export interface Task {
+  id: string
+  name: string
+  schedule: string
+  nextRun: string
+  status: 'active' | 'paused' | 'error'
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
@@ -34,4 +42,5 @@ export interface RexAPI {
     onError: (error: string) => void
   ) => Promise<void>
   stopVoice: () => Promise<void>
+  getTasks: () => Promise<Task[]>
 }
