@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import type { Task, TaskInput } from '../types/ipc'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -7,6 +7,7 @@ import { Input } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
 import { Spinner } from '../components/ui/Spinner'
 import { Textarea } from '../components/ui/Textarea'
+import { useToast } from '../components/ui/Toast'
 
 // ---------------------------------------------------------------------------
 // Schedule helpers
@@ -45,7 +46,6 @@ function parseScheduleTime(schedule: string): string {
 }
 
 function parseScheduleDay(schedule: string): string {
-  // "Every monday at 08:00" → "monday"
   const m = schedule.match(/^Every (\w+) at/)
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
   if (m && days.includes(m[1].toLowerCase())) return m[1].toLowerCase()
@@ -87,6 +87,26 @@ function PlusIcon(): React.ReactElement {
       aria-hidden="true"
     >
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+    </svg>
+  )
+}
+
+function TrashIcon(): React.ReactElement {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-4 h-4"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+      />
     </svg>
   )
 }
@@ -153,14 +173,27 @@ interface TaskFormProps {
   form: FormState
   errors: FormErrors
   saving: boolean
+  deleting: boolean
+  isEdit: boolean
   onChange: (patch: Partial<FormState>) => void
   onSubmit: () => void
   onCancel: () => void
+  onDelete: () => void
 }
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
-function TaskForm({ form, errors, saving, onChange, onSubmit, onCancel }: TaskFormProps): React.ReactElement {
+function TaskForm({
+  form,
+  errors,
+  saving,
+  deleting,
+  isEdit,
+  onChange,
+  onSubmit,
+  onCancel,
+  onDelete
+}: TaskFormProps): React.ReactElement {
   const selectClass =
     'bg-surface-raised border border-border rounded-md px-3 py-2 text-sm text-text-primary ' +
     'transition-colors duration-150 outline-none focus:ring-2 focus:ring-accent focus:border-accent w-full'
@@ -195,7 +228,9 @@ function TaskForm({ form, errors, saving, onChange, onSubmit, onCancel }: TaskFo
           <option value="every-week">Every week on…</option>
           <option value="custom-cron">Custom cron expression</option>
         </select>
-        {errors.schedule && <span className="text-xs text-danger">{errors.schedule}</span>}
+        {errors.schedule && (
+          <span className="text-xs text-danger">{errors.schedule}</span>
+        )}
       </div>
 
       {/* Time picker for every-day and every-week */}
@@ -261,16 +296,70 @@ function TaskForm({ form, errors, saving, onChange, onSubmit, onCancel }: TaskFo
         <span className="text-sm text-text-secondary">Active</span>
       </div>
 
-      {/* Footer buttons (rendered here so they live inside the modal content area) */}
-      <div className="flex justify-end gap-2 pt-2">
-        <Button variant="secondary" size="sm" onClick={onCancel} disabled={saving}>
-          Cancel
-        </Button>
-        <Button variant="primary" size="sm" onClick={onSubmit} loading={saving}>
-          Save task
-        </Button>
+      {/* Footer buttons */}
+      <div className="flex items-center justify-between pt-2">
+        {isEdit ? (
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={onDelete}
+            loading={deleting}
+            disabled={saving}
+          >
+            <span className="mr-1.5">
+              <TrashIcon />
+            </span>
+            Delete
+          </Button>
+        ) : (
+          <span />
+        )}
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={onCancel} disabled={saving || deleting}>
+            Cancel
+          </Button>
+          <Button variant="primary" size="sm" onClick={onSubmit} loading={saving} disabled={deleting}>
+            Save task
+          </Button>
+        </div>
       </div>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Inline enable/disable toggle for task cards
+// ---------------------------------------------------------------------------
+
+interface EnableToggleProps {
+  enabled: boolean
+  busy: boolean
+  onToggle: (e: React.MouseEvent) => void
+}
+
+function EnableToggle({ enabled, busy, onToggle }: EnableToggleProps): React.ReactElement {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      onClick={onToggle}
+      disabled={busy}
+      title={enabled ? 'Disable task' : 'Enable task'}
+      className={[
+        'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent',
+        'transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-1 focus:ring-offset-bg',
+        busy ? 'opacity-50 cursor-not-allowed' : '',
+        enabled ? 'bg-accent' : 'bg-surface-raised'
+      ].join(' ')}
+    >
+      <span
+        className={[
+          'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200',
+          enabled ? 'translate-x-4' : 'translate-x-0'
+        ].join(' ')}
+      />
+    </button>
   )
 }
 
@@ -279,6 +368,7 @@ function TaskForm({ form, errors, saving, onChange, onSubmit, onCancel }: TaskFo
 // ---------------------------------------------------------------------------
 
 export function TasksPage(): React.ReactElement {
+  const addToast = useToast()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -286,14 +376,25 @@ export function TasksPage(): React.ReactElement {
   const [form, setForm] = useState<FormState>(emptyForm())
   const [errors, setErrors] = useState<FormErrors>({})
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  // Map of taskId -> true when setTaskEnabled is in-flight
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set())
 
-  useEffect(() => {
+  const fetchTasks = useCallback((): void => {
     window.rex
       .getTasks()
       .then((result) => setTasks(result))
-      .catch(() => setTasks([]))
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Failed to load tasks'
+        addToast(msg, 'error')
+        setTasks([])
+      })
       .finally(() => setLoading(false))
-  }, [])
+  }, [addToast])
+
+  useEffect(() => {
+    fetchTasks()
+  }, [fetchTasks])
 
   function openNew(): void {
     setEditTask(null)
@@ -310,7 +411,7 @@ export function TasksPage(): React.ReactElement {
   }
 
   function closeModal(): void {
-    if (saving) return
+    if (saving || deleting) return
     setModalOpen(false)
   }
 
@@ -349,19 +450,57 @@ export function TasksPage(): React.ReactElement {
     setSaving(true)
     window.rex
       .saveTask(input)
-      .then((saved) => {
-        setTasks((prev) => {
-          if (editTask) {
-            return prev.map((t) => (t.id === saved.id ? saved : t))
-          }
-          return [...prev, saved]
-        })
+      .then(() => {
         setModalOpen(false)
+        fetchTasks()
+        addToast(editTask ? 'Task updated' : 'Task created', 'success')
       })
-      .catch(() => {
-        setErrors({ name: 'Failed to save task. Please try again.' })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Failed to save task'
+        addToast(msg, 'error')
+        setErrors({ name: msg })
       })
       .finally(() => setSaving(false))
+  }
+
+  function handleDelete(): void {
+    if (!editTask) return
+
+    setDeleting(true)
+    window.rex
+      .deleteTask(editTask.id)
+      .then(() => {
+        setModalOpen(false)
+        fetchTasks()
+        addToast('Task deleted', 'success')
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Failed to delete task'
+        addToast(msg, 'error')
+      })
+      .finally(() => setDeleting(false))
+  }
+
+  function handleToggleEnabled(task: Task, e: React.MouseEvent): void {
+    e.stopPropagation()
+    const newEnabled = task.status !== 'active'
+    setTogglingIds((prev) => new Set(prev).add(task.id))
+    window.rex
+      .setTaskEnabled(task.id, newEnabled)
+      .then((updated) => {
+        setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Failed to update task'
+        addToast(msg, 'error')
+      })
+      .finally(() => {
+        setTogglingIds((prev) => {
+          const next = new Set(prev)
+          next.delete(task.id)
+          return next
+        })
+      })
   }
 
   // Loading state
@@ -414,9 +553,16 @@ export function TasksPage(): React.ReactElement {
                   <span>Next run:</span> {task.nextRun}
                 </p>
               </div>
-              <Badge variant={statusVariant(task.status)} className="shrink-0 mt-0.5 capitalize">
-                {task.status}
-              </Badge>
+              <div className="flex items-center gap-3 shrink-0 mt-0.5">
+                <Badge variant={statusVariant(task.status)} className="capitalize">
+                  {task.status}
+                </Badge>
+                <EnableToggle
+                  enabled={task.status === 'active'}
+                  busy={togglingIds.has(task.id)}
+                  onToggle={(e) => handleToggleEnabled(task, e)}
+                />
+              </div>
             </button>
           ))}
         </div>
@@ -424,17 +570,17 @@ export function TasksPage(): React.ReactElement {
 
       {/* Create / Edit modal */}
       {modalOpen && (
-        <Modal
-          title={editTask ? 'Edit Task' : 'New Task'}
-          onClose={closeModal}
-        >
+        <Modal title={editTask ? 'Edit Task' : 'New Task'} onClose={closeModal}>
           <TaskForm
             form={form}
             errors={errors}
             saving={saving}
+            deleting={deleting}
+            isEdit={editTask !== null}
             onChange={patchForm}
             onSubmit={handleSubmit}
             onCancel={closeModal}
+            onDelete={handleDelete}
           />
         </Modal>
       )}

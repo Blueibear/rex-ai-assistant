@@ -340,12 +340,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want task CRUD operations to actually update Rex's scheduler so my changes persist.
 
 **Acceptance Criteria:**
-- [ ] `window.rex.getTasks`, `window.rex.saveTask`, `window.rex.deleteTask`, `window.rex.setTaskEnabled` IPC methods fully implemented end-to-end (main process calls Rex Python scheduler module).
-- [ ] TasksPage refetches task list after every create/edit/delete.
-- [ ] Enable/disable toggle calls `setTaskEnabled` immediately without opening the modal.
-- [ ] IPC errors surfaced as Toast notifications.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `window.rex.getTasks`, `window.rex.saveTask`, `window.rex.deleteTask`, `window.rex.setTaskEnabled` IPC methods fully implemented end-to-end (main process calls Rex Python scheduler module).
+- [x] TasksPage refetches task list after every create/edit/delete.
+- [x] Enable/disable toggle calls `setTaskEnabled` immediately without opening the modal.
+- [x] IPC errors surfaced as Toast notifications.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

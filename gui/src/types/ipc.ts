@@ -53,4 +53,6 @@ export interface RexAPI {
   stopVoice: () => Promise<void>
   getTasks: () => Promise<Task[]>
   saveTask: (task: TaskInput) => Promise<Task>
+  deleteTask: (taskId: string) => Promise<void>
+  setTaskEnabled: (taskId: string, enabled: boolean) => Promise<Task>
 }

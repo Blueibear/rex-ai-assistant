@@ -114,7 +114,10 @@ const rexAPI = {
   startVoice: makeStartVoice,
   stopVoice,
   getTasks: (): Promise<Task[]> => ipcRenderer.invoke('rex:getTasks'),
-  saveTask: (task: TaskInput): Promise<Task> => ipcRenderer.invoke('rex:saveTask', task)
+  saveTask: (task: TaskInput): Promise<Task> => ipcRenderer.invoke('rex:saveTask', task),
+  deleteTask: (taskId: string): Promise<void> => ipcRenderer.invoke('rex:deleteTask', taskId),
+  setTaskEnabled: (taskId: string, enabled: boolean): Promise<Task> =>
+    ipcRenderer.invoke('rex:setTaskEnabled', taskId, enabled)
 }
 
 if (process.contextIsolated) {
