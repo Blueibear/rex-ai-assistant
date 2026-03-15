@@ -123,12 +123,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need Card, Modal, Tooltip, and Divider components so content areas have consistent structure and depth.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/components/ui/Card.tsx` — surface-colored box with `padding`, `hoverable` (subtle scale on hover), and optional `header` slot.
-- [ ] `gui/src/components/ui/Modal.tsx` — centered overlay with `title`, `children`, `footer` slots. `onClose` prop. Closes on Escape key. Trap focus inside modal.
-- [ ] `gui/src/components/ui/Tooltip.tsx` — wraps any element, shows text tooltip on hover after 300ms delay. Position: `top | bottom | left | right`.
-- [ ] `gui/src/components/ui/Divider.tsx` — horizontal rule using `--color-border` with optional label text.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `gui/src/components/ui/Card.tsx` — surface-colored box with `padding`, `hoverable` (subtle scale on hover), and optional `header` slot.
+- [x] `gui/src/components/ui/Modal.tsx` — centered overlay with `title`, `children`, `footer` slots. `onClose` prop. Closes on Escape key. Trap focus inside modal.
+- [x] `gui/src/components/ui/Tooltip.tsx` — wraps any element, shows text tooltip on hover after 300ms delay. Position: `top | bottom | left | right`.
+- [x] `gui/src/components/ui/Divider.tsx` — horizontal rule using `--color-border` with optional label text.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
