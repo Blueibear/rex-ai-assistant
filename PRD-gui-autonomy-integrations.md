@@ -326,13 +326,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to create and edit scheduled tasks from the GUI so I don't need to use the terminal.
 
 **Acceptance Criteria:**
-- [ ] "New Task" button on TasksPage opens a Modal containing a task form.
-- [ ] Form fields: Name (text), Prompt/Command (textarea), Schedule (select: every hour, every day at [time], every week on [day], custom cron), Active (toggle).
-- [ ] Clicking an existing task card opens the same Modal pre-filled with that task's data.
-- [ ] Form validates: name required, schedule required. Shows inline errors.
-- [ ] Submit calls `window.rex.saveTask(task): Promise<Task>` IPC stub.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] "New Task" button on TasksPage opens a Modal containing a task form.
+- [x] Form fields: Name (text), Prompt/Command (textarea), Schedule (select: every hour, every day at [time], every week on [day], custom cron), Active (toggle).
+- [x] Clicking an existing task card opens the same Modal pre-filled with that task's data.
+- [x] Form validates: name required, schedule required. Shows inline errors.
+- [x] Submit calls `window.rex.saveTask(task): Promise<Task>` IPC stub.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

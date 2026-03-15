@@ -25,9 +25,18 @@ export interface VoiceTranscriptEntry {
 export interface Task {
   id: string
   name: string
+  prompt: string
   schedule: string
   nextRun: string
   status: 'active' | 'paused' | 'error'
+}
+
+export interface TaskInput {
+  id?: string
+  name: string
+  prompt: string
+  schedule: string
+  active: boolean
 }
 
 export interface RexAPI {
@@ -43,4 +52,5 @@ export interface RexAPI {
   ) => Promise<void>
   stopVoice: () => Promise<void>
   getTasks: () => Promise<Task[]>
+  saveTask: (task: TaskInput) => Promise<Task>
 }

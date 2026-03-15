@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import type { Settings, Task } from '../types/ipc'
+import type { Settings, Task, TaskInput } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
 import { registerVoiceHandlers } from './handlers/voice'
 
@@ -27,6 +27,7 @@ function registerIpcHandlers(): void {
       {
         id: 'task-1',
         name: 'Morning briefing',
+        prompt: 'Give me a morning briefing with weather and calendar.',
         schedule: 'Every day at 8:00am',
         nextRun: 'Tomorrow 8:00am',
         status: 'active'
@@ -34,6 +35,7 @@ function registerIpcHandlers(): void {
       {
         id: 'task-2',
         name: 'Weekly summary email',
+        prompt: 'Send a weekly summary email to my team.',
         schedule: 'Every Monday at 9:00am',
         nextRun: 'Mon 9:00am',
         status: 'paused'
@@ -41,11 +43,24 @@ function registerIpcHandlers(): void {
       {
         id: 'task-3',
         name: 'Server health check',
+        prompt: 'Check server health and alert if anything is down.',
         schedule: 'Every hour',
         nextRun: 'In 23 minutes',
         status: 'error'
       }
     ]
+  })
+
+  ipcMain.handle('rex:saveTask', (_event, task: TaskInput): Task => {
+    const id = task.id ?? `task-${Date.now()}`
+    return {
+      id,
+      name: task.name,
+      prompt: task.prompt,
+      schedule: task.schedule,
+      nextRun: 'Pending',
+      status: task.active ? 'active' : 'paused'
+    }
   })
 }
 
