@@ -8,7 +8,7 @@ from typing import Any
 try:  # pragma: no cover - optional dependency
     import numpy as np
 except Exception:  # pragma: no cover - optional dependency
-    np = None  # type: ignore[assignment]
+    np = None
 
 try:  # pragma: no cover - optional dependency
     import torch
@@ -65,7 +65,7 @@ def load_embedding(path: str | Path) -> np.ndarray:
     norm = np.linalg.norm(array)
     if norm > 0:
         array = array / norm
-    return array  # type: ignore[no-any-return]
+    return array
 
 
 def save_embedding(path: str | Path, embedding: np.ndarray) -> None:
