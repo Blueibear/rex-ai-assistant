@@ -283,13 +283,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want the voice button to actually trigger Rex's voice pipeline so I can have a spoken conversation.
 
 **Acceptance Criteria:**
-- [ ] `window.rex.startVoice(): Promise<void>` and `window.rex.stopVoice(): Promise<void>` IPC methods implemented.
-- [ ] Main process calls Rex Python voice backend (start/stop listening) and emits state change events back to renderer.
-- [ ] Voice page (`/voice`) reflects backend state changes in VoiceToggle and WaveformVisualizer.
-- [ ] On voice session end, the final transcript appended to a session history list below the visualizer.
-- [ ] Error state handled: if voice backend unavailable, show EmptyState with troubleshoot link.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `window.rex.startVoice(): Promise<void>` and `window.rex.stopVoice(): Promise<void>` IPC methods implemented.
+- [x] Main process calls Rex Python voice backend (start/stop listening) and emits state change events back to renderer.
+- [x] Voice page (`/voice`) reflects backend state changes in VoiceToggle and WaveformVisualizer.
+- [x] On voice session end, the final transcript appended to a session history list below the visualizer.
+- [x] Error state handled: if voice backend unavailable, show EmptyState with troubleshoot link.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

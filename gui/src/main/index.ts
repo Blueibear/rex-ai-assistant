@@ -3,9 +3,11 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import type { Settings } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
+import { registerVoiceHandlers } from './handlers/voice'
 
 function registerIpcHandlers(): void {
   registerChatHandlers()
+  registerVoiceHandlers()
 
   ipcMain.handle('rex:getStatus', () => {
     return { ok: true, status: 'idle' }

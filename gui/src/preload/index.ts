@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { Settings } from '../types/ipc'
+import type { Settings, VoiceTranscriptEntry } from '../types/ipc'
 
 function makeSendChatStream(
   message: string,
@@ -42,12 +42,77 @@ function makeSendChatStream(
   })
 }
 
+// Module-level cleanup reference for active voice session.
+let voiceCleanup: (() => void) | null = null
+
+function makeStartVoice(
+  onStateChange: (state: string) => void,
+  onTranscript: (entry: VoiceTranscriptEntry) => void,
+  onError: (error: string) => void
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    // Clean up any previous session listeners.
+    if (voiceCleanup) {
+      voiceCleanup()
+      voiceCleanup = null
+    }
+
+    function stateHandler(_e: unknown, data: { state: string }): void {
+      onStateChange(data.state)
+    }
+    function transcriptHandler(_e: unknown, data: VoiceTranscriptEntry): void {
+      onTranscript(data)
+    }
+    function errorHandler(_e: unknown, data: { error: string }): void {
+      onError(data.error)
+    }
+
+    function cleanup(): void {
+      ipcRenderer.removeListener('rex:voiceState', stateHandler)
+      ipcRenderer.removeListener('rex:voiceTranscript', transcriptHandler)
+      ipcRenderer.removeListener('rex:voiceError', errorHandler)
+      voiceCleanup = null
+    }
+
+    voiceCleanup = cleanup
+
+    ipcRenderer.on('rex:voiceState', stateHandler)
+    ipcRenderer.on('rex:voiceTranscript', transcriptHandler)
+    ipcRenderer.on('rex:voiceError', errorHandler)
+
+    ipcRenderer
+      .invoke('rex:startVoice')
+      .then((result: { ok: boolean; error?: string }) => {
+        if (result.ok) {
+          resolve()
+        } else {
+          cleanup()
+          reject(new Error(result.error ?? 'Failed to start voice'))
+        }
+      })
+      .catch((err: unknown) => {
+        cleanup()
+        reject(err)
+      })
+  })
+}
+
+function stopVoice(): Promise<void> {
+  if (voiceCleanup) {
+    voiceCleanup()
+    voiceCleanup = null
+  }
+  return ipcRenderer.invoke('rex:stopVoice').then(() => undefined)
+}
+
 const rexAPI = {
   sendChat: (message: string) => ipcRenderer.invoke('rex:sendChat', message),
   sendChatStream: makeSendChatStream,
   getStatus: () => ipcRenderer.invoke('rex:getStatus'),
   getSettings: () => ipcRenderer.invoke('rex:getSettings'),
-  setSettings: (settings: Settings) => ipcRenderer.invoke('rex:setSettings', settings)
+  setSettings: (settings: Settings) => ipcRenderer.invoke('rex:setSettings', settings),
+  startVoice: makeStartVoice,
+  stopVoice
 }
 
 if (process.contextIsolated) {
