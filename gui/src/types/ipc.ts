@@ -18,6 +18,7 @@ export interface SetSettingsResponse {
 
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
+  sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
   getStatus: () => Promise<StatusResponse>
   getSettings: () => Promise<SettingsResponse>
   setSettings: (settings: Settings) => Promise<SetSettingsResponse>

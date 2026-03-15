@@ -23,23 +23,38 @@ export function ChatPage(): React.ReactElement {
     setMessages((prev) => [...prev, userMsg])
     setSending(true)
 
+    const rexMsgId = genId()
+    const rexMsg: Message = {
+      id: rexMsgId,
+      role: 'rex',
+      content: '',
+      timestamp: new Date(),
+      streaming: true
+    }
+    setMessages((prev) => [...prev, rexMsg])
+
     try {
-      const reply = await window.rex.sendChat(text)
-      const rexMsg: Message = {
-        id: genId(),
-        role: 'rex',
-        content: reply,
-        timestamp: new Date()
-      }
-      setMessages((prev) => [...prev, rexMsg])
+      await window.rex.sendChatStream(text, (token) => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === rexMsgId ? { ...m, content: m.content + token } : m))
+        )
+      })
+      // Finalize: remove streaming cursor
+      setMessages((prev) =>
+        prev.map((m) => (m.id === rexMsgId ? { ...m, streaming: false } : m))
+      )
     } catch (err) {
-      const errorMsg: Message = {
-        id: genId(),
-        role: 'rex',
-        content: `\`Error: ${err instanceof Error ? err.message : String(err)}\``,
-        timestamp: new Date()
-      }
-      setMessages((prev) => [...prev, errorMsg])
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === rexMsgId
+            ? {
+                ...m,
+                content: `\`Error: ${err instanceof Error ? err.message : String(err)}\``,
+                streaming: false
+              }
+            : m
+        )
+      )
     } finally {
       setSending(false)
     }

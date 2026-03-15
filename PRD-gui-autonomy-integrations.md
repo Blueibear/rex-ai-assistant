@@ -239,13 +239,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want Rex's response to appear word-by-word as it's generated so the chat feels live and responsive.
 
 **Acceptance Criteria:**
-- [ ] `window.rex.sendChatStream(message: string, onToken: (token: string) => void): Promise<void>` IPC method added.
-- [ ] Main process streams tokens from Rex Python backend (via stdout chunks or SSE) and emits each token back to renderer via `webContents.send`.
-- [ ] Chat panel renders a streaming Rex bubble that grows as tokens arrive; cursor blink animation while streaming.
-- [ ] Streaming bubble finalized (cursor removed) when stream ends.
-- [ ] Falls back gracefully to non-streaming if Python backend does not support streaming.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `window.rex.sendChatStream(message: string, onToken: (token: string) => void): Promise<void>` IPC method added.
+- [x] Main process streams tokens from Rex Python backend (via stdout chunks or SSE) and emits each token back to renderer via `webContents.send`.
+- [x] Chat panel renders a streaming Rex bubble that grows as tokens arrive; cursor blink animation while streaming.
+- [x] Streaming bubble finalized (cursor removed) when stream ends.
+- [x] Falls back gracefully to non-streaming if Python backend does not support streaming.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

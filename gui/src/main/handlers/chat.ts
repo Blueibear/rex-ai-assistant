@@ -56,4 +56,104 @@ export function registerChatHandlers(): void {
   ipcMain.handle('rex:sendChat', async (_event, message: string): Promise<string> => {
     return callRexBackend(message)
   })
+
+  ipcMain.handle(
+    'rex:startChatStream',
+    async (
+      event,
+      { message, streamId }: { message: string; streamId: string }
+    ): Promise<{ ok: boolean }> => {
+      const scriptPath = join(__dirname, '../../../../rex_chat_stream_bridge.py')
+
+      const py = spawn('python', [scriptPath], {
+        stdio: ['pipe', 'pipe', 'pipe']
+      })
+
+      let sentFinal = false
+
+      function sendToken(token: string): void {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send('rex:chatToken', { streamId, token })
+        }
+      }
+
+      function sendDone(): void {
+        if (!sentFinal && !event.sender.isDestroyed()) {
+          sentFinal = true
+          event.sender.send('rex:chatDone', { streamId })
+        }
+      }
+
+      function sendError(error: string): void {
+        if (!sentFinal && !event.sender.isDestroyed()) {
+          sentFinal = true
+          event.sender.send('rex:chatError', { streamId, error })
+        }
+      }
+
+      let lineBuffer = ''
+
+      py.stdout.on('data', (chunk: Buffer) => {
+        lineBuffer += chunk.toString()
+        const lines = lineBuffer.split('\n')
+        lineBuffer = lines.pop() ?? ''
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          try {
+            const obj = JSON.parse(trimmed) as { type: string; token?: string; error?: string }
+            if (obj.type === 'token' && obj.token !== undefined) {
+              sendToken(obj.token)
+            } else if (obj.type === 'done') {
+              sendDone()
+            } else if (obj.type === 'error') {
+              sendError(obj.error ?? 'Unknown streaming error')
+            }
+          } catch {
+            // skip malformed NDJSON lines
+          }
+        }
+      })
+
+      py.on('close', (code) => {
+        // Flush any remaining buffered line
+        if (lineBuffer.trim()) {
+          try {
+            const obj = JSON.parse(lineBuffer.trim()) as {
+              type: string
+              token?: string
+              error?: string
+            }
+            if (obj.type === 'token' && obj.token !== undefined) sendToken(obj.token)
+            else if (obj.type === 'done') sendDone()
+            else if (obj.type === 'error') sendError(obj.error ?? 'Streaming error')
+          } catch {
+            // ignore
+          }
+        }
+        if (code !== 0) {
+          sendError(`Streaming bridge exited with code ${code}`)
+        } else {
+          sendDone()
+        }
+      })
+
+      py.on('error', (_err) => {
+        // Streaming bridge not available — fall back to non-streaming
+        callRexBackend(message)
+          .then((reply) => {
+            sendToken(reply)
+            sendDone()
+          })
+          .catch((e: Error) => {
+            sendError(e.message)
+          })
+      })
+
+      py.stdin.write(JSON.stringify({ message }))
+      py.stdin.end()
+
+      return { ok: true }
+    }
+  )
 }

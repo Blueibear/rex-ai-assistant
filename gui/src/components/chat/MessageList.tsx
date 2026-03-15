@@ -5,6 +5,7 @@ export interface Message {
   role: 'user' | 'rex'
   content: string
   timestamp: Date
+  streaming?: boolean
 }
 
 export interface MessageListProps {
@@ -143,7 +144,19 @@ export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
                 : 'bg-surface-raised text-text-primary rounded-bl-sm'
             ].join(' ')}
           >
-            {msg.role === 'rex' ? renderMarkdown(msg.content, msg.id) : <p>{msg.content}</p>}
+            {msg.role === 'rex' ? (
+              <>
+                {renderMarkdown(msg.content, msg.id)}
+                {msg.streaming && (
+                  <span
+                    className="inline-block w-0.5 h-3.5 bg-accent ml-0.5 align-middle animate-pulse"
+                    aria-hidden="true"
+                  />
+                )}
+              </>
+            ) : (
+              <p>{msg.content}</p>
+            )}
           </div>
           <span className="text-[11px] text-text-secondary mt-1 px-1">
             {relativeTime(msg.timestamp)}
