@@ -269,13 +269,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to see a live waveform animation while Rex is listening or speaking so I have visual confirmation audio is active.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/components/voice/WaveformVisualizer.tsx` — canvas-based animated waveform.
-- [ ] In `listening` state: visualizes microphone input amplitude via `Web Audio API` `AnalyserNode`.
-- [ ] In `speaking` state: plays a synthetic animated waveform (not real audio analysis — simulated for now).
-- [ ] In `idle`/`processing` state: renders a flat, subtle line.
-- [ ] Animation is smooth at 60fps using `requestAnimationFrame`.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `gui/src/components/voice/WaveformVisualizer.tsx` — canvas-based animated waveform.
+- [x] In `listening` state: visualizes microphone input amplitude via `Web Audio API` `AnalyserNode`.
+- [x] In `speaking` state: plays a synthetic animated waveform (not real audio analysis — simulated for now).
+- [x] In `idle`/`processing` state: renders a flat, subtle line.
+- [x] Animation is smooth at 60fps using `requestAnimationFrame`.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
