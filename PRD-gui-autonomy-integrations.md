@@ -136,11 +136,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need Spinner, SkeletonLine, EmptyState, and Toast components so the app communicates loading and error states clearly.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/components/ui/Spinner.tsx` — animated SVG ring. Sizes: `sm`, `md`, `lg`. Color inherits or uses accent.
-- [ ] `gui/src/components/ui/SkeletonLine.tsx` — animated shimmer placeholder. Accepts `width` and `height` props.
-- [ ] `gui/src/components/ui/EmptyState.tsx` — centered icon + heading + subtext + optional action button.
-- [ ] `gui/src/components/ui/Toast.tsx` — slide-in notification at bottom-right. Types: `info`, `success`, `warning`, `error`. Auto-dismisses after 4s. `useToast` hook for triggering from anywhere.
-- [ ] `npm run typecheck` passes.
+- [x] `gui/src/components/ui/Spinner.tsx` — animated SVG ring. Sizes: `sm`, `md`, `lg`. Color inherits or uses accent.
+- [x] `gui/src/components/ui/SkeletonLine.tsx` — animated shimmer placeholder. Accepts `width` and `height` props.
+- [x] `gui/src/components/ui/EmptyState.tsx` — centered icon + heading + subtext + optional action button.
+- [x] `gui/src/components/ui/Toast.tsx` — slide-in notification at bottom-right. Types: `info`, `success`, `warning`, `error`. Auto-dismisses after 4s. `useToast` hook for triggering from anywhere.
+- [x] `npm run typecheck` passes.
 - [ ] Verify changes work in app.
 
 ---
