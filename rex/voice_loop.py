@@ -14,7 +14,8 @@ from dataclasses import dataclass
 from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing_extensions import TypeAlias
 
 from wake_acknowledgment import ensure_wake_acknowledgment_sound
 
@@ -93,14 +94,19 @@ def _require_sounddevice():
 
 logger = logging.getLogger(__name__)
 
-# Safe runtime alias: resolves to np.ndarray when numpy is available, Any otherwise.
-# Module-level type alias assignments are evaluated eagerly (even with
-# `from __future__ import annotations`), so we must not reference np.ndarray
-# unconditionally — np is None when numpy is not installed.
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+    AudioArray: TypeAlias = NDArray[Any]
+else:
+    AudioArray: TypeAlias = Any
+
+RecorderCallable = Callable[[float], Union[Awaitable[AudioArray], AudioArray]]
+IdentifySpeakerCallable = Union[Callable[[AudioArray], Optional[str]], Callable[[], Optional[str]]]
+
+# Backwards-compatible runtime alias used by optional-import tests.
 _NDArray = np.ndarray if np is not None else Any
 
-RecorderCallable = Callable[[float], Awaitable[_NDArray] | _NDArray]  # type: ignore[operator, valid-type]
-IdentifySpeakerCallable = Callable[[_NDArray], str | None] | Callable[[], str | None]  # type: ignore[operator, valid-type]
 
 # Sentence-boundary pattern for streaming TTS sentence splitting.
 _SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
@@ -125,7 +131,7 @@ async def _sentence_stream(text: str) -> AsyncIterator[str]:
 class SynthesizedAudio:
     """Container for synthesized audio data."""
 
-    data: np.ndarray  # type: ignore[name-defined]
+    data: AudioArray
     sample_rate: int
 
 
@@ -145,15 +151,15 @@ class AsyncMicrophone:
         self._capture_seconds = capture_seconds
         self._recorder = recorder
 
-    async def detection_frame(self) -> np.ndarray:  # type: ignore[name-defined]
+    async def detection_frame(self) -> AudioArray:
         """Record a short frame for wake word detection."""
         return await self._record(self._detection_seconds)
 
-    async def record_phrase(self, duration: float | None = None) -> np.ndarray:  # type: ignore[name-defined]
+    async def record_phrase(self, duration: float | None = None) -> AudioArray:
         """Record user speech after wake word."""
         return await self._record(duration or self._capture_seconds)
 
-    async def _record(self, duration: float) -> np.ndarray:  # type: ignore[name-defined]
+    async def _record(self, duration: float) -> AudioArray:
         """Internal recording method."""
         np = _require_numpy()
         if duration <= 0:
@@ -178,7 +184,7 @@ class AsyncMicrophone:
             data = await asyncio.to_thread(_capture)
         except Exception as exc:
             raise AudioDeviceError(str(exc)) from exc
-        return np.asarray(data, dtype=np.float32)
+        return cast(AudioArray, np.asarray(data, dtype=np.float32))
 
 
 class WakeAcknowledgement:
@@ -675,7 +681,7 @@ def _build_voice_id_callback() -> IdentifySpeakerCallable | None:  # type: ignor
         logger.warning("Failed to initialise voice identity: %s", exc)
         return None
 
-    def _identify(audio: _NDArray) -> str | None:  # type: ignore[valid-type]
+    def _identify(audio: AudioArray) -> str | None:
         try:
             # Convert numpy float32 array to raw bytes for the embedding backend
             np_mod = _lazy_import_numpy()

@@ -84,6 +84,7 @@ See `.env.example` for a copy-paste template.
 | Variable | Default | Required | Description |
 |----------|---------|----------|-------------|
 | `REX_SPEAK_API_KEY` | (none) | Yes (Speak API) | Authentication key for the TTS API server |
+| `REX_VOICE_MAX_TOKENS` | `150` | No | Voice-only max output tokens for LLM replies. When set, voice interactions cap generated length for concise spoken responses; text/chat mode remains governed by JSON `models.llm_max_tokens`. |
 | `REX_SPEAK_PORT` | `5005` | No | Port the Rex Speak API server listens on |
 | `REX_TTS_MODEL` | `tts_models/multilingual/multi-dataset/xtts_v2` | No | Coqui XTTS model identifier |
 | `REX_SPEAK_MAX_CHARS` | `800` | No | Maximum text length per TTS request (characters) |

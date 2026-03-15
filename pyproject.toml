@@ -77,17 +77,21 @@ dev = [
     "pytest-cov>=4.1.0",
     "pytest-asyncio>=0.23.0",
     "build>=1.0.0",
-    "black>=24.0.0",
+    "black>=26.3.1",
     "ruff>=0.1.0",
     "mypy>=1.8.0",
     "numpy>=1.24.0,<2.0.0",
     "pre-commit>=3.0.0",
+    "detect-secrets>=1.5.0",
+    "pip-audit>=2.10.0",
 ]
 
 test = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
     "pytest-asyncio>=0.23.0",
+    "detect-secrets>=1.5.0",
+    "pip-audit>=2.10.0",
 ]
 
 sms = [
@@ -103,7 +107,7 @@ voice-id = [
 
 devtools = [
     "build>=1.0.0",
-    "black>=24.0.0",
+    "black>=26.3.1",
     "ruff>=0.1.0",
     "mypy>=1.8.0",
 ]

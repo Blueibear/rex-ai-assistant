@@ -1,0 +1,18 @@
+{
+  "rules": [
+    {
+      "name": "incident-urgent",
+      "category": "urgent",
+      "match": {
+        "subject": "incident|sev\\s*[0-2]|outage"
+      }
+    },
+    {
+      "name": "newsletter-default",
+      "category": "newsletter",
+      "match": {
+        "sender": "newsletter@|noreply@"
+      }
+    }
+  ]
+}

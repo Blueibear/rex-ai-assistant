@@ -62,6 +62,7 @@ dmypy.json
 config/
 !config/*.example.json
 !config/*.schema.json
+!config/triage_rules.json
 
 # OS-generated files
 .DS_Store
