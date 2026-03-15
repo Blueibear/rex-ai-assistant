@@ -257,3 +257,13 @@
   - CalendarEvent interface extended in CalendarGrid.tsx (single source of truth); WeekView.tsx automatically picks up the new optional fields
   - No tsconfig changes needed — all new files are in already-covered paths
 ---
+
+## Iteration 25 - US-198: Wire calendar to Rex calendar backend and create-event flow
+- What was implemented: CalendarEvent moved from CalendarGrid.tsx to ipc.ts (CalendarGrid re-exports with `export type { CalendarEvent }`); CalendarEventInput interface added to ipc.ts; getCalendarEvents/createCalendarEvent/updateCalendarEvent/deleteCalendarEvent added to RexAPI; preload adds 4 calendar IPC invoke wrappers; calendar.ts handler (stub in-memory store); CalendarPage rewritten with useEffect-driven event loading on period change, "New Event" button + Modal, Edit modal pre-filled from selected event, Delete calls IPC then removes from local state.
+- Files changed: gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/main/handlers/calendar.ts (new), gui/src/components/calendar/CalendarGrid.tsx, gui/src/pages/CalendarPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Modal component has NO isOpen prop — conditionally render it with `{showModal && <Modal ...>}`
+  - CalendarEvent type should live in ipc.ts; CalendarGrid can re-export it with `export type { CalendarEvent } from '../../types/ipc'` while also importing it for internal use
+  - datetime-local inputs use format YYYY-MM-DDTHH:MM; need pad() helper and toDatetimeLocal/fromDatetimeLocal converters
+  - No new tsconfig includes needed — all files under already-covered paths
+---
