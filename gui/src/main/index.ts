@@ -1,13 +1,11 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import type { ChatRequest, Settings } from '../types/ipc'
+import type { Settings } from '../types/ipc'
+import { registerChatHandlers } from './handlers/chat'
 
 function registerIpcHandlers(): void {
-  ipcMain.handle('rex:sendChat', (_event, req: ChatRequest) => {
-    console.log('[rex:sendChat]', req)
-    return { ok: true, reply: '' }
-  })
+  registerChatHandlers()
 
   ipcMain.handle('rex:getStatus', () => {
     return { ok: true, status: 'idle' }

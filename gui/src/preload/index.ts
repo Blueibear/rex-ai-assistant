@@ -1,12 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { ChatRequest, Settings } from '../types/ipc'
+import type { Settings } from '../types/ipc'
 
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('rex', {
-      sendChat: (req: ChatRequest) => ipcRenderer.invoke('rex:sendChat', req),
+      sendChat: (message: string) => ipcRenderer.invoke('rex:sendChat', message),
       getStatus: () => ipcRenderer.invoke('rex:getStatus'),
       getSettings: () => ipcRenderer.invoke('rex:getSettings'),
       setSettings: (settings: Settings) => ipcRenderer.invoke('rex:setSettings', settings)
@@ -19,7 +19,7 @@ if (process.contextIsolated) {
   window.electron = electronAPI
   // @ts-ignore (define in dts)
   window.rex = {
-    sendChat: (req: ChatRequest) => ipcRenderer.invoke('rex:sendChat', req),
+    sendChat: (message: string) => ipcRenderer.invoke('rex:sendChat', message),
     getStatus: () => ipcRenderer.invoke('rex:getStatus'),
     getSettings: () => ipcRenderer.invoke('rex:getSettings'),
     setSettings: (settings: Settings) => ipcRenderer.invoke('rex:setSettings', settings)

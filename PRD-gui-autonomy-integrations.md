@@ -226,12 +226,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want my chat messages sent to Rex's actual AI backend so I get real responses, not stubs.
 
 **Acceptance Criteria:**
-- [ ] `window.rex.sendChat(message: string): Promise<string>` IPC method implemented end-to-end: renderer calls it → main process forwards to Rex Python backend → returns response string.
-- [ ] `gui/src/main/handlers/chat.ts` contains the `ipcMain.handle('rex:sendChat', ...)` handler.
-- [ ] Chat page (`/chat`) uses the handler; sending a message appends the user bubble, calls IPC, appends Rex's response bubble.
-- [ ] Error from backend shown as an inline error bubble (not a crash).
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `window.rex.sendChat(message: string): Promise<string>` IPC method implemented end-to-end: renderer calls it → main process forwards to Rex Python backend → returns response string.
+- [x] `gui/src/main/handlers/chat.ts` contains the `ipcMain.handle('rex:sendChat', ...)` handler.
+- [x] Chat page (`/chat`) uses the handler; sending a message appends the user bubble, calls IPC, appends Rex's response bubble.
+- [x] Error from backend shown as an inline error bubble (not a crash).
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

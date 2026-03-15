@@ -1,12 +1,3 @@
-export interface ChatRequest {
-  message: string
-}
-
-export interface ChatResponse {
-  ok: boolean
-  reply?: string
-}
-
 export interface StatusResponse {
   ok: boolean
   status?: string
@@ -26,7 +17,7 @@ export interface SetSettingsResponse {
 }
 
 export interface RexAPI {
-  sendChat: (req: ChatRequest) => Promise<ChatResponse>
+  sendChat: (message: string) => Promise<string>
   getStatus: () => Promise<StatusResponse>
   getSettings: () => Promise<SettingsResponse>
   setSettings: (settings: Settings) => Promise<SetSettingsResponse>
