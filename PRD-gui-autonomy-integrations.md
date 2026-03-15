@@ -109,13 +109,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need reusable Button, Input, Textarea, and Badge components that follow Rex's design tokens so every view is visually consistent.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/components/ui/Button.tsx` — variants: `primary`, `secondary`, `ghost`, `danger`. Sizes: `sm`, `md`, `lg`. Accepts `loading` boolean (shows spinner, disables click).
-- [ ] `gui/src/components/ui/Input.tsx` — text input with `label`, `error`, `helperText` props. Applies focus ring in accent color.
-- [ ] `gui/src/components/ui/Textarea.tsx` — auto-grows up to 6 lines, same styling as Input.
-- [ ] `gui/src/components/ui/Badge.tsx` — variants: `default`, `accent`, `success`, `warning`, `danger`. Small pill shape.
-- [ ] All components export TypeScript props interfaces.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `gui/src/components/ui/Button.tsx` — variants: `primary`, `secondary`, `ghost`, `danger`. Sizes: `sm`, `md`, `lg`. Accepts `loading` boolean (shows spinner, disables click).
+- [x] `gui/src/components/ui/Input.tsx` — text input with `label`, `error`, `helperText` props. Applies focus ring in accent color.
+- [x] `gui/src/components/ui/Textarea.tsx` — auto-grows up to 6 lines, same styling as Input.
+- [x] `gui/src/components/ui/Badge.tsx` — variants: `default`, `accent`, `success`, `warning`, `danger`. Small pill shape.
+- [x] All components export TypeScript props interfaces.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
