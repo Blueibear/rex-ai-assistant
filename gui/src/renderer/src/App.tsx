@@ -3,6 +3,7 @@ import { Spinner } from '../../components/ui/Spinner'
 import { SkeletonLine } from '../../components/ui/SkeletonLine'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { useToast } from '../../components/ui/Toast'
+import { AppLayout } from '../../layouts/AppLayout'
 
 function App(): React.ReactElement {
   const [status, setStatus] = useState<string>('loading…')
@@ -44,9 +45,11 @@ function App(): React.ReactElement {
   }
 
   return (
-    <div className="flex items-center justify-center h-screen bg-bg text-text-primary">
-      <p className="text-xl font-semibold">Rex is starting… ({status})</p>
-    </div>
+    <AppLayout sectionName="Chat">
+      <div className="flex items-center justify-center h-full text-text-primary">
+        <p className="text-xl font-semibold">Rex is starting… ({status})</p>
+      </div>
+    </AppLayout>
   )
 }
 

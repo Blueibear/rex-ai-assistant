@@ -5,7 +5,8 @@
     "src/renderer/src/**/*.d.ts",
     "src/preload/index.d.ts",
     "src/types/**/*",
-    "src/components/**/*"
+    "src/components/**/*",
+    "src/layouts/**/*"
   ],
   "compilerOptions": {
     "composite": true,

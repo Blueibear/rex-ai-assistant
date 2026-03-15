@@ -153,12 +153,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want a persistent sidebar navigation and main content area so I can move between Rex's features without losing context.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/layouts/AppLayout.tsx` renders a fixed left sidebar (240px wide) and a scrollable main content panel.
-- [ ] Sidebar has a Rex logo/wordmark at the top and a bottom section for user avatar and settings shortcut.
-- [ ] Main content area has a topbar showing the current section name.
-- [ ] Layout is responsive: sidebar collapses to icon-only at window width < 900px.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `gui/src/layouts/AppLayout.tsx` renders a fixed left sidebar (240px wide) and a scrollable main content panel.
+- [x] Sidebar has a Rex logo/wordmark at the top and a bottom section for user avatar and settings shortcut.
+- [x] Main content area has a topbar showing the current section name.
+- [x] Layout is responsive: sidebar collapses to icon-only at window width < 900px.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
