@@ -175,7 +175,7 @@ class TestLLMResponseGenerated:
         """LLM generate_reply() receives the transcript text."""
         loop, assistant, _, _, _ = _make_voice_loop(transcript="what time is it")
         asyncio.run(loop.run(max_interactions=1))
-        assistant.generate_reply.assert_awaited_once_with("what time is it")
+        assistant.generate_reply.assert_awaited_once_with("what time is it", voice_mode=True)
 
     def test_response_passed_to_speak(self):
         """LLM response is forwarded to speak()."""
@@ -273,4 +273,4 @@ class TestResponseSpokenAloud:
         assert len(spoken_text) == 1
         assert "Turning on the lights" in spoken_text[0]
         transcribe.assert_awaited_once_with(audio)
-        assistant.generate_reply.assert_awaited_once_with(transcript)
+        assistant.generate_reply.assert_awaited_once_with(transcript, voice_mode=True)

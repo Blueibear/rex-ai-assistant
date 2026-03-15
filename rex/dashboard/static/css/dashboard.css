@@ -1292,7 +1292,7 @@ a:focus-visible {
 }
 
 .voice-state-label.voice-state-listening {
-    color: var(--primary-color, #667eea);
+    color: var(--primary-color);
 }
 
 .voice-state-label.voice-state-thinking {
@@ -1321,7 +1321,7 @@ a:focus-visible {
     display: inline-block;
     width: 6px;
     height: 100%;
-    background-color: var(--primary-color, #667eea);
+    background-color: var(--primary-color);
     border-radius: 3px;
     animation: waveform-bounce 0.8s ease-in-out infinite;
 }

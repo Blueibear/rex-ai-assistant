@@ -26,7 +26,7 @@ class DummyAssistant:
     def __init__(self):
         self.calls = []
 
-    async def generate_reply(self, transcript):
+    async def generate_reply(self, transcript, *, voice_mode: bool = False):
         self.calls.append(transcript)
         return "ok"
 
