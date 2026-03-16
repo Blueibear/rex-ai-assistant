@@ -12,7 +12,12 @@ import uuid
 from collections.abc import Sequence
 from typing import Any, Protocol
 
+from typing import TYPE_CHECKING
+
 from rex.autonomy.models import Plan, PlanStep, StepStatus
+
+if TYPE_CHECKING:
+    from rex.autonomy.llm_planner import LLMPlanner
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +50,34 @@ class Replanner:
     completed, the failed step, and the error to the LLM and parses the
     response into a new set of steps.
 
+    When *planner* is supplied (an :class:`~rex.autonomy.llm_planner.LLMPlanner`
+    instance), the first :meth:`replan` call uses
+    :meth:`~rex.autonomy.llm_planner.LLMPlanner.plan_with_alternatives` to
+    generate three alternative plans.  Subsequent calls return each alternative
+    in turn.  This enables the runner to try up to two fallback approaches
+    before declaring failure.
+
     Args:
         backend: AI backend (must implement :class:`ReplannerBackend`).
             If *None*, a :class:`~rex.llm_client.LanguageModel` is
             instantiated with default settings on first use.
+        planner: Optional :class:`~rex.autonomy.llm_planner.LLMPlanner`
+            used to generate alternative plans via
+            :meth:`~rex.autonomy.llm_planner.LLMPlanner.plan_with_alternatives`.
+            When provided, the Replanner cycles through the generated
+            alternatives rather than calling the backend directly.
     """
 
-    def __init__(self, backend: ReplannerBackend | None = None) -> None:
+    def __init__(
+        self,
+        backend: ReplannerBackend | None = None,
+        planner: LLMPlanner | None = None,
+    ) -> None:
         self._backend: ReplannerBackend | None = backend
+        self._planner: LLMPlanner | None = planner
+        # Populated on first replan() call when _planner is set.
+        self._alternatives: list[Plan] = []
+        self._alt_index: int = 0
 
     # ------------------------------------------------------------------
     # Lazy backend initialisation
@@ -210,6 +235,31 @@ class Replanner:
         Raises:
             ValueError: If the LLM response cannot be parsed.
         """
+        # If a planner is configured, use plan_with_alternatives to generate
+        # a pool of alternatives on the first call, then return them in order.
+        if self._planner is not None:
+            if not self._alternatives:
+                logger.debug(
+                    "Replanner: generating alternatives for goal=%r via plan_with_alternatives",
+                    original_plan.goal,
+                )
+                self._alternatives = self._planner.plan_with_alternatives(
+                    original_plan.goal, {}
+                )
+                self._alt_index = 0
+
+            if self._alt_index < len(self._alternatives):
+                n = self._alt_index + 1
+                plan = self._alternatives[self._alt_index]
+                self._alt_index += 1
+                logger.info(
+                    "Trying alternative plan %d/2 for goal '%s'",
+                    n,
+                    original_plan.goal,
+                )
+                return plan
+
+        # Fall back to single-LLM replan (original behaviour).
         prompt = self._build_replan_prompt(original_plan, failed_step, error_context)
         logger.debug(
             "Replanner: sending replan prompt for goal=%r after step %s failed",

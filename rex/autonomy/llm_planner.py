@@ -168,13 +168,34 @@ class LLMPlanner(PlannerProtocol):
                 f"LLM response is not valid JSON: {exc}\nRaw response: {raw!r}"
             ) from exc
 
-        if not isinstance(data, list):
-            raise PlanningError(
-                f"Expected a JSON array of steps, got {type(data).__name__}. "
-                f"Raw response: {raw!r}"
-            )
+        return self._parse_step_list(data, goal, id_prefix="step")
 
-        if len(data) == 0:
+    # ------------------------------------------------------------------
+    # Helpers shared between plan() and plan_with_alternatives()
+    # ------------------------------------------------------------------
+
+    def _parse_step_list(
+        self, items: Any, goal: str, id_prefix: str = "step"
+    ) -> Plan:
+        """Convert a raw JSON list of step dicts into a :class:`Plan`.
+
+        Args:
+            items: A parsed JSON value expected to be a non-empty list of dicts.
+            goal: The planning goal (stored on the returned Plan).
+            id_prefix: Prefix for generated step IDs (e.g. ``"step"`` or
+                ``"alt0-step"``).
+
+        Returns:
+            A :class:`~rex.autonomy.models.Plan` with one or more steps.
+
+        Raises:
+            PlanningError: If *items* is not a non-empty list of dicts.
+        """
+        if not isinstance(items, list):
+            raise PlanningError(
+                f"Expected a JSON array of steps, got {type(items).__name__}."
+            )
+        if len(items) == 0:
             raise PlanningError(
                 "LLM returned an empty step list — cannot create a Plan with zero steps."
             )
@@ -182,20 +203,16 @@ class LLMPlanner(PlannerProtocol):
         steps: list[PlanStep] = []
         tool_names = {t.name for t in self._tools}
 
-        for i, item in enumerate(data):
+        for i, item in enumerate(items):
             if not isinstance(item, dict):
-                raise PlanningError(
-                    f"Step {i} is not a JSON object: {item!r}"
-                )
+                raise PlanningError(f"Step {i} is not a JSON object: {item!r}")
 
             tool_name = str(item.get("tool", "")).strip()
             raw_args: Any = item.get("args", {})
             description = str(item.get("description", "")).strip()
 
             if not tool_name:
-                raise PlanningError(
-                    f"Step {i} is missing a 'tool' field: {item!r}"
-                )
+                raise PlanningError(f"Step {i} is missing a 'tool' field: {item!r}")
 
             args: dict[str, Any]
             if isinstance(raw_args, dict):
@@ -210,7 +227,6 @@ class LLMPlanner(PlannerProtocol):
             if not description:
                 description = f"Step {i + 1}: call {tool_name}"
 
-            # Warn if tool is not in the registered list, but keep the step.
             if tool_names and tool_name not in tool_names:
                 logger.warning(
                     "LLMPlanner: step %d references unknown tool %r — "
@@ -221,7 +237,7 @@ class LLMPlanner(PlannerProtocol):
 
             steps.append(
                 PlanStep(
-                    id=f"step-{i + 1}",
+                    id=f"{id_prefix}-{i + 1}",
                     tool=tool_name,
                     args=args,
                     description=description,
@@ -229,6 +245,103 @@ class LLMPlanner(PlannerProtocol):
             )
 
         return Plan(id=str(uuid.uuid4()), goal=goal, steps=steps)
+
+    # ------------------------------------------------------------------
+    # Alternatives prompt and parser
+    # ------------------------------------------------------------------
+
+    def _build_alternatives_prompt(self, goal: str, context: dict[str, Any]) -> str:
+        """Construct a prompt that asks the LLM for three alternative plans."""
+        tools_block = (
+            "\n".join(f"- {t.name}: {t.description}" for t in self._tools) or "(none)"
+        )
+        context_block = (
+            json.dumps(context, indent=2, default=str) if context else "{}"
+        )
+        return (
+            "You are a planning assistant. Your job is to produce THREE different "
+            "plans to achieve a goal using the available tools.\n\n"
+            "## Available tools\n"
+            f"{tools_block}\n\n"
+            "## Current context\n"
+            f"{context_block}\n\n"
+            "## Goal\n"
+            f"{goal}\n\n"
+            "## Instructions\n"
+            "Return ONLY a JSON array containing EXACTLY THREE sub-arrays. "
+            "Each sub-array is a separate plan:\n"
+            "  - First sub-array: your primary (preferred) approach\n"
+            "  - Second sub-array: first alternative approach\n"
+            "  - Third sub-array: second alternative approach\n\n"
+            "Each step in each plan must be a JSON object with exactly:\n"
+            "  - tool        (string)\n"
+            "  - args        (object, may be {})\n"
+            "  - description (string)\n\n"
+            "Format: [[primary_steps...], [alt1_steps...], [alt2_steps...]]\n"
+            "Do not include any text outside the JSON array. "
+            "Respond with valid JSON only."
+        )
+
+    def _parse_alternatives_response(self, raw: str, goal: str) -> list[Plan]:
+        """Parse LLM response containing three plan arrays.
+
+        Args:
+            raw: Raw text returned by the LLM.
+            goal: The planning goal.
+
+        Returns:
+            A list of exactly three :class:`~rex.autonomy.models.Plan` objects.
+
+        Raises:
+            PlanningError: If *raw* cannot be parsed into three valid plans.
+        """
+        cleaned = self._strip_fences(raw)
+
+        try:
+            outer: Any = json.loads(cleaned)
+        except json.JSONDecodeError as exc:
+            raise PlanningError(
+                f"LLM alternatives response is not valid JSON: {exc}\nRaw: {raw!r}"
+            ) from exc
+
+        if not isinstance(outer, list) or len(outer) != 3:
+            raise PlanningError(
+                f"Expected JSON array of exactly 3 plan arrays, got "
+                f"{type(outer).__name__} of length "
+                f"{len(outer) if isinstance(outer, list) else '?'}.\nRaw: {raw!r}"
+            )
+
+        return [
+            self._parse_step_list(inner, goal, id_prefix=f"alt{idx}-step")
+            for idx, inner in enumerate(outer)
+        ]
+
+    # ------------------------------------------------------------------
+    # plan_with_alternatives
+    # ------------------------------------------------------------------
+
+    def plan_with_alternatives(self, goal: str, context: dict[str, Any]) -> list[Plan]:
+        """Generate a primary plan plus two alternatives for *goal*.
+
+        Args:
+            goal: Natural-language description of what the user wants to achieve.
+            context: Arbitrary key/value context forwarded to the LLM.
+
+        Returns:
+            A list of exactly three :class:`~rex.autonomy.models.Plan` objects:
+            the primary plan followed by two alternatives.
+
+        Raises:
+            PlanningError: If the LLM response cannot be parsed.
+        """
+        prompt = self._build_alternatives_prompt(goal, context)
+        logger.debug("LLMPlanner: requesting alternatives for goal=%r", goal)
+
+        backend = self._get_backend()
+        raw = backend.generate(messages=[{"role": "user", "content": prompt}])
+
+        logger.debug("LLMPlanner: raw alternatives response: %r", raw)
+        return self._parse_alternatives_response(raw, goal)
 
     # ------------------------------------------------------------------
     # PlannerProtocol implementation

@@ -761,11 +761,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need the LLM planner to generate two fallback approaches when replanning so the runner has options if the first revised plan also fails.
 
 **Acceptance Criteria:**
-- [ ] `LLMPlanner.plan_with_alternatives(goal, context) -> list[Plan]` method added. Prompts the LLM to produce the primary plan plus two alternatives, each as a separate JSON plan.
-- [ ] `Replanner.replan` uses `plan_with_alternatives` and tries each alternative in order before declaring failure.
-- [ ] Alternatives logged: `"Trying alternative plan {n}/2 for goal '{goal}'"`.
-- [ ] Unit tests with mocked LLM: verify three plans returned and runner attempts each on consecutive failures. Tests pass.
-- [ ] `mypy --strict` passes on changed files.
+- [x] `LLMPlanner.plan_with_alternatives(goal, context) -> list[Plan]` method added. Prompts the LLM to produce the primary plan plus two alternatives, each as a separate JSON plan.
+- [x] `Replanner.replan` uses `plan_with_alternatives` and tries each alternative in order before declaring failure.
+- [x] Alternatives logged: `"Trying alternative plan {n}/2 for goal '{goal}'"`.
+- [x] Unit tests with mocked LLM: verify three plans returned and runner attempts each on consecutive failures. Tests pass.
+- [x] `mypy --strict` passes on changed files.
 
 ---
 
