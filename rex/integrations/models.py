@@ -104,6 +104,63 @@ class TimeSlot(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# SMS
+# ---------------------------------------------------------------------------
+
+SMSDirection = Literal["inbound", "outbound"]
+SMSStatus = Literal["sent", "delivered", "failed", "stub"]
+
+
+class SMSMessage(BaseModel):
+    """A single SMS message.
+
+    Attributes:
+        id: Unique message identifier (provider-assigned or stub-generated).
+        thread_id: Identifier of the thread this message belongs to.
+        direction: Whether the message was received (``"inbound"``) or sent
+            (``"outbound"``).
+        body: Plain-text body of the message.
+        from_number: Sender phone number in E.164 format (e.g. ``"+14155550100"``).
+        to_number: Recipient phone number in E.164 format.
+        sent_at: UTC datetime when the message was sent or received.
+        status: Delivery status of the message.
+    """
+
+    id: str
+    thread_id: str
+    direction: SMSDirection
+    body: str
+    from_number: str
+    to_number: str
+    sent_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    status: SMSStatus = "stub"
+
+
+class SMSThread(BaseModel):
+    """A conversation thread grouping SMS messages with one contact.
+
+    Attributes:
+        id: Unique thread identifier.
+        contact_name: Display name for the contact (may be a number if unknown).
+        contact_number: Phone number of the contact in E.164 format.
+        messages: Ordered list of messages in the thread (oldest first).
+        last_message_at: UTC datetime of the most recent message.
+        unread_count: Number of unread inbound messages.
+    """
+
+    id: str
+    contact_name: str
+    contact_number: str
+    messages: list[SMSMessage] = Field(default_factory=list)
+    last_message_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    unread_count: int = 0
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -111,5 +168,9 @@ __all__ = [
     "CalendarEvent",
     "EmailMessage",
     "PriorityLevel",
+    "SMSDirection",
+    "SMSMessage",
+    "SMSStatus",
+    "SMSThread",
     "TimeSlot",
 ]

@@ -854,3 +854,11 @@ Commit: 26393b5
   - `datetime-local` input value must use `.toISOString().slice(0, 16)` format (no 'Z', no seconds)
   - The `mypy --strict` clause in US-248 referred to the Python CalendarService and SchedulingEngine (already passing from US-243/US-245), not the TypeScript handler
 ---
+
+## Iteration 17 - US-249: Define SMSMessage and SMSThread data models
+- What was implemented: `SMSMessage` (id, thread_id, direction inbound/outbound, body, from_number, to_number, sent_at, status sent/delivered/failed/stub) and `SMSThread` (id, contact_name, contact_number, messages, last_message_at, unread_count) Pydantic v2 models added to `rex/integrations/models.py`. `SMSDirection` and `SMSStatus` Literal type aliases exported. 11 unit tests.
+- Files changed: rex/integrations/models.py, tests/test_integrations_sms_models.py (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Literal type aliases (SMSDirection, SMSStatus) should be exported in __all__ so callers can type-annotate with them
+  - SMSThread.messages is a nested list[SMSMessage] — model_dump/round-trip works automatically with Pydantic v2
+---

@@ -1084,8 +1084,8 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need typed data models for SMS messages and threads so all SMS services and the GUI share a consistent structure.
 
 **Acceptance Criteria:**
-- [ ] `rex/integrations/models.py` extended with: `SMSMessage(id, thread_id, direction: 'inbound'|'outbound', body, from_number, to_number, sent_at, status: 'sent'|'delivered'|'failed'|'stub')`, `SMSThread(id, contact_name, contact_number, messages, last_message_at, unread_count)`.
-- [ ] `mypy --strict rex/integrations/models.py` passes. Unit tests for new models. Tests pass.
+- [x] `rex/integrations/models.py` extended with: `SMSMessage(id, thread_id, direction: 'inbound'|'outbound', body, from_number, to_number, sent_at, status: 'sent'|'delivered'|'failed'|'stub')`, `SMSThread(id, contact_name, contact_number, messages, last_message_at, unread_count)`.
+- [x] `mypy --strict rex/integrations/models.py` passes. Unit tests for new models. Tests pass.
 
 ---
 
