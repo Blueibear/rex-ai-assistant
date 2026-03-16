@@ -966,12 +966,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need the plan runner to read the UserPreferenceProfile and use it to pre-populate planning defaults so Rex gets smarter over time without requiring explicit configuration.
 
 **Acceptance Criteria:**
-- [ ] Plan runner loads `UserPreferenceProfile` at session start.
-- [ ] If `preferred_autonomy_mode` is set and the user hasn't overridden it this session, runner uses the profile value.
-- [ ] If `preferred_model` is set, `LLMPlanner` uses it unless overridden in settings.
-- [ ] Defaults are soft (user's explicit settings always win).
-- [ ] A debug log line emitted when a profile preference is applied: `"Using learned preference: {field}={value}"`.
-- [ ] `mypy --strict` passes on changed files. Unit test verifies preference applied when no explicit override. Test passes.
+- [x] Plan runner loads `UserPreferenceProfile` at session start.
+- [x] If `preferred_autonomy_mode` is set and the user hasn't overridden it this session, runner uses the profile value.
+- [x] If `preferred_model` is set, `LLMPlanner` uses it unless overridden in settings.
+- [x] Defaults are soft (user's explicit settings always win).
+- [x] A debug log line emitted when a profile preference is applied: `"Using learned preference: {field}={value}"`.
+- [x] `mypy --strict` passes on changed files. Unit test verifies preference applied when no explicit override. Test passes.
 
 ---
 

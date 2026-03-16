@@ -106,6 +106,7 @@ def create_planner(
     *,
     planner_key: PlannerKey | None = None,
     config_path: Path | None = None,
+    model: str = "",
 ) -> PlannerProtocol:
     """Instantiate the planner selected by config (or *planner_key*).
 
@@ -116,6 +117,9 @@ def create_planner(
             ``"rule"`` to skip config-file loading.
         config_path: Override path to ``autonomy.json`` when *planner_key* is
             not supplied.
+        model: Optional model identifier forwarded to :class:`LLMPlanner`.
+            Has no effect when using the rule-based planner.  Defaults to
+            ``""`` (use the configured default model).
 
     Returns:
         A :class:`~rex.autonomy.models.PlannerProtocol` implementation.
@@ -133,7 +137,48 @@ def create_planner(
 
     # Default: LLMPlanner
     logger.info("runner: using LLMPlanner")
-    return LLMPlanner(tools=tools)
+    return LLMPlanner(tools=tools, model=model)
+
+
+# ---------------------------------------------------------------------------
+# Preference application helper
+# ---------------------------------------------------------------------------
+
+
+def _apply_preferences(
+    profile: UserPreferenceProfile,
+    *,
+    autonomy_mode: str,
+    model: str,
+) -> tuple[str, str]:
+    """Return (autonomy_mode, model) with soft defaults from *profile* applied.
+
+    For each field, the explicitly provided value wins.  If the caller passes
+    an empty string, the learned preference is used (if non-empty / non-default)
+    and a DEBUG line is emitted.
+
+    Args:
+        profile: The loaded :class:`~rex.autonomy.preferences.UserPreferenceProfile`.
+        autonomy_mode: Caller-supplied autonomy mode override (``""`` = not set).
+        model: Caller-supplied model override (``""`` = not set).
+
+    Returns:
+        A ``(autonomy_mode, model)`` tuple with soft defaults filled in.
+    """
+    effective_mode = autonomy_mode
+    effective_model = model
+
+    if not effective_mode and profile.preferred_autonomy_mode not in ("", "manual"):
+        effective_mode = profile.preferred_autonomy_mode
+        logger.debug(
+            "Using learned preference: preferred_autonomy_mode=%s", effective_mode
+        )
+
+    if not effective_model and profile.preferred_model:
+        effective_model = profile.preferred_model
+        logger.debug("Using learned preference: preferred_model=%s", effective_model)
+
+    return effective_mode, effective_model
 
 
 # ---------------------------------------------------------------------------
@@ -150,6 +195,9 @@ def run(
     config_path: Path | None = None,
     feedback_analyzer: FeedbackAnalyzer | None = None,
     history_store: HistoryStore | None = None,
+    preference_store: PreferenceStore | None = None,
+    autonomy_mode: str = "",
+    model: str = "",
 ) -> Plan:
     """Plan and return a :class:`~rex.autonomy.models.Plan` for *goal*.
 
@@ -167,15 +215,42 @@ def run(
             Requires *history_store* to be supplied as well.
         history_store: Optional :class:`~rex.autonomy.history.HistoryStore` used
             by *feedback_analyzer* to fetch past execution records.
+        preference_store: Optional :class:`~rex.autonomy.preferences.PreferenceStore`
+            used to load the user preference profile at session start.  When
+            supplied, ``preferred_autonomy_mode`` and ``preferred_model`` from
+            the profile are used as soft defaults (caller-supplied values always
+            win).
+        autonomy_mode: Explicit autonomy mode override (``""`` = not set).
+            When empty, the learned preference from *preference_store* is used.
+        model: Explicit model identifier override (``""`` = not set).  When
+            empty, the learned preference from *preference_store* is used.
 
     Returns:
         A non-empty :class:`~rex.autonomy.models.Plan`.
     """
-    effective_context: dict[str, Any] = context or {}
+    effective_autonomy_mode = autonomy_mode
+    effective_model = model
+
+    if preference_store is not None:
+        try:
+            profile = preference_store.load()
+            effective_autonomy_mode, effective_model = _apply_preferences(
+                profile,
+                autonomy_mode=autonomy_mode,
+                model=model,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("runner: failed to load preference profile — %s", exc)
+
+    effective_context: dict[str, Any] = dict(context or {})
+    if effective_autonomy_mode:
+        effective_context.setdefault("autonomy_mode", effective_autonomy_mode)
+
     planner = create_planner(
         tools=tools,
         planner_key=planner_key,
         config_path=config_path,
+        model=effective_model,
     )
     logger.debug("runner: planning goal=%r with %s", goal, type(planner).__name__)
 

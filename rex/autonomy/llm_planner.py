@@ -75,15 +75,22 @@ class LLMPlanner(PlannerProtocol):
         backend: AI backend instance (must implement :class:`LLMBackend`).
             If *None*, a :class:`~rex.llm_client.LanguageModel` is
             instantiated with default settings on first use.
+        model: Optional model identifier forwarded to :class:`~rex.llm_client.LanguageModel`
+            when the backend is lazily created.  Has no effect when *backend*
+            is explicitly provided.  Defaults to ``""`` (use the configured
+            default model).
     """
 
     def __init__(
         self,
         tools: list[ToolDefinition],
         backend: LLMBackend | None = None,
+        *,
+        model: str = "",
     ) -> None:
         self._tools: list[ToolDefinition] = tools
         self._backend: LLMBackend | None = backend
+        self._model: str = model
 
     # ------------------------------------------------------------------
     # Lazy backend initialisation
@@ -93,7 +100,10 @@ class LLMPlanner(PlannerProtocol):
         if self._backend is None:
             from rex.llm_client import LanguageModel  # lazy import
 
-            self._backend = LanguageModel()
+            if self._model:
+                self._backend = LanguageModel(model=self._model)
+            else:
+                self._backend = LanguageModel()
         return self._backend
 
     # ------------------------------------------------------------------
