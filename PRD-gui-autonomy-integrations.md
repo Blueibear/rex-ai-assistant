@@ -891,12 +891,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want Rex to tell me the estimated cost of a plan before running it so I can decide whether to proceed.
 
 **Acceptance Criteria:**
-- [ ] `rex/autonomy/cost_estimator.py` implements `CostEstimator` with `estimate(plan: Plan) -> CostEstimate` (calculates upper-bound token estimate from step descriptions and tool signatures).
-- [ ] `CostEstimate` has `low_usd`, `high_usd`, `step_count` fields.
-- [ ] Autonomy runner calls `CostEstimator.estimate()` before executing, checks against `budget_usd` config value.
-- [ ] If `estimate.high_usd > budget_usd`: prompt user for approval ("Estimated cost: $X. Proceed? [y/N]"). Abort if denied.
-- [ ] Cost check skipped if `budget_usd` is 0 (unlimited).
-- [ ] `mypy --strict rex/autonomy/cost_estimator.py` passes. Unit tests pass.
+- [x] `rex/autonomy/cost_estimator.py` implements `CostEstimator` with `estimate(plan: Plan) -> CostEstimate` (calculates upper-bound token estimate from step descriptions and tool signatures).
+- [x] `CostEstimate` has `low_usd`, `high_usd`, `step_count` fields.
+- [x] Autonomy runner calls `CostEstimator.estimate()` before executing, checks against `budget_usd` config value.
+- [x] If `estimate.high_usd > budget_usd`: prompt user for approval ("Estimated cost: $X. Proceed? [y/N]"). Abort if denied.
+- [x] Cost check skipped if `budget_usd` is 0 (unlimited).
+- [x] `mypy --strict rex/autonomy/cost_estimator.py` passes. Unit tests pass.
 
 ---
 

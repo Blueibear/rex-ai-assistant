@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any, Callable, Literal, cast
 
 from rex.autonomy.clarifier import Clarifier
+from rex.autonomy.cost_estimator import CostEstimate, CostEstimator, check_budget
 from rex.autonomy.feedback import FeedbackAnalyzer
 from rex.autonomy.goal_graph import GoalGraph, GoalStatus
 from rex.autonomy.goal_parser import GoalParser
@@ -246,6 +247,9 @@ def execute_plan(
     replanner: Replanner | None = None,
     max_replan_attempts: int = 2,
     history_store: HistoryStore | None = None,
+    cost_estimator: CostEstimator | None = None,
+    budget_usd: float = 0.0,
+    on_budget_exceeded: Callable[[CostEstimate], bool] | None = None,
 ) -> Plan:
     """Execute a :class:`~rex.autonomy.models.Plan` step by step.
 
@@ -274,10 +278,27 @@ def execute_plan(
         history_store: Optional :class:`~rex.autonomy.history.HistoryStore` to
             write an :class:`~rex.autonomy.history.ExecutionRecord` after each
             run.  Write failures are logged as warnings and do not propagate.
+        cost_estimator: Optional :class:`~rex.autonomy.cost_estimator.CostEstimator`
+            used to estimate cost before execution.  Requires *budget_usd* > 0
+            to have any effect.
+        budget_usd: Maximum allowed estimated cost (high bound) in USD.  Pass
+            ``0`` (default) to disable the budget check entirely.
+        on_budget_exceeded: Callback ``(estimate) -> bool`` called when the
+            high-end estimate exceeds *budget_usd*.  Return ``True`` to
+            proceed, ``False`` to abort.  Defaults to a stdin prompt.
 
     Returns:
         The same *plan* object with updated statuses.
     """
+    # Pre-execution budget check.
+    if cost_estimator is not None and budget_usd > 0:
+        if not check_budget(
+            cost_estimator, plan, budget_usd, on_budget_exceeded=on_budget_exceeded
+        ):
+            logger.info("runner: plan %s aborted — budget exceeded", plan.id)
+            plan.status = PlanStatus.CANCELLED
+            return plan
+
     plan.status = PlanStatus.RUNNING
     replan_count = 0
     _start = time.monotonic()
@@ -499,6 +520,8 @@ __all__ = [
     "execute_plan",
     "run",
     "run_goals",
+    "CostEstimate",
+    "CostEstimator",
     "HistoryStore",
     "PlannerKey",
     "Replanner",

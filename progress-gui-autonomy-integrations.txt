@@ -726,3 +726,10 @@ Commit: 26393b5
 - Updated `_write_history()` in `runner.py` to pass `total_cost_usd=plan.total_cost_usd`
 - Created `tests/test_autonomy_cost_tracking.py` — 16 tests: PlanStep defaults, Plan.total_cost_usd aggregation (empty, all-None, mixed, zero), ExecutionRecord field, HistoryStore round-trip, migration smoke test
 - All 161 autonomy unit tests pass; mypy --strict clean
+
+## US-234 — 2026-03-16
+- Created `rex/autonomy/cost_estimator.py` with `CostEstimate` (low_usd, high_usd, step_count) and `CostEstimator.estimate()` (heuristic: words * 1.33 tokens + 100 base per step, priced at Sonnet input/output rates)
+- `check_budget()` helper: skips if budget_usd ≤ 0, calls on_budget_exceeded callback if high estimate exceeds budget, defaults to stdin prompt
+- `execute_plan()` in runner.py gains `cost_estimator`, `budget_usd`, `on_budget_exceeded` params; returns PlanStatus.CANCELLED if user denies
+- Created `tests/test_autonomy_cost_estimator.py` — 22 tests: CostEstimate model, estimator heuristics, check_budget gating, runner integration (proceed/cancel/callback)
+- All 183 autonomy tests pass; mypy --strict clean
