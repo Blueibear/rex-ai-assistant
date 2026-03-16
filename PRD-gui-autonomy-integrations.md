@@ -697,10 +697,10 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need tests for LLMPlanner so I can verify parsing logic without making real API calls.
 
 **Acceptance Criteria:**
-- [ ] `tests/test_llm_planner.py` tests: valid JSON response → correct Plan with N steps, malformed JSON response → `PlanningError` raised, empty steps response → `PlanningError` raised, unknown tool name in response → step flagged with warning but plan still created.
-- [ ] All tests use `unittest.mock.patch` to mock the AI backend call.
-- [ ] Tests pass without network access.
-- [ ] `mypy --strict tests/test_llm_planner.py` passes.
+- [x] `tests/test_llm_planner.py` tests: valid JSON response → correct Plan with N steps, malformed JSON response → `PlanningError` raised, empty steps response → `PlanningError` raised, unknown tool name in response → step flagged with warning but plan still created.
+- [x] All tests use `unittest.mock.patch` to mock the AI backend call.
+- [x] Tests pass without network access.
+- [x] `mypy --strict tests/test_llm_planner.py` passes.
 
 ---
 
