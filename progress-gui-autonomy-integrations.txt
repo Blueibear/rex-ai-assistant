@@ -904,3 +904,12 @@ Commit: 26393b5
   - After sending a new-thread message, re-fetch getSMSThreads rather than trying to locally construct the new thread — avoids state duplication and gives server-side ordering for free
   - Use `sorted.find((t) => t.id === msg.thread_id)` to select the new thread after re-fetch
   - IPC handlers that return undefined (e.g. thread not found) should be typed as `SMSThread | undefined` in the handler return type — TypeScript enforces this at the preload side
+
+## Iteration 23 - US-256: Define Notification data model and NotificationStore
+- What was implemented: `rex/notifications/models.py` with `Notification` Pydantic model (id, title, body, source, priority, channel, digest_eligible, quiet_hours_exempt, created_at, delivered_at, read_at, escalation_due_at) and `NotificationStore` backed by SQLite (~/.rex/notifications.db) with add(), get_unread(), mark_read(), update(). 20 unit tests.
+- Files changed: rex/notifications/__init__.py (new), rex/notifications/models.py (new), tests/test_notifications_models.py (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - SQLite store pattern: `_to_row(n)` / `_from_row(row)` helpers for clean Pydantic <-> tuple conversion
+  - `_from_row` needs `type: ignore[arg-type]` on priority/channel since they're `str` but Pydantic expects the Literal type
+  - `tempfile.NamedTemporaryFile(suffix=".db", delete=False)` + close before using in tests — on Windows, can't open an already-open temp file
+  - `db_path.parent.mkdir(parents=True, exist_ok=True)` in __init__ ensures ~/.rex/ exists before creating the DB

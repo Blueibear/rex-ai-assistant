@@ -1171,9 +1171,9 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need a typed Notification model with all routing metadata so the notification engine can make correct dispatch decisions.
 
 **Acceptance Criteria:**
-- [ ] `rex/notifications/models.py` defines: `Notification(id, title, body, source, priority: 'low'|'medium'|'high'|'critical', channel: 'desktop'|'digest'|'sms'|'email', digest_eligible: bool, quiet_hours_exempt: bool, created_at, delivered_at, read_at, escalation_due_at)`.
-- [ ] `NotificationStore` class: backed by SQLite (`~/.rex/notifications.db`). Methods: `add(n)`, `get_unread() -> list[Notification]`, `mark_read(id)`, `update(n)`.
-- [ ] `mypy --strict rex/notifications/models.py` passes. Unit tests for store CRUD. Tests pass.
+- [x] `rex/notifications/models.py` defines: `Notification(id, title, body, source, priority: 'low'|'medium'|'high'|'critical', channel: 'desktop'|'digest'|'sms'|'email', digest_eligible: bool, quiet_hours_exempt: bool, created_at, delivered_at, read_at, escalation_due_at)`.
+- [x] `NotificationStore` class: backed by SQLite (`~/.rex/notifications.db`). Methods: `add(n)`, `get_unread() -> list[Notification]`, `mark_read(id)`, `update(n)`.
+- [x] `mypy --strict rex/notifications/models.py` passes. Unit tests for store CRUD. Tests pass.
 
 ---
 
