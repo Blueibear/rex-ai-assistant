@@ -169,6 +169,24 @@ class NotificationStore:
                 _to_row(notification),
             )
 
+    def upsert(self, notification: Notification) -> None:
+        """Insert or replace *notification* in the store.
+
+        Unlike :meth:`add`, this silently overwrites an existing record with
+        the same ``id`` rather than raising.
+        """
+        with self._connect() as con:
+            con.execute(
+                """
+                INSERT OR REPLACE INTO notifications
+                    (id, title, body, source, priority, channel,
+                     digest_eligible, quiet_hours_exempt, created_at,
+                     delivered_at, read_at, escalation_due_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                _to_row(notification),
+            )
+
     def get_unread(self) -> list[Notification]:
         """Return all notifications where ``read_at`` is ``NULL``.
 

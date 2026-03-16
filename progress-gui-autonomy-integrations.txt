@@ -938,3 +938,11 @@ Commit: 26393b5
   - `_is_in_quiet_window(current, start, end)` as a pure function is very easy to test independently of config/clock
   - Injectable `clock` callable pattern: pass `lambda: time(22, 30)` in tests to fix the current time without mocking datetime module
   - Read config lazily (at call time), not at __init__ — allows config changes to take effect without restarting
+
+## Iteration 27 - US-260: Implement EscalationEngine for unacknowledged notifications
+- What was implemented: `rex/notifications/escalation.py` with `EscalationEngine(store, router, config)`. `check_escalations()` scans unread notifications with past `escalation_due_at`, promotes priority one level (low→medium→high→critical), re-routes via router, updates `escalation_due_at` to now+delay. `critical` not escalated further. `escalation_delay_minutes` from config (default 30). Added `upsert()` to NotificationStore (INSERT OR REPLACE) and updated router to use `upsert()` instead of `add()` to support re-routing existing notifications. 12 unit tests.
+- Files changed: rex/notifications/escalation.py (new), rex/notifications/models.py (added upsert), rex/notifications/router.py (add→upsert), tests/test_notifications_escalation.py (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Router must use upsert (INSERT OR REPLACE) not add (INSERT) — escalation re-routes the same notification ID, which would fail UNIQUE constraint with plain INSERT
+  - `int(str(raw_val))` pattern for converting config values of unknown type to int without mypy `No overload` errors
+  - Escalation engine passes a config dict in tests (not None) to avoid file I/O

@@ -96,24 +96,24 @@ class NotificationRouter:
               non-suppressed ``medium`` notifications.
             - Sets ``digest_eligible=True`` on ``low`` notifications before
               persisting.
-            - Always calls :meth:`~NotificationStore.add` to persist the
+            - Always calls :meth:`~NotificationStore.upsert` to persist the
               (possibly mutated) notification.
         """
         priority = notification.priority
 
         if priority in ("critical", "high"):
             _send_desktop(notification.title, notification.body)
-            self._store.add(notification)
+            self._store.upsert(notification)
 
         elif priority == "medium":
             if not self._quiet_hours.should_suppress(notification):
                 _send_desktop(notification.title, notification.body)
-            self._store.add(notification)
+            self._store.upsert(notification)
 
         else:  # low
             # Mark digest-eligible before persisting.
             updated = notification.model_copy(update={"digest_eligible": True})
-            self._store.add(updated)
+            self._store.upsert(updated)
 
 
 # ---------------------------------------------------------------------------

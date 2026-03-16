@@ -1218,12 +1218,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need auto-escalation logic that promotes a notification's priority if the user hasn't acknowledged it within a configured threshold so critical items don't get buried.
 
 **Acceptance Criteria:**
-- [ ] `rex/notifications/escalation.py` implements `EscalationEngine` with `check_escalations()`.
-- [ ] For each unread notification where `escalation_due_at < now`: promote `priority` by one level (low→medium, medium→high, high→critical); re-route via `NotificationRouter.route()` at new priority; update `escalation_due_at` to `now + escalation_delay`.
-- [ ] `critical` notifications not escalated further (already max).
-- [ ] `escalation_delay` read from Rex config (default: 30 minutes).
-- [ ] `check_escalations()` intended to be called on a timer (e.g., every 5 minutes).
-- [ ] `mypy --strict rex/notifications/escalation.py` passes. Unit tests. Tests pass.
+- [x] `rex/notifications/escalation.py` implements `EscalationEngine` with `check_escalations()`.
+- [x] For each unread notification where `escalation_due_at < now`: promote `priority` by one level (low→medium, medium→high, high→critical); re-route via `NotificationRouter.route()` at new priority; update `escalation_due_at` to `now + escalation_delay`.
+- [x] `critical` notifications not escalated further (already max).
+- [x] `escalation_delay` read from Rex config (default: 30 minutes).
+- [x] `check_escalations()` intended to be called on a timer (e.g., every 5 minutes).
+- [x] `mypy --strict rex/notifications/escalation.py` passes. Unit tests. Tests pass.
 
 ---
 
