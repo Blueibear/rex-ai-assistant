@@ -685,11 +685,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need an LLMPlanner that uses Rex's AI backend to convert a natural-language goal into an executable plan so ambiguous and complex goals can be handled.
 
 **Acceptance Criteria:**
-- [ ] `rex/autonomy/llm_planner.py` implements `LLMPlanner(PlannerProtocol)` class.
-- [ ] `plan(goal, context)` method constructs a structured prompt listing available tools, current context, and the goal; calls Rex's AI backend; parses the response into a `Plan` with typed `PlanStep` list.
-- [ ] Prompt instructs the LLM to return steps as JSON (tool name, args, description). `LLMPlanner` validates the JSON and raises `PlanningError` on parse failure.
-- [ ] `LLMPlanner` accepts a `tools: list[ToolDefinition]` argument at init so available tools are explicit.
-- [ ] `mypy --strict rex/autonomy/llm_planner.py` passes.
+- [x] `rex/autonomy/llm_planner.py` implements `LLMPlanner(PlannerProtocol)` class.
+- [x] `plan(goal, context)` method constructs a structured prompt listing available tools, current context, and the goal; calls Rex's AI backend; parses the response into a `Plan` with typed `PlanStep` list.
+- [x] Prompt instructs the LLM to return steps as JSON (tool name, args, description). `LLMPlanner` validates the JSON and raises `PlanningError` on parse failure.
+- [x] `LLMPlanner` accepts a `tools: list[ToolDefinition]` argument at init so available tools are explicit.
+- [x] `mypy --strict rex/autonomy/llm_planner.py` passes.
 
 ---
 
