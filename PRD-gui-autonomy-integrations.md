@@ -473,13 +473,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to edit a memory entry directly in the list so I can correct Rex's understanding of me.
 
 **Acceptance Criteria:**
-- [ ] Clicking a memory card expands it into an inline edit form (Textarea + category select + Save/Cancel buttons).
-- [ ] Only one memory editable at a time (opening another collapses the current one, prompting to save if dirty).
-- [ ] Save calls `window.rex.updateMemory(id, data): Promise<Memory>` IPC stub.
-- [ ] Cancel discards changes and collapses the card.
-- [ ] Optimistic UI: card updates immediately on save, reverts on IPC error.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] Clicking a memory card expands it into an inline edit form (Textarea + category select + Save/Cancel buttons).
+- [x] Only one memory editable at a time (opening another collapses the current one, prompting to save if dirty).
+- [x] Save calls `window.rex.updateMemory(id, data): Promise<Memory>` IPC stub.
+- [x] Cancel discards changes and collapses the card.
+- [x] Optimistic UI: card updates immediately on save, reverts on IPC error.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

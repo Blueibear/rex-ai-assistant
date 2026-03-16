@@ -96,6 +96,11 @@ export interface Memory {
   updatedAt: string // ISO date string
 }
 
+export interface MemoryUpdateInput {
+  text: string
+  category: string
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
@@ -122,4 +127,5 @@ export interface RexAPI {
   saveReminder: (reminder: ReminderInput) => Promise<Reminder>
   deleteReminder: (id: string) => Promise<void>
   getMemories: () => Promise<Memory[]>
+  updateMemory: (id: string, data: MemoryUpdateInput) => Promise<Memory>
 }
