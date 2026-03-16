@@ -656,12 +656,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want Rex to minimize to the system tray so it stays accessible without cluttering my taskbar.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/main/tray.ts` creates a Tray instance with a Rex icon (16×16 and 32×32 variants in `gui/assets/`).
-- [ ] Tray context menu: Show Rex, New Chat (opens app + focuses chat), Toggle Voice, Quit Rex.
-- [ ] Closing the main window hides it (does not quit); app remains in tray.
-- [ ] Clicking the tray icon shows/restores the main window.
-- [ ] Quitting via tray menu fully exits the process (including Python subprocess cleanup).
-- [ ] `npm run typecheck` passes.
+- [x] `gui/src/main/tray.ts` creates a Tray instance with a Rex icon (16×16 and 32×32 variants in `gui/assets/`).
+- [x] Tray context menu: Show Rex, New Chat (opens app + focuses chat), Toggle Voice, Quit Rex.
+- [x] Closing the main window hides it (does not quit); app remains in tray.
+- [x] Clicking the tray icon shows/restores the main window.
+- [x] Quitting via tray menu fully exits the process (including Python subprocess cleanup).
+- [x] `npm run typecheck` passes.
 
 ---
 

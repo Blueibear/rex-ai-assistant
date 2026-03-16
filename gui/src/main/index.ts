@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { createTray, destroyTray } from './tray'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import type { Settings, GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
@@ -213,7 +214,7 @@ function registerIpcHandlers(): void {
   })
 }
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -239,6 +240,8 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  return mainWindow
 }
 
 app.whenReady().then(() => {
@@ -249,7 +252,8 @@ app.whenReady().then(() => {
   })
 
   registerIpcHandlers()
-  createWindow()
+  const mainWindow = createWindow()
+  createTray(mainWindow)
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -257,6 +261,7 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  destroyTray()
   if (process.platform !== 'darwin') {
     app.quit()
   }
