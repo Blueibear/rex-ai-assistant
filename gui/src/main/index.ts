@@ -1,6 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { readFileSync } from 'fs'
 import type { Settings } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
 import { registerVoiceHandlers } from './handlers/voice'
@@ -28,6 +29,22 @@ function registerIpcHandlers(): void {
   ipcMain.handle('rex:setSettings', (_event, settings: Settings) => {
     console.log('[rex:setSettings]', settings)
     return { ok: true }
+  })
+
+  ipcMain.handle('rex:getVersionInfo', () => {
+    let rexVersion = '1.0.0'
+    try {
+      const pkgPath = join(__dirname, '../../../../package.json')
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { version?: string }
+      rexVersion = pkg.version ?? rexVersion
+    } catch {
+      // fallback to default
+    }
+    return {
+      rex: rexVersion,
+      electron: process.versions.electron ?? 'unknown',
+      node: process.versions.node ?? 'unknown'
+    }
   })
 }
 

@@ -11,7 +11,8 @@ import type {
   Reminder,
   ReminderInput,
   Memory,
-  MemoryUpdateInput
+  MemoryUpdateInput,
+  VersionInfo
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -153,7 +154,8 @@ const rexAPI = {
   updateMemory: (id: string, data: MemoryUpdateInput): Promise<Memory> =>
     ipcRenderer.invoke('rex:updateMemory', id, data),
   deleteMemory: (id: string): Promise<void> =>
-    ipcRenderer.invoke('rex:deleteMemory', id).then(() => undefined)
+    ipcRenderer.invoke('rex:deleteMemory', id).then(() => undefined),
+  getVersionInfo: (): Promise<VersionInfo> => ipcRenderer.invoke('rex:getVersionInfo')
 }
 
 if (process.contextIsolated) {

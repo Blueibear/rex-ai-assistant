@@ -516,13 +516,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want a settings panel organized into logical sections so I can find any Rex configuration option quickly.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/pages/SettingsPage.tsx` renders a two-column layout: left column is a category list, right column is the active category's form.
-- [ ] Categories: General, Voice, AI, Integrations, Notifications, About.
-- [ ] Clicking a category highlights it and renders the appropriate sub-page in the right column.
-- [ ] Default active category is General.
-- [ ] About section shows Rex version, Electron version, Node version (read from `process.versions` in main process via IPC).
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `gui/src/pages/SettingsPage.tsx` renders a two-column layout: left column is a category list, right column is the active category's form.
+- [x] Categories: General, Voice, AI, Integrations, Notifications, About.
+- [x] Clicking a category highlights it and renders the appropriate sub-page in the right column.
+- [x] Default active category is General.
+- [x] About section shows Rex version, Electron version, Node version (read from `process.versions` in main process via IPC).
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

@@ -101,6 +101,12 @@ export interface MemoryUpdateInput {
   category: string
 }
 
+export interface VersionInfo {
+  rex: string
+  electron: string
+  node: string
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
@@ -130,4 +136,5 @@ export interface RexAPI {
   addMemory: (data: MemoryUpdateInput) => Promise<Memory>
   updateMemory: (id: string, data: MemoryUpdateInput) => Promise<Memory>
   deleteMemory: (id: string) => Promise<void>
+  getVersionInfo: () => Promise<VersionInfo>
 }
