@@ -267,3 +267,132 @@
   - datetime-local inputs use format YYYY-MM-DDTHH:MM; need pad() helper and toDatetimeLocal/fromDatetimeLocal converters
   - No new tsconfig includes needed — all files under already-covered paths
 ---
+
+## Iteration 26 - US-199: Build reminders list view
+- What was implemented: Reminder interface added to ipc.ts; getReminders/completeReminder added to RexAPI, preload, and ipcMain (stub returns 6 sample reminders spanning overdue/today/upcoming); RemindersPage.tsx rewritten with three sections (Overdue, Today, Upcoming), ReminderCard component (checkbox + title + priority badge + due time + notes), danger-color left border on overdue cards, empty state per section, global empty state when no reminders at all.
+- Files changed: gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/pages/RemindersPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - isOverdue check: `new Date(dueAt) < new Date()` — compares against current moment, not start of day
+  - isToday check: match year/month/day AND require !isOverdue (so past-today items don't appear in Today section)
+  - Upcoming section: dueAt >= tomorrow start (computed as todayStart + 86400000ms)
+  - Checkbox "done" is optimistic — show checked state immediately, then call IPC; remove card from list on success
+  - stub reminders use `Date.now() ± N * 86400000` for overdue/upcoming; today reminders set hours explicitly via `d.setHours()`
+  - No new tsconfig includes needed — all files under already-covered paths
+---
+
+## Iteration 28 - US-201: Wire reminders page to Rex backend via IPC
+- What was implemented: rex_reminders_bridge.py (list/save/delete/complete commands wrapping ReminderService; stores notes/priority/repeat in metadata dict); gui/src/main/handlers/reminders.ts (callRemindersBridge helper + registerRemindersHandlers with 4 IPC handlers); deleteReminder added to ipc.ts RexAPI and preload/index.ts; main/index.ts replaced reminder stubs with registerRemindersHandlers(); RemindersPage rewritten with useToast for error toasts, fetchReminders() called after every mutation (complete/save/delete), 60s setInterval auto-refresh, delete button in modal footer (only shown when editing).
+- Files changed: rex_reminders_bridge.py (new), gui/src/main/handlers/reminders.ts (new), gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/pages/RemindersPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - ReminderService stores notes/priority/repeat in metadata dict — _reminder_to_gui() reads them back with .get() fallbacks
+  - For save/update: call service._save() directly after mutating existing reminder fields (no public update method)
+  - ReminderModal needs onError and onDeleted props to surface errors and trigger parent refetch
+  - Modal footer layout: use flex justify-between to put delete button on left and Cancel/Save on right
+  - 60s auto-refresh: setInterval in separate useEffect with [fetchReminders] dep; clear on unmount
+  - useToast pattern: `const addToast = useToast(); addToast('msg', 'error')` — direct function call
+  - No new tsconfig includes needed — all files under already-covered paths
+---
+
+## Iteration 29 - US-202: Build memories list view
+- What was implemented: Memory interface added to ipc.ts; getMemories added to RexAPI, preload, and ipcMain stub (5 sample memories with category/profile/usage categories); MemoriesPage rewritten with search input (client-side filter), category dropdown (derived from returned categories), paginated list (PAGE_SIZE=20), MemoryCard component (line-clamp-2 text, category Badge, created/updated relative date), EmptyState for no memories or no search matches.
+- Files changed: gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/pages/MemoriesPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - line-clamp-2 is a Tailwind utility for 2-line text truncation (requires @tailwindcss/line-clamp or Tailwind v3.3+)
+  - useMemo for filtered/categories avoids recomputation on every render; reset page to 1 via separate useEffect on [search, categoryFilter]
+  - stub memories created inside registerIpcHandlers() using const now = new Date().toISOString() to capture accurate timestamps
+  - No new tsconfig includes needed — src/pages/**/* already covered
+---
+
+## Iteration 27 - US-200: Build reminder create and edit form
+- What was implemented: ReminderInput interface added to ipc.ts; saveReminder added to RexAPI, preload, and ipcMain stub (upserts into stubReminders array); RemindersPage rewritten with "New Reminder" header button, ReminderModal component (title/notes/date/time/priority/repeat fields), click-to-edit on existing cards (div role="button" with stopPropagation on checkbox), inline validation (title required, due date required), onSaved handler updates list in-place or appends new item.
+- Files changed: gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/pages/RemindersPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Due date + time stored as separate form fields (dueDate: YYYY-MM-DD, dueTime: HH:MM); combined to ISO via new Date(`${dueDate}T${dueTime || '00:00'}`).toISOString()
+  - ReminderCard converted from <div> to <div role="button" tabIndex={0}> with onKeyDown handler to allow click-to-edit while still containing a checkbox button (avoids nested <button> TS error)
+  - stopPropagation on checkbox button click prevents card onClick from also firing when checking
+  - emptyForm() initializes dueDate to today and dueTime to next full hour (getHours() + 1)
+  - Modal form submit button uses form="reminder-form" to link to the <form id="reminder-form"> inside children
+  - No new tsconfig includes needed — all files under already-covered paths
+---
+
+## Iteration 30 - US-203: Build inline memory editor
+- What was implemented: MemoryUpdateInput interface added to ipc.ts; updateMemory added to RexAPI, preload, and ipcMain stub (mutates stubMemories in-place); MemoriesPage rewritten with expandable inline edit form per card (Textarea + category input with datalist autocomplete + Save/Cancel buttons); only one card editable at a time with dirty-check prompt on switch; optimistic UI updates card immediately, reverts on IPC error with Toast; focused textarea on expand; keyboard accessible cards.
+- Files changed: gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/pages/MemoriesPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Only-one-open pattern: track editingId + editState at parent; pass isEditing bool + handlers down to card component
+  - Dirty-check on switch: compare editState vs memory.text/category; show window.confirm before discarding
+  - datalist + input combo (not select) allows typing a new category not in the list while still offering autocomplete
+  - useEffect on [isEditing] to focus textarea and move cursor to end on mount; textareaRef.current.selectionStart = length
+  - Optimistic update: setMemories immediately with new values, then on IPC success replace with server-returned object, on error revert to original snapshot
+  - No new tsconfig includes needed — src/pages/**/* already covered
+---
+
+## Iteration 31 - US-204: Build memory add form and delete action
+- What was implemented: addMemory and deleteMemory added to RexAPI in ipc.ts; IPC stubs added in main/index.ts (addMemory pushes to stubMemories, deleteMemory splices by id); preload wired; MemoriesPage updated with "Add Memory" button opening AddMemoryModal (text textarea + category datalist input, form submit with validation); delete trash icon on each card with two-click confirmation (armed 3s, shows "Delete?" text on confirmation state); optimistic deletion removes card immediately and reverts on IPC error.
+- Files changed: gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/pages/MemoriesPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Two-click delete pattern: first click sets confirmDelete=true + 3s timer; second click triggers delete; timer clears on unmount via useEffect cleanup
+  - Delete button uses stopPropagation to prevent card onClick from also firing
+  - AddMemoryModal uses form id + submit button form= attribute (same pattern as reminders modal) — form submit inside Modal children, button in footer
+  - Inline "Delete?" text label instead of tooltip keeps the confirmation visible without extra component
+  - No new tsconfig includes needed — all files under already-covered paths
+---
+
+## Iteration 33 - US-206: Scaffold settings panel with category navigation
+- What was implemented: VersionInfo interface added to ipc.ts; getVersionInfo IPC handler in main/index.ts reads process.versions.electron/node and parses Rex package.json for version; preload wired; SettingsPage.tsx rewritten with 48px-wide category list (General/Voice/AI/Integrations/Notifications/About with SVG icons), accent highlight on active item, right-side content panel; General/Voice/AI/Integrations/Notifications show PlaceholderPanel; About section shows version rows via getVersionInfo IPC with loading skeleton.
+- Files changed: gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/pages/SettingsPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - text-text-tertiary is NOT a valid token — only text-text-primary and text-text-secondary exist (confirmed by tokens.css)
+  - process.versions.electron is available in main process; process.versions.node gives Node version
+  - Rex package.json version read via readFileSync + JSON.parse in main process; path relative to __dirname goes up 4 levels from dist-electron/main/
+  - CategoryId union type + renderPanel switch statement keeps category logic type-safe and exhaustive
+  - No new tsconfig includes needed — src/pages/**/* already covered
+---
+
+## Iteration 32 - US-205: Wire memories page to Rex memory backend via IPC
+- What was implemented: rex_memories_bridge.py (list/add/update/delete commands using LongTermMemory; stores text in content['text'] and updatedAt in content['updated_at']); gui/src/main/handlers/memories.ts (callMemoriesBridge helper + registerMemoriesHandlers with 4 IPC handlers); main/index.ts updated to import/call registerMemoriesHandlers and removed all stub memory handlers.
+- Files changed: rex_memories_bridge.py (new), gui/src/main/handlers/memories.ts (new), gui/src/main/index.ts, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - LongTermMemory stores content as a dict — use content['text'] for the text field and content['updated_at'] for updatedAt; fall back to created_at when updated_at is absent
+  - LongTermMemory has no public update method — mutate entry.content directly then call ltm._save() (same pattern used by reminders bridge for reminder fields)
+  - entry.category is a mutable field — can be updated directly before calling _save()
+  - get_entry() returns None for expired or missing entries — return {"ok": false, "error": ...} in that case
+  - No tsconfig changes needed — src/main/handlers/ already covered by tsconfig.node.json
+---
+
+## Iteration 34 - US-207: Build General settings form
+- What was implemented: GeneralPanel component in SettingsPage.tsx with Display Name (text), Timezone (datalist input with IANA zones via Intl.supportedValuesOf fallback), Language (select), Launch at login (toggle), Start minimized (toggle); auto-saves on blur/change; "Saved ✓" indicator fades after 2s per field; loading skeleton while fetching; getSettings/setSettings IPC signatures updated to accept section:string parameter; GeneralSettings interface added to ipc.ts; in-memory settingsStore with per-section defaultSettingsMap in main process.
+- Files changed: gui/src/pages/SettingsPage.tsx, gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - `getSettings(section)` / `setSettings(section, values)` IPC pattern is now established — all settings panels should use this
+  - Cast GeneralSettings to Settings via `as unknown as Settings` (not direct `as Settings`) since index signature is missing
+  - Intl.supportedValuesOf('timeZone') works in Electron's Chrome runtime but TypeScript lacks types — cast via `(Intl as unknown as { supportedValuesOf: (k: string) => string[] })`
+  - datalist + text input = searchable select with free-text fallback; validate on blur and reset to saved value if invalid
+  - Toggle pattern: role="switch" + translate-x animation (same as iOS toggle from previous stories)
+  - Language select auto-saves on onChange (not onBlur) since select doesn't blur after picking
+  - No new tsconfig includes needed — src/pages/**/* already covered
+---
+
+## Iteration 35 - US-208: Build Voice settings form
+- What was implemented: VoiceSettings interface added to ipc.ts; testVoice added to RexAPI, preload (ipcRenderer.invoke), and ipcMain stub (returns {ok:true}); voice defaults added to defaultSettingsMap; VoicePanel component in SettingsPage.tsx with Microphone/Speaker selects (enumerateDevices), TTS engine select, conditional TTS voice text input, Speech rate slider (0.5–2.0), Volume slider (0–1.0), Test Voice button with spinning/success/error states; auto-saves on every field change; renderPanel updated to return VoicePanel for 'voice' category.
+- Files changed: gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/pages/SettingsPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - navigator.mediaDevices.enumerateDevices() is available in Electron renderer — guard with optional chaining in case it's unavailable
+  - TTS voice text input conditionally shown only when engine !== 'system' — use {form.ttsEngine !== 'system' && <div>...}
+  - Range sliders use className="flex-1 accent-accent" — the accent-* utility sets the input's accent-color CSS property
+  - handleFieldChange helper calls setForm + saveField together to avoid stale closure issues with immediate auto-save
+  - ttsVoice field uses onBlur (not onChange) for auto-save since it's a free-text field — avoids saving on every keystroke
+  - Test Voice result timer ref cleared in finally block to avoid double-timer if button clicked rapidly
+  - No new tsconfig includes needed — src/pages/**/* already covered
+---
+
+## Iteration 36 - US-209: Build AI settings form
+- What was implemented: AiSettings interface added to ipc.ts (model/temperature/maxTokens/systemPrompt/autonomyMode); ai defaults added to defaultSettingsMap in main/index.ts; AiPanel component in SettingsPage.tsx with model select, temperature slider (Precise←→Creative), maxTokens number input, systemPrompt textarea (onBlur auto-save), autonomyMode select, warning banner when autonomyMode='full-auto'; renderPanel updated to return AiPanel for 'ai' category.
+- Files changed: gui/src/types/ipc.ts, gui/src/main/index.ts, gui/src/pages/SettingsPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - systemPrompt textarea uses onBlur (not onChange) for auto-save since it's a multi-line free-text field
+  - Warning banner uses border-warning/40 bg-warning/10 text-warning pattern (same opacity trick as amber beta badge)
+  - AI_MODELS array typed as Array<{ value: AiSettings['model']; label: string }> keeps model select type-safe
+  - satisfies AiSettings works in defaultSettingsMap for the 'ai' section — consistent with General/Voice patterns
+  - No new tsconfig includes needed — src/pages/**/* already covered
+---
