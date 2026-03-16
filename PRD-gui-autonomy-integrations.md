@@ -777,10 +777,10 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need a data model and persistent store for plan execution history so the feedback learning system has data to work with.
 
 **Acceptance Criteria:**
-- [ ] `rex/autonomy/history.py` defines `ExecutionRecord(id, goal, plan, outcome: 'success'|'partial'|'failed', duration_s, replan_count, error_summary, timestamp)` as a Pydantic model.
-- [ ] `HistoryStore` class with `append(record)`, `recent(n=20) -> list[ExecutionRecord]`, `by_outcome(outcome) -> list[ExecutionRecord]`.
-- [ ] Backing store: SQLite via `aiosqlite`. DB file: `~/.rex/execution_history.db`. Migration runs on first access.
-- [ ] `mypy --strict rex/autonomy/history.py` passes. Unit tests for append + query pass.
+- [x] `rex/autonomy/history.py` defines `ExecutionRecord(id, goal, plan, outcome: 'success'|'partial'|'failed', duration_s, replan_count, error_summary, timestamp)` as a Pydantic model.
+- [x] `HistoryStore` class with `append(record)`, `recent(n=20) -> list[ExecutionRecord]`, `by_outcome(outcome) -> list[ExecutionRecord]`.
+- [x] Backing store: SQLite via `aiosqlite`. DB file: `~/.rex/execution_history.db`. Migration runs on first access.
+- [x] `mypy --strict rex/autonomy/history.py` passes. Unit tests for append + query pass.
 
 ---
 
