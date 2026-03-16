@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useNotificationsStore } from '../store/notificationsStore'
+import { useGlobalShortcuts } from '../hooks/useGlobalShortcuts'
+import { HelpOverlay } from '../components/HelpOverlay'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -172,6 +174,7 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
   const narrow = useIsNarrow()
   const navigate = useNavigate()
   const unreadCount = useNotificationsStore((state) => state.unreadCount)
+  const { isHelpOpen, closeHelp } = useGlobalShortcuts()
 
   const [sectionName, setSectionName] = useState('Chat')
 
@@ -186,6 +189,7 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
 
   return (
     <div className="flex h-screen bg-bg text-text-primary overflow-hidden">
+      {isHelpOpen && <HelpOverlay onClose={closeHelp} />}
       {/* Sidebar */}
       <aside
         className="flex flex-col flex-shrink-0 bg-surface border-r border-border transition-all duration-200"

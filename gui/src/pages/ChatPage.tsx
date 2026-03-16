@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { MessageList } from '../components/chat/MessageList'
 import { ChatInput } from '../components/chat/ChatInput'
 import type { Message } from '../components/chat/MessageList'
@@ -11,6 +11,17 @@ function genId(): string {
 export function ChatPage(): React.ReactElement {
   const [messages, setMessages] = useState<Message[]>([])
   const [sending, setSending] = useState(false)
+
+  useEffect(() => {
+    const focusInput = (): void => {
+      const el = document.querySelector<HTMLTextAreaElement>(
+        'textarea[aria-label="Chat message input"]'
+      )
+      el?.focus()
+    }
+    window.addEventListener('rex:focus-chat', focusInput)
+    return () => window.removeEventListener('rex:focus-chat', focusInput)
+  }, [])
 
   const handleSend = useCallback(async (text: string): Promise<void> => {
     const userMsg: Message = {

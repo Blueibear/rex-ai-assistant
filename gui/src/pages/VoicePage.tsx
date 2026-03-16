@@ -205,6 +205,14 @@ export function VoicePage(): React.ReactElement {
     }
   }, [isActive])
 
+  useEffect(() => {
+    const onToggle = (): void => {
+      void handleToggle()
+    }
+    window.addEventListener('rex:toggle-voice', onToggle)
+    return () => window.removeEventListener('rex:toggle-voice', onToggle)
+  }, [handleToggle])
+
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">

@@ -643,12 +643,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want keyboard shortcuts for common actions so I can use Rex efficiently without reaching for the mouse.
 
 **Acceptance Criteria:**
-- [ ] Global shortcuts registered: `Ctrl+K` → focus chat input (if on chat page, or navigate to chat and focus), `Ctrl+Shift+V` → toggle voice, `Ctrl+,` → open settings, `Ctrl+N` → new task/reminder/event (context-sensitive), `?` → open help overlay.
-- [ ] Help overlay (triggered by `?`) shows a modal listing all shortcuts in a two-column table.
-- [ ] Shortcuts do not fire when focus is inside a text input (except Ctrl+ chords).
-- [ ] `gui/src/hooks/useGlobalShortcuts.ts` hook manages all registrations via `useEffect`.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] Global shortcuts registered: `Ctrl+K` → focus chat input (if on chat page, or navigate to chat and focus), `Ctrl+Shift+V` → toggle voice, `Ctrl+,` → open settings, `Ctrl+N` → new task/reminder/event (context-sensitive), `?` → open help overlay.
+- [x] Help overlay (triggered by `?`) shows a modal listing all shortcuts in a two-column table.
+- [x] Shortcuts do not fire when focus is inside a text input (except Ctrl+ chords).
+- [x] `gui/src/hooks/useGlobalShortcuts.ts` hook manages all registrations via `useEffect`.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
