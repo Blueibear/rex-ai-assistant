@@ -170,7 +170,9 @@ const rexAPI = {
     ipcRenderer.invoke('rex:getPreferenceSuggestions'),
   applyPreferenceSuggestion: (field: string, value: string | number): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke('rex:applyPreferenceSuggestion', field, value),
-  getEmailInbox: (): Promise<EmailMessage[]> => ipcRenderer.invoke('rex:getEmailInbox')
+  getEmailInbox: (): Promise<EmailMessage[]> => ipcRenderer.invoke('rex:getEmailInbox'),
+  generateEmailReply: (id: string): Promise<string> =>
+    ipcRenderer.invoke('rex:generateEmailReply', id)
 }
 
 if (process.contextIsolated) {

@@ -216,4 +216,5 @@ export interface RexAPI {
   getPreferenceSuggestions: () => Promise<PreferenceSuggestion[]>
   applyPreferenceSuggestion: (field: string, value: string | number) => Promise<{ ok: boolean }>
   getEmailInbox: () => Promise<EmailMessage[]>
+  generateEmailReply: (id: string) => Promise<string>
 }

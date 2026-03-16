@@ -836,3 +836,12 @@ Commit: 26393b5
   - `sorted(slots, key=lambda s: s.start)[:N]` is the clean way to cap and sort in one step
   - Stub fallback is hit when backend is None OR when LLM raises, keeping tests deterministic without a live LLM
 ---
+
+## Iteration 15 - US-247: Build email detail view with triage actions
+- What was implemented: Right-side slide-in EmailDetailPanel within EmailPage.tsx (no separate file needed — it's a private component). Panel shows subject with priority badge, From/To/date meta, full body text. Archive removes from list; Mark as Read updates state. Generate Reply Draft calls `window.rex.generateEmailReply(id)` stub (added to ipc.ts, preload, and email.ts handler), result pre-fills a compose Modal with editable textarea and Send button (logs to console).
+- Files changed: gui/src/pages/EmailPage.tsx, gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/handlers/email.ts, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - For detail panels that are tightly coupled to one page, define the panel component inline in the page file rather than in a separate components/ file — fewer files to maintain
+  - Archive removes from in-memory list immediately (optimistic); no need for a re-fetch
+  - `style={{ transform: ... }}` used instead of Tailwind translate classes to avoid class explosion
+---

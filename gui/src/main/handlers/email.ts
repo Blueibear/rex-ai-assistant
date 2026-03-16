@@ -79,4 +79,15 @@ export function registerEmailHandlers(): void {
   ipcMain.handle('rex:getEmailInbox', (): EmailMessage[] => {
     return makeStubInbox()
   })
+
+  ipcMain.handle('rex:generateEmailReply', (_event, id: string): string => {
+    // Stub: returns a template reply draft. A real implementation would call
+    // the LLM via Python with the original message as context.
+    return (
+      `Hi,\n\nThank you for your email (ref: ${id}).\n\n` +
+      `I wanted to follow up on the points you raised. ` +
+      `Could we schedule a quick call this week to discuss further?\n\n` +
+      `Best regards`
+    )
+  })
 }

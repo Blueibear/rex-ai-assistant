@@ -1056,11 +1056,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to read an email and take triage actions (archive, reply draft) from the GUI so I can process my inbox without leaving Rex.
 
 **Acceptance Criteria:**
-- [ ] Clicking an email row opens a detail panel (right-side slide-in, same pattern as calendar event detail).
-- [ ] Panel shows: full subject, sender, recipient(s), received time, full body text (HTML rendered in a sandboxed `webview` or sanitized innerHTML).
-- [ ] Action buttons: Archive, Mark as Read, Generate Reply Draft (calls `window.rex.generateEmailReply(id)` stub — returns a draft string).
-- [ ] "Generate Reply Draft" result shown in a pre-filled compose modal with Send button (stub — logs to console).
-- [ ] `npm run typecheck` passes. Verify changes work in app.
+- [x] Clicking an email row opens a detail panel (right-side slide-in, same pattern as calendar event detail).
+- [x] Panel shows: full subject, sender, recipient(s), received time, full body text (HTML rendered in a sandboxed `webview` or sanitized innerHTML).
+- [x] Action buttons: Archive, Mark as Read, Generate Reply Draft (calls `window.rex.generateEmailReply(id)` stub — returns a draft string).
+- [x] "Generate Reply Draft" result shown in a pre-filled compose modal with Send button (stub — logs to console).
+- [x] `npm run typecheck` passes. Verify changes work in app.
 
 ---
 
