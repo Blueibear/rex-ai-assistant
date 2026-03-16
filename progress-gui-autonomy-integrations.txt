@@ -921,3 +921,11 @@ Commit: 26393b5
   - Use `model_copy(update={...})` to create a modified notification without mutating the original — important for low priority marking digest_eligible
   - `_send_desktop` is marked `# pragma: no cover` since plyer isn't installed in test env; use `patch("rex.notifications.router._send_desktop")` in all tests
   - Critical/high notifications intentionally bypass quiet hours — doc this clearly in the routing rules comment block
+
+## Iteration 25 - US-258: Implement DigestBuilder for batched low-priority notifications
+- What was implemented: `rex/notifications/digest.py` with `DigestBuilder(store, backend)`. `build_digest()` collects unread digest_eligible notifications, calls LLM with system+user prompt, returns stripped text (or fallback plain list). Returns None if nothing eligible. `run_digest()` calls build_digest, sends one desktop notification "Rex Digest", sets delivered_at on each source notification, marks them read. 14 unit tests.
+- Files changed: rex/notifications/digest.py (new), tests/test_notifications_digest.py (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - run_digest collects eligible notifications upfront then operates on that snapshot — avoids double-read race if store changes during processing
+  - `Optional[str]` return type on build_digest (not `str | None`) works better with mypy --strict since we have `from __future__ import annotations`
+  - To verify delivered_at was set in a test, read directly from SQLite since get_unread() filters out read records — use store._db_path to connect

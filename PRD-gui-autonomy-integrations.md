@@ -1193,12 +1193,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need a DigestBuilder that batches low-priority notifications into a single timed digest so users get a clean summary instead of a stream of minor alerts.
 
 **Acceptance Criteria:**
-- [ ] `rex/notifications/digest.py` implements `DigestBuilder` with `build_digest() -> str | None`.
-- [ ] Collects all unread `digest_eligible` notifications from `NotificationStore`.
-- [ ] If any exist: calls LLM to generate a concise paragraph summary ("You have N updates: …").
-- [ ] Returns `None` if no digest-eligible notifications.
-- [ ] `run_digest()` method: calls `build_digest()`, if non-None dispatches one desktop notification with the summary, marks source notifications as delivered.
-- [ ] `mypy --strict rex/notifications/digest.py` passes. Unit tests with mocked LLM. Tests pass.
+- [x] `rex/notifications/digest.py` implements `DigestBuilder` with `build_digest() -> str | None`.
+- [x] Collects all unread `digest_eligible` notifications from `NotificationStore`.
+- [x] If any exist: calls LLM to generate a concise paragraph summary ("You have N updates: …").
+- [x] Returns `None` if no digest-eligible notifications.
+- [x] `run_digest()` method: calls `build_digest()`, if non-None dispatches one desktop notification with the summary, marks source notifications as delivered.
+- [x] `mypy --strict rex/notifications/digest.py` passes. Unit tests with mocked LLM. Tests pass.
 
 ---
 
