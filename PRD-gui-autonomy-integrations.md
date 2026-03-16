@@ -1005,10 +1005,10 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need a CalendarService matching the same stub/live pattern as EmailService so calendar data flows through the GUI in both modes.
 
 **Acceptance Criteria:**
-- [ ] `rex/integrations/calendar_service.py` implements `CalendarService` with: `get_events(start, end) -> list[CalendarEvent]`, `create_event(event_data) -> CalendarEvent`, `update_event(id, event_data) -> CalendarEvent`, `delete_event(id)`.
-- [ ] Stub mode: returns 5-8 realistic mock events spanning the next two weeks.
-- [ ] Live mode: connects via Google Calendar API when credentials configured.
-- [ ] `mypy --strict rex/integrations/calendar_service.py` passes. Unit tests for stub mode. Tests pass.
+- [x] `rex/integrations/calendar_service.py` implements `CalendarService` with: `get_events(start, end) -> list[CalendarEvent]`, `create_event(event_data) -> CalendarEvent`, `update_event(id, event_data) -> CalendarEvent`, `delete_event(id)`.
+- [x] Stub mode: returns 5-8 realistic mock events spanning the next two weeks.
+- [x] Live mode: connects via Google Calendar API when credentials configured.
+- [x] `mypy --strict rex/integrations/calendar_service.py` passes. Unit tests for stub mode. Tests pass.
 
 ---
 
