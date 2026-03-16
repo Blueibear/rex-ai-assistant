@@ -733,3 +733,9 @@ Commit: 26393b5
 - `execute_plan()` in runner.py gains `cost_estimator`, `budget_usd`, `on_budget_exceeded` params; returns PlanStatus.CANCELLED if user denies
 - Created `tests/test_autonomy_cost_estimator.py` — 22 tests: CostEstimate model, estimator heuristics, check_budget gating, runner integration (proceed/cancel/callback)
 - All 183 autonomy tests pass; mypy --strict clean
+
+## US-235 — 2026-03-16
+- Created `rex/autonomy/tool_cache.py` with `ToolCache`: key=(tool_name, frozenset(sorted(args.items()))), DEBUG log on hit
+- Integrated into `execute_plan()` in runner.py: new `ToolCache()` per run, cache.get() before retry_step(), cache.set() after success
+- Created `tests/test_autonomy_tool_cache.py` — 17 tests: basic get/set/miss, key ordering, logging, runner integration (same-args dedup, different-args both run, cross-run isolation, status propagation)
+- All 200 autonomy tests pass; mypy --strict clean

@@ -40,6 +40,7 @@ from rex.autonomy.llm_planner import LLMPlanner, ToolDefinition
 from rex.autonomy.models import Plan, PlannerProtocol, PlanStatus, PlanStep, StepStatus
 from rex.autonomy.replanner import Replanner
 from rex.autonomy.retry import retry_step
+from rex.autonomy.tool_cache import ToolCache
 
 logger = logging.getLogger(__name__)
 
@@ -302,6 +303,7 @@ def execute_plan(
     plan.status = PlanStatus.RUNNING
     replan_count = 0
     _start = time.monotonic()
+    _cache = ToolCache()
 
     while True:
         any_failed = False
@@ -329,10 +331,19 @@ def execute_plan(
                 _fn: Callable[..., str] = tool_fn
                 _kw: dict[str, Any] = dict(step.args)
 
+                # Check cache before invoking the tool.
+                cached = _cache.get(step.tool, _kw)
+                if cached is not None:
+                    step.result = cached
+                    step.status = StepStatus.SUCCESS
+                    logger.debug("runner: step %s served from cache", step.id)
+                    continue
+
                 def _call(_f: Callable[..., str] = _fn, _k: dict[str, Any] = _kw) -> str:
                     return _f(**_k)
 
                 step.result = retry_step(_call, step.id)
+                _cache.set(step.tool, _kw, step.result)
                 step.status = StepStatus.SUCCESS
                 logger.debug("runner: step %s succeeded", step.id)
             except Exception as exc:  # noqa: BLE001
@@ -526,4 +537,5 @@ __all__ = [
     "PlannerKey",
     "Replanner",
     "retry_step",
+    "ToolCache",
 ]

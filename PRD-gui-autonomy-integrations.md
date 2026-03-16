@@ -904,12 +904,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need identical tool calls within a single plan run to return cached results so duplicate API calls don't waste money.
 
 **Acceptance Criteria:**
-- [ ] `rex/autonomy/tool_cache.py` implements `ToolCache` (in-memory, scoped to one plan run) with `get(tool, args) -> result | None` and `set(tool, args, result)`.
-- [ ] Cache key: `(tool_name, frozenset(sorted(args.items())))`.
-- [ ] Plan runner passes `ToolCache` instance to each step execution; steps check cache before calling tool.
-- [ ] Cache hit logged at DEBUG: `"Tool cache hit: {tool}({args})"`.
-- [ ] Cache is NOT shared across plan runs (new instance per run).
-- [ ] Unit tests: same call twice → second is a cache hit; different args → both miss. Tests pass.
+- [x] `rex/autonomy/tool_cache.py` implements `ToolCache` (in-memory, scoped to one plan run) with `get(tool, args) -> result | None` and `set(tool, args, result)`.
+- [x] Cache key: `(tool_name, frozenset(sorted(args.items())))`.
+- [x] Plan runner passes `ToolCache` instance to each step execution; steps check cache before calling tool.
+- [x] Cache hit logged at DEBUG: `"Tool cache hit: {tool}({args})"`.
+- [x] Cache is NOT shared across plan runs (new instance per run).
+- [x] Unit tests: same call twice → second is a cache hit; different args → both miss. Tests pass.
 
 ---
 
