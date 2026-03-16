@@ -556,12 +556,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to configure Rex's AI model, temperature, system prompt, and autonomy mode so I can tune its behavior.
 
 **Acceptance Criteria:**
-- [ ] Fields: AI Model (select: gpt-4o, gpt-4-turbo, claude-opus-4, claude-sonnet-4, gemini-1.5-pro), Temperature (slider 0–1.0 with label "Precise ← → Creative"), Max tokens (number input), System prompt override (textarea, placeholder shows current default), Autonomy mode (select: manual, supervised, full-auto).
-- [ ] Warning banner shown when Autonomy mode is `full-auto`: "Rex will act without confirmation. Review task history regularly."
-- [ ] Form loads current values from `window.rex.getSettings('ai')` on mount.
-- [ ] Auto-saves on field change.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] Fields: AI Model (select: gpt-4o, gpt-4-turbo, claude-opus-4, claude-sonnet-4, gemini-1.5-pro), Temperature (slider 0–1.0 with label "Precise ← → Creative"), Max tokens (number input), System prompt override (textarea, placeholder shows current default), Autonomy mode (select: manual, supervised, full-auto).
+- [x] Warning banner shown when Autonomy mode is `full-auto`: "Rex will act without confirmation. Review task history regularly."
+- [x] Form loads current values from `window.rex.getSettings('ai')` on mount.
+- [x] Auto-saves on field change.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

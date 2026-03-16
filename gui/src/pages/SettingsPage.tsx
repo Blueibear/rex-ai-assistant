@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import type { GeneralSettings, VoiceSettings, Settings, VersionInfo } from '../types/ipc'
+import type { GeneralSettings, VoiceSettings, AiSettings, Settings, VersionInfo } from '../types/ipc'
 
 type CategoryId = 'general' | 'voice' | 'ai' | 'integrations' | 'notifications' | 'about'
 
@@ -690,6 +690,216 @@ function VoicePanel(): React.ReactElement {
   )
 }
 
+const AI_MODELS: Array<{ value: AiSettings['model']; label: string }> = [
+  { value: 'gpt-4o', label: 'GPT-4o' },
+  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+  { value: 'claude-opus-4', label: 'Claude Opus 4' },
+  { value: 'claude-sonnet-4', label: 'Claude Sonnet 4' },
+  { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' }
+]
+
+function AiPanel(): React.ReactElement {
+  const [form, setForm] = useState<AiSettings>({
+    model: 'claude-sonnet-4',
+    temperature: 0.7,
+    maxTokens: 2048,
+    systemPrompt: '',
+    autonomyMode: 'manual'
+  })
+  const [loading, setLoading] = useState(true)
+  const [savedField, setSavedField] = useState<keyof AiSettings | null>(null)
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    window.rex
+      .getSettings('ai')
+      .then((settings: Settings) => {
+        setForm({
+          model: (AI_MODELS.some((m) => m.value === settings.model)
+            ? settings.model
+            : 'claude-sonnet-4') as AiSettings['model'],
+          temperature: typeof settings.temperature === 'number' ? settings.temperature : 0.7,
+          maxTokens: typeof settings.maxTokens === 'number' ? settings.maxTokens : 2048,
+          systemPrompt: typeof settings.systemPrompt === 'string' ? settings.systemPrompt : '',
+          autonomyMode:
+            settings.autonomyMode === 'supervised' || settings.autonomyMode === 'full-auto'
+              ? settings.autonomyMode
+              : 'manual'
+        })
+      })
+      .catch(() => {
+        /* use defaults */
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  function showSaved(field: keyof AiSettings): void {
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+    setSavedField(field)
+    savedTimerRef.current = setTimeout(() => setSavedField(null), 2000)
+  }
+
+  function handleFieldChange<K extends keyof AiSettings>(field: K, value: AiSettings[K]): void {
+    const updated = { ...form, [field]: value }
+    setForm(updated)
+    window.rex
+      .setSettings('ai', updated as unknown as Settings)
+      .then(() => showSaved(field))
+      .catch(() => {
+        /* silently fail */
+      })
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-5">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="h-10 rounded-lg bg-surface-raised animate-pulse" />
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6 max-w-lg">
+      <h2 className="text-lg font-semibold text-text-primary mb-6">AI</h2>
+
+      {/* AI Model */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="aiModel" className="text-sm font-medium text-text-primary">
+            AI Model
+          </label>
+          <SavedIndicator visible={savedField === 'model'} />
+        </div>
+        <select
+          id="aiModel"
+          value={form.model}
+          onChange={(e) => handleFieldChange('model', e.target.value as AiSettings['model'])}
+          className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          {AI_MODELS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Temperature */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="temperature" className="text-sm font-medium text-text-primary">
+            Temperature
+            <span className="ml-2 text-xs text-text-secondary font-normal">
+              {form.temperature.toFixed(2)}
+            </span>
+          </label>
+          <SavedIndicator visible={savedField === 'temperature'} />
+        </div>
+        <div className="flex items-center gap-2 text-xs text-text-secondary">
+          <span>Precise</span>
+          <input
+            id="temperature"
+            type="range"
+            min={0}
+            max={1.0}
+            step={0.01}
+            value={form.temperature}
+            onChange={(e) => handleFieldChange('temperature', parseFloat(e.target.value))}
+            className="flex-1 accent-accent"
+          />
+          <span>Creative</span>
+        </div>
+      </div>
+
+      {/* Max tokens */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="maxTokens" className="text-sm font-medium text-text-primary">
+            Max Tokens
+          </label>
+          <SavedIndicator visible={savedField === 'maxTokens'} />
+        </div>
+        <input
+          id="maxTokens"
+          type="number"
+          min={1}
+          max={128000}
+          step={256}
+          value={form.maxTokens}
+          onChange={(e) => {
+            const val = parseInt(e.target.value, 10)
+            if (!isNaN(val) && val > 0) handleFieldChange('maxTokens', val)
+          }}
+          className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+        />
+      </div>
+
+      {/* System prompt override */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="systemPrompt" className="text-sm font-medium text-text-primary">
+            System Prompt Override
+          </label>
+          <SavedIndicator visible={savedField === 'systemPrompt'} />
+        </div>
+        <textarea
+          id="systemPrompt"
+          rows={4}
+          value={form.systemPrompt}
+          placeholder="Leave blank to use the default system prompt"
+          onChange={(e) => setForm((f) => ({ ...f, systemPrompt: e.target.value }))}
+          onBlur={(e) => handleFieldChange('systemPrompt', e.target.value)}
+          className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+        />
+      </div>
+
+      {/* Autonomy mode */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="autonomyMode" className="text-sm font-medium text-text-primary">
+            Autonomy Mode
+          </label>
+          <SavedIndicator visible={savedField === 'autonomyMode'} />
+        </div>
+        <select
+          id="autonomyMode"
+          value={form.autonomyMode}
+          onChange={(e) =>
+            handleFieldChange('autonomyMode', e.target.value as AiSettings['autonomyMode'])
+          }
+          className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          <option value="manual">Manual — confirm every action</option>
+          <option value="supervised">Supervised — confirm risky actions</option>
+          <option value="full-auto">Full Auto — act without confirmation</option>
+        </select>
+      </div>
+
+      {/* Full-auto warning */}
+      {form.autonomyMode === 'full-auto' && (
+        <div className="flex items-start gap-2.5 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="shrink-0 mt-0.5"
+          >
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          Rex will act without confirmation. Review task history regularly.
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PlaceholderPanel({ title }: { title: string }): React.ReactElement {
   return (
     <div className="p-6">
@@ -771,7 +981,7 @@ function renderPanel(categoryId: CategoryId): React.ReactElement {
     case 'voice':
       return <VoicePanel />
     case 'ai':
-      return <PlaceholderPanel title="AI" />
+      return <AiPanel />
     case 'integrations':
       return <PlaceholderPanel title="Integrations" />
     case 'notifications':

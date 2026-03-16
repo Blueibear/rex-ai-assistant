@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { readFileSync } from 'fs'
-import type { Settings, GeneralSettings, VoiceSettings } from '../types/ipc'
+import type { Settings, GeneralSettings, VoiceSettings, AiSettings } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
 import { registerVoiceHandlers } from './handlers/voice'
 import { registerTaskHandlers } from './handlers/tasks'
@@ -27,7 +27,14 @@ const defaultSettingsMap: Record<string, Settings> = {
     ttsVoice: '',
     speechRate: 1.0,
     volume: 1.0
-  } satisfies VoiceSettings
+  } satisfies VoiceSettings,
+  ai: {
+    model: 'claude-sonnet-4',
+    temperature: 0.7,
+    maxTokens: 2048,
+    systemPrompt: '',
+    autonomyMode: 'manual'
+  } satisfies AiSettings
 }
 
 function registerIpcHandlers(): void {

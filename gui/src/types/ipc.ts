@@ -118,6 +118,14 @@ export interface VoiceSettings {
   volume: number
 }
 
+export interface AiSettings {
+  model: 'gpt-4o' | 'gpt-4-turbo' | 'claude-opus-4' | 'claude-sonnet-4' | 'gemini-1.5-pro'
+  temperature: number
+  maxTokens: number
+  systemPrompt: string
+  autonomyMode: 'manual' | 'supervised' | 'full-auto'
+}
+
 export interface VersionInfo {
   rex: string
   electron: string
