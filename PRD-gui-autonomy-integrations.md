@@ -442,12 +442,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want reminder CRUD operations to persist to Rex's backend so my reminders survive app restarts.
 
 **Acceptance Criteria:**
-- [ ] `window.rex.getReminders`, `window.rex.saveReminder`, `window.rex.deleteReminder`, `window.rex.completeReminder` IPC methods fully implemented end-to-end.
-- [ ] RemindersPage refetches after every mutation.
-- [ ] IPC errors surfaced as Toast notifications.
-- [ ] Reminders list refreshes automatically every 60 seconds (to catch changes made by Rex autonomously).
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `window.rex.getReminders`, `window.rex.saveReminder`, `window.rex.deleteReminder`, `window.rex.completeReminder` IPC methods fully implemented end-to-end.
+- [x] RemindersPage refetches after every mutation.
+- [x] IPC errors surfaced as Toast notifications.
+- [x] Reminders list refreshes automatically every 60 seconds (to catch changes made by Rex autonomously).
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

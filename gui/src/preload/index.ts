@@ -142,7 +142,9 @@ const rexAPI = {
   completeReminder: (id: string): Promise<void> =>
     ipcRenderer.invoke('rex:completeReminder', id).then(() => undefined),
   saveReminder: (reminder: ReminderInput): Promise<Reminder> =>
-    ipcRenderer.invoke('rex:saveReminder', reminder)
+    ipcRenderer.invoke('rex:saveReminder', reminder),
+  deleteReminder: (id: string): Promise<void> =>
+    ipcRenderer.invoke('rex:deleteReminder', id).then(() => undefined)
 }
 
 if (process.contextIsolated) {

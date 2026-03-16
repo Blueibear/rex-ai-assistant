@@ -112,4 +112,5 @@ export interface RexAPI {
   getReminders: () => Promise<Reminder[]>
   completeReminder: (id: string) => Promise<void>
   saveReminder: (reminder: ReminderInput) => Promise<Reminder>
+  deleteReminder: (id: string) => Promise<void>
 }

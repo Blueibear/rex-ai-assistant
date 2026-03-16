@@ -4,6 +4,7 @@ import { Spinner } from '../components/ui/Spinner'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Modal } from '../components/ui/Modal'
+import { useToast } from '../components/ui/Toast'
 
 type BadgeVariant = 'default' | 'accent' | 'success' | 'warning' | 'danger'
 
@@ -199,14 +200,17 @@ interface ReminderModalProps {
   editingReminder: Reminder | null
   onClose: () => void
   onSaved: (reminder: Reminder) => void
+  onDeleted: (id: string) => void
+  onError: (msg: string) => void
 }
 
-function ReminderModal({ editingReminder, onClose, onSaved }: ReminderModalProps): React.ReactElement {
+function ReminderModal({ editingReminder, onClose, onSaved, onDeleted, onError }: ReminderModalProps): React.ReactElement {
   const [form, setForm] = useState<FormState>(
     editingReminder ? reminderToForm(editingReminder) : emptyForm()
   )
   const [errors, setErrors] = useState<{ title?: string; dueDate?: string }>({})
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]): void {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -236,10 +240,23 @@ function ReminderModal({ editingReminder, onClose, onSaved }: ReminderModalProps
       }
       const saved = await window.rex.saveReminder(input)
       onSaved(saved)
-    } catch {
-      // keep modal open on error; user can retry
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Failed to save reminder')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleDelete(): Promise<void> {
+    if (!editingReminder) return
+    setDeleting(true)
+    try {
+      await window.rex.deleteReminder(editingReminder.id)
+      onDeleted(editingReminder.id)
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Failed to delete reminder')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -252,23 +269,37 @@ function ReminderModal({ editingReminder, onClose, onSaved }: ReminderModalProps
       title={editingReminder ? 'Edit Reminder' : 'New Reminder'}
       onClose={onClose}
       footer={
-        <>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm rounded-md text-text-secondary hover:text-text-primary transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="reminder-form"
-            disabled={saving}
-            className="px-4 py-2 text-sm rounded-md bg-accent text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
-          >
-            {saving ? 'Saving…' : editingReminder ? 'Save Changes' : 'Create Reminder'}
-          </button>
-        </>
+        <div className="flex items-center justify-between w-full">
+          <div>
+            {editingReminder && (
+              <button
+                type="button"
+                onClick={() => void handleDelete()}
+                disabled={deleting}
+                className="px-4 py-2 text-sm rounded-md text-danger hover:opacity-80 disabled:opacity-50 transition-opacity"
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm rounded-md text-text-secondary hover:text-text-primary transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="reminder-form"
+              disabled={saving}
+              className="px-4 py-2 text-sm rounded-md bg-accent text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+            >
+              {saving ? 'Saving…' : editingReminder ? 'Save Changes' : 'Create Reminder'}
+            </button>
+          </div>
+        </div>
       }
     >
       <form id="reminder-form" onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-4">
@@ -369,11 +400,13 @@ export function RemindersPage(): React.ReactElement {
   const [error, setError] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null)
+  const addToast = useToast()
 
   const fetchReminders = useCallback(async () => {
     try {
       const data = await window.rex.getReminders()
       setReminders(data)
+      setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load reminders')
     } finally {
@@ -385,12 +418,20 @@ export function RemindersPage(): React.ReactElement {
     void fetchReminders()
   }, [fetchReminders])
 
+  // Auto-refresh every 60 seconds to catch changes made by Rex autonomously
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void fetchReminders()
+    }, 60_000)
+    return () => clearInterval(interval)
+  }, [fetchReminders])
+
   async function handleComplete(id: string): Promise<void> {
     try {
       await window.rex.completeReminder(id)
-      setReminders((prev) => prev.filter((r) => r.id !== id))
-    } catch {
-      // silently ignore — card already shows checked state
+      void fetchReminders()
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : 'Failed to complete reminder', 'error')
     }
   }
 
@@ -409,17 +450,18 @@ export function RemindersPage(): React.ReactElement {
     setEditingReminder(null)
   }
 
-  function handleSaved(saved: Reminder): void {
-    setReminders((prev) => {
-      const idx = prev.findIndex((r) => r.id === saved.id)
-      if (idx >= 0) {
-        const next = [...prev]
-        next[idx] = saved
-        return next
-      }
-      return [...prev, saved]
-    })
+  function handleSaved(_saved: Reminder): void {
     handleModalClose()
+    void fetchReminders()
+  }
+
+  function handleDeleted(_id: string): void {
+    handleModalClose()
+    void fetchReminders()
+  }
+
+  function handleModalError(msg: string): void {
+    addToast(msg, 'error')
   }
 
   if (loading) {
@@ -516,6 +558,8 @@ export function RemindersPage(): React.ReactElement {
           editingReminder={editingReminder}
           onClose={handleModalClose}
           onSaved={handleSaved}
+          onDeleted={handleDeleted}
+          onError={handleModalError}
         />
       )}
     </div>
