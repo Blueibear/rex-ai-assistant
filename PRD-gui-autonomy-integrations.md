@@ -983,9 +983,9 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need full, typed data models for email messages and calendar events so all services and the GUI share a consistent structure.
 
 **Acceptance Criteria:**
-- [ ] `rex/integrations/models.py` defines: `EmailMessage(id, thread_id, subject, sender, recipients, body_text, body_html, received_at, labels, is_read, priority: 'low'|'medium'|'high'|'critical')`, `CalendarEvent(id, title, start, end, location, description, attendees, source, is_all_day, recurrence)`.
-- [ ] All fields typed with Pydantic v2. Optional fields marked `Optional`.
-- [ ] `mypy --strict rex/integrations/models.py` passes. Unit test for model instantiation and `.model_dump()` round-trip. Tests pass.
+- [x] `rex/integrations/models.py` defines: `EmailMessage(id, thread_id, subject, sender, recipients, body_text, body_html, received_at, labels, is_read, priority: 'low'|'medium'|'high'|'critical')`, `CalendarEvent(id, title, start, end, location, description, attendees, source, is_all_day, recurrence)`.
+- [x] All fields typed with Pydantic v2. Optional fields marked `Optional`.
+- [x] `mypy --strict rex/integrations/models.py` passes. Unit test for model instantiation and `.model_dump()` round-trip. Tests pass.
 
 ---
 
