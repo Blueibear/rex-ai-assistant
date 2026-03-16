@@ -1130,12 +1130,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to see my SMS threads in the GUI so I can monitor conversations Rex has had on my behalf.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/pages/SMSPage.tsx` renders a list of thread cards: contact name, last message snippet, last message time, unread badge.
-- [ ] Threads sorted by `last_message_at` descending.
-- [ ] Clicking a thread navigates to or opens the thread detail panel.
-- [ ] Thread list fetched from `window.rex.getSMSThreads()` IPC (calls `SMSService.list_threads()`).
-- [ ] BETA banner: "SMS integration — enter Twilio credentials in Settings > Integrations to send real messages."
-- [ ] `npm run typecheck` passes. Verify changes work in app.
+- [x] `gui/src/pages/SMSPage.tsx` renders a list of thread cards: contact name, last message snippet, last message time, unread badge.
+- [x] Threads sorted by `last_message_at` descending.
+- [x] Clicking a thread navigates to or opens the thread detail panel.
+- [x] Thread list fetched from `window.rex.getSMSThreads()` IPC (calls `SMSService.list_threads()`).
+- [x] BETA banner: "SMS integration — enter Twilio credentials in Settings > Integrations to send real messages."
+- [x] `npm run typecheck` passes. Verify changes work in app.
 
 ---
 
@@ -1143,12 +1143,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to read an SMS thread and compose a reply from the GUI so I can manage text conversations through Rex.
 
 **Acceptance Criteria:**
-- [ ] Thread detail panel shows full message list: each message bubble shows body, direction (left=inbound, right=outbound), timestamp.
-- [ ] Compose bar at bottom: recipient (pre-filled from thread), message textarea, Send button.
-- [ ] Send calls `window.rex.sendSMS(to, body)` IPC → `SMSService.send()`.
-- [ ] In stub mode, sent message appears in thread with `status='stub'` and a gray "(stub)" indicator.
-- [ ] Outbound message error shown as inline error below compose bar.
-- [ ] `npm run typecheck` passes. Verify changes work in app.
+- [x] Thread detail panel shows full message list: each message bubble shows body, direction (left=inbound, right=outbound), timestamp.
+- [x] Compose bar at bottom: recipient (pre-filled from thread), message textarea, Send button.
+- [x] Send calls `window.rex.sendSMS(to, body)` IPC → `SMSService.send()`.
+- [x] In stub mode, sent message appears in thread with `status='stub'` and a gray "(stub)" indicator.
+- [x] Outbound message error shown as inline error below compose bar.
+- [x] `npm run typecheck` passes. Verify changes work in app.
 
 ---
 

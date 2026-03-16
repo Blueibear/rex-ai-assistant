@@ -887,3 +887,12 @@ Commit: 26393b5
   - Patching `builtins.__import__` causes infinite recursion; prefer patching the specific method (e.g. `SMSService._twilio_send`) to verify a code path is not taken
   - `mypy --strict tests/test_sms_integration.py` error was from a pytest internal file in the venv (pre-existing issue), not our code — verify with grep for the filename
 ---
+
+## Iteration 21 - US-253 + US-254: Build SMS GUI (thread list + compose + thread detail)
+- What was implemented: Full SMS page at `gui/src/pages/SmsPage.tsx` with ThreadRow (avatar circle, snippet, unread badge), ThreadDetailPanel (message bubbles left=inbound/right=outbound, Enter-to-send compose bar, stub indicator, inline send errors), MessageBubble with timestamps and (stub) label. Preload IPC bindings for `getSMSThreads` and `sendSMS` added to rexAPI object in preload/index.ts.
+- Files changed: gui/src/pages/SmsPage.tsx (rewrite), gui/src/preload/index.ts, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Scroll-to-bottom in chat panels: `useEffect` on messages.length + `scrollIntoView({ behavior: 'smooth' })` with a `ref` on an empty div at end of list
+  - Textarea auto-send on Enter (no shift): catch in `onKeyDown`, `e.preventDefault()`, call send
+  - Panel state reuse pattern: send error and sending state live in parent (SmsPage) and are passed down to panel, so parent can reset them on thread switch
+  - After sending, update both `threads` state and `selected` state together to keep detail panel current without re-fetching

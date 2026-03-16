@@ -181,6 +181,29 @@ export interface EmailMessage {
   priority: EmailPriority
 }
 
+export type SMSDirection = 'inbound' | 'outbound'
+export type SMSStatus = 'sent' | 'delivered' | 'failed' | 'stub'
+
+export interface SMSMessage {
+  id: string
+  thread_id: string
+  direction: SMSDirection
+  body: string
+  from_number: string
+  to_number: string
+  sent_at: string // ISO date string
+  status: SMSStatus
+}
+
+export interface SMSThread {
+  id: string
+  contact_name: string
+  contact_number: string
+  messages: SMSMessage[]
+  last_message_at: string // ISO date string
+  unread_count: number
+}
+
 export interface TimeSlot {
   start: string // ISO date string
   end: string   // ISO date string
@@ -231,4 +254,6 @@ export interface RexAPI {
   getEmailInbox: () => Promise<EmailMessage[]>
   generateEmailReply: (id: string) => Promise<string>
   findMeetingSlots: (params: FindMeetingSlotsParams) => Promise<TimeSlot[]>
+  getSMSThreads: () => Promise<SMSThread[]>
+  sendSMS: (to: string, body: string) => Promise<SMSMessage>
 }

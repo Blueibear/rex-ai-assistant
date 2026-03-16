@@ -18,7 +18,9 @@ import type {
   PreferenceSuggestion,
   EmailMessage,
   FindMeetingSlotsParams,
-  TimeSlot
+  TimeSlot,
+  SMSThread,
+  SMSMessage
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -176,7 +178,10 @@ const rexAPI = {
   generateEmailReply: (id: string): Promise<string> =>
     ipcRenderer.invoke('rex:generateEmailReply', id),
   findMeetingSlots: (params: FindMeetingSlotsParams): Promise<TimeSlot[]> =>
-    ipcRenderer.invoke('rex:findMeetingSlots', params)
+    ipcRenderer.invoke('rex:findMeetingSlots', params),
+  getSMSThreads: (): Promise<SMSThread[]> => ipcRenderer.invoke('rex:getSMSThreads'),
+  sendSMS: (to: string, body: string): Promise<SMSMessage> =>
+    ipcRenderer.invoke('rex:sendSMS', to, body)
 }
 
 if (process.contextIsolated) {
