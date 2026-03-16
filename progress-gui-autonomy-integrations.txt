@@ -969,3 +969,16 @@ Commit: 26393b5
   - Slide-in panels use `translateX(100%)` → `translateX(0)` with pointer-events toggling for smooth open/close without removing from DOM
   - `formatEscalation()` compares future timestamp to Date.now() — positive diff means upcoming, zero/negative means "now"
   - Clicking a card auto-marks it read (calls markNotificationRead immediately on select) so read state is consistent with detail panel "Mark as Read" button
+
+## Iteration 30 - US-265: Wire notification panel to Rex backend and add in-app toast dispatch
+- What was implemented: End-to-end notification push pipeline from main process to renderer.
+  - `notifications.ts` handler: added `pushToRenderer(mainWindow, notification)` helper that calls `webContents.send('rex:newNotification', ...)` for critical/high priority; `registerNotificationHandlers` now accepts `BrowserWindow | null`; added `rex:injectNotification` IPC for test/dev injection; added comment explaining stdout listener pattern for Python subprocess integration.
+  - `main/index.ts`: `registerIpcHandlers(mainWindow)` now accepts BrowserWindow; called after `createWindow()` so window reference is available.
+  - `preload/index.ts`: added `onNewNotification(cb)` binding using `ipcRenderer.on('rex:newNotification', ...)`.
+  - `types/ipc.ts`: added `onNewNotification: (cb: (notification: GuiNotification) => void) => void` to RexAPI.
+  - `renderer/src/App.tsx`: `PRIORITY_TOAST_TYPE` map (critical→error, high→warning, medium/low→info); `useEffect` in AppShell registers `onNewNotification` listener and calls `addToast(title, type)`.
+- Files changed: gui/src/main/handlers/notifications.ts, gui/src/main/index.ts, gui/src/preload/index.ts, gui/src/types/ipc.ts, gui/src/renderer/src/App.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - `registerIpcHandlers()` must run AFTER `createWindow()` when handlers need a window reference — reordering is safe since ipcMain.handle registers globally
+  - Push listener `onNewNotification` uses `ipcRenderer.on` (persistent, not one-shot) — suitable for app lifetime; no cleanup needed since renderer lives for app lifetime
+  - `rex:injectNotification` IPC is useful for testing the toast path without a live Python process

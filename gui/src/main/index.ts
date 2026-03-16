@@ -139,7 +139,7 @@ const defaultSettingsMap: Record<string, Settings> = {
   } satisfies IntegrationsSettings
 }
 
-function registerIpcHandlers(): void {
+function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
   registerChatHandlers()
   registerVoiceHandlers()
   registerTaskHandlers()
@@ -148,7 +148,7 @@ function registerIpcHandlers(): void {
   registerMemoriesHandlers()
   registerEmailHandlers()
   registerSMSHandlers()
-  registerNotificationHandlers()
+  registerNotificationHandlers(mainWindow)
 
   ipcMain.handle('rex:getStatus', () => {
     return { ok: true, status: 'idle' }
@@ -334,8 +334,8 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  registerIpcHandlers()
   const mainWindow = createWindow()
+  registerIpcHandlers(mainWindow)
   createTray(mainWindow)
 
   app.on('activate', function () {

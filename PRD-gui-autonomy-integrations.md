@@ -1281,11 +1281,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need all notification IPC methods fully implemented and in-app toasts shown for new high-priority notifications so users see alerts even while using the GUI.
 
 **Acceptance Criteria:**
-- [ ] `window.rex.getNotifications`, `window.rex.markNotificationRead`, `window.rex.dismissNotification`, `window.rex.getUnreadNotificationCount` IPC methods fully implemented end-to-end.
-- [ ] Main process listens for new notifications emitted by Rex Python backend (via stdout event or IPC push); forwards `critical` and `high` priority ones to renderer via `webContents.send('rex:newNotification', notification)`.
-- [ ] Renderer listens for `rex:newNotification` and triggers a Toast (using `useToast` from US-180) with the notification title and body.
-- [ ] Toast type matches priority: `critical`→error, `high`→warning, `medium`→info.
-- [ ] `npm run typecheck` passes. `mypy --strict` passes on all notification IPC handlers. Verify changes work in app.
+- [x] `window.rex.getNotifications`, `window.rex.markNotificationRead`, `window.rex.dismissNotification`, `window.rex.getUnreadNotificationCount` IPC methods fully implemented end-to-end.
+- [x] Main process listens for new notifications emitted by Rex Python backend (via stdout event or IPC push); forwards `critical` and `high` priority ones to renderer via `webContents.send('rex:newNotification', notification)`.
+- [x] Renderer listens for `rex:newNotification` and triggers a Toast (using `useToast` from US-180) with the notification title and body.
+- [x] Toast type matches priority: `critical`→error, `high`→warning, `medium`→info.
+- [x] `npm run typecheck` passes. `mypy --strict` passes on all notification IPC handlers. Verify changes work in app.
 
 ---
 

@@ -4,6 +4,8 @@ import { Spinner } from '../../components/ui/Spinner'
 import { SkeletonLine } from '../../components/ui/SkeletonLine'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { useToast } from '../../components/ui/Toast'
+import type { ToastType } from '../../components/ui/Toast'
+import type { NotificationPriority } from '../../types/ipc'
 import { AppLayout } from '../../layouts/AppLayout'
 import { PageTransition } from '../../components/ui/PageTransition'
 import { ChatPage } from '../../pages/ChatPage'
@@ -17,6 +19,13 @@ import { SmsPage } from '../../pages/SmsPage'
 import { NotificationsPage } from '../../pages/NotificationsPage'
 import { SettingsPage } from '../../pages/SettingsPage'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
+
+const PRIORITY_TOAST_TYPE: Record<NotificationPriority, ToastType> = {
+  critical: 'error',
+  high: 'warning',
+  medium: 'info',
+  low: 'info'
+}
 
 function AppShell(): React.ReactElement {
   const [status, setStatus] = useState<string>('loading…')
@@ -34,6 +43,15 @@ function AppShell(): React.ReactElement {
         setStatus('error')
         addToast('Could not reach Rex backend', 'error')
       })
+  }, [addToast])
+
+  // Listen for push notifications forwarded by the main process (e.g. from the
+  // Rex Python backend). Only critical and high are forwarded (see notifications.ts).
+  useEffect(() => {
+    window.rex.onNewNotification((notification) => {
+      const toastType = PRIORITY_TOAST_TYPE[notification.priority]
+      addToast(notification.title, toastType)
+    })
   }, [addToast])
 
   if (status === 'loading…') {

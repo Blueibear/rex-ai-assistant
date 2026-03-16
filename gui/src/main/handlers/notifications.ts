@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import type { BrowserWindow } from 'electron'
 import type { GuiNotification } from '../../types/ipc'
 
 function makeStubNotifications(): GuiNotification[] {
@@ -86,7 +87,21 @@ function makeStubNotifications(): GuiNotification[] {
 // In-memory store (resets on restart).
 let notifications: GuiNotification[] = makeStubNotifications()
 
-export function registerNotificationHandlers(): void {
+/**
+ * Push a notification to the renderer process if it warrants an in-app alert.
+ * Called when Rex Python backend emits a new notification (via stdout JSON line
+ * or internal IPC) and when stub notifications are injected for testing.
+ *
+ * Only critical and high priority notifications are forwarded; lower priorities
+ * go into the notification center without interrupting the user.
+ */
+function pushToRenderer(mainWindow: BrowserWindow, notification: GuiNotification): void {
+  if (notification.priority === 'critical' || notification.priority === 'high') {
+    mainWindow.webContents.send('rex:newNotification', notification)
+  }
+}
+
+export function registerNotificationHandlers(mainWindow: BrowserWindow | null): void {
   ipcMain.handle('rex:getNotifications', (): GuiNotification[] => {
     return [...notifications].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -111,5 +126,15 @@ export function registerNotificationHandlers(): void {
 
   ipcMain.handle('rex:getUnreadNotificationCount', (): number => {
     return notifications.filter((n) => !n.read_at).length
+  })
+
+  // Test/dev handler: inject a notification as if it came from the Rex Python
+  // backend. In production this path is triggered by parsing stdout JSON lines
+  // from the Python subprocess.
+  ipcMain.handle('rex:injectNotification', (_event, notification: GuiNotification): void => {
+    notifications = [notification, ...notifications]
+    if (mainWindow) {
+      pushToRenderer(mainWindow, notification)
+    }
   })
 }

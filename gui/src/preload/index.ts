@@ -192,7 +192,12 @@ const rexAPI = {
   dismissNotification: (id: string): Promise<void> =>
     ipcRenderer.invoke('rex:dismissNotification', id).then(() => undefined),
   getUnreadNotificationCount: (): Promise<number> =>
-    ipcRenderer.invoke('rex:getUnreadNotificationCount')
+    ipcRenderer.invoke('rex:getUnreadNotificationCount'),
+  onNewNotification: (cb: (notification: GuiNotification) => void): void => {
+    ipcRenderer.on('rex:newNotification', (_event, notification: GuiNotification) =>
+      cb(notification)
+    )
+  }
 }
 
 if (process.contextIsolated) {

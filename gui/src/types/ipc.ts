@@ -283,4 +283,5 @@ export interface RexAPI {
   markNotificationRead: (id: string) => Promise<void>
   dismissNotification: (id: string) => Promise<void>
   getUnreadNotificationCount: () => Promise<number>
+  onNewNotification: (cb: (notification: GuiNotification) => void) => void
 }
