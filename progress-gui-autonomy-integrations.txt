@@ -510,3 +510,22 @@
   - caplog.at_level needs the logger name ("rex.autonomy.llm_planner") to capture module-specific warnings
   - No-tools-registered edge case: when tools=[] the unknown tool warning is skipped (check `if tool_names and tool_name not in tool_names`)
 ---
+
+## Iteration N - US-220: Integrate LLMPlanner into autonomy dispatch flow
+- What was implemented: rex/autonomy/runner.py dispatch entry point (create_planner, run); rex/autonomy/rule_planner.py deprecated stub; config/autonomy.json updated with "planner": "llm"; tests/test_autonomy_runner.py with 12 smoke tests
+- Files changed: rex/autonomy/runner.py (new), rex/autonomy/rule_planner.py (new), config/autonomy.json, tests/test_autonomy_runner.py (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - config/ directory is in .gitignore but config/autonomy.json is already tracked — git still stages modifications to it, git add of the dir itself raises "ignored" warning
+  - RulePlanner must emit DeprecationWarning in __init__ (not plan()) to satisfy pytest.warns() in tests
+  - _get_backend() is an instance method — patch target is 'rex.autonomy.llm_planner.LLMPlanner._get_backend' with return_value (not side_effect) to inject mock backend
+  - mypy --strict on runner.py: json.load returns Any, so data.get() is fine; Literal type alias for PlannerKey works cleanly; type: ignore[return-value] on narrowed string needed at return site
+---
+
+## Iteration 49 - US-221: Add step execution result tracking to plan runner
+- What was implemented: execute_plan() and the PlanStep/Plan models already had all required fields and logic from previous iterations (US-220). Added TestExecutePlan class to tests/test_autonomy_runner.py with 12 tests covering all AC: step status transitions, result/error field population, plan-level completed/failed status, skipped step preservation, unknown tool handling, no short-circuit on failure.
+- Files changed: tests/test_autonomy_runner.py, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - US-221 implementation was already complete in models.py and runner.py (execute_plan) — only tests were missing
+  - When writing failing tool lambdas in tests, define named functions rather than using generator throw tricks — cleaner and mypy-friendly
+  - 24 tests pass, mypy --strict passes on runner.py and models.py
+---
