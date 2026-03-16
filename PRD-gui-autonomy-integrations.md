@@ -724,12 +724,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need the plan runner to record success/failure for each step so replanning has the context it needs.
 
 **Acceptance Criteria:**
-- [ ] `PlanStep.status` updated to: `pending | running | success | failed | skipped`.
-- [ ] `PlanStep.result` (optional string) populated with tool output on success.
-- [ ] `PlanStep.error` (optional string) populated with error message on failure.
-- [ ] Plan runner updates step status in real time as each step executes.
-- [ ] `Plan.status` updated to `completed` when all steps succeed, `failed` when a step fails and no replanning occurs.
-- [ ] `mypy --strict` passes on changed files. Tests pass.
+- [x] `PlanStep.status` updated to: `pending | running | success | failed | skipped`.
+- [x] `PlanStep.result` (optional string) populated with tool output on success.
+- [x] `PlanStep.error` (optional string) populated with error message on failure.
+- [x] Plan runner updates step status in real time as each step executes.
+- [x] `Plan.status` updated to `completed` when all steps succeed, `failed` when a step fails and no replanning occurs.
+- [x] `mypy --strict` passes on changed files. Tests pass.
 
 ---
 
