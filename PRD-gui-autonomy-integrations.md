@@ -863,11 +863,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want Rex to ask me a clarifying question when my request is ambiguous so it doesn't guess wrong and waste time.
 
 **Acceptance Criteria:**
-- [ ] `rex/autonomy/clarifier.py` implements `Clarifier` with `needs_clarification(goal: Goal) -> bool` and `generate_question(goal: Goal) -> str`.
-- [ ] `needs_clarification` returns True when the goal was flagged ambiguous by `GoalParser`.
-- [ ] `generate_question` prompts the LLM to produce a single, specific yes/no or multiple-choice question that resolves the ambiguity.
-- [ ] Autonomy runner calls clarifier before planning an ambiguous goal: emits the question to the user via the configured output channel and pauses that goal until answer received.
-- [ ] `mypy --strict rex/autonomy/clarifier.py` passes. Unit test with mocked LLM. Test passes.
+- [x] `rex/autonomy/clarifier.py` implements `Clarifier` with `needs_clarification(goal: Goal) -> bool` and `generate_question(goal: Goal) -> str`.
+- [x] `needs_clarification` returns True when the goal was flagged ambiguous by `GoalParser`.
+- [x] `generate_question` prompts the LLM to produce a single, specific yes/no or multiple-choice question that resolves the ambiguity.
+- [x] Autonomy runner calls clarifier before planning an ambiguous goal: emits the question to the user via the configured output channel and pauses that goal until answer received.
+- [x] `mypy --strict rex/autonomy/clarifier.py` passes. Unit test with mocked LLM. Test passes.
 
 ---
 

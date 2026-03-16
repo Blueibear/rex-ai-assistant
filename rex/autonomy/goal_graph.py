@@ -46,12 +46,16 @@ class Goal(BaseModel):
         depends_on: IDs of goals that must be completed before this goal
             can run.  Defaults to an empty list (no dependencies).
         status: Current lifecycle status.  Defaults to ``PENDING``.
+        ambiguous: Whether the goal was flagged as ambiguous by the parser.
+            When ``True`` the runner should seek clarification before planning.
+            Defaults to ``False``.
     """
 
     id: str
     description: str
     depends_on: list[str] = Field(default_factory=list)
     status: GoalStatus = GoalStatus.PENDING
+    ambiguous: bool = False
 
 
 # ---------------------------------------------------------------------------

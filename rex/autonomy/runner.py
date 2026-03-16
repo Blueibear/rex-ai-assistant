@@ -30,6 +30,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Literal, cast
 
+from rex.autonomy.clarifier import Clarifier
 from rex.autonomy.feedback import FeedbackAnalyzer
 from rex.autonomy.goal_graph import GoalGraph, GoalStatus
 from rex.autonomy.goal_parser import GoalParser
@@ -366,6 +367,8 @@ def execute_goal_graph(
     tools: dict[str, Callable[..., str]],
     *,
     planner: PlannerProtocol,
+    clarifier: Clarifier | None = None,
+    on_question: Callable[[str, str], None] | None = None,
 ) -> GoalGraph:
     """Execute a :class:`~rex.autonomy.goal_graph.GoalGraph` goal by goal.
 
@@ -373,15 +376,22 @@ def execute_goal_graph(
 
     1. If any direct dependency has status ``FAILED`` or ``SKIPPED``, the goal
        is marked ``SKIPPED`` and skipped.
-    2. Otherwise the goal is planned via *planner* and executed by
-       :func:`execute_plan`.
-    3. On completion the goal is marked ``COMPLETED`` or ``FAILED``.
+    2. If *clarifier* is provided and the goal is ambiguous,
+       :meth:`~rex.autonomy.clarifier.Clarifier.generate_question` is called
+       and the resulting question is passed to *on_question* (if supplied).
+    3. The goal is planned via *planner* and executed by :func:`execute_plan`.
+    4. On completion the goal is marked ``COMPLETED`` or ``FAILED``.
 
     Args:
         graph: The :class:`~rex.autonomy.goal_graph.GoalGraph` to execute.
         tools: Tool callables forwarded to :func:`execute_plan`.
         planner: Planner used to create a :class:`~rex.autonomy.models.Plan`
             for each goal.
+        clarifier: Optional :class:`~rex.autonomy.clarifier.Clarifier` used
+            to detect and generate questions for ambiguous goals.
+        on_question: Optional callback ``(goal_id, question) -> None`` called
+            when a clarifying question is generated.  Defaults to logging the
+            question at ``INFO`` level.
 
     Returns:
         The same *graph* object with updated goal statuses.
@@ -414,6 +424,22 @@ def execute_goal_graph(
             n,
             total,
         )
+
+        # Clarification check — emit question before planning.
+        if clarifier is not None and clarifier.needs_clarification(goal):
+            try:
+                question = clarifier.generate_question(goal)
+                if on_question is not None:
+                    on_question(goal.id, question)
+                else:
+                    logger.info(
+                        "runner: clarification needed for goal %s — %s", goal.id, question
+                    )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "runner: clarifier failed for goal %s — %s", goal.id, exc
+                )
+
         goal.status = GoalStatus.RUNNING
 
         try:

@@ -87,10 +87,12 @@ class GoalParser:
             "  - id          (string) — short unique slug, e.g. 'book_flight'\n"
             "  - description (string) — one sentence describing this specific goal\n"
             "  - depends_on  (array of strings) — IDs of goals that must finish first "
-            "(empty array if none)\n\n"
+            "(empty array if none)\n"
+            "  - ambiguous   (boolean) — true if the goal is unclear or could be "
+            "interpreted multiple ways, false otherwise\n\n"
             "Rules:\n"
             "  - If the message contains only one goal, return a single-element array.\n"
-            "  - If a goal is ambiguous, include it with the best interpretation.\n"
+            "  - If a goal is ambiguous, set ambiguous to true.\n"
             "  - Do not include any text outside the JSON array.\n"
             "  - Respond with valid JSON only."
         )
@@ -168,7 +170,16 @@ class GoalParser:
                 )
                 depends_on = []
 
-            goals.append(Goal(id=goal_id, description=description, depends_on=depends_on))
+            ambiguous = bool(item.get("ambiguous", False))
+
+            goals.append(
+                Goal(
+                    id=goal_id,
+                    description=description,
+                    depends_on=depends_on,
+                    ambiguous=ambiguous,
+                )
+            )
 
         return GoalGraph(goals)
 
