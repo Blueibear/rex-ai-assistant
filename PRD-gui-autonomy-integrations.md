@@ -953,12 +953,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want Rex to suggest settings adjustments based on my usage patterns so I can accept optimizations with one click.
 
 **Acceptance Criteria:**
-- [ ] AI settings form (US-209) calls `window.rex.getPreferenceSuggestions(): Promise<PreferenceSuggestion[]>` IPC method on mount.
-- [ ] `PreferenceSuggestion` has `field`, `current_value`, `suggested_value`, `reason`.
-- [ ] If suggestions exist, an info banner appears below the form: "Based on your usage: [suggestion reason]. [Apply] [Dismiss]".
-- [ ] "Apply" calls `window.rex.applyPreferenceSuggestion(field, value)` IPC and refreshes the form.
-- [ ] Maximum one suggestion shown at a time (most impactful first).
-- [ ] `npm run typecheck` passes. `mypy --strict` passes on IPC handler. Verify changes work in app.
+- [x] AI settings form (US-209) calls `window.rex.getPreferenceSuggestions(): Promise<PreferenceSuggestion[]>` IPC method on mount.
+- [x] `PreferenceSuggestion` has `field`, `current_value`, `suggested_value`, `reason`.
+- [x] If suggestions exist, an info banner appears below the form: "Based on your usage: [suggestion reason]. [Apply] [Dismiss]".
+- [x] "Apply" calls `window.rex.applyPreferenceSuggestion(field, value)` IPC and refreshes the form.
+- [x] Maximum one suggestion shown at a time (most impactful first).
+- [x] `npm run typecheck` passes. `mypy --strict` passes on IPC handler. Verify changes work in app.
 
 ---
 

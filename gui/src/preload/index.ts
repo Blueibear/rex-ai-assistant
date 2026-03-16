@@ -14,7 +14,8 @@ import type {
   Memory,
   MemoryUpdateInput,
   VersionInfo,
-  VoiceSettings
+  VoiceSettings,
+  PreferenceSuggestion
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -163,7 +164,11 @@ const rexAPI = {
   testVoice: (settings: VoiceSettings): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:testVoice', settings),
   testIntegration: (type: 'email' | 'calendar' | 'sms'): Promise<{ ok: boolean; error?: string }> =>
-    ipcRenderer.invoke('rex:testIntegration', type)
+    ipcRenderer.invoke('rex:testIntegration', type),
+  getPreferenceSuggestions: (): Promise<PreferenceSuggestion[]> =>
+    ipcRenderer.invoke('rex:getPreferenceSuggestions'),
+  applyPreferenceSuggestion: (field: string, value: string | number): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('rex:applyPreferenceSuggestion', field, value)
 }
 
 if (process.contextIsolated) {

@@ -1,9 +1,10 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
+import { homedir } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { createTray, destroyTray } from './tray'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
-import type { Settings, GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings } from '../types/ipc'
+import type { Settings, GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, PreferenceSuggestion } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
 import { registerVoiceHandlers } from './handlers/voice'
 import { registerTaskHandlers } from './handlers/tasks'
@@ -198,6 +199,80 @@ function registerIpcHandlers(): void {
 
     return { ok: false, error: 'Unknown integration type' }
   })
+
+  ipcMain.handle('rex:getPreferenceSuggestions', (): PreferenceSuggestion[] => {
+    const prefsPath = join(homedir(), '.rex', 'preferences.json')
+    let profile: Record<string, unknown> = {}
+    try {
+      if (existsSync(prefsPath)) {
+        profile = JSON.parse(readFileSync(prefsPath, 'utf8')) as Record<string, unknown>
+      }
+    } catch {
+      return []
+    }
+
+    const stored = readGuiSettings()
+    const aiSettings = (stored['ai'] ?? defaultSettingsMap['ai'] ?? {}) as unknown as AiSettings
+
+    const suggestions: PreferenceSuggestion[] = []
+
+    // Autonomy mode — highest impact
+    const preferredMode =
+      typeof profile.preferred_autonomy_mode === 'string' ? profile.preferred_autonomy_mode : null
+    if (preferredMode && preferredMode !== aiSettings.autonomyMode) {
+      suggestions.push({
+        field: 'autonomyMode',
+        current_value: aiSettings.autonomyMode,
+        suggested_value: preferredMode,
+        reason: `You typically run Rex in "${preferredMode}" mode`
+      })
+    }
+
+    // Model
+    const preferredModel =
+      typeof profile.preferred_model === 'string' && profile.preferred_model
+        ? profile.preferred_model
+        : null
+    if (preferredModel && preferredModel !== aiSettings.model) {
+      suggestions.push({
+        field: 'model',
+        current_value: aiSettings.model,
+        suggested_value: preferredModel,
+        reason: `You most frequently use ${preferredModel}`
+      })
+    }
+
+    // Budget — suggest 2× avg if no budget is set
+    const avgBudget =
+      typeof profile.avg_budget_usd === 'number' ? profile.avg_budget_usd : 0
+    if (avgBudget > 0 && aiSettings.budgetPerPlan === 0) {
+      const suggested = Math.round(avgBudget * 2 * 100) / 100
+      suggestions.push({
+        field: 'budgetPerPlan',
+        current_value: aiSettings.budgetPerPlan,
+        suggested_value: suggested,
+        reason: `Your average plan cost is $${avgBudget.toFixed(2)} — a $${suggested.toFixed(2)} budget would prevent overruns`
+      })
+    }
+
+    return suggestions
+  })
+
+  ipcMain.handle(
+    'rex:applyPreferenceSuggestion',
+    (_event, field: string, value: string | number) => {
+      const stored = readGuiSettings()
+      const aiSection = ({ ...(stored['ai'] ?? defaultSettingsMap['ai'] ?? {}) }) as Record<
+        string,
+        unknown
+      >
+      aiSection[field] = value
+      stored['ai'] = aiSection as Settings
+      writeGuiSettings(stored)
+      mirrorToRexConfig('ai', aiSection as Settings)
+      return { ok: true }
+    }
+  )
 
   ipcMain.handle('rex:getVersionInfo', () => {
     let rexVersion = '1.0.0'

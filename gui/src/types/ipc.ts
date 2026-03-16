@@ -158,6 +158,13 @@ export interface VersionInfo {
   node: string
 }
 
+export interface PreferenceSuggestion {
+  field: string
+  current_value: string | number
+  suggested_value: string | number
+  reason: string
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
@@ -190,4 +197,6 @@ export interface RexAPI {
   getVersionInfo: () => Promise<VersionInfo>
   testVoice: (settings: VoiceSettings) => Promise<{ ok: boolean; error?: string }>
   testIntegration: (type: 'email' | 'calendar' | 'sms') => Promise<{ ok: boolean; error?: string }>
+  getPreferenceSuggestions: () => Promise<PreferenceSuggestion[]>
+  applyPreferenceSuggestion: (field: string, value: string | number) => Promise<{ ok: boolean }>
 }

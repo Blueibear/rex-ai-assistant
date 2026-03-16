@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, NotificationsSettings, Settings, VersionInfo } from '../types/ipc'
+import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, NotificationsSettings, Settings, VersionInfo, PreferenceSuggestion } from '../types/ipc'
 import { useToast } from '../components/ui/Toast'
 import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
 import { SkeletonLine } from '../components/ui/SkeletonLine'
@@ -705,6 +705,17 @@ function AiPanel(): React.ReactElement {
   const [loading, setLoading] = useState(true)
   const [savedField, setSavedField] = useState<keyof AiSettings | null>(null)
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [suggestions, setSuggestions] = useState<PreferenceSuggestion[]>([])
+  const [dismissedFields, setDismissedFields] = useState<Set<string>>(new Set())
+
+  function loadSuggestions(): void {
+    window.rex
+      .getPreferenceSuggestions()
+      .then((s) => setSuggestions(s))
+      .catch(() => {
+        // Non-fatal — suggestions are best-effort
+      })
+  }
 
   useEffect(() => {
     window.rex
@@ -729,6 +740,8 @@ function AiPanel(): React.ReactElement {
         addToast('Failed to load AI settings', 'error')
       })
       .finally(() => setLoading(false))
+
+    loadSuggestions()
   }, [addToast])
 
   function showSaved(field: keyof AiSettings): void {
@@ -747,6 +760,25 @@ function AiPanel(): React.ReactElement {
         addToast('Failed to save AI settings', 'error')
       })
   }
+
+  function handleApplySuggestion(suggestion: PreferenceSuggestion): void {
+    window.rex
+      .applyPreferenceSuggestion(suggestion.field, suggestion.suggested_value)
+      .then(() => {
+        setForm((f) => ({ ...f, [suggestion.field]: suggestion.suggested_value }))
+        setDismissedFields((prev) => new Set(prev).add(suggestion.field))
+        loadSuggestions()
+      })
+      .catch(() => {
+        addToast('Failed to apply suggestion', 'error')
+      })
+  }
+
+  function handleDismissSuggestion(field: string): void {
+    setDismissedFields((prev) => new Set(prev).add(field))
+  }
+
+  const activeSuggestion = suggestions.find((s) => !dismissedFields.has(s.field)) ?? null
 
   if (loading) {
     return <PageLoadingFallback lines={5} />
@@ -928,6 +960,42 @@ function AiPanel(): React.ReactElement {
         />
         <p className="mt-1 text-xs text-text-secondary">Maximum estimated cost per individual step in USD. Steps over this limit are skipped. Set to 0 for unlimited.</p>
       </div>
+
+      {/* Preference suggestion banner */}
+      {activeSuggestion !== null && (
+        <div className="flex items-start gap-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-accent">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="shrink-0 mt-0.5"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <div className="flex-1">
+            <p>Based on your usage: {activeSuggestion.reason}.</p>
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                onClick={() => handleApplySuggestion(activeSuggestion)}
+                className="text-xs font-medium bg-accent text-white px-3 py-1 rounded-md hover:bg-accent/90 transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg"
+              >
+                Apply
+              </button>
+              <button
+                onClick={() => handleDismissSuggestion(activeSuggestion.field)}
+                className="text-xs font-medium text-accent hover:text-accent/80 transition-colors focus:outline-none"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
