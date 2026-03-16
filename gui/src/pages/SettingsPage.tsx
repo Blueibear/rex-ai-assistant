@@ -698,7 +698,9 @@ function AiPanel(): React.ReactElement {
     temperature: 0.7,
     maxTokens: 2048,
     systemPrompt: '',
-    autonomyMode: 'manual'
+    autonomyMode: 'manual',
+    budgetPerPlan: 0,
+    budgetPerStep: 0
   })
   const [loading, setLoading] = useState(true)
   const [savedField, setSavedField] = useState<keyof AiSettings | null>(null)
@@ -718,7 +720,9 @@ function AiPanel(): React.ReactElement {
           autonomyMode:
             settings.autonomyMode === 'supervised' || settings.autonomyMode === 'full-auto'
               ? settings.autonomyMode
-              : 'manual'
+              : 'manual',
+          budgetPerPlan: typeof settings.budgetPerPlan === 'number' ? settings.budgetPerPlan : 0,
+          budgetPerStep: typeof settings.budgetPerStep === 'number' ? settings.budgetPerStep : 0
         })
       })
       .catch(() => {
@@ -884,6 +888,46 @@ function AiPanel(): React.ReactElement {
           Rex will act without confirmation. Review task history regularly.
         </div>
       )}
+
+      {/* Budget per plan */}
+      <div className="mb-5 mt-5">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="budgetPerPlan" className="text-sm font-medium text-text-primary">
+            Budget per Plan (USD)
+          </label>
+          <SavedIndicator visible={savedField === 'budgetPerPlan'} />
+        </div>
+        <input
+          id="budgetPerPlan"
+          type="number"
+          min="0"
+          step="0.01"
+          value={form.budgetPerPlan}
+          onChange={(e) => handleFieldChange('budgetPerPlan', parseFloat(e.target.value) || 0)}
+          className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+        />
+        <p className="mt-1 text-xs text-text-secondary">Maximum estimated cost per plan run in USD. Set to 0 for unlimited.</p>
+      </div>
+
+      {/* Budget per step */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="budgetPerStep" className="text-sm font-medium text-text-primary">
+            Budget per Step (USD)
+          </label>
+          <SavedIndicator visible={savedField === 'budgetPerStep'} />
+        </div>
+        <input
+          id="budgetPerStep"
+          type="number"
+          min="0"
+          step="0.001"
+          value={form.budgetPerStep}
+          onChange={(e) => handleFieldChange('budgetPerStep', parseFloat(e.target.value) || 0)}
+          className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+        />
+        <p className="mt-1 text-xs text-text-secondary">Maximum estimated cost per individual step in USD. Steps over this limit are skipped. Set to 0 for unlimited.</p>
+      </div>
     </div>
   )
 }

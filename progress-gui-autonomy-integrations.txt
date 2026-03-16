@@ -739,3 +739,12 @@ Commit: 26393b5
 - Integrated into `execute_plan()` in runner.py: new `ToolCache()` per run, cache.get() before retry_step(), cache.set() after success
 - Created `tests/test_autonomy_tool_cache.py` — 17 tests: basic get/set/miss, key ordering, logging, runner integration (same-args dedup, different-args both run, cross-run isolation, status propagation)
 - All 200 autonomy tests pass; mypy --strict clean
+
+## US-236 — 2026-03-16
+- Added `autonomy_budget_per_plan_usd: float = 0.0` and `autonomy_budget_per_step_usd: float = 0.0` to `AppConfig` in `rex/config.py`
+- `execute_plan()` gains `per_step_budget_usd: float = 0.0` param; steps whose high estimate exceeds the limit are skipped (StepStatus.SKIPPED) with a WARNING log
+- Added `budgetPerPlan: number` and `budgetPerStep: number` to `AiSettings` interface in `gui/src/types/ipc.ts`
+- Updated default settings map in `gui/src/main/index.ts` to include the new fields (both default to 0)
+- Added Budget per Plan and Budget per Step number inputs to AI settings section of `SettingsPage.tsx` with helper text
+- Created `tests/test_autonomy_budget_config.py` — 12 tests: AppConfig field defaults/setters, per-step budget enforcement (skip/run/no-estimator/warning content)
+- All 212 autonomy tests pass; mypy --strict clean

@@ -118,7 +118,9 @@ const defaultSettingsMap: Record<string, Settings> = {
     temperature: 0.7,
     maxTokens: 2048,
     systemPrompt: '',
-    autonomyMode: 'manual'
+    autonomyMode: 'manual',
+    budgetPerPlan: 0,
+    budgetPerStep: 0
   } satisfies AiSettings,
   integrations: {
     emailProvider: 'gmail',

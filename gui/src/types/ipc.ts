@@ -124,6 +124,8 @@ export interface AiSettings {
   maxTokens: number
   systemPrompt: string
   autonomyMode: 'manual' | 'supervised' | 'full-auto'
+  budgetPerPlan: number
+  budgetPerStep: number
 }
 
 export interface IntegrationsSettings {

@@ -251,6 +251,7 @@ def execute_plan(
     cost_estimator: CostEstimator | None = None,
     budget_usd: float = 0.0,
     on_budget_exceeded: Callable[[CostEstimate], bool] | None = None,
+    per_step_budget_usd: float = 0.0,
 ) -> Plan:
     """Execute a :class:`~rex.autonomy.models.Plan` step by step.
 
@@ -287,6 +288,9 @@ def execute_plan(
         on_budget_exceeded: Callback ``(estimate) -> bool`` called when the
             high-end estimate exceeds *budget_usd*.  Return ``True`` to
             proceed, ``False`` to abort.  Defaults to a stdin prompt.
+        per_step_budget_usd: Maximum estimated cost per individual step in USD.
+            Steps whose high-end estimate exceeds this value are skipped with a
+            warning.  Pass ``0`` (default) to disable per-step checking.
 
     Returns:
         The same *plan* object with updated statuses.
@@ -313,6 +317,24 @@ def execute_plan(
             if step.status in (StepStatus.SKIPPED, StepStatus.SUCCESS):
                 logger.debug("runner: step %s skipped or already succeeded", step.id)
                 continue
+
+            # Per-step budget check — skip expensive steps before running them.
+            if cost_estimator is not None and per_step_budget_usd > 0:
+                step_plan = plan.model_copy(update={"steps": [step]})
+                step_estimate = cost_estimator.estimate(step_plan)
+                if step_estimate.high_usd > per_step_budget_usd:
+                    step.status = StepStatus.SKIPPED
+                    logger.warning(
+                        "runner: step %s skipped — estimated cost $%.6f exceeds "
+                        "per-step budget $%.6f",
+                        step.id,
+                        step_estimate.high_usd,
+                        per_step_budget_usd,
+                    )
+                    any_failed = True
+                    if first_failed_step is None:
+                        first_failed_step = step
+                    continue
 
             step.status = StepStatus.RUNNING
             logger.debug("runner: executing step %s (tool=%s)", step.id, step.tool)

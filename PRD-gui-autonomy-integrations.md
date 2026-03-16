@@ -917,10 +917,10 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to set a maximum cost per step and per plan so Rex doesn't run up large bills autonomously.
 
 **Acceptance Criteria:**
-- [ ] `rex/config.py` (or equivalent) adds: `autonomy_budget_per_plan_usd: float = 0.0` (0 = unlimited) and `autonomy_budget_per_step_usd: float = 0.0`.
-- [ ] Plan runner enforces per-step budget: if a step's estimated cost exceeds `autonomy_budget_per_step_usd`, skip it and log a warning.
-- [ ] AI settings form in GUI (US-209) updated to include these two budget fields (number inputs, labeled in USD).
-- [ ] `mypy --strict` passes on changed files. Tests pass.
+- [x] `rex/config.py` (or equivalent) adds: `autonomy_budget_per_plan_usd: float = 0.0` (0 = unlimited) and `autonomy_budget_per_step_usd: float = 0.0`.
+- [x] Plan runner enforces per-step budget: if a step's estimated cost exceeds `autonomy_budget_per_step_usd`, skip it and log a warning.
+- [x] AI settings form in GUI (US-209) updated to include these two budget fields (number inputs, labeled in USD).
+- [x] `mypy --strict` passes on changed files. Tests pass.
 
 ---
 

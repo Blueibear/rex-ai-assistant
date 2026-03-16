@@ -165,6 +165,10 @@ class AppConfig:
     ha_timeout: float = 10.0
     ha_entity_map: Optional[Dict[str, str]] = None
 
+    # Autonomy budget limits (0 = unlimited)
+    autonomy_budget_per_plan_usd: float = 0.0
+    autonomy_budget_per_step_usd: float = 0.0
+
     # Aliases
     llm_backend: Optional[str] = None
     temperature: Optional[float] = None
