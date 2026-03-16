@@ -255,5 +255,6 @@ export interface RexAPI {
   generateEmailReply: (id: string) => Promise<string>
   findMeetingSlots: (params: FindMeetingSlotsParams) => Promise<TimeSlot[]>
   getSMSThreads: () => Promise<SMSThread[]>
+  getSMSThread: (threadId: string) => Promise<SMSThread>
   sendSMS: (to: string, body: string) => Promise<SMSMessage>
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import type { SMSThread, SMSMessage } from '../types/ipc'
 import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
+import { Modal } from '../components/ui/Modal'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -308,6 +309,13 @@ export function SmsPage(): React.ReactElement {
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
 
+  // New Message modal state
+  const [showNewMessage, setShowNewMessage] = useState(false)
+  const [newTo, setNewTo] = useState('')
+  const [newBody, setNewBody] = useState('')
+  const [newSending, setNewSending] = useState(false)
+  const [newSendError, setNewSendError] = useState<string | null>(null)
+
   const loadThreads = useCallback(async (isRefresh = false): Promise<void> => {
     if (isRefresh) setRefreshing(true)
     else setLoading(true)
@@ -371,6 +379,34 @@ export function SmsPage(): React.ReactElement {
     )
   }
 
+  async function handleNewMessageSend(): Promise<void> {
+    if (!newTo.trim() || !newBody.trim()) return
+    setNewSending(true)
+    setNewSendError(null)
+    try {
+      const msg = await window.rex.sendSMS(newTo.trim(), newBody.trim())
+      // Re-fetch thread list so new thread appears at top
+      const updated = await window.rex.getSMSThreads()
+      const sorted = [...updated].sort(
+        (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+      )
+      setThreads(sorted)
+      // Select the new/updated thread
+      const targetThread = sorted.find((t) => t.id === msg.thread_id) ?? null
+      if (targetThread) {
+        setSelected(targetThread)
+        setSendError(null)
+      }
+      setShowNewMessage(false)
+      setNewTo('')
+      setNewBody('')
+    } catch (err) {
+      setNewSendError(err instanceof Error ? err.message : 'Failed to send message')
+    } finally {
+      setNewSending(false)
+    }
+  }
+
   if (loading) {
     return <PageLoadingFallback lines={5} />
   }
@@ -386,6 +422,24 @@ export function SmsPage(): React.ReactElement {
       <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border shrink-0">
         <h2 className="flex-1 text-base font-semibold text-text-primary">Messages</h2>
         <span className="text-xs text-text-secondary">{threads.length} threads</span>
+        <button
+          onClick={() => {
+            setNewTo('')
+            setNewBody('')
+            setNewSendError(null)
+            setShowNewMessage(true)
+          }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium bg-accent text-white hover:bg-accent/90 transition-colors"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path
+              fillRule="evenodd"
+              d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z"
+              clipRule="evenodd"
+            />
+          </svg>
+          New Message
+        </button>
         <button
           onClick={() => void loadThreads(true)}
           disabled={refreshing}
@@ -432,6 +486,65 @@ export function SmsPage(): React.ReactElement {
         onClose={() => setSelected(null)}
         onSend={handleSend}
       />
+
+      {/* New Message modal */}
+      {showNewMessage && (
+        <Modal
+          title="New Message"
+          onClose={() => setShowNewMessage(false)}
+          footer={
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowNewMessage(false)}
+                className="px-4 py-2 rounded text-sm font-medium bg-surface-raised text-text-primary hover:bg-border transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void handleNewMessageSend()}
+                disabled={newSending || !newTo.trim() || !newBody.trim()}
+                className="px-4 py-2 rounded text-sm font-medium bg-accent text-white hover:bg-accent/90 transition-colors disabled:opacity-50"
+              >
+                {newSending ? 'Sending…' : 'Send'}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-text-primary mb-1" htmlFor="sms-to">
+                To (phone number or contact name)
+              </label>
+              <input
+                id="sms-to"
+                type="text"
+                value={newTo}
+                onChange={(e) => setNewTo(e.target.value)}
+                placeholder="+14155550100 or Alice"
+                className="w-full px-3 py-2 rounded bg-surface-raised border border-border text-text-primary text-sm focus:outline-none focus:border-accent"
+              />
+            </div>
+            <div>
+              <label
+                className="block text-xs font-medium text-text-primary mb-1"
+                htmlFor="sms-body"
+              >
+                Message
+              </label>
+              <textarea
+                id="sms-body"
+                value={newBody}
+                onChange={(e) => setNewBody(e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 rounded bg-surface-raised border border-border text-text-primary text-sm focus:outline-none focus:border-accent resize-none"
+              />
+            </div>
+            {newSendError && (
+              <p className="text-xs text-red-400">{newSendError}</p>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

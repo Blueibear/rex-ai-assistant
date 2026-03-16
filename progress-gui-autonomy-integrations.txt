@@ -896,3 +896,11 @@ Commit: 26393b5
   - Textarea auto-send on Enter (no shift): catch in `onKeyDown`, `e.preventDefault()`, call send
   - Panel state reuse pattern: send error and sending state live in parent (SmsPage) and are passed down to panel, so parent can reset them on thread switch
   - After sending, update both `threads` state and `selected` state together to keep detail panel current without re-fetching
+
+## Iteration 22 - US-255: Wire SMS IPC end-to-end and add new conversation flow
+- What was implemented: Added `getSMSThread(threadId)` IPC method to ipc.ts, preload, and sms.ts handler. Added "New Message" button + compose Modal to SmsPage with To field (phone/contact name), message body, inline error. After send: re-fetches thread list via `getSMSThreads`, sorts descending, selects new/updated thread.
+- Files changed: gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/handlers/sms.ts, gui/src/pages/SmsPage.tsx, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - After sending a new-thread message, re-fetch getSMSThreads rather than trying to locally construct the new thread — avoids state duplication and gives server-side ordering for free
+  - Use `sorted.find((t) => t.id === msg.thread_id)` to select the new thread after re-fetch
+  - IPC handlers that return undefined (e.g. thread not found) should be typed as `SMSThread | undefined` in the handler return type — TypeScript enforces this at the preload side

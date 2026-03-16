@@ -180,6 +180,8 @@ const rexAPI = {
   findMeetingSlots: (params: FindMeetingSlotsParams): Promise<TimeSlot[]> =>
     ipcRenderer.invoke('rex:findMeetingSlots', params),
   getSMSThreads: (): Promise<SMSThread[]> => ipcRenderer.invoke('rex:getSMSThreads'),
+  getSMSThread: (threadId: string): Promise<SMSThread> =>
+    ipcRenderer.invoke('rex:getSMSThread', threadId),
   sendSMS: (to: string, body: string): Promise<SMSMessage> =>
     ipcRenderer.invoke('rex:sendSMS', to, body)
 }

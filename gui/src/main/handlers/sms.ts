@@ -93,6 +93,10 @@ export function registerSMSHandlers(): void {
     )
   })
 
+  ipcMain.handle('rex:getSMSThread', (_event, threadId: string): SMSThread | undefined => {
+    return smsThreads.find((t) => t.id === threadId)
+  })
+
   ipcMain.handle('rex:sendSMS', (_event, to: string, body: string): SMSMessage => {
     const now = new Date().toISOString()
     const threadId = `thread-${to.replace(/\D/g, '')}`

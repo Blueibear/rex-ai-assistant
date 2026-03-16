@@ -1156,10 +1156,10 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to start a new SMS conversation from the GUI so I can send a message to any contact without an existing thread.
 
 **Acceptance Criteria:**
-- [ ] "New Message" button on SMSPage opens a compose Modal: To field (text, accepts phone number or contact name), message body (textarea), Send button.
-- [ ] `window.rex.getSMSThreads`, `window.rex.getSMSThread`, `window.rex.sendSMS` IPC methods all fully implemented end-to-end.
-- [ ] After sending a new message, thread list refreshes and new thread appears at top.
-- [ ] `npm run typecheck` passes. `mypy --strict` passes on IPC handlers. Verify changes work in app.
+- [x] "New Message" button on SMSPage opens a compose Modal: To field (text, accepts phone number or contact name), message body (textarea), Send button.
+- [x] `window.rex.getSMSThreads`, `window.rex.getSMSThread`, `window.rex.sendSMS` IPC methods all fully implemented end-to-end.
+- [x] After sending a new message, thread list refreshes and new thread appears at top.
+- [x] `npm run typecheck` passes. `mypy --strict` passes on IPC handlers. Verify changes work in app.
 
 ---
 
