@@ -273,7 +273,7 @@ class CalendarService:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read())
             parsed = [self._parse_google_event(item) for item in data.get("items", [])]
-            return [e for e in parsed if e is not None]
+            return [e for e in parsed if e is not None and isinstance(e, CalendarEvent)]
         except Exception as exc:  # noqa: BLE001
             logger.error("Google Calendar get_events failed: %s", exc)
             events = _build_stub_events()
