@@ -148,8 +148,12 @@ const rexAPI = {
   deleteReminder: (id: string): Promise<void> =>
     ipcRenderer.invoke('rex:deleteReminder', id).then(() => undefined),
   getMemories: (): Promise<Memory[]> => ipcRenderer.invoke('rex:getMemories'),
+  addMemory: (data: MemoryUpdateInput): Promise<Memory> =>
+    ipcRenderer.invoke('rex:addMemory', data),
   updateMemory: (id: string, data: MemoryUpdateInput): Promise<Memory> =>
-    ipcRenderer.invoke('rex:updateMemory', id, data)
+    ipcRenderer.invoke('rex:updateMemory', id, data),
+  deleteMemory: (id: string): Promise<void> =>
+    ipcRenderer.invoke('rex:deleteMemory', id).then(() => undefined)
 }
 
 if (process.contextIsolated) {

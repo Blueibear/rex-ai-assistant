@@ -487,12 +487,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to manually add new memories and delete incorrect ones so I have full control over Rex's knowledge of me.
 
 **Acceptance Criteria:**
-- [ ] "Add Memory" button at top of MemoriesPage opens a Modal: text (textarea, required), category (text input with autocomplete from existing categories).
-- [ ] Submit calls `window.rex.addMemory(data): Promise<Memory>` IPC stub.
-- [ ] Each memory card has a delete icon (trash). Clicking shows inline confirmation ("Delete this memory?") before calling `window.rex.deleteMemory(id)`.
-- [ ] Deleted memories removed from list immediately (optimistic).
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] "Add Memory" button at top of MemoriesPage opens a Modal: text (textarea, required), category (text input with autocomplete from existing categories).
+- [x] Submit calls `window.rex.addMemory(data): Promise<Memory>` IPC stub.
+- [x] Each memory card has a delete icon (trash). Clicking shows inline confirmation ("Delete this memory?") before calling `window.rex.deleteMemory(id)`.
+- [x] Deleted memories removed from list immediately (optimistic).
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

@@ -37,12 +37,27 @@ function registerIpcHandlers(): void {
     { id: 'mem-5', text: 'User frequently asks Rex to draft emails and summarize documents.', category: 'usage', createdAt: now, updatedAt: now }
   ]
   ipcMain.handle('rex:getMemories', () => stubMemories)
+  ipcMain.handle('rex:addMemory', (_event, data: MemoryUpdateInput): Memory => {
+    const newMemory: Memory = {
+      id: `mem-${Date.now()}`,
+      text: data.text,
+      category: data.category,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    stubMemories.push(newMemory)
+    return newMemory
+  })
   ipcMain.handle('rex:updateMemory', (_event, id: string, data: MemoryUpdateInput): Memory => {
     const idx = stubMemories.findIndex((m) => m.id === id)
     if (idx === -1) throw new Error(`Memory ${id} not found`)
     const updated: Memory = { ...stubMemories[idx], ...data, updatedAt: new Date().toISOString() }
     stubMemories[idx] = updated
     return updated
+  })
+  ipcMain.handle('rex:deleteMemory', (_event, id: string): void => {
+    const idx = stubMemories.findIndex((m) => m.id === id)
+    if (idx !== -1) stubMemories.splice(idx, 1)
   })
 }
 
