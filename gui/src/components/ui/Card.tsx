@@ -27,7 +27,7 @@ export const Card: React.FC<CardProps> = ({
       className={[
         'bg-surface border border-border rounded-lg',
         hoverable
-          ? 'transition-transform duration-150 hover:scale-[1.01] cursor-pointer'
+          ? 'cursor-pointer motion-safe:transition-all motion-safe:duration-150 motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-lg'
           : '',
         className
       ]

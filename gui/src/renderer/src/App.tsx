@@ -5,6 +5,7 @@ import { SkeletonLine } from '../../components/ui/SkeletonLine'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { useToast } from '../../components/ui/Toast'
 import { AppLayout } from '../../layouts/AppLayout'
+import { PageTransition } from '../../components/ui/PageTransition'
 import { ChatPage } from '../../pages/ChatPage'
 import { VoicePage } from '../../pages/VoicePage'
 import { TasksPage } from '../../pages/TasksPage'
@@ -57,19 +58,21 @@ function AppShell(): React.ReactElement {
 
   return (
     <AppLayout>
-      <Routes>
-        <Route path="/" element={<Navigate to="/chat" replace />} />
-        <Route path="/chat" element={<ChatPage />} />
-        <Route path="/voice" element={<VoicePage />} />
-        <Route path="/tasks" element={<TasksPage />} />
-        <Route path="/calendar" element={<CalendarPage />} />
-        <Route path="/reminders" element={<RemindersPage />} />
-        <Route path="/memories" element={<MemoriesPage />} />
-        <Route path="/email" element={<EmailPage />} />
-        <Route path="/sms" element={<SmsPage />} />
-        <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-      </Routes>
+      <PageTransition>
+        <Routes>
+          <Route path="/" element={<Navigate to="/chat" replace />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/voice" element={<VoicePage />} />
+          <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/reminders" element={<RemindersPage />} />
+          <Route path="/memories" element={<MemoriesPage />} />
+          <Route path="/email" element={<EmailPage />} />
+          <Route path="/sms" element={<SmsPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Routes>
+      </PageTransition>
     </AppLayout>
   )
 }

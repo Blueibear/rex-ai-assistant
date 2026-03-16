@@ -59,6 +59,7 @@ export const Button: React.FC<ButtonProps> = ({
       className={[
         'inline-flex items-center justify-center font-medium transition-colors duration-150',
         'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-bg',
+        'motion-safe:active:scale-[0.97] motion-safe:transition-transform',
         variantClasses[variant],
         sizeClasses[size],
         className

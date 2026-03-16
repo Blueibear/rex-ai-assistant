@@ -214,6 +214,7 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
               className={({ isActive }) =>
                 [
                   'flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors',
+                  'motion-safe:transition-transform motion-safe:duration-100 motion-safe:hover:scale-[1.02]',
                   isActive
                     ? 'bg-accent/15 text-accent font-medium'
                     : 'text-text-secondary hover:bg-surface-raised hover:text-text-primary'

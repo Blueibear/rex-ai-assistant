@@ -616,13 +616,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want smooth transitions between pages and subtle hover responses so the app feels polished and alive.
 
 **Acceptance Criteria:**
-- [ ] Page transitions use a fade + slight upward slide (150ms ease-out). Implemented via CSS classes toggled on route change.
-- [ ] Sidebar nav items scale slightly (1.02×) on hover with a 100ms transition.
-- [ ] Button press effect: scale down to 0.97× on `:active`.
-- [ ] Card hover (for hoverable Cards): subtle `translateY(-2px)` + deeper shadow.
-- [ ] All transitions respect `prefers-reduced-motion` media query (disabled if true).
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] Page transitions use a fade + slight upward slide (150ms ease-out). Implemented via CSS classes toggled on route change.
+- [x] Sidebar nav items scale slightly (1.02×) on hover with a 100ms transition.
+- [x] Button press effect: scale down to 0.97× on `:active`.
+- [x] Card hover (for hoverable Cards): subtle `translateY(-2px)` + deeper shadow.
+- [x] All transitions respect `prefers-reduced-motion` media query (disabled if true).
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
