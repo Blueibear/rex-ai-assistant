@@ -16,6 +16,7 @@ import { EmailPage } from '../../pages/EmailPage'
 import { SmsPage } from '../../pages/SmsPage'
 import { NotificationsPage } from '../../pages/NotificationsPage'
 import { SettingsPage } from '../../pages/SettingsPage'
+import { ErrorBoundary } from '../../components/ErrorBoundary'
 
 function AppShell(): React.ReactElement {
   const [status, setStatus] = useState<string>('loading…')
@@ -61,16 +62,16 @@ function AppShell(): React.ReactElement {
       <PageTransition>
         <Routes>
           <Route path="/" element={<Navigate to="/chat" replace />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/voice" element={<VoicePage />} />
-          <Route path="/tasks" element={<TasksPage />} />
-          <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/reminders" element={<RemindersPage />} />
-          <Route path="/memories" element={<MemoriesPage />} />
-          <Route path="/email" element={<EmailPage />} />
-          <Route path="/sms" element={<SmsPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/chat" element={<ErrorBoundary><ChatPage /></ErrorBoundary>} />
+          <Route path="/voice" element={<ErrorBoundary><VoicePage /></ErrorBoundary>} />
+          <Route path="/tasks" element={<ErrorBoundary><TasksPage /></ErrorBoundary>} />
+          <Route path="/calendar" element={<ErrorBoundary><CalendarPage /></ErrorBoundary>} />
+          <Route path="/reminders" element={<ErrorBoundary><RemindersPage /></ErrorBoundary>} />
+          <Route path="/memories" element={<ErrorBoundary><MemoriesPage /></ErrorBoundary>} />
+          <Route path="/email" element={<ErrorBoundary><EmailPage /></ErrorBoundary>} />
+          <Route path="/sms" element={<ErrorBoundary><SmsPage /></ErrorBoundary>} />
+          <Route path="/notifications" element={<ErrorBoundary><NotificationsPage /></ErrorBoundary>} />
+          <Route path="/settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
         </Routes>
       </PageTransition>
     </AppLayout>

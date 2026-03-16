@@ -630,12 +630,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want pages to show skeleton placeholders while loading and friendly error messages on failure so the app never shows a blank screen or crash.
 
 **Acceptance Criteria:**
-- [ ] Every page that fetches IPC data shows SkeletonLine placeholders during the initial load (not a spinner).
-- [ ] Each page wrapped in an `ErrorBoundary` component that shows an EmptyState with "Something went wrong" + retry button.
-- [ ] If an IPC call takes more than 5s, a "Taking longer than expected…" message appears below the skeleton.
-- [ ] `gui/src/components/ErrorBoundary.tsx` implemented as a React class component (required for error boundaries).
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] Every page that fetches IPC data shows SkeletonLine placeholders during the initial load (not a spinner).
+- [x] Each page wrapped in an `ErrorBoundary` component that shows an EmptyState with "Something went wrong" + retry button.
+- [x] If an IPC call takes more than 5s, a "Taking longer than expected…" message appears below the skeleton.
+- [x] `gui/src/components/ErrorBoundary.tsx` implemented as a React class component (required for error boundaries).
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

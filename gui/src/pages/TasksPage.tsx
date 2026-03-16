@@ -6,6 +6,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { Input } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
 import { Spinner } from '../components/ui/Spinner'
+import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
 import { Textarea } from '../components/ui/Textarea'
 import { useToast } from '../components/ui/Toast'
 
@@ -595,11 +596,7 @@ export function TasksPage(): React.ReactElement {
 
   // Loading state
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Spinner size="md" />
-      </div>
-    )
+    return <PageLoadingFallback lines={6} />
   }
 
   return (

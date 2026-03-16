@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, NotificationsSettings, Settings, VersionInfo } from '../types/ipc'
 import { useToast } from '../components/ui/Toast'
+import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
+import { SkeletonLine } from '../components/ui/SkeletonLine'
 
 type CategoryId = 'general' | 'voice' | 'ai' | 'integrations' | 'notifications' | 'about'
 
@@ -222,13 +224,7 @@ function GeneralPanel(): React.ReactElement {
   }
 
   if (loading) {
-    return (
-      <div className="p-6 space-y-5">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-10 rounded-lg bg-surface-raised animate-pulse" />
-        ))}
-      </div>
-    )
+    return <PageLoadingFallback lines={5} />
   }
 
   return (
@@ -484,13 +480,7 @@ function VoicePanel(): React.ReactElement {
   }
 
   if (loading) {
-    return (
-      <div className="p-6 space-y-5">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="h-10 rounded-lg bg-surface-raised animate-pulse" />
-        ))}
-      </div>
-    )
+    return <PageLoadingFallback lines={6} />
   }
 
   return (
@@ -755,13 +745,7 @@ function AiPanel(): React.ReactElement {
   }
 
   if (loading) {
-    return (
-      <div className="p-6 space-y-5">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-10 rounded-lg bg-surface-raised animate-pulse" />
-        ))}
-      </div>
-    )
+    return <PageLoadingFallback lines={5} />
   }
 
   return (
@@ -1105,13 +1089,7 @@ function IntegrationsPanel(): React.ReactElement {
     'w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent'
 
   if (loading) {
-    return (
-      <div className="p-6 space-y-5">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="h-10 rounded-lg bg-surface-raised animate-pulse" />
-        ))}
-      </div>
-    )
+    return <PageLoadingFallback lines={6} />
   }
 
   return (
@@ -1385,13 +1363,7 @@ function NotificationsPanel(): React.ReactElement {
   }
 
   if (loading) {
-    return (
-      <div className="p-6 space-y-5">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
-          <div key={i} className="h-10 rounded-lg bg-surface-raised animate-pulse" />
-        ))}
-      </div>
-    )
+    return <PageLoadingFallback lines={9} />
   }
 
   return (
@@ -1653,6 +1625,7 @@ function NotificationsPanel(): React.ReactElement {
 function AboutPanel(): React.ReactElement {
   const [info, setInfo] = useState<VersionInfo | null>(null)
   const [loading, setLoading] = useState(true)
+  const [slow, setSlow] = useState(false)
 
   useEffect(() => {
     window.rex
@@ -1668,6 +1641,12 @@ function AboutPanel(): React.ReactElement {
       })
   }, [])
 
+  useEffect(() => {
+    if (!loading) return
+    const id = setTimeout(() => setSlow(true), 5000)
+    return () => clearTimeout(id)
+  }, [loading])
+
   return (
     <div className="p-6">
       <div className="flex items-center gap-3 mb-6">
@@ -1682,9 +1661,14 @@ function AboutPanel(): React.ReactElement {
 
       {loading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-5 rounded bg-surface-raised animate-pulse" />
-          ))}
+          <SkeletonLine width="100%" height="1.25rem" />
+          <SkeletonLine width="80%" height="1.25rem" />
+          <SkeletonLine width="60%" height="1.25rem" />
+          {slow && (
+            <p className="text-xs text-text-secondary mt-1 animate-pulse">
+              Taking longer than expected…
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-3">

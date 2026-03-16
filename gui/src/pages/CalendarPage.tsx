@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { CalendarGrid } from '../components/calendar/CalendarGrid'
 import type { CalendarEvent } from '../types/ipc'
 import type { CalendarEventInput } from '../types/ipc'
@@ -6,7 +6,8 @@ import { WeekView } from '../components/calendar/WeekView'
 import { EventDetailPanel } from '../components/calendar/EventDetailPanel'
 import { Modal } from '../components/ui/Modal'
 import { useToast } from '../components/ui/Toast'
-import { Spinner } from '../components/ui/Spinner'
+import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
+import { SkeletonLine } from '../components/ui/SkeletonLine'
 
 type ViewMode = 'month' | 'week'
 
@@ -190,6 +191,7 @@ export function CalendarPage(): React.ReactElement {
 
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
+  const initialized = useRef(false)
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
 
   // Create-event modal state
@@ -215,6 +217,7 @@ export function CalendarPage(): React.ReactElement {
     } catch (err) {
       addToast('Failed to load calendar events', 'error')
     } finally {
+      initialized.current = true
       setLoading(false)
     }
   }, [addToast])
@@ -354,6 +357,11 @@ export function CalendarPage(): React.ReactElement {
     }
   }
 
+  // Show skeleton placeholders on initial load only
+  if (loading && !initialized.current) {
+    return <PageLoadingFallback lines={8} />
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
@@ -392,7 +400,7 @@ export function CalendarPage(): React.ReactElement {
         </button>
         <h2 className="flex-1 text-base font-semibold text-text-primary">
           {periodLabel()}
-          {loading && <Spinner size="sm" className="inline-block ml-2 align-middle" />}
+          {loading && <SkeletonLine width="60px" height="0.75rem" className="inline-block ml-2 align-middle" />}
         </h2>
 
         {/* New Event button */}

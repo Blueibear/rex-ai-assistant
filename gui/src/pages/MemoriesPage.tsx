@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react'
 import type { Memory } from '../types/ipc'
-import { Spinner } from '../components/ui/Spinner'
+import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Modal } from '../components/ui/Modal'
@@ -138,11 +138,7 @@ export function MemoriesPage(): React.ReactElement {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Spinner size="lg" />
-      </div>
-    )
+    return <PageLoadingFallback lines={7} />
   }
 
   return (

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import type { Reminder, ReminderInput } from '../types/ipc'
-import { Spinner } from '../components/ui/Spinner'
+import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Modal } from '../components/ui/Modal'
@@ -465,11 +465,7 @@ export function RemindersPage(): React.ReactElement {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Spinner size="lg" />
-      </div>
-    )
+    return <PageLoadingFallback lines={6} />
   }
 
   if (error) {
