@@ -88,6 +88,14 @@ export interface ReminderInput {
   repeat: 'none' | 'daily' | 'weekly' | 'custom'
 }
 
+export interface Memory {
+  id: string
+  text: string
+  category: string
+  createdAt: string // ISO date string
+  updatedAt: string // ISO date string
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
@@ -113,4 +121,5 @@ export interface RexAPI {
   completeReminder: (id: string) => Promise<void>
   saveReminder: (reminder: ReminderInput) => Promise<Reminder>
   deleteReminder: (id: string) => Promise<void>
+  getMemories: () => Promise<Memory[]>
 }

@@ -27,6 +27,16 @@ function registerIpcHandlers(): void {
     console.log('[rex:setSettings]', settings)
     return { ok: true }
   })
+
+  const now = new Date().toISOString()
+  const stubMemories = [
+    { id: 'mem-1', text: 'User prefers concise answers without filler words.', category: 'preferences', createdAt: now, updatedAt: now },
+    { id: 'mem-2', text: 'User is a software engineer working on a local AI assistant project called Rex.', category: 'profile', createdAt: now, updatedAt: now },
+    { id: 'mem-3', text: 'User dislikes meetings before 10am.', category: 'preferences', createdAt: now, updatedAt: now },
+    { id: 'mem-4', text: 'User is based in the UK (GMT+0 / BST).', category: 'profile', createdAt: now, updatedAt: now },
+    { id: 'mem-5', text: 'User frequently asks Rex to draft emails and summarize documents.', category: 'usage', createdAt: now, updatedAt: now }
+  ]
+  ipcMain.handle('rex:getMemories', () => stubMemories)
 }
 
 function createWindow(): void {

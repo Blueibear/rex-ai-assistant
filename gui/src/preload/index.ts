@@ -9,7 +9,8 @@ import type {
   CalendarEvent,
   CalendarEventInput,
   Reminder,
-  ReminderInput
+  ReminderInput,
+  Memory
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -144,7 +145,8 @@ const rexAPI = {
   saveReminder: (reminder: ReminderInput): Promise<Reminder> =>
     ipcRenderer.invoke('rex:saveReminder', reminder),
   deleteReminder: (id: string): Promise<void> =>
-    ipcRenderer.invoke('rex:deleteReminder', id).then(() => undefined)
+    ipcRenderer.invoke('rex:deleteReminder', id).then(() => undefined),
+  getMemories: (): Promise<Memory[]> => ipcRenderer.invoke('rex:getMemories')
 }
 
 if (process.contextIsolated) {

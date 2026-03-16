@@ -459,13 +459,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to browse all the memories Rex has about me so I understand what context it's working with.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/pages/MemoriesPage.tsx` renders a searchable, paginated list of memory entries.
-- [ ] Each entry card shows: memory text (truncated to 2 lines), category tag, created/updated timestamp.
-- [ ] Search input filters entries by text content (client-side, no IPC call).
-- [ ] Category filter dropdown (All, plus any category names returned by backend).
-- [ ] Empty state shown when no memories or no search matches.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `gui/src/pages/MemoriesPage.tsx` renders a searchable, paginated list of memory entries.
+- [x] Each entry card shows: memory text (truncated to 2 lines), category tag, created/updated timestamp.
+- [x] Search input filters entries by text content (client-side, no IPC call).
+- [x] Category filter dropdown (All, plus any category names returned by backend).
+- [x] Empty state shown when no memories or no search matches.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
