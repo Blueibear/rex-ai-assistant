@@ -23,11 +23,14 @@ warning and falls back to ``"llm"``.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import time
 from pathlib import Path
 from typing import Any, Callable, Literal
 
+from rex.autonomy.history import ExecutionRecord, HistoryStore
 from rex.autonomy.llm_planner import LLMPlanner, ToolDefinition
 from rex.autonomy.models import Plan, PlannerProtocol, PlanStatus, PlanStep, StepStatus
 from rex.autonomy.replanner import Replanner
@@ -164,6 +167,46 @@ def run(
 
 
 # ---------------------------------------------------------------------------
+# History helpers
+# ---------------------------------------------------------------------------
+
+
+def _outcome_from_plan(plan: Plan) -> str:
+    """Derive the OutcomeType string from a completed plan."""
+    if plan.status == PlanStatus.COMPLETED:
+        return "success"
+    any_succeeded = any(s.status == StepStatus.SUCCESS for s in plan.steps)
+    return "partial" if any_succeeded else "failed"
+
+
+def _write_history(
+    store: HistoryStore,
+    plan: Plan,
+    duration_s: float,
+    replan_count: int,
+) -> None:
+    """Persist an :class:`ExecutionRecord` to *store* without raising."""
+    failed_errors = [s.error for s in plan.steps if s.error]
+    error_summary: str | None = "; ".join(failed_errors) if failed_errors else None
+    record = ExecutionRecord(
+        goal=plan.goal,
+        plan=plan,
+        outcome=_outcome_from_plan(plan),  # type: ignore[arg-type]
+        duration_s=duration_s,
+        replan_count=replan_count,
+        error_summary=error_summary,
+    )
+    try:
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(store.append(record))
+        finally:
+            loop.close()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("runner: history write failed — %s", exc)
+
+
+# ---------------------------------------------------------------------------
 # Plan executor
 # ---------------------------------------------------------------------------
 
@@ -174,6 +217,7 @@ def execute_plan(
     *,
     replanner: Replanner | None = None,
     max_replan_attempts: int = 2,
+    history_store: HistoryStore | None = None,
 ) -> Plan:
     """Execute a :class:`~rex.autonomy.models.Plan` step by step.
 
@@ -199,12 +243,16 @@ def execute_plan(
             call when a step fails.  Defaults to ``None`` (no replanning).
         max_replan_attempts: Maximum number of replan cycles per run.
             Defaults to ``2``.
+        history_store: Optional :class:`~rex.autonomy.history.HistoryStore` to
+            write an :class:`~rex.autonomy.history.ExecutionRecord` after each
+            run.  Write failures are logged as warnings and do not propagate.
 
     Returns:
         The same *plan* object with updated statuses.
     """
     plan.status = PlanStatus.RUNNING
     replan_count = 0
+    _start = time.monotonic()
 
     while True:
         any_failed = False
@@ -248,6 +296,8 @@ def execute_plan(
 
         if not any_failed:
             plan.status = PlanStatus.COMPLETED
+            if history_store is not None:
+                _write_history(history_store, plan, time.monotonic() - _start, replan_count)
             return plan
 
         # At least one step failed — attempt replanning if configured.
@@ -275,6 +325,8 @@ def execute_plan(
                 logger.error("runner: replanning call failed — %s", exc)
 
         plan.status = PlanStatus.FAILED
+        if history_store is not None:
+            _write_history(history_store, plan, time.monotonic() - _start, replan_count)
         return plan
 
 
@@ -286,6 +338,7 @@ __all__ = [
     "create_planner",
     "execute_plan",
     "run",
+    "HistoryStore",
     "PlannerKey",
     "Replanner",
     "retry_step",

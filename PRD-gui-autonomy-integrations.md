@@ -788,11 +788,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need the plan runner to save an ExecutionRecord after each run so history accumulates automatically.
 
 **Acceptance Criteria:**
-- [ ] Plan runner calls `HistoryStore.append(record)` after every plan completes (success or failure).
-- [ ] Record includes all `ExecutionRecord` fields populated from the completed `Plan` object.
-- [ ] History write failure is logged as a warning but does not raise (does not break the plan run).
-- [ ] Integration test: run a mocked plan end-to-end, assert a record appears in the DB. Test passes.
-- [ ] `mypy --strict` passes on changed files.
+- [x] Plan runner calls `HistoryStore.append(record)` after every plan completes (success or failure).
+- [x] Record includes all `ExecutionRecord` fields populated from the completed `Plan` object.
+- [x] History write failure is logged as a warning but does not raise (does not break the plan run).
+- [x] Integration test: run a mocked plan end-to-end, assert a record appears in the DB. Test passes.
+- [x] `mypy --strict` passes on changed files.
 
 ---
 
