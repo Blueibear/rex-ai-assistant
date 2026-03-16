@@ -1,0 +1,9 @@
+
+## Iteration 14 - US-246: Build email inbox view with triage indicators
+- What was implemented: `gui/src/pages/EmailPage.tsx` with email inbox list, priority badges (critical=red, high=orange, medium=blue, low=gray), unread dot indicator, relative timestamps, Refresh button. Rows sorted by priority within unread/read groups. BETA banner at top. `EmailMessage` type added to `ipc.ts`, `getEmailInbox()` added to `RexAPI`, stub handler at `gui/src/main/handlers/email.ts` with 5 realistic mock messages.
+- Files changed: gui/src/pages/EmailPage.tsx, gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/main/handlers/email.ts (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - New IPC flows need 4 touchpoints: ipc.ts type + RexAPI entry, preload/index.ts binding, handlers/*.ts stub, main/index.ts registration
+  - Sorting by priority within read/unread groups: split into two arrays, sort each by PRIORITY_ORDER map, concat unread first
+  - PageLoadingFallback reused for initial load; separate `refreshing` boolean for Refresh button spinner avoids clearing the list
+---

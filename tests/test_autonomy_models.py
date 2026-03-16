@@ -39,13 +39,13 @@ class TestPlanStep:
             tool="send_email",
             args={"to": "user@example.com", "subject": "Hello"},
             description="Send a greeting email",
-            status=StepStatus.COMPLETED,
-            result={"message_id": "abc123"},
+            status=StepStatus.SUCCESS,
+            result="message_id: abc123",
             error=None,
         )
         assert step.args == {"to": "user@example.com", "subject": "Hello"}
-        assert step.status == StepStatus.COMPLETED
-        assert step.result == {"message_id": "abc123"}
+        assert step.status == StepStatus.SUCCESS
+        assert step.result == "message_id: abc123"
 
     def test_failed_step(self) -> None:
         step = PlanStep(
