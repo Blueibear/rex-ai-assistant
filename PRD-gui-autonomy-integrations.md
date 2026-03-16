@@ -585,11 +585,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to configure quiet hours, digest schedule, and priority thresholds so Rex only interrupts me at the right times and in the right ways.
 
 **Acceptance Criteria:**
-- [ ] Fields: Quiet hours enabled (toggle), Quiet hours start (time picker), Quiet hours end (time picker), Digest mode enabled (toggle), Digest delivery time (time picker), High-priority threshold (select: critical only / high and critical), Auto-escalation delay (number input, minutes), Desktop notifications enabled (toggle), Sound alerts enabled (toggle).
-- [ ] Quiet hours start/end pickers disabled when quiet hours toggle is off.
-- [ ] Digest delivery time disabled when digest mode is off.
-- [ ] Form loads from `window.rex.getSettings('notifications')`. Auto-saves.
-- [ ] `npm run typecheck` passes.
+- [x] Fields: Quiet hours enabled (toggle), Quiet hours start (time picker), Quiet hours end (time picker), Digest mode enabled (toggle), Digest delivery time (time picker), High-priority threshold (select: critical only / high and critical), Auto-escalation delay (number input, minutes), Desktop notifications enabled (toggle), Sound alerts enabled (toggle).
+- [x] Quiet hours start/end pickers disabled when quiet hours toggle is off.
+- [x] Digest delivery time disabled when digest mode is off.
+- [x] Form loads from `window.rex.getSettings('notifications')`. Auto-saves.
+- [x] `npm run typecheck` passes.
 - [ ] Verify changes work in app.
 
 ---

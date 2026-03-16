@@ -138,6 +138,18 @@ export interface IntegrationsSettings {
   smsFromNumber: string
 }
 
+export interface NotificationsSettings {
+  quietHoursEnabled: boolean
+  quietHoursStart: string
+  quietHoursEnd: string
+  digestModeEnabled: boolean
+  digestDeliveryTime: string
+  highPriorityThreshold: 'critical_only' | 'high_and_critical'
+  autoEscalationDelay: number
+  desktopNotificationsEnabled: boolean
+  soundAlertsEnabled: boolean
+}
+
 export interface VersionInfo {
   rex: string
   electron: string
