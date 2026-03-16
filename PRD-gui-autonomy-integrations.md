@@ -1116,9 +1116,9 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need integration tests that exercise the SMS pipeline end-to-end in stub mode so the wiring is validated before adding the GUI.
 
 **Acceptance Criteria:**
-- [ ] `tests/test_sms_integration.py` covers: `SMSService` stub mode send returns correct model; `MessageRouter` routes to SMS when SMS-only configured; routes to email when email-only configured; raises `NoChannelError` when neither configured.
-- [ ] All tests use mocked Twilio client (no real API calls).
-- [ ] Tests pass. `mypy --strict tests/test_sms_integration.py` passes.
+- [x] `tests/test_sms_integration.py` covers: `SMSService` stub mode send returns correct model; `MessageRouter` routes to SMS when SMS-only configured; routes to email when email-only configured; raises `NoChannelError` when neither configured.
+- [x] All tests use mocked Twilio client (no real API calls).
+- [x] Tests pass. `mypy --strict tests/test_sms_integration.py` passes.
 
 ---
 
