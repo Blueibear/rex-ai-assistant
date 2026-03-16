@@ -1,4 +1,5 @@
 {
+  "planner": "llm",
   "default_mode": "suggest",
   "categories": {
     "info.*": "auto",

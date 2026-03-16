@@ -708,11 +708,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need the autonomy runner to use LLMPlanner instead of the rule-based planner so live executions use the new engine.
 
 **Acceptance Criteria:**
-- [ ] `rex/autonomy/runner.py` (or equivalent dispatch entry point) imports `LLMPlanner` and uses it by default.
-- [ ] Old rule-based planner kept in `rex/autonomy/rule_planner.py` (not deleted) with a deprecation comment.
-- [ ] A `PLANNER` config key in Rex settings (default: `llm`) selects which planner to use (`llm` | `rule`).
-- [ ] Integration smoke test: calling the autonomy runner with a simple goal (e.g., "Get the weather") produces a non-empty Plan without errors.
-- [ ] `mypy --strict rex/autonomy/runner.py` passes.
+- [x] `rex/autonomy/runner.py` (or equivalent dispatch entry point) imports `LLMPlanner` and uses it by default.
+- [x] Old rule-based planner kept in `rex/autonomy/rule_planner.py` (not deleted) with a deprecation comment.
+- [x] A `PLANNER` config key in Rex settings (default: `llm`) selects which planner to use (`llm` | `rule`).
+- [x] Integration smoke test: calling the autonomy runner with a simple goal (e.g., "Get the weather") produces a non-empty Plan without errors.
+- [x] `mypy --strict rex/autonomy/runner.py` passes.
 
 ---
 
