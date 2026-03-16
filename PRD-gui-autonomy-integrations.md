@@ -598,13 +598,13 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need all settings IPC methods fully implemented so changes in the GUI actually update Rex's configuration files.
 
 **Acceptance Criteria:**
-- [ ] `window.rex.getSettings(section)` and `window.rex.setSettings(section, values)` IPC methods implemented end-to-end (main process reads/writes Rex's Python config file or settings store).
-- [ ] Settings changes take effect in Rex without requiring an app restart (Python backend reloads affected config on update).
-- [ ] `window.rex.testIntegration(type)` IPC method implemented: makes a lightweight API call to verify credentials and returns `{ok, error}`.
-- [ ] All settings sections confirm with a "Saved" indicator after successful IPC write.
-- [ ] IPC errors shown as Toast notifications.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `window.rex.getSettings(section)` and `window.rex.setSettings(section, values)` IPC methods implemented end-to-end (main process reads/writes Rex's Python config file or settings store).
+- [x] Settings changes take effect in Rex without requiring an app restart (Python backend reloads affected config on update).
+- [x] `window.rex.testIntegration(type)` IPC method implemented: makes a lightweight API call to verify credentials and returns `{ok, error}`.
+- [x] All settings sections confirm with a "Saved" indicator after successful IPC write.
+- [x] IPC errors shown as Toast notifications.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

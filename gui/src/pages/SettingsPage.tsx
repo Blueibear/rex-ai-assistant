@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, NotificationsSettings, Settings, VersionInfo } from '../types/ipc'
+import { useToast } from '../components/ui/Toast'
 
 type CategoryId = 'general' | 'voice' | 'ai' | 'integrations' | 'notifications' | 'about'
 
@@ -171,6 +172,7 @@ function SavedIndicator({ visible }: { visible: boolean }): React.ReactElement {
 }
 
 function GeneralPanel(): React.ReactElement {
+  const addToast = useToast()
   const [form, setForm] = useState<GeneralSettings>({
     displayName: '',
     timezone: 'UTC',
@@ -198,10 +200,10 @@ function GeneralPanel(): React.ReactElement {
         })
       })
       .catch(() => {
-        /* use defaults */
+        addToast('Failed to load general settings', 'error')
       })
       .finally(() => setLoading(false))
-  }, [])
+  }, [addToast])
 
   function showSaved(field: keyof GeneralSettings): void {
     if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
@@ -215,7 +217,7 @@ function GeneralPanel(): React.ReactElement {
       .setSettings('general', updated as unknown as Settings)
       .then(() => showSaved(field))
       .catch(() => {
-        /* silently fail */
+        addToast('Failed to save general settings', 'error')
       })
   }
 
@@ -372,6 +374,7 @@ interface MediaDeviceOption {
 }
 
 function VoicePanel(): React.ReactElement {
+  const addToast = useToast()
   const [form, setForm] = useState<VoiceSettings>({
     microphoneDeviceId: '',
     speakerDeviceId: '',
@@ -428,10 +431,10 @@ function VoicePanel(): React.ReactElement {
         })
       })
       .catch(() => {
-        /* use defaults */
+        addToast('Failed to load voice settings', 'error')
       })
       .finally(() => setLoading(false))
-  }, [])
+  }, [addToast])
 
   function showSaved(field: keyof VoiceSettings): void {
     if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
@@ -449,7 +452,7 @@ function VoicePanel(): React.ReactElement {
       .setSettings('voice', updated as unknown as Settings)
       .then(() => showSaved(field))
       .catch(() => {
-        /* silently fail */
+        addToast('Failed to save voice settings', 'error')
       })
   }
 
@@ -699,6 +702,7 @@ const AI_MODELS: Array<{ value: AiSettings['model']; label: string }> = [
 ]
 
 function AiPanel(): React.ReactElement {
+  const addToast = useToast()
   const [form, setForm] = useState<AiSettings>({
     model: 'claude-sonnet-4',
     temperature: 0.7,
@@ -728,10 +732,10 @@ function AiPanel(): React.ReactElement {
         })
       })
       .catch(() => {
-        /* use defaults */
+        addToast('Failed to load AI settings', 'error')
       })
       .finally(() => setLoading(false))
-  }, [])
+  }, [addToast])
 
   function showSaved(field: keyof AiSettings): void {
     if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
@@ -746,7 +750,7 @@ function AiPanel(): React.ReactElement {
       .setSettings('ai', updated as unknown as Settings)
       .then(() => showSaved(field))
       .catch(() => {
-        /* silently fail */
+        addToast('Failed to save AI settings', 'error')
       })
   }
 
@@ -1005,6 +1009,7 @@ function TestConnectionButton({
 }
 
 function IntegrationsPanel(): React.ReactElement {
+  const addToast = useToast()
   const [form, setForm] = useState<IntegrationsSettings>({
     emailProvider: 'gmail',
     emailClientId: '',
@@ -1047,9 +1052,11 @@ function IntegrationsPanel(): React.ReactElement {
           smsFromNumber: typeof settings.smsFromNumber === 'string' ? settings.smsFromNumber : ''
         })
       })
-      .catch(() => { /* use defaults */ })
+      .catch(() => {
+        addToast('Failed to load integrations settings', 'error')
+      })
       .finally(() => setLoading(false))
-  }, [])
+  }, [addToast])
 
   function showSaved(field: keyof IntegrationsSettings): void {
     if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
@@ -1061,7 +1068,9 @@ function IntegrationsPanel(): React.ReactElement {
     window.rex
       .setSettings('integrations', updatedForm as unknown as Settings)
       .then(() => showSaved(field))
-      .catch(() => { /* silently fail */ })
+      .catch(() => {
+        addToast('Failed to save integrations settings', 'error')
+      })
   }
 
   function handleFieldChange<K extends keyof IntegrationsSettings>(
@@ -1295,6 +1304,7 @@ function IntegrationsPanel(): React.ReactElement {
 }
 
 function NotificationsPanel(): React.ReactElement {
+  const addToast = useToast()
   const [form, setForm] = useState<NotificationsSettings>({
     quietHoursEnabled: false,
     quietHoursStart: '22:00',
@@ -1340,10 +1350,10 @@ function NotificationsPanel(): React.ReactElement {
         })
       })
       .catch(() => {
-        /* use defaults */
+        addToast('Failed to load notifications settings', 'error')
       })
       .finally(() => setLoading(false))
-  }, [])
+  }, [addToast])
 
   function showSaved(field: keyof NotificationsSettings): void {
     if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
@@ -1361,7 +1371,7 @@ function NotificationsPanel(): React.ReactElement {
       .setSettings('notifications', updated as unknown as Settings)
       .then(() => showSaved(field))
       .catch(() => {
-        /* silently fail */
+        addToast('Failed to save notifications settings', 'error')
       })
   }
 
