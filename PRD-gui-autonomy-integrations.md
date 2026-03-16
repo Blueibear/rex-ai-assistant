@@ -1104,11 +1104,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need a MessageRouter that dispatches outbound messages to the correct channel (SMS or email) based on user intent so Rex can send messages without the user specifying the channel every time.
 
 **Acceptance Criteria:**
-- [ ] `rex/integrations/message_router.py` implements `MessageRouter` with `route(contact, body, preferred_channel: str | None = None) -> MessageResult`.
-- [ ] If `preferred_channel` is specified, uses it directly.
-- [ ] If not: looks up contact in a simple contacts list (`~/.rex/contacts.json`), uses stored preferred channel. Falls back to email if both configured; SMS if only SMS configured; raises `NoChannelError` if neither.
-- [ ] `MessageResult(channel, message_id, status)` model added.
-- [ ] `mypy --strict rex/integrations/message_router.py` passes. Unit tests for routing logic. Tests pass.
+- [x] `rex/integrations/message_router.py` implements `MessageRouter` with `route(contact, body, preferred_channel: str | None = None) -> MessageResult`.
+- [x] If `preferred_channel` is specified, uses it directly.
+- [x] If not: looks up contact in a simple contacts list (`~/.rex/contacts.json`), uses stored preferred channel. Falls back to email if both configured; SMS if only SMS configured; raises `NoChannelError` if neither.
+- [x] `MessageResult(channel, message_id, status)` model added.
+- [x] `mypy --strict rex/integrations/message_router.py` passes. Unit tests for routing logic. Tests pass.
 
 ---
 

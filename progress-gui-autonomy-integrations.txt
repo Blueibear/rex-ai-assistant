@@ -870,3 +870,12 @@ Commit: 26393b5
   - When the same module is imported twice in the same file under try/except blocks, mypy only needs `type: ignore[import-untyped]` on the first occurrence; subsequent ones just need a noqa comment
   - Twilio is already installed in this environment so the error code is `import-untyped` not `import-not-found`
 ---
+
+## Iteration 19 - US-251: Implement multi-channel message router
+- What was implemented: `rex/integrations/message_router.py` with `MessageRouter`, `MessageResult(channel, message_id, status)` Pydantic model, `NoChannelError`, and `SMSChannel`/`EmailChannel` Protocols. Routing priority: explicit preferred_channel > contacts.json lookup > service availability (email > SMS). Contacts read from `~/.rex/contacts.json`. 13 unit tests.
+- Files changed: rex/integrations/message_router.py (new), tests/test_integrations_message_router.py (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - `patch.object(mod, "_CONTACTS_PATH", tmp_path)` is the cleanest way to override a module-level Path constant in tests
+  - Protocols with `runtime_checkable` + `MagicMock(spec=Protocol)` works well for injecting test doubles
+  - `getattr(result, "id", "unknown")` pattern handles Any return from untyped Protocol implementations without mypy issues
+---
