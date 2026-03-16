@@ -929,3 +929,12 @@ Commit: 26393b5
   - run_digest collects eligible notifications upfront then operates on that snapshot — avoids double-read race if store changes during processing
   - `Optional[str]` return type on build_digest (not `str | None`) works better with mypy --strict since we have `from __future__ import annotations`
   - To verify delivered_at was set in a test, read directly from SQLite since get_unread() filters out read records — use store._db_path to connect
+
+## Iteration 26 - US-259: Implement QuietHoursGate
+- What was implemented: `rex/notifications/quiet_hours.py` with `QuietHoursGate(config, clock)`. `is_quiet_now()` reads `notifications_quiet_hours_start/end` from rex_config.json, handles same-day and overnight (spanning midnight) windows. `should_suppress()` returns is_quiet_now() and not exempt. Implements QuietHoursChecker protocol → directly injectable into NotificationRouter. Injectable clock for testability. 30 unit tests.
+- Files changed: rex/notifications/quiet_hours.py (new), tests/test_notifications_quiet_hours.py (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Overnight window detection: `start >= end` means window crosses midnight; inside window means `current >= start OR current < end`
+  - `_is_in_quiet_window(current, start, end)` as a pure function is very easy to test independently of config/clock
+  - Injectable `clock` callable pattern: pass `lambda: time(22, 30)` in tests to fix the current time without mocking datetime module
+  - Read config lazily (at call time), not at __init__ — allows config changes to take effect without restarting

@@ -1206,11 +1206,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need a QuietHoursGate that suppresses non-exempt notifications during the user's configured quiet hours so Rex doesn't wake them up.
 
 **Acceptance Criteria:**
-- [ ] `rex/notifications/quiet_hours.py` implements `QuietHoursGate` with `is_quiet_now() -> bool` and `should_suppress(notification: Notification) -> bool`.
-- [ ] `is_quiet_now()` reads `notifications_quiet_hours_start/end` from Rex config, checks current local time.
-- [ ] `should_suppress()` returns True if `is_quiet_now() and not notification.quiet_hours_exempt`.
-- [ ] `NotificationRouter.route()` calls `QuietHoursGate.should_suppress()` before dispatching; suppressed notifications stored to DB with `delivered_at=None` and queued for post-quiet-hours delivery.
-- [ ] `mypy --strict rex/notifications/quiet_hours.py` passes. Unit tests for boundary conditions (start=23:00, end=07:00 spanning midnight). Tests pass.
+- [x] `rex/notifications/quiet_hours.py` implements `QuietHoursGate` with `is_quiet_now() -> bool` and `should_suppress(notification: Notification) -> bool`.
+- [x] `is_quiet_now()` reads `notifications_quiet_hours_start/end` from Rex config, checks current local time.
+- [x] `should_suppress()` returns True if `is_quiet_now() and not notification.quiet_hours_exempt`.
+- [x] `NotificationRouter.route()` calls `QuietHoursGate.should_suppress()` before dispatching; suppressed notifications stored to DB with `delivered_at=None` and queued for post-quiet-hours delivery.
+- [x] `mypy --strict rex/notifications/quiet_hours.py` passes. Unit tests for boundary conditions (start=23:00, end=07:00 spanning midnight). Tests pass.
 
 ---
 
