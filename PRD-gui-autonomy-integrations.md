@@ -1181,11 +1181,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need a NotificationRouter that sends high-priority notifications immediately and queues low-priority ones for digest so users aren't interrupted by noise.
 
 **Acceptance Criteria:**
-- [ ] `rex/notifications/router.py` implements `NotificationRouter` with `route(notification: Notification)`.
-- [ ] `critical` and `high`: dispatch immediately via desktop notification (uses `plyer` or OS notification API); store to DB.
-- [ ] `medium`: dispatch via desktop notification unless in quiet hours; store to DB.
-- [ ] `low`: mark `digest_eligible=True`, store to DB; do not send desktop notification immediately.
-- [ ] `mypy --strict rex/notifications/router.py` passes. Unit tests for each priority level. Tests pass.
+- [x] `rex/notifications/router.py` implements `NotificationRouter` with `route(notification: Notification)`.
+- [x] `critical` and `high`: dispatch immediately via desktop notification (uses `plyer` or OS notification API); store to DB.
+- [x] `medium`: dispatch via desktop notification unless in quiet hours; store to DB.
+- [x] `low`: mark `digest_eligible=True`, store to DB; do not send desktop notification immediately.
+- [x] `mypy --strict rex/notifications/router.py` passes. Unit tests for each priority level. Tests pass.
 
 ---
 

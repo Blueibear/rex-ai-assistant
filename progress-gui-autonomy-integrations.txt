@@ -913,3 +913,11 @@ Commit: 26393b5
   - `_from_row` needs `type: ignore[arg-type]` on priority/channel since they're `str` but Pydantic expects the Literal type
   - `tempfile.NamedTemporaryFile(suffix=".db", delete=False)` + close before using in tests — on Windows, can't open an already-open temp file
   - `db_path.parent.mkdir(parents=True, exist_ok=True)` in __init__ ensures ~/.rex/ exists before creating the DB
+
+## Iteration 24 - US-257: Implement NotificationRouter with priority-based dispatch
+- What was implemented: `rex/notifications/router.py` with `NotificationRouter(store, quiet_hours)`. Routes: critical/high → immediate desktop + store; medium → desktop (unless quiet hours) + store; low → digest_eligible=True + store, no desktop. `_send_desktop()` tries plyer, falls back to log. `QuietHoursChecker` Protocol injected. `_NeverSuppress` default. 15 unit tests.
+- Files changed: rex/notifications/router.py (new), tests/test_notifications_router.py (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Use `model_copy(update={...})` to create a modified notification without mutating the original — important for low priority marking digest_eligible
+  - `_send_desktop` is marked `# pragma: no cover` since plyer isn't installed in test env; use `patch("rex.notifications.router._send_desktop")` in all tests
+  - Critical/high notifications intentionally bypass quiet hours — doc this clearly in the routing rules comment block
