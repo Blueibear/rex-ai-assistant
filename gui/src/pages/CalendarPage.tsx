@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { CalendarGrid } from '../components/calendar/CalendarGrid'
-import type { CalendarEvent } from '../types/ipc'
-import type { CalendarEventInput } from '../types/ipc'
+import type { CalendarEvent, CalendarEventInput, TimeSlot, FindMeetingSlotsParams } from '../types/ipc'
 import { WeekView } from '../components/calendar/WeekView'
 import { EventDetailPanel } from '../components/calendar/EventDetailPanel'
 import { Modal } from '../components/ui/Modal'
@@ -207,6 +206,20 @@ export function CalendarPage(): React.ReactElement {
   const [editing, setEditing] = useState(false)
   const [editingEventId, setEditingEventId] = useState<string | null>(null)
 
+  // Find meeting slots modal state
+  const [showSlotsModal, setShowSlotsModal] = useState(false)
+  const [slotDuration, setSlotDuration] = useState('60')
+  const [slotEarliest, setSlotEarliest] = useState(() => {
+    const d = new Date(); d.setMinutes(0, 0, 0); return d.toISOString().slice(0, 16)
+  })
+  const [slotLatest, setSlotLatest] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 7); d.setHours(18, 0, 0, 0); return d.toISOString().slice(0, 16)
+  })
+  const [slotTimezone, setSlotTimezone] = useState('UTC')
+  const [suggestedSlots, setSuggestedSlots] = useState<TimeSlot[]>([])
+  const [findingSlots, setFindingSlots] = useState(false)
+  const [slotsError, setSlotsError] = useState('')
+
   // Load events for the current visible range
   const loadEvents = useCallback(async (vm: ViewMode, y: number, m: number, ws: Date) => {
     setLoading(true)
@@ -357,6 +370,47 @@ export function CalendarPage(): React.ReactElement {
     }
   }
 
+  // ---- Find meeting slots ----
+  async function handleFindSlots(): Promise<void> {
+    setSlotsError('')
+    setFindingSlots(true)
+    setSuggestedSlots([])
+    try {
+      const params: FindMeetingSlotsParams = {
+        durationMinutes: parseInt(slotDuration, 10),
+        earliest: new Date(slotEarliest).toISOString(),
+        latest: new Date(slotLatest).toISOString(),
+        timezone: slotTimezone.trim() || 'UTC'
+      }
+      const slots = await window.rex.findMeetingSlots(params)
+      setSuggestedSlots(slots)
+    } catch {
+      setSlotsError('Failed to find slots.')
+    } finally {
+      setFindingSlots(false)
+    }
+  }
+
+  function addSlotToCalendar(slot: TimeSlot): void {
+    void (async () => {
+      const input = {
+        title: 'New Meeting',
+        start: slot.start,
+        end: slot.end,
+        color: '#3B82F6'
+      }
+      try {
+        const created = await window.rex.createCalendarEvent(input)
+        setEvents((prev) => [...prev, created])
+        setShowSlotsModal(false)
+        setSuggestedSlots([])
+        addToast('Meeting slot added to calendar', 'success')
+      } catch {
+        addToast('Failed to add slot', 'error')
+      }
+    })()
+  }
+
   // Show skeleton placeholders on initial load only
   if (loading && !initialized.current) {
     return <PageLoadingFallback lines={8} />
@@ -364,6 +418,11 @@ export function CalendarPage(): React.ReactElement {
 
   return (
     <div className="flex flex-col h-full">
+      {/* BETA banner */}
+      <div className="px-4 py-2 bg-surface-raised border-b border-border text-xs text-text-secondary">
+        Calendar integration — enter credentials in Settings &gt; Integrations for live data.
+      </div>
+
       {/* Toolbar */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
         <button
@@ -402,6 +461,14 @@ export function CalendarPage(): React.ReactElement {
           {periodLabel()}
           {loading && <SkeletonLine width="60px" height="0.75rem" className="inline-block ml-2 align-middle" />}
         </h2>
+
+        {/* Find Meeting Slot button */}
+        <button
+          onClick={() => { setSuggestedSlots([]); setSlotsError(''); setShowSlotsModal(true) }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium bg-surface-raised text-text-primary hover:bg-border transition-colors"
+        >
+          Find Slot
+        </button>
 
         {/* New Event button */}
         <button
@@ -513,6 +580,112 @@ export function CalendarPage(): React.ReactElement {
         }
       >
         <EventForm form={editForm} onChange={setEditForm} error={editError} />
+      </Modal>}
+
+      {/* Find Meeting Slots Modal */}
+      {showSlotsModal && <Modal
+        onClose={() => setShowSlotsModal(false)}
+        title="Find Meeting Slot"
+        footer={
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => setShowSlotsModal(false)}
+              className="px-4 py-2 rounded text-sm font-medium bg-surface-raised text-text-primary hover:bg-border transition-colors"
+            >
+              Close
+            </button>
+            <button
+              onClick={() => void handleFindSlots()}
+              disabled={findingSlots}
+              className="px-4 py-2 rounded text-sm font-medium bg-accent text-white hover:bg-accent/90 transition-colors disabled:opacity-60"
+            >
+              {findingSlots ? 'Searching…' : 'Find Slots'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          {slotsError && <p className="text-sm text-danger">{slotsError}</p>}
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Duration</label>
+            <select
+              value={slotDuration}
+              onChange={(e) => setSlotDuration(e.target.value)}
+              className="w-full px-3 py-2 rounded bg-surface-raised border border-border text-text-primary text-sm focus:outline-none focus:border-accent"
+            >
+              {[15, 30, 45, 60, 90, 120].map((m) => (
+                <option key={m} value={String(m)}>{m} min</option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Earliest</label>
+              <input
+                type="datetime-local"
+                value={slotEarliest}
+                onChange={(e) => setSlotEarliest(e.target.value)}
+                className="w-full px-3 py-2 rounded bg-surface-raised border border-border text-text-primary text-sm focus:outline-none focus:border-accent"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Latest</label>
+              <input
+                type="datetime-local"
+                value={slotLatest}
+                onChange={(e) => setSlotLatest(e.target.value)}
+                className="w-full px-3 py-2 rounded bg-surface-raised border border-border text-text-primary text-sm focus:outline-none focus:border-accent"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">Timezone</label>
+            <input
+              type="text"
+              value={slotTimezone}
+              onChange={(e) => setSlotTimezone(e.target.value)}
+              placeholder="e.g. UTC, America/New_York"
+              className="w-full px-3 py-2 rounded bg-surface-raised border border-border text-text-primary text-sm focus:outline-none focus:border-accent"
+            />
+          </div>
+
+          {/* Suggested slots */}
+          {suggestedSlots.length > 0 && (
+            <div className="border-t border-border pt-3 space-y-2">
+              <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                Suggested Slots
+              </p>
+              {suggestedSlots.map((slot, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between gap-2 px-3 py-2 rounded bg-surface-raised"
+                >
+                  <div>
+                    <p className="text-sm text-text-primary">
+                      {new Date(slot.start).toLocaleString(undefined, {
+                        weekday: 'short', month: 'short', day: 'numeric',
+                        hour: 'numeric', minute: '2-digit'
+                      })}
+                      {' – '}
+                      {new Date(slot.end).toLocaleTimeString(undefined, {
+                        hour: 'numeric', minute: '2-digit'
+                      })}
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      Confidence: {Math.round(slot.confidence * 100)}%
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => addSlotToCalendar(slot)}
+                    className="px-2 py-1 rounded text-xs font-medium bg-accent text-white hover:bg-accent/90 transition-colors shrink-0"
+                  >
+                    Add
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </Modal>}
     </div>
   )

@@ -1068,11 +1068,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want the Calendar page wired to CalendarService so it shows real (or realistic mock) events and lets me create events through Rex.
 
 **Acceptance Criteria:**
-- [ ] CalendarPage (Phase 67) `window.rex.getCalendarEvents` IPC handler fully implemented: calls Python `CalendarService.get_events()` and returns results.
-- [ ] `window.rex.createCalendarEvent` IPC handler implemented: calls `CalendarService.create_event()`.
-- [ ] "Find Meeting Slot" button on CalendarPage opens a modal: duration (select), date range (date pickers), timezone (text). Submit calls `window.rex.findMeetingSlots(params)` IPC → `SchedulingEngine.find_slots()`. Results shown as a list of suggested time slots with "Add to Calendar" button per slot.
-- [ ] BETA banner same as EmailPage.
-- [ ] `npm run typecheck` passes. `mypy --strict` passes on IPC handler. Verify changes work in app.
+- [x] CalendarPage (Phase 67) `window.rex.getCalendarEvents` IPC handler fully implemented: calls Python `CalendarService.get_events()` and returns results.
+- [x] `window.rex.createCalendarEvent` IPC handler implemented: calls `CalendarService.create_event()`.
+- [x] "Find Meeting Slot" button on CalendarPage opens a modal: duration (select), date range (date pickers), timezone (text). Submit calls `window.rex.findMeetingSlots(params)` IPC → `SchedulingEngine.find_slots()`. Results shown as a list of suggested time slots with "Add to Calendar" button per slot.
+- [x] BETA banner same as EmailPage.
+- [x] `npm run typecheck` passes. `mypy --strict` passes on IPC handler. Verify changes work in app.
 
 ---
 

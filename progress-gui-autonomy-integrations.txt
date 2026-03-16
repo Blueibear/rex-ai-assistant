@@ -845,3 +845,12 @@ Commit: 26393b5
   - Archive removes from in-memory list immediately (optimistic); no need for a re-fetch
   - `style={{ transform: ... }}` used instead of Tailwind translate classes to avoid class explosion
 ---
+
+## Iteration 16 - US-248: Build calendar integration view in GUI
+- What was implemented: Added "Find Slot" button to CalendarPage toolbar that opens a modal with duration select (15–120 min), earliest/latest datetime-local pickers, and timezone text input. `window.rex.findMeetingSlots(params)` IPC → `rex:findMeetingSlots` stub handler in `calendar.ts` returns 3 slots 2h apart. Results listed with Confidence % and "Add" button that calls `createCalendarEvent`. BETA banner added to CalendarPage. `TimeSlot` and `FindMeetingSlotsParams` types added to ipc.ts.
+- Files changed: gui/src/pages/CalendarPage.tsx, gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/handlers/calendar.ts, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - When adding a slot finder that can also create events, re-use the existing `createCalendarEvent` IPC path rather than adding a new one
+  - `datetime-local` input value must use `.toISOString().slice(0, 16)` format (no 'Z', no seconds)
+  - The `mypy --strict` clause in US-248 referred to the Python CalendarService and SchedulingEngine (already passing from US-243/US-245), not the TypeScript handler
+---

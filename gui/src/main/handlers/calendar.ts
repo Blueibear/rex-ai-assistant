@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import type { CalendarEvent, CalendarEventInput } from '../../types/ipc'
+import type { CalendarEvent, CalendarEventInput, FindMeetingSlotsParams, TimeSlot } from '../../types/ipc'
 
 // Stub events returned when no real calendar credentials are configured.
 function makeStubEvents(): CalendarEvent[] {
@@ -101,4 +101,23 @@ export function registerCalendarHandlers(): void {
   ipcMain.handle('rex:deleteCalendarEvent', (_event, id: string): void => {
     deleteCalendarEvent(id)
   })
+
+  ipcMain.handle(
+    'rex:findMeetingSlots',
+    (_event, params: FindMeetingSlotsParams): TimeSlot[] => {
+      // Stub: returns 3 future slots spaced 2 hours apart starting from earliest.
+      // With real credentials this would call SchedulingEngine.find_slots() via Python.
+      const base = new Date(params.earliest)
+      base.setMinutes(0, 0, 0)
+      base.setHours(base.getHours() + 1)
+
+      const slots: TimeSlot[] = []
+      for (let i = 0; i < 3; i++) {
+        const start = new Date(base.getTime() + i * 2 * 3600 * 1000)
+        const end = new Date(start.getTime() + params.durationMinutes * 60 * 1000)
+        slots.push({ start: start.toISOString(), end: end.toISOString(), confidence: 0.9 - i * 0.1 })
+      }
+      return slots
+    }
+  )
 }

@@ -181,6 +181,19 @@ export interface EmailMessage {
   priority: EmailPriority
 }
 
+export interface TimeSlot {
+  start: string // ISO date string
+  end: string   // ISO date string
+  confidence: number // 0–1
+}
+
+export interface FindMeetingSlotsParams {
+  durationMinutes: number
+  earliest: string  // ISO date string
+  latest: string    // ISO date string
+  timezone: string
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
@@ -217,4 +230,5 @@ export interface RexAPI {
   applyPreferenceSuggestion: (field: string, value: string | number) => Promise<{ ok: boolean }>
   getEmailInbox: () => Promise<EmailMessage[]>
   generateEmailReply: (id: string) => Promise<string>
+  findMeetingSlots: (params: FindMeetingSlotsParams) => Promise<TimeSlot[]>
 }
