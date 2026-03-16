@@ -590,7 +590,7 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 - [x] Digest delivery time disabled when digest mode is off.
 - [x] Form loads from `window.rex.getSettings('notifications')`. Auto-saves.
 - [x] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] Verify changes work in app.
 
 ---
 
