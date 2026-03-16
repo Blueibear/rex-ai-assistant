@@ -489,3 +489,24 @@
   - rex/autonomy/models.py only imports from stdlib + pydantic (no rex imports), so it's self-contained for strict type checking
   - StepStatus and PlanStatus are str Enums for clean JSON serialization (values become plain strings like "pending")
 ---
+
+## Iteration N - US-218: Implement LLMPlanner class
+- What was implemented: rex/autonomy/llm_planner.py with LLMPlanner(PlannerProtocol), PlanningError, ToolDefinition (Pydantic), LLMBackend (Protocol). _build_prompt constructs structured prompt listing tools+context+goal; _parse_response validates JSON array → Plan with PlanStep list; raises PlanningError on bad JSON/empty list/missing tool field; warns on unknown tool name. Backend lazily imports LanguageModel on first use.
+- Files changed: rex/autonomy/llm_planner.py (new), PRD-gui-autonomy-integrations.md (task marked complete)
+- Learnings for future iterations:
+  - mypy and pytest were not installed in venv — must run `pip install mypy pytest` before type-checking or testing
+  - `mypy --strict <file>` follows imports through rex/__init__.py; errors in twilio_backend.py and ha_tts/client.py appear because they use `requests` with no stubs — fix with `pip install types-requests`
+  - After installing types-requests, `mypy --strict rex/autonomy/llm_planner.py` produces "Success: no issues found in 1 source file"
+  - LLMBackend Protocol: declare with `collections.abc.Sequence[dict[str,str]]` for messages param to match LanguageModel.generate() signature — mypy resolves structural compatibility without type: ignore
+  - LanguageModel() assignment to LLMBackend | None field does NOT need type: ignore[assignment] — mypy infers it correctly when Protocol is well-defined
+---
+
+## Iteration 20 - US-219: Add unit tests for LLMPlanner with mocked LLM responses
+- What was implemented: Created tests/test_llm_planner.py with 18 tests covering all 4 acceptance criteria: valid JSON → correct Plan, malformed JSON → PlanningError, empty steps → PlanningError, unknown tool → warning logged but plan created. All tests use MagicMock backend; no network access required.
+- Files changed: tests/test_llm_planner.py (new)
+- Learnings for future iterations:
+  - `python -m mypy --strict tests/test_llm_planner.py` fails with python_version="3.9" (mypy config) because pytest's terminal.py uses pattern matching (3.10+). Use `--python-version 3.11` flag to pass. Same issue affects all test files (confirmed same fix needed for test_autonomy_models.py).
+  - LLMPlanner._get_backend() is always called (even when backend is pre-supplied), it just returns the mock - wrap it to spy rather than patching it away
+  - caplog.at_level needs the logger name ("rex.autonomy.llm_planner") to capture module-specific warnings
+  - No-tools-registered edge case: when tools=[] the unknown tool warning is skipped (check `if tool_names and tool_name not in tool_names`)
+---
