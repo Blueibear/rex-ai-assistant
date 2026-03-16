@@ -811,11 +811,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need the LLMPlanner to receive the feedback summary as additional context so it makes better decisions based on what has worked before.
 
 **Acceptance Criteria:**
-- [ ] `LLMPlanner.plan()` accepts optional `feedback_summary: str` parameter.
-- [ ] If `feedback_summary` is non-empty, it is included in the planner prompt under a `## Past Execution Patterns` section.
-- [ ] Plan runner calls `FeedbackAnalyzer.summarize()` before calling `LLMPlanner.plan()` and passes the result.
-- [ ] Unit test: planner prompt contains feedback summary when provided; prompt omits section when summary is empty. Tests pass.
-- [ ] `mypy --strict` passes on changed files.
+- [x] `LLMPlanner.plan()` accepts optional `feedback_summary: str` parameter.
+- [x] If `feedback_summary` is non-empty, it is included in the planner prompt under a `## Past Execution Patterns` section.
+- [x] Plan runner calls `FeedbackAnalyzer.summarize()` before calling `LLMPlanner.plan()` and passes the result.
+- [x] Unit test: planner prompt contains feedback summary when provided; prompt omits section when summary is empty. Tests pass.
+- [x] `mypy --strict` passes on changed files.
 
 ---
 

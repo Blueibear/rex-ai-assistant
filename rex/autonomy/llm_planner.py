@@ -100,7 +100,9 @@ class LLMPlanner(PlannerProtocol):
     # Prompt construction
     # ------------------------------------------------------------------
 
-    def _build_prompt(self, goal: str, context: dict[str, Any]) -> str:
+    def _build_prompt(
+        self, goal: str, context: dict[str, Any], feedback_summary: str = ""
+    ) -> str:
         """Construct the planning prompt sent to the LLM."""
         tools_block = (
             "\n".join(
@@ -111,6 +113,11 @@ class LLMPlanner(PlannerProtocol):
         context_block = (
             json.dumps(context, indent=2, default=str) if context else "{}"
         )
+        feedback_section = (
+            f"## Past Execution Patterns\n{feedback_summary}\n\n"
+            if feedback_summary
+            else ""
+        )
         return (
             "You are a planning assistant. Your job is to break a user goal "
             "into an ordered list of tool calls that together achieve the goal.\n\n"
@@ -118,6 +125,7 @@ class LLMPlanner(PlannerProtocol):
             f"{tools_block}\n\n"
             "## Current context\n"
             f"{context_block}\n\n"
+            f"{feedback_section}"
             "## Goal\n"
             f"{goal}\n\n"
             "## Instructions\n"
@@ -347,13 +355,23 @@ class LLMPlanner(PlannerProtocol):
     # PlannerProtocol implementation
     # ------------------------------------------------------------------
 
-    def plan(self, goal: str, context: dict[str, Any]) -> Plan:
+    def plan(
+        self,
+        goal: str,
+        context: dict[str, Any],
+        *,
+        feedback_summary: str = "",
+    ) -> Plan:
         """Convert *goal* into an executable :class:`~rex.autonomy.models.Plan`.
 
         Args:
             goal: Natural-language description of what the user wants to achieve.
             context: Arbitrary key/value context (available tools, user
                 preferences, session state, etc.).
+            feedback_summary: Optional plain-text summary of past execution
+                history.  When non-empty it is included in the prompt under a
+                ``## Past Execution Patterns`` section so the LLM can learn
+                from prior runs.
 
         Returns:
             A :class:`~rex.autonomy.models.Plan` with one or more
@@ -363,7 +381,7 @@ class LLMPlanner(PlannerProtocol):
             PlanningError: If the LLM response cannot be parsed into a
                 valid plan.
         """
-        prompt = self._build_prompt(goal, context)
+        prompt = self._build_prompt(goal, context, feedback_summary)
         logger.debug("LLMPlanner: sending planning prompt for goal=%r", goal)
 
         backend = self._get_backend()

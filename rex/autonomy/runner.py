@@ -28,8 +28,9 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, cast
 
+from rex.autonomy.feedback import FeedbackAnalyzer
 from rex.autonomy.history import ExecutionRecord, HistoryStore
 from rex.autonomy.llm_planner import LLMPlanner, ToolDefinition
 from rex.autonomy.models import Plan, PlannerProtocol, PlanStatus, PlanStep, StepStatus
@@ -140,6 +141,8 @@ def run(
     tools: list[ToolDefinition] | None = None,
     planner_key: PlannerKey | None = None,
     config_path: Path | None = None,
+    feedback_analyzer: FeedbackAnalyzer | None = None,
+    history_store: HistoryStore | None = None,
 ) -> Plan:
     """Plan and return a :class:`~rex.autonomy.models.Plan` for *goal*.
 
@@ -152,6 +155,11 @@ def run(
         tools: Tool definitions available to the planner.
         planner_key: Override planner selection (``"llm"`` or ``"rule"``).
         config_path: Override path to ``autonomy.json``.
+        feedback_analyzer: Optional :class:`~rex.autonomy.feedback.FeedbackAnalyzer`
+            used to generate a feedback summary from history before planning.
+            Requires *history_store* to be supplied as well.
+        history_store: Optional :class:`~rex.autonomy.history.HistoryStore` used
+            by *feedback_analyzer* to fetch past execution records.
 
     Returns:
         A non-empty :class:`~rex.autonomy.models.Plan`.
@@ -163,6 +171,22 @@ def run(
         config_path=config_path,
     )
     logger.debug("runner: planning goal=%r with %s", goal, type(planner).__name__)
+
+    feedback_summary = ""
+    if feedback_analyzer is not None and history_store is not None:
+        try:
+            feedback_summary = feedback_analyzer.summarize(goal, history_store)
+            logger.debug("runner: feedback summary length=%d chars", len(feedback_summary))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("runner: feedback summarize failed — %s", exc)
+
+    if feedback_summary:
+        try:
+            return cast(LLMPlanner, planner).plan(
+                goal, effective_context, feedback_summary=feedback_summary
+            )
+        except TypeError:
+            logger.debug("runner: planner does not support feedback_summary — skipping")
     return planner.plan(goal, effective_context)
 
 
