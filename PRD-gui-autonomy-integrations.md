@@ -942,10 +942,10 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need a PreferenceLearner that updates the UserPreferenceProfile after each completed workflow so the profile reflects current usage patterns.
 
 **Acceptance Criteria:**
-- [ ] `rex/autonomy/preference_learner.py` implements `PreferenceLearner` with `update(record: ExecutionRecord, profile: UserPreferenceProfile) -> UserPreferenceProfile`.
-- [ ] Updates: `active_hours` incremented for the current hour; `avg_budget_usd` updated as rolling average; `common_goal_patterns` adds current goal description (deduplicated, max 20 entries, LRU eviction).
-- [ ] Plan runner calls `PreferenceLearner.update()` after each successful run and saves updated profile.
-- [ ] `mypy --strict rex/autonomy/preference_learner.py` passes. Unit tests pass.
+- [x] `rex/autonomy/preference_learner.py` implements `PreferenceLearner` with `update(record: ExecutionRecord, profile: UserPreferenceProfile) -> UserPreferenceProfile`.
+- [x] Updates: `active_hours` incremented for the current hour; `avg_budget_usd` updated as rolling average; `common_goal_patterns` adds current goal description (deduplicated, max 20 entries, LRU eviction).
+- [x] Plan runner calls `PreferenceLearner.update()` after each successful run and saves updated profile.
+- [x] `mypy --strict rex/autonomy/preference_learner.py` passes. Unit tests pass.
 
 ---
 

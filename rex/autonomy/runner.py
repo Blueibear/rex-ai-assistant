@@ -38,6 +38,8 @@ from rex.autonomy.goal_parser import GoalParser
 from rex.autonomy.history import ExecutionRecord, HistoryStore
 from rex.autonomy.llm_planner import LLMPlanner, ToolDefinition
 from rex.autonomy.models import Plan, PlannerProtocol, PlanStatus, PlanStep, StepStatus
+from rex.autonomy.preference_learner import PreferenceLearner
+from rex.autonomy.preferences import PreferenceStore, UserPreferenceProfile
 from rex.autonomy.replanner import Replanner
 from rex.autonomy.retry import retry_step
 from rex.autonomy.tool_cache import ToolCache
@@ -208,6 +210,31 @@ def _outcome_from_plan(plan: Plan) -> str:
     return "partial" if any_succeeded else "failed"
 
 
+def _update_preferences(
+    plan: Plan,
+    learner: PreferenceLearner | None,
+    store: PreferenceStore | None,
+) -> None:
+    """Update the user preference profile after a successful plan run."""
+    if learner is None or store is None:
+        return
+    # Build a minimal ExecutionRecord for the learner.
+    record = ExecutionRecord(
+        goal=plan.goal,
+        plan=plan,
+        outcome="success",
+        duration_s=0.0,
+        total_cost_usd=plan.total_cost_usd,
+    )
+    try:
+        profile = store.load()
+        updated = learner.update(record, profile)
+        store.save(updated)
+        logger.debug("runner: preference profile updated after successful run")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("runner: preference update failed — %s", exc)
+
+
 def _write_history(
     store: HistoryStore,
     plan: Plan,
@@ -252,6 +279,8 @@ def execute_plan(
     budget_usd: float = 0.0,
     on_budget_exceeded: Callable[[CostEstimate], bool] | None = None,
     per_step_budget_usd: float = 0.0,
+    preference_learner: PreferenceLearner | None = None,
+    preference_store: PreferenceStore | None = None,
 ) -> Plan:
     """Execute a :class:`~rex.autonomy.models.Plan` step by step.
 
@@ -291,6 +320,12 @@ def execute_plan(
         per_step_budget_usd: Maximum estimated cost per individual step in USD.
             Steps whose high-end estimate exceeds this value are skipped with a
             warning.  Pass ``0`` (default) to disable per-step checking.
+        preference_learner: Optional :class:`~rex.autonomy.preference_learner.PreferenceLearner`
+            called after each successful run to update the user preference
+            profile.  Requires *preference_store* to persist the result.
+        preference_store: Optional :class:`~rex.autonomy.preferences.PreferenceStore`
+            used to load and save the :class:`~rex.autonomy.preferences.UserPreferenceProfile`
+            when *preference_learner* is supplied.
 
     Returns:
         The same *plan* object with updated statuses.
@@ -380,6 +415,7 @@ def execute_plan(
             plan.status = PlanStatus.COMPLETED
             if history_store is not None:
                 _write_history(history_store, plan, time.monotonic() - _start, replan_count)
+            _update_preferences(plan, preference_learner, preference_store)
             return plan
 
         # At least one step failed — attempt replanning if configured.
@@ -557,6 +593,8 @@ __all__ = [
     "CostEstimator",
     "HistoryStore",
     "PlannerKey",
+    "PreferenceLearner",
+    "PreferenceStore",
     "Replanner",
     "retry_step",
     "ToolCache",
