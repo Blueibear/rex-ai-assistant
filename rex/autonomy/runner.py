@@ -26,10 +26,11 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 from rex.autonomy.llm_planner import LLMPlanner, ToolDefinition
-from rex.autonomy.models import Plan, PlannerProtocol
+from rex.autonomy.models import Plan, PlannerProtocol, PlanStatus, PlanStep, StepStatus
+from rex.autonomy.replanner import Replanner
 
 logger = logging.getLogger(__name__)
 
@@ -162,11 +163,122 @@ def run(
 
 
 # ---------------------------------------------------------------------------
+# Plan executor
+# ---------------------------------------------------------------------------
+
+
+def execute_plan(
+    plan: Plan,
+    tools: dict[str, Callable[..., str]],
+    *,
+    replanner: Replanner | None = None,
+    max_replan_attempts: int = 2,
+) -> Plan:
+    """Execute a :class:`~rex.autonomy.models.Plan` step by step.
+
+    Each step's status is updated in real time as execution proceeds:
+    ``pending`` → ``running`` → ``success`` (with *result*) or ``failed``
+    (with *error*).
+
+    When *replanner* is supplied, a failed step triggers a call to
+    :meth:`~rex.autonomy.replanner.Replanner.replan`.  The revised steps
+    replace ``plan.steps`` and execution restarts with the new steps.
+    This repeats up to *max_replan_attempts* times; after that the plan is
+    marked ``failed``.
+
+    Without a *replanner* (the default), the original behaviour is preserved:
+    all steps run, failures are recorded, and the plan is marked ``failed``
+    or ``completed`` at the end.
+
+    Args:
+        plan: The plan to execute.  Its steps are mutated in place.
+        tools: Mapping from tool name to a callable that accepts the step's
+            ``args`` dict as keyword arguments and returns a string result.
+        replanner: Optional :class:`~rex.autonomy.replanner.Replanner` to
+            call when a step fails.  Defaults to ``None`` (no replanning).
+        max_replan_attempts: Maximum number of replan cycles per run.
+            Defaults to ``2``.
+
+    Returns:
+        The same *plan* object with updated statuses.
+    """
+    plan.status = PlanStatus.RUNNING
+    replan_count = 0
+
+    while True:
+        any_failed = False
+        first_failed_step: PlanStep | None = None
+
+        for step in plan.steps:
+            if step.status in (StepStatus.SKIPPED, StepStatus.SUCCESS):
+                logger.debug("runner: step %s skipped or already succeeded", step.id)
+                continue
+
+            step.status = StepStatus.RUNNING
+            logger.debug("runner: executing step %s (tool=%s)", step.id, step.tool)
+
+            tool_fn = tools.get(step.tool)
+            if tool_fn is None:
+                step.status = StepStatus.FAILED
+                step.error = f"Unknown tool: {step.tool!r}"
+                logger.error("runner: step %s failed — %s", step.id, step.error)
+                any_failed = True
+                if first_failed_step is None:
+                    first_failed_step = step
+                continue
+
+            try:
+                step.result = tool_fn(**step.args)
+                step.status = StepStatus.SUCCESS
+                logger.debug("runner: step %s succeeded", step.id)
+            except Exception as exc:  # noqa: BLE001
+                step.status = StepStatus.FAILED
+                step.error = str(exc)
+                logger.error("runner: step %s failed — %s", step.id, exc)
+                any_failed = True
+                if first_failed_step is None:
+                    first_failed_step = step
+
+        if not any_failed:
+            plan.status = PlanStatus.COMPLETED
+            return plan
+
+        # At least one step failed — attempt replanning if configured.
+        if (
+            replanner is not None
+            and replan_count < max_replan_attempts
+            and first_failed_step is not None
+        ):
+            replan_count += 1
+            logger.info(
+                "runner: step %s failed, replanning (attempt %d/%d)",
+                first_failed_step.id,
+                replan_count,
+                max_replan_attempts,
+            )
+            try:
+                new_plan = replanner.replan(
+                    original_plan=plan,
+                    failed_step=first_failed_step,
+                    error_context=first_failed_step.error or "",
+                )
+                plan.steps = new_plan.steps
+                continue
+            except Exception as exc:  # noqa: BLE001
+                logger.error("runner: replanning call failed — %s", exc)
+
+        plan.status = PlanStatus.FAILED
+        return plan
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 __all__ = [
     "create_planner",
+    "execute_plan",
     "run",
     "PlannerKey",
+    "Replanner",
 ]

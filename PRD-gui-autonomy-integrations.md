@@ -737,11 +737,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need the plan runner to call the LLM for a revised plan when a step fails so the autonomy engine can adapt rather than abort.
 
 **Acceptance Criteria:**
-- [ ] `rex/autonomy/replanner.py` implements `Replanner` class with `replan(original_plan, failed_step, error_context) -> Plan`.
-- [ ] `Replanner` prompt includes: original goal, steps completed so far, the failed step + error, and instructions to produce a revised plan for the remaining work.
-- [ ] Plan runner catches step failure, calls `Replanner.replan()`, and continues with the new plan.
-- [ ] Max replan attempts per run configurable (default: 2). After max attempts, plan status set to `failed`.
-- [ ] `mypy --strict rex/autonomy/replanner.py` passes.
+- [x] `rex/autonomy/replanner.py` implements `Replanner` class with `replan(original_plan, failed_step, error_context) -> Plan`.
+- [x] `Replanner` prompt includes: original goal, steps completed so far, the failed step + error, and instructions to produce a revised plan for the remaining work.
+- [x] Plan runner catches step failure, calls `Replanner.replan()`, and continues with the new plan.
+- [x] Max replan attempts per run configurable (default: 2). After max attempts, plan status set to `failed`.
+- [x] `mypy --strict rex/autonomy/replanner.py` passes.
 
 ---
 
