@@ -31,6 +31,7 @@ from typing import Any, Callable, Literal
 from rex.autonomy.llm_planner import LLMPlanner, ToolDefinition
 from rex.autonomy.models import Plan, PlannerProtocol, PlanStatus, PlanStep, StepStatus
 from rex.autonomy.replanner import Replanner
+from rex.autonomy.retry import retry_step
 
 logger = logging.getLogger(__name__)
 
@@ -228,7 +229,13 @@ def execute_plan(
                 continue
 
             try:
-                step.result = tool_fn(**step.args)
+                _fn: Callable[..., str] = tool_fn
+                _kw: dict[str, Any] = dict(step.args)
+
+                def _call(_f: Callable[..., str] = _fn, _k: dict[str, Any] = _kw) -> str:
+                    return _f(**_k)
+
+                step.result = retry_step(_call, step.id)
                 step.status = StepStatus.SUCCESS
                 logger.debug("runner: step %s succeeded", step.id)
             except Exception as exc:  # noqa: BLE001
@@ -281,4 +288,5 @@ __all__ = [
     "run",
     "PlannerKey",
     "Replanner",
+    "retry_step",
 ]

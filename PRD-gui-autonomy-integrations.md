@@ -749,11 +749,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need the plan runner to retry transiently-failing steps automatically so network blips don't abort plans.
 
 **Acceptance Criteria:**
-- [ ] `rex/autonomy/retry.py` implements `retry_step(step_fn, max_attempts=3, base_delay=1.0)` async function with exponential backoff.
-- [ ] Retry triggered only for transient errors: `TimeoutError`, `ConnectionError`, HTTP 429/503. Non-transient errors (e.g., `ValueError`, HTTP 4xx) skip retry and go directly to replan.
-- [ ] Each retry attempt logged at `DEBUG` level: `"Retrying step {id}, attempt {n}/{max}, delay {delay}s"`.
-- [ ] Plan runner wraps each step execution in `retry_step`.
-- [ ] Unit tests: transient error retries N times then succeeds; non-transient error fails immediately. Tests pass.
+- [x] `rex/autonomy/retry.py` implements `retry_step(step_fn, max_attempts=3, base_delay=1.0)` async function with exponential backoff.
+- [x] Retry triggered only for transient errors: `TimeoutError`, `ConnectionError`, HTTP 429/503. Non-transient errors (e.g., `ValueError`, HTTP 4xx) skip retry and go directly to replan.
+- [x] Each retry attempt logged at `DEBUG` level: `"Retrying step {id}, attempt {n}/{max}, delay {delay}s"`.
+- [x] Plan runner wraps each step execution in `retry_step`.
+- [x] Unit tests: transient error retries N times then succeeds; non-transient error fails immediately. Tests pass.
 
 ---
 
