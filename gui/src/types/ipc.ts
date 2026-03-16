@@ -195,6 +195,28 @@ export interface SMSMessage {
   status: SMSStatus
 }
 
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+export type NotificationPriority = 'low' | 'medium' | 'high' | 'critical'
+export type NotificationChannel = 'desktop' | 'digest' | 'sms' | 'email'
+
+export interface GuiNotification {
+  id: string
+  title: string
+  body: string
+  source: string
+  priority: NotificationPriority
+  channel: NotificationChannel
+  digest_eligible: boolean
+  quiet_hours_exempt: boolean
+  created_at: string // ISO date string
+  delivered_at?: string
+  read_at?: string
+  escalation_due_at?: string
+}
+
 export interface SMSThread {
   id: string
   contact_name: string
@@ -257,4 +279,8 @@ export interface RexAPI {
   getSMSThreads: () => Promise<SMSThread[]>
   getSMSThread: (threadId: string) => Promise<SMSThread>
   sendSMS: (to: string, body: string) => Promise<SMSMessage>
+  getNotifications: () => Promise<GuiNotification[]>
+  markNotificationRead: (id: string) => Promise<void>
+  dismissNotification: (id: string) => Promise<void>
+  getUnreadNotificationCount: () => Promise<number>
 }

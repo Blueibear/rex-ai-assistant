@@ -20,7 +20,8 @@ import type {
   FindMeetingSlotsParams,
   TimeSlot,
   SMSThread,
-  SMSMessage
+  SMSMessage,
+  GuiNotification
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -183,7 +184,15 @@ const rexAPI = {
   getSMSThread: (threadId: string): Promise<SMSThread> =>
     ipcRenderer.invoke('rex:getSMSThread', threadId),
   sendSMS: (to: string, body: string): Promise<SMSMessage> =>
-    ipcRenderer.invoke('rex:sendSMS', to, body)
+    ipcRenderer.invoke('rex:sendSMS', to, body),
+  getNotifications: (): Promise<GuiNotification[]> =>
+    ipcRenderer.invoke('rex:getNotifications'),
+  markNotificationRead: (id: string): Promise<void> =>
+    ipcRenderer.invoke('rex:markNotificationRead', id).then(() => undefined),
+  dismissNotification: (id: string): Promise<void> =>
+    ipcRenderer.invoke('rex:dismissNotification', id).then(() => undefined),
+  getUnreadNotificationCount: (): Promise<number> =>
+    ipcRenderer.invoke('rex:getUnreadNotificationCount')
 }
 
 if (process.contextIsolated) {

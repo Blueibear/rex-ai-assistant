@@ -174,7 +174,15 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
   const narrow = useIsNarrow()
   const navigate = useNavigate()
   const unreadCount = useNotificationsStore((state) => state.unreadCount)
+  const fetchUnreadCount = useNotificationsStore((state) => state.fetchUnreadCount)
   const { isHelpOpen, closeHelp } = useGlobalShortcuts()
+
+  // Poll unread notification count every 30 seconds.
+  useEffect(() => {
+    void fetchUnreadCount()
+    const id = setInterval(() => void fetchUnreadCount(), 30_000)
+    return () => clearInterval(id)
+  }, [fetchUnreadCount])
 
   const [sectionName, setSectionName] = useState('Chat')
 

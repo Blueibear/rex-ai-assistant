@@ -1245,12 +1245,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want a notification center in the GUI that shows all my alerts grouped by priority so I can review and dismiss them.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/pages/NotificationsPage.tsx` renders notifications grouped: Critical, High, Medium, Low/Digest.
-- [ ] Each notification card: title, body (truncated to 2 lines), source badge, received time, read/unread indicator.
-- [ ] Clicking a card marks it read (calls `window.rex.markNotificationRead(id)` IPC).
-- [ ] "Mark all read" button at top.
-- [ ] Unread count in sidebar badge updates in real time via a Zustand store polled every 30 seconds.
-- [ ] `npm run typecheck` passes. Verify changes work in app.
+- [x] `gui/src/pages/NotificationsPage.tsx` renders notifications grouped: Critical, High, Medium, Low/Digest.
+- [x] Each notification card: title, body (truncated to 2 lines), source badge, received time, read/unread indicator.
+- [x] Clicking a card marks it read (calls `window.rex.markNotificationRead(id)` IPC).
+- [x] "Mark all read" button at top.
+- [x] Unread count in sidebar badge updates in real time via a Zustand store polled every 30 seconds.
+- [x] `npm run typecheck` passes. Verify changes work in app.
 
 ---
 
@@ -1258,10 +1258,10 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to see full notification details and know whether escalation is pending so I understand urgency.
 
 **Acceptance Criteria:**
-- [ ] Clicking a notification card opens a detail panel (right-side slide-in).
-- [ ] Panel shows: full title, full body, source, priority badge, channel used, received time, `escalation_due_at` displayed as "Escalates in X minutes" (or "No escalation" if not set).
-- [ ] "Dismiss" button: marks read and sets `escalation_due_at = None` (calls `window.rex.dismissNotification(id)` IPC).
-- [ ] `npm run typecheck` passes. Verify changes work in app.
+- [x] Clicking a notification card opens a detail panel (right-side slide-in).
+- [x] Panel shows: full title, full body, source, priority badge, channel used, received time, `escalation_due_at` displayed as "Escalates in X minutes" (or "No escalation" if not set).
+- [x] "Dismiss" button: marks read and sets `escalation_due_at = None` (calls `window.rex.dismissNotification(id)` IPC).
+- [x] `npm run typecheck` passes. Verify changes work in app.
 
 ---
 
@@ -1269,11 +1269,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want the sidebar to show how many unread notifications I have so I always know when something needs attention.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/store/notificationsStore.ts` (Zustand) holds `unreadCount: number` and `fetchUnreadCount()` action.
-- [ ] `fetchUnreadCount()` calls `window.rex.getUnreadNotificationCount(): Promise<number>` IPC (calls `NotificationStore.get_unread()` and returns `.length`).
-- [ ] App polls `fetchUnreadCount()` every 30 seconds via `useEffect` in `AppLayout`.
-- [ ] Sidebar Notifications item displays the count as a red badge if > 0; hidden if 0.
-- [ ] `npm run typecheck` passes. Verify changes work in app.
+- [x] `gui/src/store/notificationsStore.ts` (Zustand) holds `unreadCount: number` and `fetchUnreadCount()` action.
+- [x] `fetchUnreadCount()` calls `window.rex.getUnreadNotificationCount(): Promise<number>` IPC (calls `NotificationStore.get_unread()` and returns `.length`).
+- [x] App polls `fetchUnreadCount()` every 30 seconds via `useEffect` in `AppLayout`.
+- [x] Sidebar Notifications item displays the count as a red badge if > 0; hidden if 0.
+- [x] `npm run typecheck` passes. Verify changes work in app.
 
 ---
 
