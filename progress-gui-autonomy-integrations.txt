@@ -827,3 +827,12 @@ Commit: 26393b5
   - `runtime_checkable` Protocol + MagicMock(spec=TriageBackend) works cleanly for injecting test backends
   - Lazy backend init (_get_backend) mirrors the LLMPlanner pattern — backend stored on self after first load
 ---
+
+## Iteration 13 - US-245: Implement SchedulingEngine for meeting slot suggestions
+- What was implemented: `rex/integrations/scheduling_engine.py` with `SchedulingEngine` class. `TimeSlot(start, end, confidence)` added to `rex/integrations/models.py`. Engine fetches busy events via `CalendarBackend` Protocol, prompts LLM for 3 JSON slot objects, parses and sorts by start. Falls back to 3 hardcoded stub slots on any LLM or calendar failure. 19 unit tests.
+- Files changed: rex/integrations/scheduling_engine.py (new), rex/integrations/models.py (TimeSlot added), tests/test_integrations_scheduling_engine.py (new), PRD-gui-autonomy-integrations.md (US-245 checked)
+- Learnings for future iterations:
+  - Separate CalendarBackend Protocol from CalendarService to avoid coupling — engine only needs get_events()
+  - `sorted(slots, key=lambda s: s.start)[:N]` is the clean way to cap and sort in one step
+  - Stub fallback is hit when backend is None OR when LLM raises, keeping tests deterministic without a live LLM
+---

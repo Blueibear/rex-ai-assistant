@@ -85,6 +85,25 @@ class CalendarEvent(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Scheduling
+# ---------------------------------------------------------------------------
+
+
+class TimeSlot(BaseModel):
+    """A candidate meeting time slot.
+
+    Attributes:
+        start: UTC datetime when the slot starts.
+        end: UTC datetime when the slot ends.
+        confidence: Score in [0.0, 1.0] indicating how suitable the slot is.
+    """
+
+    start: datetime
+    end: datetime
+    confidence: float = 1.0
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -92,4 +111,5 @@ __all__ = [
     "CalendarEvent",
     "EmailMessage",
     "PriorityLevel",
+    "TimeSlot",
 ]

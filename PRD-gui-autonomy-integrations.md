@@ -1027,11 +1027,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want Rex to suggest available meeting times given constraints so I can respond to scheduling requests quickly.
 
 **Acceptance Criteria:**
-- [ ] `rex/integrations/scheduling_engine.py` implements `SchedulingEngine` with `find_slots(duration_minutes, participants, earliest, latest, timezone) -> list[TimeSlot]`.
-- [ ] `TimeSlot(start, end, confidence: float)` model added to `integrations/models.py`.
-- [ ] Engine calls `CalendarService.get_events()` to get existing commitments, then uses LLM to suggest 3 open slots respecting user's `active_hours` preference.
-- [ ] In stub mode: returns 3 hardcoded future time slots.
-- [ ] `mypy --strict rex/integrations/scheduling_engine.py` passes. Unit tests for stub mode. Tests pass.
+- [x] `rex/integrations/scheduling_engine.py` implements `SchedulingEngine` with `find_slots(duration_minutes, participants, earliest, latest, timezone) -> list[TimeSlot]`.
+- [x] `TimeSlot(start, end, confidence: float)` model added to `integrations/models.py`.
+- [x] Engine calls `CalendarService.get_events()` to get existing commitments, then uses LLM to suggest 3 open slots respecting user's `active_hours` preference.
+- [x] In stub mode: returns 3 hardcoded future time slots.
+- [x] `mypy --strict rex/integrations/scheduling_engine.py` passes. Unit tests for stub mode. Tests pass.
 
 ---
 
