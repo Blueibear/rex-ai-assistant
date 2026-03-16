@@ -222,6 +222,7 @@ def _write_history(
         duration_s=duration_s,
         replan_count=replan_count,
         error_summary=error_summary,
+        total_cost_usd=plan.total_cost_usd,
     )
     try:
         loop = asyncio.new_event_loop()

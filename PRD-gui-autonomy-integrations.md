@@ -879,11 +879,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need the plan runner to record token usage and estimated cost per step so cost data is available for optimization and reporting.
 
 **Acceptance Criteria:**
-- [ ] `PlanStep` extended with `tokens_used: int | None` and `cost_usd: float | None`.
-- [ ] Plan runner populates these fields from tool call responses where token counts are available.
-- [ ] `Plan` has a computed property `total_cost_usd: float` (sum of all step costs).
-- [ ] `ExecutionRecord` extended with `total_cost_usd` field and persisted to history DB.
-- [ ] `mypy --strict` passes on changed files. Unit tests for cost aggregation pass.
+- [x] `PlanStep` extended with `tokens_used: int | None` and `cost_usd: float | None`.
+- [x] Plan runner populates these fields from tool call responses where token counts are available.
+- [x] `Plan` has a computed property `total_cost_usd: float` (sum of all step costs).
+- [x] `ExecutionRecord` extended with `total_cost_usd` field and persisted to history DB.
+- [x] `mypy --strict` passes on changed files. Unit tests for cost aggregation pass.
 
 ---
 

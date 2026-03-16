@@ -37,16 +37,21 @@ OutcomeType = Literal["success", "partial", "failed"]
 
 _CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS execution_records (
-    id            TEXT    PRIMARY KEY,
-    goal          TEXT    NOT NULL,
-    plan_json     TEXT    NOT NULL,
-    outcome       TEXT    NOT NULL,
-    duration_s    REAL    NOT NULL,
-    replan_count  INTEGER NOT NULL,
-    error_summary TEXT,
-    timestamp     TEXT    NOT NULL
+    id              TEXT    PRIMARY KEY,
+    goal            TEXT    NOT NULL,
+    plan_json       TEXT    NOT NULL,
+    outcome         TEXT    NOT NULL,
+    duration_s      REAL    NOT NULL,
+    replan_count    INTEGER NOT NULL,
+    error_summary   TEXT,
+    timestamp       TEXT    NOT NULL,
+    total_cost_usd  REAL    NOT NULL DEFAULT 0.0
 )
 """
+
+_MIGRATE_ADD_COST_SQL = (
+    "ALTER TABLE execution_records ADD COLUMN total_cost_usd REAL NOT NULL DEFAULT 0.0"
+)
 
 # ---------------------------------------------------------------------------
 # ExecutionRecord model
@@ -79,6 +84,7 @@ class ExecutionRecord(BaseModel):
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
+    total_cost_usd: float = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -103,8 +109,19 @@ class HistoryStore:
     # ------------------------------------------------------------------
 
     async def _ensure_table(self, conn: aiosqlite.Connection) -> None:
-        """Create the ``execution_records`` table if it does not exist."""
+        """Create the ``execution_records`` table if it does not exist.
+
+        Also applies any incremental migrations (e.g. adding ``total_cost_usd``
+        to pre-existing databases).
+        """
         await conn.execute(_CREATE_TABLE_SQL)
+        # Migration: add total_cost_usd column to databases created before US-233.
+        try:
+            await conn.execute(_MIGRATE_ADD_COST_SQL)
+        except Exception:
+            # Column already exists — this is the expected case for new and
+            # already-migrated databases.
+            pass
         await conn.commit()
 
     async def _open(self) -> aiosqlite.Connection:
@@ -131,8 +148,8 @@ class HistoryStore:
                 """
                 INSERT INTO execution_records
                     (id, goal, plan_json, outcome, duration_s, replan_count,
-                     error_summary, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                     error_summary, timestamp, total_cost_usd)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record.id,
@@ -143,6 +160,7 @@ class HistoryStore:
                     record.replan_count,
                     record.error_summary,
                     record.timestamp.isoformat(),
+                    record.total_cost_usd,
                 ),
             )
             await conn.commit()
@@ -212,6 +230,7 @@ def _row_to_record(row: aiosqlite.Row) -> ExecutionRecord:
         replan_count=row["replan_count"],
         error_summary=row["error_summary"],
         timestamp=datetime.fromisoformat(row["timestamp"]),
+        total_cost_usd=float(row["total_cost_usd"]),
     )
 
 

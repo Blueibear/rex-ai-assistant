@@ -36,7 +36,7 @@ class StepStatus(str, Enum):
 
     PENDING = "pending"
     RUNNING = "running"
-    COMPLETED = "completed"
+    SUCCESS = "success"
     FAILED = "failed"
     SKIPPED = "skipped"
 
@@ -78,13 +78,21 @@ class PlanStep(BaseModel):
         default=StepStatus.PENDING,
         description="Current execution status of this step",
     )
-    result: Any = Field(
+    result: str | None = Field(
         default=None,
         description="Output returned by the tool on success",
     )
     error: str | None = Field(
         default=None,
         description="Error message if the step failed",
+    )
+    tokens_used: int | None = Field(
+        default=None,
+        description="Number of LLM tokens consumed by this step, if known",
+    )
+    cost_usd: float | None = Field(
+        default=None,
+        description="Estimated cost in USD for this step's LLM calls, if known",
     )
 
 
@@ -116,6 +124,11 @@ class Plan(BaseModel):
         default=None,
         description="UTC timestamp when the plan completed or failed; None while in progress",
     )
+
+    @property
+    def total_cost_usd(self) -> float:
+        """Sum of ``cost_usd`` across all steps that have a known cost."""
+        return sum(s.cost_usd for s in self.steps if s.cost_usd is not None)
 
 
 # ---------------------------------------------------------------------------

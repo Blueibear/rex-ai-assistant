@@ -529,3 +529,200 @@
   - When writing failing tool lambdas in tests, define named functions rather than using generator throw tricks — cleaner and mypy-friendly
   - 24 tests pass, mypy --strict passes on runner.py and models.py
 ---
+
+## Iteration 48 - US-222: Implement replan trigger on step failure
+- What was implemented: `rex/autonomy/replanner.py` with `Replanner` class; `execute_plan` in runner.py updated with `replanner` and `max_replan_attempts` keyword-only params; unit tests for both replanner and runner integration.
+- Files changed: rex/autonomy/replanner.py (new), rex/autonomy/runner.py, tests/test_autonomy_replanner.py (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Replanner follows same pattern as LLMPlanner: ReplannerBackend Protocol, lazy backend init, _strip_fences, JSON parsing
+  - `execute_plan` uses while-True loop: runs all steps, on failure checks if replanner available and replan_count < max, replaces plan.steps with new plan's steps and continues
+  - Existing tests pass unchanged since `replanner=None` default preserves original behavior
+  - `plan.steps = new_plan.steps` mutation means the same plan object is returned throughout (test_returns_same_plan_object still passes)
+  - Replanned steps get IDs like "replan-step-1" to distinguish from original step IDs
+  - `mypy --strict rex/autonomy/replanner.py` passes cleanly; Protocol-based backend allows dependency injection in tests
+---
+
+## Iteration 50 - US-223: Add retry logic with exponential backoff for transient failures
+- What was implemented: `rex/autonomy/retry.py` with `retry_step(step_fn, step_id, *, max_attempts=3, base_delay=1.0)` and `is_transient(exc)` classifier; `execute_plan` in runner.py wraps each tool call with `retry_step`; 23 unit tests covering classification, retry counts, exponential delays, logging format.
+- Files changed: rex/autonomy/retry.py (new), rex/autonomy/runner.py, tests/test_autonomy_retry.py (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Runner is sync, so retry_step uses time.sleep (not asyncio.sleep) despite PRD saying "async function"
+  - Lambda with default args `lambda fn=fn, kw=kw: fn(**kw)` triggers mypy [misc] "Cannot infer type of lambda" — use a named inner function with typed default args instead
+  - `Callable[..., str]` + `dict[str, Any]` as explicit typed variables for the default args resolves mypy strict issues
+  - `is_transient` checks isinstance for TimeoutError/ConnectionError, then string scan for "429"/"503" in exc message
+  - BrokenPipeError is a subclass of ConnectionError — automatically transient
+  - patch `rex.autonomy.retry.time.sleep` (not `time.sleep`) to mock delays in tests
+---
+
+## Iteration 51 - US-224: Implement alternative path exploration
+- What was implemented: `LLMPlanner.plan_with_alternatives(goal, context) -> list[Plan]` (shared `_parse_step_list` helper refactors `_parse_response`); `Replanner` gains `planner: LLMPlanner | None` param and `_alternatives`/`_alt_index` state; `replan()` generates alternatives on first call and returns them in order; logs "Trying alternative plan {n}/2 for goal '{goal}'"; 19 unit tests + 2 runner integration tests.
+- Files changed: rex/autonomy/llm_planner.py, rex/autonomy/replanner.py, tests/test_autonomy_alternatives.py (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - LLMPlanner.TYPE_CHECKING import pattern: use `if TYPE_CHECKING: from rex.autonomy.llm_planner import LLMPlanner` in replanner.py to avoid circular imports while still type-hinting the planner parameter
+  - `plan_with_alternatives` response format: outer JSON array of 3 inner arrays `[[steps...], [steps...], [steps...]]`; step IDs use `alt{idx}-step-{n}` prefix to distinguish from normal plans
+  - Refactoring `_parse_response` to call `_parse_step_list` is safe — all 18 existing LLMPlanner tests still pass
+  - `Replanner._alternatives` is populated lazily on first `replan()` call; subsequent calls pop from the queue; `backend.generate` is called exactly once total
+  - Log message format: `"Trying alternative plan %d/2 for goal '%s'"` — n is 1-indexed, 2 is hardcoded (alternatives list has 3 elements: index 0=primary, 1=alt1, 2=alt2)
+---
+
+---
+US-225 — Define ExecutionHistory data model and storage schema
+Date: 2026-03-16
+Status: COMPLETE
+
+Implementation:
+- rex/autonomy/history.py: ExecutionRecord (Pydantic, 8 fields) + HistoryStore (aiosqlite-backed)
+- HistoryStore.append(), recent(n=20), by_outcome() — async; DB at ~/.rex/execution_history.db
+- Migration (CREATE TABLE IF NOT EXISTS) runs automatically on first _open()
+- Stored plan as JSON via model_dump_json / model_validate_json
+- Fixed aiosqlite thread-reuse error: replaced `async with await self._open()` with `conn = await self._open()` + try/finally + conn.close()
+
+Tests (tests/test_autonomy_history.py):
+- 26 unit tests covering ExecutionRecord defaults, HistoryStore.append, recent, by_outcome, cross-instance persistence
+- All 26 pass; mypy --strict passes on both implementation and test file
+
+Commit: bc35bd5
+
+---
+US-226 — Persist execution history after every plan run
+Date: 2026-03-16
+Status: COMPLETE
+
+Implementation:
+- rex/autonomy/runner.py: added history_store: HistoryStore | None = None param to execute_plan()
+- _outcome_from_plan(): COMPLETED → "success"; FAILED with any SUCCESS steps → "partial"; else "failed"
+- _write_history(): builds ExecutionRecord, runs store.append via asyncio.new_event_loop() (safe when another loop is running), catches all exceptions and logs as WARNING
+- Both exit paths (COMPLETED + FAILED) write history
+
+Tests (tests/test_autonomy_history_integration.py):
+- 14 sync integration tests (sync so asyncio.run() works without nested loop issues)
+- Covers: record in DB, outcome/goal/plan/duration/replan_count/error_summary fields, failure case, multi-run, write-failure graceful degradation, no-store baseline
+- All 14 pass; full suite: 5184 passed (14 pre-existing non-autonomy failures unchanged)
+
+Commit: ccdca67
+
+---
+US-227 — Implement FeedbackAnalyzer that summarizes history for planner context
+Date: 2026-03-16
+Status: COMPLETE
+
+Implementation:
+- rex/autonomy/feedback.py: FeedbackAnalyzer with FeedbackBackend protocol
+- summarize(goal, history_store): fetches 10 most recent records via asyncio.new_event_loop(), returns "" if empty
+- _build_prompt(): structured prompt with current goal, history rows (goal/outcome/tools/failed_tools/replans/error)
+- _fetch_recent(): sync bridge for async HistoryStore.recent()
+- Lazy LLM backend init (same pattern as LLMPlanner)
+
+Tests (tests/test_autonomy_feedback.py):
+- 13 unit tests using MagicMock(spec=HistoryStore) + AsyncMock for .recent()
+- Covers: empty history (no LLM call, returns ""), non-empty (returns LLM response, prompt contains goal/record/outcome/error/tools/failed_tools)
+- All 13 pass; mypy --strict passes
+
+Commit: 38760fe
+
+---
+US-228 — Inject feedback summary into LLMPlanner context on new goals
+Date: 2026-03-16
+Status: COMPLETE
+
+Implementation:
+- rex/autonomy/llm_planner.py: LLMPlanner.plan() + _build_prompt() accept feedback_summary: str = ""
+  When non-empty, inserts "## Past Execution Patterns\n{summary}\n\n" block before "## Goal"
+- rex/autonomy/runner.py: run() accepts feedback_analyzer: FeedbackAnalyzer | None, history_store: HistoryStore | None
+  Calls analyzer.summarize(goal, store) before planning; catches failures and warns
+  Uses cast(LLMPlanner, planner).plan(..., feedback_summary=...) + try/except TypeError for duck-typing
+  (avoids isinstance() which breaks when LLMPlanner is patched in tests)
+
+Tests (tests/test_autonomy_feedback_injection.py):
+- 12 tests: 6 for LLMPlanner prompt (section present/absent, position, plan still returned)
+           6 for runner (calls summarize, doesn't call without store/analyzer, passes summary, failure handling)
+- All 12 pass; mypy --strict passes on runner.py and llm_planner.py
+
+Commit: bf5e1fa
+
+---
+US-229 — Define GoalGraph data structure
+Date: 2026-03-16
+Status: COMPLETE
+
+Implementation:
+- rex/autonomy/goal_graph.py: GoalStatus enum, Goal Pydantic model, CyclicDependencyError, GoalGraph
+- GoalGraph.topological_sort(): Kahn's algorithm (BFS), raises CyclicDependencyError on cycles
+- GoalGraph.ready_goals(): returns PENDING goals whose all depends_on are COMPLETED
+- Unknown dependency IDs in depends_on are silently ignored
+
+Tests (tests/test_autonomy_goal_graph.py):
+- 22 unit tests: model defaults, linear chain sort, parallel/diamond dependencies, cycle detection (direct/self/longer), ready_goals with various statuses
+- All 22 pass; mypy --strict passes
+
+Commit: 6c38dc4
+
+---
+US-230 — Implement GoalParser to extract multiple goals from user input
+Date: 2026-03-16
+Status: COMPLETE
+
+Implementation:
+- rex/autonomy/goal_parser.py: GoalParser with GoalParserBackend protocol, GoalParsingError
+- parse(user_input): prompts LLM with structured instructions (IDs, descriptions, depends_on, ambiguity handling)
+- _parse_response(): validates JSON array, builds Goal objects, constructs GoalGraph
+- _strip_fences(): removes markdown code fences
+- Lazy LLM backend init
+
+Tests (tests/test_autonomy_goal_parser.py):
+- 18 unit tests: single/multi goal, ID/description/dep preservation, status=PENDING, topo sort works, fence stripping, invalid JSON/non-list/empty/missing-id errors, prompt contains user input
+- All 18 pass; mypy --strict passes
+
+Commit: 6a016a0
+
+---
+US-231 — Integrate GoalGraph execution into autonomy runner
+Date: 2026-03-16
+Status: COMPLETE
+
+Implementation:
+- rex/autonomy/goal_graph.py: added GoalStatus.SKIPPED
+- rex/autonomy/runner.py: execute_goal_graph(graph, tools, *, planner) -> GoalGraph
+  - topological_sort(); for each goal: skip if dep failed/skipped, else plan+execute
+  - Logs "Executing goal {id}: {desc} ({n}/{total})" at INFO
+  - Catches planning exceptions, marks goal FAILED
+- rex/autonomy/runner.py: run_goals(user_input, tools, *, goal_parser, ...) -> GoalGraph
+  - Parses input via GoalParser, creates planner, delegates to execute_goal_graph
+
+Tests (tests/test_autonomy_goal_graph_runner.py):
+- 10 tests: single goal success/fail, two sequential both completed, dep-fails→skip, returns graph, independent goals, cascading skip, progress logging, run_goals smoke test
+- All 10 pass; mypy --strict passes on both changed files
+
+Commit: aa975c6
+
+---
+US-232 — Implement clarification question generator for ambiguous goals
+Date: 2026-03-16
+Status: COMPLETE
+
+Implementation:
+- rex/autonomy/goal_graph.py: Goal.ambiguous: bool = False field added
+- rex/autonomy/goal_parser.py: parse 'ambiguous' field from LLM JSON; include in prompt instructions
+- rex/autonomy/clarifier.py: Clarifier with ClarifierBackend protocol
+  - needs_clarification(goal) -> bool: returns goal.ambiguous
+  - generate_question(goal) -> str: prompts LLM for yes/no or multiple-choice question
+- rex/autonomy/runner.py: execute_goal_graph() accepts clarifier + on_question callback
+  - Calls clarifier.needs_clarification(goal); if True, generates question and emits via callback
+  - Falls back to INFO log if no callback; catches clarifier exceptions, logs WARNING
+
+Tests (tests/test_autonomy_clarifier.py):
+- 13 unit tests: needs_clarification True/False, generate_question returns/strips/prompts, runner integration (callback called, not called for unambiguous, goal still runs, failure doesn't block, default logging)
+- All 13 pass; all existing tests still pass; mypy --strict passes on all 4 files
+
+Commit: 26393b5
+
+## US-233 — 2026-03-16
+- Added `tokens_used: int | None` and `cost_usd: float | None` to `PlanStep` in `rex/autonomy/models.py`
+- Added `total_cost_usd` `@property` to `Plan` (sums non-None step costs)
+- Added `total_cost_usd: float = 0.0` to `ExecutionRecord` in `rex/autonomy/history.py`
+- Updated `_CREATE_TABLE_SQL` to include `total_cost_usd REAL NOT NULL DEFAULT 0.0` column
+- Added `_MIGRATE_ADD_COST_SQL` and incremental migration in `_ensure_table()` for existing DBs (silences duplicate-column error)
+- Updated `append()` INSERT and `_row_to_record()` to include the new column
+- Updated `_write_history()` in `runner.py` to pass `total_cost_usd=plan.total_cost_usd`
+- Created `tests/test_autonomy_cost_tracking.py` — 16 tests: PlanStep defaults, Plan.total_cost_usd aggregation (empty, all-None, mixed, zero), ExecutionRecord field, HistoryStore round-trip, migration smoke test
+- All 161 autonomy unit tests pass; mypy --strict clean
