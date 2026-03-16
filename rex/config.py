@@ -165,6 +165,9 @@ class AppConfig:
     ha_timeout: float = 10.0
     ha_entity_map: Optional[Dict[str, str]] = None
 
+    # Integration credential detection
+    email_provider: str = "none"  # none | gmail | outlook
+
     # Autonomy budget limits (0 = unlimited)
     autonomy_budget_per_plan_usd: float = 0.0
     autonomy_budget_per_step_usd: float = 0.0

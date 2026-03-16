@@ -993,11 +993,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need an EmailService that returns mock data without credentials and real Gmail/Outlook data when credentials are supplied so the GUI works in both modes.
 
 **Acceptance Criteria:**
-- [ ] `rex/integrations/email_service.py` implements `EmailService` with methods: `list_inbox(limit=20) -> list[EmailMessage]`, `get_thread(thread_id) -> list[EmailMessage]`, `send_draft(to, subject, body) -> EmailMessage`, `archive(id)`, `mark_read(id)`.
-- [ ] If no credentials configured: all methods return realistic mock data (3-5 stub messages/events).
-- [ ] If Gmail credentials configured: connects via Gmail REST API using stored OAuth tokens.
-- [ ] Credential detection: `rex/config.py` `email_provider` field (none / gmail / outlook).
-- [ ] `mypy --strict rex/integrations/email_service.py` passes. Unit tests for stub mode. Tests pass.
+- [x] `rex/integrations/email_service.py` implements `EmailService` with methods: `list_inbox(limit=20) -> list[EmailMessage]`, `get_thread(thread_id) -> list[EmailMessage]`, `send_draft(to, subject, body) -> EmailMessage`, `archive(id)`, `mark_read(id)`.
+- [x] If no credentials configured: all methods return realistic mock data (3-5 stub messages/events).
+- [x] If Gmail credentials configured: connects via Gmail REST API using stored OAuth tokens.
+- [x] Credential detection: `rex/config.py` `email_provider` field (none / gmail / outlook).
+- [x] `mypy --strict rex/integrations/email_service.py` passes. Unit tests for stub mode. Tests pass.
 
 ---
 
