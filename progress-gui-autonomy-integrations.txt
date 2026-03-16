@@ -862,3 +862,11 @@ Commit: 26393b5
   - Literal type aliases (SMSDirection, SMSStatus) should be exported in __all__ so callers can type-annotate with them
   - SMSThread.messages is a nested list[SMSMessage] — model_dump/round-trip works automatically with Pydantic v2
 ---
+
+## Iteration 18 - US-250: Implement SMSService with Twilio-ready stub/live interface
+- What was implemented: `rex/integrations/sms_service.py` with `SMSService` class. Stub mode returns 2 mock threads (Alice and Bob); `send()` returns SMSMessage with status='stub' and logs `[SMS STUB]`. Twilio live mode uses `twilio.rest.Client` (optional dep). 14 unit tests for stub mode.
+- Files changed: rex/integrations/sms_service.py (new), tests/test_integrations_sms_service.py (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - When the same module is imported twice in the same file under try/except blocks, mypy only needs `type: ignore[import-untyped]` on the first occurrence; subsequent ones just need a noqa comment
+  - Twilio is already installed in this environment so the error code is `import-untyped` not `import-not-found`
+---

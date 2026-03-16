@@ -1093,10 +1093,10 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need an SMSService that works in stub mode without Twilio credentials and sends real SMS when credentials are supplied.
 
 **Acceptance Criteria:**
-- [ ] `rex/integrations/sms_service.py` implements `SMSService` with: `list_threads() -> list[SMSThread]`, `get_thread(thread_id) -> SMSThread`, `send(to, body) -> SMSMessage`.
-- [ ] Stub mode (no Twilio SID/auth): `list_threads()` returns 2 mock threads; `send()` returns an `SMSMessage` with `status='stub'` and logs `"[SMS STUB] Would send to {to}: {body}"`.
-- [ ] Live mode: uses `twilio` Python library; `send()` calls `client.messages.create(...)`.
-- [ ] `mypy --strict rex/integrations/sms_service.py` passes. Unit tests for stub mode. Tests pass.
+- [x] `rex/integrations/sms_service.py` implements `SMSService` with: `list_threads() -> list[SMSThread]`, `get_thread(thread_id) -> SMSThread`, `send(to, body) -> SMSMessage`.
+- [x] Stub mode (no Twilio SID/auth): `list_threads()` returns 2 mock threads; `send()` returns an `SMSMessage` with `status='stub'` and logs `"[SMS STUB] Would send to {to}: {body}"`.
+- [x] Live mode: uses `twilio` Python library; `send()` calls `client.messages.create(...)`.
+- [x] `mypy --strict rex/integrations/sms_service.py` passes. Unit tests for stub mode. Tests pass.
 
 ---
 
