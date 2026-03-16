@@ -932,9 +932,9 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need a UserPreferenceProfile that captures patterns in how the user invokes Rex so preference learning has a typed target.
 
 **Acceptance Criteria:**
-- [ ] `rex/autonomy/preferences.py` defines `UserPreferenceProfile` with: `preferred_autonomy_mode: str`, `preferred_model: str`, `common_goal_patterns: list[str]`, `active_hours: list[int]` (hours of day), `avg_budget_usd: float`, `last_updated: datetime`.
-- [ ] `PreferenceStore` class: `load() -> UserPreferenceProfile`, `save(profile)`. Backed by `~/.rex/preferences.json`.
-- [ ] `mypy --strict rex/autonomy/preferences.py` passes. Unit tests for load/save round-trip. Tests pass.
+- [x] `rex/autonomy/preferences.py` defines `UserPreferenceProfile` with: `preferred_autonomy_mode: str`, `preferred_model: str`, `common_goal_patterns: list[str]`, `active_hours: list[int]` (hours of day), `avg_budget_usd: float`, `last_updated: datetime`.
+- [x] `PreferenceStore` class: `load() -> UserPreferenceProfile`, `save(profile)`. Backed by `~/.rex/preferences.json`.
+- [x] `mypy --strict rex/autonomy/preferences.py` passes. Unit tests for load/save round-trip. Tests pass.
 
 ---
 
