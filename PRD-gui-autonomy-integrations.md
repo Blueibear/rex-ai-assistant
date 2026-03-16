@@ -500,11 +500,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want memory operations to actually read from and write to Rex's memory store so changes have real effect on conversations.
 
 **Acceptance Criteria:**
-- [ ] `window.rex.getMemories`, `window.rex.addMemory`, `window.rex.updateMemory`, `window.rex.deleteMemory` IPC methods fully implemented end-to-end (main process calls Rex Python memory module).
-- [ ] MemoriesPage loads real memories on mount.
-- [ ] IPC errors surfaced as Toast notifications.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] `window.rex.getMemories`, `window.rex.addMemory`, `window.rex.updateMemory`, `window.rex.deleteMemory` IPC methods fully implemented end-to-end (main process calls Rex Python memory module).
+- [x] MemoriesPage loads real memories on mount.
+- [x] IPC errors surfaced as Toast notifications.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
