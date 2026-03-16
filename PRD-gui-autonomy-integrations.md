@@ -1016,10 +1016,10 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want Rex to automatically triage my inbox by priority and category so I can focus on what matters.
 
 **Acceptance Criteria:**
-- [ ] `rex/integrations/triage_engine.py` implements `EmailTriageEngine` with `triage(messages: list[EmailMessage]) -> list[EmailMessage]` (returns messages with `priority` field populated).
-- [ ] Triage calls the LLM with message subject + sender + snippet to score priority (`low`/`medium`/`high`/`critical`) and assign a category tag (e.g., `action-required`, `newsletter`, `receipt`, `personal`).
-- [ ] Results cached in memory per session to avoid re-scoring unchanged messages.
-- [ ] `mypy --strict rex/integrations/triage_engine.py` passes. Unit tests with mocked LLM. Tests pass.
+- [x] `rex/integrations/triage_engine.py` implements `EmailTriageEngine` with `triage(messages: list[EmailMessage]) -> list[EmailMessage]` (returns messages with `priority` field populated).
+- [x] Triage calls the LLM with message subject + sender + snippet to score priority (`low`/`medium`/`high`/`critical`) and assign a category tag (e.g., `action-required`, `newsletter`, `receipt`, `personal`).
+- [x] Results cached in memory per session to avoid re-scoring unchanged messages.
+- [x] `mypy --strict rex/integrations/triage_engine.py` passes. Unit tests with mocked LLM. Tests pass.
 
 ---
 

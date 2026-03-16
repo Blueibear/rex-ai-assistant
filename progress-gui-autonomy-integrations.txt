@@ -748,3 +748,82 @@ Commit: 26393b5
 - Added Budget per Plan and Budget per Step number inputs to AI settings section of `SettingsPage.tsx` with helper text
 - Created `tests/test_autonomy_budget_config.py` — 12 tests: AppConfig field defaults/setters, per-step budget enforcement (skip/run/no-estimator/warning content)
 - All 212 autonomy tests pass; mypy --strict clean
+
+## Iteration N - US-237: Define UserPreferenceProfile data model
+- What was implemented: preferences.py already existed with complete UserPreferenceProfile and PreferenceStore. Added 16 unit tests covering defaults, field assignment, save/load round-trip, corrupt file fallback, parent dir creation.
+- Files changed: tests/test_autonomy_preferences.py (new), PRD-gui-autonomy-integrations.md (marked [x])
+- Learnings for future iterations:
+  - preferences.py was pre-implemented (from a partial prior iteration) — always check if the file exists before implementing
+  - PreferenceStore uses Pydantic model_validate_json/model_dump_json for clean JSON serialization
+  - Corrupt/invalid JSON falls back to default profile (no exception raised) — test both fully invalid JSON and schema mismatches
+---
+
+## Iteration N - US-238: Implement PreferenceLearner that updates profile after each run
+- What was implemented: PreferenceLearner in rex/autonomy/preference_learner.py; integrated into execute_plan via _update_preferences helper in runner.py
+- Files changed: rex/autonomy/preference_learner.py (new), rex/autonomy/runner.py (import + _update_preferences helper + new params), tests/test_autonomy_preference_learner.py (new, 15 tests)
+- Learnings for future iterations:
+  - Plan requires both `id` and `goal` fields; PlanStep requires `id`, `tool`, and `description` — always check model fields before writing test helpers
+  - Assert inside `with tempfile.TemporaryDirectory() as tmp:` block, not after — the dir is deleted on exit
+  - `mypy --strict` on just one file passes cleanly when imports from other modules are also type-complete
+---
+
+## Iteration 64 - US-239: Surface preference suggestions in AI settings GUI
+- What was implemented: PreferenceSuggestion type added to ipc.ts; getPreferenceSuggestions and applyPreferenceSuggestion wired through preload and main IPC handlers; AiPanel in SettingsPage.tsx updated to fetch suggestions on mount, show an info banner with Apply/Dismiss for the most impactful suggestion.
+- Files changed: gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts, gui/src/pages/SettingsPage.tsx
+- Learnings for future iterations:
+  - `(stored['ai'] ?? default) as AiSettings` fails typecheck — cast via `unknown` first: `as unknown as AiSettings`
+  - Preference suggestions are generated entirely in the Electron main process by reading ~/.rex/preferences.json and comparing against current gui_settings.json AI section
+  - Priority order for suggestions: autonomyMode > model > budgetPerPlan
+  - Dismissed suggestions tracked client-side in a Set<string> per mount; cleared on remount
+---
+
+## Iteration 65 - US-240: Apply learned preferences as soft defaults in new planning sessions
+- What was implemented:
+  - `LLMPlanner.__init__` gains `model: str = ""` kwarg; `_get_backend()` passes `model=` to `LanguageModel()` when non-empty
+  - `create_planner()` gains `model: str = ""` kwarg; forwarded to `LLMPlanner`
+  - `_apply_preferences(profile, *, autonomy_mode, model)` helper in runner.py: applies soft defaults from profile, emitting `"Using learned preference: {field}={value}"` DEBUG lines
+  - `run()` gains `preference_store`, `autonomy_mode: str = ""`, `model: str = ""` params; loads profile, applies soft defaults, injects `autonomy_mode` into context dict
+  - `tests/test_autonomy_apply_preferences.py`: 21 tests covering helper logic, create_planner forwarding, LLMPlanner model param, and run() integration
+- Files changed: rex/autonomy/llm_planner.py, rex/autonomy/runner.py, tests/test_autonomy_apply_preferences.py, PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - Avoid setting `side_effect` on a MagicMock method that calls itself — causes RecursionError; instead wrap the real function inline
+  - `_apply_preferences` treats `preferred_autonomy_mode="manual"` (the default) as "not set" — only non-default values trigger the soft default path
+  - `LanguageModel(**overrides)` accepts `model=` as a kwarg; no AppConfig changes needed
+---
+
+## Iteration 66 - US-241: Define EmailMessage and CalendarEvent data models
+- What was implemented: rex/integrations/__init__.py (package); rex/integrations/models.py with EmailMessage and CalendarEvent Pydantic v2 models; PriorityLevel Literal type alias; 13 unit tests covering instantiation, defaults, optional fields, and model_dump/JSON round-trips
+- Files changed: rex/integrations/__init__.py (new), rex/integrations/models.py (new), tests/test_integrations_models.py (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - rex/integrations/ is a new package — create __init__.py before the model file
+  - CalendarEvent uses Optional[str] = None for nullable fields (location, description, recurrence)
+  - mypy --strict passes cleanly with Literal type alias for PriorityLevel
+---
+
+## Iteration N - US-242: Implement EmailService with credential-ready stub/live interface
+- What was implemented: EmailService class with list_inbox, get_thread, send_draft, archive, mark_read methods. Stub mode returns 5 realistic mock messages. Gmail live mode uses urllib.request against Gmail REST API with GMAIL_ACCESS_TOKEN env var. Outlook scaffolded as fallback-to-stub. Added email_provider field (none/gmail/outlook) to AppConfig dataclass in rex/config.py.
+- Files changed: rex/integrations/email_service.py (new), rex/config.py (email_provider field added), tests/test_integrations_email_service.py (new, 10 tests)
+- Learnings for future iterations:
+  - mypy --strict with dict[str, object] values: use str(value) before int() to avoid "No overload variant" error
+  - Avoid __wrapped__ hack for fallback returns — just duplicate the stub construction inline
+  - AppConfig in rex/config.py is a plain @dataclass (not Pydantic) — add fields as plain typed attributes with defaults
+  - email_provider field placement: add it in the integrations section above the Autonomy budget limits block
+---
+
+## Iteration N - US-243: Implement CalendarService with credential-ready stub/live interface
+- What was implemented: CalendarService class with get_events, create_event, update_event, delete_event methods. Stub mode returns 8 realistic mock events spanning ~12 days. Google Calendar live mode uses urllib.request against Google Calendar REST API with GOOGLE_CALENDAR_ACCESS_TOKEN env var. EventData = dict[str, Any] type alias for flexible event input.
+- Files changed: rex/integrations/calendar_service.py (new), tests/test_integrations_calendar_service.py (new, 11 tests)
+- Learnings for future iterations:
+  - List comprehension with conditional `if x is not None` still has type `list[Optional[T]]` in mypy strict — assign to intermediate var then filter: `parsed = [...]; return [e for e in parsed if e is not None]`
+  - _build_stub_events() should be a function (not module-level list) since datetime.now() is called at creation time — otherwise times are stale
+  - CalendarService needs no AppConfig changes — it reads calendar_provider param directly (email_provider pattern from US-242)
+---
+
+## Iteration 12 - US-244: Implement EmailTriageEngine for priority scoring and categorization
+- What was implemented: `rex/integrations/triage_engine.py` with `EmailTriageEngine` class and `TriageBackend` Protocol. Engine scores emails via LLM into 4 priority levels (low/medium/high/critical) and 10 category tags. In-memory session cache keyed by message id avoids re-scoring. Falls back to ("low", "other") on any LLM failure. 15 unit tests in `tests/test_integrations_triage_engine.py` with mocked backend.
+- Files changed: rex/integrations/triage_engine.py (new), tests/test_integrations_triage_engine.py (new), PRD-gui-autonomy-integrations.md (US-244 checked)
+- Learnings for future iterations:
+  - `# type: ignore[import-untyped]` will fail if the module is truly absent (import-not-found); use `import-not-found` instead when the module doesn't exist in the project
+  - `runtime_checkable` Protocol + MagicMock(spec=TriageBackend) works cleanly for injecting test backends
+  - Lazy backend init (_get_backend) mirrors the LLMPlanner pattern — backend stored on self after first load
+---
