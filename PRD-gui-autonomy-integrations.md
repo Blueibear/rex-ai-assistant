@@ -1231,9 +1231,9 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need an integrated test suite for the notifications pipeline so all components work correctly together.
 
 **Acceptance Criteria:**
-- [ ] `tests/test_notifications.py` covers: router dispatches critical immediately; router queues low as digest; quiet hours suppresses medium; quiet-hours-exempt critical not suppressed; escalation promotes priority after delay; digest builder generates summary for N queued items.
-- [ ] All tests use mocked desktop notification dispatch and mocked LLM for digest.
-- [ ] Tests pass. `mypy --strict tests/test_notifications.py` passes.
+- [x] `tests/test_notifications.py` covers: router dispatches critical immediately; router queues low as digest; quiet hours suppresses medium; quiet-hours-exempt critical not suppressed; escalation promotes priority after delay; digest builder generates summary for N queued items.
+- [x] All tests use mocked desktop notification dispatch and mocked LLM for digest.
+- [x] Tests pass. `mypy --strict tests/test_notifications.py` passes.
 
 ---
 

@@ -946,3 +946,10 @@ Commit: 26393b5
   - Router must use upsert (INSERT OR REPLACE) not add (INSERT) — escalation re-routes the same notification ID, which would fail UNIQUE constraint with plain INSERT
   - `int(str(raw_val))` pattern for converting config values of unknown type to int without mypy `No overload` errors
   - Escalation engine passes a config dict in tests (not None) to avoid file I/O
+
+## Iteration 28 - US-261: Integrated notifications pipeline tests
+- What was implemented: `tests/test_notifications.py` with 13 integrated tests covering the full pipeline: router dispatches critical immediately; low queued as digest_eligible; quiet hours suppresses medium; exempt medium/critical bypass quiet hours; escalation promotes and redispatches; digest builder summarises N queued items; all with mocked desktop and mocked LLM.
+- Files changed: tests/test_notifications.py (new), PRD-gui-autonomy-integrations.md
+- Learnings for future iterations:
+  - `mypy --strict tests/test_notifications.py` fails with `python_version=3.9` in pyproject.toml because _pytest/terminal.py uses Python 3.10 match syntax → use `--python-version 3.11` to match actual runtime
+  - `store.upsert(n)` needed when bypassing the router to add a notification at a specific priority for escalation tests
