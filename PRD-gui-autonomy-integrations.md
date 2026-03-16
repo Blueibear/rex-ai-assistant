@@ -569,15 +569,15 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to enter and manage credentials for email, calendar, and SMS integrations so Rex can connect to live services.
 
 **Acceptance Criteria:**
-- [ ] Email section: Provider (select: Gmail, Outlook), OAuth client ID (text), OAuth client secret (password input), Status indicator (connected / not connected).
-- [ ] Calendar section: same structure as email (shares OAuth in practice, separate UI for clarity).
-- [ ] SMS section: Twilio Account SID (text), Twilio Auth Token (password input), From phone number (text), Status indicator.
-- [ ] "Test Connection" button per section calls `window.rex.testIntegration(type): Promise<{ok: boolean, error?: string}>` IPC method.
-- [ ] All credential fields use `type="password"` with show/hide toggle.
-- [ ] Values loaded from `window.rex.getSettings('integrations')` (returns masked values for credential fields).
-- [ ] Auto-saves on field change.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] Email section: Provider (select: Gmail, Outlook), OAuth client ID (text), OAuth client secret (password input), Status indicator (connected / not connected).
+- [x] Calendar section: same structure as email (shares OAuth in practice, separate UI for clarity).
+- [x] SMS section: Twilio Account SID (text), Twilio Auth Token (password input), From phone number (text), Status indicator.
+- [x] "Test Connection" button per section calls `window.rex.testIntegration(type): Promise<{ok: boolean, error?: string}>` IPC method.
+- [x] All credential fields use `type="password"` with show/hide toggle.
+- [x] Values loaded from `window.rex.getSettings('integrations')` (returns masked values for credential fields).
+- [x] Auto-saves on field change.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

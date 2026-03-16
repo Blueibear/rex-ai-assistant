@@ -126,6 +126,18 @@ export interface AiSettings {
   autonomyMode: 'manual' | 'supervised' | 'full-auto'
 }
 
+export interface IntegrationsSettings {
+  emailProvider: 'gmail' | 'outlook'
+  emailClientId: string
+  emailClientSecret: string
+  calendarProvider: 'gmail' | 'outlook'
+  calendarClientId: string
+  calendarClientSecret: string
+  smsSid: string
+  smsAuthToken: string
+  smsFromNumber: string
+}
+
 export interface VersionInfo {
   rex: string
   electron: string
@@ -163,4 +175,5 @@ export interface RexAPI {
   deleteMemory: (id: string) => Promise<void>
   getVersionInfo: () => Promise<VersionInfo>
   testVoice: (settings: VoiceSettings) => Promise<{ ok: boolean; error?: string }>
+  testIntegration: (type: 'email' | 'calendar' | 'sms') => Promise<{ ok: boolean; error?: string }>
 }

@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { readFileSync } from 'fs'
-import type { Settings, GeneralSettings, VoiceSettings, AiSettings } from '../types/ipc'
+import type { Settings, GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
 import { registerVoiceHandlers } from './handlers/voice'
 import { registerTaskHandlers } from './handlers/tasks'
@@ -34,7 +34,18 @@ const defaultSettingsMap: Record<string, Settings> = {
     maxTokens: 2048,
     systemPrompt: '',
     autonomyMode: 'manual'
-  } satisfies AiSettings
+  } satisfies AiSettings,
+  integrations: {
+    emailProvider: 'gmail',
+    emailClientId: '',
+    emailClientSecret: '',
+    calendarProvider: 'gmail',
+    calendarClientId: '',
+    calendarClientSecret: '',
+    smsSid: '',
+    smsAuthToken: '',
+    smsFromNumber: ''
+  } satisfies IntegrationsSettings
 }
 
 function registerIpcHandlers(): void {
@@ -61,6 +72,12 @@ function registerIpcHandlers(): void {
   ipcMain.handle('rex:testVoice', () => {
     // Stub: in production this would invoke the TTS engine with a test phrase
     return { ok: true }
+  })
+
+  ipcMain.handle('rex:testIntegration', (_event, type: string) => {
+    // Stub: in production this would make a lightweight API call to verify credentials
+    void type
+    return { ok: false, error: 'No credentials configured' }
   })
 
   ipcMain.handle('rex:getVersionInfo', () => {

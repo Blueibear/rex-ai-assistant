@@ -161,7 +161,9 @@ const rexAPI = {
     ipcRenderer.invoke('rex:deleteMemory', id).then(() => undefined),
   getVersionInfo: (): Promise<VersionInfo> => ipcRenderer.invoke('rex:getVersionInfo'),
   testVoice: (settings: VoiceSettings): Promise<{ ok: boolean; error?: string }> =>
-    ipcRenderer.invoke('rex:testVoice', settings)
+    ipcRenderer.invoke('rex:testVoice', settings),
+  testIntegration: (type: 'email' | 'calendar' | 'sms'): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('rex:testIntegration', type)
 }
 
 if (process.contextIsolated) {
