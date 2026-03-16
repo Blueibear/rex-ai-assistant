@@ -827,11 +827,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need a GoalGraph that models multiple goals and their dependencies so the runner can execute them in the correct order.
 
 **Acceptance Criteria:**
-- [ ] `rex/autonomy/goal_graph.py` defines `Goal(id, description, depends_on: list[str], status)` and `GoalGraph(goals: list[Goal])`.
-- [ ] `GoalGraph.topological_sort() -> list[Goal]` raises `CyclicDependencyError` if a cycle is detected; otherwise returns goals in valid execution order.
-- [ ] `GoalGraph.ready_goals() -> list[Goal]` returns goals whose dependencies are all `completed`.
-- [ ] Unit tests: linear dependency sorts correctly; parallel goals with shared dependency; cycle raises error. Tests pass.
-- [ ] `mypy --strict rex/autonomy/goal_graph.py` passes.
+- [x] `rex/autonomy/goal_graph.py` defines `Goal(id, description, depends_on: list[str], status)` and `GoalGraph(goals: list[Goal])`.
+- [x] `GoalGraph.topological_sort() -> list[Goal]` raises `CyclicDependencyError` if a cycle is detected; otherwise returns goals in valid execution order.
+- [x] `GoalGraph.ready_goals() -> list[Goal]` returns goals whose dependencies are all `completed`.
+- [x] Unit tests: linear dependency sorts correctly; parallel goals with shared dependency; cycle raises error. Tests pass.
+- [x] `mypy --strict rex/autonomy/goal_graph.py` passes.
 
 ---
 
