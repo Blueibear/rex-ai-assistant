@@ -1043,12 +1043,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to see my triaged inbox in the GUI so I can quickly identify and act on high-priority emails.
 
 **Acceptance Criteria:**
-- [ ] `gui/src/pages/EmailPage.tsx` renders a list of email rows: sender, subject, snippet, received time, priority badge, read/unread indicator.
-- [ ] Rows sorted by priority (critical first) within unread/read groups.
-- [ ] Priority badge colors: critical=red, high=orange, medium=blue, low=gray.
-- [ ] "Refresh" button at top calls `window.rex.getEmailInbox()` IPC (stub returns mock data).
-- [ ] BETA banner at top of page: "Email integration — enter credentials in Settings > Integrations for live data."
-- [ ] `npm run typecheck` passes. Verify changes work in app.
+- [x] `gui/src/pages/EmailPage.tsx` renders a list of email rows: sender, subject, snippet, received time, priority badge, read/unread indicator.
+- [x] Rows sorted by priority (critical first) within unread/read groups.
+- [x] Priority badge colors: critical=red, high=orange, medium=blue, low=gray.
+- [x] "Refresh" button at top calls `window.rex.getEmailInbox()` IPC (stub returns mock data).
+- [x] BETA banner at top of page: "Email integration — enter credentials in Settings > Integrations for live data."
+- [x] `npm run typecheck` passes. Verify changes work in app.
 
 ---
 

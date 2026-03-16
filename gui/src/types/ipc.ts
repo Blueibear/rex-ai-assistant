@@ -165,6 +165,22 @@ export interface PreferenceSuggestion {
   reason: string
 }
 
+export type EmailPriority = 'low' | 'medium' | 'high' | 'critical'
+
+export interface EmailMessage {
+  id: string
+  thread_id: string
+  subject: string
+  sender: string
+  recipients: string[]
+  body_text: string
+  body_html?: string
+  received_at: string // ISO date string
+  labels: string[]
+  is_read: boolean
+  priority: EmailPriority
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
@@ -199,4 +215,5 @@ export interface RexAPI {
   testIntegration: (type: 'email' | 'calendar' | 'sms') => Promise<{ ok: boolean; error?: string }>
   getPreferenceSuggestions: () => Promise<PreferenceSuggestion[]>
   applyPreferenceSuggestion: (field: string, value: string | number) => Promise<{ ok: boolean }>
+  getEmailInbox: () => Promise<EmailMessage[]>
 }

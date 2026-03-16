@@ -15,7 +15,8 @@ import type {
   MemoryUpdateInput,
   VersionInfo,
   VoiceSettings,
-  PreferenceSuggestion
+  PreferenceSuggestion,
+  EmailMessage
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -168,7 +169,8 @@ const rexAPI = {
   getPreferenceSuggestions: (): Promise<PreferenceSuggestion[]> =>
     ipcRenderer.invoke('rex:getPreferenceSuggestions'),
   applyPreferenceSuggestion: (field: string, value: string | number): Promise<{ ok: boolean }> =>
-    ipcRenderer.invoke('rex:applyPreferenceSuggestion', field, value)
+    ipcRenderer.invoke('rex:applyPreferenceSuggestion', field, value),
+  getEmailInbox: (): Promise<EmailMessage[]> => ipcRenderer.invoke('rex:getEmailInbox')
 }
 
 if (process.contextIsolated) {
