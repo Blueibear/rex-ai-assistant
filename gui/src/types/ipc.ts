@@ -101,6 +101,14 @@ export interface MemoryUpdateInput {
   category: string
 }
 
+export interface GeneralSettings {
+  displayName: string
+  timezone: string
+  language: string
+  launchAtLogin: boolean
+  startMinimized: boolean
+}
+
 export interface VersionInfo {
   rex: string
   electron: string
@@ -111,8 +119,8 @@ export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
   getStatus: () => Promise<StatusResponse>
-  getSettings: () => Promise<SettingsResponse>
-  setSettings: (settings: Settings) => Promise<SetSettingsResponse>
+  getSettings: (section: string) => Promise<Settings>
+  setSettings: (section: string, values: Settings) => Promise<SetSettingsResponse>
   startVoice: (
     onStateChange: (state: string) => void,
     onTranscript: (entry: VoiceTranscriptEntry) => void,

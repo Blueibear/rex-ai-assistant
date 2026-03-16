@@ -530,12 +530,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to configure my name, timezone, and language preferences so Rex addresses me correctly and understands time context.
 
 **Acceptance Criteria:**
-- [ ] Fields: Display Name (text), Timezone (searchable select from IANA timezone list), Language (select: English, Spanish, French, German, Japanese — extendable), Launch at login (toggle), Start minimized to tray (toggle).
-- [ ] Form loads current values from `window.rex.getSettings('general')` on mount.
-- [ ] Changes save on blur of each field (auto-save, no explicit Save button).
-- [ ] Saved state shown with a "Saved" checkmark that fades after 2s.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] Fields: Display Name (text), Timezone (searchable select from IANA timezone list), Language (select: English, Spanish, French, German, Japanese — extendable), Launch at login (toggle), Start minimized to tray (toggle).
+- [x] Form loads current values from `window.rex.getSettings('general')` on mount.
+- [x] Changes save on blur of each field (auto-save, no explicit Save button).
+- [x] Saved state shown with a "Saved" checkmark that fades after 2s.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 

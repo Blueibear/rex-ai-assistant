@@ -2,13 +2,25 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { readFileSync } from 'fs'
-import type { Settings } from '../types/ipc'
+import type { Settings, GeneralSettings } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
 import { registerVoiceHandlers } from './handlers/voice'
 import { registerTaskHandlers } from './handlers/tasks'
 import { registerCalendarHandlers } from './handlers/calendar'
 import { registerRemindersHandlers } from './handlers/reminders'
 import { registerMemoriesHandlers } from './handlers/memories'
+
+const settingsStore: Record<string, Settings> = {}
+
+const defaultSettingsMap: Record<string, Settings> = {
+  general: {
+    displayName: '',
+    timezone: 'America/New_York',
+    language: 'English',
+    launchAtLogin: false,
+    startMinimized: false
+  } satisfies GeneralSettings
+}
 
 function registerIpcHandlers(): void {
   registerChatHandlers()
@@ -22,12 +34,12 @@ function registerIpcHandlers(): void {
     return { ok: true, status: 'idle' }
   })
 
-  ipcMain.handle('rex:getSettings', () => {
-    return { ok: true, settings: {} }
+  ipcMain.handle('rex:getSettings', (_event, section: string): Settings => {
+    return settingsStore[section] ?? defaultSettingsMap[section] ?? {}
   })
 
-  ipcMain.handle('rex:setSettings', (_event, settings: Settings) => {
-    console.log('[rex:setSettings]', settings)
+  ipcMain.handle('rex:setSettings', (_event, section: string, values: Settings) => {
+    settingsStore[section] = values
     return { ok: true }
   })
 
