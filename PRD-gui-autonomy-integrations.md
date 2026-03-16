@@ -839,11 +839,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need a GoalParser that uses the LLM to identify multiple goals and their dependencies in a user's message so complex requests can be handled.
 
 **Acceptance Criteria:**
-- [ ] `rex/autonomy/goal_parser.py` implements `GoalParser` with `parse(user_input: str) -> GoalGraph`.
-- [ ] Parser prompts the LLM to: identify discrete goals in the input, assign each a short ID, identify any that must complete before others (dependencies), flag any that are ambiguous.
-- [ ] Returns a `GoalGraph` from the parsed JSON response.
-- [ ] If only one goal is found, returns a single-node graph (compatible with existing single-goal flow).
-- [ ] `mypy --strict rex/autonomy/goal_parser.py` passes. Unit test with mocked LLM. Test passes.
+- [x] `rex/autonomy/goal_parser.py` implements `GoalParser` with `parse(user_input: str) -> GoalGraph`.
+- [x] Parser prompts the LLM to: identify discrete goals in the input, assign each a short ID, identify any that must complete before others (dependencies), flag any that are ambiguous.
+- [x] Returns a `GoalGraph` from the parsed JSON response.
+- [x] If only one goal is found, returns a single-node graph (compatible with existing single-goal flow).
+- [x] `mypy --strict rex/autonomy/goal_parser.py` passes. Unit test with mocked LLM. Test passes.
 
 ---
 
