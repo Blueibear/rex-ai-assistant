@@ -109,6 +109,15 @@ export interface GeneralSettings {
   startMinimized: boolean
 }
 
+export interface VoiceSettings {
+  microphoneDeviceId: string
+  speakerDeviceId: string
+  ttsEngine: 'system' | 'openai' | 'elevenlabs'
+  ttsVoice: string
+  speechRate: number
+  volume: number
+}
+
 export interface VersionInfo {
   rex: string
   electron: string
@@ -145,4 +154,5 @@ export interface RexAPI {
   updateMemory: (id: string, data: MemoryUpdateInput) => Promise<Memory>
   deleteMemory: (id: string) => Promise<void>
   getVersionInfo: () => Promise<VersionInfo>
+  testVoice: (settings: VoiceSettings) => Promise<{ ok: boolean; error?: string }>
 }

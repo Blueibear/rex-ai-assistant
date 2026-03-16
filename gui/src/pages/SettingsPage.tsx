@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import type { GeneralSettings, Settings, VersionInfo } from '../types/ipc'
+import type { GeneralSettings, VoiceSettings, Settings, VersionInfo } from '../types/ipc'
 
 type CategoryId = 'general' | 'voice' | 'ai' | 'integrations' | 'notifications' | 'about'
 
@@ -366,6 +366,330 @@ function GeneralPanel(): React.ReactElement {
   )
 }
 
+interface MediaDeviceOption {
+  deviceId: string
+  label: string
+}
+
+function VoicePanel(): React.ReactElement {
+  const [form, setForm] = useState<VoiceSettings>({
+    microphoneDeviceId: '',
+    speakerDeviceId: '',
+    ttsEngine: 'system',
+    ttsVoice: '',
+    speechRate: 1.0,
+    volume: 1.0
+  })
+  const [loading, setLoading] = useState(true)
+  const [mics, setMics] = useState<MediaDeviceOption[]>([])
+  const [speakers, setSpeakers] = useState<MediaDeviceOption[]>([])
+  const [savedField, setSavedField] = useState<keyof VoiceSettings | null>(null)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<'ok' | 'error' | null>(null)
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const testResultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    // Load devices
+    if (navigator.mediaDevices?.enumerateDevices) {
+      navigator.mediaDevices
+        .enumerateDevices()
+        .then((devices) => {
+          const micList = devices
+            .filter((d) => d.kind === 'audioinput')
+            .map((d, i) => ({ deviceId: d.deviceId, label: d.label || `Microphone ${i + 1}` }))
+          const speakerList = devices
+            .filter((d) => d.kind === 'audiooutput')
+            .map((d, i) => ({ deviceId: d.deviceId, label: d.label || `Speaker ${i + 1}` }))
+          setMics(micList)
+          setSpeakers(speakerList)
+        })
+        .catch(() => {
+          /* no devices available */
+        })
+    }
+
+    // Load settings
+    window.rex
+      .getSettings('voice')
+      .then((settings: Settings) => {
+        setForm({
+          microphoneDeviceId:
+            typeof settings.microphoneDeviceId === 'string' ? settings.microphoneDeviceId : '',
+          speakerDeviceId:
+            typeof settings.speakerDeviceId === 'string' ? settings.speakerDeviceId : '',
+          ttsEngine:
+            settings.ttsEngine === 'openai' || settings.ttsEngine === 'elevenlabs'
+              ? settings.ttsEngine
+              : 'system',
+          ttsVoice: typeof settings.ttsVoice === 'string' ? settings.ttsVoice : '',
+          speechRate: typeof settings.speechRate === 'number' ? settings.speechRate : 1.0,
+          volume: typeof settings.volume === 'number' ? settings.volume : 1.0
+        })
+      })
+      .catch(() => {
+        /* use defaults */
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  function showSaved(field: keyof VoiceSettings): void {
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+    setSavedField(field)
+    savedTimerRef.current = setTimeout(() => setSavedField(null), 2000)
+  }
+
+  function saveField(
+    field: keyof VoiceSettings,
+    value: VoiceSettings[keyof VoiceSettings],
+    updatedForm?: VoiceSettings
+  ): void {
+    const updated: VoiceSettings = { ...(updatedForm ?? form), [field]: value }
+    window.rex
+      .setSettings('voice', updated as unknown as Settings)
+      .then(() => showSaved(field))
+      .catch(() => {
+        /* silently fail */
+      })
+  }
+
+  function handleFieldChange<K extends keyof VoiceSettings>(
+    field: K,
+    value: VoiceSettings[K]
+  ): void {
+    const updated = { ...form, [field]: value }
+    setForm(updated)
+    saveField(field, value, updated)
+  }
+
+  function handleTestVoice(): void {
+    setTesting(true)
+    setTestResult(null)
+    window.rex
+      .testVoice(form)
+      .then((res) => {
+        setTestResult(res.ok ? 'ok' : 'error')
+      })
+      .catch(() => {
+        setTestResult('error')
+      })
+      .finally(() => {
+        setTesting(false)
+        if (testResultTimerRef.current) clearTimeout(testResultTimerRef.current)
+        testResultTimerRef.current = setTimeout(() => setTestResult(null), 3000)
+      })
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-5">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="h-10 rounded-lg bg-surface-raised animate-pulse" />
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6 max-w-lg">
+      <h2 className="text-lg font-semibold text-text-primary mb-6">Voice</h2>
+
+      {/* Microphone device */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="microphoneDeviceId" className="text-sm font-medium text-text-primary">
+            Microphone
+          </label>
+          <SavedIndicator visible={savedField === 'microphoneDeviceId'} />
+        </div>
+        <select
+          id="microphoneDeviceId"
+          value={form.microphoneDeviceId}
+          onChange={(e) => handleFieldChange('microphoneDeviceId', e.target.value)}
+          className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          <option value="">System default</option>
+          {mics.map((d) => (
+            <option key={d.deviceId} value={d.deviceId}>
+              {d.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Speaker device */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="speakerDeviceId" className="text-sm font-medium text-text-primary">
+            Speaker
+          </label>
+          <SavedIndicator visible={savedField === 'speakerDeviceId'} />
+        </div>
+        <select
+          id="speakerDeviceId"
+          value={form.speakerDeviceId}
+          onChange={(e) => handleFieldChange('speakerDeviceId', e.target.value)}
+          className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          <option value="">System default</option>
+          {speakers.map((d) => (
+            <option key={d.deviceId} value={d.deviceId}>
+              {d.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* TTS engine */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="ttsEngine" className="text-sm font-medium text-text-primary">
+            TTS Engine
+          </label>
+          <SavedIndicator visible={savedField === 'ttsEngine'} />
+        </div>
+        <select
+          id="ttsEngine"
+          value={form.ttsEngine}
+          onChange={(e) => {
+            const v = e.target.value as VoiceSettings['ttsEngine']
+            handleFieldChange('ttsEngine', v)
+          }}
+          className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          <option value="system">System</option>
+          <option value="openai">OpenAI</option>
+          <option value="elevenlabs">ElevenLabs</option>
+        </select>
+      </div>
+
+      {/* TTS voice (shown only for non-system engines) */}
+      {form.ttsEngine !== 'system' && (
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="ttsVoice" className="text-sm font-medium text-text-primary">
+              Voice ID / Name
+            </label>
+            <SavedIndicator visible={savedField === 'ttsVoice'} />
+          </div>
+          <input
+            id="ttsVoice"
+            type="text"
+            value={form.ttsVoice}
+            placeholder={form.ttsEngine === 'openai' ? 'e.g. alloy' : 'e.g. EXAVITQu4vr4xnSDxMaL'}
+            onChange={(e) => setForm((f) => ({ ...f, ttsVoice: e.target.value }))}
+            onBlur={(e) => saveField('ttsVoice', e.target.value)}
+            className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+        </div>
+      )}
+
+      {/* Speech rate */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="speechRate" className="text-sm font-medium text-text-primary">
+            Speech Rate
+            <span className="ml-2 text-xs text-text-secondary font-normal">
+              {form.speechRate.toFixed(1)}×
+            </span>
+          </label>
+          <SavedIndicator visible={savedField === 'speechRate'} />
+        </div>
+        <div className="flex items-center gap-2 text-xs text-text-secondary">
+          <span>Slow</span>
+          <input
+            id="speechRate"
+            type="range"
+            min={0.5}
+            max={2.0}
+            step={0.1}
+            value={form.speechRate}
+            onChange={(e) => handleFieldChange('speechRate', parseFloat(e.target.value))}
+            className="flex-1 accent-accent"
+          />
+          <span>Fast</span>
+        </div>
+      </div>
+
+      {/* Volume */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="volume" className="text-sm font-medium text-text-primary">
+            Volume
+            <span className="ml-2 text-xs text-text-secondary font-normal">
+              {Math.round(form.volume * 100)}%
+            </span>
+          </label>
+          <SavedIndicator visible={savedField === 'volume'} />
+        </div>
+        <div className="flex items-center gap-2 text-xs text-text-secondary">
+          <span>0%</span>
+          <input
+            id="volume"
+            type="range"
+            min={0}
+            max={1.0}
+            step={0.05}
+            value={form.volume}
+            onChange={(e) => handleFieldChange('volume', parseFloat(e.target.value))}
+            className="flex-1 accent-accent"
+          />
+          <span>100%</span>
+        </div>
+      </div>
+
+      {/* Test Voice button */}
+      <div className="border-t border-border pt-5 flex items-center gap-3">
+        <button
+          onClick={handleTestVoice}
+          disabled={testing}
+          className="flex items-center gap-2 bg-accent hover:bg-accent/90 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg"
+        >
+          {testing ? (
+            <>
+              <svg
+                className="animate-spin h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+              </svg>
+              Testing…
+            </>
+          ) : (
+            <>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+              Test Voice
+            </>
+          )}
+        </button>
+        {testResult === 'ok' && (
+          <span className="flex items-center gap-1 text-xs text-success">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Playing sample
+          </span>
+        )}
+        {testResult === 'error' && (
+          <span className="text-xs text-danger">Failed to play sample</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function PlaceholderPanel({ title }: { title: string }): React.ReactElement {
   return (
     <div className="p-6">
@@ -445,7 +769,7 @@ function renderPanel(categoryId: CategoryId): React.ReactElement {
     case 'general':
       return <GeneralPanel />
     case 'voice':
-      return <PlaceholderPanel title="Voice" />
+      return <VoicePanel />
     case 'ai':
       return <PlaceholderPanel title="AI" />
     case 'integrations':

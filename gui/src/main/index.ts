@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { readFileSync } from 'fs'
-import type { Settings, GeneralSettings } from '../types/ipc'
+import type { Settings, GeneralSettings, VoiceSettings } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
 import { registerVoiceHandlers } from './handlers/voice'
 import { registerTaskHandlers } from './handlers/tasks'
@@ -19,7 +19,15 @@ const defaultSettingsMap: Record<string, Settings> = {
     language: 'English',
     launchAtLogin: false,
     startMinimized: false
-  } satisfies GeneralSettings
+  } satisfies GeneralSettings,
+  voice: {
+    microphoneDeviceId: '',
+    speakerDeviceId: '',
+    ttsEngine: 'system',
+    ttsVoice: '',
+    speechRate: 1.0,
+    volume: 1.0
+  } satisfies VoiceSettings
 }
 
 function registerIpcHandlers(): void {
@@ -40,6 +48,11 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('rex:setSettings', (_event, section: string, values: Settings) => {
     settingsStore[section] = values
+    return { ok: true }
+  })
+
+  ipcMain.handle('rex:testVoice', () => {
+    // Stub: in production this would invoke the TTS engine with a test phrase
     return { ok: true }
   })
 

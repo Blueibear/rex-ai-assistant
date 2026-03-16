@@ -543,12 +543,12 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a user, I want to configure voice input/output devices, TTS engine, and playback parameters so Rex sounds and hears the way I want.
 
 **Acceptance Criteria:**
-- [ ] Fields: Microphone device (select from `navigator.mediaDevices.enumerateDevices()`), Speaker device (same), TTS engine (select: system, openai, elevenlabs), TTS voice (text, conditionally shown), Speech rate (slider 0.5–2.0), Volume (slider 0–1.0).
-- [ ] "Test Voice" button plays a short TTS sample using current settings.
-- [ ] Form loads current values from `window.rex.getSettings('voice')` on mount.
-- [ ] Auto-saves on field change.
-- [ ] `npm run typecheck` passes.
-- [ ] Verify changes work in app.
+- [x] Fields: Microphone device (select from `navigator.mediaDevices.enumerateDevices()`), Speaker device (same), TTS engine (select: system, openai, elevenlabs), TTS voice (text, conditionally shown), Speech rate (slider 0.5–2.0), Volume (slider 0–1.0).
+- [x] "Test Voice" button plays a short TTS sample using current settings.
+- [x] Form loads current values from `window.rex.getSettings('voice')` on mount.
+- [x] Auto-saves on field change.
+- [x] `npm run typecheck` passes.
+- [x] Verify changes work in app.
 
 ---
 
