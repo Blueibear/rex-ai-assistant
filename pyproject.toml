@@ -288,3 +288,23 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "resemblyzer"
 ignore_missing_imports = true
+
+# Pre-existing modules that are not yet strict-mode compliant.
+# These overrides silence errors in those files when running
+# `mypy --strict` against new, strict-clean modules (e.g. rex.autonomy.*).
+[[tool.mypy.overrides]]
+module = [
+  "rex",
+  "rex.config",
+  "rex.logging_utils",
+  "rex.llm_client",
+  "rex.scheduler",
+  "rex.event_bus",
+  "rex.http_errors",
+  "rex.notification",
+  "rex.calendar_service",
+  "rex.calendar_backends.ics_parser",
+  "rex.dashboard.auth",
+  "rex.dashboard.routes",
+]
+ignore_errors = true

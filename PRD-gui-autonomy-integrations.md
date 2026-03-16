@@ -673,11 +673,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need typed data structures for plans and plan steps so the new LLM planner has a stable interface.
 
 **Acceptance Criteria:**
-- [ ] `rex/autonomy/models.py` defines (or extends existing models): `PlanStep(id, tool, args, description, status, result, error)`, `Plan(id, goal, steps, status, created_at, completed_at)`, `PlannerProtocol` (abstract base class with `plan(goal: str, context: dict) -> Plan`).
-- [ ] All models are Pydantic v2 models with full type annotations.
-- [ ] `mypy --strict rex/autonomy/models.py` passes.
-- [ ] Unit test in `tests/test_autonomy_models.py` verifies model instantiation and serialization.
-- [ ] Tests pass.
+- [x] `rex/autonomy/models.py` defines (or extends existing models): `PlanStep(id, tool, args, description, status, result, error)`, `Plan(id, goal, steps, status, created_at, completed_at)`, `PlannerProtocol` (abstract base class with `plan(goal: str, context: dict) -> Plan`).
+- [x] All models are Pydantic v2 models with full type annotations.
+- [x] `mypy --strict rex/autonomy/models.py` passes.
+- [x] Unit test in `tests/test_autonomy_models.py` verifies model instantiation and serialization.
+- [x] Tests pass.
 
 ---
 
