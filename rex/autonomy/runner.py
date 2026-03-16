@@ -31,6 +31,8 @@ from pathlib import Path
 from typing import Any, Callable, Literal, cast
 
 from rex.autonomy.feedback import FeedbackAnalyzer
+from rex.autonomy.goal_graph import GoalGraph, GoalStatus
+from rex.autonomy.goal_parser import GoalParser
 from rex.autonomy.history import ExecutionRecord, HistoryStore
 from rex.autonomy.llm_planner import LLMPlanner, ToolDefinition
 from rex.autonomy.models import Plan, PlannerProtocol, PlanStatus, PlanStep, StepStatus
@@ -355,13 +357,121 @@ def execute_plan(
 
 
 # ---------------------------------------------------------------------------
+# Multi-goal graph executor
+# ---------------------------------------------------------------------------
+
+
+def execute_goal_graph(
+    graph: GoalGraph,
+    tools: dict[str, Callable[..., str]],
+    *,
+    planner: PlannerProtocol,
+) -> GoalGraph:
+    """Execute a :class:`~rex.autonomy.goal_graph.GoalGraph` goal by goal.
+
+    Goals are executed in topological order.  For each goal:
+
+    1. If any direct dependency has status ``FAILED`` or ``SKIPPED``, the goal
+       is marked ``SKIPPED`` and skipped.
+    2. Otherwise the goal is planned via *planner* and executed by
+       :func:`execute_plan`.
+    3. On completion the goal is marked ``COMPLETED`` or ``FAILED``.
+
+    Args:
+        graph: The :class:`~rex.autonomy.goal_graph.GoalGraph` to execute.
+        tools: Tool callables forwarded to :func:`execute_plan`.
+        planner: Planner used to create a :class:`~rex.autonomy.models.Plan`
+            for each goal.
+
+    Returns:
+        The same *graph* object with updated goal statuses.
+    """
+    ordered = graph.topological_sort()
+    total = len(ordered)
+    by_id = {g.id: g for g in graph.goals}
+
+    for n, goal in enumerate(ordered, start=1):
+        # Check if any dependency failed or was skipped.
+        dep_blocked = any(
+            by_id[dep_id].status in (GoalStatus.FAILED, GoalStatus.SKIPPED)
+            for dep_id in goal.depends_on
+            if dep_id in by_id
+        )
+        if dep_blocked:
+            goal.status = GoalStatus.SKIPPED
+            logger.info(
+                "runner: goal %s skipped — a dependency failed (%d/%d)",
+                goal.id,
+                n,
+                total,
+            )
+            continue
+
+        logger.info(
+            "runner: Executing goal %s: %s (%d/%d)",
+            goal.id,
+            goal.description,
+            n,
+            total,
+        )
+        goal.status = GoalStatus.RUNNING
+
+        try:
+            plan = planner.plan(goal.description, {})
+            result_plan = execute_plan(plan, tools)
+            if result_plan.status == PlanStatus.COMPLETED:
+                goal.status = GoalStatus.COMPLETED
+                logger.info("runner: goal %s completed (%d/%d)", goal.id, n, total)
+            else:
+                goal.status = GoalStatus.FAILED
+                logger.warning("runner: goal %s failed (%d/%d)", goal.id, n, total)
+        except Exception as exc:  # noqa: BLE001
+            goal.status = GoalStatus.FAILED
+            logger.error("runner: goal %s raised — %s (%d/%d)", goal.id, exc, n, total)
+
+    return graph
+
+
+def run_goals(
+    user_input: str,
+    tools: dict[str, Callable[..., str]],
+    *,
+    goal_parser: GoalParser,
+    planner_key: PlannerKey | None = None,
+    config_path: Path | None = None,
+) -> GoalGraph:
+    """Parse *user_input* into a :class:`~rex.autonomy.goal_graph.GoalGraph` and execute it.
+
+    This is the multi-goal entry point.  It combines :class:`~rex.autonomy.goal_parser.GoalParser`
+    and :func:`execute_goal_graph` into a single convenience call.
+
+    Args:
+        user_input: Free-form text from the user.
+        tools: Tool callables forwarded to :func:`execute_plan`.
+        goal_parser: Parser used to extract goals from *user_input*.
+        planner_key: Override planner selection (``"llm"`` or ``"rule"``).
+        config_path: Override path to ``autonomy.json``.
+
+    Returns:
+        An executed :class:`~rex.autonomy.goal_graph.GoalGraph` with updated
+        goal statuses.
+    """
+    graph = goal_parser.parse(user_input)
+    logger.info("runner: parsed %d goal(s) from user input", len(graph.goals))
+    planner = create_planner(planner_key=planner_key, config_path=config_path)
+    return execute_goal_graph(graph, tools, planner=planner)
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 __all__ = [
     "create_planner",
+    "execute_goal_graph",
     "execute_plan",
     "run",
+    "run_goals",
     "HistoryStore",
     "PlannerKey",
     "Replanner",

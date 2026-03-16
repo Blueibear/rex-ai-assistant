@@ -851,11 +851,11 @@ Story numbering continues from the existing PRD ecosystem (previous PRDs end at 
 **Description:** As a developer, I need the autonomy runner to process GoalGraphs so multi-goal inputs execute in the right order with proper dependency handling.
 
 **Acceptance Criteria:**
-- [ ] Autonomy runner entry point calls `GoalParser.parse()` on user input, receives `GoalGraph`.
-- [ ] Runner executes goals in topological order: for each `Goal`, creates a `Plan` via `LLMPlanner`, runs the plan, marks goal `completed` or `failed`.
-- [ ] On goal failure, dependent goals are marked `skipped` (not attempted).
-- [ ] Progress logged per goal: `"Executing goal {id}: {description} ({n}/{total})"`.
-- [ ] Integration smoke test with two sequential goals. Test passes. `mypy --strict` passes.
+- [x] Autonomy runner entry point calls `GoalParser.parse()` on user input, receives `GoalGraph`.
+- [x] Runner executes goals in topological order: for each `Goal`, creates a `Plan` via `LLMPlanner`, runs the plan, marks goal `completed` or `failed`.
+- [x] On goal failure, dependent goals are marked `skipped` (not attempted).
+- [x] Progress logged per goal: `"Executing goal {id}: {description} ({n}/{total})"`.
+- [x] Integration smoke test with two sequential goals. Test passes. `mypy --strict` passes.
 
 ---
 
