@@ -95,4 +95,65 @@ export function registerVoiceHandlers(): void {
     killVoiceProcess()
     return { ok: true }
   })
+
+  ipcMain.handle(
+    'rex:listVoices',
+    async (
+      _event,
+      provider: string
+    ): Promise<{ ok: boolean; voices: unknown[]; error?: string }> => {
+      const scriptPath = join(__dirname, '../../../../rex_voices_bridge.py')
+      return new Promise((resolve) => {
+        const py = spawn('python', [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+        let stdout = ''
+        let stderr = ''
+        py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
+        py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+        py.on('close', () => {
+          try {
+            const result = JSON.parse(stdout.trim()) as { ok: boolean; voices?: unknown[]; error?: string }
+            resolve({ ok: result.ok, voices: result.voices ?? [], error: result.error })
+          } catch {
+            resolve({ ok: false, voices: [], error: stderr || 'Failed to parse response' })
+          }
+        })
+        py.on('error', (err) => {
+          resolve({ ok: false, voices: [], error: `Failed to start bridge: ${err.message}` })
+        })
+        py.stdin?.write(JSON.stringify({ provider }) + '\n')
+        py.stdin?.end()
+      })
+    }
+  )
+
+  ipcMain.handle(
+    'rex:previewVoice',
+    async (
+      _event,
+      provider: string,
+      voiceId: string
+    ): Promise<{ ok: boolean; audio_base64?: string; error?: string }> => {
+      const scriptPath = join(__dirname, '../../../../rex_voice_sample_bridge.py')
+      return new Promise((resolve) => {
+        const py = spawn('python', [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+        let stdout = ''
+        let stderr = ''
+        py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
+        py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+        py.on('close', () => {
+          try {
+            const result = JSON.parse(stdout.trim()) as { ok: boolean; audio_base64?: string; error?: string }
+            resolve(result)
+          } catch {
+            resolve({ ok: false, error: stderr || 'Failed to parse response' })
+          }
+        })
+        py.on('error', (err) => {
+          resolve({ ok: false, error: `Failed to start bridge: ${err.message}` })
+        })
+        py.stdin?.write(JSON.stringify({ provider, voice_id: voiceId }) + '\n')
+        py.stdin?.end()
+      })
+    }
+  )
 }

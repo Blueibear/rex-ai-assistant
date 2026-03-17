@@ -4,6 +4,7 @@ import type {
   Settings,
   SetSettingsResponse,
   VoiceTranscriptEntry,
+  VoiceInfo,
   Task,
   TaskInput,
   TaskRun,
@@ -197,7 +198,14 @@ const rexAPI = {
     ipcRenderer.on('rex:newNotification', (_event, notification: GuiNotification) =>
       cb(notification)
     )
-  }
+  },
+  listVoices: (provider: string): Promise<{ ok: boolean; voices: VoiceInfo[]; error?: string }> =>
+    ipcRenderer.invoke('rex:listVoices', provider),
+  previewVoice: (
+    provider: string,
+    voiceId: string
+  ): Promise<{ ok: boolean; audio_base64?: string; error?: string }> =>
+    ipcRenderer.invoke('rex:previewVoice', provider, voiceId)
 }
 
 if (process.contextIsolated) {

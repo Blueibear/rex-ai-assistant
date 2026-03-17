@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, NotificationsSettings, Settings, VersionInfo, PreferenceSuggestion } from '../types/ipc'
+import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, NotificationsSettings, Settings, VersionInfo, PreferenceSuggestion, VoiceInfo } from '../types/ipc'
 import { useToast } from '../components/ui/Toast'
 import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
 import { SkeletonLine } from '../components/ui/SkeletonLine'
@@ -385,8 +385,31 @@ function VoicePanel(): React.ReactElement {
   const [savedField, setSavedField] = useState<keyof VoiceSettings | null>(null)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<'ok' | 'error' | null>(null)
+  const [voices, setVoices] = useState<VoiceInfo[]>([])
+  const [voicesLoading, setVoicesLoading] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const testResultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function engineToProvider(engine: VoiceSettings['ttsEngine']): string {
+    if (engine === 'openai') return 'edge-tts'
+    if (engine === 'elevenlabs') return 'xtts'
+    return 'pyttsx3'
+  }
+
+  function loadVoices(engine: VoiceSettings['ttsEngine']): void {
+    setVoicesLoading(true)
+    setVoices([])
+    window.rex
+      .listVoices(engineToProvider(engine))
+      .then((res) => {
+        setVoices(res.voices ?? [])
+      })
+      .catch(() => {
+        setVoices([])
+      })
+      .finally(() => setVoicesLoading(false))
+  }
 
   useEffect(() => {
     // Load devices
@@ -431,6 +454,12 @@ function VoicePanel(): React.ReactElement {
       })
       .finally(() => setLoading(false))
   }, [addToast])
+
+  useEffect(() => {
+    if (!loading) {
+      loadVoices(form.ttsEngine)
+    }
+  }, [form.ttsEngine, loading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function showSaved(field: keyof VoiceSettings): void {
     if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
@@ -477,6 +506,37 @@ function VoicePanel(): React.ReactElement {
         if (testResultTimerRef.current) clearTimeout(testResultTimerRef.current)
         testResultTimerRef.current = setTimeout(() => setTestResult(null), 3000)
       })
+  }
+
+  function handlePreviewVoice(): void {
+    if (!form.ttsVoice) return
+    setPreviewing(true)
+    window.rex
+      .previewVoice(engineToProvider(form.ttsEngine), form.ttsVoice)
+      .then((res) => {
+        if (res.ok && res.audio_base64) {
+          const binary = atob(res.audio_base64)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i)
+          }
+          const ctx = new AudioContext()
+          ctx.decodeAudioData(bytes.buffer).then((buf) => {
+            const src = ctx.createBufferSource()
+            src.buffer = buf
+            src.connect(ctx.destination)
+            src.start()
+          }).catch(() => {
+            addToast('Could not decode audio preview', 'error')
+          })
+        } else {
+          addToast(res.error ?? 'Preview failed', 'error')
+        }
+      })
+      .catch(() => {
+        addToast('Preview failed', 'error')
+      })
+      .finally(() => setPreviewing(false))
   }
 
   if (loading) {
@@ -556,26 +616,66 @@ function VoicePanel(): React.ReactElement {
         </select>
       </div>
 
-      {/* TTS voice (shown only for non-system engines) */}
-      {form.ttsEngine !== 'system' && (
-        <div className="mb-5">
-          <div className="flex items-center justify-between mb-1.5">
-            <label htmlFor="ttsVoice" className="text-sm font-medium text-text-primary">
-              Voice ID / Name
-            </label>
-            <SavedIndicator visible={savedField === 'ttsVoice'} />
-          </div>
-          <input
-            id="ttsVoice"
-            type="text"
-            value={form.ttsVoice}
-            placeholder={form.ttsEngine === 'openai' ? 'e.g. alloy' : 'e.g. EXAVITQu4vr4xnSDxMaL'}
-            onChange={(e) => setForm((f) => ({ ...f, ttsVoice: e.target.value }))}
-            onBlur={(e) => saveField('ttsVoice', e.target.value)}
-            className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
-          />
+      {/* TTS voice selector */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="ttsVoice" className="text-sm font-medium text-text-primary">
+            Voice
+          </label>
+          <SavedIndicator visible={savedField === 'ttsVoice'} />
         </div>
-      )}
+        <div className="flex items-center gap-2">
+          {voicesLoading ? (
+            <div className="flex-1 flex items-center gap-2 bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-secondary">
+              <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+              </svg>
+              Loading voices…
+            </div>
+          ) : voices.length > 0 ? (
+            <select
+              id="ttsVoice"
+              value={form.ttsVoice}
+              onChange={(e) => handleFieldChange('ttsVoice', e.target.value)}
+              className="flex-1 bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+            >
+              <option value="">Select a voice…</option>
+              {voices.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}{v.language ? ` (${v.language})` : ''}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              id="ttsVoice"
+              type="text"
+              value={form.ttsVoice}
+              placeholder="Enter voice ID or name"
+              onChange={(e) => setForm((f) => ({ ...f, ttsVoice: e.target.value }))}
+              onBlur={(e) => saveField('ttsVoice', e.target.value)}
+              className="flex-1 bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          )}
+          <button
+            onClick={handlePreviewVoice}
+            disabled={previewing || !form.ttsVoice}
+            title="Preview voice"
+            className="flex items-center gap-1.5 bg-surface-raised hover:bg-surface border border-border disabled:opacity-40 text-text-primary text-sm font-medium px-3 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg shrink-0"
+          >
+            {previewing ? (
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+            )}
+            Preview
+          </button>
+        </div>
+      </div>
 
       {/* Speech rate */}
       <div className="mb-5">

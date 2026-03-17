@@ -16,6 +16,13 @@ export interface SetSettingsResponse {
   ok: boolean
 }
 
+export interface VoiceInfo {
+  id: string
+  name: string
+  language: string
+  gender: string | null
+}
+
 export interface VoiceTranscriptEntry {
   text: string
   role: 'user' | 'rex'
@@ -284,4 +291,9 @@ export interface RexAPI {
   dismissNotification: (id: string) => Promise<void>
   getUnreadNotificationCount: () => Promise<number>
   onNewNotification: (cb: (notification: GuiNotification) => void) => void
+  listVoices: (provider: string) => Promise<{ ok: boolean; voices: VoiceInfo[]; error?: string }>
+  previewVoice: (
+    provider: string,
+    voiceId: string
+  ) => Promise<{ ok: boolean; audio_base64?: string; error?: string }>
 }

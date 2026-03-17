@@ -77,6 +77,21 @@
   - Keep lazy imports inside the method to avoid circular import risk between assistant and geolocation
 ---
 
+## Iteration 7 - US-007: Add TTS sample playback endpoint to Python backend
+- Added `async def synthesize_sample(provider, voice_id, text)` to `rex/tts_voices.py`
+- XTTS: uses `TTS.api.TTS` (behind try/except ImportError), writes to temp WAV, reads back bytes
+- edge-tts: uses `edge_tts.Communicate(text, voice_id).save(tmpfile)`, returns MP3 bytes
+- pyttsx3: uses `engine.save_to_file + runAndWait`, returns WAV bytes
+- All providers enforce 50-char text limit before synthesis
+- Created `rex_voice_sample_bridge.py`: reads `{"provider": ..., "voice_id": ...}` from stdin, base64-encodes audio bytes, writes `{"ok": true, "audio_base64": ...}` to stdout
+- Added 8 new tests in `tests/test_tts_voices.py` covering edge-tts success, alias spellings, ImportError, text truncation, pyttsx3 success, ImportError, and unknown provider
+- Files changed: `rex/tts_voices.py`, `rex_voice_sample_bridge.py` (new), `tests/test_tts_voices.py`
+- Learnings for future iterations:
+  - For blocking I/O in async functions use `loop.run_in_executor(None, fn)` pattern
+  - edge-tts `Communicate.save(path)` is a coroutine; must be `await`-ed inside async function — do NOT wrap with asyncio.run inside it
+  - pyttsx3's blocking engine can't be called directly in async context; wrap with executor
+---
+
 ## Iteration 4 - US-004: Implement weather_now tool with OpenWeatherMap
 - Created `rex/weather.py` with `async def get_weather(location, api_key)` using stdlib urllib
 - Added `get_cached_city()` to `rex/geolocation.py` for sync location fallback

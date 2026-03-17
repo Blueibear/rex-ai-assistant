@@ -103,15 +103,15 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 **Description:** As a user, I want a dropdown in the Voice settings panel to pick my preferred TTS voice and hear a sample before committing.
 
 **Acceptance Criteria:**
-- [ ] New IPC handlers `rex:listVoices` and `rex:previewVoice` registered in `gui/src/main/handlers/voice.ts`
-- [ ] `rex:listVoices` spawns `rex_voices_bridge.py` and returns the voice list
-- [ ] `rex:previewVoice` spawns `rex_voice_sample_bridge.py`, receives base64 WAV, sends it to renderer
-- [ ] Settings > Voice section in `SettingsPage.tsx` gains a `<select>` dropdown populated by `rex:listVoices` on mount
-- [ ] Each option shows voice name and language
-- [ ] A "Preview" button next to the dropdown calls `rex:previewVoice` and plays the returned audio via Web Audio API
-- [ ] Selecting a voice updates `tts_voice` in settings and persists to config
-- [ ] Loading state shown while voices are being fetched
-- [ ] Typecheck passes
+- [x] New IPC handlers `rex:listVoices` and `rex:previewVoice` registered in `gui/src/main/handlers/voice.ts`
+- [x] `rex:listVoices` spawns `rex_voices_bridge.py` and returns the voice list
+- [x] `rex:previewVoice` spawns `rex_voice_sample_bridge.py`, receives base64 WAV, sends it to renderer
+- [x] Settings > Voice section in `SettingsPage.tsx` gains a `<select>` dropdown populated by `rex:listVoices` on mount
+- [x] Each option shows voice name and language
+- [x] A "Preview" button next to the dropdown calls `rex:previewVoice` and plays the returned audio via Web Audio API
+- [x] Selecting a voice updates `tts_voice` in settings and persists to config
+- [x] Loading state shown while voices are being fetched
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ### US-009: Fix `rex_voice_bridge.py` to use real VoiceLoop with proper constructor args
