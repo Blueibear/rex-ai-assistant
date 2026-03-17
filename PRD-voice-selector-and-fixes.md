@@ -137,7 +137,7 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 - [x] Transcription of a 5-word sentence completes in under 3 seconds on CPU with `base` model
 - [x] Existing Chat text input still works unchanged
 - [x] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Verify changes work in browser
 
 ### US-011: Add mic button to Chat tab input area
 **Description:** As a user, I want a microphone button in the Chat tab so I can dictate messages without switching to the Voice tab.

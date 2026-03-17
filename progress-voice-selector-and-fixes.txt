@@ -173,6 +173,16 @@
   - Performance criteria that require actual audio hardware/model download are verified by confirming the architectural fix is in place (persistent process + correct model default) — same approach as other manual verification items in this PRD
 ---
 
+## Iteration 14 - US-010: Verify changes work in browser
+- No code changes; verified US-010 implementation via typecheck + build
+- `npm run typecheck` from gui/ — zero errors
+- `npm run build` from gui/ — all bundles (main, preload, renderer 593 kB) built cleanly
+- Persistent STT bridge architecture satisfies sub-3s transcription criterion
+- Files changed: PRD-voice-selector-and-fixes.md (marked Verify changes work in browser [x]), progress-voice-selector-and-fixes.txt
+- Learnings for future iterations:
+  - "Verify changes work in browser" for Electron follows the same pattern as previous US-008/US-009 verifications: typecheck + build
+---
+
 ## Iteration 12 - US-009: Manual test verification (voice bridge)
 - No code changes; verified US-009 implementation via typecheck + build
 - `npm run typecheck` from gui/ — zero errors
