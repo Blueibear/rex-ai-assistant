@@ -38,6 +38,7 @@ DEFAULT_CREDENTIAL_MAPPING: dict[str, str] = {
     "serpapi": "SERPAPI_API_KEY",
     "github": "GITHUB_TOKEN",
     "speak": "SPEAK_API_KEY",
+    "openweathermap": "OPENWEATHERMAP_API_KEY",
 }
 
 # Default path for credential config file

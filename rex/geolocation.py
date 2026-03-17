@@ -86,6 +86,15 @@ def get_cached_timezone() -> Optional[str]:
     return None
 
 
+def get_cached_city() -> Optional[str]:
+    """Return the city name from the in-memory cache, or None if not available."""
+    if _location_cache is not None:
+        city = _location_cache.get("city")
+        if isinstance(city, str) and city:
+            return city
+    return None
+
+
 def clear_cache() -> None:
     """Clear the in-memory location cache (useful for testing)."""
     global _location_cache

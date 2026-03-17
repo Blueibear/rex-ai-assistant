@@ -13,8 +13,10 @@ CredentialManager.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import os
 import time
 import uuid
 from dataclasses import dataclass
@@ -24,7 +26,7 @@ from zoneinfo import ZoneInfo
 
 from rex.audit import LogEntry, get_audit_logger
 from rex.contracts import ToolCall
-from rex.geolocation import get_cached_timezone
+from rex.geolocation import get_cached_city, get_cached_timezone
 from rex.policy_engine import PolicyEngine, get_policy_engine
 from rex.tool_registry import (
     ToolRegistry,
@@ -275,7 +277,9 @@ def execute_tool(
     try:
         if tool == "time_now":
             result = _execute_time_now(args, default_context)
-        elif tool in {"weather_now", "web_search"}:
+        elif tool == "weather_now":
+            result = _execute_weather_now(args, default_context)
+        elif tool == "web_search":
             result = _error_result(f"Tool {tool} is not implemented", tool=tool, args=args)
             error = f"Tool {tool} is not implemented"
         else:
@@ -481,6 +485,40 @@ def _execute_time_now(args: dict[str, Any], default_context: dict[str, Any]) -> 
         "date": now.strftime("%Y-%m-%d"),
         "timezone": timezone,
     }
+
+
+def _execute_weather_now(args: dict[str, Any], default_context: dict[str, Any]) -> dict[str, Any]:
+    from rex.weather import get_weather
+
+    location = args.get("location")
+    if not isinstance(location, str) or not location.strip():
+        location = default_context.get("location")
+    if not isinstance(location, str) or not location.strip():
+        location = get_cached_city()
+    if not isinstance(location, str) or not location.strip():
+        return _error_result("Missing required location for weather_now", tool="weather_now", args=args)
+
+    location = location.strip()
+    api_key = os.getenv("OPENWEATHERMAP_API_KEY", "")
+    if not api_key:
+        return _error_result(
+            "OPENWEATHERMAP_API_KEY is not configured", tool="weather_now", args=args
+        )
+
+    try:
+        coro = get_weather(location, api_key)
+        try:
+            weather = asyncio.run(coro)
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+            weather = loop.run_until_complete(coro)
+    except Exception as exc:
+        return _error_result(str(exc), tool="weather_now", args=args)
+
+    if "error" in weather:
+        return _error_result(weather["error"], tool="weather_now", args=args)
+
+    return weather
 
 
 _CITY_TIMEZONES: dict[str, str] = {

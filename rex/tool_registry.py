@@ -355,15 +355,20 @@ def _register_builtin_tools(registry: ToolRegistry) -> None:
         )
     )
 
-    # weather_now - stub, would require API key
+    # weather_now - requires OpenWeatherMap API key
     def weather_health() -> tuple[bool, str]:
-        return False, "Weather service not implemented"
+        from rex.credentials import get_credential_manager
+
+        cm = get_credential_manager()
+        if cm.has_token("openweathermap"):
+            return True, "OpenWeatherMap API key configured"
+        return False, "OpenWeatherMap API key not configured (set OPENWEATHERMAP_API_KEY)"
 
     registry.register_tool(
         ToolMeta(
             name="weather_now",
             description="Get current weather conditions for a location",
-            required_credentials=["weather_api"],
+            required_credentials=["openweathermap"],
             capabilities=["read", "network", "weather"],
             health_check=weather_health,
             version="1.0.0",

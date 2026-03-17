@@ -55,14 +55,14 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 **Description:** As a user, I want Rex to give me current weather conditions when I ask, so I can plan my day.
 
 **Acceptance Criteria:**
-- [ ] New module `rex/weather.py` with `async def get_weather(location: str, api_key: str) -> dict` that calls OpenWeatherMap Current Weather API
-- [ ] Returns `{"temp_f": float, "temp_c": float, "description": str, "humidity": int, "wind_mph": float, "city": str}`
-- [ ] Handles API errors gracefully, returning a clear error dict
-- [ ] `_execute_weather_now` added to `rex/tool_router.py`, wired into `execute_tool`
-- [ ] Weather tool health check in `tool_registry.py` checks for `openweathermap_api_key` credential
-- [ ] When no location is provided, uses `default_location` from config or geolocation fallback
-- [ ] Unit test with mocked API response
-- [ ] Typecheck passes
+- [x] New module `rex/weather.py` with `async def get_weather(location: str, api_key: str) -> dict` that calls OpenWeatherMap Current Weather API
+- [x] Returns `{"temp_f": float, "temp_c": float, "description": str, "humidity": int, "wind_mph": float, "city": str}`
+- [x] Handles API errors gracefully, returning a clear error dict
+- [x] `_execute_weather_now` added to `rex/tool_router.py`, wired into `execute_tool`
+- [x] Weather tool health check in `tool_registry.py` checks for `openweathermap_api_key` credential
+- [x] When no location is provided, uses `default_location` from config or geolocation fallback
+- [x] Unit test with mocked API response
+- [x] Typecheck passes
 
 ### US-005: Inject current date/time into LLM system prompt
 **Description:** As a user, I want Rex to always know the current date and time without needing a tool call, so casual questions like "what day is it?" get instant answers.

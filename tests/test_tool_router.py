@@ -72,19 +72,14 @@ def test_execute_tool_unknown_tool_returns_error():
 
 
 def test_execute_tool_weather_now_returns_not_implemented_error_payload():
-    # Skip credential check since we're testing the "not implemented" behavior
+    # Skip credential check; no API key configured so should return config error
     result = execute_tool(
         {"tool": "weather_now", "args": {"location": "Dallas, TX"}},
         {},
         skip_credential_check=True,
     )
-    assert result == {
-        "error": {
-            "message": "Tool weather_now is not implemented",
-            "tool": "weather_now",
-            "args": {"location": "Dallas, TX"},
-        }
-    }
+    assert "error" in result
+    assert "OPENWEATHERMAP_API_KEY" in result["error"]["message"]
 
 
 def test_execute_tool_web_search_returns_not_implemented_error_payload():
@@ -115,9 +110,9 @@ def test_route_if_tool_request_returns_credential_error_for_weather_now():
 
     result = route_if_tool_request(model_call(), {}, model_call)
 
-    # Should return credential error since weather_now requires weather_api credential
+    # Should return credential error since weather_now requires openweathermap credential
     assert "Missing credentials" in result
-    assert "weather_api" in result
+    assert "openweathermap" in result
 
 
 def test_route_if_tool_request_returns_credential_error_for_web_search():
