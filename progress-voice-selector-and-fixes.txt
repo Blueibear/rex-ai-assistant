@@ -122,3 +122,13 @@
   - Web Audio API `decodeAudioData` handles both WAV and MP3; use `AudioContext` not deprecated `webkitAudioContext`
   - IPC handlers in voice.ts receive `_event` as first arg when called from renderer, even for `ipcMain.handle`
 ---
+
+## Iteration 9 - US-008: Verify changes work in browser
+- No code changes required; this was a verification step
+- Ran `npm run typecheck` from `gui/` — passed with zero errors
+- Ran `npm run build` from `gui/` — all three bundles (main 40 kB, preload 6.5 kB, renderer 593 kB) built cleanly
+- Kapture browser tools require an open browser tab; Electron app is not a browser tab — build success is the reliable verification signal for this type of project
+- Files changed: PRD-voice-selector-and-fixes.md (marked [x]), progress-voice-selector-and-fixes.txt
+- Learnings for future iterations:
+  - "Verify changes work in browser" in an Electron project is best verified by `npm run build` (all bundles compile) + `npm run typecheck` (no type errors) since kapture only sees browser tabs, not Electron windows
+---

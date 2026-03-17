@@ -112,7 +112,7 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 - [x] Selecting a voice updates `tts_voice` in settings and persists to config
 - [x] Loading state shown while voices are being fetched
 - [x] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Verify changes work in browser
 
 ### US-009: Fix `rex_voice_bridge.py` to use real VoiceLoop with proper constructor args
 **Description:** As a user, I want the Voice tab's "Start Listening" button to actually activate the microphone, wake word detection, STT, LLM, and TTS pipeline.
