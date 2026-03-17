@@ -168,6 +168,11 @@ class AppConfig:
     # Integration credential detection
     email_provider: str = "none"  # none | gmail | outlook
 
+    # Location and weather
+    default_location: Optional[str] = None
+    default_timezone: Optional[str] = None
+    openweathermap_api_key: Optional[str] = None
+
     # Autonomy budget limits (0 = unlimited)
     autonomy_budget_per_plan_usd: float = 0.0
     autonomy_budget_per_step_usd: float = 0.0
@@ -341,6 +346,10 @@ def build_app_config(json_config: dict) -> AppConfig:
         # Profile metadata
         active_profile=_get_nested(json_config, "active_profile", "default"),
         capabilities=capabilities,
+        # Location and weather (location from JSON, API key from env)
+        default_location=_get_nested(json_config, "location.default_location"),
+        default_timezone=_get_nested(json_config, "location.default_timezone"),
+        openweathermap_api_key=os.getenv("OPENWEATHERMAP_API_KEY"),
         # Conversational followups
         followups_enabled=bool(_get_nested(json_config, "conversation.followups.enabled", False)),
         followups_max_per_session=int(

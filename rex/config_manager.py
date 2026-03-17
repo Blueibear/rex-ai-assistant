@@ -105,6 +105,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             "expire_hours": 168,
         },
     },
+    "location": {
+        "default_location": None,
+        "default_timezone": None,
+    },
 }
 
 # Map of legacy environment variable names to config paths
@@ -186,6 +190,7 @@ SECRET_ENV_VARS = {
     "HA_TOKEN",
     "FLASK_LIMITER_STORAGE_URI",
     "REX_SPEAK_STORAGE_URI",
+    "OPENWEATHERMAP_API_KEY",
     "SERPAPI_URL",
     "BRAVE_URL",
     "GOOGLE_URL",
