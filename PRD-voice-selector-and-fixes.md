@@ -143,14 +143,14 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 **Description:** As a user, I want a microphone button in the Chat tab so I can dictate messages without switching to the Voice tab.
 
 **Acceptance Criteria:**
-- [ ] `ChatInput.tsx` gains a mic icon button to the left of the send button
-- [ ] Clicking the mic button starts browser-based audio capture via `navigator.mediaDevices.getUserMedia`
-- [ ] Visual indicator shows recording state (pulsing red dot or mic icon color change)
-- [ ] On stop (click again or 5-second silence timeout), audio is sent to the backend via `rex:sendChatAudio` IPC
-- [ ] Transcribed text is inserted into the text input field (user can review before sending)
-- [ ] If microphone permission is denied, a toast notification explains the issue
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] `ChatInput.tsx` gains a mic icon button to the left of the send button
+- [x] Clicking the mic button starts browser-based audio capture via `navigator.mediaDevices.getUserMedia`
+- [x] Visual indicator shows recording state (pulsing red dot or mic icon color change)
+- [x] On stop (click again or 5-second silence timeout), audio is sent to the backend via `rex:sendChatAudio` IPC
+- [x] Transcribed text is inserted into the text input field (user can review before sending)
+- [x] If microphone permission is denied, a toast notification explains the issue
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ### US-012: Integration test for time/weather/date accuracy
 **Description:** As a developer, I want integration tests that verify Rex answers time, date, and weather questions correctly end-to-end.
