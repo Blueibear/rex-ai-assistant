@@ -103,7 +103,7 @@ class AppConfig:
     capture_seconds: float = 5.0
 
     whisper_model: str = "base"
-    whisper_device: str = "cpu"
+    whisper_device: str = "auto"
     llm_provider: str = "transformers"
     llm_model: str = "sshleifer/tiny-gpt2"
     llm_max_tokens: int = 120

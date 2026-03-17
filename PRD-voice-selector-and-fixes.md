@@ -164,6 +164,54 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 - [x] All tests pass with `pytest -q tests/test_time_weather_integration.py`
 - [x] Typecheck passes
 
+### US-013: Fix XTTS / transformers BeamSearchScorer compatibility
+**Description:** As a user, I want XTTS to initialize successfully so that Rex speaks answers aloud instead of printing text to the console.
+
+**Acceptance Criteria:**
+- [ ] Root cause identified: determine exactly why `BeamSearchScorer` cannot be imported from `transformers` and whether the repo has a broken shim or an incompatible version pin
+- [ ] Fix applied: either correct the import/shim, pin compatible `transformers` version, or both
+- [ ] XTTS initializes without the `BeamSearchScorer` error
+- [ ] If a compatibility shim exists (e.g. `rex.compat.transformers_shims`), it is tested
+- [ ] No silent suppression of the error; fallback to text-only mode is logged clearly
+- [ ] Regression test added that would catch a broken `BeamSearchScorer` import path
+- [ ] Relevant requirements files and docs updated if version pins change
+- [ ] Typecheck passes
+
+### US-014: Fix Whisper STT device selection (CPU despite CUDA available)
+**Description:** As a user with a CUDA GPU, I want Whisper to use my GPU for faster transcription instead of falling back to CPU.
+
+**Acceptance Criteria:**
+- [ ] Root cause identified: determine whether `whisper_device` config defaults to `"cpu"`, whether device selection is hardcoded, or whether CUDA detection is misconfigured
+- [ ] Fix applied: when `whisper_device` is `"auto"` or `"cuda"` and CUDA is available, Whisper uses GPU
+- [ ] Default `whisper_device` in `AppConfig` changed from `"cpu"` to `"auto"` (auto-detect best available)
+- [ ] Auto-detection logic: if `torch.cuda.is_available()` and device is `"auto"`, use `"cuda"`; otherwise `"cpu"`
+- [ ] Regression test verifying device selection logic (mocked `torch.cuda.is_available`)
+- [ ] GPU setup docs updated if instructions were incomplete or wrong
+- [ ] Typecheck passes
+
+### US-015: Fix time query answer quality in voice loop
+**Description:** As a user, I want Rex to give a concise, correct time answer during voice interaction instead of a rambling hallucinated paragraph.
+
+**Acceptance Criteria:**
+- [ ] Root cause identified: determine whether the voice loop's LLM path uses the tool-calling/deterministic time path or lets the LLM improvise
+- [ ] If the voice loop bypasses tool routing: wire it through `Assistant.generate_reply()` which already has tool routing
+- [ ] System prompt in voice mode includes current date/time context (from US-005)
+- [ ] Voice-mode `llm_max_tokens` / `voice_max_tokens` config is reasonable (not allowing 500+ token rambles for simple factual answers)
+- [ ] Regression test: a mocked voice-loop query for "what time is it?" uses the deterministic tool path and returns a concise answer
+- [ ] Typecheck passes
+
+### US-016: Fix fragmented TTS output / response assembly
+**Description:** As a user, I want Rex to speak a single coherent answer instead of printing multiple fragmented "Rex:" lines to the console.
+
+**Acceptance Criteria:**
+- [ ] Root cause identified: determine whether the voice loop passes streamed fragments to TTS one at a time, causing repeated XTTS init attempts and fragmented console output
+- [ ] Fix applied: either buffer the full LLM response before calling TTS, or chunk it at sentence boundaries using the existing `chunk_text_for_xtts()` utility
+- [ ] TTS is called with coherent text, not partial token-by-token fragments
+- [ ] XTTS is initialized once per session, not re-attempted per fragment
+- [ ] Regression test: voice loop sends coherent text to TTS mock, not individual token fragments
+- [ ] Console output shows a single "Rex: <answer>" line, not multiple fragmented lines
+- [ ] Typecheck passes
+
 ## Non-Goals
 
 - No support for custom/cloned XTTS voices in this iteration (only pre-existing speaker files).
@@ -182,3 +230,7 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 - **Timezone resolution**: A curated 200+ city dict avoids adding a heavy dependency (`timezonefinder`). If greater coverage is needed later, `timezonefinder` can be added as an optional enhancement.
 - **Audio playback in Electron renderer**: The voice sample preview can use the Web Audio API to decode and play base64 WAV data returned from the backend. No additional Electron dependencies needed.
 - **IPC bridge pattern**: All new Python bridges should follow the established NDJSON-over-stdio pattern used by `rex_voice_bridge.py` and `rex_chat_bridge.py`.
+- **XTTS / transformers compatibility**: XTTS (via Coqui TTS) depends on `BeamSearchScorer` from `transformers`. This class was removed or relocated in newer `transformers` versions. The repo may have a shim in `rex.compat.transformers_shims` that needs to be verified or fixed. The fix should either pin a compatible `transformers` version range or provide a robust shim.
+- **Whisper device selection**: `AppConfig.whisper_device` defaults to `"cpu"`. This should be `"auto"` to leverage CUDA when available. Device resolution should happen at model load time, not at config time, using `torch.cuda.is_available()`.
+- **Voice loop response assembly**: The voice loop may be streaming LLM tokens directly to TTS, causing fragmented speech and repeated XTTS init. The fix should buffer the complete response (or sentence-boundary chunks via `chunk_text_for_xtts()`) before passing to TTS.
+- **Voice loop tool routing**: The voice loop must use `Assistant.generate_reply()` which has tool routing built in, not a raw LLM call that skips tool detection. This ensures time/weather queries use deterministic tools.

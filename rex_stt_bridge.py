@@ -46,13 +46,30 @@ def main() -> None:
         emit({"type": "error", "error": "openai-whisper is not installed"})
         sys.exit(1)
 
+    # Resolve device: honour config, auto-detect CUDA when set to "auto".
+    device = "auto"
     try:
-        model = whisper.load_model(model_name, device="cpu")
+        from rex.config import load_config as _load_cfg
+
+        _cfg = _load_cfg()
+        device = getattr(_cfg, "whisper_device", "auto") or "auto"
+    except Exception:
+        pass
+    if device == "auto":
+        try:
+            import torch
+
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        except ImportError:
+            device = "cpu"
+
+    try:
+        model = whisper.load_model(model_name, device=device)
     except Exception as exc:
         emit({"type": "error", "error": f"Failed to load Whisper '{model_name}': {exc}"})
         sys.exit(1)
 
-    emit({"type": "ready", "model": model_name})
+    emit({"type": "ready", "model": model_name, "device": device})
 
     # Process transcription requests from stdin one line at a time.
     for raw in sys.stdin:

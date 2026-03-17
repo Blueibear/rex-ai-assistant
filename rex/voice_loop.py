@@ -59,7 +59,9 @@ def _lazy_import_whisper():
 
 
 def _lazy_import_tts():
-    if _import_optional("TTS") is None:
+    # Only check availability - do NOT import TTS yet (it triggers
+    # internal transformers imports that need the shim first).
+    if find_spec("TTS") is None:
         return None
     from rex.compat import ensure_transformers_compatibility
 

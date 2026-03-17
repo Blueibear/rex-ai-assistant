@@ -39,13 +39,14 @@ def _lazy_import_whisper():
 
 
 def _lazy_import_tts():
-    tts_api = _import_optional("TTS.api")
-    if tts_api is None:
+    # Check TTS availability without triggering internal imports that need
+    # BeamSearchScorer.  The shim MUST run before TTS.api is imported.
+    if find_spec("TTS") is None:
         return None
     from rex.compat import ensure_transformers_compatibility
 
     ensure_transformers_compatibility()
-    _import_optional("transformers")
+    tts_api = import_module("TTS.api")
     return tts_api.TTS
 
 
@@ -350,6 +351,14 @@ class AsyncRexAssistant:
     def __init__(self, config: AppConfig | None = None) -> None:
         self.config = config or load_config()
         self.language_model = LanguageModel(self.config)
+        # Also create a higher-level Assistant for tool-routed responses.
+        try:
+            from rex.assistant import Assistant
+
+            self._assistant = Assistant(settings_obj=self.config)
+        except Exception as exc:
+            logger.warning("Failed to create Assistant (tool routing unavailable): %s", exc)
+            self._assistant = None
         self._wake_sound_path: str | None = None
         try:
             self._wake_sound_path = ensure_wake_acknowledgment_sound(
@@ -458,8 +467,22 @@ class AsyncRexAssistant:
             whisper_module = _lazy_import_whisper()
             if whisper_module is None:
                 raise SpeechToTextError("openai-whisper is not installed")
+
+            # Resolve STT device: "auto" selects CUDA when available.
+            device = getattr(self.config, "whisper_device", "cpu") or "cpu"
+            if device == "auto":
+                try:
+                    import torch
+
+                    device = "cuda" if torch.cuda.is_available() else "cpu"
+                except ImportError:
+                    device = "cpu"
+            logger.info("[STT] Loading Whisper '%s' on device '%s'", self.config.whisper_model, device)
+
             try:
-                self._whisper_model = whisper_module.load_model(self.config.whisper_model)
+                self._whisper_model = whisper_module.load_model(
+                    self.config.whisper_model, device=device
+                )
             except Exception as exc:
                 raise SpeechToTextError(f"Failed to load Whisper model: {exc}")
         return self._whisper_model
@@ -631,8 +654,17 @@ class AsyncRexAssistant:
 
         import time as _time
 
+        # Use the Assistant (with tool routing + system context) when available,
+        # falling back to the bare LanguageModel otherwise.
         try:
-            response = await asyncio.to_thread(self.language_model.generate, transcript)
+            if self._assistant is not None:
+                response = await self._assistant.generate_reply(
+                    transcript, voice_mode=True
+                )
+            else:
+                response = await asyncio.to_thread(
+                    self.language_model.generate, transcript
+                )
         except Exception as exc:
             logger.error("LLM generation failed: %s", exc, exc_info=True)
             return

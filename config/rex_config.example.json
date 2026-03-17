@@ -27,7 +27,7 @@
     "llm_top_k": 50,
     "llm_seed": 42,
     "stt_model": "base",
-    "stt_device": "cpu",
+    "stt_device": "auto",
     "tts_provider": "xtts",
     "tts_model": null,
     "tts_voice": null,

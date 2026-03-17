@@ -222,3 +222,56 @@
   - Mock `rex.weather._fetch_weather` (not `urllib.request.urlopen`) to avoid asyncio executor complexity in tests; also set `OPENWEATHERMAP_API_KEY` env var for the weather path
   - `skip_credential_check=True` bypasses the CredentialManager check but `_execute_weather_now` still reads env for the API key directly
 ---
+
+## Iteration 17 - US-013/014/015/016: Voice loop fixes (XTTS, Whisper device, tool routing, fragmented output)
+
+### Confirmed Root Causes
+
+1. **XTTS BeamSearchScorer failure (US-013)**: In root `voice_loop.py`, `_lazy_import_tts()` called `_import_optional("TTS.api")` on line 42 which triggered the full TTS import chain (including `from transformers import BeamSearchScorer`) BEFORE the compatibility shim was applied at line 47. The shim ran too late.
+
+2. **Whisper using CPU despite CUDA (US-014)**: `_get_whisper()` in root `voice_loop.py` line 462 called `whisper_module.load_model(self.config.whisper_model)` WITHOUT passing the `device` parameter. Additionally, `AppConfig.whisper_device` defaulted to `"cpu"`. The `rex_stt_bridge.py` also hardcoded `device="cpu"`.
+
+3. **Rambling time answers (US-015)**: `_process_conversation()` at line 635 called `self.language_model.generate(transcript)` directly, bypassing `Assistant.generate_reply()` which has tool routing, system context (date/time), and voice mode instructions. The LLM was forced to improvise time answers.
+
+4. **Fragmented "Rex:" console output (US-016)**: Root cause was XTTS init failure (Issue 1). When XTTS fails, the refactored `rex/voice_loop.py` `TextToSpeech.speak()` catches the exception and falls back to `print(f"Rex: {text}")`. Multiple chunks from `chunk_text_for_xtts()` each triggered this fallback independently.
+
+### Fixes Applied
+
+- `voice_loop.py` (root): Changed `_lazy_import_tts()` to use `find_spec("TTS")` instead of `_import_optional("TTS.api")` before the shim
+- `rex/voice_loop.py`: Same fix - use `find_spec("TTS")` instead of `_import_optional("TTS")`
+- `voice_loop.py` (root): `_get_whisper()` now resolves device from config with auto-detect: if `"auto"`, checks `torch.cuda.is_available()`
+- `rex/config.py`: Changed `whisper_device` default from `"cpu"` to `"auto"`
+- `rex_stt_bridge.py`: Replaced hardcoded `"cpu"` with config-aware auto-detection
+- `voice_loop.py` (root): `AsyncRexAssistant.__init__` now creates `self._assistant = Assistant(settings_obj=self.config)`
+- `voice_loop.py` (root): `_process_conversation()` now calls `self._assistant.generate_reply(transcript, voice_mode=True)` instead of `self.language_model.generate(transcript)`
+- `config/rex_config.example.json`: Updated `stt_device` from `"cpu"` to `"auto"`
+- `CLAUDE.md`: Added 4 learned rules to Workflow Feedback Loop section
+
+### Files Changed
+- `voice_loop.py` (root) - 3 changes: shim order, whisper device, assistant routing
+- `rex/voice_loop.py` - 1 change: shim order
+- `rex/config.py` - 1 change: whisper_device default
+- `rex_stt_bridge.py` - 1 change: device auto-detection
+- `config/rex_config.example.json` - 1 change: stt_device default
+- `CLAUDE.md` - added learned rules
+- `tests/test_voice_loop_fixes.py` (new) - 15 regression tests
+- `PRD-voice-selector-and-fixes.md` - added US-013 through US-016
+
+### Tests Added
+- `tests/test_voice_loop_fixes.py`: 15 tests across 4 test classes
+  - TestXTTSShimOrder (3 tests): verify shim call order in both voice_loop.py files
+  - TestSTTDeviceSelection (6 tests): verify config default, CUDA auto-detect, explicit device, bridge
+  - TestVoiceLoopToolRouting (3 tests): verify assistant attribute, generate_reply usage, tool routing
+  - TestResponseAssembly (3 tests): verify buffered response, sentence chunking, audio concatenation
+
+### Validation Results
+- `python -m pytest tests/test_voice_loop_fixes.py -q` → 15 passed
+- `python -m pytest` (all relevant test files) → 82 passed, 3 skipped
+- `npm run typecheck` (from gui/) → zero errors
+- `npm run build` (from gui/) → all bundles build cleanly
+
+### Follow-up Issues (Not Fixed)
+- `voice_max_tokens` (config.py line 110) is defined but never used anywhere - dead config field
+- The root `voice_loop.py` and `rex/voice_loop.py` are divergent implementations that should eventually be unified
+- No runtime smoke test possible without actual audio hardware and ML models installed
+---

@@ -294,6 +294,13 @@ If Codex or a human reviewer modifies Claude output due to a recurring mistake:
 
 Add a short rule here that would have prevented the mistake.
 
+### Learned rules
+
+- When lazy-importing a module that triggers side-effect imports (e.g. TTS importing from transformers), use `find_spec()` to check availability and apply any compatibility shims BEFORE calling `import_module()`. Never use `_import_optional()` for the availability check if it triggers the full import chain.
+- The root-level `voice_loop.py` and `rex/voice_loop.py` are two separate implementations. `rex_loop.py` uses the ROOT `voice_loop.py`. Changes to `rex/voice_loop.py` do NOT affect the CLI voice loop.
+- `AppConfig.whisper_device` defaults to `"auto"`. When device is `"auto"`, resolve to `"cuda"` or `"cpu"` at model load time using `torch.cuda.is_available()`.
+- The voice loop must use `Assistant.generate_reply()` (which includes tool routing and system context injection) rather than calling `LanguageModel.generate()` directly. Direct LLM calls bypass time/weather tools and produce hallucinated answers for factual questions.
+
 ## Maintenance Rules for CLAUDE.md
 
 Update this file when:
