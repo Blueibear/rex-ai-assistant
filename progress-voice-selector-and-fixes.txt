@@ -193,3 +193,32 @@
   - "Manual test" items for Electron are best verified via typecheck + build (kapture only sees browser tabs, not Electron windows)
   - This is consistent with the approach used for US-008's "Verify changes work in browser" step
 ---
+
+## Iteration 15 - US-011: Add mic button to Chat tab input area
+- Added mic icon button to the left of the send button in `ChatInput.tsx`
+- `getUserMedia({ audio: true })` starts capture; permission denial shows error toast via `useToast`
+- Recording state shows pulsing red indicator (animate-ping dot over mic icon)
+- Stops on second click or after 5-second timeout via `setTimeout`
+- `recorder.onstop`: converts Blob → ArrayBuffer → base64, calls `window.rex.sendChatAudio(audioBase64)`
+- Transcript inserted into text field with space if field already has content; transcribing spinner shown while waiting
+- All criteria satisfied: typecheck zero errors, `npm run build` all bundles clean
+- Files changed: `gui/src/components/chat/ChatInput.tsx`, `PRD-voice-selector-and-fixes.md`
+- Learnings for future iterations:
+  - `MediaRecorder` fires `ondataavailable` with collected chunks before `onstop` fires — collect into a ref array
+  - Convert Blob to base64: `blob.arrayBuffer()` → `Uint8Array` → `btoa(binary_string)` (no extra deps)
+  - `useToast` is available anywhere inside the `ToastProvider` tree — no prop-drilling needed
+---
+
+## Iteration 16 - US-012: Integration tests for time/weather/date accuracy
+- Created `tests/test_time_weather_integration.py` with 4 tests:
+  1. `time_now` London → `Europe/London` timezone, valid datetime + date format
+  2. `time_now` no location arg, context `{"location": "Dallas"}` → `America/Chicago`
+  3. `weather_now` New York with mocked `_fetch_weather` + env `OPENWEATHERMAP_API_KEY` → temp_f, description, city
+  4. `_build_system_context()` contains "Current date and time:" and a YYYY-MM-DD pattern
+- All 4 tests pass; AST typecheck OK
+- Files changed: `tests/test_time_weather_integration.py` (new), `PRD-voice-selector-and-fixes.md`
+- Learnings for future iterations:
+  - Don't compare against `datetime.now().strftime("%Y-%m-%d")` for UTC-based system prompts — the local date may differ from UTC date. Use regex to verify format instead.
+  - Mock `rex.weather._fetch_weather` (not `urllib.request.urlopen`) to avoid asyncio executor complexity in tests; also set `OPENWEATHERMAP_API_KEY` env var for the weather path
+  - `skip_credential_check=True` bypasses the CredentialManager check but `_execute_weather_now` still reads env for the API key directly
+---

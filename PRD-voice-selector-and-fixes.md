@@ -156,13 +156,13 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 **Description:** As a developer, I want integration tests that verify Rex answers time, date, and weather questions correctly end-to-end.
 
 **Acceptance Criteria:**
-- [ ] Test file `tests/test_time_weather_integration.py`
-- [ ] Test that `execute_tool({"tool": "time_now", "args": {"location": "London"}}, {})` returns a valid datetime in `Europe/London` timezone
-- [ ] Test that `execute_tool({"tool": "time_now", "args": {}}, {"location": "Dallas"})` falls back to `America/Chicago`
-- [ ] Test that `execute_tool({"tool": "weather_now", "args": {"location": "New York"}}, ctx)` returns temperature and description (mocked API)
-- [ ] Test that the system prompt contains the current date string
-- [ ] All tests pass with `pytest -q tests/test_time_weather_integration.py`
-- [ ] Typecheck passes
+- [x] Test file `tests/test_time_weather_integration.py`
+- [x] Test that `execute_tool({"tool": "time_now", "args": {"location": "London"}}, {})` returns a valid datetime in `Europe/London` timezone
+- [x] Test that `execute_tool({"tool": "time_now", "args": {}}, {"location": "Dallas"})` falls back to `America/Chicago`
+- [x] Test that `execute_tool({"tool": "weather_now", "args": {"location": "New York"}}, ctx)` returns temperature and description (mocked API)
+- [x] Test that the system prompt contains the current date string
+- [x] All tests pass with `pytest -q tests/test_time_weather_integration.py`
+- [x] Typecheck passes
 
 ## Non-Goals
 
