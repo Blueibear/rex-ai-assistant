@@ -132,3 +132,18 @@
 - Learnings for future iterations:
   - "Verify changes work in browser" in an Electron project is best verified by `npm run build` (all bundles compile) + `npm run typecheck` (no type errors) since kapture only sees browser tabs, not Electron windows
 ---
+
+## Iteration 10 - US-009: Fix rex_voice_bridge.py to use real VoiceLoop
+- Rewrote `rex_voice_bridge.py` to construct `VoiceLoop` with all required positional/keyword args: `assistant`, `wake_listener`, `detection_source`, `record_phrase`, `transcribe`, `speak`
+- Builds components manually (same pattern as `build_voice_loop`): `AsyncMicrophone`, `SpeechToText`, `TextToSpeech`, `WakeAcknowledgement`, `build_default_detector`
+- Wraps `transcribe` callback to emit `{"type":"state","state":"processing"}` + user transcript event
+- Wraps `speak` callback to emit `{"type":"state","state":"speaking"}` + rex transcript event, then `"listening"` after TTS completes
+- Runs `voice_loop.run()` as a cancellable asyncio task; cancels it via a second task that blocks on `stop_event.wait()`
+- Fallback to stub loop triggered only on `ImportError` (missing voice deps), not `AttributeError` (old wrong-constructor bug)
+- Removed old `from contextlib import suppress` re-import; added it at top-level
+- Files changed: `rex_voice_bridge.py`
+- Learnings for future iterations:
+  - To cancel an asyncio task from a threading.Event, use `loop.run_in_executor(None, stop_event.wait)` in a separate async task
+  - `VoiceLoop` has no `run_until(stop_event)` method — you must cancel the task externally
+  - After wrapped_speak completes, emit `"listening"` to tell the GUI we're back waiting for wake word
+---

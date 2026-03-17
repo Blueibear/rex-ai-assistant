@@ -17,6 +17,7 @@ import json
 import sys
 import threading
 import time
+from contextlib import suppress
 
 
 def emit(obj: dict) -> None:  # type: ignore[type-arg]
@@ -125,6 +126,130 @@ def _run_stub_loop() -> None:
     emit({"type": "state", "state": "idle"})
 
 
+async def _run_real_loop() -> None:
+    """Build and run the real voice pipeline with state/transcript emission.
+
+    Constructs VoiceLoop with the correct required arguments (assistant,
+    wake_listener, detection_source, record_phrase, transcribe, speak) and
+    wraps transcribe/speak to emit NDJSON events to stdout.
+    """
+    import rex
+    from rex import settings as rex_settings
+    from rex.assistant import Assistant
+    from rex.config import load_config as load_runtime_config
+    from rex.logging_utils import configure_logging
+    from rex.plugins import load_plugins
+    from rex.services import initialize_services
+    from rex.voice_loop import (
+        AsyncMicrophone,
+        SpeechToText,
+        TextToSpeech,
+        VoiceLoop,
+        WakeAcknowledgement,
+    )
+    from rex.wakeword.listener import build_default_detector
+
+    configure_logging()
+    initialize_services()
+
+    try:
+        runtime_config = load_runtime_config(reload=True)
+        rex.settings = runtime_config
+    except Exception:
+        pass  # use whatever settings are already loaded
+
+    # Read voice settings from config with sensible defaults
+    sample_rate: int = 16000
+    detection_seconds: float = 1.0
+    capture_seconds: float = 5.0
+    whisper_model: str = getattr(rex_settings, "whisper_model", "base") or "base"
+    device: str = "cpu"
+    language: str = "en"
+
+    plugin_specs = load_plugins()
+    assistant = Assistant(history_limit=rex_settings.max_memory_items, plugins=plugin_specs)
+
+    mic = AsyncMicrophone(
+        sample_rate=sample_rate,
+        detection_seconds=detection_seconds,
+        capture_seconds=capture_seconds,
+    )
+
+    wake_listener = build_default_detector(
+        sample_rate=sample_rate,
+        chunk_duration=detection_seconds,
+    )
+
+    stt = SpeechToText(model_name=whisper_model, device=device)
+    tts = TextToSpeech(language=language)
+    ack = WakeAcknowledgement()
+
+    # Wrap transcribe: emit processing state, then emit user transcript
+    async def wrapped_transcribe(audio) -> str:  # type: ignore[type-arg]
+        emit({"type": "state", "state": "processing"})
+        text = await stt.transcribe(audio, sample_rate)
+        if text:
+            emit(
+                {
+                    "type": "transcript",
+                    "text": text,
+                    "role": "user",
+                    "timestamp": time_ms(),
+                }
+            )
+        return text
+
+    # Wrap speak: emit speaking state + rex transcript, then restore listening
+    async def wrapped_speak(text: str) -> None:
+        emit({"type": "state", "state": "speaking"})
+        emit(
+            {
+                "type": "transcript",
+                "text": text,
+                "role": "rex",
+                "timestamp": time_ms(),
+            }
+        )
+        await tts.speak(text)
+        # Signal that we're ready to listen for the next wake word
+        emit({"type": "state", "state": "listening"})
+
+    voice_loop = VoiceLoop(
+        assistant,
+        wake_listener=wake_listener,
+        detection_source=mic.detection_frame,
+        record_phrase=mic.record_phrase,
+        transcribe=wrapped_transcribe,
+        speak=wrapped_speak,
+        acknowledge=ack.play,
+    )
+
+    # Announce listening state now that the pipeline is ready
+    emit({"type": "state", "state": "listening"})
+
+    # Run the voice loop as a cancellable task
+    loop_task = asyncio.create_task(voice_loop.run())
+
+    # Cancel the voice loop task when stop_event fires
+    async def _wait_for_stop() -> None:
+        event_loop = asyncio.get_running_loop()
+        await event_loop.run_in_executor(None, stop_event.wait)
+        loop_task.cancel()
+
+    stop_watcher = asyncio.create_task(_wait_for_stop())
+
+    try:
+        await loop_task
+    except asyncio.CancelledError:
+        pass
+    finally:
+        stop_watcher.cancel()
+        with suppress(asyncio.CancelledError):
+            await stop_watcher
+
+    emit({"type": "state", "state": "idle"})
+
+
 def main() -> None:
     # Start stdin watcher so stop commands are handled immediately.
     watcher = threading.Thread(target=_stdin_watcher, daemon=True)
@@ -135,22 +260,10 @@ def main() -> None:
 
     # Try to use the real voice loop; fall back to the stub simulation.
     try:
-        from rex.voice_loop import VoiceLoop  # type: ignore[import]
-        from rex.logging_utils import configure_logging  # type: ignore[import]
-        from rex.services import initialize_services  # type: ignore[import]
-
-        configure_logging()
-        initialize_services()
-
-        loop = VoiceLoop(
-            on_state_change=lambda s: emit({"type": "state", "state": s}),
-            on_transcript=lambda text, role: emit(
-                {"type": "transcript", "text": text, "role": role, "timestamp": time_ms()}
-            ),
-        )
-        loop.run_until(stop_event)
-    except (ImportError, AttributeError):
-        # Real voice pipeline not available — run stub.
+        asyncio.run(_run_real_loop())
+    except ImportError as exc:
+        # Voice dependencies (whisper, sounddevice, openWakeWord, etc.) missing
+        emit({"type": "error", "error": f"Voice dependencies unavailable: {exc}"})
         _run_stub_loop()
     except Exception as exc:
         emit({"type": "error", "error": str(exc)})

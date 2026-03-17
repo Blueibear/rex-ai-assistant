@@ -118,13 +118,13 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 **Description:** As a user, I want the Voice tab's "Start Listening" button to actually activate the microphone, wake word detection, STT, LLM, and TTS pipeline.
 
 **Acceptance Criteria:**
-- [ ] `rex_voice_bridge.py` `main()` constructs a `VoiceLoop` with all required args: `assistant`, `wake_listener`, `detection_source`, `record_phrase`, `transcribe`, `speak`
-- [ ] Uses `build_voice_loop()` from `rex/voice_loop.py` if available, or manually wires the components using the same pattern as `rex_loop.py`
-- [ ] State changes (`idle` / `listening` / `processing` / `speaking`) are emitted as NDJSON to stdout
-- [ ] User transcripts and Rex replies are emitted as NDJSON transcript events
-- [ ] Falls back to stub mode only when voice dependencies are genuinely missing (not due to wrong constructor signature)
+- [x] `rex_voice_bridge.py` `main()` constructs a `VoiceLoop` with all required args: `assistant`, `wake_listener`, `detection_source`, `record_phrase`, `transcribe`, `speak`
+- [x] Uses `build_voice_loop()` from `rex/voice_loop.py` if available, or manually wires the components using the same pattern as `rex_loop.py`
+- [x] State changes (`idle` / `listening` / `processing` / `speaking`) are emitted as NDJSON to stdout
+- [x] User transcripts and Rex replies are emitted as NDJSON transcript events
+- [x] Falls back to stub mode only when voice dependencies are genuinely missing (not due to wrong constructor signature)
 - [ ] Manual test: click "Start Listening", speak a phrase, verify transcript appears in UI
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ### US-010: Fix Chat-tab transcription latency
 **Description:** As a user, I want speech-to-text in the Chat tab to complete quickly for short sentences instead of taking an unreasonably long time.
