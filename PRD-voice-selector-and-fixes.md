@@ -45,11 +45,11 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 **Description:** As a user, I want Rex to correctly resolve the timezone for any major city so that time queries are accurate worldwide.
 
 **Acceptance Criteria:**
-- [ ] `_resolve_timezone` in `rex/tool_router.py` uses a curated dict of 200+ city-to-timezone mappings instead of the current 4-entry `city_aliases` dict
-- [ ] Falls back to `default_timezone` from config, then to geolocation result, then to UTC
-- [ ] `_execute_time_now` also returns the current date in its result dict (adds `"date"` key with `YYYY-MM-DD` format)
-- [ ] Existing `time_now` tests updated to cover at least 5 diverse cities (London, Tokyo, Sydney, New York, Mumbai)
-- [ ] Typecheck passes
+- [x] `_resolve_timezone` in `rex/tool_router.py` uses a curated dict of 200+ city-to-timezone mappings instead of the current 4-entry `city_aliases` dict
+- [x] Falls back to `default_timezone` from config, then to geolocation result, then to UTC
+- [x] `_execute_time_now` also returns the current date in its result dict (adds `"date"` key with `YYYY-MM-DD` format)
+- [x] Existing `time_now` tests updated to cover at least 5 diverse cities (London, Tokyo, Sydney, New York, Mumbai)
+- [x] Typecheck passes
 
 ### US-004: Implement `weather_now` tool with OpenWeatherMap
 **Description:** As a user, I want Rex to give me current weather conditions when I ask, so I can plan my day.

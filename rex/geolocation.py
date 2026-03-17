@@ -77,6 +77,15 @@ def _fetch_location() -> Optional[Dict[str, object]]:
         return None
 
 
+def get_cached_timezone() -> Optional[str]:
+    """Return the timezone from the in-memory cache, or None if not available."""
+    if _location_cache is not None:
+        tz = _location_cache.get("timezone")
+        if isinstance(tz, str) and tz:
+            return tz
+    return None
+
+
 def clear_cache() -> None:
     """Clear the in-memory location cache (useful for testing)."""
     global _location_cache

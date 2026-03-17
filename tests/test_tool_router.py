@@ -191,3 +191,72 @@ def test_format_tool_result_outputs_single_line():
     result = format_tool_result("time_now", {"location": "Dallas, TX"}, {"local_time": "ok"})
     assert result.startswith("TOOL_RESULT: ")
     assert "\n" not in result
+
+
+# --- US-003: expanded city coverage and date key ---
+
+
+def test_execute_tool_time_now_returns_date_key():
+    result = execute_tool({"tool": "time_now", "args": {"location": "Dallas, TX"}}, {})
+    assert "date" in result
+    assert re.match(r"\d{4}-\d{2}-\d{2}", result["date"])
+
+
+def test_execute_tool_time_now_london():
+    result = execute_tool({"tool": "time_now", "args": {"location": "London"}}, {})
+    assert result.get("timezone") == "Europe/London"
+    assert re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}", result["local_time"])
+    assert re.match(r"\d{4}-\d{2}-\d{2}", result["date"])
+
+
+def test_execute_tool_time_now_tokyo():
+    result = execute_tool({"tool": "time_now", "args": {"location": "Tokyo"}}, {})
+    assert result.get("timezone") == "Asia/Tokyo"
+
+
+def test_execute_tool_time_now_sydney():
+    result = execute_tool({"tool": "time_now", "args": {"location": "Sydney"}}, {})
+    assert result.get("timezone") == "Australia/Sydney"
+
+
+def test_execute_tool_time_now_new_york():
+    result = execute_tool({"tool": "time_now", "args": {"location": "New York"}}, {})
+    assert result.get("timezone") == "America/New_York"
+
+
+def test_execute_tool_time_now_mumbai():
+    result = execute_tool({"tool": "time_now", "args": {"location": "Mumbai"}}, {})
+    assert result.get("timezone") == "Asia/Kolkata"
+
+
+def test_resolve_timezone_falls_back_to_default_timezone_from_context():
+    result = execute_tool(
+        {"tool": "time_now", "args": {"location": "UnknownCityXYZ"}},
+        {"timezone": "Europe/Paris"},
+    )
+    assert result.get("timezone") == "Europe/Paris"
+
+
+def test_resolve_timezone_falls_back_to_utc_when_no_context_or_cache():
+    from rex import geolocation
+
+    geolocation.clear_cache()
+    result = execute_tool(
+        {"tool": "time_now", "args": {"location": "UnknownCityXYZ"}},
+        {},
+    )
+    assert result.get("timezone") == "UTC"
+
+
+def test_resolve_timezone_falls_back_to_geolocation_cache():
+    from rex import geolocation
+
+    geolocation._location_cache = {"city": "Paris", "timezone": "Europe/Paris", "lat": 48.8, "lon": 2.3}
+    try:
+        result = execute_tool(
+            {"tool": "time_now", "args": {"location": "UnknownCityXYZ"}},
+            {},
+        )
+        assert result.get("timezone") == "Europe/Paris"
+    finally:
+        geolocation.clear_cache()
