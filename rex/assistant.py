@@ -230,8 +230,44 @@ class Assistant:
         "[Respond in 1-3 sentences. Keep your reply short and conversational for voice output.]"
     )
 
+    def _build_system_context(self) -> str:
+        """Return a system context string with current date/time and user location."""
+        from datetime import timezone as _utc_tz
+
+        tz_name: str | None = getattr(self._settings, "default_timezone", None)
+        if not tz_name:
+            from rex.geolocation import get_cached_timezone
+
+            tz_name = get_cached_timezone()
+
+        try:
+            if tz_name:
+                from zoneinfo import ZoneInfo
+
+                now = datetime.now(tz=ZoneInfo(tz_name))
+            else:
+                now = datetime.now(tz=_utc_tz.utc)
+                tz_name = "UTC"
+        except Exception:
+            now = datetime.now(tz=_utc_tz.utc)
+            tz_name = "UTC"
+
+        lines = [f"Current date and time: {now.strftime('%Y-%m-%d %H:%M')} {tz_name}"]
+
+        location: str | None = getattr(self._settings, "default_location", None)
+        if not location:
+            from rex.geolocation import get_cached_city
+
+            location = get_cached_city()
+        if location:
+            lines.append(f"User location: {location}")
+
+        return "\n".join(lines)
+
     def _build_prompt(self, transcript: str, *, voice_mode: bool = False) -> str:
-        history_lines = [f"{turn.speaker}: {turn.text}" for turn in self._history[-4:]]
+        system_context = self._build_system_context()
+        history_lines = [system_context]
+        history_lines += [f"{turn.speaker}: {turn.text}" for turn in self._history[-4:]]
         history_lines.append(f"user: {transcript}")
         if voice_mode:
             history_lines.append(self._VOICE_CONCISE_INSTRUCTION)

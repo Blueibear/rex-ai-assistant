@@ -68,11 +68,11 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 **Description:** As a user, I want Rex to always know the current date and time without needing a tool call, so casual questions like "what day is it?" get instant answers.
 
 **Acceptance Criteria:**
-- [ ] `rex/assistant.py` `_build_prompt()` (or equivalent system prompt builder) prepends `Current date and time: {YYYY-MM-DD HH:MM} {timezone}` and `User location: {city}` to the system message
-- [ ] Values sourced from config `default_timezone`/`default_location` or geolocation cache
-- [ ] LLM can answer "what time is it?" and "what's today's date?" without issuing a tool call
-- [ ] Existing assistant tests still pass
-- [ ] Typecheck passes
+- [x] `rex/assistant.py` `_build_prompt()` (or equivalent system prompt builder) prepends `Current date and time: {YYYY-MM-DD HH:MM} {timezone}` and `User location: {city}` to the system message
+- [x] Values sourced from config `default_timezone`/`default_location` or geolocation cache
+- [x] LLM can answer "what time is it?" and "what's today's date?" without issuing a tool call
+- [x] Existing assistant tests still pass
+- [x] Typecheck passes
 
 ### US-006: Add TTS voice listing endpoint to Python backend
 **Description:** As a developer, I need a backend function that enumerates available voices for the active TTS provider so the GUI can populate a dropdown.
