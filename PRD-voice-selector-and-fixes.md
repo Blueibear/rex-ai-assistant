@@ -91,13 +91,13 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 **Description:** As a developer, I need a backend function that synthesizes a short sample phrase in a given voice so the GUI can play a preview.
 
 **Acceptance Criteria:**
-- [ ] `rex/tts_voices.py` gains `async def synthesize_sample(provider: str, voice_id: str, text: str = "Hello, I'm Rex.") -> bytes` returning WAV audio bytes
-- [ ] For `xtts`: uses the selected speaker WAV as reference
-- [ ] For `edge-tts`: uses the selected voice name
-- [ ] For `pyttsx3`: uses the selected voice ID
-- [ ] Returns audio as base64-encoded WAV in a new bridge script `rex_voice_sample_bridge.py` (stdin: `{"voice_id": "...", "provider": "..."}`, stdout: `{"ok": true, "audio_base64": "..."}`)
-- [ ] Sample text limited to 50 characters max to keep synthesis fast
-- [ ] Typecheck passes
+- [x] `rex/tts_voices.py` gains `async def synthesize_sample(provider: str, voice_id: str, text: str = "Hello, I'm Rex.") -> bytes` returning WAV audio bytes
+- [x] For `xtts`: uses the selected speaker WAV as reference
+- [x] For `edge-tts`: uses the selected voice name
+- [x] For `pyttsx3`: uses the selected voice ID
+- [x] Returns audio as base64-encoded WAV in a new bridge script `rex_voice_sample_bridge.py` (stdin: `{"voice_id": "...", "provider": "..."}`, stdout: `{"ok": true, "audio_base64": "..."}`)
+- [x] Sample text limited to 50 characters max to keep synthesis fast
+- [x] Typecheck passes
 
 ### US-008: Add voice selector dropdown and preview button to Electron Settings > Voice
 **Description:** As a user, I want a dropdown in the Voice settings panel to pick my preferred TTS voice and hear a sample before committing.

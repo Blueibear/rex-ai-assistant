@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import rex.tts_voices as tts_voices_module
-from rex.tts_voices import clear_edge_tts_cache, list_voices
+from rex.tts_voices import clear_edge_tts_cache, list_voices, synthesize_sample
 
 
 # ---------------------------------------------------------------------------
@@ -204,3 +204,132 @@ class TestListVoicesUnknownProvider:
     def test_unknown_provider_returns_empty_list(self):
         voices = list_voices("unknown_provider_xyz")
         assert voices == []
+
+
+# ---------------------------------------------------------------------------
+# synthesize_sample — edge-tts provider
+# ---------------------------------------------------------------------------
+
+
+class TestSynthesizeSampleEdgeTts:
+    def test_returns_audio_bytes_for_edge_tts(self, tmp_path):
+        """edge-tts Communicate.save writes bytes to a temp file; we read them back."""
+        fake_audio = b"FAKE_MP3_AUDIO"
+
+        async def fake_save(path: str) -> None:
+            with open(path, "wb") as f:
+                f.write(fake_audio)
+
+        mock_communicate = MagicMock()
+        mock_communicate.save = fake_save
+
+        mock_edge_tts = MagicMock()
+        mock_edge_tts.Communicate.return_value = mock_communicate
+
+        with patch.dict("sys.modules", {"edge_tts": mock_edge_tts}):
+            result = asyncio.run(synthesize_sample("edge-tts", "en-US-AriaNeural"))
+
+        assert result == fake_audio
+
+    def test_alias_spellings_work_for_synthesis(self, tmp_path):
+        fake_audio = b"FAKE_MP3"
+
+        async def fake_save(path: str) -> None:
+            with open(path, "wb") as f:
+                f.write(fake_audio)
+
+        mock_communicate = MagicMock()
+        mock_communicate.save = fake_save
+        mock_edge_tts = MagicMock()
+        mock_edge_tts.Communicate.return_value = mock_communicate
+
+        with patch.dict("sys.modules", {"edge_tts": mock_edge_tts}):
+            result = asyncio.run(synthesize_sample("edge_tts", "en-US-AriaNeural"))
+
+        assert result == fake_audio
+
+    def test_missing_edge_tts_raises_runtime_error(self):
+        import sys
+
+        saved = sys.modules.pop("edge_tts", None)
+        sys.modules["edge_tts"] = None  # type: ignore[assignment]
+        try:
+            with pytest.raises(RuntimeError, match="edge-tts is not installed"):
+                asyncio.run(synthesize_sample("edge-tts", "en-US-AriaNeural"))
+        finally:
+            sys.modules.pop("edge_tts", None)
+            if saved is not None:
+                sys.modules["edge_tts"] = saved
+
+    def test_text_is_truncated_to_50_chars(self):
+        long_text = "A" * 100
+        captured: list[str] = []
+
+        async def fake_save(path: str) -> None:
+            with open(path, "wb") as f:
+                f.write(b"x")
+
+        mock_communicate = MagicMock()
+        mock_communicate.save = fake_save
+        mock_edge_tts = MagicMock()
+
+        def capture_communicate(text: str, voice: str):
+            captured.append(text)
+            return mock_communicate
+
+        mock_edge_tts.Communicate.side_effect = capture_communicate
+
+        with patch.dict("sys.modules", {"edge_tts": mock_edge_tts}):
+            asyncio.run(synthesize_sample("edge-tts", "en-US-AriaNeural", long_text))
+
+        assert len(captured[0]) <= 50
+
+
+# ---------------------------------------------------------------------------
+# synthesize_sample — pyttsx3 provider
+# ---------------------------------------------------------------------------
+
+
+class TestSynthesizeSamplePyttsx3:
+    def test_returns_audio_bytes_for_pyttsx3(self, tmp_path):
+        fake_audio = b"FAKE_WAV"
+
+        def fake_save_to_file(text: str, path: str) -> None:
+            with open(path, "wb") as f:
+                f.write(fake_audio)
+
+        mock_engine = MagicMock()
+        mock_engine.save_to_file.side_effect = fake_save_to_file
+
+        mock_pyttsx3 = MagicMock()
+        mock_pyttsx3.init.return_value = mock_engine
+
+        with patch.dict("sys.modules", {"pyttsx3": mock_pyttsx3}):
+            result = asyncio.run(synthesize_sample("pyttsx3", "com.apple.voice.Alex"))
+
+        assert result == fake_audio
+        mock_engine.setProperty.assert_called_with("voice", "com.apple.voice.Alex")
+
+    def test_missing_pyttsx3_raises_runtime_error(self):
+        import sys
+
+        saved = sys.modules.pop("pyttsx3", None)
+        sys.modules["pyttsx3"] = None  # type: ignore[assignment]
+        try:
+            with pytest.raises(RuntimeError, match="pyttsx3 is not installed"):
+                asyncio.run(synthesize_sample("pyttsx3", "some-voice-id"))
+        finally:
+            sys.modules.pop("pyttsx3", None)
+            if saved is not None:
+                sys.modules["pyttsx3"] = saved
+
+
+# ---------------------------------------------------------------------------
+# synthesize_sample — unknown provider
+# ---------------------------------------------------------------------------
+
+
+class TestSynthesizeSampleUnknown:
+    def test_unknown_provider_raises_runtime_error(self):
+        with pytest.raises(RuntimeError, match="Unsupported TTS provider"):
+            asyncio.run(synthesize_sample("unknown_xyz", "some-voice-id"))
