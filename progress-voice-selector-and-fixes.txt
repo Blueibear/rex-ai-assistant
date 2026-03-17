@@ -106,3 +106,19 @@
   - Use `asyncio.get_running_loop()` inside async functions, not `asyncio.get_event_loop()`
   - Credential service names in `DEFAULT_CREDENTIAL_MAPPING` must match `required_credentials` list in tool registry
 ---
+
+## Iteration 8 - US-008: Voice selector dropdown and preview in Settings > Voice
+- Added `VoiceInfo` interface to `gui/src/types/ipc.ts` and `listVoices`/`previewVoice` to `RexAPI`
+- Added `rex:listVoices` handler in `voice.ts`: spawns `rex_voices_bridge.py`, passes `{"provider": ...}` via stdin, returns voices array
+- Added `rex:previewVoice` handler in `voice.ts`: spawns `rex_voice_sample_bridge.py`, passes `{"provider": ..., "voice_id": ...}`, returns base64 audio
+- Exposed both in `preload/index.ts`
+- Replaced `ttsVoice` text input in `SettingsPage.tsx` with: dropdown (if voices available), loading spinner, fallback text input, and Preview button
+- Preview decodes base64 audio via Web Audio API `decodeAudioData`
+- `engineToProvider` helper maps frontend engine names to backend provider names: system→pyttsx3, openai→edge-tts, elevenlabs→xtts
+- Voices re-fetched whenever `ttsEngine` changes (via useEffect)
+- Files changed: `gui/src/types/ipc.ts`, `gui/src/main/handlers/voice.ts`, `gui/src/preload/index.ts`, `gui/src/pages/SettingsPage.tsx`
+- Learnings for future iterations:
+  - TypeScript typecheck: run `npm run typecheck` from `gui/` dir (not root)
+  - Web Audio API `decodeAudioData` handles both WAV and MP3; use `AudioContext` not deprecated `webkitAudioContext`
+  - IPC handlers in voice.ts receive `_event` as first arg when called from renderer, even for `ipcMain.handle`
+---
