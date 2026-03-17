@@ -234,7 +234,8 @@ class Assistant:
         """Return a system context string with current date/time and user location."""
         from datetime import timezone as _utc_tz
 
-        tz_name: str | None = getattr(self._settings, "default_timezone", None)
+        _settings = getattr(self, "_settings", None)
+        tz_name: str | None = getattr(_settings, "default_timezone", None)
         if not tz_name:
             from rex.geolocation import get_cached_timezone
 
@@ -254,7 +255,7 @@ class Assistant:
 
         lines = [f"Current date and time: {now.strftime('%Y-%m-%d %H:%M')} {tz_name}"]
 
-        location: str | None = getattr(self._settings, "default_location", None)
+        location: str | None = getattr(_settings, "default_location", None)
         if not location:
             from rex.geolocation import get_cached_city
 
