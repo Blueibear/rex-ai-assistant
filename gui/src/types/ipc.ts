@@ -296,4 +296,7 @@ export interface RexAPI {
     provider: string,
     voiceId: string
   ) => Promise<{ ok: boolean; audio_base64?: string; error?: string }>
+  sendChatAudio: (
+    audioBase64: string
+  ) => Promise<{ ok: boolean; transcript?: string; error?: string }>
 }

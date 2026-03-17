@@ -147,3 +147,18 @@
   - `VoiceLoop` has no `run_until(stop_event)` method — you must cancel the task externally
   - After wrapped_speak completes, emit `"listening"` to tell the GUI we're back waiting for wake word
 ---
+
+## Iteration 11 - US-010: Fix Chat-tab transcription latency
+- Root cause: `rex_chat_bridge.py` is per-message (spawns new Python process each call, paying Whisper load cost every time); `whisper_model` already defaults to `"base"` in config.py
+- Created `rex_stt_bridge.py`: persistent NDJSON bridge that loads Whisper once on startup, then handles requests via stdin/stdout; protocol: `{"audio_base64": "...", "request_id": "..."}` → `{"ok": true, "transcript": "...", "request_id": "..."}`; emits `{"type": "ready"}` when model loaded
+- Added persistent STT process management to `gui/src/main/handlers/chat.ts`: `ensureSTTProcess()` spawns if not running and queues callers until "ready" event; `transcribeAudio()` sends request and resolves via pending-requests Map
+- Registered `rex:sendChatAudio` IPC handler in `registerChatHandlers()`
+- Added `sendChatAudio` to `RexAPI` interface in `gui/src/types/ipc.ts`
+- Exposed `sendChatAudio` via `ipcRenderer.invoke` in `gui/src/preload/index.ts`
+- Whisper `base` model already the default — no config change needed
+- Files changed: `rex_stt_bridge.py` (new), `gui/src/main/handlers/chat.ts`, `gui/src/types/ipc.ts`, `gui/src/preload/index.ts`
+- Learnings for future iterations:
+  - Persistent process pattern: spawn once, emit "ready" event, queue callers via callback array until ready
+  - Use a Map of request_id → {resolve, reject} to route async responses from a shared stdout stream
+  - STT bridge reads audio as base64 WAV, writes to temp file for Whisper (Whisper requires a file path, not bytes)
+---

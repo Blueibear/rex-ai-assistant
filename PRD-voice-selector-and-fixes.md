@@ -130,13 +130,13 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 **Description:** As a user, I want speech-to-text in the Chat tab to complete quickly for short sentences instead of taking an unreasonably long time.
 
 **Acceptance Criteria:**
-- [ ] Root cause identified and documented (likely: `rex_chat_bridge.py` spawns a new Python process per message, reloading Whisper model each time; or Whisper model size is `large` instead of `base`/`small`)
-- [ ] If cause is per-message process spawn: refactor to a persistent bridge process (NDJSON protocol like `rex_voice_bridge.py`) that keeps the Whisper model loaded
-- [ ] If cause is model size: ensure `whisper_model` config defaults to `base` and document recommended sizes for CPU vs GPU
-- [ ] Add a `rex:sendChatAudio` IPC handler that accepts audio data and returns the transcript, reusing the persistent process
+- [x] Root cause identified and documented (likely: `rex_chat_bridge.py` spawns a new Python process per message, reloading Whisper model each time; or Whisper model size is `large` instead of `base`/`small`)
+- [x] If cause is per-message process spawn: refactor to a persistent bridge process (NDJSON protocol like `rex_voice_bridge.py`) that keeps the Whisper model loaded
+- [x] If cause is model size: ensure `whisper_model` config defaults to `base` and document recommended sizes for CPU vs GPU
+- [x] Add a `rex:sendChatAudio` IPC handler that accepts audio data and returns the transcript, reusing the persistent process
 - [ ] Transcription of a 5-word sentence completes in under 3 seconds on CPU with `base` model
-- [ ] Existing Chat text input still works unchanged
-- [ ] Typecheck passes
+- [x] Existing Chat text input still works unchanged
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ### US-011: Add mic button to Chat tab input area
