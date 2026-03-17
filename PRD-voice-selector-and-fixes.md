@@ -33,13 +33,13 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 **Description:** As a user, I want Rex to auto-detect my approximate location on startup so that time and weather queries work without manual config.
 
 **Acceptance Criteria:**
-- [ ] New module `rex/geolocation.py` with `async def detect_location() -> dict` that calls a free IP geolocation API (e.g. `http://ip-api.com/json/`) and returns `{"city": str, "timezone": str, "lat": float, "lon": float}`
-- [ ] Function has a 3-second timeout and returns `None` on failure
-- [ ] If `default_location` is set in config, geolocation is skipped
-- [ ] If `default_location` is not set, geolocation result is cached in memory for the session
-- [ ] No new heavy dependencies (uses stdlib `urllib.request` or existing `httpx`/`requests`)
-- [ ] Unit test with mocked HTTP response
-- [ ] Typecheck passes
+- [x] New module `rex/geolocation.py` with `async def detect_location() -> dict` that calls a free IP geolocation API (e.g. `http://ip-api.com/json/`) and returns `{"city": str, "timezone": str, "lat": float, "lon": float}`
+- [x] Function has a 3-second timeout and returns `None` on failure
+- [x] If `default_location` is set in config, geolocation is skipped
+- [x] If `default_location` is not set, geolocation result is cached in memory for the session
+- [x] No new heavy dependencies (uses stdlib `urllib.request` or existing `httpx`/`requests`)
+- [x] Unit test with mocked HTTP response
+- [x] Typecheck passes
 
 ### US-003: Expand `_resolve_timezone` to cover all major cities
 **Description:** As a user, I want Rex to correctly resolve the timezone for any major city so that time queries are accurate worldwide.
