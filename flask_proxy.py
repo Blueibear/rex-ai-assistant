@@ -4,7 +4,7 @@ import json
 import os
 from types import SimpleNamespace
 
-from flask import Flask, abort, jsonify, request
+from flask import Flask, abort, jsonify, redirect, request
 from flask import g as flask_g
 from flask_cors import CORS
 
@@ -166,7 +166,7 @@ def _is_loopback_address(addr: str | None) -> bool:
 
 # --- Public Endpoints (no auth required) ---
 # Note: Dashboard routes have their own auth mechanism
-_PUBLIC_PATHS = frozenset({"/contracts"})
+_PUBLIC_PATHS = frozenset({"/contracts", "/"})
 _DASHBOARD_PREFIXES = (
     "/dashboard",
     "/api/dashboard",
@@ -235,7 +235,7 @@ def load_user_memory():
 # --- Routes ---
 @app.route("/")
 def index():
-    return "🧠 Rex is online. Ask away."
+    return redirect("/dashboard")
 
 
 @app.route("/whoami")

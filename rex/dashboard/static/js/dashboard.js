@@ -66,7 +66,12 @@
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.error || `HTTP ${response.status}`);
+            // data.error is the envelope object {"code": "...", "message": "..."};
+            // extract the human-readable message rather than stringifying the object.
+            const msg = (data.error && data.error.message)
+                || data.message
+                || `HTTP ${response.status}`;
+            throw new Error(msg);
         }
 
         return data;
