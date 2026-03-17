@@ -41,7 +41,7 @@ $Pip = Join-Path $VenvDir "Scripts\pip.exe"
 $Rex = Join-Path $VenvDir "Scripts\rex.exe"
 
 Write-Host "Upgrading pip ..."
-& $Pip install --upgrade pip setuptools wheel | Out-Null
+& (Join-Path $VenvDir "Scripts\python.exe") -m pip install --upgrade pip setuptools wheel | Out-Null
 if ($LASTEXITCODE -ne 0) { Fail "Failed to upgrade pip." }
 
 Write-Host "Installing Rex with all dependencies ..."
