@@ -1,0 +1,63 @@
+# Progress Log
+
+## Learnings
+(Patterns discovered during implementation)
+
+- pytest is not installed in the venv; must install with `python -m pip install pytest` first
+- The autonomy tests fail due to missing `aiosqlite`; ignore those test files when running broad test passes
+- Secrets always come from `os.getenv()` in `build_app_config`; non-secrets come from `_get_nested(json_config, ...)`
+- `DEFAULT_CONFIG` in `config_manager.py` and the mapping in `build_app_config` in `config.py` must both be updated for new config sections
+
+---
+
+## Iteration 1 - US-001: Add default_location, default_timezone, openweathermap_api_key to AppConfig
+- Added `default_location`, `default_timezone`, `openweathermap_api_key` fields to `AppConfig` dataclass
+- Added `location` section to `DEFAULT_CONFIG` in `config_manager.py` with `default_location` and `default_timezone` keys
+- Added `OPENWEATHERMAP_API_KEY` to `SECRET_ENV_VARS` set in `config_manager.py`
+- Wired new fields in `build_app_config`: location fields from JSON `location.*`, API key from env
+- Files changed: `rex/config.py`, `rex/config_manager.py`
+- Learnings for future iterations:
+  - The `build_app_config` function in `rex/config.py` is the single place that maps JSON config + env vars to `AppConfig`
+  - All secret API keys use `os.getenv("KEY_NAME")` pattern; non-secret config uses `_get_nested(json_config, "section.key", default)`
+  - Tests pass by running `python -m pytest` after `pip install pytest` (not in venv by default)
+---
+
+## Iteration 2 - US-002: IP geolocation fallback module
+- Created `rex/geolocation.py` with `async def detect_location()` using stdlib `urllib.request`
+- Session-level `_location_cache` global avoids repeated network calls
+- 3-second timeout via `asyncio.wait_for` + executor for blocking HTTP call
+- `clear_cache()` helper exposed for test isolation
+- Created `tests/test_geolocation.py` with 5 tests covering success, caching, API failure, network error, timeout
+- Files changed: `rex/geolocation.py`, `tests/test_geolocation.py`
+- Learnings for future iterations:
+  - Use `asyncio.get_event_loop().run_in_executor(None, blocking_fn)` for stdlib HTTP in async context
+  - Mock `urllib.request.urlopen` with a context-manager-shaped MagicMock (set `__enter__`/`__exit__`)
+---
+
+## Iteration 3 - US-003: Expand _resolve_timezone to cover all major cities
+- Replaced 4-entry `city_aliases` dict in `_resolve_timezone` with `_CITY_TIMEZONES` module-level dict containing 200+ city → IANA timezone mappings covering all continents
+- Updated fallback chain: config `default_timezone` (via `default_context["timezone"]`) → geolocation cache (`get_cached_timezone()`) → UTC
+- Added `get_cached_timezone()` synchronous helper to `rex/geolocation.py` to expose cache without async
+- `_execute_time_now` now returns a `"date"` key (YYYY-MM-DD format) alongside `"local_time"` and `"timezone"`
+- Added 9 new tests to `tests/test_tool_router.py`: date key presence, London, Tokyo, Sydney, New York, Mumbai, config fallback, UTC fallback, geolocation cache fallback
+- Files changed: `rex/geolocation.py`, `rex/tool_router.py`, `tests/test_tool_router.py`
+- Learnings for future iterations:
+  - Access geolocation cache synchronously via `get_cached_timezone()` — don't try to await from sync tool execution path
+  - The `default_context["timezone"]` key already carries the config `default_timezone` in the existing call sites
+  - No mypy installed in venv; typecheck done via `python -c "import ..."` smoke test
+---
+
+## Iteration 4 - US-004: Implement weather_now tool with OpenWeatherMap
+- Created `rex/weather.py` with `async def get_weather(location, api_key)` using stdlib urllib
+- Added `get_cached_city()` to `rex/geolocation.py` for sync location fallback
+- Added `_execute_weather_now` to `rex/tool_router.py`, wired into `execute_tool`
+- Updated `weather_now` registration in `rex/tool_registry.py`: real health check, `required_credentials=["openweathermap"]`
+- Added `"openweathermap": "OPENWEATHERMAP_API_KEY"` to `DEFAULT_CREDENTIAL_MAPPING` in `rex/credentials.py`
+- Updated two existing tests in `test_tool_router.py` that expected old "not implemented" behavior
+- Created `tests/test_weather.py` with 6 tests covering success, missing args, HTTP error, network error, malformed response
+- Files changed: `rex/weather.py` (new), `rex/geolocation.py`, `rex/tool_router.py`, `rex/tool_registry.py`, `rex/credentials.py`, `tests/test_weather.py` (new), `tests/test_tool_router.py`
+- Learnings for future iterations:
+  - Use `asyncio.run()` not `asyncio.get_event_loop().run_until_complete()` in Python 3.11 tests — no current loop by default
+  - Use `asyncio.get_running_loop()` inside async functions, not `asyncio.get_event_loop()`
+  - Credential service names in `DEFAULT_CREDENTIAL_MAPPING` must match `required_credentials` list in tool registry
+---
