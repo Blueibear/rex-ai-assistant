@@ -78,14 +78,14 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 **Description:** As a developer, I need a backend function that enumerates available voices for the active TTS provider so the GUI can populate a dropdown.
 
 **Acceptance Criteria:**
-- [ ] New module `rex/tts_voices.py` with `def list_voices(provider: str) -> list[dict]` returning `[{"id": str, "name": str, "language": str, "gender": str | None}]`
-- [ ] For `xtts`: lists speaker WAV files in the XTTS speakers directory
-- [ ] For `edge-tts`: calls `edge_tts.list_voices()` (async, cached)
-- [ ] For `pyttsx3`: enumerates `engine.getProperty('voices')`
-- [ ] Falls back to empty list if provider dependencies are missing
-- [ ] New IPC bridge script `rex_voices_bridge.py` that outputs JSON list to stdout (same pattern as `rex_chat_bridge.py`)
-- [ ] Unit test for each provider path (mocked)
-- [ ] Typecheck passes
+- [x] New module `rex/tts_voices.py` with `def list_voices(provider: str) -> list[dict]` returning `[{"id": str, "name": str, "language": str, "gender": str | None}]`
+- [x] For `xtts`: lists speaker WAV files in the XTTS speakers directory
+- [x] For `edge-tts`: calls `edge_tts.list_voices()` (async, cached)
+- [x] For `pyttsx3`: enumerates `engine.getProperty('voices')`
+- [x] Falls back to empty list if provider dependencies are missing
+- [x] New IPC bridge script `rex_voices_bridge.py` that outputs JSON list to stdout (same pattern as `rex_chat_bridge.py`)
+- [x] Unit test for each provider path (mocked)
+- [x] Typecheck passes
 
 ### US-007: Add TTS sample playback endpoint to Python backend
 **Description:** As a developer, I need a backend function that synthesizes a short sample phrase in a given voice so the GUI can play a preview.

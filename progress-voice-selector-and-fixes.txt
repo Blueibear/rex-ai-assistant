@@ -47,6 +47,22 @@
   - No mypy installed in venv; typecheck done via `python -c "import ..."` smoke test
 ---
 
+## Iteration 6 - US-006: Add TTS voice listing endpoint to Python backend
+- Created `rex/tts_voices.py` with `list_voices(provider, *, speakers_dir=None)` covering xtts/edge-tts/pyttsx3
+- XTTS: globs `*.wav` from `voices/` dir (project root) or overrideable `speakers_dir`; graceful when dir missing
+- edge-tts: calls `edge_tts.list_voices()` via asyncio.run, caches result; `clear_edge_tts_cache()` for tests
+- pyttsx3: calls `engine.getProperty('voices')` + `engine.stop()`; graceful ImportError
+- All providers return `[]` on ImportError or any exception
+- Created `rex_voices_bridge.py` — reads `{"provider": "..."}` from stdin, writes `{"ok": true, "voices": [...]}` to stdout
+- Created `tests/test_tts_voices.py` with 13 tests covering all provider paths (mocked)
+- Fixed pre-existing regression in US-005: `_build_system_context` used `self._settings` directly, failing for tests that use `Assistant.__new__`; changed to `getattr(self, "_settings", None)`
+- Files changed: `rex/tts_voices.py` (new), `rex_voices_bridge.py` (new), `tests/test_tts_voices.py` (new), `rex/assistant.py`
+- Learnings for future iterations:
+  - Tests that create `Assistant` via `__new__` don't go through `__init__`, so instance attributes set in `__init__` are absent — always use `getattr(self, "_attr", None)` defensively in methods called by such tests
+  - edge-tts `list_voices()` is an async coroutine; use `asyncio.run()` to call it from sync context
+  - Aliased provider names ("edge_tts", "edgetts") should all resolve to the same path
+---
+
 ## Iteration 5 - US-005: Inject current date/time into LLM system prompt
 - Added `_build_system_context()` helper to `rex/assistant.py` that formats current date/time and location
 - `_build_prompt()` now prepends the system context as the first line of every prompt
