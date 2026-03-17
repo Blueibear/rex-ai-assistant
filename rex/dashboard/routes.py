@@ -403,7 +403,9 @@ def dashboard_login():
     # Check rate limit before processing credentials
     if rate_limiter.is_locked_out(client_ip):
         logger.warning("Login blocked (rate limit) for %s", client_ip)
-        return error_response(TOO_MANY_REQUESTS, "Too many failed login attempts. Try again later.", 429)
+        return error_response(
+            TOO_MANY_REQUESTS, "Too many failed login attempts. Try again later.", 429
+        )
 
     body: LoginRequest = g.validated_body
     password = body.password
@@ -438,7 +440,9 @@ def dashboard_login():
         logger.warning("Failed dashboard login attempt from %s", client_ip)
         if locked_out:
             logger.warning("IP %s locked out after too many failed logins", client_ip)
-            return error_response(TOO_MANY_REQUESTS, "Too many failed login attempts. Try again later.", 429)
+            return error_response(
+                TOO_MANY_REQUESTS, "Too many failed login attempts. Try again later.", 429
+            )
         return error_response(UNAUTHORIZED, "Invalid password", 401)
 
     # Success — reset rate-limit counter
@@ -466,6 +470,25 @@ def dashboard_login():
     )
 
     return response
+
+
+@dashboard_bp.route("/api/dashboard/session", methods=["GET"])
+@require_auth
+def dashboard_session():
+    """Return the current session info for token validation.
+
+    This endpoint requires a valid session token and is used by the frontend
+    to verify that a saved token is still valid.  It intentionally does NOT
+    fall through on public/unauthenticated requests.
+    """
+    session: Session = request.dashboard_session  # type: ignore[attr-defined]
+    return jsonify(
+        {
+            "valid": True,
+            "user_key": session.user_key,
+            "expires_at": session.expires_at.isoformat(),
+        }
+    )
 
 
 @dashboard_bp.route("/api/dashboard/logout", methods=["POST"])

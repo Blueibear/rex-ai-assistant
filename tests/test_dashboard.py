@@ -31,6 +31,9 @@ def app_client(monkeypatch, tmp_path):
     monkeypatch.setenv("REX_PROXY_ALLOW_LOCAL", "1")
     monkeypatch.setenv("REX_ACTIVE_USER", "james")
     monkeypatch.setenv("REX_DASHBOARD_ALLOW_LOCAL", "1")
+    # Clear any dashboard password so the local-bypass path is taken consistently.
+    # Tests that need a password scenario set it explicitly.
+    monkeypatch.setenv("REX_DASHBOARD_PASSWORD", "")
 
     # Create temp scheduler storage
     scheduler_path = tmp_path / "scheduler" / "jobs.json"
@@ -840,10 +843,18 @@ class TestNotificationsInboxUI:
         client, _ = app_client
         store = DashboardStore(db_path=tmp_path / "notif_ui_priority.db")
         store.write(
-            notification_id="p_urgent", priority="high", title="High Priority", body="u", user_id="james"
+            notification_id="p_urgent",
+            priority="high",
+            title="High Priority",
+            body="u",
+            user_id="james",
         )
         store.write(
-            notification_id="p_normal", priority="medium", title="Medium Priority", body="n", user_id="james"
+            notification_id="p_normal",
+            priority="medium",
+            title="Medium Priority",
+            body="n",
+            user_id="james",
         )
         set_dashboard_store(store)
 
@@ -951,7 +962,9 @@ class TestUIErrorHandling:
         data = response.get_json()
         assert "error" in data
 
-    def test_backend_scheduler_error_returns_json_error(self, app_client, auth_headers, monkeypatch):
+    def test_backend_scheduler_error_returns_json_error(
+        self, app_client, auth_headers, monkeypatch
+    ):
         """Backend scheduler error returns JSON with 'error' key and 500 status."""
         client, _ = app_client
 
@@ -1103,7 +1116,9 @@ class TestUIReconnectBehavior:
             os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "1"
             set_dashboard_store(None)
 
-    def test_sse_stream_endpoint_is_reachable_when_authenticated(self, app_client, auth_headers, tmp_path):
+    def test_sse_stream_endpoint_is_reachable_when_authenticated(
+        self, app_client, auth_headers, tmp_path
+    ):
         """SSE /api/notifications/stream returns a streaming response when authenticated."""
         from rex.dashboard_store import DashboardStore, set_dashboard_store
 
@@ -1122,3 +1137,132 @@ class TestUIReconnectBehavior:
             assert "text/event-stream" in response.content_type
         finally:
             set_dashboard_store(None)
+
+
+# ---------------------------------------------------------------------------
+# Regression tests: dashboard login bounce / voice mode 403 bug
+# ---------------------------------------------------------------------------
+
+
+class TestDashboardLoginBounceRegression:
+    """Regression tests for the dashboard login bounce bug.
+
+    Covers:
+    1. /api/voice/mode is not blocked by the outer proxy auth layer.
+    2. After a successful login the dashboard can fetch voice mode.
+    3. A stale/invalid token is rejected by /api/dashboard/session (not silently
+       accepted because /api/dashboard/status is a public endpoint).
+    """
+
+    def test_voice_mode_accessible_after_login(self, app_client, auth_headers):
+        """After login, GET /api/voice/mode must return 200 (not 403).
+
+        Regression: before the fix /api/voice was not in _DASHBOARD_PREFIXES, so the
+        outer proxy returned 403 before the dashboard auth could handle the request.
+        """
+        client, _ = app_client
+
+        response = client.get(
+            "/api/voice/mode",
+            headers=auth_headers,
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200, (
+            "/api/voice/mode returned non-200 after login. "
+            "Check that /api/voice is in _DASHBOARD_PREFIXES."
+        )
+        data = response.get_json()
+        assert "active" in data
+
+    def test_voice_mode_requires_dashboard_auth_not_proxy_auth(self, app_client):
+        """GET /api/voice/mode without any token must return 401 (dashboard auth), not 403 (proxy auth).
+
+        The outer proxy must delegate /api/voice/* to the dashboard's own auth layer.
+        403 would mean the proxy blocked it; 401 means the dashboard's @require_auth
+        correctly checked the missing session.
+        """
+        client, _ = app_client
+
+        os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "0"
+        try:
+            response = client.get(
+                "/api/voice/mode",
+                environ_overrides={"REMOTE_ADDR": "8.8.8.8"},
+            )
+        finally:
+            os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "1"
+
+        assert response.status_code == 401, (
+            f"Expected 401 from dashboard auth, got {response.status_code}. "
+            "A 403 here means the outer proxy is blocking /api/voice instead of "
+            "passing it to the dashboard's @require_auth decorator."
+        )
+
+    def test_session_endpoint_accepts_valid_token(self, app_client, auth_headers):
+        """GET /api/dashboard/session returns 200 for a valid session token.
+
+        This endpoint is the correct way for the frontend to verify a saved token;
+        it is guarded by @require_auth and will reject expired or forged tokens.
+        """
+        client, _ = app_client
+
+        response = client.get(
+            "/api/dashboard/session",
+            headers=auth_headers,
+            environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data.get("valid") is True
+        assert "expires_at" in data
+
+    def test_session_endpoint_rejects_invalid_token(self, app_client):
+        """GET /api/dashboard/session returns 401 for a stale or forged token.
+
+        Regression: the frontend previously called /api/dashboard/status to validate
+        a saved token.  That endpoint is public and always returns 200, so a stale
+        token was silently treated as valid, causing the dashboard to load and then
+        bounce back when a subsequent authenticated call (e.g. /api/voice/mode)
+        returned 401 and triggered logout.
+        """
+        client, _ = app_client
+
+        os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "0"
+        try:
+            response = client.get(
+                "/api/dashboard/session",
+                headers={"Authorization": "Bearer this-token-does-not-exist"},
+                environ_overrides={"REMOTE_ADDR": "8.8.8.8"},
+            )
+        finally:
+            os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "1"
+
+        assert response.status_code == 401, (
+            "A stale/invalid token must be rejected by /api/dashboard/session. "
+            "If /api/dashboard/status were used instead it would return 200 "
+            "regardless of the token, allowing the stale token through."
+        )
+
+    def test_status_endpoint_is_still_public(self, app_client):
+        """GET /api/dashboard/status is still public (no auth needed) — intentional.
+
+        This documents the known behaviour: /api/dashboard/status must remain public
+        for health-check purposes.  Token validation must NOT rely on this endpoint.
+        """
+        client, _ = app_client
+
+        os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "0"
+        try:
+            # No auth header, remote IP
+            response = client.get(
+                "/api/dashboard/status",
+                environ_overrides={"REMOTE_ADDR": "8.8.8.8"},
+            )
+        finally:
+            os.environ["REX_DASHBOARD_ALLOW_LOCAL"] = "1"
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data.get("status") == "ok"

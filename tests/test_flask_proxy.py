@@ -92,3 +92,55 @@ def test_search_uses_plugin_when_available(monkeypatch):
     payload = response.get_json()
     assert payload["query"] == "python"
     assert payload["result"] == {"summary": "result for python"}
+
+
+# --- Dashboard / proxy auth alignment regression tests ---
+
+
+def test_voice_mode_not_blocked_by_proxy_auth(monkeypatch):
+    """Regression: /api/voice/mode must not be blocked by the outer proxy auth layer.
+
+    Before the fix, _DASHBOARD_PREFIXES did not include /api/voice, so the
+    load_user_memory() hook would intercept the request and return 403 before
+    the dashboard's own @require_auth could handle it.
+    """
+    app, module = _load_app(monkeypatch)
+
+    # Sanity-check that /api/voice is in the exemption list
+    assert any(
+        p == "/api/voice" for p in module._DASHBOARD_PREFIXES
+    ), "/api/voice must be in _DASHBOARD_PREFIXES so the dashboard's own auth handles it"
+
+    with app.test_client() as client:
+        # Request without any proxy credentials — the proxy layer must pass this
+        # through rather than returning 403.  The dashboard's own auth will then
+        # decide the response (401 or 200 depending on session).
+        response = client.get(
+            "/api/voice/mode",
+            environ_overrides={"REMOTE_ADDR": "8.8.8.8"},
+        )
+
+    # The outer proxy must not return 403; dashboard auth returns 401 for no token.
+    assert response.status_code != 403, (
+        "/api/voice/mode was blocked by the outer proxy layer (403). "
+        "It should be delegated to the dashboard's own auth."
+    )
+
+
+def test_dashboard_prefixes_cover_all_dashboard_api_routes(monkeypatch):
+    """Verify the set of dashboard-owned API prefixes is consistent with the routes."""
+    app, module = _load_app(monkeypatch)
+
+    expected_prefixes = {
+        "/dashboard",
+        "/api/dashboard",
+        "/api/settings",
+        "/api/chat",
+        "/api/scheduler",
+        "/api/notifications",
+        "/api/voice",
+    }
+
+    actual = set(module._DASHBOARD_PREFIXES)
+    missing = expected_prefixes - actual
+    assert not missing, f"These prefixes are missing from _DASHBOARD_PREFIXES: {missing}"

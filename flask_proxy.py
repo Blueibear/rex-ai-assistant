@@ -7,15 +7,20 @@ from types import SimpleNamespace
 from flask import Flask, abort, jsonify, request
 from flask import g as flask_g
 from flask_cors import CORS
-from rex.http_errors import BAD_REQUEST, INTERNAL_ERROR, SERVICE_UNAVAILABLE, error_response, install_error_envelope_handler
-from rex.health import check_config, create_health_blueprint
-from rex.production_config import apply_production_defaults
-from rex.rate_limiter import install_rate_limiter
-from rex.request_logging import install_request_logging
-from rex.startup import log_service_ready, run_startup_sequence
 
 import utils.env_loader  # noqa: F401  # Auto-loads .env on import
 from memory_utils import load_memory_profile, load_users_map, resolve_user_key
+from rex.health import check_config, create_health_blueprint
+from rex.http_errors import (
+    BAD_REQUEST,
+    INTERNAL_ERROR,
+    SERVICE_UNAVAILABLE,
+    error_response,
+    install_error_envelope_handler,
+)
+from rex.rate_limiter import install_rate_limiter
+from rex.request_logging import install_request_logging
+from rex.startup import log_service_ready, run_startup_sequence
 
 # Import dashboard blueprint
 try:
@@ -169,6 +174,7 @@ _DASHBOARD_PREFIXES = (
     "/api/chat",
     "/api/scheduler",
     "/api/notifications",
+    "/api/voice",
 )
 # Webhook routes have their own authentication (e.g. Twilio signature)
 _WEBHOOK_PREFIXES = ("/webhooks/",)

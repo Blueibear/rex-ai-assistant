@@ -1359,45 +1359,9 @@
 
     // Initialize
     async function init() {
-        // Check for existing session
-        const savedToken = localStorage.getItem('rex_dashboard_token');
-        if (savedToken) {
-            state.token = savedToken;
-
-            try {
-                // Verify token is still valid
-                await api('/api/dashboard/status');
-                state.authenticated = true;
-                showDashboard();
-            } catch {
-                // Token invalid, show login
-                showLogin();
-            }
-        } else {
-            // Check if auth is required
-            try {
-                const status = await fetch('/api/dashboard/status').then(r => r.json());
-                if (!status.auth_enabled) {
-                    // Try auto-login for local access
-                    try {
-                        const data = await api('/api/dashboard/login', {
-                            method: 'POST',
-                            body: JSON.stringify({}),
-                        });
-                        state.token = data.token;
-                        state.authenticated = true;
-                        localStorage.setItem('rex_dashboard_token', data.token);
-                        showDashboard();
-                        return;
-                    } catch {
-                        // Fall through to login screen
-                    }
-                }
-            } catch {
-                // Fall through to login screen
-            }
-            showLogin();
-        }
+        // Attach all event listeners FIRST, before any async work or early returns,
+        // so the login form and other controls are always functional regardless of
+        // which auth path is taken (auto-login success, stale token, manual login, logout).
 
         // Global error banner close button
         const closeBtn = $('#global-error-close');
@@ -1486,6 +1450,53 @@
             renderNotifications(state.notifications, unreadCount);
         });
         $('#mark-all-read-btn').addEventListener('click', markAllNotifsRead);
+
+        // --- Auth check (runs after listeners are attached) ---
+
+        // Check for existing session
+        const savedToken = localStorage.getItem('rex_dashboard_token');
+        if (savedToken) {
+            state.token = savedToken;
+
+            try {
+                // Verify token is still valid using a real auth-gated endpoint.
+                // /api/dashboard/status is public and does not validate the token;
+                // /api/dashboard/session requires a valid session and returns 401 if expired.
+                await api('/api/dashboard/session');
+                state.authenticated = true;
+                showDashboard();
+            } catch {
+                // Token invalid or expired — clear it and show login
+                state.token = null;
+                localStorage.removeItem('rex_dashboard_token');
+                showLogin();
+            }
+            return;
+        }
+
+        // No saved token — check if auth is required
+        try {
+            const status = await fetch('/api/dashboard/status').then(r => r.json());
+            if (!status.auth_enabled) {
+                // Try auto-login for local access
+                try {
+                    const data = await api('/api/dashboard/login', {
+                        method: 'POST',
+                        body: JSON.stringify({}),
+                    });
+                    state.token = data.token;
+                    state.authenticated = true;
+                    localStorage.setItem('rex_dashboard_token', data.token);
+                    showDashboard();
+                    return;
+                } catch {
+                    // Fall through to login screen
+                }
+            }
+        } catch {
+            // Fall through to login screen
+        }
+        showLogin();
     }
 
     // Expose handlers for inline onclick
