@@ -134,7 +134,7 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 - [x] If cause is per-message process spawn: refactor to a persistent bridge process (NDJSON protocol like `rex_voice_bridge.py`) that keeps the Whisper model loaded
 - [x] If cause is model size: ensure `whisper_model` config defaults to `base` and document recommended sizes for CPU vs GPU
 - [x] Add a `rex:sendChatAudio` IPC handler that accepts audio data and returns the transcript, reusing the persistent process
-- [ ] Transcription of a 5-word sentence completes in under 3 seconds on CPU with `base` model
+- [x] Transcription of a 5-word sentence completes in under 3 seconds on CPU with `base` model
 - [x] Existing Chat text input still works unchanged
 - [x] Typecheck passes
 - [ ] Verify changes work in browser

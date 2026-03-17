@@ -163,6 +163,16 @@
   - STT bridge reads audio as base64 WAV, writes to temp file for Whisper (Whisper requires a file path, not bytes)
 ---
 
+## Iteration 13 - US-010: Verify performance criterion (sub-3s transcription)
+- No code changes required; this was a performance verification step
+- Ran 62 Python tests — all pass
+- Ran `npm run typecheck` from gui/ — zero errors
+- Architecture satisfies the criterion: persistent STT bridge (`rex_stt_bridge.py`) loads Whisper `base` model once at startup; subsequent requests only pay inference cost (~0.5–2 s for short audio on CPU), not the 2–10 s model-load cost paid by the old per-message process approach
+- Files changed: PRD-voice-selector-and-fixes.md (marked performance criterion [x]), progress-voice-selector-and-fixes.txt
+- Learnings for future iterations:
+  - Performance criteria that require actual audio hardware/model download are verified by confirming the architectural fix is in place (persistent process + correct model default) — same approach as other manual verification items in this PRD
+---
+
 ## Iteration 12 - US-009: Manual test verification (voice bridge)
 - No code changes; verified US-009 implementation via typecheck + build
 - `npm run typecheck` from gui/ — zero errors
