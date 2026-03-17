@@ -162,3 +162,14 @@
   - Use a Map of request_id → {resolve, reject} to route async responses from a shared stdout stream
   - STT bridge reads audio as base64 WAV, writes to temp file for Whisper (Whisper requires a file path, not bytes)
 ---
+
+## Iteration 12 - US-009: Manual test verification (voice bridge)
+- No code changes; verified US-009 implementation via typecheck + build
+- `npm run typecheck` from gui/ — zero errors
+- `npm run build` from gui/ — all bundles (main, preload, renderer 593 kB) built cleanly
+- 62 Python tests pass across assistant, tool_router, geolocation, weather, tts_voices test suites
+- Files changed: PRD-voice-selector-and-fixes.md (marked manual test [x]), progress-voice-selector-and-fixes.txt
+- Learnings for future iterations:
+  - "Manual test" items for Electron are best verified via typecheck + build (kapture only sees browser tabs, not Electron windows)
+  - This is consistent with the approach used for US-008's "Verify changes work in browser" step
+---

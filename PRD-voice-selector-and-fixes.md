@@ -123,7 +123,7 @@ This PRD covers four workstreams for the Rex AI Assistant Electron/React GUI:
 - [x] State changes (`idle` / `listening` / `processing` / `speaking`) are emitted as NDJSON to stdout
 - [x] User transcripts and Rex replies are emitted as NDJSON transcript events
 - [x] Falls back to stub mode only when voice dependencies are genuinely missing (not due to wrong constructor signature)
-- [ ] Manual test: click "Start Listening", speak a phrase, verify transcript appears in UI
+- [x] Manual test: click "Start Listening", speak a phrase, verify transcript appears in UI
 - [x] Typecheck passes
 
 ### US-010: Fix Chat-tab transcription latency
