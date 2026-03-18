@@ -148,8 +148,8 @@ class TestMemoryEntry:
     def test_to_safe_dict_hides_sensitive(self):
         """Test that sensitive content is hidden in safe dict."""
         entry = MemoryEntry(
-            category="secrets",
-            content={"api_key": "secret123"},
+            category="secrets",  # pragma: allowlist secret
+            content={"api_key": "secret123"},  # pragma: allowlist secret
             sensitive=True,
         )
         safe = entry.to_safe_dict()
