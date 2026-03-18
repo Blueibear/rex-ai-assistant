@@ -12,7 +12,6 @@ first save.
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -52,9 +51,7 @@ class UserPreferenceProfile(BaseModel):
     common_goal_patterns: list[str] = Field(default_factory=list)
     active_hours: list[int] = Field(default_factory=list)
     avg_budget_usd: float = 0.0
-    last_updated: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # ---------------------------------------------------------------------------

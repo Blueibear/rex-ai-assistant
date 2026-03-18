@@ -13,7 +13,7 @@ import uuid
 import warnings
 from typing import Any
 
-from rex.autonomy.models import Plan, PlanStep, PlannerProtocol
+from rex.autonomy.models import Plan, PlannerProtocol, PlanStep
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +47,7 @@ class RulePlanner(PlannerProtocol):
         Returns:
             A :class:`~rex.autonomy.models.Plan` with one ``no_op`` step.
         """
-        logger.warning(
-            "RulePlanner is deprecated; upgrade to LLMPlanner. Goal: %r", goal
-        )
+        logger.warning("RulePlanner is deprecated; upgrade to LLMPlanner. Goal: %r", goal)
         step = PlanStep(
             id="step-1",
             tool="no_op",

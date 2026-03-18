@@ -67,8 +67,7 @@ class PreferenceLearner:
             updated.avg_budget_usd = record.total_cost_usd
         else:
             updated.avg_budget_usd = (
-                _EMA_ALPHA * record.total_cost_usd
-                + (1.0 - _EMA_ALPHA) * updated.avg_budget_usd
+                _EMA_ALPHA * record.total_cost_usd + (1.0 - _EMA_ALPHA) * updated.avg_budget_usd
             )
         logger.debug(
             "preference_learner: avg_budget_usd updated to %.6f",

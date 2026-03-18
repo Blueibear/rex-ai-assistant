@@ -388,13 +388,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/autonomy/tool_cache.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] `rex/autonomy/models.py` uses Pydantic v2 — no `.dict()` calls
-- [ ] `rex/autonomy/runner.py` has a complete execution loop with no truncated branches
-- [ ] `rex/autonomy/replanner.py` handles replanning trigger conditions — no empty handler blocks
-- [ ] `rex/autonomy/cost_estimator.py` returns real estimates — no `return 0` stubs
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] `rex/autonomy/models.py` uses Pydantic v2 — no `.dict()` calls
+- [x] `rex/autonomy/runner.py` has a complete execution loop with no truncated branches
+- [x] `rex/autonomy/replanner.py` handles replanning trigger conditions — no empty handler blocks
+- [x] `rex/autonomy/cost_estimator.py` returns real estimates — no `return 0` stubs
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

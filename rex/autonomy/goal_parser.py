@@ -134,8 +134,7 @@ class GoalParser:
 
         if not isinstance(data, list):
             raise GoalParsingError(
-                f"GoalParser: expected a JSON array, got {type(data).__name__}. "
-                f"Raw: {raw!r}"
+                f"GoalParser: expected a JSON array, got {type(data).__name__}. " f"Raw: {raw!r}"
             )
 
         if len(data) == 0:
@@ -146,18 +145,14 @@ class GoalParser:
         goals: list[Goal] = []
         for i, item in enumerate(data):
             if not isinstance(item, dict):
-                raise GoalParsingError(
-                    f"GoalParser: goal {i} is not a JSON object: {item!r}"
-                )
+                raise GoalParsingError(f"GoalParser: goal {i} is not a JSON object: {item!r}")
 
             goal_id = str(item.get("id", "")).strip()
             description = str(item.get("description", "")).strip()
             raw_deps: Any = item.get("depends_on", [])
 
             if not goal_id:
-                raise GoalParsingError(
-                    f"GoalParser: goal {i} is missing 'id' field: {item!r}"
-                )
+                raise GoalParsingError(f"GoalParser: goal {i} is missing 'id' field: {item!r}")
             if not description:
                 description = f"Goal {goal_id}"
 

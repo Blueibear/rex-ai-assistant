@@ -202,3 +202,23 @@ Learnings for future iterations:
   - Use noqa: E402 on the guarded Windows imports that must come after the platform check
   - app_launcher.py was already well-implemented; only lint cleanup needed
 ---
+
+## Iteration 14 - US-014: rex/autonomy/ Subpackage
+- Read all 16 files: __init__.py, clarifier.py, cost_estimator.py, feedback.py, goal_graph.py, goal_parser.py, history.py, llm_planner.py, models.py, preference_learner.py, preferences.py, replanner.py, retry.py, rule_planner.py, runner.py, tool_cache.py
+- All files are complete and correctly implemented — no stubs, no truncated logic
+- models.py: uses Pydantic v2 (model_dump_json, model_validate_json, model_copy) — no .dict() calls
+- runner.py: complete execution loop with replanning, history writing, preference updates, goal graph execution
+- replanner.py: full trigger handling — checks planner for alternatives first, falls back to single-LLM replan
+- cost_estimator.py: real heuristic estimates (tokens from word count + base overhead × price per token) — no return 0 stubs
+- goal_graph.py: removed unused `from typing import Literal` import (F401 via ruff --fix)
+- history.py, preferences.py: removed unused `import json` (F401 via ruff --fix)
+- replanner.py: merged duplicate `from typing import` blocks into one (I001 via ruff --fix)
+- models.py, llm_planner.py, rule_planner.py: fixed unsorted import blocks (I001 via ruff --fix)
+- black reformatted 9 files (preference_learner, rule_planner, preferences, feedback, goal_parser, history, replanner, llm_planner, runner)
+- 5398 tests pass; 45 pre-existing failures unchanged (aiosqlite missing blocks all autonomy tests at collection)
+
+Learnings for future iterations:
+  - autonomy/ tests all fail at collection (missing aiosqlite) — pre-existing, not caused by lint fixes
+  - I001 (import sort) violations in this package were from merging two `from typing import` blocks across separate lines — ruff --fix handles this automatically
+  - All Pydantic v2 usage: model_copy(deep=True), model_dump_json(), model_validate_json(), model_copy(update={...}) — no v1 .dict() anywhere
+---

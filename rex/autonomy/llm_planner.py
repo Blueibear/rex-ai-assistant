@@ -15,7 +15,7 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel
 
-from rex.autonomy.models import Plan, PlanStep, PlannerProtocol
+from rex.autonomy.models import Plan, PlannerProtocol, PlanStep
 
 logger = logging.getLogger(__name__)
 
@@ -110,23 +110,12 @@ class LLMPlanner(PlannerProtocol):
     # Prompt construction
     # ------------------------------------------------------------------
 
-    def _build_prompt(
-        self, goal: str, context: dict[str, Any], feedback_summary: str = ""
-    ) -> str:
+    def _build_prompt(self, goal: str, context: dict[str, Any], feedback_summary: str = "") -> str:
         """Construct the planning prompt sent to the LLM."""
-        tools_block = (
-            "\n".join(
-                f"- {t.name}: {t.description}" for t in self._tools
-            )
-            or "(none)"
-        )
-        context_block = (
-            json.dumps(context, indent=2, default=str) if context else "{}"
-        )
+        tools_block = "\n".join(f"- {t.name}: {t.description}" for t in self._tools) or "(none)"
+        context_block = json.dumps(context, indent=2, default=str) if context else "{}"
         feedback_section = (
-            f"## Past Execution Patterns\n{feedback_summary}\n\n"
-            if feedback_summary
-            else ""
+            f"## Past Execution Patterns\n{feedback_summary}\n\n" if feedback_summary else ""
         )
         return (
             "You are a planning assistant. Your job is to break a user goal "
@@ -192,9 +181,7 @@ class LLMPlanner(PlannerProtocol):
     # Helpers shared between plan() and plan_with_alternatives()
     # ------------------------------------------------------------------
 
-    def _parse_step_list(
-        self, items: Any, goal: str, id_prefix: str = "step"
-    ) -> Plan:
+    def _parse_step_list(self, items: Any, goal: str, id_prefix: str = "step") -> Plan:
         """Convert a raw JSON list of step dicts into a :class:`Plan`.
 
         Args:
@@ -210,9 +197,7 @@ class LLMPlanner(PlannerProtocol):
             PlanningError: If *items* is not a non-empty list of dicts.
         """
         if not isinstance(items, list):
-            raise PlanningError(
-                f"Expected a JSON array of steps, got {type(items).__name__}."
-            )
+            raise PlanningError(f"Expected a JSON array of steps, got {type(items).__name__}.")
         if len(items) == 0:
             raise PlanningError(
                 "LLM returned an empty step list — cannot create a Plan with zero steps."
@@ -270,12 +255,8 @@ class LLMPlanner(PlannerProtocol):
 
     def _build_alternatives_prompt(self, goal: str, context: dict[str, Any]) -> str:
         """Construct a prompt that asks the LLM for three alternative plans."""
-        tools_block = (
-            "\n".join(f"- {t.name}: {t.description}" for t in self._tools) or "(none)"
-        )
-        context_block = (
-            json.dumps(context, indent=2, default=str) if context else "{}"
-        )
+        tools_block = "\n".join(f"- {t.name}: {t.description}" for t in self._tools) or "(none)"
+        context_block = json.dumps(context, indent=2, default=str) if context else "{}"
         return (
             "You are a planning assistant. Your job is to produce THREE different "
             "plans to achieve a goal using the available tools.\n\n"

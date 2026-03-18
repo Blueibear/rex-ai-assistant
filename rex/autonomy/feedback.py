@@ -84,9 +84,9 @@ class FeedbackAnalyzer:
         lines: list[str] = []
         for r in records:
             tools_used = ", ".join(s.tool for s in r.plan.steps)
-            failed_tools = ", ".join(
-                s.tool for s in r.plan.steps if s.status == StepStatus.FAILED
-            ) or "none"
+            failed_tools = (
+                ", ".join(s.tool for s in r.plan.steps if s.status == StepStatus.FAILED) or "none"
+            )
             lines.append(
                 f"- Goal: {r.goal!r} | Outcome: {r.outcome} | "
                 f"Tools: {tools_used} | Failed tools: {failed_tools} | "

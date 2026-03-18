@@ -10,9 +10,7 @@ import json
 import logging
 import uuid
 from collections.abc import Sequence
-from typing import Any, Protocol
-
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol
 
 from rex.autonomy.models import Plan, PlanStep, StepStatus
 
@@ -103,10 +101,7 @@ class Replanner:
         """Build the replanning prompt sent to the LLM."""
         completed = [s for s in original_plan.steps if s.status == StepStatus.SUCCESS]
         completed_block = (
-            "\n".join(
-                f"- {s.id}: {s.description} (result: {s.result!r})"
-                for s in completed
-            )
+            "\n".join(f"- {s.id}: {s.description} (result: {s.result!r})" for s in completed)
             or "(none)"
         )
         return (
@@ -168,8 +163,7 @@ class Replanner:
 
         if not isinstance(data, list):
             raise ValueError(
-                f"Replanner: expected a JSON array, got {type(data).__name__}. "
-                f"Raw: {raw!r}"
+                f"Replanner: expected a JSON array, got {type(data).__name__}. " f"Raw: {raw!r}"
             )
 
         if len(data) == 0:
@@ -243,9 +237,7 @@ class Replanner:
                     "Replanner: generating alternatives for goal=%r via plan_with_alternatives",
                     original_plan.goal,
                 )
-                self._alternatives = self._planner.plan_with_alternatives(
-                    original_plan.goal, {}
-                )
+                self._alternatives = self._planner.plan_with_alternatives(original_plan.goal, {})
                 self._alt_index = 0
 
             if self._alt_index < len(self._alternatives):

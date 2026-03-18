@@ -13,7 +13,6 @@ callers never need to manage schema versions.
 
 from __future__ import annotations
 
-import json
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -81,9 +80,7 @@ class ExecutionRecord(BaseModel):
     duration_s: float
     replan_count: int = 0
     error_summary: str | None = None
-    timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     total_cost_usd: float = 0.0
 
 

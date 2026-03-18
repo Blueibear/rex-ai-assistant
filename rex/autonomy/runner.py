@@ -170,9 +170,7 @@ def _apply_preferences(
 
     if not effective_mode and profile.preferred_autonomy_mode not in ("", "manual"):
         effective_mode = profile.preferred_autonomy_mode
-        logger.debug(
-            "Using learned preference: preferred_autonomy_mode=%s", effective_mode
-        )
+        logger.debug("Using learned preference: preferred_autonomy_mode=%s", effective_mode)
 
     if not effective_model and profile.preferred_model:
         effective_model = profile.preferred_model
@@ -598,13 +596,9 @@ def execute_goal_graph(
                 if on_question is not None:
                     on_question(goal.id, question)
                 else:
-                    logger.info(
-                        "runner: clarification needed for goal %s — %s", goal.id, question
-                    )
+                    logger.info("runner: clarification needed for goal %s — %s", goal.id, question)
             except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "runner: clarifier failed for goal %s — %s", goal.id, exc
-                )
+                logger.warning("runner: clarifier failed for goal %s — %s", goal.id, exc)
 
         goal.status = GoalStatus.RUNNING
 
