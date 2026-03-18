@@ -705,13 +705,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `gui/src/layouts/AppLayout.tsx`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] No page or component renders a blank screen due to missing `return` statements or unconditional `null` returns
-- [ ] No `useEffect` with an async callback missing cleanup (no potential state-after-unmount updates)
-- [ ] `ChatInput.tsx` mic button wires correctly to voice dictation (per recent feature addition)
-- [ ] No `@ts-ignore` or `@ts-expect-error` comments hiding real type errors
-- [ ] `tsc --noEmit` passes on the gui/ project
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] No page or component renders a blank screen due to missing `return` statements or unconditional `null` returns
+- [x] No `useEffect` with an async callback missing cleanup (no potential state-after-unmount updates)
+- [x] `ChatInput.tsx` mic button wires correctly to voice dictation (per recent feature addition)
+- [x] No `@ts-ignore` or `@ts-expect-error` comments hiding real type errors
+- [x] `tsc --noEmit` passes on the gui/ project
+- [x] Typecheck passes
 
 ---
 
