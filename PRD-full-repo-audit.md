@@ -589,13 +589,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 `rex/plugins/` (1 file): `__init__.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] `woocommerce/write_policy.py` has a complete policy evaluation — no stub returning `True`
-- [ ] `ha_tts/client.py` has correct async/await usage if async, or blocking if sync — no mixed models
-- [ ] `compat/transformers_shims.py` applies shims before any import of the shimmed module (per CLAUDE.md rule)
-- [ ] `contracts/core.py` has complete contract validation logic
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] `woocommerce/write_policy.py` has a complete policy evaluation — no stub returning `True`
+- [x] `ha_tts/client.py` has correct async/await usage if async, or blocking if sync — no mixed models
+- [x] `compat/transformers_shims.py` applies shims before any import of the shimmed module (per CLAUDE.md rule)
+- [x] `contracts/core.py` has complete contract validation logic
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

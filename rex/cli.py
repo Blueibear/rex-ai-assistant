@@ -39,11 +39,11 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from datetime import datetime, timedelta
+from pathlib import Path
 
 from rex.exception_handler import wrap_entrypoint
 from rex.startup_validation import check_startup_env
-from datetime import datetime, timedelta
-from pathlib import Path
 
 
 def get_browser_service():

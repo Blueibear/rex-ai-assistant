@@ -7,6 +7,7 @@ Coqui TTS that still expect it at the top level.
 This module patches the transformers package to restore backward compatibility.
 """
 
+import importlib.util
 import logging
 import sys
 
@@ -22,6 +23,11 @@ def ensure_transformers_compatibility() -> None:
 
     Must be called before any code that imports BeamSearchScorer from transformers.
     """
+    # Use find_spec() to check availability BEFORE importing, per CLAUDE.md rule.
+    if importlib.util.find_spec("transformers") is None:
+        logger.warning("transformers not installed, skipping compatibility shim")
+        return
+
     try:
         import transformers
 

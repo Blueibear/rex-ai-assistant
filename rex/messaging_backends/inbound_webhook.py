@@ -139,7 +139,7 @@ def create_inbound_sms_blueprint(
     else:
         _rate_decorator = None
 
-    def receive_sms() -> "Response | tuple[Response, int]":
+    def receive_sms() -> Response | tuple[Response, int]:
         """Handle an inbound SMS from Twilio."""
         # --- Signature verification ---
         if signature_verification:

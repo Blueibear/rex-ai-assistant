@@ -1,17 +1,5 @@
 # Rex messaging backends package.
 
-from rex.messaging_backends.message_router import (
-    CHANNEL_DASHBOARD,
-    CHANNEL_EMAIL,
-    CHANNEL_SMS,
-    KNOWN_CHANNELS,
-    ChannelNotConfiguredError,
-    MessagePayload,
-    MessageRouter,
-    RouteResult,
-    RouterConfig,
-    UnknownChannelError,
-)
 from rex.messaging_backends.account_config import (
     MessagingAccountConfig,
     MessagingConfig,
@@ -20,6 +8,18 @@ from rex.messaging_backends.account_config import (
 )
 from rex.messaging_backends.base import SmsBackend, SmsSendResult
 from rex.messaging_backends.factory import create_sms_backend
+from rex.messaging_backends.message_router import (
+    CHANNEL_DASHBOARD,
+    CHANNEL_EMAIL,
+    CHANNEL_SMS,
+    KNOWN_CHANNELS,
+    ChannelNotConfiguredError,
+    MessagePayload,
+    MessageRouter,
+    RouterConfig,
+    RouteResult,
+    UnknownChannelError,
+)
 from rex.messaging_backends.sms_receiver_stub import (
     InboundSmsHandlerResult,
     ReceivedSmsRecord,
