@@ -273,14 +273,14 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/request_logging.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] No secrets hardcoded in any file
-- [ ] All API key checks fail closed (deny by default, not allow by default)
-- [ ] Rate limiter is applied to all externally-facing endpoints — no bypass paths
-- [ ] `rex/validation.py` validates all inputs at system boundaries — no raw `request.json` used without schema validation
-- [ ] `rex/audit.py` logs all security-relevant events (auth failures, policy denials)
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] No secrets hardcoded in any file
+- [x] All API key checks fail closed (deny by default, not allow by default)
+- [x] Rate limiter is applied to all externally-facing endpoints — no bypass paths
+- [x] `rex/validation.py` validates all inputs at system boundaries — no raw `request.json` used without schema validation
+- [x] `rex/audit.py` logs all security-relevant events (auth failures, policy denials)
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

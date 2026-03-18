@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 from functools import wraps
-from typing import Any, Callable, Type, TypeVar
+from typing import Any, Callable, TypeVar
 
 import pydantic
 from pydantic import BaseModel, Field, field_validator
@@ -84,7 +84,7 @@ class CreateJobRequest(BaseModel):
 
 
 def validate_json_body(
-    schema_cls: Type[_M],
+    schema_cls: type[_M],
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator that validates the JSON request body against *schema_cls*.
 
@@ -116,10 +116,7 @@ def validate_json_body(
             try:
                 g.validated_body = schema_cls.model_validate(raw)
             except pydantic.ValidationError as exc:
-                fields = [
-                    ".".join(str(loc) for loc in err["loc"])
-                    for err in exc.errors()
-                ]
+                fields = [".".join(str(loc) for loc in err["loc"]) for err in exc.errors()]
                 field_list = ", ".join(fields) if fields else "unknown"
                 return error_response(
                     BAD_REQUEST,

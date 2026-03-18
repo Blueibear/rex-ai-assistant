@@ -150,6 +150,7 @@ def require_api_key(
         env_var: Environment variable name for the expected key.
         label: Label used in log messages.
     """
+
     # Support both @require_api_key and @require_api_key(env_var=...)
     def decorator(view_fn: Callable) -> Callable:
         validator = ApiKeyValidator(env_var=env_var, label=label)
@@ -157,7 +158,7 @@ def require_api_key(
         @functools.wraps(view_fn)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Import Flask lazily so this module can be imported without Flask
-            from flask import jsonify, request  # noqa: PLC0415
+            from flask import request  # noqa: PLC0415
 
             provided = _extract_key_from_request(request.headers)
             remote = request.remote_addr or "unknown"

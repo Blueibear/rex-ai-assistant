@@ -74,7 +74,7 @@ def error_response(
     return jsonify(body), http_status
 
 
-def install_error_envelope_handler(app: "Any") -> None:
+def install_error_envelope_handler(app: Any) -> None:
     """Install centralised error-envelope handlers on *app*.
 
     Registers two Flask error handlers so that error formatting lives in one
