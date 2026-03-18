@@ -394,7 +394,7 @@ class SMSService(MessagingService):
         backend: SmsBackend = self._backend  # type: ignore[assignment]
         inbound = backend.fetch_recent_inbound(limit=limit)
         return [
-            Message(  # type: ignore[call-arg]
+            Message(
                 channel="sms",
                 to=msg.to_number,
                 from_=msg.from_number,
@@ -425,7 +425,7 @@ class SMSService(MessagingService):
             )
             results: list[Message] = []
             for rec in records:
-                msg = Message(  # type: ignore[call-arg]
+                msg = Message(
                     id=rec.id,
                     channel="sms",
                     to=rec.to_number,
@@ -465,7 +465,7 @@ class SMSService(MessagingService):
         # Reply to the sender of the latest message
         to = latest.from_ if latest.to == self.from_number else latest.to
 
-        reply_msg = Message(  # type: ignore[call-arg]
+        reply_msg = Message(
             channel="sms",
             to=to,
             from_=self.from_number,

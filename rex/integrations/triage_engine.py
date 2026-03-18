@@ -198,7 +198,7 @@ class EmailTriageEngine:
         if self._backend is not None:
             return self._backend
         try:
-            from rex.llm import LanguageModel  # type: ignore[import-not-found]
+            from rex.llm import LanguageModel
 
             self._backend = LanguageModel()
             return self._backend

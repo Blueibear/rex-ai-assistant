@@ -18,7 +18,7 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import BaseModel, Field
 
@@ -182,9 +182,9 @@ class AuditLogger:
             action_id=entry.action_id,
             task_id=entry.task_id,
             tool=entry.tool,
-            tool_call_args=redacted_args,  # type: ignore[arg-type]
+            tool_call_args=redacted_args,
             policy_decision=entry.policy_decision,
-            tool_result=redacted_result,  # type: ignore[arg-type]
+            tool_result=redacted_result,
             error=entry.error,
             redacted=True,
             requested_by=entry.requested_by,
@@ -272,7 +272,7 @@ class AuditLogger:
                     try:
                         entry = LogEntry.model_validate_json(line)
                         if entry.action_id == action_id:
-                            return entry
+                            return cast("LogEntry | None", entry)
                     except Exception:
                         continue
         except OSError as e:

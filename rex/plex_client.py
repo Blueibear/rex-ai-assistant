@@ -9,7 +9,7 @@ from typing import Any
 try:
     import requests as _requests_module
 except ImportError as _exc:
-    _requests_module = None  # type: ignore[assignment]
+    _requests_module = None
     _REQUESTS_IMPORT_ERROR: Exception | None = _exc
 else:
     _REQUESTS_IMPORT_ERROR = None

@@ -22,7 +22,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -79,7 +79,7 @@ def load_dashboard_store_config(raw_config: dict[str, Any]) -> DashboardStoreCon
     store_section = dashboard_section.get("store", {})
     if not isinstance(store_section, dict):
         return DashboardStoreConfig()
-    return DashboardStoreConfig.model_validate(store_section)
+    return cast(DashboardStoreConfig, DashboardStoreConfig.model_validate(store_section))
 
 
 class DashboardNotification:
@@ -165,8 +165,7 @@ class DashboardStore:
     def _init_db(self) -> None:
         """Create the notifications table if it does not exist."""
         with self._connect() as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS notifications (
                     id TEXT PRIMARY KEY,
                     priority TEXT NOT NULL DEFAULT 'normal',
@@ -178,20 +177,15 @@ class DashboardStore:
                     user_id TEXT,
                     metadata_json TEXT NOT NULL DEFAULT '{}'
                 )
-                """
-            )
-            conn.execute(
-                """
+                """)
+            conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_notifications_timestamp
                 ON notifications (timestamp DESC)
-                """
-            )
-            conn.execute(
-                """
+                """)
+            conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_notifications_user_id
                 ON notifications (user_id)
-                """
-            )
+                """)
 
     # ------------------------------------------------------------------
     # Write

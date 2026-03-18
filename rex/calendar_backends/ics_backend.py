@@ -31,6 +31,7 @@ import logging
 import socket
 from ipaddress import ip_address
 from pathlib import Path
+from typing import cast
 from urllib.parse import urlparse
 
 from rex.calendar_backends.base import CalendarBackend
@@ -161,7 +162,7 @@ class ICSCalendarBackend(CalendarBackend):
             headers={"Accept": "text/calendar, text/plain"},
         )
         response.raise_for_status()
-        return response.text
+        return cast(str, response.text)
 
 
 def _looks_like_windows_path(source: str) -> bool:

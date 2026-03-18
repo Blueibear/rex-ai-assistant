@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from typing import Any, cast
 
 from flask import Flask
 
@@ -88,7 +88,7 @@ def _webhook_rate_key() -> str:
     if remote_addr in trusted_proxies:
         forwarded = request.headers.get("X-Forwarded-For")
         if forwarded:
-            return forwarded.split(",")[-1].strip()
+            return cast(str, forwarded.split(",")[-1].strip())
     return remote_addr
 
 

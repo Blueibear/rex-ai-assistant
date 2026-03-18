@@ -18,7 +18,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -78,7 +78,7 @@ def load_inbound_store_config(raw_config: dict[str, Any]) -> InboundStoreConfig:
     inbound_section = messaging_section.get("inbound", {})
     if not isinstance(inbound_section, dict):
         return InboundStoreConfig()
-    return InboundStoreConfig.model_validate(inbound_section)
+    return cast(InboundStoreConfig, InboundStoreConfig.model_validate(inbound_section))
 
 
 class InboundSmsRecord:

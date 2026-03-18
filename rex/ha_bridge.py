@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 try:
     import requests
 except ImportError as exc:
-    requests = None  # type: ignore[assignment]
+    requests = None
     _REQUESTS_IMPORT_ERROR = exc
 else:
     _REQUESTS_IMPORT_ERROR = None  # type: ignore[assignment]
@@ -580,4 +580,4 @@ def create_blueprint(bridge: HABridge | None = None) -> Blueprint:
             logger.warning("Failed to execute Home Assistant script: %s", exc)
             return error_response(INTERNAL_ERROR, str(exc), 500)
 
-    return bp  # type: ignore[no-any-return]
+    return bp

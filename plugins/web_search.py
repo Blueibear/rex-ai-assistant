@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import cast
 from urllib.parse import quote_plus
 
 from rex.config import settings
@@ -12,15 +13,15 @@ from rex.plugins import Plugin
 try:
     import requests
 except ImportError as exc:
-    requests = None
-    _REQUESTS_IMPORT_ERROR = exc
+    requests = None  # type: ignore[assignment]  # noqa: PYI024
+    _REQUESTS_IMPORT_ERROR: ImportError | None = exc
 else:
     _REQUESTS_IMPORT_ERROR = None
 
 try:
     from bs4 import BeautifulSoup
 except ImportError:
-    BeautifulSoup = None  # type: ignore
+    BeautifulSoup = None
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ class WebSearchPlugin:
                 try:
                     result = method(query)
                     if result:
-                        return result
+                        return cast(str, result)
                 except Exception as e:
                     logger.warning("Provider '%s' failed: %s", provider, e)
         logger.warning("All search providers failed")
@@ -164,7 +165,7 @@ class WebSearchPlugin:
             if isinstance(e, RuntimeError):
                 raise
             logger.warning("DuckDuckGo search failed: %s", e)
-            return None
+        return None
 
     def _search_google(self, query: str) -> str | None:
         api_key = os.getenv("GOOGLE_API_KEY")
@@ -213,7 +214,7 @@ class WebSearchPlugin:
             if isinstance(e, RuntimeError):
                 raise
             logger.warning("Browserless search failed: %s", e)
-            return None
+        return None
 
     def _get_session(self) -> requests.Session:
         if self._session is None:

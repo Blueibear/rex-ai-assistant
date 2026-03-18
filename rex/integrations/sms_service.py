@@ -216,7 +216,7 @@ class SMSService:
 
     def _twilio_list_threads(self) -> list[SMSThread]:
         try:
-            from twilio.rest import Client  # type: ignore[import-untyped]
+            from twilio.rest import Client
 
             client = Client(self._sid, self._token)
             raw_messages = client.messages.list(limit=200)
@@ -228,7 +228,7 @@ class SMSService:
                 msg = SMSMessage(
                     id=m.sid,
                     thread_id=thread_id,
-                    direction=direction,  # type: ignore[arg-type]
+                    direction=direction,
                     body=m.body,
                     from_number=m.from_,
                     to_number=m.to,

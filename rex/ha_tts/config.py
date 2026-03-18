@@ -33,6 +33,8 @@ allow_http
 
 from __future__ import annotations
 
+from typing import cast
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -58,6 +60,6 @@ def load_ha_tts_config() -> HaTtsConfig:
 
         cfg = load_config()
         raw = cfg.get("notifications", {}).get("ha_tts", {})
-        return HaTtsConfig.model_validate(raw)
+        return cast(HaTtsConfig, HaTtsConfig.model_validate(raw))
     except Exception:
         return HaTtsConfig()

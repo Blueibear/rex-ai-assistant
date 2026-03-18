@@ -23,7 +23,7 @@ from contextlib import suppress
 from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable, Union
 
 try:  # pragma: no cover - optional dependency
     import numpy as np
@@ -86,7 +86,7 @@ def _require_numpy():
 
 logger = logging.getLogger(__name__)
 
-RecorderCallable = Callable[[float], Awaitable[np.ndarray] | np.ndarray]
+RecorderCallable = Callable[[float], Union[Awaitable[Any], Any]]
 
 
 class AsyncMicrophone:
@@ -98,7 +98,7 @@ class AsyncMicrophone:
         sample_rate: int,
         detection_seconds: float,
         capture_seconds: float,
-        recorder: RecorderCallable | None = None,  # type: ignore[valid-type]
+        recorder: RecorderCallable | None = None,
         vad_threshold: float = 0.01,
         silence_duration: float = 1.0,
     ) -> None:

@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 try:
     import requests as _requests
 except ImportError:  # pragma: no cover
-    _requests = None  # type: ignore[assignment]
+    _requests = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────

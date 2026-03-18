@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import cast
 
 from pydantic import BaseModel, Field
 
@@ -86,7 +87,7 @@ class PreferenceStore:
             return UserPreferenceProfile()
         try:
             raw = self._path.read_text(encoding="utf-8")
-            return UserPreferenceProfile.model_validate_json(raw)
+            return cast(UserPreferenceProfile, UserPreferenceProfile.model_validate_json(raw))
         except Exception as exc:  # noqa: BLE001
             logger.warning(
                 "PreferenceStore: failed to parse %s — returning defaults. Error: %s",

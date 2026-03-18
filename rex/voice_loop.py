@@ -147,7 +147,7 @@ class AsyncMicrophone:
         sample_rate: int,
         detection_seconds: float,
         capture_seconds: float,
-        recorder: RecorderCallable | None = None,  # type: ignore[valid-type]
+        recorder: RecorderCallable | None = None,
     ) -> None:
         self.sample_rate = sample_rate
         self._detection_seconds = detection_seconds
@@ -492,7 +492,7 @@ class VoiceLoop:
         speak_streaming: Callable[[AsyncIterator[str]], Awaitable[None]] | None = None,
         warmup: Callable[[], Awaitable[None]] | None = None,
         acknowledge: Callable[[], Awaitable[None]] | None = None,
-        identify_speaker: IdentifySpeakerCallable | None = None,  # type: ignore[valid-type]
+        identify_speaker: IdentifySpeakerCallable | None = None,
     ) -> None:
         self._assistant = assistant
         self._wake_listener = wake_listener
@@ -510,7 +510,7 @@ class VoiceLoop:
 
     @staticmethod
     def _resolve_identify_speaker_signature(
-        identify_speaker: IdentifySpeakerCallable | None,  # type: ignore[valid-type]
+        identify_speaker: IdentifySpeakerCallable | None,
     ) -> bool:
         """Return True when identify_speaker accepts an audio argument."""
         if identify_speaker is None:
@@ -572,9 +572,11 @@ class VoiceLoop:
                     if self._identify_speaker is not None:
                         try:
                             if self._identify_speaker_accepts_audio:
-                                self._identify_speaker(audio)
+                                cast(Callable[[AudioArray], Optional[str]], self._identify_speaker)(
+                                    audio
+                                )
                             else:
-                                self._identify_speaker()
+                                cast(Callable[[], Optional[str]], self._identify_speaker)()
                         except Exception as exc:
                             logger.warning("Voice identity check failed: %s", exc)
 
@@ -622,7 +624,7 @@ class VoiceLoop:
             logger.error("Audio device error: %s", exc)
 
 
-def _build_voice_id_callback() -> IdentifySpeakerCallable | None:  # type: ignore[valid-type]
+def _build_voice_id_callback() -> IdentifySpeakerCallable | None:
     """Build an identify_speaker callback if voice identity is enabled.
 
     Reads the voice_identity config section, loads enrolled embeddings, and
