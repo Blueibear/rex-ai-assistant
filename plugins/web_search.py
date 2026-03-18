@@ -24,6 +24,16 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+_MAX_QUERY_LENGTH = 500
+
+
+def _sanitize_query(query: str) -> str:
+    """Strip control characters and truncate the query to a safe length."""
+    sanitized = "".join(ch if ch >= " " or ch in "\t\n" else " " for ch in query)
+    sanitized = " ".join(sanitized.split())
+    return sanitized[:_MAX_QUERY_LENGTH]
+
+
 # API Endpoints
 SERPAPI_URL = "https://serpapi.com/search"
 BRAVE_URL = "https://api.search.brave.com/res/v1/web/search"
@@ -65,6 +75,7 @@ class WebSearchPlugin:
             self._session.close()
 
     def process(self, query: str) -> str | None:
+        query = _sanitize_query(query)
         for provider in self._provider_order():
             method = getattr(self, f"_search_{provider}", None)
             if method:

@@ -614,12 +614,12 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `plugins/web_search.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] `scripts/doctor.py` checks all critical dependencies and reports clearly — no silent pass paths
-- [ ] `scripts/security_audit.py` has complete audit logic — not a stub
-- [ ] `plugins/web_search.py` sanitizes search queries before forwarding to any search provider
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] `scripts/doctor.py` checks all critical dependencies and reports clearly — no silent pass paths
+- [x] `scripts/security_audit.py` has complete audit logic — not a stub
+- [x] `plugins/web_search.py` sanitizes search queries before forwarding to any search provider
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

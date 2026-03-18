@@ -14,21 +14,21 @@ Run with LOG_LEVEL=DEBUG (the script sets it automatically).
 from __future__ import annotations
 
 import asyncio
-import sys
 import os as _os
+import sys
 
 # Ensure project root is on sys.path so voice_loop is importable when running
 # from any working directory (e.g. python scripts/test_voice_pipeline.py).
 _PROJECT_ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
-import io
-import logging
-import os
-import struct
-import wave
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+import io  # noqa: E402
+import logging  # noqa: E402
+import os  # noqa: E402
+import struct  # noqa: E402
+import wave  # noqa: E402
+from pathlib import Path  # noqa: E402
+from unittest.mock import AsyncMock, MagicMock, patch  # noqa: E402
 
 # Force DEBUG logging before any rex imports so pipeline logs are captured.
 os.environ["LOG_LEVEL"] = "DEBUG"

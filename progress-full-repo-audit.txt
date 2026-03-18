@@ -332,3 +332,18 @@ Learnings for future iterations:
   - integrations/ package is a higher-level service layer above email_backends/calendar_backends/messaging_backends
   - auth.py `require_auth` allows unauthenticated local access (127.0.0.1) only when REX_DASHBOARD_PASSWORD is unset — if a password is set, ALL requests (even loopback) require the session token
 ---
+
+## Iteration 21 - US-022: scripts/ and Root plugins/
+- Read all 9 files: scripts/doctor.py, export_contract_schemas.py, security_audit.py, test_voice_pipeline.py, validate_deployment.py, validate_wakeword_model.py, windows_agent.py, plugins/__init__.py, plugins/web_search.py
+- scripts/doctor.py: complete — checks Python version, ffmpeg, torch/CUDA, env vars, rate limiter config, inbound webhook; reports clearly
+- scripts/security_audit.py: complete — scans for merge markers, placeholder code, exposed secrets; not a stub
+- Added _sanitize_query() to plugins/web_search.py: strips null/control chars, collapses whitespace, truncates to 500 chars; called at top of process() before any provider dispatch
+- Added # noqa: E402 to sys.path-manipulation-dependent imports in export_contract_schemas.py and test_voice_pipeline.py (intentional pattern)
+- black reformatted: validate_wakeword_model.py (trailing blank line), export_contract_schemas.py (dict formatting), validate_deployment.py (single→double quotes)
+- 35 targeted tests pass (test_web_search_plugin, test_plugin_loader, test_security_audit)
+
+Learnings for future iterations:
+  - scripts/ files all follow the sys.path.insert() pattern before project imports → E402 noqa required
+  - validate_deployment.py used single-quoted strings throughout — black normalizes to double quotes
+  - web_search.py providers that use params={} in requests.get are already safe from injection (URL encoded by requests), but _sanitize_query adds defense-in-depth against malicious query content
+---

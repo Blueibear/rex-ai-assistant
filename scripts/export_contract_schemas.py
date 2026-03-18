@@ -36,8 +36,8 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from rex.contracts import CONTRACT_VERSION
-from rex.contracts.core import ALL_MODELS
+from rex.contracts import CONTRACT_VERSION  # noqa: E402
+from rex.contracts.core import ALL_MODELS  # noqa: E402
 
 
 def get_output_dir() -> Path:
@@ -81,11 +81,13 @@ def export_schemas(output_dir: Path | None = None) -> dict[str, str]:
             f.write("\n")
 
         exported_files[model_name] = str(schema_path)
-        schema_entries.append({
-            "model": model_name,
-            "file": schema_filename,
-            "description": model.__doc__.split("\n")[0] if model.__doc__ else "",
-        })
+        schema_entries.append(
+            {
+                "model": model_name,
+                "file": schema_filename,
+                "description": model.__doc__.split("\n")[0] if model.__doc__ else "",
+            }
+        )
 
         print(f"  Exported: {schema_filename}")
 
@@ -101,7 +103,7 @@ def export_schemas(output_dir: Path | None = None) -> dict[str, str]:
         json.dump(index, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
-    print(f"  Exported: index.json")
+    print("  Exported: index.json")
     exported_files["index"] = str(index_path)
 
     return exported_files
