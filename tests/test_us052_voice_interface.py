@@ -34,6 +34,17 @@ def _reset_chat_history():
     routes_module._CHAT_HISTORY.clear()
 
 
+@pytest.fixture(autouse=True)
+def _no_auth(monkeypatch):
+    """Disable password requirement so loopback requests bypass auth in tests."""
+    import rex.dashboard.auth as _auth_mod
+    import rex.dashboard.routes as _routes_mod
+
+    monkeypatch.setattr(_auth_mod, "is_password_required", lambda: False)
+    monkeypatch.setattr(_routes_mod, "is_password_required", lambda: False)
+    monkeypatch.setenv("REX_DASHBOARD_ALLOW_LOCAL", "1")
+
+
 @pytest.fixture()
 def app():
     flask_app = Flask(__name__)

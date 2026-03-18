@@ -545,6 +545,7 @@ _CITY_TIMEZONES: dict[str, str] = {
     "dallas": "America/Chicago",
     "dallas tx": "America/Chicago",
     "dallas texas": "America/Chicago",
+    "dallas texas usa": "America/Chicago",
     "fort worth": "America/Chicago",
     "fort worth tx": "America/Chicago",
     "houston": "America/Chicago",

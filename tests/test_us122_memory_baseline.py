@@ -230,7 +230,7 @@ class TestMemoryBaselineDocumented:
         """docs/performance-baseline.md must document memory baseline."""
         baseline_path = Path(__file__).parent.parent / "docs" / "performance-baseline.md"
         assert baseline_path.exists(), "docs/performance-baseline.md does not exist"
-        content = baseline_path.read_text()
+        content = baseline_path.read_text(encoding="utf-8")
         assert any(
             kw in content.lower() for kw in ("memory", "rss", "tracemalloc", "leak")
         ), "docs/performance-baseline.md must document memory usage baseline"

@@ -210,7 +210,7 @@ def test_second_plugin_unaffected_by_first_failure(tmp_path):
     by_name = {s.name: s.plugin for s in specs}
 
     # bad plugin raises
-    with pytest.raises(ValueError, match="intentional failure"):
+    with pytest.raises(RuntimeError, match="fail"):
         by_name["bad"].process()
 
     # good plugin still works

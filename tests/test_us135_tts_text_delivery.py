@@ -33,6 +33,7 @@ def _make_assistant():
     assistant = AsyncRexAssistant.__new__(AsyncRexAssistant)
     assistant.config = AppConfig()
     assistant.language_model = MagicMock()
+    assistant._assistant = None  # no high-level Assistant; use language_model fallback
     assistant._tts = MagicMock()
     assistant._whisper_model = MagicMock()
     assistant._wake_model = MagicMock()

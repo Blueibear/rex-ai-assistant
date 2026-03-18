@@ -14,6 +14,10 @@ _BINARY_SUFFIXES = (
     ".ckpt",
 )
 
+# Small UI image assets (icons, logos) are intentionally tracked — they are
+# not large ML artifacts and are needed for the app to function correctly.
+_ALLOWED_BINARY_PREFIXES = ("gui/assets/",)
+
 
 def _is_binary(path: str) -> bool:
     """Return ``True`` if the file contains non-textual bytes."""
@@ -43,6 +47,8 @@ def test_no_tracked_binary_artifacts():
     offenders = []
 
     for path in _list_tracked_files():
+        if any(path.startswith(prefix) for prefix in _ALLOWED_BINARY_PREFIXES):
+            continue
         if path.lower().endswith(_BINARY_SUFFIXES) or _is_binary(path):
             offenders.append(path)
 

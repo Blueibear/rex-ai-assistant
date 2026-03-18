@@ -60,6 +60,7 @@ def _make_assistant(listener=None):
     assistant._state = "running"
     assistant._stop_requested_by = None
     assistant.language_model = MagicMock()
+    assistant._assistant = None  # no high-level Assistant; use language_model fallback
     assistant.users_map = {}
     assistant.profiles = {}
     assistant.plugins = {}

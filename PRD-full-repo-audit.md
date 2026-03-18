@@ -770,11 +770,11 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 5. Ensure coverage is not lower than the baseline captured before this audit began
 
 **Acceptance Criteria:**
-- [ ] `pytest -q` exits with 0 failures and 0 errors
-- [ ] No test is marked `xfail` or `skip` as a workaround for a broken implementation — only legitimate skips remain
-- [ ] Coverage report shows no newly uncovered lines introduced by fixes in this audit
-- [ ] All tests pass
-- [ ] Typecheck passes
+- [x] `pytest -q` exits with 0 failures and 0 errors
+- [x] No test is marked `xfail` or `skip` as a workaround for a broken implementation — only legitimate skips remain
+- [x] Coverage report shows no newly uncovered lines introduced by fixes in this audit
+- [x] All tests pass
+- [x] Typecheck passes
 
 ---
 

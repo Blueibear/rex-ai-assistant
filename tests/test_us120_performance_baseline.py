@@ -178,14 +178,14 @@ class TestBaselineDocumentExists:
         baseline_path = Path(__file__).parent.parent / "docs" / "performance-baseline.md"
         if not baseline_path.exists():
             pytest.skip("docs/performance-baseline.md not yet created")
-        content = baseline_path.read_text()
+        content = baseline_path.read_text(encoding="utf-8")
         assert len(content.strip()) > 100, "docs/performance-baseline.md appears empty"
 
     def test_performance_baseline_md_mentions_endpoints(self) -> None:
         baseline_path = Path(__file__).parent.parent / "docs" / "performance-baseline.md"
         if not baseline_path.exists():
             pytest.skip("docs/performance-baseline.md not yet created")
-        content = baseline_path.read_text()
+        content = baseline_path.read_text(encoding="utf-8")
         for endpoint in ["/health", "/api/notifications", "/api/settings", "/api/chat"]:
             assert (
                 endpoint in content

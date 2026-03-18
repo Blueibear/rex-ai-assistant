@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -164,7 +164,9 @@ class TestWithRetrySuccess:
         result = with_retry(fn, config=RetryConfig(max_attempts=3, base_delay=1.0))
         assert result == "hello"
         assert fn.call_count == 2
-        mock_sleep.assert_called_once_with(1.0)
+        # Jitter adds up to 10% — verify sleep was called close to expected
+        mock_sleep.assert_called_once()
+        assert mock_sleep.call_args[0][0] == pytest.approx(1.0, rel=0.15)
 
     @patch("rex.retry.time.sleep")
     def test_succeeds_after_two_failures(self, mock_sleep: MagicMock) -> None:
@@ -178,8 +180,10 @@ class TestWithRetrySuccess:
         result = with_retry(fn, config=RetryConfig(max_attempts=3, base_delay=1.0))
         assert result == "final"
         assert fn.call_count == 3
-        # delay doubles: 1.0, then 2.0
-        assert mock_sleep.call_args_list == [call(1.0), call(2.0)]
+        # delay doubles: ~1.0, then ~2.0 (with up to 10% jitter)
+        assert len(mock_sleep.call_args_list) == 2
+        assert mock_sleep.call_args_list[0][0][0] == pytest.approx(1.0, rel=0.15)
+        assert mock_sleep.call_args_list[1][0][0] == pytest.approx(2.0, rel=0.15)
 
     @patch("rex.retry.time.sleep")
     def test_succeeds_after_n_failures_custom_config(self, mock_sleep: MagicMock) -> None:
@@ -195,13 +199,11 @@ class TestWithRetrySuccess:
         result = with_retry(fn, config=RetryConfig(max_attempts=5, base_delay=0.5))
         assert result == "result"
         assert fn.call_count == 5
-        # Delays: 0.5, 1.0, 2.0, 4.0
-        assert mock_sleep.call_args_list == [
-            call(0.5),
-            call(1.0),
-            call(2.0),
-            call(4.0),
-        ]
+        # Delays: ~0.5, ~1.0, ~2.0, ~4.0 (with up to 10% jitter)
+        expected = [0.5, 1.0, 2.0, 4.0]
+        assert len(mock_sleep.call_args_list) == 4
+        for actual_call, exp in zip(mock_sleep.call_args_list, expected):
+            assert actual_call[0][0] == pytest.approx(exp, rel=0.15)
 
 
 # ---------------------------------------------------------------------------
@@ -311,7 +313,11 @@ class TestExponentialBackoff:
         fn = MagicMock(side_effect=side_effects)
         with_retry(fn, config=RetryConfig(max_attempts=4, base_delay=0.25))
         # Delays: 0.25, 0.5, 1.0
-        assert mock_sleep.call_args_list == [call(0.25), call(0.5), call(1.0)]
+        # Delays: ~0.25, ~0.5, ~1.0 (with up to 10% jitter)
+        expected_delays = [0.25, 0.5, 1.0]
+        assert len(mock_sleep.call_args_list) == 3
+        for actual_call, exp in zip(mock_sleep.call_args_list, expected_delays):
+            assert actual_call[0][0] == pytest.approx(exp, rel=0.15)
 
     @patch("rex.retry.time.sleep")
     def test_zero_base_delay(self, mock_sleep: MagicMock) -> None:
@@ -342,7 +348,8 @@ class TestWithRetryDefaultConfig:
         side_effects: list[Any] = [_FakeStatusError(503), "done"]
         fn = MagicMock(side_effect=side_effects)
         with_retry(fn)
-        mock_sleep.assert_called_once_with(1.0)
+        mock_sleep.assert_called_once()
+        assert mock_sleep.call_args[0][0] == pytest.approx(1.0, rel=0.15)
 
 
 # ---------------------------------------------------------------------------
