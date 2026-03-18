@@ -13,7 +13,7 @@ import sqlite3
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -64,12 +64,10 @@ class Notification(BaseModel):
     channel: NotificationChannel = "desktop"
     digest_eligible: bool = False
     quiet_hours_exempt: bool = False
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
-    delivered_at: Optional[datetime] = None
-    read_at: Optional[datetime] = None
-    escalation_due_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    delivered_at: datetime | None = None
+    read_at: datetime | None = None
+    escalation_due_at: datetime | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -112,7 +110,7 @@ def _to_row(n: Notification) -> tuple[object, ...]:
 
 
 def _from_row(row: tuple[object, ...]) -> Notification:
-    def _dt(val: object) -> Optional[datetime]:
+    def _dt(val: object) -> datetime | None:
         if val is None:
             return None
         return datetime.fromisoformat(str(val))
@@ -241,13 +239,13 @@ class NotificationStore:
                     int(notification.digest_eligible),
                     int(notification.quiet_hours_exempt),
                     notification.created_at.isoformat(),
-                    notification.delivered_at.isoformat()
-                    if notification.delivered_at
-                    else None,
+                    notification.delivered_at.isoformat() if notification.delivered_at else None,
                     notification.read_at.isoformat() if notification.read_at else None,
-                    notification.escalation_due_at.isoformat()
-                    if notification.escalation_due_at
-                    else None,
+                    (
+                        notification.escalation_due_at.isoformat()
+                        if notification.escalation_due_at
+                        else None
+                    ),
                     notification.id,
                 ),
             )

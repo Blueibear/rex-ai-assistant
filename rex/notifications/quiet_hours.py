@@ -23,7 +23,6 @@ import json
 import logging
 from datetime import time
 from pathlib import Path
-from typing import Optional
 
 from rex.notifications.models import Notification
 
@@ -36,7 +35,7 @@ logger = logging.getLogger(__name__)
 _CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "rex_config.json"
 
 
-def _load_quiet_hours_config(config: Optional[dict[str, object]]) -> tuple[str, str]:
+def _load_quiet_hours_config(config: dict[str, object] | None) -> tuple[str, str]:
     """Return (start_str, end_str) from *config* or the default config file.
 
     Returns (``""``, ``""``) on any error so the gate stays disabled.
@@ -56,7 +55,7 @@ def _load_quiet_hours_config(config: Optional[dict[str, object]]) -> tuple[str, 
     return (str(start), str(end))
 
 
-def _parse_time(value: str) -> Optional[time]:
+def _parse_time(value: str) -> time | None:
     """Parse ``"HH:MM"`` string into :class:`datetime.time`, or ``None``."""
     try:
         parts = value.strip().split(":")
@@ -106,8 +105,8 @@ class QuietHoursGate:
 
     def __init__(
         self,
-        config: Optional[dict[str, object]] = None,
-        clock: Optional[object] = None,
+        config: dict[str, object] | None = None,
+        clock: object | None = None,
     ) -> None:
         self._config = config
         # Accept a callable; default to datetime.now().time()

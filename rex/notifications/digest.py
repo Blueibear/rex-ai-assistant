@@ -11,10 +11,9 @@ returns ``None`` and :meth:`DigestBuilder.run_digest` is a no-op.
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timezone
-from typing import Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from rex.notifications.models import Notification, NotificationStore
 
@@ -66,8 +65,7 @@ _SYSTEM_PROMPT = (
 )
 
 _USER_TEMPLATE = (
-    "Please summarise these {count} low-priority notifications into one paragraph:\n\n"
-    "{items}"
+    "Please summarise these {count} low-priority notifications into one paragraph:\n\n" "{items}"
 )
 
 
@@ -100,7 +98,7 @@ class DigestBuilder:
     # Public API
     # ------------------------------------------------------------------
 
-    def build_digest(self) -> Optional[str]:
+    def build_digest(self) -> str | None:
         """Generate a digest summary string, or ``None`` if nothing to digest.
 
         Collects all unread ``digest_eligible`` notifications.  If none
@@ -121,9 +119,7 @@ class DigestBuilder:
                         {"role": "system", "content": _SYSTEM_PROMPT.format(count=count)},
                         {
                             "role": "user",
-                            "content": _USER_TEMPLATE.format(
-                                count=count, items=items_text
-                            ),
+                            "content": _USER_TEMPLATE.format(count=count, items=items_text),
                         },
                     ],
                     max_tokens=256,

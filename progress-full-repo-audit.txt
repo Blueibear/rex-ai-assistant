@@ -256,3 +256,41 @@ Learnings for future iterations:
   - triage_rules.py auto-reloads rules on mtime change — no process restart needed for rule updates
   - TriageRulesEngine.categorize_with_fallback() chains config rules → built-in patterns; callers should use this method not raw categorize()
 ---
+
+## Iteration 17 - US-017: rex/messaging_backends/ Subpackage
+- Read all 14 files: __init__.py, account_config.py, base.py, factory.py, inbound_store.py, inbound_webhook.py, message_router.py, sms_receiver_stub.py, sms_sender_stub.py, stub.py, twilio_adapter.py, twilio_backend.py, twilio_signature.py, webhook_wiring.py
+- twilio_signature.py: complete HMAC-SHA1 validation with constant-time comparison (hmac.compare_digest) — not a pass-through
+- inbound_webhook.py: all form fields length-clamped before use; untrusted input never interpolated into SQL/shell
+- No Twilio credentials logged: account_sid masked via mask_token(); auth_token never appears in logs
+- All backends (StubSmsBackend, TwilioSmsBackend) implement full SmsBackend interface
+- message_router.py: moved `from typing import TYPE_CHECKING` from mid-file to top-level import block (I001 fix)
+- twilio_backend.py: moved `from email.utils import parsedate_to_datetime` from deferred function-level import to module level (PLC0415 fix)
+- ruff --fix auto-fixed 7 issues across the subpackage (UP/I001 etc.); black reformatted message_router.py
+- 285 targeted tests pass
+
+Learnings for future iterations:
+  - TYPE_CHECKING must be imported with other typing imports at top of file, even if only used later in an `if TYPE_CHECKING:` block
+  - Deferred imports inside functions (to avoid optional dependency at module load) are fine, but stdlib imports (email.utils, json, etc.) should always be at module level
+  - twilio_signature.py is a complete, standalone HMAC validator — no twilio package needed
+  - inbound_store.py uses parameterized SQL throughout; no injection risk despite WHERE clause construction
+  - webhook_wiring.py always passes signature_verification=True — verification cannot be bypassed via config
+---
+
+## Iteration 18 - US-018: rex/notifications/ and rex/voice_identity/ Subpackages
+- Read all 14 files: notifications/__init__.py, digest.py, escalation.py, models.py, quiet_hours.py, router.py; voice_identity/__init__.py, calibration.py, embedding_backends.py, embeddings_store.py, fallback_flow.py, optional_deps.py, recognizer.py, types.py
+- All files are complete and correctly implemented — no stubs, no truncated logic
+- notifications/router.py: routes to all 3 channels (critical/high immediate, medium with quiet-hours check, low→digest_eligible)
+- notifications/escalation.py: complete priority ladder (low→medium→high→critical), reschedules next_due_at after each escalation
+- voice_identity/recognizer.py: complete recognize() pipeline — cosine similarity against all enrolled users, threshold-based decision
+- voice_identity/optional_deps.py: uses find_spec() before importing speechbrain/resemblyzer ✓
+- ruff --fix: removed unused `json` import (digest.py) and unused `Notification` import (escalation.py)
+- ruff --unsafe-fixes: converted all Optional[X] → X | None (12 UP045 violations across 4 files)
+- black reformatted: digest.py, models.py
+- 164 targeted tests pass
+
+Learnings for future iterations:
+  - notifications/ package is very well implemented — complete SQLite store, priority routing, quiet hours, digest, escalation
+  - voice_identity/ uses pure-Python cosine similarity (no numpy) — works in base install; SpeechBrain backend is optional with lazy loading
+  - Both packages had only lint violations (Optional → X | None), no logic issues
+  - ruff --unsafe-fixes handles UP045 automatically; no need for manual edits
+---

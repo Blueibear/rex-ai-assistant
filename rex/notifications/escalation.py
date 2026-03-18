@@ -25,9 +25,8 @@ import json
 import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
 
-from rex.notifications.models import Notification, NotificationPriority, NotificationStore
+from rex.notifications.models import NotificationPriority, NotificationStore
 from rex.notifications.router import NotificationRouter
 
 logger = logging.getLogger(__name__)
@@ -36,7 +35,7 @@ logger = logging.getLogger(__name__)
 # Priority ladder
 # ---------------------------------------------------------------------------
 
-_NEXT_PRIORITY: dict[NotificationPriority, Optional[NotificationPriority]] = {
+_NEXT_PRIORITY: dict[NotificationPriority, NotificationPriority | None] = {
     "low": "medium",
     "medium": "high",
     "high": "critical",
@@ -51,7 +50,7 @@ _CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "rex_c
 _DEFAULT_DELAY_MINUTES = 30
 
 
-def _load_escalation_delay(config: Optional[dict[str, object]]) -> int:
+def _load_escalation_delay(config: dict[str, object] | None) -> int:
     """Return escalation delay in minutes from *config* or rex_config.json."""
     if config is None:
         try:
@@ -91,7 +90,7 @@ class EscalationEngine:
         self,
         store: NotificationStore,
         router: NotificationRouter,
-        config: Optional[dict[str, object]] = None,
+        config: dict[str, object] | None = None,
     ) -> None:
         self._store = store
         self._router = router

@@ -502,13 +502,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/voice_identity/types.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] `notifications/router.py` routes to all registered channels — no unreachable channel branches
-- [ ] `notifications/escalation.py` has complete escalation timer logic
-- [ ] `voice_identity/recognizer.py` has a complete recognition pipeline — no empty `identify()` bodies
-- [ ] `voice_identity/optional_deps.py` uses `find_spec()` before importing optional dependencies
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] `notifications/router.py` routes to all registered channels — no unreachable channel branches
+- [x] `notifications/escalation.py` has complete escalation timer logic
+- [x] `voice_identity/recognizer.py` has a complete recognition pipeline — no empty `identify()` bodies
+- [x] `voice_identity/optional_deps.py` uses `find_spec()` before importing optional dependencies
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 
