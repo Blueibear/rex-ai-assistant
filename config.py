@@ -7,10 +7,10 @@ from __future__ import annotations
 
 # Re-export all configuration utilities from the rex.config module
 from rex.config import (
-    AppConfig,
     ENV_MAPPING,
     ENV_PATH,
     REQUIRED_ENV_KEYS,
+    AppConfig,
     build_app_config,
     cli,
     load_config,

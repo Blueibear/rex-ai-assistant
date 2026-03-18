@@ -101,14 +101,14 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `audio_config.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] No secrets (API keys, tokens) are hardcoded — all come from env or config
-- [ ] `llm_client.py` has complete implementations for all LLM provider branches (no stubs)
-- [ ] `conversation_memory.py` and `memory_utils.py` have no truncated persistence logic
-- [ ] All logging setup is complete — no half-initialized handlers
-- [ ] `plugin_loader.py` gracefully handles missing plugins without crashing
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] No secrets (API keys, tokens) are hardcoded — all come from env or config
+- [x] `llm_client.py` has complete implementations for all LLM provider branches (no stubs)
+- [x] `conversation_memory.py` and `memory_utils.py` have no truncated persistence logic
+- [x] All logging setup is complete — no half-initialized handlers
+- [x] `plugin_loader.py` gracefully handles missing plugins without crashing
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

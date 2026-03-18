@@ -32,3 +32,19 @@ Learnings for future iterations:
   - Black reformats without ruff needing to run --fix first (no E402/UP issues in these files)
   - rex_voice_bridge.py imports from rex.voice_loop internal classes (AsyncMicrophone, SpeechToText, TextToSpeech, VoiceLoop, WakeAcknowledgement) - this is separate from the root voice_loop.py's AsyncRexAssistant
 ---
+
+## Iteration 3 - US-003: Root-Level Config, Memory, LLM, and Logging
+- Read all 8 files: config.py, llm_client.py, conversation_memory.py, memory_utils.py, logging_utils.py, assistant_errors.py, plugin_loader.py, audio_config.py
+- Most files are backward-compat wrappers delegating to rex.* - no logic issues
+- conversation_memory.py: fully implemented with summarization logic
+- plugin_loader.py: gracefully handles missing plugins (warns and skips)
+- audio_config.py: fixed E402 noqa comments, updated Dict/Optional -> dict/int|None modern annotations
+- config.py: ruff --fix sorted imports (I001 fixable)
+- black reformatted logging_utils.py, llm_client.py, memory_utils.py
+- 104 tests pass
+
+Learnings for future iterations:
+  - Most root-level .py files are thin compat wrappers - check the rex.* equivalents for real implementations
+  - audio_config.py follows the same _load_env() before imports pattern → needs # noqa: E402 per-line
+  - Dict/Optional from typing should be replaced with dict/int|None (modern Python 3.10+ style)
+---

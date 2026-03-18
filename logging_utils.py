@@ -19,4 +19,3 @@ __all__ = [
     "get_logger",
     "set_global_level",
 ]
-
