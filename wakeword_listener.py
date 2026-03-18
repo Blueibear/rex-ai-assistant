@@ -1,5 +1,6 @@
 """Standalone wake-word listener used for quick manual testing."""
 
+# ruff: noqa: E402
 from __future__ import annotations
 
 # Load .env before accessing any environment variables
@@ -47,9 +48,12 @@ print(f"🔊 Listening for wake word: '{wake_keyword}'…")
 # Helpers
 # ------------------------------------------------------------------------------
 
+
 def play_confirmation_sound() -> None:
     if sa is None:
-        print("[!] simpleaudio not available (Windows or not installed) - skipping confirmation sound")
+        print(
+            "[!] simpleaudio not available (Windows or not installed) - skipping confirmation sound"
+        )
         return
     try:
         wave_obj = sa.WaveObject.from_wave_file(wake_sound_path)
@@ -97,4 +101,3 @@ if __name__ == "__main__":
         print("✅ Wakeword test completed.")
     else:
         print("❌ Wakeword test failed or aborted.")
-

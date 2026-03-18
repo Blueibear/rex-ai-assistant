@@ -4,6 +4,8 @@ This module intentionally mirrors the historical top-level script so existing
 ...
 """
 
+# ruff: noqa: E402
+
 import asyncio
 import logging
 from collections.abc import Iterable, Sequence
@@ -29,9 +31,7 @@ class FunctionRouter:
     def __init__(self) -> None:
         self._routes: list[tuple[Callable[[str], bool], Callable[[str], str]]] = []
 
-    def register(
-        self, predicate: Callable[[str], bool], handler: Callable[[str], str]
-    ) -> None:
+    def register(self, predicate: Callable[[str], bool], handler: Callable[[str], str]) -> None:
         self._routes.append((predicate, handler))
 
     def route(self, text: str) -> str | None:

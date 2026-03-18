@@ -1,0 +1,20 @@
+## Iteration 1 - US-001: Root-Level Voice Loop and Wake Word Files
+- Read all 7 files in scope: rex_loop.py, voice_loop.py, wakeword_listener.py, wakeword_utils.py, wake_acknowledgment.py, rex_speak_api.py, rex_assistant.py
+- Fixed rex_speak_api.py host binding from "0.0.0.0" to "127.0.0.1" (localhost-only per acceptance criteria)
+- Fixed rex_speak_api.py type annotations: Optional[str] -> str | None, Tuple -> tuple (UP045/UP006)
+- Fixed rex_speak_api.py set comprehension: set(generator) -> {comprehension} (C401)
+- Fixed rex_speak_api.py: removed duplicate typing imports (TYPE_CHECKING merged with Optional/Tuple line)
+- Added # ruff: noqa: E402 to rex_loop.py, rex_assistant.py, wakeword_listener.py (E402 violations from _load_env() before imports - intentional pattern)
+- Fixed rex_assistant.py: added newline at end of file (W292)
+- Ran black on all 6 modified files
+- All ruff and black checks pass on the 7 files in scope
+- Pre-existing test failures in test_us052_voice_interface.py (10 failures) - confirmed pre-existing by git stash check
+- Tests for the specific files (test_rex_speak_api.py, test_rex_assistant.py, test_assistant.py): 15 passed
+
+Learnings for future iterations:
+  - Files with _load_env() before imports need `# ruff: noqa: E402` at the top (or per-line noqa) - this is the established pattern in voice_loop.py already
+  - ruff --fix auto-reorganizes imports (merges duplicate typing imports, reorders) so re-read files after running --fix
+  - test_us052_voice_interface.py has 10 pre-existing failures (voice API endpoint tests) - not related to US-001 scope
+  - test_autonomy_*.py files all fail due to missing 'aiosqlite' module - pre-existing, not related to US-001
+  - aiosqlite missing: these autonomy tests need to be ignored unless we install that dependency
+---

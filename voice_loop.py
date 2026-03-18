@@ -477,7 +477,9 @@ class AsyncRexAssistant:
                     device = "cuda" if torch.cuda.is_available() else "cpu"
                 except ImportError:
                     device = "cpu"
-            logger.info("[STT] Loading Whisper '%s' on device '%s'", self.config.whisper_model, device)
+            logger.info(
+                "[STT] Loading Whisper '%s' on device '%s'", self.config.whisper_model, device
+            )
 
             try:
                 self._whisper_model = whisper_module.load_model(
@@ -658,13 +660,9 @@ class AsyncRexAssistant:
         # falling back to the bare LanguageModel otherwise.
         try:
             if self._assistant is not None:
-                response = await self._assistant.generate_reply(
-                    transcript, voice_mode=True
-                )
+                response = await self._assistant.generate_reply(transcript, voice_mode=True)
             else:
-                response = await asyncio.to_thread(
-                    self.language_model.generate, transcript
-                )
+                response = await asyncio.to_thread(self.language_model.generate, transcript)
         except Exception as exc:
             logger.error("LLM generation failed: %s", exc, exc_info=True)
             return
