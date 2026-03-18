@@ -92,3 +92,47 @@ Learnings for future iterations:
   - tts_voices.py direct TTS imports inside try/except are insufficient - need find_spec + compat shim
   - Pre-existing failures: test_us135_tts_text_delivery.py (1), test_us138_voice_roundtrip.py (4)
 ---
+
+## Iteration 7 - US-007: rex/ Services Layer
+- Read all 7 files: email_service.py, calendar_service.py, messaging_service.py, reminder_service.py, scheduler.py, integrations.py, cue_store.py
+- All services degrade gracefully to stub mode when unconfigured
+- scheduler.py has complete job registration with thread-safety (RLock), persistence, background loop
+- integrations.py: setup_email_job() and setup_calendar_job() were unguarded - wrapped in try/except to match _try_register_retention_jobs() pattern
+- All other files clean: no truncated logic, modern typing, no network calls without timeouts
+- 671 tests pass; 2 pre-existing failures in test_cli_scheduler.py (ImportError: rex/integrations/ package shadows rex/integrations.py)
+
+Learnings for future iterations:
+  - rex/integrations.py (root-level module) is shadowed by rex/integrations/ package - tests that import from rex.integrations get __init__.py not integrations.py
+  - calendar service specifies url_timeout=15 for ICS backend - good pattern for external network calls
+---
+
+## Iteration 8 - US-008: rex/ Tools and Execution
+- Read all 9 files: tool_registry.py, tool_router.py, workflow.py, workflow_runner.py, executor.py, planner.py, autonomy_modes.py, automation_registry.py, replay.py
+- tool_router.py: implemented _execute_web_search() using lazy import from plugins.web_search.search_web(); replaced stub (returned "not implemented" error) with real dispatch
+- executor.py: removed dead _collect_evidence() method (never called; _record_step hook does the same work)
+- All other files clean: no truncated logic, complete implementations, modern typing
+- replay.py is an intentional documented stub but handles edge cases gracefully (batch_replay catches exceptions)
+- Fixed 4 test failures: weather_api → openweathermap credential name; web_search tests updated for real behavior; test_collect_evidence updated to use _record_step
+- 215 tests pass for scope files
+
+Learnings for future iterations:
+  - When implementing a tool stub, use lazy import inside the function (same pattern as _execute_weather_now uses `from rex.weather import get_weather`)
+  - Test files that test OLD stub behavior must be updated when stubs are implemented - check test names for "not_implemented" clues
+  - StepResult is in rex.workflow, not rex.contracts - check before importing
+  - Dead code removal requires updating tests that call the removed method
+---
+
+## Iteration 9 - US-009: rex/ Infrastructure — Events, Startup, Services, Retry, Shutdown
+- Read all 9 files: event_bus.py, event_triggers.py, startup.py, startup_validation.py, services.py, service_supervisor.py, graceful_shutdown.py, retry.py, process_monitor.py
+- process_monitor.py: removed unused `Optional` import from typing, replaced all Optional[X] with X | None (UP045 violations)
+- startup_validation.py: fixed unsorted import block (I001) via ruff --fix
+- event_triggers.py: black reformatting only
+- retry.py: added jitter (random.uniform(0, delay * 0.1)) to both with_retry() and retry_call() — was plain exponential backoff with no jitter
+- All other files clean: complete implementations, no truncated logic, no resource leaks, no busy loops
+- 24 tests pass (test_event_bus, test_event_queue, test_service_supervisor)
+
+Learnings for future iterations:
+  - ruff --fix only handles "safe" fixes; UP045 Optional[X] → X | None requires --unsafe-fixes or manual edit
+  - retry.py had exponential backoff but no jitter — common oversight, always check for random import when auditing retry logic
+  - startup_validation.py has __future__ annotations import that ruff considers mis-sorted (I001); --fix handles it
+---
