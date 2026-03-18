@@ -29,7 +29,6 @@ from dataclasses import dataclass
 from typing import Callable
 from urllib.parse import urlparse
 
-
 # ---------------------------------------------------------------------------
 # Built-in validators
 # ---------------------------------------------------------------------------
@@ -144,16 +143,12 @@ def validate_startup_env(
         if not value:
             # Treat missing (None) and empty string the same: not provided.
             if spec.required:
-                errors.append(
-                    f"Required environment variable {spec.name!r} is not set."
-                )
+                errors.append(f"Required environment variable {spec.name!r} is not set.")
         else:
             if spec.validator is not None:
                 err = spec.validator(value)
                 if err:
-                    errors.append(
-                        f"Environment variable {spec.name!r} is invalid: {err}."
-                    )
+                    errors.append(f"Environment variable {spec.name!r} is invalid: {err}.")
 
     return errors
 

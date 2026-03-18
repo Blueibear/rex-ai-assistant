@@ -22,7 +22,6 @@ from __future__ import annotations
 import logging
 import subprocess
 from dataclasses import dataclass
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +47,7 @@ class ProcessStatus:
     app_name: str
     running: bool
     crashed: bool
-    returncode: Optional[int] = None
+    returncode: int | None = None
     restart_count: int = 0
 
 
@@ -59,8 +58,8 @@ class RestartResult:
     success: bool
     app_name: str
     old_pid: int
-    new_pid: Optional[int] = None
-    error: Optional[str] = None
+    new_pid: int | None = None
+    error: str | None = None
 
 
 class ProcessNotWatchedError(Exception):
@@ -296,7 +295,7 @@ class ProcessMonitor:
 # Module-level singleton
 # ---------------------------------------------------------------------------
 
-_monitor: Optional[ProcessMonitor] = None
+_monitor: ProcessMonitor | None = None
 
 
 def get_process_monitor() -> ProcessMonitor:
@@ -307,7 +306,7 @@ def get_process_monitor() -> ProcessMonitor:
     return _monitor
 
 
-def set_process_monitor(monitor: Optional[ProcessMonitor]) -> None:
+def set_process_monitor(monitor: ProcessMonitor | None) -> None:
     """Replace the module-level singleton (for testing)."""
     global _monitor  # noqa: PLW0603
     _monitor = monitor

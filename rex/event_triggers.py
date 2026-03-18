@@ -73,9 +73,7 @@ class EventTriggerRegistry:
         with self._lock:
             try:
                 self._triggers[event_type].remove(trigger)
-                logger.debug(
-                    "Unregistered trigger for event type '%s': %s", event_type, trigger
-                )
+                logger.debug("Unregistered trigger for event type '%s': %s", event_type, trigger)
                 return True
             except ValueError:
                 return False
@@ -128,9 +126,7 @@ class EventTriggerRegistry:
         if not fns:
             return
 
-        logger.debug(
-            "Event '%s' matched %d trigger(s)", event.event_type, len(fns)
-        )
+        logger.debug("Event '%s' matched %d trigger(s)", event.event_type, len(fns))
         for fn in fns:
             try:
                 fn(event)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import random
 import time
 from dataclasses import dataclass
 from typing import Callable, TypeVar
@@ -153,7 +154,8 @@ def with_retry(
                     exc,
                 )
 
-            time.sleep(delay)
+            jitter = random.uniform(0, delay * 0.1)
+            time.sleep(delay + jitter)
             delay *= 2.0
 
     # Should never be reached, but satisfies the type checker.
@@ -193,6 +195,7 @@ def retry_call(
             if attempt >= policy.attempts:
                 raise
             sleep_for = min(backoff, policy.max_backoff_seconds)
+            sleep_for += random.uniform(0, sleep_for * 0.1)
             if on_retry:
                 on_retry(attempt, exc, sleep_for)
             else:

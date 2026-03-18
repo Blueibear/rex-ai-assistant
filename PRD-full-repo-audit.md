@@ -248,13 +248,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/process_monitor.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] Event bus has no incomplete subscriber/publisher logic
-- [ ] `rex/startup_validation.py` validates all required config fields before the app starts
-- [ ] `rex/graceful_shutdown.py` correctly unregisters all resources — no resource leaks
-- [ ] `rex/retry.py` implements exponential backoff with jitter — no busy loops
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] Event bus has no incomplete subscriber/publisher logic
+- [x] `rex/startup_validation.py` validates all required config fields before the app starts
+- [x] `rex/graceful_shutdown.py` correctly unregisters all resources — no resource leaks
+- [x] `rex/retry.py` implements exponential backoff with jitter — no busy loops
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 
