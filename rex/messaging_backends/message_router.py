@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 logger = logging.getLogger(__name__)
 
@@ -122,8 +122,6 @@ class RouterConfig:
 
 # We import these lazily via TYPE_CHECKING only so that missing optional
 # dependencies do not break the import of this module.
-from typing import TYPE_CHECKING
-
 if TYPE_CHECKING:
     from rex.dashboard.sse import NotificationBroadcaster
     from rex.email_backends.base import EmailBackend
@@ -154,9 +152,9 @@ class MessageRouter:
         self,
         config: RouterConfig | None = None,
         *,
-        sms_backend: "TwilioAdapter | None" = None,
-        email_backend: "EmailBackend | None" = None,
-        dashboard_broadcaster: "NotificationBroadcaster | None" = None,
+        sms_backend: TwilioAdapter | None = None,
+        email_backend: EmailBackend | None = None,
+        dashboard_broadcaster: NotificationBroadcaster | None = None,
     ) -> None:
         self._config = config or RouterConfig()
         self._sms = sms_backend
@@ -245,9 +243,8 @@ class MessageRouter:
         if self._email is None:
             raise ChannelNotConfiguredError(CHANNEL_EMAIL)
         from_addr = payload.metadata.get("from_addr", "rex@localhost")
-        to_addrs: list[str] = (
-            payload.metadata.get("to_addrs")
-            or ([payload.to] if payload.to else [])
+        to_addrs: list[str] = payload.metadata.get("to_addrs") or (
+            [payload.to] if payload.to else []
         )
         result = self._email.send(
             from_addr=from_addr,

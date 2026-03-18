@@ -468,13 +468,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/messaging_backends/webhook_wiring.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] `twilio_signature.py` validates Twilio webhook signatures before processing (not just a pass-through)
-- [ ] `inbound_webhook.py` treats all incoming SMS content as untrusted input
-- [ ] No Twilio credentials are logged
-- [ ] All backend classes implement the full interface from `base.py`
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] `twilio_signature.py` validates Twilio webhook signatures before processing (not just a pass-through)
+- [x] `inbound_webhook.py` treats all incoming SMS content as untrusted input
+- [x] No Twilio credentials are logged
+- [x] All backend classes implement the full interface from `base.py`
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

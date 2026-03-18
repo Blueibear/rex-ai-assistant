@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 
 import requests
 
@@ -185,8 +186,6 @@ def _parse_twilio_dt(value: str | None) -> datetime:
         return datetime.now(timezone.utc)
     try:
         # Twilio uses RFC 2822 format; Python's email.utils can parse it
-        from email.utils import parsedate_to_datetime
-
         return parsedate_to_datetime(value)
     except Exception:
         try:
