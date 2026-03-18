@@ -18,7 +18,6 @@ from rex.calendar_backends.base import CalendarBackend
 from rex.calendar_backends.free_busy_stub import CalendarStub, FreeBusyBlock
 from rex.calendar_service import CalendarEvent
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -281,9 +280,7 @@ class TestCalendarBackendInterface:
 
 
 class TestNoNetworkCalls:
-    def test_connect_makes_no_network_calls(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_connect_makes_no_network_calls(self, monkeypatch: pytest.MonkeyPatch) -> None:
         connected: list[tuple[str, ...]] = []
 
         def fake_connect(self: Any, addr: Any) -> None:  # type: ignore[misc]
@@ -294,9 +291,7 @@ class TestNoNetworkCalls:
         stub.connect()
         assert connected == []
 
-    def test_fetch_events_makes_no_network_calls(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fetch_events_makes_no_network_calls(self, monkeypatch: pytest.MonkeyPatch) -> None:
         connected: list[tuple[str, ...]] = []
 
         def fake_connect(self: Any, addr: Any) -> None:  # type: ignore[misc]
@@ -308,9 +303,7 @@ class TestNoNetworkCalls:
         _ = stub.fetch_events()
         assert connected == []
 
-    def test_get_free_busy_makes_no_network_calls(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_get_free_busy_makes_no_network_calls(self, monkeypatch: pytest.MonkeyPatch) -> None:
         connected: list[tuple[str, ...]] = []
 
         def fake_connect(self: Any, addr: Any) -> None:  # type: ignore[misc]

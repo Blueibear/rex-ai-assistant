@@ -10,13 +10,10 @@ Acceptance criteria:
 
 from __future__ import annotations
 
-import inspect
-
 import pytest
 
 from rex.email_backends.base import EmailBackend, EmailEnvelope, SendResult
 from rex.email_backends.inbox_stub import EmailInboxStub
-
 
 # ---------------------------------------------------------------------------
 # Instantiation — no credentials or network calls required

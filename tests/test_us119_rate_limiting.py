@@ -10,14 +10,12 @@ Acceptance criteria:
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 import pytest
 from flask import Flask
 
 from rex.rate_limiter import install_rate_limiter
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -130,9 +128,9 @@ class TestHealthEndpointsExempt:
         # These must still return 200 regardless of the rate limit.
         for _ in range(5):
             resp = client.get("/health/live")
-            assert resp.status_code == 200, (
-                f"Health endpoint returned {resp.status_code} but should be exempt"
-            )
+            assert (
+                resp.status_code == 200
+            ), f"Health endpoint returned {resp.status_code} but should be exempt"
 
     def test_health_ready_not_rate_limited(self, client: Any) -> None:
         for _ in range(3):
@@ -171,16 +169,19 @@ class TestRateLimitConfiguration:
         monkeypatch.delenv("API_RATE_LIMIT", raising=False)
 
         from rex.rate_limiter import _DEFAULT_LIMIT, _read_limit
+
         assert _read_limit() == _DEFAULT_LIMIT
 
     def test_env_override_used(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("API_RATE_LIMIT", "100 per hour")
         from rex.rate_limiter import _read_limit
+
         assert _read_limit() == "100 per hour"
 
     def test_empty_env_uses_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("API_RATE_LIMIT", "")
         from rex.rate_limiter import _DEFAULT_LIMIT, _read_limit
+
         assert _read_limit() == _DEFAULT_LIMIT
 
     def test_explicit_limit_overrides_env(self, monkeypatch: pytest.MonkeyPatch) -> None:

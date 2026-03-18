@@ -11,13 +11,11 @@ Acceptance criteria:
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import numpy as np
-import pytest
 
 from rex.voice_loop import VoiceLoop
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers / fixtures
@@ -96,9 +94,7 @@ class TestWakeWordTriggersListening:
     def test_multiple_wake_words_produce_multiple_interactions(self):
         """Three wake word events produce three full interaction cycles."""
         wake_listener = _make_wake_listener(trigger_count=3)
-        loop, assistant, transcribe, speak, _ = _make_voice_loop(
-            wake_listener=wake_listener
-        )
+        loop, assistant, transcribe, speak, _ = _make_voice_loop(wake_listener=wake_listener)
         asyncio.run(loop.run())
         assert transcribe.await_count == 3
         assert speak.await_count == 3
@@ -145,9 +141,7 @@ class TestSTTProducesTranscript:
         audio = np.zeros(16000, dtype="float32")
 
         # First call raises; second returns a real transcript
-        transcribe = AsyncMock(
-            side_effect=[SpeechToTextError("mic failed"), "hello rex"]
-        )
+        transcribe = AsyncMock(side_effect=[SpeechToTextError("mic failed"), "hello rex"])
         assistant = MagicMock()
         assistant.generate_reply = AsyncMock(return_value="Hi")
         speak = AsyncMock()

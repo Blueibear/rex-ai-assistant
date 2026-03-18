@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # AC1: friendly_import_error — includes package name and install command
@@ -238,7 +236,6 @@ def test_language_model_generate_raises_lm_studio_error_includes_url() -> None:
 
 def test_language_model_generate_non_connection_error_propagates() -> None:
     """Non-connection errors from strategy.generate are NOT wrapped."""
-    from rex.dep_errors import LMStudioConnectionError
     from rex.llm_client import GenerationConfig, LanguageModel
 
     mock_config = MagicMock()
@@ -279,7 +276,6 @@ def test_language_model_generate_non_connection_error_propagates() -> None:
 
 def test_language_model_connection_error_without_base_url_propagates() -> None:
     """Connection error without openai_base_url is NOT wrapped as LMStudioConnectionError."""
-    from rex.dep_errors import LMStudioConnectionError
     from rex.llm_client import GenerationConfig, LanguageModel
 
     mock_config = MagicMock()

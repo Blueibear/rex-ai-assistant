@@ -6,7 +6,7 @@ import importlib
 import json
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -350,7 +350,7 @@ class TestSchemaExport:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             output_dir = Path(tmpdir)
-            exported = export_contract_schemas.export_schemas(output_dir)
+            export_contract_schemas.export_schemas(output_dir)
 
             # Check that index.json was created
             index_path = output_dir / "index.json"

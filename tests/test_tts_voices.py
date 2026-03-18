@@ -11,7 +11,6 @@ import pytest
 import rex.tts_voices as tts_voices_module
 from rex.tts_voices import clear_edge_tts_cache, list_voices, synthesize_sample
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -114,7 +113,14 @@ class TestListVoicesEdgeTts:
         assert voices[1]["language"] == "en-GB"
 
     def test_result_is_cached(self):
-        mock_raw = [{"ShortName": "en-US-AriaNeural", "FriendlyName": "Aria", "Locale": "en-US", "Gender": "Female"}]
+        mock_raw = [
+            {
+                "ShortName": "en-US-AriaNeural",
+                "FriendlyName": "Aria",
+                "Locale": "en-US",
+                "Gender": "Female",
+            }
+        ]
         mock_edge_tts = MagicMock()
         mock_edge_tts.list_voices = AsyncMock(return_value=mock_raw)
 

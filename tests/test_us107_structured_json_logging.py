@@ -23,7 +23,6 @@ import pytest
 
 from rex.logging_utils import JsonFormatter, _json_logging_enabled, configure_logging
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -205,9 +204,7 @@ class TestJsonLoggingEnabled:
     def test_auto_on_outside_pytest(self) -> None:
         """When PYTEST_CURRENT_TEST is absent and REX_JSON_LOGS is unset → on."""
         env = {
-            k: v
-            for k, v in os.environ.items()
-            if k not in ("REX_JSON_LOGS", "PYTEST_CURRENT_TEST")
+            k: v for k, v in os.environ.items() if k not in ("REX_JSON_LOGS", "PYTEST_CURRENT_TEST")
         }
         with patch.dict(os.environ, env, clear=True):
             assert _json_logging_enabled() is True

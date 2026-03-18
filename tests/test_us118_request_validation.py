@@ -23,7 +23,6 @@ from rex.validation import (
     validate_json_body,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures — minimal Flask app wired with validate_json_body
 # ---------------------------------------------------------------------------
@@ -250,11 +249,11 @@ class TestChatRequestModel:
         assert m.message == "hello"
 
     def test_blank_raises(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="message"):
             ChatRequest(message="   ")
 
     def test_too_long_raises(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="message"):
             ChatRequest(message="x" * 32_001)
 
 
@@ -268,7 +267,7 @@ class TestLoginRequestModel:
         assert m.password == "secret"
 
     def test_too_long_raises(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="password"):
             LoginRequest(password="x" * 1025)
 
 
@@ -280,9 +279,9 @@ class TestCreateJobRequestModel:
         assert m.metadata == {}
 
     def test_blank_name_raises(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="name"):
             CreateJobRequest(name="  ")
 
     def test_name_too_long_raises(self) -> None:
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="name"):
             CreateJobRequest(name="n" * 257)

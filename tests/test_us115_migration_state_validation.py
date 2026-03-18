@@ -25,7 +25,6 @@ from rex.migrations import (
     validate_migration_state,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -126,7 +125,9 @@ class TestGetPendingMigrations:
         # DB should now exist with schema_migrations table
         assert db_path.exists()
         conn = sqlite3.connect(str(db_path))
-        tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        tables = {
+            row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
         conn.close()
         assert "schema_migrations" in tables
         # All migrations are pending since none have been applied
@@ -332,9 +333,9 @@ class TestFlaskProxyIntegration:
         monkeypatch.setenv("REX_TESTING", "1")
 
         # validate (startup) must appear before the first register_blueprint call
-        assert "validate" in call_order, (
-            f"Expected startup sequence to be called. call_order={call_order}"
-        )
+        assert (
+            "validate" in call_order
+        ), f"Expected startup sequence to be called. call_order={call_order}"
         first_validate = call_order.index("validate")
         blueprint_calls = [i for i, v in enumerate(call_order) if v == "register_blueprint"]
         assert blueprint_calls, "No register_blueprint calls found"

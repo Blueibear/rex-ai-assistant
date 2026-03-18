@@ -4,18 +4,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
 from rex.escalation_job import (
-    EscalationAttempt,
     EscalationConfig,
     EscalationJob,
     EscalationResult,
-    TrackedNotification,
 )
 from rex.notification_priority import NotificationPriority
 from rex.priority_notification_router import RoutableNotification
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -73,9 +68,7 @@ class TestEscalationConfig:
         assert cfg.max_attempts == 5
 
     def test_from_dict_unknown_priority_maps_to_medium(self) -> None:
-        cfg = EscalationConfig.from_dict(
-            {"timeout_minutes_by_priority": {"unknown_level": 10}}
-        )
+        cfg = EscalationConfig.from_dict({"timeout_minutes_by_priority": {"unknown_level": 10}})
         assert NotificationPriority.MEDIUM in cfg.timeout_minutes_by_priority
 
     def test_from_dict_multiple_priorities(self) -> None:
@@ -369,9 +362,7 @@ class TestConfigure:
 
     def test_configure_from_dict(self) -> None:
         job = EscalationJob()
-        job.configure_from_dict(
-            {"timeout_minutes_by_priority": {"high": 10}, "max_attempts": 2}
-        )
+        job.configure_from_dict({"timeout_minutes_by_priority": {"high": 10}, "max_attempts": 2})
         assert job.config.max_attempts == 2
 
     def test_configure_takes_effect_next_run(self) -> None:

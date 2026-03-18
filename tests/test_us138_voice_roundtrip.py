@@ -18,10 +18,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import numpy as np
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_listener(stream=None):
     """Create a WakeWordListener bypassing the heavy constructor."""
@@ -107,9 +107,9 @@ class TestVoiceRoundTrip:
             await assistant._handle_interaction()
 
         assert len(tts_calls) == 1, f"Expected 1 TTS call, got {len(tts_calls)}"
-        assert tts_calls[0] == MOCK_LLM_RESPONSE, (
-            f"Expected TTS with {MOCK_LLM_RESPONSE!r}, got {tts_calls[0]!r}"
-        )
+        assert (
+            tts_calls[0] == MOCK_LLM_RESPONSE
+        ), f"Expected TTS with {MOCK_LLM_RESPONSE!r}, got {tts_calls[0]!r}"
 
     @pytest.mark.asyncio
     async def test_stt_transcript_passed_to_llm(self):
@@ -137,9 +137,9 @@ class TestVoiceRoundTrip:
             listener._event.set()
             await assistant._handle_interaction()
 
-        assert llm_inputs == [MOCK_TRANSCRIPT], (
-            f"LLM must receive the STT transcript; got {llm_inputs!r}"
-        )
+        assert llm_inputs == [
+            MOCK_TRANSCRIPT
+        ], f"LLM must receive the STT transcript; got {llm_inputs!r}"
 
     @pytest.mark.asyncio
     async def test_empty_transcript_skips_llm_and_tts(self):
@@ -157,9 +157,7 @@ class TestVoiceRoundTrip:
         with (
             patch.object(assistant, "_play_wake_sound", return_value=None),
             patch.object(assistant, "_record_audio", return_value=FAKE_AUDIO),
-            patch.object(
-                assistant, "transcribe", new_callable=AsyncMock, return_value=""
-            ),
+            patch.object(assistant, "transcribe", new_callable=AsyncMock, return_value=""),
             patch.object(assistant, "_speak_response", side_effect=tts_calls.append),
             patch("voice_loop.append_history_entry", return_value=None),
         ):
@@ -199,9 +197,9 @@ class TestVoiceLoopRearm:
             listener._event.set()
             await assistant._handle_interaction()
 
-        assert not listener._event.is_set(), (
-            "Event must be cleared after interaction so wait_for_wake blocks on next wake word"
-        )
+        assert (
+            not listener._event.is_set()
+        ), "Event must be cleared after interaction so wait_for_wake blocks on next wake word"
 
     @pytest.mark.asyncio
     async def test_resume_stream_called_after_tts(self):
@@ -232,7 +230,9 @@ class TestVoiceLoopRearm:
         ):
             await assistant._handle_interaction()
 
-        assert len(resume_calls) == 1, "resume_stream() must be called exactly once after interaction"
+        assert (
+            len(resume_calls) == 1
+        ), "resume_stream() must be called exactly once after interaction"
 
     @pytest.mark.asyncio
     async def test_resume_called_even_when_tts_raises(self):
@@ -291,12 +291,8 @@ class TestNoHardwareRequired:
 
         with (
             patch.object(assistant, "_play_wake_sound", return_value=None),
-            patch.object(
-                assistant, "_record_audio", return_value=np.zeros(8000, dtype=np.float32)
-            ),
-            patch.object(
-                assistant, "transcribe", new_callable=AsyncMock, return_value="hello rex"
-            ),
+            patch.object(assistant, "_record_audio", return_value=np.zeros(8000, dtype=np.float32)),
+            patch.object(assistant, "transcribe", new_callable=AsyncMock, return_value="hello rex"),
             patch.object(assistant, "_speak_response", side_effect=tts_received.append),
             patch("voice_loop.append_history_entry", return_value=None),
         ):
@@ -314,9 +310,7 @@ class TestNoHardwareRequired:
         await listener.wait_for_wake()
 
         # After wait_for_wake returns the event is cleared
-        assert not listener._event.is_set(), (
-            "wait_for_wake must clear the event after returning"
-        )
+        assert not listener._event.is_set(), "wait_for_wake must clear the event after returning"
 
     @pytest.mark.asyncio
     async def test_two_consecutive_interactions_both_succeed(self):
@@ -341,9 +335,7 @@ class TestNoHardwareRequired:
             # Second wake word interaction — listener must have re-armed
             await assistant._handle_interaction()
 
-        assert len(tts_calls) == 2, (
-            f"Both interactions must produce TTS; got {len(tts_calls)}"
-        )
+        assert len(tts_calls) == 2, f"Both interactions must produce TTS; got {len(tts_calls)}"
 
 
 # ---------------------------------------------------------------------------
@@ -380,9 +372,9 @@ class TestStructural:
     def test_speak_response_exists(self):
         from voice_loop import AsyncRexAssistant
 
-        assert hasattr(AsyncRexAssistant, "_speak_response"), (
-            "AsyncRexAssistant must have _speak_response"
-        )
+        assert hasattr(
+            AsyncRexAssistant, "_speak_response"
+        ), "AsyncRexAssistant must have _speak_response"
 
     def test_transcribe_is_coroutine(self):
         from voice_loop import AsyncRexAssistant

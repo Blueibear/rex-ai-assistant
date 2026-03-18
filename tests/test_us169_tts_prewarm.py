@@ -1,8 +1,8 @@
 """Tests for US-169: Pre-warm TTS engine on startup."""
 
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 import asyncio
+from pathlib import Path
+
 import pytest
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -131,7 +131,7 @@ class TestTTSWarmup:
 
     @pytest.mark.asyncio
     async def test_warmup_uses_warmup_phrase(self):
-        from rex.voice_loop import TextToSpeech, _WARMUP_PHRASE
+        from rex.voice_loop import _WARMUP_PHRASE, TextToSpeech
 
         tts = TextToSpeech.__new__(TextToSpeech)
         tts._provider = "text"

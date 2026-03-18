@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from rex.contracts import RiskLevel, ToolCall
 from rex.policy import ActionPolicy, PolicyDecision
 from rex.policy_engine import (

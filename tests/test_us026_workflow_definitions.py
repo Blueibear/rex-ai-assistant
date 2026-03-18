@@ -9,8 +9,6 @@ Acceptance Criteria:
 
 from __future__ import annotations
 
-import json
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -21,14 +19,13 @@ from rex.workflow import (
     Workflow,
     WorkflowApproval,
     WorkflowStep,
+    clear_condition_registry,
     generate_approval_id,
     generate_step_id,
     generate_workflow_id,
-    register_condition,
-    clear_condition_registry,
     get_condition,
+    register_condition,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -144,7 +141,7 @@ class TestSchemaValidated:
             WorkflowStep()  # type: ignore[call-arg]
 
     def test_workflow_approval_requires_workflow_and_step_id(self) -> None:
-        with pytest.raises ((TypeError, ValidationError)):
+        with pytest.raises((TypeError, ValidationError)):
             WorkflowApproval()  # type: ignore[call-arg]
 
     def test_workflow_status_enum_validated(self) -> None:

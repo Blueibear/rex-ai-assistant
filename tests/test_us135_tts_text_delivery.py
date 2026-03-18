@@ -5,6 +5,7 @@ Verifies that:
 - empty or whitespace-only responses skip TTS
 - LLM exceptions cause an early return without calling _speak_response
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -21,7 +22,7 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
-import numpy as np
+import numpy as np  # noqa: E402
 
 
 def _make_assistant():
@@ -110,9 +111,7 @@ def test_speak_response_not_called_for_empty_response():
         patch.object(assistant, "_record_audio", return_value=fake_audio),
         patch.object(assistant, "transcribe", new=AsyncMock(return_value="hello rex")),
         patch.object(assistant, "_play_wake_sound"),
-        patch.object(
-            assistant, "_speak_response", side_effect=lambda t: speak_calls.append(t)
-        ),
+        patch.object(assistant, "_speak_response", side_effect=lambda t: speak_calls.append(t)),
     ):
         asyncio.run(assistant._process_conversation())
 
@@ -134,9 +133,7 @@ def test_speak_response_not_called_for_whitespace_response():
         patch.object(assistant, "_record_audio", return_value=fake_audio),
         patch.object(assistant, "transcribe", new=AsyncMock(return_value="hello rex")),
         patch.object(assistant, "_play_wake_sound"),
-        patch.object(
-            assistant, "_speak_response", side_effect=lambda t: speak_calls.append(t)
-        ),
+        patch.object(assistant, "_speak_response", side_effect=lambda t: speak_calls.append(t)),
     ):
         asyncio.run(assistant._process_conversation())
 
@@ -158,9 +155,7 @@ def test_speak_response_not_called_when_llm_raises():
         patch.object(assistant, "_record_audio", return_value=fake_audio),
         patch.object(assistant, "transcribe", new=AsyncMock(return_value="hello rex")),
         patch.object(assistant, "_play_wake_sound"),
-        patch.object(
-            assistant, "_speak_response", side_effect=lambda t: speak_calls.append(t)
-        ),
+        patch.object(assistant, "_speak_response", side_effect=lambda t: speak_calls.append(t)),
     ):
         asyncio.run(assistant._process_conversation())
 

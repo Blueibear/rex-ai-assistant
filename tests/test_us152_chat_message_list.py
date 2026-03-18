@@ -15,8 +15,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).parent.parent
 HTML_PATH = REPO_ROOT / "rex" / "dashboard" / "templates" / "index.html"
 CSS_PATH = REPO_ROOT / "rex" / "dashboard" / "static" / "css" / "dashboard.css"
@@ -69,9 +67,9 @@ class TestChronologicalOrder:
         assert "assistant_reply" in fn_body
         user_pos = fn_body.index("user_message")
         assistant_pos = fn_body.index("assistant_reply")
-        assert user_pos < assistant_pos, (
-            "user_message should be rendered before assistant_reply (chronological order)"
-        )
+        assert (
+            user_pos < assistant_pos
+        ), "user_message should be rendered before assistant_reply (chronological order)"
 
     def test_load_chat_history_called_when_switching_to_chat(self) -> None:
         """switchSection must call loadChatHistory when chat is selected."""
@@ -107,9 +105,9 @@ class TestVisuallyDistinct:
         block_start = css.index("{", start)
         block_end = css.index("}", block_start)
         user_block = css[block_start:block_end]
-        assert "flex-end" in user_block, (
-            ".chat-message.user should have align-self: flex-end for right alignment"
-        )
+        assert (
+            "flex-end" in user_block
+        ), ".chat-message.user should have align-self: flex-end for right alignment"
 
     def test_assistant_message_has_different_alignment(self) -> None:
         """Assistant messages should be left-aligned (align-self: flex-start)."""
@@ -118,9 +116,9 @@ class TestVisuallyDistinct:
         block_start = css.index("{", start)
         block_end = css.index("}", block_start)
         assistant_block = css[block_start:block_end]
-        assert "flex-start" in assistant_block, (
-            ".chat-message.assistant should have align-self: flex-start for left alignment"
-        )
+        assert (
+            "flex-start" in assistant_block
+        ), ".chat-message.assistant should have align-self: flex-start for left alignment"
 
     def test_user_and_assistant_have_different_background(self) -> None:
         """User and assistant messages must use different background colors."""
@@ -141,23 +139,24 @@ class TestVisuallyDistinct:
 
         # Extract the actual background values and confirm they differ
         import re
+
         u_bg = re.search(r"background(?:-color)?\s*:\s*([^;]+)", user_block)
         a_bg = re.search(r"background(?:-color)?\s*:\s*([^;]+)", assistant_block)
         assert u_bg is not None
         assert a_bg is not None
-        assert u_bg.group(1).strip() != a_bg.group(1).strip(), (
-            "User and assistant messages must have different background colors"
-        )
+        assert (
+            u_bg.group(1).strip() != a_bg.group(1).strip()
+        ), "User and assistant messages must have different background colors"
 
     def test_js_adds_user_class_to_user_messages(self) -> None:
         """JS must add 'user' class to user message bubbles."""
         js = _js()
-        assert 'chat-message user' in js
+        assert "chat-message user" in js
 
     def test_js_adds_assistant_class_to_assistant_messages(self) -> None:
         """JS must add 'assistant' class to assistant message bubbles."""
         js = _js()
-        assert 'chat-message assistant' in js
+        assert "chat-message assistant" in js
 
 
 # ---------------------------------------------------------------------------
@@ -194,9 +193,9 @@ class TestAutoScroll:
         assistant_pos = fn_body.index("chat-message assistant")
         # scrollTop set after
         scroll_pos = fn_body.rindex("scrollTop", 0, len(fn_body))
-        assert scroll_pos > assistant_pos, (
-            "scrollTop must be set after the assistant message is appended"
-        )
+        assert (
+            scroll_pos > assistant_pos
+        ), "scrollTop must be set after the assistant message is appended"
 
 
 # ---------------------------------------------------------------------------
@@ -240,9 +239,9 @@ class TestScrollability:
         start = js.index("function renderChatMessages")
         end = js.index("\n    }", start) + 6
         fn_body = js[start:end]
-        assert ".map(" in fn_body, (
-            "renderChatMessages should use .map() to handle any number of messages"
-        )
+        assert (
+            ".map(" in fn_body
+        ), "renderChatMessages should use .map() to handle any number of messages"
 
     def test_chat_container_overflow_hidden(self) -> None:
         """.chat-container must have overflow: hidden so inner scroll works."""
@@ -278,6 +277,7 @@ class TestTypecheck:
             cwd=REPO_ROOT,
         )
         # mypy exit code 0 = no errors, 1 = type errors, 2 = usage error/crash
-        assert result.returncode in (0, 1), (
-            f"mypy crashed (exit {result.returncode}):\n{result.stderr}"
-        )
+        assert result.returncode in (
+            0,
+            1,
+        ), f"mypy crashed (exit {result.returncode}):\n{result.stderr}"

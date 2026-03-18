@@ -12,6 +12,7 @@ Acceptance criteria:
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 from flask import Flask
@@ -121,14 +122,13 @@ class TestContentSecurityPolicy:
 
         templates_dir = tmp_path / "templates"
         templates_dir.mkdir()
-        (templates_dir / "index.html").write_text(
-            "<!DOCTYPE html><html><body>Test</body></html>"
-        )
+        (templates_dir / "index.html").write_text("<!DOCTYPE html><html><body>Test</body></html>")
 
         original = routes_mod._get_dashboard_dir
 
-        def _patched_dir() -> "Path":  # type: ignore[name-defined]
+        def _patched_dir() -> Path:  # type: ignore[name-defined]
             from pathlib import Path
+
             return Path(tmp_path)
 
         routes_mod._get_dashboard_dir = _patched_dir
@@ -138,9 +138,9 @@ class TestContentSecurityPolicy:
                 headers={"Cookie": f"rex_dashboard_token={token}"},
             )
             if resp.status_code == 200 and "text/html" in (resp.content_type or ""):
-                assert "Content-Security-Policy" in resp.headers, (
-                    "HTML responses must include Content-Security-Policy"
-                )
+                assert (
+                    "Content-Security-Policy" in resp.headers
+                ), "HTML responses must include Content-Security-Policy"
         finally:
             routes_mod._get_dashboard_dir = original
 
@@ -161,18 +161,18 @@ class TestContentSecurityPolicy:
 
         templates_dir = tmp_path / "templates"
         templates_dir.mkdir()
-        (templates_dir / "index.html").write_text(
-            "<!DOCTYPE html><html><body>Test</body></html>"
-        )
+        (templates_dir / "index.html").write_text("<!DOCTYPE html><html><body>Test</body></html>")
         original = routes_mod._get_dashboard_dir
 
         def _patched_dir():
             from pathlib import Path
+
             return Path(tmp_path)
 
         routes_mod._get_dashboard_dir = _patched_dir
         try:
             import rex.dashboard.auth as auth_mod
+
             sm = SessionManager(expiry_seconds=3600)
             session = sm.create_session()
             auth_mod._session_manager = sm
@@ -183,9 +183,9 @@ class TestContentSecurityPolicy:
             )
             if resp.status_code == 200 and "text/html" in (resp.content_type or ""):
                 csp = resp.headers.get("Content-Security-Policy", "")
-                assert "frame-ancestors" in csp.lower(), (
-                    "CSP must include frame-ancestors directive"
-                )
+                assert (
+                    "frame-ancestors" in csp.lower()
+                ), "CSP must include frame-ancestors directive"
         finally:
             routes_mod._get_dashboard_dir = original
 
@@ -220,18 +220,18 @@ class TestCORSPolicy:
         origins = [o.strip() for o in allowed.split(",") if o.strip()]
         for origin in origins:
             assert origin != "*", f"Origin {origin!r} is a wildcard — not allowed"
-            assert origin.startswith(("http://", "https://")), (
-                f"Origin {origin!r} must be a full URL"
-            )
+            assert origin.startswith(
+                ("http://", "https://")
+            ), f"Origin {origin!r} must be a full URL"
 
     def test_flask_proxy_uses_restricted_cors(self):
         """flask_proxy.py must set CORS with explicit origins, not '*'."""
         with open("flask_proxy.py") as f:
             content = f.read()
         # Should have REX_ALLOWED_ORIGINS logic, not a literal '*' in origins
-        assert "REX_ALLOWED_ORIGINS" in content, (
-            "flask_proxy.py must use REX_ALLOWED_ORIGINS for CORS config"
-        )
+        assert (
+            "REX_ALLOWED_ORIGINS" in content
+        ), "flask_proxy.py must use REX_ALLOWED_ORIGINS for CORS config"
         # Should not use "origins": "*" literally
         assert '"*"' not in content or "REX_ALLOWED_ORIGINS" in content
 
@@ -249,9 +249,9 @@ class TestHSTSHeader:
             headers={"Authorization": f"Bearer {token}"},
         )
         # Default test client uses HTTP, so HSTS should not be present
-        assert "Strict-Transport-Security" not in resp.headers, (
-            "HSTS must not be set on plain HTTP connections"
-        )
+        assert (
+            "Strict-Transport-Security" not in resp.headers
+        ), "HSTS must not be set on plain HTTP connections"
 
     def test_hsts_set_on_https_connection(self, app, token):
         """HSTS must be set when the connection is HTTPS."""
@@ -281,7 +281,5 @@ class TestHSTSHeader:
                     part = part.strip()
                     if part.startswith("max-age="):
                         max_age = int(part.split("=")[1])
-                        assert max_age >= 31536000, (
-                            f"HSTS max-age {max_age} is less than 1 year"
-                        )
+                        assert max_age >= 31536000, f"HSTS max-age {max_age} is less than 1 year"
                         break

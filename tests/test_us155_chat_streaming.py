@@ -77,9 +77,7 @@ class TestStreamRouteRegistered:
             for rule in app.url_map.iter_rules()
             if rule.rule == "/api/chat/stream"
         }
-        assert "POST" in methods.get("/api/chat/stream", set()), (
-            "/api/chat/stream must accept POST"
-        )
+        assert "POST" in methods.get("/api/chat/stream", set()), "/api/chat/stream must accept POST"
 
     def test_stream_route_requires_auth(self, client, monkeypatch):
         monkeypatch.setenv("REX_DASHBOARD_PASSWORD", "secret155")
@@ -124,9 +122,7 @@ class TestStreamBackendBehaviour:
             mock_llm.generate.return_value = "Hello from Rex."
             # No openai client on strategy — triggers fallback word-by-word
             mock_llm.strategy = None
-            mock_llm.generation = MagicMock(
-                temperature=0.7, max_new_tokens=512, top_p=0.9
-            )
+            mock_llm.generation = MagicMock(temperature=0.7, max_new_tokens=512, top_p=0.9)
             mock_llm_fn.return_value = mock_llm
 
             resp = client.post(
@@ -138,9 +134,7 @@ class TestStreamBackendBehaviour:
             )
             return resp, _collect_sse(resp.data)
 
-    def test_stream_returns_event_stream_content_type(
-        self, client, auth_token, monkeypatch
-    ):
+    def test_stream_returns_event_stream_content_type(self, client, auth_token, monkeypatch):
         resp, _ = self._stream_chat(client, auth_token, monkeypatch)
         assert "text/event-stream" in resp.content_type
 
@@ -206,9 +200,7 @@ class TestStreamBackendBehaviour:
             mock_llm = MagicMock()
             mock_llm.generate.return_value = long_reply
             mock_llm.strategy = None
-            mock_llm.generation = MagicMock(
-                temperature=0.7, max_new_tokens=2048, top_p=0.9
-            )
+            mock_llm.generation = MagicMock(temperature=0.7, max_new_tokens=2048, top_p=0.9)
             mock_llm_fn.return_value = mock_llm
 
             resp = client.post(
@@ -238,21 +230,19 @@ class TestFrontendStreamingJS:
     def test_js_uses_fetch_not_api_helper_for_stream(self):
         js = _js()
         # The streaming path must use fetch() directly (EventSource or fetch with reader)
-        assert "fetch(" in js or "EventSource" in js, (
-            "JS must use fetch() or EventSource for streaming"
-        )
+        assert (
+            "fetch(" in js or "EventSource" in js
+        ), "JS must use fetch() or EventSource for streaming"
 
     def test_js_reads_response_body(self):
         js = _js()
-        assert "getReader" in js or "EventSource" in js, (
-            "JS must use ReadableStream reader or EventSource"
-        )
+        assert (
+            "getReader" in js or "EventSource" in js
+        ), "JS must use ReadableStream reader or EventSource"
 
     def test_js_token_event_handling(self):
         js = _js()
-        assert "'token'" in js or '"token"' in js, (
-            "JS must handle 'token' SSE events"
-        )
+        assert "'token'" in js or '"token"' in js, "JS must handle 'token' SSE events"
 
     def test_js_done_event_handling(self):
         js = _js()
@@ -265,26 +255,26 @@ class TestFrontendStreamingJS:
         # After first token, thinking indicator is replaced
         fn_start = js.index("handleChatSubmit")
         fn_body = js[fn_start : fn_start + 4000]
-        assert "thinking" in fn_body and "remove()" in fn_body, (
-            "thinking indicator must be removed when streaming starts"
-        )
+        assert (
+            "thinking" in fn_body and "remove()" in fn_body
+        ), "thinking indicator must be removed when streaming starts"
 
     def test_js_streaming_bubble_appended(self):
         js = _js()
         fn_start = js.index("handleChatSubmit")
         fn_body = js[fn_start : fn_start + 4000]
         # A new bubble is created and appended on first token
-        assert "createElement" in fn_body or "innerHTML +=" in fn_body, (
-            "JS must create an assistant bubble for streaming"
-        )
+        assert (
+            "createElement" in fn_body or "innerHTML +=" in fn_body
+        ), "JS must create an assistant bubble for streaming"
 
     def test_js_tokens_accumulated(self):
         js = _js()
         fn_start = js.index("handleChatSubmit")
         fn_body = js[fn_start : fn_start + 4000]
-        assert "accumulatedReply" in fn_body or "accumulated" in fn_body.lower(), (
-            "JS must accumulate tokens into a reply string"
-        )
+        assert (
+            "accumulatedReply" in fn_body or "accumulated" in fn_body.lower()
+        ), "JS must accumulate tokens into a reply string"
 
     def test_js_scrolls_on_token(self):
         js = _js()
@@ -296,25 +286,23 @@ class TestFrontendStreamingJS:
         js = _js()
         fn_start = js.index("handleChatSubmit")
         fn_body = js[fn_start : fn_start + 4000]
-        assert "'error'" in fn_body or '"error"' in fn_body, (
-            "JS must handle 'error' SSE events"
-        )
+        assert "'error'" in fn_body or '"error"' in fn_body, "JS must handle 'error' SSE events"
 
     def test_js_history_updated_after_stream(self):
         js = _js()
         fn_start = js.index("handleChatSubmit")
         fn_body = js[fn_start : fn_start + 4000]
-        assert "chatHistory.push" in fn_body, (
-            "JS must push completed reply to chatHistory after streaming"
-        )
+        assert (
+            "chatHistory.push" in fn_body
+        ), "JS must push completed reply to chatHistory after streaming"
 
     def test_js_input_re_enabled_in_finally(self):
         js = _js()
         fn_start = js.index("handleChatSubmit")
         fn_body = js[fn_start : fn_start + 6000]
-        assert "finally" in fn_body and "disabled = false" in fn_body, (
-            "input must be re-enabled in finally block"
-        )
+        assert (
+            "finally" in fn_body and "disabled = false" in fn_body
+        ), "input must be re-enabled in finally block"
 
 
 # ---------------------------------------------------------------------------
@@ -330,8 +318,5 @@ class TestTypecheck:
             text=True,
             cwd=REPO_ROOT,
         )
-        errors = [
-            ln for ln in result.stdout.splitlines()
-            if "error:" in ln and "routes.py" in ln
-        ]
-        assert errors == [], f"mypy errors in routes.py:\n" + "\n".join(errors)
+        errors = [ln for ln in result.stdout.splitlines() if "error:" in ln and "routes.py" in ln]
+        assert errors == [], "mypy errors in routes.py:\n" + "\n".join(errors)

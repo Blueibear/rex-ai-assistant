@@ -1,4 +1,5 @@
 """Tests for US-103: Global unhandled exception handler."""
+
 from __future__ import annotations
 
 import logging
@@ -8,7 +9,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from rex.exception_handler import handle_unhandled_exception, wrap_entrypoint
-
 
 # ---------------------------------------------------------------------------
 # handle_unhandled_exception
@@ -178,7 +178,6 @@ def test_wrap_entrypoint_does_not_swallow_exception_silently(
 
 def test_cli_main_is_wrapped() -> None:
     from rex.cli import main as cli_main
-    from rex.exception_handler import wrap_entrypoint as _w
 
     # The wrapper preserves __wrapped__ via functools.wraps
     assert hasattr(cli_main, "__wrapped__") or callable(cli_main)

@@ -15,7 +15,6 @@ import pytest
 from rex.autonomy.llm_planner import LLMPlanner, PlanningError, ToolDefinition
 from rex.autonomy.models import Plan, PlanStep
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -44,7 +43,11 @@ def _valid_json_response(steps: list[dict[str, Any]]) -> str:
 class TestValidResponse:
     def test_single_step_plan(self) -> None:
         payload = [
-            {"tool": "web_search", "args": {"query": "weather"}, "description": "Search for weather"}
+            {
+                "tool": "web_search",
+                "args": {"query": "weather"},
+                "description": "Search for weather",
+            }
         ]
         backend = _make_backend(_valid_json_response(payload))
         planner = LLMPlanner(tools=[_tool("web_search")], backend=backend)
@@ -63,7 +66,11 @@ class TestValidResponse:
     def test_multi_step_plan(self) -> None:
         payload = [
             {"tool": "get_calendar", "args": {}, "description": "Fetch calendar events"},
-            {"tool": "send_email", "args": {"to": "boss@example.com"}, "description": "Email summary"},
+            {
+                "tool": "send_email",
+                "args": {"to": "boss@example.com"},
+                "description": "Email summary",
+            },
         ]
         backend = _make_backend(_valid_json_response(payload))
         planner = LLMPlanner(
@@ -187,9 +194,7 @@ class TestEmptySteps:
 
 class TestUnknownTool:
     def test_unknown_tool_plan_still_created(self, caplog: pytest.LogCaptureFixture) -> None:
-        payload = [
-            {"tool": "nonexistent_tool", "args": {}, "description": "Do something unknown"}
-        ]
+        payload = [{"tool": "nonexistent_tool", "args": {}, "description": "Do something unknown"}]
         backend = _make_backend(_valid_json_response(payload))
         planner = LLMPlanner(tools=[_tool("web_search")], backend=backend)
 
@@ -200,10 +205,10 @@ class TestUnknownTool:
         assert plan.steps[0].tool == "nonexistent_tool"
         assert any("unknown tool" in record.message for record in caplog.records)
 
-    def test_unknown_tool_warning_contains_tool_name(self, caplog: pytest.LogCaptureFixture) -> None:
-        payload = [
-            {"tool": "mystery_tool", "args": {}, "description": "Mystery"}
-        ]
+    def test_unknown_tool_warning_contains_tool_name(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        payload = [{"tool": "mystery_tool", "args": {}, "description": "Mystery"}]
         backend = _make_backend(_valid_json_response(payload))
         planner = LLMPlanner(tools=[_tool("web_search")], backend=backend)
 
@@ -267,7 +272,9 @@ class TestNoNetworkAccess:
         backend = _make_backend(_valid_json_response(payload))
         planner = LLMPlanner(tools=[_tool()], backend=backend)
 
-        with patch("rex.autonomy.llm_planner.LLMPlanner._get_backend", wraps=planner._get_backend) as spy:
+        with patch(
+            "rex.autonomy.llm_planner.LLMPlanner._get_backend", wraps=planner._get_backend
+        ) as spy:
             planner.plan("Goal", {})
             # _get_backend is still called (it's the normal path), but it returns our mock
             spy.assert_called_once()

@@ -38,16 +38,14 @@ def test_quick_start_has_clone_step():
 
 def test_quick_start_has_install_script_step():
     qs = _extract_quick_start(_read_readme())
-    assert "install.sh" in qs or "install.ps1" in qs, (
-        "Quick Start must reference install script"
-    )
+    assert "install.sh" in qs or "install.ps1" in qs, "Quick Start must reference install script"
 
 
 def test_quick_start_has_lm_studio_step():
     qs = _extract_quick_start(_read_readme())
-    assert "LM Studio" in qs or "lmstudio" in qs.lower(), (
-        "Quick Start must include LM Studio configuration step"
-    )
+    assert (
+        "LM Studio" in qs or "lmstudio" in qs.lower()
+    ), "Quick Start must include LM Studio configuration step"
 
 
 def test_quick_start_has_run_rex_step():
@@ -57,9 +55,9 @@ def test_quick_start_has_run_rex_step():
 
 def test_quick_start_has_verify_step():
     qs = _extract_quick_start(_read_readme())
-    assert "verify" in qs.lower() or "doctor" in qs.lower() or "ready" in qs.lower(), (
-        "Quick Start must include a verification step"
-    )
+    assert (
+        "verify" in qs.lower() or "doctor" in qs.lower() or "ready" in qs.lower()
+    ), "Quick Start must include a verification step"
 
 
 def test_quick_start_has_exactly_five_numbered_steps():
@@ -86,23 +84,19 @@ def test_install_step_has_exact_bash_command():
 
 def test_install_step_has_exact_powershell_command():
     qs = _extract_quick_start(_read_readme())
-    assert r".\install.ps1" in qs or ".\\install.ps1" in qs, (
-        "Install step must show exact PowerShell command"
-    )
+    assert (
+        r".\install.ps1" in qs or ".\\install.ps1" in qs
+    ), "Install step must show exact PowerShell command"
 
 
 def test_lm_studio_step_has_url():
     qs = _extract_quick_start(_read_readme())
-    assert "localhost:1234" in qs, (
-        "LM Studio step must include the local server URL localhost:1234"
-    )
+    assert "localhost:1234" in qs, "LM Studio step must include the local server URL localhost:1234"
 
 
 def test_verify_step_has_doctor_command():
     qs = _extract_quick_start(_read_readme())
-    assert "doctor.py" in qs or "rex doctor" in qs, (
-        "Verify step must include the doctor command"
-    )
+    assert "doctor.py" in qs or "rex doctor" in qs, "Verify step must include the doctor command"
 
 
 def test_no_external_links_required_in_quick_start():
@@ -114,22 +108,20 @@ def test_no_external_links_required_in_quick_start():
     for line in lines:
         stripped = line.strip()
         if re.match(r"^\d+\.", stripped):
-            assert "see " not in stripped.lower() or "docs/" in stripped.lower(), (
-                f"Step line must not redirect to another section: {stripped}"
-            )
+            assert (
+                "see " not in stripped.lower() or "docs/" in stripped.lower()
+            ), f"Step line must not redirect to another section: {stripped}"
 
 
 def test_quick_start_steps_cover_all_required_topics():
     qs = _extract_quick_start(_read_readme())
     required = ["clone", "install", "LM Studio", "rex", "verify"]
     for topic in required:
-        assert topic.lower() in qs.lower(), (
-            f"Quick Start must cover topic: {topic}"
-        )
+        assert topic.lower() in qs.lower(), f"Quick Start must cover topic: {topic}"
 
 
 def test_readme_quick_start_link_in_toc():
     text = _read_readme()
-    assert "[Quick Start]" in text or "[quick-start]" in text.lower(), (
-        "README Table of Contents must link to Quick Start"
-    )
+    assert (
+        "[Quick Start]" in text or "[quick-start]" in text.lower()
+    ), "README Table of Contents must link to Quick Start"

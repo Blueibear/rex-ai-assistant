@@ -1,6 +1,5 @@
 """Tests for US-158: Voice transcript display in the Voice panel."""
 
-import json
 from pathlib import Path
 
 import pytest
@@ -33,8 +32,9 @@ def _non_local_env():
 
 @pytest.fixture()
 def app():
-    from rex.dashboard import dashboard_bp
     from flask import Flask
+
+    from rex.dashboard import dashboard_bp
 
     flask_app = Flask(__name__)
     flask_app.config["TESTING"] = True
@@ -116,7 +116,9 @@ class TestTranscriptEndpoint:
         return client.get(path, headers={"X-Auth-Token": token}, environ_base=_non_local_env())
 
     def _post(self, client, token, path, body):
-        return client.post(path, json=body, headers={"X-Auth-Token": token}, environ_base=_non_local_env())
+        return client.post(
+            path, json=body, headers={"X-Auth-Token": token}, environ_base=_non_local_env()
+        )
 
     def test_get_transcript_returns_200(self, client, auth_token, monkeypatch):
         monkeypatch.setenv("REX_DASHBOARD_PASSWORD", "test-pass-158")
@@ -137,6 +139,7 @@ class TestTranscriptEndpoint:
         monkeypatch.setenv("REX_DASHBOARD_PASSWORD", "test-pass-158")
         monkeypatch.setenv("REX_DASHBOARD_ALLOW_LOCAL", "0")
         import rex.dashboard.routes as routes
+
         monkeypatch.setattr(routes, "_VOICE_TRANSCRIPT", {"input": "", "response": ""})
         resp = self._get(client, auth_token, "/api/voice/transcript")
         data = resp.get_json()
@@ -147,6 +150,7 @@ class TestTranscriptEndpoint:
         monkeypatch.setenv("REX_DASHBOARD_PASSWORD", "test-pass-158")
         monkeypatch.setenv("REX_DASHBOARD_ALLOW_LOCAL", "0")
         import rex.dashboard.routes as routes
+
         monkeypatch.setattr(routes, "_VOICE_TRANSCRIPT", {"input": "hello", "response": "hi"})
         self._post(client, auth_token, "/api/voice/mode", {"active": True})
         resp = self._get(client, auth_token, "/api/voice/transcript")
@@ -158,6 +162,7 @@ class TestTranscriptEndpoint:
         monkeypatch.setenv("REX_DASHBOARD_PASSWORD", "test-pass-158")
         monkeypatch.setenv("REX_DASHBOARD_ALLOW_LOCAL", "0")
         import rex.dashboard.routes as routes
+
         monkeypatch.setattr(routes, "_VOICE_TRANSCRIPT", {"input": "hello", "response": "world"})
         self._post(client, auth_token, "/api/voice/mode", {"active": False})
         resp = self._get(client, auth_token, "/api/voice/transcript")

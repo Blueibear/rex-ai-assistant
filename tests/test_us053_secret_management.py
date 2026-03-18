@@ -9,9 +9,7 @@ Acceptance criteria:
 
 from __future__ import annotations
 
-import os
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -36,6 +34,7 @@ def _reset_credential_manager():
     original = None
     try:
         from rex.credentials import _credential_manager as _orig
+
         original = _orig
     except ImportError:
         pass
@@ -138,9 +137,9 @@ def test_env_example_contains_no_real_secrets():
         _, _, value = line.partition("=")
         value = value.strip().strip('"').strip("'")
         # Real OpenAI keys start with sk- and are long
-        assert not (value.startswith("sk-") and len(value) > 20), (
-            f".env.example contains what looks like a real API key: {line}"
-        )
+        assert not (
+            value.startswith("sk-") and len(value) > 20
+        ), f".env.example contains what looks like a real API key: {line}"
 
 
 def test_credentials_json_not_tracked_by_git():

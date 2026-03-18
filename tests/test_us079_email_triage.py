@@ -24,7 +24,6 @@ from rex.email_backends.triage import (
     triage_emails,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -72,9 +71,7 @@ class TestValidCategories:
         ]
         for env in envelopes:
             result = categorize(env)
-            assert result in TRIAGE_CATEGORIES, (
-                f"categorize() returned unexpected value {result!r}"
-            )
+            assert result in TRIAGE_CATEGORIES, f"categorize() returned unexpected value {result!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -286,24 +283,20 @@ class TestMockInboxCoverage:
         self.grouped = triage_emails(self.all_emails)
 
     def test_mock_inbox_has_urgent_emails(self) -> None:
-        assert len(self.grouped["urgent"]) >= 1, (
-            "Mock inbox must contain at least one urgent email"
-        )
+        assert len(self.grouped["urgent"]) >= 1, "Mock inbox must contain at least one urgent email"
 
     def test_mock_inbox_has_action_required_emails(self) -> None:
-        assert len(self.grouped["action_required"]) >= 1, (
-            "Mock inbox must contain at least one action_required email"
-        )
+        assert (
+            len(self.grouped["action_required"]) >= 1
+        ), "Mock inbox must contain at least one action_required email"
 
     def test_mock_inbox_has_newsletter_emails(self) -> None:
-        assert len(self.grouped["newsletter"]) >= 1, (
-            "Mock inbox must contain at least one newsletter email"
-        )
+        assert (
+            len(self.grouped["newsletter"]) >= 1
+        ), "Mock inbox must contain at least one newsletter email"
 
     def test_mock_inbox_has_fyi_emails(self) -> None:
-        assert len(self.grouped["fyi"]) >= 1, (
-            "Mock inbox must contain at least one fyi email"
-        )
+        assert len(self.grouped["fyi"]) >= 1, "Mock inbox must contain at least one fyi email"
 
     def test_mock_urgent_emails_are_correct(self) -> None:
         """Both 'mock-urgent-*' emails categorize as urgent."""

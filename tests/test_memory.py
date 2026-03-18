@@ -2,26 +2,21 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-
-import pytest
 
 from rex.memory import (
-    WorkingMemory,
     LongTermMemory,
     MemoryEntry,
-    get_working_memory,
-    set_working_memory,
-    get_long_term_memory,
-    set_long_term_memory,
+    WorkingMemory,
     add_user_preference,
-    get_user_preferences,
-    remember_context,
+    get_long_term_memory,
     get_recent_context,
+    get_user_preferences,
+    get_working_memory,
+    remember_context,
+    set_long_term_memory,
+    set_working_memory,
 )
-
 
 # =============================================================================
 # WorkingMemory Tests

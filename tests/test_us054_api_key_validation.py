@@ -19,7 +19,6 @@ from flask import Flask  # noqa: E402
 
 from rex.api_key_auth import ApiKeyValidator, require_api_key, validate_api_key  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -195,8 +194,10 @@ class TestFailuresLogged:
         with caplog.at_level(logging.WARNING, logger="rex.api_key_auth"):
             with app.test_client() as client:
                 client.get("/protected", headers={"X-API-Key": "bad-key"})
-        assert any("unauthorized" in r.message.lower() or "invalid" in r.message.lower()
-                   for r in caplog.records)
+        assert any(
+            "unauthorized" in r.message.lower() or "invalid" in r.message.lower()
+            for r in caplog.records
+        )
 
     def test_missing_key_is_logged(self, monkeypatch, caplog):
         """Missing key attempt produces a WARNING log entry."""
@@ -214,8 +215,10 @@ class TestFailuresLogged:
         with caplog.at_level(logging.WARNING, logger="rex.api_key_auth"):
             with app.test_client() as client:
                 client.get("/protected", headers={"X-API-Key": "anything"})
-        assert any("unset" in r.message.lower() or "no api key" in r.message.lower()
-                   for r in caplog.records)
+        assert any(
+            "unset" in r.message.lower() or "no api key" in r.message.lower()
+            for r in caplog.records
+        )
 
     def test_successful_request_not_logged_as_warning(self, monkeypatch, caplog):
         """Successful requests do not produce WARNING-level auth log entries."""

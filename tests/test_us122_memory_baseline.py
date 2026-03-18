@@ -33,7 +33,6 @@ from rex.health import check_config, create_health_blueprint
 from rex.http_errors import install_error_envelope_handler
 from rex.request_logging import install_request_logging
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------

@@ -1,8 +1,7 @@
 """Tests for US-170: Audit and reduce blocking operations in the voice pipeline."""
 
-from pathlib import Path
-import ast
 import re
+from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
 VOICE_LOOP_SRC = REPO_ROOT / "rex" / "voice_loop.py"
@@ -37,9 +36,9 @@ class TestBlockingIO:
         src = _src()
         # _capture is a nested def inside async def _record
         idx = src.index("def _capture()")
-        brace_start = src.index("{", idx)
+        src.index("{", idx)
         # Use : start of function body
-        colon_idx = src.index(":", idx)
+        src.index(":", idx)
         return src[idx : idx + 300]
 
     def test_sd_wait_is_in_thread_fn(self):
@@ -55,9 +54,9 @@ class TestBlockingIO:
             # nearest function def should be _capture or _play
             last_def = before.rfind("def _")
             snippet = src[last_def : last_def + 50]
-            assert "def _capture" in snippet or "def _play" in snippet, (
-                f"sd.wait() at position {pos} is not inside a thread function. Context: {snippet!r}"
-            )
+            assert (
+                "def _capture" in snippet or "def _play" in snippet
+            ), f"sd.wait() at position {pos} is not inside a thread function. Context: {snippet!r}"
 
     def test_play_obj_wait_done_in_thread_fn(self):
         """play_obj.wait_done() must be inside a thread function."""
@@ -81,9 +80,9 @@ class TestBlockingIO:
             # Check that sf.read is inside a nested def
             sf_read_pos = edge_body.index("sf.read(")
             before_sf = edge_body[:sf_read_pos]
-            assert "def _" in before_sf, (
-                "sf.read() in _speak_edge is not inside a thread function (blocking event loop)"
-            )
+            assert (
+                "def _" in before_sf
+            ), "sf.read() in _speak_edge is not inside a thread function (blocking event loop)"
 
     def test_speak_edge_sf_write_not_on_event_loop(self):
         """sf.write in _speak_edge must be inside asyncio.to_thread, not bare."""
@@ -94,9 +93,9 @@ class TestBlockingIO:
         if "sf.write(" in edge_body:
             sf_write_pos = edge_body.index("sf.write(")
             before_sf = edge_body[:sf_write_pos]
-            assert "def _" in before_sf, (
-                "sf.write() in _speak_edge is not inside a thread function (blocking event loop)"
-            )
+            assert (
+                "def _" in before_sf
+            ), "sf.write() in _speak_edge is not inside a thread function (blocking event loop)"
 
     def test_all_blocking_audio_in_to_thread(self):
         """asyncio.to_thread wraps all blocking audio calls."""
@@ -152,9 +151,9 @@ class TestDocumentation:
         agents_md = REPO_ROOT / "AGENTS.md"
         src = _src()
         has_comment = "asyncio.to_thread" in src and "blocking" in src.lower()
-        agents_documented = agents_md.exists() and "blocking" in agents_md.read_text(
-            encoding="utf-8"
-        ).lower()
-        assert has_comment or agents_documented, (
-            "Blocking audit not documented: add AGENTS.md entry or inline comment"
+        agents_documented = (
+            agents_md.exists() and "blocking" in agents_md.read_text(encoding="utf-8").lower()
         )
+        assert (
+            has_comment or agents_documented
+        ), "Blocking audit not documented: add AGENTS.md entry or inline comment"

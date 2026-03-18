@@ -12,7 +12,6 @@ import socket
 
 import pytest
 
-from rex.contracts import ToolCall
 from rex.credentials import CredentialManager
 from rex.planner import Planner, PlannerError
 from rex.policy_engine import get_policy_engine, reset_policy_engine
@@ -48,7 +47,6 @@ from rex.workflow_runner import (
     deny_workflow,
     list_pending_approvals,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -126,9 +124,7 @@ class TestPlannerPublicMethods:
         assert goal in prompt
 
     def test_plan_with_fallback_primary_succeeds(self, planner):
-        wf = planner.plan_with_fallback(
-            "check the time", fallback_goals=["what time is it"]
-        )
+        wf = planner.plan_with_fallback("check the time", fallback_goals=["what time is it"])
         assert wf is not None
 
     def test_plan_with_fallback_uses_fallback_when_primary_fails(self, planner, monkeypatch):
@@ -143,9 +139,7 @@ class TestPlannerPublicMethods:
             return original_plan(goal, requested_by=requested_by)
 
         monkeypatch.setattr(planner, "plan", patched_plan)
-        wf = planner.plan_with_fallback(
-            "bad goal", fallback_goals=["check the time"]
-        )
+        wf = planner.plan_with_fallback("bad goal", fallback_goals=["check the time"])
         assert wf is not None
         assert call_count[0] == 2
 
@@ -153,7 +147,9 @@ class TestPlannerPublicMethods:
         from rex.planner import UnableToPlanError
 
         monkeypatch.setattr(
-            planner, "plan", lambda goal, requested_by=None: (_ for _ in ()).throw(PlannerError("fail"))
+            planner,
+            "plan",
+            lambda goal, requested_by=None: (_ for _ in ()).throw(PlannerError("fail")),
         )
         with pytest.raises((PlannerError, UnableToPlanError, Exception)):
             planner.plan_with_fallback("bad goal", fallback_goals=["also bad"])
@@ -284,7 +280,7 @@ class TestToolRegistryPublicMethods:
                 enabled=True,
             )
         )
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="credential"):
             reg.validate_credentials_for_tool("t")
 
     def test_check_health_with_healthy_tool(self):
@@ -328,7 +324,7 @@ class TestToolRegistryPublicMethods:
         assert len(statuses) >= 1
 
     def test_module_level_get_set_reset(self):
-        original = get_tool_registry()
+        get_tool_registry()
         new_reg = ToolRegistry()
         set_tool_registry(new_reg)
         assert get_tool_registry() is new_reg
@@ -633,9 +629,7 @@ class TestWorkflowRunnerModuleFunctions:
             requested_by="user",
         )
         apr.save(approval_dir=tmp_path)
-        result = approve_workflow(
-            apr.approval_id, decided_by="admin", approval_dir=tmp_path
-        )
+        result = approve_workflow(apr.approval_id, decided_by="admin", approval_dir=tmp_path)
         assert result is True
 
     def test_deny_workflow(self, tmp_path):
@@ -677,7 +671,6 @@ class TestWorkflowRunnerModuleFunctions:
 
 def test_no_live_network_calls_during_instantiation(monkeypatch):
     """Instantiating core classes must not touch the network."""
-    original_connect = socket.socket.connect
 
     def fail_connect(self, addr):
         raise AssertionError(f"test_us099 attempted a network call to {addr}")

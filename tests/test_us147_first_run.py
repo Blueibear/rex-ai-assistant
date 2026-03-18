@@ -14,7 +14,6 @@ from rex.first_run import (
     print_welcome_message,
 )
 
-
 # ---------------------------------------------------------------------------
 # is_first_run — detection logic
 # ---------------------------------------------------------------------------
@@ -143,7 +142,6 @@ def test_maybe_print_welcome_silent_when_config_present(
 
 def test_main_calls_maybe_print_welcome(tmp_path: Path) -> None:
     """main() invokes maybe_print_welcome so onboarding is triggered at startup."""
-    import importlib
 
     import rex.cli as cli_module
 

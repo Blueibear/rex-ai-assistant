@@ -11,8 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from rex.tool_registry import MissingCredentialError, ToolMeta, ToolNotFoundError, ToolRegistry
-
+from rex.tool_registry import ToolMeta, ToolNotFoundError, ToolRegistry
 
 # ---------------------------------------------------------------------------
 # Helpers

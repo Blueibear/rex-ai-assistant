@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import messagebox
-from typing import Optional
 
 
 class ToolTip:
@@ -20,8 +19,8 @@ class ToolTip:
         self.widget = widget
         self.text = text
         self.delay = delay
-        self.tooltip_window: Optional[tk.Toplevel] = None
-        self.after_id: Optional[str] = None
+        self.tooltip_window: tk.Toplevel | None = None
+        self.after_id: str | None = None
 
         # Bind events
         self.widget.bind("<Enter>", self.on_enter)

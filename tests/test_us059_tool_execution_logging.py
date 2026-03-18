@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from rex.audit import AuditLogger, LogEntry, get_audit_logger, reset_audit_logger
+from rex.audit import AuditLogger, reset_audit_logger
 from rex.tool_router import execute_tool
 
 

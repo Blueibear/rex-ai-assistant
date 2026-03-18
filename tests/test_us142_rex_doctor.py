@@ -1,11 +1,9 @@
 """Tests for US-142: Improve rex doctor to validate the full install."""
+
 from __future__ import annotations
 
 import socket
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from rex.doctor import (
     CheckResult,
@@ -21,26 +19,31 @@ from rex.doctor import (
     run_diagnostics,
 )
 
-
 # ---------------------------------------------------------------------------
 # AC1: checks are present for all required areas
 # ---------------------------------------------------------------------------
 
+
 class TestCheckPythonVersion:
     def _make_version(self, major: int, minor: int, micro: int = 0):
         from collections import namedtuple
+
         # namedtuple supports attribute access AND tuple comparison
-        VersionInfo = namedtuple("version_info", ["major", "minor", "micro", "releaselevel", "serial"])
+        VersionInfo = namedtuple(
+            "version_info", ["major", "minor", "micro", "releaselevel", "serial"]
+        )
         return VersionInfo(major, minor, micro, "final", 0)
 
     def test_pass_for_310_plus(self):
         import sys
+
         with patch.object(sys, "version_info", self._make_version(3, 10, 0)):
             result = check_python_version()
         assert result.status == Status.OK
 
     def test_pass_for_39(self):
         import sys
+
         with patch.object(sys, "version_info", self._make_version(3, 9, 0)):
             result = check_python_version()
         # 3.9 is supported with warning
@@ -48,6 +51,7 @@ class TestCheckPythonVersion:
 
     def test_fail_for_38(self):
         import sys
+
         with patch.object(sys, "version_info", self._make_version(3, 8, 0)):
             result = check_python_version()
         assert result.status == Status.ERROR
@@ -114,9 +118,7 @@ class TestCheckAudioInput:
         def query_devices_side_effect(kind=None):
             if kind == "input":
                 return {"name": "Microphone (USB)", "max_input_channels": 2}
-            return [
-                {"name": "Microphone (USB)", "max_input_channels": 2, "max_output_channels": 0}
-            ]
+            return [{"name": "Microphone (USB)", "max_input_channels": 2, "max_output_channels": 0}]
 
         mock_sd.query_devices.side_effect = query_devices_side_effect
 
@@ -142,6 +144,7 @@ class TestCheckAudioInput:
 
     def test_fail_when_sounddevice_not_installed(self):
         import builtins
+
         real_import = builtins.__import__
 
         def import_blocker(name, *args, **kwargs):
@@ -199,6 +202,7 @@ class TestCheckAudioOutput:
 
     def test_fail_when_sounddevice_not_installed(self):
         import builtins
+
         real_import = builtins.__import__
 
         def import_blocker(name, *args, **kwargs):
@@ -258,6 +262,7 @@ class TestCheckLmStudioReachability:
 # AC2: PASS / FAIL output format
 # ---------------------------------------------------------------------------
 
+
 class TestStatusSymbol:
     def test_ok_shows_pass(self):
         assert _status_symbol(Status.OK) == "[PASS]"
@@ -295,6 +300,7 @@ class TestCheckResultMessages:
 # ---------------------------------------------------------------------------
 # AC3: overall result indicates readiness
 # ---------------------------------------------------------------------------
+
 
 class TestRunDiagnosticsOutput:
     def _make_all_pass_report(self):

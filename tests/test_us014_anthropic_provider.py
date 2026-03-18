@@ -13,9 +13,9 @@ import types
 
 import pytest
 
-from rex.assistant_errors import ConfigurationError
 from config import AppConfig
 from llm_client import LanguageModel
+from rex.assistant_errors import ConfigurationError
 
 
 def _make_fake_anthropic_client(text: str = "hello from claude") -> types.SimpleNamespace:

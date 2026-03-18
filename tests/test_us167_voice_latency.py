@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).parent.parent
 LATENCY_MODULE = REPO_ROOT / "rex" / "voice_latency.py"
 VOICE_LOOP = REPO_ROOT / "rex" / "voice_loop.py"
@@ -65,8 +63,9 @@ class TestLatencyModule:
         assert "playback_start" in _latency_src()
 
     def test_tracker_functional(self):
-        from rex.voice_latency import VoiceLatencyTracker
         import time
+
+        from rex.voice_latency import VoiceLatencyTracker
 
         tracker = VoiceLatencyTracker()
         tracker.mark("stt_start")
@@ -84,8 +83,9 @@ class TestLatencyModule:
         assert tracker.elapsed("stt_start", "stt_end") is None
 
     def test_summary_returns_dict(self):
-        from rex.voice_latency import VoiceLatencyTracker
         import time
+
+        from rex.voice_latency import VoiceLatencyTracker
 
         tracker = VoiceLatencyTracker()
         tracker.mark("stt_start")
@@ -160,7 +160,11 @@ class TestBaselineDocument:
     def test_doc_has_10_sample_interactions(self):
         doc = _baseline_doc()
         # The table should have 10 data rows
-        count = sum(1 for line in doc.splitlines() if line.startswith("| ") and any(c.isdigit() for c in line[:5]))
+        count = sum(
+            1
+            for line in doc.splitlines()
+            if line.startswith("| ") and any(c.isdigit() for c in line[:5])
+        )
         assert count >= 10
 
     def test_doc_has_stt_stage(self):

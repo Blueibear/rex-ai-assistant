@@ -15,8 +15,6 @@ import os
 from io import StringIO
 from unittest.mock import patch
 
-import pytest
-
 from rex.logging_utils import (
     _LEVEL_NAMES,
     _env_log_level,
@@ -24,7 +22,6 @@ from rex.logging_utils import (
     apply_module_log_levels,
     configure_logging,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

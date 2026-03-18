@@ -10,22 +10,18 @@ Acceptance criteria:
 
 from __future__ import annotations
 
-import os
+import base64
 import secrets
 import time
-import base64
 
 import pytest
 
 from rex.dashboard.auth import (
     LoginRateLimiter,
-    Session,
     SessionManager,
     get_login_rate_limiter,
     hash_token,
-    verify_password,
 )
-
 
 # ---------------------------------------------------------------------------
 # AC1: session tokens are cryptographically random (min 128 bits of entropy)
@@ -248,12 +244,12 @@ class TestLoginEndpointRateLimit:
 
         # Reset global singletons so env vars take effect
         import rex.dashboard.auth as auth_mod
-        import rex.dashboard.routes as routes_mod
 
         auth_mod._session_manager = None
         auth_mod._login_rate_limiter = None
 
         from flask import Flask
+
         from rex.dashboard.routes import dashboard_bp
 
         application = Flask(__name__)
@@ -321,9 +317,7 @@ class TestLoginEndpointRateLimit:
             assert resp.status_code == 200
             # 2 more failures should not lock (counter was reset)
             client.post("/api/dashboard/login", json={"password": "wrong"}, environ_base=ip)
-            resp = client.post(
-                "/api/dashboard/login", json={"password": "wrong"}, environ_base=ip
-            )
+            resp = client.post("/api/dashboard/login", json={"password": "wrong"}, environ_base=ip)
             assert resp.status_code == 401  # not 429
 
     def test_logout_invalidates_token(self, app, monkeypatch):

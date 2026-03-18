@@ -15,9 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from rex.dashboard_store import DashboardStore
 from rex.notification_priority import NotificationPriority
-from rex.dashboard_store import DashboardStore, DashboardNotification
-
 
 # ---------------------------------------------------------------------------
 # NotificationPriority enum
@@ -176,9 +175,7 @@ class TestPriorityStoredInDatabase:
         nid = store.write(title="DB test", body="b", priority=NotificationPriority.HIGH)
         # Read directly from SQLite to confirm column value
         with sqlite3.connect(str(store._db_path)) as conn:
-            row = conn.execute(
-                "SELECT priority FROM notifications WHERE id = ?", (nid,)
-            ).fetchone()
+            row = conn.execute("SELECT priority FROM notifications WHERE id = ?", (nid,)).fetchone()
         assert row is not None
         assert row[0] == "high"
 
@@ -186,9 +183,7 @@ class TestPriorityStoredInDatabase:
         for p in NotificationPriority:
             store.write(title=f"Title {p.value}", body="b", priority=p)
         with sqlite3.connect(str(store._db_path)) as conn:
-            rows = conn.execute(
-                "SELECT priority FROM notifications ORDER BY timestamp"
-            ).fetchall()
+            rows = conn.execute("SELECT priority FROM notifications ORDER BY timestamp").fetchall()
         stored_priorities = {row[0] for row in rows}
         assert stored_priorities == {"critical", "high", "medium", "low"}
 

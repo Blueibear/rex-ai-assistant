@@ -15,7 +15,6 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from flask import Flask
@@ -97,7 +96,7 @@ class TestVoicePanelHTML:
         html = _html()
         # The label should have an initial "Idle" value
         idx = html.index('id="voice-state-label"')
-        snippet = html[idx: idx + 100]
+        snippet = html[idx : idx + 100]
         assert "Idle" in snippet, "voice-state-label initial value must be Idle"
 
 
@@ -125,6 +124,7 @@ class TestGetVoiceMode:
         monkeypatch.setenv("REX_DASHBOARD_ALLOW_LOCAL", "0")
         # Reset state before reading
         from rex.dashboard import routes as r
+
         r._VOICE_STATE["active"] = False
         r._VOICE_STATE["state"] = "Idle"
 
@@ -142,6 +142,7 @@ class TestGetVoiceMode:
         monkeypatch.setenv("REX_DASHBOARD_PASSWORD", "test-pass-156")
         monkeypatch.setenv("REX_DASHBOARD_ALLOW_LOCAL", "0")
         from rex.dashboard import routes as r
+
         r._VOICE_STATE["active"] = False
         r._VOICE_STATE["state"] = "Idle"
 
@@ -174,6 +175,7 @@ class TestSetVoiceMode:
 
     def test_set_active_true_returns_listening(self, client, auth_token, monkeypatch):
         from rex.dashboard import routes as r
+
         r._VOICE_STATE["active"] = False
         r._VOICE_STATE["state"] = "Idle"
 
@@ -185,6 +187,7 @@ class TestSetVoiceMode:
 
     def test_set_active_false_returns_idle(self, client, auth_token, monkeypatch):
         from rex.dashboard import routes as r
+
         r._VOICE_STATE["active"] = True
         r._VOICE_STATE["state"] = "Listening"
 
@@ -232,6 +235,7 @@ class TestVoiceStateStream:
         monkeypatch.setenv("REX_DASHBOARD_PASSWORD", "test-pass-156")
         monkeypatch.setenv("REX_DASHBOARD_ALLOW_LOCAL", "0")
         from rex.dashboard import routes as r
+
         r._VOICE_STATE["active"] = False
         r._VOICE_STATE["state"] = "Idle"
 
@@ -246,6 +250,7 @@ class TestVoiceStateStream:
         monkeypatch.setenv("REX_DASHBOARD_PASSWORD", "test-pass-156")
         monkeypatch.setenv("REX_DASHBOARD_ALLOW_LOCAL", "0")
         from rex.dashboard import routes as r
+
         r._VOICE_STATE["active"] = False
         r._VOICE_STATE["state"] = "Idle"
 
@@ -261,6 +266,7 @@ class TestVoiceStateStream:
         monkeypatch.setenv("REX_DASHBOARD_PASSWORD", "test-pass-156")
         monkeypatch.setenv("REX_DASHBOARD_ALLOW_LOCAL", "0")
         from rex.dashboard import routes as r
+
         r._VOICE_STATE["active"] = False
         r._VOICE_STATE["state"] = "Idle"
 
@@ -326,7 +332,7 @@ class TestFrontendVoiceJS:
     def test_active_flag_read_from_state_data(self):
         js = _js()
         fn_start = js.index("_updateVoiceModeUI")
-        fn_body = js[fn_start: fn_start + 500]
+        fn_body = js[fn_start : fn_start + 500]
         assert "active" in fn_body
 
 
@@ -362,8 +368,5 @@ class TestTypecheck:
             text=True,
             cwd=REPO_ROOT,
         )
-        errors = [
-            ln for ln in result.stdout.splitlines()
-            if "error:" in ln and "routes.py" in ln
-        ]
+        errors = [ln for ln in result.stdout.splitlines() if "error:" in ln and "routes.py" in ln]
         assert errors == [], "mypy errors in routes.py:\n" + "\n".join(errors)

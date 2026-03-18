@@ -47,7 +47,7 @@ class Automation:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Automation":
+    def from_dict(cls, data: dict[str, Any]) -> Automation:
         return cls(
             automation_id=str(data.get("automation_id") or str(uuid.uuid4())),
             name=str(data.get("name") or "Unnamed Automation"),

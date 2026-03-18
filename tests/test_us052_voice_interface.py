@@ -22,7 +22,6 @@ from flask import Flask
 import rex.dashboard.routes as routes_module
 from rex.dashboard.routes import dashboard_bp
 
-
 # ---------------------------------------------------------------------------
 # Fixture helpers
 # ---------------------------------------------------------------------------
@@ -262,33 +261,25 @@ def test_html_has_voice_status():
 
 def test_js_has_voice_handler():
     """dashboard.js must contain handleVoiceBtnClick."""
-    js = (
-        Path(__file__).parent.parent / "rex/dashboard/static/js/dashboard.js"
-    ).read_text()
+    js = (Path(__file__).parent.parent / "rex/dashboard/static/js/dashboard.js").read_text()
     assert "handleVoiceBtnClick" in js
 
 
 def test_js_has_speech_synthesis():
     """dashboard.js must use speechSynthesis for audio playback."""
-    js = (
-        Path(__file__).parent.parent / "rex/dashboard/static/js/dashboard.js"
-    ).read_text()
+    js = (Path(__file__).parent.parent / "rex/dashboard/static/js/dashboard.js").read_text()
     assert "speechSynthesis" in js
 
 
 def test_js_has_media_recorder():
     """dashboard.js must use MediaRecorder for microphone capture."""
-    js = (
-        Path(__file__).parent.parent / "rex/dashboard/static/js/dashboard.js"
-    ).read_text()
+    js = (Path(__file__).parent.parent / "rex/dashboard/static/js/dashboard.js").read_text()
     assert "MediaRecorder" in js
 
 
 def test_js_posts_to_api_voice():
     """dashboard.js must send audio to /api/voice."""
-    js = (
-        Path(__file__).parent.parent / "rex/dashboard/static/js/dashboard.js"
-    ).read_text()
+    js = (Path(__file__).parent.parent / "rex/dashboard/static/js/dashboard.js").read_text()
     assert "/api/voice" in js
 
 

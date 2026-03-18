@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from io import StringIO
-from unittest.mock import patch
 
 import pytest
 
@@ -264,12 +262,12 @@ class TestLegacyEnvWarning:
         assert result.returncode == 0
         # Warning goes to stderr (logging)
         combined = result.stderr + result.stdout
-        assert "OPENAI_BASE_URL" in combined, (
-            f"Expected OPENAI_BASE_URL warning in output.\nstderr:\n{result.stderr}\nstdout:\n{result.stdout}"
-        )
-        assert "rex-config migrate-legacy-env" in combined, (
-            f"Expected migration command in warning.\nstderr:\n{result.stderr}\nstdout:\n{result.stdout}"
-        )
+        assert (
+            "OPENAI_BASE_URL" in combined
+        ), f"Expected OPENAI_BASE_URL warning in output.\nstderr:\n{result.stderr}\nstdout:\n{result.stdout}"
+        assert (
+            "rex-config migrate-legacy-env" in combined
+        ), f"Expected migration command in warning.\nstderr:\n{result.stderr}\nstdout:\n{result.stdout}"
 
 
 class TestCLIOutput:

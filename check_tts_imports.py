@@ -5,13 +5,14 @@ from pathlib import Path
 
 try:
     import TTS
+
     tts_path = Path(TTS.__file__).parent
     stream_gen_file = tts_path / "tts" / "layers" / "xtts" / "stream_generator.py"
 
     print(f"Reading: {stream_gen_file}\n")
 
     # Read the file
-    with open(stream_gen_file, 'r', encoding='utf-8') as f:
+    with open(stream_gen_file, encoding="utf-8") as f:
         lines = f.readlines()
 
     # Find the import section - show first 60 lines to see all imports
@@ -26,5 +27,6 @@ except ImportError:
 except Exception as e:
     print(f"ERROR: {e}")
     import traceback
+
     traceback.print_exc()
     sys.exit(1)

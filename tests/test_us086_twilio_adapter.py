@@ -15,11 +15,8 @@ import socket
 from typing import Any
 from unittest.mock import patch
 
-import pytest
-
-from rex.messaging_backends.twilio_adapter import TwilioAdapter
 from rex.messaging_backends.sms_sender_stub import SmsSenderStub
-
+from rex.messaging_backends.twilio_adapter import TwilioAdapter
 
 # ---------------------------------------------------------------------------
 # Helpers

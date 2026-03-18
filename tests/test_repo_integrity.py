@@ -22,9 +22,7 @@ class TestRepoIntegrity:
     def test_no_tracked_files_modified(self, tracked_modifications_baseline):
         """No tracked file should be modified by the test suite."""
         dirty = [
-            line
-            for line in get_dirty_files()
-            if line[3:] not in tracked_modifications_baseline
+            line for line in get_dirty_files() if line[3:] not in tracked_modifications_baseline
         ]
         assert dirty == [], (
             "Test suite modified tracked repo files.  Tests must write to "

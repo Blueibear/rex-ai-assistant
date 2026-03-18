@@ -13,7 +13,7 @@ import textwrap
 
 import pytest
 
-from rex.plugins import Plugin, PluginSpec, load_plugins, shutdown_plugins
+from rex.plugins import PluginSpec, load_plugins, shutdown_plugins
 
 
 def _write_plugin(directory, name: str, plugin_name: str = "") -> None:

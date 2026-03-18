@@ -15,9 +15,8 @@ import pytest
 
 np = pytest.importorskip("numpy")
 
-from rex.wakeword.listener import WakeWordListener
-from rex.wakeword.utils import detect_wakeword
-
+from rex.wakeword.listener import WakeWordListener  # noqa: E402
+from rex.wakeword.utils import detect_wakeword  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Minimal stub models
@@ -27,7 +26,7 @@ from rex.wakeword.utils import detect_wakeword
 class HighConfidenceModel:
     """Always scores above any threshold — simulates wake word present."""
 
-    def predict(self, audio: "np.ndarray") -> dict[str, float]:
+    def predict(self, audio: np.ndarray) -> dict[str, float]:
         return {"hey rex": 0.95}
 
 
@@ -37,7 +36,7 @@ class LowConfidenceModel:
     def __init__(self, score: float = 0.05) -> None:
         self._score = score
 
-    def predict(self, audio: "np.ndarray") -> dict[str, float]:
+    def predict(self, audio: np.ndarray) -> dict[str, float]:
         return {"hey rex": self._score}
 
 
@@ -50,9 +49,9 @@ def test_wake_word_detection_triggers_listening() -> None:
     """When the model fires above threshold, detect_wakeword returns True."""
     model = HighConfidenceModel()
     audio = np.zeros(16000, dtype=np.float32)
-    assert detect_wakeword(model, audio, threshold=0.5), (
-        "Wake word should be detected and trigger listening"
-    )
+    assert detect_wakeword(
+        model, audio, threshold=0.5
+    ), "Wake word should be detected and trigger listening"
 
 
 def test_wake_word_listener_yields_frame_on_detection() -> None:
@@ -60,13 +59,13 @@ def test_wake_word_listener_yields_frame_on_detection() -> None:
     model = HighConfidenceModel()
     captured: list[bool] = []
 
-    def detector(frame: "np.ndarray") -> bool:
+    def detector(frame: np.ndarray) -> bool:
         return detect_wakeword(model, frame, threshold=0.5)
 
     listener = WakeWordListener(detector, poll_interval=0)
     audio_frame = np.ones(16000, dtype=np.float32)
 
-    async def source() -> "np.ndarray":
+    async def source() -> np.ndarray:
         return audio_frame
 
     async def run() -> None:
@@ -87,7 +86,7 @@ def test_wakeword_listener_initializes() -> None:
     """WakeWordListener can be instantiated and its stop flag starts False."""
     model = HighConfidenceModel()
 
-    def detector(frame: "np.ndarray") -> bool:
+    def detector(frame: np.ndarray) -> bool:
         return detect_wakeword(model, frame, threshold=0.5)
 
     listener = WakeWordListener(detector, poll_interval=0.05)
@@ -97,17 +96,17 @@ def test_wakeword_listener_initializes() -> None:
 
 def test_wakeword_listener_starts_running_during_listen() -> None:
     """WakeWordListener sets _running=True inside the listen loop."""
-    model = HighConfidenceModel()
+    HighConfidenceModel()
     running_states: list[bool] = []
 
-    def detector(frame: "np.ndarray") -> bool:
+    def detector(frame: np.ndarray) -> bool:
         running_states.append(True)
         return True  # trigger immediately
 
     listener = WakeWordListener(detector, poll_interval=0)
     audio_frame = np.ones(16000, dtype=np.float32)
 
-    async def source() -> "np.ndarray":
+    async def source() -> np.ndarray:
         return audio_frame
 
     async def run() -> None:
@@ -122,10 +121,10 @@ def test_wakeword_listener_starts_running_during_listen() -> None:
 
 def test_wakeword_listener_stops_cleanly() -> None:
     """Calling stop() causes the listen loop to exit without error."""
-    model = HighConfidenceModel()
+    HighConfidenceModel()
     call_count = 0
 
-    def detector(frame: "np.ndarray") -> bool:
+    def detector(frame: np.ndarray) -> bool:
         nonlocal call_count
         call_count += 1
         return False  # never trigger; we stop manually
@@ -133,7 +132,7 @@ def test_wakeword_listener_stops_cleanly() -> None:
     listener = WakeWordListener(detector, poll_interval=0)
     audio_frame = np.zeros(16000, dtype=np.float32)
 
-    async def source() -> "np.ndarray":
+    async def source() -> np.ndarray:
         return audio_frame
 
     async def run() -> None:
@@ -142,10 +141,8 @@ def test_wakeword_listener_stops_cleanly() -> None:
         listener.stop()
         await task
 
-    async def _collect(
-        l: WakeWordListener, src: object
-    ) -> None:
-        async for _ in l.listen(src):  # type: ignore[arg-type]
+    async def _collect(listener_: WakeWordListener, src: object) -> None:
+        async for _ in listener_.listen(src):  # type: ignore[arg-type]
             pass
 
     asyncio.run(run())
@@ -160,7 +157,7 @@ def test_wakeword_listener_stops_cleanly() -> None:
 @pytest.mark.parametrize(
     "phrase_score",
     [
-        0.0,   # silence
+        0.0,  # silence
         0.05,  # typical background noise
         0.10,  # soft speech not matching wake word
         0.25,  # louder speech, still below threshold
@@ -173,9 +170,9 @@ def test_wake_word_does_not_trigger_on_conversational_speech(
     """Common speech scores (< 0.5) must not trigger wake word detection."""
     model = LowConfidenceModel(score=phrase_score)
     audio = np.random.default_rng(42).standard_normal(16000).astype(np.float32)
-    assert not detect_wakeword(model, audio, threshold=0.5), (
-        f"Wake word should NOT trigger for score={phrase_score}"
-    )
+    assert not detect_wakeword(
+        model, audio, threshold=0.5
+    ), f"Wake word should NOT trigger for score={phrase_score}"
 
 
 def test_wake_word_does_not_trigger_on_exact_threshold_boundary() -> None:

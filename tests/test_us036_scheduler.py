@@ -12,14 +12,12 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import pytest
-
-from rex.scheduler import Scheduler, ScheduledJob, get_scheduler, set_scheduler
-
+from rex.scheduler import ScheduledJob, Scheduler, get_scheduler, set_scheduler
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def utc_now() -> datetime:
     return datetime.now(tz=timezone.utc)
@@ -34,6 +32,7 @@ def make_scheduler(tmp_path: Path, now_func=None) -> Scheduler:
 # Scheduler initializes
 # ---------------------------------------------------------------------------
 
+
 class TestSchedulerInitializes:
     def test_scheduler_creates_without_error(self, tmp_path):
         s = make_scheduler(tmp_path)
@@ -45,7 +44,7 @@ class TestSchedulerInitializes:
 
     def test_scheduler_creates_jobs_file_dir(self, tmp_path):
         jobs_dir = tmp_path / "subdir" / "scheduler"
-        s = Scheduler(jobs_file=jobs_dir / "jobs.json")
+        Scheduler(jobs_file=jobs_dir / "jobs.json")
         assert jobs_dir.exists()
 
     def test_scheduler_not_running_on_init(self, tmp_path):
@@ -62,6 +61,7 @@ class TestSchedulerInitializes:
 # ---------------------------------------------------------------------------
 # Tasks scheduled
 # ---------------------------------------------------------------------------
+
 
 class TestTasksScheduled:
     def test_add_job_returns_scheduled_job(self, tmp_path):
@@ -140,6 +140,7 @@ class TestTasksScheduled:
 # Tasks executed
 # ---------------------------------------------------------------------------
 
+
 class TestTasksExecuted:
     def test_run_job_manual_invokes_callback(self, tmp_path):
         s = make_scheduler(tmp_path)
@@ -178,7 +179,9 @@ class TestTasksExecuted:
         s = Scheduler(jobs_file=tmp_path / "jobs.json", now_func=lambda: future)
         called = []
         s.register_callback("cb", lambda j: called.append(j.job_id))
-        s.add_job(job_id="j1", name="Test", schedule="interval:60", callback_name="cb", enabled=False)
+        s.add_job(
+            job_id="j1", name="Test", schedule="interval:60", callback_name="cb", enabled=False
+        )
         job = s.get_job("j1")
         assert job is not None
         job.next_run = utc_now() - timedelta(seconds=10)

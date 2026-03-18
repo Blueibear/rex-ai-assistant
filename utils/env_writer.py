@@ -5,12 +5,11 @@ from __future__ import annotations
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
 
-from .env_schema import EnvSchema, parse_env_example
+from .env_schema import EnvSchema
 
 
-def create_backup(env_path: Path, backup_dir: Optional[Path] = None) -> Optional[Path]:
+def create_backup(env_path: Path, backup_dir: Path | None = None) -> Path | None:
     """Create a timestamped backup of .env file.
 
     Args:
@@ -35,7 +34,7 @@ def create_backup(env_path: Path, backup_dir: Optional[Path] = None) -> Optional
     return backup_path
 
 
-def read_current_env(env_path: Path) -> Dict[str, str]:
+def read_current_env(env_path: Path) -> dict[str, str]:
     """Read current .env file into a dictionary.
 
     Args:
@@ -48,15 +47,15 @@ def read_current_env(env_path: Path) -> Dict[str, str]:
         return {}
 
     env_vars = {}
-    content = env_path.read_text(encoding='utf-8')
+    content = env_path.read_text(encoding="utf-8")
 
     for line in content.splitlines():
         line = line.strip()
-        if not line or line.startswith('#'):
+        if not line or line.startswith("#"):
             continue
 
-        if '=' in line:
-            key, value = line.split('=', 1)
+        if "=" in line:
+            key, value = line.split("=", 1)
             env_vars[key.strip()] = value.strip()
 
     return env_vars
@@ -65,8 +64,8 @@ def read_current_env(env_path: Path) -> Dict[str, str]:
 def write_env_from_template(
     env_path: Path,
     template_path: Path,
-    values: Dict[str, str],
-    custom_overrides: Optional[Dict[str, str]] = None,
+    values: dict[str, str],
+    custom_overrides: dict[str, str] | None = None,
     create_backup: bool = True,
 ) -> Path:
     """Write .env file using template structure with updated values.
@@ -87,25 +86,25 @@ def write_env_from_template(
     # Create backup first
     backup_path = None
     if create_backup and env_path.exists():
-        backup_path = globals()['create_backup'](env_path)
+        backup_path = globals()["create_backup"](env_path)
 
     # Read template
     if not template_path.exists():
         raise FileNotFoundError(f"Template not found: {template_path}")
 
-    template_content = template_path.read_text(encoding='utf-8')
+    template_content = template_path.read_text(encoding="utf-8")
     lines = template_content.splitlines()
 
     output_lines = []
     for line in lines:
         # Preserve comments and empty lines
-        if not line.strip() or line.strip().startswith('#'):
+        if not line.strip() or line.strip().startswith("#"):
             output_lines.append(line)
             continue
 
         # Key=Value line
-        if '=' in line:
-            key = line.split('=', 1)[0].strip()
+        if "=" in line:
+            key = line.split("=", 1)[0].strip()
             if key in values:
                 output_lines.append(f"{key}={values[key]}")
             else:
@@ -115,19 +114,19 @@ def write_env_from_template(
 
     # Add custom overrides section if any
     if custom_overrides:
-        output_lines.append('')
-        output_lines.append('# ================================')
-        output_lines.append('# Custom Overrides')
-        output_lines.append('# ================================')
-        output_lines.append('# Additional settings not in .env.example')
-        output_lines.append('')
+        output_lines.append("")
+        output_lines.append("# ================================")
+        output_lines.append("# Custom Overrides")
+        output_lines.append("# ================================")
+        output_lines.append("# Additional settings not in .env.example")
+        output_lines.append("")
 
         for key, value in sorted(custom_overrides.items()):
             output_lines.append(f"{key}={value}")
 
     # Write to file
-    output_content = '\n'.join(output_lines) + '\n'
-    env_path.write_text(output_content, encoding='utf-8')
+    output_content = "\n".join(output_lines) + "\n"
+    env_path.write_text(output_content, encoding="utf-8")
 
     return backup_path or env_path
 
@@ -161,7 +160,7 @@ def get_backup_files(backup_dir: Path) -> list[Path]:
     return sorted(backups, reverse=True)
 
 
-def get_extra_keys(env_path: Path, schema: EnvSchema) -> Dict[str, str]:
+def get_extra_keys(env_path: Path, schema: EnvSchema) -> dict[str, str]:
     """Find keys in .env that are not in .env.example.
 
     Args:

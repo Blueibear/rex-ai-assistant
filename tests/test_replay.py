@@ -8,7 +8,8 @@ import pytest
 
 pytest.importorskip("pydantic")
 
-from rex.audit import LogEntry, replay as audit_replay
+from rex.audit import LogEntry
+from rex.audit import replay as audit_replay
 from rex.contracts import ToolCall
 from rex.replay import (
     ReplayResult,

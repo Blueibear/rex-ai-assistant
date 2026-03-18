@@ -19,7 +19,6 @@ from rex.notification import (
     set_notifier,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -309,7 +308,7 @@ def test_idempotency_key_prevents_duplicate(tmp_path):
 
 def test_escalation_manager_quiet_hours_suppress_normal(tmp_path):
     """Normal notifications suppressed during quiet hours."""
-    from datetime import time, timezone, datetime
+    from datetime import datetime, time, timezone
 
     em = EscalationManager(quiet_hours_start=time(22, 0), quiet_hours_end=time(7, 0))
     # Midnight — within quiet hours

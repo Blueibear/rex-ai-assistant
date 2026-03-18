@@ -1,14 +1,11 @@
 """Integration tests for time, date, and weather accuracy (US-012)."""
+
 from __future__ import annotations
 
 import re
-from datetime import datetime
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from rex.tool_router import execute_tool
-
 
 # ---------------------------------------------------------------------------
 # time_now – London
@@ -99,6 +96,6 @@ def test_system_prompt_contains_current_date(monkeypatch, tmp_path):
 
     assert "Current date and time:" in context
     # Context contains a date in YYYY-MM-DD format
-    assert re.search(r"\d{4}-\d{2}-\d{2}", context), (
-        f"Expected YYYY-MM-DD date in system context, got: {context!r}"
-    )
+    assert re.search(
+        r"\d{4}-\d{2}-\d{2}", context
+    ), f"Expected YYYY-MM-DD date in system context, got: {context!r}"

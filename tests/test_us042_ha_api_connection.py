@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from rex.ha_bridge import HABridge, IntentMatch
+from rex.ha_bridge import HABridge
 
 
 def _make_bridge(

@@ -7,7 +7,7 @@ import logging
 from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 sd = None
 
@@ -38,7 +38,7 @@ def _require_sounddevice():
 class AudioDeviceInfo:
     """Structured information about an audio input device."""
 
-    def __init__(self, index: int, device_info: Dict[str, Any]) -> None:
+    def __init__(self, index: int, device_info: dict[str, Any]) -> None:
         self.index = index
         self.name = str(device_info.get("name", "Unknown"))
         self.max_input_channels = int(device_info.get("max_input_channels", 0))
@@ -69,9 +69,9 @@ class AudioDeviceInfo:
         return f"AudioDeviceInfo({self.index}, {self.name!r}, {self.hostapi_name})"
 
 
-def enumerate_input_devices() -> List[AudioDeviceInfo]:
+def enumerate_input_devices() -> list[AudioDeviceInfo]:
     """Return list of all available input devices (max_input_channels > 0)."""
-    devices: List[AudioDeviceInfo] = []
+    devices: list[AudioDeviceInfo] = []
 
     sounddevice = _load_sounddevice()
     if sounddevice is None:
@@ -94,7 +94,7 @@ def enumerate_input_devices() -> List[AudioDeviceInfo]:
     return devices
 
 
-def validate_device(device_index: int, sample_rate: int = DEFAULT_SAMPLE_RATE) -> Tuple[bool, str]:
+def validate_device(device_index: int, sample_rate: int = DEFAULT_SAMPLE_RATE) -> tuple[bool, str]:
     """
     Validate if device can be opened at the specified sample rate.
 
@@ -129,9 +129,14 @@ def validate_device(device_index: int, sample_rate: int = DEFAULT_SAMPLE_RATE) -
 
         # Check if it's WDM-KS (problematic)
         if "WDM-KS" in str(hostapi_name).upper() or "Windows WDM-KS" in str(hostapi_name):
-            return False, f"Device {device_index} ({device_name}) uses WDM-KS API which is not supported (blocking API)"
+            return (
+                False,
+                f"Device {device_index} ({device_name}) uses WDM-KS API which is not supported (blocking API)",
+            )
 
-        logger.info(f"Device {device_index} ({device_name} [{hostapi_name}]) appears valid for input")
+        logger.info(
+            f"Device {device_index} ({device_name} [{hostapi_name}]) appears valid for input"
+        )
         return True, ""
 
     except Exception as exc:
@@ -141,7 +146,7 @@ def validate_device(device_index: int, sample_rate: int = DEFAULT_SAMPLE_RATE) -
 def get_smart_default_device(
     sample_rate: int = DEFAULT_SAMPLE_RATE,
     prefer_wasapi: bool = True,
-) -> Optional[int]:
+) -> int | None:
     """
     Get smart default input device.
 
@@ -189,7 +194,7 @@ def get_smart_default_device(
     return None
 
 
-def load_audio_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
+def load_audio_config(config_path: Path | None = None) -> dict[str, Any]:
     """
     Load audio configuration from rex_config.json.
 
@@ -210,7 +215,7 @@ def load_audio_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
         }
 
     try:
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             data = json.load(f)
 
         audio_section = data.get("audio", {}) if isinstance(data, dict) else {}
@@ -230,7 +235,9 @@ def load_audio_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
         if output_device_idx is not None:
             output_device_idx = int(output_device_idx)
             if output_device_idx < 0:
-                logger.warning("Invalid output device index %s in config, ignoring", output_device_idx)
+                logger.warning(
+                    "Invalid output device index %s in config, ignoring", output_device_idx
+                )
                 output_device_idx = None
 
         sample_rate = int(audio_section.get("sample_rate", DEFAULT_SAMPLE_RATE))
@@ -250,10 +257,10 @@ def load_audio_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
 
 
 def save_audio_config(
-    input_device_index: Optional[int],
-    output_device_index: Optional[int] = None,
+    input_device_index: int | None,
+    output_device_index: int | None = None,
     sample_rate: int = DEFAULT_SAMPLE_RATE,
-    config_path: Optional[Path] = None,
+    config_path: Path | None = None,
 ) -> None:
     """Save audio configuration to rex_config.json."""
     if config_path is None:
@@ -262,10 +269,10 @@ def save_audio_config(
     # Ensure config directory exists
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
-    data: Dict[str, Any]
+    data: dict[str, Any]
     if config_path.exists():
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 data = json.load(f)
         except Exception as exc:
             logger.warning("Failed to read existing rex config at %s: %s", config_path, exc)
@@ -305,9 +312,9 @@ def save_audio_config(
 
 
 def resolve_audio_device(
-    configured_device: Optional[int] = None,
+    configured_device: int | None = None,
     sample_rate: int = DEFAULT_SAMPLE_RATE,
-) -> Tuple[Optional[int], str]:
+) -> tuple[int | None, str]:
     """
     Resolve audio device from configuration with validation.
 
@@ -340,14 +347,23 @@ def resolve_audio_device(
         # Fall back to smart default
         default_device = get_smart_default_device(sample_rate)
         if default_device is None:
-            return None, f"Configured device {configured_device} invalid and no fallback found: {error}"
+            return (
+                None,
+                f"Configured device {configured_device} invalid and no fallback found: {error}",
+            )
 
         devices = enumerate_input_devices()
         device_info = next((d for d in devices if d.index == default_device), None)
         if device_info:
-            return default_device, f"Configured device {configured_device} failed, using: {device_info.display_name()}"
+            return (
+                default_device,
+                f"Configured device {configured_device} failed, using: {device_info.display_name()}",
+            )
         else:
-            return default_device, f"Configured device {configured_device} failed, using device {default_device}"
+            return (
+                default_device,
+                f"Configured device {configured_device} failed, using device {default_device}",
+            )
 
     # Configured device is valid
     devices = enumerate_input_devices()

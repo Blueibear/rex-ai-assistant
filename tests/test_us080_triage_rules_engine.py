@@ -11,7 +11,6 @@ Acceptance criteria verified:
 from __future__ import annotations
 
 import json
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -136,9 +135,7 @@ class TestMatchFields:
         return TriageRulesEngine(p)
 
     def test_match_by_sender(self, tmp_path: Path) -> None:
-        engine = self._engine(
-            [{"category": "urgent", "match": {"sender": "alerts@"}}], tmp_path
-        )
+        engine = self._engine([{"category": "urgent", "match": {"sender": "alerts@"}}], tmp_path)
         assert engine.categorize(_env(sender="alerts@example.com")) == "urgent"
         assert engine.categorize(_env(sender="normal@example.com")) is None
 
@@ -177,12 +174,7 @@ class TestMatchFields:
         # Only sender matches
         assert engine.categorize(_env(sender="ops@example.com")) is None
         # Sender + subject match but body missing
-        assert (
-            engine.categorize(
-                _env(sender="ops@example.com", subject="Outage alert")
-            )
-            is None
-        )
+        assert engine.categorize(_env(sender="ops@example.com", subject="Outage alert")) is None
         # All three match
         assert (
             engine.categorize(
@@ -212,15 +204,11 @@ class TestMatchFields:
         assert engine.categorize(_env(subject="PR open")) is None
 
     def test_empty_match_dict_matches_everything(self, tmp_path: Path) -> None:
-        engine = self._engine(
-            [{"category": "fyi", "match": {}}], tmp_path
-        )
+        engine = self._engine([{"category": "fyi", "match": {}}], tmp_path)
         assert engine.categorize(_env(subject="Anything at all")) == "fyi"
 
     def test_categorize_returns_none_when_no_rule_fires(self, tmp_path: Path) -> None:
-        engine = self._engine(
-            [{"category": "urgent", "match": {"subject": "fire"}}], tmp_path
-        )
+        engine = self._engine([{"category": "urgent", "match": {"subject": "fire"}}], tmp_path)
         assert engine.categorize(_env(subject="Normal email")) is None
 
 
@@ -361,9 +349,7 @@ class TestAutoReload:
         engine.reload()
         assert engine.categorize(_env(subject="fire")) is None
 
-    def test_categorize_with_fallback_uses_builtin_when_no_rule_fires(
-        self, tmp_path: Path
-    ) -> None:
+    def test_categorize_with_fallback_uses_builtin_when_no_rule_fires(self, tmp_path: Path) -> None:
         rules_file = tmp_path / "rules.json"
         rules_file.write_text(json.dumps({"rules": []}), encoding="utf-8")
         engine = TriageRulesEngine(rules_file)
@@ -371,9 +357,7 @@ class TestAutoReload:
         result = engine.categorize_with_fallback(_env(subject="CRITICAL: server down"))
         assert result == "urgent"
 
-    def test_categorize_with_fallback_rule_overrides_builtin(
-        self, tmp_path: Path
-    ) -> None:
+    def test_categorize_with_fallback_rule_overrides_builtin(self, tmp_path: Path) -> None:
         rules_file = tmp_path / "rules.json"
         # Override: force "CRITICAL" emails to fyi (unusual but valid config)
         _write_rules(

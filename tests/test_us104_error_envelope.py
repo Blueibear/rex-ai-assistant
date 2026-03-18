@@ -9,15 +9,8 @@ No endpoint may return a plain-text error or an unstructured exception traceback
 
 from __future__ import annotations
 
-import json
-import os
-import sys
-import types
-from unittest.mock import MagicMock, patch
-
 import pytest
 from flask import Flask
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -332,7 +325,7 @@ class TestDashboard400Voice:
 class TestDashboard429:
     def test_lockout_returns_envelope(self, monkeypatch, dash_client):
         """After enough failures the rate limiter should return 429 with envelope."""
-        from rex.dashboard.auth import LoginRateLimiter, _login_rate_limiter
+        from rex.dashboard.auth import LoginRateLimiter
 
         # Use a very short window and low attempt count
         limiter = LoginRateLimiter(max_attempts=1, window_seconds=0)
@@ -342,7 +335,7 @@ class TestDashboard429:
         monkeypatch.setattr(_routes, "get_login_rate_limiter", lambda: limiter)
 
         # First attempt fails (wrong pw) — should lock
-        resp = dash_client.post(
+        dash_client.post(
             "/api/dashboard/login",
             json={"password": "wrong"},
             content_type="application/json",
@@ -504,9 +497,9 @@ class TestInboundWebhook403:
                 headers={"X-Twilio-Signature": "invalidsig"},
             )
         # Must be JSON (not text/plain)
-        assert "application/json" in (resp.content_type or ""), (
-            f"expected JSON response, got content_type={resp.content_type!r}"
-        )
+        assert "application/json" in (
+            resp.content_type or ""
+        ), f"expected JSON response, got content_type={resp.content_type!r}"
         data = resp.get_json()
         assert data is not None, "response body is not valid JSON"
         _assert_envelope(data, 403, resp.status_code)

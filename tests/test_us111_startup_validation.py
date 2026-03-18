@@ -11,20 +11,16 @@ Verifies:
 
 from __future__ import annotations
 
-import sys
-from unittest.mock import patch
-
 import pytest
 
 from rex.startup_validation import (
-    EnvVarSpec,
     _ENV_SPECS,
+    EnvVarSpec,
     _validate_int,
     _validate_url,
     check_startup_env,
     validate_startup_env,
 )
-
 
 # ---------------------------------------------------------------------------
 # _validate_int
@@ -262,10 +258,10 @@ class TestCheckStartupEnv:
 
     def test_entry_points_import_check_startup_env(self) -> None:
         """Verify that at least one entry point imports startup validation."""
-        import rex.cli as cli_mod  # noqa: F401
-
         # cli.py should have been modified to call check_startup_env
         import inspect
+
+        import rex.cli as cli_mod  # noqa: F401
 
         source = inspect.getsource(cli_mod)
         assert "startup_validation" in source or "check_startup_env" in source

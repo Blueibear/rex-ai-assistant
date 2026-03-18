@@ -13,9 +13,9 @@ import types
 
 import pytest
 
-from rex.assistant_errors import ConfigurationError
 from config import AppConfig
 from llm_client import LanguageModel
+from rex.assistant_errors import ConfigurationError
 
 
 def _make_fake_client(content: str = "hello") -> types.SimpleNamespace:
@@ -138,9 +138,7 @@ def test_openai_api_error_propagates_as_exception(monkeypatch):
         raise RuntimeError("API unavailable")
 
     fake_client = types.SimpleNamespace(
-        chat=types.SimpleNamespace(
-            completions=types.SimpleNamespace(create=_failing_create)
-        )
+        chat=types.SimpleNamespace(completions=types.SimpleNamespace(create=_failing_create))
     )
 
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")

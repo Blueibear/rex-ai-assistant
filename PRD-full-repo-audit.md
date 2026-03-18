@@ -752,10 +752,10 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 5. Fix any violations that auto-fix did not resolve
 
 **Acceptance Criteria:**
-- [ ] `ruff check .` exits with code 0 — zero violations
-- [ ] `black --check --diff .` exits with code 0 — zero formatting diffs
-- [ ] No `# noqa` suppressions added to hide legitimate violations — all violations are properly resolved
-- [ ] Typecheck passes
+- [x] `ruff check .` exits with code 0 — zero violations
+- [x] `black --check --diff .` exits with code 0 — zero formatting diffs
+- [x] No `# noqa` suppressions added to hide legitimate violations — all violations are properly resolved
+- [x] Typecheck passes
 
 ---
 

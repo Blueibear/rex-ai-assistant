@@ -22,12 +22,11 @@ from rex.messaging_backends.message_router import (
     ChannelNotConfiguredError,
     MessagePayload,
     MessageRouter,
-    RouteResult,
     RouterConfig,
+    RouteResult,
     UnknownChannelError,
 )
 from rex.messaging_backends.sms_sender_stub import SmsSenderStub
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -48,9 +47,9 @@ def make_broadcaster() -> NotificationBroadcaster:
     return NotificationBroadcaster()
 
 
-def make_full_router(active: str = CHANNEL_DASHBOARD) -> tuple[
-    MessageRouter, SmsSenderStub, StubEmailBackend, NotificationBroadcaster
-]:
+def make_full_router(
+    active: str = CHANNEL_DASHBOARD,
+) -> tuple[MessageRouter, SmsSenderStub, StubEmailBackend, NotificationBroadcaster]:
     sms = make_sms_stub()
     email = make_email_stub()
     broadcaster = make_broadcaster()

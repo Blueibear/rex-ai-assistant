@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -24,7 +24,6 @@ from rex.priority_notification_router import (
     PriorityNotificationRouter,
     RoutableNotification,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -344,9 +343,7 @@ class TestDigestDashboardDelivery:
 
         store = DashboardStore(db_path=tmp_path / "notifs.db")
         router = PriorityNotificationRouter()
-        router.route(
-            _notif("m1", NotificationPriority.MEDIUM, title="Alpha update", body="")
-        )
+        router.route(_notif("m1", NotificationPriority.MEDIUM, title="Alpha update", body=""))
         router.route(_notif("l1", NotificationPriority.LOW, title="Beta news", body=""))
 
         job = DigestJob(router=router, store=store)
@@ -442,9 +439,7 @@ class TestDigestJobLogging:
 
         assert any("Digest delivered" in r.message for r in caplog.records)
 
-    def test_stub_log_contains_title_and_body(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_stub_log_contains_title_and_body(self, caplog: pytest.LogCaptureFixture) -> None:
         router = PriorityNotificationRouter()
         router.route(_notif("m1", NotificationPriority.MEDIUM, title="Hello world"))
 

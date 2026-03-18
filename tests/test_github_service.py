@@ -1,14 +1,13 @@
 """Tests for GitHub service module."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
+
 from rex.github_service import (
     GitHubService,
     get_github_service,
     reset_github_service,
-    Repository,
-    PullRequest,
-    Issue,
 )
 
 
@@ -129,7 +128,7 @@ class TestGitHubService:
         """Test that missing token raises error."""
         service = GitHubService()
 
-        with patch('rex.github_service.get_credential_manager') as mock_cred_manager:
+        with patch("rex.github_service.get_credential_manager") as mock_cred_manager:
             mock_manager = Mock()
             mock_manager.get_token.return_value = None
             mock_cred_manager.return_value = mock_manager

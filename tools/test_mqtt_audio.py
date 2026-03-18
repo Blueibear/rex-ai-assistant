@@ -15,7 +15,6 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Tuple
 
 import numpy as np
 import soundfile as sf
@@ -28,7 +27,7 @@ def _utc_iso() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
 
 
-def _load_audio(audio_path: Optional[Path], sample_rate: int) -> Tuple[np.ndarray, int]:
+def _load_audio(audio_path: Path | None, sample_rate: int) -> tuple[np.ndarray, int]:
     if audio_path and audio_path.exists():
         data, sr = sf.read(audio_path, dtype="float32")
         if data.ndim > 1:
@@ -49,16 +48,16 @@ def _encode_mulaw(audio: np.ndarray) -> bytes:
 
 @dataclass
 class RoundTripResult:
-    transcript: Optional[str]
-    reply_text: Optional[str]
-    latency_ms: Optional[float]
-    response_topic: Optional[str]
+    transcript: str | None
+    reply_text: str | None
+    latency_ms: float | None
+    response_topic: str | None
     received_at: str
 
 
 async def run_test(
     *,
-    audio_path: Optional[Path],
+    audio_path: Path | None,
     node_id: str,
     sample_rate: int,
     timeout: float,
@@ -124,12 +123,32 @@ def _append_result_to_log(result: RoundTripResult, log_path: Path) -> None:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Publish a test clip to rex/audio_in and await rex/tts/<node> response.")
-    parser.add_argument("--audio", type=Path, help="Path to WAV file to publish (default: synthetic tone)")
-    parser.add_argument("--node-id", default=settings.mqtt_node_id, help="Override node identifier (default: config value)")
-    parser.add_argument("--sample-rate", type=int, default=16000, help="Sample rate for synthetic audio (default: 16000)")
-    parser.add_argument("--timeout", type=float, default=15.0, help="Seconds to wait for Rex reply (default: 15)")
-    parser.add_argument("--log", type=Path, default=Path("logs/mqtt_roundtrip_test.log"), help="Path to append test results")
+    parser = argparse.ArgumentParser(
+        description="Publish a test clip to rex/audio_in and await rex/tts/<node> response."
+    )
+    parser.add_argument(
+        "--audio", type=Path, help="Path to WAV file to publish (default: synthetic tone)"
+    )
+    parser.add_argument(
+        "--node-id",
+        default=settings.mqtt_node_id,
+        help="Override node identifier (default: config value)",
+    )
+    parser.add_argument(
+        "--sample-rate",
+        type=int,
+        default=16000,
+        help="Sample rate for synthetic audio (default: 16000)",
+    )
+    parser.add_argument(
+        "--timeout", type=float, default=15.0, help="Seconds to wait for Rex reply (default: 15)"
+    )
+    parser.add_argument(
+        "--log",
+        type=Path,
+        default=Path("logs/mqtt_roundtrip_test.log"),
+        help="Path to append test results",
+    )
     return parser.parse_args()
 
 

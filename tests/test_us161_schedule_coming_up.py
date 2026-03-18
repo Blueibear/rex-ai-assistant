@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 STATIC_DIR = Path(__file__).parent.parent / "rex" / "dashboard" / "static"
 TEMPLATE_DIR = Path(__file__).parent.parent / "rex" / "dashboard" / "templates"
 CSS_FILE = STATIC_DIR / "css" / "dashboard.css"

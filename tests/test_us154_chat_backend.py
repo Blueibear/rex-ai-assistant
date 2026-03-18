@@ -84,9 +84,7 @@ class TestChatEndpointExists:
 
     def test_chat_route_accepts_post(self, app):
         methods = {
-            rule.rule: rule.methods
-            for rule in app.url_map.iter_rules()
-            if rule.rule == "/api/chat"
+            rule.rule: rule.methods for rule in app.url_map.iter_rules() if rule.rule == "/api/chat"
         }
         assert "POST" in methods.get("/api/chat", set()), "/api/chat must accept POST"
 
@@ -134,7 +132,9 @@ class TestChatEndpointBehaviour:
                 environ_base=_non_local_env(),
             )
 
-        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.get_data(as_text=True)}"
+        assert (
+            resp.status_code == 200
+        ), f"Expected 200, got {resp.status_code}: {resp.get_data(as_text=True)}"
         data = resp.get_json()
         assert "reply" in data, "Response must contain 'reply' field"
 
@@ -242,35 +242,33 @@ def _handleChatSubmit_body() -> str:
     js = _js()
     fn_idx = js.index("handleChatSubmit")
     # Use a large window to capture the full async function (it's ~100+ lines now with streaming)
-    return js[fn_idx: fn_idx + 6000]
+    return js[fn_idx : fn_idx + 6000]
 
 
 class TestJsSendsToBackend:
     def test_handleChatSubmit_calls_api_chat(self):
         js = _js()
         # Accepts both the original /api/chat and the streaming /api/chat/stream
-        assert "/api/chat" in js, \
-            "handleChatSubmit must call a /api/chat endpoint"
+        assert "/api/chat" in js, "handleChatSubmit must call a /api/chat endpoint"
 
     def test_handleChatSubmit_uses_post(self):
         fn_body = _handleChatSubmit_body()
-        assert "'POST'" in fn_body or '"POST"' in fn_body, \
-            "handleChatSubmit must use POST method"
+        assert "'POST'" in fn_body or '"POST"' in fn_body, "handleChatSubmit must use POST method"
 
     def test_handleChatSubmit_sends_message_field(self):
         fn_body = _handleChatSubmit_body()
-        assert "message" in fn_body, \
-            "handleChatSubmit must include 'message' in the request body"
+        assert "message" in fn_body, "handleChatSubmit must include 'message' in the request body"
 
     def test_handleChatSubmit_reads_reply_from_response(self):
         # With streaming the reply is accumulated from tokens rather than read from data.reply
         js = _js()
         fn_start = js.index("handleChatSubmit")
-        fn_body = js[fn_start: fn_start + 6000]
+        fn_body = js[fn_start : fn_start + 6000]
         has_data_reply = "data.reply" in fn_body
         has_accumulated = "accumulatedReply" in fn_body or "accumulated" in fn_body.lower()
-        assert has_data_reply or has_accumulated, \
-            "handleChatSubmit must read the reply from the response (data.reply or accumulated tokens)"
+        assert (
+            has_data_reply or has_accumulated
+        ), "handleChatSubmit must read the reply from the response (data.reply or accumulated tokens)"
 
 
 # ---------------------------------------------------------------------------
@@ -281,23 +279,25 @@ class TestJsSendsToBackend:
 class TestJsLoadingIndicator:
     def test_thinking_indicator_injected(self):
         js = _js()
-        assert "thinking-indicator" in js, \
-            "A thinking/loading indicator element must be created"
+        assert "thinking-indicator" in js, "A thinking/loading indicator element must be created"
 
     def test_thinking_text_present(self):
         js = _js()
-        assert "Thinking" in js or "loading" in js.lower(), \
-            "Loading indicator must show some loading text"
+        assert (
+            "Thinking" in js or "loading" in js.lower()
+        ), "Loading indicator must show some loading text"
 
     def test_thinking_indicator_removed_on_success(self):
         fn_body = _handleChatSubmit_body()
-        assert "thinking" in fn_body and "remove()" in fn_body, \
-            "Thinking indicator must be removed after response arrives"
+        assert (
+            "thinking" in fn_body and "remove()" in fn_body
+        ), "Thinking indicator must be removed after response arrives"
 
     def test_thinking_css_class_defined(self):
         css = _css()
-        assert ".chat-message.thinking" in css, \
-            ".chat-message.thinking CSS class must be defined for the loading indicator"
+        assert (
+            ".chat-message.thinking" in css
+        ), ".chat-message.thinking CSS class must be defined for the loading indicator"
 
 
 # ---------------------------------------------------------------------------
@@ -308,19 +308,19 @@ class TestJsLoadingIndicator:
 class TestJsErrorHandling:
     def test_catch_block_exists_in_handleChatSubmit(self):
         fn_body = _handleChatSubmit_body()
-        assert "catch" in fn_body, \
-            "handleChatSubmit must have a catch block for network errors"
+        assert "catch" in fn_body, "handleChatSubmit must have a catch block for network errors"
 
     def test_error_message_displayed_in_chat(self):
         fn_body = _handleChatSubmit_body()
-        assert "error.message" in fn_body or "Error:" in fn_body, \
-            "Error message must be displayed in the chat area"
+        assert (
+            "error.message" in fn_body or "Error:" in fn_body
+        ), "Error message must be displayed in the chat area"
 
     def test_error_not_silently_swallowed(self):
         fn_body = _handleChatSubmit_body()
         # Use the LAST catch block (outer error handler), not inner try/catch in SSE parsing
         catch_idx = fn_body.rindex("catch")
-        catch_body = fn_body[catch_idx: catch_idx + 400]
+        catch_body = fn_body[catch_idx : catch_idx + 400]
         assert (
             "textContent" in catch_body
             or "innerHTML" in catch_body
@@ -329,12 +329,12 @@ class TestJsErrorHandling:
 
     def test_input_re_enabled_after_error(self):
         fn_body = _handleChatSubmit_body()
-        assert "finally" in fn_body, \
-            "handleChatSubmit must use a finally block to re-enable input"
+        assert "finally" in fn_body, "handleChatSubmit must use a finally block to re-enable input"
         finally_idx = fn_body.index("finally")
-        finally_body = fn_body[finally_idx: finally_idx + 200]
-        assert "disabled" in finally_body or "focus" in finally_body, \
-            "Input must be re-enabled in finally block"
+        finally_body = fn_body[finally_idx : finally_idx + 200]
+        assert (
+            "disabled" in finally_body or "focus" in finally_body
+        ), "Input must be re-enabled in finally block"
 
 
 # ---------------------------------------------------------------------------

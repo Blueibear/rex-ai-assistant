@@ -15,8 +15,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).parent.parent
 HTML_PATH = REPO_ROOT / "rex" / "dashboard" / "templates" / "index.html"
 JS_PATH = REPO_ROOT / "rex" / "dashboard" / "static" / "js" / "dashboard.js"
@@ -34,6 +32,7 @@ def _js() -> str:
 # HTML structure: input field exists in chat section
 # ---------------------------------------------------------------------------
 
+
 class TestChatInputHtml:
     def test_chat_input_exists(self):
         html = _html()
@@ -43,7 +42,7 @@ class TestChatInputHtml:
         html = _html()
         # Find the line with chat-input
         lines = html.splitlines()
-        input_line = next((l for l in lines if 'id="chat-input"' in l), None)
+        input_line = next((ln for ln in lines if 'id="chat-input"' in ln), None)
         assert input_line is not None, "chat-input element not found"
         assert 'type="text"' in input_line, "chat-input must be type=text"
 
@@ -53,36 +52,38 @@ class TestChatInputHtml:
 
     def test_send_button_exists(self):
         html = _html()
-        assert 'type="submit"' in html or 'Send' in html, "Send button must exist"
+        assert 'type="submit"' in html or "Send" in html, "Send button must exist"
 
     def test_send_button_in_chat_form(self):
         html = _html()
         # The Send button should be inside chat-form
         chat_form_start = html.find('id="chat-form"')
         assert chat_form_start != -1, "chat-form not found"
-        form_block = html[chat_form_start:chat_form_start + 500]
-        assert 'Send' in form_block or 'type="submit"' in form_block, \
-            "Send button must be inside chat-form"
+        form_block = html[chat_form_start : chat_form_start + 500]
+        assert (
+            "Send" in form_block or 'type="submit"' in form_block
+        ), "Send button must be inside chat-form"
 
     def test_chat_input_in_chat_section(self):
         html = _html()
         chat_section_start = html.find('id="chat-section"')
         assert chat_section_start != -1, "chat-section not found"
-        chat_section_end = html.find('</section>', chat_section_start)
+        chat_section_end = html.find("</section>", chat_section_start)
         chat_section = html[chat_section_start:chat_section_end]
         assert 'id="chat-input"' in chat_section, "chat-input must be inside chat-section"
 
     def test_chat_input_placeholder(self):
         html = _html()
         lines = html.splitlines()
-        input_line = next((l for l in lines if 'id="chat-input"' in l), None)
+        input_line = next((ln for ln in lines if 'id="chat-input"' in ln), None)
         assert input_line is not None
-        assert 'placeholder' in input_line, "chat-input should have a placeholder"
+        assert "placeholder" in input_line, "chat-input should have a placeholder"
 
 
 # ---------------------------------------------------------------------------
 # JS: focus on chat panel open
 # ---------------------------------------------------------------------------
+
 
 class TestChatInputFocus:
     def test_focus_called_on_chat_section_switch(self):
@@ -92,27 +93,29 @@ class TestChatInputFocus:
         # Find the case 'chat' block
         case_chat_idx = js.index("case 'chat':")
         # Grab the next 300 chars to check for focus call
-        block = js[case_chat_idx:case_chat_idx + 300]
-        assert "focus()" in block, \
-            "chat-input.focus() must be called when switching to chat section"
+        block = js[case_chat_idx : case_chat_idx + 300]
+        assert (
+            "focus()" in block
+        ), "chat-input.focus() must be called when switching to chat section"
 
     def test_focus_uses_chat_input_selector(self):
         js = _js()
         case_chat_idx = js.index("case 'chat':")
-        block = js[case_chat_idx:case_chat_idx + 300]
-        assert "chat-input" in block, \
-            "focus must target #chat-input in the chat case block"
+        block = js[case_chat_idx : case_chat_idx + 300]
+        assert "chat-input" in block, "focus must target #chat-input in the chat case block"
 
     def test_focus_also_called_after_send_in_finally(self):
         js = _js()
         # After submit, focus should be restored
-        assert "input.focus()" in js or "inp.focus()" in js, \
-            "focus must be restored after send (in finally or catch)"
+        assert (
+            "input.focus()" in js or "inp.focus()" in js
+        ), "focus must be restored after send (in finally or catch)"
 
 
 # ---------------------------------------------------------------------------
 # JS: form submission wired
 # ---------------------------------------------------------------------------
+
 
 class TestChatFormSubmit:
     def test_chat_form_submit_listener_registered(self):
@@ -124,9 +127,8 @@ class TestChatFormSubmit:
         form_idx = js.find("chat-form")
         assert form_idx != -1
         # Check for addEventListener with submit within 100 chars of chat-form
-        nearby = js[form_idx:form_idx + 100]
-        assert "submit" in nearby, \
-            "chat-form submit event listener must be registered"
+        nearby = js[form_idx : form_idx + 100]
+        assert "submit" in nearby, "chat-form submit event listener must be registered"
 
     def test_handle_chat_submit_function_exists(self):
         js = _js()
@@ -140,8 +142,7 @@ class TestChatFormSubmit:
         body_start = js.index("{", fn_idx)
         body_end = js.index("\n    }", body_start)
         body = js[body_start:body_end]
-        assert "preventDefault" in body, \
-            "handleChatSubmit must call event.preventDefault()"
+        assert "preventDefault" in body, "handleChatSubmit must call event.preventDefault()"
 
     def test_handle_chat_submit_reads_chat_input(self):
         js = _js()
@@ -149,13 +150,13 @@ class TestChatFormSubmit:
         body_start = js.index("{", fn_idx)
         body_end = js.index("\n    }", body_start)
         body = js[body_start:body_end]
-        assert "chat-input" in body, \
-            "handleChatSubmit must read value from #chat-input"
+        assert "chat-input" in body, "handleChatSubmit must read value from #chat-input"
 
 
 # ---------------------------------------------------------------------------
 # JS: input clears after send
 # ---------------------------------------------------------------------------
+
 
 class TestInputClearsAfterSend:
     def test_input_value_reset_after_send(self):
@@ -165,14 +166,15 @@ class TestInputClearsAfterSend:
         body_end = js.index("\n    }", body_start)
         body = js[body_start:body_end]
         # input.value = '' clears the input
-        assert "input.value = ''" in body or 'input.value = ""' in body, \
-            "handleChatSubmit must clear input.value after send"
+        assert (
+            "input.value = ''" in body or 'input.value = ""' in body
+        ), "handleChatSubmit must clear input.value after send"
 
     def test_input_cleared_before_api_call(self):
         js = _js()
         fn_idx = js.index("handleChatSubmit")
         # Use a wide window — function body is large with streaming implementation
-        body = js[fn_idx: fn_idx + 6000]
+        body = js[fn_idx : fn_idx + 6000]
         clear_idx = body.find("input.value = ''")
         if clear_idx == -1:
             clear_idx = body.find('input.value = ""')
@@ -182,13 +184,13 @@ class TestInputClearsAfterSend:
         net_idx = api_idx if api_idx != -1 else fetch_idx
         assert clear_idx != -1, "input.value clear not found"
         assert net_idx != -1, "api() or fetch() call not found"
-        assert clear_idx < net_idx, \
-            "input must be cleared before the API call (optimistic UX)"
+        assert clear_idx < net_idx, "input must be cleared before the API call (optimistic UX)"
 
 
 # ---------------------------------------------------------------------------
 # JS: empty message no-op
 # ---------------------------------------------------------------------------
+
 
 class TestEmptyMessageNoOp:
     def test_empty_message_guard_exists(self):
@@ -198,8 +200,9 @@ class TestEmptyMessageNoOp:
         body_end = js.index("\n    }", body_start)
         body = js[body_start:body_end]
         # if (!message) return; or equivalent
-        assert "if (!message)" in body or "if (!message) return" in body, \
-            "handleChatSubmit must guard against empty messages"
+        assert (
+            "if (!message)" in body or "if (!message) return" in body
+        ), "handleChatSubmit must guard against empty messages"
 
     def test_message_is_trimmed_before_check(self):
         js = _js()
@@ -208,8 +211,7 @@ class TestEmptyMessageNoOp:
         body_end = js.index("\n    }", body_start)
         body = js[body_start:body_end]
         # trim() should be called so whitespace-only messages are rejected
-        assert ".trim()" in body, \
-            "input value must be .trim()-ed before checking if empty"
+        assert ".trim()" in body, "input value must be .trim()-ed before checking if empty"
 
     def test_empty_guard_before_dom_modification(self):
         js = _js()
@@ -221,23 +223,31 @@ class TestEmptyMessageNoOp:
         dom_idx = body.find("innerHTML")
         assert guard_idx != -1
         assert dom_idx != -1
-        assert guard_idx < dom_idx, \
-            "Empty message guard must come before any DOM modification"
+        assert guard_idx < dom_idx, "Empty message guard must come before any DOM modification"
 
 
 # ---------------------------------------------------------------------------
 # Typecheck
 # ---------------------------------------------------------------------------
 
+
 class TestTypecheck:
     def test_mypy_passes(self):
         result = subprocess.run(
-            [sys.executable, "-m", "mypy", "rex/", "--ignore-missing-imports",
-             "--no-error-summary"],
+            [
+                sys.executable,
+                "-m",
+                "mypy",
+                "rex/",
+                "--ignore-missing-imports",
+                "--no-error-summary",
+            ],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
         )
         # Pre-existing errors are acceptable; just must not crash
-        assert result.returncode in (0, 1), \
-            f"mypy crashed (exit {result.returncode}):\n{result.stderr}"
+        assert result.returncode in (
+            0,
+            1,
+        ), f"mypy crashed (exit {result.returncode}):\n{result.stderr}"

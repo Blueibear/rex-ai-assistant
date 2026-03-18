@@ -125,15 +125,15 @@ class TestPreCommitHook:
 
     def test_precommit_config_includes_detect_secrets_hook(self):
         content = PRECOMMIT_CONFIG.read_text(encoding="utf-8")
-        assert "detect-secrets" in content, (
-            ".pre-commit-config.yaml must include detect-secrets hook"
-        )
+        assert (
+            "detect-secrets" in content
+        ), ".pre-commit-config.yaml must include detect-secrets hook"
 
     def test_precommit_config_references_baseline(self):
         content = PRECOMMIT_CONFIG.read_text(encoding="utf-8")
-        assert ".secrets.baseline" in content, (
-            "pre-commit detect-secrets hook must reference .secrets.baseline"
-        )
+        assert (
+            ".secrets.baseline" in content
+        ), "pre-commit detect-secrets hook must reference .secrets.baseline"
 
 
 # ---------------------------------------------------------------------------
@@ -155,9 +155,7 @@ class TestCISecretScanJob:
 
     def test_ci_workflow_secret_scan_uses_baseline(self):
         content = CI_WORKFLOW.read_text(encoding="utf-8")
-        assert ".secrets.baseline" in content, (
-            "CI secret-scan job must reference .secrets.baseline"
-        )
+        assert ".secrets.baseline" in content, "CI secret-scan job must reference .secrets.baseline"
 
 
 # ---------------------------------------------------------------------------
@@ -171,19 +169,19 @@ class TestScanDocumentation:
 
     def test_report_documents_false_positive_rationale(self):
         content = SECRET_SCAN_REPORT.read_text(encoding="utf-8")
-        assert "false positive" in content.lower(), (
-            "Report must document that all findings are false positives"
-        )
+        assert (
+            "false positive" in content.lower()
+        ), "Report must document that all findings are false positives"
 
     def test_report_documents_remediation_status(self):
         content = SECRET_SCAN_REPORT.read_text(encoding="utf-8")
-        assert "rotation" in content.lower() or "rotate" in content.lower(), (
-            "Report must address rotation status for any findings"
-        )
+        assert (
+            "rotation" in content.lower() or "rotate" in content.lower()
+        ), "Report must address rotation status for any findings"
 
     def test_report_documents_prevention_mechanism(self):
         content = SECRET_SCAN_REPORT.read_text(encoding="utf-8")
         # Must document at least one prevention approach
-        assert "pre-commit" in content.lower() or "ci" in content.upper(), (
-            "Report must document the prevention mechanism (pre-commit or CI)"
-        )
+        assert (
+            "pre-commit" in content.lower() or "ci" in content.upper()
+        ), "Report must document the prevention mechanism (pre-commit or CI)"

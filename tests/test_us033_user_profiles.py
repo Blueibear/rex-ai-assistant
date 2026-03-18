@@ -10,6 +10,7 @@ Acceptance criteria:
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -17,10 +18,8 @@ import pytest
 from rex.identity import (
     create_user_profile,
     get_user_profile,
-    list_known_users,
     update_user_preferences,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -115,7 +114,7 @@ def test_update_preferences_overwrites_key(mem_dir: Path) -> None:
 def test_update_preferences_updates_last_updated(mem_dir: Path) -> None:
     create_user_profile("iris", "Iris", memory_dir=mem_dir)
     before = json.loads((mem_dir / "iris" / "core.json").read_text())["last_updated"]
-    import time; time.sleep(0.01)
+    time.sleep(0.01)
     update_user_preferences("iris", {"x": 1}, memory_dir=mem_dir)
     after = json.loads((mem_dir / "iris" / "core.json").read_text())["last_updated"]
     # last_updated should be >= before (may be equal within same second)
@@ -161,7 +160,9 @@ def test_get_user_profile_after_update(mem_dir: Path) -> None:
     assert profile["preferences"]["b"] == 2
 
 
-def test_list_known_users_includes_created_profile(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_list_known_users_includes_created_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """list_known_users uses the real Memory dir; test via a controlled mem dir."""
     mem_dir = tmp_path / "Memory"
     mem_dir.mkdir()

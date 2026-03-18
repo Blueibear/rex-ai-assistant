@@ -9,8 +9,6 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from rex.contracts import ToolCall
 from rex.workflow import (
     Workflow,
@@ -20,7 +18,6 @@ from rex.workflow import (
     validate_workflow_steps,
 )
 from rex.workflow_runner import WorkflowRunner
-
 
 # ---------------------------------------------------------------------------
 # Helpers

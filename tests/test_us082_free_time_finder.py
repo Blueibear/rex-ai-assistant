@@ -100,9 +100,7 @@ class TestReturnsSlotList:
                 event_id="x",
             )
         ]
-        result = find_free_slots(
-            busy, _utc(MONDAY, 9), _utc(MONDAY, 18), 30
-        )
+        result = find_free_slots(busy, _utc(MONDAY, 9), _utc(MONDAY, 18), 30)
         assert result == []
 
 
@@ -118,9 +116,9 @@ class TestOverlappingEventsExcluded:
         for slot in result:
             for block in busy:
                 # Slot must not overlap [block.start, block.end)
-                assert not (slot.start < block.end and slot.end > block.start), (
-                    f"{slot} overlaps {block}"
-                )
+                assert not (
+                    slot.start < block.end and slot.end > block.start
+                ), f"{slot} overlaps {block}"
 
     def test_injected_busy_block_excluded(self) -> None:
         # Block from 9:30 to 10:30 on Monday
@@ -132,14 +130,11 @@ class TestOverlappingEventsExcluded:
                 event_id="injected",
             )
         ]
-        result = find_free_slots(
-            busy, _utc(MONDAY, 9), _utc(MONDAY, 12), 30
-        )
+        result = find_free_slots(busy, _utc(MONDAY, 9), _utc(MONDAY, 12), 30)
         for slot in result:
             # No slot should overlap 09:30–10:30
             assert not (
-                slot.start < _utc(MONDAY, 10, 30)
-                and slot.end > _utc(MONDAY, 9, 30)
+                slot.start < _utc(MONDAY, 10, 30) and slot.end > _utc(MONDAY, 9, 30)
             ), f"{slot} overlaps busy block"
 
     def test_adjacent_slot_before_busy_block_is_valid(self) -> None:
@@ -152,9 +147,7 @@ class TestOverlappingEventsExcluded:
                 event_id="m1",
             )
         ]
-        result = find_free_slots(
-            busy, _utc(MONDAY, 9), _utc(MONDAY, 12), 30
-        )
+        result = find_free_slots(busy, _utc(MONDAY, 9), _utc(MONDAY, 12), 30)
         starts = [s.start for s in result]
         assert _utc(MONDAY, 9) in starts
 
@@ -168,9 +161,7 @@ class TestOverlappingEventsExcluded:
                 event_id="m1",
             )
         ]
-        result = find_free_slots(
-            busy, _utc(MONDAY, 9), _utc(MONDAY, 12), 30
-        )
+        result = find_free_slots(busy, _utc(MONDAY, 9), _utc(MONDAY, 12), 30)
         starts = [s.start for s in result]
         assert _utc(MONDAY, 10) in starts
 
@@ -190,9 +181,7 @@ class TestOverlappingEventsExcluded:
                 event_id="b",
             ),
         ]
-        result = find_free_slots(
-            busy, _utc(MONDAY, 9), _utc(MONDAY, 12), 30
-        )
+        result = find_free_slots(busy, _utc(MONDAY, 9), _utc(MONDAY, 12), 30)
         # Exactly one slot should fit in the 10:00–11:00 gap
         gap_slots = [s for s in result if s.start >= _utc(MONDAY, 10)]
         assert any(s.start == _utc(MONDAY, 10) for s in gap_slots)
@@ -207,9 +196,7 @@ class TestOverlappingEventsExcluded:
                 event_id="m",
             )
         ]
-        result = find_free_slots(
-            busy, MONDAY, TUESDAY + timedelta(days=1), 30
-        )
+        result = find_free_slots(busy, MONDAY, TUESDAY + timedelta(days=1), 30)
         tuesday_slots = [s for s in result if s.start.date() == TUESDAY.date()]
         assert len(tuesday_slots) > 0
 
@@ -222,9 +209,7 @@ class TestOverlappingEventsExcluded:
 class TestAtLeastThreeSlots:
     def test_full_week_yields_at_least_three(self) -> None:
         busy = get_stub_busy(MONDAY, FRIDAY + timedelta(days=1))
-        result = find_free_slots(
-            busy, MONDAY, FRIDAY + timedelta(days=1), 30
-        )
+        result = find_free_slots(busy, MONDAY, FRIDAY + timedelta(days=1), 30)
         assert len(result) >= 3, f"Expected ≥3 slots, got {len(result)}"
 
     def test_single_day_yields_at_least_three(self) -> None:
@@ -234,16 +219,12 @@ class TestAtLeastThreeSlots:
         assert len(result) >= 3, f"Expected ≥3 slots on Monday, got {len(result)}"
 
     def test_empty_calendar_yields_at_least_three(self) -> None:
-        result = find_free_slots(
-            [], MONDAY, MONDAY + timedelta(days=1), 30
-        )
+        result = find_free_slots([], MONDAY, MONDAY + timedelta(days=1), 30)
         assert len(result) >= 3
 
     def test_max_slots_parameter_respected(self) -> None:
         busy = get_stub_busy(MONDAY, FRIDAY + timedelta(days=1))
-        result = find_free_slots(
-            busy, MONDAY, FRIDAY + timedelta(days=1), 30, max_slots=3
-        )
+        result = find_free_slots(busy, MONDAY, FRIDAY + timedelta(days=1), 30, max_slots=3)
         assert len(result) == 3
 
     def test_max_slots_larger_than_available(self) -> None:
@@ -307,8 +288,7 @@ class TestAgainstStubData:
         # No slot should overlap 10:00–11:00
         for slot in result:
             assert not (
-                slot.start < _utc(THURSDAY, 11)
-                and slot.end > _utc(THURSDAY, 10)
+                slot.start < _utc(THURSDAY, 11) and slot.end > _utc(THURSDAY, 10)
             ), f"{slot} overlaps injected event"
 
     def test_stub_cleared_calendar_is_fully_free(self) -> None:

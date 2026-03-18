@@ -12,12 +12,10 @@ from __future__ import annotations
 import pytest
 
 from rex.tool_registry import (
-    MissingCredentialError,
     ToolMeta,
     ToolNotFoundError,
     ToolRegistry,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -235,6 +233,5 @@ def test_get_all_status_metadata_complete(registry: ToolRegistry) -> None:
     }
     for status in registry.get_all_status():
         assert required_keys.issubset(status.keys()), (
-            f"Missing keys in status for {status.get('name')}: "
-            f"{required_keys - status.keys()}"
+            f"Missing keys in status for {status.get('name')}: " f"{required_keys - status.keys()}"
         )

@@ -36,9 +36,9 @@ def test_ci_black_executed(ci_content: str) -> None:
 
 
 def test_ci_typecheck_job_present(ci_content: str) -> None:
-    assert "typecheck" in ci_content.lower() or "mypy" in ci_content, (
-        "CI must have a typecheck or mypy step"
-    )
+    assert (
+        "typecheck" in ci_content.lower() or "mypy" in ci_content
+    ), "CI must have a typecheck or mypy step"
 
 
 def test_ci_mypy_executed(ci_content: str) -> None:

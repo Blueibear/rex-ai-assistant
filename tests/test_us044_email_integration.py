@@ -13,15 +13,11 @@ import imaplib
 import json
 import smtplib
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock
 
-import pytest
-
-from rex.email_backends.base import EmailBackend, EmailEnvelope, SendResult
+from rex.email_backends.base import EmailEnvelope, SendResult
 from rex.email_backends.imap_smtp import ImapSmtpEmailBackend
 from rex.email_backends.stub import StubEmailBackend
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -229,9 +225,7 @@ def test_imap_backend_connect_network_failure() -> None:
         smtp_host="smtp.example.com",
         username="user@example.com",
         password="secret",
-        imap_client_factory=lambda: (_ for _ in ()).throw(
-            OSError("Connection refused")
-        ),
+        imap_client_factory=lambda: (_ for _ in ()).throw(OSError("Connection refused")),
     )
     result = backend.connect()
     assert result is False

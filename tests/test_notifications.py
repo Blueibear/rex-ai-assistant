@@ -9,16 +9,13 @@ from __future__ import annotations
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from rex.notifications.digest import DigestBackend, DigestBuilder
 from rex.notifications.escalation import EscalationEngine
 from rex.notifications.models import Notification, NotificationStore
 from rex.notifications.quiet_hours import QuietHoursGate
 from rex.notifications.router import NotificationRouter
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures

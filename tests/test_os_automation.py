@@ -1,8 +1,10 @@
 """Tests for OS automation module."""
 
-import pytest
 import tempfile
 from pathlib import Path
+
+import pytest
+
 from rex.os_automation import (
     OSAutomationService,
     get_os_service,
@@ -75,10 +77,7 @@ class TestOSAutomationService:
             service = OSAutomationService(data_path=str(tmppath))
 
             with pytest.raises(RuntimeError):
-                service.copy_file(
-                    str(tmppath / "nonexistent.txt"),
-                    str(tmppath / "dest.txt")
-                )
+                service.copy_file(str(tmppath / "nonexistent.txt"), str(tmppath / "dest.txt"))
 
     def test_move_file(self):
         """Test moving a file."""

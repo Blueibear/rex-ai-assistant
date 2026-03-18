@@ -64,6 +64,7 @@ def test_publish_event_has_timestamp():
     bus = EventBus()
     result = bus.publish("ts.event", {})
     from datetime import datetime
+
     assert isinstance(result.timestamp, datetime)
 
 
@@ -230,7 +231,9 @@ def test_event_propagation_is_thread_safe():
     bus.subscribe("thread.event", handler)
 
     threads = [
-        threading.Thread(target=bus.publish, args=(Event(event_type="thread.event", payload={"i": i}),))
+        threading.Thread(
+            target=bus.publish, args=(Event(event_type="thread.event", payload={"i": i}),)
+        )
         for i in range(20)
     ]
     for t in threads:

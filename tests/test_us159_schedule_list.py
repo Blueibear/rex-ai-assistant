@@ -32,8 +32,9 @@ def _non_local_env():
 
 @pytest.fixture()
 def app():
-    from rex.dashboard import dashboard_bp
     from flask import Flask
+
+    from rex.dashboard import dashboard_bp
 
     flask_app = Flask(__name__)
     flask_app.config["TESTING"] = True

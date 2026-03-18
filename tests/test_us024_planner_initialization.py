@@ -9,9 +9,9 @@ Acceptance criteria:
 
 import pytest
 
-from rex.planner import Planner, PlannerError, UnableToPlanError, InvalidWorkflowError
+from rex.planner import InvalidWorkflowError, Planner, PlannerError, UnableToPlanError
 from rex.policy_engine import PolicyEngine, reset_policy_engine
-from rex.tool_registry import ToolRegistry, ToolMeta, reset_tool_registry
+from rex.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
 
 
 @pytest.fixture(autouse=True)

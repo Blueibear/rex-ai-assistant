@@ -22,10 +22,10 @@ from rex.calendar_service import (
     set_calendar_service,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_service(tmp_path: Path) -> CalendarService:
     """Create an isolated CalendarService backed by a temp file."""
@@ -43,6 +43,7 @@ def _now() -> datetime:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def reset_calendar_service():
     """Prevent global singleton leaking between tests."""
@@ -54,6 +55,7 @@ def reset_calendar_service():
 # ---------------------------------------------------------------------------
 # Events retrieved
 # ---------------------------------------------------------------------------
+
 
 class TestEventsRetrieved:
     def test_connect_returns_true(self, tmp_path):
@@ -126,6 +128,7 @@ class TestEventsRetrieved:
 # ---------------------------------------------------------------------------
 # Events created
 # ---------------------------------------------------------------------------
+
 
 class TestEventsCreated:
     def test_create_event_returns_calendar_event(self, tmp_path):
@@ -214,6 +217,7 @@ class TestEventsCreated:
 # Errors handled
 # ---------------------------------------------------------------------------
 
+
 class TestErrorsHandled:
     def test_get_events_before_connect_returns_empty(self, tmp_path):
         """get_events() on a disconnected service with no in-memory events returns []."""
@@ -240,7 +244,7 @@ class TestErrorsHandled:
 
     def test_update_nonexistent_event_returns_none(self, tmp_path):
         svc = _make_service(tmp_path)
-        now = _now()
+        _now()
         result = svc.update_event("nonexistent-id-xyz", {"title": "New Title"})
         assert result is None
 

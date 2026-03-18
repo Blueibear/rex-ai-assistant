@@ -10,7 +10,6 @@ import pytest
 
 from rex.notifications.models import Notification, NotificationStore
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

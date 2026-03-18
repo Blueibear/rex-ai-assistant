@@ -14,11 +14,7 @@ from __future__ import annotations
 
 import importlib
 import re
-import subprocess
-import sys
 from pathlib import Path
-
-import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -125,9 +121,7 @@ class TestSidebarNavigation:
         """Navigation links are inside a sidebar element."""
         html = _html()
         # Find the sidebar block and confirm it has nav links
-        sidebar_match = re.search(
-            r'class="sidebar[^"]*"(.*?)</nav>', html, re.DOTALL
-        )
+        sidebar_match = re.search(r'class="sidebar[^"]*"(.*?)</nav>', html, re.DOTALL)
         assert sidebar_match is not None, "sidebar nav element not found"
         sidebar_html = sidebar_match.group(1)
         for section in ("chat", "voice", "schedule", "overview"):
@@ -203,9 +197,9 @@ class TestMinimumSize:
         """The min-width and min-height are set on #app."""
         css = _css()
         # Find the #app block that contains both min-width and min-height
-        app_block = re.search(r'#app\s*\{([^}]+)\}', css)
+        re.search(r"#app\s*\{([^}]+)\}", css)
         # There may be multiple #app blocks; check any of them
-        app_blocks = re.findall(r'#app\s*\{([^}]+)\}', css)
+        app_blocks = re.findall(r"#app\s*\{([^}]+)\}", css)
         combined = " ".join(app_blocks)
         assert "min-width" in combined
         assert "min-height" in combined

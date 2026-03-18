@@ -5,14 +5,11 @@ from __future__ import annotations
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from rex.notifications.escalation import EscalationEngine
 from rex.notifications.models import Notification, NotificationStore
 from rex.notifications.router import NotificationRouter
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -100,7 +97,9 @@ class TestPriorityPromotion:
         router = _make_router(store)
         n = _make_notification("low", escalation_due_at=_past())
         store.add(n)
-        engine = EscalationEngine(store, router, config={"notifications_escalation_delay_minutes": 30})
+        engine = EscalationEngine(
+            store, router, config={"notifications_escalation_delay_minutes": 30}
+        )
         engine.check_escalations()
         updated = next(x for x in store.get_unread() if x.id == n.id)
         assert updated.priority == "medium"
@@ -110,7 +109,9 @@ class TestPriorityPromotion:
         router = _make_router(store)
         n = _make_notification("medium", escalation_due_at=_past())
         store.add(n)
-        engine = EscalationEngine(store, router, config={"notifications_escalation_delay_minutes": 30})
+        engine = EscalationEngine(
+            store, router, config={"notifications_escalation_delay_minutes": 30}
+        )
         engine.check_escalations()
         updated = next(x for x in store.get_unread() if x.id == n.id)
         assert updated.priority == "high"
@@ -120,7 +121,9 @@ class TestPriorityPromotion:
         router = _make_router(store)
         n = _make_notification("high", escalation_due_at=_past())
         store.add(n)
-        engine = EscalationEngine(store, router, config={"notifications_escalation_delay_minutes": 30})
+        engine = EscalationEngine(
+            store, router, config={"notifications_escalation_delay_minutes": 30}
+        )
         with patch("rex.notifications.router._send_desktop"):
             engine.check_escalations()
         updated = next(x for x in store.get_unread() if x.id == n.id)
@@ -131,7 +134,9 @@ class TestPriorityPromotion:
         router = _make_router(store)
         n = _make_notification("critical", escalation_due_at=_past())
         store.add(n)
-        engine = EscalationEngine(store, router, config={"notifications_escalation_delay_minutes": 30})
+        engine = EscalationEngine(
+            store, router, config={"notifications_escalation_delay_minutes": 30}
+        )
         with patch("rex.notifications.router._send_desktop"):
             engine.check_escalations()
         updated = next(x for x in store.get_unread() if x.id == n.id)
@@ -149,7 +154,9 @@ class TestReroutingAndUpdate:
         router = _make_router(store)
         n = _make_notification("high", escalation_due_at=_past())
         store.add(n)
-        engine = EscalationEngine(store, router, config={"notifications_escalation_delay_minutes": 30})
+        engine = EscalationEngine(
+            store, router, config={"notifications_escalation_delay_minutes": 30}
+        )
         with patch("rex.notifications.router._send_desktop") as mock_desktop:
             engine.check_escalations()
         # critical/high re-routes → desktop called
@@ -160,7 +167,9 @@ class TestReroutingAndUpdate:
         router = _make_router(store)
         n = _make_notification("low", escalation_due_at=_past())
         store.add(n)
-        engine = EscalationEngine(store, router, config={"notifications_escalation_delay_minutes": 30})
+        engine = EscalationEngine(
+            store, router, config={"notifications_escalation_delay_minutes": 30}
+        )
         before = datetime.now(timezone.utc)
         engine.check_escalations()
         updated = next(x for x in store.get_unread() if x.id == n.id)
@@ -191,7 +200,9 @@ class TestReroutingAndUpdate:
         original_priority = "low"
         n = _make_notification(original_priority, escalation_due_at=_past())
         store.add(n)
-        engine = EscalationEngine(store, router, config={"notifications_escalation_delay_minutes": 30})
+        engine = EscalationEngine(
+            store, router, config={"notifications_escalation_delay_minutes": 30}
+        )
         engine.check_escalations()
         assert n.priority == original_priority
 

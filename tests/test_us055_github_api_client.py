@@ -7,10 +7,11 @@ Covers:
 - Typecheck passes
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
-from rex.github_service import GitHubService, Repository, reset_github_service
+import pytest
+
+from rex.github_service import GitHubService, Repository
 
 
 class TestGitHubReachable:
@@ -25,9 +26,10 @@ class TestGitHubReachable:
         fake_response.json.return_value = []
         fake_response.raise_for_status.return_value = None
 
-        with patch("rex.github_service.get_credential_manager") as mock_cm, patch(
-            "requests.request", return_value=fake_response
-        ) as mock_req:
+        with (
+            patch("rex.github_service.get_credential_manager") as mock_cm,
+            patch("requests.request", return_value=fake_response) as mock_req,
+        ):
             mock_manager = MagicMock()
             mock_manager.get_token.return_value = "ghp_test_token"
             mock_cm.return_value = mock_manager
@@ -146,9 +148,10 @@ class TestAuthenticationWorks:
         fake_response.json.return_value = []
         fake_response.raise_for_status.return_value = None
 
-        with patch("rex.github_service.get_credential_manager") as mock_cm, patch(
-            "requests.request", return_value=fake_response
-        ) as mock_req:
+        with (
+            patch("rex.github_service.get_credential_manager") as mock_cm,
+            patch("requests.request", return_value=fake_response) as mock_req,
+        ):
             mock_manager = MagicMock()
             mock_manager.get_token.return_value = "ghp_secret_token"
             mock_cm.return_value = mock_manager
@@ -167,9 +170,10 @@ class TestAuthenticationWorks:
         fake_response.json.return_value = []
         fake_response.raise_for_status.return_value = None
 
-        with patch("rex.github_service.get_credential_manager") as mock_cm, patch(
-            "requests.request", return_value=fake_response
-        ) as mock_req:
+        with (
+            patch("rex.github_service.get_credential_manager") as mock_cm,
+            patch("requests.request", return_value=fake_response) as mock_req,
+        ):
             mock_manager = MagicMock()
             mock_manager.get_token.return_value = "ghp_any_token"
             mock_cm.return_value = mock_manager
@@ -212,8 +216,9 @@ class TestAuthenticationWorks:
         fake_response.json.return_value = []
         fake_response.raise_for_status.return_value = None
 
-        with patch("rex.github_service.get_credential_manager") as mock_cm, patch(
-            "requests.request", return_value=fake_response
+        with (
+            patch("rex.github_service.get_credential_manager") as mock_cm,
+            patch("requests.request", return_value=fake_response),
         ):
             mock_manager = MagicMock()
             mock_manager.get_token.return_value = "tok123"

@@ -31,13 +31,11 @@ def test_ci_badge_present():
 
 def test_python_version_badge_present():
     text = _readme_text()
-    assert (
-        "python" in text.lower() and "badge" in text.lower()
-    ), "Python version badge not found"
+    assert "python" in text.lower() and "badge" in text.lower(), "Python version badge not found"
     # more specific check
-    assert "python-3.9" in text or "python%203.9" in text or "python-3.9%2B" in text, (
-        "Python version badge must reference Python 3.9"
-    )
+    assert (
+        "python-3.9" in text or "python%203.9" in text or "python-3.9%2B" in text
+    ), "Python version badge must reference Python 3.9"
 
 
 def test_license_badge_present():
@@ -46,9 +44,9 @@ def test_license_badge_present():
     assert "license" in text.lower(), "License badge/text not found"
     assert "MIT" in text, "License badge must reference MIT"
     # Specifically a badge image for license
-    assert re.search(r'badge.*license|license.*badge', text, re.IGNORECASE), (
-        "License badge (img with 'license' or 'badge') not found"
-    )
+    assert re.search(
+        r"badge.*license|license.*badge", text, re.IGNORECASE
+    ), "License badge (img with 'license' or 'badge') not found"
 
 
 def test_badges_appear_near_top():
@@ -78,31 +76,31 @@ EXPECTED_SECTIONS = [
 
 def test_major_sections_use_h2_headings():
     text = _readme_text()
-    h2_headings = re.findall(r'^## (.+)', text, re.MULTILINE)
+    h2_headings = re.findall(r"^## (.+)", text, re.MULTILINE)
     heading_text = " ".join(h2_headings).lower()
     for section in EXPECTED_SECTIONS:
-        assert section.lower() in heading_text, (
-            f"Expected level-2 heading for '{section}' not found"
-        )
+        assert (
+            section.lower() in heading_text
+        ), f"Expected level-2 heading for '{section}' not found"
 
 
 def test_no_major_section_uses_h1():
     """Only the title should be h1; major sections must be h2 or deeper."""
     lines = _readme_text().splitlines()
-    h1_lines = [l for l in lines if re.match(r'^# [^#]', l)]
+    h1_lines = [ln for ln in lines if re.match(r"^# [^#]", ln)]
     # Only the title line should be h1
-    assert len(h1_lines) == 1, (
-        f"Expected exactly 1 h1 heading (the title), found {len(h1_lines)}: {h1_lines}"
-    )
+    assert (
+        len(h1_lines) == 1
+    ), f"Expected exactly 1 h1 heading (the title), found {len(h1_lines)}: {h1_lines}"
 
 
 def test_sections_in_table_of_contents():
     """TOC entries should link to level-2 headings."""
     text = _readme_text()
-    toc_links = re.findall(r'\[.+?\]\(#.+?\)', text)
-    assert len(toc_links) >= 5, (
-        f"Table of Contents should have at least 5 links, found {len(toc_links)}"
-    )
+    toc_links = re.findall(r"\[.+?\]\(#.+?\)", text)
+    assert (
+        len(toc_links) >= 5
+    ), f"Table of Contents should have at least 5 links, found {len(toc_links)}"
 
 
 # ---------------------------------------------------------------------------
@@ -119,9 +117,9 @@ def test_windows_note_is_blockquote():
             windows_note_line = line
             break
     assert windows_note_line is not None, "Windows simpleaudio note not found in README"
-    assert windows_note_line.strip().startswith(">"), (
-        f"Windows note must be a blockquote (start with '>'), got: {windows_note_line!r}"
-    )
+    assert windows_note_line.strip().startswith(
+        ">"
+    ), f"Windows note must be a blockquote (start with '>'), got: {windows_note_line!r}"
 
 
 def test_advanced_install_note_is_blockquote():
@@ -133,9 +131,9 @@ def test_advanced_install_note_is_blockquote():
             adv_line = line
             break
     assert adv_line is not None, "Advanced/Developer Install note not found"
-    assert adv_line.strip().startswith(">"), (
-        f"Advanced install note must be a blockquote, got: {adv_line!r}"
-    )
+    assert adv_line.strip().startswith(
+        ">"
+    ), f"Advanced install note must be a blockquote, got: {adv_line!r}"
 
 
 def test_no_bare_bold_note_warnings():
@@ -144,8 +142,8 @@ def test_no_bare_bold_note_warnings():
     for line in lines:
         stripped = line.strip()
         # A line that starts with **Note but NOT as a blockquote is a violation
-        if re.match(r'^\*\*Note', stripped) and not stripped.startswith(">"):
-            assert False, (
+        if re.match(r"^\*\*Note", stripped) and not stripped.startswith(">"):
+            raise AssertionError(
                 f"Found bare **Note** warning not in a blockquote: {line!r}\n"
                 "Convert to '> **Note ...**: ...' format."
             )
@@ -160,17 +158,17 @@ def test_no_unclosed_code_fences():
     """Count of ``` delimiters must be even (every opened fence is closed)."""
     text = _readme_text()
     # Count standalone ``` occurrences (lines that start/end a fence)
-    fence_lines = [l for l in text.splitlines() if re.match(r'^```', l.strip())]
-    assert len(fence_lines) % 2 == 0, (
-        f"Odd number of ``` fence markers ({len(fence_lines)}) — unclosed code block"
-    )
+    fence_lines = [ln for ln in text.splitlines() if re.match(r"^```", ln.strip())]
+    assert (
+        len(fence_lines) % 2 == 0
+    ), f"Odd number of ``` fence markers ({len(fence_lines)}) — unclosed code block"
 
 
 def test_no_broken_links_in_toc():
     """TOC anchor links should have matching headings."""
     text = _readme_text()
-    toc_anchors = re.findall(r'\(#([^)]+)\)', text)
-    headings = re.findall(r'^#{1,6} (.+)', text, re.MULTILINE)
+    toc_anchors = re.findall(r"\(#([^)]+)\)", text)
+    headings = re.findall(r"^#{1,6} (.+)", text, re.MULTILINE)
 
     def to_anchor(heading: str) -> str:
         # Match GitHub's anchor algorithm:
@@ -178,15 +176,13 @@ def test_no_broken_links_in_toc():
         # 2. remove chars that are not letters, digits, spaces, or hyphens
         # 3. replace each space with a hyphen (NOT collapsing multiple spaces)
         anchor = heading.lower()
-        anchor = re.sub(r'[^a-z0-9 -]', '', anchor)
-        anchor = anchor.replace(' ', '-')
+        anchor = re.sub(r"[^a-z0-9 -]", "", anchor)
+        anchor = anchor.replace(" ", "-")
         return anchor
 
     heading_anchors = {to_anchor(h) for h in headings}
     for anchor in toc_anchors:
-        assert anchor in heading_anchors, (
-            f"TOC link '#{anchor}' does not match any heading anchor"
-        )
+        assert anchor in heading_anchors, f"TOC link '#{anchor}' does not match any heading anchor"
 
 
 def test_readme_has_content():
@@ -198,4 +194,6 @@ def test_readme_has_content():
 def test_title_is_present():
     text = _readme_text()
     first_line = text.strip().splitlines()[0]
-    assert first_line.startswith("# "), f"README must start with a level-1 title, got: {first_line!r}"
+    assert first_line.startswith(
+        "# "
+    ), f"README must start with a level-1 title, got: {first_line!r}"

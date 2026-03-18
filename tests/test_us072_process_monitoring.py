@@ -20,11 +20,9 @@ from rex.process_monitor import (
     ProcessNotWatchedError,
     ProcessStatus,
     RestartLimitExceededError,
-    RestartResult,
     get_process_monitor,
     set_process_monitor,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -312,7 +310,7 @@ def test_multiple_restarts_accumulate_count() -> None:
         new_pid = 2700 + i
         new_proc = _running_proc(pid=new_pid)
         with patch("rex.process_monitor.subprocess.Popen", return_value=new_proc):
-            result = monitor.restart(current_pid)
+            monitor.restart(current_pid)
         current_pid = new_pid
         # Mark as crashed for the next iteration
         monitor._records[current_pid].process = _crashed_proc(pid=current_pid)

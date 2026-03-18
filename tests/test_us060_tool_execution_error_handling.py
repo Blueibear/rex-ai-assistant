@@ -12,7 +12,6 @@ import pytest
 from rex.audit import AuditLogger, reset_audit_logger
 from rex.tool_router import (
     ApprovalRequiredError,
-    CredentialMissingError,
     PolicyDeniedError,
     execute_tool,
 )

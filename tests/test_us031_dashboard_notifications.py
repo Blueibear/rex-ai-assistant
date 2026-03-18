@@ -13,7 +13,6 @@ import json
 import threading
 import time
 from typing import Any
-from unittest.mock import patch
 
 import pytest
 
@@ -23,7 +22,6 @@ from rex.dashboard.sse import (
     get_broadcaster,
     set_broadcaster,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

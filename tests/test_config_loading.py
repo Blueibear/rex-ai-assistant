@@ -10,14 +10,11 @@ Acceptance criteria:
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
-import pytest
-
 from rex.config import AppConfig, build_app_config, load_config
-from rex.config_manager import DEFAULT_CONFIG, load_config as load_json_config
-
+from rex.config_manager import DEFAULT_CONFIG
+from rex.config_manager import load_config as load_json_config
 
 # ---------------------------------------------------------------------------
 # Criterion 1: config loads from config file
@@ -95,9 +92,7 @@ class TestConfigLoadsFromFile:
 
     def test_load_config_returns_app_config_type(self):
         """load_config always returns an AppConfig instance."""
-        json_cfg = {
-            "models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}
-        }
+        json_cfg = {"models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}}
         cfg = load_config(json_config=json_cfg, reload=True)
         assert isinstance(cfg, AppConfig)
 
@@ -126,36 +121,28 @@ class TestEnvironmentOverrides:
     def test_openai_api_key_absent_when_not_set(self, monkeypatch):
         """build_app_config returns None for OPENAI_API_KEY when not set."""
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-        json_cfg = {
-            "models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}
-        }
+        json_cfg = {"models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}}
         cfg = build_app_config(json_cfg)
         assert cfg.openai_api_key is None
 
     def test_brave_api_key_from_env(self, monkeypatch):
         """build_app_config reads BRAVE_API_KEY from environment."""
         monkeypatch.setenv("BRAVE_API_KEY", "brave-test-key")
-        json_cfg = {
-            "models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}
-        }
+        json_cfg = {"models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}}
         cfg = build_app_config(json_cfg)
         assert cfg.brave_api_key == "brave-test-key"
 
     def test_ha_token_from_env(self, monkeypatch):
         """build_app_config reads HA_TOKEN from environment."""
         monkeypatch.setenv("HA_TOKEN", "ha-long-lived-token")
-        json_cfg = {
-            "models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}
-        }
+        json_cfg = {"models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}}
         cfg = build_app_config(json_cfg)
         assert cfg.ha_token == "ha-long-lived-token"
 
     def test_speak_api_key_from_env(self, monkeypatch):
         """build_app_config reads REX_SPEAK_API_KEY from environment."""
         monkeypatch.setenv("REX_SPEAK_API_KEY", "speak-secret")
-        json_cfg = {
-            "models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}
-        }
+        json_cfg = {"models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}}
         cfg = build_app_config(json_cfg)
         assert cfg.speak_api_key == "speak-secret"
 
@@ -229,9 +216,7 @@ class TestMissingConfigHandledSafely:
 
     def test_load_config_with_minimal_json_does_not_raise(self):
         """load_config succeeds with a minimal valid json_config."""
-        json_cfg = {
-            "models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}
-        }
+        json_cfg = {"models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"}}
         cfg = load_config(json_config=json_cfg, reload=True)
         assert cfg is not None
 

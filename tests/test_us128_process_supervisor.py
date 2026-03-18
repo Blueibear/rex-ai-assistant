@@ -64,9 +64,9 @@ class TestUnitSection:
     @pytest.mark.parametrize("unit", EXPECTED_UNITS)
     def test_has_description(self, unit: str) -> None:
         content = _read_unit(unit)
-        assert re.search(r"^Description\s*=\s*.+", content, re.MULTILINE), (
-            f"{unit} missing Description= in [Unit]"
-        )
+        assert re.search(
+            r"^Description\s*=\s*.+", content, re.MULTILINE
+        ), f"{unit} missing Description= in [Unit]"
 
     @pytest.mark.parametrize("unit", EXPECTED_UNITS)
     def test_has_after_network(self, unit: str) -> None:
@@ -98,16 +98,16 @@ class TestRestartOnFailure:
     @pytest.mark.parametrize("unit", EXPECTED_UNITS)
     def test_restart_on_failure(self, unit: str) -> None:
         content = _read_unit(unit)
-        assert re.search(r"^Restart\s*=\s*on-failure", content, re.MULTILINE), (
-            f"{unit} does not set Restart=on-failure"
-        )
+        assert re.search(
+            r"^Restart\s*=\s*on-failure", content, re.MULTILINE
+        ), f"{unit} does not set Restart=on-failure"
 
     @pytest.mark.parametrize("unit", EXPECTED_UNITS)
     def test_restart_sec(self, unit: str) -> None:
         content = _read_unit(unit)
-        assert re.search(r"^RestartSec\s*=", content, re.MULTILINE), (
-            f"{unit} missing RestartSec= (backoff delay)"
-        )
+        assert re.search(
+            r"^RestartSec\s*=", content, re.MULTILINE
+        ), f"{unit} missing RestartSec= (backoff delay)"
 
 
 # ---------------------------------------------------------------------------
@@ -119,16 +119,16 @@ class TestBackoffLimit:
     @pytest.mark.parametrize("unit", EXPECTED_UNITS)
     def test_start_limit_burst(self, unit: str) -> None:
         content = _read_unit(unit)
-        assert re.search(r"^StartLimitBurst\s*=\s*\d+", content, re.MULTILINE), (
-            f"{unit} missing StartLimitBurst= (restart loop guard)"
-        )
+        assert re.search(
+            r"^StartLimitBurst\s*=\s*\d+", content, re.MULTILINE
+        ), f"{unit} missing StartLimitBurst= (restart loop guard)"
 
     @pytest.mark.parametrize("unit", EXPECTED_UNITS)
     def test_start_limit_interval(self, unit: str) -> None:
         content = _read_unit(unit)
-        assert re.search(r"^StartLimitIntervalSec\s*=", content, re.MULTILINE), (
-            f"{unit} missing StartLimitIntervalSec= (restart loop guard)"
-        )
+        assert re.search(
+            r"^StartLimitIntervalSec\s*=", content, re.MULTILINE
+        ), f"{unit} missing StartLimitIntervalSec= (restart loop guard)"
 
     @pytest.mark.parametrize("unit", EXPECTED_UNITS)
     def test_burst_limit_is_finite(self, unit: str) -> None:
@@ -136,9 +136,9 @@ class TestBackoffLimit:
         m = re.search(r"^StartLimitBurst\s*=\s*(\d+)", content, re.MULTILINE)
         assert m is not None, f"{unit} missing StartLimitBurst"
         burst = int(m.group(1))
-        assert 1 <= burst <= 20, (
-            f"{unit} StartLimitBurst={burst} is not a reasonable finite value (1-20)"
-        )
+        assert (
+            1 <= burst <= 20
+        ), f"{unit} StartLimitBurst={burst} is not a reasonable finite value (1-20)"
 
 
 # ---------------------------------------------------------------------------
@@ -150,13 +150,13 @@ class TestExecStart:
     @pytest.mark.parametrize("unit", EXPECTED_UNITS)
     def test_has_exec_start(self, unit: str) -> None:
         content = _read_unit(unit)
-        assert re.search(r"^ExecStart\s*=", content, re.MULTILINE), (
-            f"{unit} missing ExecStart="
-        )
+        assert re.search(r"^ExecStart\s*=", content, re.MULTILINE), f"{unit} missing ExecStart="
 
     def test_api_exec_start_references_flask_proxy(self) -> None:
         content = _read_unit("rex-api.service")
-        assert "flask_proxy.py" in content, "rex-api.service ExecStart must reference flask_proxy.py"
+        assert (
+            "flask_proxy.py" in content
+        ), "rex-api.service ExecStart must reference flask_proxy.py"
 
     def test_tts_exec_start_references_speak_api(self) -> None:
         content = _read_unit("rex-tts.service")
@@ -180,9 +180,9 @@ class TestInstallSection:
     @pytest.mark.parametrize("unit", EXPECTED_UNITS)
     def test_wanted_by_multi_user(self, unit: str) -> None:
         content = _read_unit(unit)
-        assert re.search(r"^WantedBy\s*=\s*multi-user\.target", content, re.MULTILINE), (
-            f"{unit} WantedBy must be multi-user.target for boot-time startup"
-        )
+        assert re.search(
+            r"^WantedBy\s*=\s*multi-user\.target", content, re.MULTILINE
+        ), f"{unit} WantedBy must be multi-user.target for boot-time startup"
 
 
 # ---------------------------------------------------------------------------
@@ -207,36 +207,34 @@ class TestDeploymentDocumentation:
 
     def test_doc_mentions_restart_policy(self) -> None:
         doc = self._doc()
-        assert "Restart" in doc or "restart" in doc, (
-            "docs/deployment.md must document the restart policy"
-        )
+        assert (
+            "Restart" in doc or "restart" in doc
+        ), "docs/deployment.md must document the restart policy"
 
     def test_doc_mentions_start_limit(self) -> None:
         doc = self._doc()
-        assert "StartLimit" in doc or "burst" in doc.lower(), (
-            "docs/deployment.md must document the burst/backoff limit"
-        )
+        assert (
+            "StartLimit" in doc or "burst" in doc.lower()
+        ), "docs/deployment.md must document the burst/backoff limit"
 
     def test_doc_mentions_liveness_check(self) -> None:
         doc = self._doc()
-        assert "/health/live" in doc, (
-            "docs/deployment.md must reference /health/live as the liveness check"
-        )
+        assert (
+            "/health/live" in doc
+        ), "docs/deployment.md must reference /health/live as the liveness check"
 
     def test_doc_mentions_journalctl(self) -> None:
         doc = self._doc()
-        assert "journalctl" in doc, (
-            "docs/deployment.md must document how to view logs (journalctl)"
-        )
+        assert "journalctl" in doc, "docs/deployment.md must document how to view logs (journalctl)"
 
     def test_doc_mentions_systemctl_enable(self) -> None:
         doc = self._doc()
-        assert "systemctl enable" in doc, (
-            "docs/deployment.md must show the systemctl enable command for boot startup"
-        )
+        assert (
+            "systemctl enable" in doc
+        ), "docs/deployment.md must show the systemctl enable command for boot startup"
 
     def test_doc_mentions_deploy_systemd_path(self) -> None:
         doc = self._doc()
-        assert "deploy/systemd" in doc, (
-            "docs/deployment.md must reference the deploy/systemd/ directory"
-        )
+        assert (
+            "deploy/systemd" in doc
+        ), "docs/deployment.md must reference the deploy/systemd/ directory"

@@ -69,7 +69,7 @@ class TestMigrateLegacyEnv:
         from rex.config_manager import migrate_legacy_env_to_config
 
         with patch.dict(os.environ, {"OPENAI_BASE_URL": "http://new-url/v1"}):
-            notes = migrate_legacy_env_to_config(
+            migrate_legacy_env_to_config(
                 env_path=str(env_file),
                 config_path=str(config_file),
             )
@@ -112,7 +112,8 @@ class TestMigrateLegacyEnv:
 
         result = subprocess.run(
             [
-                sys.executable, "-c",
+                sys.executable,
+                "-c",
                 "from rex.config_manager import migrate_legacy_env_to_config; "
                 f"notes = migrate_legacy_env_to_config(env_path={str(env_file)!r}, config_path={str(config_file)!r}); "
                 "print('\\n'.join(notes))",
@@ -124,7 +125,9 @@ class TestMigrateLegacyEnv:
             cwd=str(tmp_path),
         )
 
-        assert result.returncode == 0, f"Migration failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        assert (
+            result.returncode == 0
+        ), f"Migration failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         assert config_file.exists()
         config_data = json.loads(config_file.read_text())
         assert config_data["openai"]["base_url"] == "http://test-api/v1"

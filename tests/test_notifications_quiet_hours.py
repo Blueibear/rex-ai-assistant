@@ -4,11 +4,8 @@ from __future__ import annotations
 
 from datetime import time
 
-import pytest
-
 from rex.notifications.models import Notification
 from rex.notifications.quiet_hours import QuietHoursGate, _is_in_quiet_window, _parse_time
-
 
 # ---------------------------------------------------------------------------
 # _parse_time helpers
@@ -138,14 +135,20 @@ class TestIsQuietNow:
 
     def test_malformed_start_returns_false(self) -> None:
         gate = QuietHoursGate(
-            config={"notifications_quiet_hours_start": "bad", "notifications_quiet_hours_end": "07:00"},
+            config={
+                "notifications_quiet_hours_start": "bad",
+                "notifications_quiet_hours_end": "07:00",
+            },
             clock=lambda: time(3, 0),
         )
         assert gate.is_quiet_now() is False
 
     def test_malformed_end_returns_false(self) -> None:
         gate = QuietHoursGate(
-            config={"notifications_quiet_hours_start": "23:00", "notifications_quiet_hours_end": ""},
+            config={
+                "notifications_quiet_hours_start": "23:00",
+                "notifications_quiet_hours_end": "",
+            },
             clock=lambda: time(3, 0),
         )
         assert gate.is_quiet_now() is False

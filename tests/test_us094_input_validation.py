@@ -143,7 +143,10 @@ class TestChatValidation:
         )
         assert resp.status_code == 400
         body = resp.get_json()
-        assert "message" in body["error"]["message"].lower() or "length" in body["error"]["message"].lower()
+        assert (
+            "message" in body["error"]["message"].lower()
+            or "length" in body["error"]["message"].lower()
+        )
 
     def test_message_not_string_returns_400(
         self, client: Any, monkeypatch: pytest.MonkeyPatch

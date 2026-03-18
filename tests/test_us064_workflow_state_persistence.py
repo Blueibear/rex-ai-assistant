@@ -6,9 +6,6 @@ step progress is tracked correctly.
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 from rex.contracts import ToolCall
@@ -19,7 +16,6 @@ from rex.workflow import (
     generate_step_id,
     generate_workflow_id,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

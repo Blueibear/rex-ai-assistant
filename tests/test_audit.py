@@ -19,7 +19,6 @@ from rex.audit import (
     get_audit_logger,
     reset_audit_logger,
 )
-from rex.contracts import redact_sensitive_keys
 
 
 class TestLogEntry:
@@ -102,7 +101,7 @@ class TestLogEntry:
 
     def test_invalid_policy_decision(self):
         """LogEntry should reject invalid policy decisions."""
-        with pytest.raises(Exception):  # Pydantic validation error
+        with pytest.raises(Exception, match="policy_decision"):  # Pydantic validation error
             LogEntry(
                 action_id="act_test",
                 tool="test_tool",
@@ -117,7 +116,7 @@ class TestAuditLogger:
         """AuditLogger should create log directory if it doesn't exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
             log_dir = Path(tmpdir) / "logs" / "subdir"
-            logger = AuditLogger(log_dir=log_dir)
+            AuditLogger(log_dir=log_dir)
             assert log_dir.exists()
 
     def test_log_creates_file(self):
@@ -158,7 +157,7 @@ class TestAuditLogger:
             )
             logger.log(entry)
 
-            with open(logger.log_path, "r") as f:
+            with open(logger.log_path) as f:
                 content = f.read()
 
             lines = content.strip().split("\n")
@@ -183,7 +182,7 @@ class TestAuditLogger:
                 )
                 logger.log(entry)
 
-            with open(logger.log_path, "r") as f:
+            with open(logger.log_path) as f:
                 lines = [line for line in f.readlines() if line.strip()]
 
             assert len(lines) == 3
@@ -333,7 +332,7 @@ class TestAuditLogger:
             assert export_path.exists()
 
             # Verify exported content
-            with open(export_path, "r") as f:
+            with open(export_path) as f:
                 lines = [line for line in f.readlines() if line.strip()]
             assert len(lines) == 3
 

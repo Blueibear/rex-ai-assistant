@@ -33,8 +33,9 @@ def _non_local_env():
 
 @pytest.fixture()
 def app():
-    from rex.dashboard import dashboard_bp
     from flask import Flask
+
+    from rex.dashboard import dashboard_bp
 
     flask_app = Flask(__name__)
     flask_app.config["TESTING"] = True
@@ -208,7 +209,6 @@ class TestToggleEndpoint:
     def test_patch_job_not_found_returns_404(self, client, auth_token, monkeypatch):
         monkeypatch.setenv("REX_DASHBOARD_PASSWORD", "test-pass-160")
         monkeypatch.setenv("REX_DASHBOARD_ALLOW_LOCAL", "0")
-        from rex.scheduler import get_scheduler
 
         mock_scheduler = MagicMock()
         mock_scheduler.get_job.return_value = None
@@ -231,7 +231,6 @@ class TestToggleEndpoint:
     def test_patch_job_updates_enabled(self, client, auth_token, monkeypatch):
         monkeypatch.setenv("REX_DASHBOARD_PASSWORD", "test-pass-160")
         monkeypatch.setenv("REX_DASHBOARD_ALLOW_LOCAL", "0")
-        from datetime import datetime, timezone
 
         mock_job = MagicMock()
         mock_job.job_id = "job-abc"

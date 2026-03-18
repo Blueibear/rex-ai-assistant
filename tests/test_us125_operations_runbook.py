@@ -63,9 +63,9 @@ class TestRequiredSections:
 
     def test_has_fails_to_start_section(self) -> None:
         c = self._content()
-        assert "fail" in c or "fails to start" in c, (
-            "runbook must document what to do if a service fails to start"
-        )
+        assert (
+            "fail" in c or "fails to start" in c
+        ), "runbook must document what to do if a service fails to start"
 
     def test_has_process_list_section(self) -> None:
         c = self._content()
@@ -119,9 +119,7 @@ class TestErrorScenarios:
 
     def test_at_least_five_scenarios(self) -> None:
         count = self._count_scenarios()
-        assert count >= 5, (
-            f"runbook must document at least 5 error scenarios; found {count}"
-        )
+        assert count >= 5, f"runbook must document at least 5 error scenarios; found {count}"
 
     def test_migration_error_documented(self) -> None:
         c = self._content().lower()
@@ -142,9 +140,7 @@ class TestErrorScenarios:
     def test_each_scenario_has_diagnosis(self) -> None:
         """Each scenario section must mention diagnosis or symptom."""
         c = self._content().lower()
-        assert "diagnosis" in c or "symptom" in c, (
-            "runbook scenarios must include diagnosis steps"
-        )
+        assert "diagnosis" in c or "symptom" in c, "runbook scenarios must include diagnosis steps"
 
     def test_each_scenario_has_resolution(self) -> None:
         c = self._content().lower()

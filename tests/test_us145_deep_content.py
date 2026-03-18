@@ -1,6 +1,5 @@
 """Tests for US-145: Move deep technical content into secondary docs."""
 
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -30,7 +29,7 @@ def _extract_section(text: str, heading: str) -> str:
 def _count_section_lines(text: str, heading: str) -> int:
     section = _extract_section(text, heading)
     # Count non-empty lines only for a fair comparison
-    return len([l for l in section.splitlines() if l.strip()])
+    return len([ln for ln in section.splitlines() if ln.strip()])
 
 
 class TestReadmeSectionLength:
@@ -203,6 +202,7 @@ class TestTypecheck:
         # mypy exits 0 (no errors) or 1 (type errors) — both are acceptable
         # as pre-existing type errors are not this story's responsibility.
         # Exit 2+ indicates a crash/config error.
-        assert result.returncode in (0, 1), (
-            f"mypy crashed (exit {result.returncode}):\n{result.stderr}"
-        )
+        assert result.returncode in (
+            0,
+            1,
+        ), f"mypy crashed (exit {result.returncode}):\n{result.stderr}"

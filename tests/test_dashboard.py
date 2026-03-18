@@ -945,8 +945,6 @@ class TestUIErrorHandling:
 
         import rex.dashboard.routes as routes_module
 
-        original_load = routes_module.load_config
-
         def broken_load():
             raise RuntimeError("Config file corrupted")
 

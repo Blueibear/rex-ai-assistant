@@ -6,8 +6,8 @@ import pytest
 
 np = pytest.importorskip("numpy")
 
-from rex.wakeword.listener import WakeWordListener
-from rex.wakeword.utils import detect_wakeword
+from rex.wakeword.listener import WakeWordListener  # noqa: E402
+from rex.wakeword.utils import detect_wakeword  # noqa: E402
 
 
 class DummyModel:

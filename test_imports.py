@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Comprehensive import test for Rex modules - validates namespace structure."""
 
+# ruff: noqa: E402
 # Load .env before accessing any environment variables
 from utils.env_loader import load as _load_env
 
@@ -106,4 +107,3 @@ if __name__ == "__main__":
     print(f"{'=' * 50}")
 
     sys.exit(0 if all(results) else 1)
-

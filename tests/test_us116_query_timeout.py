@@ -18,7 +18,6 @@ import pytest
 
 from rex.db_pool import ConnectionPool, PoolConfig, QueryTimeoutError
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -62,9 +61,7 @@ class TestPoolConfigQueryTimeout:
         cfg = PoolConfig.from_env()
         assert cfg.query_timeout == pytest.approx(-1.0)
 
-    def test_from_env_invalid_falls_back_to_default(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_from_env_invalid_falls_back_to_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("DB_QUERY_TIMEOUT", "not-a-number")
         cfg = PoolConfig.from_env()
         assert cfg.query_timeout == pytest.approx(10.0)
@@ -148,7 +145,9 @@ class TestQueryTimeoutEnforced:
             # Far past any reasonable deadline
             return baseline + 1_000_000.0
 
-        monkeypatch.setattr(db_pool_mod, "time", type("T", (), {"monotonic": staticmethod(fake_monotonic)})())
+        monkeypatch.setattr(
+            db_pool_mod, "time", type("T", (), {"monotonic": staticmethod(fake_monotonic)})()
+        )
 
         pool = _pool(tmp_path, query_timeout=100.0)
         with pytest.raises(QueryTimeoutError):
@@ -202,9 +201,7 @@ class TestQueryTimeoutEnforced:
 
 
 class TestQueryTimeoutLogging:
-    def test_timeout_logs_warning(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_timeout_logs_warning(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         pool = _pool(tmp_path, query_timeout=0.001)
         with pytest.raises(QueryTimeoutError):
             with caplog.at_level("WARNING", logger="rex.db_pool"):
@@ -220,9 +217,7 @@ class TestQueryTimeoutLogging:
             with caplog.at_level("WARNING", logger="rex.db_pool"):
                 with pool.connect(query_context="fetch_notifications") as conn:
                     conn.execute(_SLOW_QUERY)
-        assert any(
-            "fetch_notifications" in record.message for record in caplog.records
-        )
+        assert any("fetch_notifications" in record.message for record in caplog.records)
 
     def test_timeout_does_not_log_query_parameters(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture

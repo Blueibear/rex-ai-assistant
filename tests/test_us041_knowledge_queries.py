@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from rex.knowledge_base import KnowledgeBase, set_knowledge_base, search_documents
+from rex.knowledge_base import KnowledgeBase, search_documents, set_knowledge_base
 
 
 @pytest.fixture(autouse=True)
@@ -225,9 +225,7 @@ def test_get_citations_no_match_returns_empty(isolated_kb):
 
 def test_search_after_delete_excludes_deleted_doc(isolated_kb):
     """Deleted documents do not appear in search results."""
-    doc = isolated_kb.ingest_text(
-        "temporary document content uniqueterm", title="Temp"
-    )
+    doc = isolated_kb.ingest_text("temporary document content uniqueterm", title="Temp")
     isolated_kb.delete_document(doc.doc_id)
     results = isolated_kb.search("uniqueterm")
     assert all(r.doc_id != doc.doc_id for r in results)

@@ -23,11 +23,9 @@ from rex.http_errors import (
     BAD_REQUEST,
     INTERNAL_ERROR,
     NOT_FOUND,
-    UNPROCESSABLE,
     error_response,
     install_error_envelope_handler,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -89,13 +87,13 @@ def client(app: Flask):  # type: ignore[type-arg]
 
 
 def _assert_envelope(data: dict, expected_code: str, expected_http: int, response: Any) -> None:
-    assert response.status_code == expected_http, (
-        f"Expected HTTP {expected_http}, got {response.status_code}"
-    )
+    assert (
+        response.status_code == expected_http
+    ), f"Expected HTTP {expected_http}, got {response.status_code}"
     assert "error" in data, f"Missing 'error' key in response: {data}"
-    assert data["error"]["code"] == expected_code, (
-        f"Expected code={expected_code!r}, got {data['error']['code']!r}"
-    )
+    assert (
+        data["error"]["code"] == expected_code
+    ), f"Expected code={expected_code!r}, got {data['error']['code']!r}"
     assert "message" in data["error"], "Missing 'message' in error envelope"
 
 
@@ -184,9 +182,9 @@ class TestEnvelopeShape5xx:
     def test_500_includes_request_id(self, client: Any) -> None:
         resp = client.get("/raise-500")
         data = resp.get_json()
-        assert "request_id" in data["error"], (
-            "500 response must include error.request_id for log correlation"
-        )
+        assert (
+            "request_id" in data["error"]
+        ), "500 response must include error.request_id for log correlation"
 
     def test_500_request_id_matches_g(self, client: Any) -> None:
         """The request_id in the envelope must equal g.request_id set in before_request."""

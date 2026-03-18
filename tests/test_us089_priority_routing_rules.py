@@ -13,19 +13,12 @@ Acceptance criteria:
 
 from __future__ import annotations
 
-from typing import Any
-
-import pytest
-
 from rex.notification_priority import NotificationPriority
 from rex.priority_notification_router import (
-    DigestEntry,
     PriorityNotificationRouter,
     PriorityRoutingConfig,
     RoutableNotification,
-    RoutingResult,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -327,8 +320,7 @@ class TestRoutingRulesConfigurable:
     def test_all_critical_immediate_regardless_of_count(self) -> None:
         router = make_router()
         results = [
-            router.route(make_notif(NotificationPriority.CRITICAL, nid=f"c{i}"))
-            for i in range(5)
+            router.route(make_notif(NotificationPriority.CRITICAL, nid=f"c{i}")) for i in range(5)
         ]
         assert all(r.dispatched_immediately for r in results)
         assert len(router.digest_queue) == 0

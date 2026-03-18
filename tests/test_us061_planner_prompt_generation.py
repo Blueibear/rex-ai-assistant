@@ -10,7 +10,7 @@ import pytest
 
 from rex.planner import Planner
 from rex.policy_engine import get_policy_engine, reset_policy_engine
-from rex.tool_registry import ToolMeta, ToolRegistry, get_tool_registry, reset_tool_registry
+from rex.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
 
 
 @pytest.fixture(autouse=True)
@@ -116,7 +116,9 @@ class TestAvailableToolsListed:
     def test_no_tools_returns_none_marker(self):
         planner = Planner(tool_registry=ToolRegistry(), policy_engine=get_policy_engine())
         result = planner.build_prompt("do something")
-        assert "none" in result.lower() or "no tools" in result.lower() or "Available tools" in result
+        assert (
+            "none" in result.lower() or "no tools" in result.lower() or "Available tools" in result
+        )
 
     def test_tools_section_labeled(self):
         planner = _make_planner(("time_now", "Get current time"))

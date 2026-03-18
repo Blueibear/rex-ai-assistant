@@ -50,9 +50,9 @@ def test_install_sh_runs_pip_install() -> None:
 
 def test_install_sh_installs_repo() -> None:
     content = (REPO_ROOT / "install.sh").read_text()
-    assert "[full]" in content or "REPO_DIR" in content, (
-        "install.sh must install from the repo directory with required extras"
-    )
+    assert (
+        "[full]" in content or "REPO_DIR" in content
+    ), "install.sh must install from the repo directory with required extras"
 
 
 def test_install_ps1_creates_venv() -> None:
@@ -62,30 +62,28 @@ def test_install_ps1_creates_venv() -> None:
 
 def test_install_ps1_runs_pip_install() -> None:
     content = (REPO_ROOT / "install.ps1").read_text()
-    assert "pip install" in content.lower() or "Pip" in content, (
-        "install.ps1 must run pip install"
-    )
+    assert "pip install" in content.lower() or "Pip" in content, "install.ps1 must run pip install"
 
 
 def test_install_ps1_installs_repo() -> None:
     content = (REPO_ROOT / "install.ps1").read_text()
-    assert "[full]" in content or "RepoDir" in content, (
-        "install.ps1 must install from the repo directory with required extras"
-    )
+    assert (
+        "[full]" in content or "RepoDir" in content
+    ), "install.ps1 must install from the repo directory with required extras"
 
 
 def test_install_sh_verifies_install() -> None:
     content = (REPO_ROOT / "install.sh").read_text()
-    assert "--help" in content or "verify" in content.lower(), (
-        "install.sh must verify the install succeeds"
-    )
+    assert (
+        "--help" in content or "verify" in content.lower()
+    ), "install.sh must verify the install succeeds"
 
 
 def test_install_ps1_verifies_install() -> None:
     content = (REPO_ROOT / "install.ps1").read_text()
-    assert "--help" in content or "verify" in content.lower(), (
-        "install.ps1 must verify the install succeeds"
-    )
+    assert (
+        "--help" in content or "verify" in content.lower()
+    ), "install.ps1 must verify the install succeeds"
 
 
 # ---------------------------------------------------------------------------
@@ -95,17 +93,17 @@ def test_install_ps1_verifies_install() -> None:
 
 def test_install_sh_success_message() -> None:
     content = (REPO_ROOT / "install.sh").read_text()
-    assert "Rex is installed" in content, (
-        "install.sh must print 'Rex is installed. Run `rex` to start.' on success"
-    )
+    assert (
+        "Rex is installed" in content
+    ), "install.sh must print 'Rex is installed. Run `rex` to start.' on success"
     assert "rex" in content, "install.sh success message must reference the `rex` command"
 
 
 def test_install_ps1_success_message() -> None:
     content = (REPO_ROOT / "install.ps1").read_text()
-    assert "Rex is installed" in content, (
-        "install.ps1 must print 'Rex is installed. Run `rex` to start.' on success"
-    )
+    assert (
+        "Rex is installed" in content
+    ), "install.ps1 must print 'Rex is installed. Run `rex` to start.' on success"
 
 
 # ---------------------------------------------------------------------------
@@ -115,22 +113,22 @@ def test_install_ps1_success_message() -> None:
 
 def test_install_sh_has_error_handling() -> None:
     content = (REPO_ROOT / "install.sh").read_text()
-    assert "fail" in content.lower() or "exit 1" in content, (
-        "install.sh must exit with a non-zero code on failure"
-    )
-    assert "ERROR" in content or "fail()" in content, (
-        "install.sh must print a specific error message on failure"
-    )
+    assert (
+        "fail" in content.lower() or "exit 1" in content
+    ), "install.sh must exit with a non-zero code on failure"
+    assert (
+        "ERROR" in content or "fail()" in content
+    ), "install.sh must print a specific error message on failure"
 
 
 def test_install_ps1_has_error_handling() -> None:
     content = (REPO_ROOT / "install.ps1").read_text()
-    assert "Fail" in content or "exit" in content, (
-        "install.ps1 must exit with a non-zero code on failure"
-    )
-    assert "ERROR" in content or "Fail" in content, (
-        "install.ps1 must print a specific error message on failure"
-    )
+    assert (
+        "Fail" in content or "exit" in content
+    ), "install.ps1 must exit with a non-zero code on failure"
+    assert (
+        "ERROR" in content or "Fail" in content
+    ), "install.ps1 must print a specific error message on failure"
 
 
 # ---------------------------------------------------------------------------

@@ -233,7 +233,9 @@ def test_error_in_trigger_is_logged(isolated_bus_and_registry, caplog):
     with caplog.at_level(logging.ERROR, logger="rex.event_triggers"):
         bus.publish("error.event", {})
 
-    assert any("trigger exploded" in r.message or "bad_trigger" in r.message for r in caplog.records)
+    assert any(
+        "trigger exploded" in r.message or "bad_trigger" in r.message for r in caplog.records
+    )
 
 
 def test_error_in_one_trigger_does_not_stop_others(isolated_bus_and_registry):

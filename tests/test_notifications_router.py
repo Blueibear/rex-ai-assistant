@@ -4,13 +4,10 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from rex.notifications.models import Notification, NotificationStore
 from rex.notifications.router import NotificationRouter, QuietHoursChecker
-
 
 # ---------------------------------------------------------------------------
 # Helpers

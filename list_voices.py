@@ -1,8 +1,9 @@
 """List available Windows TTS voices and test them."""
+
 import pyttsx3
 
 engine = pyttsx3.init()
-voices = engine.getProperty('voices')
+voices = engine.getProperty("voices")
 
 print("Available Windows TTS Voices:\n")
 for i, voice in enumerate(voices):

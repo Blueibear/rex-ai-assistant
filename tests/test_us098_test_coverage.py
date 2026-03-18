@@ -11,13 +11,8 @@ Acceptance criteria:
 
 from __future__ import annotations
 
-import json
 import re
-import subprocess
-import sys
 from pathlib import Path
-
-import pytest
 
 PROJECT_ROOT = Path(__file__).parent.parent
 COVERAGE_TXT = PROJECT_ROOT / "coverage.txt"
@@ -77,9 +72,7 @@ def test_coverage_txt_has_rex_modules() -> None:
     """coverage.txt must list rex package modules."""
     assert COVERAGE_TXT.exists(), "coverage.txt does not exist"
     content = COVERAGE_TXT.read_text(encoding="utf-8")
-    assert "rex\\" in content or "rex/" in content, (
-        "coverage.txt does not list rex package modules"
-    )
+    assert "rex\\" in content or "rex/" in content, "coverage.txt does not list rex package modules"
 
 
 # ---------------------------------------------------------------------------
@@ -105,9 +98,7 @@ def _parse_coverage_txt() -> list[tuple[str, int]]:
 def test_coverage_txt_parseable() -> None:
     """coverage.txt must contain parseable module coverage lines."""
     rows = _parse_coverage_txt()
-    assert len(rows) > 50, (
-        f"Expected >50 module lines in coverage.txt, found {len(rows)}"
-    )
+    assert len(rows) > 50, f"Expected >50 module lines in coverage.txt, found {len(rows)}"
 
 
 def test_below_50_modules_present_in_report() -> None:
@@ -137,9 +128,9 @@ def test_known_low_coverage_modules_visible() -> None:
         "plugin_loader",  # dynamic plugin loading
     ]
     for fragment in known_low:
-        assert fragment in content, (
-            f"Expected to find '{fragment}' in coverage.txt but it was missing"
-        )
+        assert (
+            fragment in content
+        ), f"Expected to find '{fragment}' in coverage.txt but it was missing"
 
 
 def test_below_50_modules_list() -> None:
@@ -171,17 +162,17 @@ def test_below_50_modules_list() -> None:
 def test_pyproject_has_coverage_section() -> None:
     """pyproject.toml must have a [tool.coverage.report] section."""
     content = PYPROJECT.read_text(encoding="utf-8")
-    assert "[tool.coverage.report]" in content, (
-        "pyproject.toml missing [tool.coverage.report] section"
-    )
+    assert (
+        "[tool.coverage.report]" in content
+    ), "pyproject.toml missing [tool.coverage.report] section"
 
 
 def test_pyproject_has_fail_under() -> None:
     """pyproject.toml must document a minimum coverage threshold via fail_under."""
     content = PYPROJECT.read_text(encoding="utf-8")
-    assert "fail_under" in content, (
-        "pyproject.toml [tool.coverage.report] section must contain 'fail_under'"
-    )
+    assert (
+        "fail_under" in content
+    ), "pyproject.toml [tool.coverage.report] section must contain 'fail_under'"
 
 
 def test_fail_under_value_reasonable() -> None:
@@ -190,9 +181,7 @@ def test_fail_under_value_reasonable() -> None:
     match = re.search(r"fail_under\s*=\s*(\d+)", content)
     assert match, "Could not parse fail_under value from pyproject.toml"
     value = int(match.group(1))
-    assert 50 <= value <= 100, (
-        f"fail_under = {value} is outside acceptable range [50, 100]"
-    )
+    assert 50 <= value <= 100, f"fail_under = {value} is outside acceptable range [50, 100]"
 
 
 def test_total_coverage_meets_threshold() -> None:
@@ -210,9 +199,9 @@ def test_total_coverage_meets_threshold() -> None:
     assert total_match, "Could not parse TOTAL line from coverage.txt"
     total_pct = int(total_match.group(1))
 
-    assert total_pct >= threshold, (
-        f"Total coverage {total_pct}% is below fail_under threshold {threshold}%"
-    )
+    assert (
+        total_pct >= threshold
+    ), f"Total coverage {total_pct}% is below fail_under threshold {threshold}%"
 
 
 # ---------------------------------------------------------------------------

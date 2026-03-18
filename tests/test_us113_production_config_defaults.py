@@ -10,12 +10,7 @@ Acceptance criteria:
 
 from __future__ import annotations
 
-import importlib
-import os
-
-import pytest
 from flask import Flask
-
 
 # ---------------------------------------------------------------------------
 # Helpers

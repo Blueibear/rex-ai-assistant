@@ -481,9 +481,7 @@ class Planner:
         """
         tools = self.tool_registry.list_tools()
         if tools:
-            tool_lines = "\n".join(
-                f"- {t.name}: {t.description}" for t in tools
-            )
+            tool_lines = "\n".join(f"- {t.name}: {t.description}" for t in tools)
             tools_section = f"Available tools:\n{tool_lines}"
         else:
             tools_section = "Available tools: none"

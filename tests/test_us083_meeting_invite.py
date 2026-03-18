@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import socket
 from datetime import datetime, timezone
-from unittest.mock import patch
 
 import pytest
 
@@ -24,7 +23,6 @@ from rex.calendar_backends.meeting_invite import (
     parse_invite_from_text,
     stub_send_invite,
 )
-
 
 # ---------------------------------------------------------------------------
 # MeetingInvite data structure
@@ -166,19 +164,13 @@ class TestParseInviteFromText:
         assert invite.attendees == []
 
     def test_multiple_attendees_parsed(self) -> None:
-        text = (
-            "Book a call with a@x.com, b@x.com, c@x.com "
-            "on 2026-04-01 from 09:00 to 09:30."
-        )
+        text = "Book a call with a@x.com, b@x.com, c@x.com " "on 2026-04-01 from 09:00 to 09:30."
         invite = parse_invite_from_text(text)
         assert len(invite.attendees) == 3
 
     def test_iso_datetime_fallback(self) -> None:
         """Parser falls back to ISO datetimes when no time-range pattern present."""
-        text = (
-            "Meeting on 2026-03-15T14:00 until 2026-03-15T15:00 "
-            "with dev@corp.com."
-        )
+        text = "Meeting on 2026-03-15T14:00 until 2026-03-15T15:00 " "with dev@corp.com."
         invite = parse_invite_from_text(text)
         assert invite.start_time is not None
         assert invite.start_time.hour == 14

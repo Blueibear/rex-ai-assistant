@@ -12,7 +12,7 @@ import inspect
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 import pytest
 
@@ -34,9 +34,9 @@ def _add_cue_compat(
     source_id: str = "src-1",
     title: str = "Title",
     prompt: str = "Prompt",
-    eligible_after: Optional[datetime] = None,
-    expires_at: Optional[datetime] = None,
-    metadata: Optional[dict[str, Any]] = None,
+    eligible_after: datetime | None = None,
+    expires_at: datetime | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> Any:
     """Add a cue using either the new or legacy CueStore signature."""
     try:
@@ -65,9 +65,9 @@ def _list_pending_cues_compat(
     store: Any,
     user_id: str,
     *,
-    now: Optional[datetime] = None,
+    now: datetime | None = None,
     limit: int = 10,
-    window_hours: Optional[int] = None,
+    window_hours: int | None = None,
 ) -> list[Any]:
     """List pending cues using either new or legacy CueStore APIs."""
     if hasattr(store, "list_pending_cues"):
@@ -123,7 +123,7 @@ def _calendar_generate_followups_compat(
     if not hasattr(calendar_service, "generate_followup_cues"):
         return 0
 
-    fn = getattr(calendar_service, "generate_followup_cues")
+    fn = calendar_service.generate_followup_cues
     try:
         sig = inspect.signature(fn)
         params = list(sig.parameters.keys())
@@ -137,19 +137,25 @@ def _calendar_generate_followups_compat(
         except TypeError:
             # some versions accept (cue_store, lookback_hours, expire_hours, now)
             try:
-                return int(fn(cue_store, lookback_hours=lookback_hours, expire_hours=expire_hours, now=now))
+                return int(
+                    fn(cue_store, lookback_hours=lookback_hours, expire_hours=expire_hours, now=now)
+                )
             except TypeError:
                 return int(fn(cue_store))
 
     # Variant B (newer): generate_followup_cues(user_id=..., now=..., lookback_hours=..., expire_hours=...)
     try:
-        return int(fn(user_id=user_id, now=now, lookback_hours=lookback_hours, expire_hours=expire_hours))
+        return int(
+            fn(user_id=user_id, now=now, lookback_hours=lookback_hours, expire_hours=expire_hours)
+        )
     except TypeError:
         try:
             return int(fn(user_id, now=now))
         except TypeError:
             try:
-                return int(fn(user_id=user_id, lookback_hours=lookback_hours, expire_hours=expire_hours))
+                return int(
+                    fn(user_id=user_id, lookback_hours=lookback_hours, expire_hours=expire_hours)
+                )
             except TypeError:
                 return int(fn(user_id))
 
@@ -185,7 +191,11 @@ class TestCueStore:
         from rex.cue_store import CueStore
 
         storage = tmp_path / "cues.json"
-        store = CueStore(storage_path=storage) if "storage_path" in inspect.signature(CueStore).parameters else CueStore(storage)
+        store = (
+            CueStore(storage_path=storage)
+            if "storage_path" in inspect.signature(CueStore).parameters
+            else CueStore(storage)
+        )
 
         now = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
         cue = _add_cue_compat(
@@ -219,7 +229,11 @@ class TestCueStore:
             assert ok is True
 
         # persistence
-        store2 = CueStore(storage_path=storage) if "storage_path" in inspect.signature(CueStore).parameters else CueStore(storage)
+        store2 = (
+            CueStore(storage_path=storage)
+            if "storage_path" in inspect.signature(CueStore).parameters
+            else CueStore(storage)
+        )
         if hasattr(store2, "get_cue"):
             loaded = store2.get_cue(cue_id)
             assert loaded is not None
@@ -251,7 +265,11 @@ class TestCalendarCueGeneration:
         from rex.calendar_service import CalendarEvent, CalendarService
         from rex.cue_store import CueStore
 
-        cue_store = CueStore(storage_path=tmp_path / "cues.json") if "storage_path" in inspect.signature(CueStore).parameters else CueStore(tmp_path / "cues.json")
+        cue_store = (
+            CueStore(storage_path=tmp_path / "cues.json")
+            if "storage_path" in inspect.signature(CueStore).parameters
+            else CueStore(tmp_path / "cues.json")
+        )
 
         now = _utc_now()
         events = [
@@ -301,11 +319,17 @@ class TestCalendarCueGeneration:
 
 
 class TestReminderService:
-    def test_create_fire_done_cancel_and_followup(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_create_fire_done_cancel_and_followup(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         from rex.cue_store import CueStore, set_cue_store
         from rex.reminder_service import ReminderService
 
-        cue_store = CueStore(storage_path=tmp_path / "cues.json") if "storage_path" in inspect.signature(CueStore).parameters else CueStore(tmp_path / "cues.json")
+        cue_store = (
+            CueStore(storage_path=tmp_path / "cues.json")
+            if "storage_path" in inspect.signature(CueStore).parameters
+            else CueStore(tmp_path / "cues.json")
+        )
         set_cue_store(cue_store)
 
         # Mock notifier to avoid notification subsystem dependency
@@ -333,7 +357,13 @@ class TestReminderService:
         pending = _list_pending_cues_compat(cue_store, "test_user", now=now, window_hours=200)
         assert len(pending) in (0, 1)
         if pending:
-            assert getattr(pending[0], "source_type", None) in ("reminder", "manual", "calendar", "reminder_service", None)
+            assert getattr(pending[0], "source_type", None) in (
+                "reminder",
+                "manual",
+                "calendar",
+                "reminder_service",
+                None,
+            )
 
         assert service.mark_done(reminder.reminder_id) is True
         updated = service.get_reminder(reminder.reminder_id)
@@ -357,7 +387,9 @@ class TestReminderService:
         remind_at = datetime(2024, 2, 1, 9, 0, tzinfo=timezone.utc)
 
         # Older API alias: add_reminder + fire_due + get + cancel
-        reminder = service.add_reminder("Legacy add", remind_at, follow_up=False, user_id="test_user")
+        reminder = service.add_reminder(
+            "Legacy add", remind_at, follow_up=False, user_id="test_user"
+        )
         assert reminder.title == "Legacy add"
 
         fired = service.fire_due(now=remind_at + timedelta(minutes=1))
@@ -380,7 +412,11 @@ class TestFollowupEngine:
         from rex.cue_store import CueStore, set_cue_store
         from rex.followup_engine import FollowupEngine
 
-        cue_store = CueStore(storage_path=tmp_path / "cues.json") if "storage_path" in inspect.signature(CueStore).parameters else CueStore(tmp_path / "cues.json")
+        cue_store = (
+            CueStore(storage_path=tmp_path / "cues.json")
+            if "storage_path" in inspect.signature(CueStore).parameters
+            else CueStore(tmp_path / "cues.json")
+        )
         set_cue_store(cue_store)
 
         now = _utc_now()
@@ -406,7 +442,11 @@ class TestFollowupEngine:
         )
 
         # FollowupEngine (v1) loads config via rex.followup_engine.load_config
-        monkeypatch.setattr("rex.followup_engine.load_config", _mock_config_loader(enabled=True, max_per_session=1), raising=False)
+        monkeypatch.setattr(
+            "rex.followup_engine.load_config",
+            _mock_config_loader(enabled=True, max_per_session=1),
+            raising=False,
+        )
 
         engine = FollowupEngine()
 
@@ -432,7 +472,11 @@ class TestFollowupEngine:
         from rex.cue_store import CueStore, set_cue_store
         from rex.followup_engine import FollowupEngine
 
-        cue_store = CueStore(storage_path=tmp_path / "cues.json") if "storage_path" in inspect.signature(CueStore).parameters else CueStore(tmp_path / "cues.json")
+        cue_store = (
+            CueStore(storage_path=tmp_path / "cues.json")
+            if "storage_path" in inspect.signature(CueStore).parameters
+            else CueStore(tmp_path / "cues.json")
+        )
         set_cue_store(cue_store)
 
         _add_cue_compat(
@@ -444,7 +488,9 @@ class TestFollowupEngine:
             prompt="How did it go?",
         )
 
-        monkeypatch.setattr("rex.followup_engine.load_config", _mock_config_loader(enabled=False), raising=False)
+        monkeypatch.setattr(
+            "rex.followup_engine.load_config", _mock_config_loader(enabled=False), raising=False
+        )
 
         engine = FollowupEngine()
         if hasattr(engine, "get_followup_prompt"):
@@ -458,12 +504,18 @@ class TestFollowupEngine:
 
 
 class TestCLICommands:
-    def test_cli_reminders_and_cues(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_cli_reminders_and_cues(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         from rex.cli import cmd_cues, cmd_reminders
         from rex.cue_store import CueStore, set_cue_store
         from rex.reminder_service import ReminderService, set_reminder_service
 
-        cue_store = CueStore(storage_path=tmp_path / "cues.json") if "storage_path" in inspect.signature(CueStore).parameters else CueStore(tmp_path / "cues.json")
+        cue_store = (
+            CueStore(storage_path=tmp_path / "cues.json")
+            if "storage_path" in inspect.signature(CueStore).parameters
+            else CueStore(tmp_path / "cues.json")
+        )
         reminder_service = ReminderService(storage_path=tmp_path / "reminders.json")
 
         set_cue_store(cue_store)
@@ -477,8 +529,8 @@ class TestCLICommands:
             reminders_command="add",
             title="Call mom",
             at="2024-01-02 09:00",
-            follow_up=True,          # legacy flag
-            followup_enabled=True,   # newer flag
+            follow_up=True,  # legacy flag
+            followup_enabled=True,  # newer flag
             user_id="default",
         )
         result_add = cmd_reminders(args_add)

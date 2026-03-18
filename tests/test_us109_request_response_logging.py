@@ -10,16 +10,13 @@ Acceptance criteria:
 
 from __future__ import annotations
 
-import logging
-import os
 from typing import Any
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import patch
 
 import pytest
 from flask import Flask, g, jsonify
 
 from rex.request_logging import _anonymize_ip, _log_full_ip, install_request_logging
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -115,9 +112,7 @@ class TestRequestLogging:
         with patch("rex.request_logging.logger") as mock_logger:
             client.get("/hello", environ_base={"REMOTE_ADDR": "10.0.0.5"})
         # Find the REQUEST call
-        request_calls = [
-            c for c in mock_logger.info.call_args_list if "REQUEST" in str(c)
-        ]
+        request_calls = [c for c in mock_logger.info.call_args_list if "REQUEST" in str(c)]
         assert len(request_calls) >= 1
 
     def test_request_log_includes_method(self, client: Any) -> None:
@@ -180,9 +175,7 @@ class TestResponseLogging:
     def test_response_logged_on_get(self, client: Any) -> None:
         with patch("rex.request_logging.logger") as mock_logger:
             client.get("/hello", environ_base={"REMOTE_ADDR": "10.0.0.1"})
-        response_calls = [
-            c for c in mock_logger.info.call_args_list if "RESPONSE" in str(c)
-        ]
+        response_calls = [c for c in mock_logger.info.call_args_list if "RESPONSE" in str(c)]
         assert len(response_calls) >= 1
 
     def test_response_log_includes_status_code(self, client: Any) -> None:
@@ -201,9 +194,7 @@ class TestResponseLogging:
         with patch("rex.request_logging.logger") as mock_logger:
             client.get("/hello", environ_base={"REMOTE_ADDR": "10.0.0.1"})
         # Find RESPONSE call and check 'ms' is mentioned
-        response_calls = [
-            str(c) for c in mock_logger.info.call_args_list if "RESPONSE" in str(c)
-        ]
+        response_calls = [str(c) for c in mock_logger.info.call_args_list if "RESPONSE" in str(c)]
         assert any("ms" in c for c in response_calls)
 
     def test_response_log_duration_is_non_negative(self, client: Any) -> None:
@@ -238,7 +229,6 @@ class TestRequestIdCorrelation:
 
         @app_instance.route("/capture")
         def _capture() -> str:
-            from flask import g
 
             captured.append(getattr(g, "request_id", ""))
             return "ok"
@@ -249,9 +239,7 @@ class TestRequestIdCorrelation:
         assert len(captured) == 1
         assert captured[0]  # non-empty UUID
 
-    def test_request_id_shared_between_request_and_response_logs(
-        self, app_instance: Flask
-    ) -> None:
+    def test_request_id_shared_between_request_and_response_logs(self, app_instance: Flask) -> None:
         """Both request and response log entries must include the same request_id."""
         captured_extras: list[dict] = []
 
@@ -292,9 +280,9 @@ class TestRequestIdCorrelation:
 
         assert captured_extras, "No log entries captured"
         for entry in captured_extras:
-            assert uuid_re.match(entry["request_id"]), (
-                f"request_id {entry['request_id']!r} is not a valid UUID4"
-            )
+            assert uuid_re.match(
+                entry["request_id"]
+            ), f"request_id {entry['request_id']!r} is not a valid UUID4"
 
     def test_different_requests_get_different_ids(self, app_instance: Flask) -> None:
         request_ids: list[str] = []
@@ -342,7 +330,7 @@ class TestBodyNotLogged:
 
     def test_response_body_not_in_logs(self, client: Any) -> None:
         with patch("rex.request_logging.logger") as mock_logger:
-            resp = client.get("/hello", environ_base={"REMOTE_ADDR": "10.0.0.1"})
+            client.get("/hello", environ_base={"REMOTE_ADDR": "10.0.0.1"})
         all_logged = " ".join(str(c) for c in mock_logger.info.call_args_list)
         # The response body is {"ok": true} — "ok" should not appear in logs
         # (it would appear if body were logged)

@@ -11,12 +11,10 @@ Acceptance criteria:
 
 from __future__ import annotations
 
-import os
 import signal
-import sys
 import threading
 from typing import Any
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -25,7 +23,6 @@ from rex.graceful_shutdown import (
     get_shutdown_handler,
     reset_shutdown_handler,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -237,9 +234,6 @@ class TestHandleSigterm:
 
     def test_sigterm_spawns_drain_thread(self) -> None:
         handler = GracefulShutdown(drain_timeout=0)
-        spawned_threads: list[threading.Thread] = []
-
-        original_thread_init = threading.Thread.__init__
 
         with patch("rex.graceful_shutdown.threading") as mock_threading:
             mock_event = MagicMock()
@@ -296,6 +290,7 @@ class TestFlaskIntegrationSpeakApi:
         """Return a test client for rex_speak_api."""
         monkeypatch.setenv("REX_SPEAK_API_KEY", "test-key-abc")
         import rex_speak_api as api
+
         api.app.config["TESTING"] = True
         return api.app.test_client()
 
@@ -323,6 +318,7 @@ class TestFlaskIntegrationSpeakApi:
         # Mock TTS so it doesn't try to load models; use a TextToSpeechError
         # to return a known non-503 status.
         from rex.assistant_errors import TextToSpeechError as TtsErr
+
         with patch("rex_speak_api._get_tts_engine", side_effect=TtsErr("no tts")):
             resp = speak_client.post(
                 "/speak",
@@ -341,6 +337,7 @@ class TestFlaskIntegrationAgentServer:
     @pytest.fixture()
     def agent_app(self) -> Any:
         from rex.computers.agent_server import create_app
+
         flask_app = create_app(token="test-token", allowlist=frozenset({"echo"}))
         flask_app.config["TESTING"] = True
         return flask_app.test_client()

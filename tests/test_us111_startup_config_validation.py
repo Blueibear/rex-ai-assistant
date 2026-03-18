@@ -12,7 +12,6 @@ Acceptance criteria:
 
 from __future__ import annotations
 
-import sys
 from unittest.mock import patch
 
 import pytest
@@ -24,7 +23,6 @@ from rex.startup_validation import (
     check_startup_env,
     validate_startup_env,
 )
-
 
 # ---------------------------------------------------------------------------
 # _validate_int

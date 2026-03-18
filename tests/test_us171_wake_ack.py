@@ -1,8 +1,8 @@
 """Tests for US-171: Immediate audio acknowledgment on wake word (verify and enforce)."""
 
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
 import asyncio
+from pathlib import Path
+
 import pytest
 
 REPO_ROOT = Path(__file__).parent.parent
@@ -103,8 +103,9 @@ class TestSafeAcknowledge:
     @pytest.mark.asyncio
     async def test_ack_runs_concurrently_with_recording(self):
         """Verify ack fires as a task while record_phrase runs."""
-        from rex.voice_loop import VoiceLoop
         import numpy as np
+
+        from rex.voice_loop import VoiceLoop
 
         order = []
 
@@ -123,7 +124,7 @@ class TestSafeAcknowledge:
         loop._acknowledge = _mock_ack
 
         ack_task = asyncio.create_task(loop._safe_acknowledge())
-        audio = await _mock_record()
+        await _mock_record()
         await ack_task
 
         # record_start should appear before ack_done (i.e., they overlapped)

@@ -9,7 +9,6 @@ Covers:
 
 from __future__ import annotations
 
-import sys
 import types
 
 import pytest
@@ -19,9 +18,8 @@ from llm_client import LanguageModel
 from rex.llm_client import (
     AnthropicStrategy,
     EchoStrategy,
-    OllamaStrategy,
-    OpenAIStrategy,
     OfflineTransformersStrategy,
+    OpenAIStrategy,
 )
 
 
@@ -60,7 +58,9 @@ def _make_fake_anthropic_client(content: str = "ok") -> types.SimpleNamespace:
 
 def test_provider_selected_openai(monkeypatch):
     """Setting llm_provider=openai routes to OpenAIStrategy."""
-    monkeypatch.setattr(LanguageModel, "_ensure_openai_client", lambda self: _make_fake_openai_client())
+    monkeypatch.setattr(
+        LanguageModel, "_ensure_openai_client", lambda self: _make_fake_openai_client()
+    )
     cfg = AppConfig(llm_model=None, llm_provider="openai", openai_model="gpt-test")
     model = LanguageModel(cfg)
     assert isinstance(model.strategy, OpenAIStrategy)
@@ -177,7 +177,9 @@ def test_unknown_provider_still_generates_response():
 
 def test_provider_routing_respects_override(monkeypatch):
     """Provider override kwarg takes precedence over config value."""
-    monkeypatch.setattr(LanguageModel, "_ensure_openai_client", lambda self: _make_fake_openai_client())
+    monkeypatch.setattr(
+        LanguageModel, "_ensure_openai_client", lambda self: _make_fake_openai_client()
+    )
     # Config says "echo" but override says "openai"
     cfg = AppConfig(llm_model=None, llm_provider="echo", openai_model="gpt-test")
     model = LanguageModel(cfg, provider="openai")

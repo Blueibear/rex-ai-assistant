@@ -15,7 +15,6 @@ import pytest
 
 from rex.plugins import PluginSafetyWrapper, load_plugins, shutdown_plugins
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -170,7 +169,7 @@ def test_plugin_exception_raises_but_does_not_crash_host(tmp_path):
         def register(): return BadPlugin()
         """,
     )
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError, match="intentional failure"):
         plugin.process()
     # Host is still alive — no crash
 
@@ -211,7 +210,7 @@ def test_second_plugin_unaffected_by_first_failure(tmp_path):
     by_name = {s.name: s.plugin for s in specs}
 
     # bad plugin raises
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError, match="intentional failure"):
         by_name["bad"].process()
 
     # good plugin still works

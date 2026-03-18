@@ -14,8 +14,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).parent.parent
 CONFIG_MD = REPO_ROOT / "docs" / "configuration.md"
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
@@ -119,8 +117,7 @@ class TestConsistencyWithEnvExample:
 
         missing = env_vars - config_vars
         assert not missing, (
-            f"Variables in .env.example but not in docs/configuration.md: "
-            f"{sorted(missing)}"
+            f"Variables in .env.example but not in docs/configuration.md: " f"{sorted(missing)}"
         )
 
     def test_config_md_vars_in_env_example(self) -> None:
@@ -136,7 +133,11 @@ class TestConsistencyWithEnvExample:
             "REX_TESTING",  # dev-only, set by test suite
             "REX_ALLOWED_ORIGINS",  # noted in deployment guide, not in .env.example
             # Log level enum values used as examples in the Description column
-            "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL",
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "CRITICAL",
             # Default value of REX_AGENT_TOKEN_ENV (not itself a configurable var)
             "REX_AGENT_API_KEY",
         }

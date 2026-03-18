@@ -3,10 +3,10 @@
 Tests verify the pyproject.toml structure and install script references.
 """
 
-import tomllib  # Python 3.11+; fallback to tomli for older versions
 from pathlib import Path
 
 import pytest
+import tomllib  # Python 3.11+; fallback to tomli for older versions
 
 REPO_ROOT = Path(__file__).parent.parent
 PYPROJECT = REPO_ROOT / "pyproject.toml"
@@ -45,7 +45,10 @@ class TestFullExtraCoversVoice:
     """[full] must cover all voice/ML capabilities."""
 
     def _packages(self, optional_deps: dict) -> list[str]:
-        return [dep.split(">=")[0].split(">")[0].split("<")[0].split("==")[0].strip().lower() for dep in optional_deps["full"]]
+        return [
+            dep.split(">=")[0].split(">")[0].split("<")[0].split("==")[0].strip().lower()
+            for dep in optional_deps["full"]
+        ]
 
     def test_torch_in_full(self, optional_deps: dict) -> None:
         pkgs = self._packages(optional_deps)
@@ -76,7 +79,10 @@ class TestFullExtraCoversAudio:
     """[full] must cover all audio I/O capabilities."""
 
     def _packages(self, optional_deps: dict) -> list[str]:
-        return [dep.split(">=")[0].split(">")[0].split("<")[0].split("==")[0].strip().lower() for dep in optional_deps["full"]]
+        return [
+            dep.split(">=")[0].split(">")[0].split("<")[0].split("==")[0].strip().lower()
+            for dep in optional_deps["full"]
+        ]
 
     def test_numpy_in_full(self, optional_deps: dict) -> None:
         pkgs = self._packages(optional_deps)
@@ -95,7 +101,10 @@ class TestFullExtraCoversIntegrations:
     """[full] must cover integrations (SMS via twilio)."""
 
     def _packages(self, optional_deps: dict) -> list[str]:
-        return [dep.split(">=")[0].split(">")[0].split("<")[0].split("==")[0].strip().lower() for dep in optional_deps["full"]]
+        return [
+            dep.split(">=")[0].split(">")[0].split("<")[0].split("==")[0].strip().lower()
+            for dep in optional_deps["full"]
+        ]
 
     def test_twilio_in_full(self, optional_deps: dict) -> None:
         pkgs = self._packages(optional_deps)

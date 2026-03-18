@@ -62,8 +62,7 @@ def test_no_tracked_files_modified(tracked_modifications_baseline):
     modified = [
         line
         for line in get_dirty_files(exclude_coverage=False)
-        if line[0:2].strip().startswith("M")
-        and line[3:] not in tracked_modifications_baseline
+        if line[0:2].strip().startswith("M") and line[3:] not in tracked_modifications_baseline
     ]
     assert not modified, (
         "Tests must not modify tracked files. Use tmp_path or temp copies "

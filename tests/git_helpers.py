@@ -26,8 +26,4 @@ def get_dirty_files(exclude_coverage: bool = True) -> list[str]:
         text=True,
         cwd=str(ROOT),
     )
-    return [
-        line
-        for line in result.stdout.splitlines()
-        if line and not line.startswith("??")
-    ]
+    return [line for line in result.stdout.splitlines() if line and not line.startswith("??")]

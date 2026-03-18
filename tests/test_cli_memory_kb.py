@@ -2,22 +2,19 @@
 
 from __future__ import annotations
 
-import json
 from datetime import timedelta
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
-from rex.cli import main, cmd_memory, cmd_kb, _parse_ttl
-from rex.memory import (
-    WorkingMemory,
-    LongTermMemory,
-    set_working_memory,
-    set_long_term_memory,
-)
+from rex.cli import _parse_ttl, cmd_kb, cmd_memory, main
 from rex.knowledge_base import KnowledgeBase, set_knowledge_base
-
+from rex.memory import (
+    LongTermMemory,
+    WorkingMemory,
+    set_long_term_memory,
+    set_working_memory,
+)
 
 # =============================================================================
 # TTL Parsing Tests

@@ -22,7 +22,6 @@ from rex.priority_notification_router import (
 )
 from rex.quiet_hours import QuietHoursConfig, QuietHoursGuard, SubmitResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -165,58 +164,38 @@ class TestQuietHoursGuardInit:
 
 class TestHoldDuringQuietHours:
     def test_medium_held_during_quiet(self) -> None:
-        guard = QuietHoursGuard(
-            router=PriorityNotificationRouter(), config=_OVERNIGHT
-        )
-        result = guard.submit(
-            _notif("m1", NotificationPriority.MEDIUM), now=_dt(23, 0)
-        )
+        guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=_OVERNIGHT)
+        result = guard.submit(_notif("m1", NotificationPriority.MEDIUM), now=_dt(23, 0))
         assert result.held is True
         assert len(guard.held_notifications) == 1
 
     def test_low_held_during_quiet(self) -> None:
-        guard = QuietHoursGuard(
-            router=PriorityNotificationRouter(), config=_OVERNIGHT
-        )
-        result = guard.submit(
-            _notif("l1", NotificationPriority.LOW), now=_dt(2, 0)
-        )
+        guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=_OVERNIGHT)
+        result = guard.submit(_notif("l1", NotificationPriority.LOW), now=_dt(2, 0))
         assert result.held is True
 
     def test_high_held_during_quiet(self) -> None:
         # High is non-critical — should be held
-        guard = QuietHoursGuard(
-            router=PriorityNotificationRouter(), config=_OVERNIGHT
-        )
-        result = guard.submit(
-            _notif("h1", NotificationPriority.HIGH), now=_dt(23, 0)
-        )
+        guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=_OVERNIGHT)
+        result = guard.submit(_notif("h1", NotificationPriority.HIGH), now=_dt(23, 0))
         assert result.held is True
 
     def test_held_count_increases(self) -> None:
-        guard = QuietHoursGuard(
-            router=PriorityNotificationRouter(), config=_OVERNIGHT
-        )
+        guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=_OVERNIGHT)
         for i in range(5):
             guard.submit(_notif(f"m{i}", NotificationPriority.MEDIUM), now=_dt(23, 0))
         assert len(guard.held_notifications) == 5
 
     def test_held_notifications_returns_copy(self) -> None:
-        guard = QuietHoursGuard(
-            router=PriorityNotificationRouter(), config=_OVERNIGHT
-        )
+        guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=_OVERNIGHT)
         guard.submit(_notif("m1", NotificationPriority.MEDIUM), now=_dt(23, 0))
         copy = guard.held_notifications
         copy.clear()
         assert len(guard.held_notifications) == 1
 
     def test_not_held_outside_quiet_hours(self) -> None:
-        guard = QuietHoursGuard(
-            router=PriorityNotificationRouter(), config=_OVERNIGHT
-        )
-        result = guard.submit(
-            _notif("m1", NotificationPriority.MEDIUM), now=_dt(14, 0)
-        )
+        guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=_OVERNIGHT)
+        result = guard.submit(_notif("m1", NotificationPriority.MEDIUM), now=_dt(14, 0))
         assert result.held is False
         assert len(guard.held_notifications) == 0
 
@@ -228,44 +207,26 @@ class TestHoldDuringQuietHours:
 
 class TestCriticalBypassesQuietHours:
     def test_critical_not_held(self) -> None:
-        guard = QuietHoursGuard(
-            router=PriorityNotificationRouter(), config=_OVERNIGHT
-        )
-        result = guard.submit(
-            _notif("c1", NotificationPriority.CRITICAL), now=_dt(23, 0)
-        )
+        guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=_OVERNIGHT)
+        result = guard.submit(_notif("c1", NotificationPriority.CRITICAL), now=_dt(23, 0))
         assert result.held is False
 
     def test_critical_routing_result_present(self) -> None:
-        guard = QuietHoursGuard(
-            router=PriorityNotificationRouter(), config=_OVERNIGHT
-        )
-        result = guard.submit(
-            _notif("c1", NotificationPriority.CRITICAL), now=_dt(23, 0)
-        )
+        guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=_OVERNIGHT)
+        result = guard.submit(_notif("c1", NotificationPriority.CRITICAL), now=_dt(23, 0))
         assert result.routing_result is not None
         assert result.routing_result.dispatched_immediately is True
 
     def test_critical_does_not_accumulate_in_held(self) -> None:
-        guard = QuietHoursGuard(
-            router=PriorityNotificationRouter(), config=_OVERNIGHT
-        )
+        guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=_OVERNIGHT)
         for i in range(3):
-            guard.submit(
-                _notif(f"c{i}", NotificationPriority.CRITICAL), now=_dt(23, 0)
-            )
+            guard.submit(_notif(f"c{i}", NotificationPriority.CRITICAL), now=_dt(23, 0))
         assert len(guard.held_notifications) == 0
 
-    def test_critical_logged_as_bypass(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        guard = QuietHoursGuard(
-            router=PriorityNotificationRouter(), config=_OVERNIGHT
-        )
+    def test_critical_logged_as_bypass(self, caplog: pytest.LogCaptureFixture) -> None:
+        guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=_OVERNIGHT)
         with caplog.at_level(logging.INFO, logger="rex.quiet_hours"):
-            guard.submit(
-                _notif("c1", NotificationPriority.CRITICAL), now=_dt(23, 0)
-            )
+            guard.submit(_notif("c1", NotificationPriority.CRITICAL), now=_dt(23, 0))
         assert any("bypassed quiet hours" in r.message for r in caplog.records)
 
 
@@ -285,9 +246,7 @@ class TestReleaseHeld:
         assert released == 4
 
     def test_held_cleared_after_release(self) -> None:
-        guard = QuietHoursGuard(
-            router=PriorityNotificationRouter(), config=_OVERNIGHT
-        )
+        guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=_OVERNIGHT)
         for i in range(3):
             guard.submit(_notif(f"l{i}", NotificationPriority.LOW), now=_dt(23, 0))
 
@@ -313,15 +272,11 @@ class TestReleaseHeld:
         assert len(router.digest_queue) == 3
 
     def test_release_empty_returns_zero(self) -> None:
-        guard = QuietHoursGuard(
-            router=PriorityNotificationRouter(), config=_OVERNIGHT
-        )
+        guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=_OVERNIGHT)
         assert guard.release_held() == 0
 
     def test_release_logs_count(self, caplog: pytest.LogCaptureFixture) -> None:
-        guard = QuietHoursGuard(
-            router=PriorityNotificationRouter(), config=_OVERNIGHT
-        )
+        guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=_OVERNIGHT)
         guard.submit(_notif("m1", NotificationPriority.MEDIUM), now=_dt(23, 0))
 
         with caplog.at_level(logging.INFO, logger="rex.quiet_hours"):
@@ -335,9 +290,7 @@ class TestReleaseHeld:
 
         ids = ["first", "second", "third"]
         for nid in ids:
-            guard.submit(
-                _notif(nid, NotificationPriority.LOW, title=nid), now=_dt(23, 0)
-            )
+            guard.submit(_notif(nid, NotificationPriority.LOW, title=nid), now=_dt(23, 0))
 
         guard.release_held(now=_dt(7, 0))
 
@@ -354,18 +307,14 @@ class TestQuietHoursDisabled:
     def test_disabled_does_not_hold(self) -> None:
         cfg = QuietHoursConfig(start=time(22, 0), end=time(7, 0), enabled=False)
         guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=cfg)
-        result = guard.submit(
-            _notif("m1", NotificationPriority.MEDIUM), now=_dt(23, 0)
-        )
+        result = guard.submit(_notif("m1", NotificationPriority.MEDIUM), now=_dt(23, 0))
         assert result.held is False
 
     def test_disabled_routes_normally(self) -> None:
         router = PriorityNotificationRouter()
         cfg = QuietHoursConfig(enabled=False)
         guard = QuietHoursGuard(router=router, config=cfg)
-        result = guard.submit(
-            _notif("l1", NotificationPriority.LOW), now=_dt(23, 0)
-        )
+        result = guard.submit(_notif("l1", NotificationPriority.LOW), now=_dt(23, 0))
         assert result.routing_result is not None
         assert result.routing_result.queued_for_digest is True
 
@@ -377,9 +326,7 @@ class TestQuietHoursDisabled:
 
 class TestIsQuiet:
     def test_is_quiet_delegates_to_config(self) -> None:
-        guard = QuietHoursGuard(
-            router=PriorityNotificationRouter(), config=_OVERNIGHT
-        )
+        guard = QuietHoursGuard(router=PriorityNotificationRouter(), config=_OVERNIGHT)
         assert guard.is_quiet(_dt(23, 0)) is True
         assert guard.is_quiet(_dt(14, 0)) is False
 

@@ -24,7 +24,6 @@ from rex.plex_client import (
     set_plex_client,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -40,7 +39,9 @@ def _make_response(json_data: dict, status_code: int = 200) -> MagicMock:
     return resp
 
 
-def _make_client(base_url: str = "http://plex.local:32400", token: str = "mytoken") -> tuple[PlexClient, MagicMock]:
+def _make_client(
+    base_url: str = "http://plex.local:32400", token: str = "mytoken"
+) -> tuple[PlexClient, MagicMock]:
     """Return a PlexClient with a mock session."""
     session = MagicMock()
     client = PlexClient(base_url=base_url, token=token, session=session)

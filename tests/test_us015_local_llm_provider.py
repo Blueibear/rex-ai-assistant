@@ -11,16 +11,14 @@ from __future__ import annotations
 
 import sys
 import types
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
-from rex.assistant_errors import ConfigurationError
 from config import AppConfig
 from llm_client import GenerationConfig, LanguageModel
+from rex.assistant_errors import ConfigurationError
 from rex.llm_client import OfflineTransformersStrategy, OllamaStrategy
-import rex.llm_client as _llm_client_mod
-
 
 # ---------------------------------------------------------------------------
 # Helpers

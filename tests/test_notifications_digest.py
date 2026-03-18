@@ -6,11 +6,8 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from rex.notifications.digest import DigestBackend, DigestBuilder
 from rex.notifications.models import Notification, NotificationStore
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -185,9 +182,7 @@ class TestRunDigest:
         import sqlite3
 
         con = sqlite3.connect(store._db_path)  # type: ignore[attr-defined]
-        row = con.execute(
-            "SELECT delivered_at FROM notifications WHERE id = ?", (n.id,)
-        ).fetchone()
+        row = con.execute("SELECT delivered_at FROM notifications WHERE id = ?", (n.id,)).fetchone()
         con.close()
         assert row is not None
         assert row[0] is not None

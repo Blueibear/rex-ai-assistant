@@ -111,11 +111,7 @@ class TestCredentialManager:
         """Test loading credentials from JSON config file."""
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "credentials.json"
-            config_data = {
-                "credentials": {
-                    "test_service": "config_token_456"
-                }
-            }
+            config_data = {"credentials": {"test_service": "config_token_456"}}
             config_path.write_text(json.dumps(config_data))
 
             manager = CredentialManager(config_path=config_path)

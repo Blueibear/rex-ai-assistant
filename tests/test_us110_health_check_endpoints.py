@@ -12,10 +12,8 @@ Verifies:
 from __future__ import annotations
 
 import time
-from typing import Any
 from unittest.mock import patch
 
-import pytest
 from flask import Flask
 
 from rex.health import (
@@ -24,7 +22,6 @@ from rex.health import (
     check_dashboard_db,
     create_health_blueprint,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

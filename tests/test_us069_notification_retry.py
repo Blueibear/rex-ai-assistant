@@ -10,7 +10,7 @@ Acceptance criteria:
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -185,7 +185,7 @@ def test_final_failure_propagated_not_swallowed(notifier: Notifier) -> None:
     """Final failure after all retries propagates to the caller."""
 
     def always_fails(notification: NotificationRequest) -> None:
-        raise IOError("network down")
+        raise OSError("network down")
 
     with patch.object(notifier, "_send_to_email", side_effect=always_fails):
         with patch("rex.retry.time.sleep"):

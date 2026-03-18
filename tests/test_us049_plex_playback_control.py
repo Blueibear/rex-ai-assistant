@@ -4,10 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
-from rex.plex_client import PlexAuthError, PlexClient, PlexConnectionError
-
+from rex.plex_client import PlexClient
 
 # ---------------------------------------------------------------------------
 # Helpers

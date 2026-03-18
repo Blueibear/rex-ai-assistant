@@ -12,14 +12,14 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_listener(stream=None):
     """Create a WakeWordListener with mocked stream."""
@@ -72,6 +72,7 @@ def _make_assistant(listener=None):
 # AC1: resume_stream() called immediately after TTS — within 1 second
 # ---------------------------------------------------------------------------
 
+
 class TestResumeCalledAfterPlayback:
     """pause_stream / resume_stream called in the right order."""
 
@@ -101,9 +102,9 @@ class TestResumeCalledAfterPlayback:
 
         assert "pause" in call_order
         assert "resume" in call_order
-        assert call_order.index("pause") < call_order.index("resume"), (
-            "pause must come before resume"
-        )
+        assert call_order.index("pause") < call_order.index(
+            "resume"
+        ), "pause must come before resume"
 
     @pytest.mark.asyncio
     async def test_resume_stream_called_even_on_exception(self):
@@ -131,6 +132,7 @@ class TestResumeCalledAfterPlayback:
 # ---------------------------------------------------------------------------
 # AC2: mic stream not left open / blocked after playback
 # ---------------------------------------------------------------------------
+
 
 class TestMicStreamNotBlocked:
     """pause_stream stops the InputStream; resume_stream restarts it."""
@@ -167,9 +169,9 @@ class TestMicStreamNotBlocked:
         listener._event.set()
         assert listener._event.is_set()
         listener.resume_stream()
-        assert not listener._event.is_set(), (
-            "resume_stream must clear the event so next wait_for_wake blocks properly"
-        )
+        assert (
+            not listener._event.is_set()
+        ), "resume_stream must clear the event so next wait_for_wake blocks properly"
 
     def test_pause_stream_safe_on_stop_exception(self):
         """pause_stream() suppresses exceptions from stream.stop()."""
@@ -190,6 +192,7 @@ class TestMicStreamNotBlocked:
 # AC3: second voice interaction produces spoken response
 # ---------------------------------------------------------------------------
 
+
 class TestSecondInteractionWorks:
     """After first interaction, the loop re-arms and processes a second one."""
 
@@ -208,9 +211,7 @@ class TestSecondInteractionWorks:
 
         with (
             patch.object(assistant, "_play_wake_sound", return_value=None),
-            patch.object(
-                assistant, "_process_conversation", side_effect=fake_process_conversation
-            ),
+            patch.object(assistant, "_process_conversation", side_effect=fake_process_conversation),
         ):
             # First interaction
             await assistant._handle_interaction()
@@ -218,8 +219,7 @@ class TestSecondInteractionWorks:
             await assistant._handle_interaction()
 
         assert len(speak_calls) == 2, (
-            "Both interactions must execute _process_conversation; "
-            f"got {len(speak_calls)} calls"
+            "Both interactions must execute _process_conversation; " f"got {len(speak_calls)} calls"
         )
 
     @pytest.mark.asyncio
@@ -238,52 +238,57 @@ class TestSecondInteractionWorks:
             await assistant._handle_interaction()
 
         # After interaction, event must be clear.
-        assert not listener._event.is_set(), (
-            "Event must be cleared after interaction so the loop waits for the next real wake word"
-        )
+        assert (
+            not listener._event.is_set()
+        ), "Event must be cleared after interaction so the loop waits for the next real wake word"
 
 
 # ---------------------------------------------------------------------------
 # AC4: Structural / typecheck helpers
 # ---------------------------------------------------------------------------
 
+
 class TestStructural:
     def test_pause_stream_exists(self):
         from voice_loop import WakeWordListener
-        assert hasattr(WakeWordListener, "pause_stream"), (
-            "WakeWordListener must have pause_stream()"
-        )
+
+        assert hasattr(
+            WakeWordListener, "pause_stream"
+        ), "WakeWordListener must have pause_stream()"
 
     def test_resume_stream_exists(self):
         from voice_loop import WakeWordListener
-        assert hasattr(WakeWordListener, "resume_stream"), (
-            "WakeWordListener must have resume_stream()"
-        )
+
+        assert hasattr(
+            WakeWordListener, "resume_stream"
+        ), "WakeWordListener must have resume_stream()"
 
     def test_handle_interaction_is_coroutine(self):
         from voice_loop import AsyncRexAssistant
+
         assert inspect.iscoroutinefunction(AsyncRexAssistant._handle_interaction)
 
     def test_pause_stream_called_in_handle_interaction(self):
         """Source of _handle_interaction must call pause_stream."""
         from voice_loop import AsyncRexAssistant
+
         src = inspect.getsource(AsyncRexAssistant._handle_interaction)
         assert "pause_stream" in src
 
     def test_resume_stream_called_in_handle_interaction(self):
         """Source of _handle_interaction must call resume_stream."""
         from voice_loop import AsyncRexAssistant
+
         src = inspect.getsource(AsyncRexAssistant._handle_interaction)
         assert "resume_stream" in src
 
     def test_resume_in_finally_block(self):
         """resume_stream must appear in a finally block."""
         from voice_loop import AsyncRexAssistant
+
         src = inspect.getsource(AsyncRexAssistant._handle_interaction)
         # "finally:" must precede "resume_stream"
         finally_pos = src.find("finally:")
         resume_pos = src.find("resume_stream")
         assert finally_pos != -1, "No finally: block found in _handle_interaction"
-        assert resume_pos > finally_pos, (
-            "resume_stream must be inside the finally block"
-        )
+        assert resume_pos > finally_pos, "resume_stream must be inside the finally block"

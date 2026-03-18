@@ -21,8 +21,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -90,8 +88,7 @@ class TestDesignTokensDefined:
         vars_ = _root_vars(_css())
         # accept --base-spacing or --spacing-unit or --spacing-base
         has_spacing = any(
-            k in vars_
-            for k in ("--base-spacing", "--spacing-unit", "--spacing-base")
+            k in vars_ for k in ("--base-spacing", "--spacing-unit", "--spacing-base")
         )
         assert has_spacing, "--base-spacing / --spacing-unit not in :root"
 
@@ -130,47 +127,44 @@ class TestDarkTheme:
         bg = vars_.get("--bg-color", "").strip()
         assert bg.startswith("#"), f"--bg-color should be a hex color, got: {bg!r}"
         lum = self._luminance(bg)
-        assert lum < 0.3, (
-            f"--bg-color {bg!r} has luminance {lum:.2f}, expected dark (< 0.3)"
-        )
+        assert lum < 0.3, f"--bg-color {bg!r} has luminance {lum:.2f}, expected dark (< 0.3)"
 
     def test_surface_color_is_dark(self) -> None:
         vars_ = _root_vars(_css())
         surface = vars_.get("--surface-color", "").strip()
-        assert surface.startswith("#"), (
-            f"--surface-color should be a hex color, got: {surface!r}"
-        )
+        assert surface.startswith("#"), f"--surface-color should be a hex color, got: {surface!r}"
         lum = self._luminance(surface)
-        assert lum < 0.3, (
-            f"--surface-color {surface!r} has luminance {lum:.2f}, expected dark (< 0.3)"
-        )
+        assert (
+            lum < 0.3
+        ), f"--surface-color {surface!r} has luminance {lum:.2f}, expected dark (< 0.3)"
 
     def test_text_primary_is_light(self) -> None:
         """On a dark theme, text should be light."""
         vars_ = _root_vars(_css())
         text_var = "--text-primary" if "--text-primary" in vars_ else "--text-color"
         text = vars_.get(text_var, "").strip()
-        assert text.startswith("#"), (
-            f"{text_var} should be a hex color, got: {text!r}"
-        )
+        assert text.startswith("#"), f"{text_var} should be a hex color, got: {text!r}"
         lum = self._luminance(text)
-        assert lum > 0.5, (
-            f"{text_var} {text!r} has luminance {lum:.2f}, expected light (> 0.5)"
-        )
+        assert lum > 0.5, f"{text_var} {text!r} has luminance {lum:.2f}, expected light (> 0.5)"
 
     def test_not_default_white_surface(self) -> None:
         vars_ = _root_vars(_css())
         surface = vars_.get("--surface-color", "").strip().lower()
-        assert surface not in ("#ffffff", "#fff", "white"), (
-            "--surface-color should not be white in a dark theme"
-        )
+        assert surface not in (
+            "#ffffff",
+            "#fff",
+            "white",
+        ), "--surface-color should not be white in a dark theme"
 
     def test_not_default_white_bg(self) -> None:
         vars_ = _root_vars(_css())
         bg = vars_.get("--bg-color", "").strip().lower()
-        assert bg not in ("#ffffff", "#fff", "#f9fafb", "white"), (
-            "--bg-color should not be near-white in a dark theme"
-        )
+        assert bg not in (
+            "#ffffff",
+            "#fff",
+            "#f9fafb",
+            "white",
+        ), "--bg-color should not be near-white in a dark theme"
 
 
 # ---------------------------------------------------------------------------
@@ -192,21 +186,19 @@ class TestTypography:
             "roboto",
             "blinkmacsystemfont",
         ]
-        assert any(m in font for m in sans_serif_markers), (
-            f"--font-family does not appear to be sans-serif: {font!r}"
-        )
+        assert any(
+            m in font for m in sans_serif_markers
+        ), f"--font-family does not appear to be sans-serif: {font!r}"
 
     def test_body_uses_font_family_var(self) -> None:
         css = _css()
         # html,body rule should reference --font-family
-        body_block_match = re.search(
-            r"html\s*,\s*body\s*\{([^}]+)\}", css, re.DOTALL
-        )
+        body_block_match = re.search(r"html\s*,\s*body\s*\{([^}]+)\}", css, re.DOTALL)
         assert body_block_match, "html, body rule not found"
         body_block = body_block_match.group(1)
-        assert "var(--font-family)" in body_block, (
-            "html,body font-family should use var(--font-family)"
-        )
+        assert (
+            "var(--font-family)" in body_block
+        ), "html,body font-family should use var(--font-family)"
 
 
 # ---------------------------------------------------------------------------
@@ -228,9 +220,7 @@ class TestComponentsUseTokens:
         grad_match = re.search(r"linear-gradient\([^)]+\)", css)
         assert grad_match, "linear-gradient not found"
         grad = grad_match.group(0)
-        assert "var(--" in grad, (
-            f"Login gradient should use CSS variables, found: {grad!r}"
-        )
+        assert "var(--" in grad, f"Login gradient should use CSS variables, found: {grad!r}"
 
     def test_bg_color_used_in_body(self) -> None:
         css = _css()
@@ -255,7 +245,7 @@ class TestComponentsUseTokens:
     def test_accent_color_referenced(self) -> None:
         css = _css()
         # accent-color must appear somewhere in the CSS (not just defined)
-        uses = [m for m in re.findall(r"var\(--accent-color\)", css)]
+        uses = list(re.findall(r"var\(--accent-color\)", css))
         assert len(uses) >= 1, "--accent-color defined but never referenced"
 
 
@@ -273,6 +263,4 @@ class TestTypecheck:
             capture_output=True,
             text=True,
         )
-        assert result.returncode != 2, (
-            f"mypy crashed (exit 2):\n{result.stdout}\n{result.stderr}"
-        )
+        assert result.returncode != 2, f"mypy crashed (exit 2):\n{result.stdout}\n{result.stderr}"

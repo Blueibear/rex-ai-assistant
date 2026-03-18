@@ -8,10 +8,11 @@ Covers:
 """
 
 import base64
-import pytest
 from unittest.mock import MagicMock, patch
 
-from rex.github_service import GitHubService, Issue, reset_github_service
+import pytest
+
+from rex.github_service import GitHubService, Issue
 
 
 class TestIssuesRetrieved:
@@ -127,9 +128,10 @@ class TestIssuesRetrieved:
         fake_response.json.return_value = []
         fake_response.raise_for_status.return_value = None
 
-        with patch("rex.github_service.get_credential_manager") as mock_cm, patch(
-            "requests.request", return_value=fake_response
-        ) as mock_req:
+        with (
+            patch("rex.github_service.get_credential_manager") as mock_cm,
+            patch("requests.request", return_value=fake_response) as mock_req,
+        ):
             mock_manager = MagicMock()
             mock_manager.get_token.return_value = "ghp_token"
             mock_cm.return_value = mock_manager
@@ -157,9 +159,11 @@ class TestCommitsTriggered:
         }
         fake_response.raise_for_status.return_value = None
 
-        with patch("rex.github_service.get_credential_manager") as mock_cm, patch(
-            "requests.request", return_value=fake_response
-        ) as mock_req, patch("rex.github_service.get_policy_engine") as mock_pe:
+        with (
+            patch("rex.github_service.get_credential_manager") as mock_cm,
+            patch("requests.request", return_value=fake_response) as mock_req,
+            patch("rex.github_service.get_policy_engine") as mock_pe,
+        ):
             mock_manager = MagicMock()
             mock_manager.get_token.return_value = "ghp_token"
             mock_cm.return_value = mock_manager
@@ -193,9 +197,11 @@ class TestCommitsTriggered:
         }
         fake_response.raise_for_status.return_value = None
 
-        with patch("rex.github_service.get_credential_manager") as mock_cm, patch(
-            "requests.request", return_value=fake_response
-        ) as mock_req, patch("rex.github_service.get_policy_engine") as mock_pe:
+        with (
+            patch("rex.github_service.get_credential_manager") as mock_cm,
+            patch("requests.request", return_value=fake_response) as mock_req,
+            patch("rex.github_service.get_policy_engine") as mock_pe,
+        ):
             mock_manager = MagicMock()
             mock_manager.get_token.return_value = "ghp_token"
             mock_cm.return_value = mock_manager
@@ -232,9 +238,11 @@ class TestCommitsTriggered:
         }
         fake_response.raise_for_status.return_value = None
 
-        with patch("rex.github_service.get_credential_manager") as mock_cm, patch(
-            "requests.request", return_value=fake_response
-        ), patch("rex.github_service.get_policy_engine") as mock_pe:
+        with (
+            patch("rex.github_service.get_credential_manager") as mock_cm,
+            patch("requests.request", return_value=fake_response),
+            patch("rex.github_service.get_policy_engine") as mock_pe,
+        ):
             mock_manager = MagicMock()
             mock_manager.get_token.return_value = "ghp_token"
             mock_cm.return_value = mock_manager
@@ -268,9 +276,11 @@ class TestCommitsTriggered:
         }
         fake_response.raise_for_status.return_value = None
 
-        with patch("rex.github_service.get_credential_manager") as mock_cm, patch(
-            "requests.request", return_value=fake_response
-        ) as mock_req, patch("rex.github_service.get_policy_engine") as mock_pe:
+        with (
+            patch("rex.github_service.get_credential_manager") as mock_cm,
+            patch("requests.request", return_value=fake_response) as mock_req,
+            patch("rex.github_service.get_policy_engine") as mock_pe,
+        ):
             mock_manager = MagicMock()
             mock_manager.get_token.return_value = "ghp_token"
             mock_cm.return_value = mock_manager
@@ -301,8 +311,9 @@ class TestErrorsHandled:
         """list_issues() wraps API errors in RuntimeError."""
         service = GitHubService()
 
-        with patch("rex.github_service.get_credential_manager") as mock_cm, patch(
-            "requests.request", side_effect=Exception("Connection refused")
+        with (
+            patch("rex.github_service.get_credential_manager") as mock_cm,
+            patch("requests.request", side_effect=Exception("Connection refused")),
         ):
             mock_manager = MagicMock()
             mock_manager.get_token.return_value = "ghp_token"
@@ -315,9 +326,11 @@ class TestErrorsHandled:
         """create_commit() wraps API errors in RuntimeError."""
         service = GitHubService()
 
-        with patch("rex.github_service.get_credential_manager") as mock_cm, patch(
-            "requests.request", side_effect=Exception("Timeout")
-        ), patch("rex.github_service.get_policy_engine") as mock_pe:
+        with (
+            patch("rex.github_service.get_credential_manager") as mock_cm,
+            patch("requests.request", side_effect=Exception("Timeout")),
+            patch("rex.github_service.get_policy_engine") as mock_pe,
+        ):
             mock_manager = MagicMock()
             mock_manager.get_token.return_value = "ghp_token"
             mock_cm.return_value = mock_manager

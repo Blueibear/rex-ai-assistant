@@ -7,16 +7,16 @@ This module tests:
 
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from rex.cli import cmd_plan, cmd_executor_resume
-from rex.workflow import Workflow, WorkflowStep
-from rex.contracts import ToolCall
-from rex.tool_registry import ToolRegistry, ToolMeta, reset_tool_registry, set_tool_registry
-from rex.policy_engine import reset_policy_engine, get_policy_engine
 from rex.autonomy_modes import reset_autonomy_config
+from rex.cli import cmd_executor_resume, cmd_plan
+from rex.contracts import ToolCall
+from rex.policy_engine import reset_policy_engine
+from rex.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry, set_tool_registry
+from rex.workflow import Workflow, WorkflowStep
 
 
 class TestCmdPlan:
@@ -31,30 +31,38 @@ class TestCmdPlan:
 
         # Register test tools
         registry = ToolRegistry()
-        registry.register_tool(ToolMeta(
-            name="time_now",
-            description="Get current time",
-            required_credentials=[],
-            health_check=lambda: (True, "OK"),
-        ))
-        registry.register_tool(ToolMeta(
-            name="weather_now",
-            description="Get weather",
-            required_credentials=[],
-            health_check=lambda: (True, "OK"),
-        ))
-        registry.register_tool(ToolMeta(
-            name="send_email",
-            description="Send email",
-            required_credentials=[],
-            health_check=lambda: (True, "OK"),
-        ))
-        registry.register_tool(ToolMeta(
-            name="web_search",
-            description="Search web",
-            required_credentials=[],
-            health_check=lambda: (True, "OK"),
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="time_now",
+                description="Get current time",
+                required_credentials=[],
+                health_check=lambda: (True, "OK"),
+            )
+        )
+        registry.register_tool(
+            ToolMeta(
+                name="weather_now",
+                description="Get weather",
+                required_credentials=[],
+                health_check=lambda: (True, "OK"),
+            )
+        )
+        registry.register_tool(
+            ToolMeta(
+                name="send_email",
+                description="Send email",
+                required_credentials=[],
+                health_check=lambda: (True, "OK"),
+            )
+        )
+        registry.register_tool(
+            ToolMeta(
+                name="web_search",
+                description="Search web",
+                required_credentials=[],
+                health_check=lambda: (True, "OK"),
+            )
+        )
         set_tool_registry(registry)
 
         yield
@@ -66,11 +74,15 @@ class TestCmdPlan:
     @pytest.fixture
     def temp_dirs(self):
         """Create temporary directories for testing."""
-        with tempfile.TemporaryDirectory() as workflow_dir, \
-             tempfile.TemporaryDirectory() as approval_dir:
+        with (
+            tempfile.TemporaryDirectory() as workflow_dir,
+            tempfile.TemporaryDirectory() as approval_dir,
+        ):
             # Patch the default directories
-            with patch("rex.workflow.DEFAULT_WORKFLOW_DIR", Path(workflow_dir)), \
-                 patch("rex.workflow.DEFAULT_APPROVAL_DIR", Path(approval_dir)):
+            with (
+                patch("rex.workflow.DEFAULT_WORKFLOW_DIR", Path(workflow_dir)),
+                patch("rex.workflow.DEFAULT_APPROVAL_DIR", Path(approval_dir)),
+            ):
                 yield {
                     "workflow_dir": Path(workflow_dir),
                     "approval_dir": Path(approval_dir),
@@ -147,11 +159,14 @@ class TestCmdPlan:
         args.max_time = 60
 
         # Mock the executor run to avoid actual execution
-        with patch("rex.workflow.DEFAULT_WORKFLOW_DIR", temp_dirs["workflow_dir"]), \
-             patch("rex.workflow.DEFAULT_APPROVAL_DIR", temp_dirs["approval_dir"]), \
-             patch("rex.executor.Executor.run") as mock_run:
+        with (
+            patch("rex.workflow.DEFAULT_WORKFLOW_DIR", temp_dirs["workflow_dir"]),
+            patch("rex.workflow.DEFAULT_APPROVAL_DIR", temp_dirs["approval_dir"]),
+            patch("rex.executor.Executor.run") as mock_run,
+        ):
 
-            from rex.executor import ExecutionResult, ExecutionBudget
+            from rex.executor import ExecutionBudget, ExecutionResult
+
             mock_run.return_value = ExecutionResult(
                 workflow_id="wf_test",
                 status="completed",
@@ -189,8 +204,10 @@ class TestCmdExecutorResume:
     @pytest.fixture
     def temp_dirs(self):
         """Create temporary directories for testing."""
-        with tempfile.TemporaryDirectory() as workflow_dir, \
-             tempfile.TemporaryDirectory() as approval_dir:
+        with (
+            tempfile.TemporaryDirectory() as workflow_dir,
+            tempfile.TemporaryDirectory() as approval_dir,
+        ):
             yield {
                 "workflow_dir": Path(workflow_dir),
                 "approval_dir": Path(approval_dir),
@@ -266,11 +283,14 @@ class TestCmdExecutorResume:
         args.max_time = 60
 
         # Mock the executor run
-        with patch("rex.workflow.DEFAULT_WORKFLOW_DIR", temp_dirs["workflow_dir"]), \
-             patch("rex.workflow.DEFAULT_APPROVAL_DIR", temp_dirs["approval_dir"]), \
-             patch("rex.executor.Executor.run") as mock_run:
+        with (
+            patch("rex.workflow.DEFAULT_WORKFLOW_DIR", temp_dirs["workflow_dir"]),
+            patch("rex.workflow.DEFAULT_APPROVAL_DIR", temp_dirs["approval_dir"]),
+            patch("rex.executor.Executor.run") as mock_run,
+        ):
 
-            from rex.executor import ExecutionResult, ExecutionBudget
+            from rex.executor import ExecutionBudget, ExecutionResult
+
             mock_run.return_value = ExecutionResult(
                 workflow_id=blocked_workflow.workflow_id,
                 status="completed",
@@ -278,7 +298,9 @@ class TestCmdExecutorResume:
                 messages_sent=1,
                 elapsed_seconds=0.5,
                 budget=ExecutionBudget(max_actions=10, max_messages=5, max_time_seconds=60),
-                remaining_budget=ExecutionBudget(max_actions=9, max_messages=4, max_time_seconds=59),
+                remaining_budget=ExecutionBudget(
+                    max_actions=9, max_messages=4, max_time_seconds=59
+                ),
                 summary="Workflow completed",
             )
 
@@ -298,14 +320,17 @@ class TestCmdExecutorResume:
         args.max_messages = 2
         args.max_time = 30
 
-        with patch("rex.workflow.DEFAULT_WORKFLOW_DIR", temp_dirs["workflow_dir"]), \
-             patch("rex.workflow.DEFAULT_APPROVAL_DIR", temp_dirs["approval_dir"]), \
-             patch("rex.executor.Executor.run") as mock_run, \
-             patch("rex.executor.Executor.__init__") as mock_init:
+        with (
+            patch("rex.workflow.DEFAULT_WORKFLOW_DIR", temp_dirs["workflow_dir"]),
+            patch("rex.workflow.DEFAULT_APPROVAL_DIR", temp_dirs["approval_dir"]),
+            patch("rex.executor.Executor.run") as mock_run,
+            patch("rex.executor.Executor.__init__") as mock_init,
+        ):
 
             mock_init.return_value = None
 
-            from rex.executor import ExecutionResult, ExecutionBudget
+            from rex.executor import ExecutionBudget, ExecutionResult
+
             mock_run.return_value = ExecutionResult(
                 workflow_id=blocked_workflow.workflow_id,
                 status="completed",
@@ -317,7 +342,7 @@ class TestCmdExecutorResume:
                 summary="Test",
             )
 
-            result = cmd_executor_resume(args)
+            cmd_executor_resume(args)
 
         # Verify budget was created with correct params
         captured = capsys.readouterr()

@@ -18,11 +18,9 @@ import pytest
 from rex.app_launcher import (
     AppLauncher,
     AppNotRegisteredError,
-    LaunchResult,
     get_app_launcher,
     set_app_launcher,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

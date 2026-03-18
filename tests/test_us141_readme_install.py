@@ -33,15 +33,13 @@ class TestReadmePrimaryInstallMethod:
         assert "install.ps1" in readme_text, "README must reference install.ps1"
 
     def test_readme_links_to_advanced_install(self, readme_text: str) -> None:
-        assert "advanced-install.md" in readme_text, (
-            "README must link to docs/advanced-install.md"
-        )
+        assert "advanced-install.md" in readme_text, "README must link to docs/advanced-install.md"
 
     def test_readme_advanced_link_has_correct_label(self, readme_text: str) -> None:
         lower = readme_text.lower()
-        assert "advanced" in lower and "install" in lower, (
-            "README must mention 'Advanced' and 'Install' near the advanced-install.md link"
-        )
+        assert (
+            "advanced" in lower and "install" in lower
+        ), "README must mention 'Advanced' and 'Install' near the advanced-install.md link"
 
 
 class TestReadmeNoLegacySteps:
@@ -64,33 +62,33 @@ class TestReadmeNoLegacySteps:
 
     def test_readme_no_manual_venv_in_quickstart(self, readme_text: str) -> None:
         quickstart = self._quickstart_section(readme_text)
-        assert "python3 -m venv .venv" not in quickstart, (
-            "Quickstart must not contain manual venv creation — use install scripts"
-        )
+        assert (
+            "python3 -m venv .venv" not in quickstart
+        ), "Quickstart must not contain manual venv creation — use install scripts"
 
     def test_readme_no_requirements_cpu_in_quickstart(self, readme_text: str) -> None:
         quickstart = self._quickstart_section(readme_text)
-        assert "requirements-cpu.txt" not in quickstart, (
-            "Quickstart must not reference requirements-cpu.txt — use install scripts"
-        )
+        assert (
+            "requirements-cpu.txt" not in quickstart
+        ), "Quickstart must not reference requirements-cpu.txt — use install scripts"
 
     def test_readme_no_pip_install_ml_audio_extras(self, readme_text: str) -> None:
         quickstart = self._quickstart_section(readme_text)
-        assert '".[ml,audio]"' not in quickstart, (
-            "Quickstart must not list individual ml,audio extras — move to advanced-install.md"
-        )
+        assert (
+            '".[ml,audio]"' not in quickstart
+        ), "Quickstart must not list individual ml,audio extras — move to advanced-install.md"
 
     def test_readme_no_interactive_installer_in_quickstart(self, readme_text: str) -> None:
         quickstart = self._quickstart_section(readme_text)
-        assert "python install.py --with-ml" not in quickstart, (
-            "Quickstart must not contain interactive installer options — move to advanced-install.md"
-        )
+        assert (
+            "python install.py --with-ml" not in quickstart
+        ), "Quickstart must not contain interactive installer options — move to advanced-install.md"
 
     def test_readme_no_cuda_uninstall_in_quickstart(self, readme_text: str) -> None:
         quickstart = self._quickstart_section(readme_text)
-        assert "pip uninstall -y torch" not in quickstart, (
-            "Quickstart must not contain CUDA uninstall commands — move to advanced-install.md"
-        )
+        assert (
+            "pip uninstall -y torch" not in quickstart
+        ), "Quickstart must not contain CUDA uninstall commands — move to advanced-install.md"
 
 
 class TestAdvancedInstallDocExists:
@@ -98,37 +96,37 @@ class TestAdvancedInstallDocExists:
         assert ADVANCED_INSTALL.exists(), "docs/advanced-install.md must exist"
 
     def test_advanced_install_is_non_empty(self) -> None:
-        assert ADVANCED_INSTALL.stat().st_size > 500, (
-            "docs/advanced-install.md must have substantive content"
-        )
+        assert (
+            ADVANCED_INSTALL.stat().st_size > 500
+        ), "docs/advanced-install.md must have substantive content"
 
 
 class TestAdvancedInstallContainsLegacyContent:
     """Legacy content must be preserved in docs/advanced-install.md."""
 
     def test_advanced_install_has_manual_venv(self, advanced_text: str) -> None:
-        assert "venv" in advanced_text, (
-            "docs/advanced-install.md must contain manual venv instructions"
-        )
+        assert (
+            "venv" in advanced_text
+        ), "docs/advanced-install.md must contain manual venv instructions"
 
     def test_advanced_install_has_gpu_section(self, advanced_text: str) -> None:
         lower = advanced_text.lower()
-        assert "gpu" in lower or "cuda" in lower, (
-            "docs/advanced-install.md must contain GPU/CUDA instructions"
-        )
+        assert (
+            "gpu" in lower or "cuda" in lower
+        ), "docs/advanced-install.md must contain GPU/CUDA instructions"
 
     def test_advanced_install_has_pip_extras(self, advanced_text: str) -> None:
-        assert "pip install" in advanced_text, (
-            "docs/advanced-install.md must contain pip install instructions"
-        )
+        assert (
+            "pip install" in advanced_text
+        ), "docs/advanced-install.md must contain pip install instructions"
 
     def test_advanced_install_has_requirements_cpu(self, advanced_text: str) -> None:
-        assert "requirements-cpu.txt" in advanced_text, (
-            "docs/advanced-install.md must document CPU requirements file"
-        )
+        assert (
+            "requirements-cpu.txt" in advanced_text
+        ), "docs/advanced-install.md must document CPU requirements file"
 
     def test_advanced_install_has_dev_section(self, advanced_text: str) -> None:
         lower = advanced_text.lower()
-        assert "dev" in lower and "pytest" in lower, (
-            "docs/advanced-install.md must include development setup instructions"
-        )
+        assert (
+            "dev" in lower and "pytest" in lower
+        ), "docs/advanced-install.md must include development setup instructions"

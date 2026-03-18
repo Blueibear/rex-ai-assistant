@@ -7,12 +7,12 @@ Acceptance criteria:
 - Typecheck passes
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from rex.contracts import ToolCall
-from rex.executor import Executor, ExecutionBudget, ExecutionResult
+from rex.executor import ExecutionBudget, ExecutionResult, Executor
 from rex.planner import Planner, UnableToPlanError
 from rex.policy_engine import PolicyEngine, reset_policy_engine
 from rex.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
@@ -224,7 +224,9 @@ class TestToolCallsExecuted:
         """After execution, step.result is populated."""
         workflow = planner.plan("search for python docs")
 
-        with patch("rex.workflow_runner.execute_tool", return_value={"result": "python docs found"}):
+        with patch(
+            "rex.workflow_runner.execute_tool", return_value={"result": "python docs found"}
+        ):
             executor = Executor(workflow, budget=ExecutionBudget())
             executor.run()
 

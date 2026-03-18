@@ -1,4 +1,5 @@
 """Unit tests for rex/weather.py."""
+
 from __future__ import annotations
 
 import asyncio

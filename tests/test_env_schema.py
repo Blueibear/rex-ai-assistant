@@ -1,11 +1,8 @@
 """Tests for env_schema parser."""
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
-from utils.env_schema import EnvVariable, parse_env_example, is_restart_required
+from utils.env_schema import EnvVariable, is_restart_required, parse_env_example
 
 
 @pytest.fixture
@@ -125,19 +122,13 @@ def test_control_type_detection():
     """Test automatic control type detection."""
     # Boolean
     var = EnvVariable(
-        key="REX_DEBUG",
-        default_value="true",
-        description="Enable debug mode",
-        section="Test"
+        key="REX_DEBUG", default_value="true", description="Enable debug mode", section="Test"
     )
     assert var.control_type == "checkbox"
 
     # Dropdown - Log level
     var = EnvVariable(
-        key="REX_LOG_LEVEL",
-        default_value="INFO",
-        description="Log level",
-        section="Test"
+        key="REX_LOG_LEVEL", default_value="INFO", description="Log level", section="Test"
     )
     assert var.control_type == "dropdown"
     assert "INFO" in var.dropdown_options
@@ -147,7 +138,7 @@ def test_control_type_detection():
         key="REX_WHISPER_MODEL",
         default_value="base",
         description="Whisper model size",
-        section="Test"
+        section="Test",
     )
     assert var.control_type == "dropdown"
     assert "tiny" in var.dropdown_options
@@ -158,7 +149,7 @@ def test_control_type_detection():
         key="REX_WAKEWORD_THRESHOLD",
         default_value="0.5",
         description="Detection threshold",
-        section="Test"
+        section="Test",
     )
     assert var.control_type == "spinbox"
     assert var.min_value == 0.0
@@ -169,28 +160,19 @@ def test_secret_detection():
     """Test automatic secret field detection."""
     # API key
     var = EnvVariable(
-        key="OPENAI_API_KEY",
-        default_value="",
-        description="OpenAI API key",
-        section="Test"
+        key="OPENAI_API_KEY", default_value="", description="OpenAI API key", section="Test"
     )
     assert var.is_secret
 
     # Token
     var = EnvVariable(
-        key="REX_PROXY_TOKEN",
-        default_value="",
-        description="Proxy token",
-        section="Test"
+        key="REX_PROXY_TOKEN", default_value="", description="Proxy token", section="Test"
     )
     assert var.is_secret
 
     # Not a secret
     var = EnvVariable(
-        key="REX_LOG_LEVEL",
-        default_value="INFO",
-        description="Log level",
-        section="Test"
+        key="REX_LOG_LEVEL", default_value="INFO", description="Log level", section="Test"
     )
     assert not var.is_secret
 

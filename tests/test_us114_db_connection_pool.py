@@ -15,12 +15,10 @@ import sqlite3
 import threading
 import time
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 from rex.db_pool import ConnectionPool, ConnectionPoolError, PoolConfig
-
 
 # ---------------------------------------------------------------------------
 # PoolConfig — environment variable parsing
@@ -29,7 +27,12 @@ from rex.db_pool import ConnectionPool, ConnectionPoolError, PoolConfig
 
 class TestPoolConfigFromEnv:
     def test_defaults_when_no_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        for key in ("DB_POOL_MIN_SIZE", "DB_POOL_MAX_SIZE", "DB_POOL_ACQUIRE_TIMEOUT", "DB_POOL_IDLE_TIMEOUT"):
+        for key in (
+            "DB_POOL_MIN_SIZE",
+            "DB_POOL_MAX_SIZE",
+            "DB_POOL_ACQUIRE_TIMEOUT",
+            "DB_POOL_IDLE_TIMEOUT",
+        ):
             monkeypatch.delenv(key, raising=False)
         cfg = PoolConfig.from_env()
         assert cfg.min_size == 1
@@ -134,7 +137,9 @@ class TestAcquireRelease:
         assert pool.checked_out == 0
         pool.close_all()
 
-    def test_available_decrements_when_pool_connection_reused(self, db_path: Path, small_cfg: PoolConfig) -> None:
+    def test_available_decrements_when_pool_connection_reused(
+        self, db_path: Path, small_cfg: PoolConfig
+    ) -> None:
         pool = ConnectionPool(db_path, small_cfg)
         initial_avail = pool.available
         conn = pool.acquire()
@@ -183,14 +188,18 @@ class TestConnectContextManager:
         assert row[0] == "hello"
         pool.close_all()
 
-    def test_connect_releases_connection_after_exit(self, db_path: Path, small_cfg: PoolConfig) -> None:
+    def test_connect_releases_connection_after_exit(
+        self, db_path: Path, small_cfg: PoolConfig
+    ) -> None:
         pool = ConnectionPool(db_path, small_cfg)
         with pool.connect():
             pass
         assert pool.checked_out == 0
         pool.close_all()
 
-    def test_connect_releases_connection_on_exception(self, db_path: Path, small_cfg: PoolConfig) -> None:
+    def test_connect_releases_connection_on_exception(
+        self, db_path: Path, small_cfg: PoolConfig
+    ) -> None:
         pool = ConnectionPool(db_path, small_cfg)
         with pytest.raises(ValueError):
             with pool.connect():
@@ -285,7 +294,9 @@ class TestIdleTimeout:
         pool.release(conn2)
         pool.close_all()
 
-    def test_idle_timeout_logged_as_debug(self, db_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_idle_timeout_logged_as_debug(
+        self, db_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         import logging
 
         # Use a negative idle_timeout so the replacement always triggers regardless of timing.

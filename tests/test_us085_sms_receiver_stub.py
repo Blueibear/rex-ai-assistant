@@ -13,14 +13,11 @@ import socket
 from datetime import datetime, timezone
 from unittest.mock import patch
 
-import pytest
-
 from rex.messaging_backends.sms_receiver_stub import (
     InboundSmsHandlerResult,
     ReceivedSmsRecord,
     SmsReceiverStub,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

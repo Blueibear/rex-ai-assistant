@@ -19,20 +19,17 @@ from rex.contracts import ToolCall
 from rex.policy import PolicyDecision
 from rex.workflow import (
     Workflow,
-    WorkflowApproval,
     WorkflowStep,
     clear_condition_registry,
     register_condition,
 )
 from rex.workflow_runner import (
-    ApprovalBlockedError,
     RunResult,
     WorkflowRunner,
     approve_workflow,
     deny_workflow,
     list_pending_approvals,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -465,7 +462,7 @@ class TestErrorsHandled:
             runner.resume()
 
     def test_list_pending_approvals_returns_pending(self) -> None:
-        wf = make_workflow(steps=[make_step(step_id="s1")])
+        make_workflow(steps=[make_step(step_id="s1")])
         wf_blocked = make_workflow(
             steps=[make_step(step_id="s1", tool_call=ToolCall(tool="echo", args={}))]
         )

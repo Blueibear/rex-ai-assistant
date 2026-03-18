@@ -1,6 +1,5 @@
 """Tests for US-157: Visual waveform animation during active listening."""
 
-import re
 from pathlib import Path
 
 STATIC_DIR = Path(__file__).parent.parent / "rex" / "dashboard" / "static"

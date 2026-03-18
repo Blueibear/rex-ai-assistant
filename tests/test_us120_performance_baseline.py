@@ -19,10 +19,9 @@ from typing import Any
 import pytest
 from flask import Flask, jsonify
 
-from rex.health import create_health_blueprint, check_config
+from rex.health import check_config, create_health_blueprint
 from rex.http_errors import install_error_envelope_handler
 from rex.request_logging import install_request_logging
-
 
 # Maximum acceptable p50 response time in seconds for non-LLM endpoints.
 _P50_THRESHOLD_S = 0.5
@@ -110,9 +109,9 @@ class TestHealthCheckPerformance:
         """Health live endpoint p50 must be under 500ms."""
         durations = _measure(perf_client, "GET", "/health/live")
         p50 = _p50(durations)
-        assert p50 < _P50_THRESHOLD_S, (
-            f"FLAGGED: /health/live p50={p50*1000:.1f}ms exceeds {_P50_THRESHOLD_S*1000:.0f}ms threshold"
-        )
+        assert (
+            p50 < _P50_THRESHOLD_S
+        ), f"FLAGGED: /health/live p50={p50*1000:.1f}ms exceeds {_P50_THRESHOLD_S*1000:.0f}ms threshold"
 
     def test_health_live_sample_count(self, perf_client: Any) -> None:
         durations = _measure(perf_client, "GET", "/health/live")
@@ -121,9 +120,9 @@ class TestHealthCheckPerformance:
     def test_health_ready_p50_under_threshold(self, perf_client: Any) -> None:
         durations = _measure(perf_client, "GET", "/health/ready")
         p50 = _p50(durations)
-        assert p50 < _P50_THRESHOLD_S, (
-            f"FLAGGED: /health/ready p50={p50*1000:.1f}ms exceeds threshold"
-        )
+        assert (
+            p50 < _P50_THRESHOLD_S
+        ), f"FLAGGED: /health/ready p50={p50*1000:.1f}ms exceeds threshold"
 
 
 class TestNotificationListPerformance:
@@ -131,9 +130,9 @@ class TestNotificationListPerformance:
         """Notification list endpoint p50 must be under 500ms."""
         durations = _measure(perf_client, "GET", "/api/notifications")
         p50 = _p50(durations)
-        assert p50 < _P50_THRESHOLD_S, (
-            f"FLAGGED: /api/notifications p50={p50*1000:.1f}ms exceeds threshold"
-        )
+        assert (
+            p50 < _P50_THRESHOLD_S
+        ), f"FLAGGED: /api/notifications p50={p50*1000:.1f}ms exceeds threshold"
 
     def test_notification_list_sample_count(self, perf_client: Any) -> None:
         durations = _measure(perf_client, "GET", "/api/notifications")
@@ -145,9 +144,9 @@ class TestConfigLoadPerformance:
         """Config load endpoint p50 must be under 500ms."""
         durations = _measure(perf_client, "GET", "/api/settings")
         p50 = _p50(durations)
-        assert p50 < _P50_THRESHOLD_S, (
-            f"FLAGGED: /api/settings p50={p50*1000:.1f}ms exceeds threshold"
-        )
+        assert (
+            p50 < _P50_THRESHOLD_S
+        ), f"FLAGGED: /api/settings p50={p50*1000:.1f}ms exceeds threshold"
 
 
 class TestChatMessagePerformance:
@@ -155,9 +154,7 @@ class TestChatMessagePerformance:
         """Chat endpoint p50 (stub — no LLM) must be under 500ms."""
         durations = _measure(perf_client, "POST", "/api/chat")
         p50 = _p50(durations)
-        assert p50 < _P50_THRESHOLD_S, (
-            f"FLAGGED: /api/chat p50={p50*1000:.1f}ms exceeds threshold"
-        )
+        assert p50 < _P50_THRESHOLD_S, f"FLAGGED: /api/chat p50={p50*1000:.1f}ms exceeds threshold"
 
     def test_chat_send_sample_count(self, perf_client: Any) -> None:
         durations = _measure(perf_client, "POST", "/api/chat")
@@ -173,9 +170,9 @@ class TestBaselineDocumentExists:
     def test_performance_baseline_md_exists(self) -> None:
         """docs/performance-baseline.md must exist."""
         baseline_path = Path(__file__).parent.parent / "docs" / "performance-baseline.md"
-        assert baseline_path.exists(), (
-            "docs/performance-baseline.md does not exist — create it with baseline measurements"
-        )
+        assert (
+            baseline_path.exists()
+        ), "docs/performance-baseline.md does not exist — create it with baseline measurements"
 
     def test_performance_baseline_md_nonempty(self) -> None:
         baseline_path = Path(__file__).parent.parent / "docs" / "performance-baseline.md"
@@ -190,6 +187,6 @@ class TestBaselineDocumentExists:
             pytest.skip("docs/performance-baseline.md not yet created")
         content = baseline_path.read_text()
         for endpoint in ["/health", "/api/notifications", "/api/settings", "/api/chat"]:
-            assert endpoint in content, (
-                f"docs/performance-baseline.md does not mention endpoint {endpoint}"
-            )
+            assert (
+                endpoint in content
+            ), f"docs/performance-baseline.md does not mention endpoint {endpoint}"

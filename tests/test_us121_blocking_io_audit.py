@@ -26,7 +26,6 @@ from pathlib import Path
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Static analysis helpers
 # ---------------------------------------------------------------------------
@@ -81,9 +80,8 @@ class TestStaticAudit:
         """_process_conversation and other async methods must not call time.sleep() directly."""
         source = (REPO_ROOT / "voice_loop.py").read_text(encoding="utf-8")
         issues = _find_blocking_calls_in_async(source, "voice_loop.py")
-        assert not issues, (
-            "Blocking time.sleep() found directly in async handlers:\n"
-            + "\n".join(issues)
+        assert not issues, "Blocking time.sleep() found directly in async handlers:\n" + "\n".join(
+            issues
         )
 
     def test_assistant_no_bare_time_sleep_in_async(self) -> None:
@@ -121,9 +119,9 @@ class TestStaticAudit:
     def test_assistant_uses_run_in_executor_for_blocking(self) -> None:
         """rex/assistant.py async functions must use run_in_executor for blocking calls."""
         source = (REPO_ROOT / "rex" / "assistant.py").read_text(encoding="utf-8")
-        assert "run_in_executor" in source, (
-            "rex/assistant.py should use loop.run_in_executor for blocking calls"
-        )
+        assert (
+            "run_in_executor" in source
+        ), "rex/assistant.py should use loop.run_in_executor for blocking calls"
 
 
 # ---------------------------------------------------------------------------
@@ -144,10 +142,7 @@ class TestProcessConversationOffloads:
         # Find _process_conversation method body
         body_source: str | None = None
         for node in ast.walk(tree):
-            if (
-                isinstance(node, ast.AsyncFunctionDef)
-                and node.name == "_process_conversation"
-            ):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "_process_conversation":
                 body_source = ast.unparse(node)
                 break
 
@@ -163,10 +158,7 @@ class TestProcessConversationOffloads:
         tree = ast.parse(source)
 
         for node in ast.walk(tree):
-            if (
-                isinstance(node, ast.AsyncFunctionDef)
-                and node.name == "_process_conversation"
-            ):
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "_process_conversation":
                 body_source = ast.unparse(node)
                 assert "export_transcript" in body_source
                 assert "asyncio.to_thread" in body_source

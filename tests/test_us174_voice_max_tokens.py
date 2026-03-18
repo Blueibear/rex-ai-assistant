@@ -1,9 +1,6 @@
 """Tests for US-174: Configurable LLM response length limit for voice mode."""
 
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-import asyncio
-import pytest
 
 REPO_ROOT = Path(__file__).parent.parent
 ASSISTANT_SRC = REPO_ROOT / "rex" / "assistant.py"
@@ -40,11 +37,11 @@ class TestVoiceMaxTokensConfig:
     def test_voice_max_tokens_importable(self):
         from rex.config import Settings
 
-        s = Settings.__new__(Settings)
+        Settings.__new__(Settings)
         # Default attribute
-        assert hasattr(Settings, "__dataclass_fields__") or hasattr(
-            Settings, "model_fields"
-        ) or True  # may be pydantic or dataclass
+        assert (
+            hasattr(Settings, "__dataclass_fields__") or hasattr(Settings, "model_fields") or True
+        )  # may be pydantic or dataclass
 
     def test_settings_instance_has_voice_max_tokens(self):
         from rex.config import settings
@@ -78,8 +75,12 @@ class TestGenerateReplyVoiceMode:
         idx = src.index("_VOICE_CONCISE_INSTRUCTION")
         # Get the constant value
         end = src.index("\n", idx + len("_VOICE_CONCISE_INSTRUCTION"))
-        snippet = src[idx:end + 200]
-        assert "sentence" in snippet.lower() or "short" in snippet.lower() or "concise" in snippet.lower()
+        snippet = src[idx : end + 200]
+        assert (
+            "sentence" in snippet.lower()
+            or "short" in snippet.lower()
+            or "concise" in snippet.lower()
+        )
 
     def test_build_prompt_injects_concise_instruction_in_voice_mode(self):
         src = _assistant_src()
@@ -103,9 +104,7 @@ class TestVoiceLoopUsesVoiceMode:
 
     def test_chat_mode_not_affected(self):
         """Chat route should NOT pass voice_mode=True."""
-        routes_src = (REPO_ROOT / "rex" / "dashboard" / "routes.py").read_text(
-            encoding="utf-8"
-        )
+        routes_src = (REPO_ROOT / "rex" / "dashboard" / "routes.py").read_text(encoding="utf-8")
         # Routes that use generate_reply should not pass voice_mode=True
         if "generate_reply" in routes_src:
             assert "voice_mode=True" not in routes_src
@@ -131,7 +130,6 @@ class TestEnvExampleDocumentation:
 class TestBuildPromptVoiceModeFunctional:
     def _make_assistant(self):
         from rex.assistant import Assistant
-        from unittest.mock import MagicMock
 
         assistant = Assistant.__new__(Assistant)
         assistant._history = []
@@ -143,7 +141,9 @@ class TestBuildPromptVoiceModeFunctional:
     def test_voice_mode_adds_concise_instruction_to_prompt(self):
         assistant = self._make_assistant()
         prompt = assistant._build_prompt("What time is it?", voice_mode=True)
-        assert "sentence" in prompt.lower() or "short" in prompt.lower() or "concise" in prompt.lower()
+        assert (
+            "sentence" in prompt.lower() or "short" in prompt.lower() or "concise" in prompt.lower()
+        )
 
     def test_non_voice_mode_does_not_add_instruction(self):
         assistant = self._make_assistant()

@@ -8,14 +8,15 @@ Acceptance criteria:
 - Typecheck passes
 """
 
-import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_mock_playwright(tmp_path: Path):
     """Build a full playwright mock hierarchy for testing."""
@@ -260,10 +261,14 @@ class TestPageActionsExecuted:
         with patch("rex.browser_automation.async_playwright", mock_pw):
             with patch("rex.browser_automation.BrowserSession.storage_path", tmp_path, create=True):
                 # Patch BrowserSession to use tmp_path so screenshot dir is created there
-                original_init = __import__("rex.browser_automation", fromlist=["BrowserSession"]).BrowserSession.__init__
+                original_init = __import__(
+                    "rex.browser_automation", fromlist=["BrowserSession"]
+                ).BrowserSession.__init__
 
                 def patched_init(self, headless=True, session_name=None, storage_path=None):
-                    original_init(self, headless=headless, session_name=session_name, storage_path=tmp_path)
+                    original_init(
+                        self, headless=headless, session_name=session_name, storage_path=tmp_path
+                    )
 
                 with patch("rex.browser_automation.BrowserSession.__init__", patched_init):
                     results = await run_browser_script(steps, headless=True, check_policy=False)
@@ -285,7 +290,9 @@ class TestPageActionsExecuted:
 
         steps = [{"action": "explode", "params": {}}]
 
-        original_init = __import__("rex.browser_automation", fromlist=["BrowserSession"]).BrowserSession.__init__
+        original_init = __import__(
+            "rex.browser_automation", fromlist=["BrowserSession"]
+        ).BrowserSession.__init__
 
         def patched_init(self, headless=True, session_name=None, storage_path=None):
             original_init(self, headless=headless, session_name=session_name, storage_path=tmp_path)

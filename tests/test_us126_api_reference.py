@@ -274,14 +274,22 @@ class TestConsistencyWithCode:
             normalized = re.sub(r"\{[^}]+\}", "{id}", path)
             # Check exact match or partial match (path is a prefix of a real route)
             if not any(
-                normalized == r or normalized in r or r in normalized
-                for r in real_normalized
+                normalized == r or normalized in r or r in normalized for r in real_normalized
             ):
                 phantom.add(path)
 
         # Filter out paths that are clearly not route paths (e.g. example values)
-        phantom = {p for p in phantom if p.startswith("/api") or p.startswith("/health") or p.startswith("/speak") or p.startswith("/search") or p.startswith("/whoami") or p.startswith("/contracts")}
+        phantom = {
+            p
+            for p in phantom
+            if p.startswith("/api")
+            or p.startswith("/health")
+            or p.startswith("/speak")
+            or p.startswith("/search")
+            or p.startswith("/whoami")
+            or p.startswith("/contracts")
+        }
 
-        assert not phantom, (
-            f"Paths documented in api.md but not found in source routes: {sorted(phantom)}"
-        )
+        assert (
+            not phantom
+        ), f"Paths documented in api.md but not found in source routes: {sorted(phantom)}"

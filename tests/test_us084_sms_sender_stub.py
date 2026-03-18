@@ -14,10 +14,7 @@ import socket
 from datetime import datetime, timezone
 from unittest.mock import patch
 
-import pytest
-
 from rex.messaging_backends.sms_sender_stub import SentSmsRecord, SmsSenderStub
-
 
 # ---------------------------------------------------------------------------
 # Basic instantiation
@@ -173,8 +170,6 @@ def test_send_after_clear_works() -> None:
 def test_send_makes_no_network_calls() -> None:
     """Verify send() raises if a real socket connection is attempted."""
     stub = SmsSenderStub()
-
-    original_connect = socket.socket.connect
 
     def raise_on_connect(self: socket.socket, address: object) -> None:  # type: ignore[override]
         raise AssertionError(f"Unexpected network call to {address}")

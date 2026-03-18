@@ -13,7 +13,6 @@ import pytest
 from flask import Flask
 
 from rex.dashboard import dashboard_bp
-from rex.dashboard.auth import SessionManager
 
 
 @pytest.fixture()

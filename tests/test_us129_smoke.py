@@ -84,9 +84,11 @@ class TestHealthCheck:
     def test_liveness_status_value(self, live_server: str) -> None:
         resp = requests.get(f"{live_server}/health/live", timeout=REQUEST_TIMEOUT)
         data = resp.json()
-        assert data["status"] in {"ok", "alive", "live"}, (
-            f"Unexpected liveness status: {data['status']!r}"
-        )
+        assert data["status"] in {
+            "ok",
+            "alive",
+            "live",
+        }, f"Unexpected liveness status: {data['status']!r}"
 
     def test_readiness_endpoint_responds(self, live_server: str) -> None:
         """Readiness may return 200 or 503 (dependency failure) but must respond."""
@@ -138,17 +140,19 @@ class TestAuthentication:
             timeout=REQUEST_TIMEOUT,
         )
         # Any of these is valid: success, bad credentials, validation error
-        assert resp.status_code not in {404, 405}, (
-            f"Login endpoint returned {resp.status_code}: expected a defined response"
-        )
+        assert resp.status_code not in {
+            404,
+            405,
+        }, f"Login endpoint returned {resp.status_code}: expected a defined response"
 
     def test_public_contracts_endpoint_requires_no_auth(self, live_server: str) -> None:
         """/contracts is a public endpoint and must not require authentication."""
         resp = requests.get(f"{live_server}/contracts", timeout=REQUEST_TIMEOUT)
         # 200 (available) or 503 (contracts module disabled) — never 403
-        assert resp.status_code in {200, 503}, (
-            f"/contracts returned {resp.status_code}: expected 200 or 503"
-        )
+        assert resp.status_code in {
+            200,
+            503,
+        }, f"/contracts returned {resp.status_code}: expected 200 or 503"
 
     def test_health_live_requires_no_auth(self, live_server: str) -> None:
         """/health/live must be accessible without authentication."""
@@ -172,9 +176,10 @@ class TestChatRoundTrip:
             json={"message": "ping"},
             timeout=REQUEST_TIMEOUT,
         )
-        assert resp.status_code not in {404, 405}, (
-            f"/api/chat returned {resp.status_code}: endpoint must exist"
-        )
+        assert resp.status_code not in {
+            404,
+            405,
+        }, f"/api/chat returned {resp.status_code}: endpoint must exist"
 
     def test_chat_returns_json_content_type(self, live_server: str) -> None:
         resp = requests.post(
@@ -183,9 +188,9 @@ class TestChatRoundTrip:
             timeout=REQUEST_TIMEOUT,
         )
         content_type = resp.headers.get("Content-Type", "")
-        assert "application/json" in content_type, (
-            f"/api/chat Content-Type was {content_type!r}: expected application/json"
-        )
+        assert (
+            "application/json" in content_type
+        ), f"/api/chat Content-Type was {content_type!r}: expected application/json"
 
     def test_chat_response_is_valid_json(self, live_server: str) -> None:
         resp = requests.post(
@@ -200,9 +205,10 @@ class TestChatRoundTrip:
     def test_chat_history_endpoint_exists(self, live_server: str) -> None:
         """/api/chat/history must respond (not 404 or 405)."""
         resp = requests.get(f"{live_server}/api/chat/history", timeout=REQUEST_TIMEOUT)
-        assert resp.status_code not in {404, 405}, (
-            f"/api/chat/history returned {resp.status_code}: endpoint must exist"
-        )
+        assert resp.status_code not in {
+            404,
+            405,
+        }, f"/api/chat/history returned {resp.status_code}: endpoint must exist"
 
 
 # ---------------------------------------------------------------------------
@@ -217,30 +223,32 @@ class TestNotifications:
     def test_notifications_list_endpoint_exists(self, live_server: str) -> None:
         """/api/notifications must respond (not 404 or 405)."""
         resp = requests.get(f"{live_server}/api/notifications", timeout=REQUEST_TIMEOUT)
-        assert resp.status_code not in {404, 405}, (
-            f"/api/notifications returned {resp.status_code}: endpoint must exist"
-        )
+        assert resp.status_code not in {
+            404,
+            405,
+        }, f"/api/notifications returned {resp.status_code}: endpoint must exist"
 
     def test_notifications_response_is_json(self, live_server: str) -> None:
         resp = requests.get(f"{live_server}/api/notifications", timeout=REQUEST_TIMEOUT)
         content_type = resp.headers.get("Content-Type", "")
-        assert "application/json" in content_type, (
-            f"/api/notifications Content-Type was {content_type!r}"
-        )
+        assert (
+            "application/json" in content_type
+        ), f"/api/notifications Content-Type was {content_type!r}"
 
     def test_dashboard_status_endpoint_exists(self, live_server: str) -> None:
         """/api/dashboard/status must respond (not 404 or 405)."""
         resp = requests.get(f"{live_server}/api/dashboard/status", timeout=REQUEST_TIMEOUT)
-        assert resp.status_code not in {404, 405}, (
-            f"/api/dashboard/status returned {resp.status_code}: endpoint must exist"
-        )
+        assert resp.status_code not in {
+            404,
+            405,
+        }, f"/api/dashboard/status returned {resp.status_code}: endpoint must exist"
 
     def test_dashboard_status_response_is_json(self, live_server: str) -> None:
         resp = requests.get(f"{live_server}/api/dashboard/status", timeout=REQUEST_TIMEOUT)
         content_type = resp.headers.get("Content-Type", "")
-        assert "application/json" in content_type, (
-            f"/api/dashboard/status Content-Type was {content_type!r}"
-        )
+        assert (
+            "application/json" in content_type
+        ), f"/api/dashboard/status Content-Type was {content_type!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -292,9 +300,7 @@ class TestCLIEntrypoints:
             cwd=str(REPO_ROOT),
             env={**os.environ, "REX_TESTING": "true"},
         )
-        assert result.returncode == 0, (
-            f"rex_speak_api import failed:\n{result.stderr[:500]}"
-        )
+        assert result.returncode == 0, f"rex_speak_api import failed:\n{result.stderr[:500]}"
 
     def test_flask_proxy_importable(self) -> None:
         """flask_proxy must import without error when REX_TESTING=true."""
@@ -306,9 +312,7 @@ class TestCLIEntrypoints:
             cwd=str(REPO_ROOT),
             env={**os.environ, "REX_TESTING": "true"},
         )
-        assert result.returncode == 0, (
-            f"flask_proxy import failed:\n{result.stderr[:500]}"
-        )
+        assert result.returncode == 0, f"flask_proxy import failed:\n{result.stderr[:500]}"
 
     def test_agent_server_entry_point_importable(self) -> None:
         """rex.computers.agent_server must export 'main'."""
@@ -347,9 +351,9 @@ class TestSmokeSuiteStructure:
         import re
 
         classes_with_smoke = re.findall(r"@pytest\.mark\.smoke\s+class\s+\w+", content)
-        assert len(classes_with_smoke) >= 5, (
-            f"Expected at least 5 smoke-marked test classes, found {len(classes_with_smoke)}"
-        )
+        assert (
+            len(classes_with_smoke) >= 5
+        ), f"Expected at least 5 smoke-marked test classes, found {len(classes_with_smoke)}"
 
     def test_live_server_check_function_present(self) -> None:
         """_server_is_up() helper must be defined in the smoke test module."""
@@ -361,7 +365,9 @@ class TestSmokeSuiteStructure:
         """Smoke tests must include skip logic for when server is not running."""
         path = REPO_ROOT / "tests" / "test_us129_smoke.py"
         content = path.read_text(encoding="utf-8")
-        assert "pytest.skip" in content, "Smoke test file must contain pytest.skip() for graceful skips"
+        assert (
+            "pytest.skip" in content
+        ), "Smoke test file must contain pytest.skip() for graceful skips"
 
     def test_base_url_is_localhost(self) -> None:
         """Smoke tests must target localhost (not a remote host)."""

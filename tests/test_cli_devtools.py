@@ -1,9 +1,9 @@
 """Tests for CLI devtools commands."""
 
-import pytest
-from unittest.mock import Mock, patch
-from rex.cli import cmd_browser, cmd_os, cmd_gh, cmd_code
 import argparse
+from unittest.mock import Mock, patch
+
+from rex.cli import cmd_browser, cmd_code, cmd_gh, cmd_os
 
 
 class TestBrowserCLI:
@@ -11,7 +11,7 @@ class TestBrowserCLI:
 
     def test_cmd_browser_sessions(self):
         """Test 'rex browser sessions' command."""
-        with patch('rex.cli.get_browser_service') as mock_service:
+        with patch("rex.cli.get_browser_service") as mock_service:
             mock_service.return_value.list_sessions.return_value = []
 
             args = argparse.Namespace(
@@ -24,7 +24,7 @@ class TestBrowserCLI:
 
     def test_cmd_browser_screenshots(self):
         """Test 'rex browser screenshots' command."""
-        with patch('rex.cli.get_browser_service') as mock_service:
+        with patch("rex.cli.get_browser_service") as mock_service:
             mock_service.return_value.list_screenshots.return_value = []
 
             args = argparse.Namespace(
@@ -41,7 +41,7 @@ class TestOSCLI:
 
     def test_cmd_os_run_allowed(self):
         """Test 'rex os run' command with allowed command."""
-        with patch('rex.cli.get_os_service') as mock_service:
+        with patch("rex.cli.get_os_service") as mock_service:
             mock_result = Mock()
             mock_result.returncode = 0
             mock_result.stdout = "hello\n"
@@ -61,7 +61,7 @@ class TestOSCLI:
 
     def test_cmd_os_trash(self):
         """Test 'rex os trash' command."""
-        with patch('rex.cli.get_os_service') as mock_service:
+        with patch("rex.cli.get_os_service") as mock_service:
             mock_service.return_value.list_trash.return_value = []
 
             args = argparse.Namespace(
@@ -78,7 +78,7 @@ class TestGitHubCLI:
 
     def test_cmd_gh_repos(self):
         """Test 'rex gh repos' command."""
-        with patch('rex.cli.get_github_service') as mock_service:
+        with patch("rex.cli.get_github_service") as mock_service:
             from rex.github_service import Repository
 
             mock_repo = Repository(
@@ -103,7 +103,7 @@ class TestGitHubCLI:
 
     def test_cmd_gh_prs(self):
         """Test 'rex gh prs' command."""
-        with patch('rex.cli.get_github_service') as mock_service:
+        with patch("rex.cli.get_github_service") as mock_service:
             mock_service.return_value.list_prs.return_value = []
 
             args = argparse.Namespace(
@@ -122,7 +122,7 @@ class TestCodeCLI:
 
     def test_cmd_code_open(self):
         """Test 'rex code open' command."""
-        with patch('rex.cli.get_vscode_service') as mock_service:
+        with patch("rex.cli.get_vscode_service") as mock_service:
             mock_service.return_value.open_file.return_value = {
                 "status": "success",
                 "path": "/path/to/file.txt",
@@ -143,7 +143,7 @@ class TestCodeCLI:
 
     def test_cmd_code_test(self):
         """Test 'rex code test' command."""
-        with patch('rex.cli.get_vscode_service') as mock_service:
+        with patch("rex.cli.get_vscode_service") as mock_service:
             from rex.vscode_service import PyTestRunResult
 
             mock_result = PyTestRunResult(

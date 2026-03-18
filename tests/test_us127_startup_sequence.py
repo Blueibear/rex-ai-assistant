@@ -11,17 +11,16 @@ Verifies that:
 from __future__ import annotations
 
 import logging
-import sys
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _reload_startup():
     """Import (or reimport) rex.startup so module-level state is fresh."""
@@ -37,8 +36,11 @@ def _reload_startup():
 # Logging capture fixture
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
-def captured_logs(caplog: pytest.LogCaptureFixture) -> Generator[pytest.LogCaptureFixture, None, None]:
+def captured_logs(
+    caplog: pytest.LogCaptureFixture,
+) -> Generator[pytest.LogCaptureFixture, None, None]:
     with caplog.at_level(logging.DEBUG, logger="rex.startup"):
         yield caplog
 
@@ -46,6 +48,7 @@ def captured_logs(caplog: pytest.LogCaptureFixture) -> Generator[pytest.LogCaptu
 # ---------------------------------------------------------------------------
 # Tests: module importability
 # ---------------------------------------------------------------------------
+
 
 class TestStartupModuleImport:
     def test_run_startup_sequence_exported(self) -> None:
@@ -69,16 +72,19 @@ class TestStartupModuleImport:
 # Tests: step logging at INFO level
 # ---------------------------------------------------------------------------
 
+
 class TestStartupLogging:
-    def test_config_validation_logged_at_info(self, captured_logs: pytest.LogCaptureFixture) -> None:
+    def test_config_validation_logged_at_info(
+        self, captured_logs: pytest.LogCaptureFixture
+    ) -> None:
         from rex.startup import _run_config_validation
 
         _run_config_validation()
 
         info_msgs = [r.message for r in captured_logs.records if r.levelno == logging.INFO]
-        assert any("step 1" in m.lower() or "config" in m.lower() for m in info_msgs), (
-            f"Expected INFO log for config validation step. Got: {info_msgs}"
-        )
+        assert any(
+            "step 1" in m.lower() or "config" in m.lower() for m in info_msgs
+        ), f"Expected INFO log for config validation step. Got: {info_msgs}"
 
     def test_database_connectivity_logged_at_info(
         self, captured_logs: pytest.LogCaptureFixture, tmp_path: Path
@@ -89,9 +95,9 @@ class TestStartupLogging:
             _run_database_connectivity()
 
         info_msgs = [r.message for r in captured_logs.records if r.levelno == logging.INFO]
-        assert any("step 2" in m.lower() or "database" in m.lower() for m in info_msgs), (
-            f"Expected INFO log for database step. Got: {info_msgs}"
-        )
+        assert any(
+            "step 2" in m.lower() or "database" in m.lower() for m in info_msgs
+        ), f"Expected INFO log for database step. Got: {info_msgs}"
 
     def test_migration_check_logged_at_info(self, captured_logs: pytest.LogCaptureFixture) -> None:
         from rex.startup import _run_migration_check
@@ -107,19 +113,22 @@ class TestStartupLogging:
             _run_migration_check()
 
         info_msgs = [r.message for r in captured_logs.records if r.levelno == logging.INFO]
-        assert any("step 3" in m.lower() or "migration" in m.lower() for m in info_msgs), (
-            f"Expected INFO log for migration step. Got: {info_msgs}"
-        )
+        assert any(
+            "step 3" in m.lower() or "migration" in m.lower() for m in info_msgs
+        ), f"Expected INFO log for migration step. Got: {info_msgs}"
 
-    def test_log_service_ready_logged_at_info(self, captured_logs: pytest.LogCaptureFixture) -> None:
+    def test_log_service_ready_logged_at_info(
+        self, captured_logs: pytest.LogCaptureFixture
+    ) -> None:
         from rex.startup import log_service_ready
 
         log_service_ready()
 
         info_msgs = [r.message for r in captured_logs.records if r.levelno == logging.INFO]
-        assert any("step 4" in m.lower() or "ready" in m.lower() or "traffic" in m.lower() for m in info_msgs), (
-            f"Expected INFO log for service-ready step. Got: {info_msgs}"
-        )
+        assert any(
+            "step 4" in m.lower() or "ready" in m.lower() or "traffic" in m.lower()
+            for m in info_msgs
+        ), f"Expected INFO log for service-ready step. Got: {info_msgs}"
 
     def test_each_step_includes_step_number(self, captured_logs: pytest.LogCaptureFixture) -> None:
         """All four steps must appear in the log with step N/4 notation."""
@@ -135,14 +144,15 @@ class TestStartupLogging:
         info_msgs = [r.message for r in captured_logs.records if r.levelno == logging.INFO]
         combined = " ".join(info_msgs).lower()
         for n in (1, 2, 3, 4):
-            assert f"step {n}" in combined or f"{n}/4" in combined, (
-                f"Step {n} not logged at INFO. Messages: {info_msgs}"
-            )
+            assert (
+                f"step {n}" in combined or f"{n}/4" in combined
+            ), f"Step {n} not logged at INFO. Messages: {info_msgs}"
 
 
 # ---------------------------------------------------------------------------
 # Tests: dependency ordering — successful path
 # ---------------------------------------------------------------------------
+
 
 class TestStartupOrder:
     def test_run_startup_sequence_calls_all_three_steps(self) -> None:
@@ -166,9 +176,11 @@ class TestStartupOrder:
         ):
             run_startup_sequence()
 
-        assert call_order == ["config", "db", "migration"], (
-            f"Expected config → db → migration, got {call_order}"
-        )
+        assert call_order == [
+            "config",
+            "db",
+            "migration",
+        ], f"Expected config → db → migration, got {call_order}"
 
     def test_config_runs_before_database(self) -> None:
         from rex.startup import run_startup_sequence
@@ -176,13 +188,24 @@ class TestStartupOrder:
         call_order: list[str] = []
 
         with (
-            patch("rex.startup._run_config_validation", side_effect=lambda: call_order.append("config")),
-            patch("rex.startup._run_database_connectivity", side_effect=lambda: call_order.append("db")),
-            patch("rex.startup._run_migration_check", side_effect=lambda: call_order.append("migration")),
+            patch(
+                "rex.startup._run_config_validation",
+                side_effect=lambda: call_order.append("config"),
+            ),
+            patch(
+                "rex.startup._run_database_connectivity",
+                side_effect=lambda: call_order.append("db"),
+            ),
+            patch(
+                "rex.startup._run_migration_check",
+                side_effect=lambda: call_order.append("migration"),
+            ),
         ):
             run_startup_sequence()
 
-        assert call_order.index("config") < call_order.index("db"), "Config must run before database"
+        assert call_order.index("config") < call_order.index(
+            "db"
+        ), "Config must run before database"
 
     def test_database_runs_before_migration(self) -> None:
         from rex.startup import run_startup_sequence
@@ -190,18 +213,30 @@ class TestStartupOrder:
         call_order: list[str] = []
 
         with (
-            patch("rex.startup._run_config_validation", side_effect=lambda: call_order.append("config")),
-            patch("rex.startup._run_database_connectivity", side_effect=lambda: call_order.append("db")),
-            patch("rex.startup._run_migration_check", side_effect=lambda: call_order.append("migration")),
+            patch(
+                "rex.startup._run_config_validation",
+                side_effect=lambda: call_order.append("config"),
+            ),
+            patch(
+                "rex.startup._run_database_connectivity",
+                side_effect=lambda: call_order.append("db"),
+            ),
+            patch(
+                "rex.startup._run_migration_check",
+                side_effect=lambda: call_order.append("migration"),
+            ),
         ):
             run_startup_sequence()
 
-        assert call_order.index("db") < call_order.index("migration"), "Database must run before migration"
+        assert call_order.index("db") < call_order.index(
+            "migration"
+        ), "Database must run before migration"
 
 
 # ---------------------------------------------------------------------------
 # Tests: failure halts subsequent steps
 # ---------------------------------------------------------------------------
+
 
 class TestStartupFailureHalts:
     def test_config_failure_prevents_database_step(self) -> None:
@@ -212,7 +247,9 @@ class TestStartupFailureHalts:
 
         with (
             patch("rex.startup._run_config_validation", side_effect=SystemExit(1)),
-            patch("rex.startup._run_database_connectivity", side_effect=lambda: db_called.append(True)),
+            patch(
+                "rex.startup._run_database_connectivity", side_effect=lambda: db_called.append(True)
+            ),
             patch("rex.startup._run_migration_check"),
         ):
             with pytest.raises(SystemExit):
@@ -229,7 +266,10 @@ class TestStartupFailureHalts:
         with (
             patch("rex.startup._run_config_validation", side_effect=SystemExit(1)),
             patch("rex.startup._run_database_connectivity"),
-            patch("rex.startup._run_migration_check", side_effect=lambda: migration_called.append(True)),
+            patch(
+                "rex.startup._run_migration_check",
+                side_effect=lambda: migration_called.append(True),
+            ),
         ):
             with pytest.raises(SystemExit):
                 run_startup_sequence()
@@ -245,7 +285,10 @@ class TestStartupFailureHalts:
         with (
             patch("rex.startup._run_config_validation"),
             patch("rex.startup._run_database_connectivity", side_effect=SystemExit(1)),
-            patch("rex.startup._run_migration_check", side_effect=lambda: migration_called.append(True)),
+            patch(
+                "rex.startup._run_migration_check",
+                side_effect=lambda: migration_called.append(True),
+            ),
         ):
             with pytest.raises(SystemExit):
                 run_startup_sequence()
@@ -276,7 +319,9 @@ class TestStartupFailureHalts:
         """An unhandled exception in the migration step must cause sys.exit(1)."""
         from rex.startup import _run_migration_check
 
-        with patch("rex.migrations.validate_migration_state", side_effect=RuntimeError("migration fail")):
+        with patch(
+            "rex.migrations.validate_migration_state", side_effect=RuntimeError("migration fail")
+        ):
             with pytest.raises(SystemExit) as exc_info:
                 _run_migration_check()
 
@@ -286,6 +331,7 @@ class TestStartupFailureHalts:
 # ---------------------------------------------------------------------------
 # Tests: happy-path integration (mocked externals)
 # ---------------------------------------------------------------------------
+
 
 class TestStartupHappyPath:
     def test_run_startup_sequence_succeeds(self) -> None:
@@ -308,6 +354,7 @@ class TestStartupHappyPath:
 # Tests: flask_proxy uses startup sequence
 # ---------------------------------------------------------------------------
 
+
 class TestFlaskProxyUsesStartup:
     def test_flask_proxy_imports_startup_functions(self) -> None:
         """flask_proxy.py must import run_startup_sequence and log_service_ready."""
@@ -323,12 +370,12 @@ class TestFlaskProxyUsesStartup:
                 for alias in node.names:
                     imported_names.add(alias.name)
 
-        assert "run_startup_sequence" in imported_names, (
-            "flask_proxy.py must import run_startup_sequence from rex.startup"
-        )
-        assert "log_service_ready" in imported_names, (
-            "flask_proxy.py must import log_service_ready from rex.startup"
-        )
+        assert (
+            "run_startup_sequence" in imported_names
+        ), "flask_proxy.py must import run_startup_sequence from rex.startup"
+        assert (
+            "log_service_ready" in imported_names
+        ), "flask_proxy.py must import log_service_ready from rex.startup"
 
     def test_flask_proxy_calls_run_startup_sequence(self) -> None:
         """flask_proxy.py must call run_startup_sequence() at module level."""

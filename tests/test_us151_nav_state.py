@@ -16,14 +16,21 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).parent.parent
 HTML_PATH = REPO_ROOT / "rex" / "dashboard" / "templates" / "index.html"
 CSS_PATH = REPO_ROOT / "rex" / "dashboard" / "static" / "css" / "dashboard.css"
 JS_PATH = REPO_ROOT / "rex" / "dashboard" / "static" / "js" / "dashboard.js"
 
-SECTIONS = ["chat", "voice", "schedule", "overview", "settings", "reminders", "notifications", "status"]
+SECTIONS = [
+    "chat",
+    "voice",
+    "schedule",
+    "overview",
+    "settings",
+    "reminders",
+    "notifications",
+    "status",
+]
 
 
 def _html() -> str:
@@ -47,16 +54,16 @@ class TestSidebarPanelSwitching:
     def test_all_sections_have_nav_link(self) -> None:
         html = _html()
         for section in SECTIONS:
-            assert f'data-section="{section}"' in html, (
-                f"No nav link with data-section=\"{section}\" found in HTML"
-            )
+            assert (
+                f'data-section="{section}"' in html
+            ), f'No nav link with data-section="{section}" found in HTML'
 
     def test_all_sections_have_content_panel(self) -> None:
         html = _html()
         for section in SECTIONS:
-            assert f'id="{section}-section"' in html, (
-                f"No content panel with id=\"{section}-section\" found in HTML"
-            )
+            assert (
+                f'id="{section}-section"' in html
+            ), f'No content panel with id="{section}-section" found in HTML'
 
     def test_switchSection_hides_inactive_sections(self) -> None:
         """JS switchSection hides non-active sections via 'hidden' class toggle."""
@@ -113,8 +120,10 @@ class TestActiveHighlighting:
     def test_initial_chat_link_has_active_class(self) -> None:
         html = _html()
         # The chat nav link should start with the active class
-        assert 'data-section="chat" class="nav-link active"' in html or \
-               'class="nav-link active"' in html
+        assert (
+            'data-section="chat" class="nav-link active"' in html
+            or 'class="nav-link active"' in html
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -209,14 +218,21 @@ class TestBrowserHistory:
 class TestTypecheck:
     def test_mypy_passes(self) -> None:
         result = subprocess.run(
-            [sys.executable, "-m", "mypy", "rex/", "--ignore-missing-imports",
-             "--no-error-summary"],
+            [
+                sys.executable,
+                "-m",
+                "mypy",
+                "rex/",
+                "--ignore-missing-imports",
+                "--no-error-summary",
+            ],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
         )
         # Pre-existing errors are acceptable; this should not introduce new errors
         # mypy exit code 0 = clean, 1 = type errors (pre-existing), 2 = fatal error
-        assert result.returncode in (0, 1), (
-            f"mypy crashed (exit {result.returncode}):\n{result.stderr}"
-        )
+        assert result.returncode in (
+            0,
+            1,
+        ), f"mypy crashed (exit {result.returncode}):\n{result.stderr}"

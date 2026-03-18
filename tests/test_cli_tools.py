@@ -5,9 +5,6 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import patch
-
-import pytest
 
 from rex.cli import cmd_tools, create_parser, main
 from rex.credentials import CredentialManager, set_credential_manager
@@ -52,9 +49,7 @@ class TestCmdTools:
     def setup_method(self):
         """Set up test fixtures."""
         # Create a fresh registry for each test
-        self.credential_manager = CredentialManager(
-            config_path=Path("/nonexistent/path.json")
-        )
+        self.credential_manager = CredentialManager(config_path=Path("/nonexistent/path.json"))
         self.registry = ToolRegistry(credential_manager=self.credential_manager)
         set_tool_registry(self.registry)
         set_credential_manager(self.credential_manager)
@@ -66,6 +61,7 @@ class TestCmdTools:
 
     def test_cmd_tools_no_tools(self, capsys):
         """Test output when no tools are registered."""
+
         class Args:
             verbose = False
             all = False
@@ -78,10 +74,12 @@ class TestCmdTools:
 
     def test_cmd_tools_with_tools(self, capsys):
         """Test output with registered tools."""
-        self.registry.register_tool(ToolMeta(
-            name="test_tool",
-            description="A test tool for testing",
-        ))
+        self.registry.register_tool(
+            ToolMeta(
+                name="test_tool",
+                description="A test tool for testing",
+            )
+        )
 
         class Args:
             verbose = False
@@ -98,25 +96,31 @@ class TestCmdTools:
     def test_cmd_tools_shows_status_icons(self, capsys):
         """Test that status icons are shown correctly."""
         # Ready tool
-        self.registry.register_tool(ToolMeta(
-            name="ready_tool",
-            description="Ready tool",
-            health_check=lambda: (True, "OK"),
-        ))
+        self.registry.register_tool(
+            ToolMeta(
+                name="ready_tool",
+                description="Ready tool",
+                health_check=lambda: (True, "OK"),
+            )
+        )
 
         # Unhealthy tool
-        self.registry.register_tool(ToolMeta(
-            name="unhealthy_tool",
-            description="Unhealthy tool",
-            health_check=lambda: (False, "Down"),
-        ))
+        self.registry.register_tool(
+            ToolMeta(
+                name="unhealthy_tool",
+                description="Unhealthy tool",
+                health_check=lambda: (False, "Down"),
+            )
+        )
 
         # Tool missing credentials
-        self.registry.register_tool(ToolMeta(
-            name="no_creds_tool",
-            description="No creds tool",
-            required_credentials=["missing_cred"],
-        ))
+        self.registry.register_tool(
+            ToolMeta(
+                name="no_creds_tool",
+                description="No creds tool",
+                required_credentials=["missing_cred"],
+            )
+        )
 
         class Args:
             verbose = False
@@ -133,14 +137,16 @@ class TestCmdTools:
     def test_cmd_tools_verbose_output(self, capsys):
         """Test verbose output includes additional details."""
         self.credential_manager.set_token("api_key", "secret")
-        self.registry.register_tool(ToolMeta(
-            name="verbose_tool",
-            description="Tool for verbose test",
-            version="2.0.0",
-            capabilities=["read", "write"],
-            required_credentials=["api_key"],
-            health_check=lambda: (True, "Service running"),
-        ))
+        self.registry.register_tool(
+            ToolMeta(
+                name="verbose_tool",
+                description="Tool for verbose test",
+                version="2.0.0",
+                capabilities=["read", "write"],
+                required_credentials=["api_key"],
+                health_check=lambda: (True, "Service running"),
+            )
+        )
 
         class Args:
             verbose = True
@@ -157,15 +163,19 @@ class TestCmdTools:
 
     def test_cmd_tools_excludes_disabled_by_default(self, capsys):
         """Test that disabled tools are excluded by default."""
-        self.registry.register_tool(ToolMeta(
-            name="enabled_tool",
-            description="Enabled",
-        ))
-        self.registry.register_tool(ToolMeta(
-            name="disabled_tool",
-            description="Disabled",
-            enabled=False,
-        ))
+        self.registry.register_tool(
+            ToolMeta(
+                name="enabled_tool",
+                description="Enabled",
+            )
+        )
+        self.registry.register_tool(
+            ToolMeta(
+                name="disabled_tool",
+                description="Disabled",
+                enabled=False,
+            )
+        )
 
         class Args:
             verbose = False
@@ -180,15 +190,19 @@ class TestCmdTools:
 
     def test_cmd_tools_includes_disabled_with_flag(self, capsys):
         """Test that disabled tools are included with -a flag."""
-        self.registry.register_tool(ToolMeta(
-            name="enabled_tool",
-            description="Enabled",
-        ))
-        self.registry.register_tool(ToolMeta(
-            name="disabled_tool",
-            description="Disabled",
-            enabled=False,
-        ))
+        self.registry.register_tool(
+            ToolMeta(
+                name="enabled_tool",
+                description="Enabled",
+            )
+        )
+        self.registry.register_tool(
+            ToolMeta(
+                name="disabled_tool",
+                description="Disabled",
+                enabled=False,
+            )
+        )
 
         class Args:
             verbose = False
@@ -204,15 +218,19 @@ class TestCmdTools:
 
     def test_cmd_tools_shows_summary(self, capsys):
         """Test that summary is shown at the end."""
-        self.registry.register_tool(ToolMeta(
-            name="tool1",
-            description="Tool 1",
-        ))
-        self.registry.register_tool(ToolMeta(
-            name="tool2",
-            description="Tool 2",
-            health_check=lambda: (False, "Down"),
-        ))
+        self.registry.register_tool(
+            ToolMeta(
+                name="tool1",
+                description="Tool 1",
+            )
+        )
+        self.registry.register_tool(
+            ToolMeta(
+                name="tool2",
+                description="Tool 2",
+                health_check=lambda: (False, "Down"),
+            )
+        )
 
         class Args:
             verbose = False
@@ -226,11 +244,13 @@ class TestCmdTools:
 
     def test_cmd_tools_verbose_shows_missing_creds(self, capsys):
         """Test that verbose output shows missing credentials."""
-        self.registry.register_tool(ToolMeta(
-            name="needs_creds",
-            description="Needs credentials",
-            required_credentials=["missing_key", "another_key"],
-        ))
+        self.registry.register_tool(
+            ToolMeta(
+                name="needs_creds",
+                description="Needs credentials",
+                required_credentials=["missing_key", "another_key"],
+            )
+        )
 
         class Args:
             verbose = True
@@ -249,14 +269,14 @@ class TestMainToolsCommand:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.credential_manager = CredentialManager(
-            config_path=Path("/nonexistent/path.json")
-        )
+        self.credential_manager = CredentialManager(config_path=Path("/nonexistent/path.json"))
         self.registry = ToolRegistry(credential_manager=self.credential_manager)
-        self.registry.register_tool(ToolMeta(
-            name="main_test_tool",
-            description="Tool for main test",
-        ))
+        self.registry.register_tool(
+            ToolMeta(
+                name="main_test_tool",
+                description="Tool for main test",
+            )
+        )
         set_tool_registry(self.registry)
         set_credential_manager(self.credential_manager)
 
@@ -347,9 +367,7 @@ class TestToolsOutputFormat:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.credential_manager = CredentialManager(
-            config_path=Path("/nonexistent/path.json")
-        )
+        self.credential_manager = CredentialManager(config_path=Path("/nonexistent/path.json"))
         self.registry = ToolRegistry(credential_manager=self.credential_manager)
         set_tool_registry(self.registry)
         set_credential_manager(self.credential_manager)
@@ -375,10 +393,12 @@ class TestToolsOutputFormat:
 
     def test_output_format_per_tool(self, capsys):
         """Test output format for each tool."""
-        self.registry.register_tool(ToolMeta(
-            name="format_test",
-            description="Description for format test",
-        ))
+        self.registry.register_tool(
+            ToolMeta(
+                name="format_test",
+                description="Description for format test",
+            )
+        )
 
         class Args:
             verbose = False

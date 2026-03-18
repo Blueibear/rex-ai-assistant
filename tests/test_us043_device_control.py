@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from rex.ha_bridge import HABridge, IntentMatch
-
+from rex.ha_bridge import HABridge
 
 # ---------------------------------------------------------------------------
 # Helpers

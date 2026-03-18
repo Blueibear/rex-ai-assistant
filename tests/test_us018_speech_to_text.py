@@ -15,10 +15,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helper: build a fake Whisper module
 # ---------------------------------------------------------------------------
+
 
 def _make_fake_whisper(transcript: str = "hello rex") -> types.ModuleType:
     fake = types.ModuleType("whisper")
@@ -38,6 +38,7 @@ def _make_fake_whisper(transcript: str = "hello rex") -> types.ModuleType:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def fake_np():
     """Return a minimal numpy-like array stub."""
@@ -52,6 +53,7 @@ def fake_np():
 # ---------------------------------------------------------------------------
 # Tests: SpeechToText initialisation
 # ---------------------------------------------------------------------------
+
 
 class TestSpeechToTextInit:
     def test_init_succeeds_with_whisper(self):
@@ -89,6 +91,7 @@ class TestSpeechToTextInit:
 # Tests: audio converted to transcript
 # ---------------------------------------------------------------------------
 
+
 class TestSpeechToTextTranscribe:
     def _make_stt(self, transcript: str = "hello rex"):
         fake_whisper = _make_fake_whisper(transcript)
@@ -100,27 +103,21 @@ class TestSpeechToTextTranscribe:
     def test_transcribe_returns_string(self, fake_np):
         """transcribe() returns a non-empty string."""
         stt = self._make_stt("hello rex")
-        result = asyncio.run(
-            stt.transcribe(fake_np.zeros(16000), sample_rate=16000)
-        )
+        result = asyncio.run(stt.transcribe(fake_np.zeros(16000), sample_rate=16000))
         assert isinstance(result, str)
         assert len(result) > 0
 
     def test_transcribe_strips_whitespace(self, fake_np):
         """Transcript is stripped of leading/trailing whitespace."""
         stt = self._make_stt("  hello rex  ")
-        result = asyncio.run(
-            stt.transcribe(fake_np.zeros(16000), sample_rate=16000)
-        )
+        result = asyncio.run(stt.transcribe(fake_np.zeros(16000), sample_rate=16000))
         assert result == result.strip()
 
     def test_transcribe_matches_expected_phrase(self, fake_np):
         """Transcript content matches the phrase returned by the model."""
         phrase = "what is the weather today"
         stt = self._make_stt(phrase)
-        result = asyncio.run(
-            stt.transcribe(fake_np.zeros(16000), sample_rate=16000)
-        )
+        result = asyncio.run(stt.transcribe(fake_np.zeros(16000), sample_rate=16000))
         assert phrase in result
 
     def test_transcribe_failure_raises_stt_error(self, fake_np):
@@ -140,14 +137,13 @@ class TestSpeechToTextTranscribe:
             stt = SpeechToText(model_name="base", device="cpu")
 
         with pytest.raises(SpeechToTextError):
-            asyncio.run(
-                stt.transcribe(fake_np.zeros(16000), sample_rate=16000)
-            )
+            asyncio.run(stt.transcribe(fake_np.zeros(16000), sample_rate=16000))
 
 
 # ---------------------------------------------------------------------------
 # Tests: transcript matches phrase on 3 consecutive attempts
 # ---------------------------------------------------------------------------
+
 
 class TestConsistentTranscription:
     """Verify transcript consistency: same audio → same result on repeated calls."""
@@ -163,9 +159,7 @@ class TestConsistentTranscription:
 
             stt = SpeechToText(model_name="base", device="cpu")
 
-        result = asyncio.run(
-            stt.transcribe(fake_np.zeros(16000), sample_rate=16000)
-        )
+        result = asyncio.run(stt.transcribe(fake_np.zeros(16000), sample_rate=16000))
         assert phrase in result, f"Attempt {attempt}: expected '{phrase}' in '{result}'"
 
     def test_three_consecutive_calls_all_match(self, fake_np):
@@ -179,8 +173,7 @@ class TestConsistentTranscription:
             stt = SpeechToText(model_name="base", device="cpu")
 
         results = [
-            asyncio.run(stt.transcribe(fake_np.zeros(16000), sample_rate=16000))
-            for _ in range(3)
+            asyncio.run(stt.transcribe(fake_np.zeros(16000), sample_rate=16000)) for _ in range(3)
         ]
         for i, r in enumerate(results):
             assert phrase in r, f"Call {i + 1}: expected '{phrase}' in '{r}'"
@@ -191,6 +184,7 @@ class TestConsistentTranscription:
 # ---------------------------------------------------------------------------
 # Tests: microphone audio captured (sounddevice integration stub)
 # ---------------------------------------------------------------------------
+
 
 class TestMicrophoneCapture:
     def test_sounddevice_record_shape(self):

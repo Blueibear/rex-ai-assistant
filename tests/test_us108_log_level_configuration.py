@@ -25,7 +25,6 @@ from rex.logging_utils import (
     configure_logging,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -112,9 +111,7 @@ class TestEnvLogLevel:
 
 
 class TestConfigureLoggingLevel:
-    def test_default_level_is_info_when_env_not_set(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_default_level_is_info_when_env_not_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("LOG_LEVEL", raising=False)
         monkeypatch.delenv("REX_LOG_LEVEL", raising=False)
         root = _fresh_root_logger()
@@ -145,9 +142,7 @@ class TestConfigureLoggingLevel:
         for h in root.handlers[:]:
             root.removeHandler(h)
 
-    def test_debug_messages_suppressed_at_info_level(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_debug_messages_suppressed_at_info_level(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("LOG_LEVEL", raising=False)
         monkeypatch.delenv("REX_LOG_LEVEL", raising=False)
         root = _fresh_root_logger()
@@ -163,9 +158,7 @@ class TestConfigureLoggingLevel:
         for h in root.handlers[:]:
             root.removeHandler(h)
 
-    def test_debug_messages_visible_at_debug_level(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_debug_messages_visible_at_debug_level(self, monkeypatch: pytest.MonkeyPatch) -> None:
         root = _fresh_root_logger()
         handler, buf = _make_stream_handler()
         with patch("rex.logging_utils._json_logging_enabled", return_value=False):
@@ -249,10 +242,12 @@ class TestApplyModuleLogLevels:
         logger.setLevel(logging.NOTSET)  # cleanup
 
     def test_multiple_modules(self) -> None:
-        apply_module_log_levels({
-            "rex.test.mod_a": logging.DEBUG,
-            "rex.test.mod_b": logging.ERROR,
-        })
+        apply_module_log_levels(
+            {
+                "rex.test.mod_a": logging.DEBUG,
+                "rex.test.mod_b": logging.ERROR,
+            }
+        )
         assert logging.getLogger("rex.test.mod_a").level == logging.DEBUG
         assert logging.getLogger("rex.test.mod_b").level == logging.ERROR
         logging.getLogger("rex.test.mod_a").setLevel(logging.NOTSET)

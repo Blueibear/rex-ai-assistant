@@ -203,7 +203,8 @@ class TestInboundStoreMigration:
 
         # Create a legacy table WITHOUT user_id
         conn = sqlite3.connect(str(db_path))
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE inbound_sms (
                 id            TEXT PRIMARY KEY,
                 sid           TEXT NOT NULL DEFAULT '',
@@ -214,11 +215,14 @@ class TestInboundStoreMigration:
                 account_id    TEXT,
                 routed        INTEGER NOT NULL DEFAULT 0
             )
-            """)
-        conn.execute("""
+            """
+        )
+        conn.execute(
+            """
             INSERT INTO inbound_sms (id, sid, from_number, to_number, body, received_at, routed)
             VALUES ('old1', 'SM_OLD', '+1', '+2', 'legacy msg', '2025-01-01T00:00:00+00:00', 1)
-            """)
+            """
+        )
         conn.commit()
         conn.close()
 

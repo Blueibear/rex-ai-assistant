@@ -145,7 +145,9 @@ class TestIndexStored:
 class TestIndexingFailuresLogged:
     """AC: indexing failures logged."""
 
-    def test_corrupt_docs_file_logs_warning(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_corrupt_docs_file_logs_warning(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """A corrupt docs file triggers a warning log."""
         docs_path = tmp_path / "docs.json"
         docs_path.write_text("not valid json {{{{", encoding="utf-8")
@@ -158,7 +160,9 @@ class TestIndexingFailuresLogged:
 
         assert any("Failed to load documents" in r.message for r in caplog.records)
 
-    def test_corrupt_index_file_logs_warning(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_corrupt_index_file_logs_warning(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """A corrupt index file triggers a warning log."""
         docs_path = tmp_path / "docs.json"
         index_path = tmp_path / "index.json"
@@ -170,7 +174,9 @@ class TestIndexingFailuresLogged:
 
         assert any("Failed to load index" in r.message for r in caplog.records)
 
-    def test_save_failure_logs_error(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_save_failure_logs_error(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """An OSError during save is logged as an error."""
         kb = KnowledgeBase(
             docs_path=tmp_path / "docs.json",

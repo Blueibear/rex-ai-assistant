@@ -191,9 +191,7 @@ class TestRouteIfToolRequestPolicyIntegration:
             return "final response"
 
         llm_text = 'TOOL_REQUEST: {"tool":"send_email","args":{"to":"user@example.com"}}'
-        result = route_if_tool_request(
-            llm_text, {}, model_call, skip_policy_check=True
-        )
+        result = route_if_tool_request(llm_text, {}, model_call, skip_policy_check=True)
 
         assert result == "final response"
         assert len(calls) == 1
