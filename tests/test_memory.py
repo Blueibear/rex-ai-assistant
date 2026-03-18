@@ -199,15 +199,15 @@ class TestLongTermMemory:
         assert not entry.is_expired()
 
     def test_add_entry_with_sensitive_flag(self, tmp_path):
-        """Test adding sensitive entry."""
-        storage = tmp_path / "ltm.json"
-        ltm = LongTermMemory(storage_path=storage)
+    """Test adding sensitive entry."""
+    storage = tmp_path / "ltm.json"
+    ltm = LongTermMemory(storage_path=storage)
 
-        entry = ltm.add_entry(
-            category="secrets",
-            content={"password": "hunter2"},
-            sensitive=True,
-        )
+    entry = ltm.add_entry(
+        category="secrets",  # pragma: allowlist secret
+        content={"password": "hunter2"},  # pragma: allowlist secret
+        sensitive=True,
+    )
 
         assert entry.sensitive is True
 
