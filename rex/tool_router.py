@@ -280,8 +280,7 @@ def execute_tool(
         elif tool == "weather_now":
             result = _execute_weather_now(args, default_context)
         elif tool == "web_search":
-            result = _error_result(f"Tool {tool} is not implemented", tool=tool, args=args)
-            error = f"Tool {tool} is not implemented"
+            result = _execute_web_search(args, default_context)
         else:
             result = _error_result(f"Unknown tool {tool}", tool=tool, args=args)
             error = f"Unknown tool {tool}"
@@ -496,7 +495,9 @@ def _execute_weather_now(args: dict[str, Any], default_context: dict[str, Any]) 
     if not isinstance(location, str) or not location.strip():
         location = get_cached_city()
     if not isinstance(location, str) or not location.strip():
-        return _error_result("Missing required location for weather_now", tool="weather_now", args=args)
+        return _error_result(
+            "Missing required location for weather_now", tool="weather_now", args=args
+        )
 
     location = location.strip()
     api_key = os.getenv("OPENWEATHERMAP_API_KEY", "")
@@ -519,6 +520,24 @@ def _execute_weather_now(args: dict[str, Any], default_context: dict[str, Any]) 
         return _error_result(weather["error"], tool="weather_now", args=args)
 
     return weather
+
+
+def _execute_web_search(args: dict[str, Any], default_context: dict[str, Any]) -> dict[str, Any]:
+    query = args.get("query") or args.get("q") or ""
+    if not isinstance(query, str) or not query.strip():
+        return _error_result("web_search requires a 'query' argument", tool="web_search", args=args)
+    query = query.strip()
+    try:
+        from plugins.web_search import search_web
+
+        result_text = search_web(query)
+    except ImportError:
+        return _error_result("web_search plugin is not installed", tool="web_search", args=args)
+    except Exception as exc:
+        return _error_result(str(exc), tool="web_search", args=args)
+    if result_text is None:
+        return {"query": query, "result": "No results found.", "success": False}
+    return {"query": query, "result": result_text, "success": True}
 
 
 _CITY_TIMEZONES: dict[str, str] = {

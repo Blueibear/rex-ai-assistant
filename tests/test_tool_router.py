@@ -82,20 +82,17 @@ def test_execute_tool_weather_now_returns_not_implemented_error_payload():
     assert "OPENWEATHERMAP_API_KEY" in result["error"]["message"]
 
 
-def test_execute_tool_web_search_returns_not_implemented_error_payload():
-    # Skip credential check since we're testing the "not implemented" behavior
+def test_execute_tool_web_search_returns_no_results_when_unconfigured():
+    # Skip credential check; no search providers configured so returns no-results
     result = execute_tool(
         {"tool": "web_search", "args": {"query": "hello"}},
         {},
         skip_credential_check=True,
     )
-    assert result == {
-        "error": {
-            "message": "Tool web_search is not implemented",
-            "tool": "web_search",
-            "args": {"query": "hello"},
-        }
-    }
+    # web_search now executes via plugins; with no providers configured it returns a no-results payload
+    assert "query" in result
+    assert result["query"] == "hello"
+    assert "result" in result
 
 
 def test_route_if_tool_request_returns_credential_error_for_weather_now():
@@ -115,8 +112,8 @@ def test_route_if_tool_request_returns_credential_error_for_weather_now():
     assert "openweathermap" in result
 
 
-def test_route_if_tool_request_returns_credential_error_for_web_search():
-    """Test that web_search can execute without credentials (no required creds)."""
+def test_route_if_tool_request_web_search_executes_without_credentials():
+    """Test that web_search executes without required credentials (no required creds)."""
     calls: list[dict[str, str] | None] = []
 
     def model_call(message: dict[str, str] | None = None) -> str:
@@ -127,11 +124,13 @@ def test_route_if_tool_request_returns_credential_error_for_web_search():
 
     result = route_if_tool_request(model_call(), {}, model_call)
 
-    # web_search has no required credentials, so it should execute (but return not implemented)
+    # web_search has no required credentials so executes; model called with TOOL_RESULT
     assert result == "search response"
     payload = json.loads(calls[1]["content"].split("TOOL_RESULT: ", 1)[1])
     assert payload["tool"] == "web_search"
-    assert payload["result"]["error"]["message"] == "Tool web_search is not implemented"
+    # Result contains query field (not an error about "not implemented")
+    assert "query" in payload["result"]
+    assert payload["result"]["query"] == "hello"
 
 
 def test_parse_tool_request_rejects_multiline_payload():
@@ -246,7 +245,12 @@ def test_resolve_timezone_falls_back_to_utc_when_no_context_or_cache():
 def test_resolve_timezone_falls_back_to_geolocation_cache():
     from rex import geolocation
 
-    geolocation._location_cache = {"city": "Paris", "timezone": "Europe/Paris", "lat": 48.8, "lon": 2.3}
+    geolocation._location_cache = {
+        "city": "Paris",
+        "timezone": "Europe/Paris",
+        "lat": 48.8,
+        "lon": 2.3,
+    }
     try:
         result = execute_tool(
             {"tool": "time_now", "args": {"location": "UnknownCityXYZ"}},

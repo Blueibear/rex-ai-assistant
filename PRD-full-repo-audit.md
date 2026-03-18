@@ -223,13 +223,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/replay.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] Tool registration is complete — no tool stubs with empty handler bodies
-- [ ] `rex/tool_router.py` dispatches to all registered tools without silent no-ops
-- [ ] `rex/planner.py` and `rex/workflow_runner.py` have no truncated planning loops
-- [ ] `rex/replay.py` can replay logged interactions without crashing on edge cases
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] Tool registration is complete — no tool stubs with empty handler bodies
+- [x] `rex/tool_router.py` dispatches to all registered tools without silent no-ops
+- [x] `rex/planner.py` and `rex/workflow_runner.py` have no truncated planning loops
+- [x] `rex/replay.py` can replay logged interactions without crashing on edge cases
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

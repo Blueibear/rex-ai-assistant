@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
-from rex.credentials import CredentialManager, set_credential_manager
+from rex.credentials import CredentialManager
 from rex.tool_registry import (
     MissingCredentialError,
     ToolMeta,
@@ -55,6 +54,7 @@ class TestToolMeta:
 
     def test_toolmeta_custom_health_check(self):
         """Test custom health check function."""
+
         def custom_check() -> tuple[bool, str]:
             return False, "Service unavailable"
 
@@ -153,11 +153,13 @@ class TestToolRegistry:
     def test_check_health(self):
         """Test health check for a tool."""
         registry = ToolRegistry()
-        registry.register_tool(ToolMeta(
-            name="healthy",
-            description="Healthy tool",
-            health_check=lambda: (True, "All good"),
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="healthy",
+                description="Healthy tool",
+                health_check=lambda: (True, "All good"),
+            )
+        )
 
         ok, message = registry.check_health("healthy")
         assert ok is True
@@ -172,11 +174,13 @@ class TestToolRegistry:
     def test_check_health_disabled_tool(self):
         """Test health check for disabled tool returns disabled."""
         registry = ToolRegistry()
-        registry.register_tool(ToolMeta(
-            name="disabled",
-            description="Disabled",
-            enabled=False,
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="disabled",
+                description="Disabled",
+                enabled=False,
+            )
+        )
 
         ok, message = registry.check_health("disabled")
         assert ok is False
@@ -184,15 +188,18 @@ class TestToolRegistry:
 
     def test_check_health_exception_handling(self):
         """Test that health check exceptions are handled."""
+
         def bad_check() -> tuple[bool, str]:
             raise RuntimeError("Check failed!")
 
         registry = ToolRegistry()
-        registry.register_tool(ToolMeta(
-            name="broken",
-            description="Broken tool",
-            health_check=bad_check,
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="broken",
+                description="Broken tool",
+                health_check=bad_check,
+            )
+        )
 
         ok, message = registry.check_health("broken")
         assert ok is False
@@ -201,16 +208,20 @@ class TestToolRegistry:
     def test_check_all_health(self):
         """Test checking health of all tools."""
         registry = ToolRegistry()
-        registry.register_tool(ToolMeta(
-            name="healthy",
-            description="Healthy",
-            health_check=lambda: (True, "OK"),
-        ))
-        registry.register_tool(ToolMeta(
-            name="unhealthy",
-            description="Unhealthy",
-            health_check=lambda: (False, "Bad"),
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="healthy",
+                description="Healthy",
+                health_check=lambda: (True, "OK"),
+            )
+        )
+        registry.register_tool(
+            ToolMeta(
+                name="unhealthy",
+                description="Unhealthy",
+                health_check=lambda: (False, "Bad"),
+            )
+        )
 
         results = registry.check_all_health()
         assert results["healthy"] == (True, "OK")
@@ -222,19 +233,19 @@ class TestToolRegistryCredentials:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.credential_manager = CredentialManager(
-            config_path=Path("/nonexistent/path.json")
-        )
+        self.credential_manager = CredentialManager(config_path=Path("/nonexistent/path.json"))
 
     def test_check_credentials_all_available(self):
         """Test credential check when all are available."""
         self.credential_manager.set_token("api_key", "secret")
         registry = ToolRegistry(credential_manager=self.credential_manager)
-        registry.register_tool(ToolMeta(
-            name="needs_key",
-            description="Needs API key",
-            required_credentials=["api_key"],
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="needs_key",
+                description="Needs API key",
+                required_credentials=["api_key"],
+            )
+        )
 
         all_available, missing = registry.check_credentials("needs_key")
         assert all_available is True
@@ -244,11 +255,13 @@ class TestToolRegistryCredentials:
         """Test credential check when some are missing."""
         self.credential_manager.set_token("key_a", "secret_a")
         registry = ToolRegistry(credential_manager=self.credential_manager)
-        registry.register_tool(ToolMeta(
-            name="needs_both",
-            description="Needs both keys",
-            required_credentials=["key_a", "key_b"],
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="needs_both",
+                description="Needs both keys",
+                required_credentials=["key_a", "key_b"],
+            )
+        )
 
         all_available, missing = registry.check_credentials("needs_both")
         assert all_available is False
@@ -257,11 +270,13 @@ class TestToolRegistryCredentials:
     def test_check_credentials_none_required(self):
         """Test credential check when none are required."""
         registry = ToolRegistry(credential_manager=self.credential_manager)
-        registry.register_tool(ToolMeta(
-            name="no_creds",
-            description="No credentials needed",
-            required_credentials=[],
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="no_creds",
+                description="No credentials needed",
+                required_credentials=[],
+            )
+        )
 
         all_available, missing = registry.check_credentials("no_creds")
         assert all_available is True
@@ -276,11 +291,13 @@ class TestToolRegistryCredentials:
     def test_validate_credentials_raises_on_missing(self):
         """Test validate_credentials raises MissingCredentialError."""
         registry = ToolRegistry(credential_manager=self.credential_manager)
-        registry.register_tool(ToolMeta(
-            name="needs_creds",
-            description="Needs credentials",
-            required_credentials=["missing_cred"],
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="needs_creds",
+                description="Needs credentials",
+                required_credentials=["missing_cred"],
+            )
+        )
 
         with pytest.raises(MissingCredentialError) as exc_info:
             registry.validate_credentials_for_tool("needs_creds")
@@ -294,21 +311,21 @@ class TestToolRegistryStatus:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.credential_manager = CredentialManager(
-            config_path=Path("/nonexistent/path.json")
-        )
+        self.credential_manager = CredentialManager(config_path=Path("/nonexistent/path.json"))
 
     def test_get_tool_status_ready(self):
         """Test status for a ready tool."""
         self.credential_manager.set_token("required_key", "value")
         registry = ToolRegistry(credential_manager=self.credential_manager)
-        registry.register_tool(ToolMeta(
-            name="ready_tool",
-            description="Ready tool",
-            required_credentials=["required_key"],
-            capabilities=["read"],
-            health_check=lambda: (True, "OK"),
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="ready_tool",
+                description="Ready tool",
+                required_credentials=["required_key"],
+                capabilities=["read"],
+                health_check=lambda: (True, "OK"),
+            )
+        )
 
         status = registry.get_tool_status("ready_tool")
         assert status["name"] == "ready_tool"
@@ -322,11 +339,13 @@ class TestToolRegistryStatus:
     def test_get_tool_status_missing_creds(self):
         """Test status for tool with missing credentials."""
         registry = ToolRegistry(credential_manager=self.credential_manager)
-        registry.register_tool(ToolMeta(
-            name="missing_creds_tool",
-            description="Missing creds",
-            required_credentials=["missing_key"],
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="missing_creds_tool",
+                description="Missing creds",
+                required_credentials=["missing_key"],
+            )
+        )
 
         status = registry.get_tool_status("missing_creds_tool")
         assert status["credentials_available"] is False
@@ -336,11 +355,13 @@ class TestToolRegistryStatus:
     def test_get_tool_status_unhealthy(self):
         """Test status for unhealthy tool."""
         registry = ToolRegistry(credential_manager=self.credential_manager)
-        registry.register_tool(ToolMeta(
-            name="unhealthy_tool",
-            description="Unhealthy",
-            health_check=lambda: (False, "Down for maintenance"),
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="unhealthy_tool",
+                description="Unhealthy",
+                health_check=lambda: (False, "Down for maintenance"),
+            )
+        )
 
         status = registry.get_tool_status("unhealthy_tool")
         assert status["health_ok"] is False
@@ -350,11 +371,13 @@ class TestToolRegistryStatus:
     def test_get_tool_status_disabled(self):
         """Test status for disabled tool."""
         registry = ToolRegistry(credential_manager=self.credential_manager)
-        registry.register_tool(ToolMeta(
-            name="disabled_tool",
-            description="Disabled",
-            enabled=False,
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="disabled_tool",
+                description="Disabled",
+                enabled=False,
+            )
+        )
 
         status = registry.get_tool_status("disabled_tool")
         assert status["enabled"] is False
@@ -427,30 +450,34 @@ class TestToolRegistryIntegration:
     def test_tool_with_credential_check_integration(self):
         """Test tool credential checking with real CredentialManager."""
         # Create a fresh credential manager with some tokens
-        cred_manager = CredentialManager(
-            config_path=Path("/nonexistent/path.json")
-        )
+        cred_manager = CredentialManager(config_path=Path("/nonexistent/path.json"))
         cred_manager.set_token("available_service", "token123")
 
         # Create registry with the credential manager
         registry = ToolRegistry(credential_manager=cred_manager)
 
         # Register tools with different credential requirements
-        registry.register_tool(ToolMeta(
-            name="tool_with_creds",
-            description="Needs available service",
-            required_credentials=["available_service"],
-        ))
-        registry.register_tool(ToolMeta(
-            name="tool_without_creds",
-            description="Needs unavailable service",
-            required_credentials=["unavailable_service"],
-        ))
-        registry.register_tool(ToolMeta(
-            name="tool_no_requirements",
-            description="No credential requirements",
-            required_credentials=[],
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="tool_with_creds",
+                description="Needs available service",
+                required_credentials=["available_service"],
+            )
+        )
+        registry.register_tool(
+            ToolMeta(
+                name="tool_without_creds",
+                description="Needs unavailable service",
+                required_credentials=["unavailable_service"],
+            )
+        )
+        registry.register_tool(
+            ToolMeta(
+                name="tool_no_requirements",
+                description="No credential requirements",
+                required_credentials=[],
+            )
+        )
 
         # Check statuses
         status1 = registry.get_tool_status("tool_with_creds")
@@ -491,7 +518,7 @@ class TestBuiltinTools:
 
         assert tool is not None
         assert "weather" in tool.description.lower()
-        assert "weather_api" in tool.required_credentials
+        assert "openweathermap" in tool.required_credentials
 
     def test_web_search_tool_registered(self):
         """Test that web_search is registered correctly."""

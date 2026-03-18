@@ -347,32 +347,6 @@ class Executor:
             )
             self.evidence.append(evidence)
 
-    def _collect_evidence(self) -> None:
-        """Collect evidence from executed workflow steps."""
-        for step in self.workflow.steps:
-            if step.result is None:
-                continue
-
-            # Count actions
-            if step.tool_call is not None:
-                self.actions_taken += 1
-
-                # Count messages sent
-                if step.tool_call.tool in ("send_email", "send_sms", "send_notification"):
-                    self.messages_sent += 1
-
-            # Collect evidence from tool results
-            if step.result.success and step.result.output:
-                # Create evidence reference for this step
-                executed_at = step.result.executed_at or datetime.now(timezone.utc)
-                evidence = EvidenceRef(
-                    evidence_id=f"ev_{self.workflow.workflow_id}_{step.step_id}",
-                    kind="log",
-                    uri=None,  # Could be enhanced to store results in files
-                    created_at=executed_at,
-                )
-                self.evidence.append(evidence)
-
     def _calculate_remaining_budget(self, elapsed: float) -> ExecutionBudget:
         """Calculate remaining budget after execution."""
         return ExecutionBudget(

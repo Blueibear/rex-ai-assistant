@@ -11,20 +11,19 @@ from pathlib import Path
 
 import pytest
 
-from rex.contracts import ToolCall
-from rex.planner import Planner, UnableToPlanError
-from rex.executor import Executor, ExecutionBudget, ExecutionResult, BudgetExceededError
 from rex.autonomy_modes import (
-    AutonomyMode,
     AutonomyConfig,
-    get_mode,
-    create_default_config,
+    AutonomyMode,
     _infer_category,
+    create_default_config,
+    get_mode,
 )
+from rex.contracts import ToolCall
+from rex.executor import ExecutionBudget, ExecutionResult, Executor
+from rex.planner import Planner, UnableToPlanError
+from rex.policy_engine import reset_policy_engine
+from rex.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
 from rex.workflow import Workflow, WorkflowStep
-from rex.policy_engine import PolicyEngine, reset_policy_engine
-from rex.tool_registry import ToolRegistry, ToolMeta, reset_tool_registry
-from rex.audit import AuditLogger
 
 
 class TestPlanner:
@@ -37,36 +36,46 @@ class TestPlanner:
         registry = ToolRegistry()
 
         # Register test tools
-        registry.register_tool(ToolMeta(
-            name="time_now",
-            description="Get current time",
-            required_credentials=[],
-            health_check=lambda: (True, "OK"),
-        ))
-        registry.register_tool(ToolMeta(
-            name="weather_now",
-            description="Get weather",
-            required_credentials=[],
-            health_check=lambda: (True, "OK"),
-        ))
-        registry.register_tool(ToolMeta(
-            name="send_email",
-            description="Send email",
-            required_credentials=[],
-            health_check=lambda: (True, "OK"),
-        ))
-        registry.register_tool(ToolMeta(
-            name="web_search",
-            description="Search the web",
-            required_credentials=[],
-            health_check=lambda: (True, "OK"),
-        ))
-        registry.register_tool(ToolMeta(
-            name="home_assistant_call_service",
-            description="Control home devices",
-            required_credentials=[],
-            health_check=lambda: (True, "OK"),
-        ))
+        registry.register_tool(
+            ToolMeta(
+                name="time_now",
+                description="Get current time",
+                required_credentials=[],
+                health_check=lambda: (True, "OK"),
+            )
+        )
+        registry.register_tool(
+            ToolMeta(
+                name="weather_now",
+                description="Get weather",
+                required_credentials=[],
+                health_check=lambda: (True, "OK"),
+            )
+        )
+        registry.register_tool(
+            ToolMeta(
+                name="send_email",
+                description="Send email",
+                required_credentials=[],
+                health_check=lambda: (True, "OK"),
+            )
+        )
+        registry.register_tool(
+            ToolMeta(
+                name="web_search",
+                description="Search the web",
+                required_credentials=[],
+                health_check=lambda: (True, "OK"),
+            )
+        )
+        registry.register_tool(
+            ToolMeta(
+                name="home_assistant_call_service",
+                description="Control home devices",
+                required_credentials=[],
+                health_check=lambda: (True, "OK"),
+            )
+        )
 
         return registry
 
@@ -75,6 +84,7 @@ class TestPlanner:
         """Create a policy engine for testing."""
         reset_policy_engine()
         from rex.policy_engine import get_policy_engine
+
         return get_policy_engine()
 
     @pytest.fixture
@@ -113,7 +123,9 @@ class TestPlanner:
 
         assert len(workflow.steps) >= 1
         # Should have email step
-        email_steps = [s for s in workflow.steps if s.tool_call and s.tool_call.tool == "send_email"]
+        email_steps = [
+            s for s in workflow.steps if s.tool_call and s.tool_call.tool == "send_email"
+        ]
         assert len(email_steps) > 0
 
     def test_plan_web_search(self, planner):
@@ -173,9 +185,11 @@ class TestExecutor:
     @pytest.fixture
     def temp_dirs(self):
         """Create temporary directories for testing."""
-        with tempfile.TemporaryDirectory() as workflow_dir, \
-             tempfile.TemporaryDirectory() as approval_dir, \
-             tempfile.TemporaryDirectory() as log_dir:
+        with (
+            tempfile.TemporaryDirectory() as workflow_dir,
+            tempfile.TemporaryDirectory() as approval_dir,
+            tempfile.TemporaryDirectory() as log_dir,
+        ):
             yield {
                 "workflow_dir": Path(workflow_dir),
                 "approval_dir": Path(approval_dir),
@@ -248,21 +262,20 @@ class TestExecutor:
         assert "completed" in result_str
         assert "2" in result_str
 
-    def test_collect_evidence(self, simple_workflow, temp_dirs):
-        """Test evidence collection from workflow steps."""
-        # Mark steps as executed with results
-        simple_workflow.steps[0].result = type('obj', (), {
-            'success': True,
-            'output': {'result': 'ok'},
-            'executed_at': None,
-        })()
+    def test_record_step_collects_evidence(self, simple_workflow, temp_dirs):
+        """Test that _record_step collects evidence and counts actions."""
+        from rex.workflow import StepResult
 
         executor = Executor(
             simple_workflow,
             workflow_dir=temp_dirs["workflow_dir"],
             approval_dir=temp_dirs["approval_dir"],
         )
-        executor._collect_evidence()
+
+        step = simple_workflow.steps[0]
+        result = StepResult(step_id=step.step_id, success=True, output={"result": "ok"})
+
+        executor._record_step(step, result)
 
         assert executor.actions_taken == 1
         assert len(executor.evidence) == 1
@@ -289,6 +302,7 @@ class TestExecutor:
         )
 
         from rex.workflow_runner import RunResult
+
         run_result = RunResult(
             workflow_id=simple_workflow.workflow_id,
             status="completed",
@@ -415,6 +429,7 @@ class TestAutonomyModes:
 
         # Reset and set global config
         from rex.autonomy_modes import set_autonomy_config
+
         set_autonomy_config(config)
 
         workflow = Workflow(
