@@ -1,4 +1,4 @@
-# Rex AI Assistant — Consolidated Instruction Manual
+# AskRex Assistant — Consolidated Instruction Manual
 
 This manual combines the repository's setup, configuration, operation, and troubleshooting guidance into one practical document. It is intended to be the fastest way to understand how to install, configure, run, and maintain Rex without hopping between multiple docs.
 
