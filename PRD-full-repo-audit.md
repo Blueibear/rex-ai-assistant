@@ -629,12 +629,12 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 **Files in scope:** All test files in `tests/` whose names match: `test_voice_*`, `test_llm_*`, `test_config_*`, `test_cli_*`, `test_assistant_*`, `test_wake*`, `test_stt_*`, `test_tts_*`, `test_audio_*`, `test_rex_loop*`, `test_tools*`, `test_tool_*`
 
 **Acceptance Criteria:**
-- [ ] Every file in scope is fully read before any edits begin
-- [ ] No test body contains only `pass`, `assert True`, or empty assertion blocks
-- [ ] All fixtures referenced in tests are defined (no `fixture 'X' not found` errors)
-- [ ] No test imports a module that does not exist
-- [ ] Tests in scope pass: `pytest -q <files>`
-- [ ] Typecheck passes
+- [x] Every file in scope is fully read before any edits begin
+- [x] No test body contains only `pass`, `assert True`, or empty assertion blocks
+- [x] All fixtures referenced in tests are defined (no `fixture 'X' not found` errors)
+- [x] No test imports a module that does not exist
+- [x] Tests in scope pass: `pytest -q <files>`
+- [x] Typecheck passes
 
 ---
 
