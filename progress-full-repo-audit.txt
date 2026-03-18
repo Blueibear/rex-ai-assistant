@@ -378,3 +378,19 @@ Learnings for future iterations:
   - ruff --fix handles most I001/F401 issues automatically; C401 (generator→set comprehension) is auto-fixed too
   - F841 (unused local variable) in tests often indicates leftover setup that was refactored away — safe to remove
 ---
+## Iteration 24 - US-025: Test Suite — Infrastructure, Security, and Subpackage Tests
+- Read all 14 test files in scope: conftest.py, test_computers.py, test_dashboard_store.py, test_event_bus.py, test_event_queue.py, test_memory_cleanup.py, test_memory_utils.py, test_notification_email_channel.py, test_notification_sse.py, test_plugin_loader.py, test_voice_identity_fallback.py, test_wakeword_callback.py, test_wakeword_model_selection.py, test_wakeword_utils.py
+- All 165 tests passed immediately with no logic changes required
+- Lint fixes: ruff --fix auto-fixed 7 issues; 3 remained
+  - F841: removed unused `future` variable in test_memory_cleanup.py line 54
+  - E402: added `# noqa: E402` to test_wakeword_callback.py:7 (import after `pytest.importorskip`)
+  - E402: added `# noqa: E402` to test_wakeword_utils.py:7 (import after `pytest.importorskip`)
+- black reformatted: test_wakeword_model_selection.py, test_event_bus.py
+- Final: 165 passed, 0 failures
+
+Learnings for future iterations:
+  - `pytest.importorskip("numpy")` before module imports causes E402 — suppress with `# noqa: E402` on the conditional import line
+  - The test suite has no actual stub/empty test bodies or missing fixtures; infrastructure tests are well-written
+  - test_dashboard_store.py, test_notification_*, test_voice_identity_fallback.py were all clean with no issues
+  - conftest.py: complete, all shared fixtures defined (tmp_path variants, monkeypatching helpers)
+---

@@ -4,18 +4,14 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import MagicMock, call
-
-import pytest
+from unittest.mock import MagicMock
 
 from rex.memory import (
     LongTermMemory,
     MemoryEntry,
-    get_long_term_memory,
     schedule_memory_cleanup,
     set_long_term_memory,
 )
-
 
 # =============================================================================
 # Expired Memory Removal
@@ -55,7 +51,6 @@ class TestExpiredMemoryRemoval:
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
 
-        future = datetime.now(timezone.utc) + timedelta(days=7)
         for i in range(5):
             ltm.add_entry(
                 category="active",

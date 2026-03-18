@@ -4,7 +4,7 @@ import pytest
 
 np = pytest.importorskip("numpy")
 
-import voice_loop
+import voice_loop  # noqa: E402
 
 
 def test_wakeword_callback_sets_event_only_on_true(monkeypatch):

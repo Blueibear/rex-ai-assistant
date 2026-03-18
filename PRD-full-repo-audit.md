@@ -658,11 +658,11 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 **Files in scope:** All test files in `tests/` not covered by US-023 or US-024 — including: `test_auth_*`, `test_policy_*`, `test_rate_*`, `test_notification_*`, `test_dashboard_*`, `test_voice_identity_*`, `test_computer*`, `test_event_*`, `test_startup_*`, `test_shutdown_*`, `test_health_*`, `test_plugin_*`, `test_memory_*`, `test_identity_*`, `test_db_*`, `test_compat_*`, `test_wakeword_*`, `conftest.py`
 
 **Acceptance Criteria:**
-- [ ] Every file in scope is fully read before any edits begin
-- [ ] No test body contains only `pass`, `assert True`, or empty assertion blocks
-- [ ] `conftest.py` at `tests/` level has all shared fixtures complete
-- [ ] Tests in scope pass: `pytest -q <files>`
-- [ ] Typecheck passes
+- [x] Every file in scope is fully read before any edits begin
+- [x] No test body contains only `pass`, `assert True`, or empty assertion blocks
+- [x] `conftest.py` at `tests/` level has all shared fixtures complete
+- [x] Tests in scope pass: `pytest -q <files>`
+- [x] Typecheck passes
 
 ---
 
