@@ -1,4 +1,5 @@
 """Weather integration using OpenWeatherMap Current Weather API."""
+
 from __future__ import annotations
 
 import asyncio
@@ -29,10 +30,7 @@ async def get_weather(location: str, api_key: str) -> dict[str, Any]:
     if not location or not api_key:
         return {"error": "location and api_key are required"}
 
-    url = (
-        f"{_OWM_BASE}?q={urllib.parse.quote(location)}"
-        f"&appid={api_key}&units=metric"
-    )
+    url = f"{_OWM_BASE}?q={urllib.parse.quote(location)}" f"&appid={api_key}&units=metric"
 
     loop = asyncio.get_running_loop()
     try:

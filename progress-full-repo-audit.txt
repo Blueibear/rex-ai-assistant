@@ -173,3 +173,18 @@ Learnings for future iterations:
   - F811 (redefinition of name) happens when a top-level import is shadowed by a local import inside a function; fix by removing the top-level import
   - doctor.py imports socket at top but also imports it locally inside check_lm_studio_reachability() — fix is to remove top-level socket import since from_env() uses it locally
 ---
+
+## Iteration 12 - US-012: rex/ External Integrations
+- Read all 10 files: ha_bridge.py, mqtt_client.py, mqtt_audio_router.py, plex_client.py, github_service.py, vscode_service.py, os_automation.py, browser_automation.py, geolocation.py, weather.py
+- All integrations guarded with availability checks (requests optional in ha_bridge.py and plex_client.py; playwright optional via find_spec in browser_automation.py)
+- No shell command string concatenation; all subprocess calls use list form (os_automation.py, github_service.py, vscode_service.py)
+- All HTTP clients have timeouts: ha_bridge (cfg.ha_timeout), plex_client (10s), github_service (30s), weather (5s), geolocation (3s)
+- geolocation.py: fixed UP035/UP045/UP006 violations: `from typing import Dict, Optional` → removed; `Optional[Dict[str,object]]` → `dict[str,object] | None`; `Optional[str]` → `str | None`
+- ha_bridge.py, plex_client.py, weather.py: black reformatting only
+- 141 targeted tests pass; 45 pre-existing failures unchanged
+
+Learnings for future iterations:
+  - UP035/UP045/UP006 require manual edits (--unsafe-fixes needed for auto-fix); with `from __future__ import annotations` the modern syntax works on Python 3.9+
+  - vscode_service.py line 280 has a dead expression `int(match.group(3))` — value discarded; not a lint violation (not B018 territory) but is dead code
+  - os_automation.py, github_service.py, browser_automation.py, vscode_service.py all use old-style Optional/Literal from typing — flagged only by UP035/UP045, not by default ruff rules
+---

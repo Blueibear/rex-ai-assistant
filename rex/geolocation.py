@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import json
 import urllib.request
-from typing import Dict, Optional
 
 from rex.logging_utils import get_logger
 
@@ -19,10 +18,10 @@ LOGGER = get_logger(__name__)
 _IP_API_URL = "http://ip-api.com/json/?fields=city,timezone,lat,lon,status,message"
 _TIMEOUT_SECONDS = 3.0
 
-_location_cache: Optional[Dict[str, object]] = None
+_location_cache: dict[str, object] | None = None
 
 
-async def detect_location() -> Optional[Dict[str, object]]:
+async def detect_location() -> dict[str, object] | None:
     """Detect approximate location via IP geolocation.
 
     Returns:
@@ -53,7 +52,7 @@ async def detect_location() -> Optional[Dict[str, object]]:
         return None
 
 
-def _fetch_location() -> Optional[Dict[str, object]]:
+def _fetch_location() -> dict[str, object] | None:
     """Blocking HTTP fetch of ip-api.com.  Run in an executor."""
     try:
         req = urllib.request.Request(
@@ -77,7 +76,7 @@ def _fetch_location() -> Optional[Dict[str, object]]:
         return None
 
 
-def get_cached_timezone() -> Optional[str]:
+def get_cached_timezone() -> str | None:
     """Return the timezone from the in-memory cache, or None if not available."""
     if _location_cache is not None:
         tz = _location_cache.get("timezone")
@@ -86,7 +85,7 @@ def get_cached_timezone() -> Optional[str]:
     return None
 
 
-def get_cached_city() -> Optional[str]:
+def get_cached_city() -> str | None:
     """Return the city name from the in-memory cache, or None if not available."""
     if _location_cache is not None:
         city = _location_cache.get("city")

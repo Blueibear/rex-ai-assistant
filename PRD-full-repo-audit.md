@@ -330,12 +330,12 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/weather.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] All integrations are guarded with availability checks — missing config does not crash startup
-- [ ] `rex/os_automation.py` and `rex/browser_automation.py` do not construct shell commands via string concatenation (no injection risk)
-- [ ] All HTTP clients have timeout parameters set
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] All integrations are guarded with availability checks — missing config does not crash startup
+- [x] `rex/os_automation.py` and `rex/browser_automation.py` do not construct shell commands via string concatenation (no injection risk)
+- [x] All HTTP clients have timeout parameters set
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

@@ -22,8 +22,7 @@ _PLEX_AVAILABLE = _requests_module is not None
 def _require_requests() -> None:
     if _requests_module is None:
         raise RuntimeError(
-            "The Plex client requires the 'requests' package. "
-            "Install with: pip install requests"
+            "The Plex client requires the 'requests' package. " "Install with: pip install requests"
         ) from _REQUESTS_IMPORT_ERROR
 
 
@@ -123,9 +122,7 @@ class PlexClient:
     def get_libraries(self) -> list[PlexLibrary]:
         """Return all library sections from the Plex server."""
         data = self._get("/library/sections")
-        sections = (
-            data.get("MediaContainer", {}).get("Directory") or []
-        )
+        sections = data.get("MediaContainer", {}).get("Directory") or []
         libraries: list[PlexLibrary] = []
         for sec in sections:
             libraries.append(
@@ -215,9 +212,7 @@ class PlexClient:
             extra["key"] = key_path
             extra["containerKey"] = key_path
             extra["type"] = "video"
-        return self._player_command(
-            "play", client_id, command_id=command_id, extra_params=extra
-        )
+        return self._player_command("play", client_id, command_id=command_id, extra_params=extra)
 
     def pause(self, client_id: str, *, command_id: int = 1) -> bool:
         """Send a pause command to *client_id*.

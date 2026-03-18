@@ -568,7 +568,9 @@ def create_blueprint(bridge: HABridge | None = None) -> Blueprint:
         if not isinstance(script_id, str):
             return error_response(BAD_REQUEST, "script must be a string", 400)
         if len(script_id) > 256:
-            return error_response(BAD_REQUEST, "script exceeds maximum length of 256 characters", 400)
+            return error_response(
+                BAD_REQUEST, "script exceeds maximum length of 256 characters", 400
+            )
         if not isinstance(variables, dict):
             return error_response(BAD_REQUEST, "variables must be an object", 400)
         try:
