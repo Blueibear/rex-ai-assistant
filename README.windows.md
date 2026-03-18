@@ -80,7 +80,7 @@ Set environment variables in PowerShell before running:
 $env:REX_WAKEWORD="rex"
 $env:REX_ACTIVE_USER="james"
 $env:WHISPER_MODEL="base"
-$env:OPENAI_API_KEY="your_api_key_here"
+$env:OPENAI_API_KEY="your_api_key_here"  # pragma: allowlist secret
 ```
 
 ---
