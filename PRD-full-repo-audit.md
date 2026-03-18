@@ -533,12 +533,12 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/computers/service.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] `wakeword/listener.py` has a complete audio stream ingestion loop — no truncated callback logic
-- [ ] `computers/agent_server.py` binds to localhost and requires auth before executing commands
-- [ ] `computers/pc_run_policy.py` has a complete policy evaluation — no always-allow default
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] `wakeword/listener.py` has a complete audio stream ingestion loop — no truncated callback logic
+- [x] `computers/agent_server.py` binds to localhost and requires auth before executing commands
+- [x] `computers/pc_run_policy.py` has a complete policy evaluation — no always-allow default
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

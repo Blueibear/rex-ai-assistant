@@ -52,6 +52,7 @@ from getpass import getuser
 from typing import Any
 
 from flask import Flask, Response, jsonify, request
+
 from rex.exception_handler import wrap_entrypoint
 from rex.graceful_shutdown import get_shutdown_handler
 from rex.health import check_config, create_health_blueprint
