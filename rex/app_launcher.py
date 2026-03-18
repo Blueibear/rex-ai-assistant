@@ -15,8 +15,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +34,8 @@ class LaunchResult:
 
     success: bool
     app_name: str
-    pid: Optional[int] = None
-    error: Optional[str] = None
+    pid: int | None = None
+    error: str | None = None
 
 
 class AppLauncher:
@@ -49,7 +48,7 @@ class AppLauncher:
         apps: Optional pre-populated mapping of name -> executable path.
     """
 
-    def __init__(self, apps: Optional[dict[str, str]] = None) -> None:
+    def __init__(self, apps: dict[str, str] | None = None) -> None:
         self._registry: dict[str, str] = dict(apps or {})
 
     # ------------------------------------------------------------------
@@ -100,7 +99,7 @@ class AppLauncher:
     # Launch
     # ------------------------------------------------------------------
 
-    def launch(self, name: str, args: Optional[list[str]] = None) -> LaunchResult:
+    def launch(self, name: str, args: list[str] | None = None) -> LaunchResult:
         """Launch a registered application.
 
         The launch is non-blocking. The returned :class:`LaunchResult` contains
@@ -137,7 +136,7 @@ class AppLauncher:
             pid = proc.pid
             logger.info("Launched app %r (pid=%d)", name, pid)
             return LaunchResult(success=True, app_name=name, pid=pid)
-        except FileNotFoundError as exc:
+        except FileNotFoundError:
             error = f"Executable not found: {executable!r}"
             logger.warning("Failed to launch %r: %s", name, error)
             return LaunchResult(success=False, app_name=name, error=error)
@@ -155,7 +154,7 @@ class AppLauncher:
 # Module-level singleton
 # ---------------------------------------------------------------------------
 
-_launcher: Optional[AppLauncher] = None
+_launcher: AppLauncher | None = None
 
 
 def get_app_launcher() -> AppLauncher:
@@ -166,7 +165,7 @@ def get_app_launcher() -> AppLauncher:
     return _launcher
 
 
-def set_app_launcher(launcher: Optional[AppLauncher]) -> None:
+def set_app_launcher(launcher: AppLauncher | None) -> None:
     """Replace the module-level singleton (for testing)."""
     global _launcher  # noqa: PLW0603
     _launcher = launcher

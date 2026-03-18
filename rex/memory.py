@@ -502,7 +502,9 @@ class LongTermMemory:
         removed = self.run_retention_policy()
         # Always rewrite storage to compact the file
         self._save()
-        logger.info(f"Memory store compacted: {removed} expired entries removed, {len(self)} active entries retained")
+        logger.info(
+            f"Memory store compacted: {removed} expired entries removed, {len(self)} active entries retained"
+        )
         return removed
 
     def list_categories(self) -> list[str]:

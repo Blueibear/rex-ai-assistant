@@ -188,3 +188,17 @@ Learnings for future iterations:
   - vscode_service.py line 280 has a dead expression `int(match.group(3))` — value discarded; not a lint violation (not B018 territory) but is dead code
   - os_automation.py, github_service.py, browser_automation.py, vscode_service.py all use old-style Optional/Literal from typing — flagged only by UP035/UP045, not by default ruff rules
 ---
+
+## Iteration 13 - US-013: rex/ GUI, Windows Service, and App Launch
+- Read all 11 files: gui_app.py, windows_service.py, app_launcher.py, first_run.py, exception_handler.py, compat.py, memory.py, memory_utils.py, identity.py, profile_manager.py, knowledge_base.py
+- windows_service.py: added `if sys.platform != "win32": raise ImportError(...)` guard before pywin32 imports (servicemanager, win32event, win32service, win32serviceutil)
+- app_launcher.py: ruff --fix removed unused `field` import and renamed unused `exc` in FileNotFoundError handler; manually replaced all Optional[X] → X | None; removed `from typing import Optional`
+- exception_handler.py, gui_app.py, identity.py, memory.py: black reformatting only
+- All other files clean: memory.py uses Pydantic v2 model_dump/model_validate; knowledge_base.py has complete read/write; identity.py has complete resolution logic; first_run.py has complete setup flow
+- 239 targeted tests pass
+
+Learnings for future iterations:
+  - Windows-only service files (pywin32) need `if sys.platform != "win32": raise ImportError(...)` guard at module level, not per function
+  - Use noqa: E402 on the guarded Windows imports that must come after the platform check
+  - app_launcher.py was already well-implemented; only lint cleanup needed
+---

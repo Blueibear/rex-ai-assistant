@@ -6,10 +6,16 @@ import os
 import subprocess
 import sys
 
-import servicemanager
-import win32event
-import win32service
-import win32serviceutil
+if sys.platform != "win32":
+    raise ImportError(
+        "rex.windows_service is only supported on Windows. "
+        "pywin32 is required: pip install pywin32"
+    )
+
+import servicemanager  # noqa: E402
+import win32event  # noqa: E402
+import win32service  # noqa: E402
+import win32serviceutil  # noqa: E402
 
 DEFAULT_SERVICES = "event_bus,workflow_runner,memory_store,credential_manager"
 DEFAULT_PORT = "8765"

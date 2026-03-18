@@ -51,9 +51,7 @@ def main() -> None:
     app = _create_flask_app()
 
     # Open the browser in a background thread so the server starts first.
-    browser_thread = threading.Thread(
-        target=_open_browser, args=(host, port), daemon=True
-    )
+    browser_thread = threading.Thread(target=_open_browser, args=(host, port), daemon=True)
     browser_thread.start()
 
     # Allow Ctrl-C to shut down cleanly.

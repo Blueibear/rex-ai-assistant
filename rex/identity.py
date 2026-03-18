@@ -216,7 +216,9 @@ def create_user_profile(
     if not user_id or "/" in user_id or "\\" in user_id:
         raise ValueError(f"Invalid user_id: {user_id!r}")
 
-    base = memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
+    base = (
+        memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
+    )
     profile_dir = base / user_id
     core_path = profile_dir / "core.json"
 
@@ -253,7 +255,9 @@ def get_user_profile(
     Returns:
         Profile dict, or None if not found.
     """
-    base = memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
+    base = (
+        memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
+    )
     core_path = base / user_id / "core.json"
     if not core_path.exists():
         return None
@@ -280,7 +284,9 @@ def update_user_preferences(
     Returns:
         True if the profile was updated, False if not found.
     """
-    base = memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
+    base = (
+        memory_dir if memory_dir is not None else Path(__file__).resolve().parent.parent / "Memory"
+    )
     core_path = base / user_id / "core.json"
     if not core_path.exists():
         return False

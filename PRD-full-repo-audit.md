@@ -356,13 +356,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/knowledge_base.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] `rex/windows_service.py` has no Windows-only calls outside of platform guards
-- [ ] `rex/first_run.py` completes its setup flow — no half-initialized state paths
-- [ ] `rex/memory.py` and `rex/knowledge_base.py` have no truncated read/write operations
-- [ ] `rex/identity.py` has complete identity resolution logic
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] `rex/windows_service.py` has no Windows-only calls outside of platform guards
+- [x] `rex/first_run.py` completes its setup flow — no half-initialized state paths
+- [x] `rex/memory.py` and `rex/knowledge_base.py` have no truncated read/write operations
+- [x] `rex/identity.py` has complete identity resolution logic
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 
