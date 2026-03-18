@@ -411,3 +411,39 @@ Learnings for future iterations:
   - test_dashboard_store.py, test_notification_*, test_voice_identity_fallback.py were all clean with no issues
   - conftest.py: complete, all shared fixtures defined (tmp_path variants, monkeypatching helpers)
 ---
+
+## Iteration 26 - US-027: Electron GUI — Renderer, Pages, and UI Components
+- Read all 35 files in scope: App.tsx, main.tsx, AppLayout.tsx, 10 pages (Chat, Voice, Tasks, Calendar, Reminders, Memories, Email, SMS, Notifications, Settings), 23 components (chat/MessageList, chat/ChatInput, voice/VoiceToggle, voice/WaveformVisualizer, calendar/CalendarGrid, calendar/WeekView, calendar/EventDetailPanel, ui/Badge, ui/Button, ui/Card, ui/Divider, ui/EmptyState, ui/Input, ui/Modal, ui/PageLoadingFallback, ui/PageTransition, ui/SkeletonLine, ui/Spinner, ui/Textarea, ui/Toast, ui/Tooltip, ErrorBoundary, HelpOverlay), AppLayout.tsx
+- No logic issues found — all files complete and correct
+- All pages return valid JSX; no unconditional null returns
+- ChatInput.tsx mic button fully implemented: MediaRecorder + base64 encoding + window.rex.sendChatAudio call
+- No @ts-ignore or @ts-expect-error comments anywhere in scope
+- All useEffect with async patterns use `void fn()` (not async callbacks) — no cleanup issues
+- WaveformVisualizer: cleanup via cancelAnimationFrame + stopAudio called correctly in useEffect cleanup
+- tsc --noEmit passes with zero errors
+- 9 tests pass (smoke check)
+
+Learnings for future iterations:
+  - This GUI codebase is very well implemented — production-quality React patterns throughout
+  - All async effects use `void asyncFn()` inside synchronous useEffect (correct pattern); no async effect callbacks
+  - EventDetailPanel re-exports CalendarEvent type via `import { CalendarEvent } from './CalendarGrid'` — valid since CalendarGrid uses `export type { CalendarEvent }` (tsc accepts this)
+  - SettingsPage.tsx is the largest file (~700+ lines) but fully implemented with 6 settings tabs
+---
+
+## Iteration 27 - US-028: Electron GUI — Hooks, Store, Types, and Build Config
+- Read all 10 files: useGlobalShortcuts.ts, notificationsStore.ts, ipc.ts, electron.vite.config.ts, tailwind.config.ts, tsconfig.json, tsconfig.node.json, tsconfig.web.json, postcss.config.js, package.json
+- All files are complete and correctly implemented — no stub action creators, no missing types
+- notificationsStore.ts: all 4 actions implemented (setUnreadCount, increment, clear, fetchUnreadCount)
+- ipc.ts: RexAPI interface covers all 40+ IPC channels used in handlers — no untyped channels
+- electron.vite.config.ts: uses resolve() with relative path, no hardcoded absolute paths
+- tsconfig.web.json: @renderer/* path alias correctly points to src/renderer/src/* (exists)
+- tsconfig.node.json: includes main, preload, types with correct composite settings
+- No changes needed to any file — all clean on first read
+- tsc --noEmit: zero errors; 9 Python smoke tests pass
+
+Learnings for future iterations:
+  - GUI infrastructure files (tsconfig, vite.config, tailwind) are all clean — no issues to fix
+  - notificationsStore uses Zustand v5 (create from 'zustand') — no Provider needed
+  - ipc.ts RexAPI interface is the single source of truth for all window.rex.* calls in the renderer
+  - The typecheck script in package.json runs both tsconfig.node.json and tsconfig.web.json sequentially
+---

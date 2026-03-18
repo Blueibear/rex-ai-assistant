@@ -731,13 +731,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `gui/package.json`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] `notificationsStore.ts` has complete state actions — no action creators that do nothing
-- [ ] `ipc.ts` type definitions cover all IPC channels used in handlers (no untyped channels)
-- [ ] `tsconfig.json` paths are correct and no non-existent path aliases are referenced
-- [ ] Build config (`electron.vite.config.ts`) has no hardcoded absolute paths
-- [ ] `tsc --noEmit` passes on the gui/ project
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] `notificationsStore.ts` has complete state actions — no action creators that do nothing
+- [x] `ipc.ts` type definitions cover all IPC channels used in handlers (no untyped channels)
+- [x] `tsconfig.json` paths are correct and no non-existent path aliases are referenced
+- [x] Build config (`electron.vite.config.ts`) has no hardcoded absolute paths
+- [x] `tsc --noEmit` passes on the gui/ project
+- [x] Typecheck passes
 
 ---
 
