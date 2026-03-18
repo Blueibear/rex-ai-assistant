@@ -3,22 +3,29 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 try:  # pragma: no cover - optional dependency
     import numpy as np
 except Exception:  # pragma: no cover - optional dependency
-    np = None
+    np = cast(Any, None)
 
 try:  # pragma: no cover - optional dependency
     import torch
 except Exception:  # pragma: no cover - optional dependency
-    torch = None
+    torch = cast(Any, None)
 
 DEFAULT_EMBEDDING_BINS = 128
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
-def compute_embedding(audio_frame: np.ndarray, *, bins: int = DEFAULT_EMBEDDING_BINS) -> np.ndarray:
+    FloatArray = NDArray[Any]
+else:
+    FloatArray = Any
+
+
+def compute_embedding(audio_frame: FloatArray, *, bins: int = DEFAULT_EMBEDDING_BINS) -> FloatArray:
     if np is None:
         raise RuntimeError("numpy is required for embedding computation")
     audio = np.asarray(audio_frame, dtype=np.float32).reshape(-1)
@@ -40,7 +47,7 @@ def compute_embedding(audio_frame: np.ndarray, *, bins: int = DEFAULT_EMBEDDING_
     return resized
 
 
-def load_embedding(path: str | Path) -> np.ndarray:
+def load_embedding(path: str | Path) -> FloatArray:
     if torch is None:
         raise RuntimeError("torch is required to load embedding files")
     if np is None:
@@ -65,10 +72,10 @@ def load_embedding(path: str | Path) -> np.ndarray:
     norm = np.linalg.norm(array)
     if norm > 0:
         array = array / norm
-    return array
+    return cast(FloatArray, array)
 
 
-def save_embedding(path: str | Path, embedding: np.ndarray) -> None:
+def save_embedding(path: str | Path, embedding: FloatArray) -> None:
     if torch is None:
         raise RuntimeError("torch is required to save embedding files")
     if np is None:

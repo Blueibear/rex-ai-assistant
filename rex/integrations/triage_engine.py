@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Protocol, runtime_checkable
+from typing import Protocol, cast, runtime_checkable
 
 from rex.integrations.models import EmailMessage, PriorityLevel
 
@@ -187,9 +187,11 @@ class EmailTriageEngine:
         priority_raw = str(data.get("priority", "low")).lower()
         category_raw = str(data.get("category", "other")).lower()
 
-        priority: PriorityLevel = (
-            priority_raw if priority_raw in _VALID_PRIORITIES else "low"  # type: ignore[assignment]
-        )
+        priority: PriorityLevel
+        if priority_raw in _VALID_PRIORITIES:
+            priority = cast(PriorityLevel, priority_raw)
+        else:
+            priority = "low"
         category = category_raw if category_raw in _VALID_CATEGORIES else "other"
 
         return priority, category
@@ -198,7 +200,7 @@ class EmailTriageEngine:
         if self._backend is not None:
             return self._backend
         try:
-            from rex.llm import LanguageModel  # type: ignore[import-not-found]
+            from rex.llm import LanguageModel
 
             self._backend = LanguageModel()
             return self._backend

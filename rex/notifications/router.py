@@ -34,7 +34,7 @@ def _send_desktop(title: str, body: str) -> None:  # pragma: no cover
     Uses ``plyer`` when available; falls back to a log message otherwise.
     """
     try:
-        from plyer import notification  # type: ignore[import-not-found]
+        from plyer import notification
 
         notification.notify(title=title, message=body, app_name="Rex")
     except Exception as exc:  # noqa: BLE001

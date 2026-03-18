@@ -11,6 +11,7 @@ Output:
 
 Run with LOG_LEVEL=DEBUG (the script sets it automatically).
 """
+
 from __future__ import annotations
 
 import asyncio

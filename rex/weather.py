@@ -70,7 +70,10 @@ def _fetch_weather(url: str) -> dict[str, Any]:
     """Blocking HTTP call; runs in a thread executor."""
     try:
         with urllib.request.urlopen(url, timeout=5) as response:
-            return json.loads(response.read())
+            payload = json.loads(response.read())
+            if isinstance(payload, dict):
+                return payload
+            return {"error": "Weather API returned a non-object payload"}
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
         try:

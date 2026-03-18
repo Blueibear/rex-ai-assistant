@@ -27,9 +27,7 @@ class TestMergeMarkerDetection:
     def test_real_conflict_marker_detected(self, tmp_path: Path):
         """A genuine merge conflict block must be detected."""
         f = tmp_path / "conflict.py"
-        f.write_text(
-            textwrap.dedent(
-                """\
+        f.write_text(textwrap.dedent("""\
                 x = 1
                 <<<<<<< HEAD
                 y = 2
@@ -37,43 +35,33 @@ class TestMergeMarkerDetection:
                 y = 3
                 >>>>>>> feature-branch
                 z = 4
-            """
-            )
-        )
+            """))
         merge, _, _ = security_audit.scan_file(f)
         assert len(merge) == 3, f"Expected 3 merge markers, got {len(merge)}: {merge}"
 
     def test_markdown_separator_not_flagged(self, tmp_path: Path):
         """Markdown decorative '====...' separators should NOT trigger."""
         f = tmp_path / "doc.md"
-        f.write_text(
-            textwrap.dedent(
-                """\
+        f.write_text(textwrap.dedent("""\
                 MERGE CONFLICT MARKERS
                 ==================================================
                 Some text here
                 ========================================
-            """
-            )
-        )
+            """))
         merge, _, _ = security_audit.scan_file(f)
         assert merge == [], f"Expected no merge markers, got: {merge}"
 
     def test_fenced_code_block_marker_not_flagged(self, tmp_path: Path):
         """Merge-like tokens inside fenced code blocks in .md should be skipped."""
         f = tmp_path / "example.md"
-        f.write_text(
-            textwrap.dedent(
-                """\
+        f.write_text(textwrap.dedent("""\
                 # Example
                 ```
                 <<<<<<< HEAD
                 =======
                 >>>>>>> branch
                 ```
-            """
-            )
-        )
+            """))
         merge, _, _ = security_audit.scan_file(f)
         assert merge == [], f"Expected no merge markers inside fenced block, got: {merge}"
 
@@ -164,18 +152,14 @@ class TestStrictMarkdownSecrets:
     def test_strict_detects_merge_markers_in_fenced_block(self, tmp_path: Path):
         """In strict mode, merge markers inside fenced blocks ARE detected."""
         f = tmp_path / "conflict.md"
-        f.write_text(
-            textwrap.dedent(
-                """\
+        f.write_text(textwrap.dedent("""\
                 # Example
                 ```
                 <<<<<<< HEAD
                 =======
                 >>>>>>> branch
                 ```
-            """
-            )
-        )
+            """))
         merge, _, _ = security_audit.scan_file(f, strict_markdown_secrets=True)
         assert len(merge) == 3, f"Expected 3 merge markers in strict mode, got {len(merge)}"
 

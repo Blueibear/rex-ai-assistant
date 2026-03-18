@@ -105,7 +105,9 @@ else:
     AudioArray: TypeAlias = Any
 
 RecorderCallable = Callable[[float], Union[Awaitable[AudioArray], AudioArray]]
-IdentifySpeakerCallable = Union[Callable[[AudioArray], Optional[str]], Callable[[], Optional[str]]]
+IdentifySpeakerWithAudio = Callable[[AudioArray], Optional[str]]
+IdentifySpeakerWithoutAudio = Callable[[], Optional[str]]
+IdentifySpeakerCallable = Union[IdentifySpeakerWithAudio, IdentifySpeakerWithoutAudio]
 
 # Backwards-compatible runtime alias used by optional-import tests.
 _NDArray = np.ndarray if np is not None else Any
@@ -147,7 +149,7 @@ class AsyncMicrophone:
         sample_rate: int,
         detection_seconds: float,
         capture_seconds: float,
-        recorder: RecorderCallable | None = None,  # type: ignore[valid-type]
+        recorder: RecorderCallable | None = None,
     ) -> None:
         self.sample_rate = sample_rate
         self._detection_seconds = detection_seconds
@@ -172,7 +174,7 @@ class AsyncMicrophone:
             result = self._recorder(duration)
             if asyncio.iscoroutine(result):
                 result = await result
-            return np.asarray(result, dtype=np.float32).reshape(-1)
+            return cast(AudioArray, np.asarray(result, dtype=np.float32).reshape(-1))
 
         sd = _require_sounddevice()
 
@@ -251,7 +253,7 @@ class SpeechToText:
         except Exception as exc:
             raise SpeechToTextError(str(exc)) from exc
 
-    async def transcribe(self, audio: np.ndarray, sample_rate: int) -> str:  # type: ignore[name-defined]
+    async def transcribe(self, audio: AudioArray, sample_rate: int) -> str:
         """Transcribe audio to text."""
 
         def _transcribe() -> str:
@@ -485,14 +487,14 @@ class VoiceLoop:
         assistant,
         *,
         wake_listener,
-        detection_source: Callable[[], Awaitable[np.ndarray]],  # type: ignore[name-defined]
-        record_phrase: Callable[[], Awaitable[np.ndarray]],  # type: ignore[name-defined]
-        transcribe: Callable[[np.ndarray], Awaitable[str]],  # type: ignore[name-defined]
+        detection_source: Callable[[], Awaitable[AudioArray]],
+        record_phrase: Callable[[], Awaitable[AudioArray]],
+        transcribe: Callable[[AudioArray], Awaitable[str]],
         speak: Callable[[str], Awaitable[None]],
         speak_streaming: Callable[[AsyncIterator[str]], Awaitable[None]] | None = None,
         warmup: Callable[[], Awaitable[None]] | None = None,
         acknowledge: Callable[[], Awaitable[None]] | None = None,
-        identify_speaker: IdentifySpeakerCallable | None = None,  # type: ignore[valid-type]
+        identify_speaker: IdentifySpeakerCallable | None = None,
     ) -> None:
         self._assistant = assistant
         self._wake_listener = wake_listener
@@ -510,7 +512,7 @@ class VoiceLoop:
 
     @staticmethod
     def _resolve_identify_speaker_signature(
-        identify_speaker: IdentifySpeakerCallable | None,  # type: ignore[valid-type]
+        identify_speaker: IdentifySpeakerCallable | None,
     ) -> bool:
         """Return True when identify_speaker accepts an audio argument."""
         if identify_speaker is None:
@@ -572,9 +574,9 @@ class VoiceLoop:
                     if self._identify_speaker is not None:
                         try:
                             if self._identify_speaker_accepts_audio:
-                                self._identify_speaker(audio)
+                                cast(IdentifySpeakerWithAudio, self._identify_speaker)(audio)
                             else:
-                                self._identify_speaker()
+                                cast(IdentifySpeakerWithoutAudio, self._identify_speaker)()
                         except Exception as exc:
                             logger.warning("Voice identity check failed: %s", exc)
 
@@ -622,7 +624,7 @@ class VoiceLoop:
             logger.error("Audio device error: %s", exc)
 
 
-def _build_voice_id_callback() -> IdentifySpeakerCallable | None:  # type: ignore[valid-type]
+def _build_voice_id_callback() -> IdentifySpeakerCallable | None:
     """Build an identify_speaker callback if voice identity is enabled.
 
     Reads the voice_identity config section, loads enrolled embeddings, and

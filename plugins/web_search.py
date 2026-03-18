@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote_plus
 
 from rex.config import settings
@@ -12,15 +13,21 @@ from rex.plugins import Plugin
 try:
     import requests
 except ImportError as exc:
-    requests = None
-    _REQUESTS_IMPORT_ERROR = exc
+    requests = cast(Any, None)
+    _REQUESTS_IMPORT_ERROR: Exception | None = exc
 else:
     _REQUESTS_IMPORT_ERROR = None
 
+if TYPE_CHECKING:
+    from bs4.element import Tag
+else:
+    Tag = Any
 try:
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup as _BeautifulSoupImpl
 except ImportError:
-    BeautifulSoup = None  # type: ignore
+    BEAUTIFULSOUP_CLASS: Any = None
+else:
+    BEAUTIFULSOUP_CLASS = _BeautifulSoupImpl
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +68,23 @@ def _create_session() -> requests.Session:
     return session
 
 
+def _require_beautifulsoup() -> Any:
+    if BEAUTIFULSOUP_CLASS is None:
+        raise RuntimeError("BeautifulSoup is required for HTML scraping providers")
+    return BEAUTIFULSOUP_CLASS
+
+
+def _result_text(node: Tag | None) -> str:
+    return node.get_text(" ", strip=True) if node is not None else ""
+
+
+def _result_href(node: Tag | None) -> str:
+    if node is None:
+        return ""
+    href = node.get("href")
+    return href if isinstance(href, str) else ""
+
+
 class WebSearchPlugin:
     name = "web_search"
 
@@ -81,7 +105,7 @@ class WebSearchPlugin:
             if method:
                 try:
                     result = method(query)
-                    if result:
+                    if isinstance(result, str) and result:
                         return result
                 except Exception as e:
                     logger.warning("Provider '%s' failed: %s", provider, e)
@@ -100,7 +124,7 @@ class WebSearchPlugin:
         api_key = os.getenv("SERPAPI_KEY")
         if not api_key:
             return None
-        params = {
+        params: dict[str, str] = {
             "q": query,
             "api_key": api_key,
             "num": "3",
@@ -127,7 +151,7 @@ class WebSearchPlugin:
         if not api_key:
             return None
         headers = {"X-Subscription-Token": api_key}
-        params = {"q": query, "count": 3}
+        params: dict[str, str | int] = {"q": query, "count": 3}
         try:
             session = self._get_session()
             resp = session.get(BRAVE_URL, headers=headers, params=params, timeout=10)
@@ -144,34 +168,35 @@ class WebSearchPlugin:
             return None
 
     def _search_duckduckgo(self, query: str) -> str | None:
-        if BeautifulSoup is None:
-            logger.warning("BeautifulSoup is required for DuckDuckGo scraping")
-            return None
         try:
+            soup_class = _require_beautifulsoup()
             url = f"https://html.duckduckgo.com/html/?q={quote_plus(query)}"
             headers = {"User-Agent": "Mozilla/5.0"}
             session = self._get_session()
             resp = session.get(url, headers=headers, timeout=10)
             resp.raise_for_status()
-            soup = BeautifulSoup(resp.text, "html.parser")
+            soup = soup_class(resp.text, "html.parser")
             result = soup.find("a", class_="result__a")
             snippet = soup.find("a", class_="result__snippet")
             if result:
                 return self._format_result(
-                    result.text, result["href"], snippet.text if snippet else ""
+                    _result_text(result),
+                    _result_href(result),
+                    _result_text(snippet),
                 )
         except Exception as e:
             if isinstance(e, RuntimeError):
                 raise
             logger.warning("DuckDuckGo search failed: %s", e)
             return None
+        return None
 
     def _search_google(self, query: str) -> str | None:
         api_key = os.getenv("GOOGLE_API_KEY")
         engine_id = os.getenv("GOOGLE_CSE_ID")
         if not api_key or not engine_id:
             return None
-        params = {"q": query, "key": api_key, "cx": engine_id, "num": 3}
+        params: dict[str, str | int] = {"q": query, "key": api_key, "cx": engine_id, "num": 3}
         try:
             session = self._get_session()
             resp = session.get(GOOGLE_URL, params=params, timeout=10)
@@ -189,7 +214,7 @@ class WebSearchPlugin:
 
     def _search_browserless(self, query: str) -> str | None:
         token = os.getenv("BROWSERLESS_API_KEY")
-        if not token or BeautifulSoup is None:
+        if not token:
             return None
         payload = {
             "url": f"https://duckduckgo.com/?q={quote_plus(query)}",
@@ -197,23 +222,27 @@ class WebSearchPlugin:
         }
         headers = {"Cache-Control": "no-cache", "Content-Type": "application/json"}
         try:
+            soup_class = _require_beautifulsoup()
             session = self._get_session()
             resp = session.post(
                 BROWSERLESS_URL, headers=headers, params={"token": token}, json=payload, timeout=20
             )
             resp.raise_for_status()
-            soup = BeautifulSoup(resp.text, "html.parser")
+            soup = soup_class(resp.text, "html.parser")
             result = soup.find("a", class_="result__a")
             snippet = soup.find("a", class_="result__snippet")
             if result:
                 return self._format_result(
-                    result.text, result["href"], snippet.text if snippet else ""
+                    _result_text(result),
+                    _result_href(result),
+                    _result_text(snippet),
                 )
         except Exception as e:
             if isinstance(e, RuntimeError):
                 raise
             logger.warning("Browserless search failed: %s", e)
             return None
+        return None
 
     def _get_session(self) -> requests.Session:
         if self._session is None:

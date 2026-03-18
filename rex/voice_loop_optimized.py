@@ -23,12 +23,14 @@ from contextlib import suppress
 from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING, Any, Callable, Union, cast
+
+from typing_extensions import TypeAlias
 
 try:  # pragma: no cover - optional dependency
     import numpy as np
 except ImportError:
-    np = None
+    np = cast(Any, None)
 
 from wake_acknowledgment import ensure_wake_acknowledgment_sound
 
@@ -46,6 +48,13 @@ try:
     import sounddevice as sd
 except ImportError:
     sd = None
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+    AudioArray = NDArray[Any]
+else:
+    AudioArray = Any
 
 
 def _lazy_import_whisper():
@@ -86,7 +95,7 @@ def _require_numpy():
 
 logger = logging.getLogger(__name__)
 
-RecorderCallable = Callable[[float], Awaitable[np.ndarray] | np.ndarray]
+RecorderCallable: TypeAlias = Callable[[float], Union[Awaitable[AudioArray], AudioArray]]
 
 
 class AsyncMicrophone:
@@ -98,7 +107,7 @@ class AsyncMicrophone:
         sample_rate: int,
         detection_seconds: float,
         capture_seconds: float,
-        recorder: RecorderCallable | None = None,  # type: ignore[valid-type]
+        recorder: RecorderCallable | None = None,
         vad_threshold: float = 0.01,
         silence_duration: float = 1.0,
     ) -> None:
@@ -109,13 +118,13 @@ class AsyncMicrophone:
         self._vad_threshold = vad_threshold
         self._silence_duration = silence_duration
 
-    async def detection_frame(self) -> np.ndarray:
+    async def detection_frame(self) -> AudioArray:
         return await self._record(self._detection_seconds)
 
-    async def record_phrase(self, duration: float | None = None) -> np.ndarray:
+    async def record_phrase(self, duration: float | None = None) -> AudioArray:
         return await self._record_with_vad(duration or self._capture_seconds)
 
-    async def _record_with_vad(self, max_duration: float) -> np.ndarray:
+    async def _record_with_vad(self, max_duration: float) -> AudioArray:
         np = _require_numpy()
         if sd is None:
             raise AudioDeviceError("sounddevice is not installed")
@@ -153,9 +162,10 @@ class AsyncMicrophone:
         except Exception as exc:
             raise AudioDeviceError(str(exc)) from exc
 
-        return np.concatenate(chunks) if chunks else np.zeros(chunk_frames, dtype=np.float32)
+        audio = np.concatenate(chunks) if chunks else np.zeros(chunk_frames, dtype=np.float32)
+        return cast(AudioArray, audio)
 
-    async def _record(self, duration: float) -> np.ndarray:
+    async def _record(self, duration: float) -> AudioArray:
         if duration <= 0:
             raise AudioDeviceError("Recording duration must be positive")
         np = _require_numpy()
@@ -164,7 +174,7 @@ class AsyncMicrophone:
             result = self._recorder(duration)
             if asyncio.iscoroutine(result):
                 result = await result
-            return np.asarray(result, dtype=np.float32).reshape(-1)
+            return cast(AudioArray, np.asarray(result, dtype=np.float32).reshape(-1))
 
         if sd is None:
             raise AudioDeviceError("sounddevice is not installed")
@@ -180,7 +190,7 @@ class AsyncMicrophone:
             data = await asyncio.to_thread(_capture)
         except Exception as exc:
             raise AudioDeviceError(str(exc)) from exc
-        return np.asarray(data, dtype=np.float32)
+        return cast(AudioArray, np.asarray(data, dtype=np.float32))
 
 
 class WakeAcknowledgement:
