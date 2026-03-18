@@ -61,7 +61,7 @@ class PoolConfig:
     query_timeout: float = 10.0
 
     @classmethod
-    def from_env(cls) -> "PoolConfig":
+    def from_env(cls) -> PoolConfig:
         """Build a ``PoolConfig`` from environment variables.
 
         Unset or invalid values fall back to the dataclass defaults.
@@ -241,9 +241,7 @@ class ConnectionPool:
             self._condition.notify()
 
     @contextmanager
-    def connect(
-        self, *, query_context: str = ""
-    ) -> Generator[sqlite3.Connection, None, None]:
+    def connect(self, *, query_context: str = "") -> Generator[sqlite3.Connection, None, None]:
         """Context manager that acquires, yields, and releases a connection.
 
         Commits on clean exit; rolls back on exception.  If
@@ -279,9 +277,7 @@ class ConnectionPool:
                 pass
             if "interrupted" in str(exc).lower():
                 ctx_msg = f" [context: {query_context}]" if query_context else ""
-                logger.warning(
-                    "Query timeout after %.1fs%s", timeout, ctx_msg
-                )
+                logger.warning("Query timeout after %.1fs%s", timeout, ctx_msg)
                 raise QueryTimeoutError(
                     f"Query exceeded timeout of {timeout:.1f}s"
                     + (f" ({query_context})" if query_context else "")

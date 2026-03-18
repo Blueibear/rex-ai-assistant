@@ -138,7 +138,7 @@ class PriorityRoutingConfig:
     )
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PriorityRoutingConfig":
+    def from_dict(cls, data: dict[str, Any]) -> PriorityRoutingConfig:
         """Build config from a plain dict (e.g. loaded from JSON).
 
         Accepts lists of priority strings under ``"immediate_priorities"`` and
@@ -299,8 +299,7 @@ class PriorityNotificationRouter:
     def _enqueue_digest(self, notification: RoutableNotification) -> RoutingResult:
         self._digest_queue.append(DigestEntry(notification=notification))
         logger.info(
-            "[PriorityNotificationRouter] Priority=%s id=%s queued for digest "
-            "(queue size=%d).",
+            "[PriorityNotificationRouter] Priority=%s id=%s queued for digest " "(queue size=%d).",
             notification.priority.value,
             notification.id,
             len(self._digest_queue),

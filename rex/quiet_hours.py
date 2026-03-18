@@ -52,9 +52,7 @@ from rex.priority_notification_router import (
 logger = logging.getLogger(__name__)
 
 # Priorities that are NEVER held during quiet hours.
-_BYPASS_PRIORITIES: frozenset[NotificationPriority] = frozenset(
-    {NotificationPriority.CRITICAL}
-)
+_BYPASS_PRIORITIES: frozenset[NotificationPriority] = frozenset({NotificationPriority.CRITICAL})
 
 
 # ---------------------------------------------------------------------------
@@ -84,7 +82,7 @@ class QuietHoursConfig:
     enabled: bool = True
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "QuietHoursConfig":
+    def from_dict(cls, data: dict[str, Any]) -> QuietHoursConfig:
         """Build config from a plain dict (e.g. loaded from JSON).
 
         Accepts ``"start"`` and ``"end"`` as ``"HH:MM"`` strings and

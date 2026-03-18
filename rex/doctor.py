@@ -506,9 +506,10 @@ def check_audio_output_device() -> CheckResult:
         )
 
 
-def check_lm_studio_reachability(host: str = "127.0.0.1", port: int = 1234, timeout: float = 3.0) -> CheckResult:
+def check_lm_studio_reachability(
+    host: str = "127.0.0.1", port: int = 1234, timeout: float = 3.0
+) -> CheckResult:
     """Check if LM Studio local API server is reachable."""
-    import socket
 
     try:
         with socket.create_connection((host, port), timeout=timeout):

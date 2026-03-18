@@ -304,13 +304,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/escalation_job.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] `rex/health.py` returns meaningful health check data — no stub `{"status": "ok"}` without checks
-- [ ] `rex/retention.py` has complete data cleanup logic
-- [ ] Background jobs (`digest_job.py`, `escalation_job.py`) have no truncated scheduling or dispatch logic
-- [ ] `rex/quiet_hours.py` correctly computes time windows — no off-by-one errors in hour comparisons
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] `rex/health.py` returns meaningful health check data — no stub `{"status": "ok"}` without checks
+- [x] `rex/retention.py` has complete data cleanup logic
+- [x] Background jobs (`digest_job.py`, `escalation_job.py`) have no truncated scheduling or dispatch logic
+- [x] `rex/quiet_hours.py` correctly computes time windows — no off-by-one errors in hour comparisons
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

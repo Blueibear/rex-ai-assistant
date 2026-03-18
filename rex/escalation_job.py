@@ -76,7 +76,7 @@ class EscalationConfig:
     max_attempts: int = _DEFAULT_MAX_ATTEMPTS
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "EscalationConfig":
+    def from_dict(cls, data: dict[str, Any]) -> EscalationConfig:
         """Build config from a plain dict (e.g. loaded from JSON).
 
         Accepted keys:
@@ -320,9 +320,7 @@ class EscalationJob:
             if record.acknowledged:
                 continue
 
-            timeout_minutes = self._config.timeout_minutes_by_priority.get(
-                record.priority
-            )
+            timeout_minutes = self._config.timeout_minutes_by_priority.get(record.priority)
             if timeout_minutes is None:
                 # This priority is not configured for escalation.
                 continue
@@ -367,8 +365,7 @@ class EscalationJob:
             if record.attempt_count >= self._config.max_attempts:
                 result.max_reached_ids.append(record.notification_id)
                 logger.warning(
-                    "[EscalationJob] Max attempts (%d) reached for id=%r — "
-                    "escalation stopped.",
+                    "[EscalationJob] Max attempts (%d) reached for id=%r — " "escalation stopped.",
                     self._config.max_attempts,
                     record.notification_id,
                 )

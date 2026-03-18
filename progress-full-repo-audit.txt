@@ -136,3 +136,40 @@ Learnings for future iterations:
   - retry.py had exponential backoff but no jitter — common oversight, always check for random import when auditing retry logic
   - startup_validation.py has __future__ annotations import that ruff considers mis-sorted (I001); --fix handles it
 ---
+
+## Iteration 10 - US-010: rex/ Security and API Layer
+- Read all 9 files: api_key_auth.py, credentials.py, rate_limiter.py, policy.py, policy_engine.py, validation.py, audit.py, http_errors.py, request_logging.py
+- All files are complete and correctly implemented — no stubs, no hardcoded secrets
+- api_key_auth.py: fail-closed (rejects when env var unset), hmac.compare_digest for constant-time comparison; removed unused `jsonify` import (F401 via ruff --fix)
+- validation.py: uses request.get_json(silent=True) not raw request.json; manually replaced deprecated Type[_M] with type[_M] (UP006/UP035 — ruff --fix can't auto-fix these)
+- http_errors.py: removed quoted "Any" annotation (UP037 via ruff --fix)
+- credentials.py: masks tokens in all log output; no secrets logged
+- audit.py: redacts sensitive fields before writing to disk; logs all tool calls with policy decisions
+- policy_engine.py: default for unknown tools is MEDIUM risk + allow_auto=False (deny-by-default)
+- rate_limiter.py: per-IP rate limiting, health endpoint exemption, 429 with Retry-After
+- 206 tests pass
+
+Learnings for future iterations:
+  - UP006 (Type[X] → type[X]) and UP035 (remove Type from typing imports) require manual edits — ruff --fix marks them as "hidden fixes" needing --unsafe-fixes
+  - With `from __future__ import annotations`, type[_M] works fine even in Python 3.9 (runtime never evaluates it)
+  - Security files in this codebase are generally high-quality; most effort is lint cleanup not logic fixes
+---
+
+## Iteration 11 - US-011: rex/ Utilities, Notifications, and Background Jobs
+- Read all 14 files in scope
+- All files are complete and correctly implemented — no stubs, no truncated logic
+- rex/health.py: real readiness checks (check_config, check_dashboard_db), not just {"status":"ok"}
+- rex/retention.py: full cleanup logic for dashboard and inbound SMS stores
+- rex/digest_job.py: complete batch delivery with drain/build/deliver pipeline
+- rex/escalation_job.py: complete escalation with per-priority timeouts, max_attempts cap
+- rex/quiet_hours.py: correct midnight-crossing logic (start >= end means overnight window)
+- rex/doctor.py: comprehensive diagnostics, removed top-level socket import (F811 - shadowed by local import in check_lm_studio_reachability)
+- ruff --fix: fixed 9 issues (UP037 quoted annotations, F401/F811 unused imports, I001 unsorted imports)
+- black: reformatted 5 files (quiet_hours, escalation_job, db_pool, priority_notification_router, doctor)
+- 406 tests pass
+
+Learnings for future iterations:
+  - UP037 (remove quotes from return type annotations like -> "ClassName") is auto-fixable
+  - F811 (redefinition of name) happens when a top-level import is shadowed by a local import inside a function; fix by removing the top-level import
+  - doctor.py imports socket at top but also imports it locally inside check_lm_studio_reachability() — fix is to remove top-level socket import since from_env() uses it locally
+---

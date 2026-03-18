@@ -43,12 +43,12 @@ class NotificationPriority(str, Enum):
         return self.value.title()
 
     @classmethod
-    def _missing_(cls, value: object) -> "NotificationPriority":
+    def _missing_(cls, value: object) -> NotificationPriority:
         """Return MEDIUM for any unknown / legacy value (e.g. 'normal')."""
         return cls.MEDIUM
 
     @classmethod
-    def from_str(cls, value: str | None) -> "NotificationPriority":
+    def from_str(cls, value: str | None) -> NotificationPriority:
         """Parse a string to a :class:`NotificationPriority`, defaulting to MEDIUM.
 
         This is the canonical way to deserialise a priority value read from

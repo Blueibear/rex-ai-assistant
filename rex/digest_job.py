@@ -102,7 +102,7 @@ class DigestJob:
     def __init__(
         self,
         router: PriorityNotificationRouter,
-        store: "DashboardStore | None" = None,
+        store: DashboardStore | None = None,
         config: DigestJobConfig | None = None,
     ) -> None:
         self._router = router
