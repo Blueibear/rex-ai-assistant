@@ -148,3 +148,4 @@ Rex_Settings_Reference.xlsx
 `n~$*.xlsx`n*.tsbuildinfo
 ~$*.xlsx
 *.tsbuildinfo
+.claude/worktrees/
