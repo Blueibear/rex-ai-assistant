@@ -565,13 +565,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/integrations/triage_engine.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] `dashboard/sse.py` has a complete SSE event loop — no truncated generator bodies
-- [ ] `dashboard/auth.py` enforces auth on all dashboard routes — no unauthenticated endpoints
-- [ ] `dashboard/static/js/dashboard.js` has no incomplete event handlers or dead code blocks
-- [ ] `integrations/triage_engine.py` fully implements triage decision logic
-- [ ] All Python files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] `dashboard/sse.py` has a complete SSE event loop — no truncated generator bodies
+- [x] `dashboard/auth.py` enforces auth on all dashboard routes — no unauthenticated endpoints
+- [x] `dashboard/static/js/dashboard.js` has no incomplete event handlers or dead code blocks
+- [x] `integrations/triage_engine.py` fully implements triage decision logic
+- [x] All Python files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

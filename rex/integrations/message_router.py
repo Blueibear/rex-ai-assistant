@@ -169,9 +169,7 @@ class MessageRouter:
     # Internal
     # ------------------------------------------------------------------
 
-    def _resolve_channel(
-        self, contact: str, preferred_channel: str | None
-    ) -> str:
+    def _resolve_channel(self, contact: str, preferred_channel: str | None) -> str:
         if preferred_channel is not None:
             ch = preferred_channel.lower()
             if ch not in ("sms", "email"):
@@ -195,9 +193,7 @@ class MessageRouter:
         if self._sms is not None:
             return "sms"
 
-        raise NoChannelError(
-            f"No channel configured to reach contact {contact!r}."
-        )
+        raise NoChannelError(f"No channel configured to reach contact {contact!r}.")
 
     def _send_sms(self, to: str, body: str) -> MessageResult:
         assert self._sms is not None

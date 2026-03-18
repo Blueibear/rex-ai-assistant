@@ -294,3 +294,41 @@ Learnings for future iterations:
   - Both packages had only lint violations (Optional → X | None), no logic issues
   - ruff --unsafe-fixes handles UP045 automatically; no need for manual edits
 ---
+
+## Iteration 19 - US-019: rex/wakeword/ and rex/computers/ Subpackages
+- Read all files: wakeword/ (embedding.py, listener.py, selection.py, utils.py) and computers/ (__init__.py, agent_server.py, client.py, config.py, pc_run_policy.py, service.py)
+- wakeword/__init__.py was MISSING — created it with proper public API exports (WakeWordListener, build_default_detector, detect_wakeword, load_wakeword_model)
+- wakeword/listener.py: complete async generator loop with poll_interval, stop(), exception handling — no truncated logic
+- wakeword/utils.py: uses find_spec() via _import_optional() — CLAUDE.md rule satisfied
+- computers/agent_server.py: binds to 127.0.0.1 by default, requires X-Auth-Token, has in-memory fixed-window rate limiter, allowlist check server-side, shell=False, I001 import sort fixed by ruff --fix
+- computers/pc_run_policy.py: complete policy evaluation — denied → refuse, requires_approval → create/find approval, auto-execute → allow; no always-allow default
+- computers/service.py: client-side allowlist check before any network call; MissingTokenError when token unset
+- ruff --fix: fixed 1 I001 issue in agent_server.py; black: all 10 files unchanged
+- 61 tests pass (test_wakeword.py, test_wakeword_callback.py, test_wakeword_model_selection.py, test_wakeword_utils.py, test_computers.py)
+
+Learnings for future iterations:
+  - rex/wakeword/ was a namespace package (no __init__.py) — all other subpackages have one; created it with public API
+  - agent_server.py: Flask app with in-memory rate limiter (stdlib deque-based, no flask-limiter dep) — good pattern for standalone servers
+  - computers/ package is well-implemented: dual client/server model, client-side + server-side allowlists, token never logged
+---
+
+## Iteration 20 - US-020: rex/dashboard/ and rex/integrations/ Subpackages
+- Read all 12 files: dashboard/ (__init__.py, auth.py, routes.py, sse.py, static/js/dashboard.js) and integrations/ (__init__.py, calendar_service.py, email_service.py, message_router.py, models.py, scheduling_engine.py, sms_service.py, triage_engine.py)
+- All files are complete and correctly implemented — no stubs, no truncated logic
+- dashboard/sse.py: complete SSE event loop with keep-alive, bounded subscriber queues, drop-oldest-on-full policy
+- dashboard/auth.py: complete session manager, login rate limiter, hmac password comparison
+- dashboard/routes.py: @require_auth enforced on all API routes except /login, /status, /assets (intentionally public); allow_local bypasses auth only when no password configured
+- dashboard/static/js/dashboard.js: complete SPA with SSE reconnection, voice recording, notification stream
+- integrations/triage_engine.py: full LLM-based scoring with JSON parse, cache, fallback to low/other
+- integrations/scheduling_engine.py: complete with LLM prompt building, JSON parse, stub fallback
+- calendar_service.py: removed unused `now = datetime.now(timezone.utc)` (F841)
+- ruff --fix: fixed 4 auto-fixable issues (I001 import sort in email_service.py, F401 unused import)
+- ruff --unsafe-fixes: fixed 8 UP045 Optional[X] → X | None across calendar_service.py, email_service.py, models.py
+- black reformatted 7 files in integrations/
+- 188 targeted tests pass
+
+Learnings for future iterations:
+  - ruff --unsafe-fixes first, then manual cleanup for any remaining issues (especially B018 dead expressions)
+  - integrations/ package is a higher-level service layer above email_backends/calendar_backends/messaging_backends
+  - auth.py `require_auth` allows unauthenticated local access (127.0.0.1) only when REX_DASHBOARD_PASSWORD is unset — if a password is set, ALL requests (even loopback) require the session token
+---

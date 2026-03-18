@@ -14,9 +14,8 @@ import logging
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
-from rex.integrations.models import EmailMessage, PriorityLevel
+from rex.integrations.models import EmailMessage
 
 logger = logging.getLogger(__name__)
 
@@ -208,8 +207,8 @@ class EmailService:
     def _gmail_list_inbox(self, limit: int) -> list[EmailMessage]:
         """Fetch inbox messages via Gmail REST API."""
         try:
-            import urllib.request
             import json
+            import urllib.request
 
             url = (
                 f"https://gmail.googleapis.com/gmail/v1/users/me/messages"
@@ -230,8 +229,8 @@ class EmailService:
 
     def _gmail_get_thread(self, thread_id: str) -> list[EmailMessage]:
         try:
-            import urllib.request
             import json
+            import urllib.request
 
             url = f"https://gmail.googleapis.com/gmail/v1/users/me/threads/{thread_id}"
             req = urllib.request.Request(url, headers=self._gmail_headers())
@@ -253,9 +252,7 @@ class EmailService:
             import json
             import urllib.request
 
-            raw_msg = (
-                f"To: {to}\r\nSubject: {subject}\r\nContent-Type: text/plain\r\n\r\n{body}"
-            )
+            raw_msg = f"To: {to}\r\nSubject: {subject}\r\nContent-Type: text/plain\r\n\r\n{body}"
             encoded = base64.urlsafe_b64encode(raw_msg.encode()).decode()
             payload = json.dumps({"raw": encoded}).encode()
             headers = {**self._gmail_headers(), "Content-Type": "application/json"}
@@ -320,7 +317,7 @@ class EmailService:
         except Exception as exc:  # noqa: BLE001
             logger.error("Gmail mark_read failed: %s", exc)
 
-    def _gmail_fetch_message(self, msg_id: str) -> Optional[EmailMessage]:
+    def _gmail_fetch_message(self, msg_id: str) -> EmailMessage | None:
         try:
             import json
             import urllib.request
@@ -334,9 +331,7 @@ class EmailService:
             logger.error("Gmail fetch_message failed: %s", exc)
             return None
 
-    def _parse_gmail_message(
-        self, data: dict[str, object], thread_id: str
-    ) -> Optional[EmailMessage]:
+    def _parse_gmail_message(self, data: dict[str, object], thread_id: str) -> EmailMessage | None:
         """Convert a raw Gmail API message dict to an :class:`EmailMessage`."""
         try:
             headers: dict[str, str] = {}

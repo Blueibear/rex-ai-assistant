@@ -172,9 +172,7 @@ class EmailTriageEngine:
         # Strip markdown fences if present
         if text.startswith("```"):
             lines = text.splitlines()
-            text = "\n".join(
-                line for line in lines if not line.startswith("```")
-            ).strip()
+            text = "\n".join(line for line in lines if not line.startswith("```")).strip()
 
         try:
             data = json.loads(text)

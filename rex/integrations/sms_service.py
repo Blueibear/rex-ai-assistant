@@ -232,7 +232,11 @@ class SMSService:
                     body=m.body,
                     from_number=m.from_,
                     to_number=m.to,
-                    sent_at=m.date_sent.replace(tzinfo=timezone.utc) if m.date_sent else datetime.now(timezone.utc),
+                    sent_at=(
+                        m.date_sent.replace(tzinfo=timezone.utc)
+                        if m.date_sent
+                        else datetime.now(timezone.utc)
+                    ),
                     status="delivered",
                 )
                 if thread_id not in threads:

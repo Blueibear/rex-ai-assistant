@@ -151,9 +151,7 @@ class SchedulingEngine:
     # Internal
     # ------------------------------------------------------------------
 
-    def _get_busy_events(
-        self, earliest: datetime, latest: datetime
-    ) -> list[CalendarEvent]:
+    def _get_busy_events(self, earliest: datetime, latest: datetime) -> list[CalendarEvent]:
         if self._calendar is None:
             return []
         try:
@@ -233,9 +231,7 @@ class SchedulingEngine:
         text = raw.strip()
         if text.startswith("```"):
             lines = text.splitlines()
-            text = "\n".join(
-                line for line in lines if not line.startswith("```")
-            ).strip()
+            text = "\n".join(line for line in lines if not line.startswith("```")).strip()
 
         try:
             data = json.loads(text)
@@ -257,7 +253,9 @@ class SchedulingEngine:
                 confidence_raw = item.get("confidence", 0.8)
                 start = datetime.fromisoformat(start_raw.replace("Z", "+00:00"))
                 end = datetime.fromisoformat(end_raw.replace("Z", "+00:00"))
-                confidence = float(confidence_raw) if isinstance(confidence_raw, (int, float)) else 0.8
+                confidence = (
+                    float(confidence_raw) if isinstance(confidence_raw, (int, float)) else 0.8
+                )
                 slots.append(TimeSlot(start=start, end=end, confidence=confidence))
             except (ValueError, TypeError) as exc:
                 logger.warning("SchedulingEngine could not parse slot item: %s", exc)

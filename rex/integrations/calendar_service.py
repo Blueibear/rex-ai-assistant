@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 from rex.integrations.models import CalendarEvent
 
@@ -25,14 +25,11 @@ logger = logging.getLogger(__name__)
 
 
 def _days_from_now(days: float, hour: int = 9, minute: int = 0) -> datetime:
-    base = datetime.now(timezone.utc).replace(
-        hour=hour, minute=minute, second=0, microsecond=0
-    )
+    base = datetime.now(timezone.utc).replace(hour=hour, minute=minute, second=0, microsecond=0)
     return base + timedelta(days=days)
 
 
 def _build_stub_events() -> list[CalendarEvent]:
-    now = datetime.now(timezone.utc)
     return [
         CalendarEvent(
             id="stub-cal-001",
@@ -265,10 +262,7 @@ class CalendarService:
                     "maxResults": 50,
                 }
             )
-            url = (
-                "https://www.googleapis.com/calendar/v3/calendars/primary/events?"
-                + params
-            )
+            url = "https://www.googleapis.com/calendar/v3/calendars/primary/events?" + params
             req = urllib.request.Request(url, headers=self._google_headers())
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read())
@@ -310,13 +304,9 @@ class CalendarService:
 
             body = self._to_google_event_body(event_data)
             payload = json.dumps(body).encode()
-            url = (
-                f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{id}"
-            )
+            url = f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{id}"
             headers = {**self._google_headers(), "Content-Type": "application/json"}
-            req = urllib.request.Request(
-                url, data=payload, headers=headers, method="PATCH"
-            )
+            req = urllib.request.Request(url, data=payload, headers=headers, method="PATCH")
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read())
             event = self._parse_google_event(data)
@@ -331,12 +321,8 @@ class CalendarService:
         try:
             import urllib.request
 
-            url = (
-                f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{id}"
-            )
-            req = urllib.request.Request(
-                url, headers=self._google_headers(), method="DELETE"
-            )
+            url = f"https://www.googleapis.com/calendar/v3/calendars/primary/events/{id}"
+            req = urllib.request.Request(url, headers=self._google_headers(), method="DELETE")
             urllib.request.urlopen(req, timeout=10).close()
         except Exception as exc:  # noqa: BLE001
             logger.error("Google Calendar delete_event failed: %s", exc)
@@ -371,7 +357,7 @@ class CalendarService:
                 body["attendees"] = [{"email": str(a)} for a in attendees]
         return body
 
-    def _parse_google_event(self, data: dict[str, object]) -> Optional[CalendarEvent]:
+    def _parse_google_event(self, data: dict[str, object]) -> CalendarEvent | None:
         """Convert a raw Google Calendar API event dict to a CalendarEvent."""
         try:
             event_id = str(data.get("id", uuid.uuid4().hex))
