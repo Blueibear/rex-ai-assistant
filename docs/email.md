@@ -174,7 +174,7 @@ cred_manager = get_credential_manager()
 # Future: Real IMAP credentials
 # cred_manager.set_credential('email', {
 #     'username': 'your-email@example.com',
-#     'password': 'your-password',
+#     'password': 'your-password',  # pragma: allowlist secret
 #     'imap_server': 'imap.gmail.com',
 #     'imap_port': 993
 # })
