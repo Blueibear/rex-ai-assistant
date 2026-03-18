@@ -438,13 +438,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/email_backends/triage_rules.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] `imap_smtp.py` connects with TLS and has timeout handling on all socket operations
-- [ ] `triage.py` and `triage_rules.py` have no incomplete rule evaluation branches
-- [ ] No email credentials are logged at any log level
-- [ ] All backend classes implement the full interface from `base.py`
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] `imap_smtp.py` connects with TLS and has timeout handling on all socket operations
+- [x] `triage.py` and `triage_rules.py` have no incomplete rule evaluation branches
+- [x] No email credentials are logged at any log level
+- [x] All backend classes implement the full interface from `base.py`
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

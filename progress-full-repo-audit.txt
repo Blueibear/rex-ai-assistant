@@ -239,3 +239,20 @@ Learnings for future iterations:
   - meeting_invite.py was a scaffold with NL parser + review formatter but no VEVENT export — acceptance criteria specifically required it
   - uid field added to MeetingInvite as default_factory UUID so multiple invites from same text don't share a UID
 ---
+
+## Iteration 16 - US-016: rex/email_backends/ Subpackage
+- Read all 9 files: __init__.py, account_config.py, account_router.py, base.py, imap_smtp.py, inbox_stub.py, stub.py, triage.py, triage_rules.py
+- All files are complete and correctly implemented — no stubs, no truncated logic
+- imap_smtp.py: uses IMAP4_SSL (TLS), 30s timeout on all socket operations, password never logged ("Never logged" documented in docstring); only username logged on auth failure
+- triage.py: all 4 categories (urgent/action_required/newsletter/fyi) have complete pattern sets; no dead branches
+- triage_rules.py: complete rule evaluation (sender + subject + body AND logic), auto-reload on mtime change, fallback to built-in triage
+- No email credentials logged: account_router logs credential_ref name only (not the token); imap_smtp logs username not password; no credential tokens in any log call
+- All backends implement full EmailBackend interface (connect, fetch_unread, list_mailboxes, mark_as_read, send, disconnect, is_connected)
+- triage.py, triage_rules.py: black reformatting only
+- 267 tests pass
+
+Learnings for future iterations:
+  - IMAP backends need TLS (IMAP4_SSL) + explicit timeout + password-never-logged pattern — imap_smtp.py sets all three
+  - triage_rules.py auto-reloads rules on mtime change — no process restart needed for rule updates
+  - TriageRulesEngine.categorize_with_fallback() chains config rules → built-in patterns; callers should use this method not raw categorize()
+---

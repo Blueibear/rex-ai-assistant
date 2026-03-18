@@ -144,18 +144,12 @@ class TriageRulesEngine:
         if mtime == self._mtime:
             return  # file unchanged — skip reload
         try:
-            raw: dict[str, Any] = json.loads(
-                self._path.read_text(encoding="utf-8")
-            )
+            raw: dict[str, Any] = json.loads(self._path.read_text(encoding="utf-8"))
             self._rules = _parse_rules(raw)
             self._mtime = mtime
-            logger.info(
-                "Loaded %d triage rule(s) from %s", len(self._rules), self._path
-            )
+            logger.info("Loaded %d triage rule(s) from %s", len(self._rules), self._path)
         except Exception as exc:  # noqa: BLE001
-            logger.error(
-                "Failed to load triage rules from %s: %s", self._path, exc
-            )
+            logger.error("Failed to load triage rules from %s: %s", self._path, exc)
 
     def reload(self) -> None:
         """Force an unconditional reload from the rules file."""

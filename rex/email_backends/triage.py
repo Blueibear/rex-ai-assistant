@@ -135,9 +135,7 @@ def categorize(envelope: EmailEnvelope) -> str:
         return "action_required"
 
     # 3. Newsletter
-    if _match(sender, _NEWSLETTER_SENDER_PATTERNS) or _match(
-        subject, _NEWSLETTER_SUBJECT_PATTERNS
-    ):
+    if _match(sender, _NEWSLETTER_SENDER_PATTERNS) or _match(subject, _NEWSLETTER_SUBJECT_PATTERNS):
         return "newsletter"
 
     # 4. FYI — catch-all
