@@ -227,6 +227,14 @@ class SpeechToText:
         if whisper_module is None:
             raise SpeechToTextError("openai-whisper is not installed")
 
+        if device == "auto":
+            try:
+                import torch
+
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+            except ImportError:
+                device = "cpu"
+
         if model_name == "base":
             logger.info("[STT] Using 'tiny' model for faster transcription (3x speedup)")
             model_name = "tiny"
@@ -492,7 +500,7 @@ def build_voice_loop(
     detection_seconds: float = 1.0,
     capture_seconds: float = 5.0,
     whisper_model: str = "tiny",  # Optimized default
-    device: str = "cpu",
+    device: str = "auto",
     language: str = "en",
     speaker_wav: str | None = None,
     wake_sound_path: Path | None = None,

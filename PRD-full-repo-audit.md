@@ -176,13 +176,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/llm_client.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] `rex/voice_loop.py` is confirmed separate from root `voice_loop.py` — no accidental shared state
-- [ ] TTS lazy imports use `find_spec()` before `import_module()` (per CLAUDE.md rule)
-- [ ] `rex/llm_client.py` whisper device resolution uses `torch.cuda.is_available()` when `device == "auto"` (per CLAUDE.md rule)
-- [ ] No truncated audio processing pipelines
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] `rex/voice_loop.py` is confirmed separate from root `voice_loop.py` — no accidental shared state
+- [x] TTS lazy imports use `find_spec()` before `import_module()` (per CLAUDE.md rule)
+- [x] `rex/llm_client.py` whisper device resolution uses `torch.cuda.is_available()` when `device == "auto"` (per CLAUDE.md rule)
+- [x] No truncated audio processing pipelines
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

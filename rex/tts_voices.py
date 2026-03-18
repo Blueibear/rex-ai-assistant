@@ -7,8 +7,8 @@ voice selector dropdown for whichever TTS backend is active.
 from __future__ import annotations
 
 import logging
+from importlib.util import find_spec
 from pathlib import Path
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +16,10 @@ logger = logging.getLogger(__name__)
 _DEFAULT_SPEAKERS_DIR = Path(__file__).resolve().parent.parent / "voices"
 
 # Cache for edge-tts voice list (avoids repeated async network calls)
-_edge_tts_cache: Optional[List[Dict]] = None
+_edge_tts_cache: list[dict] | None = None
 
 
-def list_voices(provider: str, *, speakers_dir: Optional[Path] = None) -> List[Dict]:
+def list_voices(provider: str, *, speakers_dir: Path | None = None) -> list[dict]:
     """List available voices for the given TTS provider.
 
     Args:
@@ -42,13 +42,13 @@ def list_voices(provider: str, *, speakers_dir: Optional[Path] = None) -> List[D
     return []
 
 
-def _list_xtts_voices(*, speakers_dir: Optional[Path] = None) -> List[Dict]:
+def _list_xtts_voices(*, speakers_dir: Path | None = None) -> list[dict]:
     """List WAV speaker files in the XTTS speakers directory."""
     directory = speakers_dir or _DEFAULT_SPEAKERS_DIR
     if not directory.is_dir():
         logger.debug("XTTS speakers directory not found: %s", directory)
         return []
-    voices: List[Dict] = []
+    voices: list[dict] = []
     for wav_file in sorted(directory.glob("*.wav")):
         stem = wav_file.stem
         voices.append(
@@ -62,7 +62,7 @@ def _list_xtts_voices(*, speakers_dir: Optional[Path] = None) -> List[Dict]:
     return voices
 
 
-def _list_edge_tts_voices() -> List[Dict]:
+def _list_edge_tts_voices() -> list[dict]:
     """List voices available from edge-tts (result cached for the session)."""
     global _edge_tts_cache
     if _edge_tts_cache is not None:
@@ -73,7 +73,7 @@ def _list_edge_tts_voices() -> List[Dict]:
 
         import edge_tts  # type: ignore[import]
 
-        async def _fetch() -> List[Dict]:
+        async def _fetch() -> list[dict]:
             raw = await edge_tts.list_voices()
             return [
                 {
@@ -95,14 +95,14 @@ def _list_edge_tts_voices() -> List[Dict]:
         return []
 
 
-def _list_pyttsx3_voices() -> List[Dict]:
+def _list_pyttsx3_voices() -> list[dict]:
     """List voices from the pyttsx3 engine."""
     try:
         import pyttsx3  # type: ignore[import]
 
         engine = pyttsx3.init()
         raw_voices = engine.getProperty("voices") or []
-        voices: List[Dict] = []
+        voices: list[dict] = []
         for v in raw_voices:
             voice_id = getattr(v, "id", "") or ""
             name = getattr(v, "name", "") or voice_id
@@ -164,10 +164,12 @@ async def _synthesize_xtts(voice_id: str, text: str) -> bytes:
     import tempfile
 
     def _run() -> bytes:
-        try:
-            from TTS.api import TTS  # type: ignore[import]
-        except ImportError as exc:
-            raise RuntimeError("Coqui TTS is not installed") from exc
+        if find_spec("TTS") is None:
+            raise RuntimeError("Coqui TTS is not installed")
+        from rex.compat import ensure_transformers_compatibility
+
+        ensure_transformers_compatibility()
+        from TTS.api import TTS  # type: ignore[import]
 
         tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", gpu=False)
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:

@@ -15,6 +15,7 @@ from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
+
 from typing_extensions import TypeAlias
 
 from wake_acknowledgment import ensure_wake_acknowledgment_sound
@@ -236,6 +237,14 @@ class SpeechToText:
         whisper_module = _lazy_import_whisper()
         if whisper_module is None:
             raise SpeechToTextError("openai-whisper is not installed")
+
+        if device == "auto":
+            try:
+                import torch
+
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+            except ImportError:
+                device = "cpu"
 
         try:
             self._model = whisper_module.load_model(model_name, device=device)
@@ -729,7 +738,7 @@ def build_voice_loop(
     detection_seconds: float = 1.0,
     capture_seconds: float = 5.0,
     whisper_model: str = "base",
-    device: str = "cpu",
+    device: str = "auto",
     language: str = "en",
     speaker_wav: str | None = None,
     wake_sound_path: Path | None = None,

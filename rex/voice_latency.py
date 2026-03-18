@@ -26,7 +26,6 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +42,7 @@ class VoiceLatencyTracker:
         self._marks[stage] = t
         return t
 
-    def elapsed(self, start_stage: str, end_stage: str) -> Optional[float]:
+    def elapsed(self, start_stage: str, end_stage: str) -> float | None:
         """Return elapsed seconds between two stages, or None if either is missing."""
         t0 = self._marks.get(start_stage)
         t1 = self._marks.get(end_stage)
@@ -51,7 +50,7 @@ class VoiceLatencyTracker:
             return None
         return round(t1 - t0, 3)
 
-    def summary(self) -> dict[str, Optional[float]]:
+    def summary(self) -> dict[str, float | None]:
         """Return a dict of labelled durations (seconds) for the interaction."""
         return {
             "stt_s": self.elapsed("stt_start", "stt_end"),

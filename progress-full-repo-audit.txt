@@ -48,3 +48,33 @@ Learnings for future iterations:
   - audio_config.py follows the same _load_env() before imports pattern → needs # noqa: E402 per-line
   - Dict/Optional from typing should be replaced with dict/int|None (modern Python 3.10+ style)
 ---
+
+## Iteration 4 - US-004: Root-Level Setup, GUI Entry Points, and Diagnostic Scripts
+- Read all 24 files in scope; 20 were clean with no issues
+- gui_settings_tab.py: removed old-style `from typing import Dict, Optional, Tuple`; replaced Dict[str, ...] with dict[str, ...]; implemented `_setup_ollama_refresh()` (was a pass stub) to query Ollama API at localhost:11434/api/tags; removed unused `wakeword_backend` variable (F841)
+- patch_tts_torch_load.py: added `importlib.util.find_spec("TTS")` check before `import TTS` per CLAUDE.md rule
+- patch_tts_transformers.py: added `find_spec("TTS")` guard; fixed backup bug where patched content was written to backup instead of original content
+- All 3 files pass ruff and black after fixes
+- 5373 tests pass (31 pre-existing failures confirmed by git stash check: test_us138_voice_roundtrip.py x4, test_us052_voice_interface.py x10, autonomy tests due to missing aiosqlite module)
+
+Learnings for future iterations:
+  - E402 side-effect imports (env_loader, generate_wake_sound) are intentional and should remain; they already have noqa comments or suppress headers
+  - When implementing stubs that need network access, use urllib.request (stdlib) and catch all exceptions with BLE001 noqa to degrade gracefully
+  - `from __future__ import annotations` at top of file makes all annotations strings at runtime - old-style typing can be replaced safely
+  - Pre-existing failures: test_us138_voice_roundtrip.py (4 failures), test_us052 (10), all autonomy tests (missing aiosqlite)
+---
+
+## Iteration 5 - US-005: rex/ Core — App, CLI, Config, and Assistant
+- Read all 8 files: __init__.py, __main__.py, app.py, cli.py, config.py, config_manager.py, assistant.py, assistant_errors.py
+- Most files clean; assistant.py generate_reply() confirmed complete (routes tools + injects system context)
+- rex/config.py line 303: fixed whisper_device fallback "cpu" → "auto" (CLAUDE.md rule: resolve at model-load time)
+- rex/app.py line 2: fixed "Runtimee" typo; line 245: replaced signal.pause() (Unix-only) with time.sleep(1) for Windows
+- No Pydantic v1 .dict() calls found; all files use dataclasses not Pydantic
+- ruff --fix auto-fixed 1 issue; black no changes needed
+- 42 tests pass (test_assistant, test_config_cli, test_config_loading, test_config_openai)
+
+Learnings for future iterations:
+  - config.py and config_manager.py have file-level `# ruff: noqa:` suppressions for old-style typing (UP006/UP035/UP045) - these are deferred to US-029 lint pass
+  - rex/app.py is a service supervisor, NOT a Flask app - CORS/rate limiting/auth are in rex_speak_api.py
+  - signal.pause() is Unix-only; always check for Windows compat in files that handle signals or process control
+---
