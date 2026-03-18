@@ -127,13 +127,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `play_test.py`, `record_wakeword.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] Patch scripts use `find_spec()` to check module availability before importing (per CLAUDE.md rule)
-- [ ] `conftest.py` has all fixtures complete and no placeholder bodies
-- [ ] GUI entry points (`run_gui.py`, `gui.py`) have no missing initialization logic
-- [ ] Diagnostic scripts produce meaningful output — no stubs returning `None` silently
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] Patch scripts use `find_spec()` to check module availability before importing (per CLAUDE.md rule)
+- [x] `conftest.py` has all fixtures complete and no placeholder bodies
+- [x] GUI entry points (`run_gui.py`, `gui.py`) have no missing initialization logic
+- [x] Diagnostic scripts produce meaningful output — no stubs returning `None` silently
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 
