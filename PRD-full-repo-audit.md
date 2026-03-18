@@ -685,12 +685,12 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `gui/src/preload/index.d.ts`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] All IPC handlers are complete — no handler that immediately returns `undefined` or `null` with no logic
-- [ ] Bridge calls to Python processes include error handling for non-zero exit codes and stderr
-- [ ] Preload exposes only the minimum required API surface (no `shell.openExternal` exposed blindly)
-- [ ] `tsc --noEmit` passes on the gui/ project
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] All IPC handlers are complete — no handler that immediately returns `undefined` or `null` with no logic
+- [x] Bridge calls to Python processes include error handling for non-zero exit codes and stderr
+- [x] Preload exposes only the minimum required API surface (no `shell.openExternal` exposed blindly)
+- [x] `tsc --noEmit` passes on the gui/ project
+- [x] Typecheck passes
 
 ---
 

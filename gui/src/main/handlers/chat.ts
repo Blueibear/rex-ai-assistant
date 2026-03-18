@@ -27,7 +27,7 @@ function callRexBackend(message: string): Promise<string> {
     })
 
     py.on('close', (code) => {
-      if (code !== 0 && stdout.trim() === '') {
+      if (code !== 0) {
         reject(new Error(`Rex exited with code ${code}: ${stderr.slice(0, 300)}`))
         return
       }

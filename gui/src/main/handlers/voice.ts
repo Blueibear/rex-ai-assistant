@@ -109,7 +109,11 @@ export function registerVoiceHandlers(): void {
         let stderr = ''
         py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
         py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
-        py.on('close', () => {
+        py.on('close', (code) => {
+          if (code !== 0 && stdout.trim() === '') {
+            resolve({ ok: false, voices: [], error: stderr || `Bridge exited with code ${code}` })
+            return
+          }
           try {
             const result = JSON.parse(stdout.trim()) as { ok: boolean; voices?: unknown[]; error?: string }
             resolve({ ok: result.ok, voices: result.voices ?? [], error: result.error })
@@ -140,7 +144,11 @@ export function registerVoiceHandlers(): void {
         let stderr = ''
         py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
         py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
-        py.on('close', () => {
+        py.on('close', (code) => {
+          if (code !== 0 && stdout.trim() === '') {
+            resolve({ ok: false, error: stderr || `Bridge exited with code ${code}` })
+            return
+          }
           try {
             const result = JSON.parse(stdout.trim()) as { ok: boolean; audio_base64?: string; error?: string }
             resolve(result)

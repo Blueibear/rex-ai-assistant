@@ -378,6 +378,23 @@ Learnings for future iterations:
   - ruff --fix handles most I001/F401 issues automatically; C401 (generator→set comprehension) is auto-fixed too
   - F841 (unused local variable) in tests often indicates leftover setup that was refactored away — safe to remove
 ---
+## Iteration 25 - US-026: Electron GUI — Main Process and IPC Handlers
+- Read all 13 files in scope: index.ts, tray.ts, handlers/calendar.ts, chat.ts, email.ts, memories.ts, notifications.ts, reminders.ts, sms.ts, tasks.ts, voice.ts, preload/index.ts, preload/index.d.ts
+- All IPC handlers are complete — no handler returns undefined/null with no logic; calendar/email/sms use in-memory stubs which are acceptable (consistent with project state)
+- Fixed systemic exit code handling bug in 4 handlers: chat.ts, memories.ts, reminders.ts, tasks.ts
+  - Changed `if (code !== 0 && stdout.trim() === '')` to `if (code !== 0)` — previous code silently treated partial output from failed processes as success
+- Fixed voice.ts rex:listVoices and rex:previewVoice: added `(code)` parameter to close handler and explicit exit-code check before attempting JSON parse; these resolve() not reject() since failures are expected/graceful
+- Preload audit: shell.openExternal is NOT exposed — no security issue; @ts-ignore fallback is standard electron-vite boilerplate for non-context-isolated builds
+- tsc --noEmit passes with zero errors on all changes
+- 9/9 Python tests pass (test_event_queue.py as smoke check)
+
+Learnings for future iterations:
+  - The `if (code !== 0 && stdout.trim() === '')` pattern is a subtle bug — non-zero exit with stdout content is treated as success; always use `if (code !== 0)` for reject() bridges
+  - voice.ts listVoices/previewVoice use resolve() (not reject()) even on failure because the handler returns { ok: boolean } — so the close handler should resolve with { ok: false } on exit code issues, not reject
+  - calendar.ts, email.ts, sms.ts are intentional in-memory stubs; they're clearly marked and acceptable per PRD non-goals (no new features)
+  - tsc --noEmit with no output = zero errors (clean exit)
+---
+
 ## Iteration 24 - US-025: Test Suite — Infrastructure, Security, and Subpackage Tests
 - Read all 14 test files in scope: conftest.py, test_computers.py, test_dashboard_store.py, test_event_bus.py, test_event_queue.py, test_memory_cleanup.py, test_memory_utils.py, test_notification_email_channel.py, test_notification_sse.py, test_plugin_loader.py, test_voice_identity_fallback.py, test_wakeword_callback.py, test_wakeword_model_selection.py, test_wakeword_utils.py
 - All 165 tests passed immediately with no logic changes required

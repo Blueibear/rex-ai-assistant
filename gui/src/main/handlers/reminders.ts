@@ -27,7 +27,7 @@ function callRemindersBridge(payload: Record<string, unknown>): Promise<Record<s
     })
 
     py.on('close', (code) => {
-      if (code !== 0 && stdout.trim() === '') {
+      if (code !== 0) {
         reject(new Error(`Reminders bridge exited with code ${code}: ${stderr.slice(0, 300)}`))
         return
       }
