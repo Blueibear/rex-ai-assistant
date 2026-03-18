@@ -60,6 +60,8 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
    ```
 
 > **Advanced / Developer Install** — for GPU setups, custom extras, Docker, or development workflows, see [docs/advanced-install.md](docs/advanced-install.md).
+>
+> **Want one consolidated guide?** See [docs/INSTRUCTION_MANUAL.md](docs/INSTRUCTION_MANUAL.md) for a single manual that combines install, configuration, usage, operations, and troubleshooting.
 
 ## Features
 
