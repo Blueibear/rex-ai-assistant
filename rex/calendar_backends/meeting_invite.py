@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import re
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -51,6 +52,7 @@ class MeetingInvite:
         start_time: Meeting start (UTC-aware or naive; treated as UTC).
         end_time:   Meeting end   (UTC-aware or naive; treated as UTC).
         agenda:     Free-text agenda or description (may be empty string).
+        uid:        Unique identifier for the VEVENT (auto-generated UUID).
     """
 
     title: str
@@ -58,6 +60,7 @@ class MeetingInvite:
     start_time: datetime | None = None
     end_time: datetime | None = None
     agenda: str = ""
+    uid: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     def is_complete(self) -> bool:
         """Return True only when all required fields are populated."""
@@ -88,9 +91,7 @@ _RE_TIME_RANGE = re.compile(
 )
 
 # ISO datetime (date + time)
-_RE_DATETIME = re.compile(
-    r"\b(\d{4}-\d{2}-\d{2}[T ]\d{1,2}:\d{2}(?::\d{2})?)\b"
-)
+_RE_DATETIME = re.compile(r"\b(\d{4}-\d{2}-\d{2}[T ]\d{1,2}:\d{2}(?::\d{2})?)\b")
 
 # Agenda / description keywords
 _RE_AGENDA = re.compile(
@@ -254,9 +255,79 @@ def stub_send_invite(invite: MeetingInvite) -> dict[str, Any]:
     return {"status": "ok", "invite": invite}
 
 
+# ---------------------------------------------------------------------------
+# RFC 5545 iCalendar export
+# ---------------------------------------------------------------------------
+
+_ICS_DT_FORMAT = "%Y%m%dT%H%M%SZ"
+
+
+def _ical_escape(text: str) -> str:
+    """Escape special characters for iCalendar TEXT values (RFC 5545 §3.3.11)."""
+    return text.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+
+
+def to_ical(invite: MeetingInvite) -> str:
+    """Return an RFC 5545-compliant VCALENDAR string for *invite*.
+
+    The output contains a VCALENDAR wrapper with a single VEVENT component.
+    DTSTART and DTEND are formatted as UTC datetimes (``YYYYMMDDTHHMMSSZformat).
+    If *start_time* or *end_time* is ``None``, the field is omitted from the
+    VEVENT (the invite is incomplete but still serialisable for draft purposes).
+
+    Args:
+        invite: The :class:`MeetingInvite` to serialise.
+
+    Returns:
+        A string in iCalendar format (CRLF line endings per RFC 5545 §3.1).
+    """
+    dtstamp = datetime.now(timezone.utc).strftime(_ICS_DT_FORMAT)
+    lines: list[str] = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Rex AI Assistant//Meeting Invite//EN",
+        "BEGIN:VEVENT",
+        f"UID:{invite.uid}",
+        f"DTSTAMP:{dtstamp}",
+    ]
+
+    if invite.start_time is not None:
+        start_utc = (
+            invite.start_time
+            if invite.start_time.tzinfo is not None
+            else invite.start_time.replace(tzinfo=timezone.utc)
+        )
+        lines.append(f"DTSTART:{start_utc.strftime(_ICS_DT_FORMAT)}")
+
+    if invite.end_time is not None:
+        end_utc = (
+            invite.end_time
+            if invite.end_time.tzinfo is not None
+            else invite.end_time.replace(tzinfo=timezone.utc)
+        )
+        lines.append(f"DTEND:{end_utc.strftime(_ICS_DT_FORMAT)}")
+
+    lines.append(f"SUMMARY:{_ical_escape(invite.title)}")
+
+    if invite.agenda:
+        lines.append(f"DESCRIPTION:{_ical_escape(invite.agenda)}")
+
+    for attendee in invite.attendees:
+        email = attendee if "@" in attendee else attendee
+        lines.append(f"ATTENDEE:mailto:{email}")
+
+    lines += [
+        "END:VEVENT",
+        "END:VCALENDAR",
+    ]
+
+    return "\r\n".join(lines) + "\r\n"
+
+
 __all__ = [
     "MeetingInvite",
     "format_invite_for_review",
     "parse_invite_from_text",
     "stub_send_invite",
+    "to_ical",
 ]

@@ -55,10 +55,7 @@ class TimeSlot:
         return int((self.end - self.start).total_seconds() // 60)
 
     def __repr__(self) -> str:
-        return (
-            f"TimeSlot(start={self.start.isoformat()!r}, "
-            f"end={self.end.isoformat()!r})"
-        )
+        return f"TimeSlot(start={self.start.isoformat()!r}, " f"end={self.end.isoformat()!r})"
 
 
 # ---------------------------------------------------------------------------
@@ -151,9 +148,7 @@ def find_free_slots(
 
         if window_start < window_end:
             # Collect busy blocks that touch this day's window
-            day_busy = [
-                b for b in busy_blocks if b.overlaps(window_start, window_end)
-            ]
+            day_busy = [b for b in busy_blocks if b.overlaps(window_start, window_end)]
             day_busy.sort(key=lambda b: b.start)
 
             _collect_day_slots(

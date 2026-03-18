@@ -222,3 +222,20 @@ Learnings for future iterations:
   - I001 (import sort) violations in this package were from merging two `from typing import` blocks across separate lines — ruff --fix handles this automatically
   - All Pydantic v2 usage: model_copy(deep=True), model_dump_json(), model_validate_json(), model_copy(update={...}) — no v1 .dict() anywhere
 ---
+
+## Iteration 15 - US-015: rex/calendar_backends/ Subpackage
+- Read all 9 files: __init__.py, base.py, factory.py, free_busy_stub.py, free_time_finder.py, ics_backend.py, ics_parser.py, meeting_invite.py, stub.py
+- ics_parser.py: fully handles malformed ICS data (try/except on datetime parse, returns None for invalid VEVENTs, warns and continues)
+- free_time_finder.py: complete time-window day-by-day iteration with gap detection, clipping to working hours, and per-step slot emission
+- meeting_invite.py: MISSING RFC 5545 VEVENT generation — added `to_ical()` function + `uid` field to MeetingInvite dataclass; generates complete VCALENDAR/VEVENT block with CRLF line endings, proper ICS datetime format (YYYYMMDDTHHMMSSZf), TEXT escaping, and ATTENDEE lines
+- All backends (ICSCalendarBackend, StubCalendarBackend, CalendarStub) implement CalendarBackend interface (connect, fetch_events, disconnect, is_connected, backend_name, test_connection)
+- free_busy_stub.py: removed unused `from typing import Any` import (F401 via ruff --fix)
+- black reformatted: free_time_finder.py, meeting_invite.py
+- __init__.py updated to export to_ical
+- 212 targeted tests pass, 25 skipped
+
+Learnings for future iterations:
+  - ICS backend has SSRF protection: only HTTPS allowed, hostname validated against private/loopback/link-local/reserved IPs
+  - meeting_invite.py was a scaffold with NL parser + review formatter but no VEVENT export — acceptance criteria specifically required it
+  - uid field added to MeetingInvite as default_factory UUID so multiple invites from same text don't share a UID
+---

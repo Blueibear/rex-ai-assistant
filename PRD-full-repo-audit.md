@@ -413,13 +413,13 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/calendar_backends/stub.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] `ics_parser.py` handles malformed ICS data without raising unhandled exceptions
-- [ ] `free_time_finder.py` has no truncated time-window iteration logic
-- [ ] `meeting_invite.py` generates complete RFC 5545-compliant VEVENT blocks
-- [ ] All backend classes implement the full interface defined in `base.py`
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] `ics_parser.py` handles malformed ICS data without raising unhandled exceptions
+- [x] `free_time_finder.py` has no truncated time-window iteration logic
+- [x] `meeting_invite.py` generates complete RFC 5545-compliant VEVENT blocks
+- [x] All backend classes implement the full interface defined in `base.py`
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

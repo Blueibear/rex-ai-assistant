@@ -13,6 +13,7 @@ from rex.calendar_backends.meeting_invite import (
     format_invite_for_review,
     parse_invite_from_text,
     stub_send_invite,
+    to_ical,
 )
 
 __all__ = [
@@ -25,4 +26,5 @@ __all__ = [
     "format_invite_for_review",
     "parse_invite_from_text",
     "stub_send_invite",
+    "to_ical",
 ]
