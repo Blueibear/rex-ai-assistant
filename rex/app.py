@@ -1,5 +1,5 @@
 """
-Runtimee entrypoint for Rex AI Assistant.
+Runtime entrypoint for Rex AI Assistant.
 
 This module starts and supervises long-running services (scheduler, event bus,
 workflow runner, etc.) with automatic restart on crash.
@@ -15,6 +15,7 @@ import argparse
 import logging
 import signal
 import sys
+import time
 
 from rex.credentials import get_credential_manager
 from rex.logging_utils import _LEVEL_NAMES, configure_logging
@@ -240,9 +241,9 @@ def main(argv: list[str] | None = None) -> int:
         logger.info(f"Health check available at http://127.0.0.1:{args.port}/health")
         logger.info(f"Ready check available at http://127.0.0.1:{args.port}/ready")
 
-        # Keep the main thread alive
+        # Keep the main thread alive (signal.pause() is Unix-only)
         while True:
-            signal.pause()
+            time.sleep(1)
 
     except KeyboardInterrupt:
         logger.info("Interrupted by user")

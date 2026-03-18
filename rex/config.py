@@ -300,7 +300,7 @@ def build_app_config(json_config: dict) -> AppConfig:
         audio_output_device=_get_nested(json_config, "audio.output_device_index"),
         # Model settings from JSON
         whisper_model=_get_nested(json_config, "models.stt_model", "base"),
-        whisper_device=_get_nested(json_config, "models.stt_device", "cpu"),
+        whisper_device=_get_nested(json_config, "models.stt_device", "auto"),
         llm_provider=_get_nested(json_config, "models.llm_provider", "transformers"),
         llm_model=_get_nested(json_config, "models.llm_model", "sshleifer/tiny-gpt2"),
         llm_max_tokens=int(_get_nested(json_config, "models.llm_max_tokens", 120)),

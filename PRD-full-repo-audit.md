@@ -151,14 +151,14 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/assistant_errors.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] `rex/assistant.py` has a fully implemented `generate_reply()` method that routes through tools and injects system context
-- [ ] `rex/cli.py` entry point is complete — no missing subcommand handlers
-- [ ] `rex/config.py` uses Pydantic v2 correctly — no deprecated `.dict()` calls (use `.model_dump()`)
-- [ ] `AppConfig.whisper_device` defaults to `"auto"` and resolves at model-load time per CLAUDE.md rule
-- [ ] `rex/app.py` Flask app has CORS, rate limiting, and auth correctly wired
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] `rex/assistant.py` has a fully implemented `generate_reply()` method that routes through tools and injects system context
+- [x] `rex/cli.py` entry point is complete — no missing subcommand handlers
+- [x] `rex/config.py` uses Pydantic v2 correctly — no deprecated `.dict()` calls (use `.model_dump()`)
+- [x] `AppConfig.whisper_device` defaults to `"auto"` and resolves at model-load time per CLAUDE.md rule
+- [x] `rex/app.py` Flask app has CORS, rate limiting, and auth correctly wired
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 
