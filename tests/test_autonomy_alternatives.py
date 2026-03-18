@@ -4,16 +4,14 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 
-from rex.autonomy.llm_planner import LLMPlanner, PlanningError, ToolDefinition
-from rex.autonomy.models import Plan, PlanStatus, PlanStep, StepStatus
+from rex.autonomy.llm_planner import LLMPlanner, PlanningError
+from rex.autonomy.models import Plan, PlanStatus, PlanStep
 from rex.autonomy.replanner import Replanner
 from rex.autonomy.runner import execute_plan
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -30,10 +28,7 @@ def _three_plans_response(*plan_tools: tuple[str, ...]) -> str:
     """Build a valid JSON array-of-arrays response for plan_with_alternatives."""
     outer = []
     for tools in plan_tools:
-        inner = [
-            {"tool": t, "args": {}, "description": f"Execute {t}"}
-            for t in tools
-        ]
+        inner = [{"tool": t, "args": {}, "description": f"Execute {t}"} for t in tools]
         outer.append(inner)
     return json.dumps(outer)
 
@@ -132,8 +127,12 @@ class TestPlanWithAlternatives:
 
     def test_wrong_number_of_plans_raises_planning_error(self) -> None:
         # Only 2 plans instead of 3
-        resp = json.dumps([[{"tool": "t1", "args": {}, "description": "d"}],
-                           [{"tool": "t2", "args": {}, "description": "d"}]])
+        resp = json.dumps(
+            [
+                [{"tool": "t1", "args": {}, "description": "d"}],
+                [{"tool": "t2", "args": {}, "description": "d"}],
+            ]
+        )
         backend = _mock_backend(resp)
         planner = LLMPlanner(tools=[], backend=backend)
 
@@ -219,9 +218,7 @@ class TestReplannerWithAlternatives:
 
         backend.generate.assert_called_once()
 
-    def test_alternatives_logged_at_info(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_alternatives_logged_at_info(self, caplog: pytest.LogCaptureFixture) -> None:
         resp = _three_plans_response(("p",), ("a1",), ("a2",))
         backend = _mock_backend(resp)
         planner = LLMPlanner(tools=[], backend=backend)
@@ -239,9 +236,7 @@ class TestReplannerWithAlternatives:
             for r in caplog.records
         )
 
-    def test_alternative_log_contains_n_of_2(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_alternative_log_contains_n_of_2(self, caplog: pytest.LogCaptureFixture) -> None:
         resp = _three_plans_response(("p",), ("a1",), ("a2",))
         backend = _mock_backend(resp)
         planner = LLMPlanner(tools=[], backend=backend)

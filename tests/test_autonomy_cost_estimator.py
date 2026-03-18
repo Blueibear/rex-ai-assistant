@@ -13,7 +13,6 @@ from rex.autonomy.llm_planner import LLMPlanner
 from rex.autonomy.models import Plan, PlanStatus, PlanStep
 from rex.autonomy.runner import execute_plan
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

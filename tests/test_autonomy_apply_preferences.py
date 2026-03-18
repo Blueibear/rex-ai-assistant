@@ -9,10 +9,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from rex.autonomy.llm_planner import LLMPlanner, ToolDefinition
+from rex.autonomy.llm_planner import LLMPlanner
 from rex.autonomy.preferences import PreferenceStore, UserPreferenceProfile
 from rex.autonomy.runner import _apply_preferences, create_planner, run
-
 
 # ---------------------------------------------------------------------------
 # _apply_preferences tests
@@ -71,7 +70,10 @@ class TestApplyPreferences:
         profile = _make_profile(preferred_model="claude-opus")
         with caplog.at_level(logging.DEBUG, logger="rex.autonomy.runner"):
             _apply_preferences(profile, autonomy_mode="", model="")
-        assert any("Using learned preference: preferred_model=claude-opus" in r.message for r in caplog.records)
+        assert any(
+            "Using learned preference: preferred_model=claude-opus" in r.message
+            for r in caplog.records
+        )
 
     def test_debug_log_emitted_for_autonomy_mode(self, caplog: pytest.LogCaptureFixture) -> None:
         profile = _make_profile(preferred_autonomy_mode="full-auto")
@@ -155,7 +157,9 @@ class TestRunWithPreferenceStore:
         with tempfile.TemporaryDirectory() as tmp:
             store = self._make_store(tmp, preferred_model="gpt-4o")
             mock_backend = MagicMock()
-            mock_backend.generate.return_value = '[{"tool": "noop", "args": {}, "description": "test"}]'
+            mock_backend.generate.return_value = (
+                '[{"tool": "noop", "args": {}, "description": "test"}]'
+            )
 
             captured: list[str] = []
 
@@ -180,7 +184,9 @@ class TestRunWithPreferenceStore:
         with tempfile.TemporaryDirectory() as tmp:
             store = self._make_store(tmp, preferred_model="gpt-4o")
             mock_backend = MagicMock()
-            mock_backend.generate.return_value = '[{"tool": "noop", "args": {}, "description": "test"}]'
+            mock_backend.generate.return_value = (
+                '[{"tool": "noop", "args": {}, "description": "test"}]'
+            )
 
             captured: list[str] = []
 

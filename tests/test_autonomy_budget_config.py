@@ -12,7 +12,6 @@ from rex.autonomy.models import Plan, PlanStatus, PlanStep, StepStatus
 from rex.autonomy.runner import execute_plan
 from rex.config import AppConfig
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -84,9 +83,7 @@ class TestPerStepBudget:
         execute_plan(plan, {"noop": _noop}, cost_estimator=est, per_step_budget_usd=1.0)
         assert plan.steps[0].status == StepStatus.SUCCESS
 
-    def test_step_over_budget_is_skipped(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_step_over_budget_is_skipped(self, caplog: pytest.LogCaptureFixture) -> None:
         est = CostEstimator(high_price_per_token=1.0)  # very expensive
         plan = _plan([_step("s1", "hello world")])
         with caplog.at_level(logging.WARNING, logger="rex.autonomy.runner"):

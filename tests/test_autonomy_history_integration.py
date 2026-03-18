@@ -14,7 +14,6 @@ from rex.autonomy.history import HistoryStore
 from rex.autonomy.models import Plan, PlanStatus, PlanStep
 from rex.autonomy.runner import execute_plan
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
 from rex.integrations.calendar_service import CalendarService
 from rex.integrations.models import CalendarEvent
 
@@ -93,7 +91,9 @@ class TestCalendarServiceStub:
 
     def test_create_event_assigns_id(self) -> None:
         now = datetime.now(timezone.utc)
-        event = self.service.create_event({"title": "No ID event", "start": now, "end": now + timedelta(hours=1)})
+        event = self.service.create_event(
+            {"title": "No ID event", "start": now, "end": now + timedelta(hours=1)}
+        )
         assert event.id != ""
 
     # ------------------------------------------------------------------

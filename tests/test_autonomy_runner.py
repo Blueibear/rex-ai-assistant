@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import warnings
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,7 +17,6 @@ import pytest
 from rex.autonomy.llm_planner import ToolDefinition
 from rex.autonomy.models import Plan, PlanStatus, PlanStep, StepStatus
 from rex.autonomy.runner import create_planner, execute_plan, run
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -193,10 +191,7 @@ class TestRulePlannerSmoke:
 
 def _make_plan(*step_ids: str) -> Plan:
     """Build a Plan with one PlanStep per id, all using tool 'noop'."""
-    steps = [
-        PlanStep(id=sid, tool="noop", description=f"Step {sid}")
-        for sid in step_ids
-    ]
+    steps = [PlanStep(id=sid, tool="noop", description=f"Step {sid}") for sid in step_ids]
     return Plan(id="test-plan", goal="Test goal", steps=steps)
 
 

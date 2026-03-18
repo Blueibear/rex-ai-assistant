@@ -10,7 +10,6 @@ import pytest
 from rex.autonomy.goal_graph import GoalGraph, GoalStatus
 from rex.autonomy.goal_parser import GoalParser, GoalParsingError
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

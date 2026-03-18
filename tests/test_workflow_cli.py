@@ -6,7 +6,6 @@ This module tests the CLI interface for workflows:
 - workflows command for listing workflows
 """
 
-import json
 import tempfile
 from pathlib import Path
 from unittest import mock
@@ -14,14 +13,14 @@ from unittest import mock
 import pytest
 
 from rex.cli import (
-    create_parser,
-    cmd_run_workflow,
     cmd_approvals,
+    cmd_run_workflow,
     cmd_workflows,
+    create_parser,
     main,
 )
-from rex.workflow import Workflow, WorkflowStep, WorkflowApproval
 from rex.contracts import ToolCall
+from rex.workflow import Workflow, WorkflowApproval, WorkflowStep
 
 
 class TestRunWorkflowCommand:
@@ -130,8 +129,12 @@ class TestRunWorkflowCommand:
 
             with mock.patch("rex.workflow.DEFAULT_WORKFLOW_DIR", Path(tmpdir) / "workflows"):
                 with mock.patch("rex.workflow.DEFAULT_APPROVAL_DIR", Path(tmpdir) / "approvals"):
-                    with mock.patch("rex.workflow_runner.DEFAULT_WORKFLOW_DIR", Path(tmpdir) / "workflows"):
-                        with mock.patch("rex.workflow_runner.DEFAULT_APPROVAL_DIR", Path(tmpdir) / "approvals"):
+                    with mock.patch(
+                        "rex.workflow_runner.DEFAULT_WORKFLOW_DIR", Path(tmpdir) / "workflows"
+                    ):
+                        with mock.patch(
+                            "rex.workflow_runner.DEFAULT_APPROVAL_DIR", Path(tmpdir) / "approvals"
+                        ):
                             result = cmd_run_workflow(args)
 
             assert result == 0
@@ -305,11 +308,15 @@ class TestApprovalsCommand:
             approval.save(tmpdir)
 
             parser = create_parser()
-            args = parser.parse_args([
-                "approvals",
-                "--deny", "apr_deny_test",
-                "--reason", "Not authorized",
-            ])
+            args = parser.parse_args(
+                [
+                    "approvals",
+                    "--deny",
+                    "apr_deny_test",
+                    "--reason",
+                    "Not authorized",
+                ]
+            )
 
             with mock.patch("rex.workflow_runner.DEFAULT_APPROVAL_DIR", Path(tmpdir)):
                 with mock.patch("rex.workflow.DEFAULT_APPROVAL_DIR", Path(tmpdir)):
@@ -456,8 +463,12 @@ class TestMainFunction:
 
             with mock.patch("rex.workflow.DEFAULT_WORKFLOW_DIR", Path(tmpdir) / "workflows"):
                 with mock.patch("rex.workflow.DEFAULT_APPROVAL_DIR", Path(tmpdir) / "approvals"):
-                    with mock.patch("rex.workflow_runner.DEFAULT_WORKFLOW_DIR", Path(tmpdir) / "workflows"):
-                        with mock.patch("rex.workflow_runner.DEFAULT_APPROVAL_DIR", Path(tmpdir) / "approvals"):
+                    with mock.patch(
+                        "rex.workflow_runner.DEFAULT_WORKFLOW_DIR", Path(tmpdir) / "workflows"
+                    ):
+                        with mock.patch(
+                            "rex.workflow_runner.DEFAULT_APPROVAL_DIR", Path(tmpdir) / "approvals"
+                        ):
                             result = main(["run-workflow", str(wf_path), "--dry-run"])
 
             assert result == 0

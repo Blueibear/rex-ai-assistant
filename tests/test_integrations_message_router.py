@@ -17,8 +17,6 @@ from rex.integrations.message_router import (
     SMSChannel,
 )
 from rex.integrations.models import SMSMessage
-from datetime import datetime, timezone
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -133,6 +131,7 @@ class TestContactsLookup:
             tmp_path = Path(f.name)
 
         import rex.integrations.message_router as mod
+
         with patch.object(mod, "_CONTACTS_PATH", tmp_path):
             router = MessageRouter(sms=_mock_sms(), email=_mock_email())
             result = router.route("alice", "Hi")
@@ -150,6 +149,7 @@ class TestContactsLookup:
             tmp_path = Path(f.name)
 
         import rex.integrations.message_router as mod
+
         with patch.object(mod, "_CONTACTS_PATH", tmp_path):
             router = MessageRouter(sms=_mock_sms(), email=_mock_email())
             result = router.route("bob", "Hi")
@@ -159,6 +159,7 @@ class TestContactsLookup:
 
     def test_falls_back_when_contacts_file_absent(self) -> None:
         import rex.integrations.message_router as mod
+
         absent_path = Path("/nonexistent/contacts.json")
         with patch.object(mod, "_CONTACTS_PATH", absent_path):
             router = MessageRouter(sms=_mock_sms())

@@ -4,14 +4,10 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from typing import Any
 from unittest.mock import MagicMock
-
-import pytest
 
 from rex.integrations.models import EmailMessage
 from rex.integrations.triage_engine import EmailTriageEngine, TriageBackend
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -112,8 +108,16 @@ class TestTriageWithCategories:
 
     def test_all_valid_categories_accepted(self) -> None:
         valid = [
-            "action-required", "newsletter", "receipt", "personal",
-            "notification", "social", "promotion", "spam", "update", "other",
+            "action-required",
+            "newsletter",
+            "receipt",
+            "personal",
+            "notification",
+            "social",
+            "promotion",
+            "spam",
+            "update",
+            "other",
         ]
         for cat in valid:
             backend = _make_backend(json.dumps({"priority": "low", "category": cat}))
@@ -169,7 +173,7 @@ class TestFallback:
         assert result[0].priority == "low"
 
     def test_markdown_fenced_json_is_parsed(self) -> None:
-        fenced = "```json\n{\"priority\": \"critical\", \"category\": \"action-required\"}\n```"
+        fenced = '```json\n{"priority": "critical", "category": "action-required"}\n```'
         backend = _make_backend(fenced)
         engine = EmailTriageEngine(backend=backend)
         msg = _make_message()

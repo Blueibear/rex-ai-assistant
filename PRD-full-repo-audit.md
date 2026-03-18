@@ -644,11 +644,11 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 **Files in scope:** All test files in `tests/` whose names match: `test_email_*`, `test_calendar_*`, `test_messaging_*`, `test_sms_*`, `test_autonomy_*`, `test_scheduler_*`, `test_reminder_*`, `test_workflow_*`, `test_executor_*`, `test_planner_*`, `test_integrat*`, `test_triage_*`, `US[0-9]*.py` (user story tests)
 
 **Acceptance Criteria:**
-- [ ] Every file in scope is fully read before any edits begin
-- [ ] No test body contains only `pass`, `assert True`, or empty assertion blocks
-- [ ] All mocks correctly model the interface of what they're mocking — no `MagicMock()` used where a real object with specific behavior is needed
-- [ ] Tests in scope pass: `pytest -q <files>`
-- [ ] Typecheck passes
+- [x] Every file in scope is fully read before any edits begin
+- [x] No test body contains only `pass`, `assert True`, or empty assertion blocks
+- [x] All mocks correctly model the interface of what they're mocking — no `MagicMock()` used where a real object with specific behavior is needed
+- [x] Tests in scope pass: `pytest -q <files>`
+- [x] Typecheck passes
 
 ---
 

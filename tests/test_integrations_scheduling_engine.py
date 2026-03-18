@@ -16,7 +16,6 @@ from rex.integrations.scheduling_engine import (
     SchedulingEngine,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -172,9 +171,7 @@ class TestLLMMode:
 class TestCalendarIntegration:
     def test_calendar_events_fetched(self) -> None:
         cal = _make_calendar_backend([])
-        backend = _make_llm_backend(
-            json.dumps([_slot_json(2), _slot_json(4), _slot_json(6)])
-        )
+        backend = _make_llm_backend(json.dumps([_slot_json(2), _slot_json(4), _slot_json(6)]))
         engine = SchedulingEngine(calendar=cal, backend=backend)
         engine.find_slots(duration_minutes=30)
         assert cal.get_events.called  # type: ignore[attr-defined]
@@ -182,9 +179,7 @@ class TestCalendarIntegration:
     def test_calendar_error_does_not_raise(self) -> None:
         cal = MagicMock(spec=CalendarBackend)
         cal.get_events.side_effect = RuntimeError("Calendar unavailable")
-        backend = _make_llm_backend(
-            json.dumps([_slot_json(2), _slot_json(4), _slot_json(6)])
-        )
+        backend = _make_llm_backend(json.dumps([_slot_json(2), _slot_json(4), _slot_json(6)]))
         engine = SchedulingEngine(calendar=cal, backend=backend)  # type: ignore[arg-type]
         slots = engine.find_slots(duration_minutes=30)
         assert len(slots) == 3

@@ -10,10 +10,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from rex.autonomy.history import ExecutionRecord
-from rex.autonomy.models import Plan, PlanStep, PlanStatus, StepStatus
+from rex.autonomy.models import Plan, PlanStatus, PlanStep, StepStatus
 from rex.autonomy.preference_learner import PreferenceLearner
 from rex.autonomy.preferences import PreferenceStore, UserPreferenceProfile
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -224,7 +223,6 @@ def test_update_returns_new_profile_does_not_mutate_original() -> None:
 def test_last_updated_set_to_now() -> None:
     learner = PreferenceLearner()
     profile = _default_profile()
-    old_ts = profile.last_updated
     record = _make_record()
 
     fixed_dt = datetime(2030, 6, 15, 12, 0, 0, tzinfo=timezone.utc)

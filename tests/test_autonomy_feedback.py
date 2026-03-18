@@ -4,14 +4,11 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import AsyncMock, MagicMock
 
 from rex.autonomy.feedback import FeedbackAnalyzer
 from rex.autonomy.history import ExecutionRecord, HistoryStore
 from rex.autonomy.models import Plan, PlanStep, StepStatus
-
 
 # ---------------------------------------------------------------------------
 # Helpers

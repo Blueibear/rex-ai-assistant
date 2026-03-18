@@ -7,9 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from rex.autonomy.llm_planner import LLMPlanner, ToolDefinition
+from rex.autonomy.llm_planner import LLMPlanner
 from rex.autonomy.runner import run
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -102,7 +101,7 @@ class TestLLMPlannerFeedbackSummary:
 
 class TestRunnerFeedbackInjection:
     def test_runner_calls_summarize_when_analyzer_and_store_provided(self) -> None:
-        backend = _mock_backend()
+        _mock_backend()
         analyzer = MagicMock()
         analyzer.summarize.return_value = ""
         store = MagicMock()

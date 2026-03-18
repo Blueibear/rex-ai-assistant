@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
-from rex.autonomy.models import Plan, PlanStep, PlanStatus
+from rex.autonomy.models import Plan, PlanStatus, PlanStep
 from rex.autonomy.runner import execute_plan
 from rex.autonomy.tool_cache import ToolCache
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -98,18 +96,14 @@ class TestToolCacheKeyOrdering:
 
 
 class TestToolCacheLogging:
-    def test_cache_hit_logged_at_debug(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_cache_hit_logged_at_debug(self, caplog: pytest.LogCaptureFixture) -> None:
         cache = ToolCache()
         cache.set("search", {"q": "hi"}, "result")
         with caplog.at_level(logging.DEBUG, logger="rex.autonomy.tool_cache"):
             cache.get("search", {"q": "hi"})
         assert any("Tool cache hit" in r.message for r in caplog.records)
 
-    def test_cache_miss_not_logged(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_cache_miss_not_logged(self, caplog: pytest.LogCaptureFixture) -> None:
         cache = ToolCache()
         with caplog.at_level(logging.DEBUG, logger="rex.autonomy.tool_cache"):
             cache.get("search", {"q": "hi"})
@@ -130,10 +124,12 @@ class TestRunnerCacheIntegration:
             call_log.append(str(kw))
             return "done"
 
-        plan = _plan([
-            _step("s1", tool="noop", args={"x": 1}),
-            _step("s2", tool="noop", args={"x": 1}),
-        ])
+        plan = _plan(
+            [
+                _step("s1", tool="noop", args={"x": 1}),
+                _step("s2", tool="noop", args={"x": 1}),
+            ]
+        )
         execute_plan(plan, {"noop": _tracked})
 
         assert len(call_log) == 1  # second call served from cache
@@ -146,10 +142,12 @@ class TestRunnerCacheIntegration:
             call_log.append(str(kw))
             return "done"
 
-        plan = _plan([
-            _step("s1", tool="noop", args={"x": 1}),
-            _step("s2", tool="noop", args={"x": 2}),
-        ])
+        plan = _plan(
+            [
+                _step("s1", tool="noop", args={"x": 1}),
+                _step("s2", tool="noop", args={"x": 2}),
+            ]
+        )
         execute_plan(plan, {"noop": _tracked})
 
         assert len(call_log) == 2
@@ -165,10 +163,12 @@ class TestRunnerCacheIntegration:
             call_log.append("b")
             return "done"
 
-        plan = _plan([
-            _step("s1", tool="a", args={}),
-            _step("s2", tool="b", args={}),
-        ])
+        plan = _plan(
+            [
+                _step("s1", tool="a", args={}),
+                _step("s2", tool="b", args={}),
+            ]
+        )
         execute_plan(plan, {"a": _a, "b": _b})
 
         assert call_log == ["a", "b"]
@@ -191,13 +191,16 @@ class TestRunnerCacheIntegration:
 
     def test_cached_result_propagated_to_step(self) -> None:
         """Second step with same args gets the cached result."""
+
         def _noop(**_: Any) -> str:
             return "cached_value"
 
-        plan = _plan([
-            _step("s1", tool="noop", args={}),
-            _step("s2", tool="noop", args={}),
-        ])
+        plan = _plan(
+            [
+                _step("s1", tool="noop", args={}),
+                _step("s2", tool="noop", args={}),
+            ]
+        )
         execute_plan(plan, {"noop": _noop})
 
         assert plan.steps[0].result == "cached_value"
@@ -207,9 +210,11 @@ class TestRunnerCacheIntegration:
         def _noop(**_: Any) -> str:
             return "ok"
 
-        plan = _plan([
-            _step("s1", tool="noop", args={"k": "v"}),
-            _step("s2", tool="noop", args={"k": "v"}),
-        ])
+        plan = _plan(
+            [
+                _step("s1", tool="noop", args={"k": "v"}),
+                _step("s2", tool="noop", args={"k": "v"}),
+            ]
+        )
         result = execute_plan(plan, {"noop": _noop})
         assert result.status == PlanStatus.COMPLETED

@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import timezone
 from pathlib import Path
 
 import pytest
-import pytest_asyncio
 
 from rex.autonomy.history import ExecutionRecord, HistoryStore, OutcomeType
 from rex.autonomy.models import Plan, PlanStep
-
 
 # ---------------------------------------------------------------------------
 # Helpers

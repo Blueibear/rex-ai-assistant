@@ -18,7 +18,6 @@ from rex.integrations.message_router import (
 from rex.integrations.models import SMSMessage
 from rex.integrations.sms_service import SMSService
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

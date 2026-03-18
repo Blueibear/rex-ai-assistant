@@ -546,11 +546,12 @@ def test_email_summary_no_pydantic_v2_deprecation_warnings() -> None:
         )
 
     pydantic_warnings = [
-        w for w in caught if "pydantic" in str(w.category.__module__).lower()
+        w
+        for w in caught
+        if "pydantic" in str(w.category.__module__).lower()
         or "class-based" in str(w.message).lower()
         or "json_encoders" in str(w.message).lower()
     ]
-    assert pydantic_warnings == [], (
-        f"Pydantic deprecation warnings emitted: {[str(w.message) for w in pydantic_warnings]}"
-    )
-
+    assert (
+        pydantic_warnings == []
+    ), f"Pydantic deprecation warnings emitted: {[str(w.message) for w in pydantic_warnings]}"

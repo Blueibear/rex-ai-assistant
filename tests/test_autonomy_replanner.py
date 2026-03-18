@@ -12,7 +12,6 @@ from rex.autonomy.models import Plan, PlanStatus, PlanStep, StepStatus
 from rex.autonomy.replanner import Replanner
 from rex.autonomy.runner import execute_plan
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -30,9 +29,7 @@ def _make_plan(*step_ids: str, tool: str = "noop") -> Plan:
 
 
 def _replan_response(*tools: str) -> str:
-    return json.dumps(
-        [{"tool": t, "args": {}, "description": f"Replanned: {t}"} for t in tools]
-    )
+    return json.dumps([{"tool": t, "args": {}, "description": f"Replanned: {t}"} for t in tools])
 
 
 # ---------------------------------------------------------------------------
@@ -56,7 +53,9 @@ class TestReplannerPrompt:
         backend = _mock_backend(_replan_response("fallback_tool"))
         replanner = Replanner(backend=backend)
         plan = Plan(id="p1", goal="Send a report to finance")
-        step = PlanStep(id="s1", tool="send_email", description="Send email", status=StepStatus.FAILED)
+        step = PlanStep(
+            id="s1", tool="send_email", description="Send email", status=StepStatus.FAILED
+        )
         plan.steps = [step]
 
         replanner.replan(plan, step, "SMTP auth failed")
@@ -270,9 +269,9 @@ class TestExecutePlanWithReplanner:
                 raise RuntimeError("first fail")
             return "ok"
 
-        backend = _mock_backend(json.dumps([
-            {"tool": "noop", "args": {}, "description": "Replanned step"}
-        ]))
+        backend = _mock_backend(
+            json.dumps([{"tool": "noop", "args": {}, "description": "Replanned step"}])
+        )
         replanner = Replanner(backend=backend)
         plan = _make_plan("s1")
 

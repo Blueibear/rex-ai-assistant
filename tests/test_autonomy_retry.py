@@ -9,7 +9,6 @@ import pytest
 
 from rex.autonomy.retry import is_transient, retry_step
 
-
 # ---------------------------------------------------------------------------
 # is_transient classification tests
 # ---------------------------------------------------------------------------
@@ -188,7 +187,9 @@ class TestRetryStepNonTransient:
 
 class TestRetryStepLogging:
     @patch("rex.autonomy.retry.time.sleep")
-    def test_retry_logged_at_debug(self, mock_sleep: MagicMock, caplog: pytest.LogCaptureFixture) -> None:
+    def test_retry_logged_at_debug(
+        self, mock_sleep: MagicMock, caplog: pytest.LogCaptureFixture
+    ) -> None:
         call_count = [0]
 
         def fn() -> str:
@@ -203,7 +204,9 @@ class TestRetryStepLogging:
         assert any("Retrying step my-step" in r.message for r in caplog.records)
 
     @patch("rex.autonomy.retry.time.sleep")
-    def test_log_message_contains_attempt_info(self, mock_sleep: MagicMock, caplog: pytest.LogCaptureFixture) -> None:
+    def test_log_message_contains_attempt_info(
+        self, mock_sleep: MagicMock, caplog: pytest.LogCaptureFixture
+    ) -> None:
         fn = MagicMock(side_effect=ConnectionError("refused"))
 
         with caplog.at_level(logging.DEBUG, logger="rex.autonomy.retry"):

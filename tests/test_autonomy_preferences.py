@@ -6,10 +6,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-import pytest
-
 from rex.autonomy.preferences import PreferenceStore, UserPreferenceProfile
-
 
 # ---------------------------------------------------------------------------
 # UserPreferenceProfile — defaults
@@ -166,9 +163,7 @@ class TestPreferenceStoreCorrupt:
 
     def test_wrong_schema_returns_default(self, tmp_path: Path) -> None:
         path = tmp_path / "prefs.json"
-        path.write_text(
-            json.dumps({"preferred_autonomy_mode": 999}), encoding="utf-8"
-        )
+        path.write_text(json.dumps({"preferred_autonomy_mode": 999}), encoding="utf-8")
         store = PreferenceStore(prefs_path=path)
         # Pydantic will coerce int→str, so this may not fail; just check no exception
         store.load()

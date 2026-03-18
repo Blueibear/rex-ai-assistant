@@ -62,9 +62,9 @@ class TestEmailServiceStub:
         valid_priorities = {"low", "medium", "high", "critical"}
         messages = self.service.list_inbox()
         for msg in messages:
-            assert msg.priority in valid_priorities, (
-                f"Message {msg.id} has invalid priority '{msg.priority}'"
-            )
+            assert (
+                msg.priority in valid_priorities
+            ), f"Message {msg.id} has invalid priority '{msg.priority}'"
 
     def test_email_message_model_dump_round_trip(self) -> None:
         messages = self.service.list_inbox(limit=1)

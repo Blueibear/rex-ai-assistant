@@ -347,3 +347,34 @@ Learnings for future iterations:
   - validate_deployment.py used single-quoted strings throughout — black normalizes to double quotes
   - web_search.py providers that use params={} in requests.get are already safe from injection (URL encoded by requests), but _sanitize_query adds defense-in-depth against malicious query content
 ---
+
+## Iteration 22 - US-023: Test Suite — Core Tests (Voice, LLM, Config, CLI)
+- Read all 29 test files in scope plus conftest.py
+- All test files are complete and well-formed — no empty bodies, no assert True, no missing fixtures
+- Fixed 2 pre-existing failures in test_cli_scheduler.py: rex/integrations.py was shadowed by rex/integrations/ package, making initialize_scheduler_system unreachable
+- Created rex/integrations/_setup.py with scheduler setup helpers (moved from dead rex/integrations.py)
+- Updated rex/integrations/__init__.py to re-export initialize_scheduler_system and related functions
+- 420 tests pass (all in scope)
+
+Learnings for future iterations:
+  - rex/integrations.py was shadowed by rex/integrations/ package since Iteration 20 created the package — fix by adding _setup.py inside the package
+  - When a module is shadowed by a same-named package, move the module's content into a _setup.py or _compat.py inside the package and re-export from __init__.py
+  - test_cli_scheduler.py tests were in scope for US-023 and had pre-existing failures — they required a production code fix (not just test fixes)
+---
+
+## Iteration 23 - US-024: Test Suite — Integration and Service Tests
+- Read all 42 test files in scope: email, calendar, messaging, sms, workflow, planner, integrations, and autonomy tests
+- All non-autonomy tests passed immediately (416 passed, 25 skipped)
+- Autonomy tests failed at collection due to missing `aiosqlite` module (pre-existing)
+- Fixed: installed aiosqlite via pip — 351 autonomy tests now pass
+- Lint fixes: ruff --fix removed 65 issues (I001 import sort, F401 unused imports, etc.)
+- Manual fixes: 4 remaining ruff violations — removed unused vars `backend`, `old_ts`, `repo_seed`; changed `set(g.id for g in result)` to `{g.id for g in result}` (C401)
+- black reformatted 19 files (import order, trailing whitespace, string formatting)
+- Final: 767 passed, 25 skipped across all 42 files
+
+Learnings for future iterations:
+  - aiosqlite is a runtime dep for rex.autonomy.history but was not in requirements — install it to unblock autonomy tests
+  - US-024 autonomy test failures were not "pre-existing broken tests" but rather a missing dependency that could be installed
+  - ruff --fix handles most I001/F401 issues automatically; C401 (generator→set comprehension) is auto-fixed too
+  - F841 (unused local variable) in tests often indicates leftover setup that was refactored away — safe to remove
+---

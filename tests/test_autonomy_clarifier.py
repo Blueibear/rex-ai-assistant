@@ -11,7 +11,6 @@ from rex.autonomy.clarifier import Clarifier
 from rex.autonomy.goal_graph import Goal, GoalGraph, GoalStatus
 from rex.autonomy.runner import execute_goal_graph
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -110,6 +109,7 @@ class TestGenerateQuestion:
 
 def _noop_planner(tool: str = "noop") -> MagicMock:
     import json
+
     from rex.autonomy.llm_planner import LLMPlanner
 
     response = json.dumps([{"tool": tool, "args": {}, "description": "call"}])
@@ -219,6 +219,5 @@ class TestRunnerClarifierIntegration:
             )
 
         assert any(
-            "clarification needed" in r.message and "g1" in r.message
-            for r in caplog.records
+            "clarification needed" in r.message and "g1" in r.message for r in caplog.records
         )

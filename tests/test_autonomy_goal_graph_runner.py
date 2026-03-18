@@ -13,7 +13,6 @@ from rex.autonomy.goal_parser import GoalParser
 from rex.autonomy.llm_planner import LLMPlanner
 from rex.autonomy.runner import execute_goal_graph, run_goals
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -123,9 +122,7 @@ class TestExecuteGoalGraph:
 
 
 class TestGoalGraphLogging:
-    def test_progress_logged_per_goal(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_progress_logged_per_goal(self, caplog: pytest.LogCaptureFixture) -> None:
         g1 = _goal("g1", "First task")
         g2 = _goal("g2", "Second task", depends_on=["g1"])
         graph = GoalGraph([g1, g2])
@@ -138,9 +135,7 @@ class TestGoalGraphLogging:
         assert any("Executing goal g1" in m and "1/2" in m for m in messages)
         assert any("Executing goal g2" in m and "2/2" in m for m in messages)
 
-    def test_skipped_goal_logged(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_skipped_goal_logged(self, caplog: pytest.LogCaptureFixture) -> None:
         g1 = _goal("g1")
         g2 = _goal("g2", depends_on=["g1"])
         graph = GoalGraph([g1, g2])
@@ -160,10 +155,12 @@ class TestGoalGraphLogging:
 class TestRunGoals:
     def test_run_goals_two_sequential_goals(self) -> None:
         """Smoke test: two goals parsed → executed → both completed."""
-        parser_response = json.dumps([
-            {"id": "g1", "description": "Step one", "depends_on": []},
-            {"id": "g2", "description": "Step two", "depends_on": ["g1"]},
-        ])
+        parser_response = json.dumps(
+            [
+                {"id": "g1", "description": "Step one", "depends_on": []},
+                {"id": "g2", "description": "Step two", "depends_on": ["g1"]},
+            ]
+        )
         parser_backend = MagicMock()
         parser_backend.generate.return_value = parser_response
         goal_parser = GoalParser(backend=parser_backend)
@@ -174,6 +171,7 @@ class TestRunGoals:
 
         with MagicMock() as _:
             from unittest.mock import patch
+
             with patch("rex.autonomy.runner.create_planner") as mock_create:
                 mock_create.return_value = LLMPlanner(tools=[], backend=plan_backend)
                 result = run_goals(

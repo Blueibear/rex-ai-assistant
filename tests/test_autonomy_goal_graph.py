@@ -11,7 +11,6 @@ from rex.autonomy.goal_graph import (
     GoalStatus,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -58,7 +57,7 @@ class TestTopologicalSortLinear:
     def test_two_goals_no_deps_preserves_order(self) -> None:
         graph = GoalGraph([_goal("g1"), _goal("g2")])
         result = graph.topological_sort()
-        assert set(g.id for g in result) == {"g1", "g2"}
+        assert {g.id for g in result} == {"g1", "g2"}
         assert len(result) == 2
 
     def test_linear_chain_sorted_correctly(self) -> None:

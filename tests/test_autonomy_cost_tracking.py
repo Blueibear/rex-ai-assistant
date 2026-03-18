@@ -10,7 +10,6 @@ import pytest
 from rex.autonomy.history import ExecutionRecord, HistoryStore, OutcomeType
 from rex.autonomy.models import Plan, PlanStep, StepStatus
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -120,9 +119,7 @@ class TestPlanTotalCostUsd:
 class TestExecutionRecordCostField:
     def test_default_is_zero(self) -> None:
         plan = _plan([])
-        rec = ExecutionRecord(
-            goal="g", plan=plan, outcome="success", duration_s=1.0
-        )
+        rec = ExecutionRecord(goal="g", plan=plan, outcome="success", duration_s=1.0)
         assert rec.total_cost_usd == 0.0
 
     def test_field_can_be_set(self) -> None:
