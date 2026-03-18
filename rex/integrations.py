@@ -155,9 +155,15 @@ def initialize_scheduler_system(start_scheduler: bool = False) -> None:
     """
     logger.info("Initializing scheduler system")
 
-    # Set up default jobs
-    setup_email_job()
-    setup_calendar_job()
+    # Set up default jobs — failures are non-fatal to allow degraded operation
+    try:
+        setup_email_job()
+    except Exception as exc:
+        logger.debug("Email job setup skipped: %s", exc)
+    try:
+        setup_calendar_job()
+    except Exception as exc:
+        logger.debug("Calendar job setup skipped: %s", exc)
     _try_register_retention_jobs()
 
     # Set up event handlers

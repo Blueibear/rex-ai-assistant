@@ -199,12 +199,12 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex/cue_store.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] All services degrade gracefully when not configured (no uncaught import errors or crashes)
-- [ ] No service makes blocking network calls without a timeout parameter
-- [ ] `rex/scheduler.py` has no partial job registration logic
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] All services degrade gracefully when not configured (no uncaught import errors or crashes)
+- [x] No service makes blocking network calls without a timeout parameter
+- [x] `rex/scheduler.py` has no partial job registration logic
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

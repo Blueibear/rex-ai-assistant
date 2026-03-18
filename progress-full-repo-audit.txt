@@ -78,3 +78,17 @@ Learnings for future iterations:
   - rex/app.py is a service supervisor, NOT a Flask app - CORS/rate limiting/auth are in rex_speak_api.py
   - signal.pause() is Unix-only; always check for Windows compat in files that handle signals or process control
 ---
+
+## Iteration 6 - US-006: rex/ Voice Pipeline
+- Read all 8 files: voice_loop.py, voice_loop_optimized.py, voice_latency.py, tts_utils.py, tts_voices.py, wake_acknowledgment.py, wakeword_utils.py, llm_client.py
+- rex/voice_loop.py and rex/voice_loop_optimized.py: both SpeechToText.__init__ passed device directly to load_model without resolving "auto"; added torch.cuda.is_available() resolution in both; changed build_voice_loop default device "cpu" → "auto"
+- rex/tts_voices.py: _synthesize_xtts used bare TTS import without find_spec(); added find_spec("TTS") + ensure_transformers_compatibility() before import; modernized Dict/List/Optional → dict/list/float|None
+- rex/voice_latency.py: removed unused Optional import, updated to float|None
+- Confirmed rex/voice_loop.py is separate from root voice_loop.py (VoiceLoop vs AsyncRexAssistant)
+- All files pass ruff and black; all failures pre-existing
+
+Learnings for future iterations:
+  - When fixing "auto" device resolution, put it BEFORE any model-name modification logic
+  - tts_voices.py direct TTS imports inside try/except are insufficient - need find_spec + compat shim
+  - Pre-existing failures: test_us135_tts_text_delivery.py (1), test_us138_voice_roundtrip.py (4)
+---
