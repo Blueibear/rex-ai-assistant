@@ -18,6 +18,7 @@ Commands:
 Memory format (GUI):
   {id, text, category, createdAt (ISO), updatedAt (ISO)}
 """
+
 from __future__ import annotations
 
 import json

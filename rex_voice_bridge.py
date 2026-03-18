@@ -10,6 +10,7 @@ Emits NDJSON lines to stdout:
 Reads control commands from stdin (one JSON object per line):
   {"command": "stop"}
 """
+
 from __future__ import annotations
 
 import asyncio

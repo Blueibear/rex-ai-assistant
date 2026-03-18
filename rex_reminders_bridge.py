@@ -18,6 +18,7 @@ Commands:
 Reminder format (GUI):
   {id, title, notes?, dueAt (ISO), priority: "low"|"medium"|"high", done, repeat?: "none"|"daily"|"weekly"|"custom"}
 """
+
 from __future__ import annotations
 
 import json

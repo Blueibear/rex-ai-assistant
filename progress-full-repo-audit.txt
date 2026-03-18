@@ -18,3 +18,17 @@ Learnings for future iterations:
   - test_autonomy_*.py files all fail due to missing 'aiosqlite' module - pre-existing, not related to US-001
   - aiosqlite missing: these autonomy tests need to be ignored unless we install that dependency
 ---
+
+## Iteration 2 - US-002: Root-Level Bridge Files
+- Read all 9 bridge files: rex_chat_bridge.py, rex_chat_stream_bridge.py, rex_memories_bridge.py, rex_reminders_bridge.py, rex_stt_bridge.py, rex_tasks_bridge.py, rex_voice_bridge.py, rex_voice_sample_bridge.py, rex_voices_bridge.py
+- All files are complete: main() bodies present, no stubs
+- All JSON operations wrapped in try/except (no bare json.loads)
+- No hardcoded secrets or absolute paths found
+- Only change needed: black formatting on 7 files (no logic changes)
+- Ruff passes before and after
+
+Learnings for future iterations:
+  - Bridge files are well-structured, follow consistent pattern: read stdin JSON, dispatch to handlers, write stdout JSON, try/except everything
+  - Black reformats without ruff needing to run --fix first (no E402/UP issues in these files)
+  - rex_voice_bridge.py imports from rex.voice_loop internal classes (AsyncMicrophone, SpeechToText, TextToSpeech, VoiceLoop, WakeAcknowledgement) - this is separate from the root voice_loop.py's AsyncRexAssistant
+---

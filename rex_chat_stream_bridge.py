@@ -9,6 +9,7 @@ Writes NDJSON to stdout, one JSON object per line:
 Falls back to non-streaming (emits the full reply as a single "token" line)
 when the backend's Assistant class does not expose generate_reply_stream.
 """
+
 from __future__ import annotations
 
 import asyncio

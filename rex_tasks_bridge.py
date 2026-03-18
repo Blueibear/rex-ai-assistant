@@ -21,6 +21,7 @@ Task format (GUI):
 The bridge stores the GUI schedule string and prompt in job.metadata so they
 survive round-trips through the scheduler.
 """
+
 from __future__ import annotations
 
 import json

@@ -78,12 +78,12 @@ This PRD directs a systematic, exhaustive review of every file in the Rex AI Ass
 - `rex_voices_bridge.py`
 
 **Acceptance Criteria:**
-- [ ] Every file listed above is fully read before any edits begin
-- [ ] All bridge entry points are complete — no missing `main()` bodies or stubs
-- [ ] All JSON serialization/deserialization handles errors gracefully (no bare `json.loads` on unchecked input without try/except)
-- [ ] No hardcoded secrets or absolute paths remain
-- [ ] All files pass `ruff check` and `black --check`
-- [ ] Typecheck passes
+- [x] Every file listed above is fully read before any edits begin
+- [x] All bridge entry points are complete — no missing `main()` bodies or stubs
+- [x] All JSON serialization/deserialization handles errors gracefully (no bare `json.loads` on unchecked input without try/except)
+- [x] No hardcoded secrets or absolute paths remain
+- [x] All files pass `ruff check` and `black --check`
+- [x] Typecheck passes
 
 ---
 

@@ -7,6 +7,7 @@ Writes a JSON response to stdout: {"ok": true, "reply": "<text>"}
 Used by the Electron GUI main process (src/main/handlers/chat.ts) to forward
 one chat message to the Rex backend and return the response.
 """
+
 from __future__ import annotations
 
 import asyncio

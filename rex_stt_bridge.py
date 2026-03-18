@@ -15,6 +15,7 @@ Protocol (NDJSON over stdio):
     {"ok": true,  "transcript": "<text>",   "request_id": "<id>"}
     {"ok": false, "error":      "<msg>",    "request_id": "<id>"}
 """
+
 from __future__ import annotations
 
 import base64
