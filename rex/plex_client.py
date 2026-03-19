@@ -7,11 +7,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 try:
-    import requests as _requests_module
+    import requests as _imported_requests
 except ImportError as _exc:
-    _requests_module = None  # type: ignore[assignment]
+    _requests_module: Any | None = None
     _REQUESTS_IMPORT_ERROR: Exception | None = _exc
 else:
+    _requests_module = _imported_requests
     _REQUESTS_IMPORT_ERROR = None
 
 logger = logging.getLogger(__name__)
@@ -69,12 +70,14 @@ class PlexClient:
         session: Any = None,
     ) -> None:
         _require_requests()
+        requests_module = _requests_module
+        assert requests_module is not None
         self._base_url = base_url.rstrip("/")
         self._token = token
         if session is not None:
             self._session = session
         else:
-            self._session = _requests_module.Session()
+            self._session = requests_module.Session()
         self._session.headers.update(
             {
                 "X-Plex-Token": self._token,

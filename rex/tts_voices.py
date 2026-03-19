@@ -71,7 +71,7 @@ def _list_edge_tts_voices() -> list[dict]:
     try:
         import asyncio
 
-        import edge_tts  # type: ignore[import]
+        import edge_tts
 
         async def _fetch() -> list[dict]:
             raw = await edge_tts.list_voices()
@@ -98,7 +98,7 @@ def _list_edge_tts_voices() -> list[dict]:
 def _list_pyttsx3_voices() -> list[dict]:
     """List voices from the pyttsx3 engine."""
     try:
-        import pyttsx3  # type: ignore[import]
+        import pyttsx3
 
         engine = pyttsx3.init()
         raw_voices = engine.getProperty("voices") or []
@@ -169,7 +169,7 @@ async def _synthesize_xtts(voice_id: str, text: str) -> bytes:
         from rex.compat import ensure_transformers_compatibility
 
         ensure_transformers_compatibility()
-        from TTS.api import TTS  # type: ignore[import]
+        from TTS.api import TTS
 
         tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", gpu=False)
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
@@ -197,7 +197,7 @@ async def _synthesize_edge_tts(voice_id: str, text: str) -> bytes:
     import tempfile
 
     try:
-        import edge_tts  # type: ignore[import]
+        import edge_tts
     except ImportError as exc:
         raise RuntimeError("edge-tts is not installed") from exc
 
@@ -221,7 +221,7 @@ async def _synthesize_pyttsx3(voice_id: str, text: str) -> bytes:
 
     def _run() -> bytes:
         try:
-            import pyttsx3  # type: ignore[import]
+            import pyttsx3
         except ImportError as exc:
             raise RuntimeError("pyttsx3 is not installed") from exc
 

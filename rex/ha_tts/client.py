@@ -47,9 +47,11 @@ from urllib.parse import urlparse
 logger = logging.getLogger(__name__)
 
 try:
-    import requests as _requests
+    import requests as _imported_requests
 except ImportError:  # pragma: no cover
-    _requests = None  # type: ignore[assignment]
+    _requests: Any | None = None
+else:
+    _requests = _imported_requests
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -241,8 +243,12 @@ class HaTtsClient:
         if extra_data:
             payload.update(extra_data)
 
+        requests_module = _requests
+        if requests_module is None:
+            return TtsResult(ok=False, error="requests is not installed")
+
         try:
-            resp = _requests.post(
+            resp = requests_module.post(
                 self._base_url + path,
                 json=payload,
                 headers={
