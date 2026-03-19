@@ -33,7 +33,7 @@ Example config fragment::
 from __future__ import annotations
 
 import logging
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -161,7 +161,7 @@ def load_messaging_config(raw_config: dict[str, Any]) -> MessagingConfig:
     messaging_section = raw_config.get("messaging")
     if not messaging_section or not isinstance(messaging_section, dict):
         return MessagingConfig()
-    return cast(MessagingConfig, MessagingConfig.model_validate(messaging_section))
+    return MessagingConfig.model_validate(messaging_section)
 
 
 __all__ = [

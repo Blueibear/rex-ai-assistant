@@ -31,7 +31,7 @@ Security notes
 from __future__ import annotations
 
 import logging
-from typing import Any, cast
+from typing import Any
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -154,7 +154,7 @@ def load_computers_config(raw_config: dict[str, Any]) -> ComputersConfig:
     computers_section = raw_config.get("computers")
     if not computers_section or not isinstance(computers_section, list):
         return ComputersConfig()
-    return cast(ComputersConfig, ComputersConfig.model_validate({"computers": computers_section}))
+    return ComputersConfig.model_validate({"computers": computers_section})
 
 
 __all__ = [

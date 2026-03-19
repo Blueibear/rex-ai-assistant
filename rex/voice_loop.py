@@ -172,7 +172,7 @@ class AsyncMicrophone:
             result = self._recorder(duration)
             if asyncio.iscoroutine(result):
                 result = await result
-            return np.asarray(result, dtype=np.float32).reshape(-1)
+            return cast(AudioArray, np.asarray(result, dtype=np.float32).reshape(-1))
 
         sd = _require_sounddevice()
 
@@ -572,11 +572,9 @@ class VoiceLoop:
                     if self._identify_speaker is not None:
                         try:
                             if self._identify_speaker_accepts_audio:
-                                cast(Callable[[AudioArray], Optional[str]], self._identify_speaker)(
-                                    audio
-                                )
+                                cast(Any, self._identify_speaker)(audio)
                             else:
-                                cast(Callable[[], Optional[str]], self._identify_speaker)()
+                                cast(Any, self._identify_speaker)()
                         except Exception as exc:
                             logger.warning("Voice identity check failed: %s", exc)
 

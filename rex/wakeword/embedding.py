@@ -3,17 +3,23 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from types import ModuleType
+from typing import TYPE_CHECKING, Any, cast
 
-try:  # pragma: no cover - optional dependency
+if TYPE_CHECKING:
     import numpy as np
-except Exception:  # pragma: no cover - optional dependency
-    np = None
+else:
+    try:  # pragma: no cover - optional dependency
+        import numpy as np
+    except Exception:  # pragma: no cover - optional dependency
+        np = None
 
 try:  # pragma: no cover - optional dependency
-    import torch
+    import torch as _torch
 except Exception:  # pragma: no cover - optional dependency
-    torch = None
+    _torch = None
+
+torch: ModuleType | None = _torch
 
 DEFAULT_EMBEDDING_BINS = 128
 
@@ -37,7 +43,7 @@ def compute_embedding(audio_frame: np.ndarray, *, bins: int = DEFAULT_EMBEDDING_
     norm = np.linalg.norm(resized)
     if norm > 0:
         resized = resized / norm
-    return resized
+    return cast("np.ndarray", resized)
 
 
 def load_embedding(path: str | Path) -> np.ndarray:
@@ -65,7 +71,7 @@ def load_embedding(path: str | Path) -> np.ndarray:
     norm = np.linalg.norm(array)
     if norm > 0:
         array = array / norm
-    return array
+    return cast("np.ndarray", array)
 
 
 def save_embedding(path: str | Path, embedding: np.ndarray) -> None:

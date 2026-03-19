@@ -22,7 +22,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -79,7 +79,7 @@ def load_dashboard_store_config(raw_config: dict[str, Any]) -> DashboardStoreCon
     store_section = dashboard_section.get("store", {})
     if not isinstance(store_section, dict):
         return DashboardStoreConfig()
-    return cast(DashboardStoreConfig, DashboardStoreConfig.model_validate(store_section))
+    return DashboardStoreConfig.model_validate(store_section)
 
 
 class DashboardNotification:

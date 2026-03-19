@@ -30,7 +30,7 @@ Security notes
 from __future__ import annotations
 
 import logging
-from typing import Any, cast
+from typing import Any
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -136,7 +136,7 @@ def load_woocommerce_config(raw_config: dict[str, Any]) -> WooCommerceConfig:
     sites = section.get("sites")
     if not sites or not isinstance(sites, list):
         return WooCommerceConfig()
-    return cast(WooCommerceConfig, WooCommerceConfig.model_validate({"sites": sites}))
+    return WooCommerceConfig.model_validate({"sites": sites})
 
 
 __all__ = [

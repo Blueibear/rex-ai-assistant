@@ -320,7 +320,7 @@ def _write_history(
     record = ExecutionRecord(
         goal=plan.goal,
         plan=plan,
-        outcome=_outcome_from_plan(plan),
+        outcome=_outcome_from_plan(plan),  # type: ignore[arg-type]
         duration_s=duration_s,
         replan_count=replan_count,
         error_summary=error_summary,

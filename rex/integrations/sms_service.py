@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import Literal
 
 from rex.integrations.models import SMSMessage, SMSThread
 
@@ -222,7 +223,9 @@ class SMSService:
             raw_messages = client.messages.list(limit=200)
             threads: dict[str, SMSThread] = {}
             for m in raw_messages:
-                direction: str = "inbound" if m.direction == "inbound" else "outbound"
+                direction: Literal["inbound", "outbound"] = (
+                    "inbound" if m.direction == "inbound" else "outbound"
+                )
                 remote = m.from_ if direction == "inbound" else m.to
                 thread_id = f"thread-{remote.replace('+', '')}"
                 msg = SMSMessage(

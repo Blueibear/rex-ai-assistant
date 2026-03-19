@@ -723,7 +723,7 @@ class WorkflowRunner:
                 task_id=self.workflow.workflow_id,
                 tool=step.tool_call.tool,
                 tool_call_args=step.tool_call.args,
-                policy_decision=decision,
+                policy_decision=decision,  # type: ignore
                 tool_result=result,
                 error=error,
                 requested_by=f"workflow:{self.workflow.workflow_id}",

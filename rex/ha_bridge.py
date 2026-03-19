@@ -11,15 +11,16 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 try:
-    import requests
+    import requests as _imported_requests
 except ImportError as exc:
-    requests = None
-    _REQUESTS_IMPORT_ERROR = exc
+    requests: Any | None = None
+    _REQUESTS_IMPORT_ERROR: Exception | None = exc
 else:
-    _REQUESTS_IMPORT_ERROR = None  # type: ignore[assignment]
+    requests = _imported_requests
+    _REQUESTS_IMPORT_ERROR = None
 if TYPE_CHECKING:
     from flask import Blueprint
 
@@ -131,12 +132,21 @@ class HABridge:
             if isinstance(alias, str) and isinstance(entity_id, str)
         }
         _require_requests()
-        self._session = requests.Session()
+        requests_module = requests
+        assert requests_module is not None
+        self._session = requests_module.Session()
         self._entity_cache: dict[str, str] = {}
         self._entity_cache_ts: float = 0.0
         self._entity_cache_ttl: float = 60.0
         self._lock = threading.Lock()
         self._log_path = Path("logs/test_ha_integration.log")
+
+    @staticmethod
+    def _request_exception() -> type[Exception]:
+        requests_module = requests
+        if requests_module is None:
+            return Exception
+        return cast(type[Exception], requests_module.RequestException)
 
     # ------------------------------------------------------------------ #
     # Public properties
@@ -413,7 +423,7 @@ class HABridge:
             )
             pretty = intent.description.capitalize()
             return True, f"{pretty}."
-        except requests.RequestException as exc:
+        except self._request_exception() as exc:
             logger.warning("Home Assistant request failed: %s", exc)
             return False, str(exc)
 
@@ -464,7 +474,7 @@ class HABridge:
                 return
             try:
                 payload = self._request("GET", "/api/states")
-            except requests.RequestException as exc:
+            except self._request_exception() as exc:
                 logger.debug("Failed to refresh Home Assistant entities: %s", exc)
                 return
 
@@ -580,4 +590,4 @@ def create_blueprint(bridge: HABridge | None = None) -> Blueprint:
             logger.warning("Failed to execute Home Assistant script: %s", exc)
             return error_response(INTERNAL_ERROR, str(exc), 500)
 
-    return bp
+    return bp  # type: ignore[no-any-return]

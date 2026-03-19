@@ -14,10 +14,10 @@ try:
     from dotenv import find_dotenv, load_dotenv
 except ImportError:
     # Gracefully handle missing python-dotenv
-    def load_dotenv(*args, **kwargs):
+    def load_dotenv(*args, **kwargs):  # type: ignore[misc]
         return False
 
-    def find_dotenv(*args, **kwargs):
+    def find_dotenv(*args, **kwargs):  # type: ignore[misc]
         return ""
 
 

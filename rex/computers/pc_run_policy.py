@@ -39,7 +39,7 @@ import hashlib
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from rex.contracts import ToolCall
 from rex.policy import PolicyDecision
@@ -177,7 +177,7 @@ def find_pending_or_approved_approval(
                 and approval.step_id == step_id
                 and approval.status in ("pending", "approved")
             ):
-                return cast("WorkflowApproval | None", approval)
+                return approval
         except Exception:  # noqa: BLE001
             continue
 

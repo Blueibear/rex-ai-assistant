@@ -34,7 +34,7 @@ import uuid
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -682,7 +682,7 @@ class KnowledgeBase:
         self._save()
 
         logger.info(f"Refreshed document: {doc_id} - {updated.title}")
-        return cast("KnowledgeDocument | None", updated)
+        return updated
 
     def refresh_all(self) -> dict[str, str]:
         """Refresh all documents that have a source path.

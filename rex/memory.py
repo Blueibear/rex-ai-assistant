@@ -32,7 +32,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -245,7 +245,7 @@ class MemoryEntry(BaseModel):
         data = self.model_dump()
         if self.sensitive:
             data["content"] = {"[SENSITIVE]": "Content hidden"}
-        return cast(dict[str, Any], data)
+        return data
 
     model_config = {
         "json_schema_extra": {

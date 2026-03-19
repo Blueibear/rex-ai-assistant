@@ -36,7 +36,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Literal, cast
+from typing import Any, Callable, Literal
 
 from pydantic import BaseModel, Field
 
@@ -299,7 +299,7 @@ class WorkflowApproval(BaseModel):
 
         try:
             with open(file_path, encoding="utf-8") as f:
-                return cast("WorkflowApproval | None", cls.model_validate_json(f.read()))
+                return cls.model_validate_json(f.read())
         except Exception as e:
             logger.warning("Failed to load approval %s: %s", approval_id, e)
             return None
@@ -498,7 +498,7 @@ class Workflow(BaseModel):
 
         try:
             with open(file_path, encoding="utf-8") as f:
-                return cast("Workflow | None", cls.model_validate_json(f.read()))
+                return cls.model_validate_json(f.read())
         except Exception as e:
             logger.warning("Failed to load workflow %s: %s", workflow_id, e)
             return None
@@ -528,7 +528,7 @@ class Workflow(BaseModel):
             raise ValueError(f"Failed to read workflow file: {e}") from e
 
         try:
-            return cast("Workflow", cls.model_validate_json(content))
+            return cls.model_validate_json(content)
         except Exception as e:
             raise ValueError(f"Invalid workflow JSON: {e}") from e
 

@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import cast
 
 from rex.autonomy.history import ExecutionRecord
 from rex.autonomy.preferences import UserPreferenceProfile
@@ -89,7 +88,7 @@ class PreferenceLearner:
             )
 
         updated.last_updated = datetime.now(timezone.utc)
-        return cast(UserPreferenceProfile, updated)
+        return updated
 
 
 # ---------------------------------------------------------------------------
