@@ -1,0 +1,25 @@
+{
+  "summary": {
+    "total_collected": 5751,
+    "total_passed": 5701,
+    "total_skipped": 50,
+    "total_failed": 0,
+    "run_date": "2026-03-20"
+  },
+  "failures_by_subsystem": {
+    "core": [],
+    "voice": [],
+    "autonomy": [],
+    "integrations": [],
+    "dashboard_notifications": [],
+    "tools_planner_workflow": [],
+    "memory_knowledge": [],
+    "security": [],
+    "infrastructure": [],
+    "computers": [],
+    "gui": [],
+    "docs_install": [],
+    "misc": []
+  },
+  "notes": "Full test suite passed with zero failures. 50 tests skipped (hardware/optional-dep dependent: audio, ML extras, some install scripts)."
+}

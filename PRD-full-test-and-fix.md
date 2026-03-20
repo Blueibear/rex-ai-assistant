@@ -84,10 +84,10 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] Run `pytest -q --tb=short -x` first to find the earliest hard crash (if any)
-- [ ] Then run `pytest -q --tb=short` (no `-x`) to collect ALL failures
-- [ ] Capture output to `test-audit-results.txt` at repo root
-- [ ] Create a triage file `test-audit-triage.json` grouping failures by subsystem:
+- [x] Run `pytest -q --tb=short -x` first to find the earliest hard crash (if any)
+- [x] Then run `pytest -q --tb=short` (no `-x`) to collect ALL failures
+- [x] Capture output to `test-audit-results.txt` at repo root
+- [x] Create a triage file `test-audit-triage.json` grouping failures by subsystem:
   - `core` (assistant, config, cli, doctor, llm_client)
   - `voice` (voice_loop, wakeword, tts, audio, wake_acknowledgment, stt)
   - `autonomy` (all test_autonomy_* files)
@@ -101,8 +101,8 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
   - `gui` (all test_us149-166 files)
   - `docs_install` (repo_integrity, install_scripts, readme, doctor)
   - `misc` (plugin_loader, web_search, plex, vscode, flask_proxy, env_schema)
-- [ ] For each failure, record: test file, test name, error type, one-line summary
-- [ ] No code changes in this story -- analysis only
+- [x] For each failure, record: test file, test name, error type, one-line summary
+- [x] No code changes in this story -- analysis only
 
 ---
 
