@@ -125,10 +125,10 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] All tests pass in: `test_voice_loop.py`, `test_voice_loop_fixes.py`, `test_voice_loop_optional_imports.py`, `test_wakeword.py`, `test_wakeword_callback.py`, `test_wakeword_model_selection.py`, `test_wakeword_utils.py`, `test_wake_acknowledgment.py`, `test_tts_voices.py`, `test_audio_config.py`, `test_audio_device_selection.py`, `test_placeholder_voice.py`, `test_optional_voice_id_imports.py`, `test_voice_id_mvp.py`, `test_voice_identity_fallback.py`
-- [ ] All US-series voice tests pass: `test_us017_wake_word_detection.py` through `test_us020_full_voice_loop.py`, `test_us135_tts_text_delivery.py` through `test_us138_voice_roundtrip.py`, `test_us156_voice_toggle.py` through `test_us158_voice_transcript.py`, `test_us167_voice_latency.py` through `test_us174_voice_max_tokens.py`
-- [ ] Hardware-dependent tests (microphone, audio playback) use mocks and do not require actual hardware
-- [ ] Ruff check passes on all modified files
+- [x] All tests pass in: `test_voice_loop.py`, `test_voice_loop_fixes.py`, `test_voice_loop_optional_imports.py`, `test_wakeword.py`, `test_wakeword_callback.py`, `test_wakeword_model_selection.py`, `test_wakeword_utils.py`, `test_wake_acknowledgment.py`, `test_tts_voices.py`, `test_audio_config.py`, `test_audio_device_selection.py`, `test_placeholder_voice.py`, `test_optional_voice_id_imports.py`, `test_voice_id_mvp.py`, `test_voice_identity_fallback.py`
+- [x] All US-series voice tests pass: `test_us017_wake_word_detection.py` through `test_us020_full_voice_loop.py`, `test_us135_tts_text_delivery.py` through `test_us138_voice_roundtrip.py`, `test_us156_voice_toggle.py` through `test_us158_voice_transcript.py`, `test_us167_voice_latency.py` through `test_us174_voice_max_tokens.py`
+- [x] Hardware-dependent tests (microphone, audio playback) use mocks and do not require actual hardware
+- [x] Ruff check passes on all modified files
 
 ---
 

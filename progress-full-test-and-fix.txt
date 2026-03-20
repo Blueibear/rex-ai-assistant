@@ -66,3 +66,12 @@
   - Core subsystem tests (assistant, config, CLI, doctor, llm_client) are all green — no fixes required
   - US-007 through US-017 can similarly be fast-tracked by running their test files and marking complete
 ---
+
+## Iteration 7 - US-007: Fix Voice Subsystem Test Failures
+- What was implemented: Ran all voice subsystem test files; all tests passed with no code changes needed (suite was already green from iteration 5).
+- Files changed: PRD-full-test-and-fix.md (marked US-007 complete), progress-full-test-and-fix.txt
+- Learnings for future iterations:
+  - US-series file names differ from PRD listing (e.g., test_us018_speech_to_text.py not test_us018_voice_input.py; test_us135_tts_text_delivery.py has no content so ran test_us136_audio_playback.py etc.)
+  - 151 + 54 + 47 + 77 + 145 = 474 voice tests all passing
+  - Hardware-dependent tests already use mocks — no real audio hardware required
+---
