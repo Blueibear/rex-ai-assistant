@@ -251,9 +251,9 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] All tests pass in: `test_plugin_loader.py`, `test_web_search_plugin.py`, `test_inbound_store.py`, `test_inbound_user_association.py`, `test_inbound_webhook.py`, `test_inbound_webhook_wiring.py`, `test_wc_write_actions.py`, `test_us048_plex_api_client.py`, `test_us049_plex_playback_control.py`, `test_time_weather_integration.py`, `test_identity.py`
-- [ ] Any test files not explicitly listed in US-006 through US-016 are identified and confirmed passing
-- [ ] Ruff check passes on all modified files
+- [x] All tests pass in: `test_plugin_loader.py`, `test_web_search_plugin.py`, `test_inbound_store.py`, `test_inbound_user_association.py`, `test_inbound_webhook.py`, `test_inbound_webhook_wiring.py`, `test_wc_write_actions.py`, `test_us048_plex_api_client.py`, `test_us049_plex_playback_control.py`, `test_time_weather_integration.py`, `test_identity.py`
+- [x] Any test files not explicitly listed in US-006 through US-016 are identified and confirmed passing
+- [x] Ruff check passes on all modified files
 
 ---
 

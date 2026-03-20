@@ -157,3 +157,12 @@
   - Shell scripts (.sh files) checked out on Windows have CRLF endings; bash rejects these. Use .read_bytes().replace(b"\r\n", b"\n") + .write_bytes() (binary mode) to fix before running.
   - All other US-016 tests (repo_integrity, repository_integrity, contracts_core, US-050..057, US-113, US-123..129, US-139..148) were already passing — 416 passed, 22 skipped.
 ---
+
+## Iteration 17 - US-017: Fix Remaining Miscellaneous Test Failures
+- What was implemented: Ran all miscellaneous test files listed in US-017 (test_plugin_loader.py, test_web_search_plugin.py, test_inbound_store.py, test_inbound_user_association.py, test_inbound_webhook.py, test_inbound_webhook_wiring.py, test_wc_write_actions.py, test_us048_plex_api_client.py, test_us049_plex_playback_control.py, test_time_weather_integration.py, test_identity.py). Also identified and ran 9 additional test files not covered by prior stories (test_audit.py, test_us013..016, test_us068..069, test_us168..169). All 304 total tests passed.
+- Files changed: PRD-full-test-and-fix.md (marked US-017 complete), progress-full-test-and-fix.txt
+- Learnings for future iterations:
+  - All 287 test files across the entire suite are green — no code changes were required
+  - Additional uncatalogued test files (test_audit.py, test_us013-016, test_us068-069, test_us168-169) all pass — 110 additional tests
+  - Suite remains fully healthy: 5701+ passed, 50 skipped, 0 failures
+---
