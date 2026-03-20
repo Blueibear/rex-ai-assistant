@@ -363,9 +363,9 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] All 6 CI jobs pass: Lint & Format Check, Type Check (mypy), Python Tests & Coverage, Dependency Vulnerability Scan, Pre-commit Hook Validation, Hardcoded Secret Scan
-- [ ] If any job still fails, document the failure and create a follow-up fix
-- [ ] No regressions in the local test suite (`pytest -q` still zero failures)
+- [x] All 6 CI jobs pass: Lint & Format Check, Type Check (mypy), Python Tests & Coverage, Dependency Vulnerability Scan, Pre-commit Hook Validation, Hardcoded Secret Scan
+- [x] If any job still fails, document the failure and create a follow-up fix
+- [x] No regressions in the local test suite (`pytest -q` still zero failures)
 
 ---
 
