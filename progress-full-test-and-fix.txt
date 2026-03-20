@@ -166,3 +166,15 @@
   - Additional uncatalogued test files (test_audit.py, test_us013-016, test_us068-069, test_us168-169) all pass — 110 additional tests
   - Suite remains fully healthy: 5701+ passed, 50 skipped, 0 failures
 ---
+
+## Iteration 18 - US-018: Coverage Gap Analysis
+- What was implemented: Ran `pytest --cov=rex --cov-report=term-missing -q`, captured to test-audit-coverage.txt (5702 passed, 49 skipped, 80.43% total coverage). Created scripts/gen_coverage_gaps.py to parse coverage report and generate ranked gap list. Saved 74 gap entries to test-audit-coverage-gaps.json.
+- Files changed: test-audit-coverage.txt (created), test-audit-coverage-gaps.json (created), scripts/gen_coverage_gaps.py (created), PRD-full-test-and-fix.md (marked US-018 complete)
+- Learnings for future iterations:
+  - Overall coverage: 80.43% (20538 statements, 4020 missed) — above 75% threshold
+  - 0% coverage modules (high priority): rex/app.py, rex/__main__.py, rex/capabilities/__init__.py, rex/compat.py, rex/integrations.py, rex/wake_acknowledgment.py
+  - 0% coverage modules (medium priority): rex/windows_service.py (can't run on non-pywin32 env)
+  - High priority gaps also include: rex/voice_loop.py (62%), rex/cli.py (73%), rex/assistant.py (74%)
+  - 74 total modules have gaps (< 75% coverage); US-019 should target the 0% high-priority ones first
+  - On Windows, coverage output uses backslashes in paths — gen_coverage_gaps.py normalizes to forward slashes
+---
