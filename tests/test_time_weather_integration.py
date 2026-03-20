@@ -21,6 +21,38 @@ def test_time_now_london_returns_europe_london_timezone():
 
 
 # ---------------------------------------------------------------------------
+# time_now – Dallas direct location variants
+# ---------------------------------------------------------------------------
+
+
+def test_time_now_dallas_texas_returns_america_chicago():
+    """time_now with 'Dallas, Texas' resolves to America/Chicago."""
+    result = execute_tool({"tool": "time_now", "args": {"location": "Dallas, Texas"}}, {})
+    assert "error" not in result, f"Unexpected error: {result}"
+    assert result["timezone"] == "America/Chicago"
+    assert re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}", result["local_time"])
+
+
+def test_time_now_dallas_local_time_differs_from_utc():
+    """Dallas local time should differ from UTC by the CDT/CST offset."""
+    from datetime import datetime
+    from datetime import timezone as _utc_tz
+
+    result = execute_tool({"tool": "time_now", "args": {"location": "Dallas"}}, {})
+    assert "error" not in result, f"Unexpected error: {result}"
+    assert result["timezone"] == "America/Chicago"
+
+    # Verify the tool actually returns a different hour than UTC
+    utc_now = datetime.now(tz=_utc_tz.utc)
+    dallas_hour = int(result["local_time"].split(" ")[1].split(":")[0])
+    # CDT = UTC-5, CST = UTC-6 — at least one of date or hour must differ
+    assert dallas_hour != utc_now.hour or result["date"] != utc_now.strftime(
+        "%Y-%m-%d"
+    ), "Dallas time should differ from UTC"
+    assert result["timezone"] != "UTC", "Dallas must not fall back to UTC"
+
+
+# ---------------------------------------------------------------------------
 # time_now – Dallas context fallback -> America/Chicago
 # ---------------------------------------------------------------------------
 

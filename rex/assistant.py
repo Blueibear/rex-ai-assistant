@@ -188,7 +188,7 @@ class Assistant:
                 None,
                 route_if_tool_request,
                 completion,
-                {},
+                self._build_tool_context(),
                 self._build_tool_model_call(transcript),
             )
 
@@ -230,6 +230,24 @@ class Assistant:
         "[Respond in 1-3 sentences. Keep your reply short and conversational for voice output.]"
     )
 
+    _TOOL_INSTRUCTIONS = (
+        "You have access to the following tools. When you need live data (current time, "
+        "weather, or web search results), you MUST respond with ONLY a single-line tool "
+        "request in this exact format — no other text on that line:\n"
+        'TOOL_REQUEST: {"tool": "<name>", "args": {<arguments>}}\n'
+        "\n"
+        "Available tools:\n"
+        "- time_now: Get the current local time for a location. "
+        'Args: {"location": "City, Region"}\n'
+        "- weather_now: Get current weather for a location. "
+        'Args: {"location": "City, Region"}\n'
+        "- web_search: Search the web. "
+        'Args: {"query": "search terms"}\n'
+        "\n"
+        "IMPORTANT: When asked about the current time in ANY location, ALWAYS use "
+        "the time_now tool. Do NOT guess or convert times yourself."
+    )
+
     def _build_system_context(self) -> str:
         """Return a system context string with current date/time and user location."""
         from datetime import timezone as _utc_tz
@@ -263,7 +281,33 @@ class Assistant:
         if location:
             lines.append(f"User location: {location}")
 
+        lines.append("")
+        lines.append(self._TOOL_INSTRUCTIONS)
+
         return "\n".join(lines)
+
+    def _build_tool_context(self) -> dict[str, str]:
+        """Return default_context dict for tool execution with location/timezone."""
+        ctx: dict[str, str] = {}
+        _settings = getattr(self, "_settings", None)
+
+        location: str | None = getattr(_settings, "default_location", None)
+        if not location:
+            from rex.geolocation import get_cached_city
+
+            location = get_cached_city()
+        if location:
+            ctx["location"] = location
+
+        tz_name: str | None = getattr(_settings, "default_timezone", None)
+        if not tz_name:
+            from rex.geolocation import get_cached_timezone
+
+            tz_name = get_cached_timezone()
+        if tz_name:
+            ctx["timezone"] = tz_name
+
+        return ctx
 
     def _build_prompt(self, transcript: str, *, voice_mode: bool = False) -> str:
         system_context = self._build_system_context()
