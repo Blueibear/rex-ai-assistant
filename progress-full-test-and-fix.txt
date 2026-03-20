@@ -49,3 +49,12 @@
   - utils/ directory does not exist; exclude from commands or ignore the warning
   - After black, ruff still passes — no conflict between the two formatters
 ---
+
+## Iteration 5 - US-005: Run Full Test Suite -- Triage Failures
+- What was implemented: Ran `pytest -q --tb=short` across all 5751 collected tests. Zero failures found. Captured output to test-audit-results.txt and created test-audit-triage.json with empty failure arrays per subsystem (all green).
+- Files changed: test-audit-results.txt (created), test-audit-triage.json (created), PRD-full-test-and-fix.md (marked US-005 complete)
+- Learnings for future iterations:
+  - Full suite: 5701 passed, 50 skipped, 0 failures in 407s
+  - Skipped tests are hardware/optional-dep dependent (audio, ML, some install scripts)
+  - Suite is fully healthy — US-006 through US-017 subsystem fix stories can be fast-tracked as all-passing
+---
