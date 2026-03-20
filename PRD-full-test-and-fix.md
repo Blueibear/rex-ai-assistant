@@ -263,11 +263,11 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] Run `pytest --cov=rex --cov-report=term-missing -q` and capture output to `test-audit-coverage.txt`
-- [ ] Generate a list of all `rex/**/*.py` modules with 0% coverage or no test file counterpart
-- [ ] Rank uncovered modules by criticality: `assistant.py`, `cli.py`, `config.py`, `llm_client.py`, `tool_router.py` are highest priority
-- [ ] Save the gap analysis to `test-audit-coverage-gaps.json` with fields: module_path, current_coverage_pct, has_test_file, priority (high/medium/low)
-- [ ] No code changes in this story -- analysis only
+- [x] Run `pytest --cov=rex --cov-report=term-missing -q` and capture output to `test-audit-coverage.txt`
+- [x] Generate a list of all `rex/**/*.py` modules with 0% coverage or no test file counterpart
+- [x] Rank uncovered modules by criticality: `assistant.py`, `cli.py`, `config.py`, `llm_client.py`, `tool_router.py` are highest priority
+- [x] Save the gap analysis to `test-audit-coverage-gaps.json` with fields: module_path, current_coverage_pct, has_test_file, priority (high/medium/low)
+- [x] No code changes in this story -- analysis only
 
 ---
 

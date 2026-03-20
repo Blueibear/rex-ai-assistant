@@ -1,0 +1,446 @@
+[
+  {
+    "module_path": "rex/__main__.py",
+    "current_coverage_pct": 0,
+    "has_test_file": false,
+    "priority": "high"
+  },
+  {
+    "module_path": "rex/app.py",
+    "current_coverage_pct": 0,
+    "has_test_file": true,
+    "priority": "high"
+  },
+  {
+    "module_path": "rex/capabilities/__init__.py",
+    "current_coverage_pct": 0,
+    "has_test_file": false,
+    "priority": "high"
+  },
+  {
+    "module_path": "rex/compat.py",
+    "current_coverage_pct": 0,
+    "has_test_file": false,
+    "priority": "high"
+  },
+  {
+    "module_path": "rex/integrations.py",
+    "current_coverage_pct": 0,
+    "has_test_file": true,
+    "priority": "high"
+  },
+  {
+    "module_path": "rex/wake_acknowledgment.py",
+    "current_coverage_pct": 0,
+    "has_test_file": true,
+    "priority": "high"
+  },
+  {
+    "module_path": "rex/windows_service.py",
+    "current_coverage_pct": 0,
+    "has_test_file": false,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/wakeword/embedding.py",
+    "current_coverage_pct": 18,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/plugin_loader.py",
+    "current_coverage_pct": 25,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/integrations/email_service.py",
+    "current_coverage_pct": 26,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/integrations/calendar_service.py",
+    "current_coverage_pct": 30,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/placeholder_voice.py",
+    "current_coverage_pct": 38,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/vscode_service.py",
+    "current_coverage_pct": 51,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/integrations/_setup.py",
+    "current_coverage_pct": 55,
+    "has_test_file": false,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/followup_engine.py",
+    "current_coverage_pct": 56,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/integrations/sms_service.py",
+    "current_coverage_pct": 57,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/ha_bridge.py",
+    "current_coverage_pct": 61,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/calendar_backends/base.py",
+    "current_coverage_pct": 62,
+    "has_test_file": false,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/voice_loop.py",
+    "current_coverage_pct": 62,
+    "has_test_file": true,
+    "priority": "high"
+  },
+  {
+    "module_path": "rex/ha_tts/config.py",
+    "current_coverage_pct": 65,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/browser_automation.py",
+    "current_coverage_pct": 66,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/compat/transformers_shims.py",
+    "current_coverage_pct": 68,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/logging_utils.py",
+    "current_coverage_pct": 68,
+    "has_test_file": false,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/voice_identity/embedding_backends.py",
+    "current_coverage_pct": 68,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/woocommerce/service.py",
+    "current_coverage_pct": 68,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/service_supervisor.py",
+    "current_coverage_pct": 70,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/executor.py",
+    "current_coverage_pct": 71,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/wakeword/selection.py",
+    "current_coverage_pct": 71,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/github_service.py",
+    "current_coverage_pct": 72,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/reminder_service.py",
+    "current_coverage_pct": 72,
+    "has_test_file": false,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/wakeword/utils.py",
+    "current_coverage_pct": 72,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/calendar_backends/meeting_invite.py",
+    "current_coverage_pct": 73,
+    "has_test_file": false,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/cli.py",
+    "current_coverage_pct": 73,
+    "has_test_file": true,
+    "priority": "high"
+  },
+  {
+    "module_path": "rex/assistant.py",
+    "current_coverage_pct": 74,
+    "has_test_file": true,
+    "priority": "high"
+  },
+  {
+    "module_path": "rex/os_automation.py",
+    "current_coverage_pct": 74,
+    "has_test_file": true,
+    "priority": "medium"
+  },
+  {
+    "module_path": "rex/config_manager.py",
+    "current_coverage_pct": 75,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/calendar_backends/factory.py",
+    "current_coverage_pct": 78,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/services.py",
+    "current_coverage_pct": 78,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/email_backends/imap_smtp.py",
+    "current_coverage_pct": 79,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/tts_utils.py",
+    "current_coverage_pct": 79,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/autonomy_modes.py",
+    "current_coverage_pct": 80,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/email_backends/stub.py",
+    "current_coverage_pct": 80,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/plugins/__init__.py",
+    "current_coverage_pct": 86,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/cue_store.py",
+    "current_coverage_pct": 87,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/calendar_backends/ics_parser.py",
+    "current_coverage_pct": 88,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/gui_app.py",
+    "current_coverage_pct": 89,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/dep_errors.py",
+    "current_coverage_pct": 91,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/calendar_backends/ics_backend.py",
+    "current_coverage_pct": 94,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/db_pool.py",
+    "current_coverage_pct": 94,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/api_key_auth.py",
+    "current_coverage_pct": 95,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/calendar_backends/stub.py",
+    "current_coverage_pct": 96,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/email_backends/account_router.py",
+    "current_coverage_pct": 97,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/email_backends/base.py",
+    "current_coverage_pct": 97,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/email_backends/triage_rules.py",
+    "current_coverage_pct": 98,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/rate_limiter.py",
+    "current_coverage_pct": 98,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/request_logging.py",
+    "current_coverage_pct": 98,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/calendar_backends/free_busy_stub.py",
+    "current_coverage_pct": 99,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/__init__.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/app_launcher.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/autonomy/__init__.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/autonomy/rule_planner.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/calendar_backends/__init__.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/calendar_backends/free_time_finder.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/compat/__init__.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/contracts/__init__.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/contracts/version.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/digest_job.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/email_backends/__init__.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/email_backends/account_config.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/email_backends/inbox_stub.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/email_backends/triage.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/http_errors.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/integrations/__init__.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  },
+  {
+    "module_path": "rex/migrations.py",
+    "current_coverage_pct": 100,
+    "has_test_file": false,
+    "priority": "low"
+  }
+]
