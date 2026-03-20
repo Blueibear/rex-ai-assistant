@@ -39,14 +39,14 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] Write and run a script that attempts `importlib.import_module()` on every `.py` file under `rex/` (recursively), skipping `__pycache__`
-- [ ] Capture all `ImportError`, `ModuleNotFoundError`, and `AttributeError` exceptions with module path and traceback
-- [ ] Fix each broken import by: adding missing lazy-import guards, correcting typos, or adding conditional availability checks
-- [ ] Respect the CLAUDE.md rule: use `find_spec()` before `import_module()` for modules with side-effect imports (e.g., TTS/transformers)
-- [ ] Re-run the import scan: zero failures
-- [ ] Do NOT add new heavy dependencies; use optional-import patterns for anything not in core `dependencies`
-- [ ] Ruff check passes on all modified files
-- [ ] Black formatting passes on all modified files
+- [x] Write and run a script that attempts `importlib.import_module()` on every `.py` file under `rex/` (recursively), skipping `__pycache__`
+- [x] Capture all `ImportError`, `ModuleNotFoundError`, and `AttributeError` exceptions with module path and traceback
+- [x] Fix each broken import by: adding missing lazy-import guards, correcting typos, or adding conditional availability checks
+- [x] Respect the CLAUDE.md rule: use `find_spec()` before `import_module()` for modules with side-effect imports (e.g., TTS/transformers)
+- [x] Re-run the import scan: zero failures
+- [x] Do NOT add new heavy dependencies; use optional-import patterns for anything not in core `dependencies`
+- [x] Ruff check passes on all modified files
+- [x] Black formatting passes on all modified files
 
 ---
 

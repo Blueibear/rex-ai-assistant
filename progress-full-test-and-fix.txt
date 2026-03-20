@@ -8,6 +8,9 @@
 - 5751 tests collected across the suite.
 - Optional dependencies NOT installed: torch, transformers, TTS, sounddevice, soundfile, openai-whisper, openwakeword.
 - `python --version` at shell level returns 3.11.8, same as venv.
+- `aiomqtt`/`asyncio_mqtt` not installed; `rex.mqtt_client` must not raise at import time.
+- `servicemanager` (pywin32 service components) not installed; `rex.windows_service` must guard with try/except and use conditional base class (`_ServiceBase = win32serviceutil.ServiceFramework if _PYWIN32_SERVICE_AVAILABLE else object`).
+- 194 total rex modules; 1 skipped (rex.computers.agent_server); 193 OK; 0 failures after fixes.
 
 ---
 
@@ -19,4 +22,13 @@
   - Doctor reports "all good" - environment is healthy
   - 5751 tests collected
   - ML/audio extras not installed; tests for those must use pytest.importorskip() or mocks
+---
+
+## Iteration 2 - US-002: Full Import Scan -- Identify and Fix Broken Imports
+- What was implemented: Created scripts/scan_imports.py to attempt importlib.import_module() on all 194 rex/ modules. Found 3 failures: rex.mqtt_client, rex.mqtt_audio_router (caused by mqtt_client), rex.windows_service. Fixed mqtt_client.py to not raise at module level when aiomqtt not installed (set Client/Message/MqttError=None). Fixed windows_service.py to guard pywin32 service imports with try/except and use conditional base class. Re-ran scan: 0 failures.
+- Files changed: scripts/scan_imports.py (created), rex/mqtt_client.py, rex/windows_service.py
+- Learnings for future iterations:
+  - mqtt_client.py: when aiomqtt unavailable, set Client=None, Message=None, MqttError=Exception as fallbacks
+  - windows_service.py: use `_ServiceBase = win32serviceutil.ServiceFramework if _PYWIN32_SERVICE_AVAILABLE else object` as conditional base class
+  - scan_imports.py is reusable for future import audits
 ---

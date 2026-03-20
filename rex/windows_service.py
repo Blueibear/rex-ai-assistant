@@ -12,16 +12,27 @@ if sys.platform != "win32":
         "pywin32 is required: pip install pywin32"
     )
 
-import servicemanager  # noqa: E402
-import win32event  # noqa: E402
-import win32service  # noqa: E402
-import win32serviceutil  # noqa: E402
+try:
+    import servicemanager  # noqa: E402
+    import win32event  # noqa: E402
+    import win32service  # noqa: E402
+    import win32serviceutil  # noqa: E402
+
+    _PYWIN32_SERVICE_AVAILABLE = True
+except ImportError:  # pragma: no cover - pywin32 service components optional
+    servicemanager = None  # type: ignore[assignment]
+    win32event = None  # type: ignore[assignment]
+    win32service = None  # type: ignore[assignment]
+    win32serviceutil = None  # type: ignore[assignment]
+    _PYWIN32_SERVICE_AVAILABLE = False
 
 DEFAULT_SERVICES = "event_bus,workflow_runner,memory_store,credential_manager"
 DEFAULT_PORT = "8765"
 
+_ServiceBase = win32serviceutil.ServiceFramework if _PYWIN32_SERVICE_AVAILABLE else object
 
-class RexNodeService(win32serviceutil.ServiceFramework):
+
+class RexNodeService(_ServiceBase):  # type: ignore[misc]
     _svc_name_ = "RexLeanNode"
     _svc_display_name_ = "Rex Lean Node"
     _svc_description_ = "Rex AI Assistant lean node service."
@@ -59,6 +70,11 @@ class RexNodeService(win32serviceutil.ServiceFramework):
 
 
 def main() -> None:
+    if not _PYWIN32_SERVICE_AVAILABLE:  # pragma: no cover
+        raise ImportError(
+            "pywin32 service components are required to run Rex as a Windows service. "
+            "Install via: pip install pywin32"
+        )
     win32serviceutil.HandleCommandLine(RexNodeService)
 
 

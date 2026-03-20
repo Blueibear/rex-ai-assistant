@@ -30,11 +30,10 @@ except ImportError:
     try:
         # Fall back to old package name for backwards compatibility
         from asyncio_mqtt import Client, Message, MqttError
-    except ImportError as exc:  # pragma: no cover - handled during runtime
-        raise ImportError(
-            "aiomqtt (or asyncio-mqtt) is required for Rex MQTT features. "
-            "Install via `pip install aiomqtt`."
-        ) from exc
+    except ImportError:  # pragma: no cover - optional dependency
+        Client = None  # type: ignore[assignment,misc]
+        Message = None  # type: ignore[assignment,misc]
+        MqttError = Exception  # type: ignore[assignment,misc]
 
 logger = logging.getLogger(__name__)
 
