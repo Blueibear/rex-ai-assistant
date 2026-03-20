@@ -138,9 +138,9 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] All tests pass in: `test_autonomy_alternatives.py`, `test_autonomy_apply_preferences.py`, `test_autonomy_budget_config.py`, `test_autonomy_clarifier.py`, `test_autonomy_cost_estimator.py`, `test_autonomy_cost_tracking.py`, `test_autonomy_feedback.py`, `test_autonomy_feedback_injection.py`, `test_autonomy_goal_graph.py`, `test_autonomy_goal_graph_runner.py`, `test_autonomy_goal_parser.py`, `test_autonomy_history.py`, `test_autonomy_history_integration.py`, `test_autonomy_models.py`, `test_autonomy_preference_learner.py`, `test_autonomy_preferences.py`, `test_autonomy_replanner.py`, `test_autonomy_retry.py`, `test_autonomy_runner.py`, `test_autonomy_tool_cache.py`
-- [ ] `pytest -q tests/test_autonomy_*.py` reports zero failures
-- [ ] Ruff check passes on all modified files
+- [x] All tests pass in: `test_autonomy_alternatives.py`, `test_autonomy_apply_preferences.py`, `test_autonomy_budget_config.py`, `test_autonomy_clarifier.py`, `test_autonomy_cost_estimator.py`, `test_autonomy_cost_tracking.py`, `test_autonomy_feedback.py`, `test_autonomy_feedback_injection.py`, `test_autonomy_goal_graph.py`, `test_autonomy_goal_graph_runner.py`, `test_autonomy_goal_parser.py`, `test_autonomy_history.py`, `test_autonomy_history_integration.py`, `test_autonomy_models.py`, `test_autonomy_preference_learner.py`, `test_autonomy_preferences.py`, `test_autonomy_replanner.py`, `test_autonomy_retry.py`, `test_autonomy_runner.py`, `test_autonomy_tool_cache.py`
+- [x] `pytest -q tests/test_autonomy_*.py` reports zero failures
+- [x] Ruff check passes on all modified files
 
 ---
 

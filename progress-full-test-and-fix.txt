@@ -75,3 +75,11 @@
   - 151 + 54 + 47 + 77 + 145 = 474 voice tests all passing
   - Hardware-dependent tests already use mocks — no real audio hardware required
 ---
+
+## Iteration 8 - US-008: Fix Autonomy Subsystem Test Failures
+- What was implemented: Ran all autonomy test files; all 391 tests passed with no code changes needed (suite was already green from iteration 5). Both test_autonomy_alternatives.py and test_autonomy_apply_preferences.py (40 tests) plus test_autonomy_*.py glob (351 tests) all pass.
+- Files changed: PRD-full-test-and-fix.md (marked US-008 complete), progress-full-test-and-fix.txt
+- Learnings for future iterations:
+  - Autonomy subsystem is fully green — 391 tests, 0 failures
+  - US-009 through US-017 can similarly be fast-tracked
+---
