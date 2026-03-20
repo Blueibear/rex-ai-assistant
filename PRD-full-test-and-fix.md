@@ -176,10 +176,10 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] All tests pass in: `test_tool_registry.py`, `test_tool_router.py`, `test_tool_router_policy.py`, `test_planner_executor.py`, `test_llm_planner.py`, `test_workflow_engine.py`, `test_workflow_cli.py`, `test_replay.py`
-- [ ] All US-series tests pass: `test_us021` through `test_us029`, `test_us034` through `test_us039`, `test_us059` through `test_us065`
-- [ ] All CLI planner/scheduler tests pass: `test_cli_planner_executor.py`, `test_cli_scheduler.py`, `test_cli_scheduler_email_calendar.py`, `test_cli_email_accounts.py`, `test_cli_memory_kb.py`, `test_cli_messaging_notification.py`
-- [ ] Ruff check passes on all modified files
+- [x] All tests pass in: `test_tool_registry.py`, `test_tool_router.py`, `test_tool_router_policy.py`, `test_planner_executor.py`, `test_llm_planner.py`, `test_workflow_engine.py`, `test_workflow_cli.py`, `test_replay.py`
+- [x] All US-series tests pass: `test_us021` through `test_us029`, `test_us034` through `test_us039`, `test_us059` through `test_us065`
+- [x] All CLI planner/scheduler tests pass: `test_cli_planner_executor.py`, `test_cli_scheduler.py`, `test_cli_scheduler_email_calendar.py`, `test_cli_email_accounts.py`, `test_cli_memory_kb.py`, `test_cli_messaging_notification.py`
+- [x] Ruff check passes on all modified files
 
 ---
 

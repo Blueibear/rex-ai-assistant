@@ -101,3 +101,12 @@
   - All tests already green — no fixes required
   - US-011 through US-017 can similarly be fast-tracked
 ---
+
+## Iteration 11 - US-011: Fix Tools, Planner, and Workflow Test Failures
+- What was implemented: Ran all tools/planner/workflow test files; all tests passed with no code changes needed (suite was already green from iteration 5). Core files (233 passed), US-series + CLI files (466 passed).
+- Files changed: PRD-full-test-and-fix.md (marked US-011 complete), progress-full-test-and-fix.txt
+- Learnings for future iterations:
+  - US-series file names differ from PRD (e.g., test_us059_tool_execution_logging.py not test_us059_planner_goals.py)
+  - All tools/planner/workflow tests green — no fixes required
+  - US-012 through US-017 can similarly be fast-tracked
+---
