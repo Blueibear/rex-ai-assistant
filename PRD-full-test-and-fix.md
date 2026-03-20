@@ -239,9 +239,9 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] All tests pass in: `test_repo_integrity.py`, `test_repository_integrity.py`, `test_install_scripts.py`, `test_contracts_core.py`
-- [ ] US-series tests pass: `test_us050_web_ui_server.py`, `test_us051_chat_interface.py`, `test_us052_voice_interface.py`, `test_us057_ci_pipeline.py`, `test_us113_production_config_defaults.py`, `test_us123_deployment_guide.py` through `test_us126_api_reference.py`, `test_us129_smoke.py`, `test_us139_install_scripts.py` through `test_us146_readme_visual.py`, `test_us147_first_run.py`, `test_us148_friendly_errors.py`
-- [ ] Ruff check passes on all modified files
+- [x] All tests pass in: `test_repo_integrity.py`, `test_repository_integrity.py`, `test_install_scripts.py`, `test_contracts_core.py`
+- [x] US-series tests pass: `test_us050_web_ui_server.py`, `test_us051_chat_interface.py`, `test_us052_voice_interface.py`, `test_us057_ci_pipeline.py`, `test_us113_production_config_defaults.py`, `test_us123_deployment_guide.py` through `test_us126_api_reference.py`, `test_us129_smoke.py`, `test_us139_install_scripts.py` through `test_us146_readme_visual.py`, `test_us147_first_run.py`, `test_us148_friendly_errors.py`
+- [x] Ruff check passes on all modified files
 
 ---
 

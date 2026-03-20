@@ -148,3 +148,12 @@
   - All tests already green — no fixes required
   - US-016 and US-017 can similarly be fast-tracked
 ---
+
+## Iteration 16 - US-016: Fix Documentation, Installation, and Repo Integrity Test Failures
+- What was implemented: Fixed test_install_scripts.py::test_install_lean_script_dry_run which was failing on Windows due to two issues: (1) CRLF line endings in install_lean.sh causing bash to reject `set -euo pipefail`, (2) Git Bash/MSYS2 subprocess launched from Python doesn't inherit env vars set in the Python env dict (REX_DRY_RUN=1 was invisible to bash). Fixed by: copying script to tmp_path with binary-mode write (preventing Python from re-adding CRLF), and using shell=True on Windows to route through cmd.exe (which correctly passes env vars to child processes).
+- Files changed: tests/test_install_scripts.py
+- Learnings for future iterations:
+  - On Windows, Python subprocess.run with ['bash', ...] does NOT pass custom env vars to Git Bash/MSYS2. Use shell=True to route through cmd.exe which correctly propagates env.
+  - Shell scripts (.sh files) checked out on Windows have CRLF endings; bash rejects these. Use .read_bytes().replace(b"\r\n", b"\n") + .write_bytes() (binary mode) to fix before running.
+  - All other US-016 tests (repo_integrity, repository_integrity, contracts_core, US-050..057, US-113, US-123..129, US-139..148) were already passing — 416 passed, 22 skipped.
+---
