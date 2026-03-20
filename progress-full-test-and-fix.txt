@@ -58,3 +58,11 @@
   - Skipped tests are hardware/optional-dep dependent (audio, ML, some install scripts)
   - Suite is fully healthy — US-006 through US-017 subsystem fix stories can be fast-tracked as all-passing
 ---
+
+## Iteration 6 - US-006: Fix Core Subsystem Test Failures
+- What was implemented: Ran the 10 core test files; all 144 tests passed with no code changes needed (suite was already green).
+- Files changed: PRD-full-test-and-fix.md (marked US-006 complete), progress-full-test-and-fix.txt
+- Learnings for future iterations:
+  - Core subsystem tests (assistant, config, CLI, doctor, llm_client) are all green — no fixes required
+  - US-007 through US-017 can similarly be fast-tracked by running their test files and marking complete
+---

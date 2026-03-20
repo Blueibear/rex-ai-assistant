@@ -112,10 +112,10 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] All tests pass in: `test_assistant.py`, `test_rex_assistant.py`, `test_config_loading.py`, `test_config_cli.py`, `test_config_openai.py`, `test_cli.py`, `test_cli_devtools.py`, `test_cli_tools.py`, `test_doctor.py`, `test_llm_client.py`
-- [ ] Fixes do not change public API signatures unless the test was testing the wrong signature
-- [ ] Ruff check passes on all modified files
-- [ ] `pytest -q tests/test_assistant.py tests/test_rex_assistant.py tests/test_config_loading.py tests/test_config_cli.py tests/test_config_openai.py tests/test_cli.py tests/test_cli_devtools.py tests/test_cli_tools.py tests/test_doctor.py tests/test_llm_client.py` reports zero failures
+- [x] All tests pass in: `test_assistant.py`, `test_rex_assistant.py`, `test_config_loading.py`, `test_config_cli.py`, `test_config_openai.py`, `test_cli.py`, `test_cli_devtools.py`, `test_cli_tools.py`, `test_doctor.py`, `test_llm_client.py`
+- [x] Fixes do not change public API signatures unless the test was testing the wrong signature
+- [x] Ruff check passes on all modified files
+- [x] `pytest -q tests/test_assistant.py tests/test_rex_assistant.py tests/test_config_loading.py tests/test_config_cli.py tests/test_config_openai.py tests/test_cli.py tests/test_cli_devtools.py tests/test_cli_tools.py tests/test_doctor.py tests/test_llm_client.py` reports zero failures
 
 ---
 
