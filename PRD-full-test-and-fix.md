@@ -225,11 +225,11 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] All tests pass in: `test_computers.py`, `test_windows_agent.py`, `test_os_automation.py`, `test_browser_automation.py`, `test_vscode_service.py`
-- [ ] US-series tests pass: `test_us038_application_launching.py`, `test_us039_browser_automation.py`, `test_us072_process_monitoring.py`
-- [ ] All GUI tests pass: `test_us149_gui_shell.py` through `test_us166_responsive_layout.py`
-- [ ] Platform-specific code uses appropriate mocks on non-target platforms
-- [ ] Ruff check passes on all modified files
+- [x] All tests pass in: `test_computers.py`, `test_windows_agent.py`, `test_os_automation.py`, `test_browser_automation.py`, `test_vscode_service.py`
+- [x] US-series tests pass: `test_us038_application_launching.py`, `test_us039_browser_automation.py`, `test_us072_process_monitoring.py`
+- [x] All GUI tests pass: `test_us149_gui_shell.py` through `test_us166_responsive_layout.py`
+- [x] Platform-specific code uses appropriate mocks on non-target platforms
+- [x] Ruff check passes on all modified files
 
 ---
 

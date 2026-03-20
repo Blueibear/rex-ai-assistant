@@ -138,3 +138,13 @@
   - All tests already green — no fixes required
   - US-015 through US-017 can similarly be fast-tracked
 ---
+
+## Iteration 15 - US-015: Fix Computers, GUI, and Browser Automation Test Failures
+- What was implemented: Ran all computers/GUI/browser automation test files; all tests passed with no code changes needed (suite was already green from iteration 5). Core files (109 passed), US-series (69 passed), GUI tests (460 passed).
+- Files changed: PRD-full-test-and-fix.md (marked US-015 complete), progress-full-test-and-fix.txt
+- Learnings for future iterations:
+  - GUI test files don't match PRD names exactly (e.g., test_us150_design_system.py not test_us150_gui_theme.py)
+  - Computers/GUI subsystem: 109 + 69 + 460 = 638 tests run, all passing
+  - All tests already green — no fixes required
+  - US-016 and US-017 can similarly be fast-tracked
+---
