@@ -119,3 +119,12 @@
   - All tests already green — no fixes required
   - US-013 through US-017 can similarly be fast-tracked
 ---
+
+## Iteration 13 - US-013: Fix Security and Policy Test Failures
+- What was implemented: Ran all security test files; all 324 tests passed with no code changes needed (suite was already green from iteration 5). Core files (146 passed), US-series files (178 passed).
+- Files changed: PRD-full-test-and-fix.md (marked US-013 complete), progress-full-test-and-fix.txt
+- Learnings for future iterations:
+  - Security subsystem: 146 passed (core) + 178 passed (US-series) = 324 total
+  - All tests already green — no fixes required
+  - US-014 through US-017 can similarly be fast-tracked
+---

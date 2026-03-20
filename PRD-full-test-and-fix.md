@@ -201,9 +201,9 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] All tests pass in: `test_credentials.py`, `test_security_audit.py`, `test_policy.py`, `test_pc_run_policy.py`, `test_env_schema.py`, `test_env_writer.py`
-- [ ] US-series tests pass: `test_us053_secret_management.py`, `test_us054_api_key_validation.py`, `test_us093_dependency_scan.py`, `test_us094_input_validation.py`, `test_us095_auth_session_security.py`, `test_us096_secret_scan.py`, `test_us097_security_headers.py`, `test_us131_security_scan.py`
-- [ ] Ruff check passes on all modified files
+- [x] All tests pass in: `test_credentials.py`, `test_security_audit.py`, `test_policy.py`, `test_pc_run_policy.py`, `test_env_schema.py`, `test_env_writer.py`
+- [x] US-series tests pass: `test_us053_secret_management.py`, `test_us054_api_key_validation.py`, `test_us093_dependency_scan.py`, `test_us094_input_validation.py`, `test_us095_auth_session_security.py`, `test_us096_secret_scan.py`, `test_us097_security_headers.py`, `test_us131_security_scan.py`
+- [x] Ruff check passes on all modified files
 
 ---
 
