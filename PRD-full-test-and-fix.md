@@ -348,12 +348,12 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] Run `detect-secrets scan --baseline .secrets.baseline` (or `pre-commit run detect-secrets --all-files`) to regenerate the baseline with current line numbers
-- [ ] Verify the updated `.secrets.baseline` contains no actual new secrets (only line-number shifts for existing entries)
-- [ ] If `detect-secrets` is not installed, install it: `pip install detect-secrets`
-- [ ] Commit the updated `.secrets.baseline` file
-- [ ] Run `pre-commit run detect-secrets --all-files` and confirm it passes (exit code 0)
-- [ ] No source code changes in this story, only `.secrets.baseline` update
+- [x] Run `detect-secrets scan --baseline .secrets.baseline` (or `pre-commit run detect-secrets --all-files`) to regenerate the baseline with current line numbers
+- [x] Verify the updated `.secrets.baseline` contains no actual new secrets (only line-number shifts for existing entries)
+- [x] If `detect-secrets` is not installed, install it: `pip install detect-secrets`
+- [x] Commit the updated `.secrets.baseline` file
+- [x] Run `pre-commit run detect-secrets --all-files` and confirm it passes (exit code 0)
+- [x] No source code changes in this story, only `.secrets.baseline` update
 
 ---
 

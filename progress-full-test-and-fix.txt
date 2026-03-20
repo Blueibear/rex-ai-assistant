@@ -210,3 +210,15 @@
   - torch teardown produces harmless "I/O operation on closed file" log errors after pytest exits; these do not affect exit code (still 0)
   - Final suite grew to 5804 tests (up from 5701) due to new tests added in US-019/US-020
 ---
+
+## Iteration 22 - US-022: Fix Mypy Type Check CI Failure
+- What was implemented: Fixed mypy errors in windows_service.py and mqtt_client.py using TYPE_CHECKING guards. Also fixed 2 pre-existing errors in wakeword/embedding.py and compat/transformers_shims.py discovered during full `mypy rex` run. `mypy rex --ignore-missing-imports` now reports zero errors.
+- Files changed: rex/windows_service.py, rex/mqtt_client.py, rex/wakeword/embedding.py, rex/compat/transformers_shims.py
+- Learnings for future iterations:
+  - To fix [valid-type] on a runtime-conditional base class: annotate `_ServiceBase: Any` before the if/else block, then use `if TYPE_CHECKING:` to give mypy a static type. This removes both [valid-type] and [misc] from the class definition.
+  - To fix [unused-ignore] on fallback assignments: wrap runtime try/except in `else:` branch of `if TYPE_CHECKING:` block; mypy only type-checks the TYPE_CHECKING branch, so the else branch's None assignments need no ignores.
+  - mqtt_client.py: moving the entire try/except import under `else:` of `if TYPE_CHECKING:` lets TYPE_CHECKING branch provide clean types; runtime still has full fallback logic.
+  - windows_service.py: `subprocess.Popen(cmd)` (no text mode) returns `Popen[bytes]`, not `Popen[str]`. Annotation was wrong; fixed to `Popen[bytes] | None`.
+  - wakeword/embedding.py: after `import torch as _torch` in try block, mypy infers `_torch` as `ModuleType`. The `_torch = None` in except block needs `# type: ignore[assignment]`.
+  - compat/transformers_shims.py: monkey-patching a module attribute (`transformers.BeamSearchScorer = ...`) needs `# type: ignore[attr-defined]`.
+---
