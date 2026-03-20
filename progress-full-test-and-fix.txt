@@ -178,3 +178,14 @@
   - 74 total modules have gaps (< 75% coverage); US-019 should target the 0% high-priority ones first
   - On Windows, coverage output uses backslashes in paths — gen_coverage_gaps.py normalizes to forward slashes
 ---
+
+## Iteration 19 - US-019: Write Tests for High-Priority Uncovered Modules (Batch 1)
+- What was implemented: Created 6 test files covering the 6 high-priority 0%-coverage modules identified in US-018. Each file has an import test + 2-7 functional tests with mocked dependencies. All 37 new tests pass; ruff and black clean.
+- Files changed: tests/test_capabilities.py, tests/test_compat.py, tests/test_main_module.py, tests/test_rex_wake_acknowledgment.py, tests/test_rex_integrations.py, tests/test_rex_app.py
+- Learnings for future iterations:
+  - rex/compat.py and rex/integrations.py are SHADOW FILES — shadowed by rex/compat/ and rex/integrations/ packages. Coverage gaps for these are phantom; actual code lives in the package.
+  - When patching functions in a package re-exported from an internal module, patch the SOURCE module (e.g. rex.integrations._setup.get_scheduler, not rex.integrations.get_scheduler).
+  - Patching sys.modules with a MagicMock breaks importlib.util.find_spec (ValueError: __spec__ not set). Fix: also patch importlib.util.find_spec to return non-None OR use patch.dict with None to simulate missing module.
+  - rex.app.main() has while True loop — break it by patching time.sleep to raise KeyboardInterrupt; the except block catches it and returns 0.
+  - Patch signal.signal via _setup_signal_handlers helper patch to avoid signal-in-thread errors in tests.
+---

@@ -291,10 +291,10 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] For each medium-priority uncovered module (up to 10 modules), create a test file in `tests/`
-- [ ] Each test file includes: import test + 1-2 functional tests with mocks
-- [ ] All new tests pass
-- [ ] Ruff check and black formatting pass on all new files
+- [x] For each medium-priority uncovered module (up to 10 modules), create a test file in `tests/`
+- [x] Each test file includes: import test + 1-2 functional tests with mocks
+- [x] All new tests pass
+- [x] Ruff check and black formatting pass on all new files
 
 ---
 
