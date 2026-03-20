@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from typing import TYPE_CHECKING, Any
 
 if sys.platform != "win32":
     raise ImportError(
@@ -20,19 +21,25 @@ try:
 
     _PYWIN32_SERVICE_AVAILABLE = True
 except ImportError:  # pragma: no cover - pywin32 service components optional
-    servicemanager = None  # type: ignore[assignment]
-    win32event = None  # type: ignore[assignment]
-    win32service = None  # type: ignore[assignment]
-    win32serviceutil = None  # type: ignore[assignment]
+    servicemanager = None
+    win32event = None
+    win32service = None
+    win32serviceutil = None
     _PYWIN32_SERVICE_AVAILABLE = False
 
 DEFAULT_SERVICES = "event_bus,workflow_runner,memory_store,credential_manager"
 DEFAULT_PORT = "8765"
 
-_ServiceBase = win32serviceutil.ServiceFramework if _PYWIN32_SERVICE_AVAILABLE else object
+_ServiceBase: Any
+if TYPE_CHECKING:
+    import win32serviceutil as _win32serviceutil_t
+
+    _ServiceBase = _win32serviceutil_t.ServiceFramework
+else:
+    _ServiceBase = win32serviceutil.ServiceFramework if _PYWIN32_SERVICE_AVAILABLE else object
 
 
-class RexNodeService(_ServiceBase):  # type: ignore[misc]
+class RexNodeService(_ServiceBase):
     _svc_name_ = "RexLeanNode"
     _svc_display_name_ = "Rex Lean Node"
     _svc_description_ = "Rex AI Assistant lean node service."
@@ -40,7 +47,7 @@ class RexNodeService(_ServiceBase):  # type: ignore[misc]
     def __init__(self, args):
         super().__init__(args)
         self.stop_event = win32event.CreateEvent(None, 0, 0, None)
-        self.process: subprocess.Popen[str] | None = None
+        self.process: subprocess.Popen[bytes] | None = None
 
     def SvcStop(self):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)

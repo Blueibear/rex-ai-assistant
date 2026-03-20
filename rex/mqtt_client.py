@@ -17,23 +17,26 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 from uuid import uuid4
 
 from rex.assistant_errors import ConfigurationError
 from rex.config import settings
 
-try:
-    # Try new package name first (asyncio-mqtt was renamed to aiomqtt)
+if TYPE_CHECKING:
     from aiomqtt import Client, Message, MqttError
-except ImportError:
+else:
     try:
-        # Fall back to old package name for backwards compatibility
-        from asyncio_mqtt import Client, Message, MqttError
-    except ImportError:  # pragma: no cover - optional dependency
-        Client = None  # type: ignore[assignment,misc]
-        Message = None  # type: ignore[assignment,misc]
-        MqttError = Exception  # type: ignore[assignment,misc]
+        # Try new package name first (asyncio-mqtt was renamed to aiomqtt)
+        from aiomqtt import Client, Message, MqttError
+    except ImportError:
+        try:
+            # Fall back to old package name for backwards compatibility
+            from asyncio_mqtt import Client, Message, MqttError
+        except ImportError:  # pragma: no cover - optional dependency
+            Client = None
+            Message = None
+            MqttError = Exception
 
 logger = logging.getLogger(__name__)
 

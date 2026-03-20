@@ -314,6 +314,61 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 ---
 
+### US-022: Fix Mypy Type Check CI Failure
+
+**Description:** As a developer, I need the GitHub Actions "Type Check (mypy)" job to pass. It currently reports 8 errors across 2 files (`rex/windows_service.py` and `rex/mqtt_client.py`) introduced by the import-guard fixes in US-002.
+
+**Root Cause:** The `# type: ignore` comments added during US-002 are flagged as `[unused-ignore]` by mypy in CI (where pywin32/aiomqtt may be installed or stubs are present). Additionally, the conditional base class pattern `_ServiceBase = ... if ... else object` produces a `[valid-type]` error because mypy cannot resolve a runtime-conditional variable as a valid class base.
+
+**Acceptance Criteria:**
+
+- [x] `rex/windows_service.py` lines 23-26: Remove or replace the 4 `# type: ignore[assignment]` comments that mypy flags as `[unused-ignore]`. Use a mypy-compatible conditional assignment pattern instead (e.g., assign `Any` type via `typing.TYPE_CHECKING` block, or use `if TYPE_CHECKING:` stubs)
+- [x] `rex/windows_service.py` line 35: Fix the `[valid-type]` error on `_ServiceBase`. Mypy cannot use a runtime-conditional variable as a base class. Use a `TYPE_CHECKING` guard to give mypy a static type to work with, e.g.:
+  ```python
+  from typing import TYPE_CHECKING
+  if TYPE_CHECKING:
+      import win32serviceutil
+      _ServiceBase = win32serviceutil.ServiceFramework
+  else:
+      _ServiceBase = win32serviceutil.ServiceFramework if _PYWIN32_SERVICE_AVAILABLE else object
+  ```
+- [x] `rex/mqtt_client.py` lines 34-36: Remove or replace the 3 `# type: ignore[assignment,misc]` comments that mypy flags as `[unused-ignore]`. Use the same `TYPE_CHECKING` pattern to provide static type info while keeping runtime fallbacks
+- [x] Run `mypy rex --ignore-missing-imports` locally and confirm zero errors
+- [x] Ruff check and black formatting pass on both modified files
+- [x] Existing tests for `windows_service` and `mqtt_client` still pass
+- [x] The import scan from US-002 (`python scripts/scan_imports.py`) still reports zero failures
+
+---
+
+### US-023: Fix Pre-commit Hook Validation CI Failure
+
+**Description:** As a developer, I need the GitHub Actions "Pre-commit Hook Validation" job to pass. It currently fails because the `detect-secrets` hook found that `.secrets.baseline` is out of date (line numbers of existing secrets shifted due to code changes).
+
+**Root Cause:** Code changes in US-002 (and possibly US-019/US-020) shifted line numbers in source files. The `detect-secrets` hook auto-updates `.secrets.baseline` with new line numbers, but the updated file was never committed. The CI message says: "The baseline file was updated. Probably to keep line numbers of secrets up-to-date. Please `git add .secrets.baseline`, thank you."
+
+**Acceptance Criteria:**
+
+- [ ] Run `detect-secrets scan --baseline .secrets.baseline` (or `pre-commit run detect-secrets --all-files`) to regenerate the baseline with current line numbers
+- [ ] Verify the updated `.secrets.baseline` contains no actual new secrets (only line-number shifts for existing entries)
+- [ ] If `detect-secrets` is not installed, install it: `pip install detect-secrets`
+- [ ] Commit the updated `.secrets.baseline` file
+- [ ] Run `pre-commit run detect-secrets --all-files` and confirm it passes (exit code 0)
+- [ ] No source code changes in this story, only `.secrets.baseline` update
+
+---
+
+### US-024: Re-run CI Verification
+
+**Description:** As a developer, I need to verify that all 6 GitHub Actions CI jobs pass after the fixes in US-022 and US-023.
+
+**Acceptance Criteria:**
+
+- [ ] All 6 CI jobs pass: Lint & Format Check, Type Check (mypy), Python Tests & Coverage, Dependency Vulnerability Scan, Pre-commit Hook Validation, Hardcoded Secret Scan
+- [ ] If any job still fails, document the failure and create a follow-up fix
+- [ ] No regressions in the local test suite (`pytest -q` still zero failures)
+
+---
+
 ## Non-Goals
 
 - No new feature development; this is a quality/testing audit only
@@ -336,3 +391,6 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 - **Lint preflight:** Both `ruff check` and `black --check` must pass before any code is considered complete.
 - **Existing conftest.py:** Uses `REX_TESTING=true` env var and adds repo root + tests dir to `sys.path`. New tests should rely on this, not add their own path manipulation.
 - **Test fixtures:** Shared fixtures live in `tests/fixtures/`. Use them where possible.
+- **Mypy in CI:** The CI runs `mypy rex --ignore-missing-imports`. Any `# type: ignore` comments must be valid under this configuration. Prefer `TYPE_CHECKING` guards over `# type: ignore` for conditional imports so the code works both at runtime (missing deps) and under static analysis (stubs present).
+- **Pre-commit / detect-secrets:** The repo uses `detect-secrets` v1.5.0 with a `.secrets.baseline` file. When code changes shift line numbers, the baseline must be regenerated and committed. Run `pre-commit run detect-secrets --all-files` to update it.
+- **CI jobs (6 total):** Lint & Format Check, Type Check (mypy), Python Tests & Coverage, Dependency Vulnerability Scan, Pre-commit Hook Validation, Hardcoded Secret Scan. All must pass.
