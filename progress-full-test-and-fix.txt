@@ -128,3 +128,13 @@
   - All tests already green — no fixes required
   - US-014 through US-017 can similarly be fast-tracked
 ---
+
+## Iteration 14 - US-014: Fix Infrastructure Test Failures
+- What was implemented: Ran all infrastructure test files; all tests passed with no code changes needed (suite was already green from iteration 5). Core files (116 passed, 2 skipped), US-series files (87 passed from us028/029/036/037), extended US-series (729 passed, 21 skipped from us098-us129).
+- Files changed: PRD-full-test-and-fix.md (marked US-014 complete), progress-full-test-and-fix.txt
+- Learnings for future iterations:
+  - US-098/099/100/101/102 PRD references don't match actual filenames (test_us098_test_coverage.py etc.); actual files differ from PRD description
+  - Infrastructure subsystem: 116 + 87 + 729 = 932 tests run, all passing
+  - All tests already green — no fixes required
+  - US-015 through US-017 can similarly be fast-tracked
+---

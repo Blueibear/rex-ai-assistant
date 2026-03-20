@@ -213,9 +213,9 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] All tests pass in: `test_event_bus.py`, `test_event_queue.py`, `test_escalation.py`, `test_followup_engine.py`, `test_service_supervisor.py`, `test_flask_proxy.py`, `test_rex_speak_api.py`, `test_scheduler.py`, `test_retention_scheduling.py`, `test_transformers_shim.py`
-- [ ] US-series tests pass: `test_us028_event_bus.py`, `test_us029_event_triggers.py`, `test_us036_scheduler.py`, `test_us037_automation_registry.py`, `test_us098` through `test_us102`, `test_us103` through `test_us116`, `test_us117` through `test_us122`, `test_us127` through `test_us129`
-- [ ] Ruff check passes on all modified files
+- [x] All tests pass in: `test_event_bus.py`, `test_event_queue.py`, `test_escalation.py`, `test_followup_engine.py`, `test_service_supervisor.py`, `test_flask_proxy.py`, `test_rex_speak_api.py`, `test_scheduler.py`, `test_retention_scheduling.py`, `test_transformers_shim.py`
+- [x] US-series tests pass: `test_us028_event_bus.py`, `test_us029_event_triggers.py`, `test_us036_scheduler.py`, `test_us037_automation_registry.py`, `test_us098` through `test_us102`, `test_us103` through `test_us116`, `test_us117` through `test_us122`, `test_us127` through `test_us129`
+- [x] Ruff check passes on all modified files
 
 ---
 
