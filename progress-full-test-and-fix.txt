@@ -201,3 +201,12 @@
   - rex.app.main() has while True loop — break it by patching time.sleep to raise KeyboardInterrupt; the except block catches it and returns 0.
   - Patch signal.signal via _setup_signal_handlers helper patch to avoid signal-in-thread errors in tests.
 ---
+
+## Iteration 21 - US-021: Final Full Verification Run
+- What was implemented: Ran final verification pass — ruff check (0 errors), black --check (0 reformats after fixing gen_coverage_gaps.py), pytest -q (5804 passed, 49 skipped, 0 failures). Wrote test-audit-final-results.txt, removed temp audit files (test-audit-env.txt, test-audit-results.txt, test-audit-triage.json).
+- Files changed: test-audit-final-results.txt (created), test-audit-env.txt/results.txt/triage.json (deleted), scripts/gen_coverage_gaps.py (black formatting applied), PRD-full-test-and-fix.md (marked US-021 complete)
+- Learnings for future iterations:
+  - All 21 user stories complete — repo is fully green
+  - torch teardown produces harmless "I/O operation on closed file" log errors after pytest exits; these do not affect exit code (still 0)
+  - Final suite grew to 5804 tests (up from 5701) due to new tests added in US-019/US-020
+---
