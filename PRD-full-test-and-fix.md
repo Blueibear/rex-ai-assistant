@@ -189,9 +189,9 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] All tests pass in: `test_memory.py`, `test_memory_cleanup.py`, `test_memory_utils.py`, `test_conversation_memory.py`, `test_knowledge_base.py`, `test_profile_manager.py`
-- [ ] US-series tests pass: `test_us032_memory_storage.py`, `test_us033_user_profiles.py`, `test_us040_knowledge_ingestion.py`, `test_us041_knowledge_queries.py`, `test_us070_memory_search.py`, `test_us074_document_indexing.py`
-- [ ] Ruff check passes on all modified files
+- [x] All tests pass in: `test_memory.py`, `test_memory_cleanup.py`, `test_memory_utils.py`, `test_conversation_memory.py`, `test_knowledge_base.py`, `test_profile_manager.py`
+- [x] US-series tests pass: `test_us032_memory_storage.py`, `test_us033_user_profiles.py`, `test_us040_knowledge_ingestion.py`, `test_us041_knowledge_queries.py`, `test_us070_memory_search.py`, `test_us074_document_indexing.py`
+- [x] Ruff check passes on all modified files
 
 ---
 

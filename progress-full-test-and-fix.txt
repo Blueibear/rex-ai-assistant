@@ -110,3 +110,12 @@
   - All tools/planner/workflow tests green — no fixes required
   - US-012 through US-017 can similarly be fast-tracked
 ---
+
+## Iteration 12 - US-012: Fix Memory and Knowledge Base Test Failures
+- What was implemented: Ran all memory/knowledge base test files; all 197 tests passed with no code changes needed (suite was already green from iteration 5). Core files (113 passed), US-series files (84 passed).
+- Files changed: PRD-full-test-and-fix.md (marked US-012 complete), progress-full-test-and-fix.txt
+- Learnings for future iterations:
+  - Memory/knowledge base subsystem: 113 passed (core) + 84 passed (US-series) = 197 total
+  - All tests already green — no fixes required
+  - US-013 through US-017 can similarly be fast-tracked
+---
