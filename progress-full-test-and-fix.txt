@@ -92,3 +92,12 @@
   - All external services properly mocked — no real API calls required
   - US-010 through US-017 can similarly be fast-tracked
 ---
+
+## Iteration 10 - US-010: Fix Dashboard and Notifications Test Failures
+- What was implemented: Ran all dashboard/notification test files; all 480 tests passed with no code changes needed (suite was already green from iteration 5).
+- Files changed: PRD-full-test-and-fix.md (marked US-010 complete), progress-full-test-and-fix.txt
+- Learnings for future iterations:
+  - Dashboard/notification subsystem: 219 passed (core files), 68 passed (US-030/031/046/047), 193 passed (US-088–092) = 480 total
+  - All tests already green — no fixes required
+  - US-011 through US-017 can similarly be fast-tracked
+---

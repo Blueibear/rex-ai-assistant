@@ -164,9 +164,9 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] All tests pass in: `test_dashboard.py`, `test_dashboard_store.py`, `test_notification.py`, `test_notification_email_channel.py`, `test_notification_sse.py`, `test_notifications.py`, `test_notifications_digest.py`, `test_notifications_escalation.py`, `test_notifications_models.py`, `test_notifications_quiet_hours.py`, `test_notifications_router.py`
-- [ ] All US-series tests pass: `test_us030_notification_routing.py`, `test_us031_dashboard_notifications.py`, `test_us046_dashboard_server.py`, `test_us047_dashboard_auth.py`, `test_us088` through `test_us092`
-- [ ] Ruff check passes on all modified files
+- [x] All tests pass in: `test_dashboard.py`, `test_dashboard_store.py`, `test_notification.py`, `test_notification_email_channel.py`, `test_notification_sse.py`, `test_notifications.py`, `test_notifications_digest.py`, `test_notifications_escalation.py`, `test_notifications_models.py`, `test_notifications_quiet_hours.py`, `test_notifications_router.py`
+- [x] All US-series tests pass: `test_us030_notification_routing.py`, `test_us031_dashboard_notifications.py`, `test_us046_dashboard_server.py`, `test_us047_dashboard_auth.py`, `test_us088` through `test_us092`
+- [x] Ruff check passes on all modified files
 
 ---
 
