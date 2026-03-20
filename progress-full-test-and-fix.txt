@@ -40,3 +40,12 @@
   - Codebase is nearly lint-clean; ruff passes with zero errors after minimal auto-fixes
   - utils/ directory doesn't exist (no error); plugins/ exists but has no Python files with issues
 ---
+
+## Iteration 4 - US-004: Black Formatting -- Full Codebase Pass
+- What was implemented: Ran black --check on all Python files. Only 1 file needed reformatting: scripts/scan_imports.py (missing blank line after docstring). Applied black, verified final --check passes with "543 files would be left unchanged."
+- Files changed: scripts/scan_imports.py (blank line added after docstring by black)
+- Learnings for future iterations:
+  - Codebase is nearly black-clean; only scan_imports.py (created in iteration 2) needed fixing
+  - utils/ directory does not exist; exclude from commands or ignore the warning
+  - After black, ruff still passes — no conflict between the two formatters
+---

@@ -71,10 +71,10 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] Run `black --check --diff rex/ tests/ *.py scripts/ utils/ plugins/` capturing all reformatting needed
-- [ ] Run `black rex/ tests/ *.py scripts/ utils/ plugins/` to apply formatting
-- [ ] Final `black --check rex/ tests/ *.py scripts/ utils/ plugins/` reports "All done! ✨ 🍰 ✨" with no changes needed
-- [ ] Verify no behavioral changes introduced (formatting only)
+- [x] Run `black --check --diff rex/ tests/ *.py scripts/ utils/ plugins/` capturing all reformatting needed
+- [x] Run `black rex/ tests/ *.py scripts/ utils/ plugins/` to apply formatting
+- [x] Final `black --check rex/ tests/ *.py scripts/ utils/ plugins/` reports "All done! ✨ 🍰 ✨" with no changes needed
+- [x] Verify no behavioral changes introduced (formatting only)
 
 ---
 

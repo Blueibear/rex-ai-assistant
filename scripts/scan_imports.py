@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Scan all rex/ modules for import errors."""
+
 import importlib
 import importlib.util
 import os
