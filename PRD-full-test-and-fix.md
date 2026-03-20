@@ -304,13 +304,13 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] `ruff check rex/ tests/ *.py scripts/ utils/ plugins/` reports zero errors
-- [ ] `black --check rex/ tests/ *.py scripts/ utils/ plugins/` reports no changes needed
-- [ ] `pytest -q` runs to completion with zero failures and zero errors
-- [ ] Capture final results to `test-audit-final-results.txt` with: total tests collected, total passed, total time, ruff status, black status
-- [ ] If any failures remain, document them in `test-audit-known-issues.md` with explanation of why they cannot be fixed (e.g., requires real hardware, external service, GPU)
-- [ ] Remove temporary audit files (`test-audit-env.txt`, `test-audit-results.txt`, `test-audit-triage.json`) -- keep only `test-audit-final-results.txt` and `test-audit-known-issues.md` (if needed)
-- [ ] Verify no regressions: the fix process has not broken previously-passing tests
+- [x] `ruff check rex/ tests/ *.py scripts/ utils/ plugins/` reports zero errors
+- [x] `black --check rex/ tests/ *.py scripts/ utils/ plugins/` reports no changes needed
+- [x] `pytest -q` runs to completion with zero failures and zero errors
+- [x] Capture final results to `test-audit-final-results.txt` with: total tests collected, total passed, total time, ruff status, black status
+- [x] If any failures remain, document them in `test-audit-known-issues.md` with explanation of why they cannot be fixed (e.g., requires real hardware, external service, GPU)
+- [x] Remove temporary audit files (`test-audit-env.txt`, `test-audit-results.txt`, `test-audit-triage.json`) -- keep only `test-audit-final-results.txt` and `test-audit-known-issues.md` (if needed)
+- [x] Verify no regressions: the fix process has not broken previously-passing tests
 
 ---
 

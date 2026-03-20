@@ -1,4 +1,5 @@
 """Generate coverage gap analysis from test-audit-coverage.txt."""
+
 import json
 import re
 from pathlib import Path
@@ -77,9 +78,7 @@ def main():
         )
 
     # Filter to only interesting ones (< 75% or no test file)
-    interesting = [
-        g for g in gaps if g["current_coverage_pct"] < 75 or not g["has_test_file"]
-    ]
+    interesting = [g for g in gaps if g["current_coverage_pct"] < 75 or not g["has_test_file"]]
 
     with open("test-audit-coverage-gaps.json", "w") as f:
         json.dump(interesting, f, indent=2)

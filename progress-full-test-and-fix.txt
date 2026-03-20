@@ -179,6 +179,18 @@
   - On Windows, coverage output uses backslashes in paths — gen_coverage_gaps.py normalizes to forward slashes
 ---
 
+## Iteration 20 - US-020: Write Tests for Medium-Priority Uncovered Modules (Batch 2)
+- What was implemented: Created 6 test files for medium-priority 0%/low-coverage modules without test files: windows_service.py (6 tests), integrations/_setup.py (6 tests), logging_utils.py (14 tests), reminder_service.py (16 tests), calendar_backends/base.py (10 tests), calendar_backends/meeting_invite.py (13 tests). Total 65 new tests, all passing. Ruff and black clean.
+- Files changed: tests/test_windows_service.py, tests/test_integrations_setup.py, tests/test_logging_utils.py, tests/test_reminder_service.py, tests/test_calendar_backend_base.py, tests/test_meeting_invite.py
+- Learnings for future iterations:
+  - windows_service.py raises ImportError on non-Windows at module level; use `pytest.skip(..., allow_module_level=True)` guard
+  - integrations/_setup.py: patch get_scheduler, get_event_bus, get_email_service, get_calendar_service to avoid real service calls
+  - logging_utils.py: configure_logging is a no-op if root logger already has handlers; test individual helpers (JsonFormatter, _env_log_level, etc.) directly
+  - reminder_service.py: pass explicit storage_path=tmp_path/... to ReminderService to avoid writing to real data dir
+  - CalendarBackend ABC: create minimal concrete subclass inline in tests; test_connection() catches exceptions and returns (False, error_str)
+  - meeting_invite.py: fully self-contained (regex + dataclass), no mocks needed
+---
+
 ## Iteration 19 - US-019: Write Tests for High-Priority Uncovered Modules (Batch 1)
 - What was implemented: Created 6 test files covering the 6 high-priority 0%-coverage modules identified in US-018. Each file has an import test + 2-7 functional tests with mocked dependencies. All 37 new tests pass; ruff and black clean.
 - Files changed: tests/test_capabilities.py, tests/test_compat.py, tests/test_main_module.py, tests/test_rex_wake_acknowledgment.py, tests/test_rex_integrations.py, tests/test_rex_app.py
