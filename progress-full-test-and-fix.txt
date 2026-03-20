@@ -83,3 +83,12 @@
   - Autonomy subsystem is fully green — 391 tests, 0 failures
   - US-009 through US-017 can similarly be fast-tracked
 ---
+
+## Iteration 9 - US-009: Fix Integrations Subsystem Test Failures
+- What was implemented: Ran all integration test files; all tests passed with no code changes needed (suite was already green from iteration 5).
+- Files changed: PRD-full-test-and-fix.md (marked US-009 complete), progress-full-test-and-fix.txt
+- Learnings for future iterations:
+  - Integration subsystem: 374 passed + 25 skipped (core files), 637 passed (US-042–092), 106 passed (test_integrations_*.py)
+  - All external services properly mocked — no real API calls required
+  - US-010 through US-017 can similarly be fast-tracked
+---

@@ -150,11 +150,11 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] All tests pass in: `test_email_service.py`, `test_email_service_backend.py`, `test_email_account_config.py`, `test_email_account_router.py`, `test_email_backend_imap_smtp.py`, `test_calendar_service.py`, `test_calendar_ics_backend.py`, `test_messaging_backends.py`, `test_messaging_service.py`, `test_sms_integration.py`, `test_sms_inbound_integration.py`, `test_twilio_signature.py`, `test_github_service.py`, `test_ha_bridge_optional.py`, `test_ha_tts.py`, `test_woocommerce.py`, `test_wordpress.py`, `test_geolocation.py`, `test_weather.py`
-- [ ] All US-series integration tests pass: `test_us042` through `test_us045`, `test_us055` through `test_us057`, `test_us078` through `test_us092`
-- [ ] All `test_integrations_*.py` files pass
-- [ ] External services are mocked (no real API calls)
-- [ ] Ruff check passes on all modified files
+- [x] All tests pass in: `test_email_service.py`, `test_email_service_backend.py`, `test_email_account_config.py`, `test_email_account_router.py`, `test_email_backend_imap_smtp.py`, `test_calendar_service.py`, `test_calendar_ics_backend.py`, `test_messaging_backends.py`, `test_messaging_service.py`, `test_sms_integration.py`, `test_sms_inbound_integration.py`, `test_twilio_signature.py`, `test_github_service.py`, `test_ha_bridge_optional.py`, `test_ha_tts.py`, `test_woocommerce.py`, `test_wordpress.py`, `test_geolocation.py`, `test_weather.py`
+- [x] All US-series integration tests pass: `test_us042` through `test_us045`, `test_us055` through `test_us057`, `test_us078` through `test_us092`
+- [x] All `test_integrations_*.py` files pass
+- [x] External services are mocked (no real API calls)
+- [x] Ruff check passes on all modified files
 
 ---
 
