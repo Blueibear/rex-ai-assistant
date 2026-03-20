@@ -277,11 +277,11 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] For each high-priority uncovered module (up to 10 modules), create a test file in `tests/` following the existing naming convention `test_<module_name>.py`
-- [ ] Each test file must include at minimum: an import test (module loads without error), and 2-3 tests exercising core functions with mocked dependencies
-- [ ] Tests must not require real external services, hardware, or API keys
-- [ ] All new tests pass: `pytest -q tests/test_<new_file>.py`
-- [ ] Ruff check and black formatting pass on all new files
+- [x] For each high-priority uncovered module (up to 10 modules), create a test file in `tests/` following the existing naming convention `test_<module_name>.py`
+- [x] Each test file must include at minimum: an import test (module loads without error), and 2-3 tests exercising core functions with mocked dependencies
+- [x] Tests must not require real external services, hardware, or API keys
+- [x] All new tests pass: `pytest -q tests/test_<new_file>.py`
+- [x] Ruff check and black formatting pass on all new files
 
 ---
 
