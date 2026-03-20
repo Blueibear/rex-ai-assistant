@@ -1,0 +1,22 @@
+# Progress Log
+
+## Learnings
+(Patterns discovered during implementation)
+
+- The venv is at `.venv/Scripts/` (Windows). Use `.venv/Scripts/python.exe` and `.venv/Scripts/pip.exe` for all commands.
+- Rex imports with a harmless legacy env var warning about REX_ACTIVE_USER; not an error.
+- 5751 tests collected across the suite.
+- Optional dependencies NOT installed: torch, transformers, TTS, sounddevice, soundfile, openai-whisper, openwakeword.
+- `python --version` at shell level returns 3.11.8, same as venv.
+
+---
+
+## Iteration 1 - US-001: Environment Setup and Dependency Validation
+- What was implemented: Verified venv exists (.venv/Scripts/), installed rex with dev extras, ran doctor.py, confirmed `import rex` works, collected 5751 tests, documented env in test-audit-env.txt
+- Files changed: test-audit-env.txt (created), PRD-full-test-and-fix.md (marked US-001 complete)
+- Learnings for future iterations:
+  - Use `.venv/Scripts/python.exe` / `.venv/Scripts/pip.exe` for all commands on Windows
+  - Doctor reports "all good" - environment is healthy
+  - 5751 tests collected
+  - ML/audio extras not installed; tests for those must use pytest.importorskip() or mocks
+---
