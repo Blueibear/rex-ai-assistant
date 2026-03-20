@@ -20,8 +20,7 @@ def _write_plugin(directory, name: str, plugin_name: str = "") -> None:
     """Write a minimal plugin file to *directory*."""
     resolved_name = plugin_name or name
     (directory / f"{name}.py").write_text(
-        textwrap.dedent(
-            f"""
+        textwrap.dedent(f"""
             class {name.capitalize()}Plugin:
                 name = "{resolved_name}"
                 version = "1.0"
@@ -38,8 +37,7 @@ def _write_plugin(directory, name: str, plugin_name: str = "") -> None:
 
             def register():
                 return {name.capitalize()}Plugin()
-            """
-        ),
+            """),
         encoding="utf-8",
     )
 
@@ -191,8 +189,7 @@ def test_plugin_initialize_called_on_load(tmp_path, monkeypatch):
     plugin_dir = tmp_path / "plugins"
     plugin_dir.mkdir()
     (plugin_dir / "tracked.py").write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             class TrackedPlugin:
                 name = "tracked"
                 initialized = False
@@ -208,8 +205,7 @@ def test_plugin_initialize_called_on_load(tmp_path, monkeypatch):
 
             def register():
                 return TrackedPlugin()
-            """
-        ),
+            """),
         encoding="utf-8",
     )
 
