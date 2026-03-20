@@ -149,3 +149,5 @@ Rex_Settings_Reference.xlsx
 ~$*.xlsx
 *.tsbuildinfo
 .claude/worktrees/
+
+data/reminders/
