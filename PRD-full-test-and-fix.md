@@ -56,12 +56,12 @@ Rex AI Assistant has accumulated ~108 source modules, ~290 test files, and numer
 
 **Acceptance Criteria:**
 
-- [ ] Run `ruff check rex/ tests/ *.py scripts/ utils/ plugins/` capturing all errors
-- [ ] Triage errors into auto-fixable vs. manual-fix categories
-- [ ] Run `ruff check --fix` on auto-fixable errors
-- [ ] Manually fix remaining errors (unused imports, undefined names, syntax issues)
-- [ ] Do NOT change program behavior to satisfy lint; if a lint rule conflicts with correctness, add a `# noqa` with explanation
-- [ ] Final `ruff check rex/ tests/ *.py scripts/ utils/ plugins/` reports zero errors
+- [x] Run `ruff check rex/ tests/ *.py scripts/ utils/ plugins/` capturing all errors
+- [x] Triage errors into auto-fixable vs. manual-fix categories
+- [x] Run `ruff check --fix` on auto-fixable errors
+- [x] Manually fix remaining errors (unused imports, undefined names, syntax issues)
+- [x] Do NOT change program behavior to satisfy lint; if a lint rule conflicts with correctness, add a `# noqa` with explanation
+- [x] Final `ruff check rex/ tests/ *.py scripts/ utils/ plugins/` reports zero errors
 
 ---
 

@@ -62,7 +62,7 @@ def main():
             successes.append(mod)
             print(f"  OK    {mod}")
 
-    print(f"\n\n=== SUMMARY ===")
+    print("\n\n=== SUMMARY ===")
     print(f"Total modules: {len(modules)}")
     print(f"OK: {len(successes)}")
     print(f"FAILED: {len(failures)}")
