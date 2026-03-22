@@ -1,3 +1,56 @@
+## Iteration 42 - US-P4-006: Register policy-gated tools batch
+- Created `rex/openclaw/tools/email_tool.py` (send_email → EmailService.send)
+- Created `rex/openclaw/tools/sms_tool.py` (send_sms → SMSService.send via Message)
+- Created `rex/openclaw/tools/calendar_tool.py` (calendar_create → CalendarService.create_event with ISO string parsing)
+- Added `register_policy_gated_tools(agent=None) → dict` to ToolBridge
+  - Returns dict with send_email, send_sms, calendar_create keys
+  - Imports _register_send_email, _register_send_sms, _register_calendar_create at module level
+- Created `tests/test_openclaw_policy_gated_tools.py` with 26 tests across 5 classes
+  - TestEmailTool (5): import, constants, send delegates to service, to-list, context ignored, register stub
+  - TestSmsTool (5): import, constants, calls service, Message to/body correct, context ignored, register stub
+  - TestCalendarTool (6): import, constants, delegates to service, datetime objects, naive string→UTC, optional fields, register stub
+  - TestRegisterPolicyGatedTools (6): returns dict, has keys, no extra keys, calls each fn, forwards agent, none values without openclaw
+- 242 total openclaw tests pass; no regressions
+- Files changed: rex/openclaw/tools/email_tool.py, rex/openclaw/tools/sms_tool.py, rex/openclaw/tools/calendar_tool.py, rex/openclaw/tool_bridge.py, tests/test_openclaw_policy_gated_tools.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - Message model requires `channel` and `from_` (alias "from") — must pass `channel="sms"` and `**{"from": ""}` since from_ is required but SMSService overrides empty from_ with its configured from_number
+  - Policy-gated tool callables do NOT call tool_router (tool_router doesn't implement send_email/calendar_create); they call the actual services directly
+  - TOOL_NAME = "send_email" / "send_sms" / "calendar_create" — use short names matching the style of existing tools
+  - _parse_dt() helper handles both ISO strings and datetime objects; adds UTC tzinfo to naive datetimes
+  - US-P4-007 should test ApprovalRequiredError/PolicyDeniedError raised when calling these tools through PolicyAdapter without skip_policy_check
+---
+
+## Iteration 41 - US-P4-005: Test simple tools through OpenClaw
+- Created `tests/test_openclaw_simple_tools_e2e.py` with 18 tests across 4 classes
+  - TestRegisterThenExerciseTimeTool (3): register_simple_tools returns handle dict; time_now and weather_now callable after register
+  - TestTimeNowThroughBridge (7): returns dict, contains local_time/date/timezone, location arg forwarded, real call returns dict, real call returns time keys or error
+  - TestWeatherNowThroughBridge (5): returns dict, success structure, location arg forwarded, real call with skip_credential_check=True returns dict or error
+  - TestSimpleToolsViaRouteIfToolRequest (3): time_now routed + model re-called, weather_now routed + model re-called, non-tool text unchanged
+- 216 total openclaw tests pass; no regressions
+- Files changed: tests/test_openclaw_simple_tools_e2e.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - `route_if_tool_request` delegates to `rex.tool_router.route_if_tool_request` which calls `rex.tool_router.execute_tool` internally — patch `rex.tool_router.execute_tool` (not `rex.openclaw.tool_bridge._execute_tool`) when testing route_if_tool_request end-to-end
+  - weather_now raises `CredentialMissingError` when `skip_credential_check=False` and no API key — real weather tests need `skip_credential_check=True`
+  - US-P4-006 should register policy-gated tools (send_email, calendar_create) via bridge
+---
+
+## Iteration 40 - US-P4-004: Register simple read-only tools batch
+- Added `register_simple_tools(agent=None) -> dict` to `ToolBridge`
+- Imports `_register_time_now` and `_register_weather_now` at module level (patchable)
+- Returns dict mapping tool name → registration handle; geolocation not in tool_router so documented as gap
+- Created `tests/test_openclaw_tool_bridge_register.py` with 11 tests
+  - Returns dict, has time_now/weather_now keys, no extra keys
+  - Calls each register fn, forwards agent arg, stores returned handles
+  - no_agent uses None default, returns None values without openclaw
+- 198 total openclaw tests pass; no regressions
+- Files changed: rex/openclaw/tool_bridge.py, tests/test_openclaw_tool_bridge_register.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - Import individual register fns at module level to enable patching: `from rex.openclaw.tools.time_tool import register as _register_time_now`
+  - Patch target: `rex.openclaw.tool_bridge._register_time_now` (not tool_tool.register)
+  - geolocation is not in tool_router supported_tools; embedded in time_now/weather_now fallback — no standalone tool needed
+  - US-P4-005 should test the simple tools through OpenClaw agent (call register_simple_tools then exercise tools)
+---
+
 ## Iteration 39 - US-P4-003: Create tool bridge
 - Created `rex/openclaw/tool_bridge.py` with `ToolBridge` class implementing `ToolRoutingProtocol`
 - Delegates: parse_tool_request → _parse_tool_request, execute_tool → _execute_tool, route_if_tool_request → _route_if_tool_request

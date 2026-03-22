@@ -34,6 +34,9 @@ import logging
 from importlib.util import find_spec
 from typing import Any, Callable
 
+from rex.openclaw.tools.calendar_tool import register as _register_calendar_create
+from rex.openclaw.tools.email_tool import register as _register_send_email
+from rex.openclaw.tools.sms_tool import register as _register_send_sms
 from rex.openclaw.tools.time_tool import register as _register_time_now
 from rex.openclaw.tools.weather_tool import register as _register_weather_now
 from rex.tool_router import (
@@ -185,6 +188,34 @@ class ToolBridge:
         return {
             "time_now": _register_time_now(agent=agent),
             "weather_now": _register_weather_now(agent=agent),
+        }
+
+    def register_policy_gated_tools(self, agent: Any = None) -> dict[str, Any]:
+        """Register the policy-gated tools batch with OpenClaw.
+
+        Calls :func:`register` on each tool in the *policy-gated* batch:
+
+        * ``send_email`` — send an email via Rex's EmailService (MEDIUM risk)
+        * ``send_sms`` — send an SMS via Rex's SMSService (MEDIUM risk)
+        * ``calendar_create`` — create a calendar event via Rex's CalendarService (MEDIUM risk)
+
+        These tools require policy approval before execution in normal
+        operation.  The approval flow is enforced by the PolicyAdapter
+        (see :mod:`rex.openclaw.policy_adapter`), not by the tool callables
+        themselves.
+
+        Args:
+            agent: Optional OpenClaw agent handle forwarded to each
+                individual tool's :func:`register` call.
+
+        Returns:
+            A dict mapping tool name to the registration handle returned by
+            each tool (``None`` when OpenClaw is not installed).
+        """
+        return {
+            "send_email": _register_send_email(agent=agent),
+            "send_sms": _register_send_sms(agent=agent),
+            "calendar_create": _register_calendar_create(agent=agent),
         }
 
     def register(self, agent: Any = None) -> Any:

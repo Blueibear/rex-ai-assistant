@@ -876,8 +876,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P4-006: Register policy-gated tools batch**
-- [ ] Register `send_email`, `send_sms`, `calendar_create` via bridge
-- [ ] Tests pass
+- [x] Register `send_email`, `send_sms`, `calendar_create` via bridge
+- [x] Tests pass
 
 **US-P4-007: Test policy-gated tools**
 - [ ] Confirm policy gating works for each
