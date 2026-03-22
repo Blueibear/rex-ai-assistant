@@ -966,12 +966,12 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Document
 
 **US-P4-028: Audit workflow.py and workflow_runner.py public API**
-- [ ] List callers
-- [ ] Document
+- [x] List callers
+- [x] Document
 
 **US-P4-029: Map Rex workflows to OpenClaw model**
-- [ ] Document the mapping between Workflow/WorkflowStep and OpenClaw equivalents
-- [ ] Document
+- [x] Document the mapping between Workflow/WorkflowStep and OpenClaw equivalents
+- [x] Document
 
 **US-P4-030: Create workflow bridge**
 - [ ] Create `rex/openclaw/workflow_bridge.py`

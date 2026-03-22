@@ -1,3 +1,12 @@
+## Iteration 56 - US-P4-028 + US-P4-029: Workflow API audit and OpenClaw model mapping
+- Audited rex/workflow.py (668 lines) and rex/workflow_runner.py (864 lines) callers
+- 7 callers: cli.py, executor.py, autonomy_modes.py, planner.py, computers/pc_run_policy.py, openclaw/approval_adapter.py (already bridged), woocommerce/write_policy.py
+- Mapped Rex workflow concepts to OpenClaw equivalents: 8 Rex-specific features (preconditions, postconditions, idempotency, dry-run, persistence, policy hooks, approval gate) have no direct OpenClaw equivalent → all must be preserved in WorkflowBridge
+- Key decision: WorkflowRunner must be wrapped (not replaced) — it holds all Rex-specific execution semantics
+- Approval gate already bridged via ApprovalAdapter (US-P3) — WorkflowBridge reuses it
+- Files changed: docs/openclaw-migration-status.md, PRD-openclaw-pivot-for-rex.md, progress-openclaw-pivot-for-rex.txt
+---
+
 ## Iteration 55 - US-P4-022 through US-P4-027: Browser bridge implementation
 - Created `rex/openclaw/browser_bridge.py` (BrowserBridge, ~140 lines)
   - Implements BrowserAutomationProtocol structurally

@@ -38,8 +38,8 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/executor.py` | Replace | Pending | Task execution engine. Replaced by OpenClaw task execution via workflow bridge. |
 | `rex/event_bus.py` | Replace | Audited (US-P4-014) | Pub-sub event system (436 lines). Dual API (simple + rich) must be preserved in bridge. 10 Rex-specific event types; 0 framework-level. Wildcard subscriber requires full fan-out in bridge. See audit notes below. |
 | `rex/computers/` | Replace | Pending | Windows agent server/client (~400 lines, 5 files). Replace with OpenClaw workspace/agent model. |
-| `rex/workflow.py` | Wrap | Pending | Workflow data models (668 lines). Rex-specific definitions. Models translate to OpenClaw skill/task definitions; bridge translates at execution time. |
-| `rex/workflow_runner.py` | Wrap | Pending | Workflow execution (864 lines). Has Rex policy hooks. Bridge preserves policy gating; Rex policy is authority. |
+| `rex/workflow.py` | Wrap | Audited (US-P4-028) | Workflow data models (668 lines). Rex-specific definitions. 7 callers. Models translate to OpenClaw skill/task definitions; bridge translates at execution time. See audit notes below. |
+| `rex/workflow_runner.py` | Wrap | Audited (US-P4-028) | Workflow execution (864 lines). Has Rex policy hooks. 3 callers (cli, executor, approval_adapter). Bridge preserves policy gating; Rex policy is authority. See audit notes below. |
 | `rex/autonomy/__init__.py` | Wrap | Pending | Autonomy package init. Wraps OpenClaw multi-agent primitives. |
 | `rex/autonomy/runner.py` | Wrap | Pending | Autonomy runner. High-level planning logic wraps OpenClaw primitives. Keep Rex's goal decomposition and replanning. |
 | `rex/autonomy/llm_planner.py` | Wrap | Pending | LLM-based planner. Preserved; wraps OpenClaw. |
@@ -670,3 +670,51 @@ Only 2 production callers. No other rex/* modules import browser_automation dire
 | `run_browser_script` step format translation | Rex JSON step format (`navigate`, `click`, `type`, `login`, `screenshot`, `wait`, `download`) is Rex-specific. OpenClaw browser API shape is unknown. | Medium | Map once OpenClaw browser control API is confirmed (PRD §8.5) |
 | `BrowserAutomationService` session storage | `data/browser_sessions/` directory management is Rex-specific. OpenClaw may have its own session storage. | Low | Evaluate at retirement time |
 | `reset_browser_service()` | Module-level singleton reset utility. Not bridged. Used in tests only. | Low | Not needed during migration; delete at retirement |
+
+---
+
+### Audit Notes: rex/workflow.py and rex/workflow_runner.py (US-P4-028)
+
+**Module overview:**
+- `rex/workflow.py` (668 lines): Data models — `Workflow`, `WorkflowStep`, `WorkflowApproval`, `StepResult`. Pydantic v2. Persists to `data/workflows/{id}.json`. OPENCLAW-WRAP.
+- `rex/workflow_runner.py` (864 lines): Execution engine — `WorkflowRunner`, `approve_workflow`, `deny_workflow`, `list_pending_approvals`. Policy-gated, approval-aware, idempotent, dry-run capable. OPENCLAW-WRAP.
+
+**Callers of workflow.py public API (production code only):**
+
+| File | What it imports/uses | Usage context |
+|------|---------------------|---------------|
+| `rex/cli.py` | `Workflow`, `WorkflowRunner`, `approve_workflow`, `deny_workflow`, `list_pending_approvals`, `WorkflowApproval` | `cmd_run_workflow` (runs workflow from JSON), approval subcommands |
+| `rex/executor.py` | `Workflow`, `WorkflowStep`, `StepResult`, `WorkflowRunner`, `RunResult` | `Executor` wraps `WorkflowRunner`; used by autonomy system |
+| `rex/autonomy_modes.py` | `Workflow` | Creates workflow objects for autonomy tasks |
+| `rex/planner.py` | `Workflow`, `WorkflowStep`, `generate_step_id`, `generate_workflow_id` | Creates workflows from plans |
+| `rex/computers/pc_run_policy.py` | `WorkflowApproval`, `DEFAULT_APPROVAL_DIR`, `generate_approval_id` | PC agent approval creation |
+| `rex/openclaw/approval_adapter.py` | `WorkflowApproval`, `DEFAULT_APPROVAL_DIR`, `generate_approval_id`, `approve_workflow`, `deny_workflow`, `list_pending_approvals` | Already bridged (Phase 3, US-P3) |
+| `rex/woocommerce/write_policy.py` | `WorkflowApproval`, `DEFAULT_APPROVAL_DIR`, `generate_approval_id` | WooCommerce write operation approvals |
+
+---
+
+### Audit Notes: Rex workflow → OpenClaw model mapping (US-P4-029)
+
+**Rex concept → OpenClaw equivalent:**
+
+| Rex concept | Rex class/field | OpenClaw equivalent | Notes |
+|-------------|----------------|---------------------|-------|
+| Workflow | `Workflow` (Pydantic model) | OpenClaw Task/Plan (TBD) | Workflow = ordered sequence of tool calls with policy gating |
+| Workflow step | `WorkflowStep` | OpenClaw Task step / skill invocation (TBD) | Each step wraps a `ToolCall` (tool name + args) |
+| Step result | `StepResult` | OpenClaw step result (TBD) | `success`, `output`, `error`, `skipped`, `skip_reason` |
+| Precondition | `WorkflowStep.precondition` (str fn name) | No direct equivalent | Rex-specific: callable resolved from registry. Bridge must preserve. |
+| Postcondition | `WorkflowStep.postcondition` (str fn name) | No direct equivalent | Rex-specific: result validator. Bridge must preserve. |
+| Idempotency key | `WorkflowStep.idempotency_key` | No direct equivalent | Rex-specific: skip already-executed steps. Bridge must preserve. |
+| Approval gate | `WorkflowStep.requires_approval`, `WorkflowApproval` | OpenClaw approval mechanism (TBD) | Already bridged via `ApprovalAdapter` (US-P3). |
+| Policy check | `WorkflowRunner` consults `PolicyEngine` before each step | OpenClaw policy (TBD) | Rex `PolicyEngine` is authority; bridge must not bypass. |
+| Persistence | `data/workflows/{id}.json` | OpenClaw state store (TBD) | Rex-specific disk persistence. Bridge should preserve during migration. |
+| Dry run | `WorkflowRunner(dry_run=True)` | No direct equivalent | Rex-specific: previews actions without executing. Preserve. |
+| Tool execution | `WorkflowRunner` calls tool_router per step | Via ToolBridge (bridged in US-P4) | ToolBridge already routes tool calls. |
+
+**Key design decisions for US-P4-030 WorkflowBridge:**
+- `WorkflowRunner` must be wrapped, not replaced — policy hooks, idempotency, preconditions, and persistence are all Rex-specific
+- Bridge receives a `Workflow` object and delegates execution to `WorkflowRunner`
+- `WorkflowRunner` must continue using Rex `PolicyEngine` as authority
+- Approval flow already bridges via `ApprovalAdapter` — WorkflowBridge reuses it
+- Dry-run mode must be preserved through the bridge
+- Persistence path (`data/workflows/`) stays Rex-owned during migration
