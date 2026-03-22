@@ -49,6 +49,20 @@
 - Tests pass (exit 0)
 ---
 
+## Iteration 10 - US-P2-002: Create OpenClaw agent registration module
+- Created `rex/openclaw/agent.py` with `RexAgent` class
+- `respond(prompt)` calls `LanguageModel.generate(messages=[system, user])` with Rex persona system prompt
+- `register()` is a documented stub guarded by `find_spec("openclaw")` — no-op + warning when openclaw not installed
+- `OPENCLAW_AVAILABLE` module-level flag follows same find_spec pattern as browser_automation.py (playwright) and llm_client.py
+- Lazy LLM property instantiation avoids loading model weights at import time
+- openclaw package is not installed; open dependency per PRD §8.3
+- Tests pass (exit 0)
+- Learnings:
+  - When OpenClaw API is unknown, implement the class with a documented TODO stub for the registration call
+  - find_spec guard makes the module importable without openclaw installed
+  - System prompt must be injected at the `messages` level (not as a prepend to the user string) for proper role separation
+---
+
 ## Iteration 9 - US-P2-001: Create rex/openclaw subpackage
 - Created `rex/openclaw/__init__.py` with module docstring
 - Docstring describes the subpackage's role and lists expected submodules (agent, config, session, tools) as future additions
