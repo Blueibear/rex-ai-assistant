@@ -769,9 +769,9 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 ### Phase 3 Tasks (US-P3-001 through US-P3-019)
 
 **US-P3-001: Audit memory.py public API**
-- [ ] List every public function/class in `rex/memory.py`
-- [ ] List every caller (grep for `from rex.memory` and `import rex.memory`)
-- [ ] Document findings in `docs/openclaw-migration-status.md`
+- [x] List every public function/class in `rex/memory.py`
+- [x] List every caller (grep for `from rex.memory` and `import rex.memory`)
+- [x] Document findings in `docs/openclaw-migration-status.md`
 
 **US-P3-002: Create memory adapter**
 - [ ] Create `rex/openclaw/memory_adapter.py`

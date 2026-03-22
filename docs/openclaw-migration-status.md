@@ -60,8 +60,8 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/wordpress/` | Keep | Pending | WordPress client (3 files). Register as OpenClaw skill in Phase 5. |
 | `rex/woocommerce/` | Keep | Pending | WooCommerce client with write policy (4 files). Register as OpenClaw skill in Phase 5. Write policy preserved. |
 | `rex/plex_client.py` | Keep | Pending | Plex media control. Register as OpenClaw skill in Phase 5. |
-| `rex/memory.py` | Keep + Adapt | Pending | Conversation memory (650 lines). Adapter stores via OpenClaw if available, falls back to file storage. |
-| `rex/memory_utils.py` | Keep | Pending | Memory helpers (350 lines). Stays with memory.py. |
+| `rex/memory.py` | Keep + Adapt | Audited (US-P3-001) | See audit notes below. |
+| `rex/memory_utils.py` | Keep | Pending | Memory helpers. Re-exported via memory.py. Stays with memory.py. |
 | `rex/llm_client.py` | Keep | Pending | Multi-provider LLM client. Orthogonal to migration. Not in scope. |
 | `rex/config.py` | Keep | Pending | Pydantic settings (600 lines). Add OpenClaw-specific fields as needed. |
 | `rex/cli.py` | Keep + Update | Pending | CLI (4941 lines). Update imports as modules are retired. Do not rewrite. One command at a time. |
@@ -73,3 +73,69 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/calendar_backends/` | Keep | Pending | Calendar integrations (~500 lines). Rex-specific. Register as OpenClaw skill. |
 | `rex/calendar_service.py` | Keep | Pending | Calendar orchestration (700 lines). Register as OpenClaw skill. |
 | `rex/audit.py` | Keep | Pending | Audit logging. Security-critical. Stays; may also feed into OpenClaw's audit if available. |
+
+---
+
+## Audit Notes
+
+### rex/memory.py — US-P3-001
+
+**Public API (`__all__`):**
+
+Conversation history (re-exported from `rex.memory_utils`):
+- `trim_history(history, limit)` — trim conversation list to limit
+- `append_history_entry(user_id, role, content)` — append turn to file-based history
+- `load_recent_history(user_id, n)` — load N recent turns from file
+- `export_transcript(user_id, output_path)` — export history to text file
+- `load_memory_profile(user_id)` — load user profile dict from JSON
+- `load_all_profiles()` — load all user profiles
+- `load_users_map()` — load user-id→name mapping
+- `resolve_user_key(user_id)` — normalise user key
+- `extract_voice_reference(text)` — extract name/pronoun references from transcript
+
+Working memory (singleton, short-term, disk-backed):
+- `WorkingMemory` — class: `add_entry`, `get_recent`, `get_recent_with_timestamps`, `clear`, `stats`
+- `get_working_memory()` — global singleton getter
+- `set_working_memory(wm)` — global singleton setter (for testing)
+
+Long-term memory (structured, expiry-aware, disk-backed):
+- `MemoryEntry` — Pydantic model: `is_expired()`, `to_safe_dict()`
+- `LongTermMemory` — class: `add_entry`, `get_entry`, `search`, `forget`, `run_retention_policy`, `compact`, `list_categories`, `count_by_category`, `stats`
+- `get_long_term_memory()` — global singleton getter
+- `set_long_term_memory(ltm)` — global singleton setter (for testing)
+
+Convenience functions:
+- `add_user_preference(key, value, expires_in, sensitive)`
+- `get_user_preferences(key)`
+- `add_fact(topic, content, expires_in)`
+- `remember_context(summary)`
+- `get_recent_context(n)`
+- `schedule_memory_cleanup(scheduler, interval_seconds, job_id)`
+
+**Callers (by import pattern):**
+
+| File | What it uses |
+|------|-------------|
+| `rex/assistant.py` | `trim_history` (via `from .memory import`) |
+| `rex/app.py` | `get_long_term_memory`, `get_working_memory` |
+| `rex/cli.py` | `get_long_term_memory`, `get_working_memory` (lazy import in command) |
+| `rex_memories_bridge.py` | `get_long_term_memory` (lazy imports inside functions) |
+| `voice_loop.py` | uses `rex.memory_utils` directly (not rex.memory) |
+| `rex_speak_api.py` | uses `rex.memory_utils` directly (not rex.memory) |
+| Tests | `WorkingMemory`, `LongTermMemory`, convenience functions |
+
+**Classification for OpenClaw adapter:**
+
+| API group | Rex-specific? | Adapter priority |
+|-----------|--------------|-----------------|
+| `trim_history`, `append_history_entry`, `load_recent_history` | Rex-specific (file-based) | High — used by assistant.py voice path |
+| `WorkingMemory` / `get_working_memory` | Generic pattern, Rex impl | Medium — used by app.py and cli.py |
+| `LongTermMemory` / `get_long_term_memory` | Generic pattern, Rex impl | Medium — used by app.py, cli.py, memories bridge |
+| `load_memory_profile`, `load_users_map` etc | Rex-specific (file-based) | Low — identity/profile concern, not conversation |
+| `schedule_memory_cleanup` | Rex-specific (scheduler API) | Low — utility, not core path |
+
+**Key findings:**
+- `trim_history` is the most critical caller path (assistant.py → voice loop)
+- `WorkingMemory` and `LongTermMemory` use file-based persistence (`data/memory/`)
+- OpenClaw adapter should delegate to these classes and add a future hook for OpenClaw storage
+- No callers import `MemoryEntry` directly except tests — safe to wrap transparently
