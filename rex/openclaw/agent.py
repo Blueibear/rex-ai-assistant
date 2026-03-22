@@ -28,7 +28,7 @@ import logging
 from importlib.util import find_spec
 from typing import Any
 
-from rex.config import AppConfig
+from rex.config import AppConfig, load_config
 from rex.llm_client import LanguageModel
 from rex.openclaw.memory_adapter import MemoryAdapter
 from rex.openclaw.policy_adapter import PolicyAdapter
@@ -81,16 +81,26 @@ class RexAgent:
         agent_name: str | None = None,
         system_prompt: str | None = None,
         config: AppConfig | None = None,
+        profile_name: str | None = None,
         memory_adapter: MemoryAdapter | None = None,
         policy_adapter: PolicyAdapter | None = None,
     ) -> None:
         self._llm = llm
         # Derive agent name and persona from Rex config when not supplied.
-        from rex.openclaw.config import build_agent_config, build_system_prompt
+        from rex.openclaw.config import (
+            apply_profile_to_config,
+            build_agent_config,
+            build_system_prompt,
+        )
 
-        _cfg = build_agent_config(config)
+        _base_config = config or load_config()
+        # Apply a named profile if requested — updates capabilities and active_profile.
+        if profile_name is not None:
+            _base_config = apply_profile_to_config(_base_config, profile_name)
+
+        _cfg = build_agent_config(_base_config)
         self.agent_name = agent_name or _cfg.get("agent_name", "Rex")
-        self.system_prompt = system_prompt or build_system_prompt(config)
+        self.system_prompt = system_prompt or build_system_prompt(_base_config)
         self._registered = False
         self._memory = memory_adapter or MemoryAdapter()
         self._policy = policy_adapter or PolicyAdapter()

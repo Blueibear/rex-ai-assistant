@@ -836,8 +836,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Document in migration status
 
 **US-P3-016: Wire profile manager into OpenClaw agent**
-- [ ] Profiles affect persona/behavior within OpenClaw session
-- [ ] Tests pass
+- [x] Profiles affect persona/behavior within OpenClaw session
+- [x] Tests pass
 
 **US-P3-017: Audit approval system**
 - [ ] List every module that creates/checks approvals in `data/approvals/`

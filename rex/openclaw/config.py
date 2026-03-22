@@ -17,9 +17,11 @@ Typical usage::
 
 from __future__ import annotations
 
+import dataclasses
 from typing import Any, Optional
 
 from rex.config import AppConfig, load_config
+from rex.profile_manager import DEFAULT_PROFILES_DIR, load_profile
 
 
 def build_system_prompt(config: Optional[AppConfig] = None) -> str:
@@ -57,6 +59,42 @@ def build_system_prompt(config: Optional[AppConfig] = None) -> str:
         parts.append(f"Your capabilities include: {caps}.")
 
     return " ".join(parts)
+
+
+def apply_profile_to_config(
+    config: AppConfig,
+    profile_name: str,
+    profiles_dir: str = DEFAULT_PROFILES_DIR,
+) -> AppConfig:
+    """Apply a named Rex profile to an ``AppConfig`` and return a new instance.
+
+    Loads *profile_name* from *profiles_dir*, replaces the ``capabilities``
+    list wholesale (as :func:`rex.profile_manager.apply_profile` specifies),
+    and sets ``active_profile`` to *profile_name*.  All other ``AppConfig``
+    fields are preserved unchanged.
+
+    Args:
+        config: Base ``AppConfig`` instance to apply the profile to.
+        profile_name: Name of the profile (without ``.json`` extension) to
+            load from *profiles_dir*.
+        profiles_dir: Directory that contains ``<name>.json`` profile files.
+            Defaults to ``"profiles"``.
+
+    Returns:
+        A new ``AppConfig`` with ``capabilities`` and ``active_profile``
+        updated from the loaded profile.
+
+    Raises:
+        FileNotFoundError: If the profile file does not exist.
+        ValueError: If the profile fails schema validation.
+    """
+    profile = load_profile(profile_name, profiles_dir)
+    capabilities: list[str] = [c for c in profile.get("capabilities", []) if c]
+    return dataclasses.replace(
+        config,
+        capabilities=capabilities,
+        active_profile=profile_name,
+    )
 
 
 def build_agent_config(config: Optional[AppConfig] = None) -> dict[str, Any]:
