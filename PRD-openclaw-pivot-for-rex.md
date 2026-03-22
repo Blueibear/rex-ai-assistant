@@ -896,8 +896,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P4-011: Update assistant.py to use tool bridge with feature flag**
-- [ ] When flag enabled, use bridge; otherwise use old `tool_router`
-- [ ] Tests pass
+- [x] When flag enabled, use bridge; otherwise use old `tool_router`
+- [x] Tests pass
 
 **US-P4-012: Test assistant with both tool paths**
 - [ ] Confirm parity between old and new

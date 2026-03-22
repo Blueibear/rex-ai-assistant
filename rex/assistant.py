@@ -16,7 +16,7 @@ from .ha_bridge import HABridge
 from .llm_client import LanguageModel
 from .memory import trim_history
 from .plugins import PluginSpec
-from .tool_router import route_if_tool_request
+from .tool_router import route_if_tool_request as _legacy_route_if_tool_request
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +54,14 @@ class Assistant:
         self._pending_followup: str | None = None
         self._followup_injected = False
         self._init_followup_engine()
+
+        # Select tool routing function based on feature flag
+        if getattr(self._settings, "use_openclaw_tools", False):
+            from .openclaw.tool_bridge import ToolBridge
+
+            self._tool_router_fn = ToolBridge().route_if_tool_request
+        else:
+            self._tool_router_fn = _legacy_route_if_tool_request
 
         # Only create HABridge if HA is configured
         self._ha_bridge: HABridge | None = None
@@ -186,7 +194,7 @@ class Assistant:
             completion = await loop.run_in_executor(None, self._llm.generate, prompt)
             completion = await loop.run_in_executor(
                 None,
-                route_if_tool_request,
+                self._tool_router_fn,
                 completion,
                 self._build_tool_context(),
                 self._build_tool_model_call(transcript),
