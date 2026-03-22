@@ -1,3 +1,104 @@
+## Iteration 35 - US-P3-018: Create approval adapter
+- Created `rex/openclaw/approval_adapter.py` with `ApprovalAdapter` class
+- Methods: create(workflow_id, step_id, ...) → persists new WorkflowApproval; load(approval_id); approve(approval_id); deny(approval_id); list_pending()
+- All delegation: create/load → WorkflowApproval.save/load; approve/deny/list_pending → workflow_runner helpers
+- Same OPENCLAW_AVAILABLE guard + register() stub pattern as PolicyAdapter and IdentityAdapter
+- approval_dir injectable on constructor (defaults to DEFAULT_APPROVAL_DIR) for test isolation
+- 97 existing openclaw tests pass; module imports cleanly
+- Files changed: rex/openclaw/approval_adapter.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - approve_workflow/deny_workflow/list_pending_approvals all accept approval_dir kwarg — adapter passes its injected path through
+  - WorkflowApproval.load() returns None if file not found — adapter exposes this directly
+  - US-P3-019 tests: create → list_pending sees it → approve/deny → reload shows updated status
+---
+
+## Iteration 34 - US-P3-017: Audit approval system
+- Read `rex/workflow.py` (WorkflowApproval model, DEFAULT_APPROVAL_DIR, generate_approval_id, save/load)
+- Read `rex/workflow_runner.py` (_make_approval, resume_after_approval, approve_workflow, deny_workflow, list_pending_approvals, ApprovalBlockedError)
+- Read `rex/executor.py` (passes approval_dir through; surfaces blocking_approval_id in result)
+- Read `rex/computers/pc_run_policy.py` (creates approvals for pc_run using WorkflowApproval with sentinel workflow_id)
+- Read `rex/woocommerce/write_policy.py` (creates approvals for WC write actions using same pattern)
+- Read `rex/cli.py` cmd_approvals (user-facing list/approve/deny/show)
+- Read `rex/tool_router.py` (raises ApprovalRequiredError in-memory only — does NOT write files)
+- Appended full audit notes to `docs/openclaw-migration-status.md`
+- 76 openclaw tests pass; no regressions
+- Files changed: docs/openclaw-migration-status.md, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - `WorkflowApproval` in `rex/workflow.py` is the single approval record type; all producers and consumers use it
+  - Three approval producers: `workflow_runner._make_approval()`, `pc_run_policy.check_pc_run_policy()`, `woocommerce/write_policy.check_wc_write_policy()`
+  - `tool_router.py` raises `ApprovalRequiredError` in-memory; the CALLER (workflow_runner) writes the file
+  - Non-workflow callers (pc_run, woocommerce) use deterministic step_id (SHA-256) so re-runs find the same record
+  - US-P3-018 `ApprovalAdapter` should wrap: `WorkflowApproval.save/load`, `approve_workflow`, `deny_workflow`, `list_pending_approvals`
+---
+
+## Iteration 33 - US-P3-016: Wire profile manager into OpenClaw agent
+- Added `apply_profile_to_config(config, profile_name, profiles_dir)` to `rex/openclaw/config.py`
+  - Uses `dataclasses.replace()` to create a modified AppConfig with updated capabilities and active_profile
+  - Imports `load_profile` from profile_manager; overwrites `capabilities` wholesale (matching apply_profile semantics)
+- Added `profile_name: str | None = None` kwarg to `RexAgent.__init__`
+  - When set, calls `apply_profile_to_config` before `build_agent_config`/`build_system_prompt`
+  - Also imported `load_config` at module level (not lazily) to enable patching in tests
+- Created `tests/test_openclaw_profile.py` with 15 tests across 4 classes
+  - TestApplyProfileToConfig (6): capabilities replaced, active_profile set, new instance, other fields preserved, empty caps, missing profile
+  - TestBuildSystemPromptWithProfile (3): caps in prompt, profile name in prompt, default omitted
+  - TestBuildAgentConfigWithProfile (2): caps in rex_capabilities, active_profile in dict
+  - TestRexAgentProfileName (4): None leaves unchanged, updates prompt caps, updates active_profile, missing raises
+- 113 total openclaw tests pass; no regressions
+- Files changed: rex/openclaw/config.py, rex/openclaw/agent.py, tests/test_openclaw_profile.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - Use `dataclasses.replace(config, field=value)` to get a modified AppConfig copy — clean and type-safe
+  - `apply_profile` replaces capabilities wholesale; overrides use nested JSON structure (not flat AppConfig keys) — only capabilities and active_profile reliably map to AppConfig for persona
+  - Import module-level (not lazy) to enable patching: `from rex.config import load_config` at top of agent.py
+  - Patch `rex.openclaw.config.apply_profile_to_config` (not `rex.openclaw.agent.*`) since it's used via lazy import in __init__
+---
+
+## Iteration 32 - US-P3-015: Audit profile_manager.py public API
+- Read rex/profile_manager.py (97 lines): 3 public functions + 1 constant in __all__
+- Public API: DEFAULT_PROFILES_DIR, load_profile(name, profiles_dir), apply_profile(base_config, profile), get_active_profile_name(config)
+- Merge behavior: apply_profile() deep-merges profile["overrides"] dict into base_config; capabilities list is wholesale-replaced (not merged)
+- Callers: rex/config.py (lines 235-238, all 3 functions at config load time); tests/test_profile_manager.py only
+- Key finding: profile is baked into AppConfig BEFORE build_agent_config() runs — no direct OpenClaw wiring needed in profile_manager itself
+- US-P3-016 is verifying build_agent_config()/build_system_prompt() reflect profile-applied AppConfig, not adding new profile loading
+- Updated docs/openclaw-migration-status.md: changed status to "Audited (US-P3-015)", appended full audit notes
+- 86 tests pass
+- Files changed: docs/openclaw-migration-status.md, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - apply_profile() replaces capabilities list wholesale — not deep-merged — important distinction
+  - Profile affects AppConfig at construction time; by the time openclaw/config.py runs, profile is already applied
+  - US-P3-016 test: create AppConfig with non-default capabilities, verify build_agent_config() includes them
+---
+
+## Iteration 31 - US-P3-014: Test identity adapter
+- Created `tests/test_openclaw_identity_adapter.py` with 21 tests across 6 classes
+- TestIdentityAdapterInstantiation (4): import, no-args, config dict, OPENCLAW_AVAILABLE flag
+- TestSetAndGetUser (4): set→get propagation, None session, delegation to set/get_session_user
+- TestClearUser (2): delegates to clear_session_user, get returns None after clear
+- TestResolveUser (4): explicit priority, session fallback, None return, config passed through
+- TestBuildSession (5): required keys, set→build propagation, delegation, metadata passthrough, no-user
+- TestRegister (2): returns None when openclaw not installed (with and without agent arg)
+- Patch pattern: `rex.openclaw.identity_adapter.{fn}` for all mocked identity/session functions
+- Files changed: tests/test_openclaw_identity_adapter.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - build_session() passes `config=None` when _config is empty dict (falsy check: `if self._config else None`)
+  - resolve_user() passes `config={}` (empty dict, not None) — always passes _config directly
+  - mock_ctx called with positional explicit_user + keyword config/metadata in build_session delegation
+---
+
+## Iteration 30 - US-P3-013: Create identity adapter
+- Created `rex/openclaw/identity_adapter.py` with `IdentityAdapter` class
+- Methods: get_user() / set_user(id) / clear_user() → delegates to get/set/clear_session_user
+- resolve_user(explicit_user=None) → delegates to resolve_active_user with config fallback
+- build_session(explicit_user, metadata) → delegates to build_session_context from session.py
+- register(agent=None) stub with OPENCLAW_AVAILABLE guard (same pattern as PolicyAdapter)
+- Profile CRUD (create_user_profile, get_user_profile, etc.) NOT wrapped — kept as Rex file ops
+- 61 targeted tests pass (session, agent_basic, memory, policy); module imports cleanly
+- Files changed: rex/openclaw/identity_adapter.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - IdentityAdapter.build_session() returns the same dict as build_session_context()
+  - US-P3-014 tests: set_user() then get_user() + build_session() to verify propagation
+  - Use tmp-based session state override if needed (identity.py reads LOCALAPPDATA/rex-ai/session.json)
+---
+
 ## Iteration 29 - US-P3-012: Audit identity.py public API
 - Read rex/identity.py (322 lines): 9 public functions in __all__
 - Session state (3 fns): get/set/clear_session_user — OS temp file (LOCALAPPDATA\rex-ai\session.json on Windows)

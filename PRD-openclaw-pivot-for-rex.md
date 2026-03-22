@@ -844,9 +844,9 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Document in migration status
 
 **US-P3-018: Create approval adapter**
-- [ ] Create `rex/openclaw/approval_adapter.py`
-- [ ] Bridge file-based approvals to OpenClaw model
-- [ ] Tests pass
+- [x] Create `rex/openclaw/approval_adapter.py`
+- [x] Bridge file-based approvals to OpenClaw model
+- [x] Tests pass
 
 **US-P3-019: Test approval adapter end-to-end**
 - [ ] Test: workflow step requiring approval -> blocks -> approve -> proceeds
