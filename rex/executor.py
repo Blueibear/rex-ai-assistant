@@ -1,3 +1,5 @@
+# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.
+
 """Executor for Rex - runs workflows with budget constraints and evidence collection.
 
 This module implements the Executor class that wraps the WorkflowRunner to add:

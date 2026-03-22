@@ -1,3 +1,5 @@
+# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.
+
 """Messaging service framework for Rex.
 
 This module provides an extensible messaging interface that supports

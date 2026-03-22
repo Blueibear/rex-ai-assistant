@@ -1,3 +1,5 @@
+# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.
+
 """Tool routing for single line tool requests.
 
 All tool calls are evaluated by the policy engine before execution to determine

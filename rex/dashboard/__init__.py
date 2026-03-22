@@ -1,3 +1,5 @@
+# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.
+
 """Rex Dashboard module.
 
 Provides a responsive web dashboard for Rex AI Assistant with:

@@ -677,8 +677,8 @@ As a developer, I need a migration status document so I can track which modules 
 
 **US-P1-002: Add OPENCLAW-REPLACE markers**
 As a developer, I need freeze markers so no new features are added to modules being replaced.
-- [ ] Add `# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.` as the first comment line in: `rex/event_bus.py`, `rex/tool_registry.py`, `rex/tool_router.py`, `rex/plugin_loader.py`, `rex/browser_automation.py`, `rex/dashboard/__init__.py`, `rex/dashboard/routes.py`, `rex/dashboard/sse.py`, `rex/dashboard/auth.py`, `rex/dashboard_store.py`, `rex/messaging_service.py`, `rex/executor.py`
-- [ ] Tests pass unchanged
+- [x] Add `# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.` as the first comment line in: `rex/event_bus.py`, `rex/tool_registry.py`, `rex/tool_router.py`, `rex/plugin_loader.py`, `rex/browser_automation.py`, `rex/dashboard/__init__.py`, `rex/dashboard/routes.py`, `rex/dashboard/sse.py`, `rex/dashboard/auth.py`, `rex/dashboard_store.py`, `rex/messaging_service.py`, `rex/executor.py`
+- [x] Tests pass unchanged
 
 **US-P1-003: Add OPENCLAW-WRAP markers**
 As a developer, I need wrap markers so I know which modules will be adapted rather than replaced.

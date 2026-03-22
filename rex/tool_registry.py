@@ -1,3 +1,5 @@
+# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.
+
 """Tool registry for managing tool metadata and health checks.
 
 This module provides a centralized registry for tools that:

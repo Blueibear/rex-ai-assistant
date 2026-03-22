@@ -1,3 +1,5 @@
+# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.
+
 """Dynamic discovery utilities for Rex plugins."""
 
 from __future__ import annotations

@@ -1,3 +1,5 @@
+# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.
+
 """Server-Sent Events (SSE) broadcaster for dashboard notifications.
 
 Provides an in-process, thread-safe broadcaster that pushes notification

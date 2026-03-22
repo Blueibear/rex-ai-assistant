@@ -1,3 +1,5 @@
+# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.
+
 """Local notification dashboard store using SQLite.
 
 Persists notifications delivered via the ``dashboard`` channel so they can

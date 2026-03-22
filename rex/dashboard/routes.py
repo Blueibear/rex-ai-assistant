@@ -1,3 +1,5 @@
+# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.
+
 """Dashboard routes and API endpoints.
 
 Provides a Flask Blueprint with routes for:

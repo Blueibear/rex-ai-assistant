@@ -1,3 +1,5 @@
+# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.
+
 """Dashboard authentication utilities.
 
 Provides session-based authentication for the dashboard API endpoints.
