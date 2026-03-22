@@ -712,9 +712,9 @@ As a developer, I need a formal interface contract for the dashboard.
 
 **US-P1-008: Extract plugin/tool loading Protocol**
 As a developer, I need a formal interface contract for plugin and tool loading.
-- [ ] Create `rex/contracts/plugins.py`
-- [ ] Define `PluginLoaderProtocol` and `ToolRegistryProtocol`
-- [ ] Tests pass
+- [x] Create `rex/contracts/plugins.py`
+- [x] Define `PluginLoaderProtocol` and `ToolRegistryProtocol`
+- [x] Tests pass
 
 ### Phase 2 Tasks (US-P2-001 through US-P2-010)
 
