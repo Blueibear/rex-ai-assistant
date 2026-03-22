@@ -752,14 +752,14 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P2-008: Smoke test -- basic agent response**
-- [ ] Create `tests/test_openclaw_agent_basic.py`
-- [ ] Test: start agent, send "What time is it?", confirm non-empty response
-- [ ] Tests pass
+- [x] Create `tests/test_openclaw_agent_basic.py`
+- [x] Test: start agent, send "What time is it?", confirm non-empty response
+- [x] Tests pass
 
 **US-P2-009: Smoke test -- persona verification**
-- [ ] Add test in `tests/test_openclaw_agent_basic.py`
-- [ ] Test: send prompt, verify persona markers in response
-- [ ] Tests pass
+- [x] Add test in `tests/test_openclaw_agent_basic.py`
+- [x] Test: send prompt, verify persona markers in response
+- [x] Tests pass
 
 **US-P2-010: Document OpenClaw agent setup**
 - [ ] Create `docs/openclaw-agent-setup.md`
