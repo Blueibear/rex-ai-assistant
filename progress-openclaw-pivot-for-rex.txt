@@ -49,6 +49,16 @@
 - Tests pass (exit 0)
 ---
 
+## Iteration 9 - US-P2-001: Create rex/openclaw subpackage
+- Created `rex/openclaw/__init__.py` with module docstring
+- Docstring describes the subpackage's role and lists expected submodules (agent, config, session, tools) as future additions
+- No submodules auto-imported (avoids side effects at package import time)
+- Tests pass (exit 0)
+- Learnings:
+  - rex/openclaw/ did not exist; had to create both directory and __init__.py
+  - Simple __init__.py with docstring is all that's needed for a skeleton package
+---
+
 ## Iteration 8 - US-P1-008: Extract plugin/tool loading Protocol
 - Created `rex/contracts/plugins.py` with two @runtime_checkable Protocols
 - `PluginLoaderProtocol`: single method — load_plugins(path) -> dict[str, Any]
