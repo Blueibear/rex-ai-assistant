@@ -23,7 +23,7 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | Module | Classification | Status | Notes |
 |--------|----------------|--------|-------|
 | `rex/assistant.py` | Wrap | Pending | Central orchestration hub. Delegate to OpenClaw agent via voice_bridge. Keep as thin coordinator. |
-| `rex/browser_automation.py` | Replace | Audited (US-P4-021) | Generic Playwright wrapper. 2 production callers (rex/cli.py). Login helper needs credential bridge (gap). run_browser_script JSON format is Rex-specific. See audit notes below. |
+| `rex/browser_automation.py` | Replace | Bridged (US-P4-027) | Generic Playwright wrapper. BrowserBridge wraps service. Both cli callers migrated to bridge. Login + step-format gaps remain (backlog). See audit notes below. |
 | `rex/dashboard/__init__.py` | Replace | Pending | Flask dashboard. OpenClaw provides dashboard/UI. Run both in parallel during transition. |
 | `rex/dashboard/routes.py` | Replace | Pending | Dashboard routes. Retires with dashboard. |
 | `rex/dashboard/sse.py` | Replace | Pending | SSE streaming. Retires with dashboard. |
@@ -651,3 +651,22 @@ Only 2 production callers. No other rex/* modules import browser_automation dire
 - `run_browser_script` format is Rex-specific; it will need translation or wrapper.
 - Session lifecycle management (`BrowserAutomationService`) is Rex-specific and should stay.
 - Browser contract (`rex/contracts/browser.py`) is already defined — bridge implementation (US-P4-022) can proceed directly.
+
+---
+
+### Browser migration backlog (US-P4-027)
+
+**Completed during Phase 4:**
+- `BrowserBridge` created (`rex/openclaw/browser_bridge.py`) — implements `BrowserAutomationProtocol`
+- `rex/cli.py:get_browser_service()` updated to return `BrowserBridge()` instead of raw service
+- `rex/cli.py:cmd_browser run` updated to call `bridge.execute_script()` instead of `run_browser_script_sync()`
+- 19 tests cover bridge delegation and auth flow
+
+**Remaining backlog (could not migrate in Phase 4):**
+
+| Item | Reason not migrated | Priority | Notes |
+|------|---------------------|----------|-------|
+| `BrowserSession.login()` credential integration | Depends on Rex credential manager (`rex.credentials`). OpenClaw has no credential bridge yet. | High | Requires credential bridge (future phase) before OpenClaw can own the login flow |
+| `run_browser_script` step format translation | Rex JSON step format (`navigate`, `click`, `type`, `login`, `screenshot`, `wait`, `download`) is Rex-specific. OpenClaw browser API shape is unknown. | Medium | Map once OpenClaw browser control API is confirmed (PRD §8.5) |
+| `BrowserAutomationService` session storage | `data/browser_sessions/` directory management is Rex-specific. OpenClaw may have its own session storage. | Low | Evaluate at retirement time |
+| `reset_browser_service()` | Module-level singleton reset utility. Not bridged. Used in tests only. | Low | Not needed during migration; delete at retirement |

@@ -941,29 +941,29 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Document
 
 **US-P4-022: Create browser bridge**
-- [ ] Create `rex/openclaw/browser_bridge.py` implementing Browser Protocol
-- [ ] Tests pass
+- [x] Create `rex/openclaw/browser_bridge.py` implementing Browser Protocol
+- [x] Tests pass
 
 **US-P4-023: Test simple browser task through OpenClaw**
-- [ ] Navigate to URL, take screenshot
-- [ ] Tests pass
+- [x] Navigate to URL, take screenshot
+- [x] Tests pass
 
 **US-P4-024: Test authenticated browser task**
-- [ ] Login flow through OpenClaw
-- [ ] Document gaps if any
-- [ ] Tests pass
+- [x] Login flow through OpenClaw
+- [x] Document gaps if any
+- [x] Tests pass
 
 **US-P4-025: Update first browser caller to use bridge**
-- [ ] Update, test
-- [ ] Tests pass
+- [x] Update, test
+- [x] Tests pass
 
 **US-P4-026: Update remaining browser callers**
-- [ ] One at a time, test after each
-- [ ] Tests pass
+- [x] One at a time, test after each
+- [x] Tests pass
 
 **US-P4-027: Document browser migration backlog**
-- [ ] List anything that couldn't migrate yet
-- [ ] Document
+- [x] List anything that couldn't migrate yet
+- [x] Document
 
 **US-P4-028: Audit workflow.py and workflow_runner.py public API**
 - [ ] List callers

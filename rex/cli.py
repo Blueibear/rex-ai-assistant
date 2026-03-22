@@ -47,9 +47,9 @@ from rex.startup_validation import check_startup_env
 
 
 def get_browser_service():
-    from rex.browser_automation import get_browser_service as _get_browser_service
+    from rex.openclaw.browser_bridge import BrowserBridge
 
-    return _get_browser_service()
+    return BrowserBridge()
 
 
 def get_os_service():
@@ -1659,10 +1659,9 @@ def cmd_cues(args: argparse.Namespace) -> int:
 
 def cmd_browser(args: argparse.Namespace) -> int:
     """Manage browser automation."""
+    import asyncio
     import json
     from pathlib import Path
-
-    from rex.browser_automation import run_browser_script_sync
 
     subcommand = args.browser_command
 
@@ -1684,7 +1683,8 @@ def cmd_browser(args: argparse.Namespace) -> int:
             print(f"  Headless: {headless}")
             print()
 
-            results = run_browser_script_sync(steps, headless=headless)
+            bridge = get_browser_service()
+            results = asyncio.run(bridge.execute_script(str(script_path), headless=headless))
 
             for result in results:
                 step_num = result.get("step", "?")

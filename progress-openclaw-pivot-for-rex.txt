@@ -1,3 +1,16 @@
+## Iteration 55 - US-P4-022 through US-P4-027: Browser bridge implementation
+- Created `rex/openclaw/browser_bridge.py` (BrowserBridge, ~140 lines)
+  - Implements BrowserAutomationProtocol structurally
+  - Delegates execute_script, list_sessions, list_screenshots to BrowserAutomationService
+  - Accepts explicit service arg (defaults to global singleton)
+  - register() stub follows ToolBridge/EventBridge pattern
+- Updated `rex/cli.py:get_browser_service()` → returns BrowserBridge()
+- Updated `rex/cli.py:cmd_browser run` → asyncio.run(bridge.execute_script(...))
+- 19 browser bridge tests pass (delegation, simple task, login, register)
+- Documented backlog: login credential gap, step format translation gap
+- Files changed: rex/openclaw/browser_bridge.py, rex/cli.py, tests/test_openclaw_browser_bridge.py, docs/openclaw-migration-status.md, PRD-openclaw-pivot-for-rex.md, progress-openclaw-pivot-for-rex.txt
+---
+
 ## Iteration 54 - US-P4-019 + US-P4-020 + US-P4-021: Browser automation audit
 - Grepped all browser_automation importers in production: only 2 callers in rex/cli.py
   1. `rex/cli.py:50` — `get_browser_service` wrapper (sessions/screenshots subcmds)
