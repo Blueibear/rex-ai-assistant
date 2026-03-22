@@ -908,8 +908,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Document in migration status
 
 **US-P4-014: Classify each event type**
-- [ ] Mark as framework-level, Rex-specific, or bridge-needed
-- [ ] Document
+- [x] Mark as framework-level, Rex-specific, or bridge-needed
+- [x] Document
 
 **US-P4-015: Create event bridge**
 - [ ] Create `rex/openclaw/event_bridge.py` implementing EventBus Protocol

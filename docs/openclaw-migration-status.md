@@ -36,7 +36,7 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/tool_router.py` | Replace | Audited (US-P4-002) | Central tool dispatch (960 lines). Highest-risk replacement. Feature flag required. Test every tool through bridge before retirement. See audit notes below. Tool classification: 6 generic-replace, 3 adapter-needed, 2 Rex-specific. |
 | `rex/plugin_loader.py` | Replace | Pending | Dynamic plugin discovery (56 lines). OpenClaw has plugins. Small file, easy replacement. |
 | `rex/executor.py` | Replace | Pending | Task execution engine. Replaced by OpenClaw task execution via workflow bridge. |
-| `rex/event_bus.py` | Replace | Audited (US-P4-013) | Pub-sub event system (436 lines). Dual API (simple + rich) must be preserved in bridge. See audit notes below. |
+| `rex/event_bus.py` | Replace | Audited (US-P4-014) | Pub-sub event system (436 lines). Dual API (simple + rich) must be preserved in bridge. 10 Rex-specific event types; 0 framework-level. Wildcard subscriber requires full fan-out in bridge. See audit notes below. |
 | `rex/computers/` | Replace | Pending | Windows agent server/client (~400 lines, 5 files). Replace with OpenClaw workspace/agent model. |
 | `rex/workflow.py` | Wrap | Pending | Workflow data models (668 lines). Rex-specific definitions. Models translate to OpenClaw skill/task definitions; bridge translates at execution time. |
 | `rex/workflow_runner.py` | Wrap | Pending | Workflow execution (864 lines). Has Rex policy hooks. Bridge preserves policy gating; Rex policy is authority. |
@@ -567,3 +567,37 @@ workflow_runner.WorkflowRunner.resume_after_approval()
 
 **Duplicate integrations:**
 - `rex/integrations.py` and `rex/integrations/_setup.py` appear to be parallel implementations of the same setup logic. Both are present in the codebase. The `_setup.py` version is likely newer. Both publish the same event types.
+
+---
+
+### Audit Notes: rex/event_bus.py event type classification (US-P4-014)
+
+**Classification schema:**
+- **Framework-level** — Infrastructure events that OpenClaw natively understands (e.g., workflow.started, task.completed). No bridge code needed; OpenClaw handles them.
+- **Rex-specific** — Domain events unique to Rex with no OpenClaw equivalent. Preserved in bridge; OpenClaw passes them through as opaque events.
+- **Bridge-needed** — Events that cross the OpenClaw/Rex boundary and require explicit mapping or translation in the event bridge.
+
+**Event type classification table:**
+
+| Event Type | Classification | Reasoning | Bridge Action |
+|------------|----------------|-----------|---------------|
+| `email.unread` | Rex-specific | Rex email domain event; no OpenClaw equivalent | Bridge passes through opaque; EventBridge republishes on OpenClaw bus |
+| `email.triaged` | Rex-specific | Rex email triage workflow; no OpenClaw equivalent | Bridge passes through opaque |
+| `email.read` | Rex-specific | Rex email state event; no OpenClaw equivalent | Bridge passes through opaque |
+| `calendar.connected` | Rex-specific | Rex calendar connection state; no OpenClaw equivalent | Bridge passes through opaque |
+| `calendar.upcoming` | Rex-specific | Rex calendar query result event; no OpenClaw equivalent | Bridge passes through opaque |
+| `calendar.range` | Rex-specific | Rex calendar range query result; no OpenClaw equivalent | Bridge passes through opaque |
+| `calendar.created` | Rex-specific | Rex calendar mutation event; no OpenClaw equivalent | Bridge passes through opaque |
+| `calendar.updated` | Rex-specific | Rex calendar mutation event; no OpenClaw equivalent | Bridge passes through opaque |
+| `calendar.deleted` | Rex-specific | Rex calendar mutation event; no OpenClaw equivalent | Bridge passes through opaque |
+| `calendar.update` | Rex-specific | Rex calendar sync result event; no OpenClaw equivalent | Bridge passes through opaque |
+| EventBus mechanism | Framework-level | Pub-sub infrastructure → Replace with OpenClaw event system | Replace (no bridge; migrate publishers/subscribers directly) |
+
+**Summary:**
+- **Framework-level**: 0 event *types* found (no workflow/task/session infrastructure events exist in Rex's current event bus)
+- **Rex-specific**: 10 event types (all `email.*` and `calendar.*`)
+- **Bridge-needed**: 10 (all Rex-specific events must flow through EventBridge during migration period)
+- **EventBus mechanism** is framework-level and will be replaced; the event *types* it carries are Rex-specific
+
+**Wildcard subscriber note:**
+`EventTriggerRegistry._bus_handler` subscribes to `"*"` (all events). The EventBridge must forward all Rex-specific events to maintain this wildcard coverage. If OpenClaw's event system does not support wildcard subscriptions natively, the bridge must implement fan-out.

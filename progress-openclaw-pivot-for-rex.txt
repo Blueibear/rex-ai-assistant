@@ -1,3 +1,14 @@
+## Iteration 50 - US-P4-014: Classify each event type
+- Classified all 10 event types found in US-P4-013 audit
+- Result: 0 framework-level, 10 Rex-specific, 10 bridge-needed (all Rex events need bridging during migration)
+- EventBus mechanism itself is framework-level (Replace); event *types* are Rex-specific
+- Documented classification table and wildcard subscriber note in docs/openclaw-migration-status.md
+- Updated event_bus.py row status to "Audited (US-P4-014)"
+- Key insight: wildcard subscriber (EventTriggerRegistry) requires bridge to fan-out all events — if OpenClaw lacks wildcard sub, bridge must implement fan-out itself
+- No new code files (pure classification/documentation task)
+- Files changed: docs/openclaw-migration-status.md, PRD-openclaw-pivot-for-rex.md, progress-openclaw-pivot-for-rex.txt
+---
+
 ## Iteration 49 - US-P4-013: List all event types on event bus
 - Audited `rex/event_bus.py` (436 lines): dual API (legacy string + rich Event), EventBus + EventQueue classes, global singleton via `get_event_bus()`
 - Grepped all publish calls across codebase; found 13 event types:
