@@ -1,3 +1,16 @@
+## Iteration 54 - US-P4-019 + US-P4-020 + US-P4-021: Browser automation audit
+- Grepped all browser_automation importers in production: only 2 callers in rex/cli.py
+  1. `rex/cli.py:50` — `get_browser_service` wrapper (sessions/screenshots subcmds)
+  2. `rex/cli.py:1665` — `run_browser_script_sync` (run subcmd)
+- Classified 7 browser usage patterns: session mgmt, script orchestration, navigation, interaction, screenshot, login, content extraction
+- Mapped to OpenClaw equivalents: most patterns TBD (OpenClaw browser API unknown), login and run_browser_script are gaps
+- Key gap: Login helper integrates Rex credential manager — needs credential bridge
+- Key gap: `run_browser_script` JSON format is Rex-specific — needs translation wrapper
+- Updated docs/openclaw-migration-status.md: row status → "Audited (US-P4-021)", full audit notes appended
+- No new code (audit/doc task)
+- Files changed: docs/openclaw-migration-status.md, PRD-openclaw-pivot-for-rex.md, progress-openclaw-pivot-for-rex.txt
+---
+
 ## Iteration 53 - US-P4-018: Update remaining event consumers to use EventBridge
 - Updated 3 remaining subscribers to use EventBridge():
   1. `rex/integrations.py:setup_default_event_handlers()` — log_email_event, log_calendar_event

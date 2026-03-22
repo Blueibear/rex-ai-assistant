@@ -928,17 +928,17 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P4-019: List all browser_automation importers**
-- [ ] Grep for imports, list every file
-- [ ] Document
+- [x] Grep for imports, list every file
+- [x] Document
 
 **US-P4-020: Classify browser usage patterns**
-- [ ] Categorize: navigation, login, scraping, form, orchestration
-- [ ] Document
+- [x] Categorize: navigation, login, scraping, form, orchestration
+- [x] Document
 
 **US-P4-021: Determine OpenClaw browser coverage**
-- [ ] Map Rex browser functions to OpenClaw equivalents
-- [ ] Mark gaps
-- [ ] Document
+- [x] Map Rex browser functions to OpenClaw equivalents
+- [x] Mark gaps
+- [x] Document
 
 **US-P4-022: Create browser bridge**
 - [ ] Create `rex/openclaw/browser_bridge.py` implementing Browser Protocol

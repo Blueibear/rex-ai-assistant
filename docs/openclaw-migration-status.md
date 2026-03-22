@@ -23,7 +23,7 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | Module | Classification | Status | Notes |
 |--------|----------------|--------|-------|
 | `rex/assistant.py` | Wrap | Pending | Central orchestration hub. Delegate to OpenClaw agent via voice_bridge. Keep as thin coordinator. |
-| `rex/browser_automation.py` | Replace | Pending | Generic Playwright wrapper. OpenClaw has browser control. Create browser bridge; migrate callers one at a time. |
+| `rex/browser_automation.py` | Replace | Audited (US-P4-021) | Generic Playwright wrapper. 2 production callers (rex/cli.py). Login helper needs credential bridge (gap). run_browser_script JSON format is Rex-specific. See audit notes below. |
 | `rex/dashboard/__init__.py` | Replace | Pending | Flask dashboard. OpenClaw provides dashboard/UI. Run both in parallel during transition. |
 | `rex/dashboard/routes.py` | Replace | Pending | Dashboard routes. Retires with dashboard. |
 | `rex/dashboard/sse.py` | Replace | Pending | SSE streaming. Retires with dashboard. |
@@ -601,3 +601,53 @@ workflow_runner.WorkflowRunner.resume_after_approval()
 
 **Wildcard subscriber note:**
 `EventTriggerRegistry._bus_handler` subscribes to `"*"` (all events). The EventBridge must forward all Rex-specific events to maintain this wildcard coverage. If OpenClaw's event system does not support wildcard subscriptions natively, the bridge must implement fan-out.
+
+---
+
+### Audit Notes: rex/browser_automation.py (US-P4-019 through US-P4-021)
+
+**Module overview:**
+- ~580 lines. Playwright-based browser automation. Optional dependency (gracefully absent if `playwright` not installed).
+- Core classes: `BrowserSession` (async session API), `BrowserAutomationService` (session manager).
+- Module-level helpers: `run_browser_script(steps)` (async), `run_browser_script_sync(steps)` (sync wrapper).
+- Contract already defined at `rex/contracts/browser.py` (`BrowserSessionProtocol`, `BrowserAutomationProtocol`).
+
+**US-P4-019: Importer list (complete):**
+
+| File | Import | Usage pattern |
+|------|--------|---------------|
+| `rex/cli.py:50` | `get_browser_service` | Lazy wrapper; used in `sessions` and `screenshots` subcommands |
+| `rex/cli.py:1665` | `run_browser_script_sync` | Lazy import in `cmd_browser`; runs JSON step scripts |
+
+Only 2 production callers. No other rex/* modules import browser_automation directly.
+
+**US-P4-020: Browser usage pattern classification:**
+
+| Usage pattern | Functions/Methods | Caller | Notes |
+|--------------|------------------|--------|-------|
+| **Session management** | `BrowserAutomationService.list_sessions()`, `list_screenshots()` | `rex/cli.py` (`sessions`, `screenshots` subcmds) | Lists existing sessions/screenshots |
+| **Script orchestration** | `run_browser_script_sync(steps)` | `rex/cli.py` (`run` subcmd) | Runs a JSON list of steps |
+| **Navigation** | `BrowserSession.navigate(url)` | Used inside scripts | Direct URL navigation |
+| **Interaction** | `BrowserSession.click()`, `type_text()`, `wait()`, `wait_for_selector()` | Used inside scripts | Page interaction |
+| **Screenshot** | `BrowserSession.screenshot()` | Used inside scripts | Capture page state |
+| **Login** | `BrowserSession.login()` | Used inside scripts | Credential-integrated login |
+| **Content extraction** | `BrowserSession.get_content()`, `get_text()` | Used inside scripts | Scrape page content |
+
+**US-P4-021: OpenClaw browser coverage mapping:**
+
+| Rex function/pattern | OpenClaw equivalent | Coverage | Gap notes |
+|---------------------|---------------------|----------|-----------|
+| `BrowserSession.navigate()` | OpenClaw browser control (TBD) | Unknown — stub | Confirm once OpenClaw browser API is known |
+| `BrowserSession.click()`, `type_text()` | OpenClaw browser control (TBD) | Unknown — stub | |
+| `BrowserSession.screenshot()` | OpenClaw browser control (TBD) | Unknown — stub | |
+| `BrowserSession.login()` | No direct equivalent | Gap | Rex login helper integrates Rex credential manager; OpenClaw would need a credential bridge |
+| `run_browser_script(steps)` | No direct equivalent | Gap | Rex-specific JSON script format; bridge would need to translate |
+| `BrowserAutomationService.list_sessions()` | No direct equivalent | Keep | Rex session management is Rex-specific |
+| `get_browser_service()` → singleton | No direct equivalent | Wrap | Singleton lifecycle is Rex-specific |
+
+**Key findings:**
+- Only 2 callers in production — browser migration is low blast-radius.
+- Login helper is the highest-risk gap: it reaches into Rex credential manager. OpenClaw browser bridge needs a credential adapter.
+- `run_browser_script` format is Rex-specific; it will need translation or wrapper.
+- Session lifecycle management (`BrowserAutomationService`) is Rex-specific and should stay.
+- Browser contract (`rex/contracts/browser.py`) is already defined — bridge implementation (US-P4-022) can proceed directly.
