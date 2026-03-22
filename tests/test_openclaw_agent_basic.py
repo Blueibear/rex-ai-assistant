@@ -8,7 +8,7 @@ The LLM is mocked so these tests run without loading model weights.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -147,3 +147,103 @@ class TestAgentPersonaVerification:
         mock_llm.generate.return_value = "Hi"
         agent = RexAgent(llm=mock_llm, config=cfg)
         assert "Edinburgh" in agent.system_prompt
+
+
+# ---------------------------------------------------------------------------
+# US-P3-006: memory persistence across interactions
+# ---------------------------------------------------------------------------
+
+
+class TestAgentMemoryPersistence:
+    """Verify that conversation history is saved and replayed across respond() calls."""
+
+    def _agent_with_memory(self, tmp_path, replies: list[str]) -> RexAgent:
+        """Return an agent backed by a mock LLM and a tmp_path-scoped MemoryAdapter."""
+        from rex.openclaw.memory_adapter import MemoryAdapter
+
+        mock_llm = MagicMock()
+        mock_llm.generate.side_effect = replies
+        adapter = MemoryAdapter(memory_root=str(tmp_path))
+        return RexAgent(
+            llm=mock_llm,
+            system_prompt="You are Rex.",
+            memory_adapter=adapter,
+        )
+
+    def test_history_saved_after_respond(self, tmp_path):
+        """After one respond() with a user_key, history contains user and assistant turns."""
+        from rex.openclaw.memory_adapter import MemoryAdapter
+
+        adapter = MemoryAdapter(memory_root=str(tmp_path))
+        mock_llm = MagicMock()
+        mock_llm.generate.return_value = "It is 3pm."
+        agent = RexAgent(llm=mock_llm, system_prompt="You are Rex.", memory_adapter=adapter)
+
+        agent.respond("What time is it?", user_key="alice")
+        history = adapter.load_recent("alice")
+
+        assert len(history) == 2
+        assert history[0]["role"] == "user"
+        assert history[0]["text"] == "What time is it?"
+        assert history[1]["role"] == "assistant"
+        assert history[1]["text"] == "It is 3pm."
+
+    def test_history_replayed_in_second_call(self, tmp_path):
+        """On a second respond() call the first exchange is included in LLM messages."""
+        agent = self._agent_with_memory(tmp_path, ["It is 3pm.", "You asked about the time."])
+
+        agent.respond("What time is it?", user_key="bob")
+        agent.respond("What did I ask?", user_key="bob")
+
+        second_call_args = agent.llm.generate.call_args_list[1]
+        messages = second_call_args.kwargs.get("messages") or second_call_args.args[0]
+        contents = [m["content"] for m in messages]
+
+        assert "What time is it?" in contents
+        assert "It is 3pm." in contents
+        assert "What did I ask?" in contents
+
+    def test_no_history_without_user_key(self, tmp_path):
+        """Without a user_key, no history is stored."""
+        from rex.openclaw.memory_adapter import MemoryAdapter
+
+        adapter = MemoryAdapter(memory_root=str(tmp_path))
+        mock_llm = MagicMock()
+        mock_llm.generate.return_value = "Hello!"
+        agent = RexAgent(llm=mock_llm, system_prompt="You are Rex.", memory_adapter=adapter)
+
+        agent.respond("Hello?")  # no user_key
+        # Memory directory should be empty — no user subdirectory created
+        user_dirs = list(tmp_path.iterdir())
+        assert user_dirs == []
+
+    def test_different_users_have_separate_histories(self, tmp_path):
+        """History for user A does not bleed into messages for user B."""
+        agent = self._agent_with_memory(tmp_path, ["Reply to A.", "Reply to B."])
+
+        agent.respond("Message from A.", user_key="user-a")
+        agent.respond("Message from B.", user_key="user-b")
+
+        second_call_args = agent.llm.generate.call_args_list[1]
+        messages = second_call_args.kwargs.get("messages") or second_call_args.args[0]
+        contents = " ".join(m["content"] for m in messages)
+
+        assert "Message from A." not in contents
+        assert "Message from B." in contents
+
+    def test_history_accumulates_across_three_turns(self, tmp_path):
+        """Three consecutive turns all appear in the messages for the fourth call."""
+        agent = self._agent_with_memory(tmp_path, ["Reply 1", "Reply 2", "Reply 3", "Reply 4"])
+
+        for i in range(1, 4):
+            agent.respond(f"Turn {i}", user_key="carol")
+
+        agent.respond("Turn 4", user_key="carol")
+        last_call = agent.llm.generate.call_args_list[3]
+        messages = last_call.kwargs.get("messages") or last_call.args[0]
+        contents = " ".join(m["content"] for m in messages)
+
+        assert "Turn 1" in contents
+        assert "Turn 2" in contents
+        assert "Turn 3" in contents
+        assert "Turn 4" in contents

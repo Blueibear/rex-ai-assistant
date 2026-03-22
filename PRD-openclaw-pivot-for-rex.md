@@ -793,8 +793,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P3-006: Test memory persistence across interactions**
-- [ ] Add test: two consecutive agent interactions, verify history persists
-- [ ] Tests pass
+- [x] Add test: two consecutive agent interactions, verify history persists
+- [x] Tests pass
 
 **US-P3-007: Audit policy.py and policy_engine.py public API**
 - [ ] List every PolicyDecision consumer
