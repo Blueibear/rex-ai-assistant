@@ -729,9 +729,9 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P2-003: Create OpenClaw config bridge**
-- [ ] Create `rex/openclaw/config.py`
-- [ ] Map `rex.config.Settings` fields to OpenClaw agent configuration
-- [ ] Tests pass
+- [x] Create `rex/openclaw/config.py`
+- [x] Map `rex.config.Settings` fields to OpenClaw agent configuration
+- [x] Tests pass
 
 **US-P2-004: Create OpenClaw session bridge**
 - [ ] Create `rex/openclaw/session.py`
