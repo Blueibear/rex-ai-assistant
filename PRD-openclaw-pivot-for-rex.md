@@ -872,8 +872,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P4-005: Test simple tools through OpenClaw**
-- [ ] Verify each tool returns correct results
-- [ ] Tests pass
+- [x] Verify each tool returns correct results
+- [x] Tests pass
 
 **US-P4-006: Register policy-gated tools batch**
 - [ ] Register `send_email`, `send_sms`, `calendar_create` via bridge
