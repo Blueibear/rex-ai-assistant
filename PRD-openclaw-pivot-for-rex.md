@@ -840,8 +840,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P3-017: Audit approval system**
-- [ ] List every module that creates/checks approvals in `data/approvals/`
-- [ ] Document in migration status
+- [x] List every module that creates/checks approvals in `data/approvals/`
+- [x] Document in migration status
 
 **US-P3-018: Create approval adapter**
 - [ ] Create `rex/openclaw/approval_adapter.py`

@@ -344,3 +344,84 @@ Private helpers (not exported): `_session_state_path`, `_known_user_ids`, `_load
 - No direct OpenClaw wiring is needed for profile_manager itself — the profile already influences `AppConfig.capabilities`, `AppConfig.active_profile`, etc., which `build_agent_config()` and `build_system_prompt()` read.
 - US-P3-016 ("Wire profile manager into OpenClaw agent") means verifying that `build_agent_config()` correctly reflects profile-applied AppConfig — not adding new profile-loading code.
 - Module is marked `# OPENCLAW-WRAP` — pre-identified for wrapping.
+
+---
+
+### Audit Notes: Approval System (US-P3-017)
+
+**Storage convention:**
+
+All approvals are stored as JSON files under `data/approvals/` (configurable via `approval_dir` parameter). The canonical path constant is `DEFAULT_APPROVAL_DIR = Path("data/approvals")` in `rex/workflow.py`.
+
+**Approval record type:**
+
+`WorkflowApproval` (Pydantic model, `rex/workflow.py` lines 192–301):
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `approval_id` | `str` | Auto-generated unique ID (`apr_<12hex>`) |
+| `workflow_id` | `str` | ID of the parent workflow (or sentinel string for non-workflow uses) |
+| `step_id` | `str` | Step or action being approved; deterministic for idempotent re-runs |
+| `status` | `Literal["pending","approved","denied","expired"]` | Current decision state |
+| `reason` | `str \| None` | Reason for the decision (set at decision time) |
+| `requested_by` | `str \| None` | Who/what requested (e.g., `"workflow_runner"`) |
+| `decided_by` | `str \| None` | Who decided (e.g., `"cli_user"`) |
+| `requested_at` | `datetime` | When approval was created (UTC) |
+| `decided_at` | `datetime \| None` | When the decision was made |
+| `step_description` | `str \| None` | Human-readable step context |
+| `tool_call_summary` | `str \| None` | Summary of the tool call being approved |
+
+**Modules that create or check approvals (`data/approvals/`):**
+
+| Module | Role | Key functions |
+|--------|------|---------------|
+| `rex/workflow.py` | Defines `WorkflowApproval`; `DEFAULT_APPROVAL_DIR`; `generate_approval_id()`. Handles `.save()` and `.load()` I/O. | `WorkflowApproval.save(approval_dir)`, `WorkflowApproval.load(approval_id, approval_dir)` |
+| `rex/workflow_runner.py` | Creates approvals when a workflow step is policy-gated (`requires_approval`). Resumes blocked workflows after approval. Exposes approve/deny/list helpers. | `WorkflowRunner._make_approval(step)`, `WorkflowRunner.resume_after_approval()`, `approve_workflow()`, `deny_workflow()`, `list_pending_approvals()`, `ApprovalBlockedError` |
+| `rex/executor.py` | Wraps `WorkflowRunner`; surfaces `blocking_approval_id` in its result object. Passes `approval_dir` through. | `ExecutorResult.blocking_approval_id`, `TaskExecutor.run()`, `TaskExecutor.resume()` |
+| `rex/computers/pc_run_policy.py` | Creates approvals for `pc_run` (remote command execution). Uses `WorkflowApproval` with `workflow_id="pc_run"` sentinel and deterministic `step_id` (SHA-256 of computer+command+args). | `check_pc_run_policy()` |
+| `rex/woocommerce/write_policy.py` | Creates approvals for WooCommerce write actions (`wc_order_set_status`, `wc_coupon_create`, `wc_coupon_disable`). Uses `WorkflowApproval` with `WC_WRITE_WORKFLOW_ID` sentinel and deterministic `step_id`. | `check_wc_write_policy()` |
+| `rex/cli.py` | User-facing `rex approvals` command: list, approve, deny, show. Calls `approve_workflow()`, `deny_workflow()`, `list_pending_approvals()`. | `cmd_approvals(args)` |
+| `rex/tool_router.py` | Does **not** write to `data/approvals/`. Raises `ApprovalRequiredError` in-memory when policy says `requires_approval`. The caller (workflow_runner / executor) handles persistence. | `ApprovalRequiredError` |
+
+**Approval flow:**
+
+```
+tool_router.execute_tool()
+  → policy_engine.decide() → requires_approval
+  → raise ApprovalRequiredError (in-memory only)
+      ↓
+workflow_runner.WorkflowRunner._run_step()
+  → catch ApprovalRequiredError
+  → _make_approval(step) → WorkflowApproval.save("data/approvals/")
+  → raise ApprovalBlockedError(approval_id, step_id)
+      ↓
+executor / cli surface blocking_approval_id to user
+      ↓
+user: rex approvals --approve <id>
+  → cli.cmd_approvals() → approve_workflow() → WorkflowApproval.load + update + save
+      ↓
+workflow_runner.WorkflowRunner.resume_after_approval()
+  → WorkflowApproval.load → status == "approved" → continue execution
+```
+
+**Non-workflow callers (pc_run, woocommerce):**
+- `pc_run_policy.py` and `woocommerce/write_policy.py` follow the same pattern: policy_engine → create `WorkflowApproval` directly → CLI polls/approves via `rex approvals`.
+- They use deterministic `step_id` so re-running the same command finds the existing pending/approved record without an index.
+
+**Classification for OpenClaw adapter:**
+
+| Component | Rex-specific? | OpenClaw action |
+|-----------|--------------|-----------------|
+| `WorkflowApproval` model | Rex-specific (file JSON) | Adapter should expose create/read/update; OpenClaw may have native approval model |
+| `data/approvals/` storage | Rex-specific (local files) | Adapter should allow swapping storage backend |
+| `approve_workflow` / `deny_workflow` | Rex API | Wrap in `ApprovalAdapter` for OpenClaw hook |
+| `list_pending_approvals` | Rex API | Wrap in `ApprovalAdapter` |
+| `ApprovalBlockedError` | Rex-specific | Map to OpenClaw's gate/pause mechanism |
+
+**Key findings:**
+- `WorkflowApproval` is a Pydantic model in `rex/workflow.py` — the single source of truth for approval records.
+- All approval I/O goes through `WorkflowApproval.save()` / `WorkflowApproval.load()` with `DEFAULT_APPROVAL_DIR = Path("data/approvals")`.
+- Three producers: `workflow_runner._make_approval()`, `pc_run_policy.check_pc_run_policy()`, `woocommerce/write_policy.check_wc_write_policy()`.
+- One consumer / decision point: `approve_workflow()` / `deny_workflow()` in `workflow_runner.py`, called via CLI.
+- `tool_router.py` raises `ApprovalRequiredError` in-memory — it does NOT write files; that responsibility is always one layer up.
+- US-P3-018 (`ApprovalAdapter`) should wrap: `WorkflowApproval.save/load`, `approve_workflow`, `deny_workflow`, `list_pending_approvals`, and expose an `ApprovalBlockedError`→OpenClaw gate bridge.
