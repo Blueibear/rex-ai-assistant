@@ -33,7 +33,7 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/messaging_service.py` | Replace | Pending | Messaging orchestration. Retires with messaging_backends. |
 | `rex/integrations/message_router.py` | Replace | Pending | Routes messages between channels. Retires with messaging. |
 | `rex/tool_registry.py` | Replace | Pending | Tool metadata + health checks. OpenClaw has skill/tool system. Define Protocol first (Phase 1), then bridge (Phase 4). |
-| `rex/tool_router.py` | Replace | Pending | Central tool dispatch (960 lines). Highest-risk replacement. Feature flag required. Test every tool through bridge before retirement. |
+| `rex/tool_router.py` | Replace | Audited (US-P4-001) | Central tool dispatch (960 lines). Highest-risk replacement. Feature flag required. Test every tool through bridge before retirement. See audit notes below. |
 | `rex/plugin_loader.py` | Replace | Pending | Dynamic plugin discovery (56 lines). OpenClaw has plugins. Small file, easy replacement. |
 | `rex/executor.py` | Replace | Pending | Task execution engine. Replaced by OpenClaw task execution via workflow bridge. |
 | `rex/event_bus.py` | Replace | Pending | Pub-sub event system (436 lines). Dual API (simple + rich) must be preserved in bridge. |
@@ -425,3 +425,52 @@ workflow_runner.WorkflowRunner.resume_after_approval()
 - One consumer / decision point: `approve_workflow()` / `deny_workflow()` in `workflow_runner.py`, called via CLI.
 - `tool_router.py` raises `ApprovalRequiredError` in-memory — it does NOT write files; that responsibility is always one layer up.
 - US-P3-018 (`ApprovalAdapter`) should wrap: `WorkflowApproval.save/load`, `approve_workflow`, `deny_workflow`, `list_pending_approvals`, and expose an `ApprovalBlockedError`→OpenClaw gate bridge.
+
+---
+
+### Audit Notes: rex/tool_router.py (US-P4-001)
+
+**Tool name / handler mapping (lines 280–288 + `supported_tools` set line 235):**
+
+| Tool name | Handler function | Notes |
+|-----------|-----------------|-------|
+| `time_now` | `_execute_time_now(args, default_context)` | Returns local time/date/timezone. Resolves timezone via `_resolve_timezone()` then `ZoneInfo`. Falls back to `default_context["location"]`. No credentials required. |
+| `weather_now` | `_execute_weather_now(args, default_context)` | Calls `rex.weather.get_weather()` async. Requires `OPENWEATHERMAP_API_KEY` env var. Falls back to `default_context["location"]` then `get_cached_city()`. |
+| `web_search` | `_execute_web_search(args, default_context)` | Delegates to `plugins.web_search.search_web(query)`. No hard credential requirement; uses any configured search API (brave/serpapi). Returns error dict if plugin not installed. |
+
+**Tool registry vs router gap:**
+
+| Tool | In `supported_tools`? | In `tool_registry` builtins? | In DEFAULT_POLICIES? | Status |
+|------|-----------------------|------------------------------|---------------------|--------|
+| `time_now` | Yes | Yes | Yes (LOW) | Fully implemented |
+| `weather_now` | Yes | Yes | Yes (LOW) | Fully implemented |
+| `web_search` | Yes | Yes | Yes (LOW) | Fully implemented |
+| `send_email` | **No** | Yes (stub, health=False) | Yes (MEDIUM) | Policy-gated but no handler — returns "Unknown tool" |
+| `home_assistant` / `home_assistant_call_service` | **No** | `home_assistant` registered | Yes (MEDIUM) | Policy-gated but no handler |
+| `calendar_create_event` | **No** | No | Yes (MEDIUM) | Policy-gated but no handler |
+| `calendar_delete_event` | **No** | No | Yes (MEDIUM) | Policy-gated but no handler |
+| `execute_command` | **No** | No | Yes (HIGH) | Policy-gated but no handler |
+| `pc_run` | **No** | No | Yes (HIGH) | Handled by `pc_run_policy.py` + approval flow, not via `tool_router` |
+| `file_write` | **No** | No | Yes (HIGH) | Policy-gated but no handler |
+| `file_delete` | **No** | No | Yes (HIGH) | Policy-gated but no handler |
+
+**Public API of `rex/tool_router.py`:**
+
+- `TOOL_REQUEST_PREFIX = "TOOL_REQUEST:"` — sentinel prefix for LLM-emitted tool requests
+- `TOOL_RESULT_PREFIX = "TOOL_RESULT:"` — sentinel prefix for tool result injection
+- `ToolError` — frozen dataclass: `message`
+- `PolicyDeniedError(tool, reason)` — raised when policy denies
+- `ApprovalRequiredError(tool, reason)` — raised when policy requires approval (in-memory only; no file I/O)
+- `CredentialMissingError(tool, missing_credentials)` — raised when tool credentials absent
+- `parse_tool_request(text) -> dict | None` — parse single-line TOOL_REQUEST JSON; rejects multi-line
+- `execute_tool(request, default_context, *, policy_engine, tool_registry, skip_policy_check, skip_credential_check, task_id, requested_by, skip_audit_log) -> dict` — full policy→credential→execute→audit pipeline
+- `format_tool_result(tool, args, result) -> str` — format as TOOL_RESULT JSON line
+- `route_if_tool_request(llm_text, default_context, model_call_fn, *, policy_engine, skip_policy_check) -> str` — full request→execute→re-call pipeline
+
+**Key findings:**
+- Only 3 of the 11 policy-gated tools have actual execution handlers in `tool_router.py`. The other 8 (`send_email`, `calendar_*`, `home_assistant_call_service`, `execute_command`, `pc_run`, `file_write`, `file_delete`) are gated by DEFAULT_POLICIES but return "Unknown tool" if called through `execute_tool()`.
+- `pc_run` is the exception — it has its own policy+approval path via `rex/computers/pc_run_policy.py`, bypassing `tool_router.py` entirely.
+- The LLM uses `TOOL_REQUEST: {...}` single-line format to invoke tools; multi-line requests are rejected by `parse_tool_request`.
+- `skip_policy_check=True` also forces `skip_credential_check=True` — these two flags are coupled in `execute_tool()`.
+- US-P4-002 (tool routing bridge) should expose all 3 implemented tools (`time_now`, `weather_now`, `web_search`) through the OpenClaw bridge. The 8 unimplemented tools should be documented as "stub registered in policy, not yet implemented".
+- `_CITY_TIMEZONES` dict (~200 entries, lines 545–900+) is an internal lookup table for `_resolve_timezone()`. It is private and not part of the migration surface.

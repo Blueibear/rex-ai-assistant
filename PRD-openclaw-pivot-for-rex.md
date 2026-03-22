@@ -855,8 +855,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 ### Phase 4 Tasks (US-P4-001 through US-P4-036)
 
 **US-P4-001: List all registered tools in tool_router.py**
-- [ ] Extract complete tool name/handler mapping
-- [ ] Document in migration status
+- [x] Extract complete tool name/handler mapping
+- [x] Document in migration status
 
 **US-P4-002: Classify each tool**
 - [ ] Mark each as: Rex-specific, generic (replace), adapter-needed
