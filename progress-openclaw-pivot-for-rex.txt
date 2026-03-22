@@ -49,6 +49,19 @@
 - Tests pass (exit 0)
 ---
 
+## Iteration 11 - US-P2-003: Create OpenClaw config bridge
+- Created `rex/openclaw/config.py` with `build_agent_config(config=None) -> dict`
+- Maps AppConfig fields: identity (agent_name from wakeword, user_id, active_profile), LLM params, context (location, timezone), memory limits
+- Rex-specific extras prefixed `rex_*` for future remapping once OpenClaw config schema is known
+- config=None → loads global config via load_config()
+- agent_name uses `config.wakeword.capitalize()` → "Rex" (wakeword is "rex" by default)
+- Tests pass (exit 0)
+- Learnings:
+  - AppConfig uses `AppConfig` not `Settings` (PRD task name was slightly wrong)
+  - wakeword field is the canonical agent name source (it's "rex" by default)
+  - rex_* prefix convention keeps Rex-specific values identifiable until OpenClaw schema is known
+---
+
 ## Iteration 10 - US-P2-002: Create OpenClaw agent registration module
 - Created `rex/openclaw/agent.py` with `RexAgent` class
 - `respond(prompt)` calls `LanguageModel.generate(messages=[system, user])` with Rex persona system prompt
