@@ -823,9 +823,9 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Document in migration status
 
 **US-P3-013: Create identity adapter**
-- [ ] Create `rex/openclaw/identity_adapter.py`
-- [ ] Map Rex identity to OpenClaw session/user
-- [ ] Tests pass
+- [x] Create `rex/openclaw/identity_adapter.py`
+- [x] Map Rex identity to OpenClaw session/user
+- [x] Tests pass
 
 **US-P3-014: Test identity adapter**
 - [ ] Test: set active user, confirm propagates to OpenClaw session
