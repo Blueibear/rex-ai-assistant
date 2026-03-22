@@ -802,9 +802,9 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Document in migration status
 
 **US-P3-008: Create policy adapter**
-- [ ] Create `rex/openclaw/policy_adapter.py`
-- [ ] Wrap Rex PolicyEngine as OpenClaw middleware/hook
-- [ ] Tests pass
+- [x] Create `rex/openclaw/policy_adapter.py`
+- [x] Wrap Rex PolicyEngine as OpenClaw middleware/hook
+- [x] Tests pass
 
 **US-P3-009: Test policy adapter -- block path**
 - [ ] Test: register tool, set requires-approval, call it, confirm blocks
