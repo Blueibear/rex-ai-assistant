@@ -1,3 +1,16 @@
+## Iteration 29 - US-P3-012: Audit identity.py public API
+- Read rex/identity.py (322 lines): 9 public functions in __all__
+- Session state (3 fns): get/set/clear_session_user — OS temp file (LOCALAPPDATA\rex-ai\session.json on Windows)
+- Resolution (2 fns): resolve_active_user (4-level priority), require_active_user (SystemExit on failure)
+- Profile CRUD (4 fns): create/get/update_user_profile, list_known_users — Memory/ directory layout
+- Callers: cli.py (identify cmd), openclaw/session.py (already wrapped), voice_identity/fallback_flow.py
+- Updated docs/openclaw-migration-status.md with full audit notes
+- 36 tests pass
+- Learnings for future iterations:
+  - US-P3-013 identity adapter wraps session+resolution fns; profile CRUD kept as Rex file ops
+  - openclaw/session.py already uses resolve_active_user — identity adapter bridges the gap
+---
+
 ## Iteration 28 - US-P3-011: Wire policy adapter into OpenClaw agent
 - Added `policy_adapter` param to `RexAgent.__init__`; defaults to `PolicyAdapter()`
 - Added `call_tool(tool_name, args, metadata)` method: guard() first, then execute_tool() with skip_policy_check=True
