@@ -815,8 +815,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P3-011: Wire policy adapter into OpenClaw agent**
-- [ ] Update tool execution path to pass through policy adapter
-- [ ] Tests pass
+- [x] Update tool execution path to pass through policy adapter
+- [x] Tests pass
 
 **US-P3-012: Audit identity.py public API**
 - [ ] List callers, document session state behavior

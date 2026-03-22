@@ -31,6 +31,7 @@ from typing import Any
 from rex.config import AppConfig
 from rex.llm_client import LanguageModel
 from rex.openclaw.memory_adapter import MemoryAdapter
+from rex.openclaw.policy_adapter import PolicyAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,11 @@ class RexAgent:
             conversation-history persistence.  When *None*, a default adapter
             is created (uses Rex's file-based fallback).  Inject a custom
             adapter in tests to control the memory root directory.
+        policy_adapter: Optional :class:`PolicyAdapter` instance used by
+            :meth:`call_tool` to enforce Rex's risk/approval policies before
+            executing any tool.  When *None*, a default adapter is created
+            (uses Rex's global :class:`~rex.policy_engine.PolicyEngine`).
+            Inject a custom adapter in tests to control which policies apply.
     """
 
     def __init__(
@@ -76,6 +82,7 @@ class RexAgent:
         system_prompt: str | None = None,
         config: AppConfig | None = None,
         memory_adapter: MemoryAdapter | None = None,
+        policy_adapter: PolicyAdapter | None = None,
     ) -> None:
         self._llm = llm
         # Derive agent name and persona from Rex config when not supplied.
@@ -86,6 +93,7 @@ class RexAgent:
         self.system_prompt = system_prompt or build_system_prompt(config)
         self._registered = False
         self._memory = memory_adapter or MemoryAdapter()
+        self._policy = policy_adapter or PolicyAdapter()
 
     # ------------------------------------------------------------------
     # LLM access
@@ -138,6 +146,58 @@ class RexAgent:
         logger.warning("OpenClaw agent registration stub — update once API is confirmed (PRD §8.3)")
         self._registered = False
         return None
+
+    # ------------------------------------------------------------------
+    # Policy-checked tool execution
+    # ------------------------------------------------------------------
+
+    def call_tool(
+        self,
+        tool_name: str,
+        args: dict[str, Any] | None = None,
+        *,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Execute *tool_name* after passing it through Rex's policy adapter.
+
+        This is the policy-checked tool execution path for the OpenClaw
+        agent.  The :class:`~rex.openclaw.policy_adapter.PolicyAdapter`
+        is consulted first; if the tool is denied or requires approval,
+        the appropriate exception is raised before any execution occurs.
+        If the policy allows execution, the tool is dispatched via
+        :func:`~rex.tool_router.execute_tool` with policy and audit
+        checks disabled (the adapter has already run the policy check).
+
+        Args:
+            tool_name: Name of the tool to execute.
+            args: Keyword arguments forwarded to the tool.  Defaults to
+                an empty dict.
+            metadata: Optional policy-evaluation context (e.g.
+                ``{"recipient": "user@example.com"}``).  Forwarded to
+                :meth:`~rex.openclaw.policy_adapter.PolicyAdapter.guard`.
+
+        Returns:
+            The tool result dict as returned by
+            :func:`~rex.tool_router.execute_tool`.
+
+        Raises:
+            :exc:`~rex.tool_router.PolicyDeniedError`: If the policy
+                denies the tool call.
+            :exc:`~rex.tool_router.ApprovalRequiredError`: If the policy
+                requires user approval before execution.
+        """
+        from rex.tool_router import execute_tool
+
+        # Policy gate — raises PolicyDeniedError or ApprovalRequiredError if blocked.
+        self._policy.guard(tool_name, metadata)
+
+        return execute_tool(
+            {"tool": tool_name, "args": args or {}},
+            {},
+            skip_policy_check=True,  # policy already enforced above
+            skip_credential_check=False,
+            skip_audit_log=False,
+        )
 
     # ------------------------------------------------------------------
     # Core response method
