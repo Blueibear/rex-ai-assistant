@@ -912,12 +912,12 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Document
 
 **US-P4-015: Create event bridge**
-- [ ] Create `rex/openclaw/event_bridge.py` implementing EventBus Protocol
-- [ ] Tests pass
+- [x] Create `rex/openclaw/event_bridge.py` implementing EventBus Protocol
+- [x] Tests pass
 
 **US-P4-016: Test event bridge round-trip**
-- [ ] Publish event, confirm subscriber receives it
-- [ ] Tests pass
+- [x] Publish event, confirm subscriber receives it
+- [x] Tests pass
 
 **US-P4-017: Update first event consumer to use bridge**
 - [ ] Pick simplest subscriber, update, test

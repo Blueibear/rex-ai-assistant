@@ -1,3 +1,22 @@
+## Iteration 51 - US-P4-015 + US-P4-016: Create event bridge and test round-trip
+- Created `rex/openclaw/event_bridge.py` (EventBridge class, ~175 lines)
+  - Implements EventBusProtocol structurally
+  - Delegates all 8 protocol methods to underlying EventBus
+  - Accepts explicit bus arg (defaults to global singleton via get_event_bus())
+  - register() stub follows ToolBridge pattern — logs warning if openclaw not installed
+- Created `tests/test_openclaw_event_bridge.py` with 27 tests across 5 classes:
+  - TestEventBridgeInstantiation (5): import, no-args, explicit bus, bool flag, protocol conformance
+  - TestDelegation (10): every method delegates with correct args
+  - TestRoundTrip (10): legacy callback, rich handler, wildcard, unsubscribe, legacy unsub callable, clear_subscriptions, rich Event object, metrics, subscription count, bus/bridge shared state
+  - TestRegister (2): returns None without openclaw, accepts agent arg
+- 27 tests pass in 0.31s
+- Files changed: rex/openclaw/event_bridge.py, tests/test_openclaw_event_bridge.py, PRD-openclaw-pivot-for-rex.md, progress-openclaw-pivot-for-rex.txt
+- Learnings for future iterations:
+  - EventBridge must use get_event_bus() default so all existing Rex subscribers receive events
+  - bridge._bus is the same object as the bus passed in — shared state test verifies this correctly
+  - US-P4-017 should pick the simplest subscriber: notification.py (email.unread handler)
+---
+
 ## Iteration 50 - US-P4-014: Classify each event type
 - Classified all 10 event types found in US-P4-013 audit
 - Result: 0 framework-level, 10 Rex-specific, 10 bridge-needed (all Rex events need bridging during migration)
