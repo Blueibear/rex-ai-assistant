@@ -1,3 +1,14 @@
+## Iteration 26 - US-P3-009: Test policy adapter block path
+- Created `tests/test_openclaw_policy.py` with 8 block-path tests (TestPolicyAdapterBlockPath)
+- Tests: guard raises ApprovalRequiredError (medium, high, custom, unknown); guard raises PolicyDeniedError (blocked recipient, blocked domain); check() returns correct decision fields
+- Helper _adapter(*extra_policies) injects fresh PolicyEngine — no global singleton state
+- 8 tests pass
+- Files changed: tests/test_openclaw_policy.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - US-P3-010 allow-path tests go in same file (TestPolicyAdapterAllowPath class)
+  - PolicyEngine(policies=[...]) overrides DEFAULT_POLICIES for same tool_name
+---
+
 ## Iteration 25 - US-P3-008: Create policy adapter
 - Created `rex/openclaw/policy_adapter.py` with `PolicyAdapter` class
 - Methods: check(tool_name, metadata) -> PolicyDecision; guard() raises PolicyDeniedError/ApprovalRequiredError; register() stub
