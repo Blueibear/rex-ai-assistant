@@ -849,8 +849,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P3-019: Test approval adapter end-to-end**
-- [ ] Test: workflow step requiring approval -> blocks -> approve -> proceeds
-- [ ] Tests pass
+- [x] Test: workflow step requiring approval -> blocks -> approve -> proceeds
+- [x] Tests pass
 
 ### Phase 4 Tasks (US-P4-001 through US-P4-036)
 
