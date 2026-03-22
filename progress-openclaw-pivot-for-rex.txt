@@ -1,3 +1,14 @@
+## Iteration 23 - US-P3-006: Test memory persistence across interactions
+- Added TestAgentMemoryPersistence (5 tests) to test_openclaw_agent_basic.py
+- Tests: history saved after respond, replayed in second call, no history without user_key, per-user isolation, 3-turn accumulation
+- Inject MemoryAdapter(memory_root=str(tmp_path)) and mock LLM with side_effect list for multi-turn tests
+- 18 total tests in file; all pass
+- Files changed: tests/test_openclaw_agent_basic.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - mock_llm.generate.side_effect = list_of_replies enables multi-turn test sequences
+  - call_args_list[N] for checking Nth LLM call in sequence
+---
+
 ## Iteration 22 - US-P3-005: Wire memory adapter into OpenClaw agent
 - Added `memory_adapter` param to `RexAgent.__init__`; defaults to `MemoryAdapter()`
 - Added `user_key` kwarg to `respond()`; when set, loads history before LLM call and saves both turns after
