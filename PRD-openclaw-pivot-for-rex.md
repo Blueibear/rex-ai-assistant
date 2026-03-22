@@ -828,8 +828,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P3-014: Test identity adapter**
-- [ ] Test: set active user, confirm propagates to OpenClaw session
-- [ ] Tests pass
+- [x] Test: set active user, confirm propagates to OpenClaw session
+- [x] Tests pass
 
 **US-P3-015: Audit profile_manager.py public API**
 - [ ] List callers, document merge behavior
