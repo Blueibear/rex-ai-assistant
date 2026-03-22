@@ -779,9 +779,9 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P3-003: Test memory adapter**
-- [ ] Create `tests/test_openclaw_memory.py`
-- [ ] Test: write, read, trim conversation history
-- [ ] Tests pass
+- [x] Create `tests/test_openclaw_memory.py`
+- [x] Test: write, read, trim conversation history
+- [x] Tests pass
 
 **US-P3-004: Audit memory_utils.py public API**
 - [ ] List public functions, list callers
