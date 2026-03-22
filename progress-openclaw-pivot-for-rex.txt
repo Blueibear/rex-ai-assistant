@@ -1,3 +1,16 @@
+## Iteration 21 - US-P3-004: Audit memory_utils.py public API
+- Read rex/memory_utils.py (369 lines): 9 public functions in __all__
+- Three conversation-history fns (trim_history, append_history_entry, load_recent_history) already wrapped by MemoryAdapter
+- Five identity/profile fns (load_users_map, resolve_user_key, load_memory_profile, load_all_profiles, extract_voice_reference) are Rex-specific — no adapter needed
+- export_transcript is Rex-specific path convention — no adapter needed
+- Callers: rex/memory.py re-exports all; voice_loop.py and rex_speak_api.py import directly; root memory_utils.py is compat shim for flask_proxy.py, gui.py, old tests
+- Updated docs/openclaw-migration-status.md: row changed to "Audited (US-P3-004)", full audit notes appended
+- 38 tests pass (no regressions)
+- Learnings for future iterations:
+  - Path-traversal guards (_sanitize_user_key, _validate_path_within) are security-critical; preserve in any refactor
+  - Root-level memory_utils.py compat shim must stay until flask_proxy.py, gui.py migrate
+---
+
 ## Iteration 20 - US-P3-003: Test memory adapter
 - Created `tests/test_openclaw_memory.py` with 18 tests across 3 classes
 - Tests cover: import/instantiation (4), trim_history (6), append+load (8)
