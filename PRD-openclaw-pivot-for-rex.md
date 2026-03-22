@@ -774,9 +774,9 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Document findings in `docs/openclaw-migration-status.md`
 
 **US-P3-002: Create memory adapter**
-- [ ] Create `rex/openclaw/memory_adapter.py`
-- [ ] Implement adapter that delegates to OpenClaw storage with Rex fallback
-- [ ] Tests pass
+- [x] Create `rex/openclaw/memory_adapter.py`
+- [x] Implement adapter that delegates to OpenClaw storage with Rex fallback
+- [x] Tests pass
 
 **US-P3-003: Test memory adapter**
 - [ ] Create `tests/test_openclaw_memory.py`
