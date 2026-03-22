@@ -694,9 +694,9 @@ As a developer, I need a formal interface contract for tool routing so adapters 
 
 **US-P1-005: Extract event bus Protocol**
 As a developer, I need a formal interface contract for the event bus.
-- [ ] Create `rex/contracts/event_bus.py`
-- [ ] Define `EventBusProtocol` matching both the simple and rich API
-- [ ] Tests pass
+- [x] Create `rex/contracts/event_bus.py`
+- [x] Define `EventBusProtocol` matching both the simple and rich API
+- [x] Tests pass
 
 **US-P1-006: Extract browser automation Protocol**
 As a developer, I need a formal interface contract for browser automation.
