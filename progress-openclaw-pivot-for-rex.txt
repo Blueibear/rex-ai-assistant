@@ -1,3 +1,19 @@
+## Iteration 12 - US-P2-004: Create OpenClaw session bridge
+- Created `rex/openclaw/session.py` with `build_session_context(explicit_user, config, metadata) -> dict`
+- Bridges Rex identity resolution (resolve_active_user, get_user_profile, list_known_users) to a flat dict for OpenClaw
+- Guaranteed keys: user_id, session_started_at (ISO 8601 UTC), rex_known_users, rex_user_profile
+- Rex-specific extras prefixed `rex_*`; metadata dict merged directly into session
+- get_user_profile exceptions are caught → rex_user_profile=None (resilient to missing profiles)
+- Created `tests/test_openclaw_session.py` with 7 tests covering all branches
+- session.py file already existed (untracked) from a prior partial iteration — validated and committed
+- Files changed: rex/openclaw/session.py, tests/test_openclaw_session.py, PRD-openclaw-pivot-for-rex.md
+- Tests pass (109 in targeted run)
+- Learnings for future iterations:
+  - Full `pytest tests/` is too slow (loads ML models); use targeted test runs for openclaw tasks
+  - rex/identity.py exports: get_user_profile, list_known_users, resolve_active_user, set_session_user, get_session_user, clear_session_user, require_active_user, create_user_profile, update_user_preferences
+  - session bridge pattern: call resolve_active_user → load profile → build dict with rex_* prefixed extras
+---
+
 ## Iteration 1 - US-P1-001: Create migration tracking document
 - Created `docs/openclaw-migration-status.md` with Module/Classification/Status/Notes table
 - Populated with all 50+ Rex modules from Appendix A of the PRD
