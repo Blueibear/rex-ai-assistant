@@ -1,3 +1,102 @@
+## Iteration 19 - US-P3-002: Create memory adapter
+- Created `rex/openclaw/memory_adapter.py` with `MemoryAdapter` class
+- Wraps trim_history, append_entry, load_recent delegating to rex.memory with OpenClaw TODO stubs
+- OPENCLAW_AVAILABLE guard pattern consistent with other openclaw adapters
+- memory_root override supported on adapter constructor for test isolation
+- 43 openclaw tests pass; module imports cleanly
+- Files changed: rex/openclaw/memory_adapter.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - rex.memory imports (append_history_entry, load_recent_history, trim_history) are stable; no import errors
+  - When building MemoryAdapter tests (US-P3-003), use tmp_path fixture for memory_root isolation
+  - entry dict requires "role" and "text" keys; timestamp auto-injected by append_history_entry
+---
+
+## Iteration 18 - US-P3-001: Audit memory.py public API
+- Read rex/memory.py (734 lines): documents WorkingMemory, LongTermMemory, MemoryEntry, singletons, convenience fns
+- memory.py re-exports 9 functions from rex.memory_utils for backward compat
+- Grepped for callers: rex/assistant.py (trim_history), rex/app.py, rex/cli.py (LTM+WM), rex_memories_bridge.py (LTM), voice_loop.py and rex_speak_api.py use rex.memory_utils directly (not rex.memory)
+- Updated docs/openclaw-migration-status.md: changed status to "Audited (US-P3-001)", added full Audit Notes section
+- Files changed: docs/openclaw-migration-status.md, PRD-openclaw-pivot-for-rex.md
+- Tests pass (52 passed)
+- Learnings for future iterations:
+  - trim_history is highest-priority for adapter (used by assistant.py → voice loop critical path)
+  - WorkingMemory and LongTermMemory use data/memory/ file storage; adapter should wrap these and add OpenClaw hook
+  - MemoryEntry is a Pydantic model — tests import it but no production code imports it directly
+  - rex.memory re-exports memory_utils functions; callers of voice_loop.py use memory_utils directly, not rex.memory
+---
+
+## Iteration 17 - US-P2-010: Document OpenClaw agent setup
+- Created `docs/openclaw-agent-setup.md`
+- Covers: package layout, bootstrap steps, config mapping table, system prompt fields, session bridge, tool registration, OPENCLAW_AVAILABLE flag, open dependencies
+- 43 existing openclaw tests still pass (no regressions)
+- Files changed: docs/openclaw-agent-setup.md, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - Phase 2 is now complete (US-P2-001 through US-P2-010 all [x])
+  - Phase 3 starts with US-P3-001: Audit memory.py public API
+---
+
+## Iteration 16 - US-P2-008 + US-P2-009: Agent smoke tests and persona verification
+- Created `tests/test_openclaw_agent_basic.py` with 13 tests covering both user stories
+- US-P2-008: responds non-empty to "What time is it?", LLM called once, user prompt in messages, system msg present, ValueError on empty/whitespace prompt, agent initialises without args
+- US-P2-009: system_prompt contains wakeword-derived name, injected in LLM call, custom prompt overrides, agent_name from wakeword, location from config in prompt
+- Key gotcha: global rex_config.json has wakeword="hey rex" → capitalize() gives "Hey rex" not "Rex"
+- Fixed by using explicit AppConfig(wakeword="rex") in tests that check for "Rex" specifically
+- Files changed: tests/test_openclaw_agent_basic.py, PRD-openclaw-pivot-for-rex.md
+- All 13 tests pass
+- Learnings for future iterations:
+  - Always use explicit AppConfig in tests that check specific wakeword/agent_name values
+  - Global config in this repo has wakeword="hey rex" (not "rex"), capitalize() → "Hey rex"
+  - Both US-P2-008 and US-P2-009 fit in one file (test_openclaw_agent_basic.py) — no need to split
+---
+
+## Iteration 15 - US-P2-007: Register weather_now tool with OpenClaw
+- Created `rex/openclaw/tools/weather_tool.py` following identical pattern to time_tool.py
+- TOOL_NAME = "weather_now" (matches tool_router.py's supported_tools set — not "weather")
+- weather_now(location, context) delegates to execute_tool with skip_policy/credential/audit_log=True
+- register(agent=None) is the same OpenClaw stub with find_spec guard
+- TOOL_DESCRIPTION notes the OPENWEATHERMAP_API_KEY requirement
+- Created `tests/test_openclaw_tools_weather.py` with 11 tests
+- Includes a real (non-mocked) test that verifies error dict returned when API key absent
+- Files changed: rex/openclaw/tools/weather_tool.py, tests/test_openclaw_tools_weather.py, PRD-openclaw-pivot-for-rex.md
+- All 11 tests pass
+- Learnings for future iterations:
+  - Tool name is weather_now (not weather) — always check tool_router.py supported_tools set for canonical names
+  - The no-API-key test can be real (not mocked) because tool_router returns error dict without raising
+---
+
+## Iteration 14 - US-P2-006: Register time_now tool with OpenClaw
+- Created `rex/openclaw/tools/__init__.py` with docstring listing planned submodules
+- Created `rex/openclaw/tools/time_tool.py` with `time_now(location, context) -> dict` and `register(agent=None) -> Any`
+- `time_now` delegates to `execute_tool` from tool_router (skips policy/credential/audit for direct dispatch)
+- `register()` follows same find_spec + stub + warning pattern as agent.py
+- TOOL_NAME = "time_now", TOOL_DESCRIPTION documents the args shape
+- execute_tool imported at module level (not lazy) so it's patchable in tests
+- Created `tests/test_openclaw_tools_time.py` with 12 tests
+- Files changed: rex/openclaw/tools/__init__.py, rex/openclaw/tools/time_tool.py, tests/test_openclaw_tools_time.py, PRD-openclaw-pivot-for-rex.md
+- All 12 tests pass
+- Learnings for future iterations:
+  - Import dependencies at module level (not lazily inside functions) to allow patching in tests
+  - Patch target must be `rex.openclaw.tools.time_tool.execute_tool`, not `rex.tool_router.execute_tool`
+  - Use skip_policy_check=True, skip_credential_check=True, skip_audit_log=True for direct tool dispatch (no side effects needed for read-only tools like time_now)
+  - TOOL_NAME and TOOL_DESCRIPTION as module-level constants follow the tool registration convention
+---
+
+## Iteration 13 - US-P2-005: Wire Rex persona into OpenClaw agent
+- Added `build_system_prompt(config=None) -> str` to `rex/openclaw/config.py`
+- Derives persona string from AppConfig: wakeword (capitalised as agent name), active_profile (skipped when "default"), default_location, default_timezone, capabilities
+- Updated `RexAgent.__init__` to accept optional `config: AppConfig | None` param
+- When system_prompt is None, calls build_system_prompt(config); when agent_name is None, uses build_agent_config(config)["agent_name"]
+- Replaced hardcoded "You are Rex, a helpful and friendly AI assistant." fallback
+- Created `tests/test_openclaw_agent_persona.py` with 16 tests (10 for build_system_prompt, 6 for RexAgent)
+- Files changed: rex/openclaw/agent.py, rex/openclaw/config.py, tests/test_openclaw_agent_persona.py, PRD-openclaw-pivot-for-rex.md
+- All 23 tests pass (16 new + 7 session tests)
+- Learnings for future iterations:
+  - AppConfig has no persona/system_prompt field; derive from wakeword, active_profile, default_location, default_timezone, capabilities
+  - agent_name = config.wakeword.capitalize() (already done in build_agent_config)
+  - Import build_system_prompt inside __init__ (lazy) to avoid any potential circular import issues
+  - active_profile "default" should be omitted from persona string to reduce noise
+---
+
 ## Iteration 12 - US-P2-004: Create OpenClaw session bridge
 - Created `rex/openclaw/session.py` with `build_session_context(explicit_user, config, metadata) -> dict`
 - Bridges Rex identity resolution (resolve_active_user, get_user_profile, list_known_users) to a flat dict for OpenClaw
