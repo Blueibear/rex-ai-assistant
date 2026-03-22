@@ -1,0 +1,63 @@
+## Iteration 1 - US-P1-001: Create migration tracking document
+- Created `docs/openclaw-migration-status.md` with Module/Classification/Status/Notes table
+- Populated with all 50+ Rex modules from Appendix A of the PRD
+- Marked task complete in PRD-openclaw-pivot-for-rex.md
+- Files changed: docs/openclaw-migration-status.md, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - Tests pass quickly (exit 0); torch teardown logging errors at end are harmless, not test failures
+  - PRD task checkboxes are in Section 10 "Task Breakdown for Ralph Loop Execution", not Section 9 phase validation
+  - Appendix A (line 1184) is the canonical module classification source
+  - The progress file did not exist yet - first iteration creates it
+---
+
+## Iteration 2 - US-P1-002: Add OPENCLAW-REPLACE markers
+- Prepended `# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.` to 12 files
+- Used a shell loop with mktemp to prepend comment + blank line before existing docstring
+- Files changed: rex/event_bus.py, rex/tool_registry.py, rex/tool_router.py, rex/plugin_loader.py, rex/browser_automation.py, rex/dashboard/{__init__.py,routes.py,sse.py,auth.py}, rex/dashboard_store.py, rex/messaging_service.py, rex/executor.py, PRD-openclaw-pivot-for-rex.md
+- Tests pass (exit 0); torch teardown logging errors at end are harmless
+- Learnings for future iterations:
+  - All 12 target files existed; none were missing
+  - All files started with docstrings ("""); marker goes BEFORE the docstring as a comment line
+  - Shell mktemp prepend pattern works cleanly: echo marker > tmp; echo "" >> tmp; cat file >> tmp; mv tmp file
+  - Check for existing marker with grep -q before prepending to make script idempotent
+---
+
+## Iteration 3 - US-P1-003: Add OPENCLAW-WRAP markers
+- Prepended `# OPENCLAW-WRAP: This module will be wrapped around OpenClaw. Preserve public API.` to 10 files
+- Files changed: rex/autonomy/{__init__,runner,llm_planner,rule_planner}.py, rex/policy.py, rex/policy_engine.py, rex/identity.py, rex/profile_manager.py, rex/workflow.py, rex/workflow_runner.py, PRD-openclaw-pivot-for-rex.md
+- Tests pass (exit 0)
+- Learnings: same mktemp prepend pattern; all files existed
+---
+
+## Iteration 4 - US-P1-004: Extract tool routing Protocol
+- Created `rex/contracts/tool_routing.py` with `ToolRoutingProtocol` (runtime_checkable Protocol)
+- Public API: parse_tool_request, execute_tool, route_if_tool_request
+- format_tool_result excluded (presentation concern, not routing)
+- rex/contracts/ already existed with __init__.py, core.py, version.py
+- Tests pass (exit 0)
+- Learnings:
+  - tool_router.py public functions: parse_tool_request, execute_tool, format_tool_result, route_if_tool_request
+  - Protocol methods use instance-method style (self as first arg)
+  - Use `from __future__ import annotations` for forward refs in Protocol files
+---
+
+## Iteration 5 - US-P1-005: Extract event bus Protocol
+- Created `rex/contracts/event_bus.py` with `EventBusProtocol` (runtime_checkable Protocol)
+- Public API: subscribe, unsubscribe, publish, get_metrics, get_stats, iter_subscribers, get_subscription_count, clear_subscriptions
+- Used `AnyHandler = Callable[..., None]` to stay dependency-free (avoids importing Event from event_bus)
+- event_bus.py has dual API: legacy (str, dict) and rich (Event object) - both documented in Protocol
+- Tests pass (exit 0)
+---
+
+## Iteration 6 - US-P1-006: Extract browser automation Protocol
+- Created `rex/contracts/browser.py` with two @runtime_checkable Protocols
+- `BrowserSessionProtocol`: async session API — launch, close, navigate, click, type_text, wait, wait_for_selector, screenshot, login, download_file, get_content, get_text
+- `BrowserAutomationProtocol`: service-level API — execute_script, list_sessions, list_screenshots
+- Two protocols needed because browser_automation.py has two classes: BrowserSession (low-level async) and BrowserAutomationService (Rex integration layer)
+- Module-level functions (run_browser_script, run_browser_script_sync, get/set/reset_browser_service) are implementation helpers, not part of the substitutable interface
+- Tests pass (exit 0)
+- Learnings:
+  - When a module has both a session class and a service class, define separate Protocols for each
+  - All BrowserSession methods are async; use `async def` in Protocol stubs
+  - Optional[str] import needed because browser_automation.py uses Optional from typing (not str | None union style)
+---
