@@ -880,8 +880,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P4-007: Test policy-gated tools**
-- [ ] Confirm policy gating works for each
-- [ ] Tests pass
+- [x] Confirm policy gating works for each
+- [x] Tests pass
 
 **US-P4-008: Register HA tools**
 - [ ] Register `ha_bridge` functions via bridge
