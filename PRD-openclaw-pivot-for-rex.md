@@ -819,8 +819,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P3-012: Audit identity.py public API**
-- [ ] List callers, document session state behavior
-- [ ] Document in migration status
+- [x] List callers, document session state behavior
+- [x] Document in migration status
 
 **US-P3-013: Create identity adapter**
 - [ ] Create `rex/openclaw/identity_adapter.py`

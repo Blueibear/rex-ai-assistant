@@ -49,7 +49,7 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/notification.py` | Wrap | Pending | Notification system (884 lines). Route through OpenClaw's notification/event system if available. |
 | `rex/policy.py` | Keep + Wrap | Audited (US-P3-007) | Policy models (150 lines). Rex-specific risk classification. Keep models; wrap as OpenClaw middleware. Rex policy is always the authority. See audit notes below. |
 | `rex/policy_engine.py` | Keep + Wrap | Audited (US-P3-007) | Policy evaluation (350 lines). Keep engine; wrap as OpenClaw hook. See audit notes below. |
-| `rex/identity.py` | Wrap | Pending | User identity resolution (280 lines). Map to OpenClaw session/user model. Keep Rex's resolution logic. |
+| `rex/identity.py` | Wrap | Audited (US-P3-012) | User identity resolution (322 lines). Map to OpenClaw session/user model. Keep Rex's resolution logic. See audit notes below. |
 | `rex/profile_manager.py` | Wrap | Pending | Profile merging (100 lines). Keep merge logic; wire into OpenClaw agent config. |
 | `rex/voice_identity/` | Keep | Pending | Speaker recognition (7 files). Uniquely Rex. No OpenClaw equivalent. Phase 6: feed into OpenClaw session identity. |
 | `rex/wakeword/` | Keep | Pending | Wake word detection (4 files). Uniquely Rex. Unchanged in migration. |
@@ -251,3 +251,54 @@ Private helpers (not exported): `_sanitize_user_key`, `_validate_path_within`, `
 - `PolicyEngine` is injectable (constructor param, no globals forced) — easy to test and wrap.
 - `get_policy_engine()` singleton is reset-safe via `reset_policy_engine()` — existing test infrastructure is solid.
 - Both modules are marked `# OPENCLAW-WRAP` — they were pre-identified for wrapping.
+
+---
+
+### Audit Notes: rex/identity.py (US-P3-012)
+
+**Public API (`__all__`):**
+
+Session state (OS temp-file backed):
+- `get_session_user()` — read `active_user` from `rex-ai/session.json`; returns `str | None`
+- `set_session_user(user_id)` — write `active_user` to session file; persists across CLI invocations
+- `clear_session_user()` — remove `active_user` from session file
+
+User resolution:
+- `resolve_active_user(explicit_user, config)` — 4-level priority: explicit arg → session file → `runtime.active_user` → `runtime.user_id` in config; returns `str | None`
+- `require_active_user(explicit_user, config, action)` — calls `resolve_active_user` or raises `SystemExit` with helpful message
+
+Profile management (file-based in `Memory/`):
+- `create_user_profile(user_id, name, role, preferences, memory_dir, overwrite)` — writes `core.json`; raises `ValueError` on invalid id, `FileExistsError` if exists and not overwrite
+- `get_user_profile(user_id, memory_dir)` — loads `core.json`; returns `dict | None`
+- `update_user_preferences(user_id, preferences, memory_dir)` — merges preference dict into existing profile; returns `bool`
+- `list_known_users()` — scans `Memory/` for subdirs with `core.json`; returns `[{id, name, role}]`
+
+Private helpers (not exported): `_session_state_path`, `_known_user_ids`, `_load_session`, `_save_session`
+
+**Session state behavior:**
+- Stored at `LOCALAPPDATA\rex-ai\session.json` (Windows) or `XDG_RUNTIME_DIR/rex-ai/session.json` (Linux/Mac)
+- Persists across CLI invocations until `clear_session_user()` or file deleted
+- File write failures are swallowed with a warning (non-fatal)
+
+**Caller map:**
+
+| Caller | Functions used |
+|--------|----------------|
+| `rex/cli.py` | `resolve_active_user`, `get_session_user`, `set_session_user`, `list_known_users` (in `identify` command) |
+| `rex/openclaw/session.py` | `resolve_active_user` (already used in session bridge US-P2-003) |
+| `rex/voice_identity/fallback_flow.py` | `get_session_user`, `set_session_user`, `resolve_active_user` |
+| Tests | `test_identity.py`, `test_us033_user_profiles.py`, `test_voice_id_mvp.py`, `test_voice_identity_fallback.py` |
+
+**Classification for OpenClaw adapter:**
+
+| Function group | Rex-specific? | Adapter priority |
+|---------------|--------------|-----------------|
+| `resolve_active_user`, `get/set/clear_session_user` | Rex-specific (session file) | High — session bridge already wraps this (US-P2-003) |
+| `create_user_profile`, `get_user_profile`, `update_user_preferences`, `list_known_users` | Rex-specific (Memory/ layout) | Medium — profile CRUD, needs adapter for OpenClaw session |
+| `require_active_user` | Rex-specific (SystemExit) | Low — CLI convenience; not in agent path |
+
+**Key findings:**
+- `rex/openclaw/session.py` (US-P2-003) already wraps `resolve_active_user` into the OpenClaw session context — the identity adapter (US-P3-013) builds on this.
+- Session file is OS-temp-backed; OpenClaw adapter should delegate `get/set_session_user` to OpenClaw's session management when available, falling back to the file.
+- Profile CRUD functions (`create_user_profile` etc.) are Rex-specific directory-format ops — keep as-is, expose through adapter for OpenClaw agent to query.
+- Module is marked `# OPENCLAW-WRAP` — pre-identified for wrapping.
