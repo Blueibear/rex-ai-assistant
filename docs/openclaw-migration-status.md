@@ -61,7 +61,7 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/woocommerce/` | Keep | Pending | WooCommerce client with write policy (4 files). Register as OpenClaw skill in Phase 5. Write policy preserved. |
 | `rex/plex_client.py` | Keep | Pending | Plex media control. Register as OpenClaw skill in Phase 5. |
 | `rex/memory.py` | Keep + Adapt | Audited (US-P3-001) | See audit notes below. |
-| `rex/memory_utils.py` | Keep | Pending | Memory helpers. Re-exported via memory.py. Stays with memory.py. |
+| `rex/memory_utils.py` | Keep | Audited (US-P3-004) | See audit notes below. |
 | `rex/llm_client.py` | Keep | Pending | Multi-provider LLM client. Orthogonal to migration. Not in scope. |
 | `rex/config.py` | Keep | Pending | Pydantic settings (600 lines). Add OpenClaw-specific fields as needed. |
 | `rex/cli.py` | Keep + Update | Pending | CLI (4941 lines). Update imports as modules are retired. Do not rewrite. One command at a time. |
@@ -139,3 +139,58 @@ Convenience functions:
 - `WorkingMemory` and `LongTermMemory` use file-based persistence (`data/memory/`)
 - OpenClaw adapter should delegate to these classes and add a future hook for OpenClaw storage
 - No callers import `MemoryEntry` directly except tests — safe to wrap transparently
+
+---
+
+### Audit Notes: rex/memory_utils.py (US-P3-004)
+
+**Public API (`__all__`):**
+
+Conversation history:
+- `trim_history(history, limit)` — trim an in-memory list to the N most recent items
+- `append_history_entry(user_key, entry, memory_root, max_turns)` — append turn to JSONL file; enforces max_turns limit
+- `load_recent_history(user_key, limit, memory_root)` — read recent turns from JSONL; returns `[]` if no file
+- `export_transcript(user_key, conversation, transcripts_dir)` — write conversation to dated text file in transcripts dir
+
+Identity / profile:
+- `load_users_map(users_path)` — load `users.json` email→username mapping
+- `resolve_user_key(identifier, users_map, memory_root, profiles)` — resolve voice/email/name to a canonical user key
+- `load_memory_profile(user_key, memory_root)` — load `core.json` for a user; enforces size limit
+- `load_all_profiles(memory_root)` — load all `core.json` files under Memory/
+- `extract_voice_reference(profile, user_key, memory_root, repo_root)` — resolve voice sample path from profile dict
+
+Private helpers (not exported): `_sanitize_user_key`, `_validate_path_within`, `_ensure_directory`,
+`_history_path`, `_metadata_path`, `_looks_like_placeholder`, `_normalise_voice_path`
+
+**Caller map:**
+
+| Caller | Functions used |
+|--------|----------------|
+| `rex/memory.py` | re-exports all 9 via `from .memory_utils import ...` |
+| `voice_loop.py` (root) | `append_history_entry`, `export_transcript` (direct import) |
+| `rex_speak_api.py` | `extract_voice_reference`, `load_all_profiles` (direct import) |
+| `memory_utils.py` (root compat) | re-exports all 9 for legacy callers |
+| `flask_proxy.py` | `load_memory_profile`, `load_users_map`, `resolve_user_key` (via root compat) |
+| `gui.py` | `load_recent_history` (via root compat) |
+| `tests/test_memory_utils.py` | `append_history_entry`, `export_transcript`, others (via root compat) |
+
+**Classification:**
+
+| Function | Rex-specific? | Adapter priority |
+|----------|--------------|-----------------|
+| `trim_history` | Generic pattern, Rex impl | High — already wrapped by MemoryAdapter (US-P3-002) |
+| `append_history_entry` | Generic pattern, Rex impl | High — already wrapped by MemoryAdapter |
+| `load_recent_history` | Generic pattern, Rex impl | High — already wrapped by MemoryAdapter |
+| `export_transcript` | Rex-specific (file path conventions) | Low — transcript export, not core conversation path |
+| `load_users_map` | Rex-specific (users.json format) | Low — identity concern, not OpenClaw storage |
+| `resolve_user_key` | Rex-specific (voice/email matching) | Low — identity concern |
+| `load_memory_profile` | Rex-specific (core.json format) | Low — profile concern |
+| `load_all_profiles` | Rex-specific (Memory/ directory layout) | Low — profile concern |
+| `extract_voice_reference` | Rex-specific (voice cloning) | Low — TTS concern, not agent storage |
+
+**Key findings:**
+- The three conversation-history functions (`trim_history`, `append_history_entry`, `load_recent_history`) are already wrapped by `MemoryAdapter` (US-P3-002/003) — no further adapter work needed for them.
+- Five identity/profile functions are Rex-specific and should remain in `rex.memory_utils` unchanged; they have no OpenClaw equivalent to map to.
+- `export_transcript` is Rex-specific (path conventions, config toggle); no adapter needed.
+- Root-level `memory_utils.py` is a legacy compat shim — `flask_proxy.py`, `gui.py`, and old tests use it. Do not remove until those callers are migrated.
+- Security: `_sanitize_user_key` and `_validate_path_within` provide path-traversal protection — must be preserved in any refactor.

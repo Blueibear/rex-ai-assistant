@@ -784,9 +784,9 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P3-004: Audit memory_utils.py public API**
-- [ ] List public functions, list callers
-- [ ] Classify as Rex-specific vs generic
-- [ ] Document in migration status
+- [x] List public functions, list callers
+- [x] Classify as Rex-specific vs generic
+- [x] Document in migration status
 
 **US-P3-005: Wire memory adapter into OpenClaw agent**
 - [ ] Update `rex/openclaw/agent.py` to use memory adapter in generate_reply path
