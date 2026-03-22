@@ -723,10 +723,10 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P2-002: Create OpenClaw agent registration module**
-- [ ] Create `rex/openclaw/agent.py`
-- [ ] Implement `RexAgent` class that registers with OpenClaw's agent API
-- [ ] Accept text prompt, return text response via `rex.llm_client.LanguageModel.generate()`
-- [ ] Tests pass
+- [x] Create `rex/openclaw/agent.py`
+- [x] Implement `RexAgent` class that registers with OpenClaw's agent API
+- [x] Accept text prompt, return text response via `rex.llm_client.LanguageModel.generate()`
+- [x] Tests pass
 
 **US-P2-003: Create OpenClaw config bridge**
 - [ ] Create `rex/openclaw/config.py`
