@@ -807,8 +807,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P3-009: Test policy adapter -- block path**
-- [ ] Test: register tool, set requires-approval, call it, confirm blocks
-- [ ] Tests pass
+- [x] Test: register tool, set requires-approval, call it, confirm blocks
+- [x] Tests pass
 
 **US-P3-010: Test policy adapter -- allow path**
 - [ ] Test: register low-risk tool, confirm auto-executes
