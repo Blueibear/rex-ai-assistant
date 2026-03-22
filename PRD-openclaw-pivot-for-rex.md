@@ -762,9 +762,9 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P2-010: Document OpenClaw agent setup**
-- [ ] Create `docs/openclaw-agent-setup.md`
-- [ ] Document bootstrap steps, config mapping, tool registration
-- [ ] Tests pass
+- [x] Create `docs/openclaw-agent-setup.md`
+- [x] Document bootstrap steps, config mapping, tool registration
+- [x] Tests pass
 
 ### Phase 3 Tasks (US-P3-001 through US-P3-019)
 
