@@ -904,8 +904,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P4-013: List all event types on event bus**
-- [ ] List every publish call and every subscriber
-- [ ] Document in migration status
+- [x] List every publish call and every subscriber
+- [x] Document in migration status
 
 **US-P4-014: Classify each event type**
 - [ ] Mark as framework-level, Rex-specific, or bridge-needed

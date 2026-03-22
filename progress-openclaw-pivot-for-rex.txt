@@ -1,3 +1,116 @@
+## Iteration 49 - US-P4-013: List all event types on event bus
+- Audited `rex/event_bus.py` (436 lines): dual API (legacy string + rich Event), EventBus + EventQueue classes, global singleton via `get_event_bus()`
+- Grepped all publish calls across codebase; found 13 event types:
+  - email.*: email.unread, email.triaged, email.read
+  - calendar.*: calendar.connected, calendar.upcoming, calendar.range, calendar.created, calendar.updated, calendar.deleted, calendar.update
+- Found 7 subscribers: notification.py (email.unread, calendar.upcoming), event_triggers.py (wildcard "*"), integrations.py and integrations/_setup.py (both publish same calendar events — parallel implementations)
+- Updated `docs/openclaw-migration-status.md`: row status → "Audited (US-P4-013)", appended full event type and subscriber tables, classification findings for US-P4-014
+- No new test files (pure audit/documentation task)
+- Files changed: docs/openclaw-migration-status.md, PRD-openclaw-pivot-for-rex.md, progress-openclaw-pivot-for-rex.txt
+- Learnings for future iterations:
+  - `rex/integrations.py` and `rex/integrations/_setup.py` are parallel implementations publishing same calendar event types — US-P4-014 classification should note this duplication
+  - EventBus mechanism is framework-level (Replace), all payload event types are Rex domain events (Keep/Bridge)
+  - EventTriggerRegistry in event_triggers.py uses wildcard `"*"` subscribe — bridge must preserve this wildcard capability
+---
+
+## Iteration 48 - US-P4-012: Test assistant with both tool paths
+- Created `tests/test_openclaw_tool_path_parity.py` with 9 tests across 3 classes:
+  - TestRouterParity (5): non-tool text unchanged, empty string, tool request routed, unknown tool, skip_policy_check — both paths produce identical results
+  - TestBridgeDelegation (2): bridge calls same underlying fn, bridge and legacy share same module object
+  - TestAssistantPathParity (2): generate_reply non-tool parity, generate_reply tool parity
+- 9 tests pass in ~7 min (async tests require tokenizer init)
+- Files changed: tests/test_openclaw_tool_path_parity.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - ToolBridge.route_if_tool_request delegates to the same underlying _route_if_tool_request — parity is structural/guaranteed
+  - `_bridge_route` helper needs to forward `skip_policy_check` kwarg explicitly
+  - Patch `rex.tool_router.execute_tool` (not the bridge module) when testing route_if_tool_request round-trips
+  - US-P4-013 should grep for rex.event_bus publish/subscribe calls and document in migration status
+---
+
+## Iteration 47 - US-P4-011: Update assistant.py to use tool bridge with feature flag
+- Renamed import alias: `route_if_tool_request as _legacy_route_if_tool_request` in assistant.py
+- Added `_tool_router_fn` selection in `Assistant.__init__`: imports ToolBridge and binds its method when `use_openclaw_tools=True`, else uses legacy fn
+- Updated `generate_reply` to call `self._tool_router_fn` instead of hardcoded `route_if_tool_request`
+- Created `tests/test_openclaw_assistant_flag.py` with 6 tests across 2 classes:
+  - TestToolRouterFnSelection (3): legacy fn when False, bridge fn when True, two instances independent
+  - TestGenerateReplyRouting (3): generate_reply calls legacy, bridge, correct args passed
+- 6 new tests pass; 6 assistant tests pass; no regressions
+- Files changed: rex/assistant.py, tests/test_openclaw_assistant_flag.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - `Settings = AppConfig` alias in rex/config.py — assistant.py uses Settings but gets AppConfig fields including `use_openclaw_tools`
+  - `object.__setattr__` works to override frozen-ish dataclass fields in tests (AppConfig is not truly frozen)
+  - Tests using asyncio.mode=STRICT need `@pytest.mark.asyncio` decorator; generate_reply tests are async
+  - These async tests run very slowly (~2 min each) due to LLM/tokenizer init side effects in fixture setup
+  - US-P4-012 needs to confirm both paths produce equivalent results; can use mock LLM to avoid slow tokenizer
+---
+
+## Iteration 46 - US-P4-010: Add feature flag for tool routing
+- Added `use_openclaw_tools: bool = False` to `AppConfig` dataclass in `rex/config.py`
+- Added parsing in `build_app_config`: reads `openclaw.use_tools` (default False)
+- Updated `config/rex_config.json` with `"openclaw": {"use_tools": false}` section (gitignored)
+- Created `tests/test_openclaw_feature_flag.py` with 7 tests across 2 classes
+  - TestUseOpenclawToolsDefault (4): has field, default False, build_app_config default False, absent section
+  - TestUseOpenclawToolsEnabled (3): reads True, reads False, coerces to bool
+- 7 new tests pass; 27 config tests pass; no regressions
+- Files changed: rex/config.py, tests/test_openclaw_feature_flag.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - `config/rex_config.json` is in .gitignore — update it locally but don't stage it
+  - Use `openclaw.use_tools` as JSON key (maps cleanly to `use_openclaw_tools` in AppConfig)
+  - US-P4-011 should check `cfg.use_openclaw_tools` in `assistant.py` to route to ToolBridge vs old tool_router
+---
+
+## Iteration 45 - US-P4-009: Test HA tools through OpenClaw
+- Created `tests/test_openclaw_ha_tools_e2e.py` with 10 tests across 4 classes
+  - TestHaToolPolicyGuard (2): guard raises ApprovalRequiredError; LOW-risk override passes
+  - TestHaToolPolicyCheck (1): check returns requires_approval=True, allowed=True, denied=False
+  - TestRexAgentCallToolHaGate (2): call_tool raises ApprovalRequiredError; execute_tool not called when blocked
+  - TestHaCallServiceExecution (5): turn_on succeeds, turn_off succeeds, bridge failure propagated, not-configured returns error, intent fields match args
+- 23 HA-related tests pass; no regressions
+- Files changed: tests/test_openclaw_ha_tools_e2e.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - home_assistant_call_service is explicitly in DEFAULT_POLICIES (MEDIUM, allow_auto=False) — so no special override needed; guard() always raises
+  - Service-level tests follow same mock pattern: patch _get_ha_bridge, set enabled=True, set _execute_intent return value
+  - US-P4-010 should add USE_OPENCLAW_TOOLS config flag to AppConfig/rex_config.json
+---
+
+## Iteration 44 - US-P4-008: Register HA tools
+- Created `rex/openclaw/tools/ha_tool.py` with `ha_call_service(domain, service, entity_id, data=None, context=None)`
+  - TOOL_NAME = "home_assistant_call_service" (matching DEFAULT_POLICIES in policy_engine.py)
+  - `_get_ha_bridge()` factory (patchable at module level) returns `HABridge()`
+  - Checks `bridge.enabled` first; returns error dict if HA not configured (avoids RuntimeError)
+  - Builds `IntentMatch` dataclass and delegates to `bridge._execute_intent(intent)`
+  - `register()` stub follows same OPENCLAW_AVAILABLE guard + warning pattern
+- Added `register_ha_tools(agent=None) → dict` to `ToolBridge`
+  - Imports `_register_ha_call_service` at module level (patchable)
+  - Returns dict with "home_assistant_call_service" key
+- Created `tests/test_openclaw_ha_tools.py` with 13 tests across 2 classes
+  - TestHaTool (7): import, constants, calls _execute_intent, data merged, not-enabled returns error, context ignored, register stub
+  - TestRegisterHaTools (6): returns dict, has key, no extra keys, calls register fn, forwards agent, none without openclaw
+- 271 total openclaw tests pass; no regressions
+- Files changed: rex/openclaw/tools/ha_tool.py, rex/openclaw/tool_bridge.py, tests/test_openclaw_ha_tools.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - HABridge has no factory function; use `_get_ha_bridge() -> HABridge()` pattern (patchable via module-level import)
+  - HABridge.__init__ calls `_require_requests()` which raises if requests not installed — always mock `_get_ha_bridge` in tests
+  - `bridge.enabled` check must come BEFORE `_execute_intent` call (returns False if no base_url+token configured)
+  - IntentMatch is a @dataclass with fields: domain, service, entity_id, data, description, source
+  - US-P4-009 should test HA commands execute correctly (mock bridge.enabled=True + _execute_intent return value)
+---
+
+## Iteration 43 - US-P4-007: Test policy-gated tools
+- Created `tests/test_openclaw_policy_gated_tools_e2e.py` with 16 tests across 3 classes
+  - TestPolicyGateGuard (6): guard() raises ApprovalRequiredError for send_email/send_sms/calendar_create; low-risk override allows each
+  - TestPolicyGateCheck (5): check() returns requires_approval=True for all three tools; denied=True for blocked recipient/domain
+  - TestRexAgentCallToolPolicyGate (5): call_tool raises for all three tools; raises PolicyDeniedError for blocked recipient; service not called when blocked
+- 418 targeted tests pass; no regressions
+- Files changed: tests/test_openclaw_policy_gated_tools_e2e.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - send_sms and calendar_create are NOT in DEFAULT_POLICIES; they fall back to the default MEDIUM-risk policy (unknown tools require approval)
+  - DEFAULT_POLICIES uses "calendar_create_event" (not "calendar_create") — the tool bridge uses the shorter name
+  - PolicyEngine(policies=[...]) overrides DEFAULT_POLICIES only for matching tool names; others keep defaults
+  - Patch "rex.tool_router.execute_tool" (not the bridge) when testing call_tool() service-not-called scenario
+  - US-P4-008 should register ha_bridge functions via the ToolBridge (similar pattern to register_policy_gated_tools)
+---
+
 ## Iteration 42 - US-P4-006: Register policy-gated tools batch
 - Created `rex/openclaw/tools/email_tool.py` (send_email → EmailService.send)
 - Created `rex/openclaw/tools/sms_tool.py` (send_sms → SMSService.send via Message)

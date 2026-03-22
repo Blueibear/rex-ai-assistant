@@ -36,7 +36,7 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/tool_router.py` | Replace | Audited (US-P4-002) | Central tool dispatch (960 lines). Highest-risk replacement. Feature flag required. Test every tool through bridge before retirement. See audit notes below. Tool classification: 6 generic-replace, 3 adapter-needed, 2 Rex-specific. |
 | `rex/plugin_loader.py` | Replace | Pending | Dynamic plugin discovery (56 lines). OpenClaw has plugins. Small file, easy replacement. |
 | `rex/executor.py` | Replace | Pending | Task execution engine. Replaced by OpenClaw task execution via workflow bridge. |
-| `rex/event_bus.py` | Replace | Pending | Pub-sub event system (436 lines). Dual API (simple + rich) must be preserved in bridge. |
+| `rex/event_bus.py` | Replace | Audited (US-P4-013) | Pub-sub event system (436 lines). Dual API (simple + rich) must be preserved in bridge. See audit notes below. |
 | `rex/computers/` | Replace | Pending | Windows agent server/client (~400 lines, 5 files). Replace with OpenClaw workspace/agent model. |
 | `rex/workflow.py` | Wrap | Pending | Workflow data models (668 lines). Rex-specific definitions. Models translate to OpenClaw skill/task definitions; bridge translates at execution time. |
 | `rex/workflow_runner.py` | Wrap | Pending | Workflow execution (864 lines). Has Rex policy hooks. Bridge preserves policy gating; Rex policy is authority. |
@@ -513,3 +513,57 @@ workflow_runner.WorkflowRunner.resume_after_approval()
 - Phase 4a extension: add adapter stubs for the 3 adapter-needed tools (`send_email`, `calendar_*`) — each delegates to the existing Rex service and enforces Rex policy.
 - Phase 4d (workspace): tackle the 3 generic unimplemented tools (`execute_command`, `file_write`, `file_delete`) once OpenClaw workspace model is confirmed.
 - Phase 5: register `home_assistant_call_service` as HA skill and `pc_run` as a Rex skill via OpenClaw workspace model.
+
+---
+
+### Audit Notes: rex/event_bus.py (US-P4-013)
+
+**Module overview:**
+- 436 lines. Dual API: legacy `publish(str, dict)` / `subscribe(str, callback(str, dict))` and rich `publish(Event)` / `subscribe(str, handler(Event))`.
+- Thread-safe; wildcard subscriptions via `"*"`.
+- `EventQueue` wraps `EventBus` with a bounded queue and daemon worker thread.
+- Global singleton: `get_event_bus()` / `set_event_bus()`.
+
+**Published event types (complete list):**
+
+| Event Type | Publisher | Payload Keys | Notes |
+|------------|-----------|--------------|-------|
+| `email.unread` | `rex/integrations.py` (scheduler job) | `count`, `emails` | Published every 10 min by email check job |
+| `email.unread` | `rex/integrations/_setup.py` (scheduler job) | `count`, `emails` | Duplicate of above (parallel impl) |
+| `email.unread` | `rex/email_service.py:fetch_unread()` | varies | Internal publish on fetch |
+| `email.triaged` | `rex/email_service.py` | varies | Published after triage operation |
+| `email.read` | `rex/email_service.py:mark_read()` | `id` | Published when email marked read |
+| `calendar.update` | `rex/integrations.py` (scheduler job) | `count`, `events` | Published every 1 hour by calendar sync job |
+| `calendar.update` | `rex/integrations/_setup.py` (scheduler job) | `count`, `events` | Duplicate of above (parallel impl) |
+| `calendar.connected` | `rex/calendar_service.py:connect()` | `connected`, `count`/`error` | Published on connect/disconnect |
+| `calendar.upcoming` | `rex/calendar_service.py:list_upcoming()` | `count`, `events` | Published on list_upcoming call |
+| `calendar.range` | `rex/calendar_service.py:get_events()` | `count`, `start`, `end` | Published on time-range query |
+| `calendar.created` | `rex/calendar_service.py:create_event()` | event summary | Published after event creation |
+| `calendar.updated` | `rex/calendar_service.py:update_event()` | `event`/`event_id` | Published after event update |
+| `calendar.deleted` | `rex/calendar_service.py:delete_event()` | `event_id`, `deleted` | Published after event deletion |
+
+**Subscribers (complete list):**
+
+| Subscriber | Event Type | Handler | Location |
+|------------|------------|---------|----------|
+| `log_email_event` | `email.unread` | Logs count to info | `rex/integrations.py:setup_default_event_handlers()` |
+| `log_calendar_event` | `calendar.update` | Logs count to info | `rex/integrations.py:setup_default_event_handlers()` |
+| `log_email_event` | `email.unread` | Logs count to info | `rex/integrations/_setup.py:setup_default_event_handlers()` |
+| `log_calendar_event` | `calendar.update` | Logs count to info | `rex/integrations/_setup.py:setup_default_event_handlers()` |
+| `NotificationSystem._on_email_unread` | `email.unread` | Triggers notification | `rex/notification.py` (subscribed in start()) |
+| `NotificationSystem._on_calendar_update` | `calendar.update` | Triggers notification | `rex/notification.py` (subscribed in start()) |
+| `EventTriggerRegistry._bus_handler` | `*` (wildcard) | Dispatches to trigger fns | `rex/event_triggers.py:attach()` |
+
+**Key findings for US-P4-014 classification:**
+
+- `email.unread` — Rex-specific business event. Notifications/integrations consume it. Keep as Rex-specific.
+- `email.triaged`, `email.read` — Rex-specific email workflow events. Keep.
+- `calendar.*` events — Rex-specific calendar workflow events. Keep.
+- All published events are Rex domain events, not framework-level infrastructure events.
+- The event bus *mechanism* (pub-sub infrastructure) is framework-level → **Replace** with OpenClaw.
+- The event *types* (email/calendar domain semantics) are Rex-specific → events bridge through OpenClaw's event system.
+- **No framework-level infrastructure events found** (no workflow.started, tool.executed, session.created etc.).
+- `EventTriggerRegistry` is the primary dynamic routing consumer (wildcard subscribe to all events).
+
+**Duplicate integrations:**
+- `rex/integrations.py` and `rex/integrations/_setup.py` appear to be parallel implementations of the same setup logic. Both are present in the codebase. The `_setup.py` version is likely newer. Both publish the same event types.
