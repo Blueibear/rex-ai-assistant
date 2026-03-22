@@ -900,8 +900,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P4-012: Test assistant with both tool paths**
-- [ ] Confirm parity between old and new
-- [ ] Tests pass
+- [x] Confirm parity between old and new
+- [x] Tests pass
 
 **US-P4-013: List all event types on event bus**
 - [ ] List every publish call and every subscriber
