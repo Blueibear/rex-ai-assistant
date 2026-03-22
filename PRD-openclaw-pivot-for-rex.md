@@ -706,9 +706,9 @@ As a developer, I need a formal interface contract for browser automation.
 
 **US-P1-007: Extract dashboard Protocol**
 As a developer, I need a formal interface contract for the dashboard.
-- [ ] Create `rex/contracts/dashboard.py`
-- [ ] Define `DashboardProtocol` covering route registration, SSE, auth
-- [ ] Tests pass
+- [x] Create `rex/contracts/dashboard.py`
+- [x] Define `DashboardProtocol` covering route registration, SSE, auth
+- [x] Tests pass
 
 **US-P1-008: Extract plugin/tool loading Protocol**
 As a developer, I need a formal interface contract for plugin and tool loading.
