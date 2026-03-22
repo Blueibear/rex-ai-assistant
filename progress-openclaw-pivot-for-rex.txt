@@ -1,3 +1,16 @@
+## Iteration 24 - US-P3-007: Audit policy.py and policy_engine.py public API
+- Read both modules: policy.py (159 lines), policy_engine.py (406 lines)
+- PolicyDecision consumers: tool_router.py (primary gateway), pc_run_policy.py, workflow_runner.py, executor.py, browser_automation.py, cli.py (6 callers)
+- 11 policy-gated tools in DEFAULT_POLICIES: 3 LOW auto-execute, 4 MEDIUM approval, 4 HIGH approval
+- Central enforcement point: execute_tool() in tool_router.py (skip_policy_check=True bypasses)
+- Both modules marked # OPENCLAW-WRAP; PolicyEngine is injectable (no forced globals)
+- Updated docs/openclaw-migration-status.md: rows changed to "Audited (US-P3-007)", full audit notes appended
+- 43 tests pass
+- Learnings for future iterations:
+  - PolicyEngine adapter (US-P3-008) wraps decide() as OpenClaw pre-execution hook
+  - PolicyEngine constructor takes policies list — injectable, testable, no need to mock singleton
+---
+
 ## Iteration 23 - US-P3-006: Test memory persistence across interactions
 - Added TestAgentMemoryPersistence (5 tests) to test_openclaw_agent_basic.py
 - Tests: history saved after respond, replayed in second call, no history without user_key, per-user isolation, 3-turn accumulation
