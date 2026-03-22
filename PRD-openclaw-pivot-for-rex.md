@@ -884,8 +884,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P4-008: Register HA tools**
-- [ ] Register `ha_bridge` functions via bridge
-- [ ] Tests pass
+- [x] Register `ha_bridge` functions via bridge
+- [x] Tests pass
 
 **US-P4-009: Test HA tools through OpenClaw**
 - [ ] Verify HA commands execute correctly

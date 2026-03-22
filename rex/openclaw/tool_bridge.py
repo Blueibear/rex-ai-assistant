@@ -36,6 +36,7 @@ from typing import Any, Callable
 
 from rex.openclaw.tools.calendar_tool import register as _register_calendar_create
 from rex.openclaw.tools.email_tool import register as _register_send_email
+from rex.openclaw.tools.ha_tool import register as _register_ha_call_service
 from rex.openclaw.tools.sms_tool import register as _register_send_sms
 from rex.openclaw.tools.time_tool import register as _register_time_now
 from rex.openclaw.tools.weather_tool import register as _register_weather_now
@@ -216,6 +217,30 @@ class ToolBridge:
             "send_email": _register_send_email(agent=agent),
             "send_sms": _register_send_sms(agent=agent),
             "calendar_create": _register_calendar_create(agent=agent),
+        }
+
+    def register_ha_tools(self, agent: Any = None) -> dict[str, Any]:
+        """Register the Home Assistant tools batch with OpenClaw.
+
+        Calls :func:`register` on the HA tool:
+
+        * ``home_assistant_call_service`` — call a HA service (MEDIUM risk)
+
+        This tool requires policy approval before execution in normal
+        operation.  The approval flow is enforced by the PolicyAdapter
+        (see :mod:`rex.openclaw.policy_adapter`), not by the tool callable
+        itself.
+
+        Args:
+            agent: Optional OpenClaw agent handle forwarded to each
+                individual tool's :func:`register` call.
+
+        Returns:
+            A dict mapping tool name to the registration handle returned by
+            each tool (``None`` when OpenClaw is not installed).
+        """
+        return {
+            "home_assistant_call_service": _register_ha_call_service(agent=agent),
         }
 
     def register(self, agent: Any = None) -> Any:
