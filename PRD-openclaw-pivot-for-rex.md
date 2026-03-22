@@ -748,8 +748,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P2-007: Register weather tool with OpenClaw**
-- [ ] Create `rex/openclaw/tools/weather_tool.py` that registers `weather` with OpenClaw
-- [ ] Tests pass
+- [x] Create `rex/openclaw/tools/weather_tool.py` that registers `weather` with OpenClaw
+- [x] Tests pass
 
 **US-P2-008: Smoke test -- basic agent response**
 - [ ] Create `tests/test_openclaw_agent_basic.py`
