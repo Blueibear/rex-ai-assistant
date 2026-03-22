@@ -719,8 +719,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 ### Phase 2 Tasks (US-P2-001 through US-P2-010)
 
 **US-P2-001: Create rex/openclaw subpackage**
-- [ ] Create `rex/openclaw/__init__.py` with module docstring
-- [ ] Tests pass
+- [x] Create `rex/openclaw/__init__.py` with module docstring
+- [x] Tests pass
 
 **US-P2-002: Create OpenClaw agent registration module**
 - [ ] Create `rex/openclaw/agent.py`
