@@ -54,15 +54,15 @@ def test_setup_calendar_job_registers_and_returns_job():
 
 
 def test_setup_default_event_handlers_subscribes_to_events():
-    """setup_default_event_handlers subscribes to email.unread and calendar.update."""
+    """setup_default_event_handlers subscribes to email.unread and calendar.update via EventBridge."""
     from rex.integrations import setup_default_event_handlers
 
-    mock_event_bus = MagicMock()
+    mock_bridge = MagicMock()
 
-    with patch(f"{_SETUP}.get_event_bus", return_value=mock_event_bus):
+    with patch("rex.openclaw.event_bridge.EventBridge", return_value=mock_bridge):
         setup_default_event_handlers()
 
-    subscribed_events = [c[0][0] for c in mock_event_bus.subscribe.call_args_list]
+    subscribed_events = [c[0][0] for c in mock_bridge.subscribe.call_args_list]
     assert "email.unread" in subscribed_events
     assert "calendar.update" in subscribed_events
 

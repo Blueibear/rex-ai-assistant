@@ -95,7 +95,9 @@ def setup_calendar_job() -> ScheduledJob:
 
 def setup_default_event_handlers() -> None:
     """Set up default event bus handlers for logging."""
-    event_bus = get_event_bus()
+    from rex.openclaw.event_bridge import EventBridge
+
+    event_bus = EventBridge()
 
     def log_email_event(event: Event) -> None:
         count = event.payload.get("count", 0)

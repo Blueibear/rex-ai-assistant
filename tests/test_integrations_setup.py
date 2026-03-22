@@ -66,16 +66,16 @@ def test_setup_calendar_job():
 
 
 def test_setup_default_event_handlers():
-    """setup_default_event_handlers subscribes to email.unread and calendar.update."""
+    """setup_default_event_handlers subscribes to email.unread and calendar.update via EventBridge."""
     from rex.integrations._setup import setup_default_event_handlers
 
-    mock_event_bus = MagicMock()
+    mock_bridge = MagicMock()
 
-    with patch("rex.integrations._setup.get_event_bus", return_value=mock_event_bus):
+    with patch("rex.openclaw.event_bridge.EventBridge", return_value=mock_bridge):
         setup_default_event_handlers()
 
-    assert mock_event_bus.subscribe.call_count == 2
-    subscribed_events = {call[0][0] for call in mock_event_bus.subscribe.call_args_list}
+    assert mock_bridge.subscribe.call_count == 2
+    subscribed_events = {call[0][0] for call in mock_bridge.subscribe.call_args_list}
     assert "email.unread" in subscribed_events
     assert "calendar.update" in subscribed_events
 
@@ -86,18 +86,20 @@ def test_initialize_scheduler_system_no_start():
 
     mock_scheduler = _make_mock_scheduler()
     mock_event_bus = MagicMock()
+    mock_bridge = MagicMock()
 
     with (
         patch("rex.integrations._setup.get_scheduler", return_value=mock_scheduler),
         patch("rex.integrations._setup.get_event_bus", return_value=mock_event_bus),
+        patch("rex.openclaw.event_bridge.EventBridge", return_value=mock_bridge),
         patch("rex.integrations._setup.get_email_service", side_effect=RuntimeError("no email")),
         patch("rex.integrations._setup.get_calendar_service", side_effect=RuntimeError("no cal")),
         patch("rex.integrations._setup._try_register_retention_jobs"),
     ):
         initialize_scheduler_system(start_scheduler=False)
 
-    # Even with failures, event handlers should be registered
-    assert mock_event_bus.subscribe.call_count >= 2
+    # Even with failures, event handlers should be registered via EventBridge
+    assert mock_bridge.subscribe.call_count >= 2
 
 
 def test_shutdown_scheduler_system():

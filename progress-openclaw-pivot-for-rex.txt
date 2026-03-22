@@ -1,3 +1,18 @@
+## Iteration 53 - US-P4-018: Update remaining event consumers to use EventBridge
+- Updated 3 remaining subscribers to use EventBridge():
+  1. `rex/integrations.py:setup_default_event_handlers()` — log_email_event, log_calendar_event
+  2. `rex/integrations/_setup.py:setup_default_event_handlers()` — same
+  3. `rex/event_triggers.py:EventTriggerRegistry.__init__()` — wildcard subscriber default
+- Changed `EventTriggerRegistry` type hint from `EventBus | None` to `EventBus | EventBridge | None`; default from `get_event_bus()` to `EventBridge()`
+- Updated 3 test files to patch `rex.openclaw.event_bridge.EventBridge` instead of `get_event_bus` where subscriber behavior is asserted
+- Publisher closures (setup_email_job, setup_calendar_job) still use get_event_bus() for event_bus.publish() calls — unchanged
+- 58 tests pass across 4 test files
+- Files changed: rex/integrations.py, rex/integrations/_setup.py, rex/event_triggers.py, tests/test_integrations_setup.py, tests/test_rex_integrations.py, PRD-openclaw-pivot-for-rex.md, progress-openclaw-pivot-for-rex.txt
+- Learnings for future iterations:
+  - Publishers (closures capturing event_bus) can remain on raw get_event_bus() for now
+  - When patching EventBridge, target `rex.openclaw.event_bridge.EventBridge` not module-local alias
+---
+
 ## Iteration 52 - US-P4-017: Update first event consumer to use EventBridge
 - Picked simplest subscriber: `rex/notification.py:setup_event_subscriptions()`
 - Changed from `from rex.event_bus import get_event_bus; bus = get_event_bus()` to `from rex.openclaw.event_bridge import EventBridge; bus = EventBridge()`

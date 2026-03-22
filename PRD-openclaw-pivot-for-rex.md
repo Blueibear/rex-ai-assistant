@@ -924,8 +924,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P4-018: Update remaining event consumers**
-- [ ] One at a time, test after each
-- [ ] Tests pass
+- [x] One at a time, test after each
+- [x] Tests pass
 
 **US-P4-019: List all browser_automation importers**
 - [ ] Grep for imports, list every file
