@@ -700,9 +700,9 @@ As a developer, I need a formal interface contract for the event bus.
 
 **US-P1-006: Extract browser automation Protocol**
 As a developer, I need a formal interface contract for browser automation.
-- [ ] Create `rex/contracts/browser.py`
-- [ ] Define `BrowserAutomationProtocol` matching `browser_automation.py` public API
-- [ ] Tests pass
+- [x] Create `rex/contracts/browser.py`
+- [x] Define `BrowserAutomationProtocol` matching `browser_automation.py` public API
+- [x] Tests pass
 
 **US-P1-007: Extract dashboard Protocol**
 As a developer, I need a formal interface contract for the dashboard.
