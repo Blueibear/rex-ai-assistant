@@ -1,3 +1,13 @@
+## Iteration 22 - US-P3-005: Wire memory adapter into OpenClaw agent
+- Added `memory_adapter` param to `RexAgent.__init__`; defaults to `MemoryAdapter()`
+- Added `user_key` kwarg to `respond()`; when set, loads history before LLM call and saves both turns after
+- History skipped when `user_key=None` — all existing tests pass unchanged (54 passed)
+- Files changed: rex/openclaw/agent.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - Inject MemoryAdapter with tmp_path in US-P3-006 tests: `MemoryAdapter(memory_root=str(tmp_path))`
+  - append_entry called twice per respond() with user_key — user turn then assistant turn
+---
+
 ## Iteration 21 - US-P3-004: Audit memory_utils.py public API
 - Read rex/memory_utils.py (369 lines): 9 public functions in __all__
 - Three conversation-history fns (trim_history, append_history_entry, load_recent_history) already wrapped by MemoryAdapter
