@@ -739,8 +739,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P2-005: Wire Rex persona into OpenClaw agent**
-- [ ] Update `rex/openclaw/agent.py` to inject system prompt and personality from Rex config
-- [ ] Tests pass
+- [x] Update `rex/openclaw/agent.py` to inject system prompt and personality from Rex config
+- [x] Tests pass
 
 **US-P2-006: Register time_now tool with OpenClaw**
 - [ ] Create `rex/openclaw/tools/__init__.py`

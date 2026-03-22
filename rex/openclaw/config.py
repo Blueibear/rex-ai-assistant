@@ -22,6 +22,43 @@ from typing import Any, Optional
 from rex.config import AppConfig, load_config
 
 
+def build_system_prompt(config: Optional[AppConfig] = None) -> str:
+    """Build a Rex persona system prompt from ``AppConfig`` fields.
+
+    The prompt encodes Rex's identity, active profile, location context, and
+    capability set so that any LLM invoked through the OpenClaw bridge has a
+    consistent persona regardless of how it was initialised.
+
+    Args:
+        config: Rex ``AppConfig`` instance.  When ``None`` the global config
+            is loaded via ``rex.config.load_config()``.
+
+    Returns:
+        A system-prompt string suitable for the ``system`` role message.
+    """
+    if config is None:
+        config = load_config()
+
+    name = config.wakeword.capitalize()
+    parts: list[str] = [f"You are {name}, a helpful and friendly AI assistant."]
+
+    profile = config.active_profile
+    if profile and profile != "default":
+        parts.append(f"Your active profile is: {profile}.")
+
+    if config.default_location:
+        parts.append(f"The user's location is {config.default_location}.")
+
+    if config.default_timezone:
+        parts.append(f"The local timezone is {config.default_timezone}.")
+
+    if config.capabilities:
+        caps = ", ".join(config.capabilities)
+        parts.append(f"Your capabilities include: {caps}.")
+
+    return " ".join(parts)
+
+
 def build_agent_config(config: Optional[AppConfig] = None) -> dict[str, Any]:
     """Map Rex ``AppConfig`` fields to an OpenClaw agent configuration dict.
 

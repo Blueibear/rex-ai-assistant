@@ -25,6 +25,7 @@ import logging
 from importlib.util import find_spec
 from typing import Any
 
+from rex.config import AppConfig
 from rex.llm_client import LanguageModel
 
 logger = logging.getLogger(__name__)
@@ -49,23 +50,31 @@ class RexAgent:
             instance is created on first use (lazy, to avoid loading
             model weights at import time).
         agent_name: The name under which Rex registers with OpenClaw.
-        system_prompt: Optional system/persona prompt injected into every
-            ``respond`` call.  Defaults to a minimal Rex identity string;
-            set via :class:`rex.openclaw.config` once that module exists.
+            Defaults to the capitalised wakeword from ``AppConfig`` (``"Rex"``).
+        system_prompt: System/persona prompt injected into every ``respond``
+            call.  When *None*, :func:`rex.openclaw.config.build_system_prompt`
+            derives the prompt from ``AppConfig`` fields (wakeword, profile,
+            location, timezone, capabilities).
+        config: Optional ``AppConfig`` instance used to derive ``agent_name``
+            and ``system_prompt`` when those arguments are not supplied.
+            Defaults to the global config loaded by ``rex.config.load_config()``.
     """
 
     def __init__(
         self,
         llm: LanguageModel | None = None,
         *,
-        agent_name: str = "Rex",
+        agent_name: str | None = None,
         system_prompt: str | None = None,
+        config: AppConfig | None = None,
     ) -> None:
         self._llm = llm
-        self.agent_name = agent_name
-        self.system_prompt = system_prompt or (
-            "You are Rex, a helpful and friendly AI assistant."
-        )
+        # Derive agent name and persona from Rex config when not supplied.
+        from rex.openclaw.config import build_agent_config, build_system_prompt
+
+        _cfg = build_agent_config(config)
+        self.agent_name = agent_name or _cfg.get("agent_name", "Rex")
+        self.system_prompt = system_prompt or build_system_prompt(config)
         self._registered = False
 
     # ------------------------------------------------------------------
