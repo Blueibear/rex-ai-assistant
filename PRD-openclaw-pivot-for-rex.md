@@ -863,9 +863,9 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Document in migration status
 
 **US-P4-003: Create tool bridge**
-- [ ] Create `rex/openclaw/tool_bridge.py` implementing ToolRouting Protocol
-- [ ] Delegates to OpenClaw tool system
-- [ ] Tests pass
+- [x] Create `rex/openclaw/tool_bridge.py` implementing ToolRouting Protocol
+- [x] Delegates to OpenClaw tool system
+- [x] Tests pass
 
 **US-P4-004: Register simple read-only tools batch**
 - [ ] Register `time_now`, `weather`, `geolocation` via bridge

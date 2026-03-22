@@ -1,3 +1,73 @@
+## Iteration 39 - US-P4-003: Create tool bridge
+- Created `rex/openclaw/tool_bridge.py` with `ToolBridge` class implementing `ToolRoutingProtocol`
+- Delegates: parse_tool_request → _parse_tool_request, execute_tool → _execute_tool, route_if_tool_request → _route_if_tool_request
+- All kwargs (skip_policy_check, skip_credential_check, task_id, requested_by, skip_audit_log) forwarded through
+- Same OPENCLAW_AVAILABLE guard + register() stub pattern as other adapters
+- Created `tests/test_openclaw_tool_bridge.py` with 20 tests across 5 classes
+  - TestToolBridgeInstantiation (4): import, no-args, OPENCLAW_AVAILABLE type, isinstance(bridge, ToolRoutingProtocol)
+  - TestParseToolRequest (5): valid, non-tool, empty, with-args, delegation check
+  - TestExecuteTool (6): delegation, skip_policy, skip_credential, task_id, requested_by, skip_audit_log
+  - TestRouteIfToolRequest (3): non-tool passthrough, delegation, skip_policy_check
+  - TestRegister (2): returns None without openclaw, accepts agent arg
+- 187 total openclaw tests pass; no regressions
+- Files changed: rex/openclaw/tool_bridge.py, tests/test_openclaw_tool_bridge.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - ToolBridge implements ToolRoutingProtocol structurally — isinstance check passes with @runtime_checkable
+  - Import _parse_tool_request etc at module level (not lazily) to enable patching in tests
+  - Patch target: `rex.openclaw.tool_bridge._execute_tool` (not `rex.tool_router.execute_tool`)
+  - US-P4-004 should register time_now, weather_now (already have tool files) via bridge
+---
+
+## Iteration 38 - US-P4-002: Classify each tool by migration type
+- Classified all 11 DEFAULT_POLICIES tools as: Generic (replace), Adapter-needed, or Rex-specific
+- Generic (replace) × 6: time_now, weather_now, web_search, execute_command, file_write, file_delete
+- Adapter-needed × 3: send_email, calendar_create_event, calendar_delete_event
+- Rex-specific × 2: home_assistant_call_service, pc_run
+- Appended full classification table + migration sequencing notes to docs/openclaw-migration-status.md
+- Updated tool_router.py row status to "Audited (US-P4-002)"
+- 151 openclaw tests pass; no regressions
+- Files changed: docs/openclaw-migration-status.md, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - Classification: only 3 tools have implementations in tool_router; other 8 are policy-gated stubs
+  - US-P4-003 (tool bridge) should start with the 3 implemented generics (time_now, weather_now, web_search)
+  - Adapter-needed tools need bridges to rex.email_service and rex.calendar_service
+  - Rex-specific tools (home_assistant_call_service, pc_run) move to Phase 5 as skills
+---
+
+## Iteration 37 - US-P4-001: Audit tool_router.py tool name/handler mapping
+- Read rex/tool_router.py and rex/tool_registry.py in full
+- Found supported_tools = {"time_now", "weather_now", "web_search"} (only 3 handlers in execute_tool)
+- Handler dispatch: time_now → _execute_time_now; weather_now → _execute_weather_now; web_search → _execute_web_search
+- Tool registry has 5 builtins: time_now, weather_now, web_search, send_email (stub), home_assistant
+- Gap: 8 of 11 DEFAULT_POLICIES tools have no handler in tool_router.py (policy-gated but return "Unknown tool")
+- pc_run handled via pc_run_policy.py + approval flow, not through tool_router
+- Appended full audit table to docs/openclaw-migration-status.md; updated tool_router row status
+- 67 targeted openclaw tests pass; no regressions
+- Files changed: docs/openclaw-migration-status.md, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - Only 3 tools are fully implemented in tool_router: time_now, weather_now, web_search
+  - skip_policy_check=True forces skip_credential_check=True — the two flags are coupled
+  - tool_registry has send_email and home_assistant registered as stubs (health returns False)
+  - US-P4-002 (tool routing bridge) only needs to cover the 3 implemented tools; stubs documented
+---
+
+## Iteration 36 - US-P3-019: Test approval adapter end-to-end
+- Created `tests/test_openclaw_approval_adapter.py` with 31 tests across 7 classes
+- TestApprovalAdapterInstantiation (4): import, no-args, approval_dir property, OPENCLAW_AVAILABLE flag
+- TestApprovalAdapterCreate (7): returns WorkflowApproval, status pending, workflow_id/step_id stored, persists to disk, optional fields, unique IDs
+- TestApprovalAdapterLoad (3): load after create, None for unknown id, preserves workflow_id
+- TestApprovalAdapterListPending (4): empty dir, contains new approval, multiple, only shows pending
+- TestApprovalAdapterApprove (4): returns True, updates status to approved, False for unknown, removes from pending
+- TestApprovalAdapterDeny (4): returns True, updates status to denied, False for unknown, removes from pending
+- TestApprovalAdapterEndToEnd (3): create→list→approve→reload, create→list→deny→reload, multiple independent
+- 167 total openclaw tests pass; no regressions
+- Files changed: tests/test_openclaw_approval_adapter.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - approve_workflow/deny_workflow return True if record found+updated, False if not found
+  - list_pending_approvals only returns records with status=="pending"
+  - tmp_path isolation works cleanly — each test has its own empty approval dir
+---
+
 ## Iteration 35 - US-P3-018: Create approval adapter
 - Created `rex/openclaw/approval_adapter.py` with `ApprovalAdapter` class
 - Methods: create(workflow_id, step_id, ...) → persists new WorkflowApproval; load(approval_id); approve(approval_id); deny(approval_id); list_pending()
