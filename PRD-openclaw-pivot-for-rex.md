@@ -687,10 +687,10 @@ As a developer, I need wrap markers so I know which modules will be adapted rath
 
 **US-P1-004: Extract tool routing Protocol**
 As a developer, I need a formal interface contract for tool routing so adapters can be swapped in.
-- [ ] Create `rex/contracts/tool_routing.py`
-- [ ] Define `ToolRoutingProtocol` with methods matching `tool_router.py`'s public API
-- [ ] Add type hints and docstrings
-- [ ] Tests pass
+- [x] Create `rex/contracts/tool_routing.py`
+- [x] Define `ToolRoutingProtocol` with methods matching `tool_router.py`'s public API
+- [x] Add type hints and docstrings
+- [x] Tests pass
 
 **US-P1-005: Extract event bus Protocol**
 As a developer, I need a formal interface contract for the event bus.
