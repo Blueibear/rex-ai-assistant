@@ -1,3 +1,10 @@
+## Iteration 27 - US-P3-010: Test policy adapter allow path
+- Added TestPolicyAdapterAllowPath (10 tests) to tests/test_openclaw_policy.py
+- Tests: guard() passes for time_now/weather_now/web_search (DEFAULT_POLICIES low-risk), custom low-risk tool, check() fields correct, register() returns None, engine property, OPENCLAW_AVAILABLE type
+- 18 total tests in file; all pass
+- Files changed: tests/test_openclaw_policy.py, PRD-openclaw-pivot-for-rex.md
+---
+
 ## Iteration 26 - US-P3-009: Test policy adapter block path
 - Created `tests/test_openclaw_policy.py` with 8 block-path tests (TestPolicyAdapterBlockPath)
 - Tests: guard raises ApprovalRequiredError (medium, high, custom, unknown); guard raises PolicyDeniedError (blocked recipient, blocked domain); check() returns correct decision fields
