@@ -920,8 +920,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P4-017: Update first event consumer to use bridge**
-- [ ] Pick simplest subscriber, update, test
-- [ ] Tests pass
+- [x] Pick simplest subscriber, update, test
+- [x] Tests pass
 
 **US-P4-018: Update remaining event consumers**
 - [ ] One at a time, test after each

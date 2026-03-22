@@ -1,3 +1,16 @@
+## Iteration 52 - US-P4-017: Update first event consumer to use EventBridge
+- Picked simplest subscriber: `rex/notification.py:setup_event_subscriptions()`
+- Changed from `from rex.event_bus import get_event_bus; bus = get_event_bus()` to `from rex.openclaw.event_bridge import EventBridge; bus = EventBridge()`
+- EventBridge() wraps the same global bus singleton → functionally identical, now routes through bridge
+- Updated existing `test_notifier_event_subscription` in tests/test_notification.py to patch `rex.openclaw.event_bridge.EventBridge` instead of `rex.event_bus.get_event_bus`
+- 18 notification tests pass
+- Files changed: rex/notification.py, tests/test_notification.py, PRD-openclaw-pivot-for-rex.md, progress-openclaw-pivot-for-rex.txt
+- Learnings for future iterations:
+  - US-P4-018 remaining consumers: rex/integrations.py and rex/integrations/_setup.py (both log_email_event + log_calendar_event subscribers), rex/event_triggers.py (wildcard attach())
+  - Each consumer just needs `get_event_bus()` → `EventBridge()` swap
+  - Any existing tests that patch `rex.event_bus.get_event_bus` for that consumer must be updated to patch `rex.openclaw.event_bridge.EventBridge`
+---
+
 ## Iteration 51 - US-P4-015 + US-P4-016: Create event bridge and test round-trip
 - Created `rex/openclaw/event_bridge.py` (EventBridge class, ~175 lines)
   - Implements EventBusProtocol structurally

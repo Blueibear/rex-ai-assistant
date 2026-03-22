@@ -615,9 +615,9 @@ class Notifier:
     def setup_event_subscriptions(self) -> None:
         """Subscribe to event bus events to create notifications automatically."""
         try:
-            from rex.event_bus import get_event_bus
+            from rex.openclaw.event_bridge import EventBridge
 
-            bus = get_event_bus()
+            bus = EventBridge()
 
             # Subscribe to email events
             bus.subscribe("email.unread", self._on_email_unread)

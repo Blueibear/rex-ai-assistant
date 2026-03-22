@@ -280,17 +280,15 @@ def test_notifier_dispatch_to_sms(notifier):
 
 
 def test_notifier_event_subscription():
-    """Test event bus subscription setup."""
-    with patch("rex.event_bus.get_event_bus") as mock_get_bus:
-        mock_bus = MagicMock()
-        mock_get_bus.return_value = mock_bus
-
+    """Test event bus subscription setup (via EventBridge)."""
+    mock_bridge = MagicMock()
+    with patch("rex.openclaw.event_bridge.EventBridge", return_value=mock_bridge):
         notifier = Notifier()
         notifier.setup_event_subscriptions()
 
-        # Should subscribe to email and calendar events
-        assert mock_bus.subscribe.call_count == 2
-        calls = mock_bus.subscribe.call_args_list
+        # Should subscribe to email and calendar events via EventBridge
+        assert mock_bridge.subscribe.call_count == 2
+        calls = mock_bridge.subscribe.call_args_list
         event_types = [call[0][0] for call in calls]
         assert "email.unread" in event_types
         assert "calendar.update" in event_types
