@@ -892,8 +892,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P4-010: Add feature flag for tool routing**
-- [ ] Add `USE_OPENCLAW_TOOLS` to config
-- [ ] Tests pass
+- [x] Add `USE_OPENCLAW_TOOLS` to config
+- [x] Tests pass
 
 **US-P4-011: Update assistant.py to use tool bridge with feature flag**
 - [ ] When flag enabled, use bridge; otherwise use old `tool_router`
