@@ -49,6 +49,18 @@
 - Tests pass (exit 0)
 ---
 
+## Iteration 8 - US-P1-008: Extract plugin/tool loading Protocol
+- Created `rex/contracts/plugins.py` with two @runtime_checkable Protocols
+- `PluginLoaderProtocol`: single method — load_plugins(path) -> dict[str, Any]
+- `ToolRegistryProtocol`: full ToolRegistry API — register_tool, unregister_tool, get_tool, has_tool, list_tools, check_credentials, validate_credentials_for_tool, check_health, check_all_health, get_tool_status, get_all_status
+- plugin_loader.py is function-based (not class-based); PluginLoaderProtocol wraps it as a service method for structural substitutability
+- Used Any for ToolMeta params to stay dependency-free (ToolMeta is defined in tool_registry.py which will be replaced)
+- Tests pass (exit 0)
+- Learnings:
+  - A module-level function can be contracted as a Protocol method — any class that implements the method satisfies the Protocol
+  - HealthCheckFn type alias (Callable[[], tuple[bool, str]]) is an implementation detail; Protocol uses tuple[bool, str] return types directly
+---
+
 ## Iteration 7 - US-P1-007: Extract dashboard Protocol
 - Created `rex/contracts/dashboard.py` with three @runtime_checkable Protocols
 - `SessionManagerProtocol`: auth API — create_session, validate_session, invalidate_session, get_active_session_count
