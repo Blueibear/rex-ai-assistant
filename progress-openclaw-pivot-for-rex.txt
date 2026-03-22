@@ -1,3 +1,15 @@
+## Iteration 25 - US-P3-008: Create policy adapter
+- Created `rex/openclaw/policy_adapter.py` with `PolicyAdapter` class
+- Methods: check(tool_name, metadata) -> PolicyDecision; guard() raises PolicyDeniedError/ApprovalRequiredError; register() stub
+- Imports PolicyDeniedError/ApprovalRequiredError from rex.tool_router for consistency
+- Injectable engine param (PolicyEngine or get_policy_engine() singleton)
+- 55 tests pass; module imports cleanly
+- Files changed: rex/openclaw/policy_adapter.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - guard() is the method to test for US-P3-009 block path
+  - check() returns PolicyDecision directly for US-P3-009 allow path
+---
+
 ## Iteration 24 - US-P3-007: Audit policy.py and policy_engine.py public API
 - Read both modules: policy.py (159 lines), policy_engine.py (406 lines)
 - PolicyDecision consumers: tool_router.py (primary gateway), pc_run_policy.py, workflow_runner.py, executor.py, browser_automation.py, cli.py (6 callers)
