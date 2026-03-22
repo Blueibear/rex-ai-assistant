@@ -47,8 +47,8 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/scheduler.py` | Wrap | Pending | Cron-like scheduling (675 lines). Evaluate OpenClaw scheduling; wrap if available, keep if not. |
 | `rex/planner.py` | Wrap | Pending | Task planning (640 lines). Rex's planning logic wraps OpenClaw primitives. |
 | `rex/notification.py` | Wrap | Pending | Notification system (884 lines). Route through OpenClaw's notification/event system if available. |
-| `rex/policy.py` | Keep + Wrap | Pending | Policy models (150 lines). Rex-specific risk classification. Keep models; wrap as OpenClaw middleware. Rex policy is always the authority. |
-| `rex/policy_engine.py` | Keep + Wrap | Pending | Policy evaluation (350 lines). Keep engine; wrap as OpenClaw hook. |
+| `rex/policy.py` | Keep + Wrap | Audited (US-P3-007) | Policy models (150 lines). Rex-specific risk classification. Keep models; wrap as OpenClaw middleware. Rex policy is always the authority. See audit notes below. |
+| `rex/policy_engine.py` | Keep + Wrap | Audited (US-P3-007) | Policy evaluation (350 lines). Keep engine; wrap as OpenClaw hook. See audit notes below. |
 | `rex/identity.py` | Wrap | Pending | User identity resolution (280 lines). Map to OpenClaw session/user model. Keep Rex's resolution logic. |
 | `rex/profile_manager.py` | Wrap | Pending | Profile merging (100 lines). Keep merge logic; wire into OpenClaw agent config. |
 | `rex/voice_identity/` | Keep | Pending | Speaker recognition (7 files). Uniquely Rex. No OpenClaw equivalent. Phase 6: feed into OpenClaw session identity. |
@@ -194,3 +194,60 @@ Private helpers (not exported): `_sanitize_user_key`, `_validate_path_within`, `
 - `export_transcript` is Rex-specific (path conventions, config toggle); no adapter needed.
 - Root-level `memory_utils.py` is a legacy compat shim — `flask_proxy.py`, `gui.py`, and old tests use it. Do not remove until those callers are migrated.
 - Security: `_sanitize_user_key` and `_validate_path_within` provide path-traversal protection — must be preserved in any refactor.
+
+---
+
+### Audit Notes: rex/policy.py and rex/policy_engine.py (US-P3-007)
+
+**rex/policy.py — Public API (`__all__`):**
+
+- `RiskLevel` — re-exported from `rex.contracts`; enum: `LOW`, `MEDIUM`, `HIGH`
+- `ActionPolicy(BaseModel)` — tool policy config: `tool_name`, `risk`, `allow_auto`, `allowed_recipients`, `denied_recipients`, `allowed_domains`, `denied_domains`
+- `PolicyDecision(BaseModel)` — evaluation result: `allowed`, `reason`, `requires_approval`, `denied`
+
+**rex/policy_engine.py — Public API (`__all__`):**
+
+- `PolicyEngine` — evaluation class
+  - `__init__(policies, default_policy)` — merge custom policies over DEFAULT_POLICIES
+  - `policies` (property) — read-only copy of current registry
+  - `get_policy(tool_name)` — look up policy or return default
+  - `decide(tool_call, metadata)` — evaluate and return `PolicyDecision`
+  - `add_policy(policy)` — register/override a policy at runtime
+  - `remove_policy(tool_name)` — remove a policy; returns bool
+- `DEFAULT_POLICIES` — list of 11 built-in `ActionPolicy` objects (see gated tools below)
+- `get_policy_engine()` — module-level singleton accessor
+- `reset_policy_engine()` — reset singleton (for tests)
+
+**PolicyDecision consumers (who checks `.denied` / `.requires_approval`):**
+
+| Caller | How it uses PolicyDecision |
+|--------|---------------------------|
+| `rex/tool_router.py:execute_tool()` | Primary gateway — checks `.denied` (raises `PolicyDeniedError`), `.requires_approval` (raises `ApprovalRequiredError`); `skip_policy_check=True` bypasses |
+| `rex/computers/pc_run_policy.py` | Constructs `PolicyDecision` directly for `pc_run` approval gating |
+| `rex/workflow_runner.py` | Uses `get_policy_engine()` for workflow step policy checks |
+| `rex/executor.py` | Uses `get_policy_engine()` for planner-driven tool execution |
+| `rex/browser_automation.py` | Uses `get_policy_engine()` for browser tool actions |
+| `rex/cli.py` | Passes `get_policy_engine()` to `Planner` on `plan` command |
+
+**Policy-gated tools (DEFAULT_POLICIES):**
+
+| Tool | Risk | Auto-execute? |
+|------|------|---------------|
+| `time_now` | LOW | Yes |
+| `weather_now` | LOW | Yes |
+| `web_search` | LOW | Yes |
+| `send_email` | MEDIUM | No (requires approval) |
+| `calendar_create_event` | MEDIUM | No |
+| `calendar_delete_event` | MEDIUM | No |
+| `home_assistant_call_service` | MEDIUM | No |
+| `execute_command` | HIGH | No |
+| `pc_run` | HIGH | No |
+| `file_write` | HIGH | No |
+| `file_delete` | HIGH | No |
+
+**Key findings:**
+- `rex/tool_router.py:execute_tool()` is the single policy enforcement point for all tool calls. The `skip_policy_check=True` flag (used by OpenClaw tool adapters in Phase 2) bypasses the engine entirely.
+- OpenClaw adapter strategy: wrap `PolicyEngine.decide()` as an OpenClaw pre-execution hook so Rex policy fires before any OpenClaw-dispatched tool. Rex policy is always the authority.
+- `PolicyEngine` is injectable (constructor param, no globals forced) — easy to test and wrap.
+- `get_policy_engine()` singleton is reset-safe via `reset_policy_engine()` — existing test infrastructure is solid.
+- Both modules are marked `# OPENCLAW-WRAP` — they were pre-identified for wrapping.

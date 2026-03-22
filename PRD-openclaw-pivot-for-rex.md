@@ -797,9 +797,9 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P3-007: Audit policy.py and policy_engine.py public API**
-- [ ] List every PolicyDecision consumer
-- [ ] List every policy-gated tool
-- [ ] Document in migration status
+- [x] List every PolicyDecision consumer
+- [x] List every policy-gated tool
+- [x] Document in migration status
 
 **US-P3-008: Create policy adapter**
 - [ ] Create `rex/openclaw/policy_adapter.py`
