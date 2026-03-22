@@ -34,6 +34,8 @@ import logging
 from importlib.util import find_spec
 from typing import Any, Callable
 
+from rex.openclaw.tools.time_tool import register as _register_time_now
+from rex.openclaw.tools.weather_tool import register as _register_weather_now
 from rex.tool_router import (
     execute_tool as _execute_tool,
     parse_tool_request as _parse_tool_request,
@@ -158,6 +160,32 @@ class ToolBridge:
     # ------------------------------------------------------------------
     # OpenClaw registration
     # ------------------------------------------------------------------
+
+    def register_simple_tools(self, agent: Any = None) -> dict[str, Any]:
+        """Register the simple read-only batch of tools with OpenClaw.
+
+        Calls :func:`register` on each tool in the *simple / read-only* batch:
+
+        * ``time_now`` — current local date and time
+        * ``weather_now`` — current weather conditions
+
+        Geolocation is handled internally by ``time_now`` / ``weather_now``
+        via :mod:`rex.tool_router`'s fallback logic.  A standalone
+        ``geolocation`` tool is not yet implemented in :mod:`rex.tool_router`
+        and will be registered in a future iteration.
+
+        Args:
+            agent: Optional OpenClaw agent handle forwarded to each
+                individual tool's :func:`register` call.
+
+        Returns:
+            A dict mapping tool name to the registration handle returned by
+            each tool (``None`` when OpenClaw is not installed).
+        """
+        return {
+            "time_now": _register_time_now(agent=agent),
+            "weather_now": _register_weather_now(agent=agent),
+        }
 
     def register(self, agent: Any = None) -> Any:
         """Register this bridge as the OpenClaw tool provider.

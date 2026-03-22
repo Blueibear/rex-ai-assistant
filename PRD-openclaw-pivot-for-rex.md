@@ -868,8 +868,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P4-004: Register simple read-only tools batch**
-- [ ] Register `time_now`, `weather`, `geolocation` via bridge
-- [ ] Tests pass
+- [x] Register `time_now`, `weather`, `geolocation` via bridge
+- [x] Tests pass
 
 **US-P4-005: Test simple tools through OpenClaw**
 - [ ] Verify each tool returns correct results
