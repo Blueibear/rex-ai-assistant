@@ -859,8 +859,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Document in migration status
 
 **US-P4-002: Classify each tool**
-- [ ] Mark each as: Rex-specific, generic (replace), adapter-needed
-- [ ] Document in migration status
+- [x] Mark each as: Rex-specific, generic (replace), adapter-needed
+- [x] Document in migration status
 
 **US-P4-003: Create tool bridge**
 - [ ] Create `rex/openclaw/tool_bridge.py` implementing ToolRouting Protocol

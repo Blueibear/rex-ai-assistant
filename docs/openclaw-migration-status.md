@@ -33,7 +33,7 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/messaging_service.py` | Replace | Pending | Messaging orchestration. Retires with messaging_backends. |
 | `rex/integrations/message_router.py` | Replace | Pending | Routes messages between channels. Retires with messaging. |
 | `rex/tool_registry.py` | Replace | Pending | Tool metadata + health checks. OpenClaw has skill/tool system. Define Protocol first (Phase 1), then bridge (Phase 4). |
-| `rex/tool_router.py` | Replace | Audited (US-P4-001) | Central tool dispatch (960 lines). Highest-risk replacement. Feature flag required. Test every tool through bridge before retirement. See audit notes below. |
+| `rex/tool_router.py` | Replace | Audited (US-P4-002) | Central tool dispatch (960 lines). Highest-risk replacement. Feature flag required. Test every tool through bridge before retirement. See audit notes below. Tool classification: 6 generic-replace, 3 adapter-needed, 2 Rex-specific. |
 | `rex/plugin_loader.py` | Replace | Pending | Dynamic plugin discovery (56 lines). OpenClaw has plugins. Small file, easy replacement. |
 | `rex/executor.py` | Replace | Pending | Task execution engine. Replaced by OpenClaw task execution via workflow bridge. |
 | `rex/event_bus.py` | Replace | Pending | Pub-sub event system (436 lines). Dual API (simple + rich) must be preserved in bridge. |
@@ -474,3 +474,42 @@ workflow_runner.WorkflowRunner.resume_after_approval()
 - `skip_policy_check=True` also forces `skip_credential_check=True` — these two flags are coupled in `execute_tool()`.
 - US-P4-002 (tool routing bridge) should expose all 3 implemented tools (`time_now`, `weather_now`, `web_search`) through the OpenClaw bridge. The 8 unimplemented tools should be documented as "stub registered in policy, not yet implemented".
 - `_CITY_TIMEZONES` dict (~200 entries, lines 545–900+) is an internal lookup table for `_resolve_timezone()`. It is private and not part of the migration surface.
+
+---
+
+### Audit Notes: Tool Classification (US-P4-002)
+
+**Classification schema:**
+- **Rex-specific** — tool is tightly coupled to Rex's unique functionality (HA, PC agent, WooCommerce). Must remain as a Rex-owned skill/tool registered with OpenClaw; cannot be replaced generically.
+- **Generic (replace)** — tool does something any agent framework can do natively. Should be replaced by OpenClaw's equivalent capability; Rex implementation retired after migration.
+- **Adapter-needed** — tool wraps a Rex service that stays in Rex (email, calendar) but needs a thin bridge to route calls through OpenClaw's tool dispatch. Rex service code stays; only the routing layer changes.
+
+**Tool classification table:**
+
+| Tool | In tool_router? | Risk | Classification | Notes |
+|------|-----------------|------|----------------|-------|
+| `time_now` | Yes (implemented) | LOW | Generic (replace) | Generic time/date/timezone query. OpenClaw or any agent framework can provide this. Currently in `_execute_time_now` using `ZoneInfo`. Replace with OpenClaw tool in Phase 4. |
+| `weather_now` | Yes (implemented) | LOW | Generic (replace) | Generic weather query via `OPENWEATHERMAP_API_KEY`. OpenClaw can provide a weather tool. Currently in `_execute_weather_now`. Replace with OpenClaw tool in Phase 4. |
+| `web_search` | Yes (implemented) | LOW | Generic (replace) | Generic web search via Rex plugin (`plugins.web_search.search_web`). OpenClaw can provide search. Rex's search-provider selection (brave/serpapi/ddg) is a config concern, not a Rex-unique feature. Replace with OpenClaw tool in Phase 4. |
+| `send_email` | No (stub in policy) | MEDIUM | Adapter-needed | Rex has full IMAP/SMTP backend (`rex/email_backends/`, `rex/email_service.py`). Policy-gated but `tool_router.execute_tool()` returns "Unknown tool" — caller must route directly to `email_service`. Bridge must call `rex.email_service` and enforce Rex policy (MEDIUM, requires approval). |
+| `home_assistant_call_service` | No (stub in policy) | MEDIUM | Rex-specific | HA bridge (`rex/ha_bridge.py`) is uniquely Rex. Policy-gated (MEDIUM, approval) but no handler in tool_router. Will be registered as an HA OpenClaw skill in Phase 5. Do not genericise. |
+| `calendar_create_event` | No (stub in policy) | MEDIUM | Adapter-needed | Rex has `rex/calendar_backends/` + `rex/calendar_service.py`. Policy-gated (MEDIUM, approval) but no handler in tool_router. Bridge must delegate to `rex.calendar_service.create_event()`. |
+| `calendar_delete_event` | No (stub in policy) | MEDIUM | Adapter-needed | Same as `calendar_create_event`. Delegate to `rex.calendar_service.delete_event()`. |
+| `execute_command` | No (stub in policy) | HIGH | Generic (replace) | Generic shell command execution. OpenClaw's workspace/agent model handles this. Rex's `computers/` agent server is the Rex-specific execution target, but the tool itself is generic. Replace with OpenClaw workspace command tool in Phase 4d. |
+| `pc_run` | No (own path) | HIGH | Rex-specific | Windows-specific remote execution via `rex/computers/` (agent server + client). Has its own approval path in `pc_run_policy.py`, bypassing `tool_router` entirely. Will become a Rex skill over OpenClaw's workspace model in Phase 4d/5. Do not genericise. |
+| `file_write` | No (stub in policy) | HIGH | Generic (replace) | Generic file write. OpenClaw workspace tools cover this. Replace with OpenClaw's file-write capability in Phase 4d. |
+| `file_delete` | No (stub in policy) | HIGH | Generic (replace) | Generic file delete. OpenClaw workspace tools cover this. Replace with OpenClaw's file-delete capability in Phase 4d. |
+
+**Classification summary:**
+
+| Classification | Count | Tools |
+|----------------|-------|-------|
+| Generic (replace) | 6 | `time_now`, `weather_now`, `web_search`, `execute_command`, `file_write`, `file_delete` |
+| Adapter-needed | 3 | `send_email`, `calendar_create_event`, `calendar_delete_event` |
+| Rex-specific | 2 | `home_assistant_call_service`, `pc_run` |
+
+**Migration sequencing implications:**
+- Phase 4a (tool bridge): start with the 3 *implemented* generics (`time_now`, `weather_now`, `web_search`). These are ready now — no new service code needed.
+- Phase 4a extension: add adapter stubs for the 3 adapter-needed tools (`send_email`, `calendar_*`) — each delegates to the existing Rex service and enforces Rex policy.
+- Phase 4d (workspace): tackle the 3 generic unimplemented tools (`execute_command`, `file_write`, `file_delete`) once OpenClaw workspace model is confirmed.
+- Phase 5: register `home_assistant_call_service` as HA skill and `pc_run` as a Rex skill via OpenClaw workspace model.
