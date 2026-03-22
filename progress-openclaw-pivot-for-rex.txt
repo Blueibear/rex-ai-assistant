@@ -49,6 +49,18 @@
 - Tests pass (exit 0)
 ---
 
+## Iteration 7 - US-P1-007: Extract dashboard Protocol
+- Created `rex/contracts/dashboard.py` with three @runtime_checkable Protocols
+- `SessionManagerProtocol`: auth API — create_session, validate_session, invalidate_session, get_active_session_count
+- `NotificationBroadcasterProtocol`: SSE API — subscribe, unsubscribe, publish, stream, shutdown, subscriber_count (property)
+- `DashboardProtocol`: top-level service — session_manager (property), broadcaster (property), register_routes(app)
+- Three protocols because dashboard has three independently-replaceable concerns: auth, SSE, and route registration
+- Used `Any` for session/subscriber objects to stay dependency-free (avoids importing Session/`_Subscriber` dataclasses)
+- `register_routes` takes `Any` for the app arg (avoids importing Flask — OpenClaw may use a different framework)
+- `subscriber_count` is a property in NotificationBroadcaster; modeled as `@property` in Protocol
+- Tests pass (exit 0)
+---
+
 ## Iteration 6 - US-P1-006: Extract browser automation Protocol
 - Created `rex/contracts/browser.py` with two @runtime_checkable Protocols
 - `BrowserSessionProtocol`: async session API — launch, close, navigate, click, type_text, wait, wait_for_selector, screenshot, login, download_file, get_content, get_text
