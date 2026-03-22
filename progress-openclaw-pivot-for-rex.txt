@@ -1,3 +1,14 @@
+## Iteration 20 - US-P3-003: Test memory adapter
+- Created `tests/test_openclaw_memory.py` with 18 tests across 3 classes
+- Tests cover: import/instantiation (4), trim_history (6), append+load (8)
+- Used tmp_path fixture for all filesystem I/O; no global Memory/ directory touched
+- 18 new tests pass; no regressions in existing suite
+- Files changed: tests/test_openclaw_memory.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - tmp_path fixture works cleanly with memory_root override on MemoryAdapter
+  - append_entry requires max_turns > 0 (ConfigurationError otherwise); tests pass explicit max_turns=50
+---
+
 ## Iteration 19 - US-P3-002: Create memory adapter
 - Created `rex/openclaw/memory_adapter.py` with `MemoryAdapter` class
 - Wraps trim_history, append_entry, load_recent delegating to rex.memory with OpenClaw TODO stubs
