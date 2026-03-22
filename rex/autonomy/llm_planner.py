@@ -1,3 +1,5 @@
+# OPENCLAW-WRAP: This module will be wrapped around OpenClaw. Preserve public API.
+
 """LLM-based planner for the Rex autonomy engine.
 
 ``LLMPlanner`` converts a natural-language goal into an executable

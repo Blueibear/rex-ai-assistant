@@ -1,3 +1,5 @@
+# OPENCLAW-WRAP: This module will be wrapped around OpenClaw. Preserve public API.
+
 """Workflow primitives for Rex.
 
 This module defines the core data models for Rex's workflow engine, providing

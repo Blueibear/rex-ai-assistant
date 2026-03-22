@@ -682,8 +682,8 @@ As a developer, I need freeze markers so no new features are added to modules be
 
 **US-P1-003: Add OPENCLAW-WRAP markers**
 As a developer, I need wrap markers so I know which modules will be adapted rather than replaced.
-- [ ] Add `# OPENCLAW-WRAP: This module will be wrapped around OpenClaw. Preserve public API.` in: `rex/autonomy/__init__.py`, `rex/autonomy/runner.py`, `rex/autonomy/llm_planner.py`, `rex/autonomy/rule_planner.py`, `rex/policy.py`, `rex/policy_engine.py`, `rex/identity.py`, `rex/profile_manager.py`, `rex/workflow.py`, `rex/workflow_runner.py`
-- [ ] Tests pass unchanged
+- [x] Add `# OPENCLAW-WRAP: This module will be wrapped around OpenClaw. Preserve public API.` in: `rex/autonomy/__init__.py`, `rex/autonomy/runner.py`, `rex/autonomy/llm_planner.py`, `rex/autonomy/rule_planner.py`, `rex/policy.py`, `rex/policy_engine.py`, `rex/identity.py`, `rex/profile_manager.py`, `rex/workflow.py`, `rex/workflow_runner.py`
+- [x] Tests pass unchanged
 
 **US-P1-004: Extract tool routing Protocol**
 As a developer, I need a formal interface contract for tool routing so adapters can be swapped in.

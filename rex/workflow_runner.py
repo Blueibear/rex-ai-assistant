@@ -1,3 +1,5 @@
+# OPENCLAW-WRAP: This module will be wrapped around OpenClaw. Preserve public API.
+
 """Workflow runner for executing Rex workflows.
 
 This module provides the WorkflowRunner class that executes workflows step by step,

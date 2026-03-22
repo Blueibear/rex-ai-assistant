@@ -1,3 +1,5 @@
+# OPENCLAW-WRAP: This module will be wrapped around OpenClaw. Preserve public API.
+
 """Profile manager for Rex assistant configuration."""
 
 from __future__ import annotations

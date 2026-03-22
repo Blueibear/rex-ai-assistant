@@ -1,3 +1,5 @@
+# OPENCLAW-WRAP: This module will be wrapped around OpenClaw. Preserve public API.
+
 """Autonomy dispatch entry point for Rex.
 
 :func:`create_planner` returns either an :class:`~rex.autonomy.llm_planner.LLMPlanner`

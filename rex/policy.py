@@ -1,3 +1,5 @@
+# OPENCLAW-WRAP: This module will be wrapped around OpenClaw. Preserve public API.
+
 """Policy models for the Rex permissions and policy engine.
 
 This module defines Pydantic models for managing tool and action safety policies,
