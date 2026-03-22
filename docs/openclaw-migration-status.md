@@ -50,7 +50,7 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/policy.py` | Keep + Wrap | Audited (US-P3-007) | Policy models (150 lines). Rex-specific risk classification. Keep models; wrap as OpenClaw middleware. Rex policy is always the authority. See audit notes below. |
 | `rex/policy_engine.py` | Keep + Wrap | Audited (US-P3-007) | Policy evaluation (350 lines). Keep engine; wrap as OpenClaw hook. See audit notes below. |
 | `rex/identity.py` | Wrap | Audited (US-P3-012) | User identity resolution (322 lines). Map to OpenClaw session/user model. Keep Rex's resolution logic. See audit notes below. |
-| `rex/profile_manager.py` | Wrap | Pending | Profile merging (100 lines). Keep merge logic; wire into OpenClaw agent config. |
+| `rex/profile_manager.py` | Wrap | Audited (US-P3-015) | Profile merging (100 lines). Keep merge logic; wire into OpenClaw agent config. See audit notes below. |
 | `rex/voice_identity/` | Keep | Pending | Speaker recognition (7 files). Uniquely Rex. No OpenClaw equivalent. Phase 6: feed into OpenClaw session identity. |
 | `rex/wakeword/` | Keep | Pending | Wake word detection (4 files). Uniquely Rex. Unchanged in migration. |
 | `rex/voice_loop.py` | Keep | Pending | Core voice loop (800 lines). Update to call OpenClaw backend via voice_bridge. Feature flag for rollback. |
@@ -301,4 +301,46 @@ Private helpers (not exported): `_session_state_path`, `_known_user_ids`, `_load
 - `rex/openclaw/session.py` (US-P2-003) already wraps `resolve_active_user` into the OpenClaw session context — the identity adapter (US-P3-013) builds on this.
 - Session file is OS-temp-backed; OpenClaw adapter should delegate `get/set_session_user` to OpenClaw's session management when available, falling back to the file.
 - Profile CRUD functions (`create_user_profile` etc.) are Rex-specific directory-format ops — keep as-is, expose through adapter for OpenClaw agent to query.
+- Module is marked `# OPENCLAW-WRAP` — pre-identified for wrapping.
+
+---
+
+### Audit Notes: rex/profile_manager.py (US-P3-015)
+
+**Public API (`__all__`):**
+
+- `DEFAULT_PROFILES_DIR = "profiles"` — default directory constant for profile JSON files
+- `load_profile(name, profiles_dir)` — load a named profile JSON from disk; validates against `profile.schema.json` if present; raises `FileNotFoundError` if profile missing
+- `apply_profile(base_config, profile)` — deep-merge profile `overrides` dict into base config dict; replace `capabilities` list entirely with profile's capabilities; returns merged dict
+- `get_active_profile_name(config)` — read `active_profile` from config dict; returns `"default"` if absent or falsy
+
+**Private helpers (not exported):**
+- `_deep_merge(base, overlay)` — recursive dict merge; overlay wins for non-dict values
+- `_basic_validate(profile, required)` — validates required fields and type constraints on `profile_version`, `name`, `description`, `capabilities`, `overrides`
+- `_validate_profile(profile, schema_path)` — schema-driven validation; no-ops if schema file missing
+
+**Merge behavior:**
+- `apply_profile()` performs a deep-recursive merge: nested dicts are merged, not replaced. Scalars and lists are replaced by the overlay value.
+- Exception: `capabilities` is always wholesale-replaced (not merged) with the profile's capabilities list.
+- Profile `overrides` key is optional (`{}` default); `capabilities` key is optional (`[]` default).
+
+**Caller map:**
+
+| Caller | Functions used |
+|--------|----------------|
+| `rex/config.py` (lines 235–238) | `get_active_profile_name`, `load_profile`, `apply_profile` — called at config load time to apply active profile to base config |
+| `tests/test_profile_manager.py` | `apply_profile`, `get_active_profile_name`, `load_profile` |
+
+**Classification for OpenClaw:**
+
+| Function | Rex-specific? | OpenClaw action |
+|----------|--------------|-----------------|
+| `load_profile` | Rex-specific (JSON file format) | Keep as-is; already feeds into AppConfig at load time |
+| `apply_profile` | Rex-specific (deep merge logic) | Keep as-is; profile applied before AppConfig constructed |
+| `get_active_profile_name` | Rex-specific (config dict key) | Keep as-is |
+
+**Key findings:**
+- All three public functions are called exclusively by `rex/config.py` during `AppConfig` construction. By the time `rex/openclaw/config.py::build_agent_config()` runs, the profile is already baked into `AppConfig` (via `active_profile`, `capabilities`, and overridden config fields).
+- No direct OpenClaw wiring is needed for profile_manager itself — the profile already influences `AppConfig.capabilities`, `AppConfig.active_profile`, etc., which `build_agent_config()` and `build_system_prompt()` read.
+- US-P3-016 ("Wire profile manager into OpenClaw agent") means verifying that `build_agent_config()` correctly reflects profile-applied AppConfig — not adding new profile-loading code.
 - Module is marked `# OPENCLAW-WRAP` — pre-identified for wrapping.

@@ -832,8 +832,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P3-015: Audit profile_manager.py public API**
-- [ ] List callers, document merge behavior
-- [ ] Document in migration status
+- [x] List callers, document merge behavior
+- [x] Document in migration status
 
 **US-P3-016: Wire profile manager into OpenClaw agent**
 - [ ] Profiles affect persona/behavior within OpenClaw session
