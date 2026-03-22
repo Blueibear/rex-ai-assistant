@@ -1,3 +1,14 @@
+## Iteration 28 - US-P3-011: Wire policy adapter into OpenClaw agent
+- Added `policy_adapter` param to `RexAgent.__init__`; defaults to `PolicyAdapter()`
+- Added `call_tool(tool_name, args, metadata)` method: guard() first, then execute_tool() with skip_policy_check=True
+- PolicyDeniedError/ApprovalRequiredError propagate from guard() to caller
+- 54 tests pass; no regressions
+- Files changed: rex/openclaw/agent.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - call_tool() is the hook to test in a future "agent calls tool, policy blocks it" integration test
+  - skip_policy_check=True in execute_tool() because policy is already enforced by the adapter
+---
+
 ## Iteration 27 - US-P3-010: Test policy adapter allow path
 - Added TestPolicyAdapterAllowPath (10 tests) to tests/test_openclaw_policy.py
 - Tests: guard() passes for time_now/weather_now/web_search (DEFAULT_POLICIES low-risk), custom low-risk tool, check() fields correct, register() returns None, engine property, OPENCLAW_AVAILABLE type
