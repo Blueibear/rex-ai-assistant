@@ -789,8 +789,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Document in migration status
 
 **US-P3-005: Wire memory adapter into OpenClaw agent**
-- [ ] Update `rex/openclaw/agent.py` to use memory adapter in generate_reply path
-- [ ] Tests pass
+- [x] Update `rex/openclaw/agent.py` to use memory adapter in generate_reply path
+- [x] Tests pass
 
 **US-P3-006: Test memory persistence across interactions**
 - [ ] Add test: two consecutive agent interactions, verify history persists

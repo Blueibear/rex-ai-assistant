@@ -15,6 +15,9 @@ Intended usage
     agent.register()          # registers with OpenClaw if available
     reply = agent.respond("What time is it?")
 
+    # With conversation history persistence:
+    reply = agent.respond("What time is it?", user_key="alice")
+
 The ``register()`` hook will be filled-in once OpenClaw's agent
 registration API is confirmed (see PRD Section 8.3 open dependency).
 """
@@ -27,6 +30,7 @@ from typing import Any
 
 from rex.config import AppConfig
 from rex.llm_client import LanguageModel
+from rex.openclaw.memory_adapter import MemoryAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +62,10 @@ class RexAgent:
         config: Optional ``AppConfig`` instance used to derive ``agent_name``
             and ``system_prompt`` when those arguments are not supplied.
             Defaults to the global config loaded by ``rex.config.load_config()``.
+        memory_adapter: Optional :class:`MemoryAdapter` instance for
+            conversation-history persistence.  When *None*, a default adapter
+            is created (uses Rex's file-based fallback).  Inject a custom
+            adapter in tests to control the memory root directory.
     """
 
     def __init__(
@@ -67,6 +75,7 @@ class RexAgent:
         agent_name: str | None = None,
         system_prompt: str | None = None,
         config: AppConfig | None = None,
+        memory_adapter: MemoryAdapter | None = None,
     ) -> None:
         self._llm = llm
         # Derive agent name and persona from Rex config when not supplied.
@@ -76,6 +85,7 @@ class RexAgent:
         self.agent_name = agent_name or _cfg.get("agent_name", "Rex")
         self.system_prompt = system_prompt or build_system_prompt(config)
         self._registered = False
+        self._memory = memory_adapter or MemoryAdapter()
 
     # ------------------------------------------------------------------
     # LLM access
@@ -125,9 +135,7 @@ class RexAgent:
         #   )
         #   self._registered = True
         #   return handle
-        logger.warning(
-            "OpenClaw agent registration stub — update once API is confirmed (PRD §8.3)"
-        )
+        logger.warning("OpenClaw agent registration stub — update once API is confirmed (PRD §8.3)")
         self._registered = False
         return None
 
@@ -135,14 +143,22 @@ class RexAgent:
     # Core response method
     # ------------------------------------------------------------------
 
-    def respond(self, prompt: str) -> str:
+    def respond(self, prompt: str, *, user_key: str | None = None) -> str:
         """Generate a response to *prompt* using Rex's LLM client.
 
         The system prompt (persona) is prepended to the message list so
         that the model always has Rex's identity context.
 
+        When *user_key* is provided, previous conversation turns for that
+        user are loaded from the memory adapter and prepended to the
+        message list before the current prompt.  After the LLM responds,
+        both the user turn and the assistant turn are persisted via the
+        memory adapter so that subsequent calls accumulate context.
+
         Args:
             prompt: The user's input text.
+            user_key: Optional user identifier for history persistence.
+                When ``None``, no history is loaded or saved.
 
         Returns:
             The model's response as a plain string.
@@ -150,8 +166,24 @@ class RexAgent:
         if not prompt or not prompt.strip():
             raise ValueError("prompt must not be empty")
 
-        messages = [
+        messages: list[dict[str, str]] = [
             {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": prompt},
         ]
-        return self.llm.generate(messages=messages)
+
+        # Prepend stored history when a user context is available.
+        if user_key is not None:
+            history = self._memory.load_recent(user_key)
+            for turn in history:
+                role = turn.get("role", "user")
+                text = turn.get("text", "")
+                messages.append({"role": role, "content": text})
+
+        messages.append({"role": "user", "content": prompt})
+        reply = self.llm.generate(messages=messages)
+
+        # Persist the exchange so future calls have context.
+        if user_key is not None:
+            self._memory.append_entry(user_key, {"role": "user", "text": prompt})
+            self._memory.append_entry(user_key, {"role": "assistant", "text": reply})
+
+        return reply
