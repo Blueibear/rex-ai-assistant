@@ -888,8 +888,8 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Tests pass
 
 **US-P4-009: Test HA tools through OpenClaw**
-- [ ] Verify HA commands execute correctly
-- [ ] Tests pass
+- [x] Verify HA commands execute correctly
+- [x] Tests pass
 
 **US-P4-010: Add feature flag for tool routing**
 - [ ] Add `USE_OPENCLAW_TOOLS` to config
