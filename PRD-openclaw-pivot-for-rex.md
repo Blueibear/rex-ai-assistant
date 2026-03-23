@@ -1088,6 +1088,11 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 ### Phase 6 Tasks (US-P6-001 through US-P6-015)
 
 **US-P6-001:** Audit root voice_loop.py call path
+- [x] Call path traced: wake word → sounddevice → Whisper STT → Assistant.generate_reply() → XTTS TTS
+- [x] All modules touched documented (13 modules + 5 external libs)
+- [x] Key seam identified: `Assistant.generate_reply(transcript, voice_mode=True)` at voice_loop.py:663
+- [x] Migration notes added to openclaw-migration-status.md
+
 **US-P6-002:** Audit rex/voice_loop.py call path
 **US-P6-003:** Audit rex/voice_loop_optimized.py call path
 **US-P6-004:** Identify voice loop -> assistant seam

@@ -934,3 +934,72 @@ No callers found outside `plex_client.py` itself. Plex integration is currently 
 
 **End-to-end workflow test (US-P5-022):**
 `tests/test_openclaw_business.py` tests the scenario: list orders → health check → set order status (with approval gate and auto-allowed paths).
+
+---
+
+### Audit Notes: Root voice_loop.py Call Path (US-P6-001)
+
+**File:** `voice_loop.py` (root-level, used by `rex_loop.py`)
+
+**Call path trace (wake word → STT → LLM → TTS):**
+
+```
+rex_loop.py
+  └─ build_voice_loop() → AsyncRexAssistant()
+       ├─ Constructor
+       │    ├─ rex.config.AppConfig / load_config()
+       │    ├─ rex.llm_client.LanguageModel(config)          ← fallback LLM
+       │    ├─ rex.assistant.Assistant(settings_obj=config)  ← primary (tool routing)
+       │    ├─ wake_acknowledgment.ensure_wake_acknowledgment_sound()
+       │    ├─ rex.wakeword_utils.load_wakeword_model()
+       │    ├─ utils.audio_device.load_audio_config() / resolve_audio_device()
+       │    ├─ rex.memory_utils: load_users_map(), load_all_profiles(),
+       │    │                    extract_voice_reference(), resolve_user_key()
+       │    └─ rex.plugin_loader.load_plugins()
+       └─ run()
+            ├─ WakeWordListener.start()       [sounddevice + openWakeWord callbacks]
+            └─ LOOP: wait_for_wake() → _handle_interaction()
+                 └─ _handle_interaction()
+                      ├─ _play_wake_sound()  [winsound / sounddevice]
+                      └─ _process_conversation()
+                           ├─ _record_audio()    [sounddevice.rec()]
+                           ├─ transcribe()       [openai-whisper, async thread]
+                           ├─ append_history_entry()  [rex.memory_utils, file I/O]
+                           ├─ *** SEAM: self._assistant.generate_reply(transcript, voice_mode=True) ***
+                           │   (fallback: self.language_model.generate(transcript))
+                           ├─ append_history_entry()  [assistant response]
+                           └─ _speak_response()  [XTTS v2 TTS → sounddevice playback]
+```
+
+**Key seam (voice loop → assistant):**
+- Method: `Assistant.generate_reply(transcript: str, voice_mode: bool = True) → str`
+- Location: `voice_loop.py:663`
+- Fallback (if Assistant unavailable): `LanguageModel.generate(transcript)` at line 665
+
+**All modules touched:**
+
+| Module | Role |
+|--------|------|
+| `rex.assistant.Assistant` | Primary LLM + tool routing — **the voice/assistant seam** |
+| `rex.llm_client.LanguageModel` | Fallback bare LLM |
+| `rex.config` | Config loading |
+| `rex.memory_utils` | History, user map, profiles, voice refs |
+| `rex.plugin_loader` | Plugin loading + tool registration |
+| `rex.wakeword_utils` | Wake word model + detection |
+| `rex.tts_utils` | Text chunking for XTTS |
+| `rex.compat` | Transformers shim (pre-TTS import) |
+| `rex.assistant_errors` | STT / TTS / wake word error classes |
+| `rex.logging_utils` | Logger |
+| `wake_acknowledgment` | Wake sound generation |
+| `utils.audio_device` | Device enumeration + resolution |
+| `sounddevice` | Audio I/O (mic recording + playback) |
+| `whisper` (openai-whisper) | STT model |
+| `TTS` (Coqui) | TTS model (XTTS v2) |
+| `soundfile` | Audio file read/write |
+| `numpy` | Audio array processing |
+
+**Migration notes:**
+- The seam is clean: one method call `Assistant.generate_reply()` replaces cleanly with `VoiceBridge.generate_reply()`
+- Audio pipeline (wake word, STT, TTS, playback) is Rex-specific — no OpenClaw equivalent; stays as-is
+- Feature flag `USE_OPENCLAW_VOICE_BACKEND` will swap only the `generate_reply()` call
+- Plugin registration via `_register_plugins_as_tools()` targets `LanguageModel.register_tool()` — will need review when tools fully migrate to ToolBridge
