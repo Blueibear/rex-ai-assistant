@@ -1,90 +1,34 @@
-"""Pre-retirement check for rex/dashboard_store.py and rex/dashboard/ (US-P7-013).
+"""Permanent retirement guard for rex/dashboard_store.py and rex/dashboard/ (US-P7-014).
 
-Verdict: SAFE TO RETIRE
-  All callers migrated off dashboard_store and rex.dashboard:
+These modules were retired in iter 93 after all callers were migrated:
   - rex/health.py — check_dashboard_db removed
   - rex/retention.py — setup_dashboard_cleanup_job converted to no-op
   - rex/notification.py — _send_to_dashboard converted to logging-only stub
   - rex/digest_job.py — TYPE_CHECKING import removed; store param typed Any
-  - rex/messaging_backends/inbound_store.py — docstring reference removed
+  - rex/messaging_backends/inbound_store.py — retired with messaging_service (iter 91)
   - rex/gui_app.py — _create_flask_app converted to stub routes (iter 92)
 """
 
 from __future__ import annotations
 
-import ast
 import pathlib
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent
 REX_PKG = REPO_ROOT / "rex"
 
-KNOWN_BLOCKERS: set[str] = set()
 
-EXEMPT_PATHS = {
-    "rex/dashboard_store.py",
-    "rex/dashboard/",
-    "rex/contracts/dashboard.py",
-}
-
-
-def _imports_dashboard(path: pathlib.Path) -> bool:
-    try:
-        source = path.read_text(encoding="utf-8")
-    except OSError:
-        return False
-    if "dashboard" not in source:
-        return False
-    try:
-        tree = ast.parse(source, filename=str(path))
-    except SyntaxError:
-        return True
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom):
-            module = node.module or ""
-            if "dashboard_store" in module or (
-                module.startswith("rex.dashboard") and not module.startswith("rex.dashboard.")
-            ):
-                return True
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                if "dashboard_store" in alias.name:
-                    return True
-    # Also check string-based references (simpler heuristic)
-    return "dashboard_store" in source
-
-
-def _find_active_importers() -> set[str]:
-    importers = set()
-    for py_file in REX_PKG.rglob("*.py"):
-        rel = py_file.relative_to(REPO_ROOT).as_posix()
-        if any(rel.startswith(e) or rel == e for e in EXEMPT_PATHS):
-            continue
-        if any(part in rel for part in ("__pycache__", "openclaw")):
-            continue
-        if _imports_dashboard(py_file):
-            importers.add(rel)
-    return importers
-
-
-class TestDashboardRetirementCheck:
-    def test_dashboard_store_module_exists(self):
-        assert (REX_PKG / "dashboard_store.py").exists()
-
-    def test_has_openclaw_replace_marker(self):
-        assert "OPENCLAW-REPLACE" in (REX_PKG / "dashboard_store.py").read_text(encoding="utf-8")
-
-    def test_known_blockers_still_present(self):
-        active = _find_active_importers()
-        migrated = KNOWN_BLOCKERS - active
-        assert KNOWN_BLOCKERS & active == KNOWN_BLOCKERS, (
-            f"Migrated (update KNOWN_BLOCKERS): {migrated}"
+class TestDashboardRetired:
+    def test_dashboard_store_deleted(self):
+        assert not (REX_PKG / "dashboard_store.py").exists(), (
+            "rex/dashboard_store.py was re-introduced — it is a retired module"
         )
 
-    def test_no_unexpected_new_importers(self):
-        active = _find_active_importers()
-        unexpected = active - KNOWN_BLOCKERS
-        assert not unexpected, f"New importers: {unexpected}"
+    def test_dashboard_package_deleted(self):
+        assert not (REX_PKG / "dashboard").exists(), (
+            "rex/dashboard/ was re-introduced — it is a retired module"
+        )
 
-    def test_retirement_verdict_safe(self):
-        active = _find_active_importers()
-        assert not active, f"Unexpected dashboard importers remain: {active}"
+    def test_dashboard_contract_deleted(self):
+        assert not (REX_PKG / "contracts" / "dashboard.py").exists(), (
+            "rex/contracts/dashboard.py was re-introduced — it is a retired contract"
+        )

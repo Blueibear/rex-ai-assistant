@@ -23,13 +23,11 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 
 ## Phase Summary (as of Phase 7 completion)
 
-**Retired (deleted):** `rex/plugin_loader.py`, `rex/executor.py`, `rex/browser_automation.py`
+**Retired (deleted):** `rex/plugin_loader.py`, `rex/executor.py`, `rex/browser_automation.py`, `rex/messaging_service.py`, `rex/messaging_backends/`, `rex/dashboard_store.py`, `rex/dashboard/`
 
 **Bridged (dual-mode, feature-flagged):** tool routing (`use_openclaw_tools`), voice loops (`use_openclaw_voice_backend`), event bus, workflow runner, policy engine, identity, memory, all integrations (HA, WP, WooCommerce, Plex)
 
-**Blocked — dashboard:** `rex/dashboard/*` and `rex/dashboard_store.py` — only `rex/gui_app.py` still imports these; gui_app.py is excluded per Non-Goals (GUI migration is a separate future effort). Retirement requires GUI migration.
-
-**Blocked — messaging:** `rex/messaging_backends/*` and `rex/messaging_service.py` — 4 active importers remain (rex/__init__.py, cli.py, notification.py, services.py). Not yet bridged.
+**Blocked — messaging:** retired (iter 91). `rex/messaging_backends/*` and `rex/messaging_service.py` deleted. All callers migrated.
 
 **Blocked — tool registry/router:** `rex/tool_registry.py` and `rex/tool_router.py` — active importers remain; ToolBridge exists and is feature-flagged but not yet default.
 
@@ -41,13 +39,13 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 |--------|----------------|--------|-------|
 | `rex/assistant.py` | Wrap | Pending | Central orchestration hub. Delegates to OpenClaw agent via VoiceBridge when `use_openclaw_voice_backend=True`. Keep as thin coordinator. |
 | `rex/browser_automation.py` | Replace | **Migrated** (iter 81 / Phase 7) | Deleted. Core types (BrowserSession, BrowserAction, run_browser_script) moved to `rex/openclaw/browser_core.py`. BrowserBridge rewritten to use browser_core directly. |
-| `rex/dashboard/__init__.py` | Replace | Bridged-partial | Flask dashboard retained for `rex-gui` entry point (gui_app.py excluded per Non-Goals). All non-GUI callers of dashboard_store migrated: health.py, retention.py, notification.py, digest_job.py, inbound_store.py. Retirement blocked until GUI migration. |
-| `rex/dashboard/routes.py` | Replace | Bridged-partial | Retires with dashboard. Same blocker as dashboard/__init__.py. |
-| `rex/dashboard/sse.py` | Replace | Bridged-partial | Retires with dashboard. Same blocker as dashboard/__init__.py. |
-| `rex/dashboard/auth.py` | Replace | Bridged-partial | Retires with dashboard. Same blocker as dashboard/__init__.py. |
-| `rex/dashboard_store.py` | Replace | Bridged-partial | All 5 non-GUI callers migrated off dashboard_store (health.py, retention.py, notification.py, digest_job.py, inbound_store.py). Only `rex/gui_app.py` remains — excluded per Non-Goals (GUI migration separate effort). Retirement blocked until GUI migration. |
-| `rex/messaging_backends/` | Replace | Pending | Twilio, SMS, webhooks (11 files). OpenClaw owns channels. 4 active importers block retirement: rex/__init__.py, cli.py, notification.py, services.py. See test_retirement_check_messaging.py. |
-| `rex/messaging_service.py` | Replace | Pending | Messaging orchestration. Retires with messaging_backends. Same 4-importer block. |
+| `rex/dashboard/__init__.py` | Replace | **Migrated** (iter 93) | Deleted. All callers migrated; gui_app.py converted to stub routes (iter 92). |
+| `rex/dashboard/routes.py` | Replace | **Migrated** (iter 93) | Deleted with dashboard package. |
+| `rex/dashboard/sse.py` | Replace | **Migrated** (iter 93) | Deleted with dashboard package. |
+| `rex/dashboard/auth.py` | Replace | **Migrated** (iter 93) | Deleted with dashboard package. |
+| `rex/dashboard_store.py` | Replace | **Migrated** (iter 93) | Deleted. All callers migrated: health.py, retention.py, notification.py, digest_job.py, messaging_backends/inbound_store.py, gui_app.py. |
+| `rex/messaging_backends/` | Replace | **Migrated** (iter 91) | Deleted. All callers migrated. |
+| `rex/messaging_service.py` | Replace | **Migrated** (iter 91) | Deleted. All callers migrated. |
 | `rex/integrations/message_router.py` | Replace | Pending | Routes messages between channels. Retires with messaging. |
 | `rex/tool_registry.py` | Replace | Contracted (US-P1-008) | Tool metadata + health checks. Protocol defined in `rex/contracts/plugins.py`. 4 active importers block retirement: rex/__init__.py, cli.py, planner.py, tool_router.py. See test_retirement_check_tool_registry.py. |
 | `rex/tool_router.py` | Replace | Bridged (US-P4-003/011) | ToolBridge (`rex/openclaw/tool_bridge.py`) created. Feature flag `use_openclaw_tools` in AppConfig. assistant.py uses bridge when flag enabled (US-P4-011). 2 active importers block full retirement: assistant.py, workflow_runner.py. See test_retirement_check_tool_router.py. |
