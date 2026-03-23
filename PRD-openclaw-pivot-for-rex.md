@@ -1125,6 +1125,10 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] `build_app_config` reads `openclaw.use_voice_backend` from JSON config
 - [x] 9 unit tests in `tests/test_openclaw_voice_flag.py` — all pass
 **US-P6-007:** Update root voice_loop.py with feature flag
+- [x] `AsyncRexAssistant.__init__` checks `config.use_openclaw_voice_backend` after creating Assistant
+- [x] When True, replaces `self._assistant` with `VoiceBridge()`; logs info on success, warning on failure
+- [x] VoiceBridge creation failure falls back gracefully (keeps previous `_assistant`)
+- [x] 5 unit tests in `tests/test_openclaw_root_voice_loop_flag.py` — all pass
 **US-P6-008:** Test root voice loop with OpenClaw (text mode)
 **US-P6-009:** Update rex/voice_loop.py with feature flag
 **US-P6-010:** Test rex/voice_loop.py with OpenClaw (text mode)

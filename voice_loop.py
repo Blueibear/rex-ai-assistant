@@ -359,6 +359,16 @@ class AsyncRexAssistant:
         except Exception as exc:
             logger.warning("Failed to create Assistant (tool routing unavailable): %s", exc)
             self._assistant = None
+        if self.config.use_openclaw_voice_backend:
+            try:
+                from rex.openclaw.voice_bridge import VoiceBridge
+
+                self._assistant = VoiceBridge()
+                logger.info("Voice loop using OpenClaw VoiceBridge backend")
+            except Exception as exc:
+                logger.warning(
+                    "Failed to create VoiceBridge (falling back to default assistant): %s", exc
+                )
         self._wake_sound_path: str | None = None
         try:
             self._wake_sound_path = ensure_wake_acknowledgment_sound(
