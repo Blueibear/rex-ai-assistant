@@ -5,7 +5,7 @@ Verifies:
 - GET /health/ready returns 200 when all checks pass
 - GET /health/ready returns 503 with JSON body when a check fails
 - Response JSON describes unavailable dependencies
-- Built-in check_config and check_dashboard_db helpers work correctly
+- Built-in check_config helper works correctly
 - Both endpoints respond quickly (< 500ms under normal conditions)
 """
 
@@ -19,7 +19,6 @@ from flask import Flask
 from rex.health import (
     ReadinessCheck,
     check_config,
-    check_dashboard_db,
     create_health_blueprint,
 )
 
@@ -242,24 +241,6 @@ class TestCheckConfig:
         assert result is not None
         assert isinstance(result, str)
         assert "config" in result.lower() or "missing" in result.lower()
-
-
-class TestCheckDashboardDb:
-    def test_returns_none_when_db_accessible(self) -> None:
-        mock_store = type("S", (), {"query_recent": lambda self, limit: []})()
-        with patch("rex.dashboard_store.DashboardStore", return_value=mock_store):
-            result = check_dashboard_db()
-        assert result is None
-
-    def test_returns_string_when_db_raises(self) -> None:
-        class _FailStore:
-            def query_recent(self, limit: int) -> None:  # type: ignore[return]
-                raise ConnectionError("db unreachable")
-
-        with patch("rex.dashboard_store.DashboardStore", return_value=_FailStore()):
-            result = check_dashboard_db()
-        assert result is not None
-        assert isinstance(result, str)
 
 
 # ---------------------------------------------------------------------------

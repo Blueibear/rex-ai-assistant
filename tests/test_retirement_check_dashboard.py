@@ -1,9 +1,11 @@
 """Pre-retirement check for rex/dashboard_store.py and rex/dashboard/ (US-P7-013).
 
 Verdict: NOT SAFE TO RETIRE
-  Active importers of dashboard_store: rex/digest_job.py, rex/health.py,
-  rex/messaging_backends/inbound_store.py, rex/migrations.py,
-  rex/notification.py, rex/retention.py
+  Active importers of dashboard_store: rex/digest_job.py, rex/gui_app.py,
+  rex/messaging_backends/inbound_store.py, rex/notification.py, rex/retention.py
+
+  Migrated callers: rex/health.py (check_dashboard_db removed — health checks
+  are now dashboard-independent as part of the OpenClaw migration)
 """
 
 from __future__ import annotations
@@ -17,7 +19,6 @@ REX_PKG = REPO_ROOT / "rex"
 KNOWN_BLOCKERS = {
     "rex/digest_job.py",
     "rex/gui_app.py",
-    "rex/health.py",
     "rex/messaging_backends/inbound_store.py",
     "rex/notification.py",
     "rex/retention.py",
