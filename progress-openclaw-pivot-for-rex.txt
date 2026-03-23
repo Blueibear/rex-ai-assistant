@@ -1,3 +1,17 @@
+## Iteration 82 - Migrate rex/health.py off dashboard_store (unblock dashboard retirement)
+- Removed check_dashboard_db() from rex/health.py — had no production callers, only tested by its own test class
+- Removed TestCheckDashboardDb class from tests/test_us110_health_check_endpoints.py (2 tests)
+- Updated tests/test_retirement_check_dashboard.py to remove rex/health.py from KNOWN_BLOCKERS (6 → 5)
+- Updated PRD Phase 7 Validation note to reflect 5 remaining blockers
+- Files changed: rex/health.py, tests/test_us110_health_check_endpoints.py, tests/test_retirement_check_dashboard.py, PRD
+- All 292 health/dashboard tests pass
+- Learnings for future iterations:
+  - dashboard_store callers: digest_job.py, gui_app.py (excluded — GUI migration out of scope), messaging_backends/inbound_store.py, notification.py, retention.py
+  - The easiest remaining callers to target: retention.py (scheduled cleanup) and notification.py (routing)
+  - gui_app.py is excluded from migration per PRD Non-Goals (GUI migration is a separate future effort)
+  - Pattern: lazy imports inside function bodies (like check_dashboard_db did) are the easiest to remove if the function has no production callers
+---
+
 ## Iteration 81 - Retire rex/browser_automation.py (third OPENCLAW-REPLACE module)
 - Moved BrowserSession, BrowserAction, run_browser_script to rex/openclaw/browser_core.py
 - Rewrote BrowserBridge to use browser_core directly (no delegation to BrowserAutomationService)
