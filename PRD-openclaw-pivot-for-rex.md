@@ -1062,8 +1062,15 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 **US-P5-015:** Test WooCommerce write through OpenClaw (with write policy)
 - [x] tests/test_openclaw_woocommerce.py: write policy gate tests pass (24 total)
 **US-P5-016:** Audit plex_client.py public API
+- [x] Public API documented: enabled, ping, get_libraries, search, play, pause, stop; data classes PlexLibrary/PlexMediaItem; singleton helpers
+- [x] Callers identified: no external callers (module is standalone)
+- [x] docs/openclaw-migration-status.md updated with audit notes
 **US-P5-017:** Create Plex skill for OpenClaw
+- [x] rex/openclaw/tools/plex_tool.py created with plex_search, plex_play, plex_pause, plex_stop
+- [x] ToolBridge.register_plex_tools() added to tool_bridge.py
+- [x] register() stub follows ToolBridge/EventBridge pattern
 **US-P5-018:** Test Plex command through OpenClaw
+- [x] tests/test_openclaw_plex.py: all plex tool + ToolBridge wiring tests pass
 **US-P5-019:** Identify all business workflow definitions
 **US-P5-020:** Identify Nasteeshirts-specific logic
 **US-P5-021:** Create business skill for OpenClaw

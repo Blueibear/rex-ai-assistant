@@ -59,7 +59,7 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/ha_tts/` | Keep | Audited (US-P5-002) | HA TTS integration (3 files). `build_ha_tts_client` factory; `HaTtsClient.speak()` is the one callable. Full audit below. |
 | `rex/wordpress/` | Keep | Audited + Bridged (US-P5-008/009) | WordPress client (3 files, read-only). `wordpress_tool.py` wraps service as `wordpress_health_check`. Full audit below. |
 | `rex/woocommerce/` | Keep | Audited + Bridged (US-P5-012/013) | WooCommerce client (4 files, read + approval-gated write). 5 tools: list_orders, list_products, set_order_status, create_coupon, disable_coupon. Write policy preserved. |
-| `rex/plex_client.py` | Keep | Pending | Plex media control. Register as OpenClaw skill in Phase 5. |
+| `rex/plex_client.py` | Keep | Audited + Bridged (US-P5-016/017) | Plex media client (1 file). 4 tools: plex_search, plex_play, plex_pause, plex_stop. Playback control + search only. Full audit below. |
 | `rex/memory.py` | Keep + Adapt | Audited (US-P3-001) | See audit notes below. |
 | `rex/memory_utils.py` | Keep | Audited (US-P3-004) | See audit notes below. |
 | `rex/llm_client.py` | Keep | Pending | Multi-provider LLM client. Orthogonal to migration. Not in scope. |
@@ -876,3 +876,39 @@ The current WordPress implementation is strictly read-only. `WordPressClient.hea
 - `add_order_note` not exposed as a tool yet — can be added when needed
 - `ToolBridge.register_woocommerce_tools()` registers the full batch
 - Security: Consumer key/secret via `CredentialManager`. SSRF-validated URLs. Policy gate before writes.
+
+---
+
+### Audit Notes: rex/plex_client.py (US-P5-016)
+
+**Public API:**
+
+| Symbol | Signature | Notes |
+|--------|-----------|-------|
+| `PlexLibrary` | dataclass: `library_id`, `title`, `library_type`, `count`, `metadata` | Library section info |
+| `PlexMediaItem` | dataclass: `rating_key`, `title`, `media_type`, `year`, `summary`, `duration_ms`, `metadata` | Media item info |
+| `PlexConnectionError` | exception | Server unreachable |
+| `PlexAuthError` | exception | Auth failure |
+| `PlexClient` | class | HTTP client for Plex Media Server |
+| `PlexClient.enabled` | `→ bool` | True when base_url and token are configured |
+| `PlexClient.ping` | `() → bool` | Health check — GET /identity |
+| `PlexClient.get_libraries` | `() → list[PlexLibrary]` | GET /library/sections |
+| `PlexClient.search` | `(query, *, limit=20) → list[PlexMediaItem]` | GET /search |
+| `PlexClient.play` | `(client_id, *, rating_key=None, command_id=1) → bool` | Player command: play |
+| `PlexClient.pause` | `(client_id, *, command_id=1) → bool` | Player command: pause |
+| `PlexClient.stop` | `(client_id, *, command_id=1) → bool` | Player command: stop |
+| `get_plex_client` | `() → PlexClient \| None` | Module-level singleton |
+| `set_plex_client` | `(client) → None` | Replace singleton (testing) |
+| `init_plex_client` | `(base_url, token) → PlexClient` | Create and store singleton |
+
+**Callers:**
+No callers found outside `plex_client.py` itself. Plex integration is currently unused by other Rex modules.
+
+**OpenClaw migration notes:**
+- 4 tools created in `rex/openclaw/tools/plex_tool.py`:
+  search (plex_search) + playback control (plex_play, plex_pause, plex_stop)
+- `get_libraries` not exposed as a tool — library browsing is a lower-priority UX pattern
+- `ping` not exposed — health check is operational, not conversational
+- Tools return `{"ok": ..., "error": ...}` dicts; plex_search returns a `results` list
+- `ToolBridge.register_plex_tools()` registers the tool batch
+- Security: Token from config (should be moved to CredentialManager in future). SSRF risk — base_url from config, not user input.

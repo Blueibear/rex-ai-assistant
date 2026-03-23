@@ -37,6 +37,7 @@ from typing import Any, Callable
 from rex.openclaw.tools.calendar_tool import register as _register_calendar_create
 from rex.openclaw.tools.email_tool import register as _register_send_email
 from rex.openclaw.tools.ha_tool import register as _register_ha_call_service
+from rex.openclaw.tools.plex_tool import register as _register_plex_tools
 from rex.openclaw.tools.wordpress_tool import register as _register_wp_health_check
 from rex.openclaw.tools.woocommerce_tool import register as _register_wc_tools
 from rex.openclaw.tools.sms_tool import register as _register_send_sms
@@ -286,6 +287,24 @@ class ToolBridge:
             each tool (``None`` when OpenClaw is not installed).
         """
         return _register_wc_tools(agent=agent)
+
+    def register_plex_tools(self, agent: Any = None) -> dict[str, Any]:
+        """Register all Plex tools batch with OpenClaw.
+
+        Tools (LOW risk, read-only search + playback control):
+        * ``plex_search`` — search the Plex library
+        * ``plex_play``   — start playback on a Plex client
+        * ``plex_pause``  — pause playback on a Plex client
+        * ``plex_stop``   — stop playback on a Plex client
+
+        Args:
+            agent: Optional OpenClaw agent handle.
+
+        Returns:
+            A dict mapping tool name to the registration handle returned by
+            each tool (``None`` when OpenClaw is not installed).
+        """
+        return _register_plex_tools(agent=agent)
 
     def register(self, agent: Any = None) -> Any:
         """Register this bridge as the OpenClaw tool provider.
