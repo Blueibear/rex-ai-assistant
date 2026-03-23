@@ -1,3 +1,13 @@
+## Iteration 57 - US-P4-030 through US-P4-036: WorkflowBridge + Executor migration + Phase 4 regression
+- Created `rex/openclaw/workflow_bridge.py` (WorkflowBridge, ~175 lines)
+  - Wraps WorkflowRunner: same constructor + run() + dry_run()
+  - Preserves all Rex semantics: policy hooks, approvals, idempotency, preconditions, persistence, dry-run, hooks
+- Updated `rex/executor.py` → uses WorkflowBridge instead of WorkflowRunner
+- 19 workflow bridge tests + 6 executor bridge tests = 25 new tests
+- Phase 4 targeted regression: 167 tests pass (openclaw, notification, integrations, event_bus, cli)
+- Files changed: rex/openclaw/workflow_bridge.py, rex/executor.py, tests/test_openclaw_workflow_bridge.py, tests/test_openclaw_executor_bridge.py, PRD-openclaw-pivot-for-rex.md, progress-openclaw-pivot-for-rex.txt
+---
+
 ## Iteration 56 - US-P4-028 + US-P4-029: Workflow API audit and OpenClaw model mapping
 - Audited rex/workflow.py (668 lines) and rex/workflow_runner.py (864 lines) callers
 - 7 callers: cli.py, executor.py, autonomy_modes.py, planner.py, computers/pc_run_policy.py, openclaw/approval_adapter.py (already bridged), woocommerce/write_policy.py

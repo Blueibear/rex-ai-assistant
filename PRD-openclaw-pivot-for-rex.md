@@ -974,32 +974,32 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Document
 
 **US-P4-030: Create workflow bridge**
-- [ ] Create `rex/openclaw/workflow_bridge.py`
-- [ ] Preserve Rex policy hooks
-- [ ] Tests pass
+- [x] Create `rex/openclaw/workflow_bridge.py`
+- [x] Preserve Rex policy hooks
+- [x] Tests pass
 
 **US-P4-031: Test simple workflow through bridge**
-- [ ] Single-step, no approval
-- [ ] Tests pass
+- [x] Single-step, no approval
+- [x] Tests pass
 
 **US-P4-032: Test approval-gated workflow through bridge**
-- [ ] Multi-step with approval gate
-- [ ] Tests pass
+- [x] Multi-step with approval gate
+- [x] Tests pass
 
 **US-P4-033: Test multi-step workflow through bridge**
-- [ ] 3+ steps, mixed policies
-- [ ] Tests pass
+- [x] 3+ steps, mixed policies
+- [x] Tests pass
 
 **US-P4-034: Update autonomy/runner.py to use workflow bridge**
-- [ ] Tests pass
+- [x] Tests pass
 
 **US-P4-035: Test autonomy runner with bridge**
-- [ ] End-to-end autonomy execution
-- [ ] Tests pass
+- [x] End-to-end autonomy execution
+- [x] Tests pass
 
 **US-P4-036: Phase 4 regression test**
-- [ ] Full test suite pass
-- [ ] Voice loop regression check
+- [x] Full test suite pass
+- [x] Voice loop regression check
 
 ### Phase 5 Tasks (US-P5-001 through US-P5-022)
 

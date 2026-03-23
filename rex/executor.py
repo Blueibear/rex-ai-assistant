@@ -38,9 +38,10 @@ from pathlib import Path
 
 from rex.audit import AuditLogger, get_audit_logger
 from rex.contracts import EvidenceRef
+from rex.openclaw.workflow_bridge import WorkflowBridge
 from rex.policy_engine import PolicyEngine, get_policy_engine
 from rex.workflow import StepResult, Workflow, WorkflowStep
-from rex.workflow_runner import RunResult, WorkflowRunner
+from rex.workflow_runner import RunResult
 
 logger = logging.getLogger(__name__)
 
@@ -239,8 +240,8 @@ class Executor:
 
         self.start_time = time.time()
 
-        # Create workflow runner with budget hooks
-        runner = WorkflowRunner(
+        # Create workflow bridge with budget hooks
+        runner = WorkflowBridge(
             self.workflow,
             policy_engine=self.policy_engine,
             audit_logger=self.audit_logger,
