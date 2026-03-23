@@ -1015,10 +1015,22 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] HA TTS is a notification channel, not a tool — triggered by notification routing
 - [x] Migration notes added to openclaw-migration-status.md
 **US-P5-003:** Create HA skill for OpenClaw
+- [x] ha_tool.py exists: home_assistant_call_service + register() — done in Phase 4
+- [x] ToolBridge.register_ha_tools() already wires it in
+
 **US-P5-004:** Test HA skill registration
+- [x] test_openclaw_ha_tools.py: 13 tests pass
+
 **US-P5-005:** Test one HA command through OpenClaw
+- [x] test_openclaw_ha_tools_e2e.py: 10 tests pass (policy guard, RexAgent blocking, execution)
+
 **US-P5-006:** Test HA TTS through OpenClaw
+- [x] tests/test_openclaw_ha_tts.py: 15 tests pass (speak, notification routing, factory)
+
 **US-P5-007:** Wire HA event subscriptions through OpenClaw
+- [x] Created rex/openclaw/ha_event_subscriber.py: HaEventSubscriber via EventBridge
+- [x] Publishing "ha.command" event dispatches to ha_call_service
+- [x] tests/test_openclaw_ha_event_subscriber.py: 22 tests pass
 **US-P5-008:** Audit wordpress/* public API
 **US-P5-009:** Create WordPress skill for OpenClaw
 **US-P5-010:** Test WordPress read through OpenClaw
