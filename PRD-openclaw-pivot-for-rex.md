@@ -654,7 +654,7 @@ For EACH module being retired, execute these steps in order:
 - [x] All tests pass
 - [x] Voice loop works end-to-end
 - [ ] Dashboard (OpenClaw) works — all 5 non-GUI callers migrated off dashboard_store; only gui_app.py remains and is excluded per Non-Goals (GUI migration is a separate future effort). Dashboard retirement requires GUI migration.
-- [ ] Messaging/channels work (blocked — messaging_service.py not retired; 1 active importer remains: rex/cli.py cmd_msg; notification.py migrated iter 88, __init__.py + services.py migrated iter 89)
+- [ ] Messaging/channels work (blocked — messaging_service.py not retired; 0 active importers remain; all callers migrated: notification.py iter 88, __init__.py + services.py iter 89, cli.py cmd_msg iter 90; next: retire messaging_service.py + messaging_backends/ — update sms_tool.py first)
 - [x] Browser automation works (browser_automation.py retired — BrowserSession + run_browser_script moved to rex/openclaw/browser_core.py)
 - [x] All integrations (HA, WordPress, WooCommerce, Plex) work as OpenClaw skills (all bridged + tested Phase 5)
 - [x] CLI commands work
