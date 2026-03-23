@@ -28,7 +28,7 @@ from rex.audit import LogEntry, get_audit_logger
 from rex.contracts import ToolCall
 from rex.geolocation import get_cached_city, get_cached_timezone
 from rex.policy_engine import PolicyEngine, get_policy_engine
-from rex.tool_registry import (
+from rex.openclaw.tool_registry import (
     ToolRegistry,
     get_tool_registry,
 )

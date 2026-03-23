@@ -15,7 +15,7 @@ from rex.autonomy_modes import reset_autonomy_config
 from rex.cli import cmd_executor_resume, cmd_plan
 from rex.contracts import ToolCall
 from rex.policy_engine import reset_policy_engine
-from rex.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry, set_tool_registry
+from rex.openclaw.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry, set_tool_registry
 from rex.workflow import Workflow, WorkflowStep
 
 

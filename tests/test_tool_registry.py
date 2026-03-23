@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from rex.credentials import CredentialManager
-from rex.tool_registry import (
+from rex.openclaw.tool_registry import (
     MissingCredentialError,
     ToolMeta,
     ToolNotFoundError,

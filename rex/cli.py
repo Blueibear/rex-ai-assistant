@@ -199,7 +199,7 @@ def cmd_version(args: argparse.Namespace) -> int:
 
 def cmd_tools(args: argparse.Namespace) -> int:
     """List registered tools and their status."""
-    from rex.tool_registry import get_tool_registry
+    from rex.openclaw.tool_registry import get_tool_registry
 
     registry = get_tool_registry()
     tools = registry.list_tools(include_disabled=args.all)
@@ -458,7 +458,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
     from rex.openclaw.workflow_bridge import WorkflowBridge
     from rex.planner import Planner, UnableToPlanError
     from rex.policy_engine import get_policy_engine
-    from rex.tool_registry import get_tool_registry
+    from rex.openclaw.tool_registry import get_tool_registry
 
     goal = args.goal
     print(f"Planning workflow for goal: {goal}")

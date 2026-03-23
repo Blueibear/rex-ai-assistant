@@ -10,7 +10,7 @@ import pytest
 
 from rex.planner import Planner
 from rex.policy_engine import get_policy_engine, reset_policy_engine
-from rex.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
+from rex.openclaw.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
 
 
 @pytest.fixture(autouse=True)

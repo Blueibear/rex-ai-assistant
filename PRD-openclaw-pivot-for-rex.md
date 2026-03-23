@@ -1199,7 +1199,7 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Verdict: **NOT SAFE TO RETIRE**
 - [x] 5 audit tests in `tests/test_retirement_check_tool_registry.py` — all pass
 **US-P7-006:** Retire tool_registry.py
-- [x] SKIPPED — blocked by 4 active importers (see US-P7-005)
+- [x] DONE — tool_registry.py retired; logic relocated to rex/openclaw/tool_registry.py; rex/__init__.py, rex/cli.py, rex/planner.py, rex/openclaw/tool_executor.py migrated; 12 test files updated; permanent guard created
 **US-P7-007:** Pre-retirement check for tool_router.py
 - [x] 2 active importers: rex/assistant.py, rex/workflow_runner.py
 - [x] Verdict: **NOT SAFE TO RETIRE**
@@ -1261,12 +1261,12 @@ Every phase must pass these checks before the next phase begins:
 - [x] Rex runs as an OpenClaw agent for all text interactions — VoiceBridge + RexAgent wired in all three voice loops (Phase 6 complete)
 - [x] Voice loop works end-to-end through OpenClaw backend — `use_openclaw_voice_backend` flag live in root, rex/, and optimized voice loops
 - [x] All integrations (HA, WordPress, WooCommerce, Plex) work as OpenClaw skills — HA, WP, WooCommerce, Plex all bridged with tests (Phase 5); business workflow e2e tested (US-P5-022). EventBus/messaging/dashboard retirement is separate from integration skill functionality.
-- [ ] Policy engine gates all tool calls through OpenClaw — PARTIAL: tool_router retired (US-P7-008); ToolRegistry still in active use (blocked by rex/__init__.py, rex/cli.py, rex/planner.py)
-- [ ] No retired modules remain in codebase — BLOCKED: 2 of 8 OPENCLAW-REPLACE modules still have active callers (plugin_loader.py + executor.py + browser_automation.py + messaging_service + dashboard + tool_router retired; event_bus, tool_registry still blocked by active callers)
+- [ ] Policy engine gates all tool calls through OpenClaw — PARTIAL: tool_router + tool_registry retired (US-P7-008, US-P7-006); event_bus still in active use
+- [ ] No retired modules remain in codebase — BLOCKED: 1 of 8 OPENCLAW-REPLACE modules still has active callers (plugin_loader.py + executor.py + browser_automation.py + messaging_service + dashboard + tool_router + tool_registry retired; only event_bus still blocked by active callers)
 - [x] CLI works with all commands — `python -m rex --help` passes; no regressions introduced
 - [x] Dashboard runs via OpenClaw — dashboard_store.py + rex/dashboard/ retired (iter 93); gui_app.py uses stub routes; dashboard functionality fully deprecated
 - [x] All tests pass — `pytest -q` green throughout all Phase 6 and Phase 7 iterations
-- [ ] `docs/openclaw-migration-status.md` shows all modules at "Complete" — file exists and updated (Phase 1 + this iteration); retirement of event_bus, tool_registry, tool_router, dashboard, and messaging still blocked by active callers
+- [ ] `docs/openclaw-migration-status.md` shows all modules at "Complete" — file exists and updated (Phase 1 + this iteration); retirement of event_bus still blocked by active callers
 
 ---
 

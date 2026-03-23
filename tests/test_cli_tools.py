@@ -8,7 +8,7 @@ from pathlib import Path
 
 from rex.cli import cmd_tools, create_parser, main
 from rex.credentials import CredentialManager, set_credential_manager
-from rex.tool_registry import ToolMeta, ToolRegistry, set_tool_registry
+from rex.openclaw.tool_registry import ToolMeta, ToolRegistry, set_tool_registry
 
 
 class TestToolsCommandParser:

@@ -15,7 +15,7 @@ import pytest
 from rex.credentials import CredentialManager
 from rex.planner import Planner, PlannerError
 from rex.policy_engine import get_policy_engine, reset_policy_engine
-from rex.tool_registry import (
+from rex.openclaw.tool_registry import (
     ToolMeta,
     ToolRegistry,
     get_tool_registry,

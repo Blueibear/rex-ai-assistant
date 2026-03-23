@@ -73,8 +73,8 @@ from .scheduler import (
     set_scheduler,
 )
 
-# Tool registry
-from .tool_registry import (
+# Tool registry (US-P7-006: relocated to rex.openclaw.tool_registry)
+from .openclaw.tool_registry import (
     MissingCredentialError,
     ToolMeta,
     ToolNotFoundError,

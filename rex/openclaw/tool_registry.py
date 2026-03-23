@@ -1,6 +1,7 @@
-# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.
-
 """Tool registry for managing tool metadata and health checks.
+
+Relocated from rex/tool_registry.py as part of US-P7-006 (OpenClaw migration).
+This is the canonical home for ToolRegistry going forward.
 
 This module provides a centralized registry for tools that:
 - Stores metadata about available tools (name, description, capabilities)

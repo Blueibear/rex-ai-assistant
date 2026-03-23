@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from rex.tool_registry import (
+from rex.openclaw.tool_registry import (
     ToolMeta,
     ToolNotFoundError,
     ToolRegistry,

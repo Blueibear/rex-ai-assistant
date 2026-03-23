@@ -20,7 +20,7 @@ from rex.autonomy_modes import (
 from rex.contracts import ToolCall
 from rex.planner import Planner, UnableToPlanError
 from rex.policy_engine import reset_policy_engine
-from rex.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
+from rex.openclaw.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
 from rex.workflow import Workflow, WorkflowStep
 
 
