@@ -1,3 +1,18 @@
+## Iteration 64 - US-P6-007: Update root voice_loop.py with feature flag
+- Added feature flag check in `AsyncRexAssistant.__init__` in `voice_loop.py` (root)
+- After the try/except that creates Assistant, checks `self.config.use_openclaw_voice_backend`
+- When True: imports `VoiceBridge` from `rex.openclaw.voice_bridge`, replaces `self._assistant`
+- VoiceBridge failure → logs warning, falls back to previous `_assistant` value
+- 5 unit tests in `tests/test_openclaw_root_voice_loop_flag.py` — all pass (took ~5min due to tokenizer)
+- Files changed: voice_loop.py, tests/test_openclaw_root_voice_loop_flag.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - Tests use `importlib.reload(vl)` to pick up patched VoiceBridge class in the module scope
+  - Patch `rex.openclaw.voice_bridge.VoiceBridge` (not `voice_loop.VoiceBridge`) — it's imported inside __init__
+  - These tests are slow (~5 min) because reload triggers transformers tokenizer init — normal
+  - US-P6-008 is test-only: test root voice loop's `_process_transcript` path with VoiceBridge mock in text mode (no audio)
+  - Pattern for US-P6-008: create AsyncRexAssistant with mocked deps, set _assistant to MockBridge, call _process_transcript with synthetic transcript
+---
+
 ## Iteration 63 - US-P6-006: Add USE_OPENCLAW_VOICE_BACKEND feature flag
 - Added `use_openclaw_voice_backend: bool = False` to `AppConfig` (rex/config.py:181)
 - Added `build_app_config` wiring: reads `openclaw.use_voice_backend` from JSON config
