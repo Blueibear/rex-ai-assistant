@@ -57,7 +57,7 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/voice_loop_optimized.py` | Keep | Pending | Low-latency voice loop (550 lines). Same treatment as voice_loop.py. |
 | `rex/ha_bridge.py` | Keep | Audited (US-P5-001) | Home Assistant bridge (600 lines). `ha_tool.py` already wraps it. Full audit below. |
 | `rex/ha_tts/` | Keep | Audited (US-P5-002) | HA TTS integration (3 files). `build_ha_tts_client` factory; `HaTtsClient.speak()` is the one callable. Full audit below. |
-| `rex/wordpress/` | Keep | Pending | WordPress client (3 files). Register as OpenClaw skill in Phase 5. |
+| `rex/wordpress/` | Keep | Audited + Bridged (US-P5-008/009) | WordPress client (3 files, read-only). `wordpress_tool.py` wraps service as `wordpress_health_check`. Full audit below. |
 | `rex/woocommerce/` | Keep | Pending | WooCommerce client with write policy (4 files). Register as OpenClaw skill in Phase 5. Write policy preserved. |
 | `rex/plex_client.py` | Keep | Pending | Plex media control. Register as OpenClaw skill in Phase 5. |
 | `rex/memory.py` | Keep + Adapt | Audited (US-P3-001) | See audit notes below. |
@@ -794,3 +794,41 @@ For Phase 5 this is acceptable — the tool existed before the audit — but the
 - `speak()` is the only callable that matters for OpenClaw integration. If OpenClaw gains a TTS notification channel, `build_ha_tts_client().speak(message)` becomes the implementation.
 - US-P5-006 will test this path. No new OpenClaw-specific code is needed for the audit; `build_ha_tts_client` and `speak()` are already the minimal surface.
 - Security: SSRF validation is enforced at `HaTtsClient` construction. Token is resolved via `CredentialManager`, never stored in config. This pattern must be preserved if a TTS bridge is added.
+
+---
+
+### Audit Notes: rex/wordpress/* (US-P5-008)
+
+**Public API:**
+
+| Symbol | Signature | Notes |
+|--------|-----------|-------|
+| `WPHealthResult` | dataclass: `ok`, `reachable`, `wp_detected`, `auth_ok`, `site_name`, `site_url`, `error` | Return type for health checks |
+| `WordPressClient` | class | HTTP client; one public method: `health()` |
+| `WordPressClient.__init__` | `(base_url, *, auth, timeout, site_id)` | SSRF-validated at construction |
+| `WordPressClient.health` | `() → WPHealthResult` | GET /wp-json + optional GET /wp-json/wp/v2/users/me |
+| `WordPressService` | class | Facade over config + credentials + client |
+| `WordPressService.__init__` | `(wp_config, credential_manager)` | Accepts explicit deps for testing |
+| `WordPressService.health` | `(site_id: str) → WPHealthResult` | Resolves site config + credentials, delegates to client |
+| `get_wordpress_service` | `() → WordPressService` | Module-level singleton factory |
+| `WordPressSiteConfig` | Pydantic model | `id`, `base_url`, `enabled`, `auth_method`, `credential_ref`, `timeout_seconds` |
+| `WordPressConfig` | Pydantic model | `sites: list[WordPressSiteConfig]`, `get_site()`, `list_enabled()`, `list_all()` |
+| `load_wordpress_config` | in `config.py` | Parses `wordpress.sites[]` from rex_config.json |
+| `WordPressSiteNotFoundError` | exception | Unknown site_id |
+| `WordPressSiteDisabledError` | exception | Site is disabled |
+| `WordPressMissingCredentialError` | exception | Credential not configured |
+
+**Callers:**
+
+| File | What it uses |
+|------|-------------|
+| `rex/cli.py` | `get_wordpress_service()`, `service.health(site_id)` (for `rex wp health` command) |
+
+**Key finding — read-only:**
+The current WordPress implementation is strictly read-only. `WordPressClient.health()` is the only public method. There are no create/update/delete operations. US-P5-011 ("Test WordPress write through OpenClaw") is N/A for the current implementation.
+
+**OpenClaw migration notes:**
+- `wordpress_health_check` tool created in `rex/openclaw/tools/wordpress_tool.py` wraps `WordPressService.health()`.
+- `ToolBridge.register_wordpress_tools()` registers the tool batch.
+- Write operations are out of scope until the WordPress client is extended.
+- Security: Basic Auth credentials resolved via `CredentialManager`. SSRF-validated `base_url`. Never stored in config.

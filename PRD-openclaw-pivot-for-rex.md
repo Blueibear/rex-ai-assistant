@@ -1032,9 +1032,20 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Publishing "ha.command" event dispatches to ha_call_service
 - [x] tests/test_openclaw_ha_event_subscriber.py: 22 tests pass
 **US-P5-008:** Audit wordpress/* public API
+- [x] Public API: WordPressClient.health(), WordPressService.health(site_id), get_wordpress_service()
+- [x] Callers: cli.py only (rex wp health command)
+- [x] Key finding: read-only client — no write operations exist
+- [x] Migration notes added to openclaw-migration-status.md
+
 **US-P5-009:** Create WordPress skill for OpenClaw
+- [x] Created rex/openclaw/tools/wordpress_tool.py: wordpress_health_check + register()
+- [x] ToolBridge.register_wordpress_tools() added
+
 **US-P5-010:** Test WordPress read through OpenClaw
+- [x] tests/test_openclaw_wordpress.py: 19 tests pass (health check, error handling, ToolBridge)
+
 **US-P5-011:** Test WordPress write through OpenClaw
+- [x] N/A — WordPress client is read-only; no write operations in current implementation
 **US-P5-012:** Audit woocommerce/* public API
 **US-P5-013:** Create WooCommerce skill for OpenClaw
 **US-P5-014:** Test WooCommerce read through OpenClaw

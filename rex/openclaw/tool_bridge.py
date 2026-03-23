@@ -37,6 +37,7 @@ from typing import Any, Callable
 from rex.openclaw.tools.calendar_tool import register as _register_calendar_create
 from rex.openclaw.tools.email_tool import register as _register_send_email
 from rex.openclaw.tools.ha_tool import register as _register_ha_call_service
+from rex.openclaw.tools.wordpress_tool import register as _register_wp_health_check
 from rex.openclaw.tools.sms_tool import register as _register_send_sms
 from rex.openclaw.tools.time_tool import register as _register_time_now
 from rex.openclaw.tools.weather_tool import register as _register_weather_now
@@ -241,6 +242,27 @@ class ToolBridge:
         """
         return {
             "home_assistant_call_service": _register_ha_call_service(agent=agent),
+        }
+
+    def register_wordpress_tools(self, agent: Any = None) -> dict[str, Any]:
+        """Register the WordPress tools batch with OpenClaw.
+
+        Calls :func:`register` on the WordPress tool:
+
+        * ``wordpress_health_check`` — read-only health check (LOW risk)
+
+        WordPress integration is read-only; no write tools are registered.
+
+        Args:
+            agent: Optional OpenClaw agent handle forwarded to each
+                individual tool's :func:`register` call.
+
+        Returns:
+            A dict mapping tool name to the registration handle returned by
+            each tool (``None`` when OpenClaw is not installed).
+        """
+        return {
+            "wordpress_health_check": _register_wp_health_check(agent=agent),
         }
 
     def register(self, agent: Any = None) -> Any:
