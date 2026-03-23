@@ -1,3 +1,31 @@
+## Iteration 78 - US-P7-017 through US-P7-020: Audit and docs cleanup
+- US-P7-017: contracts/ audit — 5 tests verify all 4 migration contracts still needed; cleanup blocked
+- US-P7-018: cli.py audit — no modules retired; no changes needed
+- US-P7-019: pyproject.toml audit — entry points clean; no changes needed
+- US-P7-020: CLAUDE.md updated with OpenClaw Migration Status section
+- Phase 7 PRD fully updated with verdicts and skip/blocked entries
+- Files changed: CLAUDE.md, tests/test_openclaw_contracts_audit.py, PRD-openclaw-pivot-for-rex.md
+---
+
+## Iteration 77 - US-P7-013 + US-P7-015: Pre-retirement checks + dashboard/messaging audit fix
+- US-P7-011: browser_automation pre-retirement — initially thought SAFE, corrected to NOT SAFE
+  (rex/openclaw/browser_bridge.py imports BrowserAutomationService)
+- US-P7-013: dashboard pre-retirement — 6 blockers (digest_job, gui_app, health, inbound_store, notification, retention)
+- US-P7-015: messaging pre-retirement — 4 blockers (__init__, cli, notification, services)
+- All retire tasks (P7-002,004,006,008,010,012,014,016) marked SKIPPED (all blocked)
+- Lesson: audit check must NOT exclude openclaw/ directory — bridges can also depend on legacy modules
+---
+
+## Iteration 76 - US-P7-001 through US-P7-011: All pre-retirement checks
+- Wrote 8 retirement check test files with AST-based importer detection
+- Verdicts: ALL modules NOT SAFE to retire — total 25 active importers across 8 modules
+- Pattern: `KNOWN_BLOCKERS` set + `_find_active_importers()` AST walker + 5 tests per module
+- Key detail: some tests use `getattr` on MagicMock for settings — need `*args` in lambda side_effects
+- US-P7-001: event_bus — 8 blockers. US-P7-003: plugin_loader — 1. US-P7-005: tool_registry — 4.
+- US-P7-007: tool_router — 2. US-P7-009: executor — 1.
+- US-P7-011 (browser_automation): Initially appeared to have 0 blockers but openclaw/browser_bridge.py was missed
+---
+
 ## Iteration 70 - US-P6-015: Test HA TTS through voice loop + OpenClaw
 - Created `tests/test_openclaw_ha_tts_voice_loop.py` with 4 async tests
 - Wraps `HaTtsClient.speak()` as async callable via `asyncio.to_thread`, passes as `speak` arg to VoiceLoop
