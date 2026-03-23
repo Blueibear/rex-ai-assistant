@@ -60,6 +60,14 @@ def _find_active_importers() -> set[str]:
             continue
         if _imports_executor(py_file):
             importers.add(rel)
+    # Also scan tests/ to catch lingering test-file references
+    tests_dir = REPO_ROOT / "tests"
+    for py_file in tests_dir.glob("*.py"):
+        rel = py_file.relative_to(REPO_ROOT).as_posix()
+        if "__pycache__" in rel:
+            continue
+        if _imports_executor(py_file):
+            importers.add(rel)
     return importers
 
 
