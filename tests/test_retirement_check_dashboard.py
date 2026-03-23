@@ -1,16 +1,13 @@
 """Pre-retirement check for rex/dashboard_store.py and rex/dashboard/ (US-P7-013).
 
-Verdict: NOT SAFE TO RETIRE
-  Active importers of dashboard_store: rex/gui_app.py (excluded per Non-Goals;
-  GUI migration is a separate future effort)
-
-  Migrated callers (5 of 6 original non-gui callers):
+Verdict: SAFE TO RETIRE
+  All callers migrated off dashboard_store and rex.dashboard:
   - rex/health.py — check_dashboard_db removed
   - rex/retention.py — setup_dashboard_cleanup_job converted to no-op
   - rex/notification.py — _send_to_dashboard converted to logging-only stub
   - rex/digest_job.py — TYPE_CHECKING import removed; store param typed Any
   - rex/messaging_backends/inbound_store.py — docstring reference removed
-    (no actual import was ever present; only the module docstring mentioned it)
+  - rex/gui_app.py — _create_flask_app converted to stub routes (iter 92)
 """
 
 from __future__ import annotations
@@ -21,9 +18,7 @@ import pathlib
 REPO_ROOT = pathlib.Path(__file__).parent.parent
 REX_PKG = REPO_ROOT / "rex"
 
-KNOWN_BLOCKERS = {
-    "rex/gui_app.py",
-}
+KNOWN_BLOCKERS: set[str] = set()
 
 EXEMPT_PATHS = {
     "rex/dashboard_store.py",
@@ -90,6 +85,6 @@ class TestDashboardRetirementCheck:
         unexpected = active - KNOWN_BLOCKERS
         assert not unexpected, f"New importers: {unexpected}"
 
-    def test_retirement_verdict_not_safe(self):
+    def test_retirement_verdict_safe(self):
         active = _find_active_importers()
-        assert active & KNOWN_BLOCKERS, "All blockers migrated — safe to retire!"
+        assert not active, f"Unexpected dashboard importers remain: {active}"
