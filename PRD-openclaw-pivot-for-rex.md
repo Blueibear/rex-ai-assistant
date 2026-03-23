@@ -1113,6 +1113,13 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Migration plan documented: VoiceBridge wraps RexAgent.respond(), feature flag swaps assistant reference
 - [x] Consolidated seam table added to openclaw-migration-status.md
 **US-P6-005:** Create voice bridge
+- [x] `rex/openclaw/voice_bridge.py` created with `VoiceBridge` class
+- [x] `generate_reply(transcript, voice_mode=False, **kwargs) -> str` wraps `RexAgent.respond()`
+- [x] `voice_mode` kwarg accepted and silently ignored (not forwarded) for all three loop call signatures
+- [x] `user_key` forwarded to `RexAgent.respond()` for history persistence
+- [x] Lazy `RexAgent` creation on first `generate_reply` call
+- [x] `ValueError` raised on empty/whitespace-only transcript
+- [x] 14 unit tests in `tests/test_openclaw_voice_bridge.py` — all pass
 **US-P6-006:** Add USE_OPENCLAW_VOICE_BACKEND feature flag
 **US-P6-007:** Update root voice_loop.py with feature flag
 **US-P6-008:** Test root voice loop with OpenClaw (text mode)
