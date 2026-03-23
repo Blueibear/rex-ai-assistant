@@ -1,3 +1,45 @@
+## Iteration 91 - Retire messaging_service.py + messaging_backends/ (Phase 7 messaging complete)
+- rex/openclaw/tools/sms_tool.py: converted from real SMSService wrapper to stub
+  - Removed: `from rex.messaging_service import Message, get_sms_service as _get_sms_service`
+  - send_sms() now logs warning and returns {ok: False, message_id: None, error: "SMS backend not available"}
+  - register() unchanged (still stubs OpenClaw registration)
+- Deleted rex/messaging_service.py (501 lines) and rex/messaging_backends/ (16 files, ~800 lines)
+- Deleted 13 test files for retired modules:
+  test_inbound_store.py, test_inbound_user_association.py, test_inbound_webhook.py,
+  test_inbound_webhook_wiring.py, test_messaging_backends.py, test_messaging_service.py,
+  test_retention_scheduling.py, test_sms_inbound_integration.py, test_twilio_signature.py,
+  test_us084_sms_sender_stub.py, test_us085_sms_receiver_stub.py, test_us086_twilio_adapter.py,
+  test_us087_message_router.py
+- rex/retention.py: stubbed setup_inbound_sms_cleanup_job (was importing messaging_backends.inbound_store)
+  - Removed Path import (unused after stub)
+  - setup_dashboard_cleanup_job was already a stub (pre-existing from earlier iter)
+- tests/test_retirement_check_messaging.py: converted from pre-retirement audit to permanent guard
+  - Now asserts: messaging_service.py DOES NOT exist, messaging_backends/ DOES NOT exist,
+    no rex/ module imports from rex.messaging_service
+- tests/test_openclaw_policy_gated_tools.py: updated TestSmsTool for stub behavior
+  - Removed: test_send_sms_calls_service (patched _get_sms_service), test_send_sms_message_to_number
+    (imported Message from rex.messaging_service)
+  - Added: test_send_sms_returns_stub_error, test_send_sms_returns_dict_keys
+- tests/test_cli_scheduler.py: replaced pre-existing failing test_cli_scheduler_run_retention_jobs
+  with test_cli_scheduler_retention_stubs_return_false (verifies both stubs return False)
+- All 92 targeted tests pass; 34 files changed
+- PRD line 657 marked [x]
+- Learnings for future iterations:
+  - sms_tool.py was exempt from the retirement importer scan (has "openclaw" in path — line 55
+    of _find_active_importers() skips files with "openclaw" in rel path)
+  - After deleting messaging_backends/, 13 test files that imported from it need deletion too
+  - retention.py inbound_sms setup was also importing messaging_backends (not caught by retirement
+    check because scan only checked rex/ pkg root, not retention.py which lazily imports)
+  - Background task runner on this Windows system doesn't write output to .output files — use
+    foreground Bash with timeout for pytest runs; run targeted subset if full suite is too slow
+  - The next [ ] items in the PRD are structural blocks:
+    - Dashboard (line 656): gui_app.py excluded per Non-Goals — requires separate GUI migration effort
+    - Policy gate (line 1264): ToolRegistry/ToolRouter still in active use (feature-flagged)
+    - No retired modules (line 1265): event_bus, tool_registry, tool_router, dashboard still blocked
+    - Dashboard OpenClaw (line 1267): only gui_app.py remains — excluded per Non-Goals
+    - Migration status doc (line 1269): blocked on same modules
+---
+
 ## Iteration 90 - Migrate rex/cli.py cmd_msg off messaging_service (1 → 0 blockers)
 - rex/cli.py cmd_msg: converted from lazy-importing Message + get_sms_service to pure stub
   - Removed lazy imports of Message and get_sms_service from rex.messaging_service

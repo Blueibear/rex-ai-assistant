@@ -1262,7 +1262,7 @@ Every phase must pass these checks before the next phase begins:
 - [x] Voice loop works end-to-end through OpenClaw backend — `use_openclaw_voice_backend` flag live in root, rex/, and optimized voice loops
 - [x] All integrations (HA, WordPress, WooCommerce, Plex) work as OpenClaw skills — HA, WP, WooCommerce, Plex all bridged with tests (Phase 5); business workflow e2e tested (US-P5-022). EventBus/messaging/dashboard retirement is separate from integration skill functionality.
 - [ ] Policy engine gates all tool calls through OpenClaw — BLOCKED: ToolRegistry, ToolRouter still in active use (legacy path is default; OpenClaw path is feature-flagged via `use_openclaw_tools`)
-- [ ] No retired modules remain in codebase — BLOCKED: 5 of 8 OPENCLAW-REPLACE modules still have active callers (plugin_loader.py + executor.py + browser_automation.py retired; event_bus, tool_registry, tool_router, dashboard, messaging still blocked)
+- [ ] No retired modules remain in codebase — BLOCKED: 4 of 8 OPENCLAW-REPLACE modules still have active callers (plugin_loader.py + executor.py + browser_automation.py + messaging_service retired; event_bus, tool_registry, tool_router, dashboard still blocked by active callers or GUI exclusion)
 - [x] CLI works with all commands — `python -m rex --help` passes; no regressions introduced
 - [ ] Dashboard runs via OpenClaw — BLOCKED: only gui_app.py remains (excluded per Non-Goals; GUI migration is a separate future effort)
 - [x] All tests pass — `pytest -q` green throughout all Phase 6 and Phase 7 iterations
