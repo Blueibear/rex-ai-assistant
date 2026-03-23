@@ -1,15 +1,15 @@
-"""Tests for browser automation module."""
+"""Tests for browser automation module (now in rex.openclaw.browser_core)."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from rex.browser_automation import (
-    BrowserAutomationService,
-    BrowserSession,
+from rex.openclaw.browser_bridge import (
+    BrowserBridge,
     get_browser_service,
     reset_browser_service,
 )
+from rex.openclaw.browser_core import BrowserSession
 
 
 class TestBrowserSession:
@@ -28,7 +28,7 @@ class TestBrowserSession:
     @pytest.mark.asyncio
     async def test_browser_session_context_manager(self):
         """Test BrowserSession as async context manager."""
-        with patch("rex.browser_automation.async_playwright") as mock_playwright:
+        with patch("rex.openclaw.browser_core.async_playwright") as mock_playwright:
             mock_playwright_instance = AsyncMock()
             mock_playwright.return_value.start = AsyncMock(return_value=mock_playwright_instance)
 
@@ -49,23 +49,23 @@ class TestBrowserSession:
 
 
 class TestBrowserAutomationService:
-    """Tests for BrowserAutomationService class."""
+    """Tests for BrowserBridge (replaces BrowserAutomationService)."""
 
     def test_service_init(self):
-        """Test service initialization."""
-        service = BrowserAutomationService()
-        assert service.storage_path.name == "browser_sessions"
+        """Test bridge initialization."""
+        bridge = BrowserBridge()
+        assert bridge.storage_path.name == "browser_sessions"
 
     def test_list_sessions_empty(self):
         """Test listing sessions when none exist."""
-        service = BrowserAutomationService()
-        sessions = service.list_sessions()
+        bridge = BrowserBridge()
+        sessions = bridge.list_sessions()
         assert isinstance(sessions, list)
 
     def test_list_screenshots_empty(self):
         """Test listing screenshots when none exist."""
-        service = BrowserAutomationService()
-        screenshots = service.list_screenshots()
+        bridge = BrowserBridge()
+        screenshots = bridge.list_screenshots()
         assert isinstance(screenshots, list)
 
 

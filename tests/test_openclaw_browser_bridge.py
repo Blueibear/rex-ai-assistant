@@ -3,22 +3,24 @@
 US-P4-022 acceptance criteria:
   - BrowserBridge exists and is importable
   - Satisfies BrowserAutomationProtocol structural check
-  - Delegates every method to the underlying BrowserAutomationService
+  - execute_script, list_sessions, list_screenshots work
   - register() returns None when openclaw not installed
 
 US-P4-023 acceptance criteria:
-  - execute_script delegates to service.execute_script (navigate + screenshot round-trip)
-  - list_sessions delegates and returns session list
-  - list_screenshots delegates and returns screenshot list
+  - execute_script runs navigate + screenshot round-trip via run_browser_script
+  - list_sessions returns session list
+  - list_screenshots returns screenshot list
   - headless parameter is forwarded
 """
 from __future__ import annotations
 
+import json
+import tempfile
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from rex.browser_automation import BrowserAutomationService
 from rex.openclaw.browser_bridge import OPENCLAW_AVAILABLE, BrowserBridge
 
 
@@ -27,20 +29,11 @@ from rex.openclaw.browser_bridge import OPENCLAW_AVAILABLE, BrowserBridge
 # ---------------------------------------------------------------------------
 
 
-def _make_service() -> BrowserAutomationService:
-    """Return a BrowserAutomationService backed by a tmp directory."""
-    import tempfile
-    from pathlib import Path
-
-    d = tempfile.mkdtemp()
-    return BrowserAutomationService(storage_path=Path(d))
-
-
-def _fresh_bridge() -> tuple[BrowserBridge, BrowserAutomationService]:
-    """Return a BrowserBridge backed by a fresh isolated service."""
-    service = _make_service()
-    bridge = BrowserBridge(service=service)
-    return bridge, service
+def _fresh_bridge(tmp_path: Path | None = None) -> BrowserBridge:
+    """Return a BrowserBridge backed by a fresh isolated tmp directory."""
+    if tmp_path is None:
+        tmp_path = Path(tempfile.mkdtemp())
+    return BrowserBridge(storage_path=tmp_path)
 
 
 # ---------------------------------------------------------------------------
@@ -57,70 +50,107 @@ class TestBrowserBridgeInstantiation:
         bridge = BrowserBridge()
         assert bridge is not None
 
-    def test_explicit_service_arg(self):
-        """BrowserBridge accepts an explicit service and stores it."""
-        service = _make_service()
-        bridge = BrowserBridge(service=service)
-        assert bridge._service is service
+    def test_storage_path_arg(self, tmp_path):
+        """BrowserBridge accepts storage_path and stores it."""
+        bridge = BrowserBridge(storage_path=tmp_path)
+        assert bridge.storage_path == tmp_path
 
     def test_openclaw_available_is_bool(self):
         assert isinstance(OPENCLAW_AVAILABLE, bool)
 
-    def test_satisfies_protocol(self):
+    def test_satisfies_protocol(self, tmp_path):
         from rex.contracts.browser import BrowserAutomationProtocol
 
-        bridge = BrowserBridge(service=_make_service())
+        bridge = _fresh_bridge(tmp_path)
         assert isinstance(bridge, BrowserAutomationProtocol)
 
 
 # ---------------------------------------------------------------------------
-# US-P4-022: Delegation to underlying BrowserAutomationService
+# US-P4-022: execute_script, list_sessions, list_screenshots
 # ---------------------------------------------------------------------------
 
 
-class TestDelegation:
-    def setup_method(self):
-        self.service = _make_service()
-        self.bridge = BrowserBridge(service=self.service)
-
+class TestBridgeMethods:
     @pytest.mark.asyncio
-    async def test_execute_script_delegates(self):
-        """execute_script delegates to service.execute_script."""
-        fake_results = [{"step": 1, "action": "navigate", "status": "success", "url": "https://example.com"}]
-        self.service.execute_script = AsyncMock(return_value=fake_results)
+    async def test_execute_script_calls_run_browser_script(self, tmp_path):
+        """execute_script loads JSON and calls run_browser_script."""
+        script = {"steps": [{"action": "navigate", "params": {"url": "https://example.com"}}]}
+        script_file = tmp_path / "script.json"
+        script_file.write_text(json.dumps(script))
 
-        result = await self.bridge.execute_script("/path/to/script.json", headless=True)
+        fake_results = [{"step": 0, "action": "navigate", "status": "success"}]
 
-        self.service.execute_script.assert_awaited_once_with("/path/to/script.json", headless=True)
+        bridge = _fresh_bridge(tmp_path)
+        with patch(
+            "rex.openclaw.browser_bridge.run_browser_script", AsyncMock(return_value=fake_results)
+        ) as mock_run:
+            result = await bridge.execute_script(str(script_file), headless=True)
+
+        mock_run.assert_awaited_once_with(
+            script["steps"], True, None
+        )
         assert result == fake_results
 
     @pytest.mark.asyncio
-    async def test_execute_script_headless_false_forwarded(self):
-        """headless=False is forwarded to service.execute_script."""
-        self.service.execute_script = AsyncMock(return_value=[])
+    async def test_execute_script_headless_false_forwarded(self, tmp_path):
+        """headless=False is forwarded to run_browser_script."""
+        script = {"steps": []}
+        script_file = tmp_path / "s.json"
+        script_file.write_text(json.dumps(script))
 
-        await self.bridge.execute_script("/p/s.json", headless=False)
+        bridge = _fresh_bridge(tmp_path)
+        with patch(
+            "rex.openclaw.browser_bridge.run_browser_script", AsyncMock(return_value=[])
+        ) as mock_run:
+            await bridge.execute_script(str(script_file), headless=False)
 
-        _, kwargs = self.service.execute_script.call_args
-        assert kwargs["headless"] is False
+        args, kwargs = mock_run.call_args
+        assert args[1] is False
 
-    def test_list_sessions_delegates(self):
-        """list_sessions delegates to service.list_sessions."""
-        self.service.list_sessions = MagicMock(return_value=["session_a", "session_b"])
+    @pytest.mark.asyncio
+    async def test_execute_script_passes_session_name(self, tmp_path):
+        """session_name from JSON is forwarded to run_browser_script."""
+        script = {"steps": [], "session_name": "my_session"}
+        script_file = tmp_path / "s.json"
+        script_file.write_text(json.dumps(script))
 
-        result = self.bridge.list_sessions()
+        bridge = _fresh_bridge(tmp_path)
+        with patch(
+            "rex.openclaw.browser_bridge.run_browser_script", AsyncMock(return_value=[])
+        ) as mock_run:
+            await bridge.execute_script(str(script_file))
 
-        self.service.list_sessions.assert_called_once()
-        assert result == ["session_a", "session_b"]
+        args, _ = mock_run.call_args
+        assert args[2] == "my_session"
 
-    def test_list_screenshots_delegates(self):
-        """list_screenshots delegates to service.list_screenshots."""
-        self.service.list_screenshots = MagicMock(return_value=["shot1.png", "shot2.png"])
+    def test_list_sessions_empty(self, tmp_path):
+        """list_sessions returns [] when storage path has no subdirs."""
+        bridge = _fresh_bridge(tmp_path)
+        assert bridge.list_sessions() == []
 
-        result = self.bridge.list_screenshots()
+    def test_list_sessions_with_dirs(self, tmp_path):
+        """list_sessions returns subdirectory names."""
+        (tmp_path / "session_abc").mkdir()
+        (tmp_path / "session_xyz").mkdir()
+        bridge = _fresh_bridge(tmp_path)
+        sessions = bridge.list_sessions()
+        assert set(sessions) == {"session_abc", "session_xyz"}
 
-        self.service.list_screenshots.assert_called_once()
-        assert result == ["shot1.png", "shot2.png"]
+    def test_list_screenshots_empty(self, tmp_path):
+        """list_screenshots returns [] when no screenshots exist."""
+        bridge = _fresh_bridge(tmp_path)
+        assert bridge.list_screenshots() == []
+
+    def test_list_screenshots_with_files(self, tmp_path):
+        """list_screenshots returns png/jpg filenames."""
+        ss_path = tmp_path / "screenshots"
+        ss_path.mkdir()
+        (ss_path / "a.png").write_text("x")
+        (ss_path / "b.jpg").write_text("x")
+        (ss_path / "c.txt").write_text("x")  # should be excluded
+        bridge = _fresh_bridge(tmp_path)
+        screenshots = bridge.list_screenshots()
+        assert set(screenshots) == {"a.png", "b.jpg"}
 
 
 # ---------------------------------------------------------------------------
@@ -129,21 +159,27 @@ class TestDelegation:
 
 
 class TestSimpleBrowserTask:
-    """Verify the full delegation chain for a navigate+screenshot script."""
-
-    def setup_method(self):
-        self.bridge, self.service = _fresh_bridge()
+    """Verify the full flow for a navigate+screenshot script."""
 
     @pytest.mark.asyncio
-    async def test_navigate_and_screenshot_script(self):
+    async def test_navigate_and_screenshot_script(self, tmp_path):
         """execute_script with navigate+screenshot steps returns step results."""
-        expected_results = [
-            {"step": 1, "action": "navigate", "status": "success", "url": "https://example.com", "title": "Example"},
-            {"step": 2, "action": "screenshot", "status": "success", "path": "/data/shot.png"},
+        steps = [
+            {"action": "navigate", "params": {"url": "https://example.com"}},
+            {"action": "screenshot", "params": {"filename": "shot.png"}},
         ]
-        self.service.execute_script = AsyncMock(return_value=expected_results)
+        script_file = tmp_path / "nav_shot.json"
+        script_file.write_text(json.dumps({"steps": steps}))
 
-        results = await self.bridge.execute_script("/path/to/nav_shot.json", headless=True)
+        expected = [
+            {"step": 0, "action": "navigate", "status": "success", "url": "https://example.com", "title": "Example"},
+            {"step": 1, "action": "screenshot", "status": "success", "path": "/data/shot.png"},
+        ]
+        bridge = _fresh_bridge(tmp_path)
+        with patch(
+            "rex.openclaw.browser_bridge.run_browser_script", AsyncMock(return_value=expected)
+        ):
+            results = await bridge.execute_script(str(script_file), headless=True)
 
         assert len(results) == 2
         assert results[0]["action"] == "navigate"
@@ -152,34 +188,18 @@ class TestSimpleBrowserTask:
         assert results[1]["status"] == "success"
 
     @pytest.mark.asyncio
-    async def test_empty_script_returns_empty_list(self):
+    async def test_empty_script_returns_empty_list(self, tmp_path):
         """execute_script with no steps returns empty list."""
-        self.service.execute_script = AsyncMock(return_value=[])
+        script_file = tmp_path / "empty.json"
+        script_file.write_text(json.dumps({"steps": []}))
 
-        results = await self.bridge.execute_script("/path/to/empty.json")
+        bridge = _fresh_bridge(tmp_path)
+        with patch(
+            "rex.openclaw.browser_bridge.run_browser_script", AsyncMock(return_value=[])
+        ):
+            results = await bridge.execute_script(str(script_file))
+
         assert results == []
-
-    def test_list_sessions_empty_when_none(self):
-        """list_sessions returns [] when no sessions exist."""
-        result = self.bridge.list_sessions()
-        assert isinstance(result, list)
-
-    def test_list_screenshots_empty_when_none(self):
-        """list_screenshots returns [] when no screenshots exist."""
-        result = self.bridge.list_screenshots()
-        assert isinstance(result, list)
-
-    @pytest.mark.asyncio
-    async def test_bridge_and_service_share_same_state(self):
-        """Operations via bridge are reflected in the underlying service."""
-        fake = [{"step": 1, "action": "navigate", "status": "success"}]
-        self.service.execute_script = AsyncMock(return_value=fake)
-
-        # Call via bridge
-        result = await self.bridge.execute_script("/p.json")
-        # Verify it went through the same service object
-        self.service.execute_script.assert_awaited_once()
-        assert result == fake
 
 
 # ---------------------------------------------------------------------------
@@ -188,62 +208,40 @@ class TestSimpleBrowserTask:
 
 
 class TestAuthenticatedBrowserTask:
-    """Verify login flow delegation and document credential bridge gap.
-
-    The BrowserBridge delegates execute_script to BrowserAutomationService,
-    which in turn calls BrowserSession.login() when a script contains a login
-    step.  The login step uses Rex's credential manager internally.
-
-    Gap documented (US-P4-021): BrowserSession.login() reaches directly into
-    Rex's credential manager (rex.credentials).  OpenClaw does not have a
-    credential bridge yet.  During migration, login flows continue to go
-    through Rex's credential manager unchanged.
-    """
-
-    def setup_method(self):
-        self.bridge, self.service = _fresh_bridge()
+    """Verify login flow and document credential bridge gap."""
 
     @pytest.mark.asyncio
-    async def test_login_script_delegated_to_service(self):
-        """A script with a login step is passed to service.execute_script."""
-        login_result = [
-            {"step": 1, "action": "login", "status": "success", "url": "https://example.com/dashboard", "title": "Dashboard"},
-        ]
-        self.service.execute_script = AsyncMock(return_value=login_result)
+    async def test_login_script_passed_to_run_browser_script(self, tmp_path):
+        """A script with a login step is passed to run_browser_script."""
+        steps = [{"action": "login", "params": {"url": "https://example.com/login", "credential_name": "site"}}]
+        script_file = tmp_path / "login.json"
+        script_file.write_text(json.dumps({"steps": steps}))
 
-        results = await self.bridge.execute_script("/path/to/login_script.json", headless=True)
+        login_result = [{"step": 0, "action": "login", "status": "success", "url": "https://example.com/dashboard", "title": "Dashboard"}]
 
-        self.service.execute_script.assert_awaited_once_with(
-            "/path/to/login_script.json", headless=True
-        )
+        bridge = _fresh_bridge(tmp_path)
+        with patch(
+            "rex.openclaw.browser_bridge.run_browser_script", AsyncMock(return_value=login_result)
+        ):
+            results = await bridge.execute_script(str(script_file), headless=True)
+
         assert results[0]["action"] == "login"
         assert results[0]["status"] == "success"
 
     @pytest.mark.asyncio
-    async def test_multi_step_auth_flow(self):
-        """navigate → login → screenshot flow is forwarded intact."""
-        auth_flow = [
-            {"step": 1, "action": "navigate", "status": "success"},
-            {"step": 2, "action": "login", "status": "success"},
-            {"step": 3, "action": "screenshot", "status": "success"},
-        ]
-        self.service.execute_script = AsyncMock(return_value=auth_flow)
+    async def test_login_failure_result_propagated(self, tmp_path):
+        """Login failure result is propagated from run_browser_script to caller."""
+        steps = [{"action": "login", "params": {"url": "https://example.com/login", "credential_name": "bad"}}]
+        script_file = tmp_path / "login_fail.json"
+        script_file.write_text(json.dumps({"steps": steps}))
 
-        results = await self.bridge.execute_script("/path/auth.json")
+        fail_result = [{"step": 0, "action": "login", "status": "error", "error": "Credentials not found"}]
 
-        assert len(results) == 3
-        actions = [r["action"] for r in results]
-        assert actions == ["navigate", "login", "screenshot"]
-
-    @pytest.mark.asyncio
-    async def test_login_failure_result_propagated(self):
-        """Login failure result is propagated from service to caller."""
-        fail_result = [
-            {"step": 1, "action": "login", "status": "error", "error": "Credentials not found"},
-        ]
-        self.service.execute_script = AsyncMock(return_value=fail_result)
-
-        results = await self.bridge.execute_script("/path/to/login_script.json")
+        bridge = _fresh_bridge(tmp_path)
+        with patch(
+            "rex.openclaw.browser_bridge.run_browser_script", AsyncMock(return_value=fail_result)
+        ):
+            results = await bridge.execute_script(str(script_file))
 
         assert results[0]["status"] == "error"
         assert "Credentials" in results[0]["error"]
@@ -255,13 +253,13 @@ class TestAuthenticatedBrowserTask:
 
 
 class TestRegister:
-    def test_register_returns_none_without_openclaw(self):
-        bridge = BrowserBridge(service=_make_service())
+    def test_register_returns_none_without_openclaw(self, tmp_path):
+        bridge = _fresh_bridge(tmp_path)
         if not OPENCLAW_AVAILABLE:
             assert bridge.register() is None
 
-    def test_register_accepts_agent_arg(self):
-        bridge = BrowserBridge(service=_make_service())
+    def test_register_accepts_agent_arg(self, tmp_path):
+        bridge = _fresh_bridge(tmp_path)
         agent = MagicMock()
         if not OPENCLAW_AVAILABLE:
             assert bridge.register(agent=agent) is None

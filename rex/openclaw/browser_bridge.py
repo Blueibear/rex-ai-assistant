@@ -1,17 +1,8 @@
 """OpenClaw browser bridge — US-P4-022.
 
-Implements :class:`~rex.contracts.browser.BrowserAutomationProtocol` by
-delegating to Rex's existing :class:`~rex.browser_automation.BrowserAutomationService`
-singleton.
-
-This bridge is the first step in routing browser automation operations through
-OpenClaw.  It presents the ``BrowserAutomationProtocol`` interface so that
-callers do not need to import ``rex.browser_automation`` directly and can be
-swapped once the full OpenClaw browser-control API is confirmed.
-
-When the ``openclaw`` package is not installed, :meth:`register` logs a
-warning and returns ``None``.  All other methods work without OpenClaw
-installed because they delegate to the existing Rex browser automation service.
+Implements :class:`~rex.contracts.browser.BrowserAutomationProtocol` using
+:mod:`rex.openclaw.browser_core` directly.  Does NOT depend on the retired
+``rex.browser_automation`` module.
 
 Typical usage::
 
@@ -28,14 +19,13 @@ Typical usage::
 
 from __future__ import annotations
 
+import json
 import logging
 from importlib.util import find_spec
-from typing import Any
+from pathlib import Path
+from typing import Any, Optional
 
-from rex.browser_automation import (
-    BrowserAutomationService as _BrowserAutomationService,
-)
-from rex.browser_automation import get_browser_service as _get_browser_service
+from rex.openclaw.browser_core import BrowserSession, run_browser_script  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -46,30 +36,44 @@ if OPENCLAW_AVAILABLE:  # pragma: no cover
 else:
     _openclaw = None  # type: ignore[assignment]
 
+_bridge_singleton: Optional["BrowserBridge"] = None
+
+
+def get_browser_service() -> "BrowserBridge":
+    """Return the global BrowserBridge singleton."""
+    global _bridge_singleton
+    if _bridge_singleton is None:
+        _bridge_singleton = BrowserBridge()
+    return _bridge_singleton
+
+
+def set_browser_service(service: "BrowserBridge") -> None:
+    """Override the global BrowserBridge singleton (for testing)."""
+    global _bridge_singleton
+    _bridge_singleton = service
+
+
+def reset_browser_service() -> None:
+    """Reset the global BrowserBridge singleton (for testing)."""
+    global _bridge_singleton
+    _bridge_singleton = None
+
 
 class BrowserBridge:
-    """Adapter that presents Rex's browser automation service as an OpenClaw provider.
+    """Adapter that presents Rex's browser automation as an OpenClaw provider.
 
-    Implements :class:`~rex.contracts.browser.BrowserAutomationProtocol` by
-    delegating all operations to an underlying
-    :class:`~rex.browser_automation.BrowserAutomationService` instance.
-
-    When no ``service`` is supplied the global Rex singleton (via
-    :func:`~rex.browser_automation.get_browser_service`) is used.
-
-    When ``openclaw`` is installed, :meth:`register` registers the bridge
-    as the browser provider so that OpenClaw routes browser tasks through Rex
-    (stub — filled in once the OpenClaw browser-provider API is confirmed).
+    Implements :class:`~rex.contracts.browser.BrowserAutomationProtocol`
+    using :mod:`rex.openclaw.browser_core` directly — no dependency on the
+    retired ``rex.browser_automation`` module.
 
     Args:
-        service: Optional explicit :class:`~rex.browser_automation.BrowserAutomationService`
-            instance.  Defaults to the global Rex browser service singleton.
+        storage_path: Base storage path for sessions and screenshots.
+            Defaults to ``data/browser_sessions``.
     """
 
-    def __init__(self, service: _BrowserAutomationService | None = None) -> None:
-        self._service: _BrowserAutomationService = (
-            service if service is not None else _get_browser_service()
-        )
+    def __init__(self, storage_path: Optional[Path] = None) -> None:
+        self.storage_path = storage_path or Path("data/browser_sessions")
+        self.storage_path.mkdir(parents=True, exist_ok=True)
 
     # ------------------------------------------------------------------
     # BrowserAutomationProtocol implementation
@@ -82,8 +86,6 @@ class BrowserBridge:
     ) -> list[dict[str, Any]]:
         """Execute a browser automation script loaded from a JSON file.
 
-        Delegates to :meth:`~rex.browser_automation.BrowserAutomationService.execute_script`.
-
         Args:
             script_path: Path to a JSON file containing ``steps`` and optional
                 ``session_name`` fields.
@@ -93,21 +95,34 @@ class BrowserBridge:
             List of per-step result dicts (each has ``"step"``, ``"action"``,
             ``"status"``, and action-specific keys).
         """
-        return await self._service.execute_script(script_path, headless=headless)
+        with open(script_path) as f:
+            script_data = json.load(f)
+
+        steps = script_data.get("steps", [])
+        session_name = script_data.get("session_name")
+
+        return await run_browser_script(steps, headless, session_name)
 
     def list_sessions(self) -> list[str]:
-        """Return the names of all persisted browser sessions.
-
-        Delegates to :meth:`~rex.browser_automation.BrowserAutomationService.list_sessions`.
-        """
-        return self._service.list_sessions()
+        """Return the names of all persisted browser sessions."""
+        if not self.storage_path.exists():
+            return []
+        return [
+            d.name
+            for d in self.storage_path.iterdir()
+            if d.is_dir() and not d.name.startswith(".")
+        ]
 
     def list_screenshots(self) -> list[str]:
-        """Return the filenames of all captured screenshots.
-
-        Delegates to :meth:`~rex.browser_automation.BrowserAutomationService.list_screenshots`.
-        """
-        return self._service.list_screenshots()
+        """Return the filenames of all captured screenshots."""
+        screenshot_path = self.storage_path / "screenshots"
+        if not screenshot_path.exists():
+            return []
+        return [
+            f.name
+            for f in screenshot_path.iterdir()
+            if f.is_file() and f.suffix in [".png", ".jpg", ".jpeg"]
+        ]
 
     # ------------------------------------------------------------------
     # OpenClaw registration
@@ -138,12 +153,6 @@ class BrowserBridge:
             return None
 
         # TODO: replace with real OpenClaw browser provider registration once API is confirmed.
-        # Expected shape (to be verified):
-        #   handle = _openclaw.register_browser_provider(
-        #       provider=self,
-        #       agent=agent,
-        #   )
-        #   return handle
         logger.warning(
             "OpenClaw browser provider registration stub — update once API is confirmed (PRD §8.5)"
         )

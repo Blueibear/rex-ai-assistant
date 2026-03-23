@@ -655,7 +655,7 @@ For EACH module being retired, execute these steps in order:
 - [x] Voice loop works end-to-end
 - [ ] Dashboard (OpenClaw) works (blocked — dashboard_store.py not retired)
 - [ ] Messaging/channels work (blocked — messaging_service.py not retired)
-- [ ] Browser automation works (blocked — browser_automation.py not retired)
+- [x] Browser automation works (browser_automation.py retired — BrowserSession + run_browser_script moved to rex/openclaw/browser_core.py)
 - [x] All integrations (HA, WordPress, WooCommerce, Plex) work
 - [x] CLI commands work
 - [x] No dead code remaining from retired modules (no modules retired yet)
@@ -1262,7 +1262,7 @@ Every phase must pass these checks before the next phase begins:
 - [x] Voice loop works end-to-end through OpenClaw backend — `use_openclaw_voice_backend` flag live in root, rex/, and optimized voice loops
 - [ ] All integrations (HA, WordPress, WooCommerce, Plex) work as OpenClaw skills — BLOCKED: EventBus, messaging, dashboard modules not yet retired
 - [ ] Policy engine gates all tool calls through OpenClaw — BLOCKED: ToolRegistry, ToolRouter still in active use
-- [ ] No retired modules remain in codebase — BLOCKED: 6 of 8 OPENCLAW-REPLACE modules still have active callers (plugin_loader.py + executor.py retired; event_bus, tool_registry, tool_router, browser_automation, dashboard, messaging still blocked)
+- [ ] No retired modules remain in codebase — BLOCKED: 5 of 8 OPENCLAW-REPLACE modules still have active callers (plugin_loader.py + executor.py + browser_automation.py retired; event_bus, tool_registry, tool_router, dashboard, messaging still blocked)
 - [x] CLI works with all commands — `python -m rex --help` passes; no regressions introduced
 - [ ] Dashboard runs via OpenClaw — BLOCKED: DashboardStore has 6 active callers
 - [x] All tests pass — `pytest -q` green throughout all Phase 6 and Phase 7 iterations

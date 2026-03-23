@@ -1,12 +1,13 @@
-"""Pre-retirement check for rex/browser_automation.py (US-P7-011).
+"""Retirement confirmation for rex/browser_automation.py (US-P7-011).
 
-Verdict: NOT SAFE TO RETIRE
-  rex/openclaw/browser_bridge.py imports BrowserAutomationService and
-  get_browser_service from rex.browser_automation to delegate to it.
-  The bridge must be rewritten to not depend on this module before retirement.
+Status: RETIRED
+  rex/browser_automation.py has been deleted.
+  Core browser primitives (BrowserSession, run_browser_script) moved to
+  rex/openclaw/browser_core.py.
+  rex/openclaw/browser_bridge.py was rewritten to use browser_core directly.
 
-Known blockers:
-  - rex/openclaw/browser_bridge.py — BrowserBridge delegates to BrowserAutomationService
+This test acts as a regression guard to ensure the module stays retired
+and no new callers appear.
 """
 
 from __future__ import annotations
@@ -17,13 +18,7 @@ import pathlib
 REPO_ROOT = pathlib.Path(__file__).parent.parent
 REX_PKG = REPO_ROOT / "rex"
 
-# All files (including openclaw) that still import from rex.browser_automation
-KNOWN_BLOCKERS = {
-    "rex/openclaw/browser_bridge.py",
-}
-
-EXEMPT_PATHS = {
-    "rex/browser_automation.py",
+EXEMPT_PATHS: set[str] = {
     "rex/contracts/browser.py",
 }
 
@@ -50,8 +45,13 @@ def _imports_browser_automation(path: pathlib.Path) -> bool:
 
 
 def _find_active_importers() -> set[str]:
-    """Check ALL rex/ files including openclaw (bridge still depends on legacy module)."""
+    """Check ALL files for imports of rex.browser_automation."""
     importers = set()
+    for py_file in REPO_ROOT.glob("*.py"):
+        if "__pycache__" in str(py_file):
+            continue
+        if _imports_browser_automation(py_file):
+            importers.add(py_file.name)
     for py_file in REX_PKG.rglob("*.py"):
         rel = py_file.relative_to(REPO_ROOT).as_posix()
         if any(rel == e or rel.endswith(e) for e in EXEMPT_PATHS):
@@ -60,33 +60,32 @@ def _find_active_importers() -> set[str]:
             continue
         if _imports_browser_automation(py_file):
             importers.add(rel)
+    tests_dir = REPO_ROOT / "tests"
+    for py_file in tests_dir.glob("*.py"):
+        rel = py_file.relative_to(REPO_ROOT).as_posix()
+        if "__pycache__" in rel:
+            continue
+        if _imports_browser_automation(py_file):
+            importers.add(rel)
     return importers
 
 
-class TestBrowserAutomationRetirementCheck:
-    def test_module_exists(self):
-        """rex/browser_automation.py still exists — not prematurely removed."""
-        assert (REX_PKG / "browser_automation.py").exists()
+class TestBrowserAutomationRetired:
+    """Regression guard — rex/browser_automation.py must stay retired."""
 
-    def test_has_openclaw_replace_marker(self):
-        assert "OPENCLAW-REPLACE" in (REX_PKG / "browser_automation.py").read_text(encoding="utf-8")
-
-    def test_known_blockers_still_present(self):
-        """browser_bridge.py still imports from browser_automation."""
-        active = _find_active_importers()
-        migrated = KNOWN_BLOCKERS - active
-        assert KNOWN_BLOCKERS & active == KNOWN_BLOCKERS, (
-            f"Migrated (update KNOWN_BLOCKERS): {migrated}"
+    def test_module_deleted(self):
+        """rex/browser_automation.py no longer exists in the codebase."""
+        assert not (REX_PKG / "browser_automation.py").exists(), (
+            "rex/browser_automation.py was re-created! "
+            "Use rex.openclaw.browser_bridge.BrowserBridge and "
+            "rex.openclaw.browser_core.BrowserSession instead."
         )
 
-    def test_no_unexpected_new_importers(self):
+    def test_no_active_importers(self):
+        """No file imports from rex.browser_automation (module is retired)."""
         active = _find_active_importers()
-        unexpected = active - KNOWN_BLOCKERS
-        assert not unexpected, f"New importers: {unexpected}"
-
-    def test_retirement_verdict_not_safe(self):
-        """Confirm retirement verdict: NOT SAFE (browser_bridge.py depends on it)."""
-        active = _find_active_importers()
-        assert active & KNOWN_BLOCKERS, (
-            "browser_bridge.py has been migrated — browser_automation.py may now be safe to retire!"
+        assert not active, (
+            f"New callers of the retired rex.browser_automation found: {active}\n"
+            "Use rex.openclaw.browser_bridge.BrowserBridge or "
+            "rex.openclaw.browser_core.BrowserSession instead."
         )
