@@ -1228,9 +1228,16 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 **US-P7-016:** Retire messaging_backends/* and messaging_service.py
 - [x] SKIPPED — blocked by 4 active importers (see US-P7-015)
 **US-P7-017:** Clean up rex/contracts/ migration interfaces
+- [x] All 4 migration contracts (event_bus, browser, plugins, tool_routing) still needed — legacy modules not yet retired
+- [x] Permanent contracts (core, dashboard, version) verified importable
+- [x] 5 audit tests in `tests/test_openclaw_contracts_audit.py` — all pass
+- [x] Cleanup will be done when each legacy module is retired
 **US-P7-018:** Update cli.py to remove references to retired modules
+- [x] SKIPPED — no modules were retired in Phase 7 (all blocked by active callers); cli.py unchanged
 **US-P7-019:** Update pyproject.toml entry points
+- [x] Entry points audited: rex, rex-config, rex-speak-api, rex-agent, rex-gui — all functional, none reference retired modules; no changes needed
 **US-P7-020:** Update CLAUDE.md, README.md, INSTALL.md
+- [x] CLAUDE.md updated with "OpenClaw Migration Status" section documenting feature flags, OPENCLAW-REPLACE modules, adapter locations, and retirement audit test pattern
 
 ---
 
