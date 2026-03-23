@@ -1,3 +1,13 @@
+## Iteration 79 - PRD Final Acceptance Criteria + PRD completion
+- Updated Final Acceptance Criteria (lines 1258-1266) with actual completion status
+- [x] Voice loops, CLI, all tests green (Phase 6 done)
+- [ ] BLOCKED items: integrations/policy/dashboard/retirement require retiring OPENCLAW-REPLACE modules
+- All 8 OPENCLAW-REPLACE modules still have active callers — PRD fully reflects blocked state
+- PRD committed: "docs(prd): mark final acceptance criteria with Phase 6/7 completion status"
+- No more actionable [ ] tasks remain in PRD — all remaining items legitimately blocked
+- Phase 6 complete (15/15 user stories), Phase 7 complete (all retire tasks SKIPPED with audit docs)
+---
+
 ## Iteration 78 - US-P7-017 through US-P7-020: Audit and docs cleanup
 - US-P7-017: contracts/ audit — 5 tests verify all 4 migration contracts still needed; cleanup blocked
 - US-P7-018: cli.py audit — no modules retired; no changes needed
