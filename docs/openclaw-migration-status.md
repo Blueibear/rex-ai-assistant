@@ -21,17 +21,19 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 
 ---
 
-## Phase Summary (as of Phase 7 completion)
+## Phase Summary (as of Phase 7 completion — all OPENCLAW-REPLACE modules retired)
 
-**Retired (deleted):** `rex/plugin_loader.py`, `rex/executor.py`, `rex/browser_automation.py`, `rex/messaging_service.py`, `rex/messaging_backends/`, `rex/dashboard_store.py`, `rex/dashboard/`
+**Retired (deleted) — all 8 OPENCLAW-REPLACE modules complete:**
+- `rex/plugin_loader.py` — iter 81 / US-P7-004
+- `rex/executor.py` — US-P7-010
+- `rex/browser_automation.py` — iter 81 / Phase 7
+- `rex/messaging_service.py`, `rex/messaging_backends/` — iter 91
+- `rex/dashboard_store.py`, `rex/dashboard/` — iter 93 / US-P7-014
+- `rex/tool_router.py` — iter 94 / US-P7-008; logic at `rex/openclaw/tool_executor.py`
+- `rex/tool_registry.py` — iter 95 / US-P7-006; logic at `rex/openclaw/tool_registry.py`
+- `rex/event_bus.py` — iter 96 / US-P7-002; logic at `rex/openclaw/event_bus.py`
 
-**Bridged (dual-mode, feature-flagged):** tool routing (`use_openclaw_tools`), voice loops (`use_openclaw_voice_backend`), event bus, workflow runner, policy engine, identity, memory, all integrations (HA, WP, WooCommerce, Plex)
-
-**Blocked — messaging:** retired (iter 91). `rex/messaging_backends/*` and `rex/messaging_service.py` deleted. All callers migrated.
-
-**Blocked — tool registry/router:** `rex/tool_registry.py` and `rex/tool_router.py` — active importers remain; ToolBridge exists and is feature-flagged but not yet default.
-
-**Blocked — event bus:** `rex/event_bus.py` — EventBridge exists but 8 active importers remain unconverted.
+**Bridged (dual-mode, feature-flagged):** voice loops (`use_openclaw_voice_backend`), workflow runner, policy engine, identity, memory, all integrations (HA, WP, WooCommerce, Plex)
 
 ---
 
@@ -47,11 +49,11 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/messaging_backends/` | Replace | **Migrated** (iter 91) | Deleted. All callers migrated. |
 | `rex/messaging_service.py` | Replace | **Migrated** (iter 91) | Deleted. All callers migrated. |
 | `rex/integrations/message_router.py` | Replace | Pending | Routes messages between channels. Retires with messaging. |
-| `rex/tool_registry.py` | Replace | Contracted (US-P1-008) | Tool metadata + health checks. Protocol defined in `rex/contracts/plugins.py`. 4 active importers block retirement: rex/__init__.py, cli.py, planner.py, tool_router.py. See test_retirement_check_tool_registry.py. |
-| `rex/tool_router.py` | Replace | Bridged (US-P4-003/011) | ToolBridge (`rex/openclaw/tool_bridge.py`) created. Feature flag `use_openclaw_tools` in AppConfig. assistant.py uses bridge when flag enabled (US-P4-011). 2 active importers block full retirement: assistant.py, workflow_runner.py. See test_retirement_check_tool_router.py. |
+| `rex/tool_registry.py` | Replace | **Migrated** (iter 95 / US-P7-006) | Deleted. Logic relocated to `rex/openclaw/tool_registry.py`. All callers migrated: rex/__init__.py, cli.py, planner.py, tool_executor.py. Permanent guard in test_retirement_check_tool_registry.py. |
+| `rex/tool_router.py` | Replace | **Migrated** (iter 94 / US-P7-008) | Deleted. Logic relocated to `rex/openclaw/tool_executor.py`. All callers migrated: assistant.py, workflow_runner.py, tool_bridge.py, policy_adapter.py. Permanent guard in test_retirement_check_tool_router.py. |
 | `rex/plugin_loader.py` | Replace | **Migrated** (US-P7-004) | Deleted. voice_loop.py migrated to `rex.plugins.load_plugins`. `rex/contracts/plugins.py` updated. |
 | `rex/executor.py` | Replace | **Migrated** (US-P7-010) | Deleted. `rex/cli.py` migrated to `rex.openclaw.workflow_bridge.WorkflowBridge`. |
-| `rex/event_bus.py` | Replace | Bridged (US-P4-015/016) | EventBridge (`rex/openclaw/event_bridge.py`) created. Consumers updated (US-P4-017/018). 8 active importers block retirement: rex/__init__.py, calendar_service.py, email_service.py, event_triggers.py, integrations.py, integrations/_setup.py, openclaw/ha_event_subscriber.py, services.py. See test_retirement_check_event_bus.py. |
+| `rex/event_bus.py` | Replace | **Migrated** (iter 96 / US-P7-002) | Deleted. Logic relocated to `rex/openclaw/event_bus.py`. All 8 callers migrated: rex/__init__.py, calendar_service.py, email_service.py, event_triggers.py, integrations.py, integrations/_setup.py, openclaw/ha_event_subscriber.py, services.py. event_bridge.py updated. rex/contracts/event_bus.py removed. Permanent guard in test_retirement_check_event_bus.py. |
 | `rex/computers/` | Replace | Pending | Windows agent server/client (~400 lines, 5 files). Replace with OpenClaw workspace/agent model. |
 | `rex/workflow.py` | Wrap | Bridged (US-P4-030) | Workflow data models. WorkflowBridge (`rex/openclaw/workflow_bridge.py`) translates Rex workflows to OpenClaw at execution time. Policy hooks preserved. |
 | `rex/workflow_runner.py` | Wrap | Bridged (US-P4-030) | Workflow execution. WorkflowBridge preserves Rex policy gating. cli.py migrated to bridge (US-P7-010). |

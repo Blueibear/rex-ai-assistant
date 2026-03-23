@@ -1266,7 +1266,7 @@ Every phase must pass these checks before the next phase begins:
 - [x] CLI works with all commands — `python -m rex --help` passes; no regressions introduced
 - [x] Dashboard runs via OpenClaw — dashboard_store.py + rex/dashboard/ retired (iter 93); gui_app.py uses stub routes; dashboard functionality fully deprecated
 - [x] All tests pass — targeted tests pass throughout; 284 pre-existing failures in full suite are unrelated to migration (GUI stubs, retired browser_automation contract)
-- [ ] `docs/openclaw-migration-status.md` shows all modules at "Complete" — file exists; needs update to reflect all 8 modules now retired
+- [x] `docs/openclaw-migration-status.md` shows all modules at "Complete" — updated iter 97: all 8 OPENCLAW-REPLACE modules shown as Migrated; Phase Summary updated
 
 ---
 
