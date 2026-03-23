@@ -1,3 +1,23 @@
+## Iteration 85 - Migrate rex/digest_job.py off dashboard_store (unblock dashboard retirement)
+- Removed TYPE_CHECKING-only import of DashboardStore from rex.dashboard_store
+  - `from typing import TYPE_CHECKING, Any` → `from typing import Any`
+  - Removed `if TYPE_CHECKING: from rex.dashboard_store import DashboardStore` block
+  - Changed `store: DashboardStore | None = None` → `store: Any | None = None` in __init__
+  - Updated docstring reference from `~rex.dashboard_store.DashboardStore` to plain text
+  - No runtime behavior change: _deliver() already duck-types the store (calls .write());
+    from __future__ import annotations means DashboardStore was never evaluated at runtime
+- No test changes needed: test_us090_digest_mode.py TestDigestDashboardDelivery tests still
+  pass because they create DashboardStore instances and pass them directly — the duck-typing works
+- Updated tests/test_retirement_check_dashboard.py: removed digest_job.py from KNOWN_BLOCKERS (3 → 2)
+- Updated PRD: 2 of 6 original callers remain (gui_app excluded, inbound_store is the only real blocker)
+- Files changed: rex/digest_job.py, tests/test_retirement_check_dashboard.py, PRD
+- All 58 targeted tests pass
+- Learnings for future iterations:
+  - Only 1 real blocker left: messaging_backends/inbound_store.py (gui_app excluded per Non-Goals)
+  - Once inbound_store.py is migrated off dashboard_store, dashboard_store retirement becomes possible
+  - TYPE_CHECKING imports are the easiest to remove — zero runtime impact when from __future__ import annotations is active
+---
+
 ## Iteration 84 - Migrate rex/notification.py off dashboard_store (unblock dashboard retirement)
 - Converted _send_to_dashboard() from DashboardStore writer to logging-only stub
   - Removed `from rex.dashboard_store import get_dashboard_store` lazy import

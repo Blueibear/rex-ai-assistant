@@ -1,16 +1,15 @@
 """Pre-retirement check for rex/dashboard_store.py and rex/dashboard/ (US-P7-013).
 
 Verdict: NOT SAFE TO RETIRE
-  Active importers of dashboard_store: rex/digest_job.py, rex/gui_app.py,
+  Active importers of dashboard_store: rex/gui_app.py,
   rex/messaging_backends/inbound_store.py
 
   Migrated callers:
-  - rex/health.py — check_dashboard_db removed (health checks are now
-    dashboard-independent as part of the OpenClaw migration)
+  - rex/health.py — check_dashboard_db removed
   - rex/retention.py — setup_dashboard_cleanup_job converted to no-op
-    (OpenClaw will manage dashboard state retention after store retirement)
   - rex/notification.py — _send_to_dashboard converted to logging-only stub
-    (OpenClaw will handle persistent dashboard delivery after store retirement)
+  - rex/digest_job.py — TYPE_CHECKING import removed; store param typed Any
+    (duck-typed: still accepts any object with .write(); no runtime dependency)
 """
 
 from __future__ import annotations
@@ -22,7 +21,6 @@ REPO_ROOT = pathlib.Path(__file__).parent.parent
 REX_PKG = REPO_ROOT / "rex"
 
 KNOWN_BLOCKERS = {
-    "rex/digest_job.py",
     "rex/gui_app.py",
     "rex/messaging_backends/inbound_store.py",
 }
