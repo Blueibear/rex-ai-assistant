@@ -54,15 +54,6 @@ from .event_bus import (
     set_event_bus,
 )
 
-# Messaging service
-from .messaging_service import (
-    Message,
-    MessagingService,
-    SMSService,
-    get_sms_service,
-    set_sms_service,
-)
-
 # Notification system
 from .notification import (
     EscalationManager,
@@ -133,12 +124,6 @@ __all__ = [
     "CalendarService",
     "get_calendar_service",
     "set_calendar_service",
-    # Messaging service
-    "Message",
-    "MessagingService",
-    "SMSService",
-    "get_sms_service",
-    "set_sms_service",
     # Notification system
     "NotificationRequest",
     "Notifier",

@@ -1,8 +1,8 @@
 """Pre-retirement check for rex/messaging_backends/ and rex/messaging_service.py (US-P7-015).
 
 Verdict: NOT SAFE TO RETIRE
-  Active importers of messaging_service: rex/__init__.py, rex/cli.py, rex/services.py
-  Migrated: rex/notification.py (_send_to_sms converted to logging stub, iter 88)
+  Active importers of messaging_service: rex/cli.py
+  Migrated: rex/notification.py (iter 88), rex/__init__.py + rex/services.py (iter 89)
 """
 
 from __future__ import annotations
@@ -14,9 +14,7 @@ REPO_ROOT = pathlib.Path(__file__).parent.parent
 REX_PKG = REPO_ROOT / "rex"
 
 KNOWN_BLOCKERS = {
-    "rex/__init__.py",
     "rex/cli.py",
-    "rex/services.py",
 }
 
 EXEMPT_PATHS = {

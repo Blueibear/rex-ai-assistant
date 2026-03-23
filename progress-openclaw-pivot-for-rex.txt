@@ -1,3 +1,30 @@
+## Iteration 89 - Migrate rex/__init__.py + rex/services.py off messaging_service (3 → 1 blockers)
+- rex/__init__.py: removed messaging_service re-export block (lines 57-64)
+  - Removed: Message, MessagingService, SMSService, get_sms_service, set_sms_service
+  - Also removed these 5 symbols from __all__
+  - Verified: no external consumers import these from rex (the package root)
+- rex/services.py: removed SMSService import and changed sms field to Any stub
+  - Removed `from rex.messaging_service import SMSService`
+  - Added `Any` to `from typing import ...`
+  - Changed `sms: SMSService` → `sms: Any` in AppServices dataclass
+  - Changed `sms = SMSService(mock_file=...)` initialization → `sms: Any = None`
+  - sms_mock_path parameter retained in signature for API compatibility (unused now)
+  - Verified: AppServices.sms is never accessed outside services.py
+- Updated tests/test_retirement_check_messaging.py: KNOWN_BLOCKERS 3 → 1 (only rex/cli.py)
+- Updated PRD line 657: 1 importer remains (cli.py cmd_msg)
+- Files changed: rex/__init__.py, rex/services.py, tests/test_retirement_check_messaging.py, PRD
+- All 86 targeted messaging tests pass; pre-existing test_cli_scheduler failure unrelated
+- Learnings for future iterations:
+  - Only rex/cli.py cmd_msg remains — uses Message + get_sms_service for SMS send/receive CLI
+  - test_cli_messaging_notification.py has 4 tests that mock rex.messaging_service.get_sms_service
+    and use SMSService directly (from rex.messaging_service, not from rex) — still pass
+  - To migrate cli.py: stub cmd_msg to print error + return 1, update 4 tests that expect
+    real SMS behavior (test_cmd_msg_send, test_cmd_msg_receive_empty/with_messages, test_cmd_msg_unknown)
+  - Actually: test_cmd_msg_send_unsupported_channel and test_cmd_msg_receive_unsupported_channel
+    and test_cmd_msg_unknown_subcommand don't use messaging_service — these would still pass
+  - Only the 3 tests with "sms" channel behavior would need to change to expect stub response
+---
+
 ## Iteration 88 - Migrate rex/notification.py off messaging_service (unblock messaging retirement)
 - Converted _send_to_sms() from real SMSService delivery to logging-only stub
   - Removed `from rex.messaging_service import Message, get_sms_service` lazy import
