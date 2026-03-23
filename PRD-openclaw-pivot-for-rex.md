@@ -1189,8 +1189,11 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 **US-P7-002:** Retire event_bus.py
 - [x] SKIPPED — blocked by 8 active importers (see US-P7-001). Migration of callers to EventBridge required before retirement.
 **US-P7-003:** Pre-retirement check for plugin_loader.py
+- [x] 1 active importer found: voice_loop.py (root) — imports load_plugins from rex.plugin_loader
+- [x] Verdict: **MIGRATED** — voice_loop.py switched to rex.plugins.load_plugins
+- [x] 2 regression tests in `tests/test_retirement_check_plugin_loader.py` — confirm module stays deleted
 **US-P7-004:** Retire plugin_loader.py
-- [x] SKIPPED — blocked by voice_loop.py (see US-P7-003)
+- [x] DONE — rex/plugin_loader.py deleted; rex/contracts/plugins.py removed; voice_loop.py migrated to rex.plugins.load_plugins; contracts audit test updated
 **US-P7-005:** Pre-retirement check for tool_registry.py
 - [x] 4 active importers: rex/__init__.py, rex/cli.py, rex/planner.py, rex/tool_router.py
 - [x] Verdict: **NOT SAFE TO RETIRE**
@@ -1259,7 +1262,7 @@ Every phase must pass these checks before the next phase begins:
 - [x] Voice loop works end-to-end through OpenClaw backend — `use_openclaw_voice_backend` flag live in root, rex/, and optimized voice loops
 - [ ] All integrations (HA, WordPress, WooCommerce, Plex) work as OpenClaw skills — BLOCKED: EventBus, messaging, dashboard modules not yet retired
 - [ ] Policy engine gates all tool calls through OpenClaw — BLOCKED: ToolRegistry, ToolRouter still in active use
-- [ ] No retired modules remain in codebase — BLOCKED: all 8 OPENCLAW-REPLACE modules have active callers (US-P7 audit complete, retirements all SKIPPED)
+- [ ] No retired modules remain in codebase — BLOCKED: 7 of 8 OPENCLAW-REPLACE modules still have active callers (plugin_loader.py retired; event_bus, tool_registry, tool_router, executor, browser_automation, dashboard, messaging still blocked)
 - [x] CLI works with all commands — `python -m rex --help` passes; no regressions introduced
 - [ ] Dashboard runs via OpenClaw — BLOCKED: DashboardStore has 6 active callers
 - [x] All tests pass — `pytest -q` green throughout all Phase 6 and Phase 7 iterations

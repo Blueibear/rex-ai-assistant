@@ -5,7 +5,8 @@ Verifies that:
   - Each contract still has a corresponding legacy module (not yet retired)
   - Contracts won't be cleaned up until their legacy modules are retired
 
-Status: All contracts retained — no legacy modules have been retired yet.
+Status: plugin_loader.py retired (and its contract plugins.py removed).
+  Remaining: event_bus.py, browser_automation.py, tool_router.py.
 """
 
 from __future__ import annotations
@@ -17,10 +18,10 @@ REX_PKG = REPO_ROOT / "rex"
 CONTRACTS_PKG = REX_PKG / "contracts"
 
 # Map: contract file → legacy module it replaces
+# Note: plugins.py contract was removed when rex/plugin_loader.py was retired.
 CONTRACT_TO_LEGACY = {
     "event_bus.py": "rex/event_bus.py",
     "browser.py": "rex/browser_automation.py",
-    "plugins.py": "rex/plugin_loader.py",
     "tool_routing.py": "rex/tool_router.py",
 }
 
@@ -72,9 +73,7 @@ class TestContractsAudit:
     def test_contracts_cleanup_blocked(self):
         """All legacy modules still present — contracts cleanup is not yet due."""
         remaining = [
-            legacy
-            for legacy in CONTRACT_TO_LEGACY.values()
-            if (REPO_ROOT / legacy).exists()
+            legacy for legacy in CONTRACT_TO_LEGACY.values() if (REPO_ROOT / legacy).exists()
         ]
         assert len(remaining) == len(CONTRACT_TO_LEGACY), (
             f"Some legacy modules retired: {set(CONTRACT_TO_LEGACY.values()) - set(remaining)}\n"

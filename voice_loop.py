@@ -95,7 +95,8 @@ from rex.memory_utils import (
     load_users_map,
     resolve_user_key,
 )
-from rex.plugin_loader import load_plugins
+from rex.plugins import PluginSpec as _PluginSpec
+from rex.plugins import load_plugins as _load_plugins_impl
 from rex.tts_utils import chunk_text_for_xtts
 from rex.wakeword_utils import detect_wakeword, load_wakeword_model
 from wake_acknowledgment import ensure_wake_acknowledgment_sound
@@ -424,7 +425,8 @@ class AsyncRexAssistant:
             for user, profile in self.profiles.items()
         }
 
-        self.plugins = load_plugins()
+        _plugin_specs: list[_PluginSpec] = _load_plugins_impl()
+        self.plugins: dict[str, _PluginSpec] = {f"plugins.{s.name}": s for s in _plugin_specs}
         logger.info("Loaded plugins: %s", ", ".join(self.plugins.keys()) or "none")
 
         # Register plugins as LLM tools (for function calling)
