@@ -1,3 +1,25 @@
+## Iteration 86 - Migrate rex/messaging_backends/inbound_store.py off dashboard_store
+- TRIVIAL FIX: No actual import existed — the module was only flagged by the string heuristic
+  `"dashboard_store" in source` catching a docstring reference in the module docstring:
+  "Follows the same patterns as ``rex.dashboard_store``"
+- Updated docstring to say "Uses the same SQLite / config-driven path / global instance accessor
+  pattern shared across the Rex store modules" (no "dashboard_store" substring)
+- Updated tests/test_retirement_check_dashboard.py:
+  - Removed messaging_backends/inbound_store.py from KNOWN_BLOCKERS (2 → 1)
+  - KNOWN_BLOCKERS now contains only rex/gui_app.py [excluded per Non-Goals]
+  - All 5 non-gui callers are now migrated
+- Updated PRD: only gui_app.py remains [excluded per Non-Goals]
+- Files changed: rex/messaging_backends/inbound_store.py, tests/test_retirement_check_dashboard.py, PRD
+- All 5 retirement check tests pass
+- Learnings for future iterations:
+  - All non-excluded dashboard_store callers are now migrated
+  - dashboard_store.py is effectively ready to retire — only gui_app.py [excluded] remains
+  - The heuristic `"dashboard_store" in source` catches docstring/comment references, not just imports
+  - Next logical step: attempt to formally retire dashboard_store.py (mark US-P7-014 ready)
+    — but gui_app.py is the blocker, and GUI migration is out of scope per PRD Non-Goals
+  - Consider whether to update the retirement test to treat gui_app as excluded rather than a blocker
+---
+
 ## Iteration 85 - Migrate rex/digest_job.py off dashboard_store (unblock dashboard retirement)
 - Removed TYPE_CHECKING-only import of DashboardStore from rex.dashboard_store
   - `from typing import TYPE_CHECKING, Any` → `from typing import Any`

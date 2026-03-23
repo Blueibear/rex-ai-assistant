@@ -1,9 +1,9 @@
 """SQLite-backed store for inbound SMS messages received via webhook.
 
 Persists inbound messages so they can be retrieved later via the CLI
-(``rex msg receive``) or the messaging service API.  Follows the same
-patterns as ``rex.dashboard_store`` (SQLite, config-driven path, global
-instance accessor).
+(``rex msg receive``) or the messaging service API.  Uses the same
+SQLite / config-driven path / global instance accessor pattern shared
+across the Rex store modules.
 
 The store never logs message bodies or phone numbers at INFO level to
 avoid leaking PII in production logs.

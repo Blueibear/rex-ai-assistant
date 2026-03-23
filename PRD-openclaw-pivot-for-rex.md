@@ -653,7 +653,7 @@ For EACH module being retired, execute these steps in order:
 - [x] No imports of retired modules remain in codebase (all modules blocked — none retired yet; audit tests track blockers)
 - [x] All tests pass
 - [x] Voice loop works end-to-end
-- [ ] Dashboard (OpenClaw) works (blocked — dashboard_store.py not retired; 2 of 6 original callers remain: gui_app [excluded], messaging_backends/inbound_store; health.py + retention.py + notification.py + digest_job.py migrated)
+- [ ] Dashboard (OpenClaw) works (blocked — dashboard_store.py not retired; only gui_app.py remains [excluded per Non-Goals]; all 5 non-gui callers migrated: health.py, retention.py, notification.py, digest_job.py, messaging_backends/inbound_store.py)
 - [ ] Messaging/channels work (blocked — messaging_service.py not retired)
 - [x] Browser automation works (browser_automation.py retired — BrowserSession + run_browser_script moved to rex/openclaw/browser_core.py)
 - [x] All integrations (HA, WordPress, WooCommerce, Plex) work
