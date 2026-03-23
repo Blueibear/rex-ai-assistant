@@ -12,7 +12,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-
 # ---------------------------------------------------------------------------
 # email_tool tests
 # ---------------------------------------------------------------------------
@@ -98,65 +97,33 @@ class TestSmsTool:
         assert TOOL_NAME == "send_sms"
         assert "sms" in TOOL_DESCRIPTION.lower()
 
-    def test_send_sms_calls_service(self):
-        """send_sms constructs a Message and delegates to SMSService.send."""
+    def test_send_sms_returns_stub_error(self):
+        """send_sms stub returns ok=False with an error message (SMS backend retired)."""
         from rex.openclaw.tools.sms_tool import send_sms
 
-        sent_msg = MagicMock()
-        sent_msg.id = "sms-abc"
-        sent_msg.channel = "sms"
+        result = send_sms("+15551234567", "Hi there!")
 
-        mock_service = MagicMock()
-        mock_service.send.return_value = sent_msg
+        assert result["ok"] is False
+        assert result["message_id"] is None
+        assert "not available" in result["error"].lower()
 
-        with patch("rex.openclaw.tools.sms_tool._get_sms_service", return_value=mock_service):
-            result = send_sms("+15551234567", "Hi there!")
-
-        mock_service.send.assert_called_once()
-        assert result["ok"] is True
-        assert result["message_id"] == "sms-abc"
-        assert result["channel"] == "sms"
-
-    def test_send_sms_message_to_number(self):
-        """The Message passed to send() uses the given to/body values."""
+    def test_send_sms_returns_dict_keys(self):
+        """send_sms always returns a dict with ok, message_id, and error keys."""
         from rex.openclaw.tools.sms_tool import send_sms
-        from rex.messaging_service import Message
 
-        sent_msg = MagicMock()
-        sent_msg.id = "sms-xyz"
-        sent_msg.channel = "sms"
+        result = send_sms("+15559876543", "Test body")
 
-        captured: list[Message] = []
-
-        def capture_send(msg, **_kwargs):
-            captured.append(msg)
-            return sent_msg
-
-        mock_service = MagicMock()
-        mock_service.send.side_effect = capture_send
-
-        with patch("rex.openclaw.tools.sms_tool._get_sms_service", return_value=mock_service):
-            send_sms("+15559876543", "Test body")
-
-        assert len(captured) == 1
-        assert captured[0].to == "+15559876543"
-        assert captured[0].body == "Test body"
+        assert "ok" in result
+        assert "message_id" in result
+        assert "error" in result
 
     def test_send_sms_context_ignored(self):
         """context kwarg is accepted without error."""
         from rex.openclaw.tools.sms_tool import send_sms
 
-        sent_msg = MagicMock()
-        sent_msg.id = "sms-ctx"
-        sent_msg.channel = "sms"
+        result = send_sms("+10001112222", "ctx test", context={"timezone": "UTC"})
 
-        mock_service = MagicMock()
-        mock_service.send.return_value = sent_msg
-
-        with patch("rex.openclaw.tools.sms_tool._get_sms_service", return_value=mock_service):
-            result = send_sms("+10001112222", "ctx test", context={"timezone": "UTC"})
-
-        assert result["ok"] is True
+        assert result["ok"] is False
 
     def test_register_returns_none_without_openclaw(self):
         """register() returns None when openclaw is not installed."""

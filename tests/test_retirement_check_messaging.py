@@ -1,83 +1,91 @@
-"""Pre-retirement check for rex/messaging_backends/ and rex/messaging_service.py (US-P7-015).
+"""Permanent retirement guard for rex/messaging_backends/ and rex/messaging_service.py.
 
-Verdict: SAFE TO RETIRE (all non-exempt importers migrated)
-  Migrated: rex/notification.py (iter 88), rex/__init__.py + rex/services.py (iter 89),
-            rex/cli.py cmd_msg (iter 90)
-  Next step: retire messaging_service.py + messaging_backends/ (update sms_tool.py first)
+These modules were retired in iter 91 (Phase 7 messaging retirement).
+Migration path:
+  notification.py (iter 88) → __init__.py + services.py (iter 89) → cli.py cmd_msg (iter 90)
+  sms_tool.py converted to stub (iter 91) → files deleted (iter 91)
+
+This test permanently asserts that the retired files do NOT exist.
+If they reappear, something has gone wrong with the migration.
 """
 
 from __future__ import annotations
 
-import ast
 import pathlib
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent
-REX_PKG = REPO_ROOT / "rex"
 
-KNOWN_BLOCKERS: set[str] = set()  # all non-exempt importers migrated (iter 90)
-
-EXEMPT_PATHS = {
+RETIRED_FILES = [
     "rex/messaging_service.py",
-    "rex/messaging_backends/",
-    "rex/contracts/messaging.py",
-}
+    "rex/messaging_backends/__init__.py",
+    "rex/messaging_backends/base.py",
+    "rex/messaging_backends/factory.py",
+    "rex/messaging_backends/stub.py",
+    "rex/messaging_backends/twilio_backend.py",
+    "rex/messaging_backends/twilio_adapter.py",
+    "rex/messaging_backends/twilio_signature.py",
+    "rex/messaging_backends/webhook_wiring.py",
+    "rex/messaging_backends/inbound_webhook.py",
+    "rex/messaging_backends/inbound_store.py",
+    "rex/messaging_backends/account_config.py",
+    "rex/messaging_backends/message_router.py",
+    "rex/messaging_backends/sms_receiver_stub.py",
+    "rex/messaging_backends/sms_sender_stub.py",
+]
+
+RETIRED_DIRS = [
+    "rex/messaging_backends",
+]
 
 
-def _imports_messaging(path: pathlib.Path) -> bool:
-    try:
-        source = path.read_text(encoding="utf-8")
-    except OSError:
-        return False
-    if "messaging_service" not in source and "MessagingService" not in source:
-        return False
-    try:
-        tree = ast.parse(source, filename=str(path))
-    except SyntaxError:
-        return True
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom):
-            module = node.module or ""
-            if "messaging_service" in module:
-                return True
-        if isinstance(node, ast.Import):
-            for alias in node.names:
-                if "messaging_service" in alias.name:
-                    return True
-    return "messaging_service" in source
+class TestMessagingRetirementGuard:
+    """Assert that retired messaging modules are gone for good."""
 
-
-def _find_active_importers() -> set[str]:
-    importers = set()
-    for py_file in REX_PKG.rglob("*.py"):
-        rel = py_file.relative_to(REPO_ROOT).as_posix()
-        if any(rel.startswith(e) or rel == e for e in EXEMPT_PATHS):
-            continue
-        if any(part in rel for part in ("__pycache__", "openclaw")):
-            continue
-        if _imports_messaging(py_file):
-            importers.add(rel)
-    return importers
-
-
-class TestMessagingRetirementCheck:
-    def test_messaging_service_module_exists(self):
-        assert (REX_PKG / "messaging_service.py").exists()
-
-    def test_has_openclaw_replace_marker(self):
-        assert "OPENCLAW-REPLACE" in (REX_PKG / "messaging_service.py").read_text(encoding="utf-8")
-
-    def test_known_blockers_still_present(self):
-        active = _find_active_importers()
-        migrated = KNOWN_BLOCKERS - active
-        assert KNOWN_BLOCKERS & active == KNOWN_BLOCKERS, (
-            f"Migrated (update KNOWN_BLOCKERS): {migrated}"
+    def test_messaging_service_deleted(self):
+        path = REPO_ROOT / "rex" / "messaging_service.py"
+        assert not path.exists(), (
+            f"{path} still exists — messaging_service.py was retired in iter 91 "
+            "and must not be reintroduced"
         )
 
-    def test_no_unexpected_new_importers(self):
-        active = _find_active_importers()
-        unexpected = active - KNOWN_BLOCKERS
-        assert not unexpected, f"New importers: {unexpected}"
+    def test_messaging_backends_dir_deleted(self):
+        path = REPO_ROOT / "rex" / "messaging_backends"
+        assert not path.exists(), (
+            f"{path} still exists — rex/messaging_backends/ was retired in iter 91 "
+            "and must not be reintroduced"
+        )
 
-    def test_retirement_verdict_safe(self):
-        active = _find_active_importers()
-        assert not active, f"Unexpected importers found — must be migrated before retirement: {active}"
+    def test_no_imports_of_messaging_service_in_rex(self):
+        """No rex/ module (outside openclaw/) should import from rex.messaging_service."""
+        import ast
+
+        rex_pkg = REPO_ROOT / "rex"
+        violators = []
+        for py_file in rex_pkg.rglob("*.py"):
+            rel = py_file.relative_to(REPO_ROOT).as_posix()
+            if "__pycache__" in rel or "openclaw" in rel:
+                continue
+            try:
+                source = py_file.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            if "messaging_service" not in source:
+                continue
+            try:
+                tree = ast.parse(source, filename=str(py_file))
+            except SyntaxError:
+                violators.append(rel)
+                continue
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom):
+                    if "messaging_service" in (node.module or ""):
+                        violators.append(rel)
+                        break
+                if isinstance(node, ast.Import):
+                    if any("messaging_service" in a.name for a in node.names):
+                        violators.append(rel)
+                        break
+
+        assert (
+            not violators
+        ), f"These modules import from retired rex.messaging_service: {violators}"

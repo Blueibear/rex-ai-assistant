@@ -1,22 +1,19 @@
-"""OpenClaw tool adapter — send_sms.
+"""OpenClaw tool adapter — send_sms (stub).
 
-Wraps Rex's existing ``SMSService.send()`` from :mod:`rex.messaging_service`
-and exposes it for registration with OpenClaw's tool system.
-
-This is a *policy-gated* tool: in normal operation the policy engine
-requires approval before send is attempted (MEDIUM risk).  The callable
-itself does not enforce policy — that is the caller's responsibility.
+The legacy ``rex.messaging_service`` backend has been retired.
+SMS delivery routes through OpenClaw's messaging channel once that
+integration is complete.  Until then, :func:`send_sms` logs a warning
+and returns an error dict so callers degrade gracefully.
 
 When the ``openclaw`` package is not installed, :func:`register` logs a
-warning and returns ``None``.  The :func:`send_sms` callable works
-independently of OpenClaw.
+warning and returns ``None``.
 
 Typical usage::
 
     from rex.openclaw.tools.sms_tool import send_sms, register
 
     result = send_sms("+15551234567", "Hello!")
-    # {'ok': True, 'message_id': '...', 'error': None}
+    # {'ok': False, 'message_id': None, 'error': 'SMS backend not available ...'}
 
     register()   # no-op if openclaw not installed
 """
@@ -26,8 +23,6 @@ from __future__ import annotations
 import logging
 from importlib.util import find_spec
 from typing import Any
-
-from rex.messaging_service import Message, get_sms_service as _get_sms_service
 
 logger = logging.getLogger(__name__)
 
@@ -53,35 +48,31 @@ def send_sms(
     body: str,
     context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Send an SMS message via Rex's SMSService.
+    """Stub: SMS delivery via OpenClaw (legacy SMS backend retired).
 
-    Delegates to :func:`rex.messaging_service.get_sms_service().send`.  In
-    stub mode (no Twilio backend configured) the message is saved to a
-    local mock file.
-
-    .. note::
-        This tool is policy-gated (MEDIUM risk).  Callers are responsible
-        for obtaining policy approval before invoking this function.
+    The ``rex.messaging_service`` backend has been retired.  SMS delivery
+    will route through OpenClaw's messaging channel once that integration
+    is complete.
 
     Args:
         to:      Recipient phone number (E.164 format recommended).
         body:    Plain-text message body.
-        context: Optional ambient context dict (unused; reserved for future
-            locale injection).
+        context: Optional ambient context dict (reserved for future use).
 
     Returns:
-        A dict with keys ``ok`` (bool), ``message_id`` (str), and
-        ``channel`` (str).
+        A dict with keys ``ok`` (bool), ``message_id`` (str | None), and
+        ``error`` (str | None).
     """
-    service = _get_sms_service()
-    # channel and from_ are required by the Message model; the SMSService will
-    # override from_ with its configured from_number when from_ is empty.
-    message = Message(channel="sms", to=to, body=body, **{"from": ""})
-    sent = service.send(message)
+    logger.warning(
+        "send_sms: SMS backend not available (migrating to OpenClaw messaging backend). "
+        "to=%s body_length=%d",
+        to,
+        len(body),
+    )
     return {
-        "ok": True,
-        "message_id": sent.id,
-        "channel": sent.channel or "sms",
+        "ok": False,
+        "message_id": None,
+        "error": "SMS backend not available (migrating to OpenClaw messaging backend)",
     }
 
 
@@ -92,11 +83,6 @@ def register(agent: Any = None) -> Any:
     OpenClaw's tool registration API, passing :func:`send_sms` as the
     handler.  When OpenClaw is not installed it logs a warning and returns
     ``None``.
-
-    .. note::
-        The exact OpenClaw tool registration call is a stub (see PRD §8.3 —
-        *"Confirm OpenClaw's tool registration mechanism"*).  Replace the
-        ``# TODO`` line once the API is confirmed.
 
     Args:
         agent: Optional OpenClaw agent handle.
