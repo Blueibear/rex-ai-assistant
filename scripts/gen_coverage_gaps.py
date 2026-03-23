@@ -25,7 +25,7 @@ def main():
         "rex/cli.py",
         "rex/config.py",
         "rex/llm_client.py",
-        "rex/tool_router.py",
+        "rex/openclaw/tool_executor.py",
         "rex/app.py",
         "rex/__main__.py",
         "rex/voice_loop.py",

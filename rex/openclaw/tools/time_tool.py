@@ -1,6 +1,6 @@
 """OpenClaw tool adapter — time_now.
 
-Wraps Rex's existing ``time_now`` implementation from :mod:`rex.tool_router`
+Wraps Rex's existing ``time_now`` implementation from :mod:`rex.openclaw.tool_executor`
 and exposes it for registration with OpenClaw's tool system.
 
 When the ``openclaw`` package is not installed, :func:`register` logs a
@@ -23,7 +23,7 @@ import logging
 from importlib.util import find_spec
 from typing import Any
 
-from rex.tool_router import execute_tool
+from rex.openclaw.tool_executor import execute_tool
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def time_now(
 ) -> dict[str, Any]:
     """Return the current local time for *location*.
 
-    Delegates to :func:`rex.tool_router.execute_tool` so that the existing
+    Delegates to :func:`rex.openclaw.tool_executor.execute_tool` so that the existing
     city-to-timezone lookup, geolocation fallback, and audit logging all apply.
 
     Args:

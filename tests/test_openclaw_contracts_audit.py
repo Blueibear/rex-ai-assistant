@@ -8,7 +8,9 @@ Verifies that:
 Status:
   - plugin_loader.py retired → plugins.py contract removed (Phase 7)
   - browser_automation.py retired → browser.py contract removed (Phase 7 / iter 81)
-  Remaining: event_bus.py, tool_router.py.
+  - tool_router.py retired (US-P7-008) → tool_routing.py contract now points to
+    rex/openclaw/tool_executor.py
+  Remaining: event_bus.py.
 """
 
 from __future__ import annotations
@@ -24,11 +26,12 @@ CONTRACTS_PKG = REX_PKG / "contracts"
 # Note: browser.py contract was removed when rex/browser_automation.py was retired.
 CONTRACT_TO_LEGACY = {
     "event_bus.py": "rex/event_bus.py",
-    "tool_routing.py": "rex/tool_router.py",
+    "tool_routing.py": "rex/openclaw/tool_executor.py",
 }
 
 # Contracts that are always kept (not tied to a single retiring module)
-PERMANENT_CONTRACTS = {"core.py", "dashboard.py", "version.py"}
+# Note: dashboard.py contract was removed when rex/dashboard/ was retired (iter 93)
+PERMANENT_CONTRACTS = {"core.py", "version.py"}
 
 
 class TestContractsAudit:

@@ -1205,7 +1205,7 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Verdict: **NOT SAFE TO RETIRE**
 - [x] 5 audit tests in `tests/test_retirement_check_tool_router.py` — all pass
 **US-P7-008:** Retire tool_router.py
-- [x] SKIPPED — blocked by assistant.py and workflow_runner.py (see US-P7-007)
+- [x] DONE — tool_router.py retired; assistant.py and workflow_runner.py migrated off legacy path
 **US-P7-009:** Pre-retirement check for executor.py
 - [x] 1 active importer: rex/cli.py
 - [x] Verdict: **MIGRATED** — rex/cli.py moved to WorkflowBridge; no active importers remain
@@ -1261,8 +1261,8 @@ Every phase must pass these checks before the next phase begins:
 - [x] Rex runs as an OpenClaw agent for all text interactions — VoiceBridge + RexAgent wired in all three voice loops (Phase 6 complete)
 - [x] Voice loop works end-to-end through OpenClaw backend — `use_openclaw_voice_backend` flag live in root, rex/, and optimized voice loops
 - [x] All integrations (HA, WordPress, WooCommerce, Plex) work as OpenClaw skills — HA, WP, WooCommerce, Plex all bridged with tests (Phase 5); business workflow e2e tested (US-P5-022). EventBus/messaging/dashboard retirement is separate from integration skill functionality.
-- [ ] Policy engine gates all tool calls through OpenClaw — BLOCKED: ToolRegistry, ToolRouter still in active use (legacy path is default; OpenClaw path is feature-flagged via `use_openclaw_tools`)
-- [ ] No retired modules remain in codebase — BLOCKED: 3 of 8 OPENCLAW-REPLACE modules still have active callers (plugin_loader.py + executor.py + browser_automation.py + messaging_service + dashboard retired; event_bus, tool_registry, tool_router still blocked by active callers)
+- [ ] Policy engine gates all tool calls through OpenClaw — PARTIAL: tool_router retired (US-P7-008); ToolRegistry still in active use (blocked by rex/__init__.py, rex/cli.py, rex/planner.py)
+- [ ] No retired modules remain in codebase — BLOCKED: 2 of 8 OPENCLAW-REPLACE modules still have active callers (plugin_loader.py + executor.py + browser_automation.py + messaging_service + dashboard + tool_router retired; event_bus, tool_registry still blocked by active callers)
 - [x] CLI works with all commands — `python -m rex --help` passes; no regressions introduced
 - [x] Dashboard runs via OpenClaw — dashboard_store.py + rex/dashboard/ retired (iter 93); gui_app.py uses stub routes; dashboard functionality fully deprecated
 - [x] All tests pass — `pytest -q` green throughout all Phase 6 and Phase 7 iterations

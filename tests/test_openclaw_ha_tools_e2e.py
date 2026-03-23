@@ -18,7 +18,7 @@ import pytest
 from rex.openclaw.policy_adapter import PolicyAdapter
 from rex.policy import ActionPolicy
 from rex.policy_engine import PolicyEngine
-from rex.tool_router import ApprovalRequiredError, PolicyDeniedError
+from rex.openclaw.tool_executor import ApprovalRequiredError, PolicyDeniedError
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +120,7 @@ class TestRexAgentCallToolHaGate:
         config = AppConfig(wakeword="rex")
         agent = RexAgent(llm=mock_llm, config=config, policy_adapter=policy_adapter)
 
-        with patch("rex.tool_router.execute_tool") as mock_execute:
+        with patch("rex.openclaw.tool_executor.execute_tool") as mock_execute:
             with pytest.raises(ApprovalRequiredError):
                 agent.call_tool(
                     "home_assistant_call_service",

@@ -22,7 +22,7 @@ from rex.tool_registry import (
     reset_tool_registry,
     set_tool_registry,
 )
-from rex.tool_router import (
+from rex.openclaw.tool_executor import (
     execute_tool,
     format_tool_result,
     parse_tool_request,

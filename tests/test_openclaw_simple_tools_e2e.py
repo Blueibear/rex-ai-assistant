@@ -173,15 +173,15 @@ class TestSimpleToolsViaRouteIfToolRequest:
     def test_weather_now_tool_request_routed(self):
         """A TOOL_REQUEST line for weather_now is dispatched and model re-called.
 
-        route_if_tool_request delegates to rex.tool_router.route_if_tool_request,
-        which calls rex.tool_router.execute_tool internally.  Patching at the
-        tool_router level ensures the credential check is bypassed.
+        route_if_tool_request delegates to rex.openclaw.tool_executor.route_if_tool_request,
+        which calls rex.openclaw.tool_executor.execute_tool internally.  Patching at the
+        tool_executor level ensures the credential check is bypassed.
         """
         llm_output = 'TOOL_REQUEST: {"tool": "weather_now", "args": {"location": "London"}}'
         fake_tool_result = {"temperature": 12.0, "description": "cloudy"}
         model_fn = MagicMock(return_value="It is cloudy in London.")
 
-        with patch("rex.tool_router.execute_tool", return_value=fake_tool_result):
+        with patch("rex.openclaw.tool_executor.execute_tool", return_value=fake_tool_result):
             reply = self.bridge.route_if_tool_request(llm_output, {}, model_fn)
 
         model_fn.assert_called_once()

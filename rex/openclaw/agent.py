@@ -175,7 +175,7 @@ class RexAgent:
         is consulted first; if the tool is denied or requires approval,
         the appropriate exception is raised before any execution occurs.
         If the policy allows execution, the tool is dispatched via
-        :func:`~rex.tool_router.execute_tool` with policy and audit
+        :func:`~rex.openclaw.tool_executor.execute_tool` with policy and audit
         checks disabled (the adapter has already run the policy check).
 
         Args:
@@ -188,15 +188,15 @@ class RexAgent:
 
         Returns:
             The tool result dict as returned by
-            :func:`~rex.tool_router.execute_tool`.
+            :func:`~rex.openclaw.tool_executor.execute_tool`.
 
         Raises:
-            :exc:`~rex.tool_router.PolicyDeniedError`: If the policy
+            :exc:`~rex.openclaw.tool_executor.PolicyDeniedError`: If the policy
                 denies the tool call.
-            :exc:`~rex.tool_router.ApprovalRequiredError`: If the policy
+            :exc:`~rex.openclaw.tool_executor.ApprovalRequiredError`: If the policy
                 requires user approval before execution.
         """
-        from rex.tool_router import execute_tool
+        from rex.openclaw.tool_executor import execute_tool
 
         # Policy gate — raises PolicyDeniedError or ApprovalRequiredError if blocked.
         self._policy.guard(tool_name, metadata)

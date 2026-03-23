@@ -67,7 +67,7 @@ class TestWeatherTool:
         import os
         from rex.openclaw.tools.weather_tool import weather_now
 
-        # Don't mock — let it hit the real tool_router which requires an API key
+        # Don't mock — let it hit the real tool_executor which requires an API key
         original = os.environ.pop("OPENWEATHERMAP_API_KEY", None)
         try:
             result = weather_now("London")
@@ -76,7 +76,7 @@ class TestWeatherTool:
                 os.environ["OPENWEATHERMAP_API_KEY"] = original
 
         assert isinstance(result, dict)
-        # When key is absent, tool_router returns {"error": {...}}
+        # When key is absent, tool_executor returns {"error": {...}}
         assert "error" in result
 
     def test_register_returns_none_without_openclaw(self):

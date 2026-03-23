@@ -1,7 +1,7 @@
 """Pre-retirement check for rex/tool_registry.py (US-P7-005).
 
 Verdict: NOT SAFE TO RETIRE
-  Active importers: rex/__init__.py, rex/cli.py, rex/planner.py, rex/tool_router.py
+  Active importers: rex/__init__.py, rex/cli.py, rex/planner.py
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ KNOWN_BLOCKERS = {
     "rex/__init__.py",
     "rex/cli.py",
     "rex/planner.py",
-    "rex/tool_router.py",
 }
 
 EXEMPT_PATHS = {"rex/tool_registry.py", "rex/contracts/tools.py"}

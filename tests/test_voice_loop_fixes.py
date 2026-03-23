@@ -198,10 +198,10 @@ class TestVoiceLoopToolRouting:
         assistant._llm.generate.return_value = 'TOOL_REQUEST: {"tool": "time_now", "args": {}}'
 
         # The generate_reply method should try to route the tool request.
-        # We mock route_if_tool_request to verify it's called.
-        with patch("rex.assistant.route_if_tool_request") as mock_route:
-            mock_route.return_value = "The current time is 3:45 PM CDT."
-            result = asyncio.run(assistant.generate_reply("what time is it?", voice_mode=True))
+        # Directly set the routing function (always ToolBridge after US-P7-008).
+        mock_route = MagicMock(return_value="The current time is 3:45 PM CDT.")
+        assistant._tool_router_fn = mock_route
+        result = asyncio.run(assistant.generate_reply("what time is it?", voice_mode=True))
 
         mock_route.assert_called_once()
         assert "3:45 PM" in result

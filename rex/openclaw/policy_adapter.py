@@ -31,7 +31,7 @@ from typing import Any
 from rex.contracts import ToolCall
 from rex.policy import PolicyDecision
 from rex.policy_engine import PolicyEngine, get_policy_engine
-from rex.tool_router import ApprovalRequiredError, PolicyDeniedError
+from rex.openclaw.tool_executor import ApprovalRequiredError, PolicyDeniedError
 
 logger = logging.getLogger(__name__)
 
@@ -116,9 +116,9 @@ class PolicyAdapter:
             metadata: Optional context forwarded to the policy engine.
 
         Raises:
-            :exc:`~rex.tool_router.PolicyDeniedError`: When the policy
+            :exc:`~rex.openclaw.tool_executor.PolicyDeniedError`: When the policy
                 explicitly denies the tool call.
-            :exc:`~rex.tool_router.ApprovalRequiredError`: When the policy
+            :exc:`~rex.openclaw.tool_executor.ApprovalRequiredError`: When the policy
                 requires user approval before execution.
         """
         decision = self.check(tool_name, metadata)

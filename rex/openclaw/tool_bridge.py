@@ -1,16 +1,15 @@
-"""OpenClaw tool bridge — US-P4-003.
+"""OpenClaw tool bridge — US-P4-003 (updated US-P7-008).
 
 Implements :class:`~rex.contracts.tool_routing.ToolRoutingProtocol` by
-delegating to Rex's existing ``rex.tool_router`` module-level functions.
+delegating to :mod:`rex.openclaw.tool_executor` module-level functions.
 
-This bridge is the first step in routing tool calls through OpenClaw.  It
-presents the ``ToolRoutingProtocol`` interface so that callers do not need
-to import ``rex.tool_router`` directly and can be swapped once the full
-OpenClaw tool-dispatch API is confirmed (PRD §8.3).
+This bridge presents the ``ToolRoutingProtocol`` interface so that callers
+do not need to import the internal tool executor directly.  The full
+OpenClaw tool-dispatch API is a stub pending PRD §8.3 confirmation.
 
 When the ``openclaw`` package is not installed, :func:`register` logs a
 warning and returns ``None``.  All other methods work without OpenClaw
-installed because they delegate to the existing Rex tool router.
+installed because they delegate to the internal tool executor.
 
 Typical usage::
 
@@ -44,7 +43,7 @@ from rex.openclaw.tools.woocommerce_tool import register as _register_wc_tools
 from rex.openclaw.tools.sms_tool import register as _register_send_sms
 from rex.openclaw.tools.time_tool import register as _register_time_now
 from rex.openclaw.tools.weather_tool import register as _register_weather_now
-from rex.tool_router import (
+from rex.openclaw.tool_executor import (
     execute_tool as _execute_tool,
     parse_tool_request as _parse_tool_request,
     route_if_tool_request as _route_if_tool_request,
@@ -61,11 +60,11 @@ else:
 
 
 class ToolBridge:
-    """Adapter that presents Rex's tool router as an OpenClaw tool provider.
+    """Adapter that presents Rex's tool executor as an OpenClaw tool provider.
 
     Implements :class:`~rex.contracts.tool_routing.ToolRoutingProtocol` by
     delegating all three core operations to the corresponding module-level
-    functions in :mod:`rex.tool_router`.
+    functions in :mod:`rex.openclaw.tool_executor`.
 
     When ``openclaw`` is installed, :meth:`register` registers the bridge
     as the tool provider so that OpenClaw dispatches tool calls through Rex
@@ -84,7 +83,7 @@ class ToolBridge:
     def parse_tool_request(self, text: str) -> dict[str, Any] | None:
         """Return a parsed tool-request dict or *None* if not a tool call.
 
-        Delegates to :func:`~rex.tool_router.parse_tool_request`.
+        Delegates to :func:`~rex.openclaw.tool_executor.parse_tool_request`.
 
         Args:
             text: A single line of LLM output to inspect.
@@ -108,7 +107,7 @@ class ToolBridge:
     ) -> dict[str, Any]:
         """Execute a decoded tool request and return a result dictionary.
 
-        Delegates to :func:`~rex.tool_router.execute_tool`.
+        Delegates to :func:`~rex.openclaw.tool_executor.execute_tool`.
 
         Args:
             request: Dict with ``"tool"`` and ``"args"`` keys.
@@ -145,7 +144,7 @@ class ToolBridge:
 
         If *llm_text* does not contain a tool request it is returned unchanged.
 
-        Delegates to :func:`~rex.tool_router.route_if_tool_request`.
+        Delegates to :func:`~rex.openclaw.tool_executor.route_if_tool_request`.
 
         Args:
             llm_text: Raw LLM output that may contain a tool-call line.
@@ -178,8 +177,8 @@ class ToolBridge:
         * ``weather_now`` — current weather conditions
 
         Geolocation is handled internally by ``time_now`` / ``weather_now``
-        via :mod:`rex.tool_router`'s fallback logic.  A standalone
-        ``geolocation`` tool is not yet implemented in :mod:`rex.tool_router`
+        via :mod:`rex.openclaw.tool_executor`'s fallback logic.  A standalone
+        ``geolocation`` tool is not yet implemented in :mod:`rex.openclaw.tool_executor`
         and will be registered in a future iteration.
 
         Args:

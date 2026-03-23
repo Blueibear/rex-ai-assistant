@@ -1,6 +1,4 @@
-# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.
-
-"""Tool routing for single line tool requests.
+"""OpenClaw tool executor — replaces rex/tool_router.py (US-P7-008).
 
 All tool calls are evaluated by the policy engine before execution to determine
 whether they should auto-execute, require approval, or be denied.
