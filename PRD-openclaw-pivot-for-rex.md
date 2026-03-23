@@ -1101,6 +1101,11 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Migration notes added to openclaw-migration-status.md
 
 **US-P6-003:** Audit rex/voice_loop_optimized.py call path
+- [x] Call path traced: build_voice_loop() → VoiceLoop.run() → VAD record → Whisper STT → assistant.generate_reply() → TTS
+- [x] All Rex modules touched documented (6 modules + 9 external libs)
+- [x] Key seam identified: `await self._assistant.generate_reply(transcript)` at rex/voice_loop_optimized.py:493 (no voice_mode=True)
+- [x] Key differences from rex/voice_loop.py noted: VAD, no voice identity, no VoiceLatencyTracker, no streaming TTS, simpler deps
+- [x] Migration notes added to openclaw-migration-status.md
 **US-P6-004:** Identify voice loop -> assistant seam
 **US-P6-005:** Create voice bridge
 **US-P6-006:** Add USE_OPENCLAW_VOICE_BACKEND feature flag

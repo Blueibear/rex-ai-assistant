@@ -54,7 +54,7 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/voice_identity/` | Keep | Pending | Speaker recognition (7 files). Uniquely Rex. No OpenClaw equivalent. Phase 6: feed into OpenClaw session identity. |
 | `rex/wakeword/` | Keep | Pending | Wake word detection (4 files). Uniquely Rex. Unchanged in migration. |
 | `rex/voice_loop.py` | Keep | Audited (US-P6-002) | Core voice loop (800 lines). Class-based design. Seam: `VoiceLoop.run():591 → assistant.generate_reply(transcript, voice_mode=True)`. Includes voice identity, VoiceLatencyTracker, streaming TTS. Update seam with feature flag. Full audit below. |
-| `rex/voice_loop_optimized.py` | Keep | Pending | Low-latency voice loop (550 lines). Same treatment as voice_loop.py. |
+| `rex/voice_loop_optimized.py` | Keep | Audited (US-P6-003) | Low-latency voice loop (569 lines). Seam: `VoiceLoop.run():493 → assistant.generate_reply(transcript)` (no voice_mode=True). Has VAD, no voice identity, no VoiceLatencyTracker. Update seam with feature flag. Full audit below. |
 | `rex/ha_bridge.py` | Keep | Audited (US-P5-001) | Home Assistant bridge (600 lines). `ha_tool.py` already wraps it. Full audit below. |
 | `rex/ha_tts/` | Keep | Audited (US-P5-002) | HA TTS integration (3 files). `build_ha_tts_client` factory; `HaTtsClient.speak()` is the one callable. Full audit below. |
 | `rex/wordpress/` | Keep | Audited + Bridged (US-P5-008/009) | WordPress client (3 files, read-only). `wordpress_tool.py` wraps service as `wordpress_health_check`. Full audit below. |
@@ -1091,4 +1091,71 @@ VoiceLoop.run(max_interactions)
 - Feature flag `USE_OPENCLAW_VOICE_BACKEND` will swap only the `generate_reply()` call
 - Voice identity integration feeds into OpenClaw sessions at US-P6-014
 - `speak_streaming` has no voice_mode parameter — only `generate_reply()` does
+
+---
+
+### Audit Notes: rex/voice_loop_optimized.py Call Path (US-P6-003)
+
+**File:** `rex/voice_loop_optimized.py` (569 lines; docstring claims "CANONICAL" with rex/voice_loop.py as wrapper, but both are independent implementations)
+
+**Call path trace (build_voice_loop → VoiceLoop.run):**
+
+```
+build_voice_loop(assistant, ...)
+  ├─ AsyncMicrophone(sample_rate, detection_seconds, capture_seconds, vad_threshold, silence_duration)
+  ├─ build_default_detector(...)       [rex.wakeword.listener]
+  ├─ SpeechToText(model_name, device)  [openai-whisper, lazy; "base" → "tiny" at init]
+  ├─ TextToSpeech(language, speaker)   [XTTS/edge/windows TTS, lazy]
+  └─ WakeAcknowledgement(sound_path)   [wake_acknowledgment]
+
+VoiceLoop.run(max_interactions)
+  └─ LOOP: wake_listener.listen() → interaction
+       ├─ acknowledge()                [WakeAcknowledgement.play()]
+       ├─ record_phrase()              [AsyncMicrophone._record_with_vad() → sounddevice.rec() in 0.2s chunks]
+       ├─ transcribe(audio)            [SpeechToText.transcribe() → whisper]
+       ├─ *** SEAM: await self._assistant.generate_reply(transcript) ***
+       └─ speak(response)              [TextToSpeech.speak() → XTTS/edge/pyttsx3]
+```
+
+**Key seam (voice loop → assistant):**
+- Method: `Assistant.generate_reply(transcript: str) → str`
+- Location: `rex/voice_loop_optimized.py:493` (inside `VoiceLoop.run()`)
+- **Note:** No `voice_mode=True` argument (unlike rex/voice_loop.py)
+
+**All Rex modules touched:**
+
+| Module | Role |
+|--------|------|
+| `rex.assistant_errors` | AudioDeviceError, SpeechToTextError, TextToSpeechError |
+| `rex.config.settings` | tts_provider, tts_voice, tts_speed |
+| `rex.tts_utils` | chunk_text_for_xtts |
+| `rex.compat` | ensure_transformers_compatibility (pre-TTS import shim) |
+| `rex.wakeword.listener` | build_default_detector |
+| `wake_acknowledgment` | wake sound generation |
+
+**External libraries:**
+- `sounddevice` — mic recording + audio playback
+- `openai-whisper` — STT model
+- `TTS` (Coqui XTTS v2) — TTS synthesis
+- `simpleaudio` — audio playback backend
+- `edge_tts` — alternative TTS provider
+- `pyttsx3` — Windows TTS provider
+- `soundfile` — audio file I/O
+- `numpy` — audio array processing
+- `torch` — GPU device detection
+
+**Key differences vs rex/voice_loop.py:**
+- No voice identity (no `_build_voice_id_callback()`)
+- No `VoiceLatencyTracker`
+- Has VAD via `AsyncMicrophone._record_with_vad()` (0.2 s chunks, RMS threshold, silence timeout)
+- `generate_reply(transcript)` — no `voice_mode=True` arg
+- Fewer Rex module dependencies (6 vs 14)
+- No streaming TTS (uses `TextToSpeech.speak()` only)
+- Whisper model defaults to `"tiny"` (base → tiny downgrade at SpeechToText init)
+
+**Migration notes:**
+- Same seam pattern: swap `generate_reply(transcript)` with `VoiceBridge.generate_reply(transcript)`
+- VoiceBridge does not need `voice_mode=True` for this loop (unlike rex/voice_loop.py)
+- Audio pipeline (wake word, VAD, STT, TTS) is Rex-specific; stays as-is
+- Feature flag `USE_OPENCLAW_VOICE_BACKEND` will swap only the `generate_reply()` call
 
