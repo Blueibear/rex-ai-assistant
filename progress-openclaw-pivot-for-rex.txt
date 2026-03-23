@@ -1,3 +1,23 @@
+## Iteration 84 - Migrate rex/notification.py off dashboard_store (unblock dashboard retirement)
+- Converted _send_to_dashboard() from DashboardStore writer to logging-only stub
+  - Removed `from rex.dashboard_store import get_dashboard_store` lazy import
+  - Fallback logging behavior (already existed for failures) is now the only behavior
+  - OPENCLAW-REPLACE comment added; persistent delivery restored when OpenClaw dashboard wired
+- Removed 2 integration tests from tests/test_dashboard_store.py:
+  - test_notifier_dashboard_channel_writes_to_store — tested DashboardStore persistence via _send_to_dashboard
+  - test_notifier_send_with_dashboard_channel — full send() flow with dashboard channel + store assertion
+  - These tested the OLD behavior; _send_to_dashboard still callable without error (other tests verify this)
+- Updated tests/test_retirement_check_dashboard.py: removed notification.py from KNOWN_BLOCKERS (4 → 3)
+- Updated PRD: 3 of 6 original callers remain (gui_app excluded per Non-Goals)
+- Files changed: rex/notification.py, tests/test_dashboard_store.py, tests/test_retirement_check_dashboard.py, PRD
+- All 43 targeted tests pass; full suite queued
+- Learnings for future iterations:
+  - dashboard_store callers remaining: digest_job.py, gui_app.py (excluded), messaging_backends/inbound_store.py
+  - messaging_backends/inbound_store.py is the only non-excluded non-gui remaining blocker to address
+  - Once inbound_store.py is migrated, dashboard_store.py retirement becomes possible
+  - digest_job.py likely uses dashboard_store for persisting digest summaries — similar stub approach
+---
+
 ## Iteration 83 - Migrate rex/retention.py off dashboard_store (unblock dashboard retirement)
 - Converted setup_dashboard_cleanup_job() to a documented no-op returning False
   - Removed all rex.dashboard_store imports from rex/retention.py

@@ -2,13 +2,15 @@
 
 Verdict: NOT SAFE TO RETIRE
   Active importers of dashboard_store: rex/digest_job.py, rex/gui_app.py,
-  rex/messaging_backends/inbound_store.py, rex/notification.py
+  rex/messaging_backends/inbound_store.py
 
   Migrated callers:
   - rex/health.py — check_dashboard_db removed (health checks are now
     dashboard-independent as part of the OpenClaw migration)
   - rex/retention.py — setup_dashboard_cleanup_job converted to no-op
     (OpenClaw will manage dashboard state retention after store retirement)
+  - rex/notification.py — _send_to_dashboard converted to logging-only stub
+    (OpenClaw will handle persistent dashboard delivery after store retirement)
 """
 
 from __future__ import annotations
@@ -23,7 +25,6 @@ KNOWN_BLOCKERS = {
     "rex/digest_job.py",
     "rex/gui_app.py",
     "rex/messaging_backends/inbound_store.py",
-    "rex/notification.py",
 }
 
 EXEMPT_PATHS = {

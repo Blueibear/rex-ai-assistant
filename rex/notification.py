@@ -379,30 +379,15 @@ class Notifier:
         self._dispatch_to_channel(channel, notification)
 
     def _send_to_dashboard(self, notification: NotificationRequest) -> None:
-        """Send notification to the local dashboard store.
+        """Log notification to the dashboard channel.
 
-        Persists the notification to a SQLite database via ``DashboardStore``
-        so it can be retrieved by the dashboard API.  Falls back to logging
-        if the store is unavailable.
+        The legacy dashboard notification store is pending retirement as part
+        of the OpenClaw migration.  Notifications are logged here; OpenClaw
+        will handle persistent dashboard delivery once the migration is complete.
         """
-        try:
-            from rex.dashboard_store import get_dashboard_store
-
-            store = get_dashboard_store()
-            user_id = notification.metadata.get("user_id")
-            store.write(
-                notification_id=notification.id,
-                priority=notification.priority,
-                title=notification.title,
-                body=notification.body,
-                channel="dashboard",
-                user_id=user_id,
-                metadata=notification.metadata,
-            )
-            logger.info("[DASHBOARD] Stored notification: %s", notification.title)
-        except Exception as exc:
-            logger.warning("[DASHBOARD] Failed to store notification: %s", exc)
-            logger.info("[DASHBOARD] %s: %s", notification.title, notification.body)
+        # OPENCLAW-REPLACE: restore persistent storage here once the OpenClaw
+        # dashboard adapter is wired in and the legacy store is retired.
+        logger.info("[DASHBOARD] %s: %s", notification.title, notification.body)
 
     def _send_to_email(self, notification: NotificationRequest) -> None:
         """Send notification via email.
