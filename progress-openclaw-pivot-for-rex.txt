@@ -1,3 +1,23 @@
+## Iteration 96 - Retire rex/event_bus.py (US-P7-002)
+- Created rex/openclaw/event_bus.py — full EventBus/EventQueue logic (Event dataclass, dual-API bus, bounded queue, get/set_event_bus)
+- Updated rex/__init__.py — re-export from .openclaw.event_bus
+- Updated rex/openclaw/event_bridge.py — import from rex.openclaw.event_bus
+- Updated 7 source blockers: calendar_service.py, email_service.py, event_triggers.py, integrations.py, integrations/_setup.py, openclaw/ha_event_subscriber.py, services.py
+- Updated 8 test files — sed replacement of import path
+- Removed rex/contracts/event_bus.py (legacy module retired → contract cleaned up)
+- Updated test_openclaw_contracts_audit.py — removed event_bus.py from CONTRACT_TO_LEGACY
+- Removed test_satisfies_protocol from test_openclaw_event_bridge.py (imported deleted contract)
+- Converted test_retirement_check_event_bus.py to permanent guard
+- Deleted rex/event_bus.py
+- 111 targeted tests pass; all 8 OPENCLAW-REPLACE modules now retired
+- Full suite shows 284 failures; all are pre-existing (GUI stubs unimplemented, browser_automation contract deleted in iter 81, voice_loop.load_plugins plugin_loader retired); none relate to event_bus changes
+- Learnings:
+  - Pipeline (cmd | tail -N) swallows the real exit code — always use semicolon or capture the exit code directly; do NOT rely on exit code 0 from a piped test run
+  - When retiring a module that has an existing Bridge adapter (event_bridge.py delegates to event_bus), check BOTH the bridge AND all direct callers — the bridge itself becomes a caller that needs updating
+  - Always delete the contracts/ Protocol file when its legacy module is retired (the contract was only needed during migration)
+  - The test_openclaw_*_bridge.py files each have a `test_satisfies_protocol` test that imports from contracts/; when the contract is deleted, remove this test too
+---
+
 ## Iteration 95 - Retire rex/tool_registry.py (US-P7-006)
 - Created rex/openclaw/tool_registry.py — full ToolRegistry logic (ToolMeta, ToolRegistry, errors, get/set/reset/register, builtin tools)
 - Updated rex/__init__.py — re-export from .openclaw.tool_registry
