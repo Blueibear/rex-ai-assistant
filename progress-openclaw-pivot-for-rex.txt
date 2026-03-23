@@ -1,3 +1,11 @@
+## Iteration 97 - Update docs/openclaw-migration-status.md (all modules Complete)
+- Updated Phase Summary — lists all 8 OPENCLAW-REPLACE modules retired with iteration + US refs
+- Updated table rows for tool_registry.py, tool_router.py, event_bus.py → Migrated status
+- Marked final PRD acceptance criterion [x] DONE
+- All PRD acceptance criteria for Phase 7 now complete
+- 11 targeted retirement guard tests pass
+---
+
 ## Iteration 96 - Retire rex/event_bus.py (US-P7-002)
 - Created rex/openclaw/event_bus.py — full EventBus/EventQueue logic (Event dataclass, dual-API bus, bounded queue, get/set_event_bus)
 - Updated rex/__init__.py — re-export from .openclaw.event_bus
