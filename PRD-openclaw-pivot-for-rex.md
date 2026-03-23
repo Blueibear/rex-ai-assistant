@@ -1004,7 +1004,16 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 ### Phase 5 Tasks (US-P5-001 through US-P5-022)
 
 **US-P5-001:** Audit ha_bridge.py public API
+- [x] Public API documented: enabled, secret, process_transcript, post_process_response, list_entities, control_light, control_switch, call_script, create_blueprint, IntentMatch
+- [x] Callers identified: assistant.py, ha_tool.py (already bridged), rex_speak_api.py
+- [x] Key finding: ha_tool.py uses private _execute_intent — gap noted for future cleanup
+- [x] Migration notes added to openclaw-migration-status.md
+
 **US-P5-002:** Audit ha_tts/* public API
+- [x] Public API documented: HaTtsClient.speak(), TtsResult, build_ha_tts_client(), HaTtsConfig, load_ha_tts_config()
+- [x] Callers identified: notification.py (_send_to_ha_tts), cli.py (ha tts test)
+- [x] HA TTS is a notification channel, not a tool — triggered by notification routing
+- [x] Migration notes added to openclaw-migration-status.md
 **US-P5-003:** Create HA skill for OpenClaw
 **US-P5-004:** Test HA skill registration
 **US-P5-005:** Test one HA command through OpenClaw

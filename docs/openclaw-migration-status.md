@@ -55,8 +55,8 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/wakeword/` | Keep | Pending | Wake word detection (4 files). Uniquely Rex. Unchanged in migration. |
 | `rex/voice_loop.py` | Keep | Pending | Core voice loop (800 lines). Update to call OpenClaw backend via voice_bridge. Feature flag for rollback. |
 | `rex/voice_loop_optimized.py` | Keep | Pending | Low-latency voice loop (550 lines). Same treatment as voice_loop.py. |
-| `rex/ha_bridge.py` | Keep | Pending | Home Assistant bridge (600 lines). Register as OpenClaw skill in Phase 5. Code stays in Rex. |
-| `rex/ha_tts/` | Keep | Pending | HA TTS integration (3 files). Register as OpenClaw skill in Phase 5. |
+| `rex/ha_bridge.py` | Keep | Audited (US-P5-001) | Home Assistant bridge (600 lines). `ha_tool.py` already wraps it. Full audit below. |
+| `rex/ha_tts/` | Keep | Audited (US-P5-002) | HA TTS integration (3 files). `build_ha_tts_client` factory; `HaTtsClient.speak()` is the one callable. Full audit below. |
 | `rex/wordpress/` | Keep | Pending | WordPress client (3 files). Register as OpenClaw skill in Phase 5. |
 | `rex/woocommerce/` | Keep | Pending | WooCommerce client with write policy (4 files). Register as OpenClaw skill in Phase 5. Write policy preserved. |
 | `rex/plex_client.py` | Keep | Pending | Plex media control. Register as OpenClaw skill in Phase 5. |
@@ -718,3 +718,79 @@ Only 2 production callers. No other rex/* modules import browser_automation dire
 - Approval flow already bridges via `ApprovalAdapter` — WorkflowBridge reuses it
 - Dry-run mode must be preserved through the bridge
 - Persistence path (`data/workflows/`) stays Rex-owned during migration
+
+---
+
+### Audit Notes: rex/ha_bridge.py (US-P5-001)
+
+**Public API:**
+
+| Symbol | Signature | Notes |
+|--------|-----------|-------|
+| `IntentMatch` | dataclass: `domain`, `service`, `entity_id`, `data`, `description`, `source` | Passed to all intent execution paths |
+| `HABridge` | class | Main class; all public methods below |
+| `HABridge.__init__` | `(*, base_url, token, secret, verify_ssl, timeout, entity_map)` — all optional | Falls back to `settings` global |
+| `HABridge.enabled` | property → `bool` | True iff base_url and token configured |
+| `HABridge.secret` | property → `str` | Shared secret for blueprint auth |
+| `HABridge.process_transcript` | `(transcript: str) → str \| None` | Intent detection + execution from voice input |
+| `HABridge.post_process_response` | `(response: str) → str` | Executes inline `[[ha:...]]` tags in LLM replies |
+| `HABridge.list_entities` | `() → list[dict]` | Returns entity cache (refreshed) |
+| `HABridge.control_light` | `(entity_id, action, *, brightness_pct=None) → dict` | `turn_on`/`turn_off` with optional brightness |
+| `HABridge.control_switch` | `(entity_id, action) → dict` | `turn_on`/`turn_off` switch |
+| `HABridge.call_script` | `(script_id, variables=None) → dict` | Call an HA script via REST |
+| `create_blueprint` | `(bridge=None) → Blueprint` | Flask blueprint factory for /ha/* routes |
+| `HABridge.SUPPORTED_INTENTS` | class attribute `list[dict]` | 6 intents: turn_on, turn_off, set_temperature, set_percentage, activate, lock_control |
+
+**Callers:**
+
+| File | What it uses |
+|------|-------------|
+| `rex/assistant.py` | `HABridge()`, `process_transcript`, `post_process_response`, `enabled` |
+| `rex/openclaw/tools/ha_tool.py` | `HABridge()`, `enabled`, `_execute_intent` (private!), `IntentMatch` |
+| `rex_speak_api.py` | `create_blueprint` (Flask route registration) |
+
+**Key finding — private method call in ha_tool.py:**
+`ha_tool.py` constructs an `IntentMatch` and calls `bridge._execute_intent(intent)` (a private method).
+This bypasses the public `control_light`, `control_switch`, and `call_script` methods.
+For Phase 5 this is acceptable — the tool existed before the audit — but the gap should be noted:
+- Future: either promote `_execute_intent` to public or refactor `ha_tool.py` to use public methods.
+
+**OpenClaw migration notes:**
+- `ha_tool.py` already exists and wraps HABridge as `home_assistant_call_service` — US-P5-003 may need only verification/test.
+- `process_transcript` and `post_process_response` are called in the voice path (`assistant.py`). These hooks must survive the voice loop migration in Phase 6.
+- `create_blueprint` is only used by `rex_speak_api.py`. Unaffected by OpenClaw migration until the HTTP layer is addressed.
+- HABridge is stateful (entity cache, threading lock, requests.Session). OpenClaw tool registration gets a new instance per call via `_get_ha_bridge()` — safe for stateless tool calls, entity cache is rebuilt per invocation.
+
+---
+
+### Audit Notes: rex/ha_tts/* (US-P5-002)
+
+**Public API (rex/ha_tts/client.py):**
+
+| Symbol | Signature | Notes |
+|--------|-----------|-------|
+| `TtsResult` | dataclass: `ok: bool`, `error: str \| None` | Return type for speak() |
+| `HaTtsClient` | class | One public method: `speak()` |
+| `HaTtsClient.__init__` | `(base_url, token, *, default_entity_id, tts_domain, tts_service, timeout, allow_http)` | SSRF-validated at construction |
+| `HaTtsClient.speak` | `(message, *, entity_id=None, extra_data=None) → TtsResult` | Calls HA REST TTS service |
+| `build_ha_tts_client` | `() → HaTtsClient \| None` | Factory: loads config + resolves token via CredentialManager; returns None if disabled/misconfigured |
+
+**Public API (rex/ha_tts/config.py):**
+
+| Symbol | Signature | Notes |
+|--------|-----------|-------|
+| `HaTtsConfig` | Pydantic model (strict, extra=forbid) | Fields: enabled, base_url, token_ref, default_entity_id, default_tts_domain, default_tts_service, timeout_seconds, allow_http |
+| `load_ha_tts_config` | `() → HaTtsConfig` | Reads `notifications.ha_tts` from rex_config.json |
+
+**Callers:**
+
+| File | What it uses |
+|------|-------------|
+| `rex/notification.py` | `build_ha_tts_client`, `HaTtsClient.speak` (via `_send_to_ha_tts`) |
+| `rex/cli.py` | `load_ha_tts_config`, `build_ha_tts_client` (for `rex ha tts test` command) |
+
+**OpenClaw migration notes:**
+- HA TTS is a notification *channel*, not a tool — it's triggered by notification routing in `notification.py`, not by LLM tool calls.
+- `speak()` is the only callable that matters for OpenClaw integration. If OpenClaw gains a TTS notification channel, `build_ha_tts_client().speak(message)` becomes the implementation.
+- US-P5-006 will test this path. No new OpenClaw-specific code is needed for the audit; `build_ha_tts_client` and `speak()` are already the minimal surface.
+- Security: SSRF validation is enforced at `HaTtsClient` construction. Token is resolved via `CredentialManager`, never stored in config. This pattern must be preserved if a TTS bridge is added.
