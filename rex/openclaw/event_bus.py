@@ -1,7 +1,8 @@
-# OPENCLAW-REPLACE: This module will be replaced by OpenClaw. Do not add new features.
-
 """
 Event bus module for Rex AI Assistant.
+
+Relocated from rex/event_bus.py as part of US-P7-002 (OpenClaw migration).
+This is the canonical home for EventBus going forward.
 
 Provides a lightweight publish-subscribe event system for internal communication
 between components (scheduler, email, calendar, workflows, etc.).

@@ -54,7 +54,7 @@ def _calendar_service_accepts_event_bus() -> bool:
     # If CalendarService __init__ takes event_bus as first arg, legacy.
     # We can't reliably inspect signature in all cases; instead we probe by instantiation.
     try:
-        from rex.event_bus import EventBus  # type: ignore
+        from rex.openclaw.event_bus import EventBus  # type: ignore
 
         bus = EventBus()
         _ = CalendarService(bus)  # type: ignore[arg-type]
@@ -133,7 +133,7 @@ def calendar_service(temp_mock_calendar: Path) -> CalendarService:
     reason="CalendarService event-bus style API not available in this build.",
 )
 def test_calendar_conflict_detection_and_publish() -> None:
-    from rex.event_bus import EventBus  # type: ignore
+    from rex.openclaw.event_bus import EventBus  # type: ignore
 
     bus = EventBus()
     events: list[tuple[str, dict[str, object]]] = []
@@ -581,7 +581,7 @@ def test_calendar_event_serialization() -> None:
 
 def test_mock_events_mode_does_not_write_to_disk(tmp_path: Path) -> None:
     """CalendarService created with mock_events must never write files."""
-    from rex.event_bus import EventBus
+    from rex.openclaw.event_bus import EventBus
 
     bus = EventBus()
     start = datetime(2024, 6, 1, 10, 0, tzinfo=timezone.utc)

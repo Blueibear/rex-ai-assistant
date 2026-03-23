@@ -35,7 +35,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable
 
-from rex.event_bus import EventBus as _EventBus
+from rex.openclaw.event_bus import EventBus as _EventBus
 from rex.openclaw.event_bridge import EventBridge as _EventBridge
 from rex.openclaw.tools.ha_tool import ha_call_service
 

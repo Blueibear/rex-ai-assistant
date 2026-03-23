@@ -9,7 +9,7 @@ from typing import Any, Callable
 
 from rex.calendar_service import CalendarService
 from rex.email_service import EmailService
-from rex.event_bus import EventBus, get_event_bus
+from rex.openclaw.event_bus import EventBus, get_event_bus
 from rex.notification import EscalationManager, Notifier
 from rex.scheduler import Scheduler, set_scheduler
 

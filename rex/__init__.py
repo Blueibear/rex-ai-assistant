@@ -46,8 +46,8 @@ from .email_service import (
     set_email_service,
 )
 
-# Event bus
-from .event_bus import (
+# Event bus (US-P7-002: relocated to rex.openclaw.event_bus)
+from .openclaw.event_bus import (
     Event,
     EventBus,
     get_event_bus,

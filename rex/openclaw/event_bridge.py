@@ -33,9 +33,9 @@ import logging
 from importlib.util import find_spec
 from typing import Any, Callable, Iterable
 
-from rex.event_bus import EventBus as _EventBus
-from rex.event_bus import Event as _Event
-from rex.event_bus import get_event_bus as _get_event_bus
+from rex.openclaw.event_bus import EventBus as _EventBus
+from rex.openclaw.event_bus import Event as _Event
+from rex.openclaw.event_bus import get_event_bus as _get_event_bus
 
 logger = logging.getLogger(__name__)
 

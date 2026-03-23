@@ -10,7 +10,8 @@ Status:
   - browser_automation.py retired → browser.py contract removed (Phase 7 / iter 81)
   - tool_router.py retired (US-P7-008) → tool_routing.py contract now points to
     rex/openclaw/tool_executor.py
-  Remaining: event_bus.py.
+  - event_bus.py retired (US-P7-002) → event_bus.py contract removed (iter 96)
+  Remaining: none — all OPENCLAW-REPLACE modules retired.
 """
 
 from __future__ import annotations
@@ -24,8 +25,8 @@ CONTRACTS_PKG = REX_PKG / "contracts"
 # Map: contract file → legacy module it replaces
 # Note: plugins.py contract was removed when rex/plugin_loader.py was retired.
 # Note: browser.py contract was removed when rex/browser_automation.py was retired.
+# Note: event_bus.py contract was removed when rex/event_bus.py was retired (iter 96).
 CONTRACT_TO_LEGACY = {
-    "event_bus.py": "rex/event_bus.py",
     "tool_routing.py": "rex/openclaw/tool_executor.py",
 }
 

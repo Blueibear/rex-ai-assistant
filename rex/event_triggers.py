@@ -22,7 +22,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
 
-from rex.event_bus import Event, EventBus
+from rex.openclaw.event_bus import Event, EventBus
 from rex.openclaw.event_bridge import EventBridge
 
 logger = logging.getLogger(__name__)

@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-from rex.event_bus import EventBus
+from rex.openclaw.event_bus import EventBus
 from rex.openclaw.event_bridge import EventBridge
 from rex.openclaw.ha_event_subscriber import HA_COMMAND_EVENT, HaEventSubscriber
 

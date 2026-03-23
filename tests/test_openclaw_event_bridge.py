@@ -20,7 +20,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from rex.event_bus import Event, EventBus
+from rex.openclaw.event_bus import Event, EventBus
 from rex.openclaw.event_bridge import OPENCLAW_AVAILABLE, EventBridge
 
 
@@ -59,11 +59,6 @@ class TestEventBridgeInstantiation:
     def test_openclaw_available_is_bool(self):
         assert isinstance(OPENCLAW_AVAILABLE, bool)
 
-    def test_satisfies_protocol(self):
-        from rex.contracts.event_bus import EventBusProtocol
-
-        bridge = EventBridge(bus=EventBus())
-        assert isinstance(bridge, EventBusProtocol)
 
 
 # ---------------------------------------------------------------------------

@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 
-from rex.event_bus import Event, EventBus, get_event_bus, set_event_bus
+from rex.openclaw.event_bus import Event, EventBus, get_event_bus, set_event_bus
 
 
 @pytest.fixture(autouse=True)

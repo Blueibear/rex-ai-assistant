@@ -9,7 +9,7 @@ import logging
 
 from rex.calendar_service import get_calendar_service
 from rex.email_service import get_email_service
-from rex.event_bus import Event, get_event_bus
+from rex.openclaw.event_bus import Event, get_event_bus
 from rex.scheduler import ScheduledJob, get_scheduler
 
 logger = logging.getLogger(__name__)

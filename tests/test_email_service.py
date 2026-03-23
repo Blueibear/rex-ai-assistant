@@ -61,7 +61,7 @@ def _email_message_class():
 
 def _event_bus_class():
     try:
-        from rex.event_bus import EventBus  # type: ignore
+        from rex.openclaw.event_bus import EventBus  # type: ignore
 
         return EventBus
     except Exception:
