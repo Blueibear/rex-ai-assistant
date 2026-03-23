@@ -1121,6 +1121,9 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] `ValueError` raised on empty/whitespace-only transcript
 - [x] 14 unit tests in `tests/test_openclaw_voice_bridge.py` — all pass
 **US-P6-006:** Add USE_OPENCLAW_VOICE_BACKEND feature flag
+- [x] `AppConfig.use_openclaw_voice_backend: bool = False` added
+- [x] `build_app_config` reads `openclaw.use_voice_backend` from JSON config
+- [x] 9 unit tests in `tests/test_openclaw_voice_flag.py` — all pass
 **US-P6-007:** Update root voice_loop.py with feature flag
 **US-P6-008:** Test root voice loop with OpenClaw (text mode)
 **US-P6-009:** Update rex/voice_loop.py with feature flag
