@@ -53,7 +53,7 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/profile_manager.py` | Wrap | Audited (US-P3-015) | Profile merging (100 lines). Keep merge logic; wire into OpenClaw agent config. See audit notes below. |
 | `rex/voice_identity/` | Keep | Pending | Speaker recognition (7 files). Uniquely Rex. No OpenClaw equivalent. Phase 6: feed into OpenClaw session identity. |
 | `rex/wakeword/` | Keep | Pending | Wake word detection (4 files). Uniquely Rex. Unchanged in migration. |
-| `rex/voice_loop.py` | Keep | Pending | Core voice loop (800 lines). Update to call OpenClaw backend via voice_bridge. Feature flag for rollback. |
+| `rex/voice_loop.py` | Keep | Audited (US-P6-002) | Core voice loop (800 lines). Class-based design. Seam: `VoiceLoop.run():591 → assistant.generate_reply(transcript, voice_mode=True)`. Includes voice identity, VoiceLatencyTracker, streaming TTS. Update seam with feature flag. Full audit below. |
 | `rex/voice_loop_optimized.py` | Keep | Pending | Low-latency voice loop (550 lines). Same treatment as voice_loop.py. |
 | `rex/ha_bridge.py` | Keep | Audited (US-P5-001) | Home Assistant bridge (600 lines). `ha_tool.py` already wraps it. Full audit below. |
 | `rex/ha_tts/` | Keep | Audited (US-P5-002) | HA TTS integration (3 files). `build_ha_tts_client` factory; `HaTtsClient.speak()` is the one callable. Full audit below. |
@@ -1003,3 +1003,92 @@ rex_loop.py
 - Audio pipeline (wake word, STT, TTS, playback) is Rex-specific — no OpenClaw equivalent; stays as-is
 - Feature flag `USE_OPENCLAW_VOICE_BACKEND` will swap only the `generate_reply()` call
 - Plugin registration via `_register_plugins_as_tools()` targets `LanguageModel.register_tool()` — will need review when tools fully migrate to ToolBridge
+
+---
+
+### Audit Notes: rex/voice_loop.py Call Path (US-P6-002)
+
+**File:** `rex/voice_loop.py` (class-based implementation, ~820 lines; used by `rex/` package consumers)
+
+**Note:** `rex/voice_loop_optimized.py` says it is the "CANONICAL implementation" and that `rex/voice_loop.py` is a compatibility wrapper — but inspection shows `rex/voice_loop.py` is a fully independent implementation with its own classes, not a re-export wrapper.
+
+**Call path trace (build_voice_loop → VoiceLoop.run):**
+
+```
+build_voice_loop(assistant, ...)
+  ├─ AsyncMicrophone(sample_rate, detection_seconds, capture_seconds)
+  ├─ build_default_detector(...)       [rex.wakeword.listener]
+  ├─ SpeechToText(model_name, device)  [openai-whisper, lazy]
+  ├─ TextToSpeech(language, speaker)   [XTTS/edge/windows TTS, lazy]
+  ├─ WakeAcknowledgement(sound_path)   [wake_acknowledgment]
+  └─ _build_voice_id_callback()        [voice identity, optional]
+       ├─ rex.config_manager.load_config()
+       ├─ rex.voice_identity.types.VoiceIdentityConfig
+       ├─ rex.voice_identity.embeddings_store.EmbeddingsStore
+       ├─ rex.voice_identity.optional_deps.get_embedding_backend
+       └─ rex.voice_identity.recognizer.SpeakerRecognizer
+
+VoiceLoop.run(max_interactions)
+  └─ LOOP: wake_listener.listen() → interaction
+       ├─ _safe_acknowledge()          [WakeAcknowledgement.play()]
+       ├─ record_phrase()              [AsyncMicrophone → sounddevice.rec()]
+       ├─ identify_speaker(audio)      [optional voice identity]
+       │    └─ resolve_speaker_identity()  [rex.voice_identity.fallback_flow]
+       ├─ VoiceLatencyTracker()        [rex.voice_latency, lazy import]
+       ├─ transcribe(audio)            [SpeechToText → whisper]
+       ├─ *** SEAM: await self._assistant.generate_reply(transcript, voice_mode=True) ***
+       └─ speak_streaming(sentences) or speak(response)
+            └─ TextToSpeech.speak_streaming() / .speak()
+                 └─ XTTS v2 / edge-tts / pyttsx3
+```
+
+**Key seam (voice loop → assistant):**
+- Method: `Assistant.generate_reply(transcript: str, voice_mode: bool = True) → str`
+- Location: `rex/voice_loop.py:591` (inside `VoiceLoop.run()`)
+- No fallback path (unlike root `voice_loop.py` which has a LanguageModel fallback)
+
+**All Rex modules touched:**
+
+| Module | Role |
+|--------|------|
+| `rex.assistant_errors` | AudioDeviceError, SpeechToTextError, TextToSpeechError |
+| `rex.config.settings` | tts_provider, tts_voice, tts_speed, default_user, user_id |
+| `rex.memory` | extract_voice_reference, load_all_profiles, load_users_map, resolve_user_key |
+| `rex.tts_utils` | chunk_text_for_xtts |
+| `rex.compat` | ensure_transformers_compatibility (pre-TTS import shim) |
+| `rex.wakeword.listener` | build_default_detector |
+| `rex.voice_latency` | VoiceLatencyTracker (lazy import in run()) |
+| `rex.config_manager` | load_config (for voice_identity config) |
+| `rex.voice_identity.types` | VoiceIdentityConfig |
+| `rex.voice_identity.embeddings_store` | EmbeddingsStore |
+| `rex.voice_identity.optional_deps` | get_embedding_backend |
+| `rex.voice_identity.recognizer` | SpeakerRecognizer |
+| `rex.voice_identity.fallback_flow` | resolve_speaker_identity |
+| `wake_acknowledgment` | wake sound generation |
+
+**External libraries:**
+- `sounddevice` — mic recording + audio playback
+- `openai-whisper` — STT model
+- `TTS` (Coqui XTTS v2) — TTS synthesis
+- `simpleaudio` — audio playback backend
+- `edge_tts` — alternative TTS provider
+- `pyttsx3` — Windows TTS provider
+- `soundfile` — audio file I/O
+- `numpy` — audio array processing
+- `torch` — GPU device detection
+
+**Key differences vs root voice_loop.py:**
+- Class-based design with injectable dependencies (not monolithic)
+- Voice identity support via `_build_voice_id_callback()`
+- `VoiceLatencyTracker` for latency measurement
+- Streaming TTS via `speak_streaming` (async sentence iterator)
+- Multiple TTS providers: xtts, edge, windows
+- No assistant fallback: `generate_reply()` call has no LanguageModel fallback
+
+**Migration notes:**
+- Seam is identical: one `generate_reply()` call → swap with `VoiceBridge.generate_reply(transcript, voice_mode=True)`
+- Audio pipeline (wake word, STT, TTS, playback, voice ID) is Rex-specific; no OpenClaw equivalent; stays as-is
+- Feature flag `USE_OPENCLAW_VOICE_BACKEND` will swap only the `generate_reply()` call
+- Voice identity integration feeds into OpenClaw sessions at US-P6-014
+- `speak_streaming` has no voice_mode parameter — only `generate_reply()` does
+
