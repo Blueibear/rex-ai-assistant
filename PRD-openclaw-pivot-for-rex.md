@@ -1208,10 +1208,10 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] SKIPPED — blocked by assistant.py and workflow_runner.py (see US-P7-007)
 **US-P7-009:** Pre-retirement check for executor.py
 - [x] 1 active importer: rex/cli.py
-- [x] Verdict: **NOT SAFE TO RETIRE**
-- [x] 5 audit tests in `tests/test_retirement_check_executor.py` — all pass
+- [x] Verdict: **MIGRATED** — rex/cli.py moved to WorkflowBridge; no active importers remain
+- [x] 5 audit tests in `tests/test_retirement_check_executor.py` — converted to retirement guard
 **US-P7-010:** Retire executor.py
-- [x] SKIPPED — blocked by rex/cli.py (see US-P7-009)
+- [x] DONE — rex/executor.py deleted; rex/cli.py migrated to rex.openclaw.workflow_bridge.WorkflowBridge
 **US-P7-011:** Pre-retirement check for browser_automation.py
 - [x] 1 active importer: rex/openclaw/browser_bridge.py (delegates to BrowserAutomationService)
 - [x] Verdict: **NOT SAFE TO RETIRE** — BrowserBridge itself depends on it
@@ -1262,7 +1262,7 @@ Every phase must pass these checks before the next phase begins:
 - [x] Voice loop works end-to-end through OpenClaw backend — `use_openclaw_voice_backend` flag live in root, rex/, and optimized voice loops
 - [ ] All integrations (HA, WordPress, WooCommerce, Plex) work as OpenClaw skills — BLOCKED: EventBus, messaging, dashboard modules not yet retired
 - [ ] Policy engine gates all tool calls through OpenClaw — BLOCKED: ToolRegistry, ToolRouter still in active use
-- [ ] No retired modules remain in codebase — BLOCKED: 7 of 8 OPENCLAW-REPLACE modules still have active callers (plugin_loader.py retired; event_bus, tool_registry, tool_router, executor, browser_automation, dashboard, messaging still blocked)
+- [ ] No retired modules remain in codebase — BLOCKED: 6 of 8 OPENCLAW-REPLACE modules still have active callers (plugin_loader.py + executor.py retired; event_bus, tool_registry, tool_router, browser_automation, dashboard, messaging still blocked)
 - [x] CLI works with all commands — `python -m rex --help` passes; no regressions introduced
 - [ ] Dashboard runs via OpenClaw — BLOCKED: DashboardStore has 6 active callers
 - [x] All tests pass — `pytest -q` green throughout all Phase 6 and Phase 7 iterations

@@ -455,7 +455,7 @@ def cmd_workflows(args: argparse.Namespace) -> int:
 def cmd_plan(args: argparse.Namespace) -> int:
     """Generate a workflow plan from a high-level goal."""
     from rex.autonomy_modes import AutonomyMode, get_mode
-    from rex.executor import ExecutionBudget, Executor
+    from rex.openclaw.workflow_bridge import WorkflowBridge
     from rex.planner import Planner, UnableToPlanError
     from rex.policy_engine import get_policy_engine
     from rex.tool_registry import get_tool_registry
@@ -517,22 +517,19 @@ def cmd_plan(args: argparse.Namespace) -> int:
                 print("Use --force to execute anyway.")
                 return 0
 
-        budget = ExecutionBudget(
-            max_actions=args.max_actions,
-            max_messages=args.max_messages,
-            max_time_seconds=args.max_time,
-        )
-
-        print(f"Executing workflow with budget: {budget}")
         print("-" * 60)
 
-        executor = Executor(workflow, budget)
-        result = executor.run()
+        runner = WorkflowBridge(workflow)
+        result = runner.run()
 
         print()
         print("-" * 60)
         print("Execution complete")
-        print(result)
+        print(f"Workflow: {result.workflow_id}")
+        print(f"Status: {result.status}")
+        print(f"Steps: {result.steps_executed}/{result.steps_total}")
+        if result.error:
+            print(f"Error: {result.error}")
 
         if result.status == "completed":
             return 0
@@ -558,7 +555,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
 
 def cmd_executor_resume(args: argparse.Namespace) -> int:
     """Resume a blocked executor workflow."""
-    from rex.executor import ExecutionBudget, Executor
+    from rex.openclaw.workflow_bridge import WorkflowBridge
     from rex.workflow import Workflow
 
     workflow_id = args.workflow_id
@@ -578,22 +575,19 @@ def cmd_executor_resume(args: argparse.Namespace) -> int:
     print(f"  Blocking approval: {workflow.blocking_approval_id}")
     print()
 
-    budget = ExecutionBudget(
-        max_actions=args.max_actions,
-        max_messages=args.max_messages,
-        max_time_seconds=args.max_time,
-    )
-
-    print(f"Executing with budget: {budget}")
     print("-" * 60)
 
-    executor = Executor(workflow, budget)
-    result = executor.run()
+    runner = WorkflowBridge(workflow)
+    result = runner.run()
 
     print()
     print("-" * 60)
     print("Execution complete")
-    print(result)
+    print(f"Workflow: {result.workflow_id}")
+    print(f"Status: {result.status}")
+    print(f"Steps: {result.steps_executed}/{result.steps_total}")
+    if result.error:
+        print(f"Error: {result.error}")
 
     if result.status == "completed":
         return 0

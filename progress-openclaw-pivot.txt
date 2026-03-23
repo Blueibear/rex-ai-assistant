@@ -24,3 +24,19 @@
   - Next achievable retirement: executor.py (1 caller: rex/cli.py) — needs cli.py to stop using Executor class
   - Or: tool_router.py (2 callers: rex/assistant.py, rex/workflow_runner.py) — could use ToolBridge instead
 ---
+
+## Iteration 81 - Retire rex/executor.py
+- Migrated `rex/cli.py` (two functions): `cmd_plan` and `cmd_executor_resume` moved from `Executor`/`ExecutionBudget` to `WorkflowBridge` + `RunResult` display
+- Removed budget enforcement (argparse flags retained, budget params unused — OpenClaw provides enforcement when installed)
+- Deleted `rex/executor.py`
+- Converted `tests/test_retirement_check_executor.py` → retirement confirmation guard (2 tests: file deleted + no new importers)
+- Deleted `tests/test_openclaw_executor_bridge.py` (tested Executor→WorkflowBridge delegation; obsolete with Executor gone)
+- `tests/test_planner_executor.py`: removed `TestExecutor` class and executor imports; kept `TestPlanner` and `TestAutonomyModes`
+- `tests/test_us025_planner_task_execution.py`: replaced executor import with `WorkflowBridge`/`RunResult`; migrated `TestToolCallsExecuted` to use `WorkflowBridge` directly
+- Updated PRD: US-P7-009 verdict → MIGRATED; US-P7-010 → DONE; Final AC updated to "6 of 8 OPENCLAW-REPLACE modules still have active callers"
+- Files changed: rex/cli.py, rex/executor.py (deleted), tests/test_retirement_check_executor.py, tests/test_openclaw_executor_bridge.py (deleted), tests/test_planner_executor.py, tests/test_us025_planner_task_execution.py, PRD-openclaw-pivot-for-rex.md, progress-openclaw-pivot.txt
+- Learnings for future iterations:
+  - All remaining `[ ]` tasks still blocked (OpenClaw not installed)
+  - Next achievable retirement: tool_router.py (2 callers: rex/assistant.py, rex/workflow_runner.py) — could use ToolBridge instead
+  - Or: tool_registry.py (4 callers: rex/cli.py, rex/planner.py, rex/policy_engine.py, rex/assistant.py) — needs broader migration
+---

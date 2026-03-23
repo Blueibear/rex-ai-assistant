@@ -1,7 +1,11 @@
-"""Pre-retirement check for rex/executor.py (US-P7-009).
+"""Retirement confirmation for rex/executor.py (US-P7-010).
 
-Verdict: NOT SAFE TO RETIRE
-  Active importers: rex/cli.py
+Status: RETIRED
+  rex/executor.py has been deleted.
+  rex/cli.py was migrated to rex.openclaw.workflow_bridge.WorkflowBridge.
+
+This test acts as a regression guard to ensure the module stays retired
+and no new callers appear.
 """
 
 from __future__ import annotations
@@ -12,14 +16,11 @@ import pathlib
 REPO_ROOT = pathlib.Path(__file__).parent.parent
 REX_PKG = REPO_ROOT / "rex"
 
-KNOWN_BLOCKERS = {
-    "rex/cli.py",
-}
-
-EXEMPT_PATHS = {"rex/executor.py", "rex/contracts/executor.py"}
+EXEMPT_PATHS: set[str] = set()
 
 
 def _imports_executor(path: pathlib.Path) -> bool:
+    """Return True if the file imports from rex.executor."""
     try:
         source = path.read_text(encoding="utf-8")
     except OSError:
@@ -30,6 +31,7 @@ def _imports_executor(path: pathlib.Path) -> bool:
         tree = ast.parse(source, filename=str(path))
     except SyntaxError:
         return True
+
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
             module = node.module or ""
@@ -43,37 +45,38 @@ def _imports_executor(path: pathlib.Path) -> bool:
 
 
 def _find_active_importers() -> set[str]:
+    """Return relative paths of files that import rex.executor."""
     importers = set()
+    for py_file in REPO_ROOT.glob("*.py"):
+        if "__pycache__" in str(py_file):
+            continue
+        if _imports_executor(py_file):
+            importers.add(py_file.name)
     for py_file in REX_PKG.rglob("*.py"):
         rel = py_file.relative_to(REPO_ROOT).as_posix()
         if any(rel == e or rel.endswith(e) for e in EXEMPT_PATHS):
             continue
-        if "__pycache__" in rel or "openclaw" in rel:
+        if "__pycache__" in rel:
             continue
         if _imports_executor(py_file):
             importers.add(rel)
     return importers
 
 
-class TestExecutorRetirementCheck:
-    def test_module_exists(self):
-        assert (REX_PKG / "executor.py").exists()
+class TestExecutorRetired:
+    """Regression guard — rex/executor.py must stay retired."""
 
-    def test_has_openclaw_replace_marker(self):
-        assert "OPENCLAW-REPLACE" in (REX_PKG / "executor.py").read_text(encoding="utf-8")
-
-    def test_known_blockers_still_present(self):
-        active = _find_active_importers()
-        migrated = KNOWN_BLOCKERS - active
-        assert KNOWN_BLOCKERS & active == KNOWN_BLOCKERS, (
-            f"Migrated (update KNOWN_BLOCKERS): {migrated}"
+    def test_executor_module_deleted(self):
+        """rex/executor.py no longer exists in the codebase."""
+        assert not (REX_PKG / "executor.py").exists(), (
+            "rex/executor.py was re-created! "
+            "Use rex.openclaw.workflow_bridge.WorkflowBridge instead."
         )
 
-    def test_no_unexpected_new_importers(self):
+    def test_no_active_importers(self):
+        """No file imports from rex.executor (module is retired)."""
         active = _find_active_importers()
-        unexpected = active - KNOWN_BLOCKERS
-        assert not unexpected, f"New importers: {unexpected}"
-
-    def test_retirement_verdict_not_safe(self):
-        active = _find_active_importers()
-        assert active & KNOWN_BLOCKERS, "All blockers migrated — safe to retire!"
+        assert not active, (
+            f"New callers of the retired rex.executor found: {active}\n"
+            "Use rex.openclaw.workflow_bridge.WorkflowBridge instead."
+        )

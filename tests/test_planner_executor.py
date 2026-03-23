@@ -1,8 +1,7 @@
-"""Tests for the planner and executor modules.
+"""Tests for the planner and autonomy modes modules.
 
 This module tests:
 - Planner: Goal parsing, workflow generation, validation
-- Executor: Budget enforcement, evidence collection, execution flow
 - Autonomy modes: Mode detection, configuration
 """
 
@@ -19,7 +18,6 @@ from rex.autonomy_modes import (
     get_mode,
 )
 from rex.contracts import ToolCall
-from rex.executor import ExecutionBudget, ExecutionResult, Executor
 from rex.planner import Planner, UnableToPlanError
 from rex.policy_engine import reset_policy_engine
 from rex.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
@@ -177,145 +175,6 @@ class TestPlanner:
         # Email tool should require approval
         email_step = workflow.steps[0]
         assert email_step.requires_approval is True
-
-
-class TestExecutor:
-    """Tests for the Executor class."""
-
-    @pytest.fixture
-    def temp_dirs(self):
-        """Create temporary directories for testing."""
-        with (
-            tempfile.TemporaryDirectory() as workflow_dir,
-            tempfile.TemporaryDirectory() as approval_dir,
-            tempfile.TemporaryDirectory() as log_dir,
-        ):
-            yield {
-                "workflow_dir": Path(workflow_dir),
-                "approval_dir": Path(approval_dir),
-                "log_dir": Path(log_dir),
-            }
-
-    @pytest.fixture
-    def simple_workflow(self):
-        """Create a simple workflow for testing."""
-        return Workflow(
-            title="Test workflow",
-            steps=[
-                WorkflowStep(
-                    description="Step 1",
-                    tool_call=ToolCall(tool="time_now", args={}),
-                ),
-                WorkflowStep(
-                    description="Step 2",
-                    tool_call=ToolCall(tool="time_now", args={}),
-                ),
-            ],
-        )
-
-    def test_create_executor(self, simple_workflow):
-        """Test creating an executor."""
-        executor = Executor(simple_workflow)
-
-        assert executor.workflow == simple_workflow
-        assert executor.budget.is_unlimited()
-
-    def test_create_executor_with_dict_budget(self, simple_workflow):
-        """Test creating executor with dict budget."""
-        budget = {"max_actions": 10, "max_messages": 5, "max_time_seconds": 60}
-        executor = Executor(simple_workflow, budget)
-
-        assert executor.budget.max_actions == 10
-        assert executor.budget.max_messages == 5
-        assert executor.budget.max_time_seconds == 60
-
-    def test_create_executor_with_budget_object(self, simple_workflow):
-        """Test creating executor with ExecutionBudget object."""
-        budget = ExecutionBudget(max_actions=10, max_messages=5, max_time_seconds=60)
-        executor = Executor(simple_workflow, budget)
-
-        assert executor.budget.max_actions == 10
-
-    def test_execution_budget_repr(self):
-        """Test ExecutionBudget string representation."""
-        budget = ExecutionBudget(max_actions=10)
-        assert "actions=10" in repr(budget)
-
-        unlimited = ExecutionBudget()
-        assert "unlimited" in repr(unlimited)
-
-    def test_execution_result_str(self, simple_workflow):
-        """Test ExecutionResult string formatting."""
-        result = ExecutionResult(
-            workflow_id="wf_test",
-            status="completed",
-            actions_taken=2,
-            messages_sent=0,
-            elapsed_seconds=1.5,
-            budget=ExecutionBudget(),
-            remaining_budget=ExecutionBudget(),
-            summary="Test completed",
-        )
-
-        result_str = str(result)
-        assert "wf_test" in result_str
-        assert "completed" in result_str
-        assert "2" in result_str
-
-    def test_record_step_collects_evidence(self, simple_workflow, temp_dirs):
-        """Test that _record_step collects evidence and counts actions."""
-        from rex.workflow import StepResult
-
-        executor = Executor(
-            simple_workflow,
-            workflow_dir=temp_dirs["workflow_dir"],
-            approval_dir=temp_dirs["approval_dir"],
-        )
-
-        step = simple_workflow.steps[0]
-        result = StepResult(step_id=step.step_id, success=True, output={"result": "ok"})
-
-        executor._record_step(step, result)
-
-        assert executor.actions_taken == 1
-        assert len(executor.evidence) == 1
-
-    def test_calculate_remaining_budget(self, simple_workflow):
-        """Test remaining budget calculation."""
-        budget = ExecutionBudget(max_actions=10, max_messages=5, max_time_seconds=60)
-        executor = Executor(simple_workflow, budget)
-        executor.actions_taken = 3
-        executor.messages_sent = 1
-
-        remaining = executor._calculate_remaining_budget(elapsed=10)
-
-        assert remaining.max_actions == 7
-        assert remaining.max_messages == 4
-        assert remaining.max_time_seconds == 50
-
-    def test_generate_summary(self, simple_workflow, temp_dirs):
-        """Test summary generation."""
-        executor = Executor(
-            simple_workflow,
-            workflow_dir=temp_dirs["workflow_dir"],
-            approval_dir=temp_dirs["approval_dir"],
-        )
-
-        from rex.workflow_runner import RunResult
-
-        run_result = RunResult(
-            workflow_id=simple_workflow.workflow_id,
-            status="completed",
-            steps_executed=2,
-            steps_total=2,
-            error=None,
-            blocking_approval_id=None,
-        )
-
-        summary = executor._generate_summary(run_result)
-
-        assert "completed successfully" in summary
-        assert "2 of 2 steps" in summary
 
 
 class TestAutonomyModes:
