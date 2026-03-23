@@ -1107,6 +1107,11 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Key differences from rex/voice_loop.py noted: VAD, no voice identity, no VoiceLatencyTracker, no streaming TTS, simpler deps
 - [x] Migration notes added to openclaw-migration-status.md
 **US-P6-004:** Identify voice loop -> assistant seam
+- [x] All three voice loop seams identified and documented (voice_loop.py:663, rex/voice_loop.py:591, rex/voice_loop_optimized.py:493)
+- [x] Interface contract documented: `generate_reply(transcript, voice_mode=False) -> str`
+- [x] Key constraint noted: voice_loop_optimized.py omits voice_mode=True — VoiceBridge must accept kwarg from all three loops
+- [x] Migration plan documented: VoiceBridge wraps RexAgent.respond(), feature flag swaps assistant reference
+- [x] Consolidated seam table added to openclaw-migration-status.md
 **US-P6-005:** Create voice bridge
 **US-P6-006:** Add USE_OPENCLAW_VOICE_BACKEND feature flag
 **US-P6-007:** Update root voice_loop.py with feature flag

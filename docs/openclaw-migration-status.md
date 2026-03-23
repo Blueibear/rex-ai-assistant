@@ -1159,3 +1159,31 @@ VoiceLoop.run(max_interactions)
 - Audio pipeline (wake word, VAD, STT, TTS) is Rex-specific; stays as-is
 - Feature flag `USE_OPENCLAW_VOICE_BACKEND` will swap only the `generate_reply()` call
 
+---
+
+### Consolidated Voice Loop → Assistant Seam (US-P6-004)
+
+All three voice loop implementations share the same architectural seam: a single `generate_reply()` call that hands off the transcribed text to the assistant and receives a string response to speak.
+
+**Seam inventory:**
+
+| Voice loop file | Location | Call signature |
+|-----------------|----------|----------------|
+| `voice_loop.py` (root) | line 663 | `self._assistant.generate_reply(transcript, voice_mode=True)` (via `asyncio.to_thread`) |
+| `rex/voice_loop.py` | line 591 | `await self._assistant.generate_reply(transcript, voice_mode=True)` |
+| `rex/voice_loop_optimized.py` | line 493 | `await self._assistant.generate_reply(transcript)` (no voice_mode arg) |
+
+**Interface contract:**
+- Input: `transcript: str` — the STT-decoded user utterance
+- Optional kwarg: `voice_mode: bool` — used by root and rex/voice_loop.py; ignored by optimized loop
+- Output: `str` — the assistant's response text (passed directly to TTS)
+- Called on: `self._assistant` — an `Assistant` instance (or duck-typed compatible object)
+
+**Migration plan:**
+- Create `rex/openclaw/voice_bridge.py` with `VoiceBridge.generate_reply(transcript, voice_mode=False) -> str`
+- VoiceBridge wraps `RexAgent.respond()` and maps `voice_mode` kwarg through
+- Feature flag `USE_OPENCLAW_VOICE_BACKEND` in each voice loop swaps `self._assistant` for a `VoiceBridge` instance (or wraps the call)
+- Everything above the seam (wake word, STT, VAD, voice identity, latency tracker) and below it (TTS, streaming, HA TTS) stays Rex-specific
+
+**Key constraint:** `voice_mode=True` is used by root and rex/voice_loop.py but not voice_loop_optimized.py — VoiceBridge must accept and silently forward or ignore the kwarg so all three loops can use the same bridge class.
+
