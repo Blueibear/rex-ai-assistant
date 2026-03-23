@@ -1137,12 +1137,47 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] Empty STT transcript skips `generate_reply` entirely
 - [x] 6 async tests in `tests/test_openclaw_root_voice_loop_text_mode.py` — all pass
 **US-P6-009:** Update rex/voice_loop.py with feature flag
+- [x] `VoiceLoop.__init__` checks `settings.use_openclaw_voice_backend` after storing the passed-in assistant
+- [x] When True, replaces `self._assistant` with `VoiceBridge()`; logs info on success, warning on failure
+- [x] VoiceBridge creation failure falls back gracefully (keeps original `_assistant`)
+- [x] Missing attribute treated as False via `getattr(..., False)` default
+- [x] 6 unit tests in `tests/test_openclaw_rex_voice_loop_flag.py` — all pass
 **US-P6-010:** Test rex/voice_loop.py with OpenClaw (text mode)
+- [x] `VoiceLoop.run()` calls `VoiceBridge.generate_reply(transcript, voice_mode=True)` when `_assistant` is a VoiceBridge
+- [x] Response from `generate_reply` is passed to the speak callable
+- [x] Empty STT transcript skips `generate_reply`
+- [x] `generate_reply` exception handled gracefully (no TTS called)
+- [x] 4 async tests in `tests/test_openclaw_rex_voice_loop_text_mode.py` — all pass
 **US-P6-011:** Update rex/voice_loop_optimized.py with feature flag
+- [x] `VoiceLoop.__init__` checks `settings.use_openclaw_voice_backend` after storing the passed-in assistant
+- [x] When True, replaces `self._assistant` with `VoiceBridge()`; logs info on success, warning on failure
+- [x] VoiceBridge creation failure falls back gracefully (keeps original `_assistant`)
+- [x] 6 unit tests in `tests/test_openclaw_voice_loop_optimized_flag.py` — all pass
 **US-P6-012:** Test rex/voice_loop_optimized.py with OpenClaw (text mode)
+- [x] `VoiceLoop.run()` calls `VoiceBridge.generate_reply(transcript)` when `_assistant` is a VoiceBridge
+- [x] Response from `generate_reply` is passed to the speak callable
+- [x] Empty STT transcript skips `generate_reply`
+- [x] `generate_reply` exception handled gracefully (no TTS called)
+- [x] 4 async tests in `tests/test_openclaw_voice_loop_optimized_text_mode.py` — all pass
 **US-P6-013:** Integration test: wakeword -> STT -> OpenClaw -> TTS
+- [x] Full pipeline: wake event → record → STT → VoiceBridge.generate_reply → TTS spoken
+- [x] VoiceBridge wired in via feature flag (`use_openclaw_voice_backend=True`) in VoiceLoop.__init__
+- [x] Empty STT skips VoiceBridge and TTS
+- [x] Empty VoiceBridge response handled (period appended, TTS fires or skips per run() logic)
+- [x] VoiceBridge exception caught; pipeline completes cleanly
+- [x] 5 async tests in `tests/test_openclaw_voice_integration.py` — all pass
 **US-P6-014:** Test voice identity with OpenClaw backend
+- [x] `identify_speaker` callback fires before `generate_reply` in the pipeline
+- [x] Voice identity failure (exception) is logged and pipeline continues to VoiceBridge
+- [x] VoiceBridge response is independent of voice identity result
+- [x] No-identity-speaker path still uses VoiceBridge
+- [x] 4 async tests in `tests/test_openclaw_voice_identity_with_backend.py` — all pass
 **US-P6-015:** Test HA TTS through voice loop + OpenClaw
+- [x] VoiceBridge response text is delivered to `HaTtsClient.speak()` when HA TTS is speak backend
+- [x] HA TTS receives the VoiceBridge response (not the original transcript)
+- [x] HA TTS network failure is non-fatal; voice loop does not raise
+- [x] Empty STT skips both VoiceBridge and HA TTS
+- [x] 4 async tests in `tests/test_openclaw_ha_tts_voice_loop.py` — all pass
 
 ### Phase 7 Tasks (US-P7-001 through US-P7-020)
 

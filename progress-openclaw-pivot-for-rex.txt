@@ -1,3 +1,40 @@
+## Iteration 70 - US-P6-015: Test HA TTS through voice loop + OpenClaw
+- Created `tests/test_openclaw_ha_tts_voice_loop.py` with 4 async tests
+- Wraps `HaTtsClient.speak()` as async callable via `asyncio.to_thread`, passes as `speak` arg to VoiceLoop
+- Tests verify: response delivered to HA TTS, HA TTS gets response (not transcript), HA failure non-fatal, empty STT skips both
+- Files changed: tests/test_openclaw_ha_tts_voice_loop.py, PRD-openclaw-pivot-for-rex.md
+---
+
+## Iteration 69 - US-P6-014: Test voice identity with OpenClaw backend
+- Created `tests/test_openclaw_voice_identity_with_backend.py` with 4 async tests
+- Tests verify: identify_speaker fires before generate_reply, identity failure doesn't block VoiceBridge, no identity path works
+- Key fix: identify_fn side_effect needs `*args` to handle MagicMock's VAR_POSITIONAL signature inspection
+- Files changed: tests/test_openclaw_voice_identity_with_backend.py, PRD-openclaw-pivot-for-rex.md
+---
+
+## Iteration 68 - US-P6-013: Integration test wakeword → STT → OpenClaw → TTS
+- Created `tests/test_openclaw_voice_integration.py` with 5 async tests
+- Uses `_build_integrated_voice_loop()` factory: VoiceLoop with flag=True, VoiceBridge patched via `rex.openclaw.voice_bridge.VoiceBridge`
+- Tests cover: full pipeline, response content, empty STT, empty bridge response, bridge exception
+- Files changed: tests/test_openclaw_voice_integration.py, PRD-openclaw-pivot-for-rex.md
+---
+
+## Iteration 67 - US-P6-011 + US-P6-012: rex/voice_loop_optimized.py flag + text mode
+- Added VoiceBridge swap in `VoiceLoop.__init__` in `rex/voice_loop_optimized.py` (same pattern as rex/voice_loop.py)
+- Note: `voice_loop_optimized.py` calls `generate_reply(transcript)` WITHOUT `voice_mode=True` — tests reflect this
+- 6 flag tests + 4 text mode tests — all pass fast (< 3s each)
+- Files changed: rex/voice_loop_optimized.py, tests/test_openclaw_voice_loop_optimized_flag.py, tests/test_openclaw_voice_loop_optimized_text_mode.py
+---
+
+## Iteration 66 - US-P6-009 + US-P6-010: rex/voice_loop.py flag + text mode
+- Added VoiceBridge swap in `VoiceLoop.__init__` in `rex/voice_loop.py` using `getattr(settings, "use_openclaw_voice_backend", False)`
+- For text mode tests: `VoiceLatencyTracker` is imported lazily inside `run()` — must patch `rex.voice_latency.VoiceLatencyTracker` (not `rex.voice_loop.VoiceLatencyTracker`)
+- Used async generator `_one_wake_event()` to simulate a single wake event then stop, enabling `run(max_interactions=1)`
+- 6 flag tests + 4 text mode tests — all pass fast (< 3s each)
+- Files changed: rex/voice_loop.py, tests/test_openclaw_rex_voice_loop_flag.py, tests/test_openclaw_rex_voice_loop_text_mode.py
+- US-P7 starts next: pre-retirement checks for all deprecated modules
+---
+
 ## Iteration 65 - US-P6-008: Test root voice loop with OpenClaw (text mode)
 - Created `tests/test_openclaw_root_voice_loop_text_mode.py` with 6 async tests
 - Tests use `_make_ara()` factory: stubs all heavy deps (audio, wake word, profiles, etc.) via patches + importlib.reload
