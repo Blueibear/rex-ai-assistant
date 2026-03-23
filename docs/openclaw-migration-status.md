@@ -912,3 +912,25 @@ No callers found outside `plex_client.py` itself. Plex integration is currently 
 - Tools return `{"ok": ..., "error": ...}` dicts; plex_search returns a `results` list
 - `ToolBridge.register_plex_tools()` registers the tool batch
 - Security: Token from config (should be moved to CredentialManager in future). SSRF risk — base_url from config, not user input.
+
+---
+
+### Audit Notes: Business Workflows / Nasteeshirts (US-P5-019/020)
+
+**Findings:**
+
+- `data/workflows/` exists and contains 542 runtime workflow instances (auto-generated, not static templates)
+- No pre-defined business workflow templates exist in code or data
+- "Nasteeshirts" appears only as a **test fixture site_id** in WC/WP tests — not a separate logic module
+- All Rex business-domain logic is covered by the WooCommerce and WordPress integrations (already bridged US-P5-009/013)
+
+**Business Tool Bundle (US-P5-021):**
+
+`rex/openclaw/tools/business_tool.py` provides `register_all_business_tools()` which bundles:
+- 5 WooCommerce tools (wc_list_orders, wc_list_products, wc_set_order_status, wc_create_coupon, wc_disable_coupon)
+- 1 WordPress tool (wordpress_health_check)
+
+`ToolBridge.register_business_tools()` delegates to `register_all_business_tools()`.
+
+**End-to-end workflow test (US-P5-022):**
+`tests/test_openclaw_business.py` tests the scenario: list orders → health check → set order status (with approval gate and auto-allowed paths).

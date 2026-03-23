@@ -1072,9 +1072,18 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 **US-P5-018:** Test Plex command through OpenClaw
 - [x] tests/test_openclaw_plex.py: all plex tool + ToolBridge wiring tests pass
 **US-P5-019:** Identify all business workflow definitions
+- [x] data/workflows/ exists (542 runtime instances, no static templates)
+- [x] Workflows are generated dynamically; no pre-defined business templates exist
+- [x] Business domain logic = WooCommerce + WordPress tools (already bridged)
 **US-P5-020:** Identify Nasteeshirts-specific logic
+- [x] "nasteeshirts" only appears as a test fixture site_id in WC/WP tests
+- [x] No production Nasteeshirts-specific code beyond WC/WP integration already bridged
+- [x] docs/openclaw-migration-status.md updated with findings
 **US-P5-021:** Create business skill for OpenClaw
+- [x] rex/openclaw/tools/business_tool.py created: register_all_business_tools() bundles WC + WP registration
+- [x] ToolBridge.register_business_tools() added
 **US-P5-022:** Test one business workflow end-to-end
+- [x] tests/test_openclaw_business.py: list-orders → set-status workflow (with approval gate) tested end-to-end
 
 ### Phase 6 Tasks (US-P6-001 through US-P6-015)
 

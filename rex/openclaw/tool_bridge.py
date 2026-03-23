@@ -34,6 +34,7 @@ import logging
 from importlib.util import find_spec
 from typing import Any, Callable
 
+from rex.openclaw.tools.business_tool import register_all_business_tools as _register_business_tools
 from rex.openclaw.tools.calendar_tool import register as _register_calendar_create
 from rex.openclaw.tools.email_tool import register as _register_send_email
 from rex.openclaw.tools.ha_tool import register as _register_ha_call_service
@@ -287,6 +288,30 @@ class ToolBridge:
             each tool (``None`` when OpenClaw is not installed).
         """
         return _register_wc_tools(agent=agent)
+
+    def register_business_tools(self, agent: Any = None) -> dict[str, Any]:
+        """Register all business-domain tools (WooCommerce + WordPress) with OpenClaw.
+
+        Convenience wrapper equivalent to calling both
+        :meth:`register_woocommerce_tools` and :meth:`register_wordpress_tools`.
+
+        Tools registered:
+
+        * ``wc_list_orders`` — list WooCommerce orders (LOW risk)
+        * ``wc_list_products`` — list WooCommerce products (LOW risk)
+        * ``wc_set_order_status`` — update order status (HIGH risk, approval-gated)
+        * ``wc_create_coupon`` — create coupon (HIGH risk, approval-gated)
+        * ``wc_disable_coupon`` — disable coupon (HIGH risk, approval-gated)
+        * ``wordpress_health_check`` — health check (LOW risk, read-only)
+
+        Args:
+            agent: Optional OpenClaw agent handle.
+
+        Returns:
+            A dict mapping every tool name to its registration handle
+            (``None`` when OpenClaw is not installed).
+        """
+        return _register_business_tools(agent=agent)
 
     def register_plex_tools(self, agent: Any = None) -> dict[str, Any]:
         """Register all Plex tools batch with OpenClaw.
