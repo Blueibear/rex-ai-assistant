@@ -1,3 +1,51 @@
+## Iteration 95 - Retire rex/tool_registry.py (US-P7-006)
+- Created rex/openclaw/tool_registry.py — full ToolRegistry logic (ToolMeta, ToolRegistry, errors, get/set/reset/register, builtin tools)
+- Updated rex/__init__.py — re-export from .openclaw.tool_registry
+- Updated rex/cli.py — 2 lazy imports migrated
+- Updated rex/planner.py — 2 imports migrated (top-level + lazy)
+- Updated rex/openclaw/tool_executor.py — was still importing from rex.tool_registry
+- Updated 12 test files — sed replacement of import path
+- Converted test_retirement_check_tool_registry.py to permanent guard (module_does_not_exist + no_rex_importers)
+- Deleted rex/tool_registry.py
+- 244 targeted tests pass; full suite exit code 0
+- Only 1 OPENCLAW-REPLACE module remains with active callers: event_bus.py
+- Learnings:
+  - rex/openclaw/tool_executor.py had an import from rex.tool_registry that wasn't caught by the retirement check (tool_executor is in openclaw/ so it's skipped in the AST scan); always grep openclaw/ separately after retiring a module
+  - The sed -i bulk replacement is safe when all test files use the identical import line pattern
+---
+
+## Iteration 94 - Retire rex/tool_router.py (US-P7-008)
+- Created rex/openclaw/tool_executor.py — all logic from tool_router.py (exceptions, parse/execute/route fns, _CITY_TIMEZONES, helpers)
+- Updated rex/openclaw/tool_bridge.py — imports from tool_executor instead of tool_router
+- Updated rex/openclaw/policy_adapter.py — exceptions from tool_executor
+- Updated rex/openclaw/agent.py — dynamic import updated
+- Updated rex/openclaw/tools/time_tool.py, weather_tool.py — imports updated
+- Updated rex/assistant.py — removed use_openclaw_tools feature flag; always uses ToolBridge
+- Updated rex/workflow_runner.py — execute_tool from tool_executor
+- Deleted 7 test files: test_tool_router.py, test_us022_tool_router.py, test_tool_router_policy.py,
+  test_us059_tool_execution_logging.py, test_us060_tool_execution_error_handling.py,
+  test_openclaw_assistant_flag.py (feature flag removed), test_openclaw_tool_path_parity.py (legacy path gone)
+- Converted test_retirement_check_tool_router.py to permanent guard (asserts module does NOT exist)
+- Removed rex/tool_router.py from tool_registry KNOWN_BLOCKERS (tool_router.py deleted)
+- Fixed test_openclaw_contracts_audit.py: removed dashboard.py from PERMANENT_CONTRACTS (retired iter 93)
+- Fixed test_voice_loop_fixes.py: patching moved from rex.assistant.route_if_tool_request to _tool_router_fn
+- PRD: US-P7-008 marked [x] DONE; policy gate criterion updated to PARTIAL; retired modules count 2 of 8
+- All 167 targeted retirement/policy tests pass
+- Learnings for future iterations:
+  - Retiring tool_router requires creating rex/openclaw/tool_executor.py to own the logic (can't just delete)
+  - tool_bridge.py, policy_adapter.py, agent.py are all exempt from retirement check (openclaw path) but
+    still need to be updated when the module they delegate to is deleted
+  - test_openclaw_contracts_audit.py PERMANENT_CONTRACTS must be kept in sync with actual contract files —
+    dashboard.py was already deleted in iter 93 but the test still listed it; fix needed here too
+  - test_voice_loop_fixes.py patched rex.assistant.route_if_tool_request which no longer exists — update
+    such tests to set _tool_router_fn directly on the assistant instance
+  - Remaining [ ] acceptance criteria: policy gate (line 1264) still needs tool_registry retirement;
+    no retired modules (line 1265) still needs event_bus + tool_registry retirement
+  - tool_registry blockers: rex/__init__.py, rex/cli.py, rex/planner.py (tool_router no longer a blocker)
+  - event_bus blockers: 8 files — rex/__init__.py, calendar_service.py, email_service.py,
+    event_triggers.py, integrations.py, integrations/_setup.py, ha_event_subscriber.py, services.py
+---
+
 ## Iteration 93 - Retire rex/dashboard/ + rex/dashboard_store.py (US-P7-014)
 - Deleted: rex/dashboard_store.py, rex/dashboard/__init__.py, rex/dashboard/routes.py,
   rex/dashboard/sse.py, rex/dashboard/auth.py, rex/dashboard/static/, rex/dashboard/templates/
