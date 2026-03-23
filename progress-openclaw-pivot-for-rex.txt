@@ -1,3 +1,17 @@
+## Iteration 65 - US-P6-008: Test root voice loop with OpenClaw (text mode)
+- Created `tests/test_openclaw_root_voice_loop_text_mode.py` with 6 async tests
+- Tests use `_make_ara()` factory: stubs all heavy deps (audio, wake word, profiles, etc.) via patches + importlib.reload
+- After construction, sets `ara._assistant = mock_bridge` directly — avoids needing flag=True
+- Tests patch `_record_audio`, `transcribe`, `_speak_response`, and `append_history_entry` on the instance
+- All 6 tests pass (runtime ~9.5min due to transformers tokenizer reload)
+- Files changed: tests/test_openclaw_root_voice_loop_text_mode.py, PRD-openclaw-pivot-for-rex.md
+- Learnings for future iterations:
+  - `_process_conversation` (not `_process_transcript`) is the actual method name in root voice_loop.py
+  - Use `patch.object(ara, "_speak_response", ...)` — it's a sync method called via `asyncio.to_thread`
+  - `append_history_entry` is called in `voice_loop` module scope: patch `voice_loop.append_history_entry`
+  - US-P6-009 is code-change: apply the same VoiceBridge flag swap pattern to `rex/voice_loop.py`
+---
+
 ## Iteration 64 - US-P6-007: Update root voice_loop.py with feature flag
 - Added feature flag check in `AsyncRexAssistant.__init__` in `voice_loop.py` (root)
 - After the try/except that creates Assistant, checks `self.config.use_openclaw_voice_backend`

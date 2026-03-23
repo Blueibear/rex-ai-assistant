@@ -1130,6 +1130,12 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 - [x] VoiceBridge creation failure falls back gracefully (keeps previous `_assistant`)
 - [x] 5 unit tests in `tests/test_openclaw_root_voice_loop_flag.py` — all pass
 **US-P6-008:** Test root voice loop with OpenClaw (text mode)
+- [x] `_process_conversation` calls `VoiceBridge.generate_reply(transcript, voice_mode=True)` when `_assistant` is a VoiceBridge
+- [x] Response from `generate_reply` is passed to `_speak_response`
+- [x] Empty/whitespace response skips TTS
+- [x] `generate_reply` exception is caught gracefully (no TTS)
+- [x] Empty STT transcript skips `generate_reply` entirely
+- [x] 6 async tests in `tests/test_openclaw_root_voice_loop_text_mode.py` — all pass
 **US-P6-009:** Update rex/voice_loop.py with feature flag
 **US-P6-010:** Test rex/voice_loop.py with OpenClaw (text mode)
 **US-P6-011:** Update rex/voice_loop_optimized.py with feature flag
