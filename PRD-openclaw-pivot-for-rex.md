@@ -1047,9 +1047,20 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 **US-P5-011:** Test WordPress write through OpenClaw
 - [x] N/A — WordPress client is read-only; no write operations in current implementation
 **US-P5-012:** Audit woocommerce/* public API
+- [x] Read: list_orders, list_products; Write: set_order_status, add_order_note, create_coupon, disable_coupon
+- [x] write_policy.py: check_wc_write_policy gating HIGH-risk writes
+- [x] Sole caller: cli.py; audit notes added to migration status doc
+
 **US-P5-013:** Create WooCommerce skill for OpenClaw
+- [x] Created rex/openclaw/tools/woocommerce_tool.py: 5 tools (2 read + 3 write)
+- [x] Write tools call check_wc_write_policy — Rex policy is authority
+- [x] ToolBridge.register_woocommerce_tools() added
+
 **US-P5-014:** Test WooCommerce read through OpenClaw
+- [x] tests/test_openclaw_woocommerce.py: list_orders and list_products tests pass
+
 **US-P5-015:** Test WooCommerce write through OpenClaw (with write policy)
+- [x] tests/test_openclaw_woocommerce.py: write policy gate tests pass (24 total)
 **US-P5-016:** Audit plex_client.py public API
 **US-P5-017:** Create Plex skill for OpenClaw
 **US-P5-018:** Test Plex command through OpenClaw

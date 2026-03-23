@@ -38,6 +38,7 @@ from rex.openclaw.tools.calendar_tool import register as _register_calendar_crea
 from rex.openclaw.tools.email_tool import register as _register_send_email
 from rex.openclaw.tools.ha_tool import register as _register_ha_call_service
 from rex.openclaw.tools.wordpress_tool import register as _register_wp_health_check
+from rex.openclaw.tools.woocommerce_tool import register as _register_wc_tools
 from rex.openclaw.tools.sms_tool import register as _register_send_sms
 from rex.openclaw.tools.time_tool import register as _register_time_now
 from rex.openclaw.tools.weather_tool import register as _register_weather_now
@@ -264,6 +265,27 @@ class ToolBridge:
         return {
             "wordpress_health_check": _register_wp_health_check(agent=agent),
         }
+
+    def register_woocommerce_tools(self, agent: Any = None) -> dict[str, Any]:
+        """Register all WooCommerce tools batch with OpenClaw.
+
+        Read tools (LOW risk):
+        * ``wc_list_orders``      — list orders
+        * ``wc_list_products``    — list products
+
+        Write tools (HIGH risk, approval-gated):
+        * ``wc_set_order_status`` — update order status
+        * ``wc_create_coupon``    — create coupon
+        * ``wc_disable_coupon``   — disable coupon
+
+        Args:
+            agent: Optional OpenClaw agent handle.
+
+        Returns:
+            A dict mapping tool name to the registration handle returned by
+            each tool (``None`` when OpenClaw is not installed).
+        """
+        return _register_wc_tools(agent=agent)
 
     def register(self, agent: Any = None) -> Any:
         """Register this bridge as the OpenClaw tool provider.

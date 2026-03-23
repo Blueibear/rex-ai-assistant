@@ -58,7 +58,7 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/ha_bridge.py` | Keep | Audited (US-P5-001) | Home Assistant bridge (600 lines). `ha_tool.py` already wraps it. Full audit below. |
 | `rex/ha_tts/` | Keep | Audited (US-P5-002) | HA TTS integration (3 files). `build_ha_tts_client` factory; `HaTtsClient.speak()` is the one callable. Full audit below. |
 | `rex/wordpress/` | Keep | Audited + Bridged (US-P5-008/009) | WordPress client (3 files, read-only). `wordpress_tool.py` wraps service as `wordpress_health_check`. Full audit below. |
-| `rex/woocommerce/` | Keep | Pending | WooCommerce client with write policy (4 files). Register as OpenClaw skill in Phase 5. Write policy preserved. |
+| `rex/woocommerce/` | Keep | Audited + Bridged (US-P5-012/013) | WooCommerce client (4 files, read + approval-gated write). 5 tools: list_orders, list_products, set_order_status, create_coupon, disable_coupon. Write policy preserved. |
 | `rex/plex_client.py` | Keep | Pending | Plex media control. Register as OpenClaw skill in Phase 5. |
 | `rex/memory.py` | Keep + Adapt | Audited (US-P3-001) | See audit notes below. |
 | `rex/memory_utils.py` | Keep | Audited (US-P3-004) | See audit notes below. |
@@ -832,3 +832,47 @@ The current WordPress implementation is strictly read-only. `WordPressClient.hea
 - `ToolBridge.register_wordpress_tools()` registers the tool batch.
 - Write operations are out of scope until the WordPress client is extended.
 - Security: Basic Auth credentials resolved via `CredentialManager`. SSRF-validated `base_url`. Never stored in config.
+
+---
+
+### Audit Notes: rex/woocommerce/* (US-P5-012)
+
+**Public API:**
+
+| Symbol | Signature | Notes |
+|--------|-----------|-------|
+| `OrdersResult` | dataclass: `ok`, `orders`, `error` | Read result |
+| `ProductsResult` | dataclass: `ok`, `products`, `error` | Read result |
+| `WriteResult` | dataclass: `ok`, `data`, `error` | Write result |
+| `WooCommerceClient` | class | HTTP client |
+| `WooCommerceClient.list_orders` | `(*, status, limit) → OrdersResult` | GET /wc/v3/orders |
+| `WooCommerceClient.list_products` | `(*, limit, low_stock) → ProductsResult` | GET /wc/v3/products |
+| `WooCommerceClient.set_order_status` | `(order_id, *, status) → WriteResult` | PUT /wc/v3/orders/<id> |
+| `WooCommerceClient.add_order_note` | `(order_id, *, note, customer_note) → WriteResult` | POST /wc/v3/orders/<id>/notes |
+| `WooCommerceClient.create_coupon` | `(*, code, amount, discount_type, ...) → WriteResult` | POST /wc/v3/coupons |
+| `WooCommerceClient.disable_coupon` | `(coupon_id) → WriteResult` | PUT /wc/v3/coupons/<id> |
+| `WooCommerceService` | class | Facade over config + credentials + client |
+| `WooCommerceService.list_orders` | `(site_id, *, status, limit) → OrdersResult` | |
+| `WooCommerceService.list_products` | `(site_id, *, limit, low_stock) → ProductsResult` | |
+| `WooCommerceService.set_order_status` | `(site_id, order_id, *, status) → WriteResult` | HIGH risk |
+| `WooCommerceService.add_order_note` | `(site_id, order_id, *, note, customer_note) → WriteResult` | HIGH risk |
+| `WooCommerceService.create_coupon` | `(site_id, *, code, amount, discount_type, ...) → WriteResult` | HIGH risk |
+| `WooCommerceService.disable_coupon` | `(site_id, coupon_id) → WriteResult` | HIGH risk |
+| `get_woocommerce_service` | `() → WooCommerceService` | Module-level singleton |
+| `check_wc_write_policy` | `(action, site_id, identifiers, params, *, step_description, ...) → (PolicyDecision, WorkflowApproval \| None)` | Policy + approval gate for write ops |
+| `find_pending_or_approved_wc_approval` | `(action, site_id, identifiers, approval_dir) → WorkflowApproval \| None` | Scans approval dir for existing record |
+| `WC_WRITE_WORKFLOW_ID`, `WC_ORDER_SET_STATUS_TOOL`, etc. | constants | Tool name constants |
+
+**Callers:**
+
+| File | What it uses |
+|------|-------------|
+| `rex/cli.py` | `get_woocommerce_service()`, read methods, `check_wc_write_policy` for write ops |
+
+**OpenClaw migration notes:**
+- 5 tools created in `rex/openclaw/tools/woocommerce_tool.py`:
+  read (wc_list_orders, wc_list_products) + write (wc_set_order_status, wc_create_coupon, wc_disable_coupon)
+- Write tools call `check_wc_write_policy` before any network call — Rex write policy is the authority
+- `add_order_note` not exposed as a tool yet — can be added when needed
+- `ToolBridge.register_woocommerce_tools()` registers the full batch
+- Security: Consumer key/secret via `CredentialManager`. SSRF-validated URLs. Policy gate before writes.
