@@ -1,3 +1,29 @@
+## Iteration 81 - Retire rex/browser_automation.py (third OPENCLAW-REPLACE module)
+- Moved BrowserSession, BrowserAction, run_browser_script to rex/openclaw/browser_core.py
+- Rewrote BrowserBridge to use browser_core directly (no delegation to BrowserAutomationService)
+- BrowserBridge now has its own storage_path management + singleton (get/set/reset_browser_service)
+- Deleted rex/browser_automation.py
+- Updated 4 test files: test_browser_automation.py, test_openclaw_browser_bridge.py, test_us039_browser_automation.py, test_retirement_check_browser_automation.py
+- Converted retirement check to post-retirement regression guard (like executor/plugin_loader pattern)
+- Marked PRD line 658 [x] and updated acceptance criteria to show 5 of 8 modules still blocked
+- Files changed: rex/openclaw/browser_core.py (new), rex/openclaw/browser_bridge.py, tests/ (4 files), PRD
+- All 47 targeted tests pass
+- Learnings for future iterations:
+  - When retiring a module, scan tests/ WITH the retirement check — the scan now includes tests/ by default
+  - bridge_bridge.py tests (test_openclaw_browser_bridge.py) were delegation-based; after retirement they need to become behavioral tests mocking run_browser_script directly
+  - The cli.py get_browser_service() was a LOCAL function that creates BrowserBridge() — it was fine as-is
+---
+
+## Iteration 80 - Fix post-retirement test regressions (executor)
+- Discovered test_cli_planner_executor.py still referenced retired rex.executor.{Executor,ExecutionBudget,ExecutionResult}
+- Updated 3 tests (test_plan_with_execute_auto_mode, test_resume_blocked_workflow_success, test_resume_with_budget_params) to use WorkflowBridge.run + RunResult from rex.workflow_runner
+- Extended test_retirement_check_executor._find_active_importers to scan tests/ in addition to rex/ and root-level .py files, so future retirement regressions are caught automatically
+- Files changed: tests/test_cli_planner_executor.py, tests/test_retirement_check_executor.py
+- Learnings for future iterations:
+  - When retiring a module, always check tests/ directory for lingering references — the retirement check was only scanning rex/ and root *.py, not tests/
+  - The executor retirement check's EXEMPT_PATHS was correct but the scan scope was too narrow
+---
+
 ## Iteration 79 - PRD Final Acceptance Criteria + PRD completion
 - Updated Final Acceptance Criteria (lines 1258-1266) with actual completion status
 - [x] Voice loops, CLI, all tests green (Phase 6 done)
