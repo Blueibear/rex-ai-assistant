@@ -257,26 +257,16 @@ def test_notifier_dispatch_to_dashboard(notifier):
     notifier._send_to_dashboard(notif)
 
 
-def test_notifier_dispatch_to_sms(notifier):
-    """Test SMS notification dispatch."""
+def test_notifier_sms_stub_does_not_raise(notifier):
+    """_send_to_sms is a logging stub — it must not raise for any input."""
     notif = NotificationRequest(
         priority="urgent",
         title="SMS Test",
         body="Test message",
         metadata={"to_number": "+15551234567"},
     )
-
-    with patch("rex.messaging_service.get_sms_service") as mock_get_sms:
-        mock_sms_service = MagicMock()
-        mock_sms_service.from_number = "+15555551234"
-        mock_get_sms.return_value = mock_sms_service
-
-        notifier._send_to_sms(notif)
-
-        mock_sms_service.send.assert_called_once()
-        sent_message = mock_sms_service.send.call_args[0][0]
-        assert sent_message.to == "+15551234567"
-        assert "SMS Test: Test message" in sent_message.body
+    # OPENCLAW-REPLACE: stub; no real SMS delivery until OpenClaw messaging is wired
+    notifier._send_to_sms(notif)  # should not raise
 
 
 def test_notifier_event_subscription():

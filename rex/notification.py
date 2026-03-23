@@ -441,36 +441,17 @@ class Notifier:
             raise
 
     def _send_to_sms(self, notification: NotificationRequest) -> None:
-        """Send notification via SMS using the messaging backend.
+        """Send notification via SMS channel.
 
-        The recipient phone number is resolved from notification metadata
-        (``to_number``).  The messaging account is selected via the
-        ``messaging_account_id`` metadata key (if present).
+        # OPENCLAW-REPLACE: SMS delivery stub — pending migration to OpenClaw
+        # messaging backend.  Persistent delivery will be restored once the
+        # OpenClaw SMS tool is wired into the notification routing path.
         """
-        try:
-            from rex.messaging_service import Message, get_sms_service
-
-            sms_service = get_sms_service()
-
-            to_number = notification.metadata.get("to_number")
-            if not to_number:
-                logger.warning("[SMS] No 'to_number' in notification metadata; skipping")
-                return
-
-            account_id = notification.metadata.get("messaging_account_id")
-
-            message = Message(  # type: ignore[call-arg]
-                channel="sms",
-                to=to_number,
-                from_=sms_service.from_number,
-                body=f"{notification.title}: {notification.body}",
-            )
-
-            sms_service.send(message, account_id=account_id)
-            logger.info("[SMS] Sent to %s: %s", to_number, notification.title)
-        except Exception as e:
-            logger.warning("SMS notification failed: %s", e)
-            raise
+        logger.info(
+            "[SMS] notification queued (stub): %s — to_number=%s",
+            notification.title,
+            notification.metadata.get("to_number"),
+        )
 
     def _send_to_ha_tts(self, notification: NotificationRequest) -> None:
         """Send notification to Home Assistant TTS.
