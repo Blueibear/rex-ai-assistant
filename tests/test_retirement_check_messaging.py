@@ -1,8 +1,9 @@
 """Pre-retirement check for rex/messaging_backends/ and rex/messaging_service.py (US-P7-015).
 
-Verdict: NOT SAFE TO RETIRE
-  Active importers of messaging_service: rex/cli.py
-  Migrated: rex/notification.py (iter 88), rex/__init__.py + rex/services.py (iter 89)
+Verdict: SAFE TO RETIRE (all non-exempt importers migrated)
+  Migrated: rex/notification.py (iter 88), rex/__init__.py + rex/services.py (iter 89),
+            rex/cli.py cmd_msg (iter 90)
+  Next step: retire messaging_service.py + messaging_backends/ (update sms_tool.py first)
 """
 
 from __future__ import annotations
@@ -13,9 +14,7 @@ import pathlib
 REPO_ROOT = pathlib.Path(__file__).parent.parent
 REX_PKG = REPO_ROOT / "rex"
 
-KNOWN_BLOCKERS = {
-    "rex/cli.py",
-}
+KNOWN_BLOCKERS: set[str] = set()  # all non-exempt importers migrated (iter 90)
 
 EXEMPT_PATHS = {
     "rex/messaging_service.py",
@@ -79,6 +78,6 @@ class TestMessagingRetirementCheck:
         unexpected = active - KNOWN_BLOCKERS
         assert not unexpected, f"New importers: {unexpected}"
 
-    def test_retirement_verdict_not_safe(self):
+    def test_retirement_verdict_safe(self):
         active = _find_active_importers()
-        assert active & KNOWN_BLOCKERS, "All blockers migrated — safe to retire!"
+        assert not active, f"Unexpected importers found — must be migrated before retirement: {active}"

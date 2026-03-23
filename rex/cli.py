@@ -2041,67 +2041,23 @@ def cmd_code(args: argparse.Namespace) -> int:
 
 def cmd_msg(args: argparse.Namespace) -> int:
     """Manage messaging."""
-    from rex.messaging_service import Message, get_sms_service
-
-    user_id = _resolve_cli_user(args)
-    account_id = getattr(args, "account_id", None)
+    # OPENCLAW-REPLACE: cmd_msg stub — SMS backend is being retired.
+    # Programmatic SMS access is available via rex.openclaw.tools.sms_tool.send_sms.
     subcommand = args.msg_command
 
     if subcommand == "send":
-        channel = args.channel.lower()
-
+        channel = getattr(args, "channel", "").lower()
         if channel == "sms":
-            sms_service = get_sms_service()
-            message = Message(  # type: ignore[call-arg]
-                channel="sms",
-                to=args.to,
-                from_=sms_service.from_number,
-                body=args.body,
-            )
-            sent = sms_service.send(message, account_id=account_id)
-            print("Message sent successfully")
-            print(f"  ID: {sent.id}")
-            print(f"  To: {sent.to}")
-            print(f"  Thread: {sent.thread_id}")
-            print(f"  Timestamp: {sent.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
-            if user_id:
-                print(f"  User: {user_id}")
-            return 0
-
+            print("SMS messaging not available (migrating to OpenClaw messaging backend)")
+            return 1
         print(f"Error: Unsupported channel '{channel}'. Currently only 'sms' is supported.")
         return 1
 
     if subcommand == "receive":
-        channel = args.channel.lower()
-
+        channel = getattr(args, "channel", "").lower()
         if channel == "sms":
-            sms_service = get_sms_service()
-            messages = sms_service.receive(
-                limit=args.limit,
-                user_id=user_id,
-                account_id=account_id,
-            )
-
-            if not messages:
-                print("No messages received.")
-                return 0
-
-            print("Recent Messages")
-            print("=" * 80)
-            print()
-
-            for msg in messages:
-                preview = (msg.body[:50] + "...") if len(msg.body) > 50 else msg.body
-                print(f"{msg.id}: {preview}")
-                print(f"  From: {msg.from_}")
-                print(f"  To: {msg.to}")
-                print(f"  Received: {msg.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
-                print(f"  Thread: {msg.thread_id}")
-                print()
-
-            print(f"Total: {len(messages)} messages")
-            return 0
-
+            print("SMS messaging not available (migrating to OpenClaw messaging backend)")
+            return 1
         print(f"Error: Unsupported channel '{channel}'. Currently only 'sms' is supported.")
         return 1
 
