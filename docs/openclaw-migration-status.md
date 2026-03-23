@@ -16,56 +16,73 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 - `Marked` — freeze/wrap marker added
 - `Contracted` — Protocol/interface defined in `rex/contracts/`
 - `Bridged` — OpenClaw bridge implemented, dual-mode running
+- `Bridged-partial` — bridge implemented but retirement blocked (see notes)
 - `Migrated` — fully on OpenClaw, old code retired
+
+---
+
+## Phase Summary (as of Phase 7 completion)
+
+**Retired (deleted):** `rex/plugin_loader.py`, `rex/executor.py`, `rex/browser_automation.py`
+
+**Bridged (dual-mode, feature-flagged):** tool routing (`use_openclaw_tools`), voice loops (`use_openclaw_voice_backend`), event bus, workflow runner, policy engine, identity, memory, all integrations (HA, WP, WooCommerce, Plex)
+
+**Blocked — dashboard:** `rex/dashboard/*` and `rex/dashboard_store.py` — only `rex/gui_app.py` still imports these; gui_app.py is excluded per Non-Goals (GUI migration is a separate future effort). Retirement requires GUI migration.
+
+**Blocked — messaging:** `rex/messaging_backends/*` and `rex/messaging_service.py` — 4 active importers remain (rex/__init__.py, cli.py, notification.py, services.py). Not yet bridged.
+
+**Blocked — tool registry/router:** `rex/tool_registry.py` and `rex/tool_router.py` — active importers remain; ToolBridge exists and is feature-flagged but not yet default.
+
+**Blocked — event bus:** `rex/event_bus.py` — EventBridge exists but 8 active importers remain unconverted.
 
 ---
 
 | Module | Classification | Status | Notes |
 |--------|----------------|--------|-------|
-| `rex/assistant.py` | Wrap | Pending | Central orchestration hub. Delegate to OpenClaw agent via voice_bridge. Keep as thin coordinator. |
-| `rex/browser_automation.py` | Replace | Bridged (US-P4-027) | Generic Playwright wrapper. BrowserBridge wraps service. Both cli callers migrated to bridge. Login + step-format gaps remain (backlog). See audit notes below. |
-| `rex/dashboard/__init__.py` | Replace | Pending | Flask dashboard. OpenClaw provides dashboard/UI. Run both in parallel during transition. |
-| `rex/dashboard/routes.py` | Replace | Pending | Dashboard routes. Retires with dashboard. |
-| `rex/dashboard/sse.py` | Replace | Pending | SSE streaming. Retires with dashboard. |
-| `rex/dashboard/auth.py` | Replace | Pending | Dashboard auth. Retires with dashboard. |
-| `rex/dashboard_store.py` | Replace | Pending | Dashboard persistence. Retires when dashboard retires. |
-| `rex/messaging_backends/` | Replace | Pending | Twilio, SMS, webhooks (11 files). OpenClaw owns channels. Migrate last in Phase 4 due to webhook complexity. |
-| `rex/messaging_service.py` | Replace | Pending | Messaging orchestration. Retires with messaging_backends. |
+| `rex/assistant.py` | Wrap | Pending | Central orchestration hub. Delegates to OpenClaw agent via VoiceBridge when `use_openclaw_voice_backend=True`. Keep as thin coordinator. |
+| `rex/browser_automation.py` | Replace | **Migrated** (iter 81 / Phase 7) | Deleted. Core types (BrowserSession, BrowserAction, run_browser_script) moved to `rex/openclaw/browser_core.py`. BrowserBridge rewritten to use browser_core directly. |
+| `rex/dashboard/__init__.py` | Replace | Bridged-partial | Flask dashboard retained for `rex-gui` entry point (gui_app.py excluded per Non-Goals). All non-GUI callers of dashboard_store migrated: health.py, retention.py, notification.py, digest_job.py, inbound_store.py. Retirement blocked until GUI migration. |
+| `rex/dashboard/routes.py` | Replace | Bridged-partial | Retires with dashboard. Same blocker as dashboard/__init__.py. |
+| `rex/dashboard/sse.py` | Replace | Bridged-partial | Retires with dashboard. Same blocker as dashboard/__init__.py. |
+| `rex/dashboard/auth.py` | Replace | Bridged-partial | Retires with dashboard. Same blocker as dashboard/__init__.py. |
+| `rex/dashboard_store.py` | Replace | Bridged-partial | All 5 non-GUI callers migrated off dashboard_store (health.py, retention.py, notification.py, digest_job.py, inbound_store.py). Only `rex/gui_app.py` remains — excluded per Non-Goals (GUI migration separate effort). Retirement blocked until GUI migration. |
+| `rex/messaging_backends/` | Replace | Pending | Twilio, SMS, webhooks (11 files). OpenClaw owns channels. 4 active importers block retirement: rex/__init__.py, cli.py, notification.py, services.py. See test_retirement_check_messaging.py. |
+| `rex/messaging_service.py` | Replace | Pending | Messaging orchestration. Retires with messaging_backends. Same 4-importer block. |
 | `rex/integrations/message_router.py` | Replace | Pending | Routes messages between channels. Retires with messaging. |
-| `rex/tool_registry.py` | Replace | Pending | Tool metadata + health checks. OpenClaw has skill/tool system. Define Protocol first (Phase 1), then bridge (Phase 4). |
-| `rex/tool_router.py` | Replace | Audited (US-P4-002) | Central tool dispatch (960 lines). Highest-risk replacement. Feature flag required. Test every tool through bridge before retirement. See audit notes below. Tool classification: 6 generic-replace, 3 adapter-needed, 2 Rex-specific. |
-| `rex/plugin_loader.py` | Replace | Pending | Dynamic plugin discovery (56 lines). OpenClaw has plugins. Small file, easy replacement. |
-| `rex/executor.py` | Replace | Pending | Task execution engine. Replaced by OpenClaw task execution via workflow bridge. |
-| `rex/event_bus.py` | Replace | Audited (US-P4-014) | Pub-sub event system (436 lines). Dual API (simple + rich) must be preserved in bridge. 10 Rex-specific event types; 0 framework-level. Wildcard subscriber requires full fan-out in bridge. See audit notes below. |
+| `rex/tool_registry.py` | Replace | Contracted (US-P1-008) | Tool metadata + health checks. Protocol defined in `rex/contracts/plugins.py`. 4 active importers block retirement: rex/__init__.py, cli.py, planner.py, tool_router.py. See test_retirement_check_tool_registry.py. |
+| `rex/tool_router.py` | Replace | Bridged (US-P4-003/011) | ToolBridge (`rex/openclaw/tool_bridge.py`) created. Feature flag `use_openclaw_tools` in AppConfig. assistant.py uses bridge when flag enabled (US-P4-011). 2 active importers block full retirement: assistant.py, workflow_runner.py. See test_retirement_check_tool_router.py. |
+| `rex/plugin_loader.py` | Replace | **Migrated** (US-P7-004) | Deleted. voice_loop.py migrated to `rex.plugins.load_plugins`. `rex/contracts/plugins.py` updated. |
+| `rex/executor.py` | Replace | **Migrated** (US-P7-010) | Deleted. `rex/cli.py` migrated to `rex.openclaw.workflow_bridge.WorkflowBridge`. |
+| `rex/event_bus.py` | Replace | Bridged (US-P4-015/016) | EventBridge (`rex/openclaw/event_bridge.py`) created. Consumers updated (US-P4-017/018). 8 active importers block retirement: rex/__init__.py, calendar_service.py, email_service.py, event_triggers.py, integrations.py, integrations/_setup.py, openclaw/ha_event_subscriber.py, services.py. See test_retirement_check_event_bus.py. |
 | `rex/computers/` | Replace | Pending | Windows agent server/client (~400 lines, 5 files). Replace with OpenClaw workspace/agent model. |
-| `rex/workflow.py` | Wrap | Audited (US-P4-028) | Workflow data models (668 lines). Rex-specific definitions. 7 callers. Models translate to OpenClaw skill/task definitions; bridge translates at execution time. See audit notes below. |
-| `rex/workflow_runner.py` | Wrap | Audited (US-P4-028) | Workflow execution (864 lines). Has Rex policy hooks. 3 callers (cli, executor, approval_adapter). Bridge preserves policy gating; Rex policy is authority. See audit notes below. |
+| `rex/workflow.py` | Wrap | Bridged (US-P4-030) | Workflow data models. WorkflowBridge (`rex/openclaw/workflow_bridge.py`) translates Rex workflows to OpenClaw at execution time. Policy hooks preserved. |
+| `rex/workflow_runner.py` | Wrap | Bridged (US-P4-030) | Workflow execution. WorkflowBridge preserves Rex policy gating. cli.py migrated to bridge (US-P7-010). |
 | `rex/autonomy/__init__.py` | Wrap | Pending | Autonomy package init. Wraps OpenClaw multi-agent primitives. |
-| `rex/autonomy/runner.py` | Wrap | Pending | Autonomy runner. High-level planning logic wraps OpenClaw primitives. Keep Rex's goal decomposition and replanning. |
+| `rex/autonomy/runner.py` | Wrap | Bridged (US-P4-034) | Updated to use WorkflowBridge. End-to-end autonomy execution tested (US-P4-035). |
 | `rex/autonomy/llm_planner.py` | Wrap | Pending | LLM-based planner. Preserved; wraps OpenClaw. |
 | `rex/autonomy/rule_planner.py` | Wrap | Pending | Rule-based planner. Preserved; wraps OpenClaw. |
 | `rex/scheduler.py` | Wrap | Pending | Cron-like scheduling (675 lines). Evaluate OpenClaw scheduling; wrap if available, keep if not. |
 | `rex/planner.py` | Wrap | Pending | Task planning (640 lines). Rex's planning logic wraps OpenClaw primitives. |
-| `rex/notification.py` | Wrap | Pending | Notification system (884 lines). Route through OpenClaw's notification/event system if available. |
-| `rex/policy.py` | Keep + Wrap | Audited (US-P3-007) | Policy models (150 lines). Rex-specific risk classification. Keep models; wrap as OpenClaw middleware. Rex policy is always the authority. See audit notes below. |
-| `rex/policy_engine.py` | Keep + Wrap | Audited (US-P3-007) | Policy evaluation (350 lines). Keep engine; wrap as OpenClaw hook. See audit notes below. |
-| `rex/identity.py` | Wrap | Audited (US-P3-012) | User identity resolution (322 lines). Map to OpenClaw session/user model. Keep Rex's resolution logic. See audit notes below. |
-| `rex/profile_manager.py` | Wrap | Audited (US-P3-015) | Profile merging (100 lines). Keep merge logic; wire into OpenClaw agent config. See audit notes below. |
-| `rex/voice_identity/` | Keep | Pending | Speaker recognition (7 files). Uniquely Rex. No OpenClaw equivalent. Phase 6: feed into OpenClaw session identity. |
+| `rex/notification.py` | Wrap | Bridged-partial | `_send_to_dashboard` converted to logging stub (dashboard_store removed, US-84). HA TTS notification tested through OpenClaw (US-P5-006). Full channel routing (messaging) still blocked. |
+| `rex/policy.py` | Keep + Wrap | Bridged (US-P3-008) | PolicyAdapter (`rex/openclaw/policy_adapter.py`) wraps PolicyEngine as OpenClaw middleware. Block/allow paths tested (US-P3-009/010). Wired into OpenClaw agent (US-P3-011). Rex policy is always authority. |
+| `rex/policy_engine.py` | Keep + Wrap | Bridged (US-P3-008) | Wrapped as OpenClaw pre-execution hook via PolicyAdapter. |
+| `rex/identity.py` | Wrap | Bridged (US-P3-013) | IdentityAdapter (`rex/openclaw/identity_adapter.py`) maps Rex identity to OpenClaw session/user. Session bridge already wraps `resolve_active_user` (US-P2-003). |
+| `rex/profile_manager.py` | Wrap | Bridged (US-P3-016) | Profile baked into AppConfig at load time. `build_agent_config()` and `build_system_prompt()` read profile-applied config. No new adapter code needed. |
+| `rex/voice_identity/` | Keep | Pending | Speaker recognition (7 files). Uniquely Rex. No OpenClaw equivalent. Feeds into OpenClaw session via voice identity callback in voice loops. |
 | `rex/wakeword/` | Keep | Pending | Wake word detection (4 files). Uniquely Rex. Unchanged in migration. |
-| `rex/voice_loop.py` | Keep | Audited (US-P6-002) | Core voice loop (800 lines). Class-based design. Seam: `VoiceLoop.run():591 → assistant.generate_reply(transcript, voice_mode=True)`. Includes voice identity, VoiceLatencyTracker, streaming TTS. Update seam with feature flag. Full audit below. |
-| `rex/voice_loop_optimized.py` | Keep | Audited (US-P6-003) | Low-latency voice loop (569 lines). Seam: `VoiceLoop.run():493 → assistant.generate_reply(transcript)` (no voice_mode=True). Has VAD, no voice identity, no VoiceLatencyTracker. Update seam with feature flag. Full audit below. |
-| `rex/ha_bridge.py` | Keep | Audited (US-P5-001) | Home Assistant bridge (600 lines). `ha_tool.py` already wraps it. Full audit below. |
-| `rex/ha_tts/` | Keep | Audited (US-P5-002) | HA TTS integration (3 files). `build_ha_tts_client` factory; `HaTtsClient.speak()` is the one callable. Full audit below. |
-| `rex/wordpress/` | Keep | Audited + Bridged (US-P5-008/009) | WordPress client (3 files, read-only). `wordpress_tool.py` wraps service as `wordpress_health_check`. Full audit below. |
-| `rex/woocommerce/` | Keep | Audited + Bridged (US-P5-012/013) | WooCommerce client (4 files, read + approval-gated write). 5 tools: list_orders, list_products, set_order_status, create_coupon, disable_coupon. Write policy preserved. |
-| `rex/plex_client.py` | Keep | Audited + Bridged (US-P5-016/017) | Plex media client (1 file). 4 tools: plex_search, plex_play, plex_pause, plex_stop. Playback control + search only. Full audit below. |
-| `rex/memory.py` | Keep + Adapt | Audited (US-P3-001) | See audit notes below. |
-| `rex/memory_utils.py` | Keep | Audited (US-P3-004) | See audit notes below. |
+| `rex/voice_loop.py` | Keep | Bridged (US-P6-009/010) | VoiceBridge feature flag added. When `use_openclaw_voice_backend=True`, `_assistant` is replaced with `VoiceBridge()`. Falls back gracefully on VoiceBridge failure. Voice identity + HA TTS integration tested (US-P6-014/015). |
+| `rex/voice_loop_optimized.py` | Keep | Bridged (US-P6-011/012) | VoiceBridge feature flag added. Same pattern as voice_loop.py. No voice_mode=True forwarded (omitted by design). |
+| `rex/ha_bridge.py` | Keep | Bridged (US-P5-003/004) | `rex/openclaw/tools/ha_tool.py` registers `home_assistant_call_service`. HaEventSubscriber (`rex/openclaw/ha_event_subscriber.py`) wires HA events through EventBridge. |
+| `rex/ha_tts/` | Keep | Bridged (US-P5-006) | `HaTtsClient.speak()` tested as notification channel through OpenClaw. HA TTS via voice loop tested (US-P6-015). |
+| `rex/wordpress/` | Keep | Bridged (US-P5-009/010) | `rex/openclaw/tools/wordpress_tool.py` registers `wordpress_health_check`. ToolBridge.register_wordpress_tools() wires it. Read-only; no write operations. |
+| `rex/woocommerce/` | Keep | Bridged (US-P5-013/015) | `rex/openclaw/tools/woocommerce_tool.py` registers 5 tools. Write policy (`check_wc_write_policy`) preserved as Rex authority. Approval gate tested end-to-end. |
+| `rex/plex_client.py` | Keep | Bridged (US-P5-017/018) | `rex/openclaw/tools/plex_tool.py` registers 4 tools (search, play, pause, stop). ToolBridge.register_plex_tools() wires it. |
+| `rex/memory.py` | Keep + Adapt | Bridged (US-P3-002/003/005/006) | MemoryAdapter (`rex/openclaw/memory_adapter.py`) wraps conversation history. Wired into OpenClaw agent. Memory persistence across interactions tested. |
+| `rex/memory_utils.py` | Keep | Audited (US-P3-004) | Core functions wrapped by MemoryAdapter. Rex-specific identity/profile functions unchanged. See audit notes below. |
 | `rex/llm_client.py` | Keep | Pending | Multi-provider LLM client. Orthogonal to migration. Not in scope. |
-| `rex/config.py` | Keep | Pending | Pydantic settings (600 lines). Add OpenClaw-specific fields as needed. |
-| `rex/cli.py` | Keep + Update | Pending | CLI (4941 lines). Update imports as modules are retired. Do not rewrite. One command at a time. |
-| `rex/app.py` | Retire | Pending | Flask app factory. Retires when dashboard retires and OpenClaw handles HTTP. |
+| `rex/config.py` | Keep | Bridged (US-P6-006) | `use_openclaw_voice_backend` flag added (US-P6-006). `use_openclaw_tools` flag added (US-P4-010). OpenClaw adapter config mapped (US-P2-003). |
+| `rex/cli.py` | Keep + Update | Updated (US-P7-010/018) | executor.py callers migrated to WorkflowBridge (US-P7-010). No other retired modules require further CLI updates at this phase. |
+| `rex/app.py` | Retire | Pending | Flask app factory. Retires when dashboard retires and OpenClaw handles HTTP. Blocked by gui_app.py (see dashboard). |
 | `rex/api_key_auth.py` | Retire | Pending | API key auth. Retires when OpenClaw handles auth. |
 | `rex/credentials.py` | Keep | Pending | Credential management (450 lines). May need adapter for OpenClaw tools that need credentials. |
 | `rex/email_backends/` | Keep | Pending | IMAP/SMTP email (~600 lines). Rex-specific. Register as OpenClaw skill. |

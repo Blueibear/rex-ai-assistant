@@ -650,15 +650,15 @@ For EACH module being retired, execute these steps in order:
 
 #### Phase 7 Validation
 
-- [x] No imports of retired modules remain in codebase (all modules blocked — none retired yet; audit tests track blockers)
+- [x] No imports of retired modules remain in codebase (plugin_loader.py, executor.py, browser_automation.py retired; remaining blocked modules tracked by retirement audit tests)
 - [x] All tests pass
 - [x] Voice loop works end-to-end
-- [ ] Dashboard (OpenClaw) works (blocked — dashboard_store.py not retired; only gui_app.py remains [excluded per Non-Goals]; all 5 non-gui callers migrated: health.py, retention.py, notification.py, digest_job.py, messaging_backends/inbound_store.py)
-- [ ] Messaging/channels work (blocked — messaging_service.py not retired)
+- [ ] Dashboard (OpenClaw) works — all 5 non-GUI callers migrated off dashboard_store; only gui_app.py remains and is excluded per Non-Goals (GUI migration is a separate future effort). Dashboard retirement requires GUI migration.
+- [ ] Messaging/channels work (blocked — messaging_service.py not retired; 4 active importers remain)
 - [x] Browser automation works (browser_automation.py retired — BrowserSession + run_browser_script moved to rex/openclaw/browser_core.py)
-- [x] All integrations (HA, WordPress, WooCommerce, Plex) work
+- [x] All integrations (HA, WordPress, WooCommerce, Plex) work as OpenClaw skills (all bridged + tested Phase 5)
 - [x] CLI commands work
-- [x] No dead code remaining from retired modules (no modules retired yet)
+- [x] No dead code from retired modules (plugin_loader.py, executor.py, browser_automation.py cleaned up)
 
 ---
 
@@ -1260,13 +1260,13 @@ Every phase must pass these checks before the next phase begins:
 
 - [x] Rex runs as an OpenClaw agent for all text interactions — VoiceBridge + RexAgent wired in all three voice loops (Phase 6 complete)
 - [x] Voice loop works end-to-end through OpenClaw backend — `use_openclaw_voice_backend` flag live in root, rex/, and optimized voice loops
-- [ ] All integrations (HA, WordPress, WooCommerce, Plex) work as OpenClaw skills — BLOCKED: EventBus, messaging, dashboard modules not yet retired
-- [ ] Policy engine gates all tool calls through OpenClaw — BLOCKED: ToolRegistry, ToolRouter still in active use
+- [x] All integrations (HA, WordPress, WooCommerce, Plex) work as OpenClaw skills — HA, WP, WooCommerce, Plex all bridged with tests (Phase 5); business workflow e2e tested (US-P5-022). EventBus/messaging/dashboard retirement is separate from integration skill functionality.
+- [ ] Policy engine gates all tool calls through OpenClaw — BLOCKED: ToolRegistry, ToolRouter still in active use (legacy path is default; OpenClaw path is feature-flagged via `use_openclaw_tools`)
 - [ ] No retired modules remain in codebase — BLOCKED: 5 of 8 OPENCLAW-REPLACE modules still have active callers (plugin_loader.py + executor.py + browser_automation.py retired; event_bus, tool_registry, tool_router, dashboard, messaging still blocked)
 - [x] CLI works with all commands — `python -m rex --help` passes; no regressions introduced
-- [ ] Dashboard runs via OpenClaw — BLOCKED: DashboardStore has 6 active callers
+- [ ] Dashboard runs via OpenClaw — BLOCKED: only gui_app.py remains (excluded per Non-Goals; GUI migration is a separate future effort)
 - [x] All tests pass — `pytest -q` green throughout all Phase 6 and Phase 7 iterations
-- [ ] `docs/openclaw-migration-status.md` shows all modules at "Complete" — BLOCKED: file not yet created; retirement blocked by active callers
+- [ ] `docs/openclaw-migration-status.md` shows all modules at "Complete" — file exists and updated (Phase 1 + this iteration); retirement of event_bus, tool_registry, tool_router, dashboard, and messaging still blocked by active callers
 
 ---
 
