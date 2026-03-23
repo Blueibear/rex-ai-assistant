@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-from rex.dashboard_store import DashboardStore, DashboardStoreConfig, load_dashboard_store_config
+from rex.dashboard_store import DashboardStoreConfig, load_dashboard_store_config
 from rex.messaging_backends.inbound_store import (
     InboundSmsStore,
     InboundStoreConfig,
@@ -130,44 +130,20 @@ def test_load_inbound_store_config_preserves_cleanup_schedule() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_dashboard_job_registered(tmp_path: Path) -> None:
-    """Job is created when cleanup_schedule is set."""
+def test_dashboard_job_is_noop(tmp_path: Path) -> None:
+    """setup_dashboard_cleanup_job is a no-op (dashboard_store pending retirement)."""
     sched = _make_scheduler(tmp_path)
     result = setup_dashboard_cleanup_job(_dashboard_config(), sched)
-    assert result is True
-    job = sched.get_job("dashboard_retention_cleanup")
-    assert job is not None
-    assert job.name == "Dashboard Notification Retention Cleanup"
-    assert job.schedule == "interval:86400"
-    assert job.enabled is True
-
-
-def test_dashboard_job_skipped_when_schedule_is_null(tmp_path: Path) -> None:
-    """No job is created when cleanup_schedule is null."""
-    sched = _make_scheduler(tmp_path)
-    result = setup_dashboard_cleanup_job(_dashboard_config(cleanup_schedule=None), sched)
     assert result is False
     assert sched.get_job("dashboard_retention_cleanup") is None
 
 
-def test_dashboard_job_skipped_with_empty_config(tmp_path: Path) -> None:
-    """No job is created when config section is entirely absent (uses default)."""
+def test_dashboard_job_noop_regardless_of_schedule(tmp_path: Path) -> None:
+    """No-op whether cleanup_schedule is set or null."""
     sched = _make_scheduler(tmp_path)
-    # Empty dict → DashboardStoreConfig defaults → cleanup_schedule="interval:86400"
-    # so the job should still be registered.
-    result = setup_dashboard_cleanup_job({}, sched)
-    assert result is True
-
-
-def test_dashboard_job_idempotent(tmp_path: Path) -> None:
-    """Calling setup twice does not create a duplicate job."""
-    sched = _make_scheduler(tmp_path)
-    r1 = setup_dashboard_cleanup_job(_dashboard_config(), sched)
-    r2 = setup_dashboard_cleanup_job(_dashboard_config(), sched)
-    assert r1 is True
-    assert r2 is True
-    jobs = [j for j in sched.list_jobs() if j.job_id == "dashboard_retention_cleanup"]
-    assert len(jobs) == 1
+    assert setup_dashboard_cleanup_job(_dashboard_config(cleanup_schedule=None), sched) is False
+    assert setup_dashboard_cleanup_job(_dashboard_config(), sched) is False
+    assert setup_dashboard_cleanup_job({}, sched) is False
 
 
 # ---------------------------------------------------------------------------
@@ -228,21 +204,21 @@ def test_inbound_job_idempotent(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_setup_retention_jobs_both_enabled(tmp_path: Path) -> None:
-    """Both jobs registered when both are fully configured."""
+def test_setup_retention_jobs_inbound_enabled(tmp_path: Path) -> None:
+    """Inbound SMS job registered; dashboard is a no-op (pending retirement)."""
     raw = {**_dashboard_config(), **_inbound_config(enabled=True)}
     sched = _make_scheduler(tmp_path)
     results = setup_retention_jobs(raw, sched)
-    assert results["dashboard"] is True
+    assert results["dashboard"] is False
     assert results["inbound_sms"] is True
 
 
-def test_setup_retention_jobs_only_dashboard(tmp_path: Path) -> None:
-    """Only dashboard job registered when inbound is disabled."""
+def test_setup_retention_jobs_both_disabled(tmp_path: Path) -> None:
+    """No jobs registered when inbound is disabled (dashboard is always no-op)."""
     raw = {**_dashboard_config(), **_inbound_config(enabled=False)}
     sched = _make_scheduler(tmp_path)
     results = setup_retention_jobs(raw, sched)
-    assert results["dashboard"] is True
+    assert results["dashboard"] is False
     assert results["inbound_sms"] is False
 
 
@@ -267,60 +243,6 @@ def test_setup_retention_jobs_with_none_config_does_not_crash(tmp_path: Path) ->
         mock_fn.side_effect = lambda rc, s: {"dashboard": False, "inbound_sms": False}
         results = mock_fn(None, sched)
     assert results == {"dashboard": False, "inbound_sms": False}
-
-
-# ---------------------------------------------------------------------------
-# Job execution — dashboard
-# ---------------------------------------------------------------------------
-
-
-def test_dashboard_cleanup_job_executes_correctly(tmp_path: Path) -> None:
-    """Running the dashboard cleanup job removes stale notifications."""
-    db = tmp_path / "dash.db"
-    store = DashboardStore(db_path=db, retention_days=1)
-
-    # Insert one old notification and one recent one.
-    old_ts = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
-    store.write(notification_id="old-1", title="Old", body="old body", priority="normal")
-    # Manually set old timestamp via raw SQL
-    import sqlite3
-
-    with sqlite3.connect(str(db)) as conn:
-        conn.execute("UPDATE notifications SET timestamp = ? WHERE id = ?", (old_ts, "old-1"))
-        conn.commit()
-    store.write(notification_id="new-1", title="New", body="new body", priority="normal")
-
-    assert store.count_unread() == 2
-
-    # Register the job pointing at the temp db.
-    sched = _make_scheduler(tmp_path)
-    raw = _dashboard_config(path=str(db), retention_days=1)
-    setup_dashboard_cleanup_job(raw, sched)
-
-    # Run the job manually.
-    assert sched.run_job("dashboard_retention_cleanup", force=True) is True
-
-    # The old notification should be gone; the recent one should remain.
-    remaining = store.query_recent(limit=10)
-    ids = [n.id for n in remaining]
-    assert "old-1" not in ids
-    assert "new-1" in ids
-
-
-def test_dashboard_cleanup_job_idempotent_execution(tmp_path: Path) -> None:
-    """Running cleanup twice on a clean store yields zero removals both times."""
-    db = tmp_path / "dash.db"
-    store = DashboardStore(db_path=db, retention_days=30)
-    store.write(notification_id="n-1", title="T", body="B", priority="normal")
-
-    sched = _make_scheduler(tmp_path)
-    setup_dashboard_cleanup_job(_dashboard_config(path=str(db), retention_days=30), sched)
-
-    assert sched.run_job("dashboard_retention_cleanup", force=True) is True
-    assert store.count_unread() == 1  # Nothing removed (notification is fresh)
-
-    assert sched.run_job("dashboard_retention_cleanup", force=True) is True
-    assert store.count_unread() == 1  # Still nothing removed
 
 
 # ---------------------------------------------------------------------------
@@ -382,10 +304,11 @@ def test_wire_retention_cleanup_returns_true_when_job_registered(tmp_path: Path)
     sched = _make_scheduler(tmp_path)
     set_scheduler(sched)
     try:
-        raw = _dashboard_config()
+        # Dashboard is a no-op; use inbound to get a registered job.
+        raw = {**_dashboard_config(), **_inbound_config(enabled=True)}
         result = wire_retention_cleanup(raw)
         assert result is True
-        assert sched.get_job("dashboard_retention_cleanup") is not None
+        assert sched.get_job("inbound_sms_retention_cleanup") is not None
     finally:
         set_scheduler(None)  # type: ignore[arg-type]
 
