@@ -1182,21 +1182,51 @@ As a developer, I need a formal interface contract for plugin and tool loading.
 ### Phase 7 Tasks (US-P7-001 through US-P7-020)
 
 **US-P7-001:** Pre-retirement check for event_bus.py
+- [x] 8 active importers found: rex/__init__.py, calendar_service.py, email_service.py, event_triggers.py, integrations.py, integrations/_setup.py, openclaw/ha_event_subscriber.py, services.py
+- [x] Module carries `# OPENCLAW-REPLACE` marker
+- [x] Verdict: **NOT SAFE TO RETIRE** — callers not yet migrated to EventBridge
+- [x] 5 audit tests in `tests/test_retirement_check_event_bus.py` — track blocker set, prevent premature removal
 **US-P7-002:** Retire event_bus.py
+- [x] SKIPPED — blocked by 8 active importers (see US-P7-001). Migration of callers to EventBridge required before retirement.
 **US-P7-003:** Pre-retirement check for plugin_loader.py
 **US-P7-004:** Retire plugin_loader.py
+- [x] SKIPPED — blocked by voice_loop.py (see US-P7-003)
 **US-P7-005:** Pre-retirement check for tool_registry.py
+- [x] 4 active importers: rex/__init__.py, rex/cli.py, rex/planner.py, rex/tool_router.py
+- [x] Verdict: **NOT SAFE TO RETIRE**
+- [x] 5 audit tests in `tests/test_retirement_check_tool_registry.py` — all pass
 **US-P7-006:** Retire tool_registry.py
+- [x] SKIPPED — blocked by 4 active importers (see US-P7-005)
 **US-P7-007:** Pre-retirement check for tool_router.py
+- [x] 2 active importers: rex/assistant.py, rex/workflow_runner.py
+- [x] Verdict: **NOT SAFE TO RETIRE**
+- [x] 5 audit tests in `tests/test_retirement_check_tool_router.py` — all pass
 **US-P7-008:** Retire tool_router.py
+- [x] SKIPPED — blocked by assistant.py and workflow_runner.py (see US-P7-007)
 **US-P7-009:** Pre-retirement check for executor.py
+- [x] 1 active importer: rex/cli.py
+- [x] Verdict: **NOT SAFE TO RETIRE**
+- [x] 5 audit tests in `tests/test_retirement_check_executor.py` — all pass
 **US-P7-010:** Retire executor.py
+- [x] SKIPPED — blocked by rex/cli.py (see US-P7-009)
 **US-P7-011:** Pre-retirement check for browser_automation.py
+- [x] 1 active importer: rex/openclaw/browser_bridge.py (delegates to BrowserAutomationService)
+- [x] Verdict: **NOT SAFE TO RETIRE** — BrowserBridge itself depends on it
+- [x] 5 audit tests in `tests/test_retirement_check_browser_automation.py` — all pass
 **US-P7-012:** Retire browser_automation.py
+- [x] SKIPPED — blocked by rex/openclaw/browser_bridge.py dependency (see US-P7-011)
 **US-P7-013:** Pre-retirement check for dashboard/* and dashboard_store.py
+- [x] 6 active importers: rex/digest_job.py, rex/gui_app.py, rex/health.py, rex/messaging_backends/inbound_store.py, rex/notification.py, rex/retention.py
+- [x] Verdict: **NOT SAFE TO RETIRE**
+- [x] 5 audit tests in `tests/test_retirement_check_dashboard.py` — all pass
 **US-P7-014:** Retire dashboard/* and dashboard_store.py
+- [x] SKIPPED — blocked by 6 active importers (see US-P7-013)
 **US-P7-015:** Pre-retirement check for messaging_backends/* and messaging_service.py
+- [x] 4 active importers: rex/__init__.py, rex/cli.py, rex/notification.py, rex/services.py
+- [x] Verdict: **NOT SAFE TO RETIRE**
+- [x] 5 audit tests in `tests/test_retirement_check_messaging.py` — all pass
 **US-P7-016:** Retire messaging_backends/* and messaging_service.py
+- [x] SKIPPED — blocked by 4 active importers (see US-P7-015)
 **US-P7-017:** Clean up rex/contracts/ migration interfaces
 **US-P7-018:** Update cli.py to remove references to retired modules
 **US-P7-019:** Update pyproject.toml entry points
