@@ -179,3 +179,25 @@
   - US-013 was a pure docstring task; the file had no TODO comments or register() stubs left
   - 7 async test failures in test_openclaw_browser_bridge.py are pre-existing (pytest-asyncio missing) — not caused by our changes
 ---
+
+## Iteration 14 (bonus) - US-015: Update ApprovalAdapter for local-only operation
+- Docstring updated in HEAD commit (fb3fdb0): added "Approvals are managed locally by Rex. OpenClaw has its own exec approval flow via WebSocket; bridging is out of scope for HTTP integration."
+- No TODO comments existed; register() was already removed by US-011
+- All CRUD methods already delegate to local rex.workflow_runner functions
+- Files changed: `rex/openclaw/approval_adapter.py` (docstring only, committed in fb3fdb0)
+- Learnings for future iterations:
+  - US-015 was completed in the same linter-hook commit that did US-014 docstring cleanup; check git log before starting a new iteration
+---
+
+## Iteration 14 - US-014: Update IdentityAdapter for local-only operation with session key passthrough
+- Added `get_openclaw_user_key(explicit_user=None) -> str` to `IdentityAdapter`: priority chain explicit_user → resolve_active_user() → config user_id → "rex" (never returns empty string)
+- Updated `RexAgent.__init__` to accept `identity_adapter` kwarg; stores as `self._identity`
+- Updated `RexAgent.respond()`: derives `oc_user = user_key if user_key is not None else self._identity.get_openclaw_user_key()` and always includes `user` field in OpenClaw payload
+- Updated `test_openclaw_agent_http_respond.py`: renamed `test_payload_omits_user_field_when_no_user_key` → `test_payload_uses_identity_adapter_when_no_user_key` (user field is now always present)
+- Added 6 tests in `TestGetOpenClawUserKey` class: explicit user, session user, config fallback, default "rex", consistency, non-empty guarantee
+- Files changed: `rex/openclaw/identity_adapter.py`, `rex/openclaw/agent.py`, `tests/test_openclaw_identity_adapter.py`, `tests/test_openclaw_agent_http_respond.py`
+- Learnings for future iterations:
+  - A linter hook automatically committed identity_adapter.py and agent.py changes before `git add` was run — check git log before staging to avoid double-committing code files
+  - `get_openclaw_user_key()` must never return "" — the "rex" default ensures OpenClaw always gets a valid session key
+  - Patch `agent._identity.get_openclaw_user_key` via `patch.object(agent._identity, ...)` to control the identity key in agent tests
+---

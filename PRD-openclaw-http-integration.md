@@ -304,12 +304,12 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a developer, I want ApprovalAdapter to keep using local file-based approvals since OpenClaw's exec approval system is WebSocket-based and not something we can bridge via simple HTTP calls.
 
 **Acceptance Criteria:**
-- [ ] All CRUD methods (`create`, `load`, `approve`, `deny`, `list_pending`) continue using local `rex.workflow_runner` functions
-- [ ] Remove all TODO comments about replacing with OpenClaw approval registration
-- [ ] Remove the dead `register()` method
-- [ ] Add docstring: "Approvals are managed locally by Rex. OpenClaw has its own exec approval flow via WebSocket; bridging is out of scope for HTTP integration."
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] All CRUD methods (`create`, `load`, `approve`, `deny`, `list_pending`) continue using local `rex.workflow_runner` functions
+- [x] Remove all TODO comments about replacing with OpenClaw approval registration
+- [x] Remove the dead `register()` method
+- [x] Add docstring: "Approvals are managed locally by Rex. OpenClaw has its own exec approval flow via WebSocket; bridging is out of scope for HTTP integration."
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 
