@@ -128,3 +128,32 @@
   - `OpenClawAPIError` status check: `exc.status == 403` / `exc.status == 404` — the `status` attribute is on the exception class
   - ruff auto-fixed one import ordering issue in tool_bridge.py; black reformatted both files — always run both before final test
 ---
+
+## Iteration 10 - US-010: Rewire MemoryAdapter for OpenClaw session persistence
+- Updated module docstring to clarify: Rex local memory is source of truth; OpenClaw session sync is implicit via `user` field in chat completions (RexAgent.respond), NOT via direct HTTP calls from MemoryAdapter
+- Updated `append_entry()` docstring: explains dual-write pattern (local now + OpenClaw on next completion via user field); removed "Delegates to OpenClaw's storage write API" stub language
+- Updated `load_recent()` docstring: "always reads from Rex's local file-based storage"; removed stub language about OpenClaw delegation
+- Updated `trim_history()` docstring: "Always operates locally"
+- Added 5 new tests in `TestDualWriteBehaviour` class: append calls _rex_append, append with gateway configured still writes locally (no HTTP call), load_recent always calls _rex_load_recent, load_recent without gateway, trim_history makes no HTTP calls
+- Files changed: `rex/openclaw/memory_adapter.py`, `tests/test_openclaw_memory.py`, `PRD-openclaw-http-integration.md`
+- Learnings for future iterations:
+  - The "dual-write" in US-010 is conceptual: local write (via _rex_append) + OpenClaw session update (via user field in next RexAgent.respond() call) — MemoryAdapter itself makes ZERO HTTP calls
+  - Patch `rex.openclaw.memory_adapter._rex_append` and `rex.openclaw.memory_adapter._rex_load_recent` to intercept the imported names in the adapter module
+  - Patch `rex.openclaw.http_client.get_openclaw_client` to simulate gateway-configured state in MemoryAdapter tests (even though the adapter doesn't call it, the test verifies no HTTP leakage)
+  - black reformatted the test file (long context managers); always run black before final check
+---
+
+## Iteration 11 - US-011: Clean up dead register() stubs in all tool and adapter modules
+- Removed `register(agent=None)` from all 10 tool modules: time, weather, email, sms, calendar, ha, plex, woocommerce, wordpress, business
+- `business_tool.py` required full rewrite — it previously imported and called woocommerce/wordpress register functions; now simplified to export constants only
+- Removed all `register_*_tools()` and `register()` methods from `ToolBridge` (200+ lines removed) and all 5 adapter/bridge classes
+- Deleted `tests/test_openclaw_tool_bridge_register.py` entirely
+- Stripped register() tests from 13 other test files
+- 201 tests pass; 7 pre-existing async browser_bridge failures unchanged
+- Commit: refactor(openclaw): remove dead register() stubs from all tool and adapter modules
+
+### Learnings
+- When a module imports from another module's removed function, you must rewrite the importer entirely — not just remove one function
+- `git add <deleted-file>` stages deletions; don't forget deleted files when staging
+- Always check `git status` for deleted files that don't show up as "modified"
+---

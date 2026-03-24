@@ -231,11 +231,11 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 
 ---
 
-### US-011: Clean up dead register() stubs in all tool modules
+### US-011: Clean up dead register() stubs in all tool modules ✓
 **Description:** As a developer, I want to remove the no-op `register()` functions from all tool modules since tool registration now happens via the ToolServer HTTP endpoint (US-007/US-008), not via Python function registration.
 
 **Acceptance Criteria:**
-- [ ] In each of these files, remove the `register(agent=None)` function entirely:
+- [x] In each of these files, remove the `register(agent=None)` function entirely:
   - `rex/openclaw/tools/time_tool.py`
   - `rex/openclaw/tools/weather_tool.py`
   - `rex/openclaw/tools/email_tool.py`
@@ -246,14 +246,14 @@ The target branch is a new branch off `master` (PR #216 has been merged).
   - `rex/openclaw/tools/woocommerce_tool.py`
   - `rex/openclaw/tools/plex_tool.py`
   - `rex/openclaw/tools/business_tool.py`
-- [ ] Keep the actual tool handler functions (e.g. `time_now()`, `weather_now()`, `send_email()`, etc.) unchanged
-- [ ] Remove `register()` from `ToolBridge` class as well (lines 220-240 in `tool_bridge.py`)
-- [ ] Remove `register()` from `PolicyAdapter`, `ApprovalAdapter`, `IdentityAdapter`, `EventBridge`, `BrowserBridge`
-- [ ] Update any imports that reference these removed `register` functions
-- [ ] `grep -r "def register(" rex/openclaw/` returns zero results (except `tool_registry.py` which has a different `register` for internal tool metadata)
-- [ ] All existing tests pass (update any that called `register()`)
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] Keep the actual tool handler functions (e.g. `time_now()`, `weather_now()`, `send_email()`, etc.) unchanged
+- [x] Remove `register()` from `ToolBridge` class as well (lines 220-240 in `tool_bridge.py`)
+- [x] Remove `register()` from `PolicyAdapter`, `ApprovalAdapter`, `IdentityAdapter`, `EventBridge`, `BrowserBridge`
+- [x] Update any imports that reference these removed `register` functions
+- [x] `grep -r "def register(" rex/openclaw/` returns zero results (except `tool_registry.py` which has a different `register` for internal tool metadata)
+- [x] All existing tests pass (update any that called `register()`)
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 
