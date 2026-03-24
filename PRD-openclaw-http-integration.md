@@ -201,17 +201,17 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a developer, I want `ToolBridge.execute_tool()` to dispatch tool calls either locally or via OpenClaw depending on the feature flag, so the same tool call works in both standalone and integrated modes.
 
 **Acceptance Criteria:**
-- [ ] `ToolBridge.execute_tool()` checks `config.use_openclaw_tools` and `get_openclaw_client()`
-- [ ] If both are truthy: POST to OpenClaw's `/tools/invoke` with `{"tool": tool_name, "args": args, "sessionKey": context.get("session_key", "main")}`
-- [ ] Parse response: `200` with result, `403` raises `PolicyDeniedError`, `404` falls back to local execution, `429` retries per client config
-- [ ] If flag is False or client is None: execute locally via existing `_execute_tool()` (no behavior change)
-- [ ] `parse_tool_request()` always runs locally (no HTTP needed for parsing)
-- [ ] `route_if_tool_request()` uses the updated `execute_tool()` internally
-- [ ] Unit test: mock HTTP, verify `/tools/invoke` request format
-- [ ] Unit test: verify 404 falls back to local
-- [ ] Unit test: verify standalone mode unchanged
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] `ToolBridge.execute_tool()` checks `config.use_openclaw_tools` and `get_openclaw_client()`
+- [x] If both are truthy: POST to OpenClaw's `/tools/invoke` with `{"tool": tool_name, "args": args, "sessionKey": context.get("session_key", "main")}`
+- [x] Parse response: `200` with result, `403` raises `PolicyDeniedError`, `404` falls back to local execution, `429` retries per client config
+- [x] If flag is False or client is None: execute locally via existing `_execute_tool()` (no behavior change)
+- [x] `parse_tool_request()` always runs locally (no HTTP needed for parsing)
+- [x] `route_if_tool_request()` uses the updated `execute_tool()` internally
+- [x] Unit test: mock HTTP, verify `/tools/invoke` request format
+- [x] Unit test: verify 404 falls back to local
+- [x] Unit test: verify standalone mode unchanged
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 

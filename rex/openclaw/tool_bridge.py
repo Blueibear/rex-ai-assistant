@@ -1,15 +1,21 @@
-"""OpenClaw tool bridge — US-P4-003 (updated US-P7-008).
+"""OpenClaw tool bridge — US-P4-003 (updated US-P7-008, US-009).
 
 Implements :class:`~rex.contracts.tool_routing.ToolRoutingProtocol` by
 delegating to :mod:`rex.openclaw.tool_executor` module-level functions.
 
 This bridge presents the ``ToolRoutingProtocol`` interface so that callers
-do not need to import the internal tool executor directly.  The full
-OpenClaw tool-dispatch API is a stub pending PRD §8.3 confirmation.
+do not need to import the internal tool executor directly.
 
-When the ``openclaw`` package is not installed, :func:`register` logs a
-warning and returns ``None``.  All other methods work without OpenClaw
-installed because they delegate to the internal tool executor.
+When ``use_openclaw_tools`` is True and the OpenClaw gateway is configured,
+:meth:`execute_tool` dispatches via HTTP POST to ``/tools/invoke``.  On a
+404 response (tool not registered in OpenClaw) or connection failure, it
+falls back to local execution transparently.  A 403 response raises
+:class:`~rex.openclaw.tool_executor.PolicyDeniedError` so callers can
+surface the denial to the user.
+
+When the flag is False or no gateway URL is set, all calls go through the
+local :func:`~rex.openclaw.tool_executor.execute_tool` — identical
+behaviour to the pre-HTTP era.
 
 Typical usage::
 
@@ -30,8 +36,13 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
+from rex.openclaw.errors import OpenClawAPIError, OpenClawAuthError, OpenClawConnectionError
+from rex.openclaw.http_client import get_openclaw_client
+from rex.openclaw.tool_executor import (
+    PolicyDeniedError,
+)
 from rex.openclaw.tool_executor import (
     execute_tool as _execute_tool,
 )
@@ -41,6 +52,9 @@ from rex.openclaw.tool_executor import (
 from rex.openclaw.tool_executor import (
     route_if_tool_request as _route_if_tool_request,
 )
+
+if TYPE_CHECKING:
+    from rex.config import AppConfig
 from rex.openclaw.tools.business_tool import register_all_business_tools as _register_business_tools
 from rex.openclaw.tools.calendar_tool import register as _register_calendar_create
 from rex.openclaw.tools.email_tool import register as _register_send_email
@@ -62,15 +76,17 @@ class ToolBridge:
     delegating all three core operations to the corresponding module-level
     functions in :mod:`rex.openclaw.tool_executor`.
 
-    When ``openclaw`` is installed, :meth:`register` registers the bridge
-    as the tool provider so that OpenClaw dispatches tool calls through Rex
-    (stub — filled in once the OpenClaw tool-provider API is confirmed, see
-    PRD §8.3).
+    When ``config.use_openclaw_tools`` is True and the gateway is reachable,
+    :meth:`execute_tool` dispatches via HTTP instead of running locally.
+    All other methods always run locally.
 
-    Without OpenClaw the bridge is still useful as a thin convenience
-    wrapper that satisfies the :class:`~rex.contracts.tool_routing.ToolRoutingProtocol`
-    structural type.
+    Args:
+        config: Optional :class:`~rex.config.AppConfig`.  When *None*, the
+            config is loaded lazily from ``rex_config.json`` on first use.
     """
+
+    def __init__(self, config: AppConfig | None = None) -> None:
+        self._config = config
 
     # ------------------------------------------------------------------
     # ToolRoutingProtocol implementation
@@ -103,21 +119,73 @@ class ToolBridge:
     ) -> dict[str, Any]:
         """Execute a decoded tool request and return a result dictionary.
 
-        Delegates to :func:`~rex.openclaw.tool_executor.execute_tool`.
+        Dispatches via OpenClaw HTTP when ``use_openclaw_tools`` is True and
+        the gateway is configured; otherwise runs locally.
+
+        HTTP behaviour:
+        - ``200`` → returns the response dict from OpenClaw.
+        - ``403`` → raises :class:`~rex.openclaw.tool_executor.PolicyDeniedError`.
+        - ``404`` → tool not registered in OpenClaw; falls back to local.
+        - ``429`` / ``5xx`` → retried by :class:`~rex.openclaw.http_client.OpenClawClient`;
+          after retries exhausted raises :class:`~rex.openclaw.errors.OpenClawAPIError`.
+        - Connection / auth errors → falls back to local execution.
 
         Args:
             request: Dict with ``"tool"`` and ``"args"`` keys.
             default_context: Ambient context (timezone, location, user, …).
-            skip_policy_check: When *True*, bypass policy gating.
-            skip_credential_check: When *True*, bypass credential validation.
-            task_id: Optional correlation ID for audit logging.
-            requested_by: Optional identifier of the requesting entity.
-            skip_audit_log: When *True*, do not write an audit log entry.
+            skip_policy_check: When *True*, bypass policy gating (local only).
+            skip_credential_check: When *True*, bypass credential validation (local only).
+            task_id: Optional correlation ID for audit logging (local only).
+            requested_by: Optional identifier of the requesting entity (local only).
+            skip_audit_log: When *True*, do not write an audit log entry (local only).
 
         Returns:
             A dict containing at minimum a ``"status"`` key (``"ok"`` or
             ``"error"``) and a ``"result"`` key with the tool output.
+
+        Raises:
+            PolicyDeniedError: If OpenClaw returns 403 for the tool call.
         """
+        cfg = self._config
+        if cfg is None:
+            from rex.config import load_config as _load_config
+
+            cfg = _load_config()
+
+        client = get_openclaw_client(cfg)
+
+        if cfg.use_openclaw_tools and client is not None:
+            tool_name = request.get("tool", "")
+            args = request.get("args", {}) or {}
+            payload: dict[str, Any] = {
+                "tool": tool_name,
+                "args": args,
+                "sessionKey": default_context.get("session_key", "main"),
+            }
+            try:
+                result: dict[str, Any] = client.post("/tools/invoke", json=payload)
+                logger.debug("OpenClaw tool dispatch succeeded: tool=%s", tool_name)
+                return result
+            except OpenClawAPIError as exc:
+                if exc.status == 403:
+                    logger.warning("OpenClaw policy denied tool=%s: %s", tool_name, exc)
+                    raise PolicyDeniedError(tool_name, str(exc)) from exc
+                if exc.status == 404:
+                    logger.info(
+                        "Tool %s not found in OpenClaw (404), falling back to local",
+                        tool_name,
+                    )
+                    # fall through to local execution below
+                else:
+                    raise
+            except (OpenClawConnectionError, OpenClawAuthError) as exc:
+                logger.warning(
+                    "OpenClaw tool dispatch error for tool=%s, falling back to local: %s",
+                    tool_name,
+                    exc,
+                )
+                # fall through to local execution below
+
         return _execute_tool(
             request,
             default_context,

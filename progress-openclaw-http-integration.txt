@@ -91,6 +91,18 @@
   - `wc_list_orders` has keyword-only args after `*` — calling `handler(**args, context=context)` works fine since Python allows passing positional args as kwargs
 ---
 
+## Iteration 8 - US-008: Create OpenClaw-to-Rex webhook receiver for /tools/invoke
+- `main()` and `_add_health_routes()` were already in tool_server.py from US-007; only missing pieces were the entrypoint, docs, and integration test
+- Added `rex-tool-server` entry point to `pyproject.toml` → `rex.openclaw.tool_server:main`
+- Added §9 to `docs/openclaw-agent-setup.md`: start cmd, health endpoints, example JSON + YAML skill configs, full tool table, rate-limit/auth reference
+- Created `tests/test_openclaw_tool_server_integration.py` with 11 integration tests using Flask test client (no real TCP socket)
+- Files changed: `pyproject.toml`, `docs/openclaw-agent-setup.md`, `tests/test_openclaw_tool_server_integration.py`
+- Learnings for future iterations:
+  - `time_now()` requires a location; without one it returns `{"error": {...}}` (HTTP 200, handler ran cleanly). Tests should assert on `isinstance(result, dict)` not specific keys when no location is provided.
+  - `PolicyDeniedError(tool, reason)` takes TWO args — tool name first, then reason. `PolicyDeniedError("msg")` fails with "missing required positional argument"
+  - `_add_health_routes` is module-level (not a method) — import it directly when building test apps that need health probes
+---
+
 ## Iteration 6 - US-006: Rewire VoiceBridge.generate_reply() to use OpenClaw HTTP
 - Changed empty/whitespace transcript handling from `raise ValueError` to `return ""` (voice loop already guards empty transcripts, but VoiceBridge must be safe as a standalone object)
 - Added try/except around `self.agent.respond()` — logs exception, returns `"I had trouble reaching the server. Try again."`
@@ -101,4 +113,18 @@
   - `mock_client.post.call_args.args[0]` gives positional arg, `call_args.kwargs["json"]` gives the keyword arg — agent.py uses `client.post(path, json=payload)` not positional
   - The existing text_mode/flag tests skip if openwakeword not installed — they mock generate_reply at the bridge level so VoiceBridge changes don't break them
   - black reformats test files with long function signatures; run `ruff check --fix` then `black` then re-run tests after formatting
+---
+
+## Iteration 9 - US-009: Rewire ToolBridge.execute_tool() for dual-mode dispatch
+- Added `__init__(self, config=None)` to `ToolBridge` — config stored as `self._config`, lazy-loaded via `load_config()` when None
+- Updated `execute_tool()`: checks `cfg.use_openclaw_tools and client is not None`; if truthy POSTs to `/tools/invoke` with `{tool, args, sessionKey}`
+- 403 → raises `PolicyDeniedError(tool_name, str(exc))`; 404 → falls back to local; connection/auth errors → fall back to local; other 5xx → re-raises `OpenClawAPIError`
+- `parse_tool_request()` and `route_if_tool_request()` unchanged (always local)
+- Created `tests/test_openclaw_tool_bridge_http.py` with 12 tests covering: HTTP path, request format, sessionKey default, 403, 404 fallback, 5xx raise, connection/auth fallback, flag=False skip, client=None skip, standalone mode kwargs forwarding
+- Files changed: `rex/openclaw/tool_bridge.py`, `tests/test_openclaw_tool_bridge_http.py`, `PRD-openclaw-http-integration.md`
+- Learnings for future iterations:
+  - `ToolBridge()` is called with no args in 30 existing tests — making config optional with lazy load was critical for backward compat
+  - Patch `rex.openclaw.tool_bridge.get_openclaw_client` (the imported name in tool_bridge.py), not `rex.openclaw.http_client.get_openclaw_client`, when testing tool_bridge dispatch logic
+  - `OpenClawAPIError` status check: `exc.status == 403` / `exc.status == 404` — the `status` attribute is on the exception class
+  - ruff auto-fixed one import ordering issue in tool_bridge.py; black reformatted both files — always run both before final test
 ---
