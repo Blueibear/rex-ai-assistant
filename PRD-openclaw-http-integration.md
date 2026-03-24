@@ -184,16 +184,16 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a user, I want OpenClaw to be able to call Rex's tools (like Home Assistant, Plex control, email) from any channel, so when I message "turn off the lights" on Telegram, OpenClaw can invoke Rex's HA tool.
 
 **Acceptance Criteria:**
-- [ ] `ToolServer` from US-007 is started alongside `rex_speak_api.py` (or as a standalone entrypoint)
-- [ ] New entry point `rex-tool-server` added to `pyproject.toml` pointing to `rex.openclaw.tool_server:main`
-- [ ] `main()` starts a Flask app on `127.0.0.1:18790` (configurable via `REX_TOOL_SERVER_PORT`)
-- [ ] Server registers health check at `/health/live` and `/health/ready`
-- [ ] Document in `docs/openclaw-agent-setup.md` how to configure OpenClaw to call Rex's tool server:
+- [x] `ToolServer` from US-007 is started alongside `rex_speak_api.py` (or as a standalone entrypoint)
+- [x] New entry point `rex-tool-server` added to `pyproject.toml` pointing to `rex.openclaw.tool_server:main`
+- [x] `main()` starts a Flask app on `127.0.0.1:18790` (configurable via `REX_TOOL_SERVER_PORT`)
+- [x] Server registers health check at `/health/live` and `/health/ready`
+- [x] Document in `docs/openclaw-agent-setup.md` how to configure OpenClaw to call Rex's tool server:
   - Add Rex tools to OpenClaw's skill/tool config pointing at `http://127.0.0.1:18790/rex/tools/{tool_name}`
-- [ ] Include example OpenClaw skill YAML/JSON config snippet in docs
-- [ ] Integration test: start tool server, POST to `/rex/tools/time_now`, verify response
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] Include example OpenClaw skill YAML/JSON config snippet in docs
+- [x] Integration test: start tool server, POST to `/rex/tools/time_now`, verify response
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 

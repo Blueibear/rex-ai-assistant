@@ -288,7 +288,215 @@ conversation context persists across Rex restarts.
 
 ---
 
-## 9. Open Dependencies (PRD §8.3)
+## 9. Rex Tool Server (HTTP endpoint for OpenClaw)
+
+Rex exposes its tools as HTTP endpoints so that the OpenClaw gateway — and
+any other authorised caller — can invoke Rex's tools directly without going
+through the voice loop.
+
+```
+OpenClaw Gateway  →  POST /rex/tools/{tool_name}  →  Rex tool server (:18790)
+```
+
+### 9.1 Starting the tool server
+
+**Standalone** (recommended for production):
+
+```bash
+# Set auth key and optional port first
+export REX_TOOL_API_KEY=<strong-random-secret>
+export REX_TOOL_SERVER_PORT=18790   # default
+
+rex-tool-server
+```
+
+After `pip install .`, the `rex-tool-server` console script is available.
+The server binds to `127.0.0.1:18790` and logs to stdout.
+
+**Health checks** (no auth required):
+
+```bash
+curl http://127.0.0.1:18790/health/live
+# {"status": "ok"}
+
+curl http://127.0.0.1:18790/health/ready
+# {"status": "ok", "tool_count": 14}
+```
+
+### 9.2 Calling a tool
+
+```bash
+curl -X POST http://127.0.0.1:18790/rex/tools/time_now \
+  -H "Authorization: Bearer $REX_TOOL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"args": {"location": "Edinburgh, Scotland"}, "context": {"session_key": "main"}}'
+```
+
+Success response (200):
+
+```json
+{
+  "status": "success",
+  "result": {
+    "local_time": "2026-03-24 10:00",
+    "date": "2026-03-24",
+    "timezone": "Europe/London"
+  }
+}
+```
+
+Error response (e.g. 403 policy denied):
+
+```json
+{"error": {"code": "forbidden", "message": "Tool send_email denied by policy"}}
+```
+
+### 9.3 Configuring OpenClaw to call Rex tools
+
+Add Rex's tool server to OpenClaw's skill/tool configuration so that any
+OpenClaw channel (WhatsApp, Telegram, Discord, etc.) can invoke Rex's tools.
+
+**Example OpenClaw skill config (JSON)**
+
+Add entries like the following to your OpenClaw skills or tools config file:
+
+```json
+{
+  "skills": [
+    {
+      "name": "rex_time_now",
+      "description": "Get the current local time for a location",
+      "endpoint": "http://127.0.0.1:18790/rex/tools/time_now",
+      "method": "POST",
+      "auth": {
+        "type": "bearer",
+        "token_env": "REX_TOOL_API_KEY"
+      },
+      "schema": {
+        "args": {
+          "location": {"type": "string", "description": "City or timezone name"}
+        }
+      }
+    },
+    {
+      "name": "rex_weather_now",
+      "description": "Get the current weather for a location",
+      "endpoint": "http://127.0.0.1:18790/rex/tools/weather_now",
+      "method": "POST",
+      "auth": {
+        "type": "bearer",
+        "token_env": "REX_TOOL_API_KEY"
+      },
+      "schema": {
+        "args": {
+          "location": {"type": "string", "description": "City name"}
+        }
+      }
+    },
+    {
+      "name": "rex_send_email",
+      "description": "Send an email via Rex's configured email backend",
+      "endpoint": "http://127.0.0.1:18790/rex/tools/send_email",
+      "method": "POST",
+      "auth": {
+        "type": "bearer",
+        "token_env": "REX_TOOL_API_KEY"
+      },
+      "schema": {
+        "args": {
+          "to": {"type": "string"},
+          "subject": {"type": "string"},
+          "body": {"type": "string"}
+        }
+      }
+    }
+  ]
+}
+```
+
+**Example OpenClaw skill config (YAML)**
+
+```yaml
+skills:
+  - name: rex_time_now
+    description: Get the current local time for a location
+    endpoint: "http://127.0.0.1:18790/rex/tools/time_now"
+    method: POST
+    auth:
+      type: bearer
+      token_env: REX_TOOL_API_KEY
+    schema:
+      args:
+        location:
+          type: string
+          description: City or timezone name
+
+  - name: rex_weather_now
+    description: Get the current weather for a location
+    endpoint: "http://127.0.0.1:18790/rex/tools/weather_now"
+    method: POST
+    auth:
+      type: bearer
+      token_env: REX_TOOL_API_KEY
+    schema:
+      args:
+        location:
+          type: string
+          description: City name
+
+  - name: rex_ha_call_service
+    description: Call a Home Assistant service (e.g. turn off lights)
+    endpoint: "http://127.0.0.1:18790/rex/tools/home_assistant_call_service"
+    method: POST
+    auth:
+      type: bearer
+      token_env: REX_TOOL_API_KEY
+    schema:
+      args:
+        domain:
+          type: string
+          description: HA domain (e.g. light, switch)
+        service:
+          type: string
+          description: HA service name (e.g. turn_off)
+        entity_id:
+          type: string
+          description: HA entity ID
+```
+
+### 9.4 Available tool endpoints
+
+| Endpoint path                                 | Tool function             | Required env var            |
+|-----------------------------------------------|---------------------------|-----------------------------|
+| `/rex/tools/time_now`                         | `time_now`                | none                        |
+| `/rex/tools/weather_now`                      | `weather_now`             | `OPENWEATHERMAP_API_KEY`    |
+| `/rex/tools/send_email`                       | `send_email`              | email backend configured    |
+| `/rex/tools/send_sms`                         | `send_sms`                | `TWILIO_*` vars             |
+| `/rex/tools/calendar_create`                  | `calendar_create`         | calendar backend configured |
+| `/rex/tools/home_assistant_call_service`      | `ha_call_service`         | `HOME_ASSISTANT_URL`        |
+| `/rex/tools/plex_search`                      | `plex_search`             | `PLEX_*` vars               |
+| `/rex/tools/plex_play`                        | `plex_play`               | `PLEX_*` vars               |
+| `/rex/tools/plex_pause`                       | `plex_pause`              | `PLEX_*` vars               |
+| `/rex/tools/plex_stop`                        | `plex_stop`               | `PLEX_*` vars               |
+| `/rex/tools/wordpress_health_check`           | `wp_health_check`         | `WORDPRESS_*` vars          |
+| `/rex/tools/wc_list_orders`                   | `wc_list_orders`          | `WOOCOMMERCE_*` vars        |
+| `/rex/tools/wc_list_products`                 | `wc_list_products`        | `WOOCOMMERCE_*` vars        |
+| `/rex/tools/wc_set_order_status`              | `wc_set_order_status`     | `WOOCOMMERCE_*` vars        |
+| `/rex/tools/wc_create_coupon`                 | `wc_create_coupon`        | `WOOCOMMERCE_*` vars        |
+| `/rex/tools/wc_disable_coupon`                | `wc_disable_coupon`       | `WOOCOMMERCE_*` vars        |
+
+Tools whose optional dependencies are not installed are automatically omitted
+from the registry at startup (logged at WARNING level).
+
+### 9.5 Rate limiting and auth
+
+- Auth: `Authorization: Bearer <REX_TOOL_API_KEY>` or `X-API-Key: <REX_TOOL_API_KEY>`
+- Default rate limit: 60 requests / 60 seconds (configurable via `REX_TOOL_RATE_LIMIT` / `REX_TOOL_RATE_WINDOW`)
+- Policy checks run before every tool call; denied requests return 403
+
+---
+
+## 10. Open Dependencies (PRD §8.3)
 
 The following OpenClaw API surfaces are not yet confirmed.  Stub code is in
 place; fill in the `# TODO` sections once confirmed:

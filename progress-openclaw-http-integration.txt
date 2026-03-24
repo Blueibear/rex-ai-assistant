@@ -72,3 +72,33 @@
   - Catch `KeyError` alongside the OpenClaw error types for malformed HTTP responses (missing 'choices' key)
   - ruff I001 (import ordering) and F401 (unused import) — always run `ruff check --fix` before final check
 ---
+
+## Iteration 7 - US-007: Create OpenClaw tool registration via /tools/invoke
+- Created `rex/openclaw/tool_server.py` with `ToolServer` class and `_build_tool_registry()` helper
+- Blueprint registered at `/rex/tools/<tool_name>` with `ToolServer.register_all(app)`
+- Auth: `X-API-Key` or `Authorization: Bearer` via `REX_TOOL_API_KEY` env var (hmac.compare_digest)
+- Rate limiting: manual deque-based approach (REX_TOOL_RATE_LIMIT / REX_TOOL_RATE_WINDOW env vars, default 60/60)
+- All 9 tool modules imported with deferred try/except so optional deps don't crash startup
+- PolicyAdapter.guard() called before every tool execution; PolicyDeniedError/ApprovalRequiredError → 403
+- Tool handler called with `**args, context=context`; TypeError caught → 400
+- Created `tests/test_openclaw_tool_server.py` with 16 tests
+- Files changed: `rex/openclaw/tool_server.py` (new), `tests/test_openclaw_tool_server.py` (new)
+- Learnings for future iterations:
+  - Flask not in venv — needed `venv/Scripts/pip install flask flask-cors` before tests ran
+  - Use `monkeypatch.setenv("REX_TOOL_RATE_LIMIT", "0")` to disable rate limiting in tests
+  - Inject `tools={}` and `policy=MagicMock()` into ToolServer constructor for clean unit tests
+  - ruff fixed 3 import ordering issues automatically; black reformatted tool_server.py
+  - `wc_list_orders` has keyword-only args after `*` — calling `handler(**args, context=context)` works fine since Python allows passing positional args as kwargs
+---
+
+## Iteration 6 - US-006: Rewire VoiceBridge.generate_reply() to use OpenClaw HTTP
+- Changed empty/whitespace transcript handling from `raise ValueError` to `return ""` (voice loop already guards empty transcripts, but VoiceBridge must be safe as a standalone object)
+- Added try/except around `self.agent.respond()` — logs exception, returns `"I had trouble reaching the server. Try again."`
+- Added voice_mode debug log when voice_mode=True (logged, not forwarded to RexAgent)
+- Created `tests/test_openclaw_voice_bridge_http.py` with 11 tests: empty/whitespace → "", delegation, voice_mode compatibility, HTTP call verified via mock client, no HTTP call in standalone mode, exception handling for all error types
+- Files changed: `rex/openclaw/voice_bridge.py`, `tests/test_openclaw_voice_bridge_http.py`, `PRD-openclaw-http-integration.md`
+- Learnings for future iterations:
+  - `mock_client.post.call_args.args[0]` gives positional arg, `call_args.kwargs["json"]` gives the keyword arg — agent.py uses `client.post(path, json=payload)` not positional
+  - The existing text_mode/flag tests skip if openwakeword not installed — they mock generate_reply at the bridge level so VoiceBridge changes don't break them
+  - black reformats test files with long function signatures; run `ruff check --fix` then `black` then re-run tests after formatting
+---
