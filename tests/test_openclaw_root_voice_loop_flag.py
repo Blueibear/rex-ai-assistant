@@ -9,9 +9,17 @@ Acceptance criteria:
 
 from __future__ import annotations
 
+from importlib.util import find_spec
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from rex.config import AppConfig
+
+pytestmark = pytest.mark.skipif(
+    find_spec("openwakeword") is None,
+    reason="openwakeword is not installed",
+)
 
 
 def _make_config(**kwargs) -> AppConfig:
