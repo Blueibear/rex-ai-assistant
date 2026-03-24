@@ -61,9 +61,11 @@ class TestWoocommerceTool:
         assert set(result.keys()) == set(ALL_TOOL_NAMES)
 
     def test_register_returns_none_values_without_openclaw(self):
-        from rex.openclaw.tools.woocommerce_tool import OPENCLAW_AVAILABLE, register
+        from unittest.mock import patch
 
-        if not OPENCLAW_AVAILABLE:
+        from rex.openclaw.tools.woocommerce_tool import register
+
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             result = register()
             assert all(v is None for v in result.values())
 

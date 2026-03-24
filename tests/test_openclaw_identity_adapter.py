@@ -42,10 +42,6 @@ class TestIdentityAdapterInstantiation:
         adapter = IdentityAdapter(config={"runtime": {"active_user": "alice"}})
         assert adapter is not None
 
-    def test_openclaw_available_flag_is_bool(self) -> None:
-        from rex.openclaw.identity_adapter import OPENCLAW_AVAILABLE
-
-        assert isinstance(OPENCLAW_AVAILABLE, bool)
 
 
 # ---------------------------------------------------------------------------
@@ -259,14 +255,14 @@ class TestBuildSession:
 class TestRegister:
     def test_register_returns_none_when_openclaw_unavailable(self) -> None:
         adapter = _adapter()
-        with patch("rex.openclaw.identity_adapter.OPENCLAW_AVAILABLE", False):
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             result = adapter.register()
 
         assert result is None
 
     def test_register_with_agent_arg_returns_none_when_unavailable(self) -> None:
         adapter = _adapter()
-        with patch("rex.openclaw.identity_adapter.OPENCLAW_AVAILABLE", False):
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             result = adapter.register(agent=object())
 
         assert result is None

@@ -34,7 +34,6 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
@@ -42,13 +41,6 @@ from rex.workflow import DEFAULT_APPROVAL_DIR, WorkflowApproval, generate_approv
 from rex.workflow_runner import approve_workflow, deny_workflow, list_pending_approvals
 
 logger = logging.getLogger(__name__)
-
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 
 
 class ApprovalAdapter:
@@ -227,8 +219,13 @@ class ApprovalAdapter:
         Returns:
             The registration handle from OpenClaw, or ``None``.
         """
-        if not OPENCLAW_AVAILABLE:
-            logger.warning("openclaw package not installed — ApprovalAdapter not registered")
+        from rex.config import load_config as _load_config
+        from rex.openclaw.http_client import get_openclaw_client
+
+        if get_openclaw_client(_load_config()) is None:
+            logger.warning(
+                "OpenClaw gateway not configured — ApprovalAdapter not registered",
+            )
             return None
 
         # TODO: replace with real OpenClaw approval registration once API is confirmed.
@@ -246,4 +243,4 @@ class ApprovalAdapter:
         return None
 
 
-__all__ = ["ApprovalAdapter", "OPENCLAW_AVAILABLE"]
+__all__ = ["ApprovalAdapter"]

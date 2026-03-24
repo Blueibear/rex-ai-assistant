@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from rex.openclaw.tool_bridge import OPENCLAW_AVAILABLE, ToolBridge
+from rex.openclaw.tool_bridge import ToolBridge
 
 
 class TestRegisterSimpleTools:
@@ -64,7 +64,9 @@ class TestRegisterSimpleTools:
             mock_weather.assert_called_once_with(agent=agent)
 
     def test_returns_none_values_without_openclaw(self):
-        if not OPENCLAW_AVAILABLE:
+        from unittest.mock import patch
+
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             result = self.bridge.register_simple_tools()
             assert result["time_now"] is None
             assert result["weather_now"] is None

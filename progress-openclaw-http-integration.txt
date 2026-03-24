@@ -45,3 +45,17 @@
   - Passing `user=None` as a kwarg to strategies that don't accept it raises TypeError (caught by existing fallback), so always guard with `if _user_key is not None`
   - `EchoStrategy.generate()` does accept `messages=` but NOT `user=` — the `**extra` pattern is the right approach for optional kwargs
 ---
+
+## Iteration 4 - US-004: Remove dead `import openclaw` stubs
+- Removed `find_spec("openclaw")` checks, `OPENCLAW_AVAILABLE` constants, and `import openclaw as _openclaw` blocks from 18 source files
+- Replaced `if not OPENCLAW_AVAILABLE:` guards in `register()` methods with `get_openclaw_client(load_config()) is None` check; updated log message to "OpenClaw gateway not configured"
+- Cleaned `memory_adapter.py` fully: removed all OPENCLAW_AVAILABLE branches from `__init__`, `trim_history`, `append_entry`, `load_recent`; delegates directly to Rex implementations
+- Removed `OPENCLAW_AVAILABLE` from `approval_adapter.py`'s `__all__`
+- Updated 13 test files: removed OPENCLAW_AVAILABLE imports, removed isinstance assertions, converted skip guards to use `patch("rex.openclaw.http_client.get_openclaw_client", return_value=None)`
+- Files changed: `rex/openclaw/agent.py`, `tool_bridge.py`, `event_bridge.py`, `browser_bridge.py`, `policy_adapter.py`, `approval_adapter.py`, `memory_adapter.py`, `identity_adapter.py`, `workflow_bridge.py`, all 9 tool files; 13 test files
+- Learnings for future iterations:
+  - Tests that previously skipped when openclaw not installed now run unconditionally — ensure register() returns None when client is None (it does)
+  - Use `patch("rex.openclaw.http_client.get_openclaw_client", return_value=None)` to test "gateway not configured" paths
+  - Pre-existing 7 async test failures in test_openclaw_browser_bridge.py require pytest-asyncio — not our issue
+  - 249 tests pass after the change
+---

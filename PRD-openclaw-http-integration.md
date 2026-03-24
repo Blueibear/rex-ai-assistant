@@ -104,21 +104,21 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a developer, I want to remove the dead Python import pattern from all OpenClaw modules so the codebase stops pretending OpenClaw is a Python package.
 
 **Acceptance Criteria:**
-- [ ] In every file under `rex/openclaw/` that has `OPENCLAW_AVAILABLE = find_spec("openclaw")`:
+- [x] In every file under `rex/openclaw/` that has `OPENCLAW_AVAILABLE = find_spec("openclaw")`:
   - Remove the `find_spec("openclaw")` check
   - Remove the `import openclaw as _openclaw` block
   - Remove the `OPENCLAW_AVAILABLE` constant
   - Remove any `if not OPENCLAW_AVAILABLE: return None` guards in `register()` methods
-- [ ] Files to modify (13 total): `agent.py`, `tool_bridge.py`, `voice_bridge.py`, `event_bridge.py`, `browser_bridge.py`, `policy_adapter.py`, `approval_adapter.py`, `memory_adapter.py`, `identity_adapter.py`, and all files in `tools/` (`time_tool.py`, `weather_tool.py`, `email_tool.py`, `sms_tool.py`, `calendar_tool.py`, `ha_tool.py`, `wordpress_tool.py`, `woocommerce_tool.py`, `plex_tool.py`, `business_tool.py`)
-- [ ] Replace `OPENCLAW_AVAILABLE` guards with a check for `get_openclaw_client()` returning non-None (from US-001)
-- [ ] All `register()` functions that were pure no-ops should now log `"OpenClaw gateway not configured"` instead of `"openclaw package not installed"`
-- [ ] No remaining references to `find_spec("openclaw")` anywhere in `rex/openclaw/`
-- [ ] No remaining `import openclaw` anywhere in `rex/openclaw/`
-- [ ] All existing tests that mock `OPENCLAW_AVAILABLE` are updated to mock `get_openclaw_client` instead
-- [ ] `grep -r "find_spec.*openclaw" rex/openclaw/` returns zero results
-- [ ] `grep -r "import openclaw" rex/openclaw/` returns zero results
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] Files to modify (13 total): `agent.py`, `tool_bridge.py`, `voice_bridge.py`, `event_bridge.py`, `browser_bridge.py`, `policy_adapter.py`, `approval_adapter.py`, `memory_adapter.py`, `identity_adapter.py`, and all files in `tools/` (`time_tool.py`, `weather_tool.py`, `email_tool.py`, `sms_tool.py`, `calendar_tool.py`, `ha_tool.py`, `wordpress_tool.py`, `woocommerce_tool.py`, `plex_tool.py`, `business_tool.py`)
+- [x] Replace `OPENCLAW_AVAILABLE` guards with a check for `get_openclaw_client()` returning non-None (from US-001)
+- [x] All `register()` functions that were pure no-ops should now log `"OpenClaw gateway not configured"` instead of `"openclaw package not installed"`
+- [x] No remaining references to `find_spec("openclaw")` anywhere in `rex/openclaw/`
+- [x] No remaining `import openclaw` anywhere in `rex/openclaw/`
+- [x] All existing tests that mock `OPENCLAW_AVAILABLE` are updated to mock `get_openclaw_client` instead
+- [x] `grep -r "find_spec.*openclaw" rex/openclaw/` returns zero results
+- [x] `grep -r "import openclaw" rex/openclaw/` returns zero results
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 

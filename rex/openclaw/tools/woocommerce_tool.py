@@ -25,17 +25,10 @@ OpenClaw.
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 # ---------------------------------------------------------------------------
 # Tool names
 # ---------------------------------------------------------------------------
@@ -321,9 +314,12 @@ def register(agent: Any = None) -> dict[str, Any]:
     Returns:
         A dict mapping each tool name to the registration handle (or ``None``).
     """
-    if not OPENCLAW_AVAILABLE:
+    from rex.config import load_config as _load_config
+    from rex.openclaw.http_client import get_openclaw_client
+
+    if get_openclaw_client(_load_config()) is None:
         logger.warning(
-            "openclaw package not installed — WooCommerce tools not registered with OpenClaw"
+            "OpenClaw gateway not configured — WooCommerce tools not registered with OpenClaw"
         )
         return dict.fromkeys(ALL_TOOL_NAMES)
 

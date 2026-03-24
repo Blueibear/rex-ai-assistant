@@ -183,7 +183,3 @@ class TestPolicyAdapterAllowPath:
         adapter = _adapter()
         assert isinstance(adapter.engine, PolicyEngine)
 
-    def test_openclaw_available_is_bool(self):
-        from rex.openclaw.policy_adapter import OPENCLAW_AVAILABLE
-
-        assert isinstance(OPENCLAW_AVAILABLE, bool)

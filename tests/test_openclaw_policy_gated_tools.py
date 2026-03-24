@@ -72,10 +72,12 @@ class TestEmailTool:
         assert result["ok"] is True
 
     def test_register_returns_none_without_openclaw(self):
-        """register() returns None when openclaw is not installed."""
-        from rex.openclaw.tools.email_tool import OPENCLAW_AVAILABLE, register
+        """register() returns None when openclaw gateway not configured."""
+        from unittest.mock import patch
 
-        if not OPENCLAW_AVAILABLE:
+        from rex.openclaw.tools.email_tool import register
+
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             assert register() is None
             assert register(agent=object()) is None
 
@@ -126,10 +128,12 @@ class TestSmsTool:
         assert result["ok"] is False
 
     def test_register_returns_none_without_openclaw(self):
-        """register() returns None when openclaw is not installed."""
-        from rex.openclaw.tools.sms_tool import OPENCLAW_AVAILABLE, register
+        """register() returns None when openclaw gateway not configured."""
+        from unittest.mock import patch
 
-        if not OPENCLAW_AVAILABLE:
+        from rex.openclaw.tools.sms_tool import register
+
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             assert register() is None
             assert register(agent=object()) is None
 
@@ -241,10 +245,12 @@ class TestCalendarTool:
         assert kwargs["description"] == "Annual offsite"
 
     def test_register_returns_none_without_openclaw(self):
-        """register() returns None when openclaw is not installed."""
-        from rex.openclaw.tools.calendar_tool import OPENCLAW_AVAILABLE, register
+        """register() returns None when openclaw gateway not configured."""
+        from unittest.mock import patch
 
-        if not OPENCLAW_AVAILABLE:
+        from rex.openclaw.tools.calendar_tool import register
+
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             assert register() is None
             assert register(agent=object()) is None
 
@@ -343,10 +349,12 @@ class TestRegisterPolicyGatedTools:
         mc.assert_called_once_with(agent=None)
 
     def test_returns_none_values_without_openclaw(self):
-        """Without openclaw, register() returns None for all tools."""
-        from rex.openclaw.tool_bridge import OPENCLAW_AVAILABLE, ToolBridge
+        """Without openclaw gateway configured, register() returns None for all tools."""
+        from unittest.mock import patch
 
-        if not OPENCLAW_AVAILABLE:
+        from rex.openclaw.tool_bridge import ToolBridge
+
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             bridge = ToolBridge()
             result = bridge.register_policy_gated_tools()
             assert result["send_email"] is None

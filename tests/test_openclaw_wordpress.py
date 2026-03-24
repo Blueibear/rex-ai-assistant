@@ -49,9 +49,11 @@ class TestWordpressTool:
         assert "health" in TOOL_DESCRIPTION.lower() or "check" in TOOL_DESCRIPTION.lower()
 
     def test_register_returns_none_without_openclaw(self):
-        from rex.openclaw.tools.wordpress_tool import OPENCLAW_AVAILABLE, register
+        from unittest.mock import patch
 
-        if not OPENCLAW_AVAILABLE:
+        from rex.openclaw.tools.wordpress_tool import register
+
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             assert register() is None
             assert register(agent=object()) is None
 
@@ -291,9 +293,11 @@ class TestRegisterWordpressTools:
         mock_fn.assert_called_once_with(agent=fake_agent)
 
     def test_returns_none_values_without_openclaw(self):
-        """Without openclaw, all values in the dict are None."""
-        from rex.openclaw.tool_bridge import OPENCLAW_AVAILABLE, ToolBridge
+        """Without openclaw gateway configured, all values in the dict are None."""
+        from unittest.mock import patch
 
-        if not OPENCLAW_AVAILABLE:
+        from rex.openclaw.tool_bridge import ToolBridge
+
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             result = ToolBridge().register_wordpress_tools()
             assert all(v is None for v in result.values())

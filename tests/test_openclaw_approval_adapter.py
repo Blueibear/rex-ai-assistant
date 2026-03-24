@@ -6,7 +6,7 @@ End-to-end flow:
 
 from __future__ import annotations
 
-from rex.openclaw.approval_adapter import OPENCLAW_AVAILABLE, ApprovalAdapter
+from rex.openclaw.approval_adapter import ApprovalAdapter
 from rex.workflow import WorkflowApproval
 
 # ---------------------------------------------------------------------------
@@ -36,8 +36,6 @@ class TestApprovalAdapterInstantiation:
         adapter = _adapter(tmp_path)
         assert adapter.approval_dir == tmp_path
 
-    def test_openclaw_available_flag_is_bool(self):
-        assert isinstance(OPENCLAW_AVAILABLE, bool)
 
 
 # ---------------------------------------------------------------------------

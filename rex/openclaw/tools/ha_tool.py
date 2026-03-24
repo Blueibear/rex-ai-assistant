@@ -25,7 +25,6 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
 from typing import Any
 
 from rex.ha_bridge import HABridge as _HABridge
@@ -33,12 +32,6 @@ from rex.ha_bridge import IntentMatch as _IntentMatch
 
 logger = logging.getLogger(__name__)
 
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 #: Tool name used when registering with OpenClaw.
 TOOL_NAME = "home_assistant_call_service"
 
@@ -127,9 +120,12 @@ def register(agent: Any = None) -> Any:
     Returns:
         The registration handle returned by OpenClaw, or ``None``.
     """
-    if not OPENCLAW_AVAILABLE:
+    from rex.config import load_config as _load_config
+    from rex.openclaw.http_client import get_openclaw_client
+
+    if get_openclaw_client(_load_config()) is None:
         logger.warning(
-            "openclaw package not installed — %s tool not registered with OpenClaw",
+            "OpenClaw gateway not configured — %s tool not registered with OpenClaw",
             TOOL_NAME,
         )
         return None

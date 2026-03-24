@@ -102,10 +102,12 @@ class TestHaTool:
         assert result["success"] is True
 
     def test_register_returns_none_without_openclaw(self):
-        """register() returns None when openclaw is not installed."""
-        from rex.openclaw.tools.ha_tool import OPENCLAW_AVAILABLE, register
+        """register() returns None when openclaw gateway not configured."""
+        from unittest.mock import patch
 
-        if not OPENCLAW_AVAILABLE:
+        from rex.openclaw.tools.ha_tool import register
+
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             assert register() is None
             assert register(agent=object()) is None
 
@@ -168,9 +170,11 @@ class TestRegisterHaTools:
         mock_fn.assert_called_once_with(agent=fake_agent)
 
     def test_returns_none_values_without_openclaw(self):
-        """Without openclaw installed, all values in the dict are None."""
-        from rex.openclaw.tool_bridge import OPENCLAW_AVAILABLE, ToolBridge
+        """Without openclaw gateway configured, all values in the dict are None."""
+        from unittest.mock import patch
 
-        if not OPENCLAW_AVAILABLE:
+        from rex.openclaw.tool_bridge import ToolBridge
+
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             result = ToolBridge().register_ha_tools()
             assert all(v is None for v in result.values())

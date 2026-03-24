@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from importlib.util import find_spec
 from typing import Any
 
 from rex.memory import (
@@ -38,13 +37,6 @@ from rex.memory import (
 )
 
 logger = logging.getLogger(__name__)
-
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 
 
 class MemoryAdapter:
@@ -63,10 +55,7 @@ class MemoryAdapter:
 
     def __init__(self, memory_root: str | None = None) -> None:
         self._memory_root = memory_root
-        if OPENCLAW_AVAILABLE:  # pragma: no cover
-            logger.debug("MemoryAdapter: OpenClaw storage active")
-        else:
-            logger.debug("MemoryAdapter: using Rex file-based fallback")
+        logger.debug("MemoryAdapter: using Rex file-based storage")
 
     # ------------------------------------------------------------------
     # Public API
@@ -91,12 +80,6 @@ class MemoryAdapter:
         Returns:
             A list of at most *limit* turn dicts, most-recent last.
         """
-        if OPENCLAW_AVAILABLE:  # pragma: no cover
-            # TODO: replace with OpenClaw trim primitive once API is confirmed.
-            # Expected shape (to be verified):
-            #   return _openclaw.memory.trim(list(history), limit=limit)
-            logger.warning("MemoryAdapter.trim_history: OpenClaw stub — falling back to Rex")
-
         return _rex_trim(history, limit=limit)
 
     def append_entry(
@@ -118,13 +101,6 @@ class MemoryAdapter:
             max_turns: Override for the maximum retained turns.  When
                 ``None``, the configured ``memory_max_turns`` setting applies.
         """
-        if OPENCLAW_AVAILABLE:  # pragma: no cover
-            # TODO: replace with OpenClaw storage write once API is confirmed.
-            # Expected shape (to be verified):
-            #   _openclaw.memory.append(user_key, entry, max_turns=max_turns)
-            #   return
-            logger.warning("MemoryAdapter.append_entry: OpenClaw stub — falling back to Rex")
-
         kwargs: dict[str, Any] = {}
         if self._memory_root is not None:
             kwargs["memory_root"] = self._memory_root
@@ -153,12 +129,6 @@ class MemoryAdapter:
             List of turn dicts (``{"role": ..., "text": ..., ...}``), oldest
             first.  Returns an empty list when no history exists.
         """
-        if OPENCLAW_AVAILABLE:  # pragma: no cover
-            # TODO: replace with OpenClaw storage read once API is confirmed.
-            # Expected shape (to be verified):
-            #   return _openclaw.memory.load_recent(user_key, limit=limit)
-            logger.warning("MemoryAdapter.load_recent: OpenClaw stub — falling back to Rex")
-
         kwargs: dict[str, Any] = {}
         if self._memory_root is not None:
             kwargs["memory_root"] = self._memory_root

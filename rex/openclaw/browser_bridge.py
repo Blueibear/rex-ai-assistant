@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import json
 import logging
-from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
@@ -29,12 +28,6 @@ from rex.openclaw.browser_core import BrowserSession, run_browser_script  # noqa
 
 logger = logging.getLogger(__name__)
 
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 _bridge_singleton: BrowserBridge | None = None
 
 
@@ -143,9 +136,12 @@ class BrowserBridge:
         Returns:
             The registration handle from OpenClaw, or ``None``.
         """
-        if not OPENCLAW_AVAILABLE:
+        from rex.config import load_config as _load_config
+        from rex.openclaw.http_client import get_openclaw_client
+
+        if get_openclaw_client(_load_config()) is None:
             logger.warning(
-                "openclaw package not installed — BrowserBridge not registered as browser provider"
+                "OpenClaw gateway not configured — BrowserBridge not registered as browser provider"
             )
             return None
 

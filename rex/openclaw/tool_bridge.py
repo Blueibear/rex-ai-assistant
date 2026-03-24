@@ -30,7 +30,6 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
 from typing import Any, Callable
 
 from rex.openclaw.tool_executor import (
@@ -54,13 +53,6 @@ from rex.openclaw.tools.woocommerce_tool import register as _register_wc_tools
 from rex.openclaw.tools.wordpress_tool import register as _register_wp_health_check
 
 logger = logging.getLogger(__name__)
-
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 
 
 class ToolBridge:
@@ -352,9 +344,12 @@ class ToolBridge:
         Returns:
             The registration handle from OpenClaw, or ``None``.
         """
-        if not OPENCLAW_AVAILABLE:
+        from rex.config import load_config as _load_config
+        from rex.openclaw.http_client import get_openclaw_client
+
+        if get_openclaw_client(_load_config()) is None:
             logger.warning(
-                "openclaw package not installed — ToolBridge not registered as tool provider"
+                "OpenClaw gateway not configured — ToolBridge not registered as tool provider"
             )
             return None
 

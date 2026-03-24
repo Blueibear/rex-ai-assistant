@@ -40,7 +40,6 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
 from pathlib import Path
 from typing import Any, Callable
 
@@ -52,13 +51,6 @@ from rex.workflow_runner import (
 )
 
 logger = logging.getLogger(__name__)
-
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 
 
 class WorkflowBridge:
@@ -164,9 +156,12 @@ class WorkflowBridge:
         Returns:
             The registration handle from OpenClaw, or ``None``.
         """
-        if not OPENCLAW_AVAILABLE:
+        from rex.config import load_config as _load_config
+        from rex.openclaw.http_client import get_openclaw_client
+
+        if get_openclaw_client(_load_config()) is None:
             logger.warning(
-                "openclaw package not installed — WorkflowBridge not registered as workflow executor"
+                "OpenClaw gateway not configured — WorkflowBridge not registered as workflow executor"
             )
             return None
 

@@ -25,7 +25,6 @@ registration API is confirmed (see PRD Section 8.3 open dependency).
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
 from typing import Any
 
 from rex.config import AppConfig, load_config
@@ -34,17 +33,6 @@ from rex.openclaw.memory_adapter import MemoryAdapter
 from rex.openclaw.policy_adapter import PolicyAdapter
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Optional OpenClaw availability flag
-# ---------------------------------------------------------------------------
-
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 
 
 class RexAgent:
@@ -138,9 +126,12 @@ class RexAgent:
             The OpenClaw agent handle returned by the registration call,
             or ``None`` when OpenClaw is not available.
         """
-        if not OPENCLAW_AVAILABLE:
+        from rex.config import load_config as _load_config
+        from rex.openclaw.http_client import get_openclaw_client
+
+        if get_openclaw_client(_load_config()) is None:
             logger.warning(
-                "openclaw package not installed — %s running in standalone mode",
+                "OpenClaw gateway not configured — %s running in standalone mode",
                 self.agent_name,
             )
             return None

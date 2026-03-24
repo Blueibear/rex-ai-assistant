@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from rex.openclaw.event_bridge import OPENCLAW_AVAILABLE, EventBridge
+from rex.openclaw.event_bridge import EventBridge
 from rex.openclaw.event_bus import Event, EventBus
 
 # ---------------------------------------------------------------------------
@@ -53,9 +53,6 @@ class TestEventBridgeInstantiation:
         bus = EventBus()
         bridge = EventBridge(bus=bus)
         assert bridge._bus is bus
-
-    def test_openclaw_available_is_bool(self):
-        assert isinstance(OPENCLAW_AVAILABLE, bool)
 
 
 # ---------------------------------------------------------------------------
@@ -286,12 +283,16 @@ class TestRoundTrip:
 
 class TestRegister:
     def test_register_returns_none_without_openclaw(self):
+        from unittest.mock import patch
+
         bridge = EventBridge(bus=EventBus())
-        if not OPENCLAW_AVAILABLE:
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             assert bridge.register() is None
 
     def test_register_accepts_agent_arg(self):
+        from unittest.mock import patch
+
         bridge = EventBridge(bus=EventBus())
         agent = MagicMock()
-        if not OPENCLAW_AVAILABLE:
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             assert bridge.register(agent=agent) is None

@@ -34,7 +34,6 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
 from typing import Any
 
 from rex.identity import (
@@ -46,13 +45,6 @@ from rex.identity import (
 from rex.openclaw.session import build_session_context
 
 logger = logging.getLogger(__name__)
-
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 
 
 class IdentityAdapter:
@@ -173,8 +165,13 @@ class IdentityAdapter:
         Returns:
             Registration handle from OpenClaw, or ``None``.
         """
-        if not OPENCLAW_AVAILABLE:
-            logger.warning("openclaw package not installed — IdentityAdapter not registered")
+        from rex.config import load_config as _load_config
+        from rex.openclaw.http_client import get_openclaw_client
+
+        if get_openclaw_client(_load_config()) is None:
+            logger.warning(
+                "OpenClaw gateway not configured — IdentityAdapter not registered",
+            )
             return None
 
         # TODO: replace with real OpenClaw identity registration once API is confirmed.

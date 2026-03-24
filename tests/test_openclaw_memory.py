@@ -35,10 +35,6 @@ class TestMemoryAdapterImport:
         adapter = _adapter(tmp_path)
         assert adapter is not None
 
-    def test_openclaw_available_is_bool(self):
-        from rex.openclaw.memory_adapter import OPENCLAW_AVAILABLE
-
-        assert isinstance(OPENCLAW_AVAILABLE, bool)
 
 
 # ---------------------------------------------------------------------------

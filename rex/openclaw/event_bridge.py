@@ -31,20 +31,12 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from importlib.util import find_spec
 from typing import Any, Callable
 
 from rex.openclaw.event_bus import EventBus as _EventBus
 from rex.openclaw.event_bus import get_event_bus as _get_event_bus
 
 logger = logging.getLogger(__name__)
-
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 
 
 class EventBridge:
@@ -184,9 +176,12 @@ class EventBridge:
         Returns:
             The registration handle from OpenClaw, or ``None``.
         """
-        if not OPENCLAW_AVAILABLE:
+        from rex.config import load_config as _load_config
+        from rex.openclaw.http_client import get_openclaw_client
+
+        if get_openclaw_client(_load_config()) is None:
             logger.warning(
-                "openclaw package not installed — EventBridge not registered as event provider"
+                "OpenClaw gateway not configured — EventBridge not registered as event provider"
             )
             return None
 
