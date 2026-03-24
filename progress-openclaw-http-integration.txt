@@ -4,3 +4,31 @@
 (Patterns discovered during implementation)
 
 ---
+
+## Iteration 1 - US-001: Create OpenClaw HTTP client module
+- Created `rex/openclaw/errors.py` with OpenClawConnectionError, OpenClawAuthError, OpenClawAPIError all inheriting from AssistantError
+- Created `rex/openclaw/http_client.py` with OpenClawClient (post/get/patch/delete, retry logic, auth headers) and get_openclaw_client() singleton
+- Created `tests/test_openclaw_http_client.py` with 19 tests using unittest.mock
+- Files changed: rex/openclaw/errors.py (new), rex/openclaw/http_client.py (new), tests/test_openclaw_http_client.py (new)
+- Learnings for future iterations:
+  - The dev venv is at `venv/` not `.venv/` — use `venv/Scripts/pytest.exe` and `venv/Scripts/python.exe`
+  - `pydantic` was missing from the venv but installed on demand; may need other deps too
+  - mypy complained about `return response.json()` (Any return) — assign to typed variable first: `result: dict[str, Any] = response.json(); return result`
+  - ruff UP037 flagged quoted forward refs in `_CLIENT_CACHE: dict[str, "OpenClawClient"]` — fixed automatically with `--fix`
+  - ruff I001 flagged import ordering in test file — fixed automatically
+  - `requests` is already in pyproject.toml dependencies (>=2.32.0), no new dep needed
+  - The `responses` library is NOT in dev deps; use `unittest.mock` for HTTP mocking
+---
+
+## Iteration 2 - US-002: Add OpenClaw gateway config fields to AppConfig
+- Added `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries` to `AppConfig` dataclass
+- Added `openclaw_gateway_token: Optional[str]` loaded from `OPENCLAW_GATEWAY_TOKEN` env var
+- Added all four fields to `build_app_config()` using `_get_nested()` and `os.getenv()`
+- Updated `config/rex_config.json` openclaw section (local only — not committed; `config/` is gitignored)
+- Added `OPENCLAW_GATEWAY_TOKEN=` with doc comment to `.env.example`
+- Files changed: `rex/config.py`, `.env.example`, `PRD-openclaw-http-integration.md`
+- Learnings for future iterations:
+  - `config/rex_config.json` is in `.gitignore` (line 67: `config/`) with exemptions only for `.example.json` and `.schema.json` — changes to rex_config.json are local-only, never committed
+  - Pre-existing test failures exist in `test_openclaw_ha_tts_voice_loop.py` etc. — they fail due to missing `pytest-asyncio`, not our changes
+  - `get_openclaw_client()` singleton in `http_client.py` accepts `AppConfig` — after US-002, it can use the new `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries`, and `openclaw_gateway_token` fields directly
+---
