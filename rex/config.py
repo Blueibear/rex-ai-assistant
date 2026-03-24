@@ -180,6 +180,10 @@ class AppConfig:
     # OpenClaw integration
     use_openclaw_tools: bool = False
     use_openclaw_voice_backend: bool = False
+    openclaw_gateway_url: str = ""
+    openclaw_gateway_timeout: int = 30
+    openclaw_gateway_max_retries: int = 3
+    openclaw_gateway_token: Optional[str] = None
 
     # Aliases
     llm_backend: Optional[str] = None
@@ -370,6 +374,12 @@ def build_app_config(json_config: dict) -> AppConfig:
         use_openclaw_voice_backend=bool(
             _get_nested(json_config, "openclaw.use_voice_backend", False)
         ),
+        openclaw_gateway_url=_get_nested(json_config, "openclaw.gateway_url", ""),
+        openclaw_gateway_timeout=int(_get_nested(json_config, "openclaw.gateway_timeout", 30)),
+        openclaw_gateway_max_retries=int(
+            _get_nested(json_config, "openclaw.gateway_max_retries", 3)
+        ),
+        openclaw_gateway_token=os.getenv("OPENCLAW_GATEWAY_TOKEN"),  # SECRET from env
     )
 
     return config

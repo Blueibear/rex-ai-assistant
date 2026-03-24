@@ -54,15 +54,15 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a developer, I need config fields for the OpenClaw gateway URL and auth so that the HTTP client can be configured via `rex_config.json` and `.env`.
 
 **Acceptance Criteria:**
-- [ ] Add to `AppConfig` in `rex/config.py`:
+- [x] Add to `AppConfig` in `rex/config.py`:
   - `openclaw_gateway_url: str = ""` (empty = disabled)
   - `openclaw_gateway_timeout: int = 30`
   - `openclaw_gateway_max_retries: int = 3`
-- [ ] Auth token loaded from env: `OPENCLAW_GATEWAY_TOKEN` (added to `_load_config_from_json` via `os.getenv`)
-- [ ] `openclaw_gateway_url` loaded from `rex_config.json` key `openclaw.gateway_url`
-- [ ] `openclaw_gateway_timeout` loaded from `openclaw.gateway_timeout` (default 30)
-- [ ] `openclaw_gateway_max_retries` loaded from `openclaw.gateway_max_retries` (default 3)
-- [ ] Update `config/rex_config.json` with new openclaw section:
+- [x] Auth token loaded from env: `OPENCLAW_GATEWAY_TOKEN` (added to `_load_config_from_json` via `os.getenv`)
+- [x] `openclaw_gateway_url` loaded from `rex_config.json` key `openclaw.gateway_url`
+- [x] `openclaw_gateway_timeout` loaded from `openclaw.gateway_timeout` (default 30)
+- [x] `openclaw_gateway_max_retries` loaded from `openclaw.gateway_max_retries` (default 3)
+- [x] Update `config/rex_config.json` with new openclaw section:
   ```json
   "openclaw": {
     "gateway_url": "http://127.0.0.1:18789",
@@ -72,11 +72,11 @@ The target branch is a new branch off `master` (PR #216 has been merged).
     "use_voice_backend": false
   }
   ```
-- [ ] Add `OPENCLAW_GATEWAY_TOKEN=` to `.env.example` with comment
-- [ ] Do NOT add the actual token to any committed file
-- [ ] Existing `use_openclaw_tools` and `use_openclaw_voice_backend` fields unchanged
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] Add `OPENCLAW_GATEWAY_TOKEN=` to `.env.example` with comment
+- [x] Do NOT add the actual token to any committed file
+- [x] Existing `use_openclaw_tools` and `use_openclaw_voice_backend` fields unchanged
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 
