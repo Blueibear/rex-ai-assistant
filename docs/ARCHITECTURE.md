@@ -16,7 +16,6 @@ rex-ai-assistant/
 │   ├── memory.py          # Working & long-term memory (see docs/memory.md)
 │   ├── memory_utils.py    # User memory & profiles
 │   ├── knowledge_base.py  # Document storage & search (see docs/knowledge_base.md)
-│   ├── plugin_loader.py   # Plugin system
 │   ├── voice_loop.py      # Voice loop (wrapper to optimized)
 │   ├── voice_loop_optimized.py  # CANONICAL voice loop implementation
 │   ├── assistant_errors.py # Exception hierarchy
@@ -47,7 +46,7 @@ rex-ai-assistant/
 - Error handling (`rex/assistant_errors.py`)
 - LLM integration (`rex/llm_client.py`)
 - Memory management (`rex/memory_utils.py`)
-- Plugin system (`rex/plugin_loader.py`)
+- Plugin system (`rex/plugins/`)
 - Voice loop (`rex/voice_loop_optimized.py`)
 
 ### 2. Root-Level Compatibility Wrappers
@@ -71,7 +70,6 @@ from rex.config import *  # noqa: F401, F403
 - `llm_client.py`
 - `logging_utils.py`
 - `memory_utils.py`
-- `plugin_loader.py`
 
 **Which root files are standalone?**
 - `rex_assistant.py` - Main CLI entry point
@@ -118,38 +116,38 @@ config = load_config()  # Loads from environment
 - Better default TTS provider (Edge-TTS instead of slow XTTS)
 - Concurrent STT + LLM processing where possible
 
-### Plugin System (`rex/plugin_loader.py`)
+### Plugin System (`rex/plugins/`)
 
 **Architecture:**
 ```
 plugins/
-├── __init__.py           # Package marker
+├── __init__.py           # PluginSpec model + load_plugins()
 ├── web_search.py         # Example plugin
 └── [future_plugin].py
 
 Each plugin:
 1. Defines register() function
-2. Returns Plugin(name, description, execute)
-3. Loaded dynamically by plugin_loader
+2. Returns PluginSpec(name, description, execute)
+3. Loaded dynamically by rex.plugins.load_plugins()
 ```
 
-**Plugin Protocol:**
+**PluginSpec model:**
 ```python
-class Plugin(Protocol):
-    name: str
-    description: str
+from rex.plugins import PluginSpec
 
-    def execute(self, context: dict, **kwargs) -> Any:
-        ...
+# PluginSpec is a dataclass with: name, description, execute callable
 ```
 
 **Loading:**
 ```python
-from rex.plugin_loader import load_plugins
+from rex.plugins import load_plugins
 
-plugins = load_plugins()
-result = plugins['web_search'].execute({}, query="Python")
+plugin_specs = load_plugins()  # Returns list[PluginSpec]
+# Build dict if needed:
+plugins = {f"plugins.{s.name}": s for s in plugin_specs}
 ```
+
+> **Note:** The legacy `rex/plugin_loader.py` has been retired. Use `rex.plugins.load_plugins()` instead.
 
 ### Memory System (`rex/memory_utils.py`)
 
@@ -297,12 +295,16 @@ def my_execute_function(context: dict, **kwargs):
     return {"result": "success"}
 ```
 
-2. **Plugin is auto-discovered** by `rex/plugin_loader.py`
+2. **Plugin is auto-discovered** by `rex.plugins.load_plugins()`
 
 3. **Use in assistant:**
 ```python
-plugins = load_plugins()
-result = plugins['my_plugin'].execute({}, arg1="value")
+from rex.plugins import load_plugins
+
+specs = load_plugins()
+for spec in specs:
+    if spec.name == "my_plugin":
+        result = spec.execute({}, arg1="value")
 ```
 
 ### Plugin Best Practices
@@ -437,18 +439,30 @@ from rex.assistant_errors import ConfigurationError
 from rex.voice_loop import VoiceLoop  # Gets optimized version
 ```
 
+## OpenClaw Migration
+
+Rex is undergoing a phased migration to run as an opinionated application layer on top of OpenClaw, an agent engine that provides channels, sessions, browser control, dashboard UI, skills/plugins, and multi-agent orchestration.
+
+Migration adapters live in `rex/openclaw/` and include bridges for tools, events, browser automation, workflows, voice, and identity. Feature flags in `config/rex_config.json` under the `openclaw` key control which code paths use the new OpenClaw backend.
+
+Modules marked `# OPENCLAW-REPLACE` are frozen (no new features) and will be replaced by OpenClaw equivalents. Modules marked `# OPENCLAW-WRAP` will be adapted to delegate to OpenClaw while preserving their public API.
+
+**Already retired:** `rex/plugin_loader.py` (replaced by `rex/plugins/`), `rex/executor.py` (replaced by `rex/openclaw/workflow_bridge.py`).
+
+See [PRD-openclaw-pivot-for-rex.md](../PRD-openclaw-pivot-for-rex.md) for the full migration plan.
+
 ## Future Roadmap
 
 ### Short-term
 - ✅ Complete test coverage (>80%)
 - ✅ Enforce type checking in CI
-- 📅 Add more plugins (calendar, email, etc.)
+- 📅 Complete OpenClaw migration (Phases 2-7)
 - 📅 Improve wake word accuracy
 
 ### Long-term
 - 📅 Deprecate root-level wrappers
 - 📅 Switch to pure `rex/` package imports
-- 📅 Plugin marketplace/discovery
+- 📅 Register Rex integrations as OpenClaw skills
 - 📅 Multi-language support
 - 📅 Streaming TTS for lower latency
 

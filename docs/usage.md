@@ -242,9 +242,6 @@ rex plan "send monthly newsletter"
 
 # Plan and execute immediately
 rex plan "check weather in Dallas" --execute
-
-# Execute with budgets
-rex plan "send email" --execute --max-actions 10 --max-messages 5 --max-time 60
 ```
 
 **Resume blocked workflows:**

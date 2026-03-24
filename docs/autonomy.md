@@ -11,7 +11,7 @@ This document explains Rex's autonomy features introduced in Phase 9, including 
 - [Autonomy Modes](#autonomy-modes)
 - [Usage](#usage)
 - [Configuration](#configuration)
-- [Safety and Budgets](#safety-and-budgets)
+- [Safety](#safety)
 - [Examples](#examples)
 - [Limitations](#limitations)
 
@@ -20,19 +20,21 @@ This document explains Rex's autonomy features introduced in Phase 9, including 
 Rex's autonomy system enables the AI assistant to autonomously plan and execute multi-step workflows from high-level natural language goals. The system consists of three main components:
 
 1. **Planner**: Converts natural language goals into structured workflows
-2. **Executor**: Safely executes workflows with budget constraints
+2. **Workflow Runner / Bridge**: Safely executes workflows with policy checks and approval gates
 3. **Autonomy Modes**: Controls when and how workflows execute automatically
 
-The system is designed with safety as a primary concern, using budgets, policy checks, and approval gates to ensure controlled execution.
+The system is designed with safety as a primary concern, using policy checks and approval gates to ensure controlled execution.
+
+> **Migration note:** The standalone `Executor` class (`rex/executor.py`) has been retired. Workflow execution now goes through `WorkflowBridge` (`rex/openclaw/workflow_bridge.py`), which delegates to `WorkflowRunner` with OpenClaw integration hooks. The CLI commands (`rex plan`, `rex executor resume`) remain unchanged.
 
 ## Architecture
 
 ```
-User Goal → Planner → Workflow → Validator → Autonomy Check → Executor → Results
+User Goal → Planner → Workflow → Validator → Autonomy Check → WorkflowBridge → Results
                                       ↓              ↓
-                              Policy Engine    Budget Limits
-                                      ↓              ↓
-                              Approval Gates   Evidence Collection
+                              Policy Engine    Approval Gates
+                                      ↓
+                              Evidence Collection
 ```
 
 ### Key Design Principles
@@ -90,49 +92,29 @@ The planner has some limitations in Phase 9:
 
 Future improvements may include LLM-based planning for more flexible goal understanding.
 
-## Executor
+## Workflow Execution
 
-The Executor runs workflows with safety constraints and evidence collection.
+Workflows are executed through the `WorkflowBridge` (which delegates to `WorkflowRunner`), with policy enforcement and evidence collection.
 
 ### Execution Flow
 
 ```
 1. Load workflow
-2. Create WorkflowRunner
+2. Create WorkflowBridge / WorkflowRunner
 3. For each step:
-   a. Check budget limits
-   b. Evaluate preconditions
-   c. Check policy (via PolicyEngine)
-   d. Create approval if needed (blocks execution)
-   e. Execute tool call
-   f. Collect evidence
-   g. Update budget counters
-   h. Log to audit trail
+   a. Evaluate preconditions
+   b. Check policy (via PolicyEngine)
+   c. Create approval if needed (blocks execution)
+   d. Execute tool call
+   e. Collect evidence
+   f. Log to audit trail
 4. Generate summary
-5. Return ExecutionResult
+5. Return RunResult
 ```
-
-### Budget Enforcement
-
-The executor enforces three types of budgets:
-
-1. **max_actions**: Maximum number of tool calls
-   - Prevents excessive API calls
-   - Default: 0 (unlimited)
-
-2. **max_messages**: Maximum number of messages sent
-   - Prevents spam (email, SMS, notifications)
-   - Default: 0 (unlimited)
-
-3. **max_time_seconds**: Maximum execution time
-   - Prevents hung workflows
-   - Default: 0 (unlimited)
-
-Budgets are checked before each step. If a limit is exceeded, execution stops gracefully.
 
 ### Evidence Collection
 
-The executor automatically collects evidence:
+The workflow runner automatically collects evidence:
 
 - Tool call results
 - Execution timestamps
@@ -140,16 +122,9 @@ The executor automatically collects evidence:
 - Error messages
 - Screenshots (for browser automation)
 
-Evidence is stored as `EvidenceRef` objects and can be used for:
-
-- Debugging failed workflows
-- Audit compliance
-- User confirmation
-- Replay and analysis
-
 ### Audit Logging
 
-All executor actions are logged to the audit trail:
+All workflow step executions are logged to the audit trail:
 
 - Action ID and task ID
 - Tool name and arguments (redacted)
@@ -223,8 +198,8 @@ rex plan "check weather in Dallas" --save
 # Plan and execute immediately
 rex plan "turn on living room lights" --execute
 
-# Execute with budgets
-rex plan "send email" --execute --max-actions 5 --max-time 60
+# Plan and execute
+rex plan "send email" --execute
 ```
 
 ### Resuming Blocked Workflows
@@ -302,20 +277,11 @@ config.set_mode("email.newsletter", AutonomyMode.AUTO)
 config.save("config/autonomy.json")
 ```
 
-## Safety and Budgets
-
-### Default Budget Recommendations
-
-| Workflow Type | max_actions | max_messages | max_time_seconds |
-|---------------|-------------|--------------|------------------|
-| Simple query | 5 | 0 | 30 |
-| Email workflow | 10 | 3 | 60 |
-| Report generation | 20 | 5 | 300 |
-| Complex automation | 50 | 10 | 600 |
+## Safety
 
 ### Policy Integration
 
-The executor always respects policy decisions:
+The workflow runner always respects policy decisions:
 
 1. **Denied**: Step is skipped, workflow fails
 2. **Requires Approval**: Workflow blocks until approved
@@ -326,13 +292,13 @@ Policy checks happen before budget checks, so denied actions never consume budge
 ### Approval Workflow
 
 ```
-1. Executor encounters step requiring approval
+1. Workflow runner encounters step requiring approval
 2. Create WorkflowApproval object
 3. Save approval to data/approvals/
 4. Mark workflow as "blocked"
-5. Exit executor, return blocking_approval_id
+5. Return blocking_approval_id
 6. User reviews and approves/denies
-7. Resume executor with approved workflow
+7. Resume workflow with approved step
 ```
 
 ## Examples
@@ -357,18 +323,15 @@ Workflow validation passed.
 
 Autonomy mode: auto
 
-Executing workflow with budget: ExecutionBudget(unlimited)
+Executing workflow...
 ------------------------------------------------------------
 
 Execution complete
 Workflow: wf_a1b2c3d4e5f6
 Status: completed
-Actions taken: 1
-Messages sent: 0
-Elapsed time: 0.52s
-Evidence: 1 items
+Steps executed: 1 of 1
 
-Workflow completed successfully. Executed 1 of 1 steps.
+Workflow completed successfully.
 ```
 
 ### Example 2: Email (SUGGEST, requires approval)
@@ -392,16 +355,13 @@ Workflow validation passed.
 
 Autonomy mode: suggest
 
-Executing workflow with budget: ExecutionBudget(unlimited)
+Executing workflow...
 ------------------------------------------------------------
 
 Execution complete
 Workflow: wf_x9y8z7w6v5u4
 Status: blocked
-Actions taken: 0
-Messages sent: 0
-Elapsed time: 0.05s
-Evidence: 0 items
+Steps executed: 0 of 1
 
 To approve, run:
   rex approvals --approve apr_123456
@@ -410,10 +370,10 @@ Then resume with:
   rex executor resume wf_x9y8z7w6v5u4
 ```
 
-### Example 3: Newsletter with Budget
+### Example 3: Newsletter
 
 ```bash
-$ rex plan "send monthly newsletter" --execute --max-actions 10 --max-messages 5
+$ rex plan "send monthly newsletter" --execute
 
 Planning workflow for goal: send monthly newsletter
 ------------------------------------------------------------
@@ -435,19 +395,15 @@ Workflow validation passed.
 
 Autonomy mode: suggest
 
-Executing workflow with budget: ExecutionBudget(actions=10, messages=5)
+Executing workflow...
 ------------------------------------------------------------
 
 Execution complete
 Workflow: wf_n1n2n3n4n5n6
 Status: blocked
-Actions taken: 1
-Messages sent: 0
-Elapsed time: 1.23s
-Evidence: 1 items
+Steps executed: 1 of 2
 
-Workflow blocked pending approval. Executed 1 of 2 steps.
-Budget used: 1/10 actions, 0/5 messages
+Workflow blocked pending approval.
 ```
 
 ## Limitations
@@ -473,11 +429,6 @@ Budget used: 1/10 actions, 0/5 messages
    - Cannot adjust plan if steps fail
    - No retry logic
    - No alternative path exploration
-
-5. **Budget Granularity**
-   - Budgets apply to entire workflow
-   - Cannot set per-step limits
-   - No dynamic budget adjustment
 
 ### Planned Improvements
 
@@ -505,13 +456,6 @@ Future phases may include:
 - Tasks with unknown outcomes
 - Operations requiring human judgment
 - High-risk actions (file deletion, payments)
-
-### Budget Guidelines
-
-1. **Start Conservative**: Use low budgets initially
-2. **Monitor Execution**: Check audit logs for actual usage
-3. **Adjust Gradually**: Increase budgets as confidence grows
-4. **Set Time Limits**: Always set max_time_seconds to prevent hangs
 
 ### Security Considerations
 
@@ -541,16 +485,6 @@ Future phases may include:
 3. Review policy settings
 4. Check audit logs for denial reasons
 
-### "Budget exceeded"
-
-**Cause**: Workflow consumed more resources than budgeted
-
-**Solution**:
-1. Review workflow complexity
-2. Increase budget limits
-3. Simplify the workflow
-4. Check for loops or inefficiencies
-
 ### Workflow stuck in "blocked" state
 
 **Cause**: Pending approval not resolved
@@ -562,11 +496,10 @@ Future phases may include:
 
 ## See Also
 
-- [Workflow Engine Documentation](workflow_engine.md)
-- [Policy Engine Documentation](policy_engine.md)
+- [Workflow Engine Documentation](workflow-engine.md)
+- [Policy Documentation](policy.md)
 - [Audit Logging Documentation](audit.md)
-- [Tool Registry Documentation](tool_registry.md)
-- [CLI Reference](cli.md)
+- [Tool Registry Documentation](tools.md)
 
 ## Support
 

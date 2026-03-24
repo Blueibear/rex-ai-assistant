@@ -2,6 +2,8 @@
 
 The Rex Workflow Engine provides a structured, persistent system for executing multi-step tasks with policy enforcement, approval gates, and recovery capabilities.
 
+> **Migration note:** `rex/workflow.py` and `rex/workflow_runner.py` are marked `# OPENCLAW-WRAP`. They will be adapted to delegate to OpenClaw's task execution model while preserving the public API documented here. The standalone `Executor` class has already been retired; workflow execution now goes through `WorkflowBridge` (`rex/openclaw/workflow_bridge.py`), which wraps the `WorkflowRunner`.
+
 ## Overview
 
 The workflow engine is designed to:
