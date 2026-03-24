@@ -261,13 +261,13 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a developer, I want EventBridge to stop pretending it will delegate to OpenClaw and instead commit to being the local event bus, since OpenClaw uses WebSocket events (not HTTP) and bridging those is a separate concern.
 
 **Acceptance Criteria:**
-- [ ] `EventBridge` class keeps its current delegation to `rex.openclaw.event_bus.EventBus`
-- [ ] Remove all TODO comments about replacing with OpenClaw event registration
-- [ ] Remove the dead `register()` method (already addressed in US-011, but verify)
-- [ ] Add docstring clarifying: "EventBridge is Rex's internal event bus. OpenClaw event bridging (WebSocket) is out of scope for HTTP integration."
-- [ ] If future WebSocket integration is desired, add a `# FUTURE: WebSocket bridge to OpenClaw gateway events` comment in the module docstring
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] `EventBridge` class keeps its current delegation to `rex.openclaw.event_bus.EventBus`
+- [x] Remove all TODO comments about replacing with OpenClaw event registration
+- [x] Remove the dead `register()` method (already addressed in US-011, but verify)
+- [x] Add docstring clarifying: "EventBridge is Rex's internal event bus. OpenClaw event bridging (WebSocket) is out of scope for HTTP integration."
+- [x] If future WebSocket integration is desired, add a `# FUTURE: WebSocket bridge to OpenClaw gateway events` comment in the module docstring
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 

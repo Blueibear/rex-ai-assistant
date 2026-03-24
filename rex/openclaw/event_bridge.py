@@ -1,16 +1,13 @@
 """OpenClaw event bridge — US-P4-015.
 
-Implements :class:`~rex.contracts.event_bus.EventBusProtocol` by delegating
-to Rex's existing :class:`~rex.event_bus.EventBus` singleton.
+EventBridge is Rex's internal event bus.  It implements
+:class:`~rex.contracts.event_bus.EventBusProtocol` by delegating to Rex's
+existing :class:`~rex.event_bus.EventBus` singleton.
 
-This bridge is the first step in routing event bus operations through
-OpenClaw.  It presents the ``EventBusProtocol`` interface so that callers
-do not need to import ``rex.event_bus`` directly and can be swapped once
-the full OpenClaw event-dispatch API is confirmed.
+OpenClaw event bridging (WebSocket) is out of scope for HTTP integration.
+All subscribe/publish operations run locally within the Rex process.
 
-When the ``openclaw`` package is not installed, :meth:`register` logs a
-warning and returns ``None``.  All other methods work without OpenClaw
-installed because they delegate to the existing Rex event bus.
+# FUTURE: WebSocket bridge to OpenClaw gateway events
 
 Typical usage::
 
@@ -40,20 +37,19 @@ logger = logging.getLogger(__name__)
 
 
 class EventBridge:
-    """Adapter that presents Rex's EventBus as an OpenClaw event provider.
+    """Rex's internal event bus, exposed as an OpenClaw-compatible adapter.
 
     Implements :class:`~rex.contracts.event_bus.EventBusProtocol` by
     delegating all operations to an underlying :class:`~rex.event_bus.EventBus`
     instance.
 
+    EventBridge is Rex's internal event bus.  OpenClaw event bridging
+    (WebSocket) is out of scope for HTTP integration.
+
     When no ``bus`` is supplied the global Rex singleton (via
     :func:`~rex.event_bus.get_event_bus`) is used, ensuring that all
     existing Rex subscribers continue to receive events published through
     the bridge.
-
-    When ``openclaw`` is installed, :meth:`register` registers the bridge
-    as the event provider so that OpenClaw dispatches events through Rex
-    (stub — filled in once the OpenClaw event-provider API is confirmed).
 
     Args:
         bus: Optional explicit :class:`~rex.event_bus.EventBus` instance.
@@ -153,4 +149,3 @@ class EventBridge:
                 When ``None``, clear all subscriptions.
         """
         self._bus.clear_subscriptions(event_type)
-
