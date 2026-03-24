@@ -157,3 +157,25 @@
 - `git add <deleted-file>` stages deletions; don't forget deleted files when staging
 - Always check `git status` for deleted files that don't show up as "modified"
 ---
+
+## Iteration 12 - US-012: Update EventBridge for local-only operation
+- Updated module docstring: removed "routing through OpenClaw" stub language, added clarification that EventBridge is Rex's internal event bus, OpenClaw WebSocket bridging is out of scope
+- Added `# FUTURE: WebSocket bridge to OpenClaw gateway events` comment in module docstring
+- Updated class docstring: removed stale "openclaw package" and "register" references, added clarifying statement
+- No code changes needed — `register()` was already removed by US-011
+- Files changed: `rex/openclaw/event_bridge.py`, `PRD-openclaw-http-integration.md`
+- Learnings for future iterations:
+  - US-011 already removed register() — US-012/013/014/015 are pure docstring/comment cleanup tasks
+  - black may reformat docstrings with trailing whitespace; always run `black` after edits
+---
+
+## Iteration 13 - US-013: Update BrowserBridge for local-only operation
+- Updated module docstring: added leading paragraph "BrowserBridge runs Playwright locally. OpenClaw has its own Chromium instance for web tasks; they operate independently."
+- Added `# FUTURE: If OpenClaw browser task delegation...` comment in module docstring
+- Updated class docstring: replaced generic "Adapter that presents Rex's browser automation as an OpenClaw provider" with clarifying statement about local-only Playwright execution
+- No code changes — `register()` was already removed by US-011, no TODO comments existed
+- Files changed: `rex/openclaw/browser_bridge.py`, `PRD-openclaw-http-integration.md`
+- Learnings for future iterations:
+  - US-013 was a pure docstring task; the file had no TODO comments or register() stubs left
+  - 7 async test failures in test_openclaw_browser_bridge.py are pre-existing (pytest-asyncio missing) — not caused by our changes
+---

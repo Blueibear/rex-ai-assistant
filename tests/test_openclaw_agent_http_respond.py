@@ -114,8 +114,8 @@ class TestRespondHttpPath:
         payload = mock_client.post.call_args.kwargs["json"]
         assert payload.get("user") == "alice"
 
-    def test_payload_omits_user_field_when_no_user_key(self):
-        """When user_key is None, the POST payload has no 'user' field."""
+    def test_payload_uses_identity_adapter_when_no_user_key(self):
+        """When user_key is None, the POST payload derives 'user' from identity adapter."""
         config = _make_config()
         agent = _make_agent(config)
 
@@ -123,10 +123,12 @@ class TestRespondHttpPath:
         mock_client.post.return_value = _chat_response("reply")
 
         with patch("rex.openclaw.agent.get_openclaw_client", return_value=mock_client):
-            agent.respond("Hello")
+            with patch.object(agent._identity, "get_openclaw_user_key", return_value="james"):
+                agent.respond("Hello")
 
         payload = mock_client.post.call_args.kwargs["json"]
-        assert "user" not in payload
+        assert "user" in payload
+        assert payload["user"] == "james"
 
     def test_local_llm_not_called_on_successful_http(self):
         """When OpenClaw replies successfully, the local LLM is not invoked."""

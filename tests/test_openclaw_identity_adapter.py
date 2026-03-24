@@ -254,9 +254,7 @@ class TestBuildSession:
 class TestGetOpenClawUserKey:
     def test_returns_explicit_user_when_provided(self) -> None:
         adapter = _adapter()
-        with patch(
-            "rex.openclaw.identity_adapter.resolve_active_user", return_value="explicit"
-        ):
+        with patch("rex.openclaw.identity_adapter.resolve_active_user", return_value="explicit"):
             result = adapter.get_openclaw_user_key(explicit_user="explicit")
         assert result == "explicit"
 
@@ -282,9 +280,7 @@ class TestGetOpenClawUserKey:
 
     def test_returns_consistent_value_for_same_user(self) -> None:
         adapter = _adapter()
-        with patch(
-            "rex.openclaw.identity_adapter.resolve_active_user", return_value="james"
-        ):
+        with patch("rex.openclaw.identity_adapter.resolve_active_user", return_value="james"):
             key1 = adapter.get_openclaw_user_key()
             key2 = adapter.get_openclaw_user_key()
         assert key1 == key2 == "james"

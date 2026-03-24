@@ -288,15 +288,15 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a developer, I want IdentityAdapter to resolve users locally but pass the user key through to OpenClaw via the `user` field in chat completions, rather than making separate HTTP calls for identity.
 
 **Acceptance Criteria:**
-- [ ] `IdentityAdapter.resolve_user()` continues to use local `resolve_active_user()` (no HTTP)
-- [ ] `IdentityAdapter.build_session()` continues to build session context locally
-- [ ] Add a `get_openclaw_user_key() -> str` method that returns a stable string suitable for the `user` field in OpenClaw chat completions (derived from `resolve_user()` output)
-- [ ] Remove all TODO comments about replacing with OpenClaw identity registration
-- [ ] Remove the dead `register()` method
-- [ ] `RexAgent.respond()` (from US-005) uses `IdentityAdapter.get_openclaw_user_key()` for the `user` field
-- [ ] Unit test for `get_openclaw_user_key()` returning consistent values for same user
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] `IdentityAdapter.resolve_user()` continues to use local `resolve_active_user()` (no HTTP)
+- [x] `IdentityAdapter.build_session()` continues to build session context locally
+- [x] Add a `get_openclaw_user_key() -> str` method that returns a stable string suitable for the `user` field in OpenClaw chat completions (derived from `resolve_user()` output)
+- [x] Remove all TODO comments about replacing with OpenClaw identity registration
+- [x] Remove the dead `register()` method
+- [x] `RexAgent.respond()` (from US-005) uses `IdentityAdapter.get_openclaw_user_key()` for the `user` field
+- [x] Unit test for `get_openclaw_user_key()` returning consistent values for same user
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 
