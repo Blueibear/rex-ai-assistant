@@ -8,13 +8,12 @@ dependency on the retired ``rex.browser_automation`` module.
 from __future__ import annotations
 
 import asyncio
-import json
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from rex.audit import LogEntry, get_audit_logger
 from rex.contracts.core import ToolCall
@@ -51,8 +50,8 @@ class BrowserSession:
     def __init__(
         self,
         headless: bool = True,
-        session_name: Optional[str] = None,
-        storage_path: Optional[Path] = None,
+        session_name: str | None = None,
+        storage_path: Path | None = None,
     ):
         self.headless = headless
         self.session_name = session_name or f"session_{uuid.uuid4().hex[:8]}"
@@ -60,10 +59,10 @@ class BrowserSession:
         self.screenshot_path = self.storage_path / "screenshots"
         self.screenshot_path.mkdir(parents=True, exist_ok=True)
 
-        self._playwright = None
-        self._browser = None
-        self._context = None
-        self._page = None
+        self._playwright: Any = None
+        self._browser: Any = None
+        self._context: Any = None
+        self._page: Any = None
         self._audit_logger = get_audit_logger()
         self._credential_manager = get_credential_manager()
 
@@ -100,6 +99,7 @@ class BrowserSession:
             self._browser = await self._playwright.chromium.launch(headless=self.headless)
             self._context = await self._browser.new_context()
             self._page = await self._context.new_page()
+
     async def close(self) -> None:
         """Close the browser session."""
         if self._context:
@@ -199,7 +199,7 @@ class BrowserSession:
 
     async def screenshot(
         self,
-        filename: Optional[str] = None,
+        filename: str | None = None,
         full_page: bool = False,
     ) -> dict[str, Any]:
         """Take a screenshot of the current page."""
@@ -278,7 +278,7 @@ class BrowserSession:
             raise RuntimeError("Browser not launched.")
         return await self._page.content()
 
-    async def get_text(self, selector: Optional[str] = None) -> str:
+    async def get_text(self, selector: str | None = None) -> str:
         """Get text content from page or element."""
         if not self._page:
             raise RuntimeError("Browser not launched.")
@@ -295,7 +295,7 @@ class BrowserSession:
 async def run_browser_script(
     script_steps: list[dict[str, Any]],
     headless: bool = True,
-    session_name: Optional[str] = None,
+    session_name: str | None = None,
     check_policy: bool = True,
 ) -> list[dict[str, Any]]:
     """Run a browser automation script with multiple steps."""
@@ -380,7 +380,7 @@ async def run_browser_script(
 def run_browser_script_sync(
     script_steps: list[dict[str, Any]],
     headless: bool = True,
-    session_name: Optional[str] = None,
+    session_name: str | None = None,
 ) -> list[dict[str, Any]]:
     """Synchronous wrapper for run_browser_script."""
     return asyncio.run(run_browser_script(script_steps, headless, session_name))

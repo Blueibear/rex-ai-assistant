@@ -27,11 +27,11 @@ from zoneinfo import ZoneInfo
 from rex.audit import LogEntry, get_audit_logger
 from rex.contracts import ToolCall
 from rex.geolocation import get_cached_city, get_cached_timezone
-from rex.policy_engine import PolicyEngine, get_policy_engine
 from rex.openclaw.tool_registry import (
     ToolRegistry,
     get_tool_registry,
 )
+from rex.policy_engine import PolicyEngine, get_policy_engine
 
 logger = logging.getLogger(__name__)
 
@@ -271,7 +271,6 @@ def execute_tool(
                 raise CredentialMissingError(tool, missing)
 
     # Execute the tool
-    result: dict[str, Any]
     error: str | None = None
 
     try:
@@ -941,7 +940,7 @@ def _error_result(
     tool: str | None = None,
     args: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    payload = {"message": message}
+    payload: dict[str, Any] = {"message": message}
     if tool:
         payload["tool"] = tool
     if args is not None:

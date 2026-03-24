@@ -15,8 +15,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from rex.openclaw.event_bus import Event, EventBus, set_event_bus
 from rex.event_triggers import EventTriggerRegistry, get_trigger_registry, set_trigger_registry
+from rex.openclaw.event_bus import Event, EventBus, set_event_bus
 
 
 @pytest.fixture(autouse=True)

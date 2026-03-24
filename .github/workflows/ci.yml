@@ -55,7 +55,7 @@ jobs:
         run: |
           BASE_REF="${{ steps.base.outputs.base_ref }}"
           git fetch origin "$BASE_REF"
-          files=$(git diff --name-only "origin/$BASE_REF...HEAD" -- '*.py')
+          files=$(git diff --name-only "origin/$BASE_REF...HEAD" -- '*.py' | while read -r f; do [ -f "$f" ] && echo "$f"; done)
           if [ -z "$files" ]; then
             echo "No Python files changed; skipping ruff."
           else
@@ -67,7 +67,7 @@ jobs:
         run: |
           BASE_REF="${{ steps.base.outputs.base_ref }}"
           git fetch origin "$BASE_REF"
-          files=$(git diff --name-only "origin/$BASE_REF...HEAD" -- '*.py')
+          files=$(git diff --name-only "origin/$BASE_REF...HEAD" -- '*.py' | while read -r f; do [ -f "$f" ] && echo "$f"; done)
           if [ -z "$files" ]; then
             echo "No Python files changed; skipping black."
           else

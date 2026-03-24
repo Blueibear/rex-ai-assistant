@@ -12,10 +12,10 @@ from unittest.mock import patch
 import pytest
 
 from rex.contracts import ToolCall
+from rex.openclaw.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
 from rex.openclaw.workflow_bridge import WorkflowBridge
 from rex.planner import Planner, UnableToPlanError
 from rex.policy_engine import PolicyEngine, reset_policy_engine
-from rex.openclaw.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
 from rex.workflow import Workflow, WorkflowStep
 from rex.workflow_runner import RunResult
 

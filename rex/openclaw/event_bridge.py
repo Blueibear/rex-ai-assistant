@@ -30,11 +30,11 @@ Typical usage::
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from importlib.util import find_spec
-from typing import Any, Callable, Iterable
+from typing import Any, Callable
 
 from rex.openclaw.event_bus import EventBus as _EventBus
-from rex.openclaw.event_bus import Event as _Event
 from rex.openclaw.event_bus import get_event_bus as _get_event_bus
 
 logger = logging.getLogger(__name__)
@@ -75,9 +75,7 @@ class EventBridge:
     # EventBusProtocol implementation
     # ------------------------------------------------------------------
 
-    def subscribe(
-        self, event_type: str, fn: Callable[..., None]
-    ) -> Callable[[], None] | None:
+    def subscribe(self, event_type: str, fn: Callable[..., None]) -> Callable[[], None] | None:
         """Register a handler for *event_type*.
 
         Delegates to :meth:`~rex.event_bus.EventBus.subscribe`.
@@ -92,7 +90,8 @@ class EventBridge:
             For legacy callbacks: an unsubscribe callable.
             For rich handlers: ``None``.
         """
-        return self._bus.subscribe(event_type, fn)
+        result: Callable[[], None] | None = self._bus.subscribe(event_type, fn)
+        return result
 
     def unsubscribe(self, event_type: str, handler: Callable[..., None]) -> bool:
         """Remove *handler* from *event_type* subscriptions.

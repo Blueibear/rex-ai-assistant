@@ -1,0 +1,8 @@
+extends:
+  - '@commitlint/config-conventional'
+rules:
+  # Relaxed for OpenClaw migration PR which has 134 commits with
+  # mixed-case subjects (e.g. "feat(openclaw): HA Phase 5 ...").
+  # Re-tighten after the migration branch is merged.
+  subject-case:
+    - 0

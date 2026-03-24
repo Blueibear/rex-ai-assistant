@@ -17,7 +17,7 @@ else:
 try:  # pragma: no cover - optional dependency
     import torch as _torch
 except Exception:  # pragma: no cover - optional dependency
-    _torch = None  # type: ignore[assignment]
+    _torch = None
 
 torch: ModuleType | None = _torch
 
