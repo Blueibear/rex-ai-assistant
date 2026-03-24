@@ -18,13 +18,13 @@ Typical usage::
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Optional
+from typing import Any
 
 from rex.config import AppConfig, load_config
 from rex.profile_manager import DEFAULT_PROFILES_DIR, load_profile
 
 
-def build_system_prompt(config: Optional[AppConfig] = None) -> str:
+def build_system_prompt(config: AppConfig | None = None) -> str:
     """Build a Rex persona system prompt from ``AppConfig`` fields.
 
     The prompt encodes Rex's identity, active profile, location context, and
@@ -97,7 +97,7 @@ def apply_profile_to_config(
     )
 
 
-def build_agent_config(config: Optional[AppConfig] = None) -> dict[str, Any]:
+def build_agent_config(config: AppConfig | None = None) -> dict[str, Any]:
     """Map Rex ``AppConfig`` fields to an OpenClaw agent configuration dict.
 
     The returned dict captures the subset of Rex settings that are relevant

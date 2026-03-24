@@ -45,6 +45,8 @@ if OPENCLAW_AVAILABLE:  # pragma: no cover
     import openclaw as _openclaw
 else:
     _openclaw = None
+
+
 class MemoryAdapter:
     """Adapter between Rex conversation memory and OpenClaw storage.
 

@@ -22,8 +22,8 @@ from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
 
-from rex.openclaw.event_bus import Event, EventBus
 from rex.openclaw.event_bridge import EventBridge
+from rex.openclaw.event_bus import Event, EventBus
 
 logger = logging.getLogger(__name__)
 

@@ -11,12 +11,9 @@ Verifies that IdentityAdapter correctly bridges Rex's identity system:
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import call, patch
-
-import pytest
+from unittest.mock import patch
 
 from rex.openclaw.identity_adapter import IdentityAdapter
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -60,9 +57,7 @@ class TestSetAndGetUser:
     def test_set_user_then_get_user_returns_same_id(self) -> None:
         adapter = _adapter()
         with patch("rex.openclaw.identity_adapter.set_session_user") as mock_set:
-            with patch(
-                "rex.openclaw.identity_adapter.get_session_user", return_value="james"
-            ):
+            with patch("rex.openclaw.identity_adapter.get_session_user", return_value="james"):
                 adapter.set_user("james")
                 result = adapter.get_user()
 
@@ -71,9 +66,7 @@ class TestSetAndGetUser:
 
     def test_get_user_returns_none_when_no_session(self) -> None:
         adapter = _adapter()
-        with patch(
-            "rex.openclaw.identity_adapter.get_session_user", return_value=None
-        ):
+        with patch("rex.openclaw.identity_adapter.get_session_user", return_value=None):
             result = adapter.get_user()
 
         assert result is None
@@ -104,9 +97,7 @@ class TestSetAndGetUser:
 class TestClearUser:
     def test_clear_user_delegates_to_clear_session_user(self) -> None:
         adapter = _adapter()
-        with patch(
-            "rex.openclaw.identity_adapter.clear_session_user"
-        ) as mock_clear:
+        with patch("rex.openclaw.identity_adapter.clear_session_user") as mock_clear:
             adapter.clear_user()
 
         mock_clear.assert_called_once()
@@ -114,9 +105,7 @@ class TestClearUser:
     def test_clear_user_then_get_user_returns_none(self) -> None:
         adapter = _adapter()
         with patch("rex.openclaw.identity_adapter.clear_session_user"):
-            with patch(
-                "rex.openclaw.identity_adapter.get_session_user", return_value=None
-            ):
+            with patch("rex.openclaw.identity_adapter.get_session_user", return_value=None):
                 adapter.clear_user()
                 result = adapter.get_user()
 
@@ -151,9 +140,7 @@ class TestResolveUser:
 
     def test_resolve_user_returns_none_when_no_user(self) -> None:
         adapter = _adapter()
-        with patch(
-            "rex.openclaw.identity_adapter.resolve_active_user", return_value=None
-        ):
+        with patch("rex.openclaw.identity_adapter.resolve_active_user", return_value=None):
             result = adapter.resolve_user()
 
         assert result is None

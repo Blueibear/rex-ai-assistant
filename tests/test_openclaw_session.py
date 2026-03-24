@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 from rex.openclaw.session import build_session_context
 
@@ -80,7 +77,9 @@ def test_build_session_context_profile_load_failure_does_not_raise():
     """If get_user_profile raises, rex_user_profile is None (not an exception)."""
     with patch("rex.openclaw.session.resolve_active_user", return_value="broken"):
         with patch("rex.openclaw.session.list_known_users", return_value=[]):
-            with patch("rex.openclaw.session.get_user_profile", side_effect=RuntimeError("disk error")):
+            with patch(
+                "rex.openclaw.session.get_user_profile", side_effect=RuntimeError("disk error")
+            ):
                 result = build_session_context()
 
     assert result["user_id"] == "broken"

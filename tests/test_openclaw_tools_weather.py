@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
-
 
 class TestWeatherTool:
     def test_weather_now_returns_dict(self):
@@ -65,6 +63,7 @@ class TestWeatherTool:
     def test_weather_now_error_when_no_api_key(self):
         """Without API key, weather_now returns an error dict (not raises)."""
         import os
+
         from rex.openclaw.tools.weather_tool import weather_now
 
         # Don't mock — let it hit the real tool_executor which requires an API key

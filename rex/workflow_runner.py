@@ -44,11 +44,11 @@ from typing import Any, Callable
 
 from rex.audit import AuditLogger, LogEntry, get_audit_logger
 from rex.contracts import ToolCall
-from rex.policy import PolicyDecision
-from rex.policy_engine import PolicyEngine, get_policy_engine
 from rex.openclaw.tool_executor import (
     execute_tool,
 )
+from rex.policy import PolicyDecision
+from rex.policy_engine import PolicyEngine, get_policy_engine
 from rex.workflow import (
     DEFAULT_APPROVAL_DIR,
     DEFAULT_WORKFLOW_DIR,

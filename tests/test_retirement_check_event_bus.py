@@ -57,9 +57,9 @@ def _find_active_importers() -> set[str]:
 
 class TestEventBusRetired:
     def test_module_does_not_exist(self):
-        assert not (REX_PKG / "event_bus.py").exists(), (
-            "rex/event_bus.py was re-introduced — it was retired in US-P7-002"
-        )
+        assert not (
+            REX_PKG / "event_bus.py"
+        ).exists(), "rex/event_bus.py was re-introduced — it was retired in US-P7-002"
 
     def test_no_rex_importers(self):
         active = _find_active_importers()

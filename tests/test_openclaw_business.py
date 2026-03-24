@@ -11,12 +11,13 @@ US-P5-022 acceptance criteria (end-to-end business workflow):
     write step is approval-gated
   - Full workflow via ToolBridge: register_business_tools() covers all 6 tools
 """
+
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
-
+import rex.woocommerce.service as _wc_service_module
+import rex.wordpress.service as _wp_service_module
 from rex.openclaw.tool_bridge import ToolBridge
 from rex.openclaw.tools.business_tool import (
     ALL_BUSINESS_TOOLS,
@@ -26,10 +27,6 @@ from rex.openclaw.tools.business_tool import (
 )
 from rex.openclaw.tools.woocommerce_tool import wc_list_orders, wc_set_order_status
 from rex.openclaw.tools.wordpress_tool import wp_health_check
-
-import rex.woocommerce.service as _wc_service_module
-import rex.wordpress.service as _wp_service_module
-
 
 # ---------------------------------------------------------------------------
 # US-P5-021: Module structure
@@ -112,6 +109,7 @@ class TestBusinessWorkflowEndToEnd:
 
     def _make_wc_service(self):
         from rex.woocommerce.service import WooCommerceService
+
         return MagicMock(spec=WooCommerceService)
 
     def _make_orders_result(self, orders):
@@ -129,14 +127,13 @@ class TestBusinessWorkflowEndToEnd:
 
     def _make_wp_service(self):
         from rex.wordpress.service import WordPressService
+
         return MagicMock(spec=WordPressService)
 
     def test_list_orders_step(self):
         """Step 1: List orders returns ok=True with results."""
         svc = self._make_wc_service()
-        svc.list_orders.return_value = self._make_orders_result(
-            [{"id": 101, "status": "pending"}]
-        )
+        svc.list_orders.return_value = self._make_orders_result([{"id": 101, "status": "pending"}])
         with patch.object(_wc_service_module, "_service", svc):
             result = wc_list_orders("mystore", status="pending")
 
@@ -188,8 +185,8 @@ class TestBusinessWorkflowEndToEnd:
 
     def test_health_check_step(self):
         """Health check step succeeds."""
-        from rex.wordpress.service import WordPressService
         from rex.wordpress.client import WPHealthResult
+        from rex.wordpress.service import WordPressService
 
         svc = MagicMock(spec=WordPressService)
         health_result = MagicMock(spec=WPHealthResult)
@@ -211,8 +208,8 @@ class TestBusinessWorkflowEndToEnd:
         """Full workflow: list_orders → health_check → set_order_status (auto-allowed)."""
         from rex.woocommerce.service import WooCommerceService
         from rex.woocommerce.write_policy import PolicyDecision
-        from rex.wordpress.service import WordPressService
         from rex.wordpress.client import WPHealthResult
+        from rex.wordpress.service import WordPressService
 
         # --- Setup mocks ---
         wc_svc = MagicMock(spec=WooCommerceService)
@@ -261,13 +258,16 @@ class TestBusinessWorkflowEndToEnd:
         fake_wc = {name: MagicMock() for name in WOOCOMMERCE_TOOLS}
         fake_wp = None  # wordpress_tool.register() returns None
 
-        with patch(
-            "rex.openclaw.tools.business_tool._register_wc_tools",
-            return_value=fake_wc,
-        ) as mock_wc, patch(
-            "rex.openclaw.tools.business_tool._register_wp_tools",
-            return_value=fake_wp,
-        ) as mock_wp:
+        with (
+            patch(
+                "rex.openclaw.tools.business_tool._register_wc_tools",
+                return_value=fake_wc,
+            ) as mock_wc,
+            patch(
+                "rex.openclaw.tools.business_tool._register_wp_tools",
+                return_value=fake_wp,
+            ) as mock_wp,
+        ):
             result = register_all_business_tools(agent=None)
 
         mock_wc.assert_called_once_with(agent=None)

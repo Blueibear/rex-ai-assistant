@@ -59,6 +59,8 @@ if OPENCLAW_AVAILABLE:  # pragma: no cover
     import openclaw as _openclaw
 else:
     _openclaw = None
+
+
 class WorkflowBridge:
     """Thin wrapper around :class:`~rex.workflow_runner.WorkflowRunner`.
 

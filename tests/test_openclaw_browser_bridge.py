@@ -12,6 +12,7 @@ US-P4-023 acceptance criteria:
   - list_screenshots returns screenshot list
   - headless parameter is forwarded
 """
+
 from __future__ import annotations
 
 import json
@@ -22,7 +23,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from rex.openclaw.browser_bridge import OPENCLAW_AVAILABLE, BrowserBridge
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -86,9 +86,7 @@ class TestBridgeMethods:
         ) as mock_run:
             result = await bridge.execute_script(str(script_file), headless=True)
 
-        mock_run.assert_awaited_once_with(
-            script["steps"], True, None
-        )
+        mock_run.assert_awaited_once_with(script["steps"], True, None)
         assert result == fake_results
 
     @pytest.mark.asyncio
@@ -172,7 +170,13 @@ class TestSimpleBrowserTask:
         script_file.write_text(json.dumps({"steps": steps}))
 
         expected = [
-            {"step": 0, "action": "navigate", "status": "success", "url": "https://example.com", "title": "Example"},
+            {
+                "step": 0,
+                "action": "navigate",
+                "status": "success",
+                "url": "https://example.com",
+                "title": "Example",
+            },
             {"step": 1, "action": "screenshot", "status": "success", "path": "/data/shot.png"},
         ]
         bridge = _fresh_bridge(tmp_path)
@@ -194,9 +198,7 @@ class TestSimpleBrowserTask:
         script_file.write_text(json.dumps({"steps": []}))
 
         bridge = _fresh_bridge(tmp_path)
-        with patch(
-            "rex.openclaw.browser_bridge.run_browser_script", AsyncMock(return_value=[])
-        ):
+        with patch("rex.openclaw.browser_bridge.run_browser_script", AsyncMock(return_value=[])):
             results = await bridge.execute_script(str(script_file))
 
         assert results == []
@@ -213,11 +215,24 @@ class TestAuthenticatedBrowserTask:
     @pytest.mark.asyncio
     async def test_login_script_passed_to_run_browser_script(self, tmp_path):
         """A script with a login step is passed to run_browser_script."""
-        steps = [{"action": "login", "params": {"url": "https://example.com/login", "credential_name": "site"}}]
+        steps = [
+            {
+                "action": "login",
+                "params": {"url": "https://example.com/login", "credential_name": "site"},
+            }
+        ]
         script_file = tmp_path / "login.json"
         script_file.write_text(json.dumps({"steps": steps}))
 
-        login_result = [{"step": 0, "action": "login", "status": "success", "url": "https://example.com/dashboard", "title": "Dashboard"}]
+        login_result = [
+            {
+                "step": 0,
+                "action": "login",
+                "status": "success",
+                "url": "https://example.com/dashboard",
+                "title": "Dashboard",
+            }
+        ]
 
         bridge = _fresh_bridge(tmp_path)
         with patch(
@@ -231,11 +246,18 @@ class TestAuthenticatedBrowserTask:
     @pytest.mark.asyncio
     async def test_login_failure_result_propagated(self, tmp_path):
         """Login failure result is propagated from run_browser_script to caller."""
-        steps = [{"action": "login", "params": {"url": "https://example.com/login", "credential_name": "bad"}}]
+        steps = [
+            {
+                "action": "login",
+                "params": {"url": "https://example.com/login", "credential_name": "bad"},
+            }
+        ]
         script_file = tmp_path / "login_fail.json"
         script_file.write_text(json.dumps({"steps": steps}))
 
-        fail_result = [{"step": 0, "action": "login", "status": "error", "error": "Credentials not found"}]
+        fail_result = [
+            {"step": 0, "action": "login", "status": "error", "error": "Credentials not found"}
+        ]
 
         bridge = _fresh_bridge(tmp_path)
         with patch(

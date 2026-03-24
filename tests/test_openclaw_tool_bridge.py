@@ -1,9 +1,8 @@
 """Tests for rex.openclaw.tool_bridge — US-P4-003."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from rex.openclaw.tool_bridge import OPENCLAW_AVAILABLE, ToolBridge
 
@@ -60,9 +59,7 @@ class TestExecuteTool:
 
     def test_delegates_to_tool_router(self):
         fake_result = {"status": "ok", "result": "12:00"}
-        with patch(
-            "rex.openclaw.tool_bridge._execute_tool", return_value=fake_result
-        ) as mock_fn:
+        with patch("rex.openclaw.tool_bridge._execute_tool", return_value=fake_result) as mock_fn:
             req = {"tool": "time_now", "args": {}}
             ctx = {"timezone": "UTC"}
             result = self.bridge.execute_tool(req, ctx)

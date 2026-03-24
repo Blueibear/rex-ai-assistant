@@ -33,21 +33,25 @@ import logging
 from importlib.util import find_spec
 from typing import Any, Callable
 
+from rex.openclaw.tool_executor import (
+    execute_tool as _execute_tool,
+)
+from rex.openclaw.tool_executor import (
+    parse_tool_request as _parse_tool_request,
+)
+from rex.openclaw.tool_executor import (
+    route_if_tool_request as _route_if_tool_request,
+)
 from rex.openclaw.tools.business_tool import register_all_business_tools as _register_business_tools
 from rex.openclaw.tools.calendar_tool import register as _register_calendar_create
 from rex.openclaw.tools.email_tool import register as _register_send_email
 from rex.openclaw.tools.ha_tool import register as _register_ha_call_service
 from rex.openclaw.tools.plex_tool import register as _register_plex_tools
-from rex.openclaw.tools.wordpress_tool import register as _register_wp_health_check
-from rex.openclaw.tools.woocommerce_tool import register as _register_wc_tools
 from rex.openclaw.tools.sms_tool import register as _register_send_sms
 from rex.openclaw.tools.time_tool import register as _register_time_now
 from rex.openclaw.tools.weather_tool import register as _register_weather_now
-from rex.openclaw.tool_executor import (
-    execute_tool as _execute_tool,
-    parse_tool_request as _parse_tool_request,
-    route_if_tool_request as _route_if_tool_request,
-)
+from rex.openclaw.tools.woocommerce_tool import register as _register_wc_tools
+from rex.openclaw.tools.wordpress_tool import register as _register_wp_health_check
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +61,8 @@ if OPENCLAW_AVAILABLE:  # pragma: no cover
     import openclaw as _openclaw
 else:
     _openclaw = None
+
+
 class ToolBridge:
     """Adapter that presents Rex's tool executor as an OpenClaw tool provider.
 

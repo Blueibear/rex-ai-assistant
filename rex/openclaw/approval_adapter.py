@@ -49,6 +49,8 @@ if OPENCLAW_AVAILABLE:  # pragma: no cover
     import openclaw as _openclaw
 else:
     _openclaw = None
+
+
 class ApprovalAdapter:
     """Adapter that presents Rex's file-based approval system to OpenClaw.
 
@@ -226,9 +228,7 @@ class ApprovalAdapter:
             The registration handle from OpenClaw, or ``None``.
         """
         if not OPENCLAW_AVAILABLE:
-            logger.warning(
-                "openclaw package not installed — ApprovalAdapter not registered"
-            )
+            logger.warning("openclaw package not installed — ApprovalAdapter not registered")
             return None
 
         # TODO: replace with real OpenClaw approval registration once API is confirmed.

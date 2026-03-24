@@ -9,9 +9,9 @@ from __future__ import annotations
 import pytest
 
 from rex.openclaw.policy_adapter import PolicyAdapter
+from rex.openclaw.tool_executor import ApprovalRequiredError, PolicyDeniedError
 from rex.policy import ActionPolicy
 from rex.policy_engine import PolicyEngine
-from rex.openclaw.tool_executor import ApprovalRequiredError, PolicyDeniedError
 
 
 def _adapter(*extra_policies: ActionPolicy) -> PolicyAdapter:

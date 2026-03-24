@@ -3,9 +3,10 @@
 Verifies that after calling register_simple_tools(), the time_now and
 weather_now tools return correct results when invoked through the bridge.
 """
+
 from __future__ import annotations
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from rex.openclaw.tool_bridge import ToolBridge
 
@@ -74,25 +75,19 @@ class TestTimeNowThroughBridge:
     def test_location_arg_forwarded(self):
         """Bridge passes location arg through to the underlying tool call."""
         with patch("rex.openclaw.tool_bridge._execute_tool", return_value={}) as mock_exec:
-            self.bridge.execute_tool(
-                {"tool": "time_now", "args": {"location": "Tokyo"}}, {}
-            )
+            self.bridge.execute_tool({"tool": "time_now", "args": {"location": "Tokyo"}}, {})
         req = mock_exec.call_args.args[0]
         assert req["tool"] == "time_now"
         assert req["args"]["location"] == "Tokyo"
 
     def test_real_call_returns_dict(self):
         """Real (non-mocked) call to time_now returns a dict."""
-        result = self.bridge.execute_tool(
-            {"tool": "time_now", "args": {"location": "London"}}, {}
-        )
+        result = self.bridge.execute_tool({"tool": "time_now", "args": {"location": "London"}}, {})
         assert isinstance(result, dict)
 
     def test_real_call_result_has_expected_keys_or_error(self):
         """Real call returns either time keys or an error key — never empty."""
-        result = self.bridge.execute_tool(
-            {"tool": "time_now", "args": {"location": "London"}}, {}
-        )
+        result = self.bridge.execute_tool({"tool": "time_now", "args": {"location": "London"}}, {})
         has_time_keys = "local_time" in result or "time" in result
         has_error = "error" in result
         assert has_time_keys or has_error, f"Unexpected result shape: {result}"
@@ -124,9 +119,7 @@ class TestWeatherNowThroughBridge:
     def test_location_arg_forwarded(self):
         """Bridge passes location arg through to weather_now call."""
         with patch("rex.openclaw.tool_bridge._execute_tool", return_value={}) as mock_exec:
-            self.bridge.execute_tool(
-                {"tool": "weather_now", "args": {"location": "Berlin"}}, {}
-            )
+            self.bridge.execute_tool({"tool": "weather_now", "args": {"location": "Berlin"}}, {})
         req = mock_exec.call_args.args[0]
         assert req["tool"] == "weather_now"
         assert req["args"]["location"] == "Berlin"
@@ -161,7 +154,11 @@ class TestSimpleToolsViaRouteIfToolRequest:
     def test_time_now_tool_request_routed(self):
         """A TOOL_REQUEST line for time_now is dispatched and model re-called."""
         llm_output = 'TOOL_REQUEST: {"tool": "time_now", "args": {}}'
-        fake_tool_result = {"local_time": "2026-03-22 14:00", "date": "2026-03-22", "timezone": "UTC"}
+        fake_tool_result = {
+            "local_time": "2026-03-22 14:00",
+            "date": "2026-03-22",
+            "timezone": "UTC",
+        }
         model_fn = MagicMock(return_value="It is 2:00 PM.")
 
         with patch("rex.openclaw.tool_bridge._execute_tool", return_value=fake_tool_result):

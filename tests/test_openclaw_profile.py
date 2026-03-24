@@ -22,7 +22,6 @@ from rex.openclaw.config import (
     build_system_prompt,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -46,13 +45,13 @@ _EMPTY_CAPS_PROFILE = {
 
 def _base_config(**kwargs) -> AppConfig:
     """Return a minimal AppConfig for testing (avoids loading global config)."""
-    defaults = dict(
-        wakeword="rex",
-        active_profile="default",
-        capabilities=[],
-        default_location="",
-        default_timezone="",
-    )
+    defaults = {
+        "wakeword": "rex",
+        "active_profile": "default",
+        "capabilities": [],
+        "default_location": "",
+        "default_timezone": "",
+    }
     defaults.update(kwargs)
     return AppConfig(**defaults)
 

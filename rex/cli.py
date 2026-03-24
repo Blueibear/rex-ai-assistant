@@ -455,10 +455,10 @@ def cmd_workflows(args: argparse.Namespace) -> int:
 def cmd_plan(args: argparse.Namespace) -> int:
     """Generate a workflow plan from a high-level goal."""
     from rex.autonomy_modes import AutonomyMode, get_mode
+    from rex.openclaw.tool_registry import get_tool_registry
     from rex.openclaw.workflow_bridge import WorkflowBridge
     from rex.planner import Planner, UnableToPlanError
     from rex.policy_engine import get_policy_engine
-    from rex.openclaw.tool_registry import get_tool_registry
 
     goal = args.goal
     print(f"Planning workflow for goal: {goal}")

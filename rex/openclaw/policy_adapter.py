@@ -29,9 +29,9 @@ from importlib.util import find_spec
 from typing import Any
 
 from rex.contracts import ToolCall
+from rex.openclaw.tool_executor import ApprovalRequiredError, PolicyDeniedError
 from rex.policy import PolicyDecision
 from rex.policy_engine import PolicyEngine, get_policy_engine
-from rex.openclaw.tool_executor import ApprovalRequiredError, PolicyDeniedError
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,8 @@ if OPENCLAW_AVAILABLE:  # pragma: no cover
     import openclaw as _openclaw
 else:
     _openclaw = None
+
+
 class PolicyAdapter:
     """Adapter that presents Rex's PolicyEngine as an OpenClaw hook.
 

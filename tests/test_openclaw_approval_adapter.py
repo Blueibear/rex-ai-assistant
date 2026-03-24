@@ -6,11 +6,8 @@ End-to-end flow:
 
 from __future__ import annotations
 
-import pytest
-
 from rex.openclaw.approval_adapter import OPENCLAW_AVAILABLE, ApprovalAdapter
 from rex.workflow import WorkflowApproval
-
 
 # ---------------------------------------------------------------------------
 # Helpers

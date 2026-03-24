@@ -46,14 +46,6 @@ from .email_service import (
     set_email_service,
 )
 
-# Event bus (US-P7-002: relocated to rex.openclaw.event_bus)
-from .openclaw.event_bus import (
-    Event,
-    EventBus,
-    get_event_bus,
-    set_event_bus,
-)
-
 # Notification system
 from .notification import (
     EscalationManager,
@@ -65,12 +57,12 @@ from .notification import (
     set_notifier,
 )
 
-# Scheduler
-from .scheduler import (
-    ScheduledJob,
-    Scheduler,
-    get_scheduler,
-    set_scheduler,
+# Event bus (US-P7-002: relocated to rex.openclaw.event_bus)
+from .openclaw.event_bus import (
+    Event,
+    EventBus,
+    get_event_bus,
+    set_event_bus,
 )
 
 # Tool registry (US-P7-006: relocated to rex.openclaw.tool_registry)
@@ -82,6 +74,14 @@ from .openclaw.tool_registry import (
     get_tool_registry,
     register_tool,
     set_tool_registry,
+)
+
+# Scheduler
+from .scheduler import (
+    ScheduledJob,
+    Scheduler,
+    get_scheduler,
+    set_scheduler,
 )
 
 __all__ = [

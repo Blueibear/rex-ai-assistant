@@ -11,8 +11,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 def _make_voice_loop(settings_override: dict, mock_assistant: MagicMock) -> object:
     """Construct a VoiceLoop with all heavy deps stubbed and settings patched."""
@@ -92,7 +90,9 @@ class TestVoiceLoopFlagOn:
 
         mock_assistant = MagicMock()
 
-        with patch("rex.openclaw.voice_bridge.VoiceBridge", return_value=MagicMock(spec=VoiceBridge)) as mock_cls:
+        with patch(
+            "rex.openclaw.voice_bridge.VoiceBridge", return_value=MagicMock(spec=VoiceBridge)
+        ) as mock_cls:
             _make_voice_loop({"use_openclaw_voice_backend": True}, mock_assistant)
 
         mock_cls.assert_called_once()

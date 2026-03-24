@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import logging
 from importlib.util import find_spec
-from typing import Any, Optional
+from typing import Any
 
 from rex.identity import (
     clear_session_user,
@@ -53,6 +53,8 @@ if OPENCLAW_AVAILABLE:  # pragma: no cover
     import openclaw as _openclaw
 else:
     _openclaw = None
+
+
 class IdentityAdapter:
     """Adapter that presents Rex's identity system to OpenClaw.
 
@@ -66,14 +68,14 @@ class IdentityAdapter:
             Passed to the identity resolution chain as a config fallback.
     """
 
-    def __init__(self, config: Optional[dict] = None) -> None:
+    def __init__(self, config: dict | None = None) -> None:
         self._config = config or {}
 
     # ------------------------------------------------------------------
     # Session state
     # ------------------------------------------------------------------
 
-    def get_user(self) -> Optional[str]:
+    def get_user(self) -> str | None:
         """Return the active user from session state, or ``None``.
 
         Delegates to :func:`~rex.identity.get_session_user`.
@@ -103,7 +105,7 @@ class IdentityAdapter:
     # Resolution
     # ------------------------------------------------------------------
 
-    def resolve_user(self, explicit_user: Optional[str] = None) -> Optional[str]:
+    def resolve_user(self, explicit_user: str | None = None) -> str | None:
         """Resolve the active user through Rex's priority chain.
 
         Priority: explicit_user → session state → config ``runtime.active_user``
@@ -123,8 +125,8 @@ class IdentityAdapter:
 
     def build_session(
         self,
-        explicit_user: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        explicit_user: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build an OpenClaw-compatible session context dict.
 
@@ -172,9 +174,7 @@ class IdentityAdapter:
             Registration handle from OpenClaw, or ``None``.
         """
         if not OPENCLAW_AVAILABLE:
-            logger.warning(
-                "openclaw package not installed — IdentityAdapter not registered"
-            )
+            logger.warning("openclaw package not installed — IdentityAdapter not registered")
             return None
 
         # TODO: replace with real OpenClaw identity registration once API is confirmed.

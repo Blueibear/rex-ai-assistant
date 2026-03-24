@@ -19,16 +19,16 @@ Typical usage::
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from rex.identity import get_user_profile, list_known_users, resolve_active_user
 
 
 def build_session_context(
-    explicit_user: Optional[str] = None,
+    explicit_user: str | None = None,
     *,
-    config: Optional[dict] = None,
-    metadata: Optional[dict[str, Any]] = None,
+    config: dict | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build an OpenClaw-compatible session context from Rex user identity.
 

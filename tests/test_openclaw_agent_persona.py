@@ -2,23 +2,19 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import List, Optional
 from unittest.mock import MagicMock, patch
-
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_config(
     wakeword: str = "rex",
     active_profile: str = "default",
-    default_location: Optional[str] = None,
-    default_timezone: Optional[str] = None,
-    capabilities: Optional[List[str]] = None,
+    default_location: str | None = None,
+    default_timezone: str | None = None,
+    capabilities: list[str] | None = None,
 ):
     """Return a minimal AppConfig-like object for testing."""
     from rex.config import AppConfig
@@ -35,6 +31,7 @@ def _make_config(
 # ---------------------------------------------------------------------------
 # build_system_prompt tests
 # ---------------------------------------------------------------------------
+
 
 class TestBuildSystemPrompt:
     def test_returns_string(self):
@@ -116,6 +113,7 @@ class TestBuildSystemPrompt:
 # ---------------------------------------------------------------------------
 # RexAgent persona injection tests
 # ---------------------------------------------------------------------------
+
 
 class TestRexAgentPersona:
     def _make_agent(self, config=None, system_prompt=None, agent_name=None):

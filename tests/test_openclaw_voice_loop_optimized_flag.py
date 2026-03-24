@@ -11,8 +11,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 def _make_voice_loop(settings_override: dict, mock_assistant: MagicMock) -> object:
     """Construct a VoiceLoop with all heavy deps stubbed and settings patched."""

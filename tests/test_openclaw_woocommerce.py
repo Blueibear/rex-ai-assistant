@@ -27,10 +27,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from rex.woocommerce.client import OrdersResult, ProductsResult, WriteResult
-
 
 # ---------------------------------------------------------------------------
 # US-P5-013: woocommerce_tool.py structure
@@ -81,9 +78,7 @@ class TestWcListOrders:
 
     def _make_service(self, orders=None, ok=True, error=None):
         svc = MagicMock()
-        svc.list_orders.return_value = OrdersResult(
-            ok=ok, orders=orders or [], error=error
-        )
+        svc.list_orders.return_value = OrdersResult(ok=ok, orders=orders or [], error=error)
         return svc
 
     def test_returns_ok_true_on_success(self):
@@ -110,9 +105,7 @@ class TestWcListOrders:
         ):
             wc_list_orders("nasteeshirts")
 
-        svc.list_orders.assert_called_once_with(
-            "nasteeshirts", status=None, limit=10
-        )
+        svc.list_orders.assert_called_once_with("nasteeshirts", status=None, limit=10)
 
     def test_status_filter_forwarded(self):
         from rex.openclaw.tools.woocommerce_tool import wc_list_orders
@@ -161,9 +154,7 @@ class TestWcListProducts:
 
     def _make_service(self, products=None, ok=True):
         svc = MagicMock()
-        svc.list_products.return_value = ProductsResult(
-            ok=ok, products=products or []
-        )
+        svc.list_products.return_value = ProductsResult(ok=ok, products=products or [])
         return svc
 
     def test_returns_ok_true_on_success(self):
@@ -405,9 +396,7 @@ class TestRegisterWoocommerceTools:
         from rex.openclaw.tool_bridge import ToolBridge
 
         sentinel = {"wc_list_orders": None}
-        with patch(
-            "rex.openclaw.tool_bridge._register_wc_tools", return_value=sentinel
-        ) as mock_fn:
+        with patch("rex.openclaw.tool_bridge._register_wc_tools", return_value=sentinel) as mock_fn:
             result = ToolBridge().register_woocommerce_tools()
 
         mock_fn.assert_called_once_with(agent=None)
@@ -417,9 +406,7 @@ class TestRegisterWoocommerceTools:
         from rex.openclaw.tool_bridge import ToolBridge
 
         fake_agent = object()
-        with patch(
-            "rex.openclaw.tool_bridge._register_wc_tools", return_value={}
-        ) as mock_fn:
+        with patch("rex.openclaw.tool_bridge._register_wc_tools", return_value={}) as mock_fn:
             ToolBridge().register_woocommerce_tools(agent=fake_agent)
 
         mock_fn.assert_called_once_with(agent=fake_agent)

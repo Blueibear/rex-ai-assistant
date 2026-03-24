@@ -2,6 +2,7 @@
 
 This file confirms the module no longer exists and no rex/ code imports from it.
 """
+
 from __future__ import annotations
 
 import ast
@@ -49,9 +50,9 @@ def _find_active_importers() -> set[str]:
 
 class TestToolRouterRetired:
     def test_module_does_not_exist(self):
-        assert not (REX_PKG / "tool_router.py").exists(), (
-            "rex/tool_router.py was re-introduced — it was retired in US-P7-008"
-        )
+        assert not (
+            REX_PKG / "tool_router.py"
+        ).exists(), "rex/tool_router.py was re-introduced — it was retired in US-P7-008"
 
     def test_no_rex_importers(self):
         active = _find_active_importers()

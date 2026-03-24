@@ -325,10 +325,10 @@ def register(agent: Any = None) -> dict[str, Any]:
         logger.warning(
             "openclaw package not installed — WooCommerce tools not registered with OpenClaw"
         )
-        return {name: None for name in ALL_TOOL_NAMES}
+        return dict.fromkeys(ALL_TOOL_NAMES)
 
     # TODO: replace with real OpenClaw tool registration once API is confirmed.
     logger.warning(
         "OpenClaw WooCommerce tool registration stub — update once API is confirmed (PRD §8.3)"
     )
-    return {name: None for name in ALL_TOOL_NAMES}
+    return dict.fromkeys(ALL_TOOL_NAMES)

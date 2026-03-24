@@ -36,8 +36,8 @@ import re
 from typing import Any
 
 from rex.contracts import ToolCall
-from rex.policy_engine import PolicyEngine, get_policy_engine
 from rex.openclaw.tool_registry import ToolRegistry, get_tool_registry
+from rex.policy_engine import PolicyEngine, get_policy_engine
 from rex.workflow import Workflow, WorkflowStep, generate_step_id, generate_workflow_id
 
 logger = logging.getLogger(__name__)

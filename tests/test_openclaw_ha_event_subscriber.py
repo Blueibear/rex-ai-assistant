@@ -11,14 +11,11 @@ Acceptance criteria:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
-
-from rex.openclaw.event_bus import EventBus
 from rex.openclaw.event_bridge import EventBridge
+from rex.openclaw.event_bus import EventBus
 from rex.openclaw.ha_event_subscriber import HA_COMMAND_EVENT, HaEventSubscriber
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -217,9 +214,7 @@ class TestInvalidPayload:
     def test_missing_domain_ignored(self):
         _sub, bridge = self._make_subscriber()
 
-        with patch(
-            "rex.openclaw.ha_event_subscriber.ha_call_service"
-        ) as mock_call:
+        with patch("rex.openclaw.ha_event_subscriber.ha_call_service") as mock_call:
             bridge.publish(
                 HA_COMMAND_EVENT,
                 {"service": "turn_on", "entity_id": "light.x"},

@@ -14,15 +14,13 @@ US-P4-016 acceptance criteria:
   - unsubscribe removes handler
   - clear_subscriptions removes all handlers
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from rex.openclaw.event_bus import Event, EventBus
 from rex.openclaw.event_bridge import OPENCLAW_AVAILABLE, EventBridge
-
+from rex.openclaw.event_bus import Event, EventBus
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -58,7 +56,6 @@ class TestEventBridgeInstantiation:
 
     def test_openclaw_available_is_bool(self):
         assert isinstance(OPENCLAW_AVAILABLE, bool)
-
 
 
 # ---------------------------------------------------------------------------

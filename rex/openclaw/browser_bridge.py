@@ -23,7 +23,7 @@ import json
 import logging
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from rex.openclaw.browser_core import BrowserSession, run_browser_script  # noqa: F401
 
@@ -35,10 +35,10 @@ if OPENCLAW_AVAILABLE:  # pragma: no cover
     import openclaw as _openclaw
 else:
     _openclaw = None
-_bridge_singleton: Optional["BrowserBridge"] = None
+_bridge_singleton: BrowserBridge | None = None
 
 
-def get_browser_service() -> "BrowserBridge":
+def get_browser_service() -> BrowserBridge:
     """Return the global BrowserBridge singleton."""
     global _bridge_singleton
     if _bridge_singleton is None:
@@ -46,7 +46,7 @@ def get_browser_service() -> "BrowserBridge":
     return _bridge_singleton
 
 
-def set_browser_service(service: "BrowserBridge") -> None:
+def set_browser_service(service: BrowserBridge) -> None:
     """Override the global BrowserBridge singleton (for testing)."""
     global _bridge_singleton
     _bridge_singleton = service
@@ -70,7 +70,7 @@ class BrowserBridge:
             Defaults to ``data/browser_sessions``.
     """
 
-    def __init__(self, storage_path: Optional[Path] = None) -> None:
+    def __init__(self, storage_path: Path | None = None) -> None:
         self.storage_path = storage_path or Path("data/browser_sessions")
         self.storage_path.mkdir(parents=True, exist_ok=True)
 
@@ -107,9 +107,7 @@ class BrowserBridge:
         if not self.storage_path.exists():
             return []
         return [
-            d.name
-            for d in self.storage_path.iterdir()
-            if d.is_dir() and not d.name.startswith(".")
+            d.name for d in self.storage_path.iterdir() if d.is_dir() and not d.name.startswith(".")
         ]
 
     def list_screenshots(self) -> list[str]:

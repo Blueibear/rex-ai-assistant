@@ -7,9 +7,7 @@ All tests in this file are skipped.
 
 import pytest
 
-pytestmark = pytest.mark.skip(
-    reason="rex/dashboard retired in OpenClaw migration (US-P7-014)"
-)
+pytestmark = pytest.mark.skip(reason="rex/dashboard retired in OpenClaw migration (US-P7-014)")
 
 
 class TestCSSLoadingError:
