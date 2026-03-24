@@ -106,8 +106,9 @@ def _check_inbound_webhook() -> list[CheckResult]:
     checks: list[CheckResult] = []
 
     try:
-        from rex.config_manager import load_config
         from rex.messaging_backends.inbound_store import load_inbound_store_config
+
+        from rex.config_manager import load_config
     except ImportError:
         # Messaging backends not installed or importable — skip silently
         return checks
