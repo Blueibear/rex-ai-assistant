@@ -145,16 +145,16 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a user, I want the voice loop to send my transcripts through OpenClaw when `use_openclaw_voice_backend` is True, so "Hey Rex" conversations use the same agent as my WhatsApp/Telegram chats.
 
 **Acceptance Criteria:**
-- [ ] `VoiceBridge.generate_reply(transcript, voice_mode, **kwargs)` delegates to `self.agent.respond()` (which now uses HTTP per US-005)
-- [ ] Voice mode flag is passed through (if OpenClaw supports it; otherwise logged and ignored)
-- [ ] Empty or whitespace transcripts return empty string without making HTTP call
-- [ ] On any exception from `respond()`: log error, return a spoken error message like `"I had trouble reaching the server. Try again."`
-- [ ] Existing tests in `test_openclaw_root_voice_loop_text_mode.py` still pass (they mock the bridge)
-- [ ] Existing tests in `test_openclaw_root_voice_loop_flag.py` still pass
-- [ ] New test: verify HTTP call is made when gateway is configured
-- [ ] New test: verify graceful error message on HTTP failure
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] `VoiceBridge.generate_reply(transcript, voice_mode, **kwargs)` delegates to `self.agent.respond()` (which now uses HTTP per US-005)
+- [x] Voice mode flag is passed through (if OpenClaw supports it; otherwise logged and ignored)
+- [x] Empty or whitespace transcripts return empty string without making HTTP call
+- [x] On any exception from `respond()`: log error, return a spoken error message like `"I had trouble reaching the server. Try again."`
+- [x] Existing tests in `test_openclaw_root_voice_loop_text_mode.py` still pass (they mock the bridge)
+- [x] Existing tests in `test_openclaw_root_voice_loop_flag.py` still pass
+- [x] New test: verify HTTP call is made when gateway is configured
+- [x] New test: verify graceful error message on HTTP failure
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 

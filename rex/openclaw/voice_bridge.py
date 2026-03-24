@@ -92,7 +92,8 @@ class VoiceBridge:
             ValueError: If *transcript* is empty or whitespace-only.
         """
         if not transcript or not transcript.strip():
-            raise ValueError("transcript must not be empty")
+            logger.debug("VoiceBridge.generate_reply: empty transcript, returning empty string")
+            return ""
 
         logger.debug(
             "VoiceBridge.generate_reply called (voice_mode=%s, user_key=%s)",
@@ -100,4 +101,11 @@ class VoiceBridge:
             self.user_key,
         )
 
-        return self.agent.respond(transcript, user_key=self.user_key)
+        if voice_mode:
+            logger.debug("VoiceBridge: voice_mode=True noted; not forwarded to RexAgent")
+
+        try:
+            return self.agent.respond(transcript, user_key=self.user_key)
+        except Exception:
+            logger.exception("VoiceBridge.generate_reply: error from RexAgent.respond()")
+            return "I had trouble reaching the server. Try again."
