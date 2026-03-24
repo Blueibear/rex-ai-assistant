@@ -275,12 +275,12 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a developer, I want BrowserBridge to stop pretending it will delegate to OpenClaw and instead commit to local Playwright execution, since OpenClaw has its own browser automation that operates independently.
 
 **Acceptance Criteria:**
-- [ ] `BrowserBridge` keeps its current delegation to `browser_core.py` (Playwright)
-- [ ] Remove all TODO comments about replacing with OpenClaw browser registration
-- [ ] Remove the dead `register()` method
-- [ ] Add docstring clarifying: "BrowserBridge runs Playwright locally. OpenClaw has its own Chromium instance for web tasks; they operate independently."
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] `BrowserBridge` keeps its current delegation to `browser_core.py` (Playwright)
+- [x] Remove all TODO comments about replacing with OpenClaw browser registration
+- [x] Remove the dead `register()` method
+- [x] Add docstring clarifying: "BrowserBridge runs Playwright locally. OpenClaw has its own Chromium instance for web tasks; they operate independently."
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 

@@ -1,8 +1,14 @@
 """OpenClaw browser bridge — US-P4-022.
 
+BrowserBridge runs Playwright locally. OpenClaw has its own Chromium instance
+for web tasks; they operate independently.
+
 Implements :class:`~rex.contracts.browser.BrowserAutomationProtocol` using
 :mod:`rex.openclaw.browser_core` directly.  Does NOT depend on the retired
 ``rex.browser_automation`` module.
+
+# FUTURE: If OpenClaw browser task delegation is ever needed, a separate
+# WebSocket or HTTP bridge to the OpenClaw Chromium node should be added here.
 
 Typical usage::
 
@@ -52,7 +58,10 @@ def reset_browser_service() -> None:
 
 
 class BrowserBridge:
-    """Adapter that presents Rex's browser automation as an OpenClaw provider.
+    """Runs Rex's browser automation locally via Playwright.
+
+    BrowserBridge runs Playwright locally. OpenClaw has its own Chromium
+    instance for web tasks; they operate independently.
 
     Implements :class:`~rex.contracts.browser.BrowserAutomationProtocol`
     using :mod:`rex.openclaw.browser_core` directly — no dependency on the
@@ -113,4 +122,3 @@ class BrowserBridge:
             for f in screenshot_path.iterdir()
             if f.is_file() and f.suffix in [".png", ".jpg", ".jpeg"]
         ]
-
