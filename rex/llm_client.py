@@ -153,17 +153,29 @@ class OpenAIStrategy:
             self._cached_client = self._client_factory()
         return self._cached_client
 
-    def generate(self, prompt: str, config: GenerationConfig, *, messages=None, tools=None) -> Any:
+    def generate(
+        self,
+        prompt: str,
+        config: GenerationConfig,
+        *,
+        messages=None,
+        tools=None,
+        user: str | None = None,
+    ) -> Any:
         payload = messages or [{"role": "user", "content": prompt}]
 
         # Prepare API call parameters
-        api_params = {
+        api_params: dict[str, Any] = {
             "model": self.model_name,
             "messages": payload,
             "temperature": config.temperature,
             "max_tokens": config.max_new_tokens,
             "top_p": config.top_p,
         }
+
+        # Pass a stable user key so OpenClaw can maintain session state.
+        if user is not None:
+            api_params["user"] = user
 
         # Add tools if available
         if tools or self.tools:
@@ -503,17 +515,28 @@ class LanguageModel:
         if not prompt_text.strip():
             raise ValueError("Prompt must not be empty.")
 
+        # Derive a stable user key for OpenAI/OpenClaw session persistence.
+        _user_key: str | None = None
+        if self.provider == "openai":
+            uid = getattr(self.config, "user_id", "default")
+            profile = getattr(self.config, "active_profile", "default")
+            _user_key = uid if uid and uid != "default" else profile
+
         # Tool calling loop (only for OpenAI strategy with tools)
         if self.provider == "openai" and self._tools:
             current_messages = list(normalized_messages)
 
             for round_num in range(max_tool_rounds):
                 try:
+                    _tool_extra: dict[str, Any] = {}
+                    if _user_key is not None:
+                        _tool_extra["user"] = _user_key
                     result = self.strategy.generate(  # type: ignore[call-arg]
                         prompt_text,
                         config or self.generation,
                         messages=current_messages,
                         tools=self._tools,
+                        **_tool_extra,
                     )
                 except TypeError:
                     # Fallback for strategies that don't support tools parameter
@@ -569,8 +592,14 @@ class LanguageModel:
         # No tools or not OpenAI - use original simple generation
         try:
             try:
-                result = self.strategy.generate(
-                    prompt_text, config or self.generation, messages=normalized_messages
+                extra: dict[str, Any] = {}
+                if _user_key is not None:
+                    extra["user"] = _user_key
+                result = self.strategy.generate(  # type: ignore[call-arg]
+                    prompt_text,
+                    config or self.generation,
+                    messages=normalized_messages,
+                    **extra,
                 )
                 return result.strip() if isinstance(result, str) else str(result).strip()
             except TypeError:

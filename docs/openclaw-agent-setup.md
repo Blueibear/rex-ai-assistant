@@ -201,7 +201,94 @@ and return `None`.  All callables (`respond`, `time_now`, `weather_now`,
 
 ---
 
-## 8. Open Dependencies (PRD §8.3)
+## 8. HTTP Integration
+
+Rex can route all LLM calls through the OpenClaw gateway's
+`/v1/chat/completions` endpoint, which is OpenAI-compatible.  This lets Rex
+use any model provider configured in OpenClaw (Ollama, OpenAI, Anthropic,
+etc.) without changing Rex's own configuration for each provider.
+
+```
+Rex voice loop → LanguageModel (openai strategy)
+                      │
+                      │  POST /v1/chat/completions
+                      ▼
+              OpenClaw Gateway  (:18789)
+                      │
+                      ├─→ Ollama
+                      ├─→ OpenAI
+                      └─→ Anthropic ...
+```
+
+### 8.1 Config
+
+Set these values in `config/rex_config.json` and `.env`:
+
+**`config/rex_config.json`**
+
+```json
+{
+  "llm": {
+    "provider": "openai",
+    "model": "openclaw:main"
+  },
+  "openai": {
+    "base_url": "http://127.0.0.1:18789/v1"
+  },
+  "openclaw": {
+    "gateway_url": "http://127.0.0.1:18789",
+    "gateway_timeout": 30,
+    "gateway_max_retries": 3,
+    "use_tools": false,
+    "use_voice_backend": false
+  }
+}
+```
+
+**`.env`**
+
+```
+OPENCLAW_GATEWAY_TOKEN=<your-operator-token>
+```
+
+The token is used as the OpenAI `api_key` when constructing the HTTP client.
+It is passed as `Authorization: Bearer <token>` on every request.
+
+### 8.2 Session persistence via the `user` field
+
+Every chat completions request Rex sends includes a `user` field derived from
+`AppConfig`:
+
+- If `user_id` is set (and is not `"default"`), `user = user_id`.
+- Otherwise, `user = active_profile`.
+
+OpenClaw uses this stable string to maintain per-user session state, so
+conversation context persists across Rex restarts.
+
+### 8.3 Quick start
+
+1. Install and start the OpenClaw gateway (see OpenClaw docs).
+2. Copy `.env.example` to `.env` and set `OPENCLAW_GATEWAY_TOKEN`.
+3. Update `config/rex_config.json` with the values in §8.1.
+4. Start Rex: `python -m rex` (text mode) or `python rex_loop.py` (voice mode).
+5. Rex will send all LLM requests to OpenClaw.  Verify with:
+
+   ```bash
+   # Watch OpenClaw logs for incoming /v1/chat/completions requests.
+   ```
+
+### 8.4 Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `Connection refused` on startup | OpenClaw not running | Start OpenClaw gateway first |
+| `401 Unauthorized` | Wrong or missing token | Check `OPENCLAW_GATEWAY_TOKEN` in `.env` |
+| Slow responses | High gateway timeout | Lower `openclaw.gateway_timeout` in config |
+| Rex falls back to echo mode | `openai` package not installed | `pip install openai` |
+
+---
+
+## 9. Open Dependencies (PRD §8.3)
 
 The following OpenClaw API surfaces are not yet confirmed.  Stub code is in
 place; fill in the `# TODO` sections once confirmed:

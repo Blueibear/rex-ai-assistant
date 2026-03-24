@@ -84,19 +84,19 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a user, I want Rex to route LLM calls through OpenClaw's `/v1/chat/completions` endpoint so I get access to any model provider configured in OpenClaw.
 
 **Acceptance Criteria:**
-- [ ] When `llm_provider` is `"openai"` and `openai.base_url` points to the OpenClaw gateway (e.g. `http://127.0.0.1:18789/v1`), Rex sends chat completions to OpenClaw
-- [ ] The `model` field in requests uses the value from `llm_model` (e.g. `"openclaw:main"`)
-- [ ] Rex passes conversation history as `messages` array in standard OpenAI format
-- [ ] Rex sends a stable `user` field derived from `AppConfig.user_id` or `active_profile` so OpenClaw can maintain session state
-- [ ] Streaming is NOT required for this story (non-streaming request/response)
-- [ ] Tool calls in responses are handled by existing `OpenAIStrategy` tool-call loop (no changes needed there)
-- [ ] Add integration test in `tests/test_openclaw_chat_completions.py` that mocks the HTTP endpoint and verifies the request format
-- [ ] Test verifies `Authorization: Bearer` header is sent
-- [ ] Test verifies `model` field matches config
-- [ ] Test verifies `user` field is present
-- [ ] Document the config in `docs/openclaw-agent-setup.md` under a new "HTTP Integration" section
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] When `llm_provider` is `"openai"` and `openai.base_url` points to the OpenClaw gateway (e.g. `http://127.0.0.1:18789/v1`), Rex sends chat completions to OpenClaw
+- [x] The `model` field in requests uses the value from `llm_model` (e.g. `"openclaw:main"`)
+- [x] Rex passes conversation history as `messages` array in standard OpenAI format
+- [x] Rex sends a stable `user` field derived from `AppConfig.user_id` or `active_profile` so OpenClaw can maintain session state
+- [x] Streaming is NOT required for this story (non-streaming request/response)
+- [x] Tool calls in responses are handled by existing `OpenAIStrategy` tool-call loop (no changes needed there)
+- [x] Add integration test in `tests/test_openclaw_chat_completions.py` that mocks the HTTP endpoint and verifies the request format
+- [x] Test verifies `Authorization: Bearer` header is sent
+- [x] Test verifies `model` field matches config
+- [x] Test verifies `user` field is present
+- [x] Document the config in `docs/openclaw-agent-setup.md` under a new "HTTP Integration" section
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 

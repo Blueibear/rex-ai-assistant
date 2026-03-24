@@ -32,3 +32,16 @@
   - Pre-existing test failures exist in `test_openclaw_ha_tts_voice_loop.py` etc. — they fail due to missing `pytest-asyncio`, not our changes
   - `get_openclaw_client()` singleton in `http_client.py` accepts `AppConfig` — after US-002, it can use the new `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries`, and `openclaw_gateway_token` fields directly
 ---
+
+## Iteration 3 - US-003: Wire OpenAI strategy to OpenClaw chat completions
+- Added `user: str | None = None` kwarg to `OpenAIStrategy.generate()` — passed as `api_params["user"]` when not None
+- Added `_user_key` derivation in `LanguageModel.generate()`: uses `user_id` if non-default, else `active_profile`; only passed when not None (guard: `if _user_key is not None`)
+- Created `tests/test_openclaw_chat_completions.py` with 9 tests covering: user field present/absent, model field, authorization via api_key, messages format, non-openai provider gets no user field
+- Added HTTP Integration section (§8) to `docs/openclaw-agent-setup.md` with arch diagram, config walkthrough, session persistence explanation, quick start, and troubleshooting table
+- Files changed: `rex/llm_client.py`, `tests/test_openclaw_chat_completions.py`, `docs/openclaw-agent-setup.md`
+- Learnings for future iterations:
+  - `AppConfig` has a `__post_init__` validator: if `llm_provider == "openai"`, `openai_model` MUST be set — always set both `llm_model` and `openai_model` in OpenAI test configs
+  - Many pre-existing test collection errors exist for autonomy/us1xx test files (import errors unrelated to our work) — ignore them when checking test suite health; test by running only relevant files
+  - Passing `user=None` as a kwarg to strategies that don't accept it raises TypeError (caught by existing fallback), so always guard with `if _user_key is not None`
+  - `EchoStrategy.generate()` does accept `messages=` but NOT `user=` — the `**extra` pattern is the right approach for optional kwargs
+---
