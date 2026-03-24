@@ -35,11 +35,9 @@ TOOL_NAMES = ("plex_search", "plex_play", "plex_pause", "plex_stop")
 _OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
 
 if _OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw  # type: ignore[import-not-found]
+    import openclaw as _openclaw
 else:
-    _openclaw = None  # type: ignore[assignment]
-
-
+    _openclaw = None
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------

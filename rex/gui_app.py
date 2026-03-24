@@ -30,7 +30,7 @@ def _create_flask_app() -> Any:
     app.secret_key = "rex-gui-local"  # local-only; not security-sensitive
 
     @app.route("/dashboard")
-    def _dashboard_stub() -> Any:  # type: ignore[return-value]
+    def _dashboard_stub() -> Any:
         logging.getLogger(__name__).warning(
             "Rex GUI stub: web UI not available (migrating to OpenClaw)"
         )
@@ -40,7 +40,7 @@ def _create_flask_app() -> Any:
         )
 
     @app.route("/api/dashboard/status")
-    def _dashboard_status_stub() -> Any:  # type: ignore[return-value]
+    def _dashboard_status_stub() -> Any:
         return jsonify({"status": "stub", "message": "Dashboard migrating to OpenClaw"}), 200
 
     return app

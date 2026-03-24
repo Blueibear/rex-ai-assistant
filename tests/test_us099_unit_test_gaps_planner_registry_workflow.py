@@ -13,8 +13,12 @@ import socket
 import pytest
 
 from rex.credentials import CredentialManager
-from rex.planner import Planner, PlannerError
-from rex.policy_engine import get_policy_engine, reset_policy_engine
+from rex.openclaw.tool_executor import (
+    execute_tool,
+    format_tool_result,
+    parse_tool_request,
+    route_if_tool_request,
+)
 from rex.openclaw.tool_registry import (
     ToolMeta,
     ToolRegistry,
@@ -22,12 +26,8 @@ from rex.openclaw.tool_registry import (
     reset_tool_registry,
     set_tool_registry,
 )
-from rex.openclaw.tool_executor import (
-    execute_tool,
-    format_tool_result,
-    parse_tool_request,
-    route_if_tool_request,
-)
+from rex.planner import Planner, PlannerError
+from rex.policy_engine import get_policy_engine, reset_policy_engine
 from rex.workflow import (
     StepResult,
     Workflow,

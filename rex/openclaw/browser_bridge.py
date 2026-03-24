@@ -32,10 +32,9 @@ logger = logging.getLogger(__name__)
 OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
 
 if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw  # type: ignore[import-not-found]
+    import openclaw as _openclaw
 else:
-    _openclaw = None  # type: ignore[assignment]
-
+    _openclaw = None
 _bridge_singleton: Optional["BrowserBridge"] = None
 
 

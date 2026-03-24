@@ -271,7 +271,7 @@ def execute_tool(
                 raise CredentialMissingError(tool, missing)
 
     # Execute the tool
-    result: dict[str, Any]  # type: ignore[no-redef]
+    result: dict[str, Any]
     error: str | None = None
 
     try:
@@ -945,7 +945,7 @@ def _error_result(
     if tool:
         payload["tool"] = tool
     if args is not None:
-        payload["args"] = args  # type: ignore[assignment]
+        payload["args"] = args
     return {"error": payload}
 
 

@@ -89,18 +89,17 @@ class BrowserSession:
         context_path = self.storage_path / self.session_name
 
         if context_path.exists():
-            self._context = await self._playwright.chromium.launch_persistent_context(  # type: ignore[attr-defined]
+            self._context = await self._playwright.chromium.launch_persistent_context(
                 str(context_path),
                 headless=self.headless,
             )
             self._page = (
-                self._context.pages[0] if self._context.pages else await self._context.new_page()  # type: ignore[attr-defined]
+                self._context.pages[0] if self._context.pages else await self._context.new_page()
             )
         else:
-            self._browser = await self._playwright.chromium.launch(headless=self.headless)  # type: ignore[attr-defined]
-            self._context = await self._browser.new_context()  # type: ignore[attr-defined]
-            self._page = await self._context.new_page()  # type: ignore[attr-defined]
-
+            self._browser = await self._playwright.chromium.launch(headless=self.headless)
+            self._context = await self._browser.new_context()
+            self._page = await self._context.new_page()
     async def close(self) -> None:
         """Close the browser session."""
         if self._context:
@@ -246,12 +245,11 @@ class BrowserSession:
         await self.type_text(password_selector, password)
         await self.click(submit_selector)
 
-        await self._page.wait_for_load_state("networkidle")  # type: ignore[attr-defined]
-
+        await self._page.wait_for_load_state("networkidle")
         return {
             "status": "success",
-            "url": self._page.url,  # type: ignore[attr-defined]
-            "title": await self._page.title(),  # type: ignore[attr-defined]
+            "url": self._page.url,
+            "title": await self._page.title(),
         }
 
     async def download_file(self, url: str, dest_path: str) -> dict[str, Any]:

@@ -10,7 +10,6 @@ Acceptance criteria:
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -27,6 +26,7 @@ def _make_config(**kwargs) -> AppConfig:
 # The returned instance has _assistant already set to the provided mock.
 # ---------------------------------------------------------------------------
 
+
 def _make_ara(config: AppConfig, mock_bridge: MagicMock):
     """Return an AsyncRexAssistant whose _assistant is mock_bridge, no heavy imports."""
     mock_numpy = MagicMock()
@@ -37,7 +37,7 @@ def _make_ara(config: AppConfig, mock_bridge: MagicMock):
         patch("voice_loop.LanguageModel", return_value=MagicMock()),
         patch("voice_loop.load_wakeword_model", return_value=(MagicMock(), "hey rex")),
         patch("voice_loop.ensure_wake_acknowledgment_sound", return_value=None),
-        patch("voice_loop.load_plugins", return_value={}),
+        patch("voice_loop._load_plugins_impl", return_value={}),
         patch("rex.assistant.Assistant", return_value=MagicMock()),
         patch("voice_loop.load_audio_config", return_value={}),
         patch("voice_loop.resolve_audio_device", return_value=(None, "no device")),

@@ -3,24 +3,28 @@
 Tests verify the pyproject.toml structure and install script references.
 """
 
+import sys
 from pathlib import Path
 
 import pytest
-import tomllib  # Python 3.11+; fallback to tomli for older versions
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    try:
+        import tomli as tomllib  # type: ignore[no-redef]
+    except ImportError:
+        tomllib = None  # type: ignore[assignment]
 
 REPO_ROOT = Path(__file__).parent.parent
 PYPROJECT = REPO_ROOT / "pyproject.toml"
 
 
 def _load_toml() -> dict:
-    try:
-        with open(PYPROJECT, "rb") as f:
-            return tomllib.load(f)
-    except ImportError:
-        import tomli  # type: ignore[import]
-
-        with open(PYPROJECT, "rb") as f:
-            return tomli.load(f)
+    if tomllib is None:
+        pytest.skip("tomllib/tomli not available (Python <3.11 without tomli)")
+    with open(PYPROJECT, "rb") as f:
+        return tomllib.load(f)
 
 
 @pytest.fixture(scope="module")

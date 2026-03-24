@@ -192,7 +192,7 @@ def test_async_assistant_init_with_invalid_keyword(monkeypatch):
         "resolve_audio_device",
         lambda configured_device, sample_rate: (None, "ok"),
     )
-    monkeypatch.setattr(voice_loop_module, "load_plugins", lambda: {})
+    monkeypatch.setattr(voice_loop_module, "_load_plugins_impl", lambda: {})
     monkeypatch.setattr(voice_loop_module, "load_users_map", lambda: {})
     monkeypatch.setattr(voice_loop_module, "load_all_profiles", lambda: {})
     monkeypatch.setattr(

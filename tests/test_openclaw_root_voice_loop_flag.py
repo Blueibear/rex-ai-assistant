@@ -11,8 +11,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from rex.config import AppConfig
 
 
@@ -28,7 +26,7 @@ HEAVY_MOCKS = {
     "rex.llm_client.LanguageModel": MagicMock(),
     "voice_loop.load_wakeword_model": MagicMock(return_value=(MagicMock(), "hey rex")),
     "voice_loop.ensure_wake_acknowledgment_sound": MagicMock(return_value=None),
-    "voice_loop.load_plugins": MagicMock(return_value={}),
+    "voice_loop._load_plugins_impl": MagicMock(return_value={}),
 }
 
 
@@ -44,8 +42,8 @@ class TestAsyncRexAssistantFlagOff:
             patch("voice_loop.LanguageModel", return_value=MagicMock()),
             patch("voice_loop.load_wakeword_model", return_value=(MagicMock(), "hey rex")),
             patch("voice_loop.ensure_wake_acknowledgment_sound", return_value=None),
-            patch("voice_loop.load_plugins", return_value={}),
-            patch("rex.assistant.Assistant", return_value=mock_assistant) as mock_cls,
+            patch("voice_loop._load_plugins_impl", return_value={}),
+            patch("rex.assistant.Assistant", return_value=mock_assistant),
         ):
             from voice_loop import AsyncRexAssistant
 
@@ -64,7 +62,7 @@ class TestAsyncRexAssistantFlagOff:
             patch("voice_loop.LanguageModel", return_value=MagicMock()),
             patch("voice_loop.load_wakeword_model", return_value=(MagicMock(), "hey rex")),
             patch("voice_loop.ensure_wake_acknowledgment_sound", return_value=None),
-            patch("voice_loop.load_plugins", return_value={}),
+            patch("voice_loop._load_plugins_impl", return_value={}),
             patch("rex.assistant.Assistant", return_value=MagicMock()),
         ):
             from voice_loop import AsyncRexAssistant
@@ -87,7 +85,7 @@ class TestAsyncRexAssistantFlagOn:
             patch("voice_loop.LanguageModel", return_value=MagicMock()),
             patch("voice_loop.load_wakeword_model", return_value=(MagicMock(), "hey rex")),
             patch("voice_loop.ensure_wake_acknowledgment_sound", return_value=None),
-            patch("voice_loop.load_plugins", return_value={}),
+            patch("voice_loop._load_plugins_impl", return_value={}),
             patch("rex.assistant.Assistant", return_value=MagicMock()),
             patch("rex.openclaw.voice_bridge.VoiceBridge", return_value=mock_bridge),
         ):
@@ -111,7 +109,7 @@ class TestAsyncRexAssistantFlagOn:
             patch("voice_loop.LanguageModel", return_value=MagicMock()),
             patch("voice_loop.load_wakeword_model", return_value=(MagicMock(), "hey rex")),
             patch("voice_loop.ensure_wake_acknowledgment_sound", return_value=None),
-            patch("voice_loop.load_plugins", return_value={}),
+            patch("voice_loop._load_plugins_impl", return_value={}),
             patch("rex.assistant.Assistant", return_value=MagicMock()),
             patch(
                 "rex.openclaw.voice_bridge.VoiceBridge", return_value=MagicMock(spec=VoiceBridge)
@@ -137,7 +135,7 @@ class TestAsyncRexAssistantFlagOn:
             patch("voice_loop.LanguageModel", return_value=MagicMock()),
             patch("voice_loop.load_wakeword_model", return_value=(MagicMock(), "hey rex")),
             patch("voice_loop.ensure_wake_acknowledgment_sound", return_value=None),
-            patch("voice_loop.load_plugins", return_value={}),
+            patch("voice_loop._load_plugins_impl", return_value={}),
             patch("rex.assistant.Assistant", return_value=mock_assistant),
             patch(
                 "rex.openclaw.voice_bridge.VoiceBridge",
