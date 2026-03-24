@@ -162,21 +162,21 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a developer, I need a mechanism to register Rex's tools with OpenClaw so they can be invoked from any OpenClaw channel, not just the voice loop.
 
 **Acceptance Criteria:**
-- [ ] Create `rex/openclaw/tool_server.py` with class `ToolServer`
-- [ ] `ToolServer` is a lightweight Flask Blueprint that exposes Rex's tools as HTTP endpoints
-- [ ] Endpoint: `POST /rex/tools/{tool_name}` accepts `{"args": {...}, "context": {...}}` and returns `{"status": "success"|"error", "result": ...}`
-- [ ] `ToolServer.register_all(app)` registers the Blueprint on the Flask app
-- [ ] Each Rex tool (time, weather, HA, email, SMS, calendar, Plex, WooCommerce, WordPress) is mapped to a route
-- [ ] Policy checking via `PolicyAdapter.guard()` runs before each tool execution
-- [ ] Tool execution uses existing functions from `rex/openclaw/tools/*.py` (the actual handler functions, not the dead `register()` stubs)
-- [ ] Error responses use the existing `rex.http_errors` envelope format
-- [ ] Auth required via same `X-API-Key` mechanism as `rex_speak_api.py`
-- [ ] Rate limiting applied (reuse existing Flask-Limiter setup)
-- [ ] Unit tests for at least `time_now` and one policy-gated tool (`send_email`)
-- [ ] Test verifies auth is required
-- [ ] Test verifies policy denial returns 403
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] Create `rex/openclaw/tool_server.py` with class `ToolServer`
+- [x] `ToolServer` is a lightweight Flask Blueprint that exposes Rex's tools as HTTP endpoints
+- [x] Endpoint: `POST /rex/tools/{tool_name}` accepts `{"args": {...}, "context": {...}}` and returns `{"status": "success"|"error", "result": ...}`
+- [x] `ToolServer.register_all(app)` registers the Blueprint on the Flask app
+- [x] Each Rex tool (time, weather, HA, email, SMS, calendar, Plex, WooCommerce, WordPress) is mapped to a route
+- [x] Policy checking via `PolicyAdapter.guard()` runs before each tool execution
+- [x] Tool execution uses existing functions from `rex/openclaw/tools/*.py` (the actual handler functions, not the dead `register()` stubs)
+- [x] Error responses use the existing `rex.http_errors` envelope format
+- [x] Auth required via same `X-API-Key` mechanism as `rex_speak_api.py`
+- [x] Rate limiting applied (reuse existing Flask-Limiter setup)
+- [x] Unit tests for at least `time_now` and one policy-gated tool (`send_email`)
+- [x] Test verifies auth is required
+- [x] Test verifies policy denial returns 403
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 
