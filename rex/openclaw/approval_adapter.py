@@ -1,12 +1,12 @@
-"""OpenClaw approval adapter — US-P3-018.
+"""OpenClaw approval adapter.
+
+Approvals are managed locally by Rex.  OpenClaw has its own exec approval
+flow via WebSocket; bridging is out of scope for HTTP integration.
 
 Wraps Rex's file-based approval system (:class:`~rex.workflow.WorkflowApproval`,
 :func:`~rex.workflow_runner.approve_workflow`, :func:`~rex.workflow_runner.deny_workflow`,
 :func:`~rex.workflow_runner.list_pending_approvals`) as a single object that can
-be wired into an OpenClaw agent's approval flow.
-
-When the ``openclaw`` package is not installed, :func:`register` logs a warning
-and returns ``None``.  The adapter methods work without OpenClaw installed.
+be wired into the OpenClaw agent's approval flow.
 
 Typical usage::
 
@@ -49,10 +49,8 @@ class ApprovalAdapter:
     ``approve_workflow`` / ``deny_workflow`` / ``list_pending_approvals``
     helpers from :mod:`rex.workflow_runner` under a single injectable object.
 
-    When ``openclaw`` is installed, :meth:`register` registers the adapter
-    so that OpenClaw can route approval decisions through Rex's approval
-    system (stub — filled in once the OpenClaw approval API is confirmed,
-    see PRD §8.3).
+    All CRUD operations run locally against Rex's file-based storage.
+    No HTTP calls are made to the OpenClaw gateway.
 
     Args:
         approval_dir: Directory used for persisting approval records.
@@ -194,7 +192,6 @@ class ApprovalAdapter:
             ``status == "pending"``, sorted oldest-first.
         """
         return list_pending_approvals(self._approval_dir)
-
 
 
 __all__ = ["ApprovalAdapter"]
