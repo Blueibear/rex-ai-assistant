@@ -118,15 +118,11 @@ The following integrations are **beta / stub scaffolding** and do not yet connec
 
 All stub commands are fully usable for development and testing. Contributions to add real backends are welcome.
 
-## OpenClaw Migration
+## OpenClaw Integration
 
-Rex is undergoing a phased migration to run as an opinionated application layer on top of [OpenClaw](https://github.com/openclaw), an agent engine that provides channels, sessions, browser control, dashboard UI, skills/plugins, and multi-agent orchestration.
+Rex can route LLM calls through the [OpenClaw](https://github.com/openclaw) gateway over HTTP, gaining access to any model provider OpenClaw supports (Ollama, OpenAI, Anthropic, etc.). Rex also exposes its tools (time, weather, email, SMS, calendar, HA, Plex, WooCommerce) as HTTP endpoints so any OpenClaw channel (WhatsApp, Telegram, Discord) can invoke them.
 
-The goal is to stop rebuilding generic agent infrastructure inside Rex and instead focus on what makes Rex unique: persona, voice identity, wakeword/voice loop, Home Assistant integration, WordPress/WooCommerce/Plex integrations, business workflows, and policy/approval logic.
-
-**Current status:** Phase 7 (retirement) is in progress. Two redundant modules (`plugin_loader.py`, `executor.py`) have been retired so far. Remaining retirements are blocked pending OpenClaw installation. See [PRD-openclaw-pivot-for-rex.md](PRD-openclaw-pivot-for-rex.md) for the full migration plan and [progress-openclaw-pivot.txt](progress-openclaw-pivot.txt) for iteration history.
-
-**Migration adapters** live in `rex/openclaw/` and include bridges for tools, events, browser automation, workflows, voice, and identity. Feature flags in `config/rex_config.json` under the `openclaw` key control which code paths use the new OpenClaw backend.
+**Current status:** Phase 8 (HTTP integration) is complete. All integration is HTTP-based with proper error handling, retries, and auth. Feature flags in `config/rex_config.json` under `openclaw` control which code paths use the gateway. See [docs/openclaw-agent-setup.md](docs/openclaw-agent-setup.md) for setup instructions.
 
 ## Docker
 

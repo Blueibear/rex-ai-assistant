@@ -21,19 +21,43 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 
 ---
 
-## Phase Summary (as of Phase 7 completion — all OPENCLAW-REPLACE modules retired)
+## Phase Summary
 
-**Retired (deleted) — all 8 OPENCLAW-REPLACE modules complete:**
-- `rex/plugin_loader.py` — iter 81 / US-P7-004
-- `rex/executor.py` — US-P7-010
-- `rex/browser_automation.py` — iter 81 / Phase 7
-- `rex/messaging_service.py`, `rex/messaging_backends/` — iter 91
-- `rex/dashboard_store.py`, `rex/dashboard/` — iter 93 / US-P7-014
-- `rex/tool_router.py` — iter 94 / US-P7-008; logic at `rex/openclaw/tool_executor.py`
-- `rex/tool_registry.py` — iter 95 / US-P7-006; logic at `rex/openclaw/tool_registry.py`
-- `rex/event_bus.py` — iter 96 / US-P7-002; logic at `rex/openclaw/event_bus.py`
+### Phase 7 (retirement) -- all OPENCLAW-REPLACE modules retired
 
-**Bridged (dual-mode, feature-flagged):** voice loops (`use_openclaw_voice_backend`), workflow runner, policy engine, identity, memory, all integrations (HA, WP, WooCommerce, Plex)
+**Retired (deleted) -- all 8 OPENCLAW-REPLACE modules complete:**
+- `rex/plugin_loader.py` -- iter 81 / US-P7-004
+- `rex/executor.py` -- US-P7-010
+- `rex/browser_automation.py` -- iter 81 / Phase 7
+- `rex/messaging_service.py`, `rex/messaging_backends/` -- iter 91
+- `rex/dashboard_store.py`, `rex/dashboard/` -- iter 93 / US-P7-014
+- `rex/tool_router.py` -- iter 94 / US-P7-008; logic at `rex/openclaw/tool_executor.py`
+- `rex/tool_registry.py` -- iter 95 / US-P7-006; logic at `rex/openclaw/tool_registry.py`
+- `rex/event_bus.py` -- iter 96 / US-P7-002; logic at `rex/openclaw/event_bus.py`
+
+### Phase 8 (HTTP integration) -- complete
+
+**New modules:**
+- `rex/openclaw/http_client.py` -- shared HTTP client (auth, retries, timeouts)
+- `rex/openclaw/errors.py` -- `OpenClawConnectionError`, `OpenClawAuthError`, `OpenClawAPIError`
+- `rex/openclaw/tool_server.py` -- Flask HTTP server exposing Rex tools at `/rex/tools/{name}`
+
+**Removed:**
+- All `find_spec("openclaw")` / `OPENCLAW_AVAILABLE` / `import openclaw` stubs -- OpenClaw is TypeScript/Node.js, not a Python package
+- All `register()` functions from tool modules and adapter/bridge classes
+
+**Rewired:**
+- `RexAgent.respond()` -- routes through OpenClaw `/v1/chat/completions` when gateway is configured
+- `VoiceBridge.generate_reply()` -- delegates to `RexAgent.respond()` with error handling
+- `ToolBridge.execute_tool()` -- dual-mode dispatch (OpenClaw HTTP or local) based on `use_openclaw_tools` flag
+- `MemoryAdapter` -- local-only with implicit OpenClaw session sync via `user` field
+- `IdentityAdapter` -- provides `get_openclaw_user_key()` for stable session persistence
+
+**Config additions:**
+- `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries` in `AppConfig`
+- `OPENCLAW_GATEWAY_TOKEN` env var
+
+**Bridged (dual-mode, feature-flagged):** voice loops (`use_openclaw_voice_backend`), tool dispatch (`use_openclaw_tools`), workflow runner, policy engine, identity, memory, all integrations (HA, WP, WooCommerce, Plex)
 
 ---
 

@@ -303,14 +303,18 @@ Add a short rule here that would have prevented the mistake.
 
 ## OpenClaw Migration Status
 
-Rex is undergoing a phased migration to run as an OpenClaw agent. Key facts:
+Rex integrates with OpenClaw over HTTP (not as a Python package). Key facts:
 
-- `# OPENCLAW-REPLACE` modules: `rex/event_bus.py`, `rex/plugin_loader.py`, `rex/tool_registry.py`, `rex/tool_router.py`, `rex/executor.py`, `rex/browser_automation.py`, `rex/dashboard_store.py`, `rex/messaging_service.py`. Do NOT add new features to these.
-- OpenClaw adapters live in `rex/openclaw/`: `agent.py`, `tool_bridge.py`, `event_bridge.py`, `executor_bridge.py`, `browser_bridge.py`, `voice_bridge.py`, and skills under `rex/openclaw/tools/`.
-- Feature flag `use_openclaw_voice_backend` in `AppConfig` (and `config/rex_config.json` under `openclaw.use_voice_backend`): when True, all three voice loops swap `Assistant` for `VoiceBridge`.
-- Feature flag `use_openclaw_tools` in `AppConfig`: when True, tool calls route through `ToolBridge`.
-- Migration contracts (Protocol types) live in `rex/contracts/` — do not remove until the corresponding legacy module is retired.
-- Pre-retirement audit tests live in `tests/test_retirement_check_*.py` — these track which legacy modules still have active callers.
+- Phase 8 (HTTP integration) is complete. All `find_spec("openclaw")` / `import openclaw` stubs have been removed and replaced with HTTP client calls.
+- OpenClaw adapters live in `rex/openclaw/`: `agent.py`, `tool_bridge.py`, `event_bridge.py`, `browser_bridge.py`, `voice_bridge.py`, `http_client.py`, `tool_server.py`, and tool handlers under `rex/openclaw/tools/`.
+- HTTP client: `rex/openclaw/http_client.py` (`OpenClawClient`) handles auth, retries, timeouts for all gateway calls. Singleton via `get_openclaw_client(config)`.
+- Config fields: `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries` in `AppConfig`; `OPENCLAW_GATEWAY_TOKEN` in `.env`.
+- Feature flag `use_openclaw_voice_backend` in `AppConfig` (config path: `openclaw.use_voice_backend`): when True, voice loops swap `Assistant` for `VoiceBridge`, routing LLM calls through OpenClaw's `/v1/chat/completions`.
+- Feature flag `use_openclaw_tools` in `AppConfig` (config path: `openclaw.use_tools`): when True, `ToolBridge.execute_tool()` dispatches to OpenClaw's `/tools/invoke`; 404 falls back to local execution.
+- Tool server: `rex/openclaw/tool_server.py` exposes Rex tools at `/rex/tools/{tool_name}` for OpenClaw channels. Entry point: `rex-tool-server`.
+- All `# OPENCLAW-REPLACE` modules from Phases 5-7 have been retired (deleted).
+- Migration contracts (Protocol types) live in `rex/contracts/`.
+- Pre-retirement audit tests live in `tests/test_retirement_check_*.py`.
 
 ## Maintenance Rules for CLAUDE.md
 
