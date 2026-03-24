@@ -29,6 +29,8 @@ from typing import Any
 
 from rex.config import AppConfig, load_config
 from rex.llm_client import LanguageModel
+from rex.openclaw.errors import OpenClawAPIError, OpenClawAuthError, OpenClawConnectionError
+from rex.openclaw.http_client import get_openclaw_client
 from rex.openclaw.memory_adapter import MemoryAdapter
 from rex.openclaw.policy_adapter import PolicyAdapter
 
@@ -89,6 +91,7 @@ class RexAgent:
         _cfg = build_agent_config(_base_config)
         self.agent_name = agent_name or _cfg.get("agent_name", "Rex")
         self.system_prompt = system_prompt or build_system_prompt(_base_config)
+        self._config = _base_config
         self._registered = False
         self._memory = memory_adapter or MemoryAdapter()
         self._policy = policy_adapter or PolicyAdapter()
@@ -126,10 +129,7 @@ class RexAgent:
             The OpenClaw agent handle returned by the registration call,
             or ``None`` when OpenClaw is not available.
         """
-        from rex.config import load_config as _load_config
-        from rex.openclaw.http_client import get_openclaw_client
-
-        if get_openclaw_client(_load_config()) is None:
+        if get_openclaw_client(load_config()) is None:
             logger.warning(
                 "OpenClaw gateway not configured — %s running in standalone mode",
                 self.agent_name,
@@ -240,7 +240,29 @@ class RexAgent:
                 messages.append({"role": role, "content": text})
 
         messages.append({"role": "user", "content": prompt})
-        reply = self.llm.generate(messages=messages)
+
+        # --- OpenClaw HTTP path ---
+        client = get_openclaw_client(self._config)
+        if client is not None and self._config.use_openclaw_voice_backend:
+            try:
+                payload: dict[str, Any] = {
+                    "model": self._config.llm_model,
+                    "messages": messages,
+                }
+                if user_key is not None:
+                    payload["user"] = user_key
+                response = client.post("/v1/chat/completions", json=payload)
+                reply: str = response["choices"][0]["message"]["content"]
+                logger.debug("OpenClaw responded via HTTP for user_key=%r", user_key)
+            except (OpenClawConnectionError, OpenClawAuthError, OpenClawAPIError, KeyError) as exc:
+                logger.warning(
+                    "OpenClaw chat completions failed (%s) — falling back to local LLM",
+                    exc,
+                )
+                reply = self.llm.generate(messages=messages)
+                logger.info("Fallback to local LLM succeeded for user_key=%r", user_key)
+        else:
+            reply = self.llm.generate(messages=messages)
 
         # Persist the exchange so future calls have context.
         if user_key is not None:

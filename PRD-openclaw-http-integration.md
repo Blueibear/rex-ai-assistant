@@ -126,18 +126,18 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a user, I want `RexAgent.respond()` to route through OpenClaw's chat completions API when the gateway is configured, so that voice and text interactions use the same backend as all other OpenClaw channels.
 
 **Acceptance Criteria:**
-- [ ] `RexAgent.respond(prompt, user_key)` checks if `get_openclaw_client()` returns a client
-- [ ] If client exists AND `use_openclaw_voice_backend` is True: POST to `/v1/chat/completions` with `model` from config, `messages` array including system prompt + conversation history + user prompt, and `user` set to `user_key`
-- [ ] If client is None OR flag is False: fall back to existing local `llm.generate()` path (no behavior change)
-- [ ] MemoryAdapter is still used to build conversation history for the messages array
-- [ ] System prompt from `build_system_prompt(config)` is prepended as a `system` role message
-- [ ] Response content extracted from `choices[0].message.content`
-- [ ] On HTTP error: log the error, fall back to local LLM generation, log that fallback occurred
-- [ ] Unit test: mock HTTP, verify request payload shape
-- [ ] Unit test: mock HTTP 500, verify fallback to local LLM
-- [ ] Unit test: verify standalone mode (no gateway URL) uses local LLM unchanged
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] `RexAgent.respond(prompt, user_key)` checks if `get_openclaw_client()` returns a client
+- [x] If client exists AND `use_openclaw_voice_backend` is True: POST to `/v1/chat/completions` with `model` from config, `messages` array including system prompt + conversation history + user prompt, and `user` set to `user_key`
+- [x] If client is None OR flag is False: fall back to existing local `llm.generate()` path (no behavior change)
+- [x] MemoryAdapter is still used to build conversation history for the messages array
+- [x] System prompt from `build_system_prompt(config)` is prepended as a `system` role message
+- [x] Response content extracted from `choices[0].message.content`
+- [x] On HTTP error: log the error, fall back to local LLM generation, log that fallback occurred
+- [x] Unit test: mock HTTP, verify request payload shape
+- [x] Unit test: mock HTTP 500, verify fallback to local LLM
+- [x] Unit test: verify standalone mode (no gateway URL) uses local LLM unchanged
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 

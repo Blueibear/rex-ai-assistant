@@ -59,3 +59,16 @@
   - Pre-existing 7 async test failures in test_openclaw_browser_bridge.py require pytest-asyncio — not our issue
   - 249 tests pass after the change
 ---
+
+## Iteration 5 - US-005: Rewire RexAgent.respond() to use OpenClaw HTTP
+- Added `self._config = _base_config` to `RexAgent.__init__` so respond() can access config
+- Added top-level imports: `get_openclaw_client`, `OpenClawAPIError`, `OpenClawAuthError`, `OpenClawConnectionError` to agent.py (removed duplicated local imports from register())
+- Updated `respond()`: checks `get_openclaw_client(self._config)` and `self._config.use_openclaw_voice_backend`; if both truthy, POSTs to `/v1/chat/completions` with `model`, `messages`, and optional `user` fields; falls back to local LLM on HTTP errors (OpenClawConnectionError, OpenClawAuthError, OpenClawAPIError, KeyError)
+- Created `tests/test_openclaw_agent_http_respond.py` with 12 tests covering: HTTP path success, payload shape (model, messages, user fields), no local LLM call on success, fallback on APIError, fallback on malformed response (KeyError), fallback persists history, standalone mode (no gateway), flag=False uses local LLM
+- Files changed: `rex/openclaw/agent.py`, `tests/test_openclaw_agent_http_respond.py`
+- Learnings for future iterations:
+  - Store config as `self._config` in __init__ — agent.py previously didn't persist `_base_config` to an instance attribute
+  - Patch `rex.openclaw.agent.get_openclaw_client` (the imported name), not `rex.openclaw.http_client.get_openclaw_client`, when testing agent.py
+  - Catch `KeyError` alongside the OpenClaw error types for malformed HTTP responses (missing 'choices' key)
+  - ruff I001 (import ordering) and F401 (unused import) — always run `ruff check --fix` before final check
+---
