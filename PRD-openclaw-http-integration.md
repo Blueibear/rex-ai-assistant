@@ -219,15 +219,15 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a user, I want my conversation history to be shared between Rex voice and other OpenClaw channels, so context carries over whether I talk or text.
 
 **Acceptance Criteria:**
-- [ ] `MemoryAdapter.append_entry()`: when gateway is configured, POST to `/v1/chat/completions` with the `user` field set (OpenClaw manages session state server-side) AND write locally (dual-write for resilience)
-- [ ] `MemoryAdapter.load_recent()`: always load from local Rex memory (Rex is the source of truth for voice conversations; OpenClaw maintains its own per-channel)
-- [ ] `MemoryAdapter.trim_history()`: local only (no HTTP needed)
-- [ ] Remove all `# TODO: replace with OpenClaw storage` comments from the three methods
-- [ ] The `user` field sent in chat completions (US-005) creates a stable session in OpenClaw automatically (per OpenClaw docs), so explicit session API calls are not needed
-- [ ] Unit test: verify dual-write on append (local + user field in next chat completion)
-- [ ] Unit test: verify load_recent reads local only
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] `MemoryAdapter.append_entry()`: when gateway is configured, POST to `/v1/chat/completions` with the `user` field set (OpenClaw manages session state server-side) AND write locally (dual-write for resilience)
+- [x] `MemoryAdapter.load_recent()`: always load from local Rex memory (Rex is the source of truth for voice conversations; OpenClaw maintains its own per-channel)
+- [x] `MemoryAdapter.trim_history()`: local only (no HTTP needed)
+- [x] Remove all `# TODO: replace with OpenClaw storage` comments from the three methods
+- [x] The `user` field sent in chat completions (US-005) creates a stable session in OpenClaw automatically (per OpenClaw docs), so explicit session API calls are not needed
+- [x] Unit test: verify dual-write on append (local + user field in next chat completion)
+- [x] Unit test: verify load_recent reads local only
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 

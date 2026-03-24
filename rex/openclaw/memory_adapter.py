@@ -1,8 +1,13 @@
 """OpenClaw memory adapter — US-P3-002.
 
-Provides a thin adapter layer that routes Rex conversation-history operations
-to OpenClaw's storage backend when available, falling back to Rex's own
-file-based implementation (``rex.memory``) when OpenClaw is not installed.
+Provides a thin adapter layer that manages Rex conversation-history using
+Rex's own file-based implementation (``rex.memory``) as the source of truth.
+
+Session persistence with OpenClaw is achieved automatically: ``RexAgent.respond()``
+sends a stable ``user`` field in every ``/v1/chat/completions`` request, which
+causes OpenClaw to maintain its own per-channel session state server-side.
+No direct HTTP calls are needed from this adapter — Rex keeps local history
+for voice/text interactions; OpenClaw keeps its own per-channel history.
 
 Typical usage::
 
@@ -10,13 +15,13 @@ Typical usage::
 
     adapter = MemoryAdapter()
 
-    # Append a turn to a user's history
+    # Append a turn to a user's history (always writes locally)
     adapter.append_entry("alice", {"role": "user", "text": "Hello!"})
 
-    # Read recent history
+    # Read recent history (always reads locally)
     turns = adapter.load_recent("alice", limit=20)
 
-    # Trim an in-memory history list to the configured window
+    # Trim an in-memory history list to the configured window (local only)
     trimmed = adapter.trim_history(turns, limit=10)
 """
 
@@ -42,15 +47,17 @@ logger = logging.getLogger(__name__)
 class MemoryAdapter:
     """Adapter between Rex conversation memory and OpenClaw storage.
 
-    When ``openclaw`` is installed, write/read operations are delegated to
-    OpenClaw's storage backend (stub — filled in once the API is confirmed,
-    see PRD §8.3).  When OpenClaw is absent, all operations delegate directly
-    to Rex's file-based ``rex.memory`` helpers.
+    Rex is the local source of truth for voice conversation history.
+    All read/write operations use Rex's file-based ``rex.memory`` helpers.
+
+    OpenClaw session persistence is handled automatically by ``RexAgent.respond()``,
+    which sends a stable ``user`` field in every ``/v1/chat/completions`` request.
+    This causes OpenClaw to maintain its own per-channel session state server-side
+    without any explicit storage API calls from this adapter.
 
     Args:
         memory_root: Override the default Rex memory root directory.  Passed
-            through to the Rex fallback helpers.  Ignored when OpenClaw
-            storage is active.
+            through to the Rex file-based helpers.
     """
 
     def __init__(self, memory_root: str | None = None) -> None:
@@ -69,8 +76,8 @@ class MemoryAdapter:
     ) -> list[dict[str, Any]]:
         """Return the most recent *limit* entries from *history*.
 
-        Delegates to OpenClaw's history-trimming primitive when available,
-        otherwise calls :func:`rex.memory.trim_history`.
+        Always operates locally via :func:`rex.memory.trim_history`.
+        No HTTP calls are made.
 
         Args:
             history: Iterable of conversation turn dicts.
@@ -89,10 +96,16 @@ class MemoryAdapter:
         *,
         max_turns: int | None = None,
     ) -> None:
-        """Persist a conversation turn for *user_key*.
+        """Persist a conversation turn for *user_key* in local Rex memory.
 
-        Delegates to OpenClaw's storage write API when available, otherwise
-        calls :func:`rex.memory.append_history_entry`.
+        Always writes to Rex's local file-based storage via
+        :func:`rex.memory.append_history_entry`.
+
+        OpenClaw session state is updated automatically on the next
+        ``RexAgent.respond()`` call: the ``user`` field sent in
+        ``/v1/chat/completions`` requests causes OpenClaw to maintain its own
+        per-channel session server-side (dual-write: local now + OpenClaw on
+        next completion).  No explicit HTTP call is made from this method.
 
         Args:
             user_key: Identifier for the user whose history is being updated.
@@ -117,8 +130,10 @@ class MemoryAdapter:
     ) -> list[dict[str, str]]:
         """Return the most recent conversation history for *user_key*.
 
-        Delegates to OpenClaw's storage read API when available, otherwise
-        calls :func:`rex.memory.load_recent_history`.
+        Always reads from Rex's local file-based storage via
+        :func:`rex.memory.load_recent_history`.  Rex is the source of truth
+        for voice conversation history; OpenClaw maintains its own per-channel
+        history separately.
 
         Args:
             user_key: Identifier for the user whose history is being read.
