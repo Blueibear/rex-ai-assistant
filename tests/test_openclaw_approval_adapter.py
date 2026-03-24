@@ -37,7 +37,6 @@ class TestApprovalAdapterInstantiation:
         assert adapter.approval_dir == tmp_path
 
 
-
 # ---------------------------------------------------------------------------
 # TestApprovalAdapterCreate
 # ---------------------------------------------------------------------------
@@ -224,18 +223,6 @@ class TestApprovalAdapterDeny:
 # ---------------------------------------------------------------------------
 # TestApprovalAdapterRegister
 # ---------------------------------------------------------------------------
-
-
-class TestApprovalAdapterRegister:
-    def test_register_returns_none_without_openclaw(self, tmp_path):
-        adapter = _adapter(tmp_path)
-        result = adapter.register()
-        assert result is None
-
-    def test_register_with_agent_arg_returns_none(self, tmp_path):
-        adapter = _adapter(tmp_path)
-        result = adapter.register(agent="mock_agent")
-        assert result is None
 
 
 # ---------------------------------------------------------------------------

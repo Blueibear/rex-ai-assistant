@@ -1,10 +1,9 @@
-"""Tests for US-P4-006: Register policy-gated tools batch.
+"""Tests for US-P4-006: Policy-gated tool callables.
 
 Covers:
-- email_tool: module import, send_email callable, register stub
-- sms_tool: module import, send_sms callable, register stub
-- calendar_tool: module import, calendar_create callable, register stub
-- ToolBridge.register_policy_gated_tools: returns expected keys, calls each register fn
+- email_tool: module import, send_email callable
+- sms_tool: module import, send_sms callable
+- calendar_tool: module import, calendar_create callable
 """
 
 from __future__ import annotations
@@ -71,16 +70,6 @@ class TestEmailTool:
 
         assert result["ok"] is True
 
-    def test_register_returns_none_without_openclaw(self):
-        """register() returns None when openclaw gateway not configured."""
-        from unittest.mock import patch
-
-        from rex.openclaw.tools.email_tool import register
-
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            assert register() is None
-            assert register(agent=object()) is None
-
 
 # ---------------------------------------------------------------------------
 # sms_tool tests
@@ -126,16 +115,6 @@ class TestSmsTool:
         result = send_sms("+10001112222", "ctx test", context={"timezone": "UTC"})
 
         assert result["ok"] is False
-
-    def test_register_returns_none_without_openclaw(self):
-        """register() returns None when openclaw gateway not configured."""
-        from unittest.mock import patch
-
-        from rex.openclaw.tools.sms_tool import register
-
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            assert register() is None
-            assert register(agent=object()) is None
 
 
 # ---------------------------------------------------------------------------
@@ -243,120 +222,3 @@ class TestCalendarTool:
         kwargs = mock_service.create_event.call_args.kwargs
         assert kwargs["location"] == "London HQ"
         assert kwargs["description"] == "Annual offsite"
-
-    def test_register_returns_none_without_openclaw(self):
-        """register() returns None when openclaw gateway not configured."""
-        from unittest.mock import patch
-
-        from rex.openclaw.tools.calendar_tool import register
-
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            assert register() is None
-            assert register(agent=object()) is None
-
-
-# ---------------------------------------------------------------------------
-# ToolBridge.register_policy_gated_tools tests
-# ---------------------------------------------------------------------------
-
-
-class TestRegisterPolicyGatedTools:
-    """Tests for ToolBridge.register_policy_gated_tools."""
-
-    def test_returns_dict(self):
-        from rex.openclaw.tool_bridge import ToolBridge
-
-        bridge = ToolBridge()
-        result = bridge.register_policy_gated_tools()
-        assert isinstance(result, dict)
-
-    def test_has_expected_keys(self):
-        from rex.openclaw.tool_bridge import ToolBridge
-
-        bridge = ToolBridge()
-        result = bridge.register_policy_gated_tools()
-        assert "send_email" in result
-        assert "send_sms" in result
-        assert "calendar_create" in result
-
-    def test_no_extra_keys(self):
-        from rex.openclaw.tool_bridge import ToolBridge
-
-        bridge = ToolBridge()
-        result = bridge.register_policy_gated_tools()
-        assert set(result.keys()) == {"send_email", "send_sms", "calendar_create"}
-
-    def test_calls_each_register_fn(self):
-        """register_policy_gated_tools calls the individual register functions."""
-        from rex.openclaw.tool_bridge import ToolBridge
-
-        sentinel_email = object()
-        sentinel_sms = object()
-        sentinel_cal = object()
-
-        with (
-            patch(
-                "rex.openclaw.tool_bridge._register_send_email", return_value=sentinel_email
-            ) as mock_email,
-            patch(
-                "rex.openclaw.tool_bridge._register_send_sms", return_value=sentinel_sms
-            ) as mock_sms,
-            patch(
-                "rex.openclaw.tool_bridge._register_calendar_create", return_value=sentinel_cal
-            ) as mock_cal,
-        ):
-            bridge = ToolBridge()
-            result = bridge.register_policy_gated_tools()
-
-        mock_email.assert_called_once_with(agent=None)
-        mock_sms.assert_called_once_with(agent=None)
-        mock_cal.assert_called_once_with(agent=None)
-
-        assert result["send_email"] is sentinel_email
-        assert result["send_sms"] is sentinel_sms
-        assert result["calendar_create"] is sentinel_cal
-
-    def test_forwards_agent_arg(self):
-        """agent kwarg is forwarded to every register function."""
-        from rex.openclaw.tool_bridge import ToolBridge
-
-        fake_agent = object()
-
-        with (
-            patch("rex.openclaw.tool_bridge._register_send_email", return_value=None) as me,
-            patch("rex.openclaw.tool_bridge._register_send_sms", return_value=None) as ms,
-            patch("rex.openclaw.tool_bridge._register_calendar_create", return_value=None) as mc,
-        ):
-            ToolBridge().register_policy_gated_tools(agent=fake_agent)
-
-        me.assert_called_once_with(agent=fake_agent)
-        ms.assert_called_once_with(agent=fake_agent)
-        mc.assert_called_once_with(agent=fake_agent)
-
-    def test_no_agent_uses_none_default(self):
-        """register_policy_gated_tools() with no args passes agent=None."""
-        from rex.openclaw.tool_bridge import ToolBridge
-
-        with (
-            patch("rex.openclaw.tool_bridge._register_send_email", return_value=None) as me,
-            patch("rex.openclaw.tool_bridge._register_send_sms", return_value=None) as ms,
-            patch("rex.openclaw.tool_bridge._register_calendar_create", return_value=None) as mc,
-        ):
-            ToolBridge().register_policy_gated_tools()
-
-        me.assert_called_once_with(agent=None)
-        ms.assert_called_once_with(agent=None)
-        mc.assert_called_once_with(agent=None)
-
-    def test_returns_none_values_without_openclaw(self):
-        """Without openclaw gateway configured, register() returns None for all tools."""
-        from unittest.mock import patch
-
-        from rex.openclaw.tool_bridge import ToolBridge
-
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            bridge = ToolBridge()
-            result = bridge.register_policy_gated_tools()
-            assert result["send_email"] is None
-            assert result["send_sms"] is None
-            assert result["calendar_create"] is None

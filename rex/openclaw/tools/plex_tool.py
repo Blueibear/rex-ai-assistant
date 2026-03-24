@@ -175,31 +175,3 @@ def plex_stop(
         return {"ok": False, "error": str(exc)}
 
 
-# ---------------------------------------------------------------------------
-# OpenClaw registration
-# ---------------------------------------------------------------------------
-
-
-def register(agent: Any = None) -> dict[str, Any]:
-    """Register all Plex tools with OpenClaw.
-
-    When ``openclaw`` is not installed, logs a warning and returns a dict
-    mapping each tool name to ``None``.
-
-    Args:
-        agent: Optional OpenClaw agent handle.
-
-    Returns:
-        A dict mapping each tool name to its registration handle (or ``None``
-        when OpenClaw is not installed).
-    """
-    from rex.config import load_config as _load_config
-    from rex.openclaw.http_client import get_openclaw_client
-
-    if get_openclaw_client(_load_config()) is None:
-        logger.warning("OpenClaw gateway not configured — Plex tools not registered")
-        return dict.fromkeys(TOOL_NAMES)
-
-    # TODO: replace with real OpenClaw tool registration once API is confirmed.
-    logger.warning("OpenClaw Plex tool registration stub — update once API is confirmed (PRD §8.3)")
-    return dict.fromkeys(TOOL_NAMES)

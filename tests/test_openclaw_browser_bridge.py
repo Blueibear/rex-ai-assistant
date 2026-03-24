@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -269,20 +269,3 @@ class TestAuthenticatedBrowserTask:
 # ---------------------------------------------------------------------------
 # US-P4-022: register() stub
 # ---------------------------------------------------------------------------
-
-
-class TestRegister:
-    def test_register_returns_none_without_openclaw(self, tmp_path):
-        from unittest.mock import patch
-
-        bridge = _fresh_bridge(tmp_path)
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            assert bridge.register() is None
-
-    def test_register_accepts_agent_arg(self, tmp_path):
-        from unittest.mock import patch
-
-        bridge = _fresh_bridge(tmp_path)
-        agent = MagicMock()
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            assert bridge.register(agent=agent) is None

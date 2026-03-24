@@ -293,38 +293,3 @@ def wc_disable_coupon(
         return {"ok": False, "data": None, "error": str(exc)}
 
 
-# ---------------------------------------------------------------------------
-# Registration
-# ---------------------------------------------------------------------------
-
-
-def register(agent: Any = None) -> dict[str, Any]:
-    """Register all WooCommerce tools with OpenClaw.
-
-    When the ``openclaw`` package is not installed, logs a warning and
-    returns a dict of ``None`` values.
-
-    .. note::
-        The exact OpenClaw tool registration call is a stub (PRD §8.3).
-        Replace the ``# TODO`` below once the API is confirmed.
-
-    Args:
-        agent: Optional OpenClaw agent handle.
-
-    Returns:
-        A dict mapping each tool name to the registration handle (or ``None``).
-    """
-    from rex.config import load_config as _load_config
-    from rex.openclaw.http_client import get_openclaw_client
-
-    if get_openclaw_client(_load_config()) is None:
-        logger.warning(
-            "OpenClaw gateway not configured — WooCommerce tools not registered with OpenClaw"
-        )
-        return dict.fromkeys(ALL_TOOL_NAMES)
-
-    # TODO: replace with real OpenClaw tool registration once API is confirmed.
-    logger.warning(
-        "OpenClaw WooCommerce tool registration stub — update once API is confirmed (PRD §8.3)"
-    )
-    return dict.fromkeys(ALL_TOOL_NAMES)

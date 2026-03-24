@@ -114,39 +114,3 @@ class BrowserBridge:
             if f.is_file() and f.suffix in [".png", ".jpg", ".jpeg"]
         ]
 
-    # ------------------------------------------------------------------
-    # OpenClaw registration
-    # ------------------------------------------------------------------
-
-    def register(self, agent: Any = None) -> Any:
-        """Register this bridge as the OpenClaw browser provider.
-
-        When ``openclaw`` is installed, this method registers the bridge so
-        that OpenClaw routes browser tasks through Rex's browser automation
-        service.  When OpenClaw is absent, logs a warning and returns ``None``.
-
-        .. note::
-            The exact OpenClaw browser-provider registration call is a stub
-            (see PRD §8.5 — *"Confirm OpenClaw's browser registration mechanism"*).
-            Replace the ``# TODO`` below once the API is confirmed.
-
-        Args:
-            agent: Optional OpenClaw agent handle.
-
-        Returns:
-            The registration handle from OpenClaw, or ``None``.
-        """
-        from rex.config import load_config as _load_config
-        from rex.openclaw.http_client import get_openclaw_client
-
-        if get_openclaw_client(_load_config()) is None:
-            logger.warning(
-                "OpenClaw gateway not configured — BrowserBridge not registered as browser provider"
-            )
-            return None
-
-        # TODO: replace with real OpenClaw browser provider registration once API is confirmed.
-        logger.warning(
-            "OpenClaw browser provider registration stub — update once API is confirmed (PRD §8.5)"
-        )
-        return None

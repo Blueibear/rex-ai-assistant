@@ -143,20 +143,3 @@ class TestRouteIfToolRequest:
             self.bridge.route_if_tool_request("text", {}, model_fn, skip_policy_check=True)
             _, kwargs = mock_fn.call_args
             assert kwargs["skip_policy_check"] is True
-
-
-class TestRegister:
-    def test_register_returns_none_without_openclaw(self):
-        from unittest.mock import patch
-
-        bridge = ToolBridge()
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            assert bridge.register() is None
-
-    def test_register_accepts_agent_arg(self):
-        from unittest.mock import patch
-
-        bridge = ToolBridge()
-        agent = MagicMock()
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            assert bridge.register(agent=agent) is None

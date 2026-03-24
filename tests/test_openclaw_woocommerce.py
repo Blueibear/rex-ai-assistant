@@ -53,22 +53,6 @@ class TestWoocommerceTool:
         assert TOOL_CREATE_COUPON == "wc_create_coupon"
         assert TOOL_DISABLE_COUPON == "wc_disable_coupon"
 
-    def test_register_returns_dict_with_all_keys(self):
-        from rex.openclaw.tools.woocommerce_tool import ALL_TOOL_NAMES, register
-
-        result = register()
-        assert isinstance(result, dict)
-        assert set(result.keys()) == set(ALL_TOOL_NAMES)
-
-    def test_register_returns_none_values_without_openclaw(self):
-        from unittest.mock import patch
-
-        from rex.openclaw.tools.woocommerce_tool import register
-
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            result = register()
-            assert all(v is None for v in result.values())
-
 
 # ---------------------------------------------------------------------------
 # US-P5-014: Read tools
@@ -373,42 +357,3 @@ class TestWcDisableCouponPolicy:
 
         assert result["ok"] is True
         mock_svc.disable_coupon.assert_called_once_with("myshop", 77)
-
-
-# ---------------------------------------------------------------------------
-# ToolBridge.register_woocommerce_tools
-# ---------------------------------------------------------------------------
-
-
-class TestRegisterWoocommerceTools:
-    def test_returns_dict(self):
-        from rex.openclaw.tool_bridge import ToolBridge
-
-        result = ToolBridge().register_woocommerce_tools()
-        assert isinstance(result, dict)
-
-    def test_has_all_expected_keys(self):
-        from rex.openclaw.tool_bridge import ToolBridge
-        from rex.openclaw.tools.woocommerce_tool import ALL_TOOL_NAMES
-
-        result = ToolBridge().register_woocommerce_tools()
-        assert set(result.keys()) == set(ALL_TOOL_NAMES)
-
-    def test_calls_register_fn(self):
-        from rex.openclaw.tool_bridge import ToolBridge
-
-        sentinel = {"wc_list_orders": None}
-        with patch("rex.openclaw.tool_bridge._register_wc_tools", return_value=sentinel) as mock_fn:
-            result = ToolBridge().register_woocommerce_tools()
-
-        mock_fn.assert_called_once_with(agent=None)
-        assert result is sentinel
-
-    def test_forwards_agent_arg(self):
-        from rex.openclaw.tool_bridge import ToolBridge
-
-        fake_agent = object()
-        with patch("rex.openclaw.tool_bridge._register_wc_tools", return_value={}) as mock_fn:
-            ToolBridge().register_woocommerce_tools(agent=fake_agent)
-
-        mock_fn.assert_called_once_with(agent=fake_agent)

@@ -35,7 +35,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
 from rex.workflow import DEFAULT_APPROVAL_DIR, WorkflowApproval, generate_approval_id
 from rex.workflow_runner import approve_workflow, deny_workflow, list_pending_approvals
@@ -196,51 +195,6 @@ class ApprovalAdapter:
         """
         return list_pending_approvals(self._approval_dir)
 
-    # ------------------------------------------------------------------
-    # OpenClaw registration
-    # ------------------------------------------------------------------
-
-    def register(self, agent: Any = None) -> Any:
-        """Register this adapter with an OpenClaw agent.
-
-        When ``openclaw`` is installed, this method wires the adapter into
-        OpenClaw's approval lifecycle so that approval decisions flow through
-        Rex's file-based system.  When OpenClaw is absent, logs a warning
-        and returns ``None``.
-
-        .. note::
-            The exact OpenClaw approval registration call is a stub (see PRD
-            §8.3 — *"Confirm OpenClaw's hook/middleware registration API"*).
-            Replace the ``# TODO`` below once the API is confirmed.
-
-        Args:
-            agent: Optional OpenClaw agent handle.
-
-        Returns:
-            The registration handle from OpenClaw, or ``None``.
-        """
-        from rex.config import load_config as _load_config
-        from rex.openclaw.http_client import get_openclaw_client
-
-        if get_openclaw_client(_load_config()) is None:
-            logger.warning(
-                "OpenClaw gateway not configured — ApprovalAdapter not registered",
-            )
-            return None
-
-        # TODO: replace with real OpenClaw approval registration once API is confirmed.
-        # Expected shape (to be verified):
-        #   handle = _openclaw.register_approval_handler(
-        #       approve=self.approve,
-        #       deny=self.deny,
-        #       list_pending=self.list_pending,
-        #       agent=agent,
-        #   )
-        #   return handle
-        logger.warning(
-            "OpenClaw approval registration stub — update once API is confirmed (PRD §8.3)"
-        )
-        return None
 
 
 __all__ = ["ApprovalAdapter"]

@@ -279,20 +279,3 @@ class TestRoundTrip:
 # ---------------------------------------------------------------------------
 # US-P4-015: register() stub
 # ---------------------------------------------------------------------------
-
-
-class TestRegister:
-    def test_register_returns_none_without_openclaw(self):
-        from unittest.mock import patch
-
-        bridge = EventBridge(bus=EventBus())
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            assert bridge.register() is None
-
-    def test_register_accepts_agent_arg(self):
-        from unittest.mock import patch
-
-        bridge = EventBridge(bus=EventBus())
-        agent = MagicMock()
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            assert bridge.register(agent=agent) is None

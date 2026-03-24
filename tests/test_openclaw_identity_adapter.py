@@ -43,7 +43,6 @@ class TestIdentityAdapterInstantiation:
         assert adapter is not None
 
 
-
 # ---------------------------------------------------------------------------
 # set_user / get_user
 # ---------------------------------------------------------------------------
@@ -250,19 +249,3 @@ class TestBuildSession:
 # ---------------------------------------------------------------------------
 # register
 # ---------------------------------------------------------------------------
-
-
-class TestRegister:
-    def test_register_returns_none_when_openclaw_unavailable(self) -> None:
-        adapter = _adapter()
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            result = adapter.register()
-
-        assert result is None
-
-    def test_register_with_agent_arg_returns_none_when_unavailable(self) -> None:
-        adapter = _adapter()
-        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
-            result = adapter.register(agent=object())
-
-        assert result is None
