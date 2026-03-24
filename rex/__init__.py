@@ -46,23 +46,6 @@ from .email_service import (
     set_email_service,
 )
 
-# Event bus
-from .event_bus import (
-    Event,
-    EventBus,
-    get_event_bus,
-    set_event_bus,
-)
-
-# Messaging service
-from .messaging_service import (
-    Message,
-    MessagingService,
-    SMSService,
-    get_sms_service,
-    set_sms_service,
-)
-
 # Notification system
 from .notification import (
     EscalationManager,
@@ -74,16 +57,16 @@ from .notification import (
     set_notifier,
 )
 
-# Scheduler
-from .scheduler import (
-    ScheduledJob,
-    Scheduler,
-    get_scheduler,
-    set_scheduler,
+# Event bus (US-P7-002: relocated to rex.openclaw.event_bus)
+from .openclaw.event_bus import (
+    Event,
+    EventBus,
+    get_event_bus,
+    set_event_bus,
 )
 
-# Tool registry
-from .tool_registry import (
+# Tool registry (US-P7-006: relocated to rex.openclaw.tool_registry)
+from .openclaw.tool_registry import (
     MissingCredentialError,
     ToolMeta,
     ToolNotFoundError,
@@ -91,6 +74,14 @@ from .tool_registry import (
     get_tool_registry,
     register_tool,
     set_tool_registry,
+)
+
+# Scheduler
+from .scheduler import (
+    ScheduledJob,
+    Scheduler,
+    get_scheduler,
+    set_scheduler,
 )
 
 __all__ = [
@@ -133,12 +124,6 @@ __all__ = [
     "CalendarService",
     "get_calendar_service",
     "set_calendar_service",
-    # Messaging service
-    "Message",
-    "MessagingService",
-    "SMSService",
-    "get_sms_service",
-    "set_sms_service",
     # Notification system
     "NotificationRequest",
     "Notifier",

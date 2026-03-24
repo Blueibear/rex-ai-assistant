@@ -15,7 +15,7 @@ import time
 
 import pytest
 
-from rex.event_bus import Event, EventBus, EventQueue
+from rex.openclaw.event_bus import Event, EventBus, EventQueue
 
 # ---------------------------------------------------------------------------
 # Helpers

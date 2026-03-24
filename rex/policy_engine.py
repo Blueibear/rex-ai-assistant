@@ -1,3 +1,5 @@
+# OPENCLAW-WRAP: This module will be wrapped around OpenClaw. Preserve public API.
+
 """Policy engine for Rex permissions and action safety.
 
 This module provides the PolicyEngine class that evaluates tool calls against

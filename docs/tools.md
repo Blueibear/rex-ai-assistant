@@ -2,6 +2,8 @@
 
 Rex uses a centralized tool registry to manage available tools, their metadata, and health checks. This document explains the tool registry system and how to register new tools.
 
+> **Migration note:** The `rex/tool_registry.py` and `rex/tool_router.py` modules are marked `# OPENCLAW-REPLACE` and are frozen (no new features). They will be replaced by OpenClaw's tool system in a future migration phase. The public API documented here remains valid until that migration is complete.
+
 ## Overview
 
 The `ToolRegistry` provides:

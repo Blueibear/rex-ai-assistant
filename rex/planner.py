@@ -17,7 +17,7 @@ Current limitations:
 
 Usage:
     from rex.planner import Planner
-    from rex.tool_registry import get_tool_registry
+    from rex.openclaw.tool_registry import get_tool_registry
     from rex.policy_engine import get_policy_engine
 
     planner = Planner(
@@ -36,8 +36,8 @@ import re
 from typing import Any
 
 from rex.contracts import ToolCall
+from rex.openclaw.tool_registry import ToolRegistry, get_tool_registry
 from rex.policy_engine import PolicyEngine, get_policy_engine
-from rex.tool_registry import ToolRegistry, get_tool_registry
 from rex.workflow import Workflow, WorkflowStep, generate_step_id, generate_workflow_id
 
 logger = logging.getLogger(__name__)

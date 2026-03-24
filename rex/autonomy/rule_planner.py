@@ -1,3 +1,5 @@
+# OPENCLAW-WRAP: This module will be wrapped around OpenClaw. Preserve public API.
+
 """Rule-based planner for the Rex autonomy engine.
 
 .. deprecated::

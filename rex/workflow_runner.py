@@ -1,3 +1,5 @@
+# OPENCLAW-WRAP: This module will be wrapped around OpenClaw. Preserve public API.
+
 """Workflow runner for executing Rex workflows.
 
 This module provides the WorkflowRunner class that executes workflows step by step,
@@ -42,11 +44,11 @@ from typing import Any, Callable
 
 from rex.audit import AuditLogger, LogEntry, get_audit_logger
 from rex.contracts import ToolCall
-from rex.policy import PolicyDecision
-from rex.policy_engine import PolicyEngine, get_policy_engine
-from rex.tool_router import (
+from rex.openclaw.tool_executor import (
     execute_tool,
 )
+from rex.policy import PolicyDecision
+from rex.policy_engine import PolicyEngine, get_policy_engine
 from rex.workflow import (
     DEFAULT_APPROVAL_DIR,
     DEFAULT_WORKFLOW_DIR,

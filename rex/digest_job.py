@@ -26,12 +26,9 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from rex.priority_notification_router import DigestEntry, PriorityNotificationRouter
-
-if TYPE_CHECKING:
-    from rex.dashboard_store import DashboardStore
 
 logger = logging.getLogger(__name__)
 
@@ -92,8 +89,9 @@ class DigestJob:
     Args:
         router: :class:`~rex.priority_notification_router.PriorityNotificationRouter`
             whose digest queue will be drained on each run.
-        store: Optional :class:`~rex.dashboard_store.DashboardStore` to write
-            the grouped message to.  When ``None`` the job logs the digest
+        store: Optional store object to write the grouped message to.
+            Must expose a ``write(notification_id, title, body, channel,
+            metadata)`` method.  When ``None`` the job logs the digest
             payload (beta stub behaviour).
         config: Runtime configuration.  Defaults to
             :class:`DigestJobConfig` with a 60-minute interval.
@@ -102,7 +100,7 @@ class DigestJob:
     def __init__(
         self,
         router: PriorityNotificationRouter,
-        store: DashboardStore | None = None,
+        store: Any | None = None,
         config: DigestJobConfig | None = None,
     ) -> None:
         self._router = router

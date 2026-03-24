@@ -31,28 +31,19 @@ def temp_notification_path(tmp_path):
 # --- Messaging CLI Tests ---
 
 
-def test_cmd_msg_send(temp_sms_file, capsys):
-    """Test sending a message via CLI."""
+def test_cmd_msg_send(capsys):
+    """cmd_msg SMS send is a stub — returns 1 with migration message."""
+    # OPENCLAW-REPLACE: SMS delivery migrated to OpenClaw; cmd_msg is a stub
     args = argparse.Namespace(
         msg_command="send",
         channel="sms",
         to="+15551234567",
         body="Hello from CLI",
     )
-
-    with patch("rex.messaging_service.get_sms_service") as mock_get_sms:
-        from rex.messaging_service import SMSService
-
-        mock_service = SMSService(mock_file=temp_sms_file)
-        mock_get_sms.return_value = mock_service
-
-        result = cmd_msg(args)
-
-        assert result == 0
-
-        captured = capsys.readouterr()
-        assert "Message sent successfully" in captured.out
-        assert "+15551234567" in captured.out
+    result = cmd_msg(args)
+    assert result == 1
+    captured = capsys.readouterr()
+    assert "not available" in captured.out
 
 
 def test_cmd_msg_send_unsupported_channel(capsys):
@@ -71,57 +62,32 @@ def test_cmd_msg_send_unsupported_channel(capsys):
     assert "Unsupported channel 'telegram'" in captured.out
 
 
-def test_cmd_msg_receive_empty(temp_sms_file, capsys):
-    """Test receiving messages when none exist."""
+def test_cmd_msg_receive_empty(capsys):
+    """cmd_msg SMS receive is a stub — returns 1 with migration message."""
+    # OPENCLAW-REPLACE: SMS receive migrated to OpenClaw; cmd_msg is a stub
     args = argparse.Namespace(
         msg_command="receive",
         channel="sms",
         limit=10,
     )
-
-    with patch("rex.messaging_service.get_sms_service") as mock_get_sms:
-        from rex.messaging_service import SMSService
-
-        mock_service = SMSService(mock_file=temp_sms_file)
-        mock_get_sms.return_value = mock_service
-
-        result = cmd_msg(args)
-
-        assert result == 0
-        captured = capsys.readouterr()
-        assert "No messages received" in captured.out
+    result = cmd_msg(args)
+    assert result == 1
+    captured = capsys.readouterr()
+    assert "not available" in captured.out
 
 
-def test_cmd_msg_receive_with_messages(temp_sms_file, capsys):
-    """Test receiving messages via CLI."""
-    # Pre-populate with messages
-    from rex.messaging_service import Message, SMSService
-
-    service = SMSService(mock_file=temp_sms_file, from_number="+15555551234")
-
-    # Send some inbound messages
-    for i in range(3):
-        msg = Message(
-            channel="sms",
-            to=service.from_number,
-            from_=f"+155512340{i}",
-            body=f"Inbound message {i}",
-        )
-        service.send(msg)
-
+def test_cmd_msg_receive_with_messages(capsys):
+    """cmd_msg SMS receive with messages is a stub — returns 1 with migration message."""
+    # OPENCLAW-REPLACE: SMS receive migrated to OpenClaw; cmd_msg is a stub
     args = argparse.Namespace(
         msg_command="receive",
         channel="sms",
         limit=10,
     )
-
-    with patch("rex.messaging_service.get_sms_service", return_value=service):
-        result = cmd_msg(args)
-
-        assert result == 0
-        captured = capsys.readouterr()
-        assert "Recent Messages" in captured.out
-        assert "Total: 3 messages" in captured.out
+    result = cmd_msg(args)
+    assert result == 1
+    captured = capsys.readouterr()
+    assert "not available" in captured.out
 
 
 def test_cmd_msg_receive_unsupported_channel(capsys):

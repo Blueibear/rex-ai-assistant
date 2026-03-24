@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Optional EventBus import for compatibility with earlier implementation
 try:
-    from rex.event_bus import EventBus
+    from rex.openclaw.event_bus import EventBus
 except Exception:  # pragma: no cover
     EventBus = Any  # type: ignore
 

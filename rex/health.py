@@ -25,6 +25,9 @@ Custom checks can be added as callables::
             return str(exc)
 
     bp = create_health_blueprint(checks=[check_config, my_check])
+
+Note: ``check_dashboard_db`` was removed as part of the OpenClaw migration.
+Dashboard storage health is now the responsibility of the OpenClaw layer.
 """
 
 from __future__ import annotations
@@ -55,19 +58,6 @@ def check_config() -> str | None:
         return None
     except Exception as exc:  # noqa: BLE001
         return f"config: {exc}"
-
-
-def check_dashboard_db() -> str | None:
-    """Return None if the DashboardStore database is writable, error string otherwise."""
-    try:
-        from rex.dashboard_store import DashboardStore
-
-        store = DashboardStore()
-        # A lightweight connectivity test: query the store.
-        store.query_recent(limit=1)
-        return None
-    except Exception as exc:  # noqa: BLE001
-        return f"dashboard_db: {exc}"
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +118,5 @@ def create_health_blueprint(
 __all__ = [
     "create_health_blueprint",
     "check_config",
-    "check_dashboard_db",
     "ReadinessCheck",
 ]

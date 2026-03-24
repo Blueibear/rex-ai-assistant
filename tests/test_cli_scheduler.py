@@ -25,10 +25,15 @@ def test_cli_scheduler_list_and_run(tmp_path, capsys):
     assert "executed" in output.lower()
 
 
-def test_cli_scheduler_run_retention_jobs(tmp_path, capsys):
-    """Retention jobs are runnable via CLI after scheduler initialization."""
+def test_cli_scheduler_retention_stubs_return_false(tmp_path):
+    """Both retention cleanup setup functions are stubs that return False.
+
+    messaging_backends was retired in iter 91; dashboard cleanup is deferred
+    to OpenClaw.  Neither job should be registered in the scheduler.
+    """
     reset_services()
-    storage = tmp_path / "jobs.json"
+
+    from rex.retention import setup_dashboard_cleanup_job, setup_inbound_sms_cleanup_job
 
     raw_config = {
         "notifications": {
@@ -48,28 +53,8 @@ def test_cli_scheduler_run_retention_jobs(tmp_path, capsys):
         },
     }
 
-    from unittest.mock import patch
-
-    with patch("rex.config_manager.load_config", return_value=raw_config):
-        initialize_services(storage_path=storage)
-
-        args_dashboard = Namespace(
-            storage=str(storage),
-            scheduler_command="run",
-            job_id="dashboard_retention_cleanup",
-        )
-        assert cmd_scheduler(args_dashboard) == 0
-
-        args_inbound = Namespace(
-            storage=str(storage),
-            scheduler_command="run",
-            job_id="inbound_sms_retention_cleanup",
-        )
-        assert cmd_scheduler(args_inbound) == 0
-
-    output = capsys.readouterr().out
-    assert "dashboard_retention_cleanup executed successfully" in output
-    assert "inbound_sms_retention_cleanup executed successfully" in output
+    assert setup_dashboard_cleanup_job(raw_config) is False
+    assert setup_inbound_sms_cleanup_job(raw_config) is False
 
 
 def test_cli_email_unread(capsys):

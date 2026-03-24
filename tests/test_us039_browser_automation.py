@@ -64,11 +64,11 @@ class TestBrowserLaunches:
     @pytest.mark.asyncio
     async def test_launch_creates_page(self, tmp_path):
         """BrowserSession.launch() creates a usable page."""
-        from rex.browser_automation import BrowserSession
+        from rex.openclaw.browser_core import BrowserSession
 
         mock_pw, _, _, _, mock_page = _make_mock_playwright(tmp_path)
 
-        with patch("rex.browser_automation.async_playwright", mock_pw):
+        with patch("rex.openclaw.browser_core.async_playwright", mock_pw):
             session = BrowserSession(headless=True, storage_path=tmp_path)
             await session.launch()
             assert session._page is mock_page
@@ -77,11 +77,11 @@ class TestBrowserLaunches:
     @pytest.mark.asyncio
     async def test_context_manager_launch_and_close(self, tmp_path):
         """BrowserSession context manager launches and closes the browser."""
-        from rex.browser_automation import BrowserSession
+        from rex.openclaw.browser_core import BrowserSession
 
         mock_pw, mock_inst, mock_browser, _, _ = _make_mock_playwright(tmp_path)
 
-        with patch("rex.browser_automation.async_playwright", mock_pw):
+        with patch("rex.openclaw.browser_core.async_playwright", mock_pw):
             async with BrowserSession(headless=True, storage_path=tmp_path) as session:
                 assert session._page is not None
             # After exiting, close was called on the context
@@ -90,9 +90,9 @@ class TestBrowserLaunches:
     @pytest.mark.asyncio
     async def test_launch_raises_when_playwright_unavailable(self, tmp_path):
         """launch() raises RuntimeError when playwright is not installed."""
-        from rex.browser_automation import BrowserSession
+        from rex.openclaw.browser_core import BrowserSession
 
-        with patch("rex.browser_automation.async_playwright", None):
+        with patch("rex.openclaw.browser_core.async_playwright", None):
             session = BrowserSession(headless=True, storage_path=tmp_path)
             with pytest.raises(RuntimeError, match="Playwright not installed"):
                 await session.launch()
@@ -100,11 +100,11 @@ class TestBrowserLaunches:
     @pytest.mark.asyncio
     async def test_launch_headless_flag_passed(self, tmp_path):
         """launch() passes headless flag to chromium.launch()."""
-        from rex.browser_automation import BrowserSession
+        from rex.openclaw.browser_core import BrowserSession
 
         mock_pw, mock_inst, _, _, _ = _make_mock_playwright(tmp_path)
 
-        with patch("rex.browser_automation.async_playwright", mock_pw):
+        with patch("rex.openclaw.browser_core.async_playwright", mock_pw):
             session = BrowserSession(headless=False, storage_path=tmp_path)
             await session.launch()
             mock_inst.chromium.launch.assert_called_once_with(headless=False)
@@ -122,11 +122,11 @@ class TestNavigationWorks:
     @pytest.mark.asyncio
     async def test_navigate_returns_success(self, tmp_path):
         """navigate() returns status=success with title and url."""
-        from rex.browser_automation import BrowserSession
+        from rex.openclaw.browser_core import BrowserSession
 
         mock_pw, _, _, _, mock_page = _make_mock_playwright(tmp_path)
 
-        with patch("rex.browser_automation.async_playwright", mock_pw):
+        with patch("rex.openclaw.browser_core.async_playwright", mock_pw):
             session = BrowserSession(headless=True, storage_path=tmp_path)
             await session.launch()
             result = await session.navigate("https://example.com")
@@ -138,11 +138,11 @@ class TestNavigationWorks:
     @pytest.mark.asyncio
     async def test_navigate_calls_page_goto(self, tmp_path):
         """navigate() calls page.goto with the provided URL."""
-        from rex.browser_automation import BrowserSession
+        from rex.openclaw.browser_core import BrowserSession
 
         mock_pw, _, _, _, mock_page = _make_mock_playwright(tmp_path)
 
-        with patch("rex.browser_automation.async_playwright", mock_pw):
+        with patch("rex.openclaw.browser_core.async_playwright", mock_pw):
             session = BrowserSession(headless=True, storage_path=tmp_path)
             await session.launch()
             await session.navigate("https://example.com", wait_for="load")
@@ -152,12 +152,12 @@ class TestNavigationWorks:
     @pytest.mark.asyncio
     async def test_navigate_error_raises_runtime_error(self, tmp_path):
         """navigate() raises RuntimeError when page.goto fails."""
-        from rex.browser_automation import BrowserSession
+        from rex.openclaw.browser_core import BrowserSession
 
         mock_pw, _, _, _, mock_page = _make_mock_playwright(tmp_path)
         mock_page.goto.side_effect = Exception("net::ERR_NAME_NOT_RESOLVED")
 
-        with patch("rex.browser_automation.async_playwright", mock_pw):
+        with patch("rex.openclaw.browser_core.async_playwright", mock_pw):
             session = BrowserSession(headless=True, storage_path=tmp_path)
             await session.launch()
             with pytest.raises(RuntimeError, match="Navigation failed"):
@@ -166,7 +166,7 @@ class TestNavigationWorks:
     @pytest.mark.asyncio
     async def test_navigate_without_launch_raises(self, tmp_path):
         """navigate() raises RuntimeError if browser not launched."""
-        from rex.browser_automation import BrowserSession
+        from rex.openclaw.browser_core import BrowserSession
 
         session = BrowserSession(headless=True, storage_path=tmp_path)
         with pytest.raises(RuntimeError, match="Browser not launched"):
@@ -184,11 +184,11 @@ class TestPageActionsExecuted:
     @pytest.mark.asyncio
     async def test_click_action(self, tmp_path):
         """click() calls page.click and returns success."""
-        from rex.browser_automation import BrowserSession
+        from rex.openclaw.browser_core import BrowserSession
 
         mock_pw, _, _, _, mock_page = _make_mock_playwright(tmp_path)
 
-        with patch("rex.browser_automation.async_playwright", mock_pw):
+        with patch("rex.openclaw.browser_core.async_playwright", mock_pw):
             session = BrowserSession(headless=True, storage_path=tmp_path)
             await session.launch()
             result = await session.click("#submit-btn")
@@ -200,11 +200,11 @@ class TestPageActionsExecuted:
     @pytest.mark.asyncio
     async def test_type_text_action(self, tmp_path):
         """type_text() calls page.fill and returns success."""
-        from rex.browser_automation import BrowserSession
+        from rex.openclaw.browser_core import BrowserSession
 
         mock_pw, _, _, _, mock_page = _make_mock_playwright(tmp_path)
 
-        with patch("rex.browser_automation.async_playwright", mock_pw):
+        with patch("rex.openclaw.browser_core.async_playwright", mock_pw):
             session = BrowserSession(headless=True, storage_path=tmp_path)
             await session.launch()
             result = await session.type_text("#search", "hello world")
@@ -215,11 +215,11 @@ class TestPageActionsExecuted:
     @pytest.mark.asyncio
     async def test_screenshot_action(self, tmp_path):
         """screenshot() calls page.screenshot and returns the file path."""
-        from rex.browser_automation import BrowserSession
+        from rex.openclaw.browser_core import BrowserSession
 
         mock_pw, _, _, _, mock_page = _make_mock_playwright(tmp_path)
 
-        with patch("rex.browser_automation.async_playwright", mock_pw):
+        with patch("rex.openclaw.browser_core.async_playwright", mock_pw):
             session = BrowserSession(headless=True, storage_path=tmp_path)
             await session.launch()
             result = await session.screenshot(filename="test.png")
@@ -231,14 +231,14 @@ class TestPageActionsExecuted:
     @pytest.mark.asyncio
     async def test_wait_action(self, tmp_path):
         """wait() suspends for the specified duration."""
-        from rex.browser_automation import BrowserSession
+        from rex.openclaw.browser_core import BrowserSession
 
         mock_pw, _, _, _, _ = _make_mock_playwright(tmp_path)
 
-        with patch("rex.browser_automation.async_playwright", mock_pw):
+        with patch("rex.openclaw.browser_core.async_playwright", mock_pw):
             session = BrowserSession(headless=True, storage_path=tmp_path)
             await session.launch()
-            with patch("rex.browser_automation.asyncio.sleep", AsyncMock()) as mock_sleep:
+            with patch("rex.openclaw.browser_core.asyncio.sleep", AsyncMock()) as mock_sleep:
                 result = await session.wait(500)
 
         assert result["status"] == "success"
@@ -248,7 +248,7 @@ class TestPageActionsExecuted:
     @pytest.mark.asyncio
     async def test_run_browser_script_executes_steps(self, tmp_path):
         """run_browser_script() executes multiple steps in sequence."""
-        from rex.browser_automation import run_browser_script
+        from rex.openclaw.browser_core import BrowserSession, run_browser_script
 
         mock_pw, _, _, _, mock_page = _make_mock_playwright(tmp_path)
 
@@ -258,20 +258,14 @@ class TestPageActionsExecuted:
             {"action": "screenshot", "params": {"filename": "out.png"}},
         ]
 
-        with patch("rex.browser_automation.async_playwright", mock_pw):
-            with patch("rex.browser_automation.BrowserSession.storage_path", tmp_path, create=True):
-                # Patch BrowserSession to use tmp_path so screenshot dir is created there
-                original_init = __import__(
-                    "rex.browser_automation", fromlist=["BrowserSession"]
-                ).BrowserSession.__init__
+        original_init = BrowserSession.__init__
 
-                def patched_init(self, headless=True, session_name=None, storage_path=None):
-                    original_init(
-                        self, headless=headless, session_name=session_name, storage_path=tmp_path
-                    )
+        def patched_init(self, headless=True, session_name=None, storage_path=None):
+            original_init(self, headless=headless, session_name=session_name, storage_path=tmp_path)
 
-                with patch("rex.browser_automation.BrowserSession.__init__", patched_init):
-                    results = await run_browser_script(steps, headless=True, check_policy=False)
+        with patch("rex.openclaw.browser_core.async_playwright", mock_pw):
+            with patch("rex.openclaw.browser_core.BrowserSession.__init__", patched_init):
+                results = await run_browser_script(steps, headless=True, check_policy=False)
 
         assert len(results) == 3
         assert results[0]["status"] == "success"
@@ -284,21 +278,19 @@ class TestPageActionsExecuted:
     @pytest.mark.asyncio
     async def test_run_browser_script_handles_unknown_action(self, tmp_path):
         """run_browser_script() returns error status for unknown actions."""
-        from rex.browser_automation import run_browser_script
+        from rex.openclaw.browser_core import BrowserSession, run_browser_script
 
         mock_pw, _, _, _, _ = _make_mock_playwright(tmp_path)
 
         steps = [{"action": "explode", "params": {}}]
 
-        original_init = __import__(
-            "rex.browser_automation", fromlist=["BrowserSession"]
-        ).BrowserSession.__init__
+        original_init = BrowserSession.__init__
 
         def patched_init(self, headless=True, session_name=None, storage_path=None):
             original_init(self, headless=headless, session_name=session_name, storage_path=tmp_path)
 
-        with patch("rex.browser_automation.async_playwright", mock_pw):
-            with patch("rex.browser_automation.BrowserSession.__init__", patched_init):
+        with patch("rex.openclaw.browser_core.async_playwright", mock_pw):
+            with patch("rex.openclaw.browser_core.BrowserSession.__init__", patched_init):
                 results = await run_browser_script(steps, headless=True, check_policy=False)
 
         assert results[0]["status"] == "error"
@@ -307,12 +299,12 @@ class TestPageActionsExecuted:
     @pytest.mark.asyncio
     async def test_click_error_raises_runtime_error(self, tmp_path):
         """click() raises RuntimeError when the element is not found."""
-        from rex.browser_automation import BrowserSession
+        from rex.openclaw.browser_core import BrowserSession
 
         mock_pw, _, _, _, mock_page = _make_mock_playwright(tmp_path)
         mock_page.click.side_effect = Exception("Element not found")
 
-        with patch("rex.browser_automation.async_playwright", mock_pw):
+        with patch("rex.openclaw.browser_core.async_playwright", mock_pw):
             session = BrowserSession(headless=True, storage_path=tmp_path)
             await session.launch()
             with pytest.raises(RuntimeError, match="Click failed"):
@@ -321,12 +313,12 @@ class TestPageActionsExecuted:
     @pytest.mark.asyncio
     async def test_type_error_raises_runtime_error(self, tmp_path):
         """type_text() raises RuntimeError when the element is not found."""
-        from rex.browser_automation import BrowserSession
+        from rex.openclaw.browser_core import BrowserSession
 
         mock_pw, _, _, _, mock_page = _make_mock_playwright(tmp_path)
         mock_page.fill.side_effect = Exception("Element not found")
 
-        with patch("rex.browser_automation.async_playwright", mock_pw):
+        with patch("rex.openclaw.browser_core.async_playwright", mock_pw):
             session = BrowserSession(headless=True, storage_path=tmp_path)
             await session.launch()
             with pytest.raises(RuntimeError, match="Type failed"):

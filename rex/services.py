@@ -5,13 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 from rex.calendar_service import CalendarService
 from rex.email_service import EmailService
-from rex.event_bus import EventBus, get_event_bus
-from rex.messaging_service import SMSService
 from rex.notification import EscalationManager, Notifier
+from rex.openclaw.event_bus import EventBus, get_event_bus
 from rex.scheduler import Scheduler, set_scheduler
 
 
@@ -21,7 +20,8 @@ class AppServices:
     scheduler: Scheduler
     email: EmailService
     calendar: CalendarService
-    sms: SMSService
+    # OPENCLAW-REPLACE: sms field retained for API compatibility; None until OpenClaw messaging is wired
+    sms: Any
     notifier: Notifier
     escalation_manager: EscalationManager
 
@@ -49,10 +49,8 @@ def initialize_services(
     email = EmailService(event_bus, mock_data_path=email_mock_path)  # type: ignore[arg-type]
     calendar = CalendarService(event_bus, mock_data_path=calendar_mock_path)
 
-    # Initialize messaging service
-    if sms_mock_path:
-        sms_mock_path = Path(sms_mock_path) if isinstance(sms_mock_path, str) else sms_mock_path
-    sms = SMSService(mock_file=sms_mock_path)  # type: ignore[arg-type]
+    # OPENCLAW-REPLACE: SMS service stub — pending migration to OpenClaw messaging
+    sms: Any = None  # sms_mock_path retained in signature for API compatibility
 
     # Initialize notification system
     if notifications_path:

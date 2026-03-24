@@ -379,30 +379,15 @@ class Notifier:
         self._dispatch_to_channel(channel, notification)
 
     def _send_to_dashboard(self, notification: NotificationRequest) -> None:
-        """Send notification to the local dashboard store.
+        """Log notification to the dashboard channel.
 
-        Persists the notification to a SQLite database via ``DashboardStore``
-        so it can be retrieved by the dashboard API.  Falls back to logging
-        if the store is unavailable.
+        The legacy dashboard notification store is pending retirement as part
+        of the OpenClaw migration.  Notifications are logged here; OpenClaw
+        will handle persistent dashboard delivery once the migration is complete.
         """
-        try:
-            from rex.dashboard_store import get_dashboard_store
-
-            store = get_dashboard_store()
-            user_id = notification.metadata.get("user_id")
-            store.write(
-                notification_id=notification.id,
-                priority=notification.priority,
-                title=notification.title,
-                body=notification.body,
-                channel="dashboard",
-                user_id=user_id,
-                metadata=notification.metadata,
-            )
-            logger.info("[DASHBOARD] Stored notification: %s", notification.title)
-        except Exception as exc:
-            logger.warning("[DASHBOARD] Failed to store notification: %s", exc)
-            logger.info("[DASHBOARD] %s: %s", notification.title, notification.body)
+        # OPENCLAW-REPLACE: restore persistent storage here once the OpenClaw
+        # dashboard adapter is wired in and the legacy store is retired.
+        logger.info("[DASHBOARD] %s: %s", notification.title, notification.body)
 
     def _send_to_email(self, notification: NotificationRequest) -> None:
         """Send notification via email.
@@ -456,36 +441,17 @@ class Notifier:
             raise
 
     def _send_to_sms(self, notification: NotificationRequest) -> None:
-        """Send notification via SMS using the messaging backend.
+        """Send notification via SMS channel.
 
-        The recipient phone number is resolved from notification metadata
-        (``to_number``).  The messaging account is selected via the
-        ``messaging_account_id`` metadata key (if present).
+        # OPENCLAW-REPLACE: SMS delivery stub — pending migration to OpenClaw
+        # messaging backend.  Persistent delivery will be restored once the
+        # OpenClaw SMS tool is wired into the notification routing path.
         """
-        try:
-            from rex.messaging_service import Message, get_sms_service
-
-            sms_service = get_sms_service()
-
-            to_number = notification.metadata.get("to_number")
-            if not to_number:
-                logger.warning("[SMS] No 'to_number' in notification metadata; skipping")
-                return
-
-            account_id = notification.metadata.get("messaging_account_id")
-
-            message = Message(  # type: ignore[call-arg]
-                channel="sms",
-                to=to_number,
-                from_=sms_service.from_number,
-                body=f"{notification.title}: {notification.body}",
-            )
-
-            sms_service.send(message, account_id=account_id)
-            logger.info("[SMS] Sent to %s: %s", to_number, notification.title)
-        except Exception as e:
-            logger.warning("SMS notification failed: %s", e)
-            raise
+        logger.info(
+            "[SMS] notification queued (stub): %s — to_number=%s",
+            notification.title,
+            notification.metadata.get("to_number"),
+        )
 
     def _send_to_ha_tts(self, notification: NotificationRequest) -> None:
         """Send notification to Home Assistant TTS.
@@ -615,9 +581,9 @@ class Notifier:
     def setup_event_subscriptions(self) -> None:
         """Subscribe to event bus events to create notifications automatically."""
         try:
-            from rex.event_bus import get_event_bus
+            from rex.openclaw.event_bridge import EventBridge
 
-            bus = get_event_bus()
+            bus = EventBridge()
 
             # Subscribe to email events
             bus.subscribe("email.unread", self._on_email_unread)

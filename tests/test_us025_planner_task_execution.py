@@ -12,11 +12,12 @@ from unittest.mock import patch
 import pytest
 
 from rex.contracts import ToolCall
-from rex.executor import ExecutionBudget, ExecutionResult, Executor
+from rex.openclaw.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
+from rex.openclaw.workflow_bridge import WorkflowBridge
 from rex.planner import Planner, UnableToPlanError
 from rex.policy_engine import PolicyEngine, reset_policy_engine
-from rex.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
 from rex.workflow import Workflow, WorkflowStep
+from rex.workflow_runner import RunResult
 
 
 @pytest.fixture(autouse=True)
@@ -184,38 +185,35 @@ class TestToolCallsExecuted:
             ],
         )
 
-    def test_executor_runs_workflow_from_planner(self, planner):
-        """Executor.run() executes a planner-generated workflow."""
+    def test_bridge_runs_workflow_from_planner(self, planner):
+        """WorkflowBridge.run() executes a planner-generated workflow."""
         workflow = planner.plan("search for test query")
 
         with patch("rex.workflow_runner.execute_tool", return_value={"result": "ok"}):
-            executor = Executor(workflow, budget=ExecutionBudget())
-            result = executor.run()
+            result = WorkflowBridge(workflow).run()
 
-        assert isinstance(result, ExecutionResult)
+        assert isinstance(result, RunResult)
 
-    def test_executor_reports_actions_taken(self, planner):
-        """Executor reports at least one action taken after execution."""
-        workflow = planner.plan("search for news")
-
-        with patch("rex.workflow_runner.execute_tool", return_value={"result": "search result"}):
-            executor = Executor(workflow, budget=ExecutionBudget())
-            result = executor.run()
-
-        assert result.actions_taken >= 1
-
-    def test_executor_status_completed_on_success(self, planner):
-        """Executor reports completed status when all steps succeed."""
+    def test_bridge_status_completed_on_success(self, planner):
+        """WorkflowBridge reports completed status when all steps succeed."""
         workflow = planner.plan("search for facts")
 
         with patch("rex.workflow_runner.execute_tool", return_value={"result": "ok"}):
-            executor = Executor(workflow, budget=ExecutionBudget())
-            result = executor.run()
+            result = WorkflowBridge(workflow).run()
 
         assert result.status == "completed"
 
+    def test_bridge_reports_steps_executed(self, planner):
+        """WorkflowBridge reports steps_executed after execution."""
+        workflow = planner.plan("search for news")
+
+        with patch("rex.workflow_runner.execute_tool", return_value={"result": "search result"}):
+            result = WorkflowBridge(workflow).run()
+
+        assert result.steps_executed >= 1
+
     def test_executor_captures_tool_call_args(self, planner):
-        """Tool call args from the plan reach the executor unchanged."""
+        """Tool call args from the plan are unchanged."""
         workflow = planner.plan("check weather in Amsterdam")
         step = next(s for s in workflow.steps if s.tool_call and s.tool_call.tool == "weather_now")
         assert step.tool_call.args.get("location") == "Amsterdam"
@@ -227,8 +225,7 @@ class TestToolCallsExecuted:
         with patch(
             "rex.workflow_runner.execute_tool", return_value={"result": "python docs found"}
         ):
-            executor = Executor(workflow, budget=ExecutionBudget())
-            executor.run()
+            WorkflowBridge(workflow).run()
 
         executed = [s for s in workflow.steps if s.result is not None]
         assert len(executed) >= 1

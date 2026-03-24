@@ -11,9 +11,9 @@ import logging
 import pytest
 
 from rex.contracts import ToolCall
+from rex.openclaw.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
 from rex.planner import Planner, UnableToPlanError
 from rex.policy_engine import get_policy_engine, reset_policy_engine
-from rex.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry
 from rex.workflow import WorkflowStep, generate_step_id
 
 # ---------------------------------------------------------------------------

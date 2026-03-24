@@ -27,12 +27,12 @@ from typing import Any
 
 import pytest
 
-from rex.event_bus import EventBus
+from rex.openclaw.event_bus import EventBus
 
 
 def _event_class():
     try:
-        from rex.event_bus import Event  # type: ignore
+        from rex.openclaw.event_bus import Event  # type: ignore
 
         return Event
     except Exception:

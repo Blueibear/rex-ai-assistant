@@ -177,6 +177,10 @@ class AppConfig:
     autonomy_budget_per_plan_usd: float = 0.0
     autonomy_budget_per_step_usd: float = 0.0
 
+    # OpenClaw integration
+    use_openclaw_tools: bool = False
+    use_openclaw_voice_backend: bool = False
+
     # Aliases
     llm_backend: Optional[str] = None
     temperature: Optional[float] = None
@@ -360,6 +364,11 @@ def build_app_config(json_config: dict) -> AppConfig:
         ),
         followups_expire_hours=int(
             _get_nested(json_config, "conversation.followups.expire_hours", 168)
+        ),
+        # OpenClaw integration
+        use_openclaw_tools=bool(_get_nested(json_config, "openclaw.use_tools", False)),
+        use_openclaw_voice_backend=bool(
+            _get_nested(json_config, "openclaw.use_voice_backend", False)
         ),
     )
 

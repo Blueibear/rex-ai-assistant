@@ -74,7 +74,9 @@ def test_quick_start_no_more_than_five_steps():
 
 def test_clone_step_has_cd_command():
     qs = _extract_quick_start(_read_readme())
-    assert "cd rex-ai-assistant" in qs, "Clone step must include cd into the directory"
+    assert (
+        "cd askrex-assistant" in qs or "cd rex-ai-assistant" in qs
+    ), "Clone step must include cd into the directory"
 
 
 def test_install_step_has_exact_bash_command():

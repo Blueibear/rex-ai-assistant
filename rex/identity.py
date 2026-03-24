@@ -1,3 +1,5 @@
+# OPENCLAW-WRAP: This module will be wrapped around OpenClaw. Preserve public API.
+
 """User identity resolution for Rex AI Assistant.
 
 Provides session-scoped active user selection for scenarios where voice

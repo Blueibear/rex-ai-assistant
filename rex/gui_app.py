@@ -17,16 +17,32 @@ _DEFAULT_PORT = 8765
 
 
 def _create_flask_app() -> Any:
-    """Create and configure the Flask application with the dashboard blueprint."""
-    from flask import Flask
-    from flask_cors import CORS
+    """Create a Flask application with stub dashboard routes.
 
-    from rex.dashboard import dashboard_bp
+    # OPENCLAW-REPLACE: legacy rex.dashboard blueprint replaced with stubs;
+    # full UI will be served by the OpenClaw web UI.
+    """
+    import logging
+
+    from flask import Flask, jsonify
 
     app = Flask(__name__)
     app.secret_key = "rex-gui-local"  # local-only; not security-sensitive
-    CORS(app, origins=[f"http://{_DEFAULT_HOST}:{_DEFAULT_PORT}"])
-    app.register_blueprint(dashboard_bp)
+
+    @app.route("/dashboard")
+    def _dashboard_stub() -> Any:
+        logging.getLogger(__name__).warning(
+            "Rex GUI stub: web UI not available (migrating to OpenClaw)"
+        )
+        return (
+            "<h1>Rex Dashboard</h1><p>Dashboard is migrating to the OpenClaw backend.</p>",
+            200,
+        )
+
+    @app.route("/api/dashboard/status")
+    def _dashboard_status_stub() -> Any:
+        return jsonify({"status": "stub", "message": "Dashboard migrating to OpenClaw"}), 200
+
     return app
 
 

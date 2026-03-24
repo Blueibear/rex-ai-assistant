@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from unittest.mock import patch
 
-from rex.tool_router import execute_tool
+from rex.openclaw.tool_executor import execute_tool
 
 # ---------------------------------------------------------------------------
 # time_now – London

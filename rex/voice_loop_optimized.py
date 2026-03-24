@@ -464,6 +464,16 @@ class VoiceLoop:
         acknowledge: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         self._assistant = assistant
+        if getattr(settings, "use_openclaw_voice_backend", False):
+            try:
+                from rex.openclaw.voice_bridge import VoiceBridge
+
+                self._assistant = VoiceBridge()
+                logger.info("Voice loop using OpenClaw VoiceBridge backend")
+            except Exception as exc:
+                logger.warning(
+                    "Failed to create VoiceBridge (falling back to default assistant): %s", exc
+                )
         self._wake_listener = wake_listener
         self._detection_source = detection_source
         self._record_phrase = record_phrase

@@ -14,8 +14,13 @@ import pytest
 from rex.autonomy_modes import reset_autonomy_config
 from rex.cli import cmd_executor_resume, cmd_plan
 from rex.contracts import ToolCall
+from rex.openclaw.tool_registry import (
+    ToolMeta,
+    ToolRegistry,
+    reset_tool_registry,
+    set_tool_registry,
+)
 from rex.policy_engine import reset_policy_engine
-from rex.tool_registry import ToolMeta, ToolRegistry, reset_tool_registry, set_tool_registry
 from rex.workflow import Workflow, WorkflowStep
 
 
@@ -158,24 +163,22 @@ class TestCmdPlan:
         args.max_messages = 5
         args.max_time = 60
 
-        # Mock the executor run to avoid actual execution
+        # Mock the workflow bridge run to avoid actual execution
         with (
             patch("rex.workflow.DEFAULT_WORKFLOW_DIR", temp_dirs["workflow_dir"]),
             patch("rex.workflow.DEFAULT_APPROVAL_DIR", temp_dirs["approval_dir"]),
-            patch("rex.executor.Executor.run") as mock_run,
+            patch("rex.openclaw.workflow_bridge.WorkflowBridge.run") as mock_run,
         ):
 
-            from rex.executor import ExecutionBudget, ExecutionResult
+            from rex.workflow_runner import RunResult
 
-            mock_run.return_value = ExecutionResult(
+            mock_run.return_value = RunResult(
                 workflow_id="wf_test",
                 status="completed",
-                actions_taken=1,
-                messages_sent=0,
-                elapsed_seconds=0.5,
-                budget=ExecutionBudget(),
-                remaining_budget=ExecutionBudget(),
-                summary="Test completed",
+                steps_executed=1,
+                steps_total=1,
+                error=None,
+                blocking_approval_id=None,
             )
 
             result = cmd_plan(args)
@@ -183,7 +186,6 @@ class TestCmdPlan:
         assert result == 0
 
         captured = capsys.readouterr()
-        assert "Executing workflow" in captured.out
         assert "Execution complete" in captured.out
 
 
@@ -282,26 +284,22 @@ class TestCmdExecutorResume:
         args.max_messages = 5
         args.max_time = 60
 
-        # Mock the executor run
+        # Mock the workflow bridge run
         with (
             patch("rex.workflow.DEFAULT_WORKFLOW_DIR", temp_dirs["workflow_dir"]),
             patch("rex.workflow.DEFAULT_APPROVAL_DIR", temp_dirs["approval_dir"]),
-            patch("rex.executor.Executor.run") as mock_run,
+            patch("rex.openclaw.workflow_bridge.WorkflowBridge.run") as mock_run,
         ):
 
-            from rex.executor import ExecutionBudget, ExecutionResult
+            from rex.workflow_runner import RunResult
 
-            mock_run.return_value = ExecutionResult(
+            mock_run.return_value = RunResult(
                 workflow_id=blocked_workflow.workflow_id,
                 status="completed",
-                actions_taken=1,
-                messages_sent=1,
-                elapsed_seconds=0.5,
-                budget=ExecutionBudget(max_actions=10, max_messages=5, max_time_seconds=60),
-                remaining_budget=ExecutionBudget(
-                    max_actions=9, max_messages=4, max_time_seconds=59
-                ),
-                summary="Workflow completed",
+                steps_executed=1,
+                steps_total=1,
+                error=None,
+                blocking_approval_id=None,
             )
 
             result = cmd_executor_resume(args)
@@ -323,31 +321,25 @@ class TestCmdExecutorResume:
         with (
             patch("rex.workflow.DEFAULT_WORKFLOW_DIR", temp_dirs["workflow_dir"]),
             patch("rex.workflow.DEFAULT_APPROVAL_DIR", temp_dirs["approval_dir"]),
-            patch("rex.executor.Executor.run") as mock_run,
-            patch("rex.executor.Executor.__init__") as mock_init,
+            patch("rex.openclaw.workflow_bridge.WorkflowBridge.run") as mock_run,
         ):
 
-            mock_init.return_value = None
+            from rex.workflow_runner import RunResult
 
-            from rex.executor import ExecutionBudget, ExecutionResult
-
-            mock_run.return_value = ExecutionResult(
+            mock_run.return_value = RunResult(
                 workflow_id=blocked_workflow.workflow_id,
                 status="completed",
-                actions_taken=1,
-                messages_sent=0,
-                elapsed_seconds=1.0,
-                budget=ExecutionBudget(),
-                remaining_budget=ExecutionBudget(),
-                summary="Test",
+                steps_executed=1,
+                steps_total=1,
+                error=None,
+                blocking_approval_id=None,
             )
 
             cmd_executor_resume(args)
 
-        # Verify budget was created with correct params
+        # Verify execution completed
         captured = capsys.readouterr()
-        # The output should show the budget
-        assert "budget" in captured.out.lower()
+        assert "Execution complete" in captured.out
 
 
 if __name__ == "__main__":

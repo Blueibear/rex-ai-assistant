@@ -22,7 +22,8 @@ from collections import defaultdict
 from collections.abc import Callable
 from typing import Any
 
-from rex.event_bus import Event, EventBus, get_event_bus
+from rex.openclaw.event_bridge import EventBridge
+from rex.openclaw.event_bus import Event, EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +38,8 @@ class EventTriggerRegistry:
     bus so that published events are forwarded to registered triggers.
     """
 
-    def __init__(self, bus: EventBus | None = None) -> None:
-        self._bus: EventBus = bus if bus is not None else get_event_bus()
+    def __init__(self, bus: EventBus | EventBridge | None = None) -> None:
+        self._bus: EventBus | EventBridge = bus if bus is not None else EventBridge()
         self._lock = threading.RLock()
         self._triggers: defaultdict[str, list[TriggerFn]] = defaultdict(list)
         self._attached = False

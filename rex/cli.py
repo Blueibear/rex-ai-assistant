@@ -47,9 +47,9 @@ from rex.startup_validation import check_startup_env
 
 
 def get_browser_service():
-    from rex.browser_automation import get_browser_service as _get_browser_service
+    from rex.openclaw.browser_bridge import BrowserBridge
 
-    return _get_browser_service()
+    return BrowserBridge()
 
 
 def get_os_service():
@@ -199,7 +199,7 @@ def cmd_version(args: argparse.Namespace) -> int:
 
 def cmd_tools(args: argparse.Namespace) -> int:
     """List registered tools and their status."""
-    from rex.tool_registry import get_tool_registry
+    from rex.openclaw.tool_registry import get_tool_registry
 
     registry = get_tool_registry()
     tools = registry.list_tools(include_disabled=args.all)
@@ -455,10 +455,10 @@ def cmd_workflows(args: argparse.Namespace) -> int:
 def cmd_plan(args: argparse.Namespace) -> int:
     """Generate a workflow plan from a high-level goal."""
     from rex.autonomy_modes import AutonomyMode, get_mode
-    from rex.executor import ExecutionBudget, Executor
+    from rex.openclaw.tool_registry import get_tool_registry
+    from rex.openclaw.workflow_bridge import WorkflowBridge
     from rex.planner import Planner, UnableToPlanError
     from rex.policy_engine import get_policy_engine
-    from rex.tool_registry import get_tool_registry
 
     goal = args.goal
     print(f"Planning workflow for goal: {goal}")
@@ -517,22 +517,19 @@ def cmd_plan(args: argparse.Namespace) -> int:
                 print("Use --force to execute anyway.")
                 return 0
 
-        budget = ExecutionBudget(
-            max_actions=args.max_actions,
-            max_messages=args.max_messages,
-            max_time_seconds=args.max_time,
-        )
-
-        print(f"Executing workflow with budget: {budget}")
         print("-" * 60)
 
-        executor = Executor(workflow, budget)
-        result = executor.run()
+        runner = WorkflowBridge(workflow)
+        result = runner.run()
 
         print()
         print("-" * 60)
         print("Execution complete")
-        print(result)
+        print(f"Workflow: {result.workflow_id}")
+        print(f"Status: {result.status}")
+        print(f"Steps: {result.steps_executed}/{result.steps_total}")
+        if result.error:
+            print(f"Error: {result.error}")
 
         if result.status == "completed":
             return 0
@@ -558,7 +555,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
 
 def cmd_executor_resume(args: argparse.Namespace) -> int:
     """Resume a blocked executor workflow."""
-    from rex.executor import ExecutionBudget, Executor
+    from rex.openclaw.workflow_bridge import WorkflowBridge
     from rex.workflow import Workflow
 
     workflow_id = args.workflow_id
@@ -578,22 +575,19 @@ def cmd_executor_resume(args: argparse.Namespace) -> int:
     print(f"  Blocking approval: {workflow.blocking_approval_id}")
     print()
 
-    budget = ExecutionBudget(
-        max_actions=args.max_actions,
-        max_messages=args.max_messages,
-        max_time_seconds=args.max_time,
-    )
-
-    print(f"Executing with budget: {budget}")
     print("-" * 60)
 
-    executor = Executor(workflow, budget)
-    result = executor.run()
+    runner = WorkflowBridge(workflow)
+    result = runner.run()
 
     print()
     print("-" * 60)
     print("Execution complete")
-    print(result)
+    print(f"Workflow: {result.workflow_id}")
+    print(f"Status: {result.status}")
+    print(f"Steps: {result.steps_executed}/{result.steps_total}")
+    if result.error:
+        print(f"Error: {result.error}")
 
     if result.status == "completed":
         return 0
@@ -1659,10 +1653,9 @@ def cmd_cues(args: argparse.Namespace) -> int:
 
 def cmd_browser(args: argparse.Namespace) -> int:
     """Manage browser automation."""
+    import asyncio
     import json
     from pathlib import Path
-
-    from rex.browser_automation import run_browser_script_sync
 
     subcommand = args.browser_command
 
@@ -1684,7 +1677,8 @@ def cmd_browser(args: argparse.Namespace) -> int:
             print(f"  Headless: {headless}")
             print()
 
-            results = run_browser_script_sync(steps, headless=headless)
+            bridge = get_browser_service()
+            results = asyncio.run(bridge.execute_script(str(script_path), headless=headless))
 
             for result in results:
                 step_num = result.get("step", "?")
@@ -2047,67 +2041,23 @@ def cmd_code(args: argparse.Namespace) -> int:
 
 def cmd_msg(args: argparse.Namespace) -> int:
     """Manage messaging."""
-    from rex.messaging_service import Message, get_sms_service
-
-    user_id = _resolve_cli_user(args)
-    account_id = getattr(args, "account_id", None)
+    # OPENCLAW-REPLACE: cmd_msg stub — SMS backend is being retired.
+    # Programmatic SMS access is available via rex.openclaw.tools.sms_tool.send_sms.
     subcommand = args.msg_command
 
     if subcommand == "send":
-        channel = args.channel.lower()
-
+        channel = getattr(args, "channel", "").lower()
         if channel == "sms":
-            sms_service = get_sms_service()
-            message = Message(  # type: ignore[call-arg]
-                channel="sms",
-                to=args.to,
-                from_=sms_service.from_number,
-                body=args.body,
-            )
-            sent = sms_service.send(message, account_id=account_id)
-            print("Message sent successfully")
-            print(f"  ID: {sent.id}")
-            print(f"  To: {sent.to}")
-            print(f"  Thread: {sent.thread_id}")
-            print(f"  Timestamp: {sent.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
-            if user_id:
-                print(f"  User: {user_id}")
-            return 0
-
+            print("SMS messaging not available (migrating to OpenClaw messaging backend)")
+            return 1
         print(f"Error: Unsupported channel '{channel}'. Currently only 'sms' is supported.")
         return 1
 
     if subcommand == "receive":
-        channel = args.channel.lower()
-
+        channel = getattr(args, "channel", "").lower()
         if channel == "sms":
-            sms_service = get_sms_service()
-            messages = sms_service.receive(
-                limit=args.limit,
-                user_id=user_id,
-                account_id=account_id,
-            )
-
-            if not messages:
-                print("No messages received.")
-                return 0
-
-            print("Recent Messages")
-            print("=" * 80)
-            print()
-
-            for msg in messages:
-                preview = (msg.body[:50] + "...") if len(msg.body) > 50 else msg.body
-                print(f"{msg.id}: {preview}")
-                print(f"  From: {msg.from_}")
-                print(f"  To: {msg.to}")
-                print(f"  Received: {msg.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
-                print(f"  Thread: {msg.thread_id}")
-                print()
-
-            print(f"Total: {len(messages)} messages")
-            return 0
-
+            print("SMS messaging not available (migrating to OpenClaw messaging backend)")
+            return 1
         print(f"Error: Unsupported channel '{channel}'. Currently only 'sms' is supported.")
         return 1
 

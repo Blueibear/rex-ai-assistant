@@ -496,6 +496,8 @@ Also documented: on non-Windows systems without `simpleaudio`, audio may be save
 
 ## 13. Useful CLI Commands and Features
 
+> **Note:** Rex is undergoing a phased migration to OpenClaw as its underlying agent engine. Some internal module paths have changed (e.g., `rex/executor.py` retired, `rex/plugin_loader.py` retired), but CLI commands remain the same. See [PRD-openclaw-pivot-for-rex.md](../PRD-openclaw-pivot-for-rex.md) for details.
+
 ## Diagnostics
 
 ```bash
@@ -527,7 +529,7 @@ rex plan "send monthly newsletter"
 rex plan "check weather in Dallas" --execute
 rex approvals
 rex approvals --approve <approval_id>
-rex executor resume <workflow_id>
+rex executor resume <workflow_id>    # resumes a blocked workflow
 ```
 
 ## Legacy env migration helper

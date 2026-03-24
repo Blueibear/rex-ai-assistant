@@ -17,6 +17,7 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
 - [Configuration](#configuration-environment-variables)
 - [Usage](#usage)
 - [Current Limitations](#current-limitations)
+- [OpenClaw Migration](#openclaw-migration)
 - [Docker](#docker)
 - [Memory & Personalization](#memory--personalization)
 - [Development](#development)
@@ -29,7 +30,7 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Blueibear/askrex-assistant.git
-   cd rex-ai-assistant
+   cd askrex-assistant
    ```
 
 2. **Run the installer for your platform:**
@@ -74,10 +75,9 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
 - 📧 **Email and calendar** integration with triage and scheduling *(beta — stub/mock data only)*
 - 📱 **Multi-channel messaging** via SMS *(beta — stub scaffolding, real delivery requires Twilio credentials)*
 - 🔔 **Smart notifications** with priority routing, digest mode, quiet hours, and auto-escalation *(beta — stub scaffolding)*
-- 🤖 **Autonomous workflows** with planner-executor loop for multi-step task automation
+- 🤖 **Autonomous workflows** with planner and workflow runner for multi-step task automation
 - 🎯 **Smart planning** converts natural language goals into structured workflows
 - ⚙️ **Configurable autonomy modes** (OFF/SUGGEST/AUTO) for fine-grained control
-- 💰 **Execution budgets** limit actions, messages, and time for safe automation
 - 🔐 **Flask TTS API** with authentication and rate limiting
 - ✅ **CI/CD** with GitHub Actions and Release Please automation
 - 🐳 **Docker support** for containerized deployment
@@ -100,7 +100,7 @@ Rex uses a dual-config system: secrets in `.env`, runtime settings in `config/re
 
 ## Usage
 
-Rex supports text chat, voice mode, GUI configuration, audio device setup, TTS API, tool registry, GitHub integration, health checks, and autonomous workflows. See [docs/usage.md](docs/usage.md) for full usage instructions.
+Rex supports text chat, voice mode, GUI configuration, audio device mnb setup, TTS API, tool registry, GitHub integration, health checks, and autonomous workflows. See [docs/usage.md](docs/usage.md) for full usage instructions.
 
 ## Current Limitations
 
@@ -117,6 +117,16 @@ The following integrations are **beta / stub scaffolding** and do not yet connec
 | **WooCommerce** | Beta (read-only) | Orders list and products list (`rex wc orders list`, `rex wc products list`) via WC REST API v3. Client-side low-stock filter supported. Write actions deferred to Cycle 6.3. |
 
 All stub commands are fully usable for development and testing. Contributions to add real backends are welcome.
+
+## OpenClaw Migration
+
+Rex is undergoing a phased migration to run as an opinionated application layer on top of [OpenClaw](https://github.com/openclaw), an agent engine that provides channels, sessions, browser control, dashboard UI, skills/plugins, and multi-agent orchestration.
+
+The goal is to stop rebuilding generic agent infrastructure inside Rex and instead focus on what makes Rex unique: persona, voice identity, wakeword/voice loop, Home Assistant integration, WordPress/WooCommerce/Plex integrations, business workflows, and policy/approval logic.
+
+**Current status:** Phase 7 (retirement) is in progress. Two redundant modules (`plugin_loader.py`, `executor.py`) have been retired so far. Remaining retirements are blocked pending OpenClaw installation. See [PRD-openclaw-pivot-for-rex.md](PRD-openclaw-pivot-for-rex.md) for the full migration plan and [progress-openclaw-pivot.txt](progress-openclaw-pivot.txt) for iteration history.
+
+**Migration adapters** live in `rex/openclaw/` and include bridges for tools, events, browser automation, workflows, voice, and identity. Feature flags in `config/rex_config.json` under the `openclaw` key control which code paths use the new OpenClaw backend.
 
 ## Docker
 

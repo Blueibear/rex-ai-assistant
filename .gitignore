@@ -151,3 +151,7 @@ Rex_Settings_Reference.xlsx
 .claude/worktrees/
 
 data/reminders/
+
+PRD-ci-fix-pr216.md
+progress-ci-fix-pr216.txt
+ci-fixes.patch

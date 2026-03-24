@@ -18,7 +18,6 @@ Design rules:
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -28,135 +27,52 @@ def setup_dashboard_cleanup_job(
     raw_config: dict[str, Any] | None = None,
     scheduler: Any | None = None,
 ) -> bool:
-    """Register a scheduled job to clean up old dashboard notifications.
+    """No-op stub — dashboard cleanup is deferred to OpenClaw.
+
+    The legacy dashboard notification store is scheduled for retirement as
+    part of the OpenClaw migration.  Dashboard notification retention is no
+    longer registered as a scheduled job; OpenClaw will manage its own state
+    retention once the legacy store is retired.
 
     Args:
-        raw_config: Full runtime config dict.  Defaults to loading from disk.
-        scheduler: Scheduler instance.  Uses the global scheduler if ``None``.
+        raw_config: Ignored (retained for API compatibility).
+        scheduler: Ignored (retained for API compatibility).
 
     Returns:
-        ``True`` if the job was registered (or already existed), ``False`` if
-        skipped due to missing config or disabled schedule.
+        Always ``False`` — no job is registered.
     """
-    from rex.dashboard_store import DashboardStore, load_dashboard_store_config
-    from rex.scheduler import get_scheduler
-
-    if scheduler is None:
-        scheduler = get_scheduler()
-
-    cfg = load_dashboard_store_config(raw_config or {})
-    cleanup_schedule: str | None = cfg.cleanup_schedule
-
-    if not cleanup_schedule:
-        logger.debug(
-            "Dashboard notification cleanup not scheduled "
-            "(notifications.dashboard.store.cleanup_schedule is null/empty)"
-        )
-        return False
-
-    job_id = "dashboard_retention_cleanup"
-    if scheduler.get_job(job_id) is not None:
-        logger.debug("Dashboard retention cleanup job already registered, skipping")
-        return True
-
-    db_path: Path | None = Path(cfg.path) if cfg.path else None
-    retention_days: int = cfg.retention_days
-
-    def _cleanup_dashboard(job: Any) -> None:  # noqa: ANN401
-        """Run dashboard store cleanup."""
-        try:
-            store = DashboardStore(db_path=db_path, retention_days=retention_days)
-            removed = store.cleanup_old()
-            logger.info("Dashboard cleanup: removed %d old notifications", removed)
-        except Exception as exc:
-            logger.error("Dashboard cleanup failed: %s", exc, exc_info=True)
-
-    callback_name = "dashboard_retention_cleanup"
-    scheduler.register_callback(callback_name, _cleanup_dashboard)
-    scheduler.add_job(
-        job_id=job_id,
-        name="Dashboard Notification Retention Cleanup",
-        schedule=cleanup_schedule,
-        callback_name=callback_name,
-        enabled=True,
+    # OPENCLAW-REPLACE: remove this function when the dashboard store is retired.
+    logger.debug(
+        "Dashboard cleanup job skipped — dashboard store is pending retirement "
+        "(OpenClaw migration in progress)"
     )
-    logger.info(
-        "Dashboard notification retention cleanup scheduled: %s (retention=%d days)",
-        cleanup_schedule,
-        retention_days,
-    )
-    return True
+    return False
 
 
 def setup_inbound_sms_cleanup_job(
     raw_config: dict[str, Any] | None = None,
     scheduler: Any | None = None,
 ) -> bool:
-    """Register a scheduled job to clean up old inbound SMS records.
+    """No-op stub — inbound SMS cleanup is deferred to OpenClaw.
 
-    Only schedules the job when ``messaging.inbound.enabled`` is ``true`` AND
-    ``messaging.inbound.cleanup_schedule`` is non-null.
+    The legacy ``rex.messaging_backends`` inbound store has been retired as
+    part of the OpenClaw migration.  Inbound SMS retention is no longer
+    registered as a scheduled job; OpenClaw will manage its own messaging
+    state once the migration is complete.
 
     Args:
-        raw_config: Full runtime config dict.
-        scheduler: Scheduler instance.  Uses the global scheduler if ``None``.
+        raw_config: Ignored (retained for API compatibility).
+        scheduler: Ignored (retained for API compatibility).
 
     Returns:
-        ``True`` if the job was registered (or already existed), ``False`` if
-        skipped because inbound is disabled or schedule is not configured.
+        Always ``False`` — no job is registered.
     """
-    from rex.messaging_backends.inbound_store import InboundSmsStore, load_inbound_store_config
-    from rex.scheduler import get_scheduler
-
-    if scheduler is None:
-        scheduler = get_scheduler()
-
-    cfg = load_inbound_store_config(raw_config or {})
-
-    if not cfg.enabled:
-        logger.debug("Inbound SMS cleanup not scheduled (messaging.inbound.enabled=false)")
-        return False
-
-    cleanup_schedule: str | None = cfg.cleanup_schedule
-    if not cleanup_schedule:
-        logger.debug(
-            "Inbound SMS cleanup not scheduled "
-            "(messaging.inbound.cleanup_schedule is null/empty)"
-        )
-        return False
-
-    job_id = "inbound_sms_retention_cleanup"
-    if scheduler.get_job(job_id) is not None:
-        logger.debug("Inbound SMS retention cleanup job already registered, skipping")
-        return True
-
-    db_path: Path | None = Path(cfg.store_path) if cfg.store_path else None
-    retention_days: int = cfg.retention_days
-
-    def _cleanup_inbound_sms(job: Any) -> None:  # noqa: ANN401
-        """Run inbound SMS store cleanup."""
-        try:
-            store = InboundSmsStore(db_path=db_path, retention_days=retention_days)
-            removed = store.cleanup_old()
-            logger.info("Inbound SMS cleanup: removed %d old records", removed)
-        except Exception as exc:
-            logger.error("Inbound SMS cleanup failed: %s", exc, exc_info=True)
-
-    callback_name = "inbound_sms_retention_cleanup"
-    scheduler.register_callback(callback_name, _cleanup_inbound_sms)
-    scheduler.add_job(
-        job_id=job_id,
-        name="Inbound SMS Retention Cleanup",
-        schedule=cleanup_schedule,
-        callback_name=callback_name,
-        enabled=True,
+    # OPENCLAW-REPLACE: messaging_backends retired in iter 91.
+    logger.debug(
+        "Inbound SMS cleanup job skipped — messaging backend retired "
+        "(OpenClaw migration in progress)"
     )
-    logger.info(
-        "Inbound SMS retention cleanup scheduled: %s (retention=%d days)",
-        cleanup_schedule,
-        retention_days,
-    )
-    return True
+    return False
 
 
 def setup_retention_jobs(
