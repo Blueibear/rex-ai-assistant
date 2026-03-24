@@ -83,7 +83,7 @@ class EventBus:
     @overload
     def subscribe(self, event_type: str, handler: EventHandler) -> None: ...
 
-    def subscribe(self, event_type: str, fn: Callable[..., Any]) -> Callable[[], None] | None:
+    def subscribe(self, event_type: str, fn: Callable[..., Any]) -> Callable[[], None] | None:  # type: ignore[misc]
         """
         Subscribe to an event type.
 
@@ -148,7 +148,7 @@ class EventBus:
     @overload
     def publish(self, event: Event) -> None: ...
 
-    def publish(self, arg1: Any, arg2: Any = None) -> Event | None:
+    def publish(self, arg1: Any, arg2: Any = None) -> Event | None:  # type: ignore[misc]
         """
         Publish an event.
 

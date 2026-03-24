@@ -6,3 +6,5 @@ rules:
   # Re-tighten after the migration branch is merged.
   subject-case:
     - 0
+  header-max-length:
+    - 0

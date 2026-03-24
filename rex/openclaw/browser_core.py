@@ -276,7 +276,8 @@ class BrowserSession:
         """Get the current page content (HTML)."""
         if not self._page:
             raise RuntimeError("Browser not launched.")
-        return await self._page.content()
+        content: str = await self._page.content()
+        return content
 
     async def get_text(self, selector: str | None = None) -> str:
         """Get text content from page or element."""
@@ -286,10 +287,12 @@ class BrowserSession:
         if selector:
             element = await self._page.query_selector(selector)
             if element:
-                return await element.text_content()
+                text: str = await element.text_content()
+                return text
             raise ValueError(f"Element not found: {selector}")
         else:
-            return await self._page.evaluate("() => document.body.innerText")
+            body_text: str = await self._page.evaluate("() => document.body.innerText")
+            return body_text
 
 
 async def run_browser_script(
