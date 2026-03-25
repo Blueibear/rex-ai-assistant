@@ -377,15 +377,15 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a developer, I need CI to validate the new HTTP integration code including the tool server and mock gateway tests.
 
 **Acceptance Criteria:**
-- [ ] Add `responses` (or `pytest-httpserver`) to `requirements-dev.txt` for HTTP mocking
-- [ ] Verify all new test files are picked up by `pytest -q`
-- [ ] Verify `mypy rex --ignore-missing-imports` passes with all new modules
-- [ ] Verify ruff and black pass on all new files
-- [ ] Add a CI step or marker that runs integration tests separately: `pytest -m integration -q`
-- [ ] Mark the e2e tests from US-018 with `@pytest.mark.integration`
-- [ ] Standard `pytest -q` still runs unit tests without the integration marker
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] Add `responses` (or `pytest-httpserver`) to `requirements-dev.txt` for HTTP mocking
+- [x] Verify all new test files are picked up by `pytest -q`
+- [x] Verify `mypy rex --ignore-missing-imports` passes with all new modules
+- [x] Verify ruff and black pass on all new files
+- [x] Add a CI step or marker that runs integration tests separately: `pytest -m integration -q`
+- [x] Mark the e2e tests from US-018 with `@pytest.mark.integration`
+- [x] Standard `pytest -q` still runs unit tests without the integration marker
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 
