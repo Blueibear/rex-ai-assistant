@@ -239,6 +239,40 @@ def _get_nested(data: dict, path: str, default=None):
     return value
 
 
+def _coerce_float(json_config: dict, path: str, default: float) -> float:
+    """Get a float config value, warning if the raw value is a string.
+
+    Pydantic/dataclass coercion silently accepts string-typed floats from
+    JSON, which can hide misconfigured ``rex_config.json`` files.  This
+    helper logs a WARNING so operators know to fix the source file.
+    """
+    raw = _get_nested(json_config, path, default)
+    if isinstance(raw, str):
+        LOGGER.warning(
+            "Config field %r has string value %r — expected float; "
+            "coercing automatically.  Fix the value in rex_config.json.",
+            path,
+            raw,
+        )
+    return float(raw)
+
+
+def _coerce_int(json_config: dict, path: str, default: int) -> int:
+    """Get an int config value, warning if the raw value is a string.
+
+    See :func:`_coerce_float` for rationale.
+    """
+    raw = _get_nested(json_config, path, default)
+    if isinstance(raw, str):
+        LOGGER.warning(
+            "Config field %r has string value %r — expected int; "
+            "coercing automatically.  Fix the value in rex_config.json.",
+            path,
+            raw,
+        )
+    return int(float(raw))
+
+
 def _merge_profile_config(base_config: dict) -> dict:
     profile_name = get_active_profile_name(base_config)
     profiles_dir = base_config.get("profiles_dir", DEFAULT_PROFILES_DIR)
@@ -277,9 +311,9 @@ def build_app_config(json_config: dict) -> AppConfig:
         wakeword=_get_nested(json_config, "wake_word.wakeword", "rex"),
         wakeword_backend=_get_nested(json_config, "wake_word.backend", "openwakeword"),
         wakeword_keyword=_get_nested(json_config, "wake_word.keyword"),
-        wakeword_threshold=float(_get_nested(json_config, "wake_word.threshold", 0.5)),
-        wakeword_window=float(_get_nested(json_config, "wake_word.window", 1.0)),
-        wakeword_poll_interval=float(_get_nested(json_config, "wake_word.poll_interval", 0.01)),
+        wakeword_threshold=_coerce_float(json_config, "wake_word.threshold", 0.5),
+        wakeword_window=_coerce_float(json_config, "wake_word.window", 1.0),
+        wakeword_poll_interval=_coerce_float(json_config, "wake_word.poll_interval", 0.01),
         wake_sound_path=_get_nested(json_config, "wake_word.wake_sound_path"),
         wakeword_model_path=_get_nested(json_config, "wake_word.model_path"),
         wakeword_embedding_path=_get_nested(json_config, "wake_word.embedding_path"),
@@ -290,12 +324,10 @@ def build_app_config(json_config: dict) -> AppConfig:
             json_config, "wake_word.fallback_keyword", "hey jarvis"
         ),
         # Runtime settings from JSON
-        command_duration=float(_get_nested(json_config, "runtime.command_duration", 5.0)),
-        detection_frame_seconds=float(
-            _get_nested(json_config, "runtime.detection_frame_seconds", 1.0)
-        ),
-        capture_seconds=float(_get_nested(json_config, "runtime.capture_seconds", 5.0)),
-        memory_max_turns=int(_get_nested(json_config, "runtime.memory_max_turns", 50)),
+        command_duration=_coerce_float(json_config, "runtime.command_duration", 5.0),
+        detection_frame_seconds=_coerce_float(json_config, "runtime.detection_frame_seconds", 1.0),
+        capture_seconds=_coerce_float(json_config, "runtime.capture_seconds", 5.0),
+        memory_max_turns=_coerce_int(json_config, "runtime.memory_max_turns", 50),
         transcripts_enabled=bool(_get_nested(json_config, "runtime.transcripts_enabled", True)),
         transcripts_dir=Path(_get_nested(json_config, "runtime.transcripts_dir", "transcripts")),
         default_user=_get_nested(json_config, "runtime.active_user"),
@@ -303,7 +335,7 @@ def build_app_config(json_config: dict) -> AppConfig:
         speak_language=_get_nested(json_config, "runtime.speak_language", "en"),
         user_id=_get_nested(json_config, "runtime.user_id", "default"),
         # Audio settings from JSON
-        sample_rate=int(_get_nested(json_config, "audio.sample_rate", 16000)),
+        sample_rate=_coerce_int(json_config, "audio.sample_rate", 16000),
         audio_input_device=_get_nested(json_config, "audio.input_device_index"),
         audio_output_device=_get_nested(json_config, "audio.output_device_index"),
         # Model settings from JSON
@@ -311,14 +343,14 @@ def build_app_config(json_config: dict) -> AppConfig:
         whisper_device=_get_nested(json_config, "models.stt_device", "auto"),
         llm_provider=_get_nested(json_config, "models.llm_provider", "transformers"),
         llm_model=_get_nested(json_config, "models.llm_model", "sshleifer/tiny-gpt2"),
-        llm_max_tokens=int(_get_nested(json_config, "models.llm_max_tokens", 120)),
-        llm_temperature=float(_get_nested(json_config, "models.llm_temperature", 0.7)),
-        llm_top_p=float(_get_nested(json_config, "models.llm_top_p", 0.9)),
-        llm_top_k=int(_get_nested(json_config, "models.llm_top_k", 50)),
-        llm_seed=int(_get_nested(json_config, "models.llm_seed", 42)),
+        llm_max_tokens=_coerce_int(json_config, "models.llm_max_tokens", 120),
+        llm_temperature=_coerce_float(json_config, "models.llm_temperature", 0.7),
+        llm_top_p=_coerce_float(json_config, "models.llm_top_p", 0.9),
+        llm_top_k=_coerce_int(json_config, "models.llm_top_k", 50),
+        llm_seed=_coerce_int(json_config, "models.llm_seed", 42),
         tts_provider=_get_nested(json_config, "models.tts_provider", "xtts"),
         tts_voice=_get_nested(json_config, "models.tts_voice"),
-        tts_speed=float(_get_nested(json_config, "models.tts_speed", 1.08)),
+        tts_speed=_coerce_float(json_config, "models.tts_speed", 1.08),
         # API settings from JSON
         rate_limit=_get_nested(json_config, "api.rate_limit", "30/minute"),
         allowed_origins=allowed_origins,
@@ -329,7 +361,7 @@ def build_app_config(json_config: dict) -> AppConfig:
         # Home Assistant from JSON + secrets from env
         ha_base_url=_get_nested(json_config, "home_assistant.base_url"),
         ha_verify_ssl=bool(_get_nested(json_config, "home_assistant.verify_ssl", True)),
-        ha_timeout=float(_get_nested(json_config, "home_assistant.timeout", 10.0)),
+        ha_timeout=_coerce_float(json_config, "home_assistant.timeout", 10.0),
         ha_token=os.getenv("HA_TOKEN"),  # SECRET from env
         ha_secret=os.getenv("HA_SECRET"),  # SECRET from env
         ha_entity_map=None,
@@ -350,7 +382,7 @@ def build_app_config(json_config: dict) -> AppConfig:
         # Logging from JSON
         debug_logging=_get_nested(json_config, "runtime.log_level", "INFO").upper() == "DEBUG",
         file_logging_enabled=bool(_get_nested(json_config, "runtime.file_logging_enabled", False)),
-        memory_max_bytes=int(_get_nested(json_config, "runtime.memory_max_bytes", 131072)),
+        memory_max_bytes=_coerce_int(json_config, "runtime.memory_max_bytes", 131072),
         # Profile metadata
         active_profile=_get_nested(json_config, "active_profile", "default"),
         capabilities=capabilities,
@@ -360,25 +392,21 @@ def build_app_config(json_config: dict) -> AppConfig:
         openweathermap_api_key=os.getenv("OPENWEATHERMAP_API_KEY"),
         # Conversational followups
         followups_enabled=bool(_get_nested(json_config, "conversation.followups.enabled", False)),
-        followups_max_per_session=int(
-            _get_nested(json_config, "conversation.followups.max_per_session", 2)
+        followups_max_per_session=_coerce_int(
+            json_config, "conversation.followups.max_per_session", 2
         ),
-        followups_lookback_hours=int(
-            _get_nested(json_config, "conversation.followups.lookback_hours", 72)
+        followups_lookback_hours=_coerce_int(
+            json_config, "conversation.followups.lookback_hours", 72
         ),
-        followups_expire_hours=int(
-            _get_nested(json_config, "conversation.followups.expire_hours", 168)
-        ),
+        followups_expire_hours=_coerce_int(json_config, "conversation.followups.expire_hours", 168),
         # OpenClaw integration
         use_openclaw_tools=bool(_get_nested(json_config, "openclaw.use_tools", False)),
         use_openclaw_voice_backend=bool(
             _get_nested(json_config, "openclaw.use_voice_backend", False)
         ),
         openclaw_gateway_url=_get_nested(json_config, "openclaw.gateway_url", ""),
-        openclaw_gateway_timeout=int(_get_nested(json_config, "openclaw.gateway_timeout", 30)),
-        openclaw_gateway_max_retries=int(
-            _get_nested(json_config, "openclaw.gateway_max_retries", 3)
-        ),
+        openclaw_gateway_timeout=_coerce_int(json_config, "openclaw.gateway_timeout", 30),
+        openclaw_gateway_max_retries=_coerce_int(json_config, "openclaw.gateway_max_retries", 3),
         openclaw_gateway_token=os.getenv("OPENCLAW_GATEWAY_TOKEN"),  # SECRET from env
     )
 

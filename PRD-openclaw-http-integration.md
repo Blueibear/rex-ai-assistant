@@ -393,14 +393,14 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a developer, I need `rex_config.json` to use correct types so Pydantic doesn't silently coerce or fail on startup.
 
 **Acceptance Criteria:**
-- [ ] In `config/rex_config.json`, change `llm_temperature` from `"0.6"` (string) to `0.6` (float)
-- [ ] Change `llm_top_p` from `"0.9"` (string) to `0.9` (float)
-- [ ] Audit all other numeric fields in `rex_config.json` for string-typed values and fix them
-- [ ] Add a startup validation log line in `_load_config_from_json()` that warns if any numeric AppConfig field received a string value (coercion warning)
-- [ ] Unit test: load config with string-typed numeric, verify warning is logged
-- [ ] Unit test: load config with correct types, verify no warning
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] In `config/rex_config.json`, change `llm_temperature` from `"0.6"` (string) to `0.6` (float)
+- [x] Change `llm_top_p` from `"0.9"` (string) to `0.9` (float)
+- [x] Audit all other numeric fields in `rex_config.json` for string-typed values and fix them
+- [x] Add a startup validation log line in `_load_config_from_json()` that warns if any numeric AppConfig field received a string value (coercion warning)
+- [x] Unit test: load config with string-typed numeric, verify warning is logged
+- [x] Unit test: load config with correct types, verify no warning
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ## Non-Goals
 
