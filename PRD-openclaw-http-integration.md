@@ -359,17 +359,17 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a developer, I need a comprehensive integration test that simulates the full Rex-to-OpenClaw flow to catch regressions.
 
 **Acceptance Criteria:**
-- [ ] Create `tests/test_openclaw_e2e_integration.py`
-- [ ] Test fixture: mock HTTP server (using `responses` library or `pytest-httpserver`) that mimics OpenClaw's `/v1/chat/completions` and `/tools/invoke`
-- [ ] Test 1: Text mode end-to-end: user prompt -> RexAgent.respond() -> mock OpenClaw -> response
-- [ ] Test 2: Tool call end-to-end: user prompt -> OpenClaw returns tool_call -> Rex executes tool locally -> Rex re-calls OpenClaw with result -> final response
-- [ ] Test 3: Voice bridge end-to-end: transcript -> VoiceBridge.generate_reply() -> mock OpenClaw -> spoken response string
-- [ ] Test 4: Tool server end-to-end: POST to `/rex/tools/time_now` -> response with current time
-- [ ] Test 5: Fallback test: mock OpenClaw returns 500 -> Rex falls back to local LLM -> response returned
-- [ ] Test 6: Standalone test: no gateway URL configured -> all paths use local backends -> no HTTP calls made
-- [ ] All tests run in CI without requiring a real OpenClaw instance
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] Create `tests/test_openclaw_e2e_integration.py`
+- [x] Test fixture: mock HTTP server (using `responses` library or `pytest-httpserver`) that mimics OpenClaw's `/v1/chat/completions` and `/tools/invoke`
+- [x] Test 1: Text mode end-to-end: user prompt -> RexAgent.respond() -> mock OpenClaw -> response
+- [x] Test 2: Tool call end-to-end: user prompt -> OpenClaw returns tool_call -> Rex executes tool locally -> Rex re-calls OpenClaw with result -> final response
+- [x] Test 3: Voice bridge end-to-end: transcript -> VoiceBridge.generate_reply() -> mock OpenClaw -> spoken response string
+- [x] Test 4: Tool server end-to-end: POST to `/rex/tools/time_now` -> response with current time
+- [x] Test 5: Fallback test: mock OpenClaw returns 500 -> Rex falls back to local LLM -> response returned
+- [x] Test 6: Standalone test: no gateway URL configured -> all paths use local backends -> no HTTP calls made
+- [x] All tests run in CI without requiring a real OpenClaw instance
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 
