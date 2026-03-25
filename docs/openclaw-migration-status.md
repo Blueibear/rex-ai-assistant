@@ -103,8 +103,8 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/plex_client.py` | Keep | Bridged (US-P5-017/018) | `rex/openclaw/tools/plex_tool.py` registers 4 tools (search, play, pause, stop). ToolBridge.register_plex_tools() wires it. |
 | `rex/memory.py` | Keep + Adapt | Bridged (US-P3-002/003/005/006) | MemoryAdapter (`rex/openclaw/memory_adapter.py`) wraps conversation history. Wired into OpenClaw agent. Memory persistence across interactions tested. |
 | `rex/memory_utils.py` | Keep | Audited (US-P3-004) | Core functions wrapped by MemoryAdapter. Rex-specific identity/profile functions unchanged. See audit notes below. |
-| `rex/llm_client.py` | Keep | Pending | Multi-provider LLM client. Orthogonal to migration. Not in scope. |
-| `rex/config.py` | Keep | Bridged (US-P6-006) | `use_openclaw_voice_backend` flag added (US-P6-006). `use_openclaw_tools` flag added (US-P4-010). OpenClaw adapter config mapped (US-P2-003). |
+| `rex/llm_client.py` | Keep | Bridged (US-003/Phase 8) | OpenAI strategy wired to OpenClaw `/v1/chat/completions` by pointing `openai.base_url` at the gateway. `user` field derived from `AppConfig.user_id` / `active_profile` sent on every completion request for session persistence. |
+| `rex/config.py` | Keep | Bridged (US-P6-006 / Phase 8) | `use_openclaw_voice_backend` flag added (US-P6-006). `use_openclaw_tools` flag added (US-P4-010). OpenClaw adapter config mapped (US-P2-003). Phase 8 additions: `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries` fields; `OPENCLAW_GATEWAY_TOKEN` loaded from env. |
 | `rex/cli.py` | Keep + Update | Updated (US-P7-010/018) | executor.py callers migrated to WorkflowBridge (US-P7-010). No other retired modules require further CLI updates at this phase. |
 | `rex/app.py` | Retire | Pending | Flask app factory. Retires when dashboard retires and OpenClaw handles HTTP. Blocked by gui_app.py (see dashboard). |
 | `rex/api_key_auth.py` | Retire | Pending | API key auth. Retires when OpenClaw handles auth. |
@@ -114,6 +114,10 @@ Tracks every Rex module's migration state as Rex pivots to an OpenClaw-based arc
 | `rex/calendar_backends/` | Keep | Pending | Calendar integrations (~500 lines). Rex-specific. Register as OpenClaw skill. |
 | `rex/calendar_service.py` | Keep | Pending | Calendar orchestration (700 lines). Register as OpenClaw skill. |
 | `rex/audit.py` | Keep | Pending | Audit logging. Security-critical. Stays; may also feed into OpenClaw's audit if available. |
+| `rex/openclaw/http_client.py` | New (Phase 8) | **Complete** (US-001) | `OpenClawClient`: shared HTTP client with `Authorization: Bearer` auth, exponential-backoff retries on 429/5xx, configurable timeout. Singleton via `get_openclaw_client(config)` — returns None when `openclaw_gateway_url` is empty (standalone mode). |
+| `rex/openclaw/errors.py` | New (Phase 8) | **Complete** (US-001) | `OpenClawConnectionError`, `OpenClawAuthError`, `OpenClawAPIError` — all inherit from `AssistantError`. Raised by `OpenClawClient` on network failure, 401, and 4xx/5xx after retries exhausted respectively. |
+| `rex/openclaw/tool_server.py` | New (Phase 8) | **Complete** (US-007/US-008) | Flask Blueprint at `/rex/tools/<tool_name>`. `ToolServer.register_all(app)` wires all Rex tool handlers. Auth via `X-API-Key` / `Authorization: Bearer` (`REX_TOOL_API_KEY`). Rate limiting configurable via `REX_TOOL_RATE_LIMIT` / `REX_TOOL_RATE_WINDOW`. PolicyAdapter guard runs before every invocation. Entry point: `rex-tool-server` on port 18790. Health checks at `/health/live` and `/health/ready`. |
+| Python import stubs (`find_spec("openclaw")` / `OPENCLAW_AVAILABLE`) | Removed (Phase 8) | **Removed** (US-004/US-011) | All `find_spec("openclaw")` checks, `OPENCLAW_AVAILABLE` constants, `import openclaw as _openclaw` blocks, and `register()` no-op functions removed from 18 source files in `rex/openclaw/`. OpenClaw is TypeScript/Node.js — no Python package exists. Availability is now determined by `get_openclaw_client()` returning non-None. |
 
 ---
 
