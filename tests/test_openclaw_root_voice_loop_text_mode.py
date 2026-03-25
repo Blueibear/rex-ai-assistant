@@ -27,6 +27,7 @@ def _make_config(**kwargs) -> AppConfig:
 # The returned instance has _assistant already set to the provided mock.
 # ---------------------------------------------------------------------------
 
+
 def _make_ara(config: AppConfig, mock_bridge: MagicMock):
     """Return an AsyncRexAssistant whose _assistant is mock_bridge, no heavy imports."""
     mock_numpy = MagicMock()

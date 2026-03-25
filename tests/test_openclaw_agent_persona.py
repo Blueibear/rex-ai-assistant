@@ -8,10 +8,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_config(
     wakeword: str = "rex",
@@ -35,6 +35,7 @@ def _make_config(
 # ---------------------------------------------------------------------------
 # build_system_prompt tests
 # ---------------------------------------------------------------------------
+
 
 class TestBuildSystemPrompt:
     def test_returns_string(self):
@@ -116,6 +117,7 @@ class TestBuildSystemPrompt:
 # ---------------------------------------------------------------------------
 # RexAgent persona injection tests
 # ---------------------------------------------------------------------------
+
 
 class TestRexAgentPersona:
     def _make_agent(self, config=None, system_prompt=None, agent_name=None):

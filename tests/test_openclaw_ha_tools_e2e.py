@@ -20,7 +20,6 @@ from rex.policy import ActionPolicy
 from rex.policy_engine import PolicyEngine
 from rex.openclaw.tool_executor import ApprovalRequiredError, PolicyDeniedError
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

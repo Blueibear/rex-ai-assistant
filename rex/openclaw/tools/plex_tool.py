@@ -67,7 +67,11 @@ def plex_search(
     if client is None:
         return {"ok": False, "results": [], "error": "Plex client not configured"}
     if not client.enabled:
-        return {"ok": False, "results": [], "error": "Plex client not enabled (missing URL or token)"}
+        return {
+            "ok": False,
+            "results": [],
+            "error": "Plex client not enabled (missing URL or token)",
+        }
     try:
         items = client.search(query, limit=limit)
         return {
@@ -199,13 +203,9 @@ def register(agent: Any = None) -> dict[str, Any]:
         when OpenClaw is not installed).
     """
     if not _OPENCLAW_AVAILABLE:
-        logger.warning(
-            "openclaw package not installed — Plex tools not registered"
-        )
+        logger.warning("openclaw package not installed — Plex tools not registered")
         return {name: None for name in TOOL_NAMES}
 
     # TODO: replace with real OpenClaw tool registration once API is confirmed.
-    logger.warning(
-        "OpenClaw Plex tool registration stub — update once API is confirmed (PRD §8.3)"
-    )
+    logger.warning("OpenClaw Plex tool registration stub — update once API is confirmed (PRD §8.3)")
     return {name: None for name in TOOL_NAMES}

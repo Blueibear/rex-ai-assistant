@@ -21,7 +21,6 @@ from rex.policy import ActionPolicy
 from rex.policy_engine import PolicyEngine
 from rex.openclaw.tool_executor import ApprovalRequiredError, PolicyDeniedError
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -205,7 +204,11 @@ class TestRexAgentCallToolPolicyGate:
         with pytest.raises(ApprovalRequiredError):
             agent.call_tool(
                 "calendar_create",
-                {"title": "Meeting", "start_time": "2026-04-01T09:00:00", "end_time": "2026-04-01T10:00:00"},
+                {
+                    "title": "Meeting",
+                    "start_time": "2026-04-01T09:00:00",
+                    "end_time": "2026-04-01T10:00:00",
+                },
             )
 
     def test_call_tool_raises_policy_denied_for_blocked_recipient(self):

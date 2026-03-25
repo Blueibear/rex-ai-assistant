@@ -108,9 +108,7 @@ class BrowserBridge:
         if not self.storage_path.exists():
             return []
         return [
-            d.name
-            for d in self.storage_path.iterdir()
-            if d.is_dir() and not d.name.startswith(".")
+            d.name for d in self.storage_path.iterdir() if d.is_dir() and not d.name.startswith(".")
         ]
 
     def list_screenshots(self) -> list[str]:

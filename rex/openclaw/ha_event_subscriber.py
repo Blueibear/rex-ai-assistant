@@ -138,6 +138,4 @@ class HaEventSubscriber:
             data=data or None,
         )
         if not result.get("success"):
-            logger.warning(
-                "[HaEventSubscriber] ha.command failed: %s", result.get("message")
-            )
+            logger.warning("[HaEventSubscriber] ha.command failed: %s", result.get("message"))

@@ -21,7 +21,6 @@ import pytest
 
 from rex.ha_tts.client import HaTtsClient, TtsResult
 
-
 # ---------------------------------------------------------------------------
 # DNS mock for SSRF validator (tests that construct HaTtsClient directly)
 # ---------------------------------------------------------------------------
@@ -179,9 +178,7 @@ class TestHaTtsNotificationChannel:
             channel_preferences=["ha_tts"],
         )
 
-        with patch(
-            "rex.ha_tts.client.build_ha_tts_client", return_value=mock_client
-        ):
+        with patch("rex.ha_tts.client.build_ha_tts_client", return_value=mock_client):
             notifier._send_to_ha_tts(req)
 
         mock_client.speak.assert_called_once()
@@ -270,9 +267,7 @@ class TestBuildHaTtsClient:
 
         with patch(
             "rex.ha_tts.config.load_ha_tts_config",
-            return_value=HaTtsConfig(
-                enabled=True, base_url="https://homeassistant.example.com"
-            ),
+            return_value=HaTtsConfig(enabled=True, base_url="https://homeassistant.example.com"),
         ):
             result = build_ha_tts_client()
 
@@ -291,9 +286,7 @@ class TestBuildHaTtsClient:
                 token_ref="ha-token",
             ),
         ):
-            with patch(
-                "rex.credentials.CredentialManager.get_token", return_value=None
-            ):
+            with patch("rex.credentials.CredentialManager.get_token", return_value=None):
                 result = build_ha_tts_client()
 
         assert result is None

@@ -53,9 +53,9 @@ def _find_active_importers() -> set[str]:
 
 class TestToolRegistryRetired:
     def test_module_does_not_exist(self):
-        assert not (REX_PKG / "tool_registry.py").exists(), (
-            "rex/tool_registry.py was re-introduced — it was retired in US-P7-006"
-        )
+        assert not (
+            REX_PKG / "tool_registry.py"
+        ).exists(), "rex/tool_registry.py was re-introduced — it was retired in US-P7-006"
 
     def test_no_rex_importers(self):
         active = _find_active_importers()

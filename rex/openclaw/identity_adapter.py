@@ -174,9 +174,7 @@ class IdentityAdapter:
             Registration handle from OpenClaw, or ``None``.
         """
         if not OPENCLAW_AVAILABLE:
-            logger.warning(
-                "openclaw package not installed — IdentityAdapter not registered"
-            )
+            logger.warning("openclaw package not installed — IdentityAdapter not registered")
             return None
 
         # TODO: replace with real OpenClaw identity registration once API is confirmed.

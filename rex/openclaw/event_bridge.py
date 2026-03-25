@@ -75,9 +75,7 @@ class EventBridge:
     # EventBusProtocol implementation
     # ------------------------------------------------------------------
 
-    def subscribe(
-        self, event_type: str, fn: Callable[..., None]
-    ) -> Callable[[], None] | None:
+    def subscribe(self, event_type: str, fn: Callable[..., None]) -> Callable[[], None] | None:
         """Register a handler for *event_type*.
 
         Delegates to :meth:`~rex.event_bus.EventBus.subscribe`.

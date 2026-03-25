@@ -29,7 +29,6 @@ import pytest
 
 from rex.wordpress.client import WPHealthResult
 
-
 # ---------------------------------------------------------------------------
 # US-P5-009: wordpress_tool.py — tool structure
 # ---------------------------------------------------------------------------
@@ -242,9 +241,7 @@ class TestWordpressReadOnly:
 
         mock_service.health.assert_called_once()
         # No other methods were called (e.g. create, update, delete)
-        called_methods = [
-            c[0] for c in mock_service.method_calls if c[0] != "health"
-        ]
+        called_methods = [c[0] for c in mock_service.method_calls if c[0] != "health"]
         assert called_methods == []
 
 

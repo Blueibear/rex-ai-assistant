@@ -11,6 +11,7 @@ US-P5-022 acceptance criteria (end-to-end business workflow):
     write step is approval-gated
   - Full workflow via ToolBridge: register_business_tools() covers all 6 tools
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, call, patch
@@ -29,7 +30,6 @@ from rex.openclaw.tools.wordpress_tool import wp_health_check
 
 import rex.woocommerce.service as _wc_service_module
 import rex.wordpress.service as _wp_service_module
-
 
 # ---------------------------------------------------------------------------
 # US-P5-021: Module structure
@@ -112,6 +112,7 @@ class TestBusinessWorkflowEndToEnd:
 
     def _make_wc_service(self):
         from rex.woocommerce.service import WooCommerceService
+
         return MagicMock(spec=WooCommerceService)
 
     def _make_orders_result(self, orders):
@@ -129,14 +130,13 @@ class TestBusinessWorkflowEndToEnd:
 
     def _make_wp_service(self):
         from rex.wordpress.service import WordPressService
+
         return MagicMock(spec=WordPressService)
 
     def test_list_orders_step(self):
         """Step 1: List orders returns ok=True with results."""
         svc = self._make_wc_service()
-        svc.list_orders.return_value = self._make_orders_result(
-            [{"id": 101, "status": "pending"}]
-        )
+        svc.list_orders.return_value = self._make_orders_result([{"id": 101, "status": "pending"}])
         with patch.object(_wc_service_module, "_service", svc):
             result = wc_list_orders("mystore", status="pending")
 
@@ -261,13 +261,16 @@ class TestBusinessWorkflowEndToEnd:
         fake_wc = {name: MagicMock() for name in WOOCOMMERCE_TOOLS}
         fake_wp = None  # wordpress_tool.register() returns None
 
-        with patch(
-            "rex.openclaw.tools.business_tool._register_wc_tools",
-            return_value=fake_wc,
-        ) as mock_wc, patch(
-            "rex.openclaw.tools.business_tool._register_wp_tools",
-            return_value=fake_wp,
-        ) as mock_wp:
+        with (
+            patch(
+                "rex.openclaw.tools.business_tool._register_wc_tools",
+                return_value=fake_wc,
+            ) as mock_wc,
+            patch(
+                "rex.openclaw.tools.business_tool._register_wp_tools",
+                return_value=fake_wp,
+            ) as mock_wp,
+        ):
             result = register_all_business_tools(agent=None)
 
         mock_wc.assert_called_once_with(agent=None)

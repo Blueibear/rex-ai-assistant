@@ -100,9 +100,7 @@ class TestVoicePipelineIntegration:
         mock_bridge = MagicMock(spec=VoiceBridge)
         mock_bridge.generate_reply = AsyncMock(return_value="I heard nothing")
 
-        vl, mock_speak, _ = _build_integrated_voice_loop(
-            mock_bridge, transcribe_result=""
-        )
+        vl, mock_speak, _ = _build_integrated_voice_loop(mock_bridge, transcribe_result="")
 
         with patch("rex.voice_latency.VoiceLatencyTracker", MagicMock()):
             await vl.run(max_interactions=1)
@@ -116,9 +114,7 @@ class TestVoicePipelineIntegration:
         mock_bridge = MagicMock(spec=VoiceBridge)
         mock_bridge.generate_reply = AsyncMock(return_value="")
 
-        vl, mock_speak, _ = _build_integrated_voice_loop(
-            mock_bridge, transcribe_result="hello"
-        )
+        vl, mock_speak, _ = _build_integrated_voice_loop(mock_bridge, transcribe_result="hello")
 
         with patch("rex.voice_latency.VoiceLatencyTracker", MagicMock()):
             await vl.run(max_interactions=1)
@@ -135,9 +131,7 @@ class TestVoicePipelineIntegration:
         mock_bridge = MagicMock(spec=VoiceBridge)
         mock_bridge.generate_reply = AsyncMock(side_effect=RuntimeError("OpenClaw unavailable"))
 
-        vl, mock_speak, _ = _build_integrated_voice_loop(
-            mock_bridge, transcribe_result="hello rex"
-        )
+        vl, mock_speak, _ = _build_integrated_voice_loop(mock_bridge, transcribe_result="hello rex")
 
         with patch("rex.voice_latency.VoiceLatencyTracker", MagicMock()):
             # Should not raise

@@ -29,7 +29,9 @@ class TestTimeTool:
             "date": "2026-03-22",
             "timezone": "Europe/London",
         }
-        with patch("rex.openclaw.tools.time_tool.execute_tool", return_value=fake_result) as mock_exec:
+        with patch(
+            "rex.openclaw.tools.time_tool.execute_tool", return_value=fake_result
+        ) as mock_exec:
             result = time_now("London")
 
         assert result == fake_result

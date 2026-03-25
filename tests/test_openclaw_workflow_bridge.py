@@ -15,6 +15,7 @@ US-P4-032 acceptance criteria:
 US-P4-033 acceptance criteria:
   - Multi-step (3+) workflow, all allowed → run() returns RunResult, steps all executed
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -24,7 +25,6 @@ import pytest
 from rex.openclaw.workflow_bridge import OPENCLAW_AVAILABLE, WorkflowBridge
 from rex.workflow import Workflow, WorkflowStep
 from rex.workflow_runner import DryRunResult, RunResult, WorkflowRunner
-
 
 # ---------------------------------------------------------------------------
 # Helpers

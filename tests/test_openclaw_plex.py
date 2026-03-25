@@ -17,6 +17,7 @@ US-P5-018 acceptance criteria:
   - Exception path: returns ok=False with error string
   - ToolBridge.register_plex_tools() wires through to plex_tool.register()
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -36,7 +37,6 @@ from rex.openclaw.tools.plex_tool import (
     register,
 )
 from rex.plex_client import PlexMediaItem
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -370,7 +370,9 @@ class TestToolBridgeWiring:
         bridge = ToolBridge()
         fake_handles = {name: MagicMock() for name in TOOL_NAMES}
 
-        with patch("rex.openclaw.tool_bridge._register_plex_tools", return_value=fake_handles) as mock_reg:
+        with patch(
+            "rex.openclaw.tool_bridge._register_plex_tools", return_value=fake_handles
+        ) as mock_reg:
             result = bridge.register_plex_tools(agent=None)
 
         mock_reg.assert_called_once_with(agent=None)

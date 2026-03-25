@@ -19,16 +19,16 @@ REX_PKG = REPO_ROOT / "rex"
 
 class TestDashboardRetired:
     def test_dashboard_store_deleted(self):
-        assert not (REX_PKG / "dashboard_store.py").exists(), (
-            "rex/dashboard_store.py was re-introduced — it is a retired module"
-        )
+        assert not (
+            REX_PKG / "dashboard_store.py"
+        ).exists(), "rex/dashboard_store.py was re-introduced — it is a retired module"
 
     def test_dashboard_package_deleted(self):
-        assert not (REX_PKG / "dashboard").exists(), (
-            "rex/dashboard/ was re-introduced — it is a retired module"
-        )
+        assert not (
+            REX_PKG / "dashboard"
+        ).exists(), "rex/dashboard/ was re-introduced — it is a retired module"
 
     def test_dashboard_contract_deleted(self):
-        assert not (REX_PKG / "contracts" / "dashboard.py").exists(), (
-            "rex/contracts/dashboard.py was re-introduced — it is a retired contract"
-        )
+        assert not (
+            REX_PKG / "contracts" / "dashboard.py"
+        ).exists(), "rex/contracts/dashboard.py was re-introduced — it is a retired contract"

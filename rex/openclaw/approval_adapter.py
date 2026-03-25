@@ -228,9 +228,7 @@ class ApprovalAdapter:
             The registration handle from OpenClaw, or ``None``.
         """
         if not OPENCLAW_AVAILABLE:
-            logger.warning(
-                "openclaw package not installed — ApprovalAdapter not registered"
-            )
+            logger.warning("openclaw package not installed — ApprovalAdapter not registered")
             return None
 
         # TODO: replace with real OpenClaw approval registration once API is confirmed.
