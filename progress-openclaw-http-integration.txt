@@ -201,3 +201,21 @@
   - `get_openclaw_user_key()` must never return "" — the "rex" default ensures OpenClaw always gets a valid session key
   - Patch `agent._identity.get_openclaw_user_key` via `patch.object(agent._identity, ...)` to control the identity key in agent tests
 ---
+
+## Iteration 15 - US-016: Update documentation for HTTP integration architecture
+- `docs/openclaw-agent-setup.md` was already comprehensive from iterations 3 and 8 (sections 1-9 cover all required topics)
+- `CLAUDE.md` OpenClaw Migration Status section was already updated in previous iterations (Phase 8 complete, flags documented, config fields listed)
+- `README.md` OpenClaw section already mentioned HTTP integration
+- Added Phase 8 rows to the module table in `docs/openclaw-migration-status.md`:
+  - `rex/openclaw/http_client.py` (New Phase 8 / Complete)
+  - `rex/openclaw/errors.py` (New Phase 8 / Complete)
+  - `rex/openclaw/tool_server.py` (New Phase 8 / Complete)
+  - Python import stubs (Removed Phase 8)
+  - Updated `rex/llm_client.py` row from Pending → Bridged (Phase 8)
+  - Updated `rex/config.py` row to mention Phase 8 gateway fields
+- Files changed: `docs/openclaw-migration-status.md`, `PRD-openclaw-http-integration.md`, `progress-openclaw-http-integration.txt`
+- Learnings for future iterations:
+  - Doc-only US stories may be substantially done by previous iterations that updated docs as side effects
+  - Always check current doc state before rewriting — prior iterations 3 and 8 already covered the required sections
+  - Unstaged changes in working tree (agent.py, http_client.py, tool_server.py) are US-017 streaming implementation — already written but not committed
+---

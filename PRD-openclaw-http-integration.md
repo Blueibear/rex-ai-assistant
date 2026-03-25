@@ -317,23 +317,23 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a developer or operator, I need documentation that explains how Rex integrates with OpenClaw via HTTP, replacing the outdated Python SDK assumptions.
 
 **Acceptance Criteria:**
-- [ ] Rewrite `docs/openclaw-agent-setup.md` to cover:
+- [x] Rewrite `docs/openclaw-agent-setup.md` to cover:
   - Architecture diagram (text-based): Rex <-> HTTP <-> OpenClaw Gateway <-> Model Providers
   - Config walkthrough: `rex_config.json` openclaw section + `.env` token
   - Quick start: 5 steps to get Rex talking through OpenClaw
   - Tool server setup: how to expose Rex tools to OpenClaw channels
   - Troubleshooting: connection refused, auth errors, timeout tuning
-- [ ] Update `CLAUDE.md` OpenClaw Migration Status section:
+- [x] Update `CLAUDE.md` OpenClaw Migration Status section:
   - Change "Phase 7 (retirement)" to "Phase 8 (HTTP integration)"
   - Remove references to `find_spec("openclaw")` and Python package
   - Document the two feature flags and what they actually control now
   - Document the new config fields
-- [ ] Update `docs/openclaw-migration-status.md`:
+- [x] Update `docs/openclaw-migration-status.md`:
   - Add Phase 8 rows for HTTP client, config, chat completions, tool server
   - Mark Python import stubs as "Removed" status
-- [ ] Update `README.md` OpenClaw section to mention HTTP integration (1-2 sentences)
-- [ ] Typecheck passes (no code changes, but verify docs don't reference removed functions)
-- [ ] Ruff and black pass
+- [x] Update `README.md` OpenClaw section to mention HTTP integration (1-2 sentences)
+- [x] Typecheck passes (no code changes, but verify docs don't reference removed functions)
+- [x] Ruff and black pass
 
 ---
 
