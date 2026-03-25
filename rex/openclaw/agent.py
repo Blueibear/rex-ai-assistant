@@ -24,12 +24,13 @@ Intended usage::
 from __future__ import annotations
 
 import logging
+from collections.abc import Generator
 from typing import Any
 
 from rex.config import AppConfig, load_config
 from rex.llm_client import LanguageModel
 from rex.openclaw.errors import OpenClawAPIError, OpenClawAuthError, OpenClawConnectionError
-from rex.openclaw.http_client import get_openclaw_client
+from rex.openclaw.http_client import get_openclaw_client, stream_sentences
 from rex.openclaw.identity_adapter import IdentityAdapter
 from rex.openclaw.memory_adapter import MemoryAdapter
 from rex.openclaw.policy_adapter import PolicyAdapter
@@ -266,3 +267,76 @@ class RexAgent:
             self._memory.append_entry(user_key, {"role": "assistant", "text": reply})
 
         return reply
+
+    def respond_stream(
+        self,
+        prompt: str,
+        *,
+        user_key: str | None = None,
+    ) -> Generator[str, None, None]:
+        """Stream a response as sentence-sized chunks.
+
+        Yields partial sentences as they arrive from the OpenClaw
+        gateway.  Falls back to :meth:`respond` (non-streaming, single
+        yield) if streaming is unavailable or fails mid-response.
+
+        Args:
+            prompt: The user's input text.
+            user_key: Optional user identifier for history persistence.
+
+        Yields:
+            Sentence-sized strings suitable for incremental TTS.
+        """
+        if not prompt or not prompt.strip():
+            raise ValueError("prompt must not be empty")
+
+        messages: list[dict[str, str]] = [
+            {"role": "system", "content": self.system_prompt},
+        ]
+
+        if user_key is not None:
+            history = self._memory.load_recent(user_key)
+            for turn in history:
+                role = turn.get("role", "user")
+                text = turn.get("text", "")
+                messages.append({"role": role, "content": text})
+
+        messages.append({"role": "user", "content": prompt})
+
+        client = get_openclaw_client(self._config)
+        collected: list[str] = []
+
+        if client is not None and self._config.use_openclaw_voice_backend:
+            oc_user = user_key if user_key is not None else self._identity.get_openclaw_user_key()
+            payload: dict[str, Any] = {
+                "model": self._config.llm_model,
+                "messages": messages,
+                "user": oc_user,
+                "stream": True,
+            }
+            try:
+                raw_chunks = client.post_stream("/v1/chat/completions", json=payload)
+                for sentence in stream_sentences(raw_chunks):
+                    collected.append(sentence)
+                    yield sentence
+            except (OpenClawConnectionError, OpenClawAuthError, OpenClawAPIError) as exc:
+                logger.warning("OpenClaw stream failed (%s) -- falling back", exc)
+                if collected:
+                    # Partial content already yielded; fall back for remainder is not
+                    # feasible, so just log and stop.
+                    pass
+                else:
+                    # Nothing yielded yet -- fall back to non-streaming local LLM.
+                    reply = self.llm.generate(messages=messages)
+                    collected.append(reply)
+                    yield reply
+        else:
+            reply = self.llm.generate(messages=messages)
+            collected.append(reply)
+            yield reply
+
+        # Persist the full response.
+        full_reply = " ".join(collected)
+        if user_key is not None:
+            self._memory.append_entry(user_key, {"role": "user", "text": prompt})
+            self._memory.append_entry(user_key, {"role": "assistant", "text": full_reply})

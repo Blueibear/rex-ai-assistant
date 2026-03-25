@@ -202,6 +202,20 @@
   - Patch `agent._identity.get_openclaw_user_key` via `patch.object(agent._identity, ...)` to control the identity key in agent tests
 ---
 
+## Iteration 16 - US-017: Add streaming support for OpenClaw chat completions
+- `post_stream()` method added to `OpenClawClient`: streams SSE, yields content delta strings, handles `[DONE]` sentinel
+- `stream_sentences()` utility in `http_client.py`: buffers tokens and yields at `.`, `!`, `?`, `\n` boundaries; flushes remainder
+- `RexAgent.respond_stream()` added: uses `post_stream` + `stream_sentences`; falls back to local LLM on connection/auth/API errors
+- `VoiceBridge.generate_reply_stream()` added: delegates to `respond_stream()`; yields empty on whitespace transcript; falls back to error message on exception
+- Tests: `tests/test_openclaw_streaming.py` (13 tests — stream_sentences boundary cases + respond_stream scenarios)
+- Files changed: `rex/openclaw/http_client.py`, `rex/openclaw/agent.py`, `rex/openclaw/voice_bridge.py`, `tests/test_openclaw_streaming.py`
+- Learnings for future iterations:
+  - The streaming implementation uses separate `post_stream()` and `respond_stream()` methods rather than a `stream=True` parameter — cleaner types and no impact on existing callers
+  - `stream_sentences()` lives in `http_client.py` for easy import by both agent.py and any future callers
+  - Mid-stream fallback: if error occurs after some chunks yielded, remaining content is not recoverable — log and stop; if no chunks yet, fall back to local LLM and yield that
+  - black reformatted agent.py after ruff --fix; always run both before final test check
+---
+
 ## Iteration 15 - US-016: Update documentation for HTTP integration architecture
 - `docs/openclaw-agent-setup.md` was already comprehensive from iterations 3 and 8 (sections 1-9 cover all required topics)
 - `CLAUDE.md` OpenClaw Migration Status section was already updated in previous iterations (Phase 8 complete, flags documented, config fields listed)

@@ -357,3 +357,80 @@ class ToolServer:
         except Exception as exc:
             logger.exception("tool_server: tool %r raised unexpected error: %s", tool_name, exc)
             return error_response(INTERNAL_ERROR, "Tool execution failed", 500)
+
+
+# ---------------------------------------------------------------------------
+# Health-check routes (used by main() and optionally in tests)
+# ---------------------------------------------------------------------------
+
+
+def _add_health_routes(app: Flask, tool_server: ToolServer) -> None:
+    """Register ``/health/live`` and ``/health/ready`` endpoints on *app*.
+
+    - ``/health/live``  — liveness: always 200 while the process is running.
+    - ``/health/ready`` — readiness: 200 with the number of registered tools.
+
+    Args:
+        app:         Flask application instance.
+        tool_server: The :class:`ToolServer` whose tool registry is reported
+                     in the readiness response.
+    """
+    _tool_count = len(tool_server._tools)
+
+    @app.get("/health/live")
+    def _health_live() -> tuple[Response, int]:
+        return jsonify({"status": "ok"}), 200
+
+    @app.get("/health/ready")
+    def _health_ready() -> tuple[Response, int]:
+        return jsonify({"status": "ok", "tool_count": _tool_count}), 200
+
+
+# ---------------------------------------------------------------------------
+# Standalone entrypoint — rex-tool-server
+# ---------------------------------------------------------------------------
+
+
+def main() -> None:
+    """Standalone entrypoint for the Rex tool server.
+
+    Starts a Flask application on ``127.0.0.1:18790`` (configurable via the
+    ``REX_TOOL_SERVER_PORT`` environment variable) that exposes Rex's OpenClaw
+    tools as HTTP endpoints, enabling any caller — including the OpenClaw
+    gateway — to invoke Rex tools over HTTP.
+
+    Environment variables:
+        REX_TOOL_SERVER_PORT
+            TCP port to listen on.  Defaults to ``18790``.
+        REX_TOOL_API_KEY
+            Shared secret for request authentication.  All requests without
+            this key will receive ``401 Unauthorized``.  The server starts
+            even if the key is not set, but logs a warning.
+
+    Health endpoints (no auth required):
+        ``GET /health/live``   — liveness probe (always 200).
+        ``GET /health/ready``  — readiness probe (200 + tool count).
+    """
+    import logging
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
+
+    port = int(os.getenv("REX_TOOL_SERVER_PORT", "18790"))
+
+    if not _get_api_key():
+        logger.warning("REX_TOOL_API_KEY is not set — all /rex/tools/* requests will return 401")
+
+    app = Flask(__name__)
+    server = ToolServer()
+    server.register_all(app)
+    _add_health_routes(app, server)
+
+    logger.info("Rex tool server starting on 127.0.0.1:%d", port)
+    app.run(host="127.0.0.1", port=port, debug=False)
+
+
+if __name__ == "__main__":
+    main()

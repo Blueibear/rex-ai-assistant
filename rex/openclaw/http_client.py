@@ -1,4 +1,4 @@
-"""OpenClaw HTTP client — shared transport for all OpenClaw API calls.
+"""OpenClaw HTTP client -- shared transport for all OpenClaw API calls.
 
 All authentication, retry logic, timeouts, and error handling are
 centralised here so individual bridge/adapter modules stay thin.
@@ -12,12 +12,19 @@ Usage
     client = get_openclaw_client(config)
     if client is not None:
         result = client.post("/v1/chat/completions", json={...})
+
+    # Streaming:
+    for chunk in client.post_stream("/v1/chat/completions", json={..., "stream": True}):
+        print(chunk)  # partial content string
 """
 
 from __future__ import annotations
 
+import json as json_lib
 import logging
+import re
 import time
+from collections.abc import Generator
 from typing import Any
 
 import requests
@@ -149,6 +156,52 @@ class OpenClawClient:
         """Send a POST request and return the parsed JSON response."""
         return self._request("POST", path, json=json)
 
+    def post_stream(
+        self, path: str, json: dict[str, Any] | None = None
+    ) -> Generator[str, None, None]:
+        """Send a streaming POST and yield partial content strings from SSE.
+
+        Each yielded string is the ``content`` delta from one SSE
+        ``data:`` line (OpenAI-compatible streaming format).  The
+        ``[DONE]`` sentinel is consumed silently.
+
+        On connection/auth errors the generator raises the same
+        exceptions as :meth:`post`.
+        """
+        url = self._url(path)
+        logger.debug("POST (stream) %s", path)
+        try:
+            response = self._session.post(
+                url,
+                json=json,
+                timeout=self.timeout,
+                stream=True,
+            )
+        except (RequestsConnectionError, Timeout) as exc:
+            logger.warning("OpenClaw stream connection error on %s: %s", url, exc)
+            raise OpenClawConnectionError(url, exc) from exc
+
+        if response.status_code == 401:
+            raise OpenClawAuthError(url)
+        if response.status_code >= 400:
+            raise OpenClawAPIError(response.status_code, response.text or "")
+
+        for line in response.iter_lines(decode_unicode=True):
+            if not line:
+                continue
+            if line.startswith("data: "):
+                data_str = line[6:]
+                if data_str.strip() == "[DONE]":
+                    break
+                try:
+                    data = json_lib.loads(data_str)
+                    delta = data.get("choices", [{}])[0].get("delta", {})
+                    content = delta.get("content", "")
+                    if content:
+                        yield content
+                except (json_lib.JSONDecodeError, IndexError, KeyError) as exc:
+                    logger.debug("Skipping malformed SSE chunk: %s (%s)", data_str[:80], exc)
+
     def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Send a GET request and return the parsed JSON response."""
         return self._request("GET", path, params=params)
@@ -198,7 +251,44 @@ def get_openclaw_client(config: Any) -> OpenClawClient | None:
     return _CLIENT_CACHE[cache_key]
 
 
+_SENTENCE_BOUNDARY = re.compile(r"[.!?\n]")
+
+
+def stream_sentences(
+    chunks: Generator[str, None, None],
+) -> Generator[str, None, None]:
+    """Accumulate streaming chunks and yield at sentence boundaries.
+
+    Tokens are buffered until a sentence-ending character (``.``, ``!``,
+    ``?``, ``\\n``) is encountered, then the accumulated text is yielded
+    and the buffer is reset.  Any remaining text after the stream ends
+    is yielded as a final chunk.
+
+    This allows TTS to start speaking as soon as a full sentence is
+    available rather than waiting for the complete response.
+    """
+    buffer = ""
+    for chunk in chunks:
+        buffer += chunk
+        # Yield every time we see a sentence boundary.
+        while True:
+            match = _SENTENCE_BOUNDARY.search(buffer)
+            if match is None:
+                break
+            # Yield everything up to and including the boundary character.
+            boundary_pos = match.end()
+            sentence = buffer[:boundary_pos].strip()
+            buffer = buffer[boundary_pos:]
+            if sentence:
+                yield sentence
+    # Flush remaining text.
+    remaining = buffer.strip()
+    if remaining:
+        yield remaining
+
+
 __all__ = [
     "OpenClawClient",
     "get_openclaw_client",
+    "stream_sentences",
 ]

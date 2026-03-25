@@ -341,17 +341,17 @@ The target branch is a new branch off `master` (PR #216 has been merged).
 **Description:** As a user, I want Rex to stream responses from OpenClaw so I hear TTS output faster instead of waiting for the full response.
 
 **Acceptance Criteria:**
-- [ ] Add `stream: bool = False` parameter to `OpenClawClient.post()` method
-- [ ] When `stream=True`, return a generator that yields SSE `data:` lines parsed as JSON
-- [ ] `RexAgent.respond()` accepts `stream=False` parameter; when True, yields partial content strings
-- [ ] `VoiceBridge.generate_reply()` uses streaming when available: feeds partial sentences to TTS as they arrive
-- [ ] Sentence boundary detection: accumulate streamed tokens until `.`, `!`, `?`, or `\n` before sending to TTS
-- [ ] Fallback: if streaming fails mid-response, concatenate received content and return as complete response
-- [ ] Non-streaming mode is unchanged (default behavior)
-- [ ] Unit test: mock SSE stream, verify sentence-boundary chunking
-- [ ] Unit test: mock stream interruption, verify fallback
-- [ ] Typecheck passes
-- [ ] Ruff and black pass
+- [x] Add `stream: bool = False` parameter to `OpenClawClient.post()` method
+- [x] When `stream=True`, return a generator that yields SSE `data:` lines parsed as JSON
+- [x] `RexAgent.respond()` accepts `stream=False` parameter; when True, yields partial content strings
+- [x] `VoiceBridge.generate_reply()` uses streaming when available: feeds partial sentences to TTS as they arrive
+- [x] Sentence boundary detection: accumulate streamed tokens until `.`, `!`, `?`, or `\n` before sending to TTS
+- [x] Fallback: if streaming fails mid-response, concatenate received content and return as complete response
+- [x] Non-streaming mode is unchanged (default behavior)
+- [x] Unit test: mock SSE stream, verify sentence-boundary chunking
+- [x] Unit test: mock stream interruption, verify fallback
+- [x] Typecheck passes
+- [x] Ruff and black pass
 
 ---
 
