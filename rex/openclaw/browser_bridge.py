@@ -1,8 +1,14 @@
 """OpenClaw browser bridge — US-P4-022.
 
+BrowserBridge runs Playwright locally. OpenClaw has its own Chromium instance
+for web tasks; they operate independently.
+
 Implements :class:`~rex.contracts.browser.BrowserAutomationProtocol` using
 :mod:`rex.openclaw.browser_core` directly.  Does NOT depend on the retired
 ``rex.browser_automation`` module.
+
+# FUTURE: If OpenClaw browser task delegation is ever needed, a separate
+# WebSocket or HTTP bridge to the OpenClaw Chromium node should be added here.
 
 Typical usage::
 
@@ -21,7 +27,6 @@ from __future__ import annotations
 
 import json
 import logging
-from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
@@ -29,12 +34,6 @@ from rex.openclaw.browser_core import BrowserSession, run_browser_script  # noqa
 
 logger = logging.getLogger(__name__)
 
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 _bridge_singleton: BrowserBridge | None = None
 
 
@@ -59,7 +58,10 @@ def reset_browser_service() -> None:
 
 
 class BrowserBridge:
-    """Adapter that presents Rex's browser automation as an OpenClaw provider.
+    """Runs Rex's browser automation locally via Playwright.
+
+    BrowserBridge runs Playwright locally. OpenClaw has its own Chromium
+    instance for web tasks; they operate independently.
 
     Implements :class:`~rex.contracts.browser.BrowserAutomationProtocol`
     using :mod:`rex.openclaw.browser_core` directly — no dependency on the
@@ -120,37 +122,3 @@ class BrowserBridge:
             for f in screenshot_path.iterdir()
             if f.is_file() and f.suffix in [".png", ".jpg", ".jpeg"]
         ]
-
-    # ------------------------------------------------------------------
-    # OpenClaw registration
-    # ------------------------------------------------------------------
-
-    def register(self, agent: Any = None) -> Any:
-        """Register this bridge as the OpenClaw browser provider.
-
-        When ``openclaw`` is installed, this method registers the bridge so
-        that OpenClaw routes browser tasks through Rex's browser automation
-        service.  When OpenClaw is absent, logs a warning and returns ``None``.
-
-        .. note::
-            The exact OpenClaw browser-provider registration call is a stub
-            (see PRD §8.5 — *"Confirm OpenClaw's browser registration mechanism"*).
-            Replace the ``# TODO`` below once the API is confirmed.
-
-        Args:
-            agent: Optional OpenClaw agent handle.
-
-        Returns:
-            The registration handle from OpenClaw, or ``None``.
-        """
-        if not OPENCLAW_AVAILABLE:
-            logger.warning(
-                "openclaw package not installed — BrowserBridge not registered as browser provider"
-            )
-            return None
-
-        # TODO: replace with real OpenClaw browser provider registration once API is confirmed.
-        logger.warning(
-            "OpenClaw browser provider registration stub — update once API is confirmed (PRD §8.5)"
-        )
-        return None

@@ -18,11 +18,11 @@ from __future__ import annotations
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from rex.openclaw.browser_bridge import OPENCLAW_AVAILABLE, BrowserBridge
+from rex.openclaw.browser_bridge import BrowserBridge
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -54,9 +54,6 @@ class TestBrowserBridgeInstantiation:
         """BrowserBridge accepts storage_path and stores it."""
         bridge = BrowserBridge(storage_path=tmp_path)
         assert bridge.storage_path == tmp_path
-
-    def test_openclaw_available_is_bool(self):
-        assert isinstance(OPENCLAW_AVAILABLE, bool)
 
     def test_satisfies_protocol(self, tmp_path):
         from rex.contracts.browser import BrowserAutomationProtocol
@@ -272,16 +269,3 @@ class TestAuthenticatedBrowserTask:
 # ---------------------------------------------------------------------------
 # US-P4-022: register() stub
 # ---------------------------------------------------------------------------
-
-
-class TestRegister:
-    def test_register_returns_none_without_openclaw(self, tmp_path):
-        bridge = _fresh_bridge(tmp_path)
-        if not OPENCLAW_AVAILABLE:
-            assert bridge.register() is None
-
-    def test_register_accepts_agent_arg(self, tmp_path):
-        bridge = _fresh_bridge(tmp_path)
-        agent = MagicMock()
-        if not OPENCLAW_AVAILABLE:
-            assert bridge.register(agent=agent) is None

@@ -25,17 +25,10 @@ OpenClaw.
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 # ---------------------------------------------------------------------------
 # Tool names
 # ---------------------------------------------------------------------------
@@ -298,37 +291,3 @@ def wc_disable_coupon(
     except Exception as exc:
         logger.warning("[WC tool] disable_coupon failed for site %r: %s", site_id, exc)
         return {"ok": False, "data": None, "error": str(exc)}
-
-
-# ---------------------------------------------------------------------------
-# Registration
-# ---------------------------------------------------------------------------
-
-
-def register(agent: Any = None) -> dict[str, Any]:
-    """Register all WooCommerce tools with OpenClaw.
-
-    When the ``openclaw`` package is not installed, logs a warning and
-    returns a dict of ``None`` values.
-
-    .. note::
-        The exact OpenClaw tool registration call is a stub (PRD §8.3).
-        Replace the ``# TODO`` below once the API is confirmed.
-
-    Args:
-        agent: Optional OpenClaw agent handle.
-
-    Returns:
-        A dict mapping each tool name to the registration handle (or ``None``).
-    """
-    if not OPENCLAW_AVAILABLE:
-        logger.warning(
-            "openclaw package not installed — WooCommerce tools not registered with OpenClaw"
-        )
-        return dict.fromkeys(ALL_TOOL_NAMES)
-
-    # TODO: replace with real OpenClaw tool registration once API is confirmed.
-    logger.warning(
-        "OpenClaw WooCommerce tool registration stub — update once API is confirmed (PRD §8.3)"
-    )
-    return dict.fromkeys(ALL_TOOL_NAMES)

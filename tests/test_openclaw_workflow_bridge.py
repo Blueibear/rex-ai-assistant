@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from rex.openclaw.workflow_bridge import OPENCLAW_AVAILABLE, WorkflowBridge
+from rex.openclaw.workflow_bridge import WorkflowBridge
 from rex.workflow import Workflow, WorkflowStep
 from rex.workflow_runner import DryRunResult, RunResult, WorkflowRunner
 
@@ -88,9 +88,6 @@ class TestWorkflowBridgeInstantiation:
         wf = _make_workflow([_make_step("step 1")])
         bridge = WorkflowBridge(wf)
         assert bridge.runner.workflow is wf
-
-    def test_openclaw_available_is_bool(self):
-        assert isinstance(OPENCLAW_AVAILABLE, bool)
 
 
 class TestDelegation:
@@ -303,14 +300,18 @@ class TestMultiStepWorkflow:
 
 class TestRegister:
     def test_register_returns_none_without_openclaw(self):
+        from unittest.mock import patch
+
         wf = _make_workflow([_make_step("step")])
         bridge = WorkflowBridge(wf)
-        if not OPENCLAW_AVAILABLE:
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             assert bridge.register() is None
 
     def test_register_accepts_agent_arg(self):
+        from unittest.mock import patch
+
         wf = _make_workflow([_make_step("step")])
         bridge = WorkflowBridge(wf)
         agent = MagicMock()
-        if not OPENCLAW_AVAILABLE:
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=None):
             assert bridge.register(agent=agent) is None

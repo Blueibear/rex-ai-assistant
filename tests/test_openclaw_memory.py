@@ -1,10 +1,12 @@
-"""Tests for rex.openclaw.memory_adapter — US-P3-003.
+"""Tests for rex.openclaw.memory_adapter — US-P3-003 / US-010.
 
 Covers write, read, and trim of conversation history via MemoryAdapter.
 All filesystem I/O is isolated using pytest's tmp_path fixture.
 """
 
 from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
 
 from rex.openclaw.memory_adapter import MemoryAdapter
 
@@ -34,11 +36,6 @@ class TestMemoryAdapterImport:
     def test_instantiates_with_memory_root(self, tmp_path):
         adapter = _adapter(tmp_path)
         assert adapter is not None
-
-    def test_openclaw_available_is_bool(self):
-        from rex.openclaw.memory_adapter import OPENCLAW_AVAILABLE
-
-        assert isinstance(OPENCLAW_AVAILABLE, bool)
 
 
 # ---------------------------------------------------------------------------
@@ -149,3 +146,91 @@ class TestAppendAndLoad:
         result = adapter.load_recent("frank")
         assert isinstance(result, list)
         assert isinstance(result[0], dict)
+
+
+# ---------------------------------------------------------------------------
+# US-010: dual-write behaviour and local-only reads
+# ---------------------------------------------------------------------------
+
+
+class TestDualWriteBehaviour:
+    """Verify that append_entry always writes locally and load_recent always
+    reads locally, regardless of whether the OpenClaw gateway is configured.
+
+    The OpenClaw "dual-write" is: write locally NOW + OpenClaw session is
+    updated automatically on the next RexAgent.respond() call via the `user`
+    field in /v1/chat/completions.  MemoryAdapter itself makes no HTTP calls.
+    """
+
+    def test_append_entry_always_calls_rex_append(self, tmp_path):
+        """append_entry() must delegate to rex.memory.append_history_entry."""
+        with patch("rex.openclaw.memory_adapter._rex_append") as mock_append:
+            adapter = MemoryAdapter(memory_root=str(tmp_path))
+            entry = {"role": "user", "text": "hello"}
+            adapter.append_entry("alice", entry, max_turns=50)
+            mock_append.assert_called_once()
+            call_args = mock_append.call_args
+            assert call_args.args[0] == "alice"
+            assert call_args.args[1] == entry
+
+    def test_append_entry_calls_rex_append_when_gateway_configured(self, tmp_path):
+        """append_entry() writes locally even when an OpenClaw gateway client exists."""
+        mock_client = MagicMock()
+        with (
+            patch("rex.openclaw.memory_adapter._rex_append") as mock_append,
+            patch(
+                "rex.openclaw.http_client.get_openclaw_client",
+                return_value=mock_client,
+            ),
+        ):
+            adapter = MemoryAdapter(memory_root=str(tmp_path))
+            adapter.append_entry("bob", {"role": "user", "text": "test"}, max_turns=50)
+            # Local write always happens
+            mock_append.assert_called_once()
+            # append_entry itself makes no HTTP calls (OpenClaw sync is via respond())
+            mock_client.post.assert_not_called()
+
+    def test_load_recent_always_calls_rex_load_recent(self, tmp_path):
+        """load_recent() must always delegate to rex.memory.load_recent_history."""
+        mock_client = MagicMock()
+        with (
+            patch(
+                "rex.openclaw.memory_adapter._rex_load_recent",
+                return_value=[{"role": "user", "text": "hi", "timestamp": "t"}],
+            ) as mock_load,
+            patch(
+                "rex.openclaw.http_client.get_openclaw_client",
+                return_value=mock_client,
+            ),
+        ):
+            adapter = MemoryAdapter(memory_root=str(tmp_path))
+            result = adapter.load_recent("carol", limit=10)
+            # Always reads from local Rex memory
+            mock_load.assert_called_once()
+            # No HTTP calls made for reads
+            mock_client.get.assert_not_called()
+            assert isinstance(result, list)
+
+    def test_load_recent_reads_local_without_gateway(self, tmp_path):
+        """load_recent() reads locally even with no gateway configured."""
+        with patch(
+            "rex.openclaw.memory_adapter._rex_load_recent",
+            return_value=[],
+        ) as mock_load:
+            adapter = MemoryAdapter(memory_root=str(tmp_path))
+            adapter.load_recent("dave")
+            mock_load.assert_called_once()
+
+    def test_trim_history_local_only(self, tmp_path):
+        """trim_history() always operates locally — no HTTP calls."""
+        mock_client = MagicMock()
+        with patch(
+            "rex.openclaw.http_client.get_openclaw_client",
+            return_value=mock_client,
+        ):
+            adapter = MemoryAdapter(memory_root=str(tmp_path))
+            history = [{"role": "user", "text": f"msg {i}"} for i in range(5)]
+            result = adapter.trim_history(history, limit=2)
+            assert len(result) == 2
+            mock_client.get.assert_not_called()
+            mock_client.post.assert_not_called()

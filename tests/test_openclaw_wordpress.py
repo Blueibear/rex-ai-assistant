@@ -48,13 +48,6 @@ class TestWordpressTool:
 
         assert "health" in TOOL_DESCRIPTION.lower() or "check" in TOOL_DESCRIPTION.lower()
 
-    def test_register_returns_none_without_openclaw(self):
-        from rex.openclaw.tools.wordpress_tool import OPENCLAW_AVAILABLE, register
-
-        if not OPENCLAW_AVAILABLE:
-            assert register() is None
-            assert register(agent=object()) is None
-
 
 # ---------------------------------------------------------------------------
 # US-P5-010: wp_health_check() — read path
@@ -209,12 +202,11 @@ class TestWpHealthCheck:
 class TestWordpressReadOnly:
     """WordPress integration is read-only — no write tools registered."""
 
-    def test_only_health_check_tool_registered(self):
-        """register_wordpress_tools returns only wordpress_health_check."""
-        from rex.openclaw.tool_bridge import ToolBridge
+    def test_only_health_check_tool_exists(self):
+        """Only wordpress_health_check function exists — no write tools."""
+        import rex.openclaw.tools.wordpress_tool as module
 
-        result = ToolBridge().register_wordpress_tools()
-        assert set(result.keys()) == {"wordpress_health_check"}
+        assert hasattr(module, "wp_health_check")
 
     def test_no_create_post_tool_exists(self):
         """No wp_create_post or similar write tool exists."""
@@ -241,59 +233,3 @@ class TestWordpressReadOnly:
         # No other methods were called (e.g. create, update, delete)
         called_methods = [c[0] for c in mock_service.method_calls if c[0] != "health"]
         assert called_methods == []
-
-
-# ---------------------------------------------------------------------------
-# ToolBridge.register_wordpress_tools
-# ---------------------------------------------------------------------------
-
-
-class TestRegisterWordpressTools:
-    """ToolBridge.register_wordpress_tools() returns expected structure."""
-
-    def test_returns_dict(self):
-        from rex.openclaw.tool_bridge import ToolBridge
-
-        result = ToolBridge().register_wordpress_tools()
-        assert isinstance(result, dict)
-
-    def test_has_expected_keys(self):
-        from rex.openclaw.tool_bridge import ToolBridge
-
-        result = ToolBridge().register_wordpress_tools()
-        assert "wordpress_health_check" in result
-
-    def test_calls_register_fn(self):
-        """register_wordpress_tools calls the individual register function."""
-        from rex.openclaw.tool_bridge import ToolBridge
-
-        sentinel = object()
-
-        with patch(
-            "rex.openclaw.tool_bridge._register_wp_health_check", return_value=sentinel
-        ) as mock_fn:
-            result = ToolBridge().register_wordpress_tools()
-
-        mock_fn.assert_called_once_with(agent=None)
-        assert result["wordpress_health_check"] is sentinel
-
-    def test_forwards_agent_arg(self):
-        """agent kwarg is forwarded to the register function."""
-        from rex.openclaw.tool_bridge import ToolBridge
-
-        fake_agent = object()
-
-        with patch(
-            "rex.openclaw.tool_bridge._register_wp_health_check", return_value=None
-        ) as mock_fn:
-            ToolBridge().register_wordpress_tools(agent=fake_agent)
-
-        mock_fn.assert_called_once_with(agent=fake_agent)
-
-    def test_returns_none_values_without_openclaw(self):
-        """Without openclaw, all values in the dict are None."""
-        from rex.openclaw.tool_bridge import OPENCLAW_AVAILABLE, ToolBridge
-
-        if not OPENCLAW_AVAILABLE:
-            result = ToolBridge().register_wordpress_tools()
-            assert all(v is None for v in result.values())

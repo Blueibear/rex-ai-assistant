@@ -39,7 +39,7 @@ from rex.http_errors import install_error_envelope_handler
 
 _NUM_REQUESTS = 100
 _WARMUP_REQUESTS = 10
-_MAX_GROWTH_BYTES = 500 * 1024  # 500 KB for 100 requests — very generous
+_MAX_GROWTH_BYTES = 500 * 1024  # 500 KB for 100 requests - very generous
 _MAX_GROWTH_PER_REQUEST_BYTES = 5 * 1024  # 5 KB/req average
 
 
@@ -129,7 +129,7 @@ class TestMemoryBaseline:
 
         assert growth < _MAX_GROWTH_BYTES, (
             f"Memory grew by {growth / 1024:.1f} KB over {_NUM_REQUESTS} requests "
-            f"to /health/live — possible leak (threshold: {_MAX_GROWTH_BYTES // 1024} KB)"
+            f"to /health/live - possible leak (threshold: {_MAX_GROWTH_BYTES // 1024} KB)"
         )
 
     def test_notifications_endpoint_no_unbounded_growth(self, mem_client: Any) -> None:
@@ -151,7 +151,7 @@ class TestMemoryBaseline:
         )
 
     def test_growth_rate_not_linear(self, mem_client: Any) -> None:
-        """Growth from request 51–100 must be ≤ growth from request 1–50 (converging, not linear)."""
+        """Growth from request 51-100 must be ≤ growth from request 1-50 (converging, not linear)."""
         tracemalloc.start()
         try:
             # Warm up
@@ -179,10 +179,10 @@ class TestMemoryBaseline:
             tracemalloc.stop()
 
         # Second half growth should be <= first half (converging behaviour)
-        # Allow 2× tolerance for natural fluctuation.
+        # Allow 2x tolerance for natural fluctuation.
         assert growth_second_half <= growth_first_half * 2 + 10 * 1024, (
             f"Memory growth is increasing: first 50 reqs={growth_first_half // 1024}KB, "
-            f"second 50 reqs={growth_second_half // 1024}KB — possible linear leak"
+            f"second 50 reqs={growth_second_half // 1024}KB - possible linear leak"
         )
 
     def test_min_100_requests_measured(self, mem_client: Any) -> None:

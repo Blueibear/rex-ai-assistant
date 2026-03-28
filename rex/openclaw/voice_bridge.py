@@ -30,6 +30,7 @@ Usage::
 from __future__ import annotations
 
 import logging
+from collections.abc import Generator
 from typing import Any
 
 from rex.openclaw.agent import RexAgent
@@ -92,7 +93,8 @@ class VoiceBridge:
             ValueError: If *transcript* is empty or whitespace-only.
         """
         if not transcript or not transcript.strip():
-            raise ValueError("transcript must not be empty")
+            logger.debug("VoiceBridge.generate_reply: empty transcript, returning empty string")
+            return ""
 
         logger.debug(
             "VoiceBridge.generate_reply called (voice_mode=%s, user_key=%s)",
@@ -100,4 +102,49 @@ class VoiceBridge:
             self.user_key,
         )
 
-        return self.agent.respond(transcript, user_key=self.user_key)
+        if voice_mode:
+            logger.debug("VoiceBridge: voice_mode=True noted; not forwarded to RexAgent")
+
+        try:
+            return self.agent.respond(transcript, user_key=self.user_key)
+        except Exception:
+            logger.exception("VoiceBridge.generate_reply: error from RexAgent.respond()")
+            return "I had trouble reaching the server. Try again."
+
+    def generate_reply_stream(
+        self, transcript: str, voice_mode: bool = False, **kwargs: Any
+    ) -> Generator[str, None, None]:
+        """Stream sentence-sized chunks of the reply for incremental TTS.
+
+        Delegates to :meth:`~rex.openclaw.agent.RexAgent.respond_stream` so
+        that partial sentences arrive from the OpenClaw gateway as they are
+        generated, enabling TTS to start speaking sooner.
+
+        Falls back to a single-chunk response on any error so the voice loop
+        is never left silent.
+
+        Args:
+            transcript: The user's transcribed speech.
+            voice_mode: Accepted for call-site compatibility; not forwarded.
+            **kwargs: Accepted for forward compatibility; ignored.
+
+        Yields:
+            Sentence-sized strings suitable for incremental TTS playback.
+        """
+        if not transcript or not transcript.strip():
+            logger.debug("VoiceBridge.generate_reply_stream: empty transcript, yielding nothing")
+            return
+
+        logger.debug(
+            "VoiceBridge.generate_reply_stream called (voice_mode=%s, user_key=%s)",
+            voice_mode,
+            self.user_key,
+        )
+
+        try:
+            yield from self.agent.respond_stream(transcript, user_key=self.user_key)
+        except Exception:
+            logger.exception(
+                "VoiceBridge.generate_reply_stream: error from RexAgent.respond_stream()"
+            )
+            yield "I had trouble reaching the server. Try again."

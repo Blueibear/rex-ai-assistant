@@ -82,21 +82,6 @@ class TestTimeTool:
         assert call_kwargs.get("skip_credential_check") is True
         assert call_kwargs.get("skip_audit_log") is True
 
-    def test_register_returns_none_without_openclaw(self):
-        """register() returns None and logs a warning when openclaw is absent."""
-        from rex.openclaw.tools.time_tool import register
-
-        # openclaw is not installed in the test environment
-        result = register()
-        assert result is None
-
-    def test_register_accepts_agent_arg(self):
-        """register() accepts an agent argument without error."""
-        from rex.openclaw.tools.time_tool import register
-
-        result = register(agent=object())
-        assert result is None
-
     def test_tool_name_constant(self):
         from rex.openclaw.tools import time_tool
 

@@ -1,15 +1,13 @@
 """Tests for rex.openclaw.tools.business_tool — US-P5-021 and US-P5-022.
 
 US-P5-021 acceptance criteria:
-  - register_all_business_tools() exists and returns a dict with all WC + WP tool names
-  - ToolBridge.register_business_tools() exists and delegates correctly
-  - OpenClaw-not-installed returns dict of Nones
+  - ALL_BUSINESS_TOOLS contains all WC + WP tool names
 
 US-P5-022 acceptance criteria (end-to-end business workflow):
   - list orders → check inventory → set order status (with policy gate) flows through tools
   - "list orders, then conditionally set status" workflow: read step succeeds,
     write step is approval-gated
-  - Full workflow via ToolBridge: register_business_tools() covers all 6 tools
+  - Full workflow via tool callables: covers all 6 tools
 """
 
 from __future__ import annotations
@@ -18,12 +16,10 @@ from unittest.mock import MagicMock, patch
 
 import rex.woocommerce.service as _wc_service_module
 import rex.wordpress.service as _wp_service_module
-from rex.openclaw.tool_bridge import ToolBridge
 from rex.openclaw.tools.business_tool import (
     ALL_BUSINESS_TOOLS,
     WOOCOMMERCE_TOOLS,
     WORDPRESS_TOOLS,
-    register_all_business_tools,
 )
 from rex.openclaw.tools.woocommerce_tool import wc_list_orders, wc_set_order_status
 from rex.openclaw.tools.wordpress_tool import wp_health_check
@@ -41,61 +37,6 @@ class TestBusinessToolStructure:
     def test_all_business_tools_count(self):
         # 5 WC tools + 1 WP tool
         assert len(ALL_BUSINESS_TOOLS) == 6
-
-    def test_register_all_returns_dict(self):
-        result = register_all_business_tools()
-        assert isinstance(result, dict)
-
-    def test_register_all_keys_cover_wc_tools(self):
-        result = register_all_business_tools()
-        for name in WOOCOMMERCE_TOOLS:
-            assert name in result
-
-    def test_register_all_keys_cover_wp_tools(self):
-        result = register_all_business_tools()
-        for name in WORDPRESS_TOOLS:
-            assert name in result
-
-    def test_register_all_values_none_without_openclaw(self):
-        result = register_all_business_tools()
-        # openclaw not installed in test env; all handles should be None
-        assert all(v is None for v in result.values())
-
-    def test_tool_bridge_has_register_business_tools(self):
-        bridge = ToolBridge()
-        assert callable(bridge.register_business_tools)
-
-    def test_tool_bridge_register_business_tools_returns_dict(self):
-        bridge = ToolBridge()
-        result = bridge.register_business_tools()
-        assert isinstance(result, dict)
-        for name in ALL_BUSINESS_TOOLS:
-            assert name in result
-
-    def test_tool_bridge_register_business_tools_delegates(self):
-        bridge = ToolBridge()
-        fake_handles = {name: MagicMock() for name in ALL_BUSINESS_TOOLS}
-
-        with patch(
-            "rex.openclaw.tool_bridge._register_business_tools",
-            return_value=fake_handles,
-        ) as mock_reg:
-            result = bridge.register_business_tools(agent=None)
-
-        mock_reg.assert_called_once_with(agent=None)
-        assert result is fake_handles
-
-    def test_tool_bridge_register_business_tools_passes_agent(self):
-        bridge = ToolBridge()
-        agent = MagicMock()
-
-        with patch(
-            "rex.openclaw.tool_bridge._register_business_tools",
-            return_value={},
-        ) as mock_reg:
-            bridge.register_business_tools(agent=agent)
-
-        mock_reg.assert_called_once_with(agent=agent)
 
 
 # ---------------------------------------------------------------------------
@@ -252,28 +193,3 @@ class TestBusinessWorkflowEndToEnd:
         assert step2["ok"] is True
         assert step3["ok"] is True
         wc_svc.set_order_status.assert_called_once()
-
-    def test_register_all_business_tools_delegates_to_wc_and_wp(self):
-        """register_all_business_tools() calls both WC and WP register functions."""
-        fake_wc = {name: MagicMock() for name in WOOCOMMERCE_TOOLS}
-        fake_wp = None  # wordpress_tool.register() returns None
-
-        with (
-            patch(
-                "rex.openclaw.tools.business_tool._register_wc_tools",
-                return_value=fake_wc,
-            ) as mock_wc,
-            patch(
-                "rex.openclaw.tools.business_tool._register_wp_tools",
-                return_value=fake_wp,
-            ) as mock_wp,
-        ):
-            result = register_all_business_tools(agent=None)
-
-        mock_wc.assert_called_once_with(agent=None)
-        mock_wp.assert_called_once_with(agent=None)
-        # WC tool handles are present
-        for name in WOOCOMMERCE_TOOLS:
-            assert name in result
-        # WP tool handle is added with the canonical name
-        assert "wordpress_health_check" in result

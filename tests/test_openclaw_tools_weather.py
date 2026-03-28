@@ -78,20 +78,6 @@ class TestWeatherTool:
         # When key is absent, tool_executor returns {"error": {...}}
         assert "error" in result
 
-    def test_register_returns_none_without_openclaw(self):
-        """register() returns None when openclaw is not installed."""
-        from rex.openclaw.tools.weather_tool import register
-
-        result = register()
-        assert result is None
-
-    def test_register_accepts_agent_arg(self):
-        """register() accepts an agent argument without error."""
-        from rex.openclaw.tools.weather_tool import register
-
-        result = register(agent=object())
-        assert result is None
-
     def test_tool_name_constant(self):
         from rex.openclaw.tools import weather_tool
 

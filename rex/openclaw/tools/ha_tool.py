@@ -25,7 +25,6 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
 from typing import Any
 
 from rex.ha_bridge import HABridge as _HABridge
@@ -33,12 +32,6 @@ from rex.ha_bridge import IntentMatch as _IntentMatch
 
 logger = logging.getLogger(__name__)
 
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 #: Tool name used when registering with OpenClaw.
 TOOL_NAME = "home_assistant_call_service"
 
@@ -106,45 +99,3 @@ def ha_call_service(
     )
     success, message = bridge._execute_intent(intent)
     return {"success": success, "message": message, "entity_id": entity_id}
-
-
-def register(agent: Any = None) -> Any:
-    """Register the ``home_assistant_call_service`` tool with OpenClaw.
-
-    When the ``openclaw`` package is available this function calls
-    OpenClaw's tool registration API, passing :func:`ha_call_service` as the
-    handler.  When OpenClaw is not installed it logs a warning and returns
-    ``None``.
-
-    .. note::
-        The exact OpenClaw tool registration call is a stub (see PRD §8.3 —
-        *"Confirm OpenClaw's tool registration mechanism"*).  Replace the
-        ``# TODO`` line once the API is confirmed.
-
-    Args:
-        agent: Optional OpenClaw agent handle.
-
-    Returns:
-        The registration handle returned by OpenClaw, or ``None``.
-    """
-    if not OPENCLAW_AVAILABLE:
-        logger.warning(
-            "openclaw package not installed — %s tool not registered with OpenClaw",
-            TOOL_NAME,
-        )
-        return None
-
-    # TODO: replace with real OpenClaw tool registration once API is confirmed.
-    # Expected shape (to be verified):
-    #   handle = _openclaw.register_tool(
-    #       name=TOOL_NAME,
-    #       description=TOOL_DESCRIPTION,
-    #       handler=ha_call_service,
-    #       agent=agent,
-    #   )
-    #   return handle
-    logger.warning(
-        "OpenClaw tool registration stub for %s — update once API is confirmed (PRD §8.3)",
-        TOOL_NAME,
-    )
-    return None

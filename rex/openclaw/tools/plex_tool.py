@@ -23,7 +23,6 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
 from typing import Any
 
 from rex.plex_client import get_plex_client
@@ -32,12 +31,6 @@ logger = logging.getLogger(__name__)
 
 TOOL_NAMES = ("plex_search", "plex_play", "plex_pause", "plex_stop")
 
-_OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if _OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
@@ -180,30 +173,3 @@ def plex_stop(
     except Exception as exc:
         logger.warning("plex_stop failed: %s", exc)
         return {"ok": False, "error": str(exc)}
-
-
-# ---------------------------------------------------------------------------
-# OpenClaw registration
-# ---------------------------------------------------------------------------
-
-
-def register(agent: Any = None) -> dict[str, Any]:
-    """Register all Plex tools with OpenClaw.
-
-    When ``openclaw`` is not installed, logs a warning and returns a dict
-    mapping each tool name to ``None``.
-
-    Args:
-        agent: Optional OpenClaw agent handle.
-
-    Returns:
-        A dict mapping each tool name to its registration handle (or ``None``
-        when OpenClaw is not installed).
-    """
-    if not _OPENCLAW_AVAILABLE:
-        logger.warning("openclaw package not installed — Plex tools not registered")
-        return dict.fromkeys(TOOL_NAMES)
-
-    # TODO: replace with real OpenClaw tool registration once API is confirmed.
-    logger.warning("OpenClaw Plex tool registration stub — update once API is confirmed (PRD §8.3)")
-    return dict.fromkeys(TOOL_NAMES)

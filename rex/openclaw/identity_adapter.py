@@ -2,9 +2,8 @@
 
 Wraps Rex's user identity resolution (from :mod:`rex.identity`) as an
 OpenClaw-compatible identity service.  Provides a single ``IdentityAdapter``
-class that exposes session management and user resolution through a clean
-interface, and builds the session context dict expected by the OpenClaw
-agent.
+class that exposes session management, user resolution, and a stable user key
+for the OpenClaw ``user`` field in chat completions.
 
 Profile CRUD operations (``create_user_profile``, ``get_user_profile``,
 ``update_user_preferences``, ``list_known_users``) are delegated directly to
@@ -12,8 +11,10 @@ Rex's file-based implementation.  They are not wrapped, because they operate
 on Rex's ``Memory/`` directory structure which is Rex-specific and will not
 be replaced by OpenClaw.
 
-When the ``openclaw`` package is not installed, :meth:`~IdentityAdapter.register`
-logs a warning and returns ``None``.  All other methods work without OpenClaw.
+Identity is resolved locally; no HTTP calls are made.  The stable
+``get_openclaw_user_key()`` value is passed as the ``user`` field in
+OpenClaw chat completions so that OpenClaw can maintain per-user session
+state server-side without requiring explicit session API calls.
 
 Typical usage::
 
@@ -27,6 +28,9 @@ Typical usage::
     # Resolve the active user (explicit override > session > config)
     user_id = adapter.resolve_user()
 
+    # Get a stable key for the OpenClaw 'user' field
+    key = adapter.get_openclaw_user_key()
+
     # Build an OpenClaw-compatible session dict
     session = adapter.build_session()
 """
@@ -34,7 +38,6 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
 from typing import Any
 
 from rex.identity import (
@@ -46,13 +49,6 @@ from rex.identity import (
 from rex.openclaw.session import build_session_context
 
 logger = logging.getLogger(__name__)
-
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 
 
 class IdentityAdapter:
@@ -120,6 +116,34 @@ class IdentityAdapter:
         return resolve_active_user(explicit_user, config=self._config)
 
     # ------------------------------------------------------------------
+    # OpenClaw user key
+    # ------------------------------------------------------------------
+
+    def get_openclaw_user_key(self, explicit_user: str | None = None) -> str:
+        """Return a stable string for the OpenClaw ``user`` field.
+
+        OpenClaw creates a persistent session for each unique ``user`` value
+        sent in chat completions.  This method derives a consistent key from
+        Rex's identity resolution chain so that conversation history is
+        accumulated correctly across multiple voice turns.
+
+        Priority: *explicit_user* → session state → config active_user →
+        config user_id → ``"rex"`` (safe default).
+
+        Args:
+            explicit_user: Optional override (e.g. from a ``--user`` flag).
+
+        Returns:
+            A non-empty string suitable for the ``user`` field in an OpenClaw
+            chat completions request.
+        """
+        resolved = resolve_active_user(explicit_user, config=self._config)
+        if resolved:
+            return resolved
+        user_id = self._config.get("user_id") if self._config else None
+        return str(user_id) if user_id else "rex"
+
+    # ------------------------------------------------------------------
     # OpenClaw session context
     # ------------------------------------------------------------------
 
@@ -150,42 +174,3 @@ class IdentityAdapter:
             config=self._config if self._config else None,
             metadata=metadata,
         )
-
-    # ------------------------------------------------------------------
-    # OpenClaw registration
-    # ------------------------------------------------------------------
-
-    def register(self, agent: Any = None) -> Any:
-        """Register this adapter with the OpenClaw agent.
-
-        When ``openclaw`` is installed, registers Rex's identity resolver
-        so that OpenClaw populates session user context on every request.
-        When OpenClaw is absent, logs a warning and returns ``None``.
-
-        .. note::
-            The exact OpenClaw session registration call is a stub (PRD
-            §8.3 — *"Confirm OpenClaw's session model"*).  Replace the
-            ``# TODO`` once the API is confirmed.
-
-        Args:
-            agent: Optional OpenClaw agent handle.
-
-        Returns:
-            Registration handle from OpenClaw, or ``None``.
-        """
-        if not OPENCLAW_AVAILABLE:
-            logger.warning("openclaw package not installed — IdentityAdapter not registered")
-            return None
-
-        # TODO: replace with real OpenClaw identity registration once API is confirmed.
-        # Expected shape (to be verified):
-        #   handle = _openclaw.register_identity_provider(
-        #       resolver=self.resolve_user,
-        #       session_builder=self.build_session,
-        #       agent=agent,
-        #   )
-        #   return handle
-        logger.warning(
-            "OpenClaw identity registration stub — update once API is confirmed (PRD §8.3)"
-        )
-        return None

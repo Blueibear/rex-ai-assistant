@@ -1,12 +1,12 @@
-"""OpenClaw approval adapter — US-P3-018.
+"""OpenClaw approval adapter.
+
+Approvals are managed locally by Rex.  OpenClaw has its own exec approval
+flow via WebSocket; bridging is out of scope for HTTP integration.
 
 Wraps Rex's file-based approval system (:class:`~rex.workflow.WorkflowApproval`,
 :func:`~rex.workflow_runner.approve_workflow`, :func:`~rex.workflow_runner.deny_workflow`,
 :func:`~rex.workflow_runner.list_pending_approvals`) as a single object that can
-be wired into an OpenClaw agent's approval flow.
-
-When the ``openclaw`` package is not installed, :func:`register` logs a warning
-and returns ``None``.  The adapter methods work without OpenClaw installed.
+be wired into the OpenClaw agent's approval flow.
 
 Typical usage::
 
@@ -34,21 +34,12 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
 from pathlib import Path
-from typing import Any
 
 from rex.workflow import DEFAULT_APPROVAL_DIR, WorkflowApproval, generate_approval_id
 from rex.workflow_runner import approve_workflow, deny_workflow, list_pending_approvals
 
 logger = logging.getLogger(__name__)
-
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 
 
 class ApprovalAdapter:
@@ -58,10 +49,8 @@ class ApprovalAdapter:
     ``approve_workflow`` / ``deny_workflow`` / ``list_pending_approvals``
     helpers from :mod:`rex.workflow_runner` under a single injectable object.
 
-    When ``openclaw`` is installed, :meth:`register` registers the adapter
-    so that OpenClaw can route approval decisions through Rex's approval
-    system (stub — filled in once the OpenClaw approval API is confirmed,
-    see PRD §8.3).
+    All CRUD operations run locally against Rex's file-based storage.
+    No HTTP calls are made to the OpenClaw gateway.
 
     Args:
         approval_dir: Directory used for persisting approval records.
@@ -204,46 +193,5 @@ class ApprovalAdapter:
         """
         return list_pending_approvals(self._approval_dir)
 
-    # ------------------------------------------------------------------
-    # OpenClaw registration
-    # ------------------------------------------------------------------
 
-    def register(self, agent: Any = None) -> Any:
-        """Register this adapter with an OpenClaw agent.
-
-        When ``openclaw`` is installed, this method wires the adapter into
-        OpenClaw's approval lifecycle so that approval decisions flow through
-        Rex's file-based system.  When OpenClaw is absent, logs a warning
-        and returns ``None``.
-
-        .. note::
-            The exact OpenClaw approval registration call is a stub (see PRD
-            §8.3 — *"Confirm OpenClaw's hook/middleware registration API"*).
-            Replace the ``# TODO`` below once the API is confirmed.
-
-        Args:
-            agent: Optional OpenClaw agent handle.
-
-        Returns:
-            The registration handle from OpenClaw, or ``None``.
-        """
-        if not OPENCLAW_AVAILABLE:
-            logger.warning("openclaw package not installed — ApprovalAdapter not registered")
-            return None
-
-        # TODO: replace with real OpenClaw approval registration once API is confirmed.
-        # Expected shape (to be verified):
-        #   handle = _openclaw.register_approval_handler(
-        #       approve=self.approve,
-        #       deny=self.deny,
-        #       list_pending=self.list_pending,
-        #       agent=agent,
-        #   )
-        #   return handle
-        logger.warning(
-            "OpenClaw approval registration stub — update once API is confirmed (PRD §8.3)"
-        )
-        return None
-
-
-__all__ = ["ApprovalAdapter", "OPENCLAW_AVAILABLE"]
+__all__ = ["ApprovalAdapter"]

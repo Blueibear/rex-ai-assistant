@@ -1,15 +1,21 @@
-"""OpenClaw tool bridge — US-P4-003 (updated US-P7-008).
+"""OpenClaw tool bridge — US-P4-003 (updated US-P7-008, US-009).
 
 Implements :class:`~rex.contracts.tool_routing.ToolRoutingProtocol` by
 delegating to :mod:`rex.openclaw.tool_executor` module-level functions.
 
 This bridge presents the ``ToolRoutingProtocol`` interface so that callers
-do not need to import the internal tool executor directly.  The full
-OpenClaw tool-dispatch API is a stub pending PRD §8.3 confirmation.
+do not need to import the internal tool executor directly.
 
-When the ``openclaw`` package is not installed, :func:`register` logs a
-warning and returns ``None``.  All other methods work without OpenClaw
-installed because they delegate to the internal tool executor.
+When ``use_openclaw_tools`` is True and the OpenClaw gateway is configured,
+:meth:`execute_tool` dispatches via HTTP POST to ``/tools/invoke``.  On a
+404 response (tool not registered in OpenClaw) or connection failure, it
+falls back to local execution transparently.  A 403 response raises
+:class:`~rex.openclaw.tool_executor.PolicyDeniedError` so callers can
+surface the denial to the user.
+
+When the flag is False or no gateway URL is set, all calls go through the
+local :func:`~rex.openclaw.tool_executor.execute_tool` — identical
+behaviour to the pre-HTTP era.
 
 Typical usage::
 
@@ -30,9 +36,13 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
+from rex.openclaw.errors import OpenClawAPIError, OpenClawAuthError, OpenClawConnectionError
+from rex.openclaw.http_client import get_openclaw_client
+from rex.openclaw.tool_executor import (
+    PolicyDeniedError,
+)
 from rex.openclaw.tool_executor import (
     execute_tool as _execute_tool,
 )
@@ -42,25 +52,11 @@ from rex.openclaw.tool_executor import (
 from rex.openclaw.tool_executor import (
     route_if_tool_request as _route_if_tool_request,
 )
-from rex.openclaw.tools.business_tool import register_all_business_tools as _register_business_tools
-from rex.openclaw.tools.calendar_tool import register as _register_calendar_create
-from rex.openclaw.tools.email_tool import register as _register_send_email
-from rex.openclaw.tools.ha_tool import register as _register_ha_call_service
-from rex.openclaw.tools.plex_tool import register as _register_plex_tools
-from rex.openclaw.tools.sms_tool import register as _register_send_sms
-from rex.openclaw.tools.time_tool import register as _register_time_now
-from rex.openclaw.tools.weather_tool import register as _register_weather_now
-from rex.openclaw.tools.woocommerce_tool import register as _register_wc_tools
-from rex.openclaw.tools.wordpress_tool import register as _register_wp_health_check
+
+if TYPE_CHECKING:
+    from rex.config import AppConfig
 
 logger = logging.getLogger(__name__)
-
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 
 
 class ToolBridge:
@@ -70,15 +66,17 @@ class ToolBridge:
     delegating all three core operations to the corresponding module-level
     functions in :mod:`rex.openclaw.tool_executor`.
 
-    When ``openclaw`` is installed, :meth:`register` registers the bridge
-    as the tool provider so that OpenClaw dispatches tool calls through Rex
-    (stub — filled in once the OpenClaw tool-provider API is confirmed, see
-    PRD §8.3).
+    When ``config.use_openclaw_tools`` is True and the gateway is reachable,
+    :meth:`execute_tool` dispatches via HTTP instead of running locally.
+    All other methods always run locally.
 
-    Without OpenClaw the bridge is still useful as a thin convenience
-    wrapper that satisfies the :class:`~rex.contracts.tool_routing.ToolRoutingProtocol`
-    structural type.
+    Args:
+        config: Optional :class:`~rex.config.AppConfig`.  When *None*, the
+            config is loaded lazily from ``rex_config.json`` on first use.
     """
+
+    def __init__(self, config: AppConfig | None = None) -> None:
+        self._config = config
 
     # ------------------------------------------------------------------
     # ToolRoutingProtocol implementation
@@ -111,21 +109,73 @@ class ToolBridge:
     ) -> dict[str, Any]:
         """Execute a decoded tool request and return a result dictionary.
 
-        Delegates to :func:`~rex.openclaw.tool_executor.execute_tool`.
+        Dispatches via OpenClaw HTTP when ``use_openclaw_tools`` is True and
+        the gateway is configured; otherwise runs locally.
+
+        HTTP behaviour:
+        - ``200`` → returns the response dict from OpenClaw.
+        - ``403`` → raises :class:`~rex.openclaw.tool_executor.PolicyDeniedError`.
+        - ``404`` → tool not registered in OpenClaw; falls back to local.
+        - ``429`` / ``5xx`` → retried by :class:`~rex.openclaw.http_client.OpenClawClient`;
+          after retries exhausted raises :class:`~rex.openclaw.errors.OpenClawAPIError`.
+        - Connection / auth errors → falls back to local execution.
 
         Args:
             request: Dict with ``"tool"`` and ``"args"`` keys.
             default_context: Ambient context (timezone, location, user, …).
-            skip_policy_check: When *True*, bypass policy gating.
-            skip_credential_check: When *True*, bypass credential validation.
-            task_id: Optional correlation ID for audit logging.
-            requested_by: Optional identifier of the requesting entity.
-            skip_audit_log: When *True*, do not write an audit log entry.
+            skip_policy_check: When *True*, bypass policy gating (local only).
+            skip_credential_check: When *True*, bypass credential validation (local only).
+            task_id: Optional correlation ID for audit logging (local only).
+            requested_by: Optional identifier of the requesting entity (local only).
+            skip_audit_log: When *True*, do not write an audit log entry (local only).
 
         Returns:
             A dict containing at minimum a ``"status"`` key (``"ok"`` or
             ``"error"``) and a ``"result"`` key with the tool output.
+
+        Raises:
+            PolicyDeniedError: If OpenClaw returns 403 for the tool call.
         """
+        cfg = self._config
+        if cfg is None:
+            from rex.config import load_config as _load_config
+
+            cfg = _load_config()
+
+        client = get_openclaw_client(cfg)
+
+        if cfg.use_openclaw_tools and client is not None:
+            tool_name = request.get("tool", "")
+            args = request.get("args", {}) or {}
+            payload: dict[str, Any] = {
+                "tool": tool_name,
+                "args": args,
+                "sessionKey": default_context.get("session_key", "main"),
+            }
+            try:
+                result: dict[str, Any] = client.post("/tools/invoke", json=payload)
+                logger.debug("OpenClaw tool dispatch succeeded: tool=%s", tool_name)
+                return result
+            except OpenClawAPIError as exc:
+                if exc.status == 403:
+                    logger.warning("OpenClaw policy denied tool=%s: %s", tool_name, exc)
+                    raise PolicyDeniedError(tool_name, str(exc)) from exc
+                if exc.status == 404:
+                    logger.info(
+                        "Tool %s not found in OpenClaw (404), falling back to local",
+                        tool_name,
+                    )
+                    # fall through to local execution below
+                else:
+                    raise
+            except (OpenClawConnectionError, OpenClawAuthError) as exc:
+                logger.warning(
+                    "OpenClaw tool dispatch error for tool=%s, falling back to local: %s",
+                    tool_name,
+                    exc,
+                )
+                # fall through to local execution below
+
         return _execute_tool(
             request,
             default_context,
@@ -169,203 +219,21 @@ class ToolBridge:
         )
 
     # ------------------------------------------------------------------
-    # OpenClaw registration
+    # Backward-compatible simple tool registration shim
     # ------------------------------------------------------------------
 
-    def register_simple_tools(self, agent: Any = None) -> dict[str, Any]:
-        """Register the simple read-only batch of tools with OpenClaw.
+    def register_simple_tools(self) -> dict[str, Callable[..., dict[str, Any]]]:
+        """Return built-in simple OpenClaw tool callables.
 
-        Calls :func:`register` on each tool in the *simple / read-only* batch:
-
-        * ``time_now`` — current local date and time
-        * ``weather_now`` — current weather conditions
-
-        Geolocation is handled internally by ``time_now`` / ``weather_now``
-        via :mod:`rex.openclaw.tool_executor`'s fallback logic.  A standalone
-        ``geolocation`` tool is not yet implemented in :mod:`rex.openclaw.tool_executor`
-        and will be registered in a future iteration.
-
-        Args:
-            agent: Optional OpenClaw agent handle forwarded to each
-                individual tool's :func:`register` call.
-
-        Returns:
-            A dict mapping tool name to the registration handle returned by
-            each tool (``None`` when OpenClaw is not installed).
+        Older tests/bootstrap paths expect a registration method that returns
+        handles for basic tools. In the current architecture, tool dispatch is
+        resolved dynamically by name via ``execute_tool`` and this explicit
+        registration step is not required.
         """
+        from rex.openclaw.tools.time_tool import time_now
+        from rex.openclaw.tools.weather_tool import weather_now
+
         return {
-            "time_now": _register_time_now(agent=agent),
-            "weather_now": _register_weather_now(agent=agent),
+            "time_now": time_now,
+            "weather_now": weather_now,
         }
-
-    def register_policy_gated_tools(self, agent: Any = None) -> dict[str, Any]:
-        """Register the policy-gated tools batch with OpenClaw.
-
-        Calls :func:`register` on each tool in the *policy-gated* batch:
-
-        * ``send_email`` — send an email via Rex's EmailService (MEDIUM risk)
-        * ``send_sms`` — send an SMS via Rex's SMSService (MEDIUM risk)
-        * ``calendar_create`` — create a calendar event via Rex's CalendarService (MEDIUM risk)
-
-        These tools require policy approval before execution in normal
-        operation.  The approval flow is enforced by the PolicyAdapter
-        (see :mod:`rex.openclaw.policy_adapter`), not by the tool callables
-        themselves.
-
-        Args:
-            agent: Optional OpenClaw agent handle forwarded to each
-                individual tool's :func:`register` call.
-
-        Returns:
-            A dict mapping tool name to the registration handle returned by
-            each tool (``None`` when OpenClaw is not installed).
-        """
-        return {
-            "send_email": _register_send_email(agent=agent),
-            "send_sms": _register_send_sms(agent=agent),
-            "calendar_create": _register_calendar_create(agent=agent),
-        }
-
-    def register_ha_tools(self, agent: Any = None) -> dict[str, Any]:
-        """Register the Home Assistant tools batch with OpenClaw.
-
-        Calls :func:`register` on the HA tool:
-
-        * ``home_assistant_call_service`` — call a HA service (MEDIUM risk)
-
-        This tool requires policy approval before execution in normal
-        operation.  The approval flow is enforced by the PolicyAdapter
-        (see :mod:`rex.openclaw.policy_adapter`), not by the tool callable
-        itself.
-
-        Args:
-            agent: Optional OpenClaw agent handle forwarded to each
-                individual tool's :func:`register` call.
-
-        Returns:
-            A dict mapping tool name to the registration handle returned by
-            each tool (``None`` when OpenClaw is not installed).
-        """
-        return {
-            "home_assistant_call_service": _register_ha_call_service(agent=agent),
-        }
-
-    def register_wordpress_tools(self, agent: Any = None) -> dict[str, Any]:
-        """Register the WordPress tools batch with OpenClaw.
-
-        Calls :func:`register` on the WordPress tool:
-
-        * ``wordpress_health_check`` — read-only health check (LOW risk)
-
-        WordPress integration is read-only; no write tools are registered.
-
-        Args:
-            agent: Optional OpenClaw agent handle forwarded to each
-                individual tool's :func:`register` call.
-
-        Returns:
-            A dict mapping tool name to the registration handle returned by
-            each tool (``None`` when OpenClaw is not installed).
-        """
-        return {
-            "wordpress_health_check": _register_wp_health_check(agent=agent),
-        }
-
-    def register_woocommerce_tools(self, agent: Any = None) -> dict[str, Any]:
-        """Register all WooCommerce tools batch with OpenClaw.
-
-        Read tools (LOW risk):
-        * ``wc_list_orders``      — list orders
-        * ``wc_list_products``    — list products
-
-        Write tools (HIGH risk, approval-gated):
-        * ``wc_set_order_status`` — update order status
-        * ``wc_create_coupon``    — create coupon
-        * ``wc_disable_coupon``   — disable coupon
-
-        Args:
-            agent: Optional OpenClaw agent handle.
-
-        Returns:
-            A dict mapping tool name to the registration handle returned by
-            each tool (``None`` when OpenClaw is not installed).
-        """
-        return _register_wc_tools(agent=agent)
-
-    def register_business_tools(self, agent: Any = None) -> dict[str, Any]:
-        """Register all business-domain tools (WooCommerce + WordPress) with OpenClaw.
-
-        Convenience wrapper equivalent to calling both
-        :meth:`register_woocommerce_tools` and :meth:`register_wordpress_tools`.
-
-        Tools registered:
-
-        * ``wc_list_orders`` — list WooCommerce orders (LOW risk)
-        * ``wc_list_products`` — list WooCommerce products (LOW risk)
-        * ``wc_set_order_status`` — update order status (HIGH risk, approval-gated)
-        * ``wc_create_coupon`` — create coupon (HIGH risk, approval-gated)
-        * ``wc_disable_coupon`` — disable coupon (HIGH risk, approval-gated)
-        * ``wordpress_health_check`` — health check (LOW risk, read-only)
-
-        Args:
-            agent: Optional OpenClaw agent handle.
-
-        Returns:
-            A dict mapping every tool name to its registration handle
-            (``None`` when OpenClaw is not installed).
-        """
-        return _register_business_tools(agent=agent)
-
-    def register_plex_tools(self, agent: Any = None) -> dict[str, Any]:
-        """Register all Plex tools batch with OpenClaw.
-
-        Tools (LOW risk, read-only search + playback control):
-        * ``plex_search`` — search the Plex library
-        * ``plex_play``   — start playback on a Plex client
-        * ``plex_pause``  — pause playback on a Plex client
-        * ``plex_stop``   — stop playback on a Plex client
-
-        Args:
-            agent: Optional OpenClaw agent handle.
-
-        Returns:
-            A dict mapping tool name to the registration handle returned by
-            each tool (``None`` when OpenClaw is not installed).
-        """
-        return _register_plex_tools(agent=agent)
-
-    def register(self, agent: Any = None) -> Any:
-        """Register this bridge as the OpenClaw tool provider.
-
-        When ``openclaw`` is installed, this method registers the bridge so
-        that OpenClaw routes tool calls through Rex's tool router.  When
-        OpenClaw is absent, logs a warning and returns ``None``.
-
-        .. note::
-            The exact OpenClaw tool-provider registration call is a stub (see
-            PRD §8.3 — *"Confirm OpenClaw's tool registration mechanism"*).
-            Replace the ``# TODO`` below once the API is confirmed.
-
-        Args:
-            agent: Optional OpenClaw agent handle.
-
-        Returns:
-            The registration handle from OpenClaw, or ``None``.
-        """
-        if not OPENCLAW_AVAILABLE:
-            logger.warning(
-                "openclaw package not installed — ToolBridge not registered as tool provider"
-            )
-            return None
-
-        # TODO: replace with real OpenClaw tool provider registration once API is confirmed.
-        # Expected shape (to be verified):
-        #   handle = _openclaw.register_tool_provider(
-        #       provider=self,
-        #       agent=agent,
-        #   )
-        #   return handle
-        logger.warning(
-            "OpenClaw tool provider registration stub — update once API is confirmed (PRD §8.3)"
-        )
-        return None

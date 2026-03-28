@@ -1,0 +1,235 @@
+# Progress Log
+
+## Learnings
+(Patterns discovered during implementation)
+
+---
+
+## Iteration 1 - US-001: Create OpenClaw HTTP client module
+- Created `rex/openclaw/errors.py` with OpenClawConnectionError, OpenClawAuthError, OpenClawAPIError all inheriting from AssistantError
+- Created `rex/openclaw/http_client.py` with OpenClawClient (post/get/patch/delete, retry logic, auth headers) and get_openclaw_client() singleton
+- Created `tests/test_openclaw_http_client.py` with 19 tests using unittest.mock
+- Files changed: rex/openclaw/errors.py (new), rex/openclaw/http_client.py (new), tests/test_openclaw_http_client.py (new)
+- Learnings for future iterations:
+  - The dev venv is at `venv/` not `.venv/` — use `venv/Scripts/pytest.exe` and `venv/Scripts/python.exe`
+  - `pydantic` was missing from the venv but installed on demand; may need other deps too
+  - mypy complained about `return response.json()` (Any return) — assign to typed variable first: `result: dict[str, Any] = response.json(); return result`
+  - ruff UP037 flagged quoted forward refs in `_CLIENT_CACHE: dict[str, "OpenClawClient"]` — fixed automatically with `--fix`
+  - ruff I001 flagged import ordering in test file — fixed automatically
+  - `requests` is already in pyproject.toml dependencies (>=2.32.0), no new dep needed
+  - The `responses` library is NOT in dev deps; use `unittest.mock` for HTTP mocking
+---
+
+## Iteration 2 - US-002: Add OpenClaw gateway config fields to AppConfig
+- Added `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries` to `AppConfig` dataclass
+- Added `openclaw_gateway_token: Optional[str]` loaded from `OPENCLAW_GATEWAY_TOKEN` env var
+- Added all four fields to `build_app_config()` using `_get_nested()` and `os.getenv()`
+- Updated `config/rex_config.json` openclaw section (local only — not committed; `config/` is gitignored)
+- Added `OPENCLAW_GATEWAY_TOKEN=` with doc comment to `.env.example`
+- Files changed: `rex/config.py`, `.env.example`, `PRD-openclaw-http-integration.md`
+- Learnings for future iterations:
+  - `config/rex_config.json` is in `.gitignore` (line 67: `config/`) with exemptions only for `.example.json` and `.schema.json` — changes to rex_config.json are local-only, never committed
+  - Pre-existing test failures exist in `test_openclaw_ha_tts_voice_loop.py` etc. — they fail due to missing `pytest-asyncio`, not our changes
+  - `get_openclaw_client()` singleton in `http_client.py` accepts `AppConfig` — after US-002, it can use the new `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries`, and `openclaw_gateway_token` fields directly
+---
+
+## Iteration 3 - US-003: Wire OpenAI strategy to OpenClaw chat completions
+- Added `user: str | None = None` kwarg to `OpenAIStrategy.generate()` — passed as `api_params["user"]` when not None
+- Added `_user_key` derivation in `LanguageModel.generate()`: uses `user_id` if non-default, else `active_profile`; only passed when not None (guard: `if _user_key is not None`)
+- Created `tests/test_openclaw_chat_completions.py` with 9 tests covering: user field present/absent, model field, authorization via api_key, messages format, non-openai provider gets no user field
+- Added HTTP Integration section (§8) to `docs/openclaw-agent-setup.md` with arch diagram, config walkthrough, session persistence explanation, quick start, and troubleshooting table
+- Files changed: `rex/llm_client.py`, `tests/test_openclaw_chat_completions.py`, `docs/openclaw-agent-setup.md`
+- Learnings for future iterations:
+  - `AppConfig` has a `__post_init__` validator: if `llm_provider == "openai"`, `openai_model` MUST be set — always set both `llm_model` and `openai_model` in OpenAI test configs
+  - Many pre-existing test collection errors exist for autonomy/us1xx test files (import errors unrelated to our work) — ignore them when checking test suite health; test by running only relevant files
+  - Passing `user=None` as a kwarg to strategies that don't accept it raises TypeError (caught by existing fallback), so always guard with `if _user_key is not None`
+  - `EchoStrategy.generate()` does accept `messages=` but NOT `user=` — the `**extra` pattern is the right approach for optional kwargs
+---
+
+## Iteration 4 - US-004: Remove dead `import openclaw` stubs
+- Removed `find_spec("openclaw")` checks, `OPENCLAW_AVAILABLE` constants, and `import openclaw as _openclaw` blocks from 18 source files
+- Replaced `if not OPENCLAW_AVAILABLE:` guards in `register()` methods with `get_openclaw_client(load_config()) is None` check; updated log message to "OpenClaw gateway not configured"
+- Cleaned `memory_adapter.py` fully: removed all OPENCLAW_AVAILABLE branches from `__init__`, `trim_history`, `append_entry`, `load_recent`; delegates directly to Rex implementations
+- Removed `OPENCLAW_AVAILABLE` from `approval_adapter.py`'s `__all__`
+- Updated 13 test files: removed OPENCLAW_AVAILABLE imports, removed isinstance assertions, converted skip guards to use `patch("rex.openclaw.http_client.get_openclaw_client", return_value=None)`
+- Files changed: `rex/openclaw/agent.py`, `tool_bridge.py`, `event_bridge.py`, `browser_bridge.py`, `policy_adapter.py`, `approval_adapter.py`, `memory_adapter.py`, `identity_adapter.py`, `workflow_bridge.py`, all 9 tool files; 13 test files
+- Learnings for future iterations:
+  - Tests that previously skipped when openclaw not installed now run unconditionally — ensure register() returns None when client is None (it does)
+  - Use `patch("rex.openclaw.http_client.get_openclaw_client", return_value=None)` to test "gateway not configured" paths
+  - Pre-existing 7 async test failures in test_openclaw_browser_bridge.py require pytest-asyncio — not our issue
+  - 249 tests pass after the change
+---
+
+## Iteration 5 - US-005: Rewire RexAgent.respond() to use OpenClaw HTTP
+- Added `self._config = _base_config` to `RexAgent.__init__` so respond() can access config
+- Added top-level imports: `get_openclaw_client`, `OpenClawAPIError`, `OpenClawAuthError`, `OpenClawConnectionError` to agent.py (removed duplicated local imports from register())
+- Updated `respond()`: checks `get_openclaw_client(self._config)` and `self._config.use_openclaw_voice_backend`; if both truthy, POSTs to `/v1/chat/completions` with `model`, `messages`, and optional `user` fields; falls back to local LLM on HTTP errors (OpenClawConnectionError, OpenClawAuthError, OpenClawAPIError, KeyError)
+- Created `tests/test_openclaw_agent_http_respond.py` with 12 tests covering: HTTP path success, payload shape (model, messages, user fields), no local LLM call on success, fallback on APIError, fallback on malformed response (KeyError), fallback persists history, standalone mode (no gateway), flag=False uses local LLM
+- Files changed: `rex/openclaw/agent.py`, `tests/test_openclaw_agent_http_respond.py`
+- Learnings for future iterations:
+  - Store config as `self._config` in __init__ — agent.py previously didn't persist `_base_config` to an instance attribute
+  - Patch `rex.openclaw.agent.get_openclaw_client` (the imported name), not `rex.openclaw.http_client.get_openclaw_client`, when testing agent.py
+  - Catch `KeyError` alongside the OpenClaw error types for malformed HTTP responses (missing 'choices' key)
+  - ruff I001 (import ordering) and F401 (unused import) — always run `ruff check --fix` before final check
+---
+
+## Iteration 7 - US-007: Create OpenClaw tool registration via /tools/invoke
+- Created `rex/openclaw/tool_server.py` with `ToolServer` class and `_build_tool_registry()` helper
+- Blueprint registered at `/rex/tools/<tool_name>` with `ToolServer.register_all(app)`
+- Auth: `X-API-Key` or `Authorization: Bearer` via `REX_TOOL_API_KEY` env var (hmac.compare_digest)
+- Rate limiting: manual deque-based approach (REX_TOOL_RATE_LIMIT / REX_TOOL_RATE_WINDOW env vars, default 60/60)
+- All 9 tool modules imported with deferred try/except so optional deps don't crash startup
+- PolicyAdapter.guard() called before every tool execution; PolicyDeniedError/ApprovalRequiredError → 403
+- Tool handler called with `**args, context=context`; TypeError caught → 400
+- Created `tests/test_openclaw_tool_server.py` with 16 tests
+- Files changed: `rex/openclaw/tool_server.py` (new), `tests/test_openclaw_tool_server.py` (new)
+- Learnings for future iterations:
+  - Flask not in venv — needed `venv/Scripts/pip install flask flask-cors` before tests ran
+  - Use `monkeypatch.setenv("REX_TOOL_RATE_LIMIT", "0")` to disable rate limiting in tests
+  - Inject `tools={}` and `policy=MagicMock()` into ToolServer constructor for clean unit tests
+  - ruff fixed 3 import ordering issues automatically; black reformatted tool_server.py
+  - `wc_list_orders` has keyword-only args after `*` — calling `handler(**args, context=context)` works fine since Python allows passing positional args as kwargs
+---
+
+## Iteration 8 - US-008: Create OpenClaw-to-Rex webhook receiver for /tools/invoke
+- `main()` and `_add_health_routes()` were already in tool_server.py from US-007; only missing pieces were the entrypoint, docs, and integration test
+- Added `rex-tool-server` entry point to `pyproject.toml` → `rex.openclaw.tool_server:main`
+- Added §9 to `docs/openclaw-agent-setup.md`: start cmd, health endpoints, example JSON + YAML skill configs, full tool table, rate-limit/auth reference
+- Created `tests/test_openclaw_tool_server_integration.py` with 11 integration tests using Flask test client (no real TCP socket)
+- Files changed: `pyproject.toml`, `docs/openclaw-agent-setup.md`, `tests/test_openclaw_tool_server_integration.py`
+- Learnings for future iterations:
+  - `time_now()` requires a location; without one it returns `{"error": {...}}` (HTTP 200, handler ran cleanly). Tests should assert on `isinstance(result, dict)` not specific keys when no location is provided.
+  - `PolicyDeniedError(tool, reason)` takes TWO args — tool name first, then reason. `PolicyDeniedError("msg")` fails with "missing required positional argument"
+  - `_add_health_routes` is module-level (not a method) — import it directly when building test apps that need health probes
+---
+
+## Iteration 6 - US-006: Rewire VoiceBridge.generate_reply() to use OpenClaw HTTP
+- Changed empty/whitespace transcript handling from `raise ValueError` to `return ""` (voice loop already guards empty transcripts, but VoiceBridge must be safe as a standalone object)
+- Added try/except around `self.agent.respond()` — logs exception, returns `"I had trouble reaching the server. Try again."`
+- Added voice_mode debug log when voice_mode=True (logged, not forwarded to RexAgent)
+- Created `tests/test_openclaw_voice_bridge_http.py` with 11 tests: empty/whitespace → "", delegation, voice_mode compatibility, HTTP call verified via mock client, no HTTP call in standalone mode, exception handling for all error types
+- Files changed: `rex/openclaw/voice_bridge.py`, `tests/test_openclaw_voice_bridge_http.py`, `PRD-openclaw-http-integration.md`
+- Learnings for future iterations:
+  - `mock_client.post.call_args.args[0]` gives positional arg, `call_args.kwargs["json"]` gives the keyword arg — agent.py uses `client.post(path, json=payload)` not positional
+  - The existing text_mode/flag tests skip if openwakeword not installed — they mock generate_reply at the bridge level so VoiceBridge changes don't break them
+  - black reformats test files with long function signatures; run `ruff check --fix` then `black` then re-run tests after formatting
+---
+
+## Iteration 9 - US-009: Rewire ToolBridge.execute_tool() for dual-mode dispatch
+- Added `__init__(self, config=None)` to `ToolBridge` — config stored as `self._config`, lazy-loaded via `load_config()` when None
+- Updated `execute_tool()`: checks `cfg.use_openclaw_tools and client is not None`; if truthy POSTs to `/tools/invoke` with `{tool, args, sessionKey}`
+- 403 → raises `PolicyDeniedError(tool_name, str(exc))`; 404 → falls back to local; connection/auth errors → fall back to local; other 5xx → re-raises `OpenClawAPIError`
+- `parse_tool_request()` and `route_if_tool_request()` unchanged (always local)
+- Created `tests/test_openclaw_tool_bridge_http.py` with 12 tests covering: HTTP path, request format, sessionKey default, 403, 404 fallback, 5xx raise, connection/auth fallback, flag=False skip, client=None skip, standalone mode kwargs forwarding
+- Files changed: `rex/openclaw/tool_bridge.py`, `tests/test_openclaw_tool_bridge_http.py`, `PRD-openclaw-http-integration.md`
+- Learnings for future iterations:
+  - `ToolBridge()` is called with no args in 30 existing tests — making config optional with lazy load was critical for backward compat
+  - Patch `rex.openclaw.tool_bridge.get_openclaw_client` (the imported name in tool_bridge.py), not `rex.openclaw.http_client.get_openclaw_client`, when testing tool_bridge dispatch logic
+  - `OpenClawAPIError` status check: `exc.status == 403` / `exc.status == 404` — the `status` attribute is on the exception class
+  - ruff auto-fixed one import ordering issue in tool_bridge.py; black reformatted both files — always run both before final test
+---
+
+## Iteration 10 - US-010: Rewire MemoryAdapter for OpenClaw session persistence
+- Updated module docstring to clarify: Rex local memory is source of truth; OpenClaw session sync is implicit via `user` field in chat completions (RexAgent.respond), NOT via direct HTTP calls from MemoryAdapter
+- Updated `append_entry()` docstring: explains dual-write pattern (local now + OpenClaw on next completion via user field); removed "Delegates to OpenClaw's storage write API" stub language
+- Updated `load_recent()` docstring: "always reads from Rex's local file-based storage"; removed stub language about OpenClaw delegation
+- Updated `trim_history()` docstring: "Always operates locally"
+- Added 5 new tests in `TestDualWriteBehaviour` class: append calls _rex_append, append with gateway configured still writes locally (no HTTP call), load_recent always calls _rex_load_recent, load_recent without gateway, trim_history makes no HTTP calls
+- Files changed: `rex/openclaw/memory_adapter.py`, `tests/test_openclaw_memory.py`, `PRD-openclaw-http-integration.md`
+- Learnings for future iterations:
+  - The "dual-write" in US-010 is conceptual: local write (via _rex_append) + OpenClaw session update (via user field in next RexAgent.respond() call) — MemoryAdapter itself makes ZERO HTTP calls
+  - Patch `rex.openclaw.memory_adapter._rex_append` and `rex.openclaw.memory_adapter._rex_load_recent` to intercept the imported names in the adapter module
+  - Patch `rex.openclaw.http_client.get_openclaw_client` to simulate gateway-configured state in MemoryAdapter tests (even though the adapter doesn't call it, the test verifies no HTTP leakage)
+  - black reformatted the test file (long context managers); always run black before final check
+---
+
+## Iteration 11 - US-011: Clean up dead register() stubs in all tool and adapter modules
+- Removed `register(agent=None)` from all 10 tool modules: time, weather, email, sms, calendar, ha, plex, woocommerce, wordpress, business
+- `business_tool.py` required full rewrite — it previously imported and called woocommerce/wordpress register functions; now simplified to export constants only
+- Removed all `register_*_tools()` and `register()` methods from `ToolBridge` (200+ lines removed) and all 5 adapter/bridge classes
+- Deleted `tests/test_openclaw_tool_bridge_register.py` entirely
+- Stripped register() tests from 13 other test files
+- 201 tests pass; 7 pre-existing async browser_bridge failures unchanged
+- Commit: refactor(openclaw): remove dead register() stubs from all tool and adapter modules
+
+### Learnings
+- When a module imports from another module's removed function, you must rewrite the importer entirely — not just remove one function
+- `git add <deleted-file>` stages deletions; don't forget deleted files when staging
+- Always check `git status` for deleted files that don't show up as "modified"
+---
+
+## Iteration 12 - US-012: Update EventBridge for local-only operation
+- Updated module docstring: removed "routing through OpenClaw" stub language, added clarification that EventBridge is Rex's internal event bus, OpenClaw WebSocket bridging is out of scope
+- Added `# FUTURE: WebSocket bridge to OpenClaw gateway events` comment in module docstring
+- Updated class docstring: removed stale "openclaw package" and "register" references, added clarifying statement
+- No code changes needed — `register()` was already removed by US-011
+- Files changed: `rex/openclaw/event_bridge.py`, `PRD-openclaw-http-integration.md`
+- Learnings for future iterations:
+  - US-011 already removed register() — US-012/013/014/015 are pure docstring/comment cleanup tasks
+  - black may reformat docstrings with trailing whitespace; always run `black` after edits
+---
+
+## Iteration 13 - US-013: Update BrowserBridge for local-only operation
+- Updated module docstring: added leading paragraph "BrowserBridge runs Playwright locally. OpenClaw has its own Chromium instance for web tasks; they operate independently."
+- Added `# FUTURE: If OpenClaw browser task delegation...` comment in module docstring
+- Updated class docstring: replaced generic "Adapter that presents Rex's browser automation as an OpenClaw provider" with clarifying statement about local-only Playwright execution
+- No code changes — `register()` was already removed by US-011, no TODO comments existed
+- Files changed: `rex/openclaw/browser_bridge.py`, `PRD-openclaw-http-integration.md`
+- Learnings for future iterations:
+  - US-013 was a pure docstring task; the file had no TODO comments or register() stubs left
+  - 7 async test failures in test_openclaw_browser_bridge.py are pre-existing (pytest-asyncio missing) — not caused by our changes
+---
+
+## Iteration 14 (bonus) - US-015: Update ApprovalAdapter for local-only operation
+- Docstring updated in HEAD commit (fb3fdb0): added "Approvals are managed locally by Rex. OpenClaw has its own exec approval flow via WebSocket; bridging is out of scope for HTTP integration."
+- No TODO comments existed; register() was already removed by US-011
+- All CRUD methods already delegate to local rex.workflow_runner functions
+- Files changed: `rex/openclaw/approval_adapter.py` (docstring only, committed in fb3fdb0)
+- Learnings for future iterations:
+  - US-015 was completed in the same linter-hook commit that did US-014 docstring cleanup; check git log before starting a new iteration
+---
+
+## Iteration 14 - US-014: Update IdentityAdapter for local-only operation with session key passthrough
+- Added `get_openclaw_user_key(explicit_user=None) -> str` to `IdentityAdapter`: priority chain explicit_user → resolve_active_user() → config user_id → "rex" (never returns empty string)
+- Updated `RexAgent.__init__` to accept `identity_adapter` kwarg; stores as `self._identity`
+- Updated `RexAgent.respond()`: derives `oc_user = user_key if user_key is not None else self._identity.get_openclaw_user_key()` and always includes `user` field in OpenClaw payload
+- Updated `test_openclaw_agent_http_respond.py`: renamed `test_payload_omits_user_field_when_no_user_key` → `test_payload_uses_identity_adapter_when_no_user_key` (user field is now always present)
+- Added 6 tests in `TestGetOpenClawUserKey` class: explicit user, session user, config fallback, default "rex", consistency, non-empty guarantee
+- Files changed: `rex/openclaw/identity_adapter.py`, `rex/openclaw/agent.py`, `tests/test_openclaw_identity_adapter.py`, `tests/test_openclaw_agent_http_respond.py`
+- Learnings for future iterations:
+  - A linter hook automatically committed identity_adapter.py and agent.py changes before `git add` was run — check git log before staging to avoid double-committing code files
+  - `get_openclaw_user_key()` must never return "" — the "rex" default ensures OpenClaw always gets a valid session key
+  - Patch `agent._identity.get_openclaw_user_key` via `patch.object(agent._identity, ...)` to control the identity key in agent tests
+---
+
+## Iteration 16 - US-017: Add streaming support for OpenClaw chat completions
+- `post_stream()` method added to `OpenClawClient`: streams SSE, yields content delta strings, handles `[DONE]` sentinel
+- `stream_sentences()` utility in `http_client.py`: buffers tokens and yields at `.`, `!`, `?`, `\n` boundaries; flushes remainder
+- `RexAgent.respond_stream()` added: uses `post_stream` + `stream_sentences`; falls back to local LLM on connection/auth/API errors
+- `VoiceBridge.generate_reply_stream()` added: delegates to `respond_stream()`; yields empty on whitespace transcript; falls back to error message on exception
+- Tests: `tests/test_openclaw_streaming.py` (13 tests — stream_sentences boundary cases + respond_stream scenarios)
+- Files changed: `rex/openclaw/http_client.py`, `rex/openclaw/agent.py`, `rex/openclaw/voice_bridge.py`, `tests/test_openclaw_streaming.py`
+- Learnings for future iterations:
+  - The streaming implementation uses separate `post_stream()` and `respond_stream()` methods rather than a `stream=True` parameter — cleaner types and no impact on existing callers
+  - `stream_sentences()` lives in `http_client.py` for easy import by both agent.py and any future callers
+  - Mid-stream fallback: if error occurs after some chunks yielded, remaining content is not recoverable — log and stop; if no chunks yet, fall back to local LLM and yield that
+  - black reformatted agent.py after ruff --fix; always run both before final test check
+---
+
+## Iteration 15 - US-016: Update documentation for HTTP integration architecture
+- `docs/openclaw-agent-setup.md` was already comprehensive from iterations 3 and 8 (sections 1-9 cover all required topics)
+- `CLAUDE.md` OpenClaw Migration Status section was already updated in previous iterations (Phase 8 complete, flags documented, config fields listed)
+- `README.md` OpenClaw section already mentioned HTTP integration
+- Added Phase 8 rows to the module table in `docs/openclaw-migration-status.md`:
+  - `rex/openclaw/http_client.py` (New Phase 8 / Complete)
+  - `rex/openclaw/errors.py` (New Phase 8 / Complete)
+  - `rex/openclaw/tool_server.py` (New Phase 8 / Complete)
+  - Python import stubs (Removed Phase 8)
+  - Updated `rex/llm_client.py` row from Pending → Bridged (Phase 8)
+  - Updated `rex/config.py` row to mention Phase 8 gateway fields
+- Files changed: `docs/openclaw-migration-status.md`, `PRD-openclaw-http-integration.md`, `progress-openclaw-http-integration.txt`
+- Learnings for future iterations:
+  - Doc-only US stories may be substantially done by previous iterations that updated docs as side effects
+  - Always check current doc state before rewriting — prior iterations 3 and 8 already covered the required sections
+  - Unstaged changes in working tree (agent.py, http_client.py, tool_server.py) are US-017 streaming implementation — already written but not committed
+---

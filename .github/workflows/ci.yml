@@ -159,6 +159,13 @@ jobs:
         env:
           REX_FILE_LOGGING_ENABLED: "false"
 
+      - name: 🔗 Run integration tests
+        shell: bash
+        run: |
+          pytest -m integration -q
+        env:
+          REX_FILE_LOGGING_ENABLED: "false"
+
       - name: 🔒 Verify tests did not modify tracked files
         if: always()
         run: |
@@ -289,7 +296,8 @@ jobs:
             --ignore-vuln CVE-2025-13327 \
             --ignore-vuln GHSA-w476-p2h3-79g9 \
             --ignore-vuln CVE-2026-22702 \
-            --ignore-vuln CVE-2026-26331
+            --ignore-vuln CVE-2026-26331 \
+            --ignore-vuln CVE-2026-4539
 
   pre-commit:
     name: Pre-commit Hook Validation

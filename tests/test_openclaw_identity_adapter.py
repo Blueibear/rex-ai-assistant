@@ -1,11 +1,11 @@
-"""Tests for rex.openclaw.identity_adapter — US-P3-014.
+"""Tests for rex.openclaw.identity_adapter.
 
 Verifies that IdentityAdapter correctly bridges Rex's identity system:
 - set_user / get_user propagation through session state
 - resolve_user priority chain
 - build_session produces the expected keys and reflects set_user
 - clear_user resets session state
-- register() returns None when openclaw is not installed
+- get_openclaw_user_key returns consistent, non-empty values
 """
 
 from __future__ import annotations
@@ -41,11 +41,6 @@ class TestIdentityAdapterInstantiation:
     def test_instantiates_with_config_dict(self) -> None:
         adapter = IdentityAdapter(config={"runtime": {"active_user": "alice"}})
         assert adapter is not None
-
-    def test_openclaw_available_flag_is_bool(self) -> None:
-        from rex.openclaw.identity_adapter import OPENCLAW_AVAILABLE
-
-        assert isinstance(OPENCLAW_AVAILABLE, bool)
 
 
 # ---------------------------------------------------------------------------
@@ -252,21 +247,46 @@ class TestBuildSession:
 
 
 # ---------------------------------------------------------------------------
-# register
+# get_openclaw_user_key
 # ---------------------------------------------------------------------------
 
 
-class TestRegister:
-    def test_register_returns_none_when_openclaw_unavailable(self) -> None:
+class TestGetOpenClawUserKey:
+    def test_returns_explicit_user_when_provided(self) -> None:
         adapter = _adapter()
-        with patch("rex.openclaw.identity_adapter.OPENCLAW_AVAILABLE", False):
-            result = adapter.register()
+        with patch("rex.openclaw.identity_adapter.resolve_active_user", return_value="explicit"):
+            result = adapter.get_openclaw_user_key(explicit_user="explicit")
+        assert result == "explicit"
 
-        assert result is None
-
-    def test_register_with_agent_arg_returns_none_when_unavailable(self) -> None:
+    def test_returns_resolved_session_user(self) -> None:
         adapter = _adapter()
-        with patch("rex.openclaw.identity_adapter.OPENCLAW_AVAILABLE", False):
-            result = adapter.register(agent=object())
+        with patch(
+            "rex.openclaw.identity_adapter.resolve_active_user", return_value="session_user"
+        ):
+            result = adapter.get_openclaw_user_key()
+        assert result == "session_user"
 
-        assert result is None
+    def test_falls_back_to_config_user_id(self) -> None:
+        adapter = IdentityAdapter(config={"user_id": "cfg_user"})
+        with patch("rex.openclaw.identity_adapter.resolve_active_user", return_value=None):
+            result = adapter.get_openclaw_user_key()
+        assert result == "cfg_user"
+
+    def test_falls_back_to_rex_default_when_no_user(self) -> None:
+        adapter = _adapter()
+        with patch("rex.openclaw.identity_adapter.resolve_active_user", return_value=None):
+            result = adapter.get_openclaw_user_key()
+        assert result == "rex"
+
+    def test_returns_consistent_value_for_same_user(self) -> None:
+        adapter = _adapter()
+        with patch("rex.openclaw.identity_adapter.resolve_active_user", return_value="james"):
+            key1 = adapter.get_openclaw_user_key()
+            key2 = adapter.get_openclaw_user_key()
+        assert key1 == key2 == "james"
+
+    def test_never_returns_empty_string(self) -> None:
+        adapter = _adapter()
+        with patch("rex.openclaw.identity_adapter.resolve_active_user", return_value=None):
+            result = adapter.get_openclaw_user_key()
+        assert result != ""

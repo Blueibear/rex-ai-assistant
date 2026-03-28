@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from rex.openclaw.tool_bridge import OPENCLAW_AVAILABLE, ToolBridge
+from rex.openclaw.tool_bridge import ToolBridge
 
 
 class TestToolBridgeInstantiation:
@@ -14,9 +14,6 @@ class TestToolBridgeInstantiation:
     def test_no_args(self):
         bridge = ToolBridge()
         assert bridge is not None
-
-    def test_openclaw_available_is_bool(self):
-        assert isinstance(OPENCLAW_AVAILABLE, bool)
 
     def test_satisfies_protocol(self):
         from rex.contracts.tool_routing import ToolRoutingProtocol
@@ -146,17 +143,3 @@ class TestRouteIfToolRequest:
             self.bridge.route_if_tool_request("text", {}, model_fn, skip_policy_check=True)
             _, kwargs = mock_fn.call_args
             assert kwargs["skip_policy_check"] is True
-
-
-class TestRegister:
-    def test_register_returns_none_without_openclaw(self):
-        bridge = ToolBridge()
-        # If openclaw is not installed, register() should return None
-        if not OPENCLAW_AVAILABLE:
-            assert bridge.register() is None
-
-    def test_register_accepts_agent_arg(self):
-        bridge = ToolBridge()
-        agent = MagicMock()
-        if not OPENCLAW_AVAILABLE:
-            assert bridge.register(agent=agent) is None

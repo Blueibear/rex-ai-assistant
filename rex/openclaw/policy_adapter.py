@@ -25,7 +25,6 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
 from typing import Any
 
 from rex.contracts import ToolCall
@@ -34,13 +33,6 @@ from rex.policy import PolicyDecision
 from rex.policy_engine import PolicyEngine, get_policy_engine
 
 logger = logging.getLogger(__name__)
-
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 
 
 class PolicyAdapter:
@@ -128,42 +120,22 @@ class PolicyAdapter:
             raise ApprovalRequiredError(tool_name, decision.reason)
 
     # ------------------------------------------------------------------
-    # OpenClaw registration
+    # Backward-compatible OpenClaw registration shim
     # ------------------------------------------------------------------
 
-    def register(self, agent: Any = None) -> Any:
-        """Register this adapter as an OpenClaw pre-execution hook.
+    def register(self, agent: object | None = None) -> None:
+        """No-op registration shim for older integration tests/call-sites.
 
-        When ``openclaw`` is installed, this method registers
-        :meth:`guard` so that OpenClaw calls it before dispatching any
-        tool.  When OpenClaw is absent, logs a warning and returns
-        ``None``.
-
-        .. note::
-            The exact OpenClaw hook registration call is a stub (see PRD
-            §8.3 — *"Confirm OpenClaw's hook/middleware registration
-            API"*).  Replace the ``# TODO`` below once the API is
-            confirmed.
+        Historical OpenClaw prototypes called ``PolicyAdapter.register()``
+        during setup. The current HTTP-first architecture performs policy
+        checks directly in Rex and does not require explicit registration.
 
         Args:
-            agent: Optional OpenClaw agent handle.
+            agent: Accepted for API compatibility with older call-sites.
 
         Returns:
-            The hook registration handle from OpenClaw, or ``None``.
+            Always returns ``None``.
         """
-        if not OPENCLAW_AVAILABLE:
-            logger.warning("openclaw package not installed — PolicyAdapter not registered as hook")
-            return None
-
-        # TODO: replace with real OpenClaw hook registration once API is confirmed.
-        # Expected shape (to be verified):
-        #   handle = _openclaw.register_hook(
-        #       event="before_tool_call",
-        #       handler=self.guard,
-        #       agent=agent,
-        #   )
-        #   return handle
-        logger.warning(
-            "OpenClaw policy hook registration stub — update once API is confirmed (PRD §8.3)"
-        )
+        del agent
+        logger.debug("PolicyAdapter.register() is a no-op in HTTP mode.")
         return None

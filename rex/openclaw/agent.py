@@ -1,50 +1,41 @@
-"""RexAgent — Rex registered as an OpenClaw agent.
+"""RexAgent -- Rex registered as an OpenClaw agent.
 
 Provides a thin wrapper that presents Rex's LLM client as an OpenClaw
-agent.  When the ``openclaw`` package is not installed the class operates
-in *standalone* mode and answers prompts directly via Rex's LLM client;
-OpenClaw integration is a no-op that logs a warning.
+agent.  When the OpenClaw gateway is configured (``openclaw_gateway_url``
+in config), LLM calls are routed through ``/v1/chat/completions`` over
+HTTP.  Otherwise the class operates in *standalone* mode and answers
+prompts directly via Rex's local LLM client.
 
-Intended usage
---------------
-::
+The ``user`` field in OpenClaw chat completions is derived from
+:meth:`~rex.openclaw.identity_adapter.IdentityAdapter.get_openclaw_user_key`
+so that OpenClaw maintains a stable per-user session automatically.
+
+Intended usage::
 
     from rex.openclaw.agent import RexAgent
 
     agent = RexAgent()
-    agent.register()          # registers with OpenClaw if available
     reply = agent.respond("What time is it?")
 
-    # With conversation history persistence:
+    # With explicit user key for history persistence:
     reply = agent.respond("What time is it?", user_key="alice")
-
-The ``register()`` hook will be filled-in once OpenClaw's agent
-registration API is confirmed (see PRD Section 8.3 open dependency).
 """
 
 from __future__ import annotations
 
 import logging
-from importlib.util import find_spec
+from collections.abc import Generator
 from typing import Any
 
 from rex.config import AppConfig, load_config
 from rex.llm_client import LanguageModel
+from rex.openclaw.errors import OpenClawAPIError, OpenClawAuthError, OpenClawConnectionError
+from rex.openclaw.http_client import get_openclaw_client, stream_sentences
+from rex.openclaw.identity_adapter import IdentityAdapter
 from rex.openclaw.memory_adapter import MemoryAdapter
 from rex.openclaw.policy_adapter import PolicyAdapter
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Optional OpenClaw availability flag
-# ---------------------------------------------------------------------------
-
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
 
 
 class RexAgent:
@@ -72,6 +63,10 @@ class RexAgent:
             executing any tool.  When *None*, a default adapter is created
             (uses Rex's global :class:`~rex.policy_engine.PolicyEngine`).
             Inject a custom adapter in tests to control which policies apply.
+        identity_adapter: Optional :class:`IdentityAdapter` instance for
+            resolving the stable OpenClaw user key.  When *None*, a default
+            adapter is created.  Inject a custom adapter in tests to control
+            user resolution.
     """
 
     def __init__(
@@ -84,6 +79,7 @@ class RexAgent:
         profile_name: str | None = None,
         memory_adapter: MemoryAdapter | None = None,
         policy_adapter: PolicyAdapter | None = None,
+        identity_adapter: IdentityAdapter | None = None,
     ) -> None:
         self._llm = llm
         # Derive agent name and persona from Rex config when not supplied.
@@ -101,9 +97,11 @@ class RexAgent:
         _cfg = build_agent_config(_base_config)
         self.agent_name = agent_name or _cfg.get("agent_name", "Rex")
         self.system_prompt = system_prompt or build_system_prompt(_base_config)
+        self._config = _base_config
         self._registered = False
         self._memory = memory_adapter or MemoryAdapter()
         self._policy = policy_adapter or PolicyAdapter()
+        self._identity = identity_adapter or IdentityAdapter()
 
     # ------------------------------------------------------------------
     # LLM access
@@ -123,37 +121,24 @@ class RexAgent:
     def register(self) -> Any:
         """Register this agent with OpenClaw.
 
-        When the ``openclaw`` package is available this method calls
-        OpenClaw's agent registration API.  When it is not available it
-        logs a warning and returns ``None`` so that callers do not need
-        to branch on availability.
-
-        .. note::
-            The exact OpenClaw registration call is a stub (see PRD
-            Section 8.3 — *"Confirm OpenClaw's Python API for agent
-            registration"*).  Replace the ``# TODO`` line below once
-            the API is confirmed.
+        When the OpenClaw gateway is configured, this method will
+        register Rex as an agent via the gateway API.  When no gateway
+        is configured it logs a warning and returns ``None``.
 
         Returns:
-            The OpenClaw agent handle returned by the registration call,
-            or ``None`` when OpenClaw is not available.
+            The OpenClaw agent handle, or ``None`` when the gateway is
+            not configured.
         """
-        if not OPENCLAW_AVAILABLE:
+        if get_openclaw_client(load_config()) is None:
             logger.warning(
-                "openclaw package not installed — %s running in standalone mode",
+                "OpenClaw gateway not configured -- %s running in standalone mode",
                 self.agent_name,
             )
             return None
 
-        # TODO: replace with real OpenClaw agent registration once API is confirmed.
-        # Expected shape (to be verified):
-        #   handle = _openclaw.register_agent(
-        #       name=self.agent_name,
-        #       handler=self.respond,
-        #   )
-        #   self._registered = True
-        #   return handle
-        logger.warning("OpenClaw agent registration stub — update once API is confirmed (PRD §8.3)")
+        # FUTURE: OpenClaw agent registration via HTTP once the gateway
+        # exposes a registration endpoint (not yet available as of v0.x).
+        logger.warning("OpenClaw agent registration not yet available in gateway API")
         self._registered = False
         return None
 
@@ -249,7 +234,32 @@ class RexAgent:
                 messages.append({"role": role, "content": text})
 
         messages.append({"role": "user", "content": prompt})
-        reply = self.llm.generate(messages=messages)
+
+        # --- OpenClaw HTTP path ---
+        client = get_openclaw_client(self._config)
+        if client is not None and self._config.use_openclaw_voice_backend:
+            try:
+                # Derive a stable user key: explicit user_key > identity chain > "rex"
+                oc_user = (
+                    user_key if user_key is not None else self._identity.get_openclaw_user_key()
+                )
+                payload: dict[str, Any] = {
+                    "model": self._config.llm_model,
+                    "messages": messages,
+                    "user": oc_user,
+                }
+                response = client.post("/v1/chat/completions", json=payload)
+                reply: str = response["choices"][0]["message"]["content"]
+                logger.debug("OpenClaw responded via HTTP for user_key=%r", user_key)
+            except (OpenClawConnectionError, OpenClawAuthError, OpenClawAPIError, KeyError) as exc:
+                logger.warning(
+                    "OpenClaw chat completions failed (%s) — falling back to local LLM",
+                    exc,
+                )
+                reply = self.llm.generate(messages=messages)
+                logger.info("Fallback to local LLM succeeded for user_key=%r", user_key)
+        else:
+            reply = self.llm.generate(messages=messages)
 
         # Persist the exchange so future calls have context.
         if user_key is not None:
@@ -257,3 +267,76 @@ class RexAgent:
             self._memory.append_entry(user_key, {"role": "assistant", "text": reply})
 
         return reply
+
+    def respond_stream(
+        self,
+        prompt: str,
+        *,
+        user_key: str | None = None,
+    ) -> Generator[str, None, None]:
+        """Stream a response as sentence-sized chunks.
+
+        Yields partial sentences as they arrive from the OpenClaw
+        gateway.  Falls back to :meth:`respond` (non-streaming, single
+        yield) if streaming is unavailable or fails mid-response.
+
+        Args:
+            prompt: The user's input text.
+            user_key: Optional user identifier for history persistence.
+
+        Yields:
+            Sentence-sized strings suitable for incremental TTS.
+        """
+        if not prompt or not prompt.strip():
+            raise ValueError("prompt must not be empty")
+
+        messages: list[dict[str, str]] = [
+            {"role": "system", "content": self.system_prompt},
+        ]
+
+        if user_key is not None:
+            history = self._memory.load_recent(user_key)
+            for turn in history:
+                role = turn.get("role", "user")
+                text = turn.get("text", "")
+                messages.append({"role": role, "content": text})
+
+        messages.append({"role": "user", "content": prompt})
+
+        client = get_openclaw_client(self._config)
+        collected: list[str] = []
+
+        if client is not None and self._config.use_openclaw_voice_backend:
+            oc_user = user_key if user_key is not None else self._identity.get_openclaw_user_key()
+            payload: dict[str, Any] = {
+                "model": self._config.llm_model,
+                "messages": messages,
+                "user": oc_user,
+                "stream": True,
+            }
+            try:
+                raw_chunks = client.post_stream("/v1/chat/completions", json=payload)
+                for sentence in stream_sentences(raw_chunks):
+                    collected.append(sentence)
+                    yield sentence
+            except (OpenClawConnectionError, OpenClawAuthError, OpenClawAPIError) as exc:
+                logger.warning("OpenClaw stream failed (%s) -- falling back", exc)
+                if collected:
+                    # Partial content already yielded; fall back for remainder is not
+                    # feasible, so just log and stop.
+                    pass
+                else:
+                    # Nothing yielded yet -- fall back to non-streaming local LLM.
+                    reply = self.llm.generate(messages=messages)
+                    collected.append(reply)
+                    yield reply
+        else:
+            reply = self.llm.generate(messages=messages)
+            collected.append(reply)
+            yield reply
+
+        # Persist the full response.
+        full_reply = " ".join(collected)
+        if user_key is not None:
+            self._memory.append_entry(user_key, {"role": "user", "text": prompt})
+            self._memory.append_entry(user_key, {"role": "assistant", "text": full_reply})

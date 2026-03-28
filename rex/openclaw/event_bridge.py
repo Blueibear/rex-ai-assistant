@@ -1,16 +1,13 @@
 """OpenClaw event bridge — US-P4-015.
 
-Implements :class:`~rex.contracts.event_bus.EventBusProtocol` by delegating
-to Rex's existing :class:`~rex.event_bus.EventBus` singleton.
+EventBridge is Rex's internal event bus.  It implements
+:class:`~rex.contracts.event_bus.EventBusProtocol` by delegating to Rex's
+existing :class:`~rex.event_bus.EventBus` singleton.
 
-This bridge is the first step in routing event bus operations through
-OpenClaw.  It presents the ``EventBusProtocol`` interface so that callers
-do not need to import ``rex.event_bus`` directly and can be swapped once
-the full OpenClaw event-dispatch API is confirmed.
+OpenClaw event bridging (WebSocket) is out of scope for HTTP integration.
+All subscribe/publish operations run locally within the Rex process.
 
-When the ``openclaw`` package is not installed, :meth:`register` logs a
-warning and returns ``None``.  All other methods work without OpenClaw
-installed because they delegate to the existing Rex event bus.
+# FUTURE: WebSocket bridge to OpenClaw gateway events
 
 Typical usage::
 
@@ -31,7 +28,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from importlib.util import find_spec
 from typing import Any, Callable
 
 from rex.openclaw.event_bus import EventBus as _EventBus
@@ -39,29 +35,21 @@ from rex.openclaw.event_bus import get_event_bus as _get_event_bus
 
 logger = logging.getLogger(__name__)
 
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-
-if OPENCLAW_AVAILABLE:  # pragma: no cover
-    import openclaw as _openclaw
-else:
-    _openclaw = None
-
 
 class EventBridge:
-    """Adapter that presents Rex's EventBus as an OpenClaw event provider.
+    """Rex's internal event bus, exposed as an OpenClaw-compatible adapter.
 
     Implements :class:`~rex.contracts.event_bus.EventBusProtocol` by
     delegating all operations to an underlying :class:`~rex.event_bus.EventBus`
     instance.
 
+    EventBridge is Rex's internal event bus.  OpenClaw event bridging
+    (WebSocket) is out of scope for HTTP integration.
+
     When no ``bus`` is supplied the global Rex singleton (via
     :func:`~rex.event_bus.get_event_bus`) is used, ensuring that all
     existing Rex subscribers continue to receive events published through
     the bridge.
-
-    When ``openclaw`` is installed, :meth:`register` registers the bridge
-    as the event provider so that OpenClaw dispatches events through Rex
-    (stub — filled in once the OpenClaw event-provider API is confirmed).
 
     Args:
         bus: Optional explicit :class:`~rex.event_bus.EventBus` instance.
@@ -161,43 +149,3 @@ class EventBridge:
                 When ``None``, clear all subscriptions.
         """
         self._bus.clear_subscriptions(event_type)
-
-    # ------------------------------------------------------------------
-    # OpenClaw registration
-    # ------------------------------------------------------------------
-
-    def register(self, agent: Any = None) -> Any:
-        """Register this bridge as the OpenClaw event provider.
-
-        When ``openclaw`` is installed, this method registers the bridge so
-        that OpenClaw routes events through Rex's event bus.  When OpenClaw
-        is absent, logs a warning and returns ``None``.
-
-        .. note::
-            The exact OpenClaw event-provider registration call is a stub
-            (see PRD §8.4 — *"Confirm OpenClaw's event registration mechanism"*).
-            Replace the ``# TODO`` below once the API is confirmed.
-
-        Args:
-            agent: Optional OpenClaw agent handle.
-
-        Returns:
-            The registration handle from OpenClaw, or ``None``.
-        """
-        if not OPENCLAW_AVAILABLE:
-            logger.warning(
-                "openclaw package not installed — EventBridge not registered as event provider"
-            )
-            return None
-
-        # TODO: replace with real OpenClaw event provider registration once API is confirmed.
-        # Expected shape (to be verified):
-        #   handle = _openclaw.register_event_provider(
-        #       provider=self,
-        #       agent=agent,
-        #   )
-        #   return handle
-        logger.warning(
-            "OpenClaw event provider registration stub — update once API is confirmed (PRD §8.4)"
-        )
-        return None

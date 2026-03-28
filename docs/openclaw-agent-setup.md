@@ -1,214 +1,285 @@
 # OpenClaw Agent Setup
 
-This document describes how to bootstrap Rex as an OpenClaw agent, how Rex
-config maps to OpenClaw agent configuration, and how Rex tools are registered
-with OpenClaw's tool system.
+This document describes how Rex integrates with the OpenClaw gateway over
+HTTP, how to configure the integration, and how Rex's tools are exposed to
+OpenClaw channels.
 
-> **Status:** Phase 2 foundation — agent, config, session, and tool adapters
-> are in place.  OpenClaw registration stubs will be filled in once the
-> OpenClaw API surface is confirmed (see PRD §8.3 open dependencies).
+> **Status:** Phase 8 -- HTTP integration complete.  Rex routes LLM calls
+> through OpenClaw's `/v1/chat/completions` endpoint and exposes its tools
+> via an HTTP tool server.
 
 ---
 
-## 1. Package Layout
+## 1. Architecture
+
+Rex communicates with OpenClaw exclusively over HTTP.  OpenClaw is a
+TypeScript/Node.js gateway; there is no Python package to import.
+
+```
+Rex voice loop / CLI
+        |
+        | (1) POST /v1/chat/completions
+        v
+  OpenClaw Gateway  (:18789)
+        |
+        +---> Ollama / OpenAI / Anthropic / ...
+        |
+        | (2) POST /rex/tools/{tool_name}
+        v
+  Rex Tool Server  (:18790)
+```
+
+Path (1): Rex sends user prompts to OpenClaw, which routes them to
+whichever model provider is configured.
+
+Path (2): OpenClaw (or any authorized caller) invokes Rex's tools
+(time, weather, email, SMS, calendar, Home Assistant, Plex, WooCommerce)
+over HTTP.
+
+---
+
+## 2. Package Layout
 
 All OpenClaw integration code lives in `rex/openclaw/`:
 
 ```
 rex/openclaw/
-├── __init__.py          # Subpackage docstring; no auto-imports
-├── agent.py             # RexAgent class
-├── config.py            # build_agent_config(), build_system_prompt()
-├── session.py           # build_session_context()
-└── tools/
-    ├── __init__.py      # Tools subpackage
-    ├── time_tool.py     # time_now tool adapter
-    └── weather_tool.py  # weather_now tool adapter
++-- __init__.py          # Subpackage docstring
++-- http_client.py       # OpenClawClient -- shared HTTP client
++-- errors.py            # OpenClawConnectionError, AuthError, APIError
++-- agent.py             # RexAgent class
++-- config.py            # build_agent_config(), build_system_prompt()
++-- session.py           # build_session_context()
++-- voice_bridge.py      # VoiceBridge for voice loop integration
++-- tool_bridge.py       # ToolBridge for dual-mode tool dispatch
++-- tool_server.py       # Flask HTTP server exposing Rex tools
++-- event_bridge.py      # Local event bus (no HTTP)
++-- browser_bridge.py    # Local Playwright automation (no HTTP)
++-- identity_adapter.py  # User resolution + OpenClaw user key
++-- memory_adapter.py    # Local memory with implicit session sync
++-- approval_adapter.py  # Local file-based approvals
++-- policy_adapter.py    # Local policy engine
++-- workflow_bridge.py   # Local workflow execution
++-- tools/               # Tool handler functions
+    +-- time_tool.py
+    +-- weather_tool.py
+    +-- email_tool.py
+    +-- sms_tool.py
+    +-- calendar_tool.py
+    +-- ha_tool.py
+    +-- plex_tool.py
+    +-- woocommerce_tool.py
+    +-- wordpress_tool.py
+    +-- business_tool.py
 ```
 
 ---
 
-## 2. Bootstrap Steps
+## 3. Configuration
 
-### 2.1 Create the Agent
+### 3.1 `config/rex_config.json`
 
-```python
-from rex.openclaw.agent import RexAgent
-
-agent = RexAgent()          # loads global AppConfig automatically
-agent.register()            # registers with OpenClaw (no-op if not installed)
+```json
+{
+  "llm": {
+    "provider": "openai",
+    "model": "openclaw:main"
+  },
+  "openai": {
+    "base_url": "http://127.0.0.1:18789/v1"
+  },
+  "openclaw": {
+    "gateway_url": "http://127.0.0.1:18789",
+    "gateway_timeout": 30,
+    "gateway_max_retries": 3,
+    "use_tools": false,
+    "use_voice_backend": false
+  }
+}
 ```
 
-To pass an explicit config or override the persona:
+### 3.2 `.env`
 
-```python
-from rex.config import AppConfig
-from rex.openclaw.agent import RexAgent
-
-cfg = AppConfig(
-    wakeword="rex",
-    default_location="Edinburgh, Scotland",
-    default_timezone="Europe/London",
-)
-agent = RexAgent(config=cfg)
+```
+OPENCLAW_GATEWAY_TOKEN=<your-operator-token>
 ```
 
-### 2.2 Send a Prompt
+The token is sent as `Authorization: Bearer <token>` on every HTTP request
+to the OpenClaw gateway.
 
-```python
-reply = agent.respond("What time is it?")
-print(reply)
+### 3.3 Feature flags
+
+| Flag | Config path | Effect |
+|------|-------------|--------|
+| `use_openclaw_voice_backend` | `openclaw.use_voice_backend` | When True, voice loops swap `Assistant` for `VoiceBridge`, routing LLM calls through the OpenClaw gateway |
+| `use_openclaw_tools` | `openclaw.use_tools` | When True, `ToolBridge.execute_tool()` dispatches tool calls to OpenClaw's `/tools/invoke` endpoint instead of running them locally |
+
+Both flags default to `false`.  When false, Rex operates in standalone
+mode with zero HTTP calls to OpenClaw.
+
+---
+
+## 4. Quick Start
+
+1. Install and start the OpenClaw gateway (see OpenClaw docs).
+2. Copy `.env.example` to `.env` and set `OPENCLAW_GATEWAY_TOKEN`.
+3. Update `config/rex_config.json` with the values in section 3.1.
+4. Start Rex: `python -m rex` (text mode) or `python rex_loop.py` (voice mode).
+5. Verify: watch OpenClaw logs for incoming `/v1/chat/completions` requests.
+
+---
+
+## 5. LLM Routing via OpenClaw
+
+Rex uses its existing `OpenAIStrategy` in `rex/llm_client.py` to talk to
+OpenClaw.  Because OpenClaw's `/v1/chat/completions` endpoint is
+OpenAI-compatible, no special client code is needed for basic LLM routing.
+
+When `use_openclaw_voice_backend` is True and an OpenClaw gateway URL is
+configured, `RexAgent.respond()` sends prompts directly to the gateway
+via `OpenClawClient.post("/v1/chat/completions", ...)`.  On HTTP error,
+it falls back to the local LLM automatically.
+
+### Session persistence via the `user` field
+
+Every chat completions request includes a `user` field derived from
+`IdentityAdapter.get_openclaw_user_key()`:
+
+- Explicit `user_key` parameter takes priority
+- Otherwise: session user > config `active_user` > config `user_id` > `"rex"`
+
+OpenClaw uses this string to maintain per-user session state, so
+conversation context persists across Rex restarts.
+
+---
+
+## 6. Persona / System Prompt
+
+`build_system_prompt(config)` in `rex/openclaw/config.py` derives the
+persona string from `AppConfig` fields:
+
+| AppConfig field    | Effect                                |
+|--------------------|---------------------------------------|
+| `wakeword`         | Agent name (capitalized)              |
+| `active_profile`   | Mentioned if not `"default"`          |
+| `default_location` | `"The user's location is {loc}."`     |
+| `default_timezone` | `"The local timezone is {tz}."`       |
+| `capabilities`     | `"Your capabilities include: {caps}"` |
+
+The persona is injected as a `system` role message in every LLM call.
+
+---
+
+## 7. Rex Tool Server (HTTP endpoint for OpenClaw)
+
+Rex exposes its tools as HTTP endpoints so that the OpenClaw gateway (and
+any other authorized caller) can invoke Rex's tools directly.
+
+### 7.1 Starting the tool server
+
+```bash
+export REX_TOOL_API_KEY=<strong-random-secret>
+export REX_TOOL_SERVER_PORT=18790   # default
+
+rex-tool-server
 ```
 
-`respond()` raises `ValueError` for empty or whitespace-only prompts.
+Health checks (no auth required):
 
-### 2.3 Register Tools
+```bash
+curl http://127.0.0.1:18790/health/live
+# {"status": "ok"}
 
-```python
-from rex.openclaw.tools.time_tool import register as register_time
-from rex.openclaw.tools.weather_tool import register as register_weather
+curl http://127.0.0.1:18790/health/ready
+# {"status": "ok", "tool_count": 14}
+```
 
-register_time(agent=agent)      # no-op + warning if openclaw not installed
-register_weather(agent=agent)
+### 7.2 Calling a tool
+
+```bash
+curl -X POST http://127.0.0.1:18790/rex/tools/time_now \
+  -H "Authorization: Bearer $REX_TOOL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"args": {"location": "Edinburgh"}, "context": {"session_key": "main"}}'
+```
+
+### 7.3 Available tool endpoints
+
+| Endpoint path                            | Tool function         | Required env var         |
+|------------------------------------------|-----------------------|--------------------------|
+| `/rex/tools/time_now`                    | `time_now`            | none                     |
+| `/rex/tools/weather_now`                 | `weather_now`         | `OPENWEATHERMAP_API_KEY` |
+| `/rex/tools/send_email`                  | `send_email`          | email backend configured |
+| `/rex/tools/send_sms`                    | `send_sms`            | `TWILIO_*` vars          |
+| `/rex/tools/calendar_create`             | `calendar_create`     | calendar backend config  |
+| `/rex/tools/home_assistant_call_service` | `ha_call_service`     | `HOME_ASSISTANT_URL`     |
+| `/rex/tools/plex_search`                | `plex_search`         | `PLEX_*` vars            |
+| `/rex/tools/plex_play`                  | `plex_play`           | `PLEX_*` vars            |
+| `/rex/tools/plex_pause`                 | `plex_pause`          | `PLEX_*` vars            |
+| `/rex/tools/plex_stop`                  | `plex_stop`           | `PLEX_*` vars            |
+| `/rex/tools/wordpress_health_check`     | `wp_health_check`     | `WORDPRESS_*` vars       |
+| `/rex/tools/wc_list_orders`             | `wc_list_orders`      | `WOOCOMMERCE_*` vars     |
+| `/rex/tools/wc_list_products`           | `wc_list_products`    | `WOOCOMMERCE_*` vars     |
+| `/rex/tools/wc_set_order_status`        | `wc_set_order_status` | `WOOCOMMERCE_*` vars     |
+| `/rex/tools/wc_create_coupon`           | `wc_create_coupon`    | `WOOCOMMERCE_*` vars     |
+| `/rex/tools/wc_disable_coupon`          | `wc_disable_coupon`   | `WOOCOMMERCE_*` vars     |
+
+Tools whose optional dependencies are not installed are omitted from the
+registry at startup (logged at WARNING level).
+
+### 7.4 Auth and rate limiting
+
+- Auth: `Authorization: Bearer <REX_TOOL_API_KEY>` or `X-API-Key: <REX_TOOL_API_KEY>`
+- Default rate limit: 60 requests / 60 seconds (configurable via `REX_TOOL_RATE_LIMIT` / `REX_TOOL_RATE_WINDOW`)
+- Policy checks run before every tool call; denied requests return 403
+
+### 7.5 Configuring OpenClaw to call Rex tools
+
+Add Rex's tool server to OpenClaw's skill/tool configuration so any
+OpenClaw channel (WhatsApp, Telegram, Discord, etc.) can invoke Rex's tools.
+
+Example OpenClaw skill config (JSON):
+
+```json
+{
+  "skills": [
+    {
+      "name": "rex_time_now",
+      "description": "Get the current local time for a location",
+      "endpoint": "http://127.0.0.1:18790/rex/tools/time_now",
+      "method": "POST",
+      "auth": { "type": "bearer", "token_env": "REX_TOOL_API_KEY" },
+      "schema": {
+        "args": {
+          "location": { "type": "string", "description": "City or timezone" }
+        }
+      }
+    }
+  ]
+}
 ```
 
 ---
 
-## 3. Config Mapping
+## 8. Troubleshooting
 
-`build_agent_config(config)` in `rex/openclaw/config.py` maps `AppConfig`
-fields to a flat dict for OpenClaw:
-
-| AppConfig field         | OpenClaw key          | Notes                                      |
-|-------------------------|-----------------------|--------------------------------------------|
-| `wakeword.capitalize()` | `agent_name`          | "rex" → "Rex"                              |
-| `user_id`               | `user_id`             |                                            |
-| `active_profile`        | `active_profile`      |                                            |
-| `llm_provider`          | `llm_provider`        |                                            |
-| `llm_model`             | `llm_model`           |                                            |
-| `llm_temperature`       | `llm_temperature`     |                                            |
-| `llm_top_p`             | `llm_top_p`           |                                            |
-| `llm_top_k`             | `llm_top_k`           |                                            |
-| `llm_max_tokens`        | `llm_max_tokens`      |                                            |
-| `default_location`      | `default_location`    |                                            |
-| `default_timezone`      | `default_timezone`    |                                            |
-| `memory_max_turns`      | `memory_max_turns`    |                                            |
-| `memory_max_bytes`      | `memory_max_bytes`    |                                            |
-| `capabilities`          | `rex_capabilities`    | prefixed `rex_*` until OpenClaw schema confirmed |
-| `tts_provider`          | `rex_tts_provider`    | Rex-specific                               |
-| `speak_language`        | `rex_speak_language`  | Rex-specific                               |
-
-Keys prefixed `rex_*` are Rex-specific extras that will be remapped once the
-OpenClaw config schema is confirmed.
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `Connection refused` on startup | OpenClaw not running | Start OpenClaw gateway first |
+| `401 Unauthorized` | Wrong or missing token | Check `OPENCLAW_GATEWAY_TOKEN` in `.env` |
+| Slow responses | High gateway timeout | Lower `openclaw.gateway_timeout` |
+| Rex falls back to echo mode | `openai` package not installed | `pip install openai` |
+| Tool calls return 404 | Tool server not started | Run `rex-tool-server` |
+| Tool calls return 403 | Policy denied | Check Rex policy config |
 
 ---
 
-## 4. Persona / System Prompt
+## 9. Local-Only Components
 
-`build_system_prompt(config)` in `rex/openclaw/config.py` derives the persona
-string from `AppConfig` fields:
+These adapters operate locally and make no HTTP calls to OpenClaw:
 
-```python
-from rex.openclaw.config import build_system_prompt
-
-prompt = build_system_prompt()   # uses global config
-# "You are Rex, a helpful and friendly AI assistant. The user's location is Edinburgh, Scotland."
-```
-
-Fields included in the prompt when set:
-
-| AppConfig field    | Effect                                          |
-|--------------------|-------------------------------------------------|
-| `wakeword`         | Agent name — `wakeword.capitalize()`            |
-| `active_profile`   | Mentioned if not `"default"`                    |
-| `default_location` | `"The user's location is {location}."`          |
-| `default_timezone` | `"The local timezone is {timezone}."`           |
-| `capabilities`     | `"Your capabilities include: {caps}."`          |
-
-The persona is injected as a `system` role message in every LLM call made
-through `RexAgent.respond()`.
-
----
-
-## 5. Session Bridge
-
-`build_session_context()` in `rex/openclaw/session.py` maps Rex user identity
-to a flat session dict for OpenClaw:
-
-```python
-from rex.openclaw.session import build_session_context
-
-ctx = build_session_context(explicit_user="alice", metadata={"channel": "voice"})
-# {
-#   "user_id": "alice",
-#   "session_started_at": "2026-03-22T14:30:00+00:00",
-#   "rex_known_users": [...],
-#   "rex_user_profile": {...},
-#   "channel": "voice",
-# }
-```
-
----
-
-## 6. Tool Registration
-
-Each tool module in `rex/openclaw/tools/` exposes:
-
-- A standalone callable (e.g. `time_now(location, context)`)
-- A `register(agent=None)` function for OpenClaw registration
-- `TOOL_NAME` — the canonical tool name matching `rex/tool_router.py`
-- `TOOL_DESCRIPTION` — human-readable description
-
-Both tool callables delegate to `rex.tool_router.execute_tool` with policy,
-credential, and audit checks disabled (read-only, no side effects).
-
-### Available Tools
-
-| Module                              | TOOL_NAME      | Required env var            |
-|-------------------------------------|----------------|-----------------------------|
-| `rex.openclaw.tools.time_tool`      | `time_now`     | none                        |
-| `rex.openclaw.tools.weather_tool`   | `weather_now`  | `OPENWEATHERMAP_API_KEY`    |
-
-### Direct Tool Usage (without OpenClaw)
-
-```python
-from rex.openclaw.tools.time_tool import time_now
-from rex.openclaw.tools.weather_tool import weather_now
-
-print(time_now("London"))
-# {'local_time': '2026-03-22 14:30', 'date': '2026-03-22', 'timezone': 'Europe/London'}
-
-print(weather_now("Edinburgh"))
-# {'temperature': 8.5, 'description': 'light rain', ...}
-# or {'error': {...}} if OPENWEATHERMAP_API_KEY not set
-```
-
----
-
-## 7. OpenClaw Availability Flag
-
-Every module in `rex/openclaw/` sets:
-
-```python
-from importlib.util import find_spec
-
-OPENCLAW_AVAILABLE: bool = find_spec("openclaw") is not None
-```
-
-When `OPENCLAW_AVAILABLE` is `False`, all `register()` calls log a warning
-and return `None`.  All callables (`respond`, `time_now`, `weather_now`,
-`build_session_context`) work normally without OpenClaw installed.
-
----
-
-## 8. Open Dependencies (PRD §8.3)
-
-The following OpenClaw API surfaces are not yet confirmed.  Stub code is in
-place; fill in the `# TODO` sections once confirmed:
-
-- `agent.py`: `RexAgent.register()` — OpenClaw agent registration call
-- `tools/time_tool.py`: `register()` — OpenClaw tool registration call
-- `tools/weather_tool.py`: `register()` — OpenClaw tool registration call
-
-See `PRD-openclaw-pivot-for-rex.md` Section 8.3 for the full open-dependency
-checklist.
+- **EventBridge**: Rex's internal event bus.  OpenClaw event bridging (WebSocket) is a future concern.
+- **BrowserBridge**: Runs Playwright locally.  OpenClaw has its own browser automation.
+- **ApprovalAdapter**: File-based approvals.  OpenClaw has its own WebSocket-based approval flow.
+- **MemoryAdapter**: Rex's file-based conversation memory.  Session state in OpenClaw is maintained implicitly via the `user` field in chat completions.
+- **IdentityAdapter**: Resolves users locally.  Provides `get_openclaw_user_key()` for the `user` field.

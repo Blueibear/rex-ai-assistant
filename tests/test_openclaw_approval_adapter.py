@@ -6,7 +6,7 @@ End-to-end flow:
 
 from __future__ import annotations
 
-from rex.openclaw.approval_adapter import OPENCLAW_AVAILABLE, ApprovalAdapter
+from rex.openclaw.approval_adapter import ApprovalAdapter
 from rex.workflow import WorkflowApproval
 
 # ---------------------------------------------------------------------------
@@ -35,9 +35,6 @@ class TestApprovalAdapterInstantiation:
     def test_approval_dir_property(self, tmp_path):
         adapter = _adapter(tmp_path)
         assert adapter.approval_dir == tmp_path
-
-    def test_openclaw_available_flag_is_bool(self):
-        assert isinstance(OPENCLAW_AVAILABLE, bool)
 
 
 # ---------------------------------------------------------------------------
@@ -226,18 +223,6 @@ class TestApprovalAdapterDeny:
 # ---------------------------------------------------------------------------
 # TestApprovalAdapterRegister
 # ---------------------------------------------------------------------------
-
-
-class TestApprovalAdapterRegister:
-    def test_register_returns_none_without_openclaw(self, tmp_path):
-        adapter = _adapter(tmp_path)
-        result = adapter.register()
-        assert result is None
-
-    def test_register_with_agent_arg_returns_none(self, tmp_path):
-        adapter = _adapter(tmp_path)
-        result = adapter.register(agent="mock_agent")
-        assert result is None
 
 
 # ---------------------------------------------------------------------------

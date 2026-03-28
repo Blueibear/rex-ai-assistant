@@ -23,14 +23,12 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import rex.plex_client as _plex_module
-from rex.openclaw.tool_bridge import ToolBridge
 from rex.openclaw.tools.plex_tool import (
     TOOL_NAMES,
     plex_pause,
     plex_play,
     plex_search,
     plex_stop,
-    register,
 )
 from rex.plex_client import PlexMediaItem
 
@@ -85,29 +83,6 @@ class TestToolStructure:
     def test_tool_names_tuple(self):
         assert isinstance(TOOL_NAMES, tuple)
         assert set(TOOL_NAMES) == {"plex_search", "plex_play", "plex_pause", "plex_stop"}
-
-    def test_register_returns_dict(self):
-        result = register()
-        assert isinstance(result, dict)
-
-    def test_register_keys_match_tool_names(self):
-        result = register()
-        assert set(result.keys()) == set(TOOL_NAMES)
-
-    def test_register_values_none_without_openclaw(self):
-        result = register()
-        # openclaw is not installed in test env
-        assert all(v is None for v in result.values())
-
-    def test_tool_bridge_has_register_plex_tools(self):
-        bridge = ToolBridge()
-        assert callable(bridge.register_plex_tools)
-
-    def test_tool_bridge_register_plex_tools_returns_dict(self):
-        bridge = ToolBridge()
-        result = bridge.register_plex_tools()
-        assert isinstance(result, dict)
-        assert set(result.keys()) == set(TOOL_NAMES)
 
 
 # ---------------------------------------------------------------------------
@@ -354,31 +329,3 @@ class TestPlexStop:
 
         assert result["ok"] is False
         assert "disconnect" in result["error"]
-
-
-# ---------------------------------------------------------------------------
-# US-P5-017: ToolBridge wiring
-# ---------------------------------------------------------------------------
-
-
-class TestToolBridgeWiring:
-    def test_register_plex_tools_delegates_to_plex_register(self):
-        bridge = ToolBridge()
-        fake_handles = {name: MagicMock() for name in TOOL_NAMES}
-
-        with patch(
-            "rex.openclaw.tool_bridge._register_plex_tools", return_value=fake_handles
-        ) as mock_reg:
-            result = bridge.register_plex_tools(agent=None)
-
-        mock_reg.assert_called_once_with(agent=None)
-        assert result is fake_handles
-
-    def test_register_plex_tools_passes_agent(self):
-        bridge = ToolBridge()
-        agent = MagicMock()
-
-        with patch("rex.openclaw.tool_bridge._register_plex_tools", return_value={}) as mock_reg:
-            bridge.register_plex_tools(agent=agent)
-
-        mock_reg.assert_called_once_with(agent=agent)
