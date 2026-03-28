@@ -173,5 +173,3 @@ def plex_stop(
     except Exception as exc:
         logger.warning("plex_stop failed: %s", exc)
         return {"ok": False, "error": str(exc)}
-
-

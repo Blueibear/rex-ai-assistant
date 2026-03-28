@@ -37,7 +37,7 @@ from rex.openclaw.voice_bridge import VoiceBridge
 # ---------------------------------------------------------------------------
 
 _GATEWAY = "http://127.0.0.1:18789"
-_API_KEY = "e2e-test-key-xyz"
+_API_KEY = "e2e-test-key-xyz"  # pragma: allowlist secret
 
 
 def _config(

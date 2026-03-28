@@ -95,7 +95,7 @@ class TestHTTPDelegation:
 
         config = AppConfig(
             llm_provider="openai",
-            openai_api_key="test-key",
+            openai_api_key="test-key",  # pragma: allowlist secret
             openai_model="openclaw:main",
             use_openclaw_voice_backend=True,
             openclaw_gateway_url="http://127.0.0.1:18789",
@@ -124,7 +124,7 @@ class TestHTTPDelegation:
 
         config = AppConfig(
             llm_provider="openai",
-            openai_api_key="test-key",
+            openai_api_key="test-key",  # pragma: allowlist secret
             openai_model="gpt-4o-mini",
             use_openclaw_voice_backend=False,
             openclaw_gateway_url="",

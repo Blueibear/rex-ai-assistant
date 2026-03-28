@@ -94,5 +94,3 @@ def wp_health_check(
             "auth_ok": None,
             "error": str(exc),
         }
-
-

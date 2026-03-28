@@ -62,5 +62,3 @@ def time_now(
         skip_credential_check=True,
         skip_audit_log=True,
     )
-
-

@@ -15,8 +15,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from rex.openclaw.voice_bridge import VoiceBridge
 
 # ---------------------------------------------------------------------------
@@ -102,17 +100,15 @@ class TestVoiceModeSigCompatibility:
 
 
 class TestVoiceBridgeValidation:
-    def test_empty_transcript_raises_value_error(self):
-        """generate_reply raises ValueError for an empty transcript."""
+    def test_empty_transcript_returns_empty_string(self):
+        """generate_reply returns empty string for an empty transcript."""
         bridge, _ = _make_bridge()
-        with pytest.raises(ValueError):
-            bridge.generate_reply("")
+        assert bridge.generate_reply("") == ""
 
-    def test_whitespace_only_transcript_raises_value_error(self):
-        """generate_reply raises ValueError for a whitespace-only transcript."""
+    def test_whitespace_only_transcript_returns_empty_string(self):
+        """generate_reply returns empty string for whitespace-only transcript."""
         bridge, _ = _make_bridge()
-        with pytest.raises(ValueError):
-            bridge.generate_reply("   ")
+        assert bridge.generate_reply("   ") == ""
 
 
 # ---------------------------------------------------------------------------

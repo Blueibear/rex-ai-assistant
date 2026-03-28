@@ -22,6 +22,7 @@ Methodology:
 from __future__ import annotations
 
 import gc
+import logging
 import tracemalloc
 from pathlib import Path
 from typing import Any
@@ -49,8 +50,12 @@ _MAX_GROWTH_PER_REQUEST_BYTES = 5 * 1024  # 5 KB/req average
 
 
 @pytest.fixture()
-def mem_app() -> Flask:
+def mem_app() -> Any:
     """Minimal Flask app for memory profiling."""
+    req_logger = logging.getLogger("rex.request_logging")
+    original_level = req_logger.level
+    req_logger.setLevel(logging.WARNING)
+
     flask_app = Flask(__name__)
     flask_app.config["TESTING"] = True
     install_request_logging(flask_app)
@@ -65,7 +70,10 @@ def mem_app() -> Flask:
     def stub_settings() -> Any:
         return jsonify({"llm_provider": "local"}), 200
 
-    return flask_app
+    try:
+        yield flask_app
+    finally:
+        req_logger.setLevel(original_level)
 
 
 @pytest.fixture()

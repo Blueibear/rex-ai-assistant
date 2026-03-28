@@ -90,7 +90,6 @@ class TestWorkflowBridgeInstantiation:
         assert bridge.runner.workflow is wf
 
 
-
 class TestDelegation:
     def setup_method(self):
         self.wf = _make_workflow([_make_step("do something")])

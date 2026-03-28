@@ -25,7 +25,7 @@ from rex.openclaw.tool_server import ToolServer
 # Helpers
 # ---------------------------------------------------------------------------
 
-_API_KEY = "test-tool-api-key"
+_API_KEY = "test-tool-api-key"  # pragma: allowlist secret
 
 
 def _make_app(tools: dict | None = None, policy: PolicyAdapter | None = None) -> Flask:
