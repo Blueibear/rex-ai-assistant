@@ -47,8 +47,18 @@ RUN apt-get update && \
 COPY --from=deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
 
-# Copy application code
-COPY . .
+# Copy only production-required files (allowlist replaces broad COPY . .)
+# Runtime mounts expected:
+#   /app/config/rex_config.json  — runtime configuration (bind-mount or secret)
+#   /app/Memory/                 — per-user memory profiles (volume)
+#   /app/models/                 — downloaded ML models (volume)
+#   /app/transcripts/            — voice transcripts (volume)
+#   /app/logs/                   — application logs (volume)
+COPY rex/ ./rex/
+COPY rex_speak_api.py rex_loop.py voice_loop.py run_gui.py ./
+COPY pyproject.toml setup.py* ./
+COPY config/rex_config.example.json ./config/
+COPY assets/ ./assets/
 
 # Create non-root user for security
 RUN useradd -m -u 1000 -s /bin/bash rex && \
