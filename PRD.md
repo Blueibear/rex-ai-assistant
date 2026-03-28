@@ -1,2463 +1,854 @@
-# PRD: Rex AI Assistant Completion
+# PRD: Rex AI Assistant — Next Cycle
 
-IMPORTANT
-
-Stories must remain atomic.
-
-If a story becomes too large, it must be split into smaller stories before implementation.
-
-A story is complete only when all acceptance criteria checkboxes are checked.
-
- IMPORTANT
-
- Stories must remain atomic.
-
- If a story becomes too large, it must be split into smaller stories before implementation.
-
- A story is complete only when all acceptance criteria checkboxes are checked.
-
-+## Codex task selection rule
-+
-+- A "task" means one full User Story section (US-###), not an individual acceptance criteria checkbox line.
-+- Choose the first US-### that contains any unchecked acceptance criteria ([ ]).
-+- Complete the full story in one iteration. If it cannot be completed in one iteration, split the story first.
-+- Only mark acceptance criteria as [x] when the full US is complete and tests pass.
+> **Codex/Ralph task selection rule**
+> A "task" means one full User Story (US-###), not an individual checkbox line.
+> Choose the first US-### that contains any unchecked acceptance criteria `[ ]`.
+> Complete the full story in one iteration. If it cannot be completed in one iteration, split it first.
+> Only mark acceptance criteria `[x]` when the full story is done and tests pass.
 
 ---
 
 ## Introduction
 
-Rex is a locally-hosted AI assistant with voice interaction, multi-provider LLM support, OS automation, smart home integration, and a web-based dashboard. This PRD covers the work required to bring the Rex codebase from its current state to a fully functional, installable, and tested system — across repository stability, code quality, runtime validation, integrations, and UI.
+All 174 stories in the base PRD.md are complete. This PRD covers the next cycle of work:
+resolving outstanding CODEX audit findings, fixing code-level bugs identified in a fresh
+review, aligning dependency artifacts, implementing real integration backends (email, calendar,
+SMS), expanding features (conversation history, streaming LLM, configurable STT), and cleaning
+up technical debt across the repository.
+
+Stories are ordered by dependency. Earlier stories must not depend on later ones.
 
 ---
 
 ## Goals
 
-- Establish a stable, importable, installable codebase with clean tests and no runtime errors
-- Provide reliable CLI access to all Rex capabilities
-- Enable voice interaction via wake word detection, speech-to-text, and text-to-speech
-- Support multiple LLM providers (OpenAI, Anthropic, local) with configurable routing
-- Deliver a web-based dashboard with chat and voice interfaces
-- Integrate with Home Assistant, Plex, GitHub, email, and calendar
-- Support extensibility through a plugin architecture and workflow engine
-- Enable OS-level automation including application launching and browser control
-- Maintain queryable long-term memory and a local knowledge base
-- Ship with CI, documentation, and enforced code quality standards
+- Eliminate all P0/P1 CODEX audit issues (SEC-001, COR-001, QLT-001, DEP-001, DOC-001, DOC-002)
+- Restore and enforce all quality gates (Ruff, Black, mypy) to zero violations
+- Fix every confirmed code-level bug from the post-completion review
+- Replace stub email, calendar, and SMS backends with real implementations
+- Add conversation history persistence so sessions survive restarts
+- Add LLM streaming and configurable Whisper language
+- Keep the full test suite green and all integrations gracefully degradable
 
 ---
 
 ## Non-Goals
 
-- No mobile app interface
-- No multi-user account management or authentication beyond the dashboard login
-- No cloud hosting, deployment pipelines, or container orchestration
-- No third-party plugin marketplace or plugin distribution
-- No real-time collaboration or shared sessions between users
-- No billing, usage metering, or API rate limiting
+- No mobile or native desktop UI
+- No multi-tenant hosting or cloud deployment pipeline
+- No billing, usage metering, or third-party plugin marketplace
+- No OAuth calendar backends (Google/Microsoft) in this cycle — ICS feed only
+- No GPU-specific CI runners
 
 ---
 
-# PHASE 1 — Repository Stability
+# PHASE A — Security and Docker Hardening (SEC-001)
 
-### US-001: Restore test isolation
+### US-175: Harden .dockerignore to exclude secrets and local state
 
-**Description:** As a developer, I want tests to use temporary directories so that running the test suite does not modify tracked repository files.
+**Description:** As an operator, I want the Docker build context to exclude secrets and
+local runtime state so that `docker build` never captures `.env`, credentials, or
+development artifacts.
 
 **Acceptance Criteria:**
-- [x] tests use temporary directories
-- [x] repository files remain unchanged after pytest
-- [x] git status remains clean
+- [x] `.dockerignore` excludes: `.env`, `.env.*`, `venv/`, `.venv/`, `config/credentials.json`,
+  `data/`, `logs/`, `transcripts/`, `Memory/`, `session_summaries/`, `backups/`, `*.log`,
+  `*.bundle`, `*.egg-info/`, `__pycache__/`, `.mypy_cache/`, `.ruff_cache/`, `.pytest_cache/`
+- [x] `.dockerignore` excludes test artifacts: `tests/`, `coverage.json`, `coverage.txt`
+- [x] `docker build .` succeeds after the change
+- [x] Running `docker build .` in a directory containing a `.env` file does NOT include
+  `.env` in the image (verify with `docker run --rm <image> ls /app/.env || echo "not found"`)
 - [x] Typecheck passes
 
 ---
 
-### US-002: Validate package imports
+### US-176: Replace broad Dockerfile COPY with allowlist
 
-**Description:** As a developer, I want all package imports to succeed so that the codebase loads cleanly without errors.
+**Description:** As an operator, I want the Dockerfile runtime stage to copy only
+production-required files so that the resulting image is minimal and safe.
 
 **Acceptance Criteria:**
-- [x] `import rex` succeeds
-- [x] no circular imports occur
-- [x] CLI loads without runtime error
-- [x] Typecheck passes
-
----
-
-### US-003: Fix planner registry mismatch
-
-**Description:** As a developer, I want the planner registry to match the router interface so that the planner can be invoked without runtime errors.
-
-**Acceptance Criteria:**
-- [x] planner imports successfully
-- [x] registry interfaces match router usage
-- [x] runtime errors removed
-- [x] Typecheck passes
-
----
-
-# PHASE 2 — Install Reliability
-
-### US-004: Verify standard installation
-
-**Description:** As a developer, I want `pip install .` to succeed so that users can install Rex without manual intervention.
-
-**Acceptance Criteria:**
-- [x] `pip install .` succeeds
-- [x] CLI entrypoints available
-- [x] dependency conflicts resolved
-- [x] Typecheck passes
-
----
-
-### US-005: Verify editable install
-
-**Description:** As a developer, I want `pip install -e .` to succeed so that development workflows function correctly.
-
-**Acceptance Criteria:**
-- [x] `pip install -e .` succeeds
-- [x] CLI entrypoints load
-- [x] Typecheck passes
-
----
-
-### US-006: Validate optional extras
-
-**Description:** As a developer, I want optional extras to install cleanly so that users can opt into additional capabilities without breaking the base install.
-
-**Acceptance Criteria:**
-- [x] base install works without extras
-- [x] extras install successfully
-- [x] missing extras handled gracefully
-- [x] Typecheck passes
-
----
-
-# PHASE 3 — Code Quality
-
-### US-007: Fix Ruff violations
-
-**Description:** As a developer, I want all Ruff lint violations resolved so that the codebase meets code quality standards.
-
-**Acceptance Criteria:**
-- [x] `ruff check rex` returns zero errors
-- [x] unnecessary ignores removed
-- [x] Typecheck passes
-
----
-
-### US-008: Apply Black formatting
-
-**Description:** As a developer, I want the codebase formatted with Black so that code style is consistent across all files.
-
-**Acceptance Criteria:**
-- [x] code formatted with Black
-- [x] `black --check .` passes
-- [x] Typecheck passes
-
----
-
-### US-009: Fix MyPy errors
-
-**Description:** As a developer, I want all MyPy errors resolved so that the codebase is fully type-safe.
-
-**Acceptance Criteria:**
-- [x] `mypy rex` returns zero errors
-- [x] missing type hints added
-- [x] Typecheck passes
-
----
-
-# PHASE 4 — CLI Runtime
-
-### US-010: Validate CLI entrypoints
-
-**Description:** As a user, I want all CLI entrypoints to launch successfully so that I can access Rex from the command line.
-
-**Acceptance Criteria:**
-- [x] `rex` CLI launches
-- [x] `rex-config` launches
-- [x] `rex-agent` launches
-- [x] Typecheck passes
-
----
-
-### US-011: Validate doctor command
-
-**Description:** As a user, I want the doctor command to run diagnostics so that I can verify my installation is healthy.
-
-**Acceptance Criteria:**
-- [x] doctor command runs
-- [x] diagnostics printed
-- [x] failures handled safely
-- [x] Typecheck passes
-
----
-
-### US-012: Validate configuration loading
-
-**Description:** As a user, I want configuration to load from file and environment variables so that I can customize Rex behavior without code changes.
-
-**Acceptance Criteria:**
-- [x] config loads from config file
-- [x] environment overrides supported
-- [x] missing config handled safely
-- [x] Typecheck passes
-
----
-
-# PHASE 5 — LLM Providers
-
-### US-013: OpenAI provider
-
-**Description:** As a developer, I want the OpenAI provider to execute prompts reliably so that Rex can generate responses using OpenAI models.
-
-**Acceptance Criteria:**
-- [x] provider initializes
-- [x] prompt execution works
-- [x] response returned
-- [x] failure handled gracefully
-- [x] Typecheck passes
-
----
-
-### US-014: Anthropic provider
-
-**Description:** As a developer, I want the Anthropic provider to execute prompts reliably so that Rex can generate responses using Claude models.
-
-**Acceptance Criteria:**
-- [x] provider initializes
-- [x] prompt execution works
-- [x] response returned
-- [x] Typecheck passes
-
----
-
-### US-015: Local LLM provider
-
-**Description:** As a developer, I want the local LLM provider to execute prompts so that Rex can run without cloud API dependencies.
-
-**Acceptance Criteria:**
-- [x] local model reachable
-- [x] prompt execution works
-- [x] response returned
-- [x] Typecheck passes
-
----
-
-### US-016: Provider routing
-
-**Description:** As a developer, I want provider routing to be configurable so that Rex can switch between LLM backends based on user preference.
-
-**Acceptance Criteria:**
-- [x] provider selection configurable
-- [x] routing logic implemented
-- [x] fallback behavior works
-- [x] Typecheck passes
-
----
-
-# PHASE 6 — Voice Assistant
-
-### US-017: Wake word detection
-
-**Description:** As a user, I want wake word detection to trigger listening so that I can activate Rex hands-free.
-
-**Acceptance Criteria:**
-- [x] wake word detection triggers listening
-- [x] microphone stream initializes
-- [x] wake word does not trigger on common conversational speech
-- [x] Typecheck passes
-
----
-
-### US-018: Speech to text pipeline
-
-**Description:** As a user, I want speech captured and transcribed so that I can interact with Rex by voice.
-
-**Acceptance Criteria:**
-- [x] microphone audio captured
-- [x] audio converted to transcript
-- [x] transcript matches spoken test phrase on at least 3 consecutive attempts
-- [x] Typecheck passes
-
----
-
-### US-019: Text to speech pipeline
-
-**Description:** As a user, I want Rex responses spoken aloud so that I receive audio feedback without looking at a screen.
-
-**Acceptance Criteria:**
-- [x] TTS engine loads
-- [x] audio generated
-- [x] audio plays automatically
-- [x] Typecheck passes
-
----
-
-### US-020: Full voice interaction loop
-
-**Description:** As a user, I want to speak to Rex and receive a spoken response so that I can have a complete voice-driven interaction.
-
-**Acceptance Criteria:**
-- [x] wake word triggers listening
-- [x] STT produces transcript
-- [x] LLM response generated
-- [x] response spoken aloud
-- [x] Typecheck passes
-
----
-
-# PHASE 7 — Tool and Capability Framework
-
-### US-021: Tool registry
-
-**Description:** As a developer, I want tools to register with the tool registry so that Rex can discover and invoke available capabilities.
-
-**Acceptance Criteria:**
-- [x] tools register correctly
-- [x] tool metadata stored
-- [x] duplicate tools prevented
-- [x] Typecheck passes
-
----
-
-### US-022: Tool router
-
-**Description:** As a developer, I want tool routing to dispatch execution correctly so that user requests reach the appropriate tool.
-
-**Acceptance Criteria:**
-- [x] tools routed correctly
-- [x] execution dispatched
-- [x] errors handled safely
-- [x] Typecheck passes
-
----
-
-### US-023: Capability discovery
-
-**Description:** As a user, I want Rex to discover and expose its capabilities so that I know what actions are available.
-
-**Acceptance Criteria:**
-- [x] capabilities enumerated
-- [x] tools discoverable
-- [x] capability metadata exposed
-- [x] Typecheck passes
-
----
-
-# PHASE 8 — Planner and Reasoning
-
-### US-024: Planner initialization
-
-**Description:** As a developer, I want the planner to initialize successfully so that multi-step reasoning is available.
-
-**Acceptance Criteria:**
-- [x] planner loads successfully
-- [x] dependencies resolved
-- [x] planner callable
-- [x] Typecheck passes
-
----
-
-### US-025: Planner task execution
-
-**Description:** As a user, I want the planner to accept tasks and execute tool calls so that Rex can complete multi-step actions autonomously.
-
-**Acceptance Criteria:**
-- [x] tasks accepted
-- [x] task plan generated
-- [x] tool calls executed
-- [x] Typecheck passes
-
----
-
-# PHASE 9 — Workflow Engine
-
-### US-026: Workflow definitions
-
-**Description:** As a developer, I want workflow definitions stored and validated so that automated sequences can be reliably triggered.
-
-**Acceptance Criteria:**
-- [x] workflows defined
-- [x] schema validated
-- [x] workflows stored
-- [x] Typecheck passes
-
----
-
-### US-027: Workflow runner
-
-**Description:** As a user, I want workflows to execute step by step so that Rex can complete multi-stage automations.
-
-**Acceptance Criteria:**
-- [x] workflows executed
-- [x] step transitions work
-- [x] errors handled
-- [x] Typecheck passes
-
----
-
-# PHASE 10 — Event System
-
-### US-028: Event bus
-
-**Description:** As a developer, I want an event bus to publish events and notify subscribers so that system components communicate without tight coupling.
-
-**Acceptance Criteria:**
-- [x] events published
-- [x] subscribers receive events
-- [x] event propagation works
-- [x] Typecheck passes
-
----
-
-### US-029: Event triggers
-
-**Description:** As a developer, I want events to trigger workflows so that Rex can react to system events automatically.
-
-**Acceptance Criteria:**
-- [x] triggers registered
-- [x] events trigger workflows
-- [x] errors logged
-- [x] Typecheck passes
-
----
-
-# PHASE 11 — Notification System
-
-### US-030: Notification routing
-
-**Description:** As a developer, I want notifications routed to the correct destination so that users receive alerts through their preferred channel.
-
-**Acceptance Criteria:**
-- [x] notifications generated
-- [x] routing rules applied
-- [x] delivery attempted
-- [x] Typecheck passes
-
----
-
-### US-031: Dashboard notifications
-
-**Description:** As a user, I want dashboard notifications streamed in real time so that I see alerts without refreshing the page.
-
-**Acceptance Criteria:**
-- [x] SSE endpoint works
-- [x] notifications streamed
-- [x] disconnect handled
-- [x] Typecheck passes
-
----
-
-# PHASE 12 — Memory System
-
-### US-032: Memory storage
-
-**Description:** As a user, I want Rex to persist memories so that context from previous interactions is available in future sessions.
-
-**Acceptance Criteria:**
-- [x] memory records saved
-- [x] storage persistent
-- [x] retrieval possible
-- [x] Typecheck passes
-
----
-
-### US-033: User profiles
-
-**Description:** As a user, I want Rex to store and retrieve my preferences so that it adapts to my personal configuration.
-
-**Acceptance Criteria:**
-- [x] user profiles created
-- [x] preferences stored
-- [x] retrieval works
-- [x] Typecheck passes
-
----
-
-# PHASE 13 — Plugin Architecture
-
-### US-034: Plugin discovery
-
-**Description:** As a developer, I want plugins discovered automatically from the plugin folder so that capabilities can be added without modifying core code.
-
-**Acceptance Criteria:**
-- [x] plugin loader scans plugin folder
-- [x] plugins detected
-- [x] plugin metadata loaded
-- [x] Typecheck passes
-
----
-
-### US-035: Plugin execution
-
-**Description:** As a developer, I want plugin tools to be callable and isolated so that plugin failures do not crash the assistant.
-
-**Acceptance Criteria:**
-- [x] plugin tools callable
-- [x] failures isolated
-- [x] plugins unload safely
-- [x] Typecheck passes
-
----
-
-# PHASE 14 — Automation Engine
-
-### US-036: Scheduler
-
-**Description:** As a user, I want tasks scheduled and executed automatically so that Rex acts without requiring manual triggers.
-
-**Acceptance Criteria:**
-- [x] scheduler initializes
-- [x] tasks scheduled
-- [x] tasks executed
-- [x] Typecheck passes
-
----
-
-### US-037: Automation registry
-
-**Description:** As a developer, I want automations stored and retrievable so that scheduled tasks persist across restarts.
-
-**Acceptance Criteria:**
-- [x] automations stored
-- [x] automations retrieved
-- [x] persistence works
-- [x] Typecheck passes
-
----
-
-# PHASE 15 — OS Automation
-
-### US-038: Application launching
-
-**Description:** As a user, I want Rex to launch applications on my behalf so that I can control my desktop by voice or text.
-
-**Acceptance Criteria:**
-- [x] applications launch
-- [x] execution verified
-- [x] failures handled
-- [x] Typecheck passes
-
----
-
-### US-039: Browser automation
-
-**Description:** As a user, I want Rex to automate browser actions so that I can delegate web tasks.
-
-**Acceptance Criteria:**
-- [x] browser launches
-- [x] navigation works
-- [x] page actions executed
-- [x] Typecheck passes
-
----
-
-# PHASE 16 — Knowledge Base
-
-### US-040: Knowledge ingestion
-
-**Description:** As a developer, I want documents ingested and indexed so that Rex can answer questions from local knowledge.
-
-**Acceptance Criteria:**
-- [x] documents ingested
-- [x] data indexed
-- [x] query containing a keyword from an indexed document returns that document in results
-- [x] Typecheck passes
-
----
-
-### US-041: Knowledge queries
-
-**Description:** As a user, I want to query the knowledge base and receive results so that Rex can surface stored information.
-
-**Acceptance Criteria:**
-- [x] queries executed
-- [x] query returns at least one result when indexed content contains the queried term
-- [x] errors handled
-- [x] Typecheck passes
-
----
-
-# PHASE 17 — Home Assistant Integration
-
-### US-042: Home Assistant API connection
-
-**Description:** As a developer, I want Rex to connect to the Home Assistant API so that smart home devices are accessible.
-
-**Acceptance Criteria:**
-- [x] API reachable
-- [x] authentication works
-- [x] entities retrieved
-- [x] Typecheck passes
-
----
-
-### US-043: Device control
-
-**Description:** As a user, I want Rex to control lights and switches so that I can manage my home by voice.
-
-**Acceptance Criteria:**
-- [x] lights controlled
-- [x] switches controlled
-- [x] responses returned
-- [x] Typecheck passes
-
----
-
-# PHASE 18 — Messaging
-
-### US-044: Email integration
-
-**Description:** As a user, I want Rex to send email on my behalf so that I can compose and send messages by voice or text.
-
-**Acceptance Criteria:**
-- [x] email backend connects
-- [x] send works
-- [x] errors handled
-- [x] Typecheck passes
-
----
-
-### US-045: Calendar integration
-
-**Description:** As a user, I want Rex to retrieve and create calendar events so that I can manage my schedule through conversation.
-
-**Acceptance Criteria:**
-- [x] events retrieved
-- [x] events created
-- [x] errors handled
-- [x] Typecheck passes
-
----
-
-# PHASE 19 — Dashboard
-
-### US-046: Dashboard server
-
-**Description:** As a developer, I want the dashboard server to start and serve a health endpoint so that the UI has a reliable backend.
-
-**Acceptance Criteria:**
-- [x] server starts
-- [x] API reachable
-- [x] health endpoint works
-- [x] Typecheck passes
-
----
-
-### US-047: Dashboard authentication
-
-**Description:** As a user, I want to log into the dashboard so that my data and configuration are protected.
-
-**Acceptance Criteria:**
-- [x] login works
-- [x] sessions created
-- [x] invalid logins rejected
-- [x] Typecheck passes
-
----
-
-# PHASE 20 — Plex Integration
-
-### US-048: Plex API client
-
-**Description:** As a developer, I want Rex to connect to the Plex API so that media library data is accessible.
-
-**Acceptance Criteria:**
-- [x] Plex reachable
-- [x] libraries retrieved
-- [x] authentication works
-- [x] Typecheck passes
-
----
-
-### US-049: Plex playback control
-
-**Description:** As a user, I want Rex to control Plex playback so that I can manage media by voice.
-
-**Acceptance Criteria:**
-- [x] play command works
-- [x] pause command works
-- [x] stop command works
-- [x] Typecheck passes
-
----
-
-# PHASE 21 — Web UI
-
-### US-050: Web UI server
-
-**Description:** As a user, I want the web UI to load and render so that I can access Rex from a browser.
-
-**Acceptance Criteria:**
-- [x] UI server starts
-- [x] UI accessible
-- [x] interface renders
-- [x] Typecheck passes
-- [x] Verify changes work in browser
-
----
-
-### US-051: Chat interface
-
-**Description:** As a user, I want to send messages and see responses in the chat interface so that I can interact with Rex without a terminal.
-
-**Acceptance Criteria:**
-- [x] messages sent
-- [x] responses displayed
-- [x] session maintained
-- [x] Typecheck passes
-- [x] Verify changes work in browser
-
----
-
-### US-052: Voice interface
-
-**Description:** As a user, I want to speak through the web UI and hear responses so that I have a browser-based voice interface.
-
-**Acceptance Criteria:**
-- [x] microphone input works
-- [x] audio sent to backend
-- [x] response audio plays
-- [x] Typecheck passes
-- [x] Verify changes work in browser
-
----
-
-# PHASE 22 — Security
-
-### US-053: Secret management
-
-**Description:** As a developer, I want secrets loaded from the environment so that credentials are never stored in the repository.
-
-**Acceptance Criteria:**
-- [x] secrets loaded from environment
-- [x] secrets not stored in repo
-- [x] missing secrets detected
-- [x] Typecheck passes
-
----
-
-### US-054: API key validation
-
-**Description:** As a developer, I want API keys validated on each request so that unauthorized access is rejected.
-
-**Acceptance Criteria:**
-- [x] API keys validated
-- [x] unauthorized rejected
-- [x] failures logged
-- [x] Typecheck passes
-
----
-
-# PHASE 23 — GitHub Integration
-
-### US-055: GitHub API client
-
-**Description:** As a developer, I want Rex to connect to the GitHub API so that repository data is accessible.
-
-**Acceptance Criteria:**
-- [x] GitHub reachable
-- [x] repos listed
-- [x] authentication works
-- [x] Typecheck passes
-
----
-
-### US-056: GitHub actions
-
-**Description:** As a user, I want Rex to retrieve issues and trigger commits so that I can interact with GitHub by voice or text.
-
-**Acceptance Criteria:**
-- [x] issues retrieved
-- [x] commits triggered
-- [x] errors handled
-- [x] Typecheck passes
-
----
-
-# PHASE 24 — CI and Documentation
-
-### US-057: CI pipeline
-
-**Description:** As a developer, I want CI to run lint, typecheck, and tests on every PR so that regressions are caught before merging.
-
-**Acceptance Criteria:**
-- [x] CI runs on PR
-- [x] lint executed
-- [x] typecheck executed
-- [x] tests executed
-- [x] Typecheck passes
-
----
-
-### US-058: Documentation updates
-
-**Description:** As a developer, I want documentation updated to match the current codebase so that developers can onboard without digging through source code.
-
-**Acceptance Criteria:**
-- [x] README updated
-- [x] install docs updated
-- [x] CLI usage documented
-- [x] developer docs updated
-- [x] Typecheck passes
-
----
-
-# PHASE 25 — Tool Execution Validation
-
-### US-059: Tool execution logging
-
-**Description:** As a developer, I want tool executions logged with timestamps and parameters so that I can audit and debug tool behavior.
-
-**Acceptance Criteria:**
-- [x] tool executions logged
-- [x] execution timestamps recorded
-- [x] tool parameters stored
-- [x] Typecheck passes
-
----
-
-### US-060: Tool execution error handling
-
-**Description:** As a developer, I want tool failures captured and recorded so that the assistant remains stable when a tool errors.
-
-**Acceptance Criteria:**
-- [x] tool failures captured
-- [x] failure reason recorded
-- [x] execution does not crash assistant
-- [x] Typecheck passes
-
----
-
-# PHASE 26 — Planner Improvements
-
-### US-061: Planner prompt generation
-
-**Description:** As a developer, I want the planner to build prompts that include the task description and available tools so that the LLM has full context for reasoning.
-
-**Acceptance Criteria:**
-- [x] planner builds prompts correctly
-- [x] task description included
-- [x] available tools listed
-- [x] Typecheck passes
-
----
-
-### US-062: Planner tool selection
-
-**Description:** As a developer, I want the planner to select the most appropriate tool from multiple options so that tasks are executed efficiently.
-
-**Acceptance Criteria:**
-- [x] planner selects appropriate tools
-- [x] multiple tool options supported
-- [x] tool selection validated
-- [x] Typecheck passes
-
----
-
-### US-063: Planner fallback behavior
-
-**Description:** As a developer, I want the planner to fall back gracefully when a tool fails so that multi-step tasks recover where possible.
-
-**Acceptance Criteria:**
-- [x] planner detects tool failure
-- [x] alternate strategy attempted
-- [x] errors logged
-- [x] Typecheck passes
-
----
-
-# PHASE 27 — Workflow Enhancements
-
-### US-064: Workflow state persistence
-
-**Description:** As a developer, I want workflow state saved and restored across restarts so that long-running workflows survive interruptions.
-
-**Acceptance Criteria:**
-- [x] workflow state saved
-- [x] state restored after restart
-- [x] step progress tracked
-- [x] Typecheck passes
-
----
-
-### US-065: Workflow step validation
-
-**Description:** As a developer, I want workflow step inputs validated before execution so that invalid configurations are rejected early.
-
-**Acceptance Criteria:**
-- [x] step inputs validated
-- [x] invalid steps rejected
-- [x] workflow execution halted on failure
-- [x] Typecheck passes
-
----
-
-# PHASE 28 — Event System Reliability
-
-### US-066: Event subscription validation
-
-**Description:** As a developer, I want event subscribers managed safely so that duplicate subscriptions are prevented and removal is supported.
-
-**Acceptance Criteria:**
-- [x] subscribers registered
-- [x] subscriber removal supported
-- [x] duplicate subscriptions prevented
-- [x] Typecheck passes
-
----
-
-### US-067: Event queue stability
-
-**Description:** As a developer, I want the event queue to handle load safely so that events are not lost and processing remains sequential.
-
-**Acceptance Criteria:**
-- [x] events queued safely
-- [x] queue overflow prevented
-- [x] events processed sequentially
-- [x] Typecheck passes
-
----
-
-# PHASE 29 — Notification Delivery
-
-### US-068: Notification persistence
-
-**Description:** As a developer, I want notifications persisted to the database with timestamps so that delivery history is auditable.
-
-**Acceptance Criteria:**
-- [x] notifications stored in database
-- [x] notifications retrieved
-- [x] timestamps recorded
-- [x] Typecheck passes
-
----
-
-### US-069: Notification retry logic
-
-**Description:** As a developer, I want failed notifications retried with a limited attempt count so that transient failures recover without infinite loops.
-
-**Acceptance Criteria:**
-- [x] failed notifications retried
-- [x] retry attempts limited
-- [x] failures logged
-- [x] Typecheck passes
-
----
-
-# PHASE 30 — Memory Retrieval
-
-### US-070: Memory search
-
-**Description:** As a user, I want to search memory entries and receive results so that past context is retrievable on demand.
-
-**Acceptance Criteria:**
-- [x] memory entries searchable
-- [x] search for a stored memory keyword returns that memory entry in results
-- [x] query failures handled
-- [x] Typecheck passes
-
----
-
-### US-071: Memory cleanup
-
-**Description:** As a developer, I want expired memories cleaned up on a schedule so that the memory store remains lean and performant.
-
-**Acceptance Criteria:**
-- [x] expired memories removed
-- [x] cleanup scheduled
-- [x] memory store compacted
-- [x] Typecheck passes
-
----
-
-# PHASE 31 — OS Automation Reliability
-
-### US-072: Process monitoring
-
-**Description:** As a developer, I want launched processes monitored for crashes so that Rex can detect and restart failed processes.
-
-**Acceptance Criteria:**
-- [x] launched processes monitored
-- [x] crashes detected
-- [x] process restart supported
-- [x] Typecheck passes
-
----
-
-### US-073: File system safety
-
-**Description:** As a developer, I want file system operations validated and unsafe paths rejected so that OS automation cannot cause unintended damage.
-
-**Acceptance Criteria:**
-- [x] file operations validated
-- [x] unsafe paths rejected
-- [x] errors handled
-- [x] Typecheck passes
-
----
-
-# PHASE 32 — Knowledge Base Improvements
-
-### US-074: Document indexing
-
-**Description:** As a developer, I want documents indexed and the index stored persistently so that knowledge is available after restart.
-
-**Acceptance Criteria:**
-- [x] documents indexed
-- [x] index stored
-- [x] indexing failures logged
-- [x] Typecheck passes
-
----
-
-### US-075: Knowledge refresh
-
-**Description:** As a developer, I want the knowledge index refreshed when documents change so that search results stay current.
-
-**Acceptance Criteria:**
-- [x] documents updated
-- [x] index refreshed
-- [x] stale entries removed
-- [x] Typecheck passes
-
----
-
-# PHASE 33 — Web UI Reliability
-
-### US-076: UI error handling
-
-**Description:** As a user, I want frontend errors displayed clearly and backend errors logged so that problems are diagnosable without digging through server output.
-
-**Acceptance Criteria:**
-- [x] frontend errors detected
-- [x] error messages displayed
-- [x] backend errors logged
-- [x] Typecheck passes
-- [x] Verify changes work in browser
-
----
-
-### US-077: UI reconnect behavior
-
-**Description:** As a user, I want the UI to reconnect automatically after a connection loss so that temporary network issues do not require a manual page refresh.
-
-**Acceptance Criteria:**
-- [x] SSE reconnect supported
-- [x] reconnect attempts limited
-- [x] UI recovers after connection loss
-- [x] Typecheck passes
-- [x] Verify changes work in browser
-
----
-
-# PHASE 34 — Email Triage & Scheduling (beta — stub/mock data only)
-
-> **Beta scope:** All stories in this phase use stub implementations and mock data. No live email or calendar credentials are required. The stub interfaces must match the real backend interfaces so live credentials can be wired in without changing calling code.
-
-### US-078: Email inbox stub and mock data
-
-**Description:** As a developer, I want a stub email inbox that returns mock data so that triage features can be built and tested without live credentials.
-
-**Acceptance Criteria:**
-- [x] `EmailInboxStub` class (or equivalent) exists and returns a list of mock email objects
-- [x] mock emails cover at least three categories: urgent, action_required, and fyi
-- [x] stub implements the same interface as the real email backend (US-044)
-- [x] tests can instantiate and query the stub without any live credentials or network calls
-- [x] Typecheck passes
-
----
-
-### US-079: Email triage categorization
-
-**Description:** As a user, I want incoming emails automatically categorized (urgent, action_required, fyi, newsletter) so that I can see what needs attention without reading everything.
-
-**Acceptance Criteria:**
-- [x] triage assigns one of four categories: urgent, action_required, fyi, newsletter
-- [x] categorization logic uses sender address, subject keywords, and body patterns
-- [x] triage results are queryable (e.g., "show urgent emails" returns only urgent-tagged items)
-- [x] test using mock inbox data confirms at least one email correctly categorized into each category
-- [x] Typecheck passes
-
----
-
-### US-080: Email triage rules engine
-
-**Description:** As a developer, I want triage rules stored in config and evaluated in priority order so that categorization can be customized per user without code changes.
-
-**Acceptance Criteria:**
-- [x] triage rules stored in config file (JSON or YAML)
-- [x] rules support matching on: sender address, subject pattern, body keyword
-- [x] rules evaluated in declared priority order; first match wins
-- [x] adding or modifying a rule takes effect without restarting or modifying source code
-- [x] Typecheck passes
-
----
-
-### US-081: Calendar free/busy stub
-
-**Description:** As a developer, I want a stub calendar that returns mock free/busy data so that scheduling features can be built and tested without live credentials.
-
-**Acceptance Criteria:**
-- [x] `CalendarStub` class returns mock free/busy blocks for a configurable date range
-- [x] stub implements the same interface as the real calendar backend (US-045)
-- [x] tests can query availability without any live credentials or network calls
-- [x] Typecheck passes
-
----
-
-### US-082: Free time finder
-
-**Description:** As a user, I want Rex to find available meeting slots from my calendar so that I can ask "when am I free?" and get usable suggestions.
-
-**Acceptance Criteria:**
-- [x] given a date range and meeting duration, returns a list of available time slots
-- [x] overlapping calendar events are excluded from returned slots
-- [x] returns at least three candidate slots when the calendar is not fully booked
-- [x] works correctly against stub/mock calendar data in beta
-- [x] Typecheck passes
-
----
-
-### US-083: Meeting invite scaffold
-
-**Description:** As a user, I want Rex to draft a meeting invite with attendees, time, and agenda from a natural language request so that I can schedule by describing what I want.
-
-**Acceptance Criteria:**
-- [x] `MeetingInvite` data structure contains: title, attendees list, start time, end time, agenda
-- [x] Rex can populate all invite fields from a natural language description
-- [x] completed invite is displayed to the user for review before any action
-- [x] stub send logs the invite and returns success without calling any real calendar API
-- [x] Typecheck passes
-
----
-
-# PHASE 35 — SMS Multi-Channel Messaging (beta — stub scaffolding)
-
-> **Beta scope:** All stories in this phase are stub scaffolding. No real SMS messages are sent. Real delivery requires Twilio credentials to be wired into the `TwilioAdapter` interface defined in US-086.
-
-### US-084: SMS send stub
-
-**Description:** As a developer, I want a stub SMS sender that logs outbound messages so that SMS-triggered workflows can be built and tested without Twilio credentials.
-
-**Acceptance Criteria:**
-- [x] `SmsSenderStub` class accepts a phone number and message body
-- [x] sent messages written to a structured in-memory log accessible for test assertions
-- [x] stub implements the same interface as the real Twilio adapter (US-086)
-- [x] calling `send` on the stub makes no network calls
-- [x] Typecheck passes
-
----
-
-### US-085: SMS receive stub
-
-**Description:** As a developer, I want a stub SMS receiver that can inject test inbound messages so that inbound SMS handling can be built and tested without a live Twilio webhook.
-
-**Acceptance Criteria:**
-- [x] `SmsReceiverStub` class exposes a method to inject a test inbound message
-- [x] injected messages are routed through the same handler as real inbound SMS would be
-- [x] handler produces a response or triggers the expected downstream action
-- [x] Typecheck passes
-
----
-
-### US-086: Twilio adapter interface
-
-**Description:** As a developer, I want a well-defined Twilio adapter interface so that the stub and the real Twilio client are interchangeable without changing any calling code.
-
-**Acceptance Criteria:**
-- [x] `TwilioAdapter` abstract class or Protocol defined with at minimum `send_sms(to: str, body: str)` signature
-- [x] `SmsSenderStub` fully implements `TwilioAdapter`
-- [x] swapping stub for a real Twilio client requires no changes outside the adapter registration point
-- [x] Typecheck passes
-
----
-
-### US-087: Multi-channel message router
-
-**Description:** As a developer, I want outbound messages routed to the correct channel (dashboard, email, SMS) based on configuration so that Rex can deliver messages where the user prefers without hardcoding a channel.
-
-**Acceptance Criteria:**
-- [x] router accepts a message payload and a target channel identifier
-- [x] routes correctly to dashboard, email, and SMS backends based on channel value
-- [x] unknown or unconfigured channel raises a handled error and does not crash the assistant
-- [x] active channel configurable without code changes
-- [x] Typecheck passes
-
----
-
-# PHASE 36 — Smart Notifications (beta — stub scaffolding)
-
-> **Beta scope:** Digest delivery, escalation, and quiet-hour release are stub scaffolding — they log output rather than making real deliveries. Core priority tagging and routing rules are fully implemented.
-
-### US-088: Notification priority levels
-
-**Description:** As a developer, I want notifications to carry a priority level so that routing and delivery decisions can be based on urgency rather than treating all notifications equally.
-
-**Acceptance Criteria:**
-- [x] `NotificationPriority` enum defined with values: critical, high, medium, low
-- [x] all notification creation paths accept a `priority` parameter
-- [x] priority stored alongside notification record in the database
-- [x] existing notifications without a stored priority default to `medium` on read
-- [x] Typecheck passes
-
----
-
-### US-089: Priority routing rules
-
-**Description:** As a developer, I want routing rules that deliver critical and high notifications immediately while queuing medium and low ones so that users are not interrupted by low-priority alerts.
-
-**Acceptance Criteria:**
-- [x] critical and high priority notifications dispatched to configured delivery channels immediately on creation
-- [x] medium and low priority notifications placed in the digest queue instead of immediate delivery
-- [x] routing rules configurable without code changes
-- [x] unit test confirms a critical notification bypasses the digest queue
-- [x] unit test confirms a low notification is placed in the digest queue
-- [x] Typecheck passes
-
----
-
-### US-090: Digest mode
-
-**Description:** As a user, I want low-priority notifications batched into periodic digests so that I receive a single summary instead of many individual interruptions.
-
-**Acceptance Criteria:**
-- [x] digest job runs on a configurable interval (default: 60 minutes)
-- [x] digest collects all queued medium and low notifications since the last digest run
-- [x] digest payload delivered to the dashboard notification endpoint as a single grouped message
-- [x] digest job logs output when no real delivery backend is configured (beta stub behavior)
-- [x] digest queue is cleared after each successful run
-- [x] Typecheck passes
-
----
-
-### US-091: Quiet hours
-
-**Description:** As a user, I want to configure quiet hours so that non-critical notifications are held until I'm available rather than interrupting me at night or during focus time.
-
-**Acceptance Criteria:**
-- [x] quiet hours configured as start time and end time in user config
-- [x] non-critical (medium, low) notifications generated during quiet hours are held in queue
-- [x] critical notifications bypass quiet hours and deliver immediately regardless of schedule
-- [x] held notifications are released and delivered when quiet hours end
-- [x] Typecheck passes
-
----
-
-### US-092: Auto-escalation
-
-**Description:** As a developer, I want unacknowledged high-priority notifications to escalate after a configurable timeout so that important alerts are not silently missed.
-
-**Acceptance Criteria:**
-- [x] escalation timeout configurable per priority level (default: 15 minutes for high)
-- [x] escalation job checks for unacknowledged high-priority notifications past their timeout
-- [x] each escalation attempt logged with timestamp, notification ID, and attempt number
-- [x] escalation stops after a configurable maximum attempt count (default: 3)
-- [x] escalation stub logs events without making real deliveries in beta
-- [x] Typecheck passes
-
----
-
-# PRD: Rex Production Readiness Review
----
-
-## Introduction
-
-This PRD covers the full production readiness review of the Rex codebase. The goal is a clean, audited, well-tested, observable, and deployable system with no open security issues, no missing operational documentation, and a passing production smoke test suite. Work in this PRD begins after the core feature buildout (PRD.md) and technical debt cleanup (PRD-repo-quality.md) are complete.
-
-No new features are introduced here. Every story is purely a quality, security, reliability, or operational concern.
-
----
-
-## Goals
-
-- Identify and remediate all critical and high security vulnerabilities before deployment
-- Establish and enforce a minimum test coverage threshold across all modules
-- Ensure consistent, structured error handling and logging throughout the system
-- Harden configuration and secrets management for production environments
-- Validate database connection reliability, migration state, and query safety
-- Produce a uniform, well-documented API surface with input validation and rate limiting
-- Establish a performance baseline with no known blocking I/O in async paths
-- Deliver complete operational documentation: deployment guide, config reference, runbook, API reference
-- Verify the full system starts cleanly, accepts traffic, and passes a production smoke test suite
-- Produce a signed-off production readiness checklist with no open items
-
----
-
-## Non-Goals
-
-- No new features or integrations
-- No refactoring of working code purely for aesthetics
-- No migration to a different framework, ORM, or runtime
-- No performance optimization beyond identifying and fixing async blocking issues
-- No multi-region or high-availability deployment architecture
-- No automated rollback or blue/green deployment pipelines
-
----
-
-## Technical Considerations
-
-- All stories in this PRD operate on the existing codebase; no new dependencies should be introduced without justification.
-- Security scan tools: `pip-audit` (preferred) or `safety`. Either is acceptable.
-- Structured logging should use Python's stdlib `logging` module with a JSON formatter — do not introduce a new logging library unless `structlog` is already a dependency.
-- Coverage tooling: `pytest-cov`. Threshold should be agreed before US-102 (suggested minimum: 80% overall, 70% per module).
-- Rate limiting: use an existing middleware approach compatible with the dashboard server framework already in use; do not add a full API gateway.
-- Smoke tests should be standalone scripts or a dedicated pytest marker (`@pytest.mark.smoke`) that can be run in isolation against a live local instance.
-
----
-
-# PHASE 37 — Security Audit
-
-### US-093: Dependency vulnerability scan and remediation
-
-**Description:** As a developer, I want all dependencies scanned for known CVEs so that Rex does not ship with vulnerable packages.
-
-**Acceptance Criteria:**
-- [x] `pip-audit` (or `safety check`) runs against the current lock file / installed packages
-- [x] all critical and high severity findings remediated or explicitly documented as accepted risk with justification
-- [x] scan added as a CI step that fails on new critical/high findings
-- [x] Typecheck passes
-
----
-
-### US-094: Input validation audit and remediation for HTTP endpoints
-
-**Description:** As a developer, I want all HTTP endpoint inputs validated and sanitized so that malformed or malicious payloads cannot crash the server or cause unexpected behavior.
-
-**Acceptance Criteria:**
-- [x] all POST and PUT endpoints validated to reject missing or malformed required fields with a 400 response
-- [x] string inputs checked for length limits where unbounded input could cause resource exhaustion
-- [x] no endpoint passes raw user input directly to a shell command, file path, or SQL query without sanitization
-- [x] at least one test per endpoint confirms a malformed payload returns 400, not 500
-- [x] Typecheck passes
-
----
-
-### US-095: Authentication and session security review
-
-**Description:** As a developer, I want authentication and session management reviewed against baseline security requirements so that sessions cannot be hijacked or forged.
-
-**Acceptance Criteria:**
-- [x] session tokens are cryptographically random (min 128 bits of entropy)
-- [x] session tokens invalidated on logout
-- [x] authentication endpoints have a failed-attempt rate limit or lockout
-- [x] tokens are not logged in plaintext anywhere in the logging output
-- [x] Typecheck passes
-
----
-
-### US-096: Hardcoded credential and secret scan
-
-**Description:** As a developer, I want the full codebase scanned for hardcoded credentials so that no secrets are committed to the repository.
-
-**Acceptance Criteria:**
-- [x] `trufflehog`, `gitleaks`, or equivalent tool run against the full git history
-- [x] zero confirmed hardcoded secrets (API keys, passwords, tokens) found in source files or commit history
-- [x] any historical findings documented and rotated if real credentials
-- [x] pre-commit hook or CI step added to block future secret commits
-- [x] Typecheck passes
-
----
-
-### US-097: HTTP security headers
-
-**Description:** As a developer, I want security headers set on all HTTP responses so that browsers and clients are protected from common web vulnerabilities.
-
-**Acceptance Criteria:**
-- [x] `Content-Security-Policy` header present on all HTML responses
-- [x] `X-Frame-Options: DENY` or `SAMEORIGIN` set
-- [x] `X-Content-Type-Options: nosniff` set
-- [x] CORS policy restricts allowed origins to configured whitelist (not wildcard `*` in production)
-- [x] `Strict-Transport-Security` header set if HTTPS is used
-- [x] Typecheck passes
-
----
-
-# PHASE 38 — Test Coverage
-
-### US-098: Measure and document baseline test coverage
-
-**Description:** As a developer, I want a coverage report generated for every module so that gaps are visible and a target threshold can be set.
-
-**Acceptance Criteria:**
-- [x] `pytest --cov=rex --cov-report=term-missing` runs without error
-- [x] coverage report saved to `coverage.txt` or equivalent
-- [x] modules with below-50% coverage listed explicitly in the report
-- [x] agreed minimum coverage threshold documented in `pyproject.toml` or `setup.cfg`
-- [x] Typecheck passes
-
----
-
-### US-099: Fill unit test gaps — planner, tool registry, workflow engine
-
-**Description:** As a developer, I want every public method in the planner, tool registry, and workflow engine modules covered by at least one unit test so that regressions in core reasoning paths are caught.
-
-**Acceptance Criteria:**
-- [x] all public methods of `rex/planner/` have at least one passing unit test
-- [x] all public methods of the tool registry and tool router have at least one passing unit test
-- [x] all public methods of the workflow engine have at least one passing unit test
-- [x] no new tests rely on external services or live credentials
-- [x] Typecheck passes
-
----
-
-### US-100: Fill unit test gaps — memory, notifications, event system
-
-**Description:** As a developer, I want memory storage, notification routing, and the event bus covered by unit tests so that regressions in stateful components are caught.
-
-**Acceptance Criteria:**
-- [x] memory store and memory search have at least one passing unit test each
-- [x] notification routing rules have at least one passing unit test covering each priority level
-- [x] event bus publish and subscriber notification have at least one passing unit test
-- [x] no new tests rely on a running database; use in-memory or mock storage
-- [x] Typecheck passes
-
----
-
-### US-101: Fill unit test gaps — LLM providers, integrations, voice pipeline
-
-**Description:** As a developer, I want LLM provider adapters, external integrations, and the voice pipeline covered by unit tests using mocks so that integration failures are caught without live credentials.
-
-**Acceptance Criteria:**
-- [x] each LLM provider (OpenAI, Anthropic, local) has at least one unit test using a mock HTTP client
-- [x] Home Assistant, Plex, and GitHub adapter methods have at least one unit test using stub/mock data
-- [x] STT and TTS pipeline components have at least one unit test using mock audio data
-- [x] no new tests make real network calls
-- [x] Typecheck passes
-
----
-
-### US-102: Enforce coverage threshold in CI
-
-**Description:** As a developer, I want CI to fail if coverage drops below the agreed threshold so that new code cannot land without tests.
-
-**Acceptance Criteria:**
-- [x] `pytest --cov=rex --cov-fail-under=<threshold>` runs in CI
-- [x] CI job fails when overall coverage is below the configured threshold
-- [x] threshold value stored in `pyproject.toml` and documented
-- [x] Typecheck passes
-
----
+- [ ] Dockerfile runtime stage replaces `COPY . .` with explicit allowlist covering only:
+  `rex/`, `rex_speak_api.py`, `rex_loop.py`, `voice_loop.py`, `pyproject.toml`,
+  `config/rex_config.example.json`, `assets/`, and entry-point scripts
+- [ ] Image builds successfully: `docker build -t rex-test .` exits 0
+- [ ] `docker run --rm rex-test python -c "import rex"` exits 0
+- [ ] Image does not contain `.env`, `tests/`, `venv/`, or `Memory/` directories
+- [ ] Dockerfile comments document which mounts are expected at runtime (config, data)
+- [ ] Typecheck passes
 
-# PHASE 39 — Error Handling and Resilience
-
-### US-103: Global unhandled exception handler
-
-**Description:** As a developer, I want unhandled exceptions caught at the application boundary and logged with full context so that crashes produce actionable error records rather than silent failures.
-
-**Acceptance Criteria:**
-- [x] a top-level exception handler wraps the main application entry points
-- [x] unhandled exceptions logged with: exception type, message, full traceback, and timestamp
-- [x] application exits with a non-zero exit code on fatal error
-- [x] handler does not swallow exceptions silently
-- [x] Typecheck passes
-
----
-
-### US-104: Consistent error response envelope
-
-**Description:** As a developer, I want all API error responses to use a consistent JSON envelope so that clients can reliably parse errors without special-casing each endpoint.
-
-**Acceptance Criteria:**
-- [x] all error responses return JSON with at minimum: `error.code` (string), `error.message` (string)
-- [x] HTTP status codes are semantically correct (400 for bad input, 401 for auth failure, 500 for server error)
-- [x] no endpoint returns a plain-text error or an unstructured exception traceback to the client
-- [x] at least one test per error condition verifies the response shape
-- [x] Typecheck passes
-
----
-
-### US-105: Retry with exponential backoff for external service calls
-
-**Description:** As a developer, I want transient failures in external service calls retried with exponential backoff so that brief network interruptions do not surface as user-visible errors.
-
-**Acceptance Criteria:**
-- [x] LLM provider calls retried up to a configurable max attempt count (default: 3) on transient errors (timeout, 429, 503)
-- [x] retry delay doubles between attempts with configurable base delay (default: 1s)
-- [x] non-retryable errors (400, 401, 403) are not retried
-- [x] retry behavior covered by at least one unit test using a mock that fails N times then succeeds
-- [x] Typecheck passes
-
----
-
-### US-106: Graceful shutdown
-
-**Description:** As a developer, I want the application to handle SIGTERM cleanly so that in-flight requests complete and resources are released before the process exits.
-
-**Acceptance Criteria:**
-- [x] SIGTERM signal registered and handled in the main process
-- [x] on SIGTERM, no new requests accepted and in-flight requests given up to a configurable drain timeout (default: 10s) to complete
-- [x] open database connections and background jobs closed cleanly on shutdown
-- [x] process exits with code 0 after clean shutdown
-- [x] Typecheck passes
-
----
-
-# PHASE 40 — Logging and Observability
-
-### US-107: Structured JSON logging
-
-**Description:** As a developer, I want all log output formatted as structured JSON so that logs are machine-parseable and easily ingested by log aggregation tools.
-
-**Acceptance Criteria:**
-- [x] all log output from `rex/` emitted as JSON (one object per line)
-- [x] each log entry includes at minimum: `timestamp` (ISO 8601), `level`, `logger` (module name), `message`
-- [x] no log lines use bare `print()` statements
-- [x] existing test output remains readable (JSON logging can be disabled in test mode via config)
-- [x] Typecheck passes
-
----
-
-### US-108: Log level configuration per environment
-
-**Description:** As a developer, I want log verbosity configurable per environment so that production runs at INFO and development can run at DEBUG without code changes.
-
-**Acceptance Criteria:**
-- [x] log level configurable via environment variable (e.g., `LOG_LEVEL=DEBUG`)
-- [x] default log level is `INFO` when `LOG_LEVEL` is not set
-- [x] per-module log level overrides supported via config
-- [x] DEBUG-level logs do not appear in output when `LOG_LEVEL=INFO`
-- [x] Typecheck passes
-
----
-
-### US-109: Request and response logging middleware
-
-**Description:** As a developer, I want every inbound HTTP request and outgoing response logged with method, path, status code, and duration so that API traffic is traceable without a separate APM tool.
-
-**Acceptance Criteria:**
-- [x] middleware logs each request: method, path, client IP (anonymized or configurable), timestamp
-- [x] middleware logs each response: status code, duration in milliseconds
-- [x] request and response log entries share a common request ID for correlation
-- [x] request body and response body are NOT logged by default (to avoid PII leakage)
-- [x] Typecheck passes
-
----
-
-### US-110: Liveness and readiness health check endpoints
-
-**Description:** As a developer, I want separate liveness and readiness endpoints so that process supervisors and load balancers can distinguish between a starting process and a failed one.
-
-**Acceptance Criteria:**
-- [x] `GET /health/live` returns 200 when the process is running, regardless of dependency state
-- [x] `GET /health/ready` returns 200 only when all critical dependencies (database, config) are available
-- [x] `GET /health/ready` returns 503 with a JSON body describing which dependencies are unavailable
-- [x] both endpoints respond in under 500ms under normal conditions
-- [x] Typecheck passes
-
----
-
-# PHASE 41 — Configuration Hardening
-
-### US-111: Startup config validation with fail-fast
-
-**Description:** As a developer, I want the application to validate all required configuration and environment variables at startup and exit immediately with a clear error if any are missing or invalid so that misconfigured deployments fail loudly rather than silently misbehaving.
-
-**Acceptance Criteria:**
-- [x] a config validation step runs before any other initialization
-- [x] missing required environment variables produce a specific error message naming the missing variable and exit code 1
-- [x] invalid values (e.g., non-numeric port, malformed URL) produce a descriptive error and exit code 1
-- [x] optional variables with defaults do not cause startup failure
-- [x] Typecheck passes
-
----
-
-### US-112: .env.example and environment variable reference
-
-**Description:** As a developer, I want a `.env.example` file in the repo root documenting every environment variable so that new developers can configure the application without reading source code.
-
-**Acceptance Criteria:**
-- [x] `.env.example` exists at the repo root
-- [x] every environment variable consumed by the application is present in `.env.example` with a comment describing its purpose and acceptable values
-- [x] required variables are clearly marked as required; optional variables show their default
-- [x] `.env` is in `.gitignore` and not committed
-- [x] Typecheck passes
-
----
-
-### US-113: Production configuration defaults
-
-**Description:** As a developer, I want the application to enforce safe production defaults so that debug features, verbose tracing, and development shortcuts are disabled when running in production mode.
-
-**Acceptance Criteria:**
-- [x] `DEBUG` mode disabled when `ENVIRONMENT=production` (or equivalent)
-- [x] stack traces not returned to API clients in production
-- [x] development-only endpoints or routes disabled or unreachable in production mode
-- [x] production mode detectable from a single `ENVIRONMENT` environment variable
-- [x] Typecheck passes
-
----
-
-# PHASE 42 — Database Production Readiness
-
-### US-114: Database connection pool configuration
-
-**Description:** As a developer, I want the database connection pool size and timeout configured explicitly so that Rex does not exhaust database connections under load or hang indefinitely on unavailable connections.
-
-**Acceptance Criteria:**
-- [x] connection pool min/max size configurable via environment variables
-- [x] connection acquisition timeout configured (default: 5s); acquisition failure raises a handled error
-- [x] idle connection timeout configured to prevent stale connections
-- [x] pool settings logged at startup at INFO level
-- [x] Typecheck passes
-
----
-
-### US-115: Migration state validation on startup
-
-**Description:** As a developer, I want the application to check that all database migrations have been applied before accepting traffic so that schema mismatches are caught immediately rather than at runtime.
-
-**Acceptance Criteria:**
-- [x] on startup, the migration state is queried and compared against the expected schema version
-- [x] if unapplied migrations exist, the application logs the pending migration names and exits with code 1
-- [x] migration check runs before any request handler is registered
-- [x] check can be disabled via a `SKIP_MIGRATION_CHECK` environment variable for emergency use
-- [x] Typecheck passes
-
----
-
-### US-116: Query timeout enforcement
-
-**Description:** As a developer, I want all database queries to have a timeout so that a slow query cannot block a request indefinitely.
-
-**Acceptance Criteria:**
-- [x] a default query timeout applied to all database operations (default: 10s, configurable)
-- [x] queries that exceed the timeout raise a handled exception, not a hang
-- [x] timeout errors logged with query context (excluding any PII in query parameters)
-- [x] at least one test verifies timeout behavior using a mock that delays beyond the threshold
-- [x] Typecheck passes
-
----
-
-# PHASE 43 — API Polish
-
-### US-117: Consistent error response envelope enforcement
-
-**Description:** As a developer, I want a middleware or base handler to enforce the standard error envelope on every error response so that individual endpoint authors cannot accidentally return unstructured errors.
-
-**Acceptance Criteria:**
-- [x] error formatting logic lives in one place (middleware or exception handler), not duplicated per endpoint
-- [x] a test hitting each endpoint with a deliberately bad request confirms the standard envelope is returned
-- [x] 500-level errors include an `error.request_id` field for log correlation
-- [x] Typecheck passes
-
----
-
-### US-118: Request payload schema validation on all POST and PUT endpoints
-
-**Description:** As a developer, I want request payloads validated against a schema at the framework level so that handler logic can assume valid input and validation errors are returned consistently.
-
-**Acceptance Criteria:**
-- [x] every POST and PUT endpoint declares a required schema (Pydantic model, dataclass, or equivalent)
-- [x] requests with missing required fields return 400 with the specific field name(s) missing
-- [x] requests with incorrect field types return 400 with a descriptive message
-- [x] validation runs before any business logic executes
-- [x] Typecheck passes
-
----
-
-### US-119: Rate limiting on public-facing API endpoints
-
-**Description:** As a developer, I want rate limits applied to public-facing endpoints so that a single client cannot exhaust server resources through excessive requests.
-
-**Acceptance Criteria:**
-- [x] rate limiter applied to all unauthenticated or public endpoints
-- [x] rate limit configurable (default: 60 requests/minute per IP)
-- [x] requests exceeding the limit receive a 429 response with a `Retry-After` header
-- [x] rate limiter does not apply to health check endpoints
-- [x] Typecheck passes
-
----
-
-# PHASE 44 — Performance Baseline
-
-### US-120: Response time baseline for core API endpoints
-
-**Description:** As a developer, I want a documented response time baseline for core endpoints so that performance regressions are detectable in future test runs.
-
-**Acceptance Criteria:**
-- [x] response times measured for at minimum: health check, chat message send, notification list, config load
-- [x] measurements taken with a local warm instance (min 10 requests, median reported)
-- [x] baseline documented in `docs/performance-baseline.md`
-- [x] any endpoint with p50 > 500ms flagged for investigation
-- [x] Typecheck passes
-
 ---
-
-### US-121: Audit and fix blocking I/O in async handlers
-
-**Description:** As a developer, I want all async request handlers free of blocking synchronous I/O calls so that the event loop is never stalled by a slow operation.
 
-**Acceptance Criteria:**
-- [x] all async handler functions audited for synchronous file I/O, `time.sleep()`, and synchronous HTTP calls
-- [x] any blocking calls found replaced with async equivalents or offloaded to a thread executor
-- [x] findings and changes documented in a comment or commit message
-- [x] Typecheck passes
-
----
+# PHASE B — Code Quality Restoration (QLT-001)
 
-### US-122: Memory usage baseline and leak detection
+### US-177: Restore Ruff lint compliance — import and unused-code violations
 
-**Description:** As a developer, I want memory usage profiled under a representative workload so that obvious leaks are caught before production deployment.
+**Description:** As a developer, I want all Ruff import-order and unused-symbol violations
+fixed so that the linter baseline is clean before enforcing it in CI.
 
 **Acceptance Criteria:**
-- [x] `tracemalloc` or `memray` used to profile memory during a simulated workload (min 100 requests)
-- [x] baseline RSS memory usage documented in `docs/performance-baseline.md`
-- [x] any object type accumulating unboundedly across requests flagged and investigated
-- [x] no confirmed memory leaks (unbounded growth) present at release
-- [x] Typecheck passes
+- [ ] `ruff check rex/ --select I,F` exits 0 (import order + unused imports/variables)
+- [ ] No `noqa` suppressions added that were not already present
+- [ ] `pytest -q` exits 0 after changes (no regressions)
+- [ ] Typecheck passes
 
 ---
-
-# PHASE 45 — Documentation and Runbook
 
-### US-123: Production deployment guide
+### US-178: Restore Ruff lint compliance — remaining rule violations
 
-**Description:** As a developer, I want a step-by-step production deployment guide so that a new operator can deploy Rex without tribal knowledge.
+**Description:** As a developer, I want all remaining Ruff violations (beyond import order)
+resolved so that `ruff check rex/` exits clean.
 
 **Acceptance Criteria:**
-- [x] `docs/deployment.md` exists and covers: prerequisites, environment setup, installation steps, first-run verification
-- [x] guide documents how to apply database migrations before starting the service
-- [x] guide documents how to verify the service is healthy after deployment
-- [x] guide tested by following steps on a clean environment and confirming successful startup
-- [x] Typecheck passes
+- [ ] `ruff check rex/` exits 0 with zero errors
+- [ ] `ruff check rex/ --statistics` shows 0 total
+- [ ] No existing `# noqa` comments were silently widened to suppress new categories
+- [ ] `pytest -q` exits 0
+- [ ] Typecheck passes
 
 ---
 
-### US-124: Environment variable and configuration reference
+### US-179: Restore Black formatting compliance
 
-**Description:** As a developer, I want a single reference document listing every configuration option so that operators can tune Rex for their environment without reading source code.
+**Description:** As a developer, I want the full package formatted with Black so that
+`black --check` passes on every Python file.
 
 **Acceptance Criteria:**
-- [x] `docs/configuration.md` exists and lists every environment variable with: name, description, default, required/optional
-- [x] document organized into logical sections (server, database, LLM providers, integrations, logging)
-- [x] document consistent with `.env.example` (no variables in one but not the other)
-- [x] Typecheck passes
+- [ ] `black --check rex/` exits 0
+- [ ] `black --check *.py` exits 0 for all root-level Python files
+- [ ] No logic changes introduced — only whitespace/formatting
+- [ ] `pytest -q` exits 0
+- [ ] Typecheck passes
 
 ---
 
-### US-125: Operations runbook
+### US-180: Resolve mypy type errors — batch 1 (core package, highest-impact files)
 
-**Description:** As an operator, I want a runbook covering common operational tasks so that I can start, stop, restart, and diagnose Rex without escalating to a developer.
+**Description:** As a developer, I want the highest-impact mypy errors in `rex/` resolved
+so that type coverage improves measurably.
 
 **Acceptance Criteria:**
-- [x] `docs/runbook.md` exists and covers: start/stop/restart procedure, log access and filtering, health check verification, what to do if a service fails to start
-- [x] runbook documents the expected process list and how to verify each component is running
-- [x] at least five common error scenarios documented with diagnosis steps and resolution
-- [x] Typecheck passes
+- [ ] `mypy rex/assistant.py rex/config.py rex/llm_client.py rex/voice_loop.py` exits 0
+- [ ] No `type: ignore` comments added without an inline explanation
+- [ ] `pytest -q` exits 0
+- [ ] Typecheck passes
 
 ---
 
-### US-126: API reference documentation
+### US-181: Resolve mypy type errors — batch 2 (integrations and remaining files)
 
-**Description:** As a developer or integrator, I want all public API endpoints documented so that I can build integrations without reading source code.
+**Description:** As a developer, I want mypy to pass on the full `rex/` package so that
+the codebase has a clean type baseline.
 
 **Acceptance Criteria:**
-- [x] `docs/api.md` or equivalent documents every public endpoint: method, path, request schema, response schema, error codes
-- [x] authentication requirements documented per endpoint
-- [x] at least one example request and response shown per endpoint
-- [x] document consistent with the actual running API (no phantom or missing endpoints)
-- [x] Typecheck passes
+- [ ] `mypy rex/` exits 0 with zero errors
+- [ ] All `type: ignore` comments that remained from batch 1 are either resolved or
+  documented with a specific reason comment
+- [ ] `pytest -q` exits 0
+- [ ] Typecheck passes
 
 ---
 
-# PHASE 46 — Deployment Readiness
+# PHASE C — Test Infrastructure Fixes (TST-001)
 
-### US-127: Service startup sequence and dependency ordering
+### US-182: Fix brittle repo-integrity tests
 
-**Description:** As a developer, I want the startup sequence to enforce dependency ordering so that services that depend on the database or config do not start before those dependencies are ready.
+**Description:** As a developer, I want repo-integrity tests to capture a git-status
+baseline at the start of the test session and compare against that baseline so that
+pre-existing dirty files do not cause false failures.
 
 **Acceptance Criteria:**
-- [x] startup sequence documented and enforced in code: config validation → database connection → migration check → service initialization → begin accepting traffic
-- [x] if any step fails, subsequent steps do not run
-- [x] startup sequence logged at INFO level so the log stream shows exactly where a failure occurred
-- [x] Typecheck passes
+- [ ] `tests/test_repo_integrity.py` captures `git status --porcelain` output before any
+  test runs and stores it as the session baseline
+- [ ] `tests/test_repository_integrity.py` uses the same baseline approach
+- [ ] Running `pytest -q tests/test_repo_integrity.py tests/test_repository_integrity.py`
+  exits 0 even when `requirements-gpu-cu124.txt` (or any other pre-existing tracked
+  modification) is already dirty
+- [ ] Both files include a comment explaining the baseline approach
+- [ ] Typecheck passes
 
 ---
-
-### US-128: Process supervisor configuration
 
-**Description:** As an operator, I want Rex services managed by a process supervisor so that crashed services restart automatically and startup on system boot is handled without manual intervention.
+# PHASE D — Operations Script Fixes (OPS-001, OPS-002)
 
-**Acceptance Criteria:**
-- [x] a `systemd` unit file (or `supervisor` config, whichever matches the target deployment environment) provided for all long-running Rex processes
-- [x] unit file configures automatic restart on failure (with a backoff limit to prevent restart loops)
-- [x] unit file documented in `docs/deployment.md`
-- [x] starting the unit file on a clean system results in the service coming up and passing the liveness check
-- [x] Typecheck passes
-
----
+### US-183: Fix security audit script false positives
 
-### US-129: Production smoke test suite
+**Description:** As a developer, I want the security audit script to scan only tracked
+source files and exclude generated caches so that its output is actionable rather than noisy.
 
-**Description:** As a developer, I want a smoke test suite that verifies all critical paths against a running instance so that a deployment can be validated in minutes without a full regression run.
-
 **Acceptance Criteria:**
-- [x] smoke tests marked with `@pytest.mark.smoke` and runnable via `pytest -m smoke`
-- [x] smoke tests cover at minimum: health check, authentication, chat message round-trip, notification creation, CLI entrypoints
-- [x] smoke tests connect to a running local instance (not mocks)
-- [x] all smoke tests pass against a freshly started local instance
-- [x] smoke test run time under 2 minutes
-- [x] Typecheck passes
+- [ ] `scripts/security_audit.py` excludes `.mypy_cache/`, `.ruff_cache/`, `.pytest_cache/`,
+  `__pycache__/`, `venv/`, `.venv/`, `*.egg-info/`, `build/`, and `node_modules/`
+- [ ] Total scanned file count reported separately from excluded files
+- [ ] Script output categorizes findings by: source code vs documentation vs configuration
+- [ ] Running `python scripts/security_audit.py` reports fewer than 50 findings on a
+  clean checkout (eliminating the 295 false-positive count)
+- [ ] Typecheck passes
 
 ---
 
-# PHASE 47 — Final Production Sign-off
+### US-184: Rewrite deployment validation script
 
-### US-130: Full test suite clean run
+**Description:** As an operator, I want the deployment validation script to reflect the
+current runtime model so that it gives accurate pass/fail verdicts.
 
-**Description:** As a developer, I want the complete test suite to pass with zero failures and zero errors so that there are no known regressions at release.
-
 **Acceptance Criteria:**
-- [x] `pytest` exits with code 0
-- [x] zero test failures, zero test errors
-- [x] zero tests marked `xfail` that are unexpectedly passing (review any xfail markers)
-- [x] test run completes in under 10 minutes on the reference machine
-- [x] Typecheck passes
+- [ ] `scripts/validate_deployment.py` checks for `config/rex_config.json` existence and
+  schema validity instead of `REX_ACTIVE_USER` environment variable
+- [ ] Script validates torch version against the range in `pyproject.toml` (`>=2.6.0,<2.9.0`)
+  instead of expecting `2.5.x`
+- [ ] Script validates that all CLI entrypoints from `pyproject.toml` are importable
+- [ ] `python scripts/validate_deployment.py` exits 0 on a properly configured install
+- [ ] Score output accurately reflects the 7 checks (all 7 passing on valid install)
+- [ ] Typecheck passes
 
 ---
 
-### US-131: Final security scan
+# PHASE E — Execution Surface Correctness (COR-001)
 
-**Description:** As a developer, I want a final end-to-end security scan run immediately before release so that no vulnerabilities introduced during the production readiness phase have been missed.
+### US-185: Define authoritative executable tool catalog
 
-**Acceptance Criteria:**
-- [x] `pip-audit` (or equivalent) returns zero critical or high CVEs
-- [x] secret scan (`gitleaks` or equivalent) returns zero confirmed findings against the full git history including all new commits
-- [x] security headers verified present on a live local instance using `curl -I`
-- [x] findings (if any) documented with remediation status
-- [x] Typecheck passes
-
----
+**Description:** As a developer, I want one canonical list of tools that are truly
+executable end-to-end so that the Planner, registry, and router all agree on scope.
 
-### US-132: Production readiness checklist sign-off
-
-**Description:** As a developer, I want a completed production readiness checklist committed to the repository so that there is a permanent record that every gate was passed before the first production deployment.
-
 **Acceptance Criteria:**
-- [x] `docs/production-readiness-checklist.md` exists and contains a checklist item for every phase in this PRD
-- [x] every checklist item marked complete with the US number that completed it
-- [x] any items explicitly waived documented with justification
-- [x] document committed to the repository and reviewed by at least one other person before deployment
-- [x] Typecheck passes
-
----
-
-## Introduction
-
-This PRD addresses six confirmed issues with Rex: a broken voice TTS playback pipeline, excessive installation complexity, a poorly organized README, a developer-oriented user experience, the absence of a polished user-facing GUI, and slow perceived response time. Each issue has corresponding requested changes. Work in this PRD is independent of the core feature buildout PRD and can begin once the repository is stable (Phase 1–4 of PRD.md complete).
-
----
-
-## Goals
-
-- Fix the voice mode response pipeline so Rex speaks replies back to the user
-- Reduce installation to a single clear method a non-technical user can follow
-- Rewrite the README so a first-time user can be up and running in under 10 minutes
-- Build a polished, modern desktop GUI that serves as the primary way users interact with Rex
-- Make the GUI the home for chat, voice, scheduling, and visibility into what Rex is managing
-- Reduce actual end-to-end voice response latency through pipeline optimization
-- Improve perceived responsiveness so interactions feel fast even when hardware limits speed
-
----
-
-## Non-Goals
-
-- No mobile app
-- No cloud sync or multi-device support
-- No user accounts or authentication beyond the existing dashboard login
-- No plugin marketplace or plugin distribution UI
-- No automated deployment or packaging (installers, signed binaries, app stores)
-- No changes to LLM provider integrations (covered in PRD.md)
-
----
-
-## Technical Considerations
+- [ ] New file `rex/tool_catalog.py` defines `EXECUTABLE_TOOLS: frozenset[str]` containing
+  exactly the tools with real handlers: `time_now`, `weather_now`, `web_search`,
+  `send_email`, `calendar_create_event`, `home_assistant_call_service`
+- [ ] `rex/tool_registry.py` imports and validates against `EXECUTABLE_TOOLS` at registration time
+- [ ] `rex/planner.py` imports `EXECUTABLE_TOOLS` and limits plan generation to that set
+- [ ] `rex/tool_router.py` imports `EXECUTABLE_TOOLS` and raises `UnknownToolError` (not a
+  generic exception) for any tool not in the catalog
+- [ ] `pytest -q tests/test_tool_registry.py tests/test_tool_router.py` exits 0
+- [ ] Typecheck passes
 
-- **Voice pipeline:** The break point is somewhere between LLM response delivery and TTS audio playback. Instrumentation stories (US-133, US-134) must run before the fix stories (US-135–US-137) to identify the exact failure point.
-- **GUI framework:** Rex already has a FastAPI backend and a web-based dashboard. The recommended path is to build the new GUI as a modern single-page application (React + Tailwind or similar) served by the existing backend, optionally wrapped in Electron or Tauri for a native desktop window. Stories are written framework-agnostically; the implementer should choose based on the existing stack.
-- **Install script:** Target Windows (`install.ps1`) as the primary platform. A `install.sh` variant for Linux/macOS is a secondary deliverable within the same story.
-- **Performance:** Streaming TTS (playing the first audio chunk before the full response is generated) is the highest-leverage latency improvement. Stories are ordered so profiling (US-167) precedes optimization.
-- **Story numbering:** Continues from US-132 (end of PRD-production-readiness.md). Phases continue from Phase 47.
-
 ---
-
-# PHASE 48 — Voice TTS Playback Diagnosis
 
-> Fix the voice pipeline break between LLM response generation and audio playback. Diagnosis stories come first to locate the exact failure point before any fixes are attempted.
+### US-186: Implement weather_now and web_search tool handlers
 
-### US-133: Add tracing logs to the full voice response pipeline
+**Description:** As a user, I want weather and web search queries to return real results
+when those integrations are configured so that Rex can answer factual questions.
 
-**Description:** As a developer, I want structured log statements at every stage of the voice response pipeline so that I can identify exactly where audio delivery fails.
-
 **Acceptance Criteria:**
-- [x] log entry emitted at each stage: LLM response received, TTS input text prepared, TTS engine called, audio data returned, audio playback initiated, audio playback completed
-- [x] each log entry includes stage name, timestamp, and any relevant payload size or status
-- [x] logs visible at DEBUG level without modifying source code (controlled by `LOG_LEVEL`)
-- [x] running a voice interaction with `LOG_LEVEL=DEBUG` produces a trace covering all stages or clearly shows which stage is missing
-- [x] Typecheck passes
+- [ ] `rex/tool_router.py` `weather_now` handler calls the configured weather provider
+  (existing `rex/tools/weather.py` or equivalent) and returns a formatted string
+- [ ] `rex/tool_router.py` `web_search` handler calls the configured search provider
+  (existing search integration) and returns top-3 result summaries
+- [ ] Both handlers return a graceful `"[integration not configured]"` string when no
+  API key is present (not an exception)
+- [ ] `pytest -q tests/test_tool_router.py` exits 0 with mocked provider responses
+- [ ] Typecheck passes
 
 ---
 
-### US-134: Document and confirm the confirmed break point in voice playback
+### US-187: Implement send_email and calendar_create_event tool handlers
 
-**Description:** As a developer, I want the exact failure point in the voice pipeline documented in `AGENTS.md` so that subsequent fix stories have a precise target.
+**Description:** As a user, I want the Planner to be able to send email and create
+calendar events when those integrations are configured.
 
 **Acceptance Criteria:**
-- [x] a test script or manual procedure exists that triggers the full voice pipeline and captures log output
-- [x] the log output identifies which stage completes last before audio stops
-- [x] finding documented in `AGENTS.md` under a "Voice Pipeline Break Point" heading
-- [x] finding includes: last successful stage, first missing stage, relevant code path (file and function name)
-- [x] Typecheck passes
+- [ ] `rex/tool_router.py` `send_email` handler accepts `{to, subject, body}` and calls
+  `EmailService.send()`, returning `"Email sent"` or a descriptive error string
+- [ ] `rex/tool_router.py` `calendar_create_event` handler accepts `{title, start, end}`
+  and calls `CalendarService.create_event()`, returning confirmation or error string
+- [ ] Both handlers degrade gracefully when the backend is not configured
+- [ ] `pytest -q tests/test_tool_router.py` exits 0
+- [ ] Typecheck passes
 
 ---
-
-# PHASE 49 — Voice TTS Playback Fix
 
-### US-135: Fix TTS text input delivery from LLM response handler
+### US-188: Add planner-to-router end-to-end integration tests
 
-**Description:** As a developer, I want the LLM response text reliably passed to the TTS engine so that every generated reply is queued for speech synthesis.
+**Description:** As a developer, I want integration tests proving that every tool the
+Planner can emit is executable through the router so that COR-001 cannot regress.
 
 **Acceptance Criteria:**
-- [x] LLM response text reaches the TTS input function on every successful generation
-- [x] empty or whitespace-only responses do not trigger TTS
-- [x] errors in the LLM handler do not silently discard the response before TTS is called
-- [x] unit test confirms TTS input function is called with the correct text after a mock LLM response
-- [x] Typecheck passes
+- [ ] New file `tests/test_planner_tool_e2e.py` tests each tool in `EXECUTABLE_TOOLS`
+- [ ] Each test: generates a minimal plan containing that tool, executes it through
+  `execute_tool()`, asserts the result is a non-empty string (not an exception)
+- [ ] All tests use mocked external services (no real API calls)
+- [ ] `pytest -q tests/test_planner_tool_e2e.py` exits 0
+- [ ] Typecheck passes
 
 ---
-
-### US-136: Fix audio playback and output device selection
-
-**Description:** As a developer, I want synthesized audio played through the correct output device so that Rex's spoken response is audible to the user.
-
-**Acceptance Criteria:**
-- [x] TTS audio output plays through the system default audio device
-- [x] output device configurable via `config` (device name or index)
-- [x] playback does not block the voice loop from processing new input after audio ends
-- [x] audio playback errors are caught and logged, not silently swallowed
-- [x] Typecheck passes
 
----
+# PHASE F — Documentation Truth (DOC-001, DOC-002, DOC-003, ARC-001)
 
-### US-137: Fix voice loop re-arm after TTS playback completes
+### US-189: Align README runtime configuration section
 
-**Description:** As a developer, I want the voice loop to return to the wake-word listening state immediately after TTS playback finishes so that Rex is ready for the next interaction.
+**Description:** As a user, I want the README to describe the actual config system
+(JSON runtime config + secrets-only .env) so that setup instructions are not misleading.
 
 **Acceptance Criteria:**
-- [x] after TTS audio finishes playing, the wake word detector resumes within 1 second
-- [x] the microphone stream is not left open or blocked after playback
-- [x] a second voice interaction triggered after the first completes successfully produces a spoken response
-- [x] Typecheck passes
+- [ ] README no longer presents large env-var configuration tables as the primary setup method
+- [ ] README clearly states: secrets go in `.env`, runtime settings go in
+  `config/rex_config.json`, and links to `CONFIGURATION.md` for the full reference
+- [ ] `.env.example` is referenced in the README and its role is described accurately
+- [ ] Existing Quick Start section steps remain accurate after the change
+- [ ] Typecheck passes
 
 ---
 
-### US-138: End-to-end voice round-trip integration test
+### US-190: Rewrite Windows quickstart with correct entrypoints
 
-**Description:** As a developer, I want an automated test that exercises the full wake-word-to-spoken-response pipeline using mocks so that regressions in voice mode are caught by CI.
+**Description:** As a Windows user, I want the Windows setup guide to describe the real
+startup commands for each runtime mode so that I can launch Rex successfully.
 
 **Acceptance Criteria:**
-- [x] test injects a mock wake word event, a mock STT transcript, a mock LLM response, and asserts TTS was called with the expected text
-- [x] test asserts the voice loop re-arms after the mock playback completes
-- [x] test passes without any real microphone, speaker, or network connection
-- [x] test added to CI and passes on first run
-- [x] Typecheck passes
+- [ ] `README.windows.md` describes four distinct runtime modes with their correct commands:
+  text chat (`python -m rex`), voice loop (`python rex_loop.py`),
+  dashboard (`python run_gui.py`), TTS API (`python rex_speak_api.py`)
+- [ ] All PowerShell activation and launch commands are tested as syntactically correct
+- [ ] Guide no longer instructs users to configure runtime behavior via environment variables
+- [ ] Guide references `config/rex_config.example.json` for runtime configuration
+- [ ] Typecheck passes
 
 ---
-
-# PHASE 50 — Unified Installation
 
-### US-139: Create a single-command install script
+### US-191: Archive and correct stale architecture and status documents
 
-**Description:** As a user, I want to run one command that installs everything Rex needs so that I do not have to understand Python packaging, virtual environments, or optional extras.
+**Description:** As a developer, I want stale docs that claim "production-ready" status
+or describe retired architecture to be clearly archived or corrected so that no document
+misleads contributors.
 
 **Acceptance Criteria:**
-- [x] `install.ps1` (Windows) and `install.sh` (Linux/macOS) exist at the repo root
-- [x] the script creates a virtual environment, installs Rex with all required dependencies, and verifies the install
-- [x] on success, the script prints a clear "Rex is installed. Run `rex` to start." message
-- [x] on failure, the script prints a specific error and exits with a non-zero code
-- [x] Typecheck passes
+- [ ] Any document claiming "production-ready" status is updated to reflect the actual
+  state or moved to `docs/archive/` with an `ARCHIVED:` prefix in its title
+- [ ] Documents referencing the retired OpenClaw Python package import architecture are
+  updated to describe the current HTTP integration approach
+- [ ] `docs/claude/INTEGRATIONS_STATUS.md` accurately reflects which integrations are real
+  vs stub (email, calendar, SMS)
+- [ ] Typecheck passes
 
 ---
 
-### US-140: Consolidate optional extras into a single `[full]` install target
+### US-192: Consolidate to one canonical voice loop entry point
 
-**Description:** As a developer, I want all user-facing capabilities bundled into a single `pip install rex[full]` so that users do not need to choose between extras.
+**Description:** As a developer, I want the voice loop duplication between root-level and
+`rex/` package resolved so that there is one documented, authoritative startup path.
 
 **Acceptance Criteria:**
-- [x] `pyproject.toml` defines a `[full]` extra that includes all extras required for the complete Rex experience (voice, integrations, GUI)
-- [x] `pip install rex[full]` succeeds and installs all required packages
-- [x] existing extras remain available for advanced users who want minimal installs
-- [x] install script updated to use `rex[full]`
-- [x] Typecheck passes
+- [ ] `CLAUDE.md` documents which file is the canonical voice loop entry point and why
+  the second exists (or it is removed if unused)
+- [ ] `rex_loop.py` (root) explicitly imports from the canonical module and does not
+  duplicate business logic
+- [ ] Both `voice_loop.py` files have a header comment explaining their relationship
+- [ ] `pytest -q` exits 0
+- [ ] Typecheck passes
 
 ---
 
-### US-141: Remove or archive legacy install instructions from the main flow
+# PHASE G — Dependency Alignment (DEP-001)
 
-**Description:** As a developer, I want legacy and advanced install options moved out of the primary user-facing documentation so that new users see only one install path.
+### US-193: Define and document the canonical runtime matrix
 
-**Acceptance Criteria:**
-- [x] the main README references only the single install script as the primary install method
-- [x] any legacy install steps (manual pip commands, multiple extras choices, etc.) moved to `docs/advanced-install.md`
-- [x] `docs/advanced-install.md` linked from the README under a clearly labeled "Advanced / Developer Install" section
-- [x] Typecheck passes
-
----
+**Description:** As a developer, I want one authoritative version matrix for Python,
+PyTorch, and CUDA targets so that requirements files, pyproject.toml, the Dockerfile,
+and the validation script all agree.
 
-### US-142: Improve `rex doctor` to validate the full install
-
-**Description:** As a user, I want `rex doctor` to confirm that all components needed for the full Rex experience are working so that I know my install is complete before I try to use it.
-
 **Acceptance Criteria:**
-- [x] `rex doctor` checks and reports status for: Python version, all required packages, audio input device, audio output device, LM Studio reachability (with timeout), config file presence
-- [x] each check reports PASS or FAIL with a specific, actionable message on failure
-- [x] overall result clearly indicates whether Rex is ready to use
-- [x] Typecheck passes
+- [ ] `docs/DEPENDENCIES.md` (new or updated) documents the canonical matrix:
+  Python 3.10–3.13, torch 2.6.x–2.8.x (CPU), cu118 variant, cu124 variant
+- [ ] `requirements-cpu.txt` does not pin a CUDA variant of torch
+- [ ] `pyproject.toml` optional ML extras match the documented matrix
+- [ ] `Dockerfile` torch version falls within the documented matrix
+- [ ] `scripts/validate_deployment.py` (from US-184) validates against the documented matrix
+- [ ] Typecheck passes
 
 ---
-
-# PHASE 51 — README Overhaul
 
-### US-143: Restructure README with quick start first and a table of contents
+# PHASE H — Code Bug Fixes (from code review)
 
-**Description:** As a new user, I want the README to open with a quick start section and a navigable table of contents so that I can get Rex running without reading the entire document.
+### US-194: Thread-safe TTS engine in rex_speak_api.py
 
-**Acceptance Criteria:**
-- [x] README opens with a one-paragraph description of what Rex is and who it is for
-- [x] table of contents appears within the first 30 lines of the README
-- [x] "Quick Start" section is the first major section after the description and table of contents
-- [x] Quick Start contains no more than 5 steps
-- [x] Typecheck passes
-
----
+**Description:** As an operator, I want the TTS engine to be protected by a threading lock
+so that concurrent HTTP requests to `/speak` cannot cause race conditions or corrupt state.
 
-### US-144: Write a clear Quick Start section (5 steps or fewer)
-
-**Description:** As a new user, I want a Quick Start guide that gets Rex running in under 10 minutes so that I do not need to read the full documentation to try it.
-
 **Acceptance Criteria:**
-- [x] Quick Start section contains exactly the steps: clone repo, run install script, configure LM Studio, run Rex, verify it works
-- [x] each step is a single clear action with the exact command to run
-- [x] Quick Start tested on a clean machine and confirmed to produce a working Rex install
-- [x] no step requires the user to read another section first
-- [x] Typecheck passes
+- [ ] `rex_speak_api.py` introduces `_tts_lock = threading.Lock()` at module level
+- [ ] All access to `_TTS_ENGINE` (read and write) is wrapped in `with _tts_lock:`
+- [ ] The lock is acquired before initialization check and released after synthesis completes
+- [ ] A test in `tests/test_speak_api.py` (or new file) fires 5 concurrent `/speak` requests
+  using `threading.Thread` and asserts all return 200 with non-empty audio
+- [ ] Typecheck passes
 
 ---
 
-### US-145: Move deep technical content into secondary docs
+### US-195: Fix _followup_injected race condition in assistant.py
 
-**Description:** As a developer, I want advanced configuration, architecture details, and developer setup moved to `docs/` so that the README remains concise without losing any information.
+**Description:** As a developer, I want the followup injection flag in `assistant.py` to
+use an `asyncio.Lock` so that concurrent `generate_reply` calls cannot inject followup
+context twice.
 
 **Acceptance Criteria:**
-- [x] any README section longer than 20 lines that is not relevant to first-time setup moved to a dedicated file in `docs/`
-- [x] each moved section replaced with a one-line summary and a link in the README
-- [x] all moved content preserved verbatim (no information lost)
-- [x] Typecheck passes
+- [ ] `Assistant` replaces `self._followup_injected: bool` with
+  `self._followup_lock: asyncio.Lock` initialized in `__init__`
+- [ ] The injection block is wrapped in `async with self._followup_lock:`
+- [ ] A test simulates two concurrent `generate_reply` calls and asserts followup context
+  is injected at most once across both calls
+- [ ] `pytest -q tests/test_assistant.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
-### US-146: Add visual structure to the README (badges, section dividers, call-outs)
+### US-196: Fix inconsistent temp file cleanup in voice_loop.py
 
-**Description:** As a new user, I want the README to use visual structure so that it is easy to scan and navigate.
+**Description:** As a developer, I want all temporary audio files created during
+speech processing to be cleaned up reliably so that orphaned files do not accumulate.
 
 **Acceptance Criteria:**
-- [x] repo status badges added (CI status, Python version, license)
-- [x] each major section clearly headed with a level-2 heading
-- [x] important warnings or prerequisites use a blockquote or note callout, not inline text
-- [x] README renders correctly on GitHub (no broken markdown)
-- [x] Typecheck passes
+- [ ] All `tempfile.NamedTemporaryFile` and manual temp-path usages in `rex/voice_loop.py`
+  and root `voice_loop.py` are wrapped in `try/finally` blocks that call `os.unlink()`
+- [ ] Cleanup catches and logs `OSError` / `PermissionError` instead of raising
+- [ ] A test creates a voice processing cycle with a mock audio source and asserts the
+  temp directory has no leftover `.wav` files after the call
+- [ ] `pytest -q tests/test_voice_loop.py` exits 0
+- [ ] Typecheck passes
 
 ---
-
-# PHASE 52 — Onboarding Improvements
 
-### US-147: First-run setup detection and guided message
+### US-197: Process OpenAI tool_calls in LLM client
 
-**Description:** As a new user, I want Rex to detect when it is being run for the first time and print a short guided setup message so that I know what to do next.
+**Description:** As a developer, I want the OpenAI strategy to correctly handle
+`tool_calls` in responses so that function-calling is not silently ignored.
 
 **Acceptance Criteria:**
-- [x] Rex detects first run (no config file or empty config file)
-- [x] on first run, prints a clear "Welcome to Rex. Let's get you set up." message with the 3 most important next steps
-- [x] first-run message does not appear on subsequent runs once config is present
-- [x] Typecheck passes
+- [ ] `rex/llm_client.py` `OpenAIStrategy.generate()` checks `message.tool_calls` and,
+  when present, serializes them into the response string as structured JSON tool call data
+- [ ] A test mocks an OpenAI response with `tool_calls` and asserts the returned
+  string contains the tool name and arguments
+- [ ] No existing tests regress
+- [ ] Typecheck passes
 
 ---
 
-### US-148: Friendly, actionable error messages for missing dependencies
+### US-198: Fix Ollama error message taxonomy
 
-**Description:** As a user, I want missing dependency errors to tell me exactly how to fix them so that I am not left with a raw Python traceback.
+**Description:** As a developer, I want Ollama connection errors to be distinguished
+from missing-model errors so that users see accurate troubleshooting messages.
 
 **Acceptance Criteria:**
-- [x] `ImportError` for any optional Rex dependency caught at the module level and re-raised with a human-readable message including the install command to fix it
-- [x] missing LM Studio connection produces a message like "Rex can't reach LM Studio at [url]. Is LM Studio running?" rather than a connection refused traceback
-- [x] no raw Python tracebacks are shown to the user in normal operation (tracebacks reserved for DEBUG mode)
-- [x] Typecheck passes
+- [ ] `OllamaStrategy` catches `httpx.ConnectError` / `ConnectionRefusedError` and returns
+  `"[Ollama: connection failed — is Ollama running?]"`
+- [ ] `OllamaStrategy` catches 404 model-not-found responses and returns
+  `"[Ollama: model '{model}' not found — run: ollama pull {model}]"`
+- [ ] All other errors return `"[Ollama: unexpected error: {detail}]"`
+- [ ] Tests cover all three error paths with mocked HTTP responses
+- [ ] Typecheck passes
 
 ---
 
-# PHASE 53 — GUI Framework and Shell
+### US-199: Fix sentence splitting for abbreviations in TTS pipeline
 
-### US-149: Scaffold GUI application shell
+**Description:** As a user, I want TTS sentence splitting to not break mid-sentence on
+abbreviations like "Dr.", "Mr.", "e.g.", and "etc." so that speech sounds natural.
 
-**Description:** As a developer, I want the GUI application scaffolded with a main window, navigation sidebar, and content area so that feature panels can be added incrementally.
-
 **Acceptance Criteria:**
-- [x] GUI application launches with a single command (e.g., `rex --gui` or `rex-gui`)
-- [x] main window renders with a left sidebar for navigation and a main content area
-- [x] sidebar contains placeholder navigation items for: Chat, Voice, Schedule, Overview
-- [x] window is resizable and has a minimum usable size (e.g., 800x600)
-- [x] application closes cleanly without errors
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] `rex/voice_loop.py` sentence splitter uses an abbreviation-aware approach
+  (either an allowlist of common titles/abbreviations or NLTK `sent_tokenize` if available,
+  with regex fallback)
+- [ ] "Dr. Smith said the treatment works." is treated as a single sentence
+- [ ] "She said it was great. He agreed." is correctly split into two sentences
+- [ ] "e.g. this example." is treated as one sentence
+- [ ] Existing TTS pipeline tests pass
+- [ ] Typecheck passes
 
 ---
 
-### US-150: Apply base visual design system (colors, typography, spacing)
+### US-200: Add request body size limit to rex_speak_api.py
 
-**Description:** As a user, I want the GUI to use a consistent, modern visual design so that it feels like a polished product rather than a developer utility.
+**Description:** As an operator, I want the `/speak` endpoint to reject request bodies
+over a configurable size limit so that the server cannot be exhausted by oversized payloads.
 
 **Acceptance Criteria:**
-- [x] a design token file (CSS variables, theme object, or equivalent) defines: primary color, background color, surface color, text color, accent color, font family, base spacing unit
-- [x] all GUI components use values from the design token file, not hardcoded colors or sizes
-- [x] overall appearance is dark or neutral-dark themed (not a default browser/OS chrome look)
-- [x] typography uses a clean sans-serif font (system font stack or a single loaded font)
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] `rex_speak_api.py` reads `MAX_REQUEST_BYTES` from config (default: 64 KB)
+- [ ] Requests where `Content-Length` exceeds `MAX_REQUEST_BYTES` are rejected with 413
+  before the body is read
+- [ ] Requests without `Content-Length` are read with a stream cap at `MAX_REQUEST_BYTES`
+- [ ] A test sends a request body of 100 KB and asserts the response is 413
+- [ ] Typecheck passes
 
 ---
 
-### US-151: Implement active navigation state and panel switching
+### US-201: Fix suppressed JSON errors in identity.py
 
-**Description:** As a user, I want clicking a sidebar item to load the correct panel so that I can navigate between sections of the GUI.
+**Description:** As a developer, I want session file JSON parse errors to be logged as
+warnings so that corrupted session files are detectable and diagnosable.
 
 **Acceptance Criteria:**
-- [x] clicking each sidebar item displays the corresponding panel in the content area
-- [x] the active sidebar item is visually highlighted
-- [x] navigation does not reload the page or lose state in already-loaded panels
-- [x] back/forward browser navigation works correctly if the GUI is web-based
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] `rex/identity.py` `_load_session()` catches `json.JSONDecodeError` and logs a
+  `logger.warning(f"Corrupted session file {path}, resetting: {e}")` before returning `{}`
+- [ ] The function no longer silently swallows parse errors
+- [ ] A test writes a malformed JSON session file and asserts: the function returns `{}`
+  and a warning is logged
+- [ ] Typecheck passes
 
 ---
 
-# PHASE 54 — GUI Chat Panel
+# PHASE I — Conversation History Persistence
 
-### US-152: Chat message list component
+### US-202: Create SQLite conversation history schema and HistoryStore class
 
-**Description:** As a user, I want to see a scrollable list of conversation messages in the Chat panel so that I can read my full conversation history with Rex.
+**Description:** As a developer, I want a `HistoryStore` backed by SQLite so that
+conversation turns can be persisted and retrieved across restarts.
 
 **Acceptance Criteria:**
-- [x] Chat panel displays messages in chronological order, oldest at top, newest at bottom
-- [x] user messages and Rex messages are visually distinct (different alignment, color, or label)
-- [x] message list auto-scrolls to the newest message when a new message arrives
-- [x] message list is scrollable and handles at least 100 messages without layout issues
-- [x] Typecheck passes
-- [x] Verify changes work in browser
-
----
-
-### US-153: Chat message input and send
-
-**Description:** As a user, I want a text input at the bottom of the Chat panel so that I can type a message and send it to Rex.
-
-**Acceptance Criteria:**
-- [x] text input field visible and focused by default when the Chat panel is open
-- [x] pressing Enter or clicking a Send button submits the message
-- [x] input clears after send
-- [x] sending an empty message is a no-op (no empty messages added to the list)
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] New file `rex/history_store.py` defines `HistoryStore` with:
+  - `__init__(self, db_path: Path)` — creates/migrates the DB on first call
+  - `save_turn(user_id: str, role: str, content: str, timestamp: datetime) -> None`
+  - `load_history(user_id: str, limit: int = 50) -> list[dict]`
+  - `prune(user_id: str, keep_days: int = 30) -> int` — returns rows deleted
+- [ ] Schema uses a single `turns` table: `(id, user_id, role, content, timestamp)`
+- [ ] DB is created at `data/history.db` by default, path is configurable
+- [ ] `pytest -q tests/test_history_store.py` exits 0 (new test file covers CRUD + prune)
+- [ ] Typecheck passes
 
 ---
 
-### US-154: Connect chat UI to Rex backend
+### US-203: Wire HistoryStore into assistant.py
 
-**Description:** As a user, I want messages I send in the chat UI to reach Rex and display Rex's response in the conversation so that the GUI is a functional chat interface.
+**Description:** As a user, I want conversation history to survive assistant restarts so
+that Rex can reference previous exchanges without the session being lost.
 
 **Acceptance Criteria:**
-- [x] submitted message sent to the Rex backend chat endpoint
-- [x] Rex's response displayed in the message list when received
-- [x] a loading indicator appears between message send and response arrival
-- [x] network errors produce a visible error message in the chat, not a silent failure
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] `Assistant.__init__` instantiates `HistoryStore` if `config.persist_history` is True
+  (default: True)
+- [ ] `Assistant.generate_reply()` calls `history_store.save_turn()` for each user prompt
+  and assistant response
+- [ ] `Assistant.__init__` preloads the last 50 turns from `HistoryStore` into the in-memory
+  history on startup
+- [ ] `AppConfig` gains a `persist_history: bool = True` field
+- [ ] `pytest -q tests/test_assistant.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
-### US-155: Chat message streaming display
+### US-204: Add history rotation/pruning scheduled task
 
-**Description:** As a user, I want Rex's response to appear word-by-word as it is generated so that I see immediate feedback instead of waiting for the full response.
+**Description:** As an operator, I want history older than a configurable retention
+window to be pruned automatically so that the database does not grow unbounded.
 
 **Acceptance Criteria:**
-- [x] backend streams the response token-by-token or chunk-by-chunk via SSE or WebSocket
-- [x] chat UI appends tokens to the current message bubble as they arrive
-- [x] the loading indicator is replaced by the streaming message (not shown simultaneously)
-- [x] streaming works correctly for responses of at least 500 tokens
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] `AppConfig` gains `history_retention_days: int = 30`
+- [ ] `rex/history_store.py` `prune()` is called by the scheduler (or a startup hook)
+  once per day
+- [ ] Pruning is idempotent — running twice produces the same result as running once
+- [ ] A test asserts that turns older than retention window are deleted and recent turns
+  are preserved
+- [ ] Typecheck passes
 
 ---
 
-# PHASE 55 — GUI Voice Panel
+# PHASE J — Integration Backends
 
-### US-156: Voice mode toggle with status indicator
+### US-205: Add transport-layer interfaces for email, calendar, and SMS
 
-**Description:** As a user, I want a button in the Voice panel that activates voice mode and shows the current state so that I can start and stop listening without using the CLI.
+**Description:** As a developer, I want explicit protocol/ABC interfaces for each
+integration backend so that real and stub implementations are interchangeable.
 
 **Acceptance Criteria:**
-- [x] Voice panel has a prominent button labeled "Start Listening" / "Stop Listening"
-- [x] button toggles voice mode on and off via the Rex backend
-- [x] current voice state (Idle, Listening, Processing, Speaking) displayed as a text label or icon near the button
-- [x] state updates in real time without requiring a page refresh
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] `rex/integrations/email/backends/base.py` defines `EmailBackend` ABC with:
+  `fetch_unread(limit: int) -> list[dict]` and `send(to, subject, body) -> None`
+- [ ] `rex/integrations/calendar/backends/base.py` defines `CalendarBackend` ABC with:
+  `get_upcoming(days: int) -> list[dict]` and `create_event(title, start, end) -> dict`
+- [ ] `rex/integrations/messaging/backends/base.py` defines `SMSBackend` ABC with:
+  `send(to, body) -> None` and `receive() -> list[dict]`
+- [ ] Existing mock/stub implementations are refactored to implement these interfaces
+- [ ] `pytest -q` exits 0 (no regressions)
+- [ ] Typecheck passes
 
 ---
 
-### US-157: Visual waveform or animation during active listening
+### US-206: Implement IMAP read backend
 
-**Description:** As a user, I want a visual animation when Rex is listening so that I have clear feedback that my voice is being captured.
+**Description:** As a user, I want Rex to fetch real email from an IMAP server so that
+the "read my email" command returns live inbox contents.
 
 **Acceptance Criteria:**
-- [x] when voice mode is in the Listening state, an animated waveform, pulsing ring, or equivalent visual is displayed
-- [x] animation stops when Rex transitions to Processing or Speaking state
-- [x] animation is purely CSS/SVG — no external animation library required
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] New file `rex/integrations/email/backends/imap_smtp.py` defines `IMAPBackend`
+  implementing `EmailBackend.fetch_unread()`
+- [ ] Uses stdlib `imaplib.IMAP4_SSL` with configurable host, port, and SSL flag
+- [ ] Connection timeout is enforced (default: 10 s)
+- [ ] On auth failure, raises a descriptive `EmailAuthError` (not a raw exception)
+- [ ] `tests/test_email_backend_imap_smtp.py` tests happy-path and auth-failure cases
+  using `unittest.mock` on the socket layer (no live network calls)
+- [ ] `pytest -q tests/test_email_backend_imap_smtp.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
-### US-158: Voice transcript display in the Voice panel
+### US-207: Implement SMTP send backend
 
-**Description:** As a user, I want to see what Rex heard me say and what it is replying so that I can confirm it understood me correctly.
+**Description:** As a user, I want Rex to send real email via SMTP so that "send email"
+commands deliver to the actual recipient.
 
 **Acceptance Criteria:**
-- [x] the most recent spoken input transcript displayed in the Voice panel after recognition completes
-- [x] Rex's most recent spoken response text displayed below the transcript
-- [x] both fields clear when a new interaction begins
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] `IMAPSMTPBackend` (same file as US-206) implements `EmailBackend.send()` using
+  stdlib `smtplib.SMTP` with STARTTLS or `smtplib.SMTP_SSL`
+- [ ] Credentials are loaded via `CredentialManager` using the account's `credential_ref`
+- [ ] Sensitive data (password) is never logged
+- [ ] Tests cover: successful send, auth failure, TLS failure, and timeout — all with mocks
+- [ ] `pytest -q tests/test_email_backend_imap_smtp.py` exits 0
+- [ ] Typecheck passes
 
 ---
-
-# PHASE 56 — GUI Schedule Panel
 
-### US-159: Scheduled items list view
+### US-208: Add multi-account email config and routing
 
-**Description:** As a user, I want to see a list of all scheduled tasks and automations in the Schedule panel so that I know what Rex has planned.
+**Description:** As a user, I want to configure multiple email accounts and have Rex route
+reads/sends to the correct account so that work and personal email are separate.
 
 **Acceptance Criteria:**
-- [x] Schedule panel fetches and displays all scheduled items from the Rex backend
-- [x] each item shows: name, schedule (human-readable), enabled/disabled status, next run time
-- [x] list refreshes automatically or on panel focus
-- [x] empty state message shown when no items are scheduled
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] `AppConfig` (via `rex_config.json`) supports:
+  `email.accounts[]` (list of account objects with `id`, `address`, `imap`, `smtp`,
+  `credential_ref`) and `email.default_account_id`
+- [ ] `EmailService` accepts optional `account_id` on `fetch_unread()` and `send()`;
+  falls back to `default_account_id` when omitted
+- [ ] Invalid `account_id` raises `ValueError` with an actionable message
+- [ ] Backward-compatible when only a single legacy account config is present
+- [ ] `pytest -q tests/test_email_multi_account.py` exits 0 (new test file)
+- [ ] Typecheck passes
 
 ---
 
-### US-160: Enable/disable scheduled items from the GUI
+### US-209: Wire notification email channel to real send backend
 
-**Description:** As a user, I want to toggle a scheduled item on or off from the GUI so that I can pause automations without deleting them.
+**Description:** As a user, I want urgent and digest notifications to be delivered via
+the real SMTP backend so that I receive email alerts.
 
 **Acceptance Criteria:**
-- [x] each scheduled item has a visible toggle (switch or checkbox) for enabled/disabled
-- [x] toggling calls the Rex backend and persists the change
-- [x] UI reflects the new state immediately after toggle
-- [x] toggle errors show a visible error message and revert the UI to the previous state
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] `rex/notification.py` `_send_to_email()` replaces the `"Would send."` log with a
+  real call to `EmailService.send()`
+- [ ] Digest flush also dispatches through `EmailService`
+- [ ] On send failure, notification is marked failed (not silently dropped) and logged
+- [ ] `pytest -q tests/test_notification_email_delivery.py` exits 0 (new test file)
+- [ ] Typecheck passes
 
 ---
 
-### US-161: Upcoming events and due items panel section
+### US-210: Implement ICS calendar read-only feed backend
 
-**Description:** As a user, I want to see items due soon or upcoming events in the Schedule panel so that I have a glanceable view of what is coming up.
+**Description:** As a user, I want Rex to read events from an ICS file or URL feed so
+that the "upcoming events" command returns real calendar data.
 
 **Acceptance Criteria:**
-- [x] a "Coming Up" section in the Schedule panel shows items due in the next 24 hours
-- [x] items sorted by next run time, soonest first
-- [x] each item shows time until next run (e.g., "in 2 hours")
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] New file `rex/integrations/calendar/backends/ics_feed.py` defines `ICSFeedBackend`
+  implementing `CalendarBackend.get_upcoming()`
+- [ ] Accepts a local file path or HTTP URL as the feed source
+- [ ] Normalizes event timezones to UTC internally
+- [ ] Handles malformed VEVENT blocks gracefully (logs warning, skips entry)
+- [ ] Uses stdlib only (no `icalendar` package) for base parsing; falls back to `icalendar`
+  if installed
+- [ ] `tests/test_calendar_ics_backend.py` uses fixture `.ics` files; no live HTTP
+- [ ] `pytest -q tests/test_calendar_ics_backend.py` exits 0
+- [ ] Typecheck passes
 
 ---
-
-# PHASE 57 — GUI Overview Panel
 
-### US-162: Overview panel with Rex status summary
+### US-211: Implement Twilio SMS send adapter
 
-**Description:** As a user, I want an Overview panel that shows Rex's current status at a glance so that I can quickly see whether everything is working.
+**Description:** As a user, I want Rex to send real SMS messages via Twilio so that the
+"send SMS" command delivers to the recipient's phone.
 
 **Acceptance Criteria:**
-- [x] Overview panel displayed by default when the GUI opens
-- [x] shows: Rex running status (online/offline), active voice mode (on/off), LM Studio connection status, count of scheduled items, count of recent notifications
-- [x] each status item has a green/red or similar visual indicator
-- [x] status data fetched from the Rex health endpoints
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] New file `rex/integrations/messaging/backends/twilio_sms.py` defines `TwilioSMSBackend`
+  implementing `SMSBackend.send()`
+- [ ] Uses the `twilio` optional extra; imports are guarded with a helpful error if not installed
+- [ ] Credentials (`account_sid`, `auth_token`, `from_number`) loaded via `CredentialManager`
+- [ ] On 4xx response: raises `SMSSendError` with Twilio error code
+- [ ] On network timeout: raises `SMSSendError` with timeout detail
+- [ ] No secrets logged at any log level
+- [ ] `pytest -q tests/test_twilio_sms_backend.py` exits 0 with mocked Twilio client
+- [ ] Typecheck passes
 
 ---
 
-### US-163: Quick action buttons on the Overview panel
+### US-212: Add offline integration test harnesses
 
-**Description:** As a user, I want quick action buttons on the Overview panel for the most common Rex interactions so that I can trigger them without navigating to another panel.
+**Description:** As a developer, I want fake IMAP, SMTP, and Twilio transports available
+as test fixtures so that integration tests run fully offline with no credentials.
 
 **Acceptance Criteria:**
-- [x] at minimum three quick action buttons present: "Start Listening", "Open Chat", "View Schedule"
-- [x] each button navigates to the relevant panel or triggers the relevant action
-- [x] buttons are prominently placed and clearly labeled
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] `tests/helpers/fake_imap.py` provides a `FakeIMAP4SSL` class that behaves like
+  `imaplib.IMAP4_SSL` for use in tests
+- [ ] `tests/helpers/fake_smtp.py` provides a `FakeSMTP` class for both `SMTP` and `SMTP_SSL`
+- [ ] `tests/helpers/fake_twilio.py` provides a fake Twilio `Client` fixture
+- [ ] All existing `tests/test_email_backend_imap_smtp.py` and `tests/test_twilio_sms_backend.py`
+  tests switch to using these helpers
+- [ ] `pytest -q tests/test_email_backend_imap_smtp.py tests/test_twilio_sms_backend.py`
+  exits 0 with no live network access
+- [ ] Typecheck passes
 
 ---
-
-# PHASE 58 — GUI Polish and Accessibility
-
-### US-164: Consistent component styling and hover/focus states
-
-**Description:** As a user, I want all interactive elements to have consistent hover and focus styles so that the GUI feels cohesive and is usable by keyboard.
-
-**Acceptance Criteria:**
-- [x] all buttons have a visible hover state and a visible focus ring
-- [x] all inputs have a visible focus state
-- [x] hover and focus states use the design token colors, not browser defaults
-- [x] tabbing through the GUI reaches all interactive elements in logical order
-- [x] Typecheck passes
-- [x] Verify changes work in browser
 
----
+# PHASE K — Feature Expansions
 
-### US-165: Loading and error states for all data-fetching panels
+### US-213: Add configurable Whisper language
 
-**Description:** As a user, I want panels to show loading spinners while fetching data and clear error messages on failure so that I always know what the GUI is doing.
+**Description:** As a user, I want to configure the Whisper transcription language so
+that non-English speakers receive accurate transcriptions.
 
 **Acceptance Criteria:**
-- [x] every panel that fetches data from the backend shows a loading indicator while the request is in flight
-- [x] every panel shows a specific error message (not a generic "something went wrong") if the request fails
-- [x] error state includes a "Retry" button that re-fetches the data
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] `AppConfig` gains `whisper_language: str = "en"` (None = auto-detect)
+- [ ] `SpeechToText` passes `language=config.whisper_language` to `whisper.transcribe()`
+- [ ] Setting `whisper_language = null` in config enables Whisper auto-detection
+- [ ] `rex doctor` output includes the current `whisper_language` value
+- [ ] `pytest -q tests/test_speech_to_text.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
-### US-166: Responsive layout for common window sizes
+### US-214: Add WAV audio format validation
 
-**Description:** As a user, I want the GUI to remain usable when the window is resized so that it works on different screen sizes and configurations.
+**Description:** As a developer, I want audio files passed to the STT pipeline validated
+as WAV before transcription so that malformed files fail with a clear error rather than
+a cryptic exception.
 
 **Acceptance Criteria:**
-- [x] layout remains functional and readable at widths from 800px to 1920px
-- [x] sidebar collapses to icons or a hamburger menu below 1024px width
-- [x] no horizontal scrollbars appear at any standard window width
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] `SpeechToText.transcribe()` validates the first 4 bytes of the audio buffer equal
+  `b"RIFF"` (WAV magic bytes) before passing to Whisper
+- [ ] Non-WAV input raises `AudioFormatError("Expected WAV, got {detected_format}")`
+- [ ] The exception is caught in the voice loop and logged; the loop re-arms without crashing
+- [ ] A test passes a fake MP3 header and asserts `AudioFormatError` is raised
+- [ ] Typecheck passes
 
 ---
-
-# PHASE 59 — Performance: Actual Latency Reduction
 
-### US-167: Profile and document end-to-end voice response latency
+### US-215: Add audio device validation at startup
 
-**Description:** As a developer, I want the total time for each stage of the voice pipeline measured and documented so that optimization work targets the highest-latency stages.
+**Description:** As a user, I want Rex to validate audio input/output device availability
+at startup so that misconfigured devices produce a clear error before the voice loop begins.
 
 **Acceptance Criteria:**
-- [x] timing instrumentation added to: STT processing, LLM first token, LLM full response, TTS synthesis start, TTS first audio chunk, audio playback start
-- [x] 10 sample interactions measured and results recorded in `docs/performance-baseline.md`
-- [x] stage responsible for the majority of total latency identified explicitly
-- [x] Typecheck passes
+- [ ] During voice loop initialization, the configured input device index is validated
+  against `sounddevice.query_devices()`
+- [ ] Invalid device index raises `AudioDeviceError(f"Input device {idx} not found. "
+  f"Available: {available_list}")` before the wake word listener starts
+- [ ] `rex doctor` includes an audio device check and prints available device names
+- [ ] A test mocks `sounddevice.query_devices()` to simulate a missing device and asserts
+  the correct error is raised
+- [ ] Typecheck passes
 
 ---
 
-### US-168: Implement streaming TTS — play first audio chunk before full response is ready
+### US-216: Add session expiration to identity.py
 
-**Description:** As a user, I want Rex to begin speaking before it has finished generating the full response so that I hear audio sooner and the interaction feels faster.
+**Description:** As a developer, I want session files older than a configurable TTL to be
+treated as expired so that stale user selections do not persist indefinitely.
 
 **Acceptance Criteria:**
-- [x] TTS engine receives response text in chunks as the LLM streams output
-- [x] first audio chunk begins playing within 2 seconds of the LLM producing its first sentence
-- [x] subsequent audio chunks play without gaps or interruption
-- [x] full response audio completes without truncation
-- [x] Typecheck passes
+- [ ] `rex/identity.py` `_load_session()` reads the session file `mtime` and rejects it
+  if older than `SESSION_TTL_HOURS` (default: 8)
+- [ ] Expired sessions are deleted and `{}` is returned
+- [ ] `AppConfig` gains `session_ttl_hours: int = 8`
+- [ ] A test writes a session file with an artificially old mtime and asserts the
+  function returns `{}` and deletes the file
+- [ ] Typecheck passes
 
 ---
 
-### US-169: Pre-warm TTS engine on startup
+### US-217: Add LLM streaming interface and OpenAI streaming implementation
 
-**Description:** As a developer, I want the TTS engine initialized and warmed up at application startup so that the first voice interaction does not pay a cold-start penalty.
+**Description:** As a user, I want the OpenAI LLM provider to stream tokens so that the
+first words of a response appear faster while the rest is being generated.
 
 **Acceptance Criteria:**
-- [x] TTS engine loads and synthesizes a silent or very short warmup phrase during Rex startup
-- [x] warmup runs in the background and does not delay the application becoming ready
-- [x] first user-triggered TTS call after warmup completes in under 1 second on reference hardware
-- [x] Typecheck passes
+- [ ] `LanguageModelStrategy` protocol gains `stream(messages, **kwargs) -> Iterator[str]`
+  method (default implementation raises `NotImplementedError`)
+- [ ] `OpenAIStrategy.stream()` uses `stream=True` and yields token deltas as strings
+- [ ] The voice loop detects streaming availability and feeds tokens to the TTS sentence
+  buffer as they arrive (sentence-boundary flush unchanged)
+- [ ] `EchoStrategy.stream()` yields the prompt text word by word (for testing)
+- [ ] `pytest -q tests/test_llm_client.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
-### US-170: Audit and reduce blocking operations in the voice pipeline
+### US-218: Add streaming for Anthropic and Ollama providers
 
-**Description:** As a developer, I want all synchronous blocking calls in the voice pipeline replaced with async equivalents so that the event loop is never stalled during voice interactions.
+**Description:** As a user, I want Anthropic and Ollama providers to also stream tokens
+so that all supported backends benefit from lower perceived latency.
 
 **Acceptance Criteria:**
-- [x] voice pipeline code audited for synchronous I/O, `time.sleep()`, and blocking network calls
-- [x] any blocking calls replaced with async equivalents or offloaded to a thread executor
-- [x] changes documented in a commit message or `AGENTS.md` entry
-- [x] no `time.sleep()` calls remain in the hot path of the voice interaction loop
-- [x] Typecheck passes
+- [ ] `AnthropicStrategy.stream()` uses the Anthropic streaming API and yields string deltas
+- [ ] `OllamaStrategy.stream()` uses Ollama's streaming endpoint and yields string deltas
+- [ ] Both implementations handle stream interruptions gracefully (log warning, return
+  what was collected)
+- [ ] `pytest -q tests/test_llm_client.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
-# PHASE 60 — Performance: Perceived Responsiveness
+# PHASE L — Verification and Quality Gate Enforcement
 
-### US-171: Immediate audio acknowledgment on wake word (verify and enforce)
+### US-219: Add pre-commit config for Ruff and Black
 
-**Description:** As a user, I want to hear an acknowledgment tone within 200ms of saying the wake word so that I know Rex heard me before processing begins.
+**Description:** As a developer, I want a `.pre-commit-config.yaml` that runs Ruff and
+Black on staged files so that lint and format regressions are caught before they reach CI.
 
 **Acceptance Criteria:**
-- [x] acknowledgment tone plays within 200ms of wake word detection on reference hardware
-- [x] acknowledgment tone does not block STT from beginning simultaneously
-- [x] tone playback failure does not prevent the voice pipeline from continuing
-- [x] timing verified and documented in `docs/performance-baseline.md`
-- [x] Typecheck passes
+- [ ] `.pre-commit-config.yaml` exists at the repo root with hooks for:
+  `ruff` (autofix: true) and `black`
+- [ ] `pre-commit run --all-files` exits 0 on a clean checkout
+- [ ] `CONTRIBUTING.md` (or `CLAUDE.md`) documents: `pip install pre-commit && pre-commit install`
+- [ ] Typecheck passes
 
 ---
 
-### US-172: Typing / thinking indicator in chat during LLM generation
+### US-220: Verify full test suite is green and coverage meets threshold
 
-**Description:** As a user, I want to see an animated thinking indicator while Rex is generating a response so that I know it is working and not frozen.
+**Description:** As a developer, I want the complete test suite to pass with coverage at
+or above the 75% threshold so that this cycle is provably complete.
 
 **Acceptance Criteria:**
-- [x] animated dots or equivalent indicator appears in the chat message list while the LLM is generating
-- [x] indicator appears within 100ms of message send
-- [x] indicator disappears and is replaced by the response text when generation begins
-- [x] indicator is removed if the request fails (error state shown instead)
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] `pytest -q` exits 0 with no failures or errors
+- [ ] `pytest --cov=rex --cov-report=term-missing` reports overall coverage >= 75%
+- [ ] No test is marked `xfail` that was previously passing
+- [ ] All new test files from this cycle are included in the run
+- [ ] Typecheck passes
 
 ---
 
-### US-173: Voice pipeline state announcements via GUI status
+## Non-Goals (This Cycle)
 
-**Description:** As a user, I want the GUI voice panel to update its state label in real time during a voice interaction so that I can see exactly what Rex is doing (Listening, Thinking, Speaking).
+- No OAuth-based calendar backends (Google Calendar, Microsoft 365) — ICS feed is sufficient
+- No streaming UI in the web dashboard (streaming goes to voice pipeline only)
+- No mobile push notification channel
+- No multi-user role management or RBAC
+- No Kubernetes or container orchestration
+- No audio level normalization or AGC (automatic gain control)
+- No runtime hot-swap of audio devices
+- No token counting pre-validation for LLM inputs (tracked for next cycle)
 
-**Acceptance Criteria:**
-- [x] GUI Voice panel state label transitions through: Idle → Listening → Thinking → Speaking → Idle during a full voice interaction
-- [x] each transition occurs within 500ms of the underlying pipeline stage changing
-- [x] state updates delivered via SSE or WebSocket (not polling)
-- [x] Typecheck passes
-- [x] Verify changes work in browser
-
 ---
 
-### US-174: Configurable LLM response length limit for voice mode
+## Technical Reference
 
-**Description:** As a user, I want Rex to give shorter replies in voice mode by default so that spoken responses feel natural and do not make me wait for a very long answer to finish playing.
+**Quality gate commands (run before marking any story complete):**
+```bash
+ruff check rex/
+black --check rex/ *.py
+mypy rex/
+pytest -q
+```
 
-**Acceptance Criteria:**
-- [x] a `voice_max_tokens` config value controls the maximum LLM output length in voice mode (default: 150 tokens)
-- [x] voice mode prompt includes an instruction to keep responses concise
-- [x] chat mode is not affected by the voice token limit
-- [x] config value documented in `.env.example`
-- [x] Typecheck passes
+**Validation commands:**
+```bash
+python scripts/doctor.py
+python scripts/validate_deployment.py
+```
 
+**Story ordering note:**
+- US-175–US-176 (Docker) have no dependencies
+- US-177–US-181 (quality) have no dependencies on each other; run in order
+- US-182 (test fix) has no dependencies
+- US-183–US-184 (ops scripts) have no dependencies
+- US-185 must precede US-186, US-187, US-188
+- US-189–US-192 (docs) have no dependencies
+- US-193 (deps) has no dependencies
+- US-194–US-201 (bug fixes) have no dependencies on each other
+- US-202 must precede US-203, US-204
+- US-205 must precede US-206, US-207, US-208, US-209, US-210, US-211, US-212
+- US-217 must precede US-218
+- US-219 has no dependencies
+- US-220 must come last

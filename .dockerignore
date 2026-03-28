@@ -1,11 +1,44 @@
+# ─── Secrets and environment ───────────────────────────────────────────────
+.env
+.env.*
+config/credentials.json
+
+# ─── Virtual environments ───────────────────────────────────────────────────
+venv/
+.venv/
+
+# ─── Runtime / local state ──────────────────────────────────────────────────
+data/
+logs/
+transcripts/
+Memory/
+session_summaries/
+backups/
+TMP/
+*.log
+*.bundle
+
+# ─── Build artifacts ────────────────────────────────────────────────────────
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.egg-info/
 *.swp
+
+# ─── Tool caches ────────────────────────────────────────────────────────────
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# ─── Test artifacts ─────────────────────────────────────────────────────────
+tests/
+coverage.json
+coverage.txt
+
+# ─── Version control and editor ─────────────────────────────────────────────
 .git
 .gitignore
-logs/
-Memory/
+
+# ─── Assets (large binary files; mount at runtime if needed) ────────────────
 assets/
-TMP/
