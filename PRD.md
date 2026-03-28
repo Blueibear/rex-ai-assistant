@@ -158,14 +158,14 @@ baseline at the start of the test session and compare against that baseline so t
 pre-existing dirty files do not cause false failures.
 
 **Acceptance Criteria:**
-- [ ] `tests/test_repo_integrity.py` captures `git status --porcelain` output before any
+- [x] `tests/test_repo_integrity.py` captures `git status --porcelain` output before any
   test runs and stores it as the session baseline
-- [ ] `tests/test_repository_integrity.py` uses the same baseline approach
-- [ ] Running `pytest -q tests/test_repo_integrity.py tests/test_repository_integrity.py`
+- [x] `tests/test_repository_integrity.py` uses the same baseline approach
+- [x] Running `pytest -q tests/test_repo_integrity.py tests/test_repository_integrity.py`
   exits 0 even when `requirements-gpu-cu124.txt` (or any other pre-existing tracked
   modification) is already dirty
-- [ ] Both files include a comment explaining the baseline approach
-- [ ] Typecheck passes
+- [x] Both files include a comment explaining the baseline approach
+- [x] Typecheck passes
 
 ---
 

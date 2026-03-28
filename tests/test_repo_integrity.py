@@ -4,8 +4,13 @@ Tests must use ``tmp_path`` or ``tempfile`` for any file writes.  Writing to
 tracked paths (e.g. ``data/mock_calendar.json``) dirties the working tree and
 can cause spurious git diffs for other developers.
 
-This test uses the shared ``get_dirty_files`` helper from ``conftest`` to run
-``git status --porcelain`` and fails if any tracked file was modified.
+Baseline approach: the ``tracked_modifications_baseline`` session fixture in
+``conftest.py`` captures a snapshot of all already-dirty tracked files via
+``git status --porcelain`` *before* any test runs.  Each integrity test then
+filters the current dirty set against that baseline so pre-existing modifications
+(e.g. ``requirements-gpu-cu124.txt`` tweaked locally) do not cause false failures.
+Only files that became dirty *during* the test run are flagged.
+
 Coverage artefacts (``.coverage``, ``coverage.xml``, ``htmlcov/``) are
 excluded because they are generated intentionally and are already in
 ``.gitignore``.

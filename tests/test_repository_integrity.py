@@ -1,4 +1,13 @@
-"""Repository-level invariants that guard against binary merge conflicts."""
+"""Repository-level invariants that guard against binary merge conflicts.
+
+Baseline approach: the ``tracked_modifications_baseline`` session fixture in
+``conftest.py`` runs ``git status --porcelain`` *before* any test starts and
+records the set of already-dirty tracked files.  Tests that check for
+modifications (e.g. ``test_no_tracked_files_modified``) subtract this baseline
+from the current dirty set so pre-existing local changes (e.g. a locally
+modified ``requirements-*.txt``) do not produce false failures — only files
+that became dirty *during* the test session are flagged.
+"""
 
 from __future__ import annotations
 
