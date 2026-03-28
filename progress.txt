@@ -1,4 +1,32 @@
 
+## Iteration 149 - US-181: Resolve mypy type errors — batch 2 (full rex/ package)
+- What was implemented: Fixed all 11 remaining mypy errors across 8 files to achieve `mypy rex/` exits 0.
+  1. `pyproject.toml`: Added ignore_missing_imports overrides for servicemanager, win32event, win32service, win32serviceutil, plyer, twilio.*, playwright.*, TTS.* modules.
+  2. Installed `types-pywin32` to resolve `[import-untyped]` errors for pywin32 modules.
+  3. `rex/integrations/triage_engine.py` + `rex/integrations/scheduling_engine.py`: Fixed stale `from rex.llm import LanguageModel` → `from rex.llm_client import LanguageModel`. Used `cast(TriageBackend/SchedulingBackend, LanguageModel())` since LanguageModel satisfies the protocols via duck typing but not structurally.
+  4. `rex/windows_service.py`: Added `# type: ignore[assignment]` with explanation for optional pywin32 fallback assignments.
+- Files changed: pyproject.toml, rex/integrations/triage_engine.py, rex/integrations/scheduling_engine.py, rex/windows_service.py, PRD.md
+- Learnings for future iterations:
+  - `mypy --check` can use stale `.mypy_cache/` — if overrides appear not to work, run `rm -rf .mypy_cache` first.
+  - In mypy 1.10+, `ignore_missing_imports = true` in overrides suppresses `[import-not-found]` but NOT `[import-untyped]`. For `[import-untyped]`, install the `types-*` stub package.
+  - `cast(Protocol, obj)` is the correct pattern when duck-typing satisfies a Protocol at runtime but structural checking fails statically (e.g., different generate() signatures).
+  - Optional pywin32 imports in a try/except use `# type: ignore[assignment]` on the `None` fallback — adding the `types-pywin32` stubs makes the module variables have a specific inferred type, conflicting with `= None`.
+---
+
+## Iteration 148 - US-180: Resolve mypy type errors — batch 1 (core package)
+- What was implemented: Fixed 3 mypy errors that appeared in transitive dependencies of the 4 target files.
+  1. `rex/wakeword/embedding.py`: Added explicit `_torch: ModuleType | None` annotation before the try/except block to fix incompatible-assignment error when torch is not installed.
+  2. `rex/compat/transformers_shims.py`: Added `# type: ignore[attr-defined]` with explanation on the monkey-patch line.
+  3. `pyproject.toml`: Added `ignore_missing_imports = true` overrides for `transformers` and `transformers.*` so the internal module import doesn't fail when transformers is not installed.
+  4. Installed `types-requests` (was missing from venv despite being in pyproject.toml dev deps) to resolve requests stubs errors.
+- Files changed: rex/wakeword/embedding.py, rex/compat/transformers_shims.py, pyproject.toml, PRD.md
+- Learnings for future iterations:
+  - `mypy <file1> <file2>` still follows imports into transitive dependencies — errors in dep files count against the target.
+  - `types-requests` must be installed via `pip install types-requests`; being in pyproject.toml doesn't auto-install it.
+  - When transformers is not installed, add mypy overrides for both `transformers` and `transformers.*` modules.
+  - Use explicit type annotations (`var: Type | None`) before a try/except rather than `type: ignore` on the fallback assignment line.
+---
+
 ## Iteration 147 - US-179: Restore Black formatting compliance
 - What was implemented: No code changes needed — `python -m black --check rex/` and `python -m black --check *.py` both already exit 0.
 - Files changed: PRD.md (marked US-179 complete)
