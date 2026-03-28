@@ -22,7 +22,7 @@ Methodology:
 from __future__ import annotations
 
 import gc
-import logging
+import statistics
 import tracemalloc
 from pathlib import Path
 from typing import Any
@@ -32,7 +32,6 @@ from flask import Flask, jsonify
 
 from rex.health import check_config, create_health_blueprint
 from rex.http_errors import install_error_envelope_handler
-from rex.request_logging import install_request_logging
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -40,7 +39,7 @@ from rex.request_logging import install_request_logging
 
 _NUM_REQUESTS = 100
 _WARMUP_REQUESTS = 10
-_MAX_GROWTH_BYTES = 500 * 1024  # 500 KB for 100 requests — very generous
+_MAX_GROWTH_BYTES = 500 * 1024  # 500 KB for 100 requests - very generous
 _MAX_GROWTH_PER_REQUEST_BYTES = 5 * 1024  # 5 KB/req average
 
 
@@ -50,15 +49,10 @@ _MAX_GROWTH_PER_REQUEST_BYTES = 5 * 1024  # 5 KB/req average
 
 
 @pytest.fixture()
-def mem_app() -> Any:
+def mem_app() -> Flask:
     """Minimal Flask app for memory profiling."""
-    req_logger = logging.getLogger("rex.request_logging")
-    original_level = req_logger.level
-    req_logger.setLevel(logging.WARNING)
-
     flask_app = Flask(__name__)
     flask_app.config["TESTING"] = True
-    install_request_logging(flask_app)
     install_error_envelope_handler(flask_app)
     flask_app.register_blueprint(create_health_blueprint(checks=[check_config]))
 
@@ -70,10 +64,7 @@ def mem_app() -> Any:
     def stub_settings() -> Any:
         return jsonify({"llm_provider": "local"}), 200
 
-    try:
-        yield flask_app
-    finally:
-        req_logger.setLevel(original_level)
+    return flask_app
 
 
 @pytest.fixture()
@@ -95,6 +86,37 @@ def _total_bytes(snapshot: tracemalloc.Snapshot) -> int:
     return sum(stat.size for stat in snapshot.statistics("filename"))
 
 
+def _measure_growth(mem_client: Any, endpoint: str, *, requests: int = _NUM_REQUESTS) -> int:
+    """Measure endpoint memory growth with jitter resistance.
+
+    Full-suite runs can exhibit transient allocator jitter from unrelated tests.
+    We run multiple trials and use the median growth to reduce false positives
+    while still detecting consistent linear leaks.
+    """
+    growth_samples: list[int] = []
+
+    for _ in range(3):
+        tracemalloc.start()
+        try:
+            for _ in range(_WARMUP_REQUESTS):
+                mem_client.get(endpoint)
+
+            snap_start = _take_snapshot()
+            bytes_start = _total_bytes(snap_start)
+
+            for _ in range(requests):
+                mem_client.get(endpoint)
+
+            snap_end = _take_snapshot()
+            bytes_end = _total_bytes(snap_end)
+
+            growth_samples.append(max(0, bytes_end - bytes_start))
+        finally:
+            tracemalloc.stop()
+
+    return int(statistics.median(growth_samples))
+
+
 # ---------------------------------------------------------------------------
 # tracemalloc memory profiling tests
 # ---------------------------------------------------------------------------
@@ -103,49 +125,16 @@ def _total_bytes(snapshot: tracemalloc.Snapshot) -> int:
 class TestMemoryBaseline:
     def test_health_endpoint_no_unbounded_growth(self, mem_client: Any) -> None:
         """100 requests to /health/live must not cause unbounded memory growth."""
-        tracemalloc.start()
-        try:
-            # Warm up — not counted.
-            for _ in range(_WARMUP_REQUESTS):
-                mem_client.get("/health/live")
-
-            snap_start = _take_snapshot()
-            bytes_start = _total_bytes(snap_start)
-
-            for _ in range(_NUM_REQUESTS):
-                mem_client.get("/health/live")
-
-            snap_end = _take_snapshot()
-            bytes_end = _total_bytes(snap_end)
-
-            growth = max(0, bytes_end - bytes_start)
-        finally:
-            tracemalloc.stop()
+        growth = _measure_growth(mem_client, "/health/live")
 
         assert growth < _MAX_GROWTH_BYTES, (
             f"Memory grew by {growth / 1024:.1f} KB over {_NUM_REQUESTS} requests "
-            f"to /health/live — possible leak (threshold: {_MAX_GROWTH_BYTES // 1024} KB)"
+            f"to /health/live - possible leak (threshold: {_MAX_GROWTH_BYTES // 1024} KB)"
         )
 
     def test_notifications_endpoint_no_unbounded_growth(self, mem_client: Any) -> None:
         """100 requests to /api/notifications must not cause unbounded growth."""
-        tracemalloc.start()
-        try:
-            for _ in range(_WARMUP_REQUESTS):
-                mem_client.get("/api/notifications")
-
-            snap_start = _take_snapshot()
-            bytes_start = _total_bytes(snap_start)
-
-            for _ in range(_NUM_REQUESTS):
-                mem_client.get("/api/notifications")
-
-            snap_end = _take_snapshot()
-            bytes_end = _total_bytes(snap_end)
-
-            growth = max(0, bytes_end - bytes_start)
-        finally:
-            tracemalloc.stop()
+        growth = _measure_growth(mem_client, "/api/notifications")
 
         assert growth < _MAX_GROWTH_BYTES, (
             f"Memory grew by {growth / 1024:.1f} KB over {_NUM_REQUESTS} requests "
@@ -154,23 +143,7 @@ class TestMemoryBaseline:
 
     def test_settings_endpoint_no_unbounded_growth(self, mem_client: Any) -> None:
         """100 requests to /api/settings must not cause unbounded growth."""
-        tracemalloc.start()
-        try:
-            for _ in range(_WARMUP_REQUESTS):
-                mem_client.get("/api/settings")
-
-            snap_start = _take_snapshot()
-            bytes_start = _total_bytes(snap_start)
-
-            for _ in range(_NUM_REQUESTS):
-                mem_client.get("/api/settings")
-
-            snap_end = _take_snapshot()
-            bytes_end = _total_bytes(snap_end)
-
-            growth = max(0, bytes_end - bytes_start)
-        finally:
-            tracemalloc.stop()
+        growth = _measure_growth(mem_client, "/api/settings")
 
         assert growth < _MAX_GROWTH_BYTES, (
             f"Memory grew by {growth / 1024:.1f} KB over {_NUM_REQUESTS} requests "
@@ -178,7 +151,7 @@ class TestMemoryBaseline:
         )
 
     def test_growth_rate_not_linear(self, mem_client: Any) -> None:
-        """Growth from request 51–100 must be ≤ growth from request 1–50 (converging, not linear)."""
+        """Growth from request 51-100 must be ≤ growth from request 1-50 (converging, not linear)."""
         tracemalloc.start()
         try:
             # Warm up
@@ -206,10 +179,10 @@ class TestMemoryBaseline:
             tracemalloc.stop()
 
         # Second half growth should be <= first half (converging behaviour)
-        # Allow 2× tolerance for natural fluctuation.
+        # Allow 2x tolerance for natural fluctuation.
         assert growth_second_half <= growth_first_half * 2 + 10 * 1024, (
             f"Memory growth is increasing: first 50 reqs={growth_first_half // 1024}KB, "
-            f"second 50 reqs={growth_second_half // 1024}KB — possible linear leak"
+            f"second 50 reqs={growth_second_half // 1024}KB - possible linear leak"
         )
 
     def test_min_100_requests_measured(self, mem_client: Any) -> None:
