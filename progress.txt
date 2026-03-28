@@ -1,4 +1,12 @@
 
+## Iteration 146 - US-178: Restore Ruff lint compliance — remaining rule violations
+- What was implemented: No code changes needed — `ruff check rex/` already exits 0 with zero errors.
+- Files changed: PRD.md (marked US-178 complete)
+- Learnings for future iterations:
+  - All Ruff checks for rex/ were already clean before this iteration — no violations existed beyond I,F.
+  - When a story's AC is already satisfied, mark it complete immediately without making unnecessary code changes.
+---
+
 ## Iteration 145 - US-177: Restore Ruff lint compliance — import and unused-code violations
 - What was implemented: No code changes needed — `ruff check rex/ --select I,F` already exited 0 before this iteration.
 - Files changed: PRD.md (marked US-177 complete)

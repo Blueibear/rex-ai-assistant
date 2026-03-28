@@ -100,11 +100,11 @@ fixed so that the linter baseline is clean before enforcing it in CI.
 resolved so that `ruff check rex/` exits clean.
 
 **Acceptance Criteria:**
-- [ ] `ruff check rex/` exits 0 with zero errors
-- [ ] `ruff check rex/ --statistics` shows 0 total
-- [ ] No existing `# noqa` comments were silently widened to suppress new categories
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `ruff check rex/` exits 0 with zero errors
+- [x] `ruff check rex/ --statistics` shows 0 total
+- [x] No existing `# noqa` comments were silently widened to suppress new categories
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ---
 
