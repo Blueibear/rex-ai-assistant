@@ -196,10 +196,12 @@ class EmailTriageEngine:
         if self._backend is not None:
             return self._backend
         try:
-            from rex.llm import LanguageModel
+            from rex.llm_client import LanguageModel
 
-            self._backend = LanguageModel()
-            return self._backend
+            # LanguageModel satisfies TriageBackend at runtime via duck typing
+            backend = cast(TriageBackend, LanguageModel())
+            self._backend = backend
+            return backend
         except Exception as exc:  # noqa: BLE001
             raise RuntimeError(
                 "No triage backend provided and LanguageModel could not be loaded."

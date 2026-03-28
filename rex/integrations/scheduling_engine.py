@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Protocol, runtime_checkable
+from typing import Protocol, cast, runtime_checkable
 
 from rex.integrations.models import CalendarEvent, TimeSlot
 
@@ -269,10 +269,12 @@ class SchedulingEngine:
         if self._backend is not None:
             return self._backend
         try:
-            from rex.llm import LanguageModel
+            from rex.llm_client import LanguageModel
 
-            self._backend = LanguageModel()
-            return self._backend
+            # LanguageModel satisfies SchedulingBackend at runtime via duck typing
+            backend = cast(SchedulingBackend, LanguageModel())
+            self._backend = backend
+            return backend
         except Exception as exc:  # noqa: BLE001
             raise RuntimeError(
                 "No scheduling backend provided and LanguageModel could not be loaded."

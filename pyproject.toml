@@ -301,6 +301,38 @@ ignore_missing_imports = true
 module = "transformers.*"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "servicemanager"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "win32event"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "win32service"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "win32serviceutil"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "plyer"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "twilio.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "playwright.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "TTS.*"
+ignore_missing_imports = true
+
 # Pre-existing modules that are not yet strict-mode compliant.
 # These overrides silence errors in those files when running
 # `mypy --strict` against new, strict-clean modules (e.g. rex.autonomy.*).

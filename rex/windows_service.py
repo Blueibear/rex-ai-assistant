@@ -21,10 +21,10 @@ try:
 
     _PYWIN32_SERVICE_AVAILABLE = True
 except ImportError:  # pragma: no cover - pywin32 service components optional
-    servicemanager = None
-    win32event = None
-    win32service = None
-    win32serviceutil = None
+    servicemanager = None  # type: ignore[assignment]  # optional Windows-only dependency
+    win32event = None  # type: ignore[assignment]  # optional Windows-only dependency
+    win32service = None  # type: ignore[assignment]  # optional Windows-only dependency
+    win32serviceutil = None  # type: ignore[assignment]  # optional Windows-only dependency
     _PYWIN32_SERVICE_AVAILABLE = False
 
 DEFAULT_SERVICES = "event_bus,workflow_runner,memory_store,credential_manager"

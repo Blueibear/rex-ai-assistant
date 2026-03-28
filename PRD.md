@@ -141,11 +141,11 @@ so that type coverage improves measurably.
 the codebase has a clean type baseline.
 
 **Acceptance Criteria:**
-- [ ] `mypy rex/` exits 0 with zero errors
-- [ ] All `type: ignore` comments that remained from batch 1 are either resolved or
+- [x] `mypy rex/` exits 0 with zero errors
+- [x] All `type: ignore` comments that remained from batch 1 are either resolved or
   documented with a specific reason comment
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ---
 
