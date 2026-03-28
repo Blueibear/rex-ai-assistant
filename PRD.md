@@ -114,11 +114,11 @@ resolved so that `ruff check rex/` exits clean.
 `black --check` passes on every Python file.
 
 **Acceptance Criteria:**
-- [ ] `black --check rex/` exits 0
-- [ ] `black --check *.py` exits 0 for all root-level Python files
-- [ ] No logic changes introduced — only whitespace/formatting
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `black --check rex/` exits 0
+- [x] `black --check *.py` exits 0 for all root-level Python files
+- [x] No logic changes introduced — only whitespace/formatting
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ---
 

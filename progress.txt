@@ -1,4 +1,12 @@
 
+## Iteration 147 - US-179: Restore Black formatting compliance
+- What was implemented: No code changes needed — `python -m black --check rex/` and `python -m black --check *.py` both already exit 0.
+- Files changed: PRD.md (marked US-179 complete)
+- Learnings for future iterations:
+  - Black is not installed globally; use `python -m black` after `pip install black` in the venv.
+  - All Python files in rex/ and root were already Black-compliant before this iteration.
+---
+
 ## Iteration 146 - US-178: Restore Ruff lint compliance — remaining rule violations
 - What was implemented: No code changes needed — `ruff check rex/` already exits 0 with zero errors.
 - Files changed: PRD.md (marked US-178 complete)
