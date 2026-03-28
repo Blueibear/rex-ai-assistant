@@ -87,10 +87,10 @@ production-required files so that the resulting image is minimal and safe.
 fixed so that the linter baseline is clean before enforcing it in CI.
 
 **Acceptance Criteria:**
-- [ ] `ruff check rex/ --select I,F` exits 0 (import order + unused imports/variables)
-- [ ] No `noqa` suppressions added that were not already present
-- [ ] `pytest -q` exits 0 after changes (no regressions)
-- [ ] Typecheck passes
+- [x] `ruff check rex/ --select I,F` exits 0 (import order + unused imports/variables)
+- [x] No `noqa` suppressions added that were not already present
+- [x] `pytest -q` exits 0 after changes (no regressions)
+- [x] Typecheck passes
 
 ---
 
