@@ -29,7 +29,7 @@ from rex.openclaw.tool_server import ToolServer, _add_health_routes
 # Helpers
 # ---------------------------------------------------------------------------
 
-_API_KEY = "integration-test-key-abc123"
+_API_KEY = "integration-test-key-abc123"  # pragma: allowlist secret
 
 
 def _make_integration_app(

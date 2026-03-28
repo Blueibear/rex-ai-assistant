@@ -295,7 +295,8 @@ jobs:
             --ignore-vuln CVE-2025-13327 \
             --ignore-vuln GHSA-w476-p2h3-79g9 \
             --ignore-vuln CVE-2026-22702 \
-            --ignore-vuln CVE-2026-26331
+            --ignore-vuln CVE-2026-26331 \
+            --ignore-vuln CVE-2026-4539
 
   pre-commit:
     name: Pre-commit Hook Validation

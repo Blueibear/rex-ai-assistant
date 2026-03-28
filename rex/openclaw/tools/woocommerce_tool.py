@@ -291,5 +291,3 @@ def wc_disable_coupon(
     except Exception as exc:
         logger.warning("[WC tool] disable_coupon failed for site %r: %s", site_id, exc)
         return {"ok": False, "data": None, "error": str(exc)}
-
-

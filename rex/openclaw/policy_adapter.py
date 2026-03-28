@@ -119,3 +119,23 @@ class PolicyAdapter:
         if decision.requires_approval:
             raise ApprovalRequiredError(tool_name, decision.reason)
 
+    # ------------------------------------------------------------------
+    # Backward-compatible OpenClaw registration shim
+    # ------------------------------------------------------------------
+
+    def register(self, agent: object | None = None) -> None:
+        """No-op registration shim for older integration tests/call-sites.
+
+        Historical OpenClaw prototypes called ``PolicyAdapter.register()``
+        during setup. The current HTTP-first architecture performs policy
+        checks directly in Rex and does not require explicit registration.
+
+        Args:
+            agent: Accepted for API compatibility with older call-sites.
+
+        Returns:
+            Always returns ``None``.
+        """
+        del agent
+        logger.debug("PolicyAdapter.register() is a no-op in HTTP mode.")
+        return None

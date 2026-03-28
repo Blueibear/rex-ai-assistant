@@ -79,6 +79,12 @@ See `.env.example` for a copy-paste template.
 | `BROWSERLESS_URL` | `https://chrome.browserless.io` | No | Browserless API endpoint |
 | `BROWSERLESS_API_KEY` | (none) | Yes (Browserless) | Browserless API key |
 
+### OpenClaw Gateway
+
+| Variable | Default | Required | Description |
+|----------|---------|----------|-------------|
+| `OPENCLAW_GATEWAY_TOKEN` | (none) | Yes (when `openclaw.gateway_url` is configured) | Auth token used for OpenClaw gateway requests; treat as a secret |
+
 ### TTS / Rex Speak API
 
 | Variable | Default | Required | Description |

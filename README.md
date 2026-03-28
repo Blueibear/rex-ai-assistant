@@ -17,7 +17,7 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
 - [Configuration](#configuration-environment-variables)
 - [Usage](#usage)
 - [Current Limitations](#current-limitations)
-- [OpenClaw Migration](#openclaw-migration)
+- [OpenClaw Integration](#openclaw-integration)
 - [Docker](#docker)
 - [Memory & Personalization](#memory--personalization)
 - [Development](#development)

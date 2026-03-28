@@ -218,3 +218,22 @@ class ToolBridge:
             skip_policy_check=skip_policy_check,
         )
 
+    # ------------------------------------------------------------------
+    # Backward-compatible simple tool registration shim
+    # ------------------------------------------------------------------
+
+    def register_simple_tools(self) -> dict[str, Callable[..., dict[str, Any]]]:
+        """Return built-in simple OpenClaw tool callables.
+
+        Older tests/bootstrap paths expect a registration method that returns
+        handles for basic tools. In the current architecture, tool dispatch is
+        resolved dynamically by name via ``execute_tool`` and this explicit
+        registration step is not required.
+        """
+        from rex.openclaw.tools.time_tool import time_now
+        from rex.openclaw.tools.weather_tool import weather_now
+
+        return {
+            "time_now": time_now,
+            "weather_now": weather_now,
+        }

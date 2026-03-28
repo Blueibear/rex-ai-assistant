@@ -123,7 +123,7 @@ class TestLanguageModelOpenClawIntegration:
 
             # OpenAI was constructed with api_key = gateway token
             mock_openai_mod.OpenAI.assert_called_once_with(
-                api_key="secret-gateway-token",
+                api_key="secret-gateway-token",  # pragma: allowlist secret
                 base_url="http://127.0.0.1:18789/v1",
             )
 

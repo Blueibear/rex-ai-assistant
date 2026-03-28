@@ -182,4 +182,3 @@ class TestPolicyAdapterAllowPath:
 
         adapter = _adapter()
         assert isinstance(adapter.engine, PolicyEngine)
-
