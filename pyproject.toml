@@ -293,6 +293,14 @@ ignore_missing_imports = true
 module = "resemblyzer"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "transformers"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "transformers.*"
+ignore_missing_imports = true
+
 # Pre-existing modules that are not yet strict-mode compliant.
 # These overrides silence errors in those files when running
 # `mypy --strict` against new, strict-clean modules (e.g. rex.autonomy.*).

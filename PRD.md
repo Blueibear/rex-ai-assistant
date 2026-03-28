@@ -128,10 +128,10 @@ resolved so that `ruff check rex/` exits clean.
 so that type coverage improves measurably.
 
 **Acceptance Criteria:**
-- [ ] `mypy rex/assistant.py rex/config.py rex/llm_client.py rex/voice_loop.py` exits 0
-- [ ] No `type: ignore` comments added without an inline explanation
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `mypy rex/assistant.py rex/config.py rex/llm_client.py rex/voice_loop.py` exits 0
+- [x] No `type: ignore` comments added without an inline explanation
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ---
 
