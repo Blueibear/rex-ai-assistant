@@ -230,14 +230,14 @@ executable end-to-end so that the Planner, registry, and router all agree on sco
 when those integrations are configured so that Rex can answer factual questions.
 
 **Acceptance Criteria:**
-- [ ] `rex/tool_router.py` `weather_now` handler calls the configured weather provider
+- [x] `rex/tool_router.py` `weather_now` handler calls the configured weather provider
   (existing `rex/tools/weather.py` or equivalent) and returns a formatted string
-- [ ] `rex/tool_router.py` `web_search` handler calls the configured search provider
+- [x] `rex/tool_router.py` `web_search` handler calls the configured search provider
   (existing search integration) and returns top-3 result summaries
-- [ ] Both handlers return a graceful `"[integration not configured]"` string when no
+- [x] Both handlers return a graceful `"[integration not configured]"` string when no
   API key is present (not an exception)
-- [ ] `pytest -q tests/test_tool_router.py` exits 0 with mocked provider responses
-- [ ] Typecheck passes
+- [x] `pytest -q tests/test_tool_router.py` exits 0 with mocked provider responses
+- [x] Typecheck passes
 
 ---
 

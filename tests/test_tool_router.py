@@ -1,6 +1,8 @@
-"""Tests for rex.tool_router — dispatch skeleton and UnknownToolError."""
+"""Tests for rex.tool_router — handlers, UnknownToolError, and mocked providers."""
 
 from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -24,21 +26,18 @@ class TestUnknownToolError:
         try:
             execute_tool("bogus", {})
         except UnknownToolError as exc:
-            # Message should mention known tools
             for tool in EXECUTABLE_TOOLS:
                 assert tool in str(exc)
 
     def test_unknown_tool_is_not_generic_exception(self):
-        """UnknownToolError must be its own class, not a generic KeyError/ValueError."""
         with pytest.raises(UnknownToolError):
             execute_tool("not_in_catalog", {})
-        # Ensure it is NOT just a ValueError or KeyError
         try:
             execute_tool("not_in_catalog", {})
         except (ValueError, KeyError):
             pytest.fail("Should be UnknownToolError, not ValueError/KeyError")
         except UnknownToolError:
-            pass  # correct
+            pass
 
 
 class TestExecuteToolCatalogCoverage:
@@ -46,14 +45,12 @@ class TestExecuteToolCatalogCoverage:
 
     @pytest.mark.parametrize("tool_name", sorted(EXECUTABLE_TOOLS))
     def test_all_catalog_tools_return_string(self, tool_name: str):
-        """Each tool must return a non-empty string (may be '[integration not configured]')."""
         result = execute_tool(tool_name, {})
         assert isinstance(result, str), f"{tool_name} did not return str"
         assert len(result) > 0, f"{tool_name} returned empty string"
 
     @pytest.mark.parametrize("tool_name", sorted(EXECUTABLE_TOOLS))
     def test_catalog_tools_do_not_raise(self, tool_name: str):
-        """No catalog tool should raise an exception when called with empty args."""
         try:
             execute_tool(tool_name, {})
         except UnknownToolError:
@@ -74,13 +71,126 @@ class TestTimeNow:
         assert "New York" in result
 
 
-class TestStubHandlers:
-    """Stubs (US-186/187) must return the not-configured sentinel string."""
-
-    @pytest.mark.parametrize(
-        "tool_name",
-        ["weather_now", "web_search", "send_email", "calendar_create_event"],
-    )
-    def test_stub_returns_not_configured(self, tool_name: str):
-        result = execute_tool(tool_name, {})
+class TestWeatherNow:
+    def test_no_api_key_returns_not_configured(self):
+        """Missing openweathermap key → sentinel string (no exception)."""
+        mock_cm = MagicMock()
+        mock_cm.get_token.return_value = None
+        with patch("rex.tool_router.get_credential_manager", return_value=mock_cm):
+            result = execute_tool("weather_now", {"location": "London"})
         assert result == "[integration not configured]"
+
+    def test_with_api_key_returns_formatted_weather(self):
+        """With a mocked provider response, result is a readable string."""
+        mock_cm = MagicMock()
+        mock_cm.get_token.return_value = "fake-owm-key"
+
+        mock_weather_data = {
+            "city": "London",
+            "description": "light rain",
+            "temp_f": 55.4,
+            "temp_c": 13.0,
+            "humidity": 80,
+            "wind_mph": 12.3,
+        }
+
+        async def fake_get_weather(location: str, api_key: str):
+            return mock_weather_data
+
+        with patch("rex.tool_router.get_credential_manager", return_value=mock_cm):
+            with patch("rex.tool_router.get_weather", side_effect=fake_get_weather):
+                result = execute_tool("weather_now", {"location": "London"})
+
+        assert "London" in result
+        assert "light rain" in result
+        assert "55.4" in result
+        assert "80%" in result
+
+    def test_provider_error_returns_error_string(self):
+        """If the weather API returns an error dict, result is an error string."""
+        mock_cm = MagicMock()
+        mock_cm.get_token.return_value = "fake-owm-key"
+
+        async def fake_get_weather(location: str, api_key: str):
+            return {"error": "City not found"}
+
+        with patch("rex.tool_router.get_credential_manager", return_value=mock_cm):
+            with patch("rex.tool_router.get_weather", side_effect=fake_get_weather):
+                result = execute_tool("weather_now", {"location": "NoSuchPlace"})
+
+        assert "[weather error:" in result
+        assert "City not found" in result
+
+    def test_empty_location_uses_default(self):
+        """Empty location arg is handled gracefully (returns sentinel or result)."""
+        mock_cm = MagicMock()
+        mock_cm.get_token.return_value = None  # no key → not configured
+        with patch("rex.tool_router.get_credential_manager", return_value=mock_cm):
+            result = execute_tool("weather_now", {})
+        assert isinstance(result, str) and len(result) > 0
+
+
+class TestWebSearch:
+    def test_no_results_returns_not_configured(self):
+        """If search_web returns None, return sentinel string."""
+        with patch("plugins.web_search.search_web", return_value=None):
+            result = execute_tool("web_search", {"query": "test query"})
+        assert result == "[integration not configured]"
+
+    def test_with_results_returns_summary(self):
+        """With a mocked provider, result contains the returned text."""
+        mock_result = "Example Title - https://example.com\nA sample snippet about the topic."
+        with patch("plugins.web_search.search_web", return_value=mock_result):
+            result = execute_tool("web_search", {"query": "test query"})
+        assert "Example Title" in result
+        assert "example.com" in result
+
+    def test_missing_query_returns_error_message(self):
+        """Missing query argument returns a descriptive error string."""
+        result = execute_tool("web_search", {})
+        assert "query" in result.lower()
+
+    def test_provider_exception_returns_not_configured(self):
+        """If the search provider raises, return sentinel (no exception propagation)."""
+        with patch("plugins.web_search.search_web", side_effect=RuntimeError("network error")):
+            result = execute_tool("web_search", {"query": "something"})
+        assert result == "[integration not configured]"
+
+
+class TestNoLongerStubs:
+    """Verify weather_now and web_search are no longer returning the old stub sentinel
+    when a mock API key IS present (i.e., the real handler code runs)."""
+
+    def test_weather_now_with_key_does_not_return_stub_sentinel(self):
+        """With a key present, weather_now must invoke the provider (not return stub)."""
+        mock_cm = MagicMock()
+        mock_cm.get_token.return_value = "test-key"
+
+        async def fake_get_weather(location: str, api_key: str):
+            return {
+                "city": "Paris",
+                "description": "sunny",
+                "temp_f": 75.0,
+                "temp_c": 23.9,
+                "humidity": 50,
+                "wind_mph": 5.0,
+            }
+
+        with patch("rex.tool_router.get_credential_manager", return_value=mock_cm):
+            with patch("rex.tool_router.get_weather", side_effect=fake_get_weather):
+                result = execute_tool("weather_now", {"location": "Paris"})
+
+        # Should be a real weather string, NOT the stub sentinel
+        assert result != "[integration not configured]"
+        assert "Paris" in result
+
+    def test_web_search_with_result_does_not_return_stub_sentinel(self):
+        """With a successful search, web_search must return the result text."""
+        with patch(
+            "plugins.web_search.search_web",
+            return_value="Top result - https://example.com\nSnippet here",
+        ):
+            result = execute_tool("web_search", {"query": "test"})
+
+        assert result != "[integration not configured]"
+        assert "example.com" in result

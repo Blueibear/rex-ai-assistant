@@ -3,10 +3,6 @@
 Only tools listed in EXECUTABLE_TOOLS are accepted.  Any other name raises
 UnknownToolError immediately, rather than silently returning None or a
 misleading error message.
-
-Full handler implementations for weather_now, web_search, send_email, and
-calendar_create_event are added in US-186 and US-187.  This module provides
-the dispatch skeleton and the time_now / home_assistant_call_service handlers.
 """
 
 from __future__ import annotations
@@ -14,7 +10,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from rex.credentials import get_credential_manager
 from rex.tool_catalog import EXECUTABLE_TOOLS
+from rex.weather import get_weather
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +51,70 @@ def _handle_time_now(args: dict[str, Any]) -> str:
     return f"Current UTC time: {now.strftime('%Y-%m-%d %H:%M:%S')} (requested for: {location})"
 
 
+def _run_async(coro: Any) -> Any:
+    """Run an async coroutine synchronously, even inside an existing event loop."""
+    import asyncio
+    import concurrent.futures
+
+    try:
+        return asyncio.run(coro)
+    except RuntimeError:
+        # Already inside a running event loop — offload to a worker thread
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result(timeout=15)
+
+
 def _handle_weather_now(args: dict[str, Any]) -> str:
-    """Stub — full implementation in US-186."""
-    return "[integration not configured]"
+    """Call the configured weather provider and return a formatted summary."""
+    location: str = str(args.get("location") or "current location").strip()
+
+    api_key: str | None = get_credential_manager().get_token("openweathermap")
+    if not api_key:
+        return "[integration not configured]"
+
+    try:
+        data = _run_async(get_weather(location, api_key))
+    except Exception as exc:
+        logger.warning("weather_now failed: %s", exc)
+        return f"[weather error: {exc}]"
+
+    if "error" in data:
+        return f"[weather error: {data['error']}]"
+
+    city = data.get("city", location)
+    desc = data.get("description", "unknown")
+    temp_f = data.get("temp_f", "?")
+    temp_c = data.get("temp_c", "?")
+    humidity = data.get("humidity", "?")
+    wind_mph = data.get("wind_mph", "?")
+    return (
+        f"Weather in {city}: {desc}, "
+        f"{temp_f}°F / {temp_c}°C, "
+        f"humidity {humidity}%, wind {wind_mph} mph"
+    )
 
 
 def _handle_web_search(args: dict[str, Any]) -> str:
-    """Stub — full implementation in US-186."""
-    return "[integration not configured]"
+    """Call the configured search provider and return top-3 result summaries."""
+    query: str = str(args.get("query") or "").strip()
+    if not query:
+        return "[web_search requires a 'query' argument]"
+
+    try:
+        from plugins.web_search import search_web
+    except ImportError:
+        return "[integration not configured]"
+
+    try:
+        result = search_web(query)
+    except Exception as exc:
+        logger.warning("web_search failed: %s", exc)
+        return "[integration not configured]"
+
+    if result is None:
+        return "[integration not configured]"
+
+    return result
 
 
 def _handle_send_email(args: dict[str, Any]) -> str:
