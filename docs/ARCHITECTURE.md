@@ -439,24 +439,24 @@ from rex.assistant_errors import ConfigurationError
 from rex.voice_loop import VoiceLoop  # Gets optimized version
 ```
 
-## OpenClaw Migration
+## OpenClaw Integration
 
-Rex is undergoing a phased migration to run as an opinionated application layer on top of OpenClaw, an agent engine that provides channels, sessions, browser control, dashboard UI, skills/plugins, and multi-agent orchestration.
+Rex integrates with OpenClaw over HTTP (not as a Python package). Phase 8 (HTTP integration) is complete.
 
-Migration adapters live in `rex/openclaw/` and include bridges for tools, events, browser automation, workflows, voice, and identity. Feature flags in `config/rex_config.json` under the `openclaw` key control which code paths use the new OpenClaw backend.
+OpenClaw adapters live in `rex/openclaw/` and include bridges for tools, events, browser automation, workflows, voice, and identity. Feature flags in `config/rex_config.json` under the `openclaw` key control which code paths use the OpenClaw gateway.
 
-Modules marked `# OPENCLAW-REPLACE` are frozen (no new features) and will be replaced by OpenClaw equivalents. Modules marked `# OPENCLAW-WRAP` will be adapted to delegate to OpenClaw while preserving their public API.
+**HTTP client:** `rex/openclaw/http_client.py` (`OpenClawClient`) handles auth, retries, and timeouts for all gateway calls. Config fields: `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries`; secret: `OPENCLAW_GATEWAY_TOKEN` in `.env`.
 
-**Already retired:** `rex/plugin_loader.py` (replaced by `rex/plugins/`), `rex/executor.py` (replaced by `rex/openclaw/workflow_bridge.py`).
+All `# OPENCLAW-REPLACE` modules from earlier phases have been retired. All `find_spec("openclaw")` / `import openclaw` stubs have been replaced with HTTP client calls.
 
-See [PRD-openclaw-pivot-for-rex.md](../PRD-openclaw-pivot-for-rex.md) for the full migration plan.
+See [docs/openclaw-migration-status.md](openclaw-migration-status.md) for the complete migration history.
 
 ## Future Roadmap
 
 ### Short-term
 - ✅ Complete test coverage (>80%)
 - ✅ Enforce type checking in CI
-- 📅 Complete OpenClaw migration (Phases 2-7)
+- ✅ Complete OpenClaw migration (Phase 8 HTTP integration complete)
 - 📅 Improve wake word accuracy
 
 ### Long-term

@@ -312,13 +312,13 @@ or describe retired architecture to be clearly archived or corrected so that no 
 misleads contributors.
 
 **Acceptance Criteria:**
-- [ ] Any document claiming "production-ready" status is updated to reflect the actual
+- [x] Any document claiming "production-ready" status is updated to reflect the actual
   state or moved to `docs/archive/` with an `ARCHIVED:` prefix in its title
-- [ ] Documents referencing the retired OpenClaw Python package import architecture are
+- [x] Documents referencing the retired OpenClaw Python package import architecture are
   updated to describe the current HTTP integration approach
-- [ ] `docs/claude/INTEGRATIONS_STATUS.md` accurately reflects which integrations are real
+- [x] `docs/claude/INTEGRATIONS_STATUS.md` accurately reflects which integrations are real
   vs stub (email, calendar, SMS)
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 
