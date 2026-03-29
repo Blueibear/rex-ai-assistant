@@ -10,7 +10,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from rex.calendar_service import CalendarService
 from rex.credentials import get_credential_manager
+from rex.email_service import EmailService
 from rex.tool_catalog import EXECUTABLE_TOOLS
 from rex.weather import get_weather
 
@@ -118,13 +120,57 @@ def _handle_web_search(args: dict[str, Any]) -> str:
 
 
 def _handle_send_email(args: dict[str, Any]) -> str:
-    """Stub — full implementation in US-187."""
-    return "[integration not configured]"
+    """Send an email via EmailService.  Accepts {to, subject, body}."""
+    to: str = str(args.get("to") or "").strip()
+    subject: str = str(args.get("subject") or "(no subject)").strip()
+    body: str = str(args.get("body") or "").strip()
+
+    if not to:
+        return "[send_email error: 'to' address is required]"
+
+    try:
+        svc = EmailService()
+        result = svc.send(to=to, subject=subject, body=body)
+    except Exception as exc:
+        logger.warning("send_email failed: %s", exc)
+        return f"[send_email error: {exc}]"
+
+    if result.get("ok"):
+        return "Email sent"
+    return f"[send_email error: {result.get('error', 'unknown error')}]"
 
 
 def _handle_calendar_create_event(args: dict[str, Any]) -> str:
-    """Stub — full implementation in US-187."""
-    return "[integration not configured]"
+    """Create a calendar event via CalendarService.  Accepts {title, start, end}."""
+    from datetime import datetime, timedelta, timezone
+
+    title: str = str(args.get("title") or args.get("summary") or "New Event").strip()
+    start_raw: str = str(args.get("start") or "").strip()
+    end_raw: str = str(args.get("end") or "").strip()
+
+    # Parse start time (ISO format); default to now + 1 hour if missing
+    now = datetime.now(tz=timezone.utc)
+    try:
+        start_dt = datetime.fromisoformat(start_raw) if start_raw else now + timedelta(hours=1)
+    except ValueError:
+        start_dt = now + timedelta(hours=1)
+
+    # Parse end time; default to start + 1 hour
+    try:
+        end_dt = datetime.fromisoformat(end_raw) if end_raw else start_dt + timedelta(hours=1)
+    except ValueError:
+        end_dt = start_dt + timedelta(hours=1)
+
+    try:
+        svc = CalendarService()
+        event = svc.create_event(title=title, start_time=start_dt, end_time=end_dt)
+    except Exception as exc:
+        logger.warning("calendar_create_event failed: %s", exc)
+        return f"[calendar error: {exc}]"
+
+    start_fmt = event.start_time.strftime("%Y-%m-%d %H:%M")
+    end_fmt = event.end_time.strftime("%Y-%m-%d %H:%M")
+    return f"Calendar event created: '{event.title}' from {start_fmt} to {end_fmt}"
 
 
 def _handle_home_assistant_call_service(args: dict[str, Any]) -> str:

@@ -157,6 +157,116 @@ class TestWebSearch:
         assert result == "[integration not configured]"
 
 
+class TestSendEmail:
+    def test_returns_email_sent_on_success(self):
+        """EmailService.send() returning ok=True → 'Email sent'."""
+        mock_svc = MagicMock()
+        mock_svc.send.return_value = {"ok": True, "message_id": "msg-1", "error": None}
+        with patch("rex.tool_router.EmailService", return_value=mock_svc):
+            result = execute_tool(
+                "send_email",
+                {"to": "alice@example.com", "subject": "Hi", "body": "Hello"},
+            )
+        assert result == "Email sent"
+        mock_svc.send.assert_called_once_with(
+            to="alice@example.com", subject="Hi", body="Hello"
+        )
+
+    def test_returns_error_string_on_failure(self):
+        """EmailService.send() returning ok=False → error string."""
+        mock_svc = MagicMock()
+        mock_svc.send.return_value = {"ok": False, "message_id": None, "error": "Auth failed"}
+        with patch("rex.tool_router.EmailService", return_value=mock_svc):
+            result = execute_tool(
+                "send_email",
+                {"to": "alice@example.com", "subject": "Hi", "body": "Hello"},
+            )
+        assert "[send_email error:" in result
+        assert "Auth failed" in result
+
+    def test_missing_to_returns_error(self):
+        result = execute_tool("send_email", {"subject": "Hi", "body": "Hello"})
+        assert "[send_email error:" in result
+        assert "to" in result.lower()
+
+    def test_exception_degraded_gracefully(self):
+        """If EmailService raises, return error string (no exception propagation)."""
+        with patch("rex.tool_router.EmailService", side_effect=RuntimeError("no connection")):
+            result = execute_tool(
+                "send_email", {"to": "a@b.com", "subject": "s", "body": "b"}
+            )
+        assert "[send_email error:" in result
+        assert isinstance(result, str)
+
+    def test_default_subject_used_when_missing(self):
+        mock_svc = MagicMock()
+        mock_svc.send.return_value = {"ok": True, "message_id": None, "error": None}
+        with patch("rex.tool_router.EmailService", return_value=mock_svc):
+            execute_tool("send_email", {"to": "a@b.com", "body": "b"})
+        call_kwargs = mock_svc.send.call_args.kwargs
+        assert call_kwargs["subject"] == "(no subject)"
+
+
+class TestCalendarCreateEvent:
+    def test_returns_confirmation_with_title(self):
+        """CalendarService.create_event() called; returns confirmation string."""
+        from datetime import datetime, timezone
+
+        fake_event = MagicMock()
+        fake_event.title = "Team Meeting"
+        fake_event.start_time = datetime(2026, 4, 1, 10, 0, tzinfo=timezone.utc)
+        fake_event.end_time = datetime(2026, 4, 1, 11, 0, tzinfo=timezone.utc)
+
+        mock_svc = MagicMock()
+        mock_svc.create_event.return_value = fake_event
+        with patch("rex.tool_router.CalendarService", return_value=mock_svc):
+            result = execute_tool(
+                "calendar_create_event",
+                {"title": "Team Meeting", "start": "2026-04-01T10:00:00", "end": "2026-04-01T11:00:00"},
+            )
+        assert "Calendar event created" in result
+        assert "Team Meeting" in result
+
+    def test_missing_times_uses_defaults(self):
+        """Missing start/end args result in sensible defaults (no exception)."""
+        fake_event = MagicMock()
+        fake_event.title = "Standup"
+        from datetime import datetime, timezone
+
+        fake_event.start_time = datetime(2026, 4, 1, 9, 0, tzinfo=timezone.utc)
+        fake_event.end_time = datetime(2026, 4, 1, 10, 0, tzinfo=timezone.utc)
+
+        mock_svc = MagicMock()
+        mock_svc.create_event.return_value = fake_event
+        with patch("rex.tool_router.CalendarService", return_value=mock_svc):
+            result = execute_tool("calendar_create_event", {"title": "Standup"})
+        assert "Calendar event created" in result
+
+    def test_exception_degraded_gracefully(self):
+        with patch("rex.tool_router.CalendarService", side_effect=RuntimeError("db error")):
+            result = execute_tool(
+                "calendar_create_event",
+                {"title": "Broken", "start": "2026-04-01T10:00:00"},
+            )
+        assert "[calendar error:" in result
+        assert isinstance(result, str)
+
+    def test_summary_key_also_accepted_as_title(self):
+        """'summary' key (from planner) is accepted as the event title."""
+        fake_event = MagicMock()
+        fake_event.title = "Weekly Sync"
+        from datetime import datetime, timezone
+
+        fake_event.start_time = datetime(2026, 4, 2, 14, 0, tzinfo=timezone.utc)
+        fake_event.end_time = datetime(2026, 4, 2, 15, 0, tzinfo=timezone.utc)
+
+        mock_svc = MagicMock()
+        mock_svc.create_event.return_value = fake_event
+        with patch("rex.tool_router.CalendarService", return_value=mock_svc):
+            result = execute_tool("calendar_create_event", {"summary": "Weekly Sync"})
+        assert "Calendar event created" in result
+
+
 class TestNoLongerStubs:
     """Verify weather_now and web_search are no longer returning the old stub sentinel
     when a mock API key IS present (i.e., the real handler code runs)."""

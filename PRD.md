@@ -247,13 +247,13 @@ when those integrations are configured so that Rex can answer factual questions.
 calendar events when those integrations are configured.
 
 **Acceptance Criteria:**
-- [ ] `rex/tool_router.py` `send_email` handler accepts `{to, subject, body}` and calls
+- [x] `rex/tool_router.py` `send_email` handler accepts `{to, subject, body}` and calls
   `EmailService.send()`, returning `"Email sent"` or a descriptive error string
-- [ ] `rex/tool_router.py` `calendar_create_event` handler accepts `{title, start, end}`
+- [x] `rex/tool_router.py` `calendar_create_event` handler accepts `{title, start, end}`
   and calls `CalendarService.create_event()`, returning confirmation or error string
-- [ ] Both handlers degrade gracefully when the backend is not configured
-- [ ] `pytest -q tests/test_tool_router.py` exits 0
-- [ ] Typecheck passes
+- [x] Both handlers degrade gracefully when the backend is not configured
+- [x] `pytest -q tests/test_tool_router.py` exits 0
+- [x] Typecheck passes
 
 ---
 
