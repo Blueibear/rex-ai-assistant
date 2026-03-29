@@ -38,6 +38,7 @@ from typing import Any
 from rex.contracts import ToolCall
 from rex.openclaw.tool_registry import ToolRegistry, get_tool_registry
 from rex.policy_engine import PolicyEngine, get_policy_engine
+from rex.tool_catalog import EXECUTABLE_TOOLS
 from rex.workflow import Workflow, WorkflowStep, generate_step_id, generate_workflow_id
 
 logger = logging.getLogger(__name__)
@@ -142,6 +143,10 @@ class Planner:
                 self._plan_report,
             ),
         ]
+
+    def _can_use_tool(self, tool_name: str) -> bool:
+        """Return True only if the tool is both registered AND in the catalog."""
+        return tool_name in EXECUTABLE_TOOLS and self.tool_registry.has_tool(tool_name)
 
     def plan(self, goal: str, requested_by: str | None = None) -> Workflow:
         """Generate a workflow from a high-level goal.
@@ -248,7 +253,7 @@ class Planner:
         steps = []
 
         # Step 1: Search for newsletter contacts (simulated with web_search)
-        if self.tool_registry.has_tool("web_search"):
+        if self._can_use_tool("web_search"):
             steps.append(
                 WorkflowStep(
                     step_id=generate_step_id(),
@@ -262,7 +267,7 @@ class Planner:
             )
 
         # Step 2: Send newsletter email
-        if self.tool_registry.has_tool("send_email"):
+        if self._can_use_tool("send_email"):
             steps.append(
                 WorkflowStep(
                     step_id=generate_step_id(),
@@ -287,7 +292,7 @@ class Planner:
         if match.lastindex and match.lastindex >= 1 and match.group(1):
             recipient = match.group(1).strip()
 
-        if not self.tool_registry.has_tool("send_email"):
+        if not self._can_use_tool("send_email"):
             return []
 
         return [
@@ -311,7 +316,7 @@ class Planner:
         event_details = match.group(1) if match.lastindex and match.lastindex >= 1 else "event"
         event_details = event_details.strip()
 
-        if not self.tool_registry.has_tool("calendar_create_event"):
+        if not self._can_use_tool("calendar_create_event"):
             return []
 
         return [
@@ -339,7 +344,7 @@ class Planner:
         else:
             location = "current location"
 
-        if not self.tool_registry.has_tool("weather_now"):
+        if not self._can_use_tool("weather_now"):
             return []
 
         return [
@@ -362,7 +367,7 @@ class Planner:
         else:
             location = "local"
 
-        if not self.tool_registry.has_tool("time_now"):
+        if not self._can_use_tool("time_now"):
             return []
 
         return [
@@ -379,7 +384,7 @@ class Planner:
 
     def _plan_home_control(self, match: re.Match, goal: str) -> list[WorkflowStep]:
         """Generate steps for home automation control."""
-        if not self.tool_registry.has_tool("home_assistant_call_service"):
+        if not self._can_use_tool("home_assistant_call_service"):
             return []
 
         # Try to extract action (on/off) and device name
@@ -415,7 +420,7 @@ class Planner:
         query = match.group(1) if match.lastindex and match.lastindex >= 1 else goal
         query = query.strip()
 
-        if not self.tool_registry.has_tool("web_search"):
+        if not self._can_use_tool("web_search"):
             return []
 
         return [
@@ -598,7 +603,7 @@ class Planner:
         steps = []
 
         # Step 1: Gather data (simulated with web_search)
-        if self.tool_registry.has_tool("web_search"):
+        if self._can_use_tool("web_search"):
             steps.append(
                 WorkflowStep(
                     step_id=generate_step_id(),
@@ -612,7 +617,7 @@ class Planner:
             )
 
         # Step 2: Send report via email
-        if self.tool_registry.has_tool("send_email"):
+        if self._can_use_tool("send_email"):
             steps.append(
                 WorkflowStep(
                     step_id=generate_step_id(),

@@ -212,15 +212,15 @@ current runtime model so that it gives accurate pass/fail verdicts.
 executable end-to-end so that the Planner, registry, and router all agree on scope.
 
 **Acceptance Criteria:**
-- [ ] New file `rex/tool_catalog.py` defines `EXECUTABLE_TOOLS: frozenset[str]` containing
+- [x] New file `rex/tool_catalog.py` defines `EXECUTABLE_TOOLS: frozenset[str]` containing
   exactly the tools with real handlers: `time_now`, `weather_now`, `web_search`,
   `send_email`, `calendar_create_event`, `home_assistant_call_service`
-- [ ] `rex/tool_registry.py` imports and validates against `EXECUTABLE_TOOLS` at registration time
-- [ ] `rex/planner.py` imports `EXECUTABLE_TOOLS` and limits plan generation to that set
-- [ ] `rex/tool_router.py` imports `EXECUTABLE_TOOLS` and raises `UnknownToolError` (not a
+- [x] `rex/tool_registry.py` imports and validates against `EXECUTABLE_TOOLS` at registration time
+- [x] `rex/planner.py` imports `EXECUTABLE_TOOLS` and limits plan generation to that set
+- [x] `rex/tool_router.py` imports `EXECUTABLE_TOOLS` and raises `UnknownToolError` (not a
   generic exception) for any tool not in the catalog
-- [ ] `pytest -q tests/test_tool_registry.py tests/test_tool_router.py` exits 0
-- [ ] Typecheck passes
+- [x] `pytest -q tests/test_tool_registry.py tests/test_tool_router.py` exits 0
+- [x] Typecheck passes
 
 ---
 
