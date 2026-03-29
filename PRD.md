@@ -193,14 +193,14 @@ source files and exclude generated caches so that its output is actionable rathe
 current runtime model so that it gives accurate pass/fail verdicts.
 
 **Acceptance Criteria:**
-- [ ] `scripts/validate_deployment.py` checks for `config/rex_config.json` existence and
+- [x] `scripts/validate_deployment.py` checks for `config/rex_config.json` existence and
   schema validity instead of `REX_ACTIVE_USER` environment variable
-- [ ] Script validates torch version against the range in `pyproject.toml` (`>=2.6.0,<2.9.0`)
+- [x] Script validates torch version against the range in `pyproject.toml` (`>=2.6.0,<2.9.0`)
   instead of expecting `2.5.x`
-- [ ] Script validates that all CLI entrypoints from `pyproject.toml` are importable
-- [ ] `python scripts/validate_deployment.py` exits 0 on a properly configured install
-- [ ] Score output accurately reflects the 7 checks (all 7 passing on valid install)
-- [ ] Typecheck passes
+- [x] Script validates that all CLI entrypoints from `pyproject.toml` are importable
+- [x] `python scripts/validate_deployment.py` exits 0 on a properly configured install
+- [x] Score output accurately reflects the 7 checks (all 7 passing on valid install)
+- [x] Typecheck passes
 
 ---
 

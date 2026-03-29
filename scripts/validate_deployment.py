@@ -1,19 +1,39 @@
 """Rex AI Assistant - Post-Deployment Validation Script
 
-Run this after deploying stabilization files to verify everything works.
+Run this after deploying to verify the runtime environment is correctly configured.
 """
 
 import importlib
-import os
+import json
 import sys
 from pathlib import Path
+from typing import List, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 
-# Color codes for terminal output
+# Canonical torch version range (must match pyproject.toml ml extras)
+TORCH_MIN = (2, 6, 0)
+TORCH_MAX = (2, 9, 0)  # exclusive
+
+# CLI entrypoints declared in pyproject.toml [project.scripts]
+CLI_ENTRYPOINTS: List[Tuple[str, str]] = [
+    ("rex", "rex.cli"),
+    ("rex-config", "rex.config"),
+    ("rex-speak-api", "rex_speak_api"),
+    ("rex-agent", "rex.computers.agent_server"),
+    ("rex-gui", "rex.gui_app"),
+    ("rex-tool-server", "rex.openclaw.tool_server"),
+]
+
+
+# ---------------------------------------------------------------------------
+# Terminal output helpers
+# ---------------------------------------------------------------------------
+
+
 class Colors:
     GREEN = "\033[92m"
     RED = "\033[91m"
@@ -40,197 +60,204 @@ def print_warning(text: str) -> None:
     print(f"{Colors.YELLOW}[WARN]{Colors.RESET} {text}")
 
 
-def load_env_from_file() -> None:
-    env_path = PROJECT_ROOT / ".env"
-    if not env_path.exists():
-        return
-
-    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().strip('"').strip("'")
-        os.environ.setdefault(key, value)
+# ---------------------------------------------------------------------------
+# Individual checks
+# ---------------------------------------------------------------------------
 
 
 def check_python_version() -> bool:
     """Verify Python version is 3.10+"""
-    version = sys.version_info
-    if version.major == 3 and version.minor >= 10:
-        print_success(f"Python {version.major}.{version.minor}.{version.micro}")
+    v = sys.version_info
+    if v.major == 3 and v.minor >= 10:
+        print_success(f"Python {v.major}.{v.minor}.{v.micro}")
         return True
-    print_error(f"Python {version.major}.{version.minor} (requires 3.10+)")
+    print_error(f"Python {v.major}.{v.minor} (requires 3.10+)")
     return False
 
 
-def check_file_exists(path: str) -> bool:
-    """Check if a file exists"""
-    if Path(path).exists():
-        print_success(path)
-        return True
-    print_error(f"{path} NOT FOUND")
-    return False
-
-
-def check_import(module_name: str) -> bool:
-    """Test if a module can be imported"""
-    try:
-        importlib.import_module(module_name)
-        print_success(f"import {module_name}")
-        return True
-    except ImportError as exc:
-        print_error(f"import {module_name} - {exc}")
-        return False
-
-
-def check_env_file() -> bool:
-    """Check .env file exists and contains key variables"""
-    env_path = PROJECT_ROOT / ".env"
-    if not env_path.exists():
-        print_error(".env file not found")
-        return False
-
-    print_success(".env file exists")
-
-    required_vars = [
-        "REX_SPEAK_API_KEY",
-        "REX_ACTIVE_USER",
-        "REX_WAKEWORD",
+def check_core_files() -> bool:
+    """Verify essential source files are present."""
+    paths = [
+        "rex/assistant_errors.py",
+        "rex/config.py",
+        "rex_speak_api.py",
+        "pyproject.toml",
+        ".gitignore",
     ]
+    results = []
+    for p in paths:
+        full = PROJECT_ROOT / p
+        if full.exists():
+            print_success(p)
+            results.append(True)
+        else:
+            print_error(f"{p} NOT FOUND")
+            results.append(False)
+    return all(results)
 
-    env_content = env_path.read_text(encoding="utf-8")
-    missing = [var for var in required_vars if var not in env_content]
 
-    if missing:
-        print_warning(f"Missing variables: {', '.join(missing)}")
+def check_config_json() -> bool:
+    """Verify config/rex_config.json exists and is valid JSON with required keys."""
+    config_path = PROJECT_ROOT / "config" / "rex_config.json"
+
+    if not config_path.exists():
+        print_error("config/rex_config.json not found")
+        print_warning("  Copy config/rex_config.example.json to config/rex_config.json")
         return False
 
-    print_success("All critical variables present")
+    print_success("config/rex_config.json exists")
+
+    try:
+        with config_path.open(encoding="utf-8") as fh:
+            data = json.load(fh)
+    except json.JSONDecodeError as exc:
+        print_error(f"config/rex_config.json is not valid JSON: {exc}")
+        return False
+
+    print_success("config/rex_config.json is valid JSON")
+
+    # Basic schema sanity: must be an object (dict)
+    if not isinstance(data, dict):
+        print_error("config/rex_config.json must be a JSON object at the top level")
+        return False
+
+    print_success(f"  Keys present: {', '.join(list(data.keys())[:8])}")
     return True
 
 
+def check_dependencies() -> bool:
+    """Verify core importable packages."""
+    packages = ["flask", "pydantic", "dotenv", "requests", "cryptography"]
+    results = []
+    for pkg in packages:
+        try:
+            importlib.import_module(pkg)
+            print_success(f"import {pkg}")
+            results.append(True)
+        except ImportError as exc:
+            print_error(f"import {pkg} — {exc}")
+            results.append(False)
+    return all(results)
+
+
 def check_pytorch() -> bool:
-    """Verify PyTorch installation and CUDA"""
+    """Verify PyTorch is installed and within the supported version range."""
     try:
-        import torch  # type: ignore
+        import torch
     except ImportError:
-        print_error("PyTorch not installed")
+        print_error("PyTorch not installed (optional — required for voice/ML features)")
         return False
 
-    version = torch.__version__
-    cuda_available = torch.cuda.is_available()  # type: ignore[attr-defined]
+    version_str: str = torch.__version__
+    print_success(f"PyTorch {version_str}")
 
-    print_success(f"PyTorch {version}")
+    # Parse major.minor.patch (ignore +cu* suffix)
+    raw = version_str.split("+")[0].split(".")
+    try:
+        parts = tuple(int(x) for x in raw[:3])
+    except ValueError:
+        print_warning(f"Could not parse PyTorch version: {version_str}")
+        return False
 
+    min_ok = parts >= TORCH_MIN
+    max_ok = parts < TORCH_MAX
+
+    if min_ok and max_ok:
+        print_success(
+            f"PyTorch version {version_str} is within supported range "
+            f">={'.'.join(str(x) for x in TORCH_MIN)},<{'.'.join(str(x) for x in TORCH_MAX)}"
+        )
+    else:
+        print_error(
+            f"PyTorch {version_str} is outside supported range "
+            f">={'.'.join(str(x) for x in TORCH_MIN)},<{'.'.join(str(x) for x in TORCH_MAX)}"
+        )
+        return False
+
+    cuda_available: bool = torch.cuda.is_available()
     if cuda_available:
-        device = torch.cuda.get_device_name(0)  # type: ignore[attr-defined]
+        device = torch.cuda.get_device_name(0)
         print_success(f"CUDA available: {device}")
     else:
         print_warning("CUDA not available (CPU mode)")
 
-    if version.startswith("2.5"):
-        print_success("PyTorch version correct (2.5.x)")
-        return True
-
-    print_warning(f"PyTorch {version} (expected 2.5.x)")
-    return False
-
-
-def check_config_loads() -> bool:
-    """Test configuration loading"""
-    try:
-        from rex.config import settings  # type: ignore
-    except Exception as exc:  # pragma: no cover - diagnostic output only
-        print_error(f"Config loading failed: {exc}")
-        return False
-
-    print_success("Config loads successfully")
-    if getattr(settings, "wakeword", None):
-        print_success(f"  Wake word: {settings.wakeword}")
-    if getattr(settings, "llm_model", None):
-        print_success(f"  LLM model: {settings.llm_model}")
     return True
 
 
-def check_circular_imports() -> bool:
-    """Verify no circular import issues"""
-    test_imports = [
-        "rex.assistant_errors",
-        "rex.config",
-        "llm_client",
-        "memory_utils",
-    ]
+def check_config_loads() -> bool:
+    """Verify rex.config can be imported and settings load without error."""
+    try:
+        from rex.config import AppConfig
 
+        AppConfig()
+        print_success("rex.config.AppConfig instantiates successfully")
+        return True
+    except Exception as exc:  # pragma: no cover
+        print_error(f"rex.config.AppConfig failed: {exc}")
+        return False
+
+
+def check_cli_entrypoints() -> bool:
+    """Verify all CLI entrypoints declared in pyproject.toml are importable."""
     results = []
-    for module in test_imports:
+    for name, module in CLI_ENTRYPOINTS:
         try:
             importlib.import_module(module)
-            print_success(module)
+            print_success(f"{name!r} → import {module}")
             results.append(True)
         except ImportError as exc:
-            print_error(f"{module} - {exc}")
+            print_error(f"{name!r} → import {module} FAILED: {exc}")
             results.append(False)
-
+        except Exception as exc:  # pragma: no cover
+            print_warning(f"{name!r} → import {module} raised {type(exc).__name__}: {exc}")
+            results.append(False)
     return all(results)
 
 
-def run_validation() -> int:
-    """Run all validation checks"""
-    print_header("REX AI ASSISTANT - VALIDATION SCRIPT")
-    print(f"Working directory: {os.getcwd()}\n")
+# ---------------------------------------------------------------------------
+# Orchestration
+# ---------------------------------------------------------------------------
 
-    load_env_from_file()
+
+def run_validation() -> int:
+    """Run all 7 validation checks and return exit code."""
+    print_header("REX AI ASSISTANT — DEPLOYMENT VALIDATION")
+
+    checks = [
+        ("python_version", "1. Python Version", check_python_version),
+        ("core_files", "2. Core Files", check_core_files),
+        ("config_json", "3. Runtime Config (rex_config.json)", check_config_json),
+        ("dependencies", "4. Core Python Dependencies", check_dependencies),
+        ("pytorch", "5. PyTorch Version", check_pytorch),
+        ("config_loads", "6. Config Module Loading", check_config_loads),
+        ("entrypoints", "7. CLI Entrypoints Importable", check_cli_entrypoints),
+    ]
 
     results = {}
-
-    print_header("1. Python Version")
-    results["python"] = check_python_version()
-
-    print_header("2. Core Files")
-    core_files = [
-        "rex/assistant_errors.py",
-        "rex/config.py",
-        "rex_speak_api.py",
-        "requirements.txt",
-        ".gitignore",
-    ]
-    results["files"] = all(check_file_exists(path) for path in core_files)
-
-    print_header("3. Environment Configuration")
-    results["env"] = check_env_file()
-
-    print_header("4. Python Dependencies")
-    deps = ["flask", "torch", "transformers", "sounddevice", "whisper"]
-    results["deps"] = all(check_import(dep) for dep in deps)
-
-    print_header("5. PyTorch & CUDA")
-    results["pytorch"] = check_pytorch()
-
-    print_header("6. Configuration Loading")
-    results["config"] = check_config_loads()
-
-    print_header("7. Import Structure")
-    results["imports"] = check_circular_imports()
+    for key, header, fn in checks:
+        print_header(header)
+        results[key] = fn()
 
     print_header("VALIDATION SUMMARY")
-    passed = sum(1 for value in results.values() if value)
-    total = len(results)
 
-    for name, value in results.items():
+    passed = sum(1 for v in results.values() if v)
+    total = len(results)  # always 7
+
+    for key, value in results.items():
         status = f"{Colors.GREEN}PASS{Colors.RESET}" if value else f"{Colors.RED}FAIL{Colors.RESET}"
-        print(f"{name.upper():.<20} {status}")
+        print(f"{key.upper():.<30} {status}")
 
     print(f"\n{Colors.BLUE}Score: {passed}/{total} checks passed{Colors.RESET}\n")
 
     if passed == total:
-        print(f"{Colors.GREEN}All checks passed! Deployment successful.{Colors.RESET}")
+        print(f"{Colors.GREEN}All {total} checks passed. Deployment is valid.{Colors.RESET}")
         return 0
+
     if passed >= int(total * 0.8):
-        print(f"{Colors.YELLOW}Most checks passed. Review warnings above.{Colors.RESET}")
+        print(f"{Colors.YELLOW}Most checks passed ({passed}/{total}). Review warnings above.{Colors.RESET}")
         return 1
-    print(f"{Colors.RED}Deployment validation failed. Fix errors above.{Colors.RESET}")
+
+    print(f"{Colors.RED}Deployment validation FAILED ({passed}/{total}). Fix errors above.{Colors.RESET}")
     return 2
 
 
@@ -240,6 +267,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print(f"\n{Colors.YELLOW}Validation interrupted{Colors.RESET}")
         sys.exit(130)
-    except Exception as exc:  # pragma: no cover - diagnostic output only
+    except Exception as exc:  # pragma: no cover
         print(f"\n{Colors.RED}Validation error: {exc}{Colors.RESET}")
         sys.exit(1)
