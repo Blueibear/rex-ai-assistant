@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Async event loop orchestrating Rex's wake-word, STT, LLM and TTS pipeline."""
+"""Async event loop orchestrating Rex's wake-word, STT, LLM and TTS pipeline.
+
+RELATIONSHIP NOTE — two voice_loop files exist in this repo:
+- ``voice_loop.py`` (this file, repo root): legacy implementation containing
+  ``AsyncRexAssistant``. Kept for backward compatibility with external code
+  that imports ``AsyncRexAssistant`` from here. Not the active startup path.
+- ``rex/voice_loop.py`` (package): canonical implementation. ``rex_loop.py``
+  imports ``build_voice_loop`` from ``rex.voice_loop`` — that is the
+  authoritative voice loop executed when Rex starts.
+"""
 
 # ruff: noqa: E402, I001
 

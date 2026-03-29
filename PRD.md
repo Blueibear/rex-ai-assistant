@@ -328,13 +328,13 @@ misleads contributors.
 `rex/` package resolved so that there is one documented, authoritative startup path.
 
 **Acceptance Criteria:**
-- [ ] `CLAUDE.md` documents which file is the canonical voice loop entry point and why
+- [x] `CLAUDE.md` documents which file is the canonical voice loop entry point and why
   the second exists (or it is removed if unused)
-- [ ] `rex_loop.py` (root) explicitly imports from the canonical module and does not
+- [x] `rex_loop.py` (root) explicitly imports from the canonical module and does not
   duplicate business logic
-- [ ] Both `voice_loop.py` files have a header comment explaining their relationship
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] Both `voice_loop.py` files have a header comment explaining their relationship
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ---
 

@@ -1,4 +1,13 @@
-"""Async voice assistant loop orchestrating wake word, STT, LLM, and TTS."""
+"""Async voice assistant loop orchestrating wake word, STT, LLM, and TTS.
+
+RELATIONSHIP NOTE — two voice_loop files exist in this repo:
+- ``rex/voice_loop.py`` (this file, package): canonical implementation.
+  ``rex_loop.py`` imports ``build_voice_loop`` from here and this is the
+  authoritative voice loop used when Rex starts.
+- ``voice_loop.py`` (repo root): legacy implementation containing
+  ``AsyncRexAssistant``. Kept for backward compatibility only. Changes here
+  do NOT affect the ``rex_loop.py`` startup path.
+"""
 
 from __future__ import annotations
 
