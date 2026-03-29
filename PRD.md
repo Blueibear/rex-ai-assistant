@@ -347,13 +347,13 @@ PyTorch, and CUDA targets so that requirements files, pyproject.toml, the Docker
 and the validation script all agree.
 
 **Acceptance Criteria:**
-- [ ] `docs/DEPENDENCIES.md` (new or updated) documents the canonical matrix:
+- [x] `docs/DEPENDENCIES.md` (new or updated) documents the canonical matrix:
   Python 3.10–3.13, torch 2.6.x–2.8.x (CPU), cu118 variant, cu124 variant
-- [ ] `requirements-cpu.txt` does not pin a CUDA variant of torch
-- [ ] `pyproject.toml` optional ML extras match the documented matrix
-- [ ] `Dockerfile` torch version falls within the documented matrix
-- [ ] `scripts/validate_deployment.py` (from US-184) validates against the documented matrix
-- [ ] Typecheck passes
+- [x] `requirements-cpu.txt` does not pin a CUDA variant of torch
+- [x] `pyproject.toml` optional ML extras match the documented matrix
+- [x] `Dockerfile` torch version falls within the documented matrix
+- [x] `scripts/validate_deployment.py` (from US-184) validates against the documented matrix
+- [x] Typecheck passes
 
 ---
 

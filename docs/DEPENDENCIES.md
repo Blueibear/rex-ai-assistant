@@ -1,5 +1,25 @@
 # Dependency Management Guide
 
+## Canonical Runtime Matrix
+
+This table is the single authoritative version matrix. All requirements files,
+`pyproject.toml`, `Dockerfile`, and `scripts/validate_deployment.py` must agree
+with the ranges listed here.
+
+| Component | Supported range | Notes |
+|-----------|----------------|-------|
+| **Python** | 3.10 – 3.13 | 3.11 recommended; 3.9 still functional but unsupported |
+| **torch (CPU)** | 2.6.x – 2.8.x | Install from PyPI without extra index URL |
+| **torch (CUDA 11.8)** | 2.6.x – 2.8.x | `--index-url https://download.pytorch.org/whl/cu118` |
+| **torch (CUDA 12.4)** | 2.6.x – 2.8.x | `--index-url https://download.pytorch.org/whl/cu124` |
+| **torchvision** | 0.17.x – 0.22.x | Must be compatible with selected torch version |
+| **torchaudio** | 2.6.x – 2.8.x | Must match torch major.minor |
+
+**Lower bound rationale:** torch 2.6.0 is the first version that resolves
+CVEs GHSA-3749-ghw9-m3mg and GHSA-887c-mr87-cxwp (DoS vulnerabilities).
+
+**Upper bound:** `<2.9.0` — tracked by `scripts/validate_deployment.py`.
+
 ## Overview
 
 Rex AI Assistant splits dependencies by install target so CPU-only installs and CI do not pull CUDA/GPU wheels. Base installs come from `pyproject.toml`, while optional ML/audio stacks live in split requirements files.

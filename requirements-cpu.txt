@@ -3,7 +3,7 @@
 
 # PyTorch CPU versions (PyPI CPU wheels)
 # torch 2.6.0 satisfies security fixes for DoS vulnerabilities (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
-torch==2.7.1+cu118
+torch==2.7.1
 torchvision==0.21.0
 torchaudio==2.6.0
 
