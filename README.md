@@ -14,7 +14,7 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
 - [Quick Start](#quick-start)
 - [Features](#features)
 - [Requirements](#requirements)
-- [Configuration](#configuration-environment-variables)
+- [Configuration](#configuration)
 - [Usage](#usage)
 - [Current Limitations](#current-limitations)
 - [OpenClaw Integration](#openclaw-integration)
@@ -94,9 +94,16 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
 
 > **Note for Windows users**: The `simpleaudio` package (used for audio playback) has build issues on Windows and is automatically disabled. Audio playback functionality will be limited on Windows, but all core features work correctly.
 
-## Configuration (Environment Variables)
+## Configuration
 
-Rex uses a dual-config system: secrets in `.env`, runtime settings in `config/rex_config.json`. See [docs/environment-variables.md](docs/environment-variables.md) for a full reference of all supported variables.
+Rex uses a dual-config system:
+
+- **Secrets** (API keys, tokens) → `.env`
+  Copy `.env.example` to `.env` and fill in the values you need. The file documents every supported secret with inline comments.
+- **Runtime settings** (models, audio, wake word, feature flags) → `config/rex_config.json`
+  Edit this file directly or use `rex-config` to manage it.
+
+See [CONFIGURATION.md](CONFIGURATION.md) for the full reference including configuration precedence, migration from legacy env vars, and all available fields.
 
 ## Usage
 
