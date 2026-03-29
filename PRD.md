@@ -263,12 +263,12 @@ calendar events when those integrations are configured.
 Planner can emit is executable through the router so that COR-001 cannot regress.
 
 **Acceptance Criteria:**
-- [ ] New file `tests/test_planner_tool_e2e.py` tests each tool in `EXECUTABLE_TOOLS`
-- [ ] Each test: generates a minimal plan containing that tool, executes it through
+- [x] New file `tests/test_planner_tool_e2e.py` tests each tool in `EXECUTABLE_TOOLS`
+- [x] Each test: generates a minimal plan containing that tool, executes it through
   `execute_tool()`, asserts the result is a non-empty string (not an exception)
-- [ ] All tests use mocked external services (no real API calls)
-- [ ] `pytest -q tests/test_planner_tool_e2e.py` exits 0
-- [ ] Typecheck passes
+- [x] All tests use mocked external services (no real API calls)
+- [x] `pytest -q tests/test_planner_tool_e2e.py` exits 0
+- [x] Typecheck passes
 
 ---
 
