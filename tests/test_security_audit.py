@@ -214,33 +214,33 @@ class TestStrictMarkdownSecrets:
 class TestPlaceholderClassification:
     """Tests for the classify_placeholder_finding function."""
 
-    def test_python_file_classified_as_code_critical(self):
+    def test_python_file_classified_as_source_code(self):
         finding = "src/app.py:10: # FIXME: handle edge case"
-        assert security_audit.classify_placeholder_finding(finding) == "code-critical"
+        assert security_audit.classify_placeholder_finding(finding) == "source-code"
 
-    def test_json_file_classified_as_code_critical(self):
-        finding = "config/settings.json:5: TODO placeholder"
-        assert security_audit.classify_placeholder_finding(finding) == "code-critical"
+    def test_json_file_classified_as_configuration(self):
+        finding = "config/settings.json:5: TODO item"
+        assert security_audit.classify_placeholder_finding(finding) == "configuration"
 
-    def test_yaml_file_classified_as_code_critical(self):
+    def test_yaml_file_classified_as_configuration(self):
         finding = "ci.yml:20: # WIP step"
-        assert security_audit.classify_placeholder_finding(finding) == "code-critical"
+        assert security_audit.classify_placeholder_finding(finding) == "configuration"
 
-    def test_toml_file_classified_as_code_critical(self):
+    def test_toml_file_classified_as_configuration(self):
         finding = "pyproject.toml:8: # FIXME"
-        assert security_audit.classify_placeholder_finding(finding) == "code-critical"
+        assert security_audit.classify_placeholder_finding(finding) == "configuration"
 
-    def test_shell_script_classified_as_code_critical(self):
+    def test_shell_script_classified_as_source_code(self):
         finding = "deploy.sh:3: # TODO finish"
-        assert security_audit.classify_placeholder_finding(finding) == "code-critical"
+        assert security_audit.classify_placeholder_finding(finding) == "source-code"
 
-    def test_markdown_file_classified_as_doc_acceptable(self):
+    def test_markdown_file_classified_as_documentation(self):
         finding = "README.md:42: Coming soon feature"
-        assert security_audit.classify_placeholder_finding(finding) == "doc-acceptable"
+        assert security_audit.classify_placeholder_finding(finding) == "documentation"
 
-    def test_txt_file_classified_as_doc_acceptable(self):
+    def test_txt_file_classified_as_documentation(self):
         finding = "CHANGELOG.txt:10: WIP notes"
-        assert security_audit.classify_placeholder_finding(finding) == "doc-acceptable"
+        assert security_audit.classify_placeholder_finding(finding) == "documentation"
 
     def test_unknown_extension_classified_as_needs_review(self):
         finding = "data.csv:1: PLACEHOLDER"
@@ -266,6 +266,14 @@ class TestScanPathExclusions:
         path = Path(".ruff_cache") / "0.14.11" / "example.py"
         assert security_audit.should_scan_file(path) is False
 
+    def test_ignores_egg_info_directories(self):
+        path = Path("rex_ai_assistant.egg-info") / "PKG-INFO"
+        assert security_audit.should_scan_file(path) is False
+
+    def test_ignores_dotclaude_worktrees(self):
+        path = Path(".claude") / "worktrees" / "some-branch" / "main.py"
+        assert security_audit.should_scan_file(path) is False
+
 
 class TestPlaceholderBucketOutput:
     """Tests that the audit output shows bucket headings when placeholder findings exist."""
@@ -278,11 +286,22 @@ class TestPlaceholderBucketOutput:
             text=True,
             cwd=str(Path(__file__).resolve().parent.parent),
         )
-        # The repo is expected to have some placeholder findings (TODOs etc.)
-        if "placeholder findings" in result.stdout:
-            assert "CODE-CRITICAL" in result.stdout or "code-critical" in result.stdout
-            assert "DOC-ACCEPTABLE" in result.stdout or "doc-acceptable" in result.stdout
+        # The repo is expected to have some actionable findings (TODOs etc.)
+        if "actionable findings" in result.stdout:
+            assert "SOURCE-CODE" in result.stdout or "source-code" in result.stdout
+            assert "DOCUMENTATION" in result.stdout or "documentation" in result.stdout
             assert "NEEDS-REVIEW" in result.stdout or "needs-review" in result.stdout
+
+    def test_output_reports_excluded_file_count(self):
+        """Output must report the excluded files count separately from scanned count."""
+        result = subprocess.run(
+            [sys.executable, "scripts/security_audit.py"],
+            capture_output=True,
+            text=True,
+            cwd=str(Path(__file__).resolve().parent.parent),
+        )
+        assert "Files scanned:" in result.stdout
+        assert "Files excluded:" in result.stdout
 
     def test_output_deterministic_ordering(self):
         """Two runs should produce identical output (deterministic sorting)."""

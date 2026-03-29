@@ -177,13 +177,13 @@ pre-existing dirty files do not cause false failures.
 source files and exclude generated caches so that its output is actionable rather than noisy.
 
 **Acceptance Criteria:**
-- [ ] `scripts/security_audit.py` excludes `.mypy_cache/`, `.ruff_cache/`, `.pytest_cache/`,
+- [x] `scripts/security_audit.py` excludes `.mypy_cache/`, `.ruff_cache/`, `.pytest_cache/`,
   `__pycache__/`, `venv/`, `.venv/`, `*.egg-info/`, `build/`, and `node_modules/`
-- [ ] Total scanned file count reported separately from excluded files
-- [ ] Script output categorizes findings by: source code vs documentation vs configuration
-- [ ] Running `python scripts/security_audit.py` reports fewer than 50 findings on a
+- [x] Total scanned file count reported separately from excluded files
+- [x] Script output categorizes findings by: source code vs documentation vs configuration
+- [x] Running `python scripts/security_audit.py` reports fewer than 50 findings on a
   clean checkout (eliminating the 295 false-positive count)
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 
