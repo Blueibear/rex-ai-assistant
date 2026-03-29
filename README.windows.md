@@ -1,19 +1,18 @@
-# 🧠 Rex AI Assistant (Windows Quickstart)
+# Rex AI Assistant — Windows Quickstart
 
-This guide is a **Windows-specific** quickstart for setting up Rex AI Assistant
-with NVIDIA RTX GPU (CUDA). For full project details, see [README.md](README.md).
+This guide covers Windows-specific setup for Rex AI Assistant. For full project details, see [README.md](README.md).
 
 ---
 
-## 🚀 Quick Setup on Windows
+## Quick Setup on Windows
 
 ### 1. Prerequisites
 
 - Python **3.11+**
 - Git
-- [FFmpeg](https://ffmpeg.org/download.html)
-- NVIDIA drivers installed (with CUDA support)
-- Microphone + speakers
+- [FFmpeg](https://ffmpeg.org/download.html) — must be on PATH
+- Microphone + speakers (for voice mode)
+- NVIDIA GPU with CUDA 11.8+ (optional — CPU-only install also works)
 
 ### 2. Clone and create a virtual environment
 
@@ -22,81 +21,105 @@ git clone https://github.com/Blueibear/askrex-assistant.git
 cd rex-ai-assistant
 
 python -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\Activate.ps1
 ```
 
-### 3. Install CUDA-enabled PyTorch (CUDA 12.4)
+### 3. Install dependencies
 
-Run this **before** installing the rest of the requirements (RTX 3060 / CUDA 12.4):
-
+**CPU only:**
 ```powershell
+pip install --upgrade pip setuptools wheel
+pip install .
+```
+
+**GPU (CUDA 12.4 — RTX 30xx / 40xx):**
+```powershell
+pip install --upgrade pip setuptools wheel
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
-```
-
-Verify CUDA:
-
-```powershell
-python -c "import torch; print(torch.__version__); print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
-```
-
-You should see a version like `2.x.x+cu124`, `cuda.is_available() = True`, and your RTX GPU name.
-
-### 4. Install project dependencies
-
-```powershell
-pip install --upgrade pip
 pip install -r requirements-gpu-cu124.txt
 ```
 
-### 5. Run the assistant
-
+Verify CUDA after GPU install:
 ```powershell
-python rex_assistant.py
+python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
 ```
 
-Say your wake word (default: **rex**) and talk to the assistant.
+### 4. Configure Rex
 
-### 6. Run the voice loop
+Copy the example config files and fill in your values:
+
+```powershell
+copy config\rex_config.example.json config\rex_config.json
+copy .env.example .env
+```
+
+- **`config\rex_config.json`** — runtime settings (model, audio device, wake word, feature flags).
+  Edit this file to configure Rex behaviour.
+- **`.env`** — secrets only (API keys, tokens). See the inline comments in `.env.example`.
+
+---
+
+## Runtime Modes
+
+Rex has four distinct startup modes. Run the one that fits your use case:
+
+### Text chat
+
+Interactive text conversation with no audio hardware required:
+
+```powershell
+python -m rex
+```
+
+### Voice loop
+
+Full wake word → speech-to-text → LLM → text-to-speech pipeline:
 
 ```powershell
 python rex_loop.py
 ```
 
-This runs the full **wake word → STT → LLM → TTS** pipeline.
+Say the wake word (default: **rex**) to activate voice input.
 
-### 7. Run tests
+### Dashboard (GUI)
+
+Desktop GUI for configuration, conversation history, and status:
 
 ```powershell
-pytest
+python run_gui.py
+```
+
+### TTS API
+
+Local Flask API that accepts text and returns synthesised audio over HTTP:
+
+```powershell
+python rex_speak_api.py
+```
+
+The API binds to `http://localhost:5001` by default and requires an API key configured in `.env`.
+
+---
+
+## Run tests
+
+```powershell
+pytest -q
 ```
 
 ---
 
-## ⚙️ Config (Windows)
-
-Set environment variables in PowerShell before running:
+## Health check
 
 ```powershell
-$env:REX_WAKEWORD="rex"
-$env:REX_ACTIVE_USER="james"
-$env:WHISPER_MODEL="base"
-$env:OPENAI_API_KEY="your_api_key_here"  # pragma: allowlist secret
+python scripts/doctor.py
 ```
 
 ---
 
-## 🔉 Notes
+## Notes
 
 - Memory profiles live under `Memory/<user>/`
-- Voices can be customised by adding a WAV file in your profile JSON
-- Web search requires `SERPAPI_KEY` or defaults to DuckDuckGo scraping
-- The local Flask API (`rex_speak_api.py`) can provide TTS over HTTP
-
----
-
-## ✅ Summary
-
-- Use **CUDA-enabled PyTorch (cu124 wheels)** for RTX 3060 GPUs  
-- Install requirements after PyTorch (requirements-gpu-cu124.txt)  
-- Start with `rex_assistant.py` or `rex_loop.py`  
-- Configure via environment variables
+- Voices can be customised by adding a WAV file to your profile
+- Web search requires a `SERPAPI_KEY` or `BRAVE_API_KEY` in `.env`; DuckDuckGo scraping is used as a fallback
+- See [CONFIGURATION.md](CONFIGURATION.md) for the full configuration reference

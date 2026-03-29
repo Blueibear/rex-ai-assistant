@@ -280,12 +280,12 @@ Planner can emit is executable through the router so that COR-001 cannot regress
 (JSON runtime config + secrets-only .env) so that setup instructions are not misleading.
 
 **Acceptance Criteria:**
-- [ ] README no longer presents large env-var configuration tables as the primary setup method
-- [ ] README clearly states: secrets go in `.env`, runtime settings go in
+- [x] README no longer presents large env-var configuration tables as the primary setup method
+- [x] README clearly states: secrets go in `.env`, runtime settings go in
   `config/rex_config.json`, and links to `CONFIGURATION.md` for the full reference
-- [ ] `.env.example` is referenced in the README and its role is described accurately
-- [ ] Existing Quick Start section steps remain accurate after the change
-- [ ] Typecheck passes
+- [x] `.env.example` is referenced in the README and its role is described accurately
+- [x] Existing Quick Start section steps remain accurate after the change
+- [x] Typecheck passes
 
 ---
 
@@ -295,13 +295,13 @@ Planner can emit is executable through the router so that COR-001 cannot regress
 startup commands for each runtime mode so that I can launch Rex successfully.
 
 **Acceptance Criteria:**
-- [ ] `README.windows.md` describes four distinct runtime modes with their correct commands:
+- [x] `README.windows.md` describes four distinct runtime modes with their correct commands:
   text chat (`python -m rex`), voice loop (`python rex_loop.py`),
   dashboard (`python run_gui.py`), TTS API (`python rex_speak_api.py`)
-- [ ] All PowerShell activation and launch commands are tested as syntactically correct
-- [ ] Guide no longer instructs users to configure runtime behavior via environment variables
-- [ ] Guide references `config/rex_config.example.json` for runtime configuration
-- [ ] Typecheck passes
+- [x] All PowerShell activation and launch commands are tested as syntactically correct
+- [x] Guide no longer instructs users to configure runtime behavior via environment variables
+- [x] Guide references `config/rex_config.example.json` for runtime configuration
+- [x] Typecheck passes
 
 ---
 
