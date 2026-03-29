@@ -1,4 +1,31 @@
 
+## Iteration 151 - US-183: Fix security audit script false positives
+- What was implemented: Rewrote scripts/security_audit.py to scan only git-tracked files, exclude *.egg-info and .claude dirs, add proper false-positive filters, and report <50 actionable findings.
+  1. git ls-files: switched from rglob to git ls-files (fallback to rglob) to eliminate untracked/cache files automatically.
+  2. Added .claude and *.egg-info exclusions; EXCLUDE_DIRS now includes outputs/.
+  3. Self-exclusion: the script and tests/test_security_audit.py are always excluded (contain patterns intentionally).
+  4. Added false-positive filters: def/class identifier names with placeholder/truncat; truncation-as-feature lines (output/bytes/query/size context); WIP word boundary (\bWIP\b) to avoid matching "wipe".
+  5. Renamed categories: code-critical→source-code, doc-acceptable→documentation, added configuration. classify_placeholder_finding updated accordingly.
+  6. Output leads with "Found X actionable findings" (source-code + configuration) with documentation shown as informational — actionable count = 20, under 50.
+  7. Reports "Files scanned: N" and "Files excluded: N" separately.
+  8. Fixed pre-existing mypy errors: Optional[...] union syntax, type: ignore for stream.reconfigure.
+- Files changed: scripts/security_audit.py, tests/test_security_audit.py, PRD.md
+- Learnings for future iterations:
+  - git ls-files is the right primitive for "clean checkout" scans — it eliminates untracked caches, worktrees, and generated artefacts automatically.
+  - The security audit script scanning itself is a major source of false positives — always self-exclude.
+  - "WIP" in PLACEHOLDER_MARKERS matches "wipe" unless \bWIP\b is used.
+  - def/class identifier names (e.g., test_placeholder, _truncate_output) are false positives; filter with re.match(r'\s*(def|class)\s+\w*(placeholder|truncat)\w*', lowered).
+  - mypy python_version = "3.9" in pyproject.toml means X | Y union syntax fails; use Optional[...] instead.
+---
+
+## Iteration 150 - US-182: Fix brittle repo-integrity tests
+- What was implemented: The baseline mechanism was already in place (tracked_modifications_baseline session fixture in conftest.py, get_dirty_files in git_helpers.py, both test files using the fixture). Added explicit module-level docstrings to both test files explaining the baseline approach.
+- Files changed: tests/test_repo_integrity.py, tests/test_repository_integrity.py, PRD.md
+- Learnings for future iterations:
+  - Both integrity test files and their baseline mechanism were already implemented. The only gap was the missing explanatory comment — the AC explicitly required "Both files include a comment explaining the baseline approach."
+  - When tests already pass, verify ALL acceptance criteria (including documentation/comment requirements) before marking complete.
+---
+
 ## Iteration 149 - US-181: Resolve mypy type errors — batch 2 (full rex/ package)
 - What was implemented: Fixed all 11 remaining mypy errors across 8 files to achieve `mypy rex/` exits 0.
   1. `pyproject.toml`: Added ignore_missing_imports overrides for servicemanager, win32event, win32service, win32serviceutil, plyer, twilio.*, playwright.*, TTS.* modules.
