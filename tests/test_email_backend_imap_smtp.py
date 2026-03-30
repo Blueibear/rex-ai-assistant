@@ -6,6 +6,7 @@ All tests use mocks/fakes — no real network calls.
 from __future__ import annotations
 
 import imaplib
+import smtplib
 from unittest.mock import MagicMock
 
 import pytest
@@ -13,7 +14,12 @@ import pytest
 from rex.email_backends.imap_smtp import ImapSmtpEmailBackend
 from rex.email_backends.stub import StubEmailBackend
 from rex.integrations.email.backends.base import EmailBackend as IntegrationEmailBackend
-from rex.integrations.email.backends.imap_smtp import EmailAuthError, IMAPBackend
+from rex.integrations.email.backends.imap_smtp import (
+    EmailAuthError,
+    IMAPBackend,
+    IMAPSMTPBackend,
+    SMTPSendError,
+)
 
 # ---------------------------------------------------------------------------
 # Stub backend tests
@@ -462,3 +468,174 @@ class TestIMAPBackend:
         backend = _make_imap_backend(mock_conn)
         with pytest.raises(NotImplementedError):
             backend.send(to="x@example.com", subject="S", body="B")
+
+
+# ---------------------------------------------------------------------------
+# IMAPSMTPBackend — US-207
+# ---------------------------------------------------------------------------
+
+
+def _make_smtp_mock(
+    login_raises=None,
+    send_raises=None,
+    tls_raises=None,
+    timeout_on_connect=False,
+):
+    mock_smtp = MagicMock(spec=smtplib.SMTP)
+    mock_smtp.ehlo.return_value = (250, b"OK")
+    if tls_raises is not None:
+        mock_smtp.starttls.side_effect = tls_raises
+    else:
+        mock_smtp.starttls.return_value = (220, b"OK")
+    if login_raises is not None:
+        mock_smtp.login.side_effect = login_raises
+    else:
+        mock_smtp.login.return_value = (235, b"OK")
+    if send_raises is not None:
+        mock_smtp.send_message.side_effect = send_raises
+    else:
+        mock_smtp.send_message.return_value = {}
+    mock_smtp.quit.return_value = (221, b"Bye")
+    return mock_smtp
+
+
+def _make_smtp_backend(smtp_mock, timeout_on_connect=False):
+    if timeout_on_connect:
+        factory = None  # will be unused; we'll patch _create_smtp_connection
+    else:
+        factory = lambda: smtp_mock  # noqa: E731
+    return IMAPSMTPBackend(
+        host="imap.example.com",
+        port=993,
+        username="user@example.com",
+        password="secret",
+        smtp_host="smtp.example.com",
+        smtp_port=587,
+        use_starttls=True,
+        imap_factory=lambda: _make_imap_mock(),
+        smtp_factory=factory,
+    )
+
+
+class TestIMAPSMTPBackend:
+    """Tests for IMAPSMTPBackend.send() — US-207."""
+
+    def test_is_subclass_of_imap_backend(self):
+        assert issubclass(IMAPSMTPBackend, IMAPBackend)
+
+    def test_smtp_send_error_is_exception(self):
+        assert issubclass(SMTPSendError, Exception)
+
+    # --- successful send ---
+
+    def test_send_success_returns_none(self):
+        smtp_mock = _make_smtp_mock()
+        backend = _make_smtp_backend(smtp_mock)
+        result = backend.send(to="bob@example.com", subject="Hello", body="World")
+        assert result is None
+
+    def test_send_calls_smtp_login_with_username(self):
+        smtp_mock = _make_smtp_mock()
+        backend = _make_smtp_backend(smtp_mock)
+        backend.send(to="bob@example.com", subject="S", body="B")
+        smtp_mock.login.assert_called_once_with("user@example.com", "secret")
+
+    def test_send_calls_send_message(self):
+        smtp_mock = _make_smtp_mock()
+        backend = _make_smtp_backend(smtp_mock)
+        backend.send(to="bob@example.com", subject="Hello", body="World")
+        smtp_mock.send_message.assert_called_once()
+
+    def test_send_calls_quit_on_success(self):
+        smtp_mock = _make_smtp_mock()
+        backend = _make_smtp_backend(smtp_mock)
+        backend.send(to="bob@example.com", subject="S", body="B")
+        smtp_mock.quit.assert_called_once()
+
+    def test_send_never_logs_password(self, caplog):
+        import logging as _logging
+        smtp_mock = _make_smtp_mock()
+        backend = _make_smtp_backend(smtp_mock)
+        with caplog.at_level(_logging.DEBUG):
+            backend.send(to="bob@example.com", subject="S", body="B")
+        assert "secret" not in caplog.text
+
+    # --- auth failure ---
+
+    def test_send_smtp_auth_failure_raises_email_auth_error(self):
+        smtp_mock = _make_smtp_mock(
+            login_raises=smtplib.SMTPAuthenticationError(535, b"bad credentials")
+        )
+        backend = _make_smtp_backend(smtp_mock)
+        with pytest.raises(EmailAuthError):
+            backend.send(to="bob@example.com", subject="S", body="B")
+
+    def test_auth_error_message_includes_username_not_password(self):
+        smtp_mock = _make_smtp_mock(
+            login_raises=smtplib.SMTPAuthenticationError(535, b"bad credentials")
+        )
+        backend = _make_smtp_backend(smtp_mock)
+        with pytest.raises(EmailAuthError) as exc_info:
+            backend.send(to="bob@example.com", subject="S", body="B")
+        msg = str(exc_info.value)
+        assert "user@example.com" in msg
+        assert "secret" not in msg
+
+    # --- TLS failure ---
+
+    def test_send_tls_failure_raises_smtp_send_error(self):
+        import ssl as _ssl
+
+        def failing_factory():
+            raise _ssl.SSLError("TLS handshake failed")
+
+        backend = IMAPSMTPBackend(
+            host="imap.example.com",
+            port=993,
+            username="user@example.com",
+            password="secret",
+            smtp_host="smtp.example.com",
+            smtp_port=587,
+            use_starttls=True,
+            imap_factory=lambda: _make_imap_mock(),
+            smtp_factory=failing_factory,
+        )
+        with pytest.raises(SMTPSendError):
+            backend.send(to="bob@example.com", subject="S", body="B")
+
+    # --- timeout ---
+
+    def test_send_timeout_raises_smtp_send_error(self):
+        smtp_mock = _make_smtp_mock(
+            send_raises=TimeoutError("connection timed out")
+        )
+        backend = _make_smtp_backend(smtp_mock)
+        with pytest.raises(SMTPSendError):
+            backend.send(to="bob@example.com", subject="S", body="B")
+
+    # --- credential_ref ---
+
+    def test_send_uses_credential_ref_password(self, monkeypatch):
+        """When credential_ref is set and resolves a token, it's used for login."""
+        smtp_mock = _make_smtp_mock()
+
+        class FakeMgr:
+            def get_token(self, ref):
+                return "resolved-password"
+
+        import rex.integrations.email.backends.imap_smtp as _mod
+        monkeypatch.setattr(_mod, "CredentialManager", FakeMgr)
+
+        backend = IMAPSMTPBackend(
+            host="imap.example.com",
+            port=993,
+            username="user@example.com",
+            password="fallback",
+            smtp_host="smtp.example.com",
+            smtp_port=587,
+            credential_ref="email",
+            imap_factory=lambda: _make_imap_mock(),
+            smtp_factory=lambda: smtp_mock,
+        )
+        backend.send(to="bob@example.com", subject="S", body="B")
+        smtp_mock.login.assert_called_once_with("user@example.com", "resolved-password")

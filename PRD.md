@@ -583,13 +583,13 @@ the "read my email" command returns live inbox contents.
 commands deliver to the actual recipient.
 
 **Acceptance Criteria:**
-- [ ] `IMAPSMTPBackend` (same file as US-206) implements `EmailBackend.send()` using
+- [x] `IMAPSMTPBackend` (same file as US-206) implements `EmailBackend.send()` using
   stdlib `smtplib.SMTP` with STARTTLS or `smtplib.SMTP_SSL`
-- [ ] Credentials are loaded via `CredentialManager` using the account's `credential_ref`
-- [ ] Sensitive data (password) is never logged
-- [ ] Tests cover: successful send, auth failure, TLS failure, and timeout — all with mocks
-- [ ] `pytest -q tests/test_email_backend_imap_smtp.py` exits 0
-- [ ] Typecheck passes
+- [x] Credentials are loaded via `CredentialManager` using the account's `credential_ref`
+- [x] Sensitive data (password) is never logged
+- [x] Tests cover: successful send, auth failure, TLS failure, and timeout — all with mocks
+- [x] `pytest -q tests/test_email_backend_imap_smtp.py` exits 0
+- [x] Typecheck passes
 
 ---
 

@@ -10,14 +10,17 @@ All network operations use explicit timeouts and **never log secrets**.
 from __future__ import annotations
 
 import email
+import email.message
 import email.policy
 import email.utils
 import imaplib
 import logging
+import smtplib
 import ssl
 from datetime import datetime, timezone
 from typing import Callable
 
+from rex.credentials import CredentialManager
 from rex.integrations.email.backends.base import EmailBackend
 
 logger = logging.getLogger(__name__)
@@ -196,6 +199,144 @@ class IMAPBackend(EmailBackend):
         }
 
 
+class SMTPSendError(Exception):
+    """Raised on SMTP send failure (TLS, auth, timeout, or relay errors)."""
+
+
+class IMAPSMTPBackend(IMAPBackend):
+    """Full read+send email backend using IMAP4-SSL and SMTP.
+
+    Extends :class:`IMAPBackend` with a real ``send()`` implementation backed
+    by :mod:`smtplib`.  Credentials are loaded from an explicit *password*
+    argument **or** (preferred in production) via :class:`~rex.credentials.CredentialManager`
+    using the account's *credential_ref* key.
+
+    Args:
+        smtp_host:      SMTP server hostname.
+        smtp_port:      SMTP port (default: 587 for STARTTLS, 465 for SMTP_SSL).
+        use_starttls:   When True (default), issue STARTTLS on *smtp_port*.
+                        When False, connect with ``SMTP_SSL``.
+        credential_ref: Key passed to ``CredentialManager.get_token()`` to
+                        resolve the password at send-time.  Takes precedence
+                        over the *password* arg when both are supplied.
+        smtp_factory:   Optional callable returning an ``smtplib.SMTP`` object.
+                        Inject for unit tests to avoid real network calls.
+        **imap_kwargs:  Forwarded to :class:`IMAPBackend`.
+    """
+
+    def __init__(
+        self,
+        *,
+        smtp_host: str,
+        smtp_port: int = 587,
+        use_starttls: bool = True,
+        credential_ref: str | None = None,
+        smtp_factory: Callable[[], smtplib.SMTP] | None = None,
+        **imap_kwargs,
+    ) -> None:
+        super().__init__(**imap_kwargs)
+        self._smtp_host = smtp_host
+        self._smtp_port = smtp_port
+        self._use_starttls = use_starttls
+        self._credential_ref = credential_ref
+        self._smtp_factory = smtp_factory
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _resolve_password(self) -> str:
+        """Return the SMTP password — never logged."""
+        if self._credential_ref:
+            try:
+                token = CredentialManager().get_token(self._credential_ref)
+                if token:
+                    return token
+            except Exception as exc:
+                logger.warning(
+                    "CredentialManager lookup for %r failed: %s — falling back to stored password",
+                    self._credential_ref,
+                    exc,
+                )
+        return self._password
+
+    def _create_smtp_connection(self) -> smtplib.SMTP:
+        if self._smtp_factory is not None:
+            return self._smtp_factory()
+        if self._use_starttls:
+            conn = smtplib.SMTP(
+                host=self._smtp_host,
+                port=self._smtp_port,
+                timeout=self._timeout,
+            )
+            conn.ehlo()
+            conn.starttls(context=ssl.create_default_context())
+            conn.ehlo()
+        else:
+            conn = smtplib.SMTP_SSL(  # type: ignore[assignment]
+                host=self._smtp_host,
+                port=self._smtp_port,
+                context=ssl.create_default_context(),
+                timeout=self._timeout,
+            )
+        return conn
+
+    # ------------------------------------------------------------------
+    # EmailBackend.send
+    # ------------------------------------------------------------------
+
+    def send(self, to: str, subject: str, body: str) -> None:
+        """Send an email via SMTP.
+
+        Args:
+            to:      Recipient email address.
+            subject: Subject line.
+            body:    Plain-text message body.
+
+        Raises:
+            EmailAuthError:  On SMTP authentication failure.
+            SMTPSendError:   On TLS negotiation failure, timeout, or relay error.
+        """
+        password = self._resolve_password()
+        msg = email.message.EmailMessage()
+        msg["From"] = self._username
+        msg["To"] = to
+        msg["Subject"] = subject
+        msg.set_content(body)
+
+        try:
+            smtp_conn = self._create_smtp_connection()
+        except ssl.SSLError as exc:
+            raise SMTPSendError(
+                f"TLS negotiation failed connecting to {self._smtp_host}:{self._smtp_port}"
+            ) from exc
+        except TimeoutError as exc:
+            raise SMTPSendError(
+                f"SMTP connection timed out to {self._smtp_host}:{self._smtp_port}"
+            ) from exc
+
+        try:
+            smtp_conn.login(self._username, password)
+            smtp_conn.send_message(msg)
+            logger.info("Email sent via SMTP to %s (subject=%r)", to, subject)
+        except smtplib.SMTPAuthenticationError as exc:
+            raise EmailAuthError(
+                f"SMTP authentication failed for {self._username!r} "
+                f"on {self._smtp_host}:{self._smtp_port} — check credentials"
+            ) from exc
+        except smtplib.SMTPException as exc:
+            raise SMTPSendError(f"SMTP send error: {exc}") from exc
+        except TimeoutError as exc:
+            raise SMTPSendError(
+                f"SMTP send timed out to {self._smtp_host}:{self._smtp_port}"
+            ) from exc
+        finally:
+            try:
+                smtp_conn.quit()
+            except Exception:
+                pass
+
+
 def _parse_email_date(date_str: str) -> datetime | None:
     if not date_str:
         return None
@@ -208,4 +349,4 @@ def _parse_email_date(date_str: str) -> datetime | None:
         return None
 
 
-__all__ = ["EmailAuthError", "IMAPBackend"]
+__all__ = ["EmailAuthError", "IMAPBackend", "IMAPSMTPBackend", "SMTPSendError"]
