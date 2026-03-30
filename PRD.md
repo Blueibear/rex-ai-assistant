@@ -689,12 +689,12 @@ as test fixtures so that integration tests run fully offline with no credentials
 that non-English speakers receive accurate transcriptions.
 
 **Acceptance Criteria:**
-- [ ] `AppConfig` gains `whisper_language: str = "en"` (None = auto-detect)
-- [ ] `SpeechToText` passes `language=config.whisper_language` to `whisper.transcribe()`
-- [ ] Setting `whisper_language = null` in config enables Whisper auto-detection
-- [ ] `rex doctor` output includes the current `whisper_language` value
-- [ ] `pytest -q tests/test_speech_to_text.py` exits 0
-- [ ] Typecheck passes
+- [x] `AppConfig` gains `whisper_language: str = "en"` (None = auto-detect)
+- [x] `SpeechToText` passes `language=config.whisper_language` to `whisper.transcribe()`
+- [x] Setting `whisper_language = null` in config enables Whisper auto-detection
+- [x] `rex doctor` output includes the current `whisper_language` value
+- [x] `pytest -q tests/test_speech_to_text.py` exits 0
+- [x] Typecheck passes
 
 ---
 

@@ -270,6 +270,14 @@ module = "whisper"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = "nltk"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "nltk.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = "openwakeword.*"
 ignore_missing_imports = true
 

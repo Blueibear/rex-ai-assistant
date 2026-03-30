@@ -106,6 +106,7 @@ def _require_sounddevice():
 
 
 logger = logging.getLogger(__name__)
+_USE_CONFIG_LANGUAGE = object()
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -214,7 +215,9 @@ def _split_into_sentences(text: str) -> list[str]:
     # Try NLTK sent_tokenize first (handles abbreviations natively).
     if find_spec("nltk") is not None:
         try:
-            import nltk
+            nltk = _import_optional("nltk")
+            if nltk is None:
+                raise ImportError("nltk is not available")
 
             sentences = nltk.sent_tokenize(stripped)
             return [s.strip() for s in sentences if s.strip()]
@@ -337,10 +340,19 @@ class WakeAcknowledgement:
 class SpeechToText:
     """Speech-to-text using Whisper."""
 
-    def __init__(self, model_name: str, device: str) -> None:
+    def __init__(
+        self,
+        model_name: str,
+        device: str,
+        language: str | None | object = _USE_CONFIG_LANGUAGE,
+    ) -> None:
         whisper_module = _lazy_import_whisper()
         if whisper_module is None:
             raise SpeechToTextError("openai-whisper is not installed")
+
+        if language is _USE_CONFIG_LANGUAGE:
+            language = getattr(settings, "whisper_language", "en")
+        self._language = cast(Optional[str], language)
 
         if device == "auto":
             try:
@@ -359,7 +371,7 @@ class SpeechToText:
         """Transcribe audio to text."""
 
         def _transcribe() -> str:
-            result = self._model.transcribe(audio, language="en", fp16=False)
+            result = self._model.transcribe(audio, language=self._language, fp16=False)
             return str(result.get("text", "")).strip()
 
         try:

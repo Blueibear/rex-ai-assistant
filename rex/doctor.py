@@ -541,6 +541,18 @@ def check_lm_studio_reachability(
         )
 
 
+def _current_whisper_language() -> str:
+    try:
+        from .config import load_config
+
+        config = load_config(reload=True)
+        if config.whisper_language is None:
+            return "auto-detect"
+        return config.whisper_language
+    except Exception:
+        return "unavailable"
+
+
 def run_diagnostics(verbose: bool = False) -> int:
     """Run all diagnostic checks and print results.
 
@@ -561,6 +573,7 @@ def run_diagnostics(verbose: bool = False) -> int:
         print(f"Project root: {project_root}")
     else:
         print("Project root: (not found)")
+    print(f"Whisper language: {_current_whisper_language()}")
     print()
 
     # Core checks

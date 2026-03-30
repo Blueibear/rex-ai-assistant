@@ -28,6 +28,7 @@
     "llm_seed": 42,
     "stt_model": "base",
     "stt_device": "auto",
+    "stt_language": "en",
     "tts_provider": "xtts",
     "tts_model": null,
     "tts_voice": null,

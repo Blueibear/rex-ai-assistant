@@ -118,6 +118,7 @@ class AppConfig:
 
     whisper_model: str = "base"
     whisper_device: str = "auto"
+    whisper_language: Optional[str] = "en"
     llm_provider: str = "transformers"
     llm_model: str = "sshleifer/tiny-gpt2"
     llm_max_tokens: int = 120
@@ -390,6 +391,7 @@ def build_app_config(json_config: dict) -> AppConfig:
         # Model settings from JSON
         whisper_model=_get_nested(json_config, "models.stt_model", "base"),
         whisper_device=_get_nested(json_config, "models.stt_device", "auto"),
+        whisper_language=_get_nested(json_config, "models.stt_language", "en"),
         llm_provider=_get_nested(json_config, "models.llm_provider", "transformers"),
         llm_model=_get_nested(json_config, "models.llm_model", "sshleifer/tiny-gpt2"),
         llm_max_tokens=_coerce_int(json_config, "models.llm_max_tokens", 120),

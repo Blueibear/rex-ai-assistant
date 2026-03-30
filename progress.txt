@@ -1497,3 +1497,25 @@
   - `(_ for _ in ()).throw(exc_instance)` is a clean monkeypatch idiom to make a lambda raise an exception.
   - OllamaStrategy.__new__(OllamaStrategy) bypasses __init__ for unit testing the generate() method in isolation.
 ---
+## Iteration 162 - US-213: Add configurable Whisper language
+- What was implemented
+  - Added `whisper_language` to `AppConfig` with JSON mapping from `models.stt_language` and documented it in `config/rex_config.example.json`.
+  - Updated `rex.voice_loop.SpeechToText` to default to `settings.whisper_language` and pass that value through to Whisper, preserving `None` for auto-detect.
+  - Added `rex doctor` output for the current Whisper language and created focused coverage in `tests/test_speech_to_text.py`.
+- Files changed
+  - `rex/config.py`
+  - `rex/voice_loop.py`
+  - `rex/doctor.py`
+  - `config/rex_config.example.json`
+  - `tests/test_speech_to_text.py`
+  - `pyproject.toml`
+  - `PRD.md`
+- Learnings for future iterations:
+  - Patterns discovered
+    - `rex/voice_loop.py` already has an `_import_optional()` helper; using it for optional NLP deps avoids direct-import mypy friction and matches the repo's lazy-import pattern.
+    - For config-driven optional behavior, a constructor sentinel cleanly distinguishes "use config default" from an explicit `None` value such as Whisper auto-detect.
+  - Gotchas encountered
+    - Running mypy directly on `rex/voice_loop.py` surfaced the optional `nltk` import path, so lazy imports need to stay consistent with typecheck expectations.
+  - Useful context
+    - `pytest -q tests/test_speech_to_text.py` did not exist before this story; the new file now covers config defaulting, `None` auto-detect, STT wiring, and `rex doctor` visibility.
+---
