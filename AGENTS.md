@@ -113,6 +113,11 @@ When a provider exposes a synchronous token iterator but the caller is async (fo
 voice loop), bridge it with `asyncio.to_thread(...)` plus an `asyncio.Queue` so token streaming
 does not block the event loop.
 
+## Provider token streams should degrade gracefully
+
+For LLM provider `stream()` implementations in `rex/llm_client.py`, catch exceptions raised
+during iteration, log a warning, and stop the generator so already-yielded tokens are preserved.
+
 ## Offline transport test harnesses live in tests/helpers
 
 For IMAP/SMTP/Twilio integration tests, prefer `tests/helpers/fake_imap.py`,

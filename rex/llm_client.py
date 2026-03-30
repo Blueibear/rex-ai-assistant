@@ -372,6 +372,53 @@ class OllamaStrategy:
             logger.error("Ollama unexpected error (model=%s): %s", self.model_name, exc)
             return f"[Ollama: unexpected error: {exc}]"
 
+    def stream(
+        self,
+        prompt: str,
+        config: GenerationConfig,
+        *,
+        messages=None,
+        **_kwargs: Any,
+    ) -> Iterator[str]:
+        payload = messages or [{"role": "user", "content": prompt}]
+        options = {
+            "temperature": config.temperature,
+            "top_p": config.top_p,
+            "top_k": config.top_k,
+            "seed": config.seed,
+        }
+
+        try:
+            if self.use_cloud:
+                stream = self._ollama.chat(
+                    model=self.model_name,
+                    messages=payload,
+                    options=options,
+                    api_key=self.api_key,
+                    stream=True,
+                )
+            else:
+                stream = self._client.chat(  # type: ignore[union-attr]
+                    model=self.model_name,
+                    messages=payload,
+                    options=options,
+                    stream=True,
+                )
+
+            for chunk in stream:
+                content = ""
+                if isinstance(chunk, dict):
+                    content = str(chunk.get("message", {}).get("content", "") or "")
+                else:
+                    message = getattr(chunk, "message", None)
+                    content = str(getattr(message, "content", "") or "")
+
+                if content:
+                    yield content
+        except Exception as exc:
+            logger.warning("Ollama stream interrupted (model=%s): %s", self.model_name, exc)
+            return
+
 
 class AnthropicStrategy:
     name = "anthropic"
@@ -413,6 +460,37 @@ class AnthropicStrategy:
             return content.strip() or "(silence)"
 
         return with_retry(_call, config=self._retry_config)
+
+    def stream(
+        self,
+        prompt: str,
+        config: GenerationConfig,
+        *,
+        messages=None,
+        **_kwargs: Any,
+    ) -> Iterator[str]:
+        payload = messages or [{"role": "user", "content": prompt}]
+        system_parts = [m["content"] for m in payload if m.get("role") == "system"]
+        user_messages = [m for m in payload if m.get("role") != "system"]
+        system_text = "\n".join(system_parts) if system_parts else None
+
+        api_params: dict[str, Any] = {
+            "model": self.model_name,
+            "max_tokens": config.max_new_tokens,
+            "messages": user_messages,
+        }
+        if system_text:
+            api_params["system"] = system_text
+
+        try:
+            stream_manager = self._get_client().messages.stream(**api_params)
+            with stream_manager as stream:
+                for text in stream.text_stream:
+                    if text:
+                        yield str(text)
+        except Exception as exc:
+            logger.warning("Anthropic stream interrupted (model=%s): %s", self.model_name, exc)
+            return
 
 
 _STRATEGIES: dict[str, type[LLMStrategy]] = {

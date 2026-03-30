@@ -60,6 +60,26 @@
   - Move module-level imports (like CredentialManager) out of lazy-import blocks to allow monkeypatching in tests.
   - `monkeypatch.setattr(_mod, "CredentialManager", FakeMgr)` works cleanly when the name is a module-level attribute.
 ---
+## Iteration 174 - US-218: Add streaming for Anthropic and Ollama providers
+- What was implemented
+  - Added `AnthropicStrategy.stream()` using `client.messages.stream(...).text_stream` to yield token deltas.
+  - Added `OllamaStrategy.stream()` using `chat(..., stream=True)` to yield incremental message content.
+  - Both provider streams now catch mid-stream failures, log a warning, and preserve already-yielded tokens.
+  - Added focused tests for Anthropic and Ollama streaming plus interruption handling.
+- Files changed
+  - `rex/llm_client.py`
+  - `tests/test_llm_client.py`
+  - `PRD.md`
+  - `AGENTS.md`
+- Learnings for future iterations:
+  - Patterns discovered
+    - Provider `stream()` methods can preserve partial output by catching exceptions around the iteration loop and simply returning after logging.
+    - Anthropic streaming fits the SDK context-manager pattern: `with client.messages.stream(...) as stream: for text in stream.text_stream: ...`.
+  - Gotchas encountered
+    - Keeping the streaming changes inside `rex/llm_client.py` avoids duplicating behavior elsewhere; `LanguageModel.stream()` already forwards provider-specific kwargs cleanly.
+  - Useful context
+    - Validation passed with `python -m pytest -q tests/test_llm_client.py` and `python -m mypy rex/llm_client.py`.
+---
 ## Iteration 174 - US-217: Add LLM streaming interface and OpenAI streaming implementation
 - What was implemented
   - Added a `stream()` method to the LLM strategy interface, implemented OpenAI token streaming with `stream=True`, and exposed a public `LanguageModel.stream()` entrypoint.

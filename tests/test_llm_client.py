@@ -165,6 +165,134 @@ def test_openai_strategy_stream_yields_token_deltas():
     assert "".join(tokens) == "Hello world"
 
 
+def test_anthropic_strategy_stream_yields_token_deltas():
+    from rex.llm_client import AnthropicStrategy, GenerationConfig
+
+    class _FakeStream:
+        def __init__(self):
+            self.text_stream = iter(["Hello ", "Claude"])
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    fake_client = types.SimpleNamespace(
+        messages=types.SimpleNamespace(stream=lambda **_: _FakeStream())
+    )
+
+    strategy = AnthropicStrategy("claude-test", lambda: fake_client)
+    tokens = list(
+        strategy.stream(
+            "hello",
+            GenerationConfig(max_new_tokens=32, temperature=0.0, top_p=1.0, top_k=0, seed=1),
+        )
+    )
+
+    assert tokens == ["Hello ", "Claude"]
+    assert "".join(tokens) == "Hello Claude"
+
+
+def test_anthropic_strategy_stream_logs_warning_and_returns_partial_tokens(caplog):
+    from rex.llm_client import AnthropicStrategy, GenerationConfig
+
+    class _InterruptingIterator:
+        def __iter__(self):
+            yield "Hello "
+            raise RuntimeError("stream lost")
+
+    class _FakeStream:
+        def __init__(self):
+            self.text_stream = _InterruptingIterator()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    fake_client = types.SimpleNamespace(
+        messages=types.SimpleNamespace(stream=lambda **_: _FakeStream())
+    )
+
+    strategy = AnthropicStrategy("claude-test", lambda: fake_client)
+    with caplog.at_level("WARNING"):
+        tokens = list(
+            strategy.stream(
+                "hello",
+                GenerationConfig(max_new_tokens=32, temperature=0.0, top_p=1.0, top_k=0, seed=1),
+            )
+        )
+
+    assert tokens == ["Hello "]
+    assert "Anthropic stream interrupted" in caplog.text
+
+
+def test_ollama_strategy_stream_yields_token_deltas():
+    from rex.llm_client import GenerationConfig, OllamaStrategy
+
+    strategy = OllamaStrategy.__new__(OllamaStrategy)
+    strategy.model_name = "llama3"
+    strategy.base_url = "http://localhost:11434"
+    strategy.use_cloud = False
+    strategy.api_key = None
+    strategy._ollama = None
+    strategy._client = types.SimpleNamespace(
+        chat=lambda **_: iter(
+            [
+                {"message": {"content": "Hello "}},
+                {"message": {"content": "Ollama"}},
+                {"message": {"content": ""}},
+            ]
+        )
+    )
+    strategy._retry_config = __import__("rex.retry", fromlist=["RetryConfig"]).RetryConfig(
+        max_attempts=1
+    )
+
+    tokens = list(
+        strategy.stream(
+            "hello",
+            GenerationConfig(max_new_tokens=32, temperature=0.0, top_p=1.0, top_k=0, seed=1),
+        )
+    )
+
+    assert tokens == ["Hello ", "Ollama"]
+    assert "".join(tokens) == "Hello Ollama"
+
+
+def test_ollama_strategy_stream_logs_warning_and_returns_partial_tokens(caplog):
+    from rex.llm_client import GenerationConfig, OllamaStrategy
+
+    class _InterruptingStream:
+        def __iter__(self):
+            yield {"message": {"content": "Hello "}}
+            raise RuntimeError("stream lost")
+
+    strategy = OllamaStrategy.__new__(OllamaStrategy)
+    strategy.model_name = "llama3"
+    strategy.base_url = "http://localhost:11434"
+    strategy.use_cloud = False
+    strategy.api_key = None
+    strategy._ollama = None
+    strategy._client = types.SimpleNamespace(chat=lambda **_: _InterruptingStream())
+    strategy._retry_config = __import__("rex.retry", fromlist=["RetryConfig"]).RetryConfig(
+        max_attempts=1
+    )
+
+    with caplog.at_level("WARNING"):
+        tokens = list(
+            strategy.stream(
+                "hello",
+                GenerationConfig(max_new_tokens=32, temperature=0.0, top_p=1.0, top_k=0, seed=1),
+            )
+        )
+
+    assert tokens == ["Hello "]
+    assert "Ollama stream interrupted" in caplog.text
+
+
 def test_language_model_streams_echo_prompt_word_by_word():
     cfg = AppConfig(llm_provider="echo", llm_model="echo-test")
     model = LanguageModel(cfg)

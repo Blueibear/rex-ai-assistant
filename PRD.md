@@ -770,12 +770,12 @@ first words of a response appear faster while the rest is being generated.
 so that all supported backends benefit from lower perceived latency.
 
 **Acceptance Criteria:**
-- [ ] `AnthropicStrategy.stream()` uses the Anthropic streaming API and yields string deltas
-- [ ] `OllamaStrategy.stream()` uses Ollama's streaming endpoint and yields string deltas
-- [ ] Both implementations handle stream interruptions gracefully (log warning, return
+- [x] `AnthropicStrategy.stream()` uses the Anthropic streaming API and yields string deltas
+- [x] `OllamaStrategy.stream()` uses Ollama's streaming endpoint and yields string deltas
+- [x] Both implementations handle stream interruptions gracefully (log warning, return
   what was collected)
-- [ ] `pytest -q tests/test_llm_client.py` exits 0
-- [ ] Typecheck passes
+- [x] `pytest -q tests/test_llm_client.py` exits 0
+- [x] Typecheck passes
 
 ---
 
