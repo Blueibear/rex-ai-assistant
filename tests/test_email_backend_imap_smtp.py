@@ -5,12 +5,15 @@ All tests use mocks/fakes — no real network calls.
 
 from __future__ import annotations
 
+import imaplib
 from unittest.mock import MagicMock
 
 import pytest
 
 from rex.email_backends.imap_smtp import ImapSmtpEmailBackend
 from rex.email_backends.stub import StubEmailBackend
+from rex.integrations.email.backends.base import EmailBackend as IntegrationEmailBackend
+from rex.integrations.email.backends.imap_smtp import EmailAuthError, IMAPBackend
 
 # ---------------------------------------------------------------------------
 # Stub backend tests
@@ -333,3 +336,129 @@ class TestBackendInterface:
     def test_imap_smtp_has_method(self, method):
         backend = ImapSmtpEmailBackend(imap_host="x", smtp_host="x", username="x", password="x")
         assert hasattr(backend, method)
+
+
+# ---------------------------------------------------------------------------
+# IMAPBackend (new transport-layer interface) — US-206
+# ---------------------------------------------------------------------------
+
+_RAW_HEADER_BYTES = (
+    b"From: alice@example.com\r\n"
+    b"To: bob@example.com\r\n"
+    b"Subject: Hello from Alice\r\n"
+    b"Date: Thu, 28 Mar 2026 09:00:00 +0000\r\n"
+    b"Message-ID: <msg-001@example.com>\r\n"
+    b"\r\n"
+)
+
+
+def _make_imap_mock(
+    search_result=("OK", [b"1"]),
+    fetch_result=None,
+    login_raises=None,
+):
+    mock_conn = MagicMock(spec=imaplib.IMAP4_SSL)
+    if login_raises is not None:
+        mock_conn.login.side_effect = login_raises
+    else:
+        mock_conn.login.return_value = ("OK", [b"Logged in"])
+    mock_conn.select.return_value = ("OK", [b"1"])
+    mock_conn.search.return_value = search_result
+    if fetch_result is None:
+        fetch_result = ("OK", [(b"1 (RFC822.HEADER {350})", _RAW_HEADER_BYTES)])
+    mock_conn.fetch.return_value = fetch_result
+    mock_conn.close.return_value = ("OK", [b"Closed"])
+    mock_conn.logout.return_value = ("BYE", [b"Logging out"])
+    return mock_conn
+
+
+def _make_imap_backend(mock_conn):
+    return IMAPBackend(
+        host="imap.example.com",
+        port=993,
+        username="user@example.com",
+        password="secret",
+        imap_factory=lambda: mock_conn,
+    )
+
+
+class TestIMAPBackend:
+    """Tests for the new transport-layer IMAPBackend (US-206)."""
+
+    def test_is_subclass_of_integration_email_backend(self):
+        assert issubclass(IMAPBackend, IntegrationEmailBackend)
+
+    def test_email_auth_error_is_exception_subclass(self):
+        assert issubclass(EmailAuthError, Exception)
+
+    # --- happy path ---
+
+    def test_fetch_unread_returns_list_of_dicts(self):
+        mock_conn = _make_imap_mock()
+        backend = _make_imap_backend(mock_conn)
+        results = backend.fetch_unread(limit=5)
+        assert isinstance(results, list)
+        assert len(results) == 1
+        assert isinstance(results[0], dict)
+
+    def test_fetch_unread_dict_has_required_keys(self):
+        mock_conn = _make_imap_mock()
+        backend = _make_imap_backend(mock_conn)
+        msg = backend.fetch_unread()[0]
+        for key in ("id", "from", "subject", "snippet", "received_at"):
+            assert key in msg, f"Missing key: {key}"
+
+    def test_fetch_unread_parses_from_and_subject(self):
+        mock_conn = _make_imap_mock()
+        backend = _make_imap_backend(mock_conn)
+        msg = backend.fetch_unread()[0]
+        assert "alice@example.com" in msg["from"]
+        assert "Hello from Alice" in msg["subject"]
+
+    def test_fetch_unread_returns_empty_when_no_unseen(self):
+        mock_conn = _make_imap_mock(search_result=("OK", [b""]))
+        backend = _make_imap_backend(mock_conn)
+        assert backend.fetch_unread() == []
+
+    def test_fetch_unread_respects_limit(self):
+        mock_conn = _make_imap_mock(search_result=("OK", [b"1 2"]))
+        mock_conn.fetch.return_value = ("OK", [(b"2 (RFC822.HEADER {350})", _RAW_HEADER_BYTES)])
+        backend = _make_imap_backend(mock_conn)
+        assert len(backend.fetch_unread(limit=1)) == 1
+
+    def test_fetch_unread_closes_connection_after_success(self):
+        mock_conn = _make_imap_mock()
+        backend = _make_imap_backend(mock_conn)
+        backend.fetch_unread()
+        mock_conn.close.assert_called_once()
+        mock_conn.logout.assert_called_once()
+
+    # --- auth failure ---
+
+    def test_auth_failure_raises_email_auth_error(self):
+        mock_conn = _make_imap_mock(login_raises=imaplib.IMAP4.error("LOGIN failed"))
+        backend = _make_imap_backend(mock_conn)
+        with pytest.raises(EmailAuthError):
+            backend.fetch_unread()
+
+    def test_auth_error_message_describes_failure(self):
+        mock_conn = _make_imap_mock(login_raises=imaplib.IMAP4.error("LOGIN failed"))
+        backend = _make_imap_backend(mock_conn)
+        with pytest.raises(EmailAuthError) as exc_info:
+            backend.fetch_unread()
+        assert "authentication failed" in str(exc_info.value).lower()
+
+    def test_auth_error_includes_username_not_password(self):
+        mock_conn = _make_imap_mock(login_raises=imaplib.IMAP4.error("LOGIN failed"))
+        backend = _make_imap_backend(mock_conn)
+        with pytest.raises(EmailAuthError) as exc_info:
+            backend.fetch_unread()
+        msg = str(exc_info.value)
+        assert "user@example.com" in msg
+        assert "secret" not in msg
+
+    def test_send_raises_not_implemented(self):
+        mock_conn = _make_imap_mock()
+        backend = _make_imap_backend(mock_conn)
+        with pytest.raises(NotImplementedError):
+            backend.send(to="x@example.com", subject="S", body="B")

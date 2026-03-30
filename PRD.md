@@ -565,15 +565,15 @@ integration backend so that real and stub implementations are interchangeable.
 the "read my email" command returns live inbox contents.
 
 **Acceptance Criteria:**
-- [ ] New file `rex/integrations/email/backends/imap_smtp.py` defines `IMAPBackend`
+- [x] New file `rex/integrations/email/backends/imap_smtp.py` defines `IMAPBackend`
   implementing `EmailBackend.fetch_unread()`
-- [ ] Uses stdlib `imaplib.IMAP4_SSL` with configurable host, port, and SSL flag
-- [ ] Connection timeout is enforced (default: 10 s)
-- [ ] On auth failure, raises a descriptive `EmailAuthError` (not a raw exception)
-- [ ] `tests/test_email_backend_imap_smtp.py` tests happy-path and auth-failure cases
+- [x] Uses stdlib `imaplib.IMAP4_SSL` with configurable host, port, and SSL flag
+- [x] Connection timeout is enforced (default: 10 s)
+- [x] On auth failure, raises a descriptive `EmailAuthError` (not a raw exception)
+- [x] `tests/test_email_backend_imap_smtp.py` tests happy-path and auth-failure cases
   using `unittest.mock` on the socket layer (no live network calls)
-- [ ] `pytest -q tests/test_email_backend_imap_smtp.py` exits 0
-- [ ] Typecheck passes
+- [x] `pytest -q tests/test_email_backend_imap_smtp.py` exits 0
+- [x] Typecheck passes
 
 ---
 
