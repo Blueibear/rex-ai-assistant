@@ -127,11 +127,105 @@ _SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+")
 # Short phrase used to pre-warm the TTS engine on startup.
 _WARMUP_PHRASE = "."
 
+# Common single-word abbreviations that should not trigger sentence boundaries.
+# Matched as whole words (case-insensitive) followed by "." and whitespace.
+_ABBREV_WORDS: frozenset[str] = frozenset(
+    [
+        "mr",
+        "mrs",
+        "ms",
+        "dr",
+        "prof",
+        "sr",
+        "jr",
+        "vs",
+        "etc",
+        "al",
+        "st",
+        "fig",
+        "dept",
+        "est",
+        "approx",
+        "cf",
+        "rev",
+        "gen",
+        "col",
+        "lt",
+        "sgt",
+        "capt",
+        "gov",
+        "sen",
+        "rep",
+        "no",
+        "vol",
+        "ave",
+        "blvd",
+    ]
+)
+
+# Abbreviations containing internal dots (e.g., i.e.) followed by "." and whitespace.
+_ABBREV_DOT: frozenset[str] = frozenset(
+    ["e.g", "i.e", "a.m", "p.m", "u.s", "u.k", "u.n"]
+)
+
+# Placeholder character used to protect abbreviation periods during splitting.
+_ABBREV_PLACEHOLDER = "\x00"
+
+
+def _protect_abbreviations(text: str) -> str:
+    """Replace trailing periods in known abbreviations with a placeholder.
+
+    This prevents *_SENTENCE_BOUNDARY* from treating abbreviations like
+    "Dr.", "Mr.", or "e.g." as sentence-ending punctuation.  Original
+    casing is preserved via a capturing group in each substitution.
+    """
+    protected = text
+    # Single-word abbreviations: word-boundary + abbr + "." + whitespace.
+    # Group 1 captures the original-cased abbreviation so it is preserved.
+    for abbr in _ABBREV_WORDS:
+        protected = re.sub(
+            rf"(?<!\w)({re.escape(abbr)})\.\s",
+            r"\1" + _ABBREV_PLACEHOLDER + " ",
+            protected,
+            flags=re.IGNORECASE,
+        )
+    # Dot-internal abbreviations: abbr + "." + whitespace
+    for abbr in _ABBREV_DOT:
+        protected = re.sub(
+            rf"({re.escape(abbr)})\.\s",
+            r"\1" + _ABBREV_PLACEHOLDER + " ",
+            protected,
+            flags=re.IGNORECASE,
+        )
+    return protected
+
 
 def _split_into_sentences(text: str) -> list[str]:
-    """Split *text* into sentence-sized chunks for streaming TTS."""
-    sentences = _SENTENCE_BOUNDARY.split(text.strip())
-    return [s.strip() for s in sentences if s.strip()]
+    """Split *text* into sentence-sized chunks for streaming TTS.
+
+    Uses NLTK ``sent_tokenize`` when available; otherwise falls back to an
+    abbreviation-aware regex splitter that does not break on common titles
+    (Dr., Mr.) or abbreviations (e.g., etc.).
+    """
+    stripped = text.strip()
+    if not stripped:
+        return []
+
+    # Try NLTK sent_tokenize first (handles abbreviations natively).
+    if find_spec("nltk") is not None:
+        try:
+            import nltk
+
+            sentences = nltk.sent_tokenize(stripped)
+            return [s.strip() for s in sentences if s.strip()]
+        except Exception:
+            # punkt tokenizer not downloaded or other NLTK error — fall through.
+            pass
+
+    # Abbreviation-aware regex fallback.
+    protected = _protect_abbreviations(stripped)
+    parts = _SENTENCE_BOUNDARY.split(protected)
+    return [s.replace(_ABBREV_PLACEHOLDER, ".").strip() for s in parts if s.strip()]
 
 
 async def _sentence_stream(text: str) -> AsyncIterator[str]:

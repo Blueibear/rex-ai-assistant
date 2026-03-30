@@ -5,6 +5,68 @@ from __future__ import annotations
 import re
 
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
+# Common single-word abbreviations (see rex/voice_loop.py for the canonical list).
+_ABBREV_WORDS: frozenset[str] = frozenset(
+    [
+        "mr",
+        "mrs",
+        "ms",
+        "dr",
+        "prof",
+        "sr",
+        "jr",
+        "vs",
+        "etc",
+        "al",
+        "st",
+        "fig",
+        "dept",
+        "est",
+        "approx",
+        "cf",
+        "rev",
+        "gen",
+        "col",
+        "lt",
+        "sgt",
+        "capt",
+        "gov",
+        "sen",
+        "rep",
+        "no",
+        "vol",
+        "ave",
+        "blvd",
+    ]
+)
+_ABBREV_DOT: frozenset[str] = frozenset(
+    ["e.g", "i.e", "a.m", "p.m", "u.s", "u.k", "u.n"]
+)
+_ABBREV_PLACEHOLDER = "\x00"
+
+
+def _protect_abbreviations(text: str) -> str:
+    """Replace trailing periods in known abbreviations with a placeholder.
+
+    Original casing is preserved via a capturing group in each substitution.
+    """
+    protected = text
+    for abbr in _ABBREV_WORDS:
+        protected = re.sub(
+            rf"(?<!\w)({re.escape(abbr)})\.\s",
+            r"\1" + _ABBREV_PLACEHOLDER + " ",
+            protected,
+            flags=re.IGNORECASE,
+        )
+    for abbr in _ABBREV_DOT:
+        protected = re.sub(
+            rf"({re.escape(abbr)})\.\s",
+            r"\1" + _ABBREV_PLACEHOLDER + " ",
+            protected,
+            flags=re.IGNORECASE,
+        )
+    return protected
 _TOKEN_RE = re.compile(r"\S+")
 
 
@@ -37,8 +99,11 @@ def chunk_text_for_xtts(text: str, *, max_tokens: int = 300) -> list[str]:
     if not normalized:
         return []
 
+    protected = _protect_abbreviations(normalized)
     sentences = [
-        sentence.strip() for sentence in _SENTENCE_SPLIT_RE.split(normalized) if sentence.strip()
+        sentence.replace(_ABBREV_PLACEHOLDER, ".").strip()
+        for sentence in _SENTENCE_SPLIT_RE.split(protected)
+        if sentence.strip()
     ]
     if not sentences:
         return [normalized]

@@ -444,14 +444,14 @@ from missing-model errors so that users see accurate troubleshooting messages.
 abbreviations like "Dr.", "Mr.", "e.g.", and "etc." so that speech sounds natural.
 
 **Acceptance Criteria:**
-- [ ] `rex/voice_loop.py` sentence splitter uses an abbreviation-aware approach
+- [x] `rex/voice_loop.py` sentence splitter uses an abbreviation-aware approach
   (either an allowlist of common titles/abbreviations or NLTK `sent_tokenize` if available,
   with regex fallback)
-- [ ] "Dr. Smith said the treatment works." is treated as a single sentence
-- [ ] "She said it was great. He agreed." is correctly split into two sentences
-- [ ] "e.g. this example." is treated as one sentence
-- [ ] Existing TTS pipeline tests pass
-- [ ] Typecheck passes
+- [x] "Dr. Smith said the treatment works." is treated as a single sentence
+- [x] "She said it was great. He agreed." is correctly split into two sentences
+- [x] "e.g. this example." is treated as one sentence
+- [x] Existing TTS pipeline tests pass
+- [x] Typecheck passes
 
 ---
 
