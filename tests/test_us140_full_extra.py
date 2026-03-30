@@ -5,6 +5,7 @@ Tests verify the pyproject.toml structure and install script references.
 
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -12,29 +13,30 @@ if sys.version_info >= (3, 11):
     import tomllib
 else:
     try:
-        import tomli as tomllib  # type: ignore[no-redef]
+        import tomli as tomllib
     except ImportError:
-        tomllib = None  # type: ignore[assignment]
+        tomllib = None
 
 REPO_ROOT = Path(__file__).parent.parent
 PYPROJECT = REPO_ROOT / "pyproject.toml"
 
 
-def _load_toml() -> dict:
+def _load_toml() -> dict[str, Any]:
     if tomllib is None:
         pytest.skip("tomllib/tomli not available (Python <3.11 without tomli)")
     with open(PYPROJECT, "rb") as f:
-        return tomllib.load(f)
+        return cast(dict[str, Any], tomllib.load(f))
 
 
 @pytest.fixture(scope="module")
-def pyproject() -> dict:
+def pyproject() -> dict[str, Any]:
     return _load_toml()
 
 
 @pytest.fixture(scope="module")
-def optional_deps(pyproject: dict) -> dict:
-    return pyproject["project"]["optional-dependencies"]
+def optional_deps(pyproject: dict[str, Any]) -> dict[str, list[str]]:
+    project = cast(dict[str, Any], pyproject["project"])
+    return cast(dict[str, list[str]], project["optional-dependencies"])
 
 
 class TestFullExtraExists:

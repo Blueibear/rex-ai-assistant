@@ -13,8 +13,7 @@ import textwrap
 from pathlib import Path
 
 # Import the audit module directly so we can unit-test scan_file / helpers.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-import security_audit  # noqa: E402
+from scripts import security_audit
 
 # ---------------------------------------------------------------------------
 # Merge-marker tests

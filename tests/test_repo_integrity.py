@@ -18,7 +18,7 @@ excluded because they are generated intentionally and are already in
 
 from __future__ import annotations
 
-from git_helpers import get_dirty_files
+from tests.git_helpers import get_dirty_files
 
 
 class TestRepoIntegrity:

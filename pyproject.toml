@@ -241,7 +241,8 @@ ignore = [
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
+exclude = '(^build[\\/]|^dist[\\/]|^\.venv[\\/])'
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
@@ -339,6 +340,21 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "TTS.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+  "_pytest",
+  "_pytest.*",
+  "flask_cors",
+  "flask_limiter",
+  "flask_limiter.*",
+  "playsound",
+  "pytest",
+  "setuptools",
+  "soundfile",
+  "tomli",
+]
 ignore_missing_imports = true
 
 # Pre-existing modules that are not yet strict-mode compliant.

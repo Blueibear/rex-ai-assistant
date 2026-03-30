@@ -787,11 +787,11 @@ so that all supported backends benefit from lower perceived latency.
 Black on staged files so that lint and format regressions are caught before they reach CI.
 
 **Acceptance Criteria:**
-- [ ] `.pre-commit-config.yaml` exists at the repo root with hooks for:
+- [x] `.pre-commit-config.yaml` exists at the repo root with hooks for:
   `ruff` (autofix: true) and `black`
-- [ ] `pre-commit run --all-files` exits 0 on a clean checkout
-- [ ] `CONTRIBUTING.md` (or `CLAUDE.md`) documents: `pip install pre-commit && pre-commit install`
-- [ ] Typecheck passes
+- [x] `pre-commit run --all-files` exits 0 on a clean checkout
+- [x] `CONTRIBUTING.md` (or `CLAUDE.md`) documents: `pip install pre-commit && pre-commit install`
+- [x] Typecheck passes
 
 ---
 

@@ -12,7 +12,7 @@ from collections import defaultdict, deque
 from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from flask import Flask, Response, request
 from flask_cors import CORS
@@ -175,6 +175,7 @@ MAX_REQUEST_BYTES = _parse_int(
     default=65536,  # 64 KB
 )
 TTS_SPEED = load_config().tts_speed
+_RATE_LIMIT_SPEC: str | None
 
 # Enforce body-size limit via Flask: rejects Content-Length violations before the body
 # is read and caps streamed reads at MAX_REQUEST_BYTES for requests without Content-Length.
@@ -190,6 +191,23 @@ if RATE_LIMIT > 0 and RATE_LIMIT_WINDOW > 0:
 else:
     _RATE_LIMIT_SPEC = None
 
+
+def _typed_error_response(
+    code: str,
+    message: str,
+    http_status: int,
+    *,
+    request_id: str | None = None,
+) -> tuple[Response, int]:
+    resp, status = error_response(
+        code,
+        message,
+        http_status,
+        request_id=request_id,
+    )
+    return cast(Response, resp), status
+
+
 # ------------------------------------------------------------------------------
 # Graceful-shutdown guard
 # ------------------------------------------------------------------------------
@@ -199,7 +217,7 @@ else:
 def _reject_during_shutdown() -> tuple[Response, int] | None:
     """Return 503 when a SIGTERM-triggered shutdown is in progress."""
     if get_shutdown_handler().is_shutting_down:
-        resp, status = error_response("SERVICE_UNAVAILABLE", "Server is shutting down", 503)
+        resp, status = _typed_error_response("SERVICE_UNAVAILABLE", "Server is shutting down", 503)
         return resp, status
     return None
 
@@ -209,7 +227,7 @@ def _check_request_size() -> tuple[Response, int] | None:
     """Reject requests whose Content-Length exceeds MAX_REQUEST_BYTES before reading body."""
     cl = request.content_length
     if cl is not None and cl > MAX_REQUEST_BYTES:
-        resp, status = error_response(PAYLOAD_TOO_LARGE, "Request body too large", 413)
+        resp, status = _typed_error_response(PAYLOAD_TOO_LARGE, "Request body too large", 413)
         return resp, status
     return None
 
@@ -220,21 +238,21 @@ def _check_request_size() -> tuple[Response, int] | None:
 
 @app.errorhandler(AuthenticationError)
 def _handle_auth_error(exc: AuthenticationError) -> tuple[Response, int]:
-    resp, status = error_response(UNAUTHORIZED, str(exc), 401)
+    resp, status = _typed_error_response(UNAUTHORIZED, str(exc), 401)
     resp.status_code = status
-    return resp  # type: ignore[return-value]
+    return resp, status
 
 
 @app.errorhandler(TextToSpeechError)
 def _handle_tts_error(exc: TextToSpeechError) -> tuple[Response, int]:
-    resp, status = error_response(INTERNAL_ERROR, str(exc), 500)
+    resp, status = _typed_error_response(INTERNAL_ERROR, str(exc), 500)
     resp.status_code = status
-    return resp  # type: ignore[return-value]
+    return resp, status
 
 
 @app.errorhandler(RateLimitExceeded)
 def _handle_rate_limit(exc: RateLimitExceeded) -> Response:
-    resp, _ = error_response(TOO_MANY_REQUESTS, "Too many requests", 429)
+    resp, _ = _typed_error_response(TOO_MANY_REQUESTS, "Too many requests", 429)
     resp.status_code = 429
     if getattr(exc, "retry_after", None):
         resp.headers["Retry-After"] = str(int(exc.retry_after))
@@ -412,9 +430,13 @@ def speak() -> Response:
     payload = request.get_json(silent=True) or {}
     text = payload.get("text")
     if not text or not isinstance(text, str):
-        return error_response(BAD_REQUEST, "Text is required", 400)
+        resp, status = _typed_error_response(BAD_REQUEST, "Text is required", 400)
+        resp.status_code = status
+        return resp
     if len(text) > MAX_TEXT_LENGTH:
-        return error_response(BAD_REQUEST, "Text exceeds maximum length", 400)
+        resp, status = _typed_error_response(BAD_REQUEST, "Text exceeds maximum length", 400)
+        resp.status_code = status
+        return resp
 
     language = payload.get("language") or "en"
     user_key = payload.get("user") or DEFAULT_USER

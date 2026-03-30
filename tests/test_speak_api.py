@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import threading
-from unittest.mock import patch
 
 
 def _make_client(app):
@@ -43,12 +42,6 @@ def test_get_tts_engine_acquires_lock(monkeypatch):
     import rex_speak_api
 
     acquired_states: list[bool] = []
-
-    original_get = rex_speak_api._get_tts_engine.__wrapped__ if hasattr(
-        rex_speak_api._get_tts_engine, "__wrapped__"
-    ) else None
-
-    sentinel = object()
 
     def fake_generate(text, language, user_key):
         # If the lock is held during generate_speech, trying to acquire it
@@ -136,8 +129,6 @@ def test_generate_speech_holds_lock_during_synthesis(monkeypatch):
 
     lock_held_during_engine_call: list[bool] = []
 
-    original_get_engine = rex_speak_api._get_tts_engine
-
     def patched_get_engine():
         # When called from generate_speech, _tts_lock should already be held
         # by the current thread — trying to acquire it should fail immediately
@@ -152,8 +143,9 @@ def test_generate_speech_holds_lock_during_synthesis(monkeypatch):
 
     class _FakeEngine:
         def tts_to_file(self, **kwargs):
-            import soundfile as sf
             import numpy as np
+            import soundfile as sf
+
             sf.write(kwargs["file_path"], np.zeros(1000), 22050)
 
     def _fake_engine():
@@ -163,11 +155,14 @@ def test_generate_speech_holds_lock_during_synthesis(monkeypatch):
     monkeypatch.setattr(rex_speak_api, "_get_tts_engine", patched_get_engine)
 
     import numpy as np
-    import soundfile as sf
 
-    fake_np = type("FakeNumpy", (), {
-        "concatenate": staticmethod(np.concatenate),
-    })()
+    fake_np = type(
+        "FakeNumpy",
+        (),
+        {
+            "concatenate": staticmethod(np.concatenate),
+        },
+    )()
 
     called = []
 
@@ -196,6 +191,7 @@ def test_generate_speech_holds_lock_during_synthesis(monkeypatch):
     def fake_open(path, mode="r", *args, **kwargs):
         if "rb" in str(mode):
             import io
+
             return io.BytesIO(b"\x00\x01\x02")
         return original_open(path, mode, *args, **kwargs)
 

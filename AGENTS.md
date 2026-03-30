@@ -101,11 +101,26 @@ See `CONTRIBUTING.md` for full details and examples.
 
 ---
 
+## Pre-commit hooks should use managed tool repos
+
+For `.pre-commit-config.yaml`, prefer the official hook repos for Ruff and Black over
+`repo: local` + `language: system`. This keeps `pre-commit run --all-files` working on a clean
+checkout after only `pip install pre-commit && pre-commit install`.
+
+---
+
 ## Optional dependency imports
 
 Use `_import_optional(module_name)` (defined in `voice_loop.py`) or `find_spec` guards before
 importing optional packages. Heavy optional deps (TTS, Whisper, simpleaudio, sounddevice) must
 not be imported at module level - they are lazy-loaded to avoid import errors on minimal installs.
+
+## Optional internal modules should use dynamic imports
+
+When a feature module may be absent in some checkouts (for example `rex.dashboard` or
+`rex.messaging_backends.webhook_wiring`), load it with `importlib.import_module(...)` inside a
+`try/except ImportError` block instead of a direct import. This preserves optional runtime
+behavior and avoids `mypy` import-not-found failures.
 
 ## Sync token streams need an async bridge
 
@@ -125,3 +140,10 @@ For IMAP/SMTP/Twilio integration tests, prefer `tests/helpers/fake_imap.py`,
 transports. These helpers record calls in simple lists/counters (for example `login_calls`,
 `send_message_calls`, `store_calls`) instead of mock assertion helpers like
 `assert_called_once_with`.
+
+## Typed Flask error responses should use a local wrapper
+
+`rex.http_errors.error_response()` is intentionally typed as `tuple[Any, int]` so it can stay
+Flask-light. In modules with stricter `mypy` checking (for example Flask routes or error
+handlers), wrap it in a small local helper that casts the first item to `flask.Response`
+instead of adding `type: ignore[return-value]` comments at each call site.

@@ -20,7 +20,14 @@ docs: update installation instructions
 
 A `commit-msg` hook is included in `.githooks/` to enforce the above format locally before commits are recorded.
 
-Install it with:
+For formatting and linting hooks, install `pre-commit` and register the default Git hooks:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+Install the Conventional Commits `commit-msg` hook separately with:
 
 ```bash
 cp .githooks/commit-msg .git/hooks/commit-msg
@@ -28,5 +35,3 @@ chmod +x .git/hooks/commit-msg
 ```
 
 After installation, any commit message that does not match the Conventional Commits pattern will be rejected with a clear error.
-
-> **Note:** If you use the `pre-commit` framework (see US-087), running `pre-commit install --hook-type commit-msg` will install the hook automatically.

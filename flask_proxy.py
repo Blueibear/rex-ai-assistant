@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 from types import SimpleNamespace
+from typing import Any
 
 from flask import Flask, abort, jsonify, redirect, request
 from flask import g as flask_g
@@ -24,7 +25,7 @@ from rex.startup import log_service_ready, run_startup_sequence
 
 # Import dashboard blueprint
 try:
-    from rex.dashboard import dashboard_bp
+    dashboard_bp = importlib.import_module("rex.dashboard").dashboard_bp
 
     _DASHBOARD_AVAILABLE = True
 except ImportError:
@@ -32,6 +33,7 @@ except ImportError:
     _DASHBOARD_AVAILABLE = False
 
 # Import contract version for /contracts endpoint
+CONTRACT_VERSION: str | None
 try:
     from rex.contracts import CONTRACT_VERSION
     from rex.contracts.core import ALL_MODELS
@@ -44,7 +46,7 @@ except ImportError:
 
 _TESTING_MODE = os.getenv("REX_TESTING", "").lower() in {"1", "true", "yes"}
 if _TESTING_MODE:
-    g = SimpleNamespace()
+    g: Any = SimpleNamespace()
 else:
     g = flask_g
 
@@ -92,8 +94,9 @@ if _DASHBOARD_AVAILABLE and dashboard_bp is not None:
 
 # Register inbound SMS webhook blueprint (config-driven; disabled by default)
 try:
-    from rex.messaging_backends.webhook_wiring import register_inbound_sms_webhook
-
+    register_inbound_sms_webhook = importlib.import_module(
+        "rex.messaging_backends.webhook_wiring"
+    ).register_inbound_sms_webhook
     _INBOUND_SMS_REGISTERED = register_inbound_sms_webhook(app)
 except Exception as _inbound_exc:
     app.logger.debug("Inbound SMS webhook wiring skipped: %s", _inbound_exc)
@@ -129,7 +132,7 @@ if not _TESTING_MODE:
 
 # --- Helpers ---
 def _summarize_memory(profile: dict) -> dict:
-    summary = {}
+    summary: dict[str, Any] = {}
     if not isinstance(profile, dict):
         return summary
 

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import types
+from collections.abc import Iterator
+from typing import Any, cast
 
 import pytest
 
@@ -80,7 +82,7 @@ def test_openai_provider(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test")
     monkeypatch.setattr(LanguageModel, "_ensure_openai_client", lambda self: fake_client)
 
-    cfg = AppConfig(llm_model=None, llm_provider="openai", openai_model="gpt-test")
+    cfg = AppConfig(llm_model="", llm_provider="openai", openai_model="gpt-test")
     model = LanguageModel(cfg)
 
     completion = model.generate(messages=[{"role": "user", "content": "hello"}])
@@ -116,14 +118,13 @@ def test_openai_tool_calls_serialized_to_json(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test")
     monkeypatch.setattr(LanguageModel, "_ensure_openai_client", lambda self: fake_client)
 
-    cfg = AppConfig(llm_model=None, llm_provider="openai", openai_model="gpt-test")
-    from rex.llm_client import OpenAIStrategy, GenerationConfig
+    from rex.llm_client import GenerationConfig, OpenAIStrategy
 
     strategy = OpenAIStrategy("gpt-test", lambda: fake_client)
-    gen_cfg = GenerationConfig(
-        max_new_tokens=100, temperature=0.7, top_p=1.0, top_k=50, seed=42
+    gen_cfg = GenerationConfig(max_new_tokens=100, temperature=0.7, top_p=1.0, top_k=50, seed=42)
+    result = strategy.generate(
+        "find weather", gen_cfg, messages=[{"role": "user", "content": "find weather"}]
     )
-    result = strategy.generate("find weather", gen_cfg, messages=[{"role": "user", "content": "find weather"}])
 
     assert isinstance(result, str), "generate() must return str even with tool_calls"
     parsed = json.loads(result)
@@ -237,7 +238,7 @@ def test_ollama_strategy_stream_yields_token_deltas():
     strategy.base_url = "http://localhost:11434"
     strategy.use_cloud = False
     strategy.api_key = None
-    strategy._ollama = None
+    strategy._ollama = cast(Any, None)
     strategy._client = types.SimpleNamespace(
         chat=lambda **_: iter(
             [
@@ -275,7 +276,7 @@ def test_ollama_strategy_stream_logs_warning_and_returns_partial_tokens(caplog):
     strategy.base_url = "http://localhost:11434"
     strategy.use_cloud = False
     strategy.api_key = None
-    strategy._ollama = None
+    strategy._ollama = cast(Any, None)
     strategy._client = types.SimpleNamespace(chat=lambda **_: _InterruptingStream())
     strategy._retry_config = __import__("rex.retry", fromlist=["RetryConfig"]).RetryConfig(
         max_attempts=1
@@ -305,13 +306,13 @@ def test_language_model_streams_echo_prompt_word_by_word():
 
 def test_ollama_connection_refused_returns_friendly_message(monkeypatch):
     """ConnectionRefusedError → connection-failed sentinel string."""
-    from rex.llm_client import OllamaStrategy, GenerationConfig
+    from rex.llm_client import GenerationConfig, OllamaStrategy
 
     strategy = OllamaStrategy.__new__(OllamaStrategy)
     strategy.model_name = "llama3"
     strategy.base_url = "http://localhost:11434"
     strategy.use_cloud = False
-    strategy._ollama = None
+    strategy._ollama = cast(Any, None)
     strategy._client = None
     strategy._retry_config = __import__("rex.retry", fromlist=["RetryConfig"]).RetryConfig(
         max_attempts=1
@@ -328,13 +329,13 @@ def test_ollama_connection_refused_returns_friendly_message(monkeypatch):
 
 def test_ollama_httpx_connect_error_returns_friendly_message(monkeypatch):
     """httpx.ConnectError → connection-failed sentinel string."""
-    from rex.llm_client import OllamaStrategy, GenerationConfig
+    from rex.llm_client import GenerationConfig, OllamaStrategy
 
     strategy = OllamaStrategy.__new__(OllamaStrategy)
     strategy.model_name = "llama3"
     strategy.base_url = "http://localhost:11434"
     strategy.use_cloud = False
-    strategy._ollama = None
+    strategy._ollama = cast(Any, None)
     strategy._client = None
     strategy._retry_config = __import__("rex.retry", fromlist=["RetryConfig"]).RetryConfig(
         max_attempts=1
@@ -359,13 +360,13 @@ def test_ollama_httpx_connect_error_returns_friendly_message(monkeypatch):
 
 def test_ollama_model_not_found_returns_pull_hint(monkeypatch):
     """Exception with status_code=404 → model-not-found sentinel string."""
-    from rex.llm_client import OllamaStrategy, GenerationConfig
+    from rex.llm_client import GenerationConfig, OllamaStrategy
 
     strategy = OllamaStrategy.__new__(OllamaStrategy)
     strategy.model_name = "no-such-model"
     strategy.base_url = "http://localhost:11434"
     strategy.use_cloud = False
-    strategy._ollama = None
+    strategy._ollama = cast(Any, None)
     strategy._client = None
     strategy._retry_config = __import__("rex.retry", fromlist=["RetryConfig"]).RetryConfig(
         max_attempts=1
@@ -380,20 +381,18 @@ def test_ollama_model_not_found_returns_pull_hint(monkeypatch):
     )
 
     result = strategy.generate("hello", GenerationConfig(100, 0.7, 1.0, 50, 42))
-    assert result == (
-        "[Ollama: model 'no-such-model' not found — run: ollama pull no-such-model]"
-    )
+    assert result == ("[Ollama: model 'no-such-model' not found — run: ollama pull no-such-model]")
 
 
 def test_ollama_unexpected_error_returns_generic_message(monkeypatch):
     """Any other exception → generic unexpected-error sentinel string."""
-    from rex.llm_client import OllamaStrategy, GenerationConfig
+    from rex.llm_client import GenerationConfig, OllamaStrategy
 
     strategy = OllamaStrategy.__new__(OllamaStrategy)
     strategy.model_name = "llama3"
     strategy.base_url = "http://localhost:11434"
     strategy.use_cloud = False
-    strategy._ollama = None
+    strategy._ollama = cast(Any, None)
     strategy._client = None
     strategy._retry_config = __import__("rex.retry", fromlist=["RetryConfig"]).RetryConfig(
         max_attempts=1
@@ -418,8 +417,26 @@ def test_language_model_custom_strategy():
         def __init__(self, model_name: str) -> None:
             self.model_name = model_name
 
-        def generate(self, prompt: str, config):
+        def generate(
+            self,
+            prompt: str,
+            config: Any,
+            *,
+            messages: list[dict[str, str]] | None = None,
+        ) -> str:
+            del messages
             return f"dummy::{prompt}::{config.max_new_tokens}"
+
+        def stream(
+            self,
+            prompt: str,
+            config: Any,
+            *,
+            messages: list[dict[str, str]] | None = None,
+            **kwargs: Any,
+        ) -> Iterator[str]:
+            del messages, kwargs
+            yield self.generate(prompt, config)
 
     register_strategy("dummy", DummyStrategy)
 

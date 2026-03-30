@@ -1,14 +1,11 @@
 repos:
-  - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.4.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.8
     hooks:
-      - id: conventional-pre-commit
-        stages: [commit-msg]
-        args: [feat, fix, test, docs, refactor, chore, perf, ci]
+      - id: ruff
+        args: [--fix]
 
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.5.0
+  - repo: https://github.com/psf/black
+    rev: 26.3.1
     hooks:
-      - id: detect-secrets
-        args: ["--baseline", ".secrets.baseline"]
-        exclude: "package\\.lock\\.json|.*\\.lock"
+      - id: black

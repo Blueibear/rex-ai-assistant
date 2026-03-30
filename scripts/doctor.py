@@ -6,6 +6,7 @@ import os
 import platform
 import shutil
 import sys
+from importlib import import_module
 
 # Add repo root to path and load .env before accessing any environment variables
 _repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -42,7 +43,7 @@ def _check_binary(name: str, install_hint: str) -> CheckResult:
 
 def _check_torch_cuda() -> CheckResult:
     try:
-        import torch  # type: ignore
+        import torch
     except Exception:
         return (
             "PyTorch",
@@ -52,8 +53,8 @@ def _check_torch_cuda() -> CheckResult:
             "or follow README GPU instructions.",
         )
 
-    if torch.cuda.is_available():  # type: ignore[attr-defined]
-        device = torch.cuda.get_device_name(0)  # type: ignore[attr-defined]
+    if torch.cuda.is_available():
+        device = torch.cuda.get_device_name(0)
         return ("CUDA", True, f"CUDA available: {device}")
     return (
         "CUDA",
@@ -106,8 +107,8 @@ def _check_inbound_webhook() -> list[CheckResult]:
     checks: list[CheckResult] = []
 
     try:
-        from rex.messaging_backends.inbound_store import load_inbound_store_config
-
+        inbound_store = import_module("rex.messaging_backends.inbound_store")
+        load_inbound_store_config = inbound_store.load_inbound_store_config
         from rex.config_manager import load_config
     except ImportError:
         # Messaging backends not installed or importable — skip silently

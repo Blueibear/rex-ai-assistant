@@ -7,7 +7,6 @@ import importlib
 import json
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -19,7 +18,7 @@ TORCH_MIN = (2, 6, 0)
 TORCH_MAX = (2, 9, 0)  # exclusive
 
 # CLI entrypoints declared in pyproject.toml [project.scripts]
-CLI_ENTRYPOINTS: List[Tuple[str, str]] = [
+CLI_ENTRYPOINTS: list[tuple[str, str]] = [
     ("rex", "rex.cli"),
     ("rex-config", "rex.config"),
     ("rex-speak-api", "rex_speak_api"),
@@ -254,10 +253,14 @@ def run_validation() -> int:
         return 0
 
     if passed >= int(total * 0.8):
-        print(f"{Colors.YELLOW}Most checks passed ({passed}/{total}). Review warnings above.{Colors.RESET}")
+        print(
+            f"{Colors.YELLOW}Most checks passed ({passed}/{total}). Review warnings above.{Colors.RESET}"
+        )
         return 1
 
-    print(f"{Colors.RED}Deployment validation FAILED ({passed}/{total}). Fix errors above.{Colors.RESET}")
+    print(
+        f"{Colors.RED}Deployment validation FAILED ({passed}/{total}). Fix errors above.{Colors.RESET}"
+    )
     return 2
 
 

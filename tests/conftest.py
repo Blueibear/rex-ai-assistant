@@ -34,7 +34,7 @@ FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _tracked_modified_files() -> set[str]:
-    from git_helpers import get_dirty_files  # noqa: PLC0415
+    from tests.git_helpers import get_dirty_files  # noqa: PLC0415
 
     return {
         line[3:]

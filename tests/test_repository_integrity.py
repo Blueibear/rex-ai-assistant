@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import subprocess
 
-from git_helpers import get_dirty_files
+from tests.git_helpers import get_dirty_files
 
 _BINARY_SUFFIXES = (
     ".wav",
