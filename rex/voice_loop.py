@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+import os
 import re
 import sys
 import tempfile
@@ -398,8 +399,10 @@ class TextToSpeech:
 
                 await asyncio.to_thread(_play)
         finally:
-            with suppress(FileNotFoundError):
-                Path(chunk_path).unlink()
+            try:
+                os.unlink(chunk_path)
+            except (OSError, PermissionError) as exc:
+                logger.warning("Failed to remove temp file %s: %s", chunk_path, exc)
 
     async def warmup(self, *, speaker_wav: str | None = None) -> None:
         """Pre-warm the TTS engine by synthesizing a short phrase in the background.
@@ -464,12 +467,18 @@ class TextToSpeech:
                     play_obj = wave_obj.play()
                     play_obj.wait_done()
 
-                await asyncio.to_thread(_convert_and_play)
-                with suppress(FileNotFoundError):
-                    Path(wav_path).unlink()
+                try:
+                    await asyncio.to_thread(_convert_and_play)
+                finally:
+                    try:
+                        os.unlink(wav_path)
+                    except (OSError, PermissionError) as exc:
+                        logger.warning("Failed to remove temp file %s: %s", wav_path, exc)
         finally:
-            with suppress(FileNotFoundError):
-                Path(output_path).unlink()
+            try:
+                os.unlink(output_path)
+            except (OSError, PermissionError) as exc:
+                logger.warning("Failed to remove temp file %s: %s", output_path, exc)
 
     async def _speak_windows(self, text: str) -> None:
         """Synthesize speech using Windows SAPI."""

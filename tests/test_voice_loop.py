@@ -1,9 +1,13 @@
 import asyncio
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
+import rex.voice_loop as _rvl
 from rex.assistant_errors import AudioDeviceError, SpeechToTextError
-from rex.voice_loop import VoiceLoop
+from rex.voice_loop import TextToSpeech, VoiceLoop
 
 np = pytest.importorskip("numpy")
 
@@ -177,3 +181,78 @@ def test_voice_loop_propagates_audio_errors():
     asyncio.run(loop.run(max_interactions=1))
 
     assert assistant.calls == []
+
+
+# ---------------------------------------------------------------------------
+# Temp file cleanup tests (US-196)
+# ---------------------------------------------------------------------------
+
+
+def _make_tts(monkeypatch, tmp_path):
+    """Build a minimal TextToSpeech with a fake XTTS engine and temp files in tmp_path."""
+    _orig_ntf = tempfile.NamedTemporaryFile
+
+    def _patched_ntf(*args, **kwargs):
+        kwargs["dir"] = str(tmp_path)
+        return _orig_ntf(*args, **kwargs)
+
+    monkeypatch.setattr(tempfile, "NamedTemporaryFile", _patched_ntf)
+    monkeypatch.setattr(_rvl, "sa", None)  # skip audio playback
+
+    tts = TextToSpeech.__new__(TextToSpeech)
+    tts._language = "en"
+    tts._default_speaker = None
+    tts._tts_speed = 1.0
+    tts._provider = "xtts"
+    tts._xtts_init_error = None
+
+    fake_engine = MagicMock()
+
+    def _write_dummy_wav(text, speaker_wav, language, file_path, speed):
+        Path(file_path).write_bytes(b"\x00" * 44)
+
+    fake_engine.tts_to_file.side_effect = _write_dummy_wav
+    tts._tts = fake_engine
+    return tts
+
+
+def test_no_leftover_wav_files_after_synthesize_chunk(monkeypatch, tmp_path):
+    """Temp .wav files must be cleaned up after a successful synthesis cycle."""
+    tts = _make_tts(monkeypatch, tmp_path)
+    sf_mock = MagicMock()
+
+    asyncio.run(tts._synthesize_and_play_chunk("hello world", None, sf_mock))
+
+    leftover = list(tmp_path.glob("*.wav"))
+    assert leftover == [], f"Leftover .wav files after success: {leftover}"
+
+
+def test_temp_wav_cleaned_up_even_on_synthesis_error(monkeypatch, tmp_path):
+    """Temp .wav files must be cleaned up even when the TTS engine raises."""
+    _orig_ntf = tempfile.NamedTemporaryFile
+
+    def _patched_ntf(*args, **kwargs):
+        kwargs["dir"] = str(tmp_path)
+        return _orig_ntf(*args, **kwargs)
+
+    monkeypatch.setattr(tempfile, "NamedTemporaryFile", _patched_ntf)
+    monkeypatch.setattr(_rvl, "sa", None)
+
+    tts = TextToSpeech.__new__(TextToSpeech)
+    tts._language = "en"
+    tts._default_speaker = None
+    tts._tts_speed = 1.0
+    tts._provider = "xtts"
+    tts._xtts_init_error = None
+
+    fake_engine = MagicMock()
+    fake_engine.tts_to_file.side_effect = RuntimeError("synthesis exploded")
+    tts._tts = fake_engine
+
+    sf_mock = MagicMock()
+
+    with pytest.raises(RuntimeError):
+        asyncio.run(tts._synthesize_and_play_chunk("hello", None, sf_mock))
+
+    leftover = list(tmp_path.glob("*.wav"))
+    assert leftover == [], f"Leftover .wav files after error: {leftover}"

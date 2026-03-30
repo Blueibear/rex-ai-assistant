@@ -847,8 +847,10 @@ class AsyncRexAssistant:
                         sample_rate = rate
                     audio_segments.append(data)
                 finally:
-                    with contextlib.suppress(FileNotFoundError):
-                        os.remove(chunk_path)
+                    try:
+                        os.unlink(chunk_path)
+                    except (OSError, PermissionError) as exc:
+                        logger.warning("Failed to remove temp file %s: %s", chunk_path, exc)
 
             if not audio_segments or sample_rate is None:
                 return
@@ -895,8 +897,10 @@ class AsyncRexAssistant:
             logger.error("Audio playback failed: %s", exc, exc_info=True)
             raise TextToSpeechError(f"Audio playback failed: {exc}") from exc
         finally:
-            with contextlib.suppress(FileNotFoundError):
-                os.remove("assistant_response.wav")
+            try:
+                os.unlink("assistant_response.wav")
+            except (OSError, PermissionError) as exc:
+                logger.warning("Failed to remove temp file %s: %s", "assistant_response.wav", exc)
 
         playback_duration = time.time() - playback_start
         logger.info(f"[TTS] Audio playback completed in {playback_duration:.2f} seconds")

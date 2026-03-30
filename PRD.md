@@ -397,13 +397,13 @@ context twice.
 speech processing to be cleaned up reliably so that orphaned files do not accumulate.
 
 **Acceptance Criteria:**
-- [ ] All `tempfile.NamedTemporaryFile` and manual temp-path usages in `rex/voice_loop.py`
+- [x] All `tempfile.NamedTemporaryFile` and manual temp-path usages in `rex/voice_loop.py`
   and root `voice_loop.py` are wrapped in `try/finally` blocks that call `os.unlink()`
-- [ ] Cleanup catches and logs `OSError` / `PermissionError` instead of raising
-- [ ] A test creates a voice processing cycle with a mock audio source and asserts the
+- [x] Cleanup catches and logs `OSError` / `PermissionError` instead of raising
+- [x] A test creates a voice processing cycle with a mock audio source and asserts the
   temp directory has no leftover `.wav` files after the call
-- [ ] `pytest -q tests/test_voice_loop.py` exits 0
-- [ ] Typecheck passes
+- [x] `pytest -q tests/test_voice_loop.py` exits 0
+- [x] Typecheck passes
 
 ---
 
