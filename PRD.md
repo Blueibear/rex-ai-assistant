@@ -651,15 +651,15 @@ that the "upcoming events" command returns real calendar data.
 "send SMS" command delivers to the recipient's phone.
 
 **Acceptance Criteria:**
-- [ ] New file `rex/integrations/messaging/backends/twilio_sms.py` defines `TwilioSMSBackend`
+- [x] New file `rex/integrations/messaging/backends/twilio_sms.py` defines `TwilioSMSBackend`
   implementing `SMSBackend.send()`
-- [ ] Uses the `twilio` optional extra; imports are guarded with a helpful error if not installed
-- [ ] Credentials (`account_sid`, `auth_token`, `from_number`) loaded via `CredentialManager`
-- [ ] On 4xx response: raises `SMSSendError` with Twilio error code
-- [ ] On network timeout: raises `SMSSendError` with timeout detail
-- [ ] No secrets logged at any log level
-- [ ] `pytest -q tests/test_twilio_sms_backend.py` exits 0 with mocked Twilio client
-- [ ] Typecheck passes
+- [x] Uses the `twilio` optional extra; imports are guarded with a helpful error if not installed
+- [x] Credentials (`account_sid`, `auth_token`, `from_number`) loaded via `CredentialManager`
+- [x] On 4xx response: raises `SMSSendError` with Twilio error code
+- [x] On network timeout: raises `SMSSendError` with timeout detail
+- [x] No secrets logged at any log level
+- [x] `pytest -q tests/test_twilio_sms_backend.py` exits 0 with mocked Twilio client
+- [x] Typecheck passes
 
 ---
 

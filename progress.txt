@@ -1,4 +1,18 @@
 
+## Iteration 171 - US-211: Implement Twilio SMS send adapter
+- What was implemented:
+  1. Created `rex/integrations/messaging/backends/twilio_sms.py` with `TwilioSMSBackend` implementing `SMSBackend.send()`.
+  2. `twilio` package import guarded: `ImportError` with "pip install twilio" hint raised at construction if absent and no factory injected.
+  3. Credentials (`account_sid`, `auth_token`, `from_number`) resolved via `CredentialManager.get_token()` at send-time; explicit constructor args take precedence; missing values raise `SMSSendError` listing missing fields.
+  4. Twilio API 4xx: `SMSSendError` with HTTP status + Twilio error code (duck-typed `exc.status`/`exc.code`).
+  5. `TimeoutError`/`OSError` timeout: `SMSSendError` with "timed out" detail.
+  6. Auth token never written to any log output at any level.
+  7. `twilio_client_factory` DI callable injectable for offline testing.
+  8. `receive()` returns `[]` (send-only; inbound webhooks handled at HTTP layer).
+  9. `SMSSendError` exception class exported in `__all__`.
+  10. Created `tests/test_twilio_sms_backend.py` with 14 tests: import guard, successful send, credential resolution, missing creds error, 4xx error, timeout error, no-secrets-in-logs (success + failure), receive stub.
+- Commit: 8102b6a
+
 ## Iteration 170 - US-210: Implement ICS calendar read-only feed backend
 - What was implemented:
   1. Created `rex/integrations/calendar/backends/ics_feed.py` with `ICSFeedBackend` implementing `CalendarBackend.get_upcoming()` (read-only; `create_event()` raises `NotImplementedError`).
