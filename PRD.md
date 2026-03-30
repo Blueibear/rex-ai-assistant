@@ -381,13 +381,13 @@ use an `asyncio.Lock` so that concurrent `generate_reply` calls cannot inject fo
 context twice.
 
 **Acceptance Criteria:**
-- [ ] `Assistant` replaces `self._followup_injected: bool` with
+- [x] `Assistant` replaces `self._followup_injected: bool` with
   `self._followup_lock: asyncio.Lock` initialized in `__init__`
-- [ ] The injection block is wrapped in `async with self._followup_lock:`
-- [ ] A test simulates two concurrent `generate_reply` calls and asserts followup context
+- [x] The injection block is wrapped in `async with self._followup_lock:`
+- [x] A test simulates two concurrent `generate_reply` calls and asserts followup context
   is injected at most once across both calls
-- [ ] `pytest -q tests/test_assistant.py` exits 0
-- [ ] Typecheck passes
+- [x] `pytest -q tests/test_assistant.py` exits 0
+- [x] Typecheck passes
 
 ---
 

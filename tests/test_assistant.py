@@ -156,6 +156,38 @@ def test_build_tool_context_with_settings(monkeypatch, tmp_path):
     assert ctx["timezone"] == "America/Chicago"
 
 
+def test_followup_injected_at_most_once_with_concurrent_calls(monkeypatch, tmp_path):
+    """Two concurrent generate_reply calls must inject the followup context at most once."""
+
+    injected_prompts: list[str] = []
+
+    class DummyLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, prompt=None, *, messages=None, config=None, max_tool_rounds=3):
+            if prompt and "[Note: You may want to ask" in prompt:
+                injected_prompts.append(prompt)
+            return "ok"
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
+
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    # Manually set a pending followup to simulate engine output
+    asst._pending_followup = "How can I help you today?"
+
+    async def run_two_concurrent():
+        t1 = asyncio.create_task(asst.generate_reply("hello"))
+        t2 = asyncio.create_task(asst.generate_reply("hi"))
+        await asyncio.gather(t1, t2)
+
+    asyncio.run(run_two_concurrent())
+
+    assert len(injected_prompts) <= 1, (
+        f"Followup context was injected {len(injected_prompts)} times; expected at most once"
+    )
+
+
 def test_chat_tool_request_routes_time_now(monkeypatch, tmp_path):
     """When LLM outputs a TOOL_REQUEST for time_now, it should be routed and re-called."""
 

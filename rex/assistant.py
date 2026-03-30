@@ -51,7 +51,8 @@ class Assistant:
         # Follow-up engine for natural conversation cues
         self._followup_engine: object | None = None
         self._pending_followup: str | None = None
-        self._followup_injected = False
+        # Lock protects the one-shot followup injection across concurrent generate_reply calls
+        self._followup_lock = asyncio.Lock()
         self._init_followup_engine()
 
         # Route all tool calls through OpenClaw ToolBridge (US-P7-008)
@@ -164,12 +165,12 @@ class Assistant:
     @property
     def has_pending_followup(self) -> bool:
         """Check if there's a pending follow-up for this session."""
-        return self._pending_followup is not None and not self._followup_injected
+        return self._pending_followup is not None
 
     @property
     def pending_followup_prompt(self) -> str | None:
         """Get the pending follow-up prompt if any."""
-        return self._pending_followup if self.has_pending_followup else None
+        return self._pending_followup
 
     async def generate_reply(self, transcript: str, *, voice_mode: bool = False) -> str:
         if not transcript.strip():
@@ -187,6 +188,23 @@ class Assistant:
 
         if completion is None:
             prompt = self._build_prompt(transcript, voice_mode=voice_mode)
+
+            # One-shot followup injection: lock ensures concurrent calls inject at most once
+            async with self._followup_lock:
+                if self._pending_followup:
+                    followup_hint = (
+                        f'\n[Note: You may want to ask the user: "{self._pending_followup}" '
+                        "as a natural conversation starter.]"
+                    )
+                    prompt = prompt + followup_hint
+                    self._pending_followup = None  # consumed; no further injection
+                    _engine = self._followup_engine
+                    if _engine and hasattr(_engine, "mark_current_cue_asked"):
+                        try:
+                            _engine.mark_current_cue_asked(self._user_id)
+                        except Exception as _exc:
+                            logger.debug("mark_current_cue_asked failed: %s", _exc)
+
             completion = await loop.run_in_executor(None, self._llm.generate, prompt)
             completion = await loop.run_in_executor(
                 None,
@@ -332,25 +350,7 @@ class Assistant:
                 logger.debug("format_followups failed: %s", exc)
 
         history_lines.append("assistant:")
-        prompt = "\n".join(history_lines)
-
-        # Inject one follow-up cue on first exchange if available
-        if self._pending_followup and not self._followup_injected:
-            followup_hint = (
-                f'\n[Note: You may want to ask the user: "{self._pending_followup}" '
-                "as a natural conversation starter.]"
-            )
-            prompt = prompt + followup_hint
-            self._followup_injected = True
-
-            # Mark cue as asked if supported
-            if engine and hasattr(engine, "mark_current_cue_asked"):
-                try:
-                    engine.mark_current_cue_asked(self._user_id)
-                except Exception as exc:
-                    logger.debug("mark_current_cue_asked failed: %s", exc)
-
-        return prompt
+        return "\n".join(history_lines)
 
     def _build_tool_model_call(self, transcript: str):
         base_messages = [
