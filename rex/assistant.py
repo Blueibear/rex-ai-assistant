@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
@@ -51,6 +52,7 @@ class Assistant:
 
         # Conversation history persistence
         self._history_store: HistoryStore | None = None
+        self._prune_timer: threading.Timer | None = None
         if getattr(self._settings, "persist_history", True):
             try:
                 db_path = getattr(self._settings, "history_db_path", None)
@@ -65,6 +67,8 @@ class Assistant:
                     ConversationTurn(speaker=row["role"], text=row["content"])
                     for row in stored
                 ]
+                # Run an initial prune at startup and schedule daily repeats
+                self._schedule_daily_prune()
             except Exception as exc:
                 logger.warning("Failed to initialize HistoryStore: %s", exc)
                 self._history_store = None
@@ -90,6 +94,32 @@ class Assistant:
             except Exception as exc:
                 logger.warning("Failed to initialize Home Assistant bridge: %s", exc)
                 self._ha_bridge = None
+
+    def _schedule_daily_prune(self) -> None:
+        """Prune old history turns and schedule the next prune in 24 hours.
+
+        Runs once immediately at startup, then repeats daily via a daemon thread.
+        Safe to call if ``_history_store`` is None (no-op).
+        """
+        if self._history_store is None:
+            return
+        retention_days = int(getattr(self._settings, "history_retention_days", 30))
+        try:
+            deleted = self._history_store.prune(self._user_id, keep_days=retention_days)
+            if deleted:
+                logger.debug(
+                    "Pruned %d old history turns for user %s (retention=%d days)",
+                    deleted,
+                    self._user_id,
+                    retention_days,
+                )
+        except Exception as exc:
+            logger.warning("History prune failed: %s", exc)
+        # Schedule next prune in 24 hours (daemon so it doesn't block process exit)
+        timer = threading.Timer(86400, self._schedule_daily_prune)
+        timer.daemon = True
+        timer.start()
+        self._prune_timer = timer
 
     def _followups_enabled(self) -> bool:
         """

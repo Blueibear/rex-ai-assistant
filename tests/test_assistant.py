@@ -257,6 +257,67 @@ def test_history_store_preloads_on_startup(monkeypatch, tmp_path):
     assert "prior answer" in texts
 
 
+def test_history_pruned_on_startup(monkeypatch, tmp_path):
+    """Old turns beyond retention_days should be pruned when the assistant starts."""
+    monkeypatch.setattr(assistant_module, "LanguageModel", _make_dummy_lm_class())
+
+    from datetime import timedelta, timezone
+    from rex.config import AppConfig
+    from rex.history_store import HistoryStore
+
+    db_path = tmp_path / "history.db"
+    store = HistoryStore(db_path=db_path)
+    now = datetime.now(timezone.utc)
+    old_ts = now - timedelta(days=40)
+    recent_ts = now - timedelta(days=1)
+    store.save_turn("default", "user", "very old message", old_ts)
+    store.save_turn("default", "user", "recent message", recent_ts)
+
+    cfg = AppConfig(
+        llm_provider="transformers",
+        persist_history=True,
+        history_db_path=db_path,
+        history_retention_days=30,
+    )
+    # Cancel the daily timer immediately after startup so it doesn't linger
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+    if asst._prune_timer is not None:
+        asst._prune_timer.cancel()
+
+    remaining = store.load_history("default", limit=50)
+    contents = [r["content"] for r in remaining]
+    assert "very old message" not in contents, "Old turn should have been pruned on startup"
+    assert "recent message" in contents, "Recent turn should be preserved"
+
+
+def test_prune_idempotent_via_assistant(monkeypatch, tmp_path):
+    """Running prune twice gives the same result as running once (idempotency)."""
+    monkeypatch.setattr(assistant_module, "LanguageModel", _make_dummy_lm_class())
+
+    from datetime import timedelta, timezone
+    from rex.config import AppConfig
+    from rex.history_store import HistoryStore
+
+    db_path = tmp_path / "history.db"
+    store = HistoryStore(db_path=db_path)
+    old_ts = datetime.now(timezone.utc) - timedelta(days=40)
+    store.save_turn("default", "user", "old", old_ts)
+
+    cfg = AppConfig(
+        llm_provider="transformers",
+        persist_history=True,
+        history_db_path=db_path,
+        history_retention_days=30,
+    )
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+    if asst._prune_timer is not None:
+        asst._prune_timer.cancel()
+
+    # Call prune a second time manually — should delete 0 rows (already gone)
+    second_deleted = asst._history_store.prune("default", keep_days=30)
+    assert second_deleted == 0
+
+
 def test_history_not_persisted_when_disabled(monkeypatch, tmp_path):
     """When persist_history=False, no HistoryStore is created and no DB file is written."""
     monkeypatch.setattr(assistant_module, "LanguageModel", _make_dummy_lm_class())

@@ -529,13 +529,13 @@ that Rex can reference previous exchanges without the session being lost.
 window to be pruned automatically so that the database does not grow unbounded.
 
 **Acceptance Criteria:**
-- [ ] `AppConfig` gains `history_retention_days: int = 30`
-- [ ] `rex/history_store.py` `prune()` is called by the scheduler (or a startup hook)
+- [x] `AppConfig` gains `history_retention_days: int = 30`
+- [x] `rex/history_store.py` `prune()` is called by the scheduler (or a startup hook)
   once per day
-- [ ] Pruning is idempotent — running twice produces the same result as running once
-- [ ] A test asserts that turns older than retention window are deleted and recent turns
+- [x] Pruning is idempotent — running twice produces the same result as running once
+- [x] A test asserts that turns older than retention window are deleted and recent turns
   are preserved
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 
