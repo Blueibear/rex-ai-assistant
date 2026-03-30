@@ -1,4 +1,16 @@
 
+## Iteration 170 - US-210: Implement ICS calendar read-only feed backend
+- What was implemented:
+  1. Created `rex/integrations/calendar/backends/ics_feed.py` with `ICSFeedBackend` implementing `CalendarBackend.get_upcoming()` (read-only; `create_event()` raises `NotImplementedError`).
+  2. Accepts local file path or HTTP/HTTPS URL; HTTP source uses injectable `http_fetch` callable for offline testing.
+  3. Stdlib-first parser (`_parse_stdlib`) handles DTSTART/DTEND in UTC (Z), floating, and DATE-only forms; falls back to `icalendar` package if installed.
+  4. All datetimes normalised to UTC via `_to_utc()`.
+  5. Malformed VEVENT blocks (missing DTSTART, unparseable dates) are logged as warnings and skipped.
+  6. Synthetic UID generated via SHA-1 for events without UID.
+  7. Added `tests/fixtures/upcoming_feed.ics` with far-future events (year 2099) including one malformed VEVENT.
+  8. Added `TestICSFeedBackend` (12 tests) to existing `tests/test_calendar_ics_backend.py`; all 47 tests pass.
+- Commit: c6d3ae4
+
 ## Iteration 169 - US-209: Wire notification email channel to real send backend
 - What was implemented:
   1. Moved `get_email_service` import to module level in `rex/notification.py` (required for monkeypatching in tests).

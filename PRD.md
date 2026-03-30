@@ -632,16 +632,16 @@ the real SMTP backend so that I receive email alerts.
 that the "upcoming events" command returns real calendar data.
 
 **Acceptance Criteria:**
-- [ ] New file `rex/integrations/calendar/backends/ics_feed.py` defines `ICSFeedBackend`
+- [x] New file `rex/integrations/calendar/backends/ics_feed.py` defines `ICSFeedBackend`
   implementing `CalendarBackend.get_upcoming()`
-- [ ] Accepts a local file path or HTTP URL as the feed source
-- [ ] Normalizes event timezones to UTC internally
-- [ ] Handles malformed VEVENT blocks gracefully (logs warning, skips entry)
-- [ ] Uses stdlib only (no `icalendar` package) for base parsing; falls back to `icalendar`
+- [x] Accepts a local file path or HTTP URL as the feed source
+- [x] Normalizes event timezones to UTC internally
+- [x] Handles malformed VEVENT blocks gracefully (logs warning, skips entry)
+- [x] Uses stdlib only (no `icalendar` package) for base parsing; falls back to `icalendar`
   if installed
-- [ ] `tests/test_calendar_ics_backend.py` uses fixture `.ics` files; no live HTTP
-- [ ] `pytest -q tests/test_calendar_ics_backend.py` exits 0
-- [ ] Typecheck passes
+- [x] `tests/test_calendar_ics_backend.py` uses fixture `.ics` files; no live HTTP
+- [x] `pytest -q tests/test_calendar_ics_backend.py` exits 0
+- [x] Typecheck passes
 
 ---
 
