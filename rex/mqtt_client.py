@@ -40,7 +40,7 @@ else:
 
 logger = logging.getLogger(__name__)
 
-MessageHandler = Callable[[str, dict[str, Any]], Awaitable[None] | None]  # type: ignore[operator, valid-type]
+MessageHandler = Callable[[str, dict[str, Any]], Awaitable[None] | None]
 
 
 class PayloadValidationError(RuntimeError):
@@ -80,7 +80,7 @@ def _resolve_optional_path(path: str | None) -> Path | None:
 class Subscription:
     topic: str
     qos: int = 1
-    handlers: list[MessageHandler] = field(default_factory=list)  # type: ignore[valid-type]
+    handlers: list[MessageHandler] = field(default_factory=list)
 
 
 class RexMQTTClient:
@@ -238,7 +238,7 @@ class RexMQTTClient:
     async def add_subscription(
         self,
         topic: str,
-        handler: MessageHandler,  # type: ignore[valid-type]
+        handler: MessageHandler,
         *,
         qos: int = 1,
         immediate_sync: bool = True,
@@ -339,7 +339,7 @@ class RexMQTTClient:
 
         for handler in matching_handlers:
             try:
-                result = handler(message.topic, payload)  # type: ignore[misc]
+                result = handler(message.topic, payload)
                 if inspect.isawaitable(result):
                     await result
             except Exception:  # pragma: no cover - defensive logging

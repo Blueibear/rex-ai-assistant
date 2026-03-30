@@ -18,11 +18,24 @@ Explicit constructor arguments override credential lookups.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
+from typing import Protocol, cast
 
 from rex.credentials import CredentialManager
 from rex.integrations.messaging.backends.base import SMSBackend
 
 logger = logging.getLogger(__name__)
+
+
+class _TwilioMessagesProtocol(Protocol):
+    def create(self, *, to: str, from_: str, body: str) -> object:
+        ...
+
+
+class _TwilioClientProtocol(Protocol):
+    @property
+    def messages(self) -> _TwilioMessagesProtocol:
+        ...
 
 
 class SMSSendError(Exception):
@@ -58,7 +71,7 @@ class TwilioSMSBackend(SMSBackend):
         account_sid: str | None = None,
         auth_token: str | None = None,
         from_number: str | None = None,
-        twilio_client_factory: object | None = None,
+        twilio_client_factory: Callable[[str, str], _TwilioClientProtocol] | None = None,
     ) -> None:
         # Fail fast if twilio is not installed (and no factory injected)
         if twilio_client_factory is None:
@@ -150,12 +163,12 @@ class TwilioSMSBackend(SMSBackend):
     # Internals
     # ------------------------------------------------------------------
 
-    def _build_client(self, account_sid: str, auth_token: str) -> object:
+    def _build_client(self, account_sid: str, auth_token: str) -> _TwilioClientProtocol:
         if self._client_factory is not None:
-            return self._client_factory(account_sid, auth_token)  # type: ignore[operator,return-value]
-        from twilio.rest import Client  # type: ignore[import-untyped]
+            return self._client_factory(account_sid, auth_token)
+        from twilio.rest import Client
 
-        return Client(account_sid, auth_token)
+        return cast(_TwilioClientProtocol, Client(account_sid, auth_token))
 
     @staticmethod
     def _handle_twilio_exc(exc: Exception, to: str) -> None:

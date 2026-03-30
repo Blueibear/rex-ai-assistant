@@ -165,7 +165,7 @@ engine = PolicyEngine(policies=custom_policies)
 The tool router automatically integrates with the policy engine:
 
 ```python
-from rex.tool_router import execute_tool, PolicyDeniedError, ApprovalRequiredError
+from rex.openclaw.tool_executor import execute_tool, PolicyDeniedError, ApprovalRequiredError
 
 try:
     result = execute_tool(

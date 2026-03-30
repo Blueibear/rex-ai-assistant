@@ -64,8 +64,7 @@ class Assistant:
                 # Preload the last 50 turns into in-memory history
                 stored = self._history_store.load_history(self._user_id, limit=50)
                 self._history = [
-                    ConversationTurn(speaker=row["role"], text=row["content"])
-                    for row in stored
+                    ConversationTurn(speaker=row["role"], text=row["content"]) for row in stored
                 ]
                 # Run an initial prune at startup and schedule daily repeats
                 self._schedule_daily_prune()
@@ -223,13 +222,21 @@ class Assistant:
         """Get the pending follow-up prompt if any."""
         return self._pending_followup
 
+    def _get_followup_lock(self) -> asyncio.Lock:
+        """Return the follow-up lock, creating it lazily when needed."""
+        lock = getattr(self, "_followup_lock", None)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._followup_lock = lock
+        return lock
+
     async def _prepare_prompt(self, transcript: str, *, voice_mode: bool = False) -> str:
         if not transcript.strip():
             raise ValueError("Transcript must not be empty")
 
         prompt = self._build_prompt(transcript, voice_mode=voice_mode)
 
-        async with self._followup_lock:
+        async with self._get_followup_lock():
             if self._pending_followup:
                 followup_hint = (
                     f'\n[Note: You may want to ask the user: "{self._pending_followup}" '
@@ -272,10 +279,11 @@ class Assistant:
 
     def _record_completion(self, transcript: str, completion: str) -> None:
         now = datetime.utcnow()
-        if self._history_store is not None:
+        history_store = getattr(self, "_history_store", None)
+        if history_store is not None:
             try:
-                self._history_store.save_turn(self._user_id, "user", transcript, now)
-                self._history_store.save_turn(self._user_id, "assistant", completion, now)
+                history_store.save_turn(self._user_id, "user", transcript, now)
+                history_store.save_turn(self._user_id, "assistant", completion, now)
             except Exception as exc:
                 logger.warning("Failed to persist conversation turn: %s", exc)
 
@@ -288,7 +296,9 @@ class Assistant:
 
         self._log_turn(transcript, completion)
 
-    async def stream_reply(self, transcript: str, *, voice_mode: bool = False) -> AsyncIterator[str]:
+    async def stream_reply(
+        self, transcript: str, *, voice_mode: bool = False
+    ) -> AsyncIterator[str]:
         loop = asyncio.get_running_loop()
         completion: str | None = None
 

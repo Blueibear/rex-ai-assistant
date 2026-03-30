@@ -1,4 +1,4 @@
-"""Tests for rex.tool_router — handlers, UnknownToolError, and mocked providers."""
+"""Tests for rex.local_tool_executor - handlers and UnknownToolError."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from rex.tool_catalog import EXECUTABLE_TOOLS
-from rex.tool_router import UnknownToolError, execute_tool
+from rex.local_tool_executor import UnknownToolError, execute_tool
 
 
 class TestUnknownToolError:
@@ -76,7 +76,7 @@ class TestWeatherNow:
         """Missing openweathermap key → sentinel string (no exception)."""
         mock_cm = MagicMock()
         mock_cm.get_token.return_value = None
-        with patch("rex.tool_router.get_credential_manager", return_value=mock_cm):
+        with patch("rex.local_tool_executor.get_credential_manager", return_value=mock_cm):
             result = execute_tool("weather_now", {"location": "London"})
         assert result == "[integration not configured]"
 
@@ -97,8 +97,8 @@ class TestWeatherNow:
         async def fake_get_weather(location: str, api_key: str):
             return mock_weather_data
 
-        with patch("rex.tool_router.get_credential_manager", return_value=mock_cm):
-            with patch("rex.tool_router.get_weather", side_effect=fake_get_weather):
+        with patch("rex.local_tool_executor.get_credential_manager", return_value=mock_cm):
+            with patch("rex.local_tool_executor.get_weather", side_effect=fake_get_weather):
                 result = execute_tool("weather_now", {"location": "London"})
 
         assert "London" in result
@@ -114,8 +114,8 @@ class TestWeatherNow:
         async def fake_get_weather(location: str, api_key: str):
             return {"error": "City not found"}
 
-        with patch("rex.tool_router.get_credential_manager", return_value=mock_cm):
-            with patch("rex.tool_router.get_weather", side_effect=fake_get_weather):
+        with patch("rex.local_tool_executor.get_credential_manager", return_value=mock_cm):
+            with patch("rex.local_tool_executor.get_weather", side_effect=fake_get_weather):
                 result = execute_tool("weather_now", {"location": "NoSuchPlace"})
 
         assert "[weather error:" in result
@@ -125,7 +125,7 @@ class TestWeatherNow:
         """Empty location arg is handled gracefully (returns sentinel or result)."""
         mock_cm = MagicMock()
         mock_cm.get_token.return_value = None  # no key → not configured
-        with patch("rex.tool_router.get_credential_manager", return_value=mock_cm):
+        with patch("rex.local_tool_executor.get_credential_manager", return_value=mock_cm):
             result = execute_tool("weather_now", {})
         assert isinstance(result, str) and len(result) > 0
 
@@ -162,21 +162,19 @@ class TestSendEmail:
         """EmailService.send() returning ok=True → 'Email sent'."""
         mock_svc = MagicMock()
         mock_svc.send.return_value = {"ok": True, "message_id": "msg-1", "error": None}
-        with patch("rex.tool_router.EmailService", return_value=mock_svc):
+        with patch("rex.local_tool_executor.EmailService", return_value=mock_svc):
             result = execute_tool(
                 "send_email",
                 {"to": "alice@example.com", "subject": "Hi", "body": "Hello"},
             )
         assert result == "Email sent"
-        mock_svc.send.assert_called_once_with(
-            to="alice@example.com", subject="Hi", body="Hello"
-        )
+        mock_svc.send.assert_called_once_with(to="alice@example.com", subject="Hi", body="Hello")
 
     def test_returns_error_string_on_failure(self):
         """EmailService.send() returning ok=False → error string."""
         mock_svc = MagicMock()
         mock_svc.send.return_value = {"ok": False, "message_id": None, "error": "Auth failed"}
-        with patch("rex.tool_router.EmailService", return_value=mock_svc):
+        with patch("rex.local_tool_executor.EmailService", return_value=mock_svc):
             result = execute_tool(
                 "send_email",
                 {"to": "alice@example.com", "subject": "Hi", "body": "Hello"},
@@ -191,17 +189,15 @@ class TestSendEmail:
 
     def test_exception_degraded_gracefully(self):
         """If EmailService raises, return error string (no exception propagation)."""
-        with patch("rex.tool_router.EmailService", side_effect=RuntimeError("no connection")):
-            result = execute_tool(
-                "send_email", {"to": "a@b.com", "subject": "s", "body": "b"}
-            )
+        with patch("rex.local_tool_executor.EmailService", side_effect=RuntimeError("no connection")):
+            result = execute_tool("send_email", {"to": "a@b.com", "subject": "s", "body": "b"})
         assert "[send_email error:" in result
         assert isinstance(result, str)
 
     def test_default_subject_used_when_missing(self):
         mock_svc = MagicMock()
         mock_svc.send.return_value = {"ok": True, "message_id": None, "error": None}
-        with patch("rex.tool_router.EmailService", return_value=mock_svc):
+        with patch("rex.local_tool_executor.EmailService", return_value=mock_svc):
             execute_tool("send_email", {"to": "a@b.com", "body": "b"})
         call_kwargs = mock_svc.send.call_args.kwargs
         assert call_kwargs["subject"] == "(no subject)"
@@ -219,10 +215,14 @@ class TestCalendarCreateEvent:
 
         mock_svc = MagicMock()
         mock_svc.create_event.return_value = fake_event
-        with patch("rex.tool_router.CalendarService", return_value=mock_svc):
+        with patch("rex.local_tool_executor.CalendarService", return_value=mock_svc):
             result = execute_tool(
                 "calendar_create_event",
-                {"title": "Team Meeting", "start": "2026-04-01T10:00:00", "end": "2026-04-01T11:00:00"},
+                {
+                    "title": "Team Meeting",
+                    "start": "2026-04-01T10:00:00",
+                    "end": "2026-04-01T11:00:00",
+                },
             )
         assert "Calendar event created" in result
         assert "Team Meeting" in result
@@ -238,12 +238,12 @@ class TestCalendarCreateEvent:
 
         mock_svc = MagicMock()
         mock_svc.create_event.return_value = fake_event
-        with patch("rex.tool_router.CalendarService", return_value=mock_svc):
+        with patch("rex.local_tool_executor.CalendarService", return_value=mock_svc):
             result = execute_tool("calendar_create_event", {"title": "Standup"})
         assert "Calendar event created" in result
 
     def test_exception_degraded_gracefully(self):
-        with patch("rex.tool_router.CalendarService", side_effect=RuntimeError("db error")):
+        with patch("rex.local_tool_executor.CalendarService", side_effect=RuntimeError("db error")):
             result = execute_tool(
                 "calendar_create_event",
                 {"title": "Broken", "start": "2026-04-01T10:00:00"},
@@ -262,7 +262,7 @@ class TestCalendarCreateEvent:
 
         mock_svc = MagicMock()
         mock_svc.create_event.return_value = fake_event
-        with patch("rex.tool_router.CalendarService", return_value=mock_svc):
+        with patch("rex.local_tool_executor.CalendarService", return_value=mock_svc):
             result = execute_tool("calendar_create_event", {"summary": "Weekly Sync"})
         assert "Calendar event created" in result
 
@@ -286,8 +286,8 @@ class TestNoLongerStubs:
                 "wind_mph": 5.0,
             }
 
-        with patch("rex.tool_router.get_credential_manager", return_value=mock_cm):
-            with patch("rex.tool_router.get_weather", side_effect=fake_get_weather):
+        with patch("rex.local_tool_executor.get_credential_manager", return_value=mock_cm):
+            with patch("rex.local_tool_executor.get_weather", side_effect=fake_get_weather):
                 result = execute_tool("weather_now", {"location": "Paris"})
 
         # Should be a real weather string, NOT the stub sentinel

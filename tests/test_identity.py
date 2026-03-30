@@ -118,7 +118,9 @@ class TestSessionState:
         os.utime(session_file, (expired_mtime, expired_mtime))
 
         with patch("rex.identity._session_state_path", return_value=session_file):
-            with patch.object(__import__("rex.identity", fromlist=["settings"]).settings, "session_ttl_hours", 8):
+            with patch.object(
+                __import__("rex.identity", fromlist=["settings"]).settings, "session_ttl_hours", 8
+            ):
                 result = _load_session()
 
         assert result == {}

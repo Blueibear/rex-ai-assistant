@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import re
 from datetime import datetime, timezone
-from pathlib import Path
 
 import rex.assistant as assistant_module
 
@@ -185,9 +184,9 @@ def test_followup_injected_at_most_once_with_concurrent_calls(monkeypatch, tmp_p
 
     asyncio.run(run_two_concurrent())
 
-    assert len(injected_prompts) <= 1, (
-        f"Followup context was injected {len(injected_prompts)} times; expected at most once"
-    )
+    assert (
+        len(injected_prompts) <= 1
+    ), f"Followup context was injected {len(injected_prompts)} times; expected at most once"
 
 
 def _make_dummy_lm_class():
@@ -262,6 +261,7 @@ def test_history_pruned_on_startup(monkeypatch, tmp_path):
     monkeypatch.setattr(assistant_module, "LanguageModel", _make_dummy_lm_class())
 
     from datetime import timedelta, timezone
+
     from rex.config import AppConfig
     from rex.history_store import HistoryStore
 
@@ -295,6 +295,7 @@ def test_prune_idempotent_via_assistant(monkeypatch, tmp_path):
     monkeypatch.setattr(assistant_module, "LanguageModel", _make_dummy_lm_class())
 
     from datetime import timedelta, timezone
+
     from rex.config import AppConfig
     from rex.history_store import HistoryStore
 

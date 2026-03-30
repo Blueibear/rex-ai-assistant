@@ -47,7 +47,7 @@ The `AuditLogger` class provides:
 Logging happens automatically when tools are executed via `execute_tool()`. No manual intervention is required.
 
 ```python
-from rex.tool_router import execute_tool
+from rex.local_tool_executor import execute_tool
 
 # Audit logging happens automatically
 result = execute_tool(

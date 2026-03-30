@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-import abc
 import inspect
 
 import pytest
 
-from rex.integrations.email.backends.base import EmailBackend
-from rex.integrations.email.backends.stub import StubEmailBackend
 from rex.integrations.calendar.backends.base import CalendarBackend
 from rex.integrations.calendar.backends.stub import StubCalendarBackend
+from rex.integrations.email.backends.base import EmailBackend
+from rex.integrations.email.backends.stub import StubEmailBackend
 from rex.integrations.messaging.backends.base import SMSBackend
 from rex.integrations.messaging.backends.stub import StubSMSBackend
-
 
 # ---------------------------------------------------------------------------
 # EmailBackend ABC

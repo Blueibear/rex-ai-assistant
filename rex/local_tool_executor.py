@@ -1,4 +1,4 @@
-"""Tool router — dispatches named tool calls to their real handlers.
+"""Local tool executor - dispatches named tool calls to their real handlers.
 
 Only tools listed in EXECUTABLE_TOOLS are accepted.  Any other name raises
 UnknownToolError immediately, rather than silently returning None or a

@@ -22,7 +22,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from rex.email_service import get_email_service
+from rex import email_service
 from rex.retry import RetryPolicy, retry_call
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,15 @@ logger = logging.getLogger(__name__)
 # Global instances
 _notifier: Notifier | None = None
 _escalation_manager: EscalationManager | None = None
+
+
+def get_email_service():
+    """Return the email service via the module namespace.
+
+    Keeping this thin wrapper preserves existing test patch points while still
+    resolving the factory dynamically from ``rex.email_service``.
+    """
+    return email_service.get_email_service()
 
 
 def _utc_now() -> datetime:
@@ -405,7 +414,7 @@ class Notifier:
             ``email_account_id`` — route through a specific account (optional).
         """
         try:
-            email_service = get_email_service()
+            service = get_email_service()
 
             to_email = notification.metadata.get("to_email")
             account_id = notification.metadata.get("email_account_id")
@@ -417,7 +426,7 @@ class Notifier:
                 )
                 return
 
-            result = email_service.send(
+            result = service.send(
                 to=to_email,
                 subject=notification.title,
                 body=notification.body,

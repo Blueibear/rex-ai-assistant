@@ -175,3 +175,10 @@ direct imported factory reference.
 When removing a deprecated compatibility module, grep `docs/` and example snippets for the retired
 import path in addition to runtime code. Stale documentation imports can survive after code has been
 migrated and cause retirement checks or follow-up cleanup work to linger.
+
+## Assistant regression tests may bypass __init__
+
+Some tests construct `rex.assistant.Assistant` via `Assistant.__new__(Assistant)` and set only the
+attributes they need. When changing `rex/assistant.py`, lazily initialize ephemeral runtime state
+(for example `asyncio.Lock` fields) or use `getattr(...)` fallbacks so prompt-generation and
+history-recording helpers stay robust under partially initialized test instances.

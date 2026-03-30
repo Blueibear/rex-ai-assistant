@@ -12,8 +12,8 @@ RELATIONSHIP NOTE — two voice_loop files exist in this repo:
 from __future__ import annotations
 
 import asyncio
-import io
 import inspect
+import io
 import logging
 import os
 import re
@@ -21,7 +21,6 @@ import sys
 import tempfile
 import wave
 from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import suppress
 from dataclasses import dataclass
 from importlib import import_module
 from importlib.util import find_spec
@@ -32,7 +31,12 @@ from typing_extensions import TypeAlias
 
 from wake_acknowledgment import ensure_wake_acknowledgment_sound
 
-from .assistant_errors import AudioDeviceError, AudioFormatError, SpeechToTextError, TextToSpeechError
+from .assistant_errors import (
+    AudioDeviceError,
+    AudioFormatError,
+    SpeechToTextError,
+    TextToSpeechError,
+)
 from .config import settings
 from .memory import (
     extract_voice_reference,
@@ -246,9 +250,7 @@ _ABBREV_WORDS: frozenset[str] = frozenset(
 )
 
 # Abbreviations containing internal dots (e.g., i.e.) followed by "." and whitespace.
-_ABBREV_DOT: frozenset[str] = frozenset(
-    ["e.g", "i.e", "a.m", "p.m", "u.s", "u.k", "u.n"]
-)
+_ABBREV_DOT: frozenset[str] = frozenset(["e.g", "i.e", "a.m", "p.m", "u.s", "u.k", "u.n"])
 
 # Placeholder character used to protect abbreviation periods during splitting.
 _ABBREV_PLACEHOLDER = "\x00"

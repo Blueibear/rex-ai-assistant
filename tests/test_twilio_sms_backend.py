@@ -34,17 +34,17 @@ def _fake_twilio_module() -> ModuleType:
     mod = ModuleType("twilio")
     rest = ModuleType("twilio.rest")
     base = ModuleType("twilio.base")
-    setattr(base, "exceptions", ModuleType("twilio.base.exceptions"))
-    setattr(mod, "rest", rest)
-    setattr(mod, "base", base)
+    base.exceptions = ModuleType("twilio.base.exceptions")
+    mod.rest = rest
+    mod.base = base
     return mod
 
 
 def _make_twilio_rest_exc(status: int = 400, code: int = 21211) -> Exception:
     """Return an exception that duck-types as TwilioRestException."""
     exc = Exception(f"Twilio API error {status}")
-    setattr(exc, "status", status)
-    setattr(exc, "code", code)
+    exc.status = status
+    exc.code = code
     return exc
 
 
@@ -82,7 +82,7 @@ def _make_backend(
 def inject_fake_twilio():
     """Inject a fake twilio module so import guards pass."""
     fake = _fake_twilio_module()
-    with patch.dict(sys.modules, {"twilio": fake, "twilio.rest": getattr(fake, "rest")}):
+    with patch.dict(sys.modules, {"twilio": fake, "twilio.rest": fake.rest}):
         yield
 
 

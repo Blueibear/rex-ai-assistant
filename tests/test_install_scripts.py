@@ -35,11 +35,12 @@ def test_install_lean_script_dry_run(tmp_path: Path) -> None:
     env["REX_DRY_RUN"] = "1"
     env["REX_SKIP_SERVICE"] = "1"
 
-    # On Windows, spawning bash directly via subprocess does not propagate env
-    # vars set in Python (Git Bash / MSYS2 quirk).  Using shell=True routes
-    # through cmd.exe which correctly inherits the modified environment.
+    # On Windows, Git Bash / MSYS2 may drop env vars injected via
+    # subprocess.run(..., env=...). Set them inside `bash -lc` so the shell
+    # that runs the script sees the dry-run flags reliably.
+    cmd: str | list[str]
     if os.name == "nt":
-        cmd: str | list[str] = 'bash "install_lean.sh"'
+        cmd = 'bash -lc "REX_DRY_RUN=1 REX_SKIP_SERVICE=1 bash ./install_lean.sh"'
         use_shell = True
     else:
         cmd = ["bash", "install_lean.sh"]

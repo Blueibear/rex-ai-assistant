@@ -237,7 +237,17 @@ def scan_file(
 
                 # Skip: truncation as a legitimate output/data-size limiting feature
                 if "truncat" in lowered and any(
-                    w in lowered for w in ["output", "query", "bytes", "chars", "size", "limit", "body", "bodies"]
+                    w in lowered
+                    for w in [
+                        "output",
+                        "query",
+                        "bytes",
+                        "chars",
+                        "size",
+                        "limit",
+                        "body",
+                        "bodies",
+                    ]
                 ):
                     continue
 

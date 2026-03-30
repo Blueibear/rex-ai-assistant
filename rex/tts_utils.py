@@ -40,9 +40,7 @@ _ABBREV_WORDS: frozenset[str] = frozenset(
         "blvd",
     ]
 )
-_ABBREV_DOT: frozenset[str] = frozenset(
-    ["e.g", "i.e", "a.m", "p.m", "u.s", "u.k", "u.n"]
-)
+_ABBREV_DOT: frozenset[str] = frozenset(["e.g", "i.e", "a.m", "p.m", "u.s", "u.k", "u.n"])
 _ABBREV_PLACEHOLDER = "\x00"
 
 
@@ -67,6 +65,8 @@ def _protect_abbreviations(text: str) -> str:
             flags=re.IGNORECASE,
         )
     return protected
+
+
 _TOKEN_RE = re.compile(r"\S+")
 
 

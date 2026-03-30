@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-CapabilityLoader = Callable[[dict, dict], object | None]  # type: ignore[operator, valid-type]
+CapabilityLoader = Callable[[dict, dict], object | None]
 
 
 def _load_local_commands(profile: dict, config: dict) -> object | None:
@@ -23,7 +23,7 @@ def _load_plugins(profile: dict, config: dict) -> object | None:
     return None
 
 
-CAPABILITY_REGISTRY: dict[str, CapabilityLoader] = {  # type: ignore[valid-type]
+CAPABILITY_REGISTRY: dict[str, CapabilityLoader] = {
     "local_commands": _load_local_commands,
     "ha_router": _load_ha_router,
     "web_search": _load_web_search,

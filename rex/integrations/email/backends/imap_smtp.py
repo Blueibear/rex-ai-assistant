@@ -92,7 +92,7 @@ class IMAPBackend(EmailBackend):
                 host=self._host,
                 port=self._port,
                 ssl_context=ctx,
-                timeout=self._timeout,  # type: ignore[call-arg]
+                timeout=self._timeout,
             )
         else:
             conn = imaplib.IMAP4(host=self._host, port=self._port)
@@ -162,9 +162,7 @@ class IMAPBackend(EmailBackend):
 
     def send(self, to: str, subject: str, body: str) -> None:
         """Not implemented in IMAPBackend — use IMAPSMTPBackend for sending."""
-        raise NotImplementedError(
-            "IMAPBackend is read-only. Use IMAPSMTPBackend to send email."
-        )
+        raise NotImplementedError("IMAPBackend is read-only. Use IMAPSMTPBackend to send email.")
 
     # ------------------------------------------------------------------
     # Internals
@@ -273,7 +271,7 @@ class IMAPSMTPBackend(IMAPBackend):
             conn.starttls(context=ssl.create_default_context())
             conn.ehlo()
         else:
-            conn = smtplib.SMTP_SSL(  # type: ignore[assignment]
+            conn = smtplib.SMTP_SSL(
                 host=self._smtp_host,
                 port=self._smtp_port,
                 context=ssl.create_default_context(),

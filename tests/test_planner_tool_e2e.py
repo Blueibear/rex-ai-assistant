@@ -1,4 +1,4 @@
-"""Planner-to-router end-to-end integration tests (COR-001 regression guard).
+"""Planner-to-local-executor end-to-end integration tests (COR-001 regression guard).
 
 For every tool in EXECUTABLE_TOOLS:
 1. Build a registry that includes the tool.
@@ -13,15 +13,14 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from rex.openclaw.tool_registry import ToolMeta, ToolRegistry, set_tool_registry
 from rex.planner import Planner
 from rex.tool_catalog import EXECUTABLE_TOOLS
-from rex.tool_router import execute_tool
-
+from rex.local_tool_executor import execute_tool
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -74,6 +73,7 @@ def _find_step_for_tool(workflow: Any, tool_name: str) -> Any | None:
 
 def _all_service_patches() -> list:
     """Return a list of patch() context managers covering every external service."""
+
     # Weather mock
     async def _fake_weather(location: str, api_key: str) -> dict:
         return {
@@ -99,11 +99,13 @@ def _all_service_patches() -> list:
     mock_cal_svc.create_event.return_value = mock_cal_event
 
     return [
-        patch("rex.tool_router.get_credential_manager", return_value=mock_cm),
-        patch("rex.tool_router.get_weather", side_effect=_fake_weather),
-        patch("rex.tool_router.EmailService", return_value=mock_email_svc),
-        patch("rex.tool_router.CalendarService", return_value=mock_cal_svc),
-        patch("plugins.web_search.search_web", return_value="Result - https://example.com\nSnippet"),
+        patch("rex.local_tool_executor.get_credential_manager", return_value=mock_cm),
+        patch("rex.local_tool_executor.get_weather", side_effect=_fake_weather),
+        patch("rex.local_tool_executor.EmailService", return_value=mock_email_svc),
+        patch("rex.local_tool_executor.CalendarService", return_value=mock_cal_svc),
+        patch(
+            "plugins.web_search.search_web", return_value="Result - https://example.com\nSnippet"
+        ),
     ]
 
 
@@ -163,7 +165,11 @@ def test_direct_execute_tool_returns_nonempty_string(tool_name: str) -> None:
         "web_search": {"query": "test"},
         "send_email": {"to": "a@b.com", "subject": "S", "body": "B"},
         "calendar_create_event": {"title": "Test", "start": "2026-04-01T10:00:00"},
-        "home_assistant_call_service": {"domain": "light", "service": "turn_on", "entity_id": "light.main"},
+        "home_assistant_call_service": {
+            "domain": "light",
+            "service": "turn_on",
+            "entity_id": "light.main",
+        },
     }[tool_name]
 
     patches = _all_service_patches()
@@ -198,16 +204,16 @@ def test_planner_does_not_emit_uncatalogued_tools() -> None:
         workflow = planner.plan("search for something")
         for step in workflow.steps:
             if step.tool_call:
-                assert step.tool_call.tool in EXECUTABLE_TOOLS, (
-                    f"Planner emitted non-catalog tool: {step.tool_call.tool}"
-                )
+                assert (
+                    step.tool_call.tool in EXECUTABLE_TOOLS
+                ), f"Planner emitted non-catalog tool: {step.tool_call.tool}"
     except UnableToPlanError:
         pass  # no plan is fine
 
 
 def test_execute_tool_rejects_uncatalogued_tool() -> None:
     """execute_tool() raises UnknownToolError for any tool outside the catalog."""
-    from rex.tool_router import UnknownToolError
+    from rex.local_tool_executor import UnknownToolError
 
     with pytest.raises(UnknownToolError):
         execute_tool("uncatalogued_tool", {})

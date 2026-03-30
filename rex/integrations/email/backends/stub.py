@@ -40,7 +40,7 @@ class StubEmailBackend(EmailBackend):
 
     def fetch_unread(self, limit: int = 10) -> list[dict]:
         """Return up to *limit* stub messages."""
-        return self._messages[:max(0, limit)]
+        return self._messages[: max(0, limit)]
 
     def send(self, to: str, subject: str, body: str) -> None:
         """Log the send and record it for test assertions."""

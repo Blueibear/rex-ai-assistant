@@ -47,3 +47,13 @@ def _tracked_modified_files() -> set[str]:
 def tracked_modifications_baseline() -> set[str]:
     """Tracked files already modified before tests started."""
     return _tracked_modified_files()
+
+
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    """Run legacy asyncio-marked tests through the installed anyio plugin."""
+    del config
+    for item in items:
+        if item.get_closest_marker("asyncio") and not item.get_closest_marker("anyio"):
+            item.add_marker(pytest.mark.anyio)

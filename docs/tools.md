@@ -174,7 +174,7 @@ if not all_available:
 The tool router automatically checks credentials before execution:
 
 ```python
-from rex.tool_router import execute_tool, CredentialMissingError
+from rex.openclaw.tool_executor import execute_tool, CredentialMissingError
 
 try:
     result = execute_tool(
@@ -327,7 +327,7 @@ except ToolNotFoundError:
 ### Missing Credentials
 
 ```python
-from rex.tool_router import CredentialMissingError
+from rex.openclaw.tool_executor import CredentialMissingError
 
 try:
     execute_tool(request, context)

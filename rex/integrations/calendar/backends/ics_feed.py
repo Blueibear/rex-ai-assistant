@@ -21,9 +21,10 @@ from __future__ import annotations
 import hashlib
 import logging
 import urllib.request
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import cast
 
 from rex.integrations.calendar.backends.base import CalendarBackend
 
@@ -53,11 +54,11 @@ class ICSFeedBackend(CalendarBackend):
         source: str | Path,
         *,
         timeout: int = _DEFAULT_TIMEOUT,
-        http_fetch: object | None = None,
+        http_fetch: Callable[[str], bytes] | None = None,
     ) -> None:
         self._source = str(source)
         self._timeout = timeout
-        self._http_fetch = http_fetch  # type: ignore[assignment]
+        self._http_fetch = http_fetch
 
     # ------------------------------------------------------------------
     # CalendarBackend interface
@@ -118,10 +119,10 @@ class ICSFeedBackend(CalendarBackend):
         source = self._source
         if source.startswith("http://") or source.startswith("https://"):
             if self._http_fetch is not None:
-                return self._http_fetch(source)  # type: ignore[operator,return-value]
+                return self._http_fetch(source)
             req = urllib.request.Request(source, headers={"User-Agent": "Rex-ICS/1.0"})
             with urllib.request.urlopen(req, timeout=self._timeout) as resp:
-                return resp.read()
+                return cast(bytes, resp.read())
         return Path(source).read_bytes()
 
     def _parse_events(self, raw: bytes) -> Iterator[dict]:

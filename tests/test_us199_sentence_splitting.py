@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 
 class TestSplitIntoSentencesAbbreviations:
     """_split_into_sentences must not break on common abbreviations."""

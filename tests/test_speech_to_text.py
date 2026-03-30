@@ -23,7 +23,7 @@ def _make_fake_whisper(call_log: list[str | None]) -> types.ModuleType:
     def load_model(name, device="cpu"):
         return FakeModel()
 
-    setattr(fake, "load_model", load_model)
+    fake.load_model = load_model
     return fake
 
 
@@ -94,7 +94,9 @@ def test_doctor_output_includes_whisper_language(capsys, monkeypatch) -> None:
     monkeypatch.setattr("rex.doctor.check_lm_studio_reachability", lambda: ok)
     monkeypatch.setattr("rex.doctor.check_external_dependencies", lambda: [ok])
     monkeypatch.setattr("rex.doctor.check_gpu_availability", lambda: ok)
-    monkeypatch.setattr("rex.config.load_config", lambda reload=True: SimpleNamespace(whisper_language="de"))
+    monkeypatch.setattr(
+        "rex.config.load_config", lambda reload=True: SimpleNamespace(whisper_language="de")
+    )
 
     exit_code = run_diagnostics(verbose=False)
     output = capsys.readouterr().out

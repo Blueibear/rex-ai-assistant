@@ -230,9 +230,7 @@ class TestImapSmtpBackend:
         assert len(mock_smtp.send_message_calls) == 1
 
     def test_send_auth_failure(self):
-        mock_smtp = FakeSMTP(
-            login_raises=smtplib.SMTPAuthenticationError(535, b"bad creds")
-        )
+        mock_smtp = FakeSMTP(login_raises=smtplib.SMTPAuthenticationError(535, b"bad creds"))
 
         backend = self._make_backend(smtp_mock=lambda: mock_smtp)
         result = backend.send(
@@ -330,8 +328,7 @@ def _make_imap_fake(
     """Return a FakeIMAP4SSL configured for common test scenarios."""
     return FakeIMAP4SSL(
         search_result=search_result,
-        fetch_result=fetch_result
-        or ("OK", [(b"1 (RFC822.HEADER {350})", DEFAULT_RAW_HEADERS)]),
+        fetch_result=fetch_result or ("OK", [(b"1 (RFC822.HEADER {350})", DEFAULT_RAW_HEADERS)]),
         login_raises=login_raises,
     )
 
@@ -526,6 +523,7 @@ class TestIMAPSMTPBackend:
 
     def test_send_never_logs_password(self, caplog):
         import logging as _logging
+
         smtp_mock = _make_smtp_mock()
         backend = _make_smtp_backend(smtp_mock)
         with caplog.at_level(_logging.DEBUG):
@@ -578,9 +576,7 @@ class TestIMAPSMTPBackend:
     # --- timeout ---
 
     def test_send_timeout_raises_smtp_send_error(self):
-        smtp_mock = _make_smtp_mock(
-            send_raises=TimeoutError("connection timed out")
-        )
+        smtp_mock = _make_smtp_mock(send_raises=TimeoutError("connection timed out"))
         backend = _make_smtp_backend(smtp_mock)
         with pytest.raises(SMTPSendError):
             backend.send(to="bob@example.com", subject="S", body="B")
@@ -596,6 +592,7 @@ class TestIMAPSMTPBackend:
                 return "resolved-password"
 
         import rex.integrations.email.backends.imap_smtp as _mod
+
         monkeypatch.setattr(_mod, "CredentialManager", FakeMgr)
 
         backend = IMAPSMTPBackend(
