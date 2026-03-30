@@ -59,7 +59,7 @@ Total: 3 tools, 1 ready
 ### Basic Registration
 
 ```python
-from rex.tool_registry import ToolMeta, register_tool
+from rex.openclaw.tool_registry import ToolMeta, register_tool
 
 # Register a simple tool
 register_tool(ToolMeta(
@@ -71,7 +71,7 @@ register_tool(ToolMeta(
 ### Full Registration with Metadata
 
 ```python
-from rex.tool_registry import ToolMeta, register_tool
+from rex.openclaw.tool_registry import ToolMeta, register_tool
 
 def my_health_check() -> tuple[bool, str]:
     """Check if the service is available."""
@@ -133,7 +133,7 @@ def my_health_check() -> tuple[bool, str]:
 ### Running Health Checks
 
 ```python
-from rex.tool_registry import get_tool_registry
+from rex.openclaw.tool_registry import get_tool_registry
 
 registry = get_tool_registry()
 
@@ -152,7 +152,7 @@ for name, (ok, message) in results.items():
 Tools can declare required credentials that are checked before execution:
 
 ```python
-from rex.tool_registry import ToolMeta, get_tool_registry
+from rex.openclaw.tool_registry import ToolMeta, get_tool_registry
 
 # Register a tool that needs credentials
 register_tool(ToolMeta(
@@ -212,7 +212,7 @@ Rex registers several built-in tools:
 Get comprehensive status for a tool:
 
 ```python
-from rex.tool_registry import get_tool_registry
+from rex.openclaw.tool_registry import get_tool_registry
 
 registry = get_tool_registry()
 status = registry.get_tool_status("my_tool")
@@ -236,7 +236,7 @@ Plugins can register tools during initialization:
 
 ```python
 # In plugins/my_plugin.py
-from rex.tool_registry import ToolMeta, register_tool
+from rex.openclaw.tool_registry import ToolMeta, register_tool
 
 def register():
     """Called when plugin is loaded."""
@@ -253,7 +253,7 @@ def register():
 ### Unregistering Tools
 
 ```python
-from rex.tool_registry import get_tool_registry
+from rex.openclaw.tool_registry import get_tool_registry
 
 registry = get_tool_registry()
 registry.unregister_tool("obsolete_tool")
@@ -262,7 +262,7 @@ registry.unregister_tool("obsolete_tool")
 ### Listing Tools
 
 ```python
-from rex.tool_registry import get_tool_registry
+from rex.openclaw.tool_registry import get_tool_registry
 
 registry = get_tool_registry()
 
@@ -278,7 +278,7 @@ for tool in registry.list_tools(include_disabled=True):
 ### Using a Custom Registry
 
 ```python
-from rex.tool_registry import ToolRegistry, set_tool_registry
+from rex.openclaw.tool_registry import ToolRegistry, set_tool_registry
 
 # Create a custom registry
 custom_registry = ToolRegistry()
@@ -316,7 +316,7 @@ set_tool_registry(custom_registry)
 ### Tool Not Found
 
 ```python
-from rex.tool_registry import ToolNotFoundError
+from rex.openclaw.tool_registry import ToolNotFoundError
 
 try:
     status = registry.get_tool_status("unknown_tool")

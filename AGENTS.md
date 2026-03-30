@@ -141,9 +141,37 @@ transports. These helpers record calls in simple lists/counters (for example `lo
 `send_message_calls`, `store_calls`) instead of mock assertion helpers like
 `assert_called_once_with`.
 
+Fixtures defined in `tests/helpers/*.py` are not auto-discovered by pytest unless they are
+imported into the test module or exposed via `tests/conftest.py`. If a test wants to request a
+helper fixture by name, re-export it explicitly instead of assuming helper imports are enough.
+
+## Async pytest compatibility uses anyio in this environment
+
+The active test environment loads the `anyio` pytest plugin but may not have `pytest-asyncio`
+available. Legacy tests marked with `@pytest.mark.asyncio` are translated to `anyio` in
+`tests/conftest.py`, so keep that shim in place or use `@pytest.mark.anyio` for new async tests.
+
 ## Typed Flask error responses should use a local wrapper
 
 `rex.http_errors.error_response()` is intentionally typed as `tuple[Any, int]` so it can stay
 Flask-light. In modules with stricter `mypy` checking (for example Flask routes or error
 handlers), wrap it in a small local helper that casts the first item to `flask.Response`
 instead of adding `type: ignore[return-value]` comments at each call site.
+
+## Patchable service factories should be called through module namespaces
+
+When tests patch a factory such as `rex.email_service.get_email_service`, production code should
+call it through the module namespace (`email_service.get_email_service()`) instead of importing
+the function directly. This keeps `unittest.mock.patch(...)` effective and avoids stale local
+references inside long-lived modules.
+
+If an existing module-level patch target is already used in tests (for example
+`rex.notification.get_email_service`), keep a thin forwarding wrapper that delegates to the module
+namespace at call time. This preserves backward-compatible patch points without reintroducing a
+direct imported factory reference.
+
+## Retired module cleanups should include docs and examples
+
+When removing a deprecated compatibility module, grep `docs/` and example snippets for the retired
+import path in addition to runtime code. Stale documentation imports can survive after code has been
+migrated and cause retirement checks or follow-up cleanup work to linger.

@@ -243,7 +243,7 @@ manager.reload()  # Reloads from env and config, preserves runtime tokens
 The credential manager integrates with the tool registry to verify that required credentials are available before tool execution:
 
 ```python
-from rex.tool_registry import get_tool_registry
+from rex.openclaw.tool_registry import get_tool_registry
 
 registry = get_tool_registry()
 
