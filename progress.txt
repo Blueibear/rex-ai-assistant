@@ -1,4 +1,179 @@
 
+## Iteration 168 - US-208: Add multi-account email config and routing
+- What was implemented:
+  1. Added `EmailAccountConfig` dataclass to `rex/config.py` with `id`, `address`, `imap_host`, `imap_port`, `smtp_host`, `smtp_port`, `credential_ref`, `use_starttls` fields.
+  2. Added `email_accounts: List[EmailAccountConfig]` and `email_default_account_id: str` to `AppConfig`.
+  3. Added `_parse_email_accounts()` helper and wired into `build_app_config()` reading `email.accounts[]` and `email.default_account_id`; supports both flat (`imap_host`) and nested (`imap.host`) sub-dict forms; malformed entries are skipped with a warning.
+  4. Created `rex/integrations/email/service.py` with `EmailService`: routes `fetch_unread(limit, account_id)` and `send(to, subject, body, account_id)` to the correct `IMAPSMTPBackend`; falls back to `default_account_id`; raises `ValueError` with account list for unknown IDs; constructs backends lazily via injected `backend_factory`.
+  5. Created `tests/test_email_multi_account.py` with 17 tests covering routing, default fallback, invalid account_id error message, lazy construction, and backward compat with empty accounts.
+- Commit: 555825a
+
+## Iteration 167 - US-207: Implement SMTP send backend
+- What was implemented:
+  1. Added `SMTPSendError` exception class to `rex/integrations/email/backends/imap_smtp.py`.
+  2. Added `IMAPSMTPBackend(IMAPBackend)` with `send(to, subject, body) -> None`.
+  3. `send()` creates SMTP connection via `smtplib.SMTP`+STARTTLS or `smtplib.SMTP_SSL`.
+  4. `_resolve_password()` checks `credential_ref` via `CredentialManager.get_token()` before falling back to stored `_password`. `CredentialManager` imported at module level for testability.
+  5. `EmailAuthError` raised on `SMTPAuthenticationError`; `SMTPSendError` on TLS/timeout/relay errors.
+  6. Password is never passed to `logger.*` calls.
+  7. 12 new tests in `TestIMAPSMTPBackend`: successful send, auth failure, TLS failure (factory raises ssl.SSLError), timeout, credential_ref resolution; 55 total pass.
+- Files changed: rex/integrations/email/backends/imap_smtp.py, tests/test_email_backend_imap_smtp.py, PRD.md
+- Learnings for future iterations:
+  - When `smtp_factory` bypasses `_create_smtp_connection`, STARTTLS is never called — test TLS failure by having the factory itself raise ssl.SSLError.
+  - Move module-level imports (like CredentialManager) out of lazy-import blocks to allow monkeypatching in tests.
+  - `monkeypatch.setattr(_mod, "CredentialManager", FakeMgr)` works cleanly when the name is a module-level attribute.
+---
+
+## Iteration 166 - US-206: Implement IMAP read backend
+- What was implemented:
+  1. Created `rex/integrations/email/backends/imap_smtp.py` with `IMAPBackend` and `EmailAuthError`.
+  2. `IMAPBackend` implements `EmailBackend.fetch_unread(limit) -> list[dict]` from new interface.
+  3. Uses `imaplib.IMAP4_SSL` with configurable host, port, use_ssl, timeout (default 10s).
+  4. Auth failure (imaplib.IMAP4.error) is wrapped in `EmailAuthError` with descriptive message including username but NOT password.
+  5. `imap_factory` DI param allows injecting mock IMAP connections in tests.
+  6. `send()` raises `NotImplementedError` (SMTP send added in US-207).
+  7. Added 11 new tests in `TestIMAPBackend` class to `tests/test_email_backend_imap_smtp.py`; 43 tests total pass.
+- Files changed: rex/integrations/email/backends/imap_smtp.py, tests/test_email_backend_imap_smtp.py, PRD.md
+- Learnings for future iterations:
+  - `imaplib.IMAP4_SSL` accepts `timeout` as a keyword arg in Python 3.9+.
+  - `imaplib.IMAP4.error` is the exception class for login failures.
+  - Always call `conn.close()` then `conn.logout()` in a finally block after IMAP operations.
+  - Use `MagicMock(spec=imaplib.IMAP4_SSL)` to get spec-checked mocks.
+---
+
+## Iteration 165 - US-205: Add transport-layer interfaces for email, calendar, and SMS
+- What was implemented:
+  1. Created `rex/integrations/email/backends/base.py` — `EmailBackend` ABC (fetch_unread, send).
+  2. Created `rex/integrations/calendar/backends/base.py` — `CalendarBackend` ABC (get_upcoming, create_event).
+  3. Created `rex/integrations/messaging/backends/base.py` — `SMSBackend` ABC (send, receive).
+  4. Created stub implementations (StubEmailBackend, StubCalendarBackend, StubSMSBackend) in stub.py beside each base, implementing new dict-based interfaces.
+  5. All `__init__.py` files created for the new packages.
+  6. 23 new tests in `tests/test_integration_backends_base.py`; 48 total pass.
+- Files changed: rex/integrations/email/*, rex/integrations/calendar/*, rex/integrations/messaging/*, tests/test_integration_backends_base.py, PRD.md
+- Learnings for future iterations:
+  - New `rex/integrations/*/backends/` ABCs use plain dicts; old `rex/email_backends/` and `rex/calendar_backends/` use typed dataclasses — keep these families separate.
+  - `inspect.isabstract(cls)` and `getattr(val, "__isabstractmethod__", False)` are reliable ways to verify ABC abstractness in tests.
+---
+
+## Iteration 164 - US-204: Add history rotation/pruning scheduled task
+- What was implemented:
+  1. Added `history_retention_days: int = 30` to `AppConfig` and `build_app_config()`.
+  2. Added `_prune_timer: threading.Timer | None` to `Assistant.__init__`.
+  3. Added `_schedule_daily_prune()`: runs prune once immediately, then reschedules via daemon threading.Timer every 24 hours.
+  4. Called `_schedule_daily_prune()` in `__init__` after history store initialization.
+  5. 2 new tests: old turns pruned on startup; idempotency (double prune returns 0 second time).
+  6. 25 tests pass.
+- Files changed: rex/assistant.py, rex/config.py, tests/test_assistant.py, PRD.md
+- Learnings for future iterations:
+  - Cancel the prune timer in tests with `asst._prune_timer.cancel()` to avoid lingering daemon threads.
+  - `threading.Timer(86400, fn)` with `daemon=True` does not block process exit.
+  - Self-scheduling timer pattern: method runs, then schedules itself — avoids global state.
+---
+
+## Iteration 163 - US-203: Wire HistoryStore into assistant.py
+- What was implemented:
+  1. Added `persist_history: bool = True` and `history_db_path: Path` fields to `AppConfig`.
+  2. Added both fields to `build_app_config()` reading from `runtime.persist_history` and `runtime.history_db_path` JSON config keys.
+  3. `Assistant.__init__` now imports `HistoryStore` and, when `persist_history=True`, instantiates it and preloads last 50 turns into `self._history` as `ConversationTurn` objects (mapping `role`→`speaker`, `content`→`text`).
+  4. `generate_reply()` calls `history_store.save_turn()` for user prompt and assistant completion after generating a reply.
+  5. Added 3 new tests: turns are persisted to DB, prior turns preloaded on startup, no DB created when disabled.
+  6. 23 tests pass (13 history_store + 10 assistant).
+- Files changed: rex/assistant.py, rex/config.py, tests/test_assistant.py, PRD.md
+- Learnings for future iterations:
+  - `HistoryStore.load_history` returns dicts with `role` and `content` keys; map to `ConversationTurn(speaker=..., text=...)`.
+  - Use `getattr(self._settings, "persist_history", True)` to guard optional config fields safely.
+  - `datetime.utcnow()` (naive UTC) works with `save_turn()` since it calls `.astimezone(utc)` internally; naive UTC is treated as UTC by Python.
+---
+
+## Iteration 162 - US-202: Create SQLite conversation history schema and HistoryStore class
+- What was implemented:
+  1. Created `rex/history_store.py` with `HistoryStore` class backed by stdlib `sqlite3`.
+  2. `__init__` creates DB file (and parent dirs) and runs CREATE TABLE IF NOT EXISTS migration.
+  3. Schema: `turns (id, user_id, role, content, timestamp)` with index on `(user_id, timestamp)`.
+  4. `save_turn` stores UTC ISO-8601 timestamp; `load_history` returns oldest-first within limit using subquery inversion.
+  5. `prune` deletes turns older than `keep_days` for a specific user; returns row count deleted.
+  6. Threading safety via `threading.Lock` around all DB operations.
+  7. Created `tests/test_history_store.py` with 13 tests covering: schema creation, CRUD, limit, user isolation, timestamp format, prune, idempotency, and cross-user isolation.
+- Files changed: rex/history_store.py, tests/test_history_store.py, PRD.md
+- Learnings for future iterations:
+  - `sqlite3.connect()` with `check_same_thread=False` is fine when access is serialized by a `threading.Lock`.
+  - Use subquery inversion `SELECT * FROM (SELECT ... ORDER BY id DESC LIMIT ?) ORDER BY id ASC` to get the N most recent rows in chronological order.
+  - `cursor.rowcount` on a DELETE returns the number of deleted rows — no extra SELECT needed.
+  - Store timestamps as UTC ISO-8601 strings for reliable ordering and cross-platform compatibility.
+---
+
+## Iteration 161 - US-201: Fix suppressed JSON errors in identity.py
+- What was implemented:
+  1. Changed `_load_session()` broad `except Exception` to catch `json.JSONDecodeError` specifically and log `logger.warning("Corrupted session file %s, resetting: %s", path, e)`.
+  2. Kept a fallback `except Exception: return {}` for non-JSON errors (OS errors, etc.).
+  3. Added test using `caplog.at_level(logging.WARNING, logger="rex.identity")` and `patch("rex.identity._session_state_path")`.
+  4. All 19 identity tests pass. Mypy: 0 errors.
+- Files changed: rex/identity.py, tests/test_identity.py, PRD.md
+- Learnings for future iterations:
+  - Use `caplog.at_level(logging.WARNING, logger="rex.identity")` to capture module-specific log output.
+  - The `caplog.records` list has `.message` (rendered message) for assertion.
+  - Adding `import logging` to the test file is required for `caplog.at_level(logging.WARNING, ...)`.
+---
+
+## Iteration 160 - US-200: Add request body size limit to rex_speak_api.py
+- What was implemented:
+  1. Added `PAYLOAD_TOO_LARGE = "PAYLOAD_TOO_LARGE"` to `rex/http_errors.py` (and __all__).
+  2. Added `MAX_REQUEST_BYTES = _parse_int("REX_SPEAK_MAX_REQUEST_BYTES", ..., default=65536)` to `rex_speak_api.py`.
+  3. Set `app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BYTES` at module level — Flask enforces this for streamed bodies (no Content-Length) via RequestEntityTooLarge.
+  4. Added `_check_request_size()` before_request hook that checks `request.content_length` against `MAX_REQUEST_BYTES` and returns 413 before body is read when Content-Length is present.
+  5. Added 3 tests: constant existence, 100 KB body → 413, and within-limit request → 200. All 8 tests in test_speak_api.py pass.
+- Files changed: rex_speak_api.py, rex/http_errors.py, tests/test_speak_api.py, PRD.md
+- Learnings for future iterations:
+  - Flask's `app.config["MAX_CONTENT_LENGTH"]` handles the stream-cap case automatically via Werkzeug's RequestEntityTooLarge exception.
+  - The before_request hook for Content-Length check runs before the body is read, satisfying "rejected before body is read."
+  - rex_speak_api.py has 8 pre-existing mypy errors (rate limit spec None assignment, error handler return type issues) — not related to changes.
+  - In tests, set both `app.config["MAX_CONTENT_LENGTH"]` AND `monkeypatch.setattr(rex_speak_api, "MAX_REQUEST_BYTES", ...)` to ensure the before_request hook and Flask both use the same limit.
+---
+
+## Iteration 159 - US-199: Fix sentence splitting for abbreviations in TTS pipeline
+- What was implemented:
+  1. Added `_ABBREV_WORDS` (frozenset of 30 common single-word titles/abbreviations) and `_ABBREV_DOT` (frozenset of 7 dot-internal abbreviations like "e.g") to `rex/voice_loop.py`.
+  2. Added `_protect_abbreviations()` helper that uses capturing-group `re.sub` to replace abbreviation trailing periods with `\x00` placeholder, preserving original casing.
+  3. Updated `_split_into_sentences()` to: try NLTK `sent_tokenize` first (if installed), then fall back to abbreviation-aware regex (protect → split → restore).
+  4. Applied same abbreviation protection to `chunk_text_for_xtts()` in `rex/tts_utils.py`.
+  5. Created `tests/test_us199_sentence_splitting.py` with 10 tests covering Dr., Mr., e.g., etc. abbreviations and correct real-sentence splitting. All 10 pass.
+- Files changed: rex/voice_loop.py, rex/tts_utils.py, tests/test_us199_sentence_splitting.py, PRD.md
+- Learnings for future iterations:
+  - Use `r"\1" + placeholder` in re.sub replacement to preserve original casing when doing case-insensitive substitutions.
+  - `# type: ignore[import-untyped]` on nltk import causes "unused ignore" error when nltk stubs are present in the venv — omit it.
+  - The 110 pre-existing test failures are unrelated to TTS/voice_loop changes.
+---
+
+## Iteration 158 - US-196: Fix inconsistent temp file cleanup in voice_loop.py
+- What was implemented:
+  1. Added `import os` to `rex/voice_loop.py`.
+  2. `_synthesize_and_play_chunk`: replaced `with suppress(FileNotFoundError): Path.unlink()` with `try: os.unlink() except (OSError, PermissionError): logger.warning(...)`.
+  3. `_speak_edge`: moved `wav_path` cleanup into a nested `try/finally` block; replaced both suppress() calls with logged try/except.
+  4. `voice_loop.py` (root) `_speak_response`: replaced both `contextlib.suppress(FileNotFoundError): os.remove()` cleanup blocks with logged `try: os.unlink() except (OSError, PermissionError)`.
+  5. Added two tests in `tests/test_voice_loop.py`: success path (no leftover .wav) and error path (cleanup runs even when synthesis raises).
+  6. All 7 tests pass. `rex/voice_loop.py` mypy: 0 errors. Root `voice_loop.py` has 12 pre-existing mypy errors unrelated to this change.
+- Files changed: rex/voice_loop.py, voice_loop.py, tests/test_voice_loop.py, PRD.md
+- Learnings for future iterations:
+  - The existing tests use `asyncio.run()` directly, not `pytest.mark.asyncio` — use the same pattern to avoid framework plugin requirement.
+  - Patch `tempfile.NamedTemporaryFile` with a wrapper that injects `dir=str(tmp_path)` to redirect temp files to a known location for cleanup verification.
+  - `monkeypatch.setattr(_rvl, "sa", None)` is needed to skip simpleaudio playback in synthesis tests.
+---
+
+## Iteration 157 - US-195: Fix _followup_injected race condition in assistant.py
+- What was implemented:
+  1. Replaced `self._followup_injected = False` with `self._followup_lock = asyncio.Lock()` in `Assistant.__init__`.
+  2. Moved the followup injection block out of `_build_prompt` (sync) and into `generate_reply` (async), wrapped in `async with self._followup_lock:`.
+  3. After injection, `self._pending_followup = None` marks it consumed; no separate bool needed.
+  4. Updated `has_pending_followup` and `pending_followup_prompt` properties to check only `_pending_followup is not None`.
+  5. Added test `test_followup_injected_at_most_once_with_concurrent_calls` that fires two concurrent `generate_reply` tasks and asserts the followup hint appears in at most one prompt.
+  6. All 7 tests pass.
+- Files changed: rex/assistant.py, tests/test_assistant.py, PRD.md
+- Learnings for future iterations:
+  - `asyncio.Lock()` can be created in sync `__init__` (no event loop needed at construction time in Python 3.10+).
+  - Moving injection from a sync helper to the async caller is the cleanest way to use `async with` — avoid making sync methods async just to add a lock.
+  - Setting the guarded field to None (consumed sentinel) after injection removes the need for a separate bool flag.
+---
+
 ## Iteration 156 - US-194: Thread-safe TTS engine in rex_speak_api.py
 - What was implemented:
   1. Added `import threading` to rex_speak_api.py.
@@ -1239,4 +1414,35 @@
   3. pyproject.toml already had correct `torch>=2.6.0,<2.9.0`. Dockerfile uses `torch==2.7.1` (within range). validate_deployment.py already validates TORCH_MIN/TORCH_MAX.
 - Tests passed: no changes to logic. Typecheck: n/a (docs + requirements fix).
 - Commit: fix(deps): document canonical runtime matrix and remove CUDA variant from CPU requirements
+---
+
+## Iteration 159 - US-197: Process OpenAI tool_calls in LLM client
+- What was implemented:
+  1. Added `import json` and `import types as _types` to rex/llm_client.py imports.
+  2. `OpenAIStrategy.generate()._call()`: changed return type from `Any` to `str`; when `message.tool_calls` is present, serializes to `json.dumps({"__tool_calls__": [...]})` instead of returning the raw message object.
+  3. `LanguageModel.generate()` tool loop: replaced `hasattr(result, "tool_calls")` check with JSON parse + `"__tool_calls__"` key detection; reconstructs `SimpleNamespace` tool call objects from dict data for `_execute_tool_call()`.
+  4. Final `return` in tool loop simplified to `result.strip() if isinstance(result, str) else str(result).strip()`.
+  5. New test `test_openai_tool_calls_serialized_to_json`: calls `OpenAIStrategy.generate()` directly with a mocked response containing tool_calls; asserts result is str, parses JSON, verifies tool name and arguments present.
+  6. All 7 tests pass.
+- Files changed: rex/llm_client.py, tests/test_llm_client.py, PRD.md
+- Learnings for future iterations:
+  - The root-level `llm_client.py` is a re-export shim; `OpenAIStrategy` and `GenerationConfig` must be imported from `rex.llm_client` directly in tests.
+  - Using `{"__tool_calls__": ...}` as a sentinel key cleanly distinguishes JSON-serialized tool call responses from regular text responses.
+  - `types.SimpleNamespace` (imported as `_types` to avoid shadowing) lets you reconstruct attribute-access objects from dict data without defining a dataclass.
+---
+
+## Iteration 159 - US-198: Fix Ollama error message taxonomy
+- What was implemented:
+  1. OllamaStrategy.generate() now catches three distinct error categories:
+     - ConnectionRefusedError → "[Ollama: connection failed — is Ollama running?]"
+     - httpx.ConnectError (detected by class name/module to avoid top-level import) → same connection message
+     - exc.status_code == 404 → "[Ollama: model '{model}' not found — run: ollama pull {model}]"
+     - All others → "[Ollama: unexpected error: {detail}]"
+  2. Four new tests in tests/test_llm_client.py covering all three error paths.
+  3. Tests use monkeypatch on with_retry to inject fake exceptions without needing a real Ollama instance.
+- Files changed: rex/llm_client.py, tests/test_llm_client.py, PRD.md
+- Learnings for future iterations:
+  - Use `type(exc).__name__ == "ConnectError" and type(exc).__module__ == "httpx"` to detect httpx.ConnectError without importing httpx at module level.
+  - `(_ for _ in ()).throw(exc_instance)` is a clean monkeypatch idiom to make a lambda raise an exception.
+  - OllamaStrategy.__new__(OllamaStrategy) bypasses __init__ for unit testing the generate() method in isolation.
 ---

@@ -599,15 +599,15 @@ commands deliver to the actual recipient.
 reads/sends to the correct account so that work and personal email are separate.
 
 **Acceptance Criteria:**
-- [ ] `AppConfig` (via `rex_config.json`) supports:
+- [x] `AppConfig` (via `rex_config.json`) supports:
   `email.accounts[]` (list of account objects with `id`, `address`, `imap`, `smtp`,
   `credential_ref`) and `email.default_account_id`
-- [ ] `EmailService` accepts optional `account_id` on `fetch_unread()` and `send()`;
+- [x] `EmailService` accepts optional `account_id` on `fetch_unread()` and `send()`;
   falls back to `default_account_id` when omitted
-- [ ] Invalid `account_id` raises `ValueError` with an actionable message
-- [ ] Backward-compatible when only a single legacy account config is present
-- [ ] `pytest -q tests/test_email_multi_account.py` exits 0 (new test file)
-- [ ] Typecheck passes
+- [x] Invalid `account_id` raises `ValueError` with an actionable message
+- [x] Backward-compatible when only a single legacy account config is present
+- [x] `pytest -q tests/test_email_multi_account.py` exits 0 (new test file)
+- [x] Typecheck passes
 
 ---
 
