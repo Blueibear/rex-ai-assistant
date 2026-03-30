@@ -173,6 +173,10 @@ class AppConfig:
     default_timezone: Optional[str] = None
     openweathermap_api_key: Optional[str] = None
 
+    # Conversation history persistence
+    persist_history: bool = True
+    history_db_path: Path = field(default_factory=lambda: Path("data/history.db"))
+
     # Autonomy budget limits (0 = unlimited)
     autonomy_budget_per_plan_usd: float = 0.0
     autonomy_budget_per_step_usd: float = 0.0
@@ -408,6 +412,11 @@ def build_app_config(json_config: dict) -> AppConfig:
         openclaw_gateway_timeout=_coerce_int(json_config, "openclaw.gateway_timeout", 30),
         openclaw_gateway_max_retries=_coerce_int(json_config, "openclaw.gateway_max_retries", 3),
         openclaw_gateway_token=os.getenv("OPENCLAW_GATEWAY_TOKEN"),  # SECRET from env
+        # History persistence
+        persist_history=bool(_get_nested(json_config, "runtime.persist_history", True)),
+        history_db_path=Path(
+            _get_nested(json_config, "runtime.history_db_path", "data/history.db")
+        ),
     )
 
     return config

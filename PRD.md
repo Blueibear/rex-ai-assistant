@@ -511,15 +511,15 @@ conversation turns can be persisted and retrieved across restarts.
 that Rex can reference previous exchanges without the session being lost.
 
 **Acceptance Criteria:**
-- [ ] `Assistant.__init__` instantiates `HistoryStore` if `config.persist_history` is True
+- [x] `Assistant.__init__` instantiates `HistoryStore` if `config.persist_history` is True
   (default: True)
-- [ ] `Assistant.generate_reply()` calls `history_store.save_turn()` for each user prompt
+- [x] `Assistant.generate_reply()` calls `history_store.save_turn()` for each user prompt
   and assistant response
-- [ ] `Assistant.__init__` preloads the last 50 turns from `HistoryStore` into the in-memory
+- [x] `Assistant.__init__` preloads the last 50 turns from `HistoryStore` into the in-memory
   history on startup
-- [ ] `AppConfig` gains a `persist_history: bool = True` field
-- [ ] `pytest -q tests/test_assistant.py` exits 0
-- [ ] Typecheck passes
+- [x] `AppConfig` gains a `persist_history: bool = True` field
+- [x] `pytest -q tests/test_assistant.py` exits 0
+- [x] Typecheck passes
 
 ---
 

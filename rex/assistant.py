@@ -13,6 +13,7 @@ from .calendar_service import get_calendar_service
 from .config import Settings, settings
 from .followup_engine import FollowupEngine
 from .ha_bridge import HABridge
+from .history_store import HistoryStore
 from .llm_client import LanguageModel
 from .memory import trim_history
 from .plugins import PluginSpec
@@ -47,6 +48,26 @@ class Assistant:
 
         # Prefer explicit user_id, then settings.user_id, then "default"
         self._user_id = user_id or getattr(self._settings, "user_id", None) or "default"
+
+        # Conversation history persistence
+        self._history_store: HistoryStore | None = None
+        if getattr(self._settings, "persist_history", True):
+            try:
+                db_path = getattr(self._settings, "history_db_path", None)
+                if db_path is None:
+                    from pathlib import Path as _Path
+
+                    db_path = _Path("data/history.db")
+                self._history_store = HistoryStore(db_path=db_path)
+                # Preload the last 50 turns into in-memory history
+                stored = self._history_store.load_history(self._user_id, limit=50)
+                self._history = [
+                    ConversationTurn(speaker=row["role"], text=row["content"])
+                    for row in stored
+                ]
+            except Exception as exc:
+                logger.warning("Failed to initialize HistoryStore: %s", exc)
+                self._history_store = None
 
         # Follow-up engine for natural conversation cues
         self._followup_engine: object | None = None
@@ -224,6 +245,14 @@ class Assistant:
                     self._ha_bridge.post_process_response,
                     completion,
                 )
+
+        now = datetime.utcnow()
+        if self._history_store is not None:
+            try:
+                self._history_store.save_turn(self._user_id, "user", transcript, now)
+                self._history_store.save_turn(self._user_id, "assistant", completion, now)
+            except Exception as exc:
+                logger.warning("Failed to persist conversation turn: %s", exc)
 
         self._history.append(ConversationTurn("user", transcript))
         self._history.append(ConversationTurn("assistant", completion))

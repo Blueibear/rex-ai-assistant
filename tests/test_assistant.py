@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import re
+from datetime import datetime, timezone
+from pathlib import Path
 
 import rex.assistant as assistant_module
 
@@ -186,6 +188,93 @@ def test_followup_injected_at_most_once_with_concurrent_calls(monkeypatch, tmp_p
     assert len(injected_prompts) <= 1, (
         f"Followup context was injected {len(injected_prompts)} times; expected at most once"
     )
+
+
+def _make_dummy_lm_class():
+    class DummyLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, prompt=None, *, messages=None, config=None, max_tool_rounds=3):
+            return "ok"
+
+    return DummyLanguageModel
+
+
+def test_history_store_saves_turns(monkeypatch, tmp_path):
+    """generate_reply should persist user and assistant turns to HistoryStore."""
+    monkeypatch.setattr(assistant_module, "LanguageModel", _make_dummy_lm_class())
+
+    from rex.config import AppConfig
+    from rex.history_store import HistoryStore
+
+    db_path = tmp_path / "history.db"
+    cfg = AppConfig(
+        llm_provider="transformers",
+        persist_history=True,
+        history_db_path=db_path,
+    )
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+
+    asyncio.run(asst.generate_reply("hello"))
+
+    store = HistoryStore(db_path=db_path)
+    turns = store.load_history("default", limit=50)
+    roles = [t["role"] for t in turns]
+    assert "user" in roles
+    assert "assistant" in roles
+    contents = [t["content"] for t in turns]
+    assert "hello" in contents
+    assert "ok" in contents
+
+
+def test_history_store_preloads_on_startup(monkeypatch, tmp_path):
+    """Assistant should preload stored turns into in-memory history on startup."""
+    monkeypatch.setattr(assistant_module, "LanguageModel", _make_dummy_lm_class())
+
+    from rex.config import AppConfig
+    from rex.history_store import HistoryStore
+
+    db_path = tmp_path / "history.db"
+    # Pre-seed the DB with a prior turn
+    store = HistoryStore(db_path=db_path)
+    store.save_turn("default", "user", "prior question", datetime.now(timezone.utc))
+    store.save_turn("default", "assistant", "prior answer", datetime.now(timezone.utc))
+
+    cfg = AppConfig(
+        llm_provider="transformers",
+        persist_history=True,
+        history_db_path=db_path,
+    )
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+
+    history = asst.history()
+    speakers = [t.speaker for t in history]
+    texts = [t.text for t in history]
+    assert "user" in speakers
+    assert "assistant" in speakers
+    assert "prior question" in texts
+    assert "prior answer" in texts
+
+
+def test_history_not_persisted_when_disabled(monkeypatch, tmp_path):
+    """When persist_history=False, no HistoryStore is created and no DB file is written."""
+    monkeypatch.setattr(assistant_module, "LanguageModel", _make_dummy_lm_class())
+
+    from rex.config import AppConfig
+
+    db_path = tmp_path / "history.db"
+    cfg = AppConfig(
+        llm_provider="transformers",
+        persist_history=False,
+        history_db_path=db_path,
+    )
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+
+    asyncio.run(asst.generate_reply("hello"))
+
+    assert asst._history_store is None
+    assert not db_path.exists()
 
 
 def test_chat_tool_request_routes_time_now(monkeypatch, tmp_path):
