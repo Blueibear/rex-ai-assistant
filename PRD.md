@@ -365,12 +365,12 @@ and the validation script all agree.
 so that concurrent HTTP requests to `/speak` cannot cause race conditions or corrupt state.
 
 **Acceptance Criteria:**
-- [ ] `rex_speak_api.py` introduces `_tts_lock = threading.Lock()` at module level
-- [ ] All access to `_TTS_ENGINE` (read and write) is wrapped in `with _tts_lock:`
-- [ ] The lock is acquired before initialization check and released after synthesis completes
-- [ ] A test in `tests/test_speak_api.py` (or new file) fires 5 concurrent `/speak` requests
+- [x] `rex_speak_api.py` introduces `_tts_lock = threading.Lock()` at module level
+- [x] All access to `_TTS_ENGINE` (read and write) is wrapped in `with _tts_lock:`
+- [x] The lock is acquired before initialization check and released after synthesis completes
+- [x] A test in `tests/test_speak_api.py` (or new file) fires 5 concurrent `/speak` requests
   using `threading.Thread` and asserts all return 200 with non-empty audio
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 

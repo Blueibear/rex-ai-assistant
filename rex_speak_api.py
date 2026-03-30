@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import tempfile
+import threading
 import time
 from collections import defaultdict, deque
 from importlib import import_module
@@ -153,6 +154,7 @@ if DEFAULT_USER not in USER_VOICES:
     USER_VOICES[DEFAULT_USER] = None
 
 _TTS_ENGINE: TTS | None = None
+_tts_lock = threading.Lock()
 
 DEFAULT_TTS_MODEL = os.getenv("REX_TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2")
 _MODEL_PATTERN = re.compile(r"^[\w\-./]+(\/[\w\-./]+)*$")
@@ -225,6 +227,7 @@ def _handle_rate_limit(exc: RateLimitExceeded) -> Response:
 
 
 def _get_tts_engine() -> TTS:
+    """Return the TTS engine singleton. Must be called while holding _tts_lock."""
     global _TTS_ENGINE
     if _TTS_ENGINE is None:
         if find_spec("TTS") is None:
@@ -316,49 +319,52 @@ def _resolve_speaker_wav(user_key: str) -> str | None:
 def generate_speech(text: str, language: str, user_key: str) -> bytes:
     """Generate speech audio from text. Can be monkeypatched for testing."""
     speaker_wav = _resolve_speaker_wav(user_key)
-    engine = _get_tts_engine()
     np, sf = _load_audio_dependencies()
 
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         output_path = tmp.name
 
-    try:
-        chunks = chunk_text_for_xtts(text, max_tokens=300)
-        if not chunks:
-            raise TextToSpeechError("No speech content to synthesize.")
+    # _tts_lock is acquired before initialization check and held until synthesis completes
+    with _tts_lock:
+        engine = _get_tts_engine()
+        try:
+            chunks = chunk_text_for_xtts(text, max_tokens=300)
+            if not chunks:
+                raise TextToSpeechError("No speech content to synthesize.")
 
-        audio_segments = []
-        sample_rate = None
+            audio_segments = []
+            sample_rate = None
 
-        for chunk in chunks:
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                chunk_path = tmp.name
+            for chunk in chunks:
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                    chunk_path = tmp.name
 
-            try:
-                engine.tts_to_file(
-                    text=chunk,
-                    speaker_wav=speaker_wav,
-                    language=language,
-                    file_path=chunk_path,
-                    speed=TTS_SPEED,
-                )
-                data, rate = sf.read(chunk_path, dtype="float32")
-                if sample_rate is None:
-                    sample_rate = rate
-                audio_segments.append(data)
-            finally:
                 try:
-                    Path(chunk_path).unlink(missing_ok=True)
-                except PermissionError:
-                    logger.debug("Skipping cleanup for locked file: %s", chunk_path)
+                    engine.tts_to_file(
+                        text=chunk,
+                        speaker_wav=speaker_wav,
+                        language=language,
+                        file_path=chunk_path,
+                        speed=TTS_SPEED,
+                    )
+                    data, rate = sf.read(chunk_path, dtype="float32")
+                    if sample_rate is None:
+                        sample_rate = rate
+                    audio_segments.append(data)
+                finally:
+                    try:
+                        Path(chunk_path).unlink(missing_ok=True)
+                    except PermissionError:
+                        logger.debug("Skipping cleanup for locked file: %s", chunk_path)
 
-        if not audio_segments or sample_rate is None:
-            raise TextToSpeechError("XTTS produced no audio output.")
+            if not audio_segments or sample_rate is None:
+                raise TextToSpeechError("XTTS produced no audio output.")
 
-        combined_audio = np.concatenate(audio_segments, axis=0)
-        sf.write(output_path, combined_audio, sample_rate)
-    except Exception as exc:
-        raise TextToSpeechError(str(exc)) from exc
+            combined_audio = np.concatenate(audio_segments, axis=0)
+            sf.write(output_path, combined_audio, sample_rate)
+        except Exception as exc:
+            raise TextToSpeechError(str(exc)) from exc
+
     try:
         with open(output_path, "rb") as audio_file:
             audio_bytes = audio_file.read()

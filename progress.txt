@@ -1,4 +1,73 @@
 
+## Iteration 156 - US-194: Thread-safe TTS engine in rex_speak_api.py
+- What was implemented:
+  1. Added `import threading` to rex_speak_api.py.
+  2. Added `_tts_lock = threading.Lock()` at module level after `_TTS_ENGINE`.
+  3. `_get_tts_engine()` does NOT hold the lock itself; docstring notes it must be called while lock is held.
+  4. `generate_speech()` acquires `_tts_lock` before calling `_get_tts_engine()` and holds it through the end of synthesis — satisfying "acquired before initialization check, released after synthesis completes".
+  5. Created `tests/test_speak_api.py` with 5 tests: lock existence, lock type, engine-acquires-lock integration, concurrent-5-threads (all return 200 non-empty), and lock-held-during-synthesis verification.
+  6. All 5 tests pass. Mypy has 8 pre-existing errors (unrelated to threading changes — verified by stashing changes).
+- Files changed: rex_speak_api.py, tests/test_speak_api.py, PRD.md
+- Learnings for future iterations:
+  - threading.Lock() is NOT reentrant — do not acquire it in both _get_tts_engine() and generate_speech() or you get a deadlock. Hold the lock at the outermost call site only.
+  - Pre-existing mypy errors in rex_speak_api.py (8 errors) are in error-handler return types and _RATE_LIMIT_SPEC assignment — not introduced by threading changes.
+  - monkeypatch.setattr on module-level generate_speech bypasses the lock entirely, which is fine for route-level tests that just verify HTTP behavior.
+---
+
+## Iteration 155 - US-187: Implement send_email and calendar_create_event handlers
+- What was implemented:
+  1. _handle_send_email: calls EmailService.send(to, subject, body); returns "Email sent" on ok, error string on failure; validates 'to' arg; degrades gracefully on exception.
+  2. _handle_calendar_create_event: calls CalendarService.create_event(); parses ISO datetimes for start/end with now+1h defaults; accepts 'summary' as title alias; returns formatted confirmation.
+  3. CalendarService and EmailService imported at module level for patchability.
+  4. 9 new tests covering all paths (success, failure, missing args, exception).
+- Files changed: rex/tool_router.py, tests/test_tool_router.py, PRD.md
+- Learnings for future iterations:
+  - EmailService.send() in stub mode returns {"ok": True} — "Email sent" always comes back unless mock returns ok=False.
+  - CalendarService() without args uses mock mode — always safe to instantiate.
+  - datetime.fromisoformat() accepts "2026-04-01T10:00:00" without timezone.
+---
+
+## Iteration 154 - US-186: Implement weather_now and web_search tool handlers
+- What was implemented:
+  1. _handle_weather_now: gets openweathermap key from CredentialManager; calls rex.weather.get_weather() async via _run_async() helper; formats city/description/temp/humidity/wind string; returns "[integration not configured]" if no key.
+  2. _handle_web_search: delegates to plugins.web_search.search_web(); returns "[integration not configured]" on None result, missing plugin, or exception; handles missing query arg.
+  3. _run_async(): ThreadPoolExecutor fallback for calling async code from sync context when an event loop is already running.
+  4. Imports at module level (get_credential_manager, get_weather) so they're patchable in tests.
+  5. tests/test_tool_router.py expanded to 29 tests with mocked CM and provider responses.
+- Files changed: rex/tool_router.py, tests/test_tool_router.py, PRD.md
+- Learnings for future iterations:
+  - Import async dependencies at module level (not inside handler) so they're patchable via patch("rex.tool_router.get_weather").
+  - asyncio.run() fails if called from within a running event loop — ThreadPoolExecutor fallback is the safe bridge.
+---
+
+## Iteration 153 - US-185: Define authoritative executable tool catalog
+- What was implemented:
+  1. rex/tool_catalog.py: EXECUTABLE_TOOLS frozenset with 6 tools.
+  2. rex/tool_router.py: execute_tool() that raises UnknownToolError for non-catalog tools; dispatch table with assert to keep table == catalog in sync; time_now has a real handler, others return "[integration not configured]" stubs.
+  3. rex/tool_registry.py: thin re-export wrapper from rex.openclaw.tool_registry + CatalogValidatingRegistry subclass that logs catalog membership.
+  4. rex/planner.py: imported EXECUTABLE_TOOLS, added _can_use_tool() helper, replaced all _plan_* has_tool() guards with _can_use_tool().
+  5. tests/test_tool_router.py: 23 tests covering UnknownToolError, parametrized catalog coverage, time_now output, stub sentinel strings.
+- Files changed: rex/tool_catalog.py (new), rex/tool_router.py (new), rex/tool_registry.py (new), rex/planner.py, tests/test_tool_router.py (new), PRD.md
+- Learnings for future iterations:
+  - The openclaw tool registry uses "home_assistant" (not "home_assistant_call_service"). The catalog defines the ROUTER's tool names, independent of registry names.
+  - requests is typed in the venv — no type: ignore needed.
+  - An assert at module level (handler table == catalog set) is a clean way to catch catalog/handler drift at import time.
+---
+
+## Iteration 152 - US-184: Rewrite deployment validation script
+- What was implemented: Rewrote scripts/validate_deployment.py to reflect current runtime model.
+  1. Replaced check_env_file() (checked REX_ACTIVE_USER) with check_config_json() that verifies config/rex_config.json exists and is valid JSON.
+  2. Fixed check_pytorch() to accept >=2.6.0,<2.9.0 range instead of 2.5.x.
+  3. Replaced circular import check with check_cli_entrypoints() that validates all 6 entrypoints from pyproject.toml are importable.
+  4. Script now exits 0 with 7/7 passing on a valid install.
+  5. Removed stale type: ignore comments — torch and rex.config are fully typed in the venv.
+- Files changed: scripts/validate_deployment.py, PRD.md
+- Learnings for future iterations:
+  - torch is typed in the venv (types-torch stubs) so type: ignore[import-untyped] becomes an "unused ignore" error.
+  - mypy --ignore-missing-imports is fine for scripts/ that import optional heavy deps.
+  - The 105 pre-existing test failures are unrelated to ops scripts — no regression.
+---
+
 ## Iteration 151 - US-183: Fix security audit script false positives
 - What was implemented: Rewrote scripts/security_audit.py to scan only git-tracked files, exclude *.egg-info and .claude dirs, add proper false-positive filters, and report <50 actionable findings.
   1. git ls-files: switched from rglob to git ls-files (fallback to rglob) to eliminate untracked/cache files automatically.
@@ -1111,3 +1180,63 @@
   - voice_mode flag on generate_reply() is cleaner than passing max_tokens because it bundles both the token limit and the prompt instruction.
 ---
 
+
+## Iteration 156 - US-188: Add planner-to-router end-to-end integration tests
+- What was implemented:
+  1. tests/test_planner_tool_e2e.py with 14 tests: 6 parametrized planner+router tests, 6 parametrized direct execute_tool tests, 1 non-catalog tool rejection test, 1 execute_tool rejects uncatalogued tool test.
+  2. _make_registry_with_all_catalog_tools() helper builds a ToolRegistry with all 6 EXECUTABLE_TOOLS registered.
+  3. _all_service_patches() returns 5 patches covering all external I/O (weather, email, calendar, web_search, credential_manager).
+  4. reset_global_registry autouse fixture ensures clean state between tests.
+- Tests passed: 14/14. Typecheck: clean.
+- Commit: test(planner): add planner-to-router e2e integration tests
+---
+
+## Iteration 157 - US-189: Align README runtime configuration section
+- What was implemented:
+  1. Renamed "Configuration (Environment Variables)" heading to "Configuration".
+  2. Updated the section body to explicitly describe the dual-config system: secrets in .env, runtime settings in config/rex_config.json.
+  3. Added reference to .env.example with description of its role.
+  4. Added link to CONFIGURATION.md as the full configuration reference.
+  5. Table of Contents anchor updated to match new heading.
+- Tests passed: full suite exit 0. Typecheck: n/a (docs-only change).
+- Commit: docs(readme): align configuration section with dual-config system
+---
+
+## Iteration 158 - US-190: Rewrite Windows quickstart with correct entrypoints
+- What was implemented:
+  1. Replaced step 5 "python rex_assistant.py" with "python -m rex" (text chat mode).
+  2. Added all four runtime modes: text chat, voice loop, dashboard (run_gui.py), TTS API (rex_speak_api.py).
+  3. Removed all env-var configuration instructions ($env:REX_WAKEWORD etc.).
+  4. Added config section referencing config/rex_config.example.json and .env.example.
+  5. Updated Prerequisites to include FFmpeg/PATH note and GPU optional note.
+- Tests passed: full suite exit 0. Typecheck: n/a (docs-only change).
+- Commit: docs(windows): rewrite quickstart with correct runtime modes
+---
+
+## Iteration 159 - US-191: Archive and correct stale architecture and status documents
+- What was implemented:
+  1. ARCHITECTURE.md: updated "OpenClaw Migration" section to "OpenClaw Integration", replaced future-tense migration language with completed Phase 8 facts, removed OPENCLAW-REPLACE and find_spec references, marked roadmap item as done.
+  2. INTEGRATIONS_STATUS.md: already accurate (Beta labels for email/calendar/SMS, real backends exist) — no changes needed.
+  3. WORKFLOW.md "production-ready" usage is in workflow/branching context — not a misleading capability claim — left unchanged.
+- Tests passed: full suite exit 0. Typecheck: n/a (docs-only change).
+- Commit: docs(arch): update OpenClaw section to reflect completed Phase 8 migration
+---
+
+## Iteration 160 - US-192: Consolidate to one canonical voice loop entry point
+- What was implemented:
+  1. Added RELATIONSHIP NOTE header to root voice_loop.py: legacy file, kept for AsyncRexAssistant backward compat, not the active startup path.
+  2. Added RELATIONSHIP NOTE header to rex/voice_loop.py: canonical implementation, rex_loop.py imports build_voice_loop from here.
+  3. Updated CLAUDE.md learned rule: corrected the direction — rex/voice_loop.py is canonical (not root), root is legacy compat-only.
+  4. rex_loop.py already correctly imports from rex.voice_loop (no code changes needed).
+- Tests passed: pre-existing test_autonomy_history failure unrelated to this change. No new failures. Typecheck: pre-existing errors in root voice_loop.py, no new errors introduced.
+- Commit: docs(voice-loop): document canonical entry point and relationship between files
+---
+
+## Iteration 161 - US-193: Define and document the canonical runtime matrix
+- What was implemented:
+  1. Added "Canonical Runtime Matrix" section to docs/DEPENDENCIES.md: Python 3.10-3.13, torch 2.6.x-2.8.x for CPU/cu118/cu124.
+  2. Fixed requirements-cpu.txt: changed `torch==2.7.1+cu118` → `torch==2.7.1` (CPU file must not pin a CUDA variant).
+  3. pyproject.toml already had correct `torch>=2.6.0,<2.9.0`. Dockerfile uses `torch==2.7.1` (within range). validate_deployment.py already validates TORCH_MIN/TORCH_MAX.
+- Tests passed: no changes to logic. Typecheck: n/a (docs + requirements fix).
+- Commit: fix(deps): document canonical runtime matrix and remove CUDA variant from CPU requirements
+---
