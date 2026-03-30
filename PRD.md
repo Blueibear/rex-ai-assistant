@@ -617,12 +617,12 @@ reads/sends to the correct account so that work and personal email are separate.
 the real SMTP backend so that I receive email alerts.
 
 **Acceptance Criteria:**
-- [ ] `rex/notification.py` `_send_to_email()` replaces the `"Would send."` log with a
+- [x] `rex/notification.py` `_send_to_email()` replaces the `"Would send."` log with a
   real call to `EmailService.send()`
-- [ ] Digest flush also dispatches through `EmailService`
-- [ ] On send failure, notification is marked failed (not silently dropped) and logged
-- [ ] `pytest -q tests/test_notification_email_delivery.py` exits 0 (new test file)
-- [ ] Typecheck passes
+- [x] Digest flush also dispatches through `EmailService`
+- [x] On send failure, notification is marked failed (not silently dropped) and logged
+- [x] `pytest -q tests/test_notification_email_delivery.py` exits 0 (new test file)
+- [x] Typecheck passes
 
 ---
 

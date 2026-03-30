@@ -1,4 +1,15 @@
 
+## Iteration 169 - US-209: Wire notification email channel to real send backend
+- What was implemented:
+  1. Moved `get_email_service` import to module level in `rex/notification.py` (required for monkeypatching in tests).
+  2. `_send_to_email()`: removed `active_backend is not None` guard — always calls `EmailService.send()` so the real SMTP backend is used when configured.
+  3. Missing `to_email` now logs a `WARNING` and returns early (no silent "Would send." stub).
+  4. On send failure: logs at `ERROR` level and raises `RuntimeError` so callers record the notification as failed rather than silently dropping it.
+  5. `flush_digests()`: propagates `to_email`/`email_account_id` metadata from queued notifications into the digest summary `NotificationRequest`.
+  6. `flush_digests()`: catches per-channel dispatch errors — logs failure and continues flushing remaining queues.
+  7. Created `tests/test_notification_email_delivery.py` with 9 tests: send routing, account_id passthrough, missing recipient, failure/exception handling, and digest flush delivery.
+- Commit: 7e75220
+
 ## Iteration 168 - US-208: Add multi-account email config and routing
 - What was implemented:
   1. Added `EmailAccountConfig` dataclass to `rex/config.py` with `id`, `address`, `imap_host`, `imap_port`, `smtp_host`, `smtp_port`, `credential_ref`, `use_starttls` fields.
