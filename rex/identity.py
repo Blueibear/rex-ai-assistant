@@ -24,6 +24,8 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,6 +57,11 @@ def _load_session() -> dict:
     path = _session_state_path()
     if path.exists():
         try:
+            modified_at = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+            age = datetime.now(timezone.utc) - modified_at
+            if age.total_seconds() > settings.session_ttl_hours * 3600:
+                path.unlink(missing_ok=True)
+                return {}
             return json.loads(path.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
         except json.JSONDecodeError as e:
             logger.warning("Corrupted session file %s, resetting: %s", path, e)

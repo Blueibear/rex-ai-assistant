@@ -138,6 +138,7 @@ class AppConfig:
     memory_max_turns: int = 50
     transcripts_enabled: bool = True
     transcripts_dir: Path = Path("transcripts")
+    session_ttl_hours: int = 8
     default_user: Optional[str] = None
     wake_sound_path: Optional[str] = None
 
@@ -380,6 +381,7 @@ def build_app_config(json_config: dict) -> AppConfig:
         memory_max_turns=_coerce_int(json_config, "runtime.memory_max_turns", 50),
         transcripts_enabled=bool(_get_nested(json_config, "runtime.transcripts_enabled", True)),
         transcripts_dir=Path(_get_nested(json_config, "runtime.transcripts_dir", "transcripts")),
+        session_ttl_hours=_coerce_int(json_config, "runtime.session_ttl_hours", 8),
         default_user=_get_nested(json_config, "runtime.active_user"),
         conversation_export=bool(_get_nested(json_config, "runtime.conversation_export", True)),
         speak_language=_get_nested(json_config, "runtime.speak_language", "en"),

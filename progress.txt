@@ -1539,3 +1539,46 @@
   - Useful context
     - Focused validation passed with `python -m pytest -q tests/test_speech_to_text.py tests/test_voice_loop.py` and `python -m mypy rex/voice_loop.py rex/assistant_errors.py`.
 ---
+## Iteration 172 - US-215: Add audio device validation at startup
+- What was implemented
+  - Added startup validation in `rex/voice_loop.py` for `settings.audio_input_device` using `sounddevice.query_devices()` before wake-word components are built.
+  - Invalid configured input devices now raise `AudioDeviceError("Input device {idx} not found. Available: ...")`, and the validated device index is passed into `AsyncMicrophone` so recording uses the configured device.
+  - Updated `rex doctor` input-device reporting to include the available microphone names in its printed status line.
+  - Added focused tests for the missing-device startup error and for doctor output listing available device names.
+  - Validation passed with `python -m pytest -q tests/test_voice_loop.py tests/test_us142_rex_doctor.py` and `python -m mypy rex/voice_loop.py rex/doctor.py`.
+- Files changed
+  - `rex/voice_loop.py`
+  - `rex/doctor.py`
+  - `tests/test_voice_loop.py`
+  - `tests/test_us142_rex_doctor.py`
+  - `PRD.md`
+- Learnings for future iterations:
+  - Patterns discovered
+    - `rex_loop.py` uses the canonical package implementation in `rex/voice_loop.py`, so voice-loop startup fixes belong there rather than in the legacy repo-root `voice_loop.py`.
+    - For optional audio dependencies in the canonical loop, `_require_sounddevice()` is the right guard before touching device enumeration APIs.
+  - Gotchas encountered
+    - Putting the device validation before importing and building wake-word components keeps startup failures targeted and prevents partially initialized voice-loop state.
+  - Useful context
+    - Commit for this story: `c9f3a30` (`fix(voice): validate configured input device at startup`).
+---
+## Iteration 173 - US-216: Add session expiration to identity.py
+- What was implemented
+  - Added session-expiration handling in `rex/identity.py` so `_load_session()` checks the session file `mtime`, treats files older than the configured TTL as expired, deletes them, and returns `{}`.
+  - Added `session_ttl_hours: int = 8` to `AppConfig` and wired `runtime.session_ttl_hours` into `build_app_config()`.
+  - Added focused tests covering expired-session cleanup and config parsing/defaults for the new TTL field.
+  - Validation passed with `python -m pytest -q tests/test_identity.py tests/test_config_loading.py`, `python -m mypy rex/identity.py rex/config.py`, and `python -m ruff check rex/identity.py rex/config.py tests/test_identity.py tests/test_config_loading.py`.
+- Files changed
+  - `rex/identity.py`
+  - `rex/config.py`
+  - `tests/test_identity.py`
+  - `tests/test_config_loading.py`
+  - `PRD.md`
+- Learnings for future iterations:
+  - Patterns discovered
+    - Session-state expiry fits cleanly in `rex/identity.py` by checking file `mtime` before parsing JSON, which avoids wasting work on stale state and keeps corrupted-session handling unchanged.
+    - Runtime config additions should be covered in both `AppConfig` defaults and `build_app_config()` mapping tests in `tests/test_config_loading.py`.
+  - Gotchas encountered
+    - Targeted `mypy` runs on changed runtime files remain the safest validation path in this repo, matching the recent progress-note pattern and avoiding unrelated third-party typing noise.
+  - Useful context
+    - The identity tests already patch `rex.identity._session_state_path`, so expiry tests can stay fully offline by using `os.utime()` against a temp session file.
+---

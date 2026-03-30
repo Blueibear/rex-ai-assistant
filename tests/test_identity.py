@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from rex.identity import (
+    _load_session,
     clear_session_user,
     get_session_user,
     list_known_users,
@@ -93,8 +95,6 @@ class TestSessionState:
         self, tmp_path: Path, caplog
     ):
         """Malformed JSON in the session file must return {} and emit a warning."""
-        from rex.identity import _load_session
-
         session_file = tmp_path / "rex-ai" / "session.json"
         session_file.parent.mkdir(parents=True, exist_ok=True)
         session_file.write_text("this is not valid json!!!", encoding="utf-8")
@@ -108,6 +108,21 @@ class TestSessionState:
             "Corrupted session file" in record.message and "resetting" in record.message
             for record in caplog.records
         ), "Expected a warning log about corrupted session file"
+
+    def test_expired_session_returns_empty_dict_and_deletes_file(self, tmp_path: Path):
+        """Expired session files are removed and treated as empty state."""
+        session_file = tmp_path / "rex-ai" / "session.json"
+        session_file.parent.mkdir(parents=True, exist_ok=True)
+        session_file.write_text(json.dumps({"active_user": "alice"}), encoding="utf-8")
+        expired_mtime = 1_000_000_000
+        os.utime(session_file, (expired_mtime, expired_mtime))
+
+        with patch("rex.identity._session_state_path", return_value=session_file):
+            with patch.object(__import__("rex.identity", fromlist=["settings"]).settings, "session_ttl_hours", 8):
+                result = _load_session()
+
+        assert result == {}
+        assert not session_file.exists()
 
 
 # ---------------------------------------------------------------

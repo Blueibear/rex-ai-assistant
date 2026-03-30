@@ -737,13 +737,13 @@ at startup so that misconfigured devices produce a clear error before the voice 
 treated as expired so that stale user selections do not persist indefinitely.
 
 **Acceptance Criteria:**
-- [ ] `rex/identity.py` `_load_session()` reads the session file `mtime` and rejects it
+- [x] `rex/identity.py` `_load_session()` reads the session file `mtime` and rejects it
   if older than `SESSION_TTL_HOURS` (default: 8)
-- [ ] Expired sessions are deleted and `{}` is returned
-- [ ] `AppConfig` gains `session_ttl_hours: int = 8`
-- [ ] A test writes a session file with an artificially old mtime and asserts the
+- [x] Expired sessions are deleted and `{}` is returned
+- [x] `AppConfig` gains `session_ttl_hours: int = 8`
+- [x] A test writes a session file with an artificially old mtime and asserts the
   function returns `{}` and deletes the file
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 

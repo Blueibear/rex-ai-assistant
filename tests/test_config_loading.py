@@ -62,6 +62,15 @@ class TestConfigLoadsFromFile:
         cfg = build_app_config(json_cfg)
         assert cfg.memory_max_turns == 25
 
+    def test_build_app_config_reads_session_ttl_hours(self):
+        """build_app_config picks up runtime.session_ttl_hours from JSON config."""
+        json_cfg = {
+            "runtime": {"session_ttl_hours": 12},
+            "models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"},
+        }
+        cfg = build_app_config(json_cfg)
+        assert cfg.session_ttl_hours == 12
+
     def test_load_json_config_from_file(self, tmp_path: Path):
         """load_config (config_manager) reads from a custom JSON file path."""
         config_file = tmp_path / "config" / "rex_config.json"
@@ -205,6 +214,7 @@ class TestMissingConfigHandledSafely:
         assert cfg.llm_provider == "transformers"
         assert cfg.wakeword == "rex"
         assert cfg.memory_max_turns == 50
+        assert cfg.session_ttl_hours == 8
 
     def test_build_app_config_with_partial_json(self):
         """build_app_config with partial config applies defaults for missing keys."""
