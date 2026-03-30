@@ -133,6 +133,48 @@ def test_openai_tool_calls_serialized_to_json(monkeypatch):
     assert "current weather" in tc["function"]["arguments"]
 
 
+def test_openai_strategy_stream_yields_token_deltas():
+    from rex.llm_client import GenerationConfig, OpenAIStrategy
+
+    fake_stream = [
+        types.SimpleNamespace(
+            choices=[types.SimpleNamespace(delta=types.SimpleNamespace(content="Hello "))]
+        ),
+        types.SimpleNamespace(
+            choices=[types.SimpleNamespace(delta=types.SimpleNamespace(content="world"))]
+        ),
+        types.SimpleNamespace(
+            choices=[types.SimpleNamespace(delta=types.SimpleNamespace(content=None))]
+        ),
+    ]
+    fake_client = types.SimpleNamespace(
+        chat=types.SimpleNamespace(
+            completions=types.SimpleNamespace(create=lambda **_: iter(fake_stream))
+        )
+    )
+
+    strategy = OpenAIStrategy("gpt-test", lambda: fake_client)
+    tokens = list(
+        strategy.stream(
+            "hello",
+            GenerationConfig(max_new_tokens=32, temperature=0.0, top_p=1.0, top_k=0, seed=1),
+        )
+    )
+
+    assert tokens == ["Hello ", "world"]
+    assert "".join(tokens) == "Hello world"
+
+
+def test_language_model_streams_echo_prompt_word_by_word():
+    cfg = AppConfig(llm_provider="echo", llm_model="echo-test")
+    model = LanguageModel(cfg)
+
+    tokens = list(model.stream("hello streaming world"))
+
+    assert tokens == ["hello ", "streaming ", "world"]
+    assert "".join(tokens) == "hello streaming world"
+
+
 def test_ollama_connection_refused_returns_friendly_message(monkeypatch):
     """ConnectionRefusedError → connection-failed sentinel string."""
     from rex.llm_client import OllamaStrategy, GenerationConfig

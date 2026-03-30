@@ -753,14 +753,14 @@ treated as expired so that stale user selections do not persist indefinitely.
 first words of a response appear faster while the rest is being generated.
 
 **Acceptance Criteria:**
-- [ ] `LanguageModelStrategy` protocol gains `stream(messages, **kwargs) -> Iterator[str]`
+- [x] `LanguageModelStrategy` protocol gains `stream(messages, **kwargs) -> Iterator[str]`
   method (default implementation raises `NotImplementedError`)
-- [ ] `OpenAIStrategy.stream()` uses `stream=True` and yields token deltas as strings
-- [ ] The voice loop detects streaming availability and feeds tokens to the TTS sentence
+- [x] `OpenAIStrategy.stream()` uses `stream=True` and yields token deltas as strings
+- [x] The voice loop detects streaming availability and feeds tokens to the TTS sentence
   buffer as they arrive (sentence-boundary flush unchanged)
-- [ ] `EchoStrategy.stream()` yields the prompt text word by word (for testing)
-- [ ] `pytest -q tests/test_llm_client.py` exits 0
-- [ ] Typecheck passes
+- [x] `EchoStrategy.stream()` yields the prompt text word by word (for testing)
+- [x] `pytest -q tests/test_llm_client.py` exits 0
+- [x] Typecheck passes
 
 ---
 

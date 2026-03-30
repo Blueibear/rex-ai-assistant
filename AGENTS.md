@@ -107,6 +107,12 @@ Use `_import_optional(module_name)` (defined in `voice_loop.py`) or `find_spec` 
 importing optional packages. Heavy optional deps (TTS, Whisper, simpleaudio, sounddevice) must
 not be imported at module level - they are lazy-loaded to avoid import errors on minimal installs.
 
+## Sync token streams need an async bridge
+
+When a provider exposes a synchronous token iterator but the caller is async (for example the
+voice loop), bridge it with `asyncio.to_thread(...)` plus an `asyncio.Queue` so token streaming
+does not block the event loop.
+
 ## Offline transport test harnesses live in tests/helpers
 
 For IMAP/SMTP/Twilio integration tests, prefer `tests/helpers/fake_imap.py`,

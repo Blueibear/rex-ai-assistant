@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
-from collections.abc import Iterable
+from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -223,59 +223,54 @@ class Assistant:
         """Get the pending follow-up prompt if any."""
         return self._pending_followup
 
-    async def generate_reply(self, transcript: str, *, voice_mode: bool = False) -> str:
+    async def _prepare_prompt(self, transcript: str, *, voice_mode: bool = False) -> str:
         if not transcript.strip():
             raise ValueError("Transcript must not be empty")
 
+        prompt = self._build_prompt(transcript, voice_mode=voice_mode)
+
+        async with self._followup_lock:
+            if self._pending_followup:
+                followup_hint = (
+                    f'\n[Note: You may want to ask the user: "{self._pending_followup}" '
+                    "as a natural conversation starter.]"
+                )
+                prompt = prompt + followup_hint
+                self._pending_followup = None
+                engine = self._followup_engine
+                if engine and hasattr(engine, "mark_current_cue_asked"):
+                    try:
+                        engine.mark_current_cue_asked(self._user_id)
+                    except Exception as exc:
+                        logger.debug("mark_current_cue_asked failed: %s", exc)
+
+        return prompt
+
+    async def _post_process_completion(self, transcript: str, completion: str) -> str:
         loop = asyncio.get_running_loop()
-        completion: str | None = None
+
+        completion = await loop.run_in_executor(
+            None,
+            self._tool_router_fn,
+            completion,
+            self._build_tool_context(),
+            self._build_tool_model_call(transcript),
+        )
+
+        plugin_enrichments = await self._run_plugins(transcript)
+        if plugin_enrichments:
+            completion = f"{completion}\n\nAdditional info:\n" + "\n".join(plugin_enrichments)
 
         if self._ha_bridge and self._ha_bridge.enabled:
             completion = await loop.run_in_executor(
                 None,
-                self._ha_bridge.process_transcript,
-                transcript,
-            )
-
-        if completion is None:
-            prompt = self._build_prompt(transcript, voice_mode=voice_mode)
-
-            # One-shot followup injection: lock ensures concurrent calls inject at most once
-            async with self._followup_lock:
-                if self._pending_followup:
-                    followup_hint = (
-                        f'\n[Note: You may want to ask the user: "{self._pending_followup}" '
-                        "as a natural conversation starter.]"
-                    )
-                    prompt = prompt + followup_hint
-                    self._pending_followup = None  # consumed; no further injection
-                    _engine = self._followup_engine
-                    if _engine and hasattr(_engine, "mark_current_cue_asked"):
-                        try:
-                            _engine.mark_current_cue_asked(self._user_id)
-                        except Exception as _exc:
-                            logger.debug("mark_current_cue_asked failed: %s", _exc)
-
-            completion = await loop.run_in_executor(None, self._llm.generate, prompt)
-            completion = await loop.run_in_executor(
-                None,
-                self._tool_router_fn,
+                self._ha_bridge.post_process_response,
                 completion,
-                self._build_tool_context(),
-                self._build_tool_model_call(transcript),
             )
 
-            plugin_enrichments = await self._run_plugins(transcript)
-            if plugin_enrichments:
-                completion = f"{completion}\n\nAdditional info:\n" + "\n".join(plugin_enrichments)
+        return completion
 
-            if self._ha_bridge and self._ha_bridge.enabled:
-                completion = await loop.run_in_executor(
-                    None,
-                    self._ha_bridge.post_process_response,
-                    completion,
-                )
-
+    def _record_completion(self, transcript: str, completion: str) -> None:
         now = datetime.utcnow()
         if self._history_store is not None:
             try:
@@ -292,6 +287,85 @@ class Assistant:
         ]
 
         self._log_turn(transcript, completion)
+
+    async def stream_reply(self, transcript: str, *, voice_mode: bool = False) -> AsyncIterator[str]:
+        loop = asyncio.get_running_loop()
+        completion: str | None = None
+
+        if self._ha_bridge and self._ha_bridge.enabled:
+            completion = await loop.run_in_executor(
+                None,
+                self._ha_bridge.process_transcript,
+                transcript,
+            )
+
+        if completion is not None:
+            completion = await self._post_process_completion(transcript, completion)
+            self._record_completion(transcript, completion)
+            yield completion
+            return
+
+        prompt = await self._prepare_prompt(transcript, voice_mode=voice_mode)
+
+        try:
+            token_iterator = self._llm.stream(prompt)
+        except NotImplementedError:
+            completion = await loop.run_in_executor(None, self._llm.generate, prompt)
+            completion = await self._post_process_completion(transcript, completion)
+            self._record_completion(transcript, completion)
+            yield completion
+            return
+
+        queue: asyncio.Queue[object] = asyncio.Queue()
+        sentinel = object()
+        collected_tokens: list[str] = []
+
+        def _pump_tokens() -> None:
+            try:
+                for token in token_iterator:
+                    if token:
+                        loop.call_soon_threadsafe(queue.put_nowait, token)
+            except Exception as exc:
+                loop.call_soon_threadsafe(queue.put_nowait, exc)
+            finally:
+                loop.call_soon_threadsafe(queue.put_nowait, sentinel)
+
+        pump_task = asyncio.create_task(asyncio.to_thread(_pump_tokens))
+        try:
+            while True:
+                item = await queue.get()
+                if item is sentinel:
+                    break
+                if isinstance(item, Exception):
+                    raise item
+                token = str(item)
+                collected_tokens.append(token)
+                yield token
+        finally:
+            await pump_task
+
+        completion = "".join(collected_tokens).strip() or "(silence)"
+        completion = await self._post_process_completion(transcript, completion)
+        self._record_completion(transcript, completion)
+
+    async def generate_reply(self, transcript: str, *, voice_mode: bool = False) -> str:
+        loop = asyncio.get_running_loop()
+        completion: str | None = None
+
+        if self._ha_bridge and self._ha_bridge.enabled:
+            completion = await loop.run_in_executor(
+                None,
+                self._ha_bridge.process_transcript,
+                transcript,
+            )
+
+        if completion is None:
+            prompt = await self._prepare_prompt(transcript, voice_mode=voice_mode)
+
+            completion = await loop.run_in_executor(None, self._llm.generate, prompt)
+            completion = await self._post_process_completion(transcript, completion)
+
+        self._record_completion(transcript, completion)
         return completion
 
     async def _run_plugins(self, transcript: str) -> list[str]:

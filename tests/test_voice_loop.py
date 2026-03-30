@@ -35,6 +35,18 @@ class DummyAssistant:
         return "ok"
 
 
+class StreamingAssistant(DummyAssistant):
+    def __init__(self, tokens):
+        super().__init__()
+        self.tokens = list(tokens)
+        self.stream_calls = []
+
+    async def stream_reply(self, transcript, *, voice_mode: bool = False):
+        self.stream_calls.append(transcript)
+        for token in self.tokens:
+            yield token
+
+
 async def _constant_frame():
     return np.ones(4, dtype=np.float32)
 
@@ -78,6 +90,34 @@ def test_voice_loop_processes_interaction():
 
     assert assistant.calls == ["hello world"]
     assert spoken == ["ok."]  # Voice loop adds period for TTS
+
+
+@pytest.mark.unit
+def test_voice_loop_streams_tokens_into_sentence_buffer():
+    assistant = StreamingAssistant(["Hello", " world. ", "How are", " you?"])
+    listener = DummyListener()
+    spoken = []
+
+    async def speak_streaming(sentences):
+        async for sentence in sentences:
+            spoken.append(sentence)
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=listener,
+        detection_source=_constant_frame,
+        record_phrase=_record_phrase,
+        transcribe=_transcribe,
+        speak=_speak,
+        speak_streaming=speak_streaming,
+        acknowledge=_ack,
+    )
+
+    asyncio.run(loop.run(max_interactions=1))
+
+    assert assistant.stream_calls == ["hello world"]
+    assert assistant.calls == []
+    assert spoken == ["Hello world.", "How are you?"]
 
 
 @pytest.mark.unit

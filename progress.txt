@@ -60,6 +60,30 @@
   - Move module-level imports (like CredentialManager) out of lazy-import blocks to allow monkeypatching in tests.
   - `monkeypatch.setattr(_mod, "CredentialManager", FakeMgr)` works cleanly when the name is a module-level attribute.
 ---
+## Iteration 174 - US-217: Add LLM streaming interface and OpenAI streaming implementation
+- What was implemented
+  - Added a `stream()` method to the LLM strategy interface, implemented OpenAI token streaming with `stream=True`, and exposed a public `LanguageModel.stream()` entrypoint.
+  - Added `EchoStrategy.stream()` for deterministic word-by-word test coverage.
+  - Wired the canonical `rex/voice_loop.py` to detect assistant streaming support and convert token streams into sentence-buffered TTS chunks.
+  - Added `Assistant.stream_reply()` to bridge synchronous LLM token iterators into the async voice loop with `asyncio.to_thread(...)` and an `asyncio.Queue`.
+  - Added focused tests covering OpenAI streaming deltas, public echo streaming, and voice-loop sentence buffering.
+- Files changed
+  - `rex/llm_client.py`
+  - `rex/assistant.py`
+  - `rex/voice_loop.py`
+  - `tests/test_llm_client.py`
+  - `tests/test_voice_loop.py`
+  - `AGENTS.md`
+  - `PRD.md`
+- Learnings for future iterations:
+  - Patterns discovered
+    - A sync token iterator can be safely exposed to async callers by pumping it in `asyncio.to_thread(...)` and forwarding tokens through an `asyncio.Queue`.
+    - The canonical voice loop already has sentence-based TTS streaming hooks, so LLM streaming fits cleanly by buffering tokens until sentence boundaries are complete.
+  - Gotchas encountered
+    - Post-processing after a streamed raw completion can still diverge from what was spoken, so future provider work should keep tool-routing semantics in mind when expanding streaming coverage.
+  - Useful context
+    - Validation passed with `python -m pytest -q tests/test_llm_client.py tests/test_voice_loop.py` and `python -m mypy rex/llm_client.py rex/assistant.py rex/voice_loop.py`.
+---
 
 ## Iteration 162 - US-212: Add offline integration test harnesses
 - What was implemented:

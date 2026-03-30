@@ -6,7 +6,7 @@ import json
 import os
 import sys
 import types as _types
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from importlib import import_module
 from importlib.util import find_spec
@@ -53,6 +53,16 @@ class LLMStrategy(Protocol):
         messages: list[dict[str, str]] | None = None,
     ) -> str: ...
 
+    def stream(
+        self,
+        prompt: str,
+        config: GenerationConfig,
+        *,
+        messages: list[dict[str, str]] | None = None,
+        **kwargs: Any,
+    ) -> Iterator[str]:
+        raise NotImplementedError
+
 
 class EchoStrategy:
     name = "echo"
@@ -65,6 +75,23 @@ class EchoStrategy:
         if not text and messages:
             text = "\n".join(m.get("content", "").strip() for m in messages).strip()
         return f"[{self.model_name}] {text or '(silence)'}"
+
+    def stream(
+        self,
+        prompt: str,
+        _config: GenerationConfig,
+        *,
+        messages: list[dict[str, str]] | None = None,
+        **_kwargs: Any,
+    ) -> Iterator[str]:
+        text = prompt.strip()
+        if not text and messages:
+            text = "\n".join(m.get("content", "").strip() for m in messages).strip()
+
+        words = (text or "(silence)").split()
+        for index, word in enumerate(words):
+            suffix = " " if index < len(words) - 1 else ""
+            yield f"{word}{suffix}"
 
 
 class OfflineTransformersStrategy:
@@ -208,6 +235,54 @@ class OpenAIStrategy:
             return content.strip() or "(silence)"
 
         return with_retry(_call, config=self._retry_config)
+
+    def stream(
+        self,
+        prompt: str,
+        config: GenerationConfig,
+        *,
+        messages=None,
+        tools=None,
+        user: str | None = None,
+    ) -> Iterator[str]:
+        payload = messages or [{"role": "user", "content": prompt}]
+        api_params: dict[str, Any] = {
+            "model": self.model_name,
+            "messages": payload,
+            "temperature": config.temperature,
+            "max_tokens": config.max_new_tokens,
+            "top_p": config.top_p,
+            "stream": True,
+        }
+
+        if user is not None:
+            api_params["user"] = user
+
+        if tools or self.tools:
+            api_params["tools"] = tools or self.tools
+
+        stream = self._get_client().chat.completions.create(**api_params)
+        for chunk in stream:
+            choices = getattr(chunk, "choices", None)
+            if not choices:
+                continue
+            delta = getattr(choices[0], "delta", None)
+            if delta is None:
+                continue
+
+            content = getattr(delta, "content", None)
+            if isinstance(content, str):
+                if content:
+                    yield content
+                continue
+
+            if isinstance(content, list):
+                for item in content:
+                    text = getattr(item, "text", None)
+                    if text is None and isinstance(item, dict):
+                        text = item.get("text")
+                    if text:
+                        yield str(text)
 
 
 class OllamaStrategy:
@@ -648,6 +723,49 @@ class LanguageModel:
                     f"Rex can't reach LM Studio at {url}. Is LM Studio running?"
                 ) from exc
             raise
+
+    def stream(
+        self,
+        prompt: str | None = None,
+        *,
+        messages: Sequence[dict[str, str]] | None = None,
+        config: GenerationConfig | None = None,
+    ) -> Iterator[str]:
+        if messages is not None:
+            prompt_text = self._format_messages(messages)
+            normalized_messages = [
+                {"role": str(m.get("role", "")), "content": str(m.get("content", ""))}
+                for m in messages
+                if isinstance(m, dict)
+            ]
+        elif isinstance(prompt, str):
+            prompt_text = prompt
+            normalized_messages = [{"role": "user", "content": prompt}]
+        else:
+            raise ValueError("Prompt or messages must be provided.")
+
+        if not prompt_text.strip():
+            raise ValueError("Prompt must not be empty.")
+
+        extra: dict[str, Any] = {}
+        if self.provider == "openai":
+            uid = getattr(self.config, "user_id", "default")
+            profile = getattr(self.config, "active_profile", "default")
+            user_key = uid if uid and uid != "default" else profile
+            if user_key:
+                extra["user"] = user_key
+            if self._tools:
+                extra["tools"] = self._tools
+
+        try:
+            return self.strategy.stream(
+                prompt_text,
+                config or self.generation,
+                messages=normalized_messages,
+                **extra,
+            )
+        except TypeError:
+            return self.strategy.stream(prompt_text, config or self.generation)
 
 
 __all__ = [

@@ -318,6 +318,34 @@ async def _sentence_stream(text: str) -> AsyncIterator[str]:
         yield sentence
 
 
+def _extract_completed_sentences(buffer: str) -> tuple[list[str], str]:
+    """Return completed sentences and the remaining partial buffer."""
+    protected = _protect_abbreviations(buffer)
+    matches = list(_SENTENCE_BOUNDARY.finditer(protected))
+    if not matches:
+        return [], buffer
+
+    split_index = matches[-1].end()
+    completed_text = buffer[:split_index]
+    remainder = buffer[split_index:]
+    return _split_into_sentences(completed_text), remainder
+
+
+async def _sentence_buffer_stream(tokens: AsyncIterator[str]) -> AsyncIterator[str]:
+    """Convert a token stream into sentence chunks for streaming TTS."""
+    buffer = ""
+    async for token in tokens:
+        if not token:
+            continue
+        buffer += token
+        sentences, buffer = _extract_completed_sentences(buffer)
+        for sentence in sentences:
+            yield sentence
+
+    for sentence in _split_into_sentences(buffer):
+        yield sentence
+
+
 @dataclass
 class SynthesizedAudio:
     """Container for synthesized audio data."""
@@ -818,21 +846,24 @@ class VoiceLoop:
                         logger.info("No speech detected")
                         continue
 
-                    # Get LLM response — voice_mode=True enables conciseness prompt
+                    stream_reply = getattr(self._assistant, "stream_reply", None)
+
+                    # Get LLM response - voice_mode=True enables conciseness prompt
                     tracker.mark("llm_start")
-                    response = await self._assistant.generate_reply(transcript, voice_mode=True)
-                    tracker.mark("llm_end")
-
-                    # Ensure response ends with period for better TTS
-                    if response and not response.endswith("."):
-                        response = response + "."
-
-                    # Speak response — use streaming path if available
                     tracker.mark("tts_synthesis_start")
-                    if self._speak_streaming is not None:
+                    if self._speak_streaming is not None and callable(stream_reply):
                         tracker.mark("tts_first_chunk")
-                        await self._speak_streaming(_sentence_stream(response))
+                        await self._speak_streaming(
+                            _sentence_buffer_stream(stream_reply(transcript, voice_mode=True))
+                        )
+                        tracker.mark("llm_end")
                     else:
+                        response = await self._assistant.generate_reply(transcript, voice_mode=True)
+                        tracker.mark("llm_end")
+
+                        if response and not response.endswith("."):
+                            response = response + "."
+
                         await self._speak(response)
                     tracker.mark("tts_synthesis_end")
                     tracker.mark("playback_start")
