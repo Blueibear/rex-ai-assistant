@@ -22,6 +22,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from rex.email_service import get_email_service
 from rex.retry import RetryPolicy, retry_call
 
 logger = logging.getLogger(__name__)
@@ -392,52 +393,54 @@ class Notifier:
     def _send_to_email(self, notification: NotificationRequest) -> None:
         """Send notification via email.
 
-        Uses the real ``EmailService.send()`` path when a backend is
-        configured.  Falls back to a logged stub when no backend or
-        recipient is available.
+        Always dispatches through ``EmailService.send()`` so the real SMTP
+        backend is used when configured.  When no recipient is provided in
+        notification metadata the call is skipped with a warning.
 
-        The recipient email address is resolved from notification metadata
-        (``to_email``), and the email account is selected via the
-        ``email_account_id`` metadata key (if present).
+        On send failure the error is logged and re-raised so the caller can
+        record the notification as failed rather than silently dropping it.
+
+        Metadata keys:
+            ``to_email``        — recipient address (required for delivery).
+            ``email_account_id`` — route through a specific account (optional).
         """
         try:
-            from rex.email_service import get_email_service
-
             email_service = get_email_service()
 
             to_email = notification.metadata.get("to_email")
             account_id = notification.metadata.get("email_account_id")
 
-            if to_email and email_service.active_backend is not None:
-                result = email_service.send(
-                    to=to_email,
-                    subject=notification.title,
-                    body=notification.body,
-                    account_id=account_id,
-                )
-                if result.get("ok"):
-                    logger.info(
-                        "[EMAIL] Sent notification %r to %s",
-                        notification.title,
-                        to_email,
-                    )
-                else:
-                    error = result.get("error", "unknown error")
-                    logger.warning("[EMAIL] Send failed: %s", error)
-                    raise RuntimeError(f"Email send failed: {error}")
-            else:
-                logger.info(
-                    "[EMAIL] Would send: %s\n%s",
+            if not to_email:
+                logger.warning(
+                    "[EMAIL] No recipient address configured for notification %r; skipping",
                     notification.title,
-                    notification.body,
                 )
-        except ImportError:
-            logger.warning("Email service not available for notification delivery")
-            raise
+                return
+
+            result = email_service.send(
+                to=to_email,
+                subject=notification.title,
+                body=notification.body,
+                account_id=account_id,
+            )
+            if result.get("ok"):
+                logger.info(
+                    "[EMAIL] Sent notification %r to %s",
+                    notification.title,
+                    to_email,
+                )
+            else:
+                error = result.get("error", "unknown error")
+                logger.error(
+                    "[EMAIL] Send failed for notification %r: %s",
+                    notification.title,
+                    error,
+                )
+                raise RuntimeError(f"Email send failed: {error}")
         except RuntimeError:
             raise
-        except Exception as e:
-            logger.warning(f"Email notification failed: {e}")
+        except Exception as exc:
+            logger.error("[EMAIL] Notification delivery failed: %s", exc)
             raise
 
     def _send_to_sms(self, notification: NotificationRequest) -> None:
@@ -527,17 +530,30 @@ class Notifier:
             if not queue.notifications:
                 continue
 
-            # Create digest summary
+            # Create digest summary — propagate to_email and email_account_id
+            # from the first queued notification that carries them so the
+            # digest delivery goes through EmailService correctly.
             summary = self._create_digest_summary(queue.notifications)
+            digest_meta: dict = {}
+            for queued in queue.notifications:
+                if queued.metadata.get("to_email"):
+                    digest_meta["to_email"] = queued.metadata["to_email"]
+                    if queued.metadata.get("email_account_id"):
+                        digest_meta["email_account_id"] = queued.metadata["email_account_id"]
+                    break
             digest_notification = NotificationRequest(
                 priority="normal",
                 title=f"Digest Summary ({len(queue.notifications)} items)",
                 body=summary,
                 channel_preferences=[ch],
+                metadata=digest_meta,
             )
 
-            # Send the digest
-            self._dispatch_to_channel(ch, digest_notification)
+            # Send the digest — log failures but continue flushing other queues
+            try:
+                self._dispatch_to_channel(ch, digest_notification)
+            except Exception as exc:
+                logger.error("[DIGEST] Email delivery failed for channel %r: %s", ch, exc)
 
             # Clear queue and update flush time
             queue.notifications.clear()
