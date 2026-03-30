@@ -547,15 +547,15 @@ window to be pruned automatically so that the database does not grow unbounded.
 integration backend so that real and stub implementations are interchangeable.
 
 **Acceptance Criteria:**
-- [ ] `rex/integrations/email/backends/base.py` defines `EmailBackend` ABC with:
+- [x] `rex/integrations/email/backends/base.py` defines `EmailBackend` ABC with:
   `fetch_unread(limit: int) -> list[dict]` and `send(to, subject, body) -> None`
-- [ ] `rex/integrations/calendar/backends/base.py` defines `CalendarBackend` ABC with:
+- [x] `rex/integrations/calendar/backends/base.py` defines `CalendarBackend` ABC with:
   `get_upcoming(days: int) -> list[dict]` and `create_event(title, start, end) -> dict`
-- [ ] `rex/integrations/messaging/backends/base.py` defines `SMSBackend` ABC with:
+- [x] `rex/integrations/messaging/backends/base.py` defines `SMSBackend` ABC with:
   `send(to, body) -> None` and `receive() -> list[dict]`
-- [ ] Existing mock/stub implementations are refactored to implement these interfaces
-- [ ] `pytest -q` exits 0 (no regressions)
-- [ ] Typecheck passes
+- [x] Existing mock/stub implementations are refactored to implement these interfaces
+- [x] `pytest -q` exits 0 (no regressions)
+- [x] Typecheck passes
 
 ---
 
