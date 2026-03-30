@@ -12,12 +12,14 @@ RELATIONSHIP NOTE — two voice_loop files exist in this repo:
 from __future__ import annotations
 
 import asyncio
+import io
 import inspect
 import logging
 import os
 import re
 import sys
 import tempfile
+import wave
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass
@@ -30,7 +32,7 @@ from typing_extensions import TypeAlias
 
 from wake_acknowledgment import ensure_wake_acknowledgment_sound
 
-from .assistant_errors import AudioDeviceError, SpeechToTextError, TextToSpeechError
+from .assistant_errors import AudioDeviceError, AudioFormatError, SpeechToTextError, TextToSpeechError
 from .config import settings
 from .memory import (
     extract_voice_reference,
@@ -103,6 +105,35 @@ def _require_sounddevice():
     if module is None:
         raise AudioDeviceError("sounddevice is not installed")
     return module
+
+
+def _detect_audio_format(audio_buffer: bytes) -> str:
+    header = audio_buffer[:4]
+    if not header:
+        return "empty"
+    if header.startswith(b"ID3"):
+        return "ID3"
+    text = header.decode("ascii", errors="ignore")
+    text = "".join(char for char in text if char.isprintable()).strip()
+    return text or header.hex()
+
+
+def _to_wav_buffer(audio: AudioArray | bytes | bytearray | memoryview, sample_rate: int) -> bytes:
+    if isinstance(audio, (bytes, bytearray, memoryview)):
+        return bytes(audio)
+
+    numpy = _require_numpy()
+    samples = numpy.asarray(audio, dtype=numpy.float32).reshape(-1)
+    samples = numpy.clip(samples, -1.0, 1.0)
+    pcm16 = (samples * 32767).astype(numpy.int16)
+
+    with io.BytesIO() as buffer:
+        with wave.open(buffer, "wb") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(sample_rate)
+            wav_file.writeframes(pcm16.tobytes())
+        return buffer.getvalue()
 
 
 logger = logging.getLogger(__name__)
@@ -367,8 +398,17 @@ class SpeechToText:
         except Exception as exc:
             raise SpeechToTextError(str(exc)) from exc
 
-    async def transcribe(self, audio: np.ndarray, sample_rate: int) -> str:  # type: ignore[name-defined]
+    async def transcribe(
+        self,
+        audio: AudioArray | bytes | bytearray | memoryview,
+        sample_rate: int,
+    ) -> str:
         """Transcribe audio to text."""
+
+        audio_buffer = _to_wav_buffer(audio, sample_rate)
+        if audio_buffer[:4] != b"RIFF":
+            detected_format = _detect_audio_format(audio_buffer)
+            raise AudioFormatError(f"Expected WAV, got {detected_format}")
 
         def _transcribe() -> str:
             result = self._model.transcribe(audio, language=self._language, fp16=False)

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import rex.voice_loop as _rvl
-from rex.assistant_errors import AudioDeviceError, SpeechToTextError
+from rex.assistant_errors import AudioDeviceError, AudioFormatError, SpeechToTextError
 from rex.voice_loop import TextToSpeech, VoiceLoop
 
 np = pytest.importorskip("numpy")
@@ -106,6 +106,31 @@ def test_voice_loop_handles_transcription_error():
 
     assert assistant.calls == []
     assert spoken == []
+
+
+@pytest.mark.unit
+def test_voice_loop_handles_audio_format_error(caplog):
+    assistant = DummyAssistant()
+    listener = DummyListener()
+
+    async def failing_transcribe(_: np.ndarray) -> str:
+        raise AudioFormatError("Expected WAV, got ID3")
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=listener,
+        detection_source=_constant_frame,
+        record_phrase=_record_phrase,
+        transcribe=failing_transcribe,
+        speak=_speak,
+        acknowledge=None,
+    )
+
+    with caplog.at_level("ERROR"):
+        asyncio.run(loop.run(max_interactions=1))
+
+    assert assistant.calls == []
+    assert "STT error: Expected WAV, got ID3" in caplog.text
 
 
 @pytest.mark.unit

@@ -5,6 +5,9 @@ import types
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+
+from rex.assistant_errors import AudioFormatError
 from rex.config import AppConfig, build_app_config
 from rex.doctor import CheckResult, Status, run_diagnostics
 
@@ -63,6 +66,16 @@ def test_speech_to_text_passes_none_for_auto_detect(monkeypatch) -> None:
     asyncio.run(stt.transcribe(audio=[], sample_rate=16000))
 
     assert calls == [None]
+
+
+def test_speech_to_text_rejects_non_wav_audio(monkeypatch) -> None:
+    from rex.voice_loop import SpeechToText
+
+    monkeypatch.setattr("rex.voice_loop._lazy_import_whisper", lambda: _make_fake_whisper([]))
+    stt = SpeechToText(model_name="base", device="cpu")
+
+    with pytest.raises(AudioFormatError, match="Expected WAV, got ID3"):
+        asyncio.run(stt.transcribe(audio=b"ID3\x04fake-mp3-data", sample_rate=16000))
 
 
 def test_doctor_output_includes_whisper_language(capsys, monkeypatch) -> None:

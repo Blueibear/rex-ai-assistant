@@ -1519,3 +1519,23 @@
   - Useful context
     - `pytest -q tests/test_speech_to_text.py` did not exist before this story; the new file now covers config defaulting, `None` auto-detect, STT wiring, and `rex doctor` visibility.
 ---
+## Iteration 163 - US-214: Add WAV audio format validation
+- What was implemented
+  - Added `AudioFormatError` as a `SpeechToTextError` subtype and validated the STT input buffer starts with `b"RIFF"` before Whisper runs.
+  - Normalized ndarray audio into an in-memory WAV buffer for validation, while rejecting non-WAV byte payloads with a clear detected-format message.
+  - Added focused tests for fake MP3 header rejection and for the voice loop catching/logging the new STT format error without crashing.
+- Files changed
+  - `rex/assistant_errors.py`
+  - `rex/voice_loop.py`
+  - `tests/test_speech_to_text.py`
+  - `tests/test_voice_loop.py`
+  - `PRD.md`
+- Learnings for future iterations:
+  - Patterns discovered
+    - `VoiceLoop.run()` already re-arms cleanly for any `SpeechToTextError`, so new STT-specific failures can be introduced safely by subclassing that base error.
+    - For ndarray microphone input, generating a tiny in-memory WAV payload is a clean way to enforce header validation without changing the existing Whisper call path.
+  - Gotchas encountered
+    - Project `mypy` is configured for Python 3.9, so typechecking test files can trip over newer syntax inside third-party pytest packages; checking the changed runtime files avoids that unrelated environment issue.
+  - Useful context
+    - Focused validation passed with `python -m pytest -q tests/test_speech_to_text.py tests/test_voice_loop.py` and `python -m mypy rex/voice_loop.py rex/assistant_errors.py`.
+---

@@ -26,6 +26,10 @@ class SpeechToTextError(AssistantError):
     """Raised when speech-to-text transcription fails."""
 
 
+class AudioFormatError(SpeechToTextError):
+    """Raised when STT input is not a valid WAV payload."""
+
+
 # Alias for backward compatibility
 class SpeechRecognitionError(SpeechToTextError):
     """Alias for SpeechToTextError - kept for backward compatibility."""
@@ -53,6 +57,7 @@ __all__ = [
     "AudioDeviceError",
     "WakeWordError",
     "SpeechToTextError",
+    "AudioFormatError",
     "SpeechRecognitionError",
     "TextToSpeechError",
     "PluginError",

@@ -705,12 +705,12 @@ as WAV before transcription so that malformed files fail with a clear error rath
 a cryptic exception.
 
 **Acceptance Criteria:**
-- [ ] `SpeechToText.transcribe()` validates the first 4 bytes of the audio buffer equal
+- [x] `SpeechToText.transcribe()` validates the first 4 bytes of the audio buffer equal
   `b"RIFF"` (WAV magic bytes) before passing to Whisper
-- [ ] Non-WAV input raises `AudioFormatError("Expected WAV, got {detected_format}")`
-- [ ] The exception is caught in the voice loop and logged; the loop re-arms without crashing
-- [ ] A test passes a fake MP3 header and asserts `AudioFormatError` is raised
-- [ ] Typecheck passes
+- [x] Non-WAV input raises `AudioFormatError("Expected WAV, got {detected_format}")`
+- [x] The exception is caught in the voice loop and logged; the loop re-arms without crashing
+- [x] A test passes a fake MP3 header and asserts `AudioFormatError` is raised
+- [x] Typecheck passes
 
 ---
 
