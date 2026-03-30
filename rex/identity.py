@@ -56,6 +56,9 @@ def _load_session() -> dict:
     if path.exists():
         try:
             return json.loads(path.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
+        except json.JSONDecodeError as e:
+            logger.warning("Corrupted session file %s, resetting: %s", path, e)
+            return {}
         except Exception:
             return {}
     return {}

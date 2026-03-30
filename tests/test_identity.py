@@ -7,6 +7,7 @@ via tmp_path so no real session file is modified.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
@@ -87,6 +88,26 @@ class TestSessionState:
         set_session_user("alice")
         clear_session_user()
         assert get_session_user() is None
+
+    def test_corrupted_session_file_returns_empty_dict_and_logs_warning(
+        self, tmp_path: Path, caplog
+    ):
+        """Malformed JSON in the session file must return {} and emit a warning."""
+        from rex.identity import _load_session
+
+        session_file = tmp_path / "rex-ai" / "session.json"
+        session_file.parent.mkdir(parents=True, exist_ok=True)
+        session_file.write_text("this is not valid json!!!", encoding="utf-8")
+
+        with patch("rex.identity._session_state_path", return_value=session_file):
+            with caplog.at_level(logging.WARNING, logger="rex.identity"):
+                result = _load_session()
+
+        assert result == {}, f"Expected empty dict, got {result!r}"
+        assert any(
+            "Corrupted session file" in record.message and "resetting" in record.message
+            for record in caplog.records
+        ), "Expected a warning log about corrupted session file"
 
 
 # ---------------------------------------------------------------

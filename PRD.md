@@ -476,12 +476,12 @@ over a configurable size limit so that the server cannot be exhausted by oversiz
 warnings so that corrupted session files are detectable and diagnosable.
 
 **Acceptance Criteria:**
-- [ ] `rex/identity.py` `_load_session()` catches `json.JSONDecodeError` and logs a
+- [x] `rex/identity.py` `_load_session()` catches `json.JSONDecodeError` and logs a
   `logger.warning(f"Corrupted session file {path}, resetting: {e}")` before returning `{}`
-- [ ] The function no longer silently swallows parse errors
-- [ ] A test writes a malformed JSON session file and asserts: the function returns `{}`
+- [x] The function no longer silently swallows parse errors
+- [x] A test writes a malformed JSON session file and asserts: the function returns `{}`
   and a warning is logged
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 
