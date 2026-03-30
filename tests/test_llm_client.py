@@ -87,6 +87,52 @@ def test_openai_provider(monkeypatch):
     assert completion == "hello"
 
 
+def test_openai_tool_calls_serialized_to_json(monkeypatch):
+    """OpenAIStrategy.generate() must return a JSON string when tool_calls are present."""
+    import json
+
+    fake_client = types.SimpleNamespace()
+
+    tool_call = types.SimpleNamespace(
+        id="call_abc123",
+        function=types.SimpleNamespace(
+            name="web_search",
+            arguments='{"query": "current weather"}',
+        ),
+    )
+    message_with_tools = types.SimpleNamespace(
+        content=None,
+        tool_calls=[tool_call],
+    )
+
+    class _ToolResponse:
+        def __init__(self):
+            self.choices = [types.SimpleNamespace(message=message_with_tools)]
+
+    fake_client.chat = types.SimpleNamespace(
+        completions=types.SimpleNamespace(create=lambda **_: _ToolResponse())
+    )
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    monkeypatch.setattr(LanguageModel, "_ensure_openai_client", lambda self: fake_client)
+
+    cfg = AppConfig(llm_model=None, llm_provider="openai", openai_model="gpt-test")
+    from rex.llm_client import OpenAIStrategy, GenerationConfig
+
+    strategy = OpenAIStrategy("gpt-test", lambda: fake_client)
+    gen_cfg = GenerationConfig(
+        max_new_tokens=100, temperature=0.7, top_p=1.0, top_k=50, seed=42
+    )
+    result = strategy.generate("find weather", gen_cfg, messages=[{"role": "user", "content": "find weather"}])
+
+    assert isinstance(result, str), "generate() must return str even with tool_calls"
+    parsed = json.loads(result)
+    assert "__tool_calls__" in parsed, "Result must contain '__tool_calls__' key"
+    tc = parsed["__tool_calls__"][0]
+    assert tc["function"]["name"] == "web_search"
+    assert "current weather" in tc["function"]["arguments"]
+
+
 def test_language_model_custom_strategy():
     """Test injecting a custom backend via register_strategy."""
 

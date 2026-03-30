@@ -413,12 +413,12 @@ speech processing to be cleaned up reliably so that orphaned files do not accumu
 `tool_calls` in responses so that function-calling is not silently ignored.
 
 **Acceptance Criteria:**
-- [ ] `rex/llm_client.py` `OpenAIStrategy.generate()` checks `message.tool_calls` and,
+- [x] `rex/llm_client.py` `OpenAIStrategy.generate()` checks `message.tool_calls` and,
   when present, serializes them into the response string as structured JSON tool call data
-- [ ] A test mocks an OpenAI response with `tool_calls` and asserts the returned
+- [x] A test mocks an OpenAI response with `tool_calls` and asserts the returned
   string contains the tool name and arguments
-- [ ] No existing tests regress
-- [ ] Typecheck passes
+- [x] No existing tests regress
+- [x] Typecheck passes
 
 ---
 

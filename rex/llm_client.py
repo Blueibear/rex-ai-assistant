@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
+import types as _types
 from collections.abc import Sequence
 from dataclasses import dataclass
 from importlib import import_module
@@ -183,13 +185,24 @@ class OpenAIStrategy:
             # Don't force tool use, let model decide
             # api_params["tool_choice"] = "auto"
 
-        def _call() -> Any:
+        def _call() -> str:
             response = self._get_client().chat.completions.create(**api_params)
             message = response.choices[0].message
 
-            # Check if model wants to call a tool
+            # When tool_calls are present, serialize to JSON so generate() always returns str
             if hasattr(message, "tool_calls") and message.tool_calls:
-                return message  # Return full message object for tool handling
+                tool_calls_data = [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in message.tool_calls
+                ]
+                return json.dumps({"__tool_calls__": tool_calls_data})
 
             content = getattr(message, "content", "") or ""
             return content.strip() or "(silence)"
@@ -544,46 +557,54 @@ class LanguageModel:
                         prompt_text, config or self.generation, messages=current_messages
                     )
 
-                # Check if result is a message object with tool calls
-                if hasattr(result, "tool_calls") and result.tool_calls:
+                # Check if result is a JSON-serialized tool call response
+                _tc_parsed: dict[str, Any] | None = None
+                if isinstance(result, str):
+                    try:
+                        _maybe = json.loads(result)
+                        if isinstance(_maybe, dict) and "__tool_calls__" in _maybe:
+                            _tc_parsed = _maybe
+                    except (json.JSONDecodeError, ValueError):
+                        pass
+
+                if _tc_parsed is not None:
+                    tc_list: list[dict[str, Any]] = _tc_parsed["__tool_calls__"]
                     logger.info(
-                        f"Tool call round {round_num + 1}: Model requested {len(result.tool_calls)} tool(s)"
+                        f"Tool call round {round_num + 1}: Model requested {len(tc_list)} tool(s)"
                     )
 
                     # Add assistant message to conversation
-                    assistant_msg = {
-                        "role": "assistant",
-                        "content": result.content or "",  # type: ignore[attr-defined]
-                        "tool_calls": [
-                            {
-                                "id": tc.id,
-                                "type": "function",
-                                "function": {
-                                    "name": tc.function.name,
-                                    "arguments": tc.function.arguments,
-                                },
-                            }
-                            for tc in result.tool_calls
-                        ],
-                    }
-                    current_messages.append(assistant_msg)  # type: ignore[arg-type]
+                    current_messages.append(  # type: ignore[arg-type]
+                        {
+                            "role": "assistant",
+                            "content": "",
+                            "tool_calls": tc_list,
+                        }
+                    )
 
                     # Execute each tool call and add results
-                    for tool_call in result.tool_calls:
+                    for tc_data in tc_list:
+                        tool_call = _types.SimpleNamespace(
+                            id=tc_data["id"],
+                            function=_types.SimpleNamespace(
+                                name=tc_data["function"]["name"],
+                                arguments=tc_data["function"]["arguments"],
+                            ),
+                        )
                         tool_result = self._execute_tool_call(tool_call)
                         current_messages.append(
-                            {"role": "tool", "tool_call_id": tool_call.id, "content": tool_result}
+                            {
+                                "role": "tool",
+                                "tool_call_id": tc_data["id"],
+                                "content": tool_result,
+                            }
                         )
 
                     # Continue loop to get final response with tool results
                     continue
 
                 # No tool calls - return final response
-                return (
-                    result.strip()
-                    if isinstance(result, str)
-                    else (result.content or "(silence)").strip()
-                )
+                return result.strip() if isinstance(result, str) else str(result).strip()
 
             # Max rounds reached
             logger.warning(f"Max tool rounds ({max_tool_rounds}) reached")
