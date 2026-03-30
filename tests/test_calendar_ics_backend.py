@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from rex.calendar_backends.ics_parser import parse_ics
 from rex.calendar_service import CalendarEvent
 
@@ -480,3 +482,178 @@ class TestStubCalendarBackend:
         backend = StubCalendarBackend()
         ok, message = backend.test_connection()
         assert ok is True
+
+
+# ---------------------------------------------------------------
+# ICSFeedBackend tests (US-210)
+# ---------------------------------------------------------------
+
+UPCOMING_ICS = FIXTURE_DIR / "upcoming_feed.ics"
+
+
+class TestICSFeedBackend:
+    """Tests for rex.integrations.calendar.backends.ics_feed.ICSFeedBackend."""
+
+    def test_get_upcoming_from_file(self):
+        """Backend returns future events from a local .ics file."""
+        from rex.integrations.calendar.backends.ics_feed import ICSFeedBackend
+
+        backend = ICSFeedBackend(source=str(UPCOMING_ICS))
+        events = backend.get_upcoming(days=36500)  # 100 years ahead
+        # 3 valid events (malformed one without DTSTART is skipped)
+        assert len(events) == 3
+
+    def test_get_upcoming_returns_required_keys(self):
+        """Each returned dict has id, title, start, end keys."""
+        from rex.integrations.calendar.backends.ics_feed import ICSFeedBackend
+
+        backend = ICSFeedBackend(source=str(UPCOMING_ICS))
+        events = backend.get_upcoming(days=36500)
+        for event in events:
+            assert "id" in event
+            assert "title" in event
+            assert "start" in event
+            assert "end" in event
+
+    def test_get_upcoming_sorted_chronologically(self):
+        """Events are returned in chronological order."""
+        from rex.integrations.calendar.backends.ics_feed import ICSFeedBackend
+
+        backend = ICSFeedBackend(source=str(UPCOMING_ICS))
+        events = backend.get_upcoming(days=36500)
+        for i in range(len(events) - 1):
+            assert events[i]["start"] <= events[i + 1]["start"]
+
+    def test_get_upcoming_respects_days_window(self):
+        """Events beyond the look-ahead window are excluded."""
+        from rex.integrations.calendar.backends.ics_feed import ICSFeedBackend
+
+        backend = ICSFeedBackend(source=str(UPCOMING_ICS))
+        # Window of 0 days — nothing is upcoming
+        events = backend.get_upcoming(days=0)
+        assert events == []
+
+    def test_get_upcoming_skips_malformed_vevent(self):
+        """VEVENT blocks missing DTSTART are silently skipped."""
+        from rex.integrations.calendar.backends.ics_feed import ICSFeedBackend
+
+        # The fixture contains one VEVENT with no DTSTART
+        backend = ICSFeedBackend(source=str(UPCOMING_ICS))
+        events = backend.get_upcoming(days=36500)
+        titles = [e["title"] for e in events]
+        assert "No Start Time" not in titles
+
+    def test_get_upcoming_from_inline_ics(self, tmp_path):
+        """Backend works with a simple hand-crafted ICS file."""
+        from rex.integrations.calendar.backends.ics_feed import ICSFeedBackend
+
+        ics_content = (
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "BEGIN:VEVENT\r\n"
+            "UID:inline-001@test\r\n"
+            "DTSTART:20990601T090000Z\r\n"
+            "DTEND:20990601T100000Z\r\n"
+            "SUMMARY:Inline Event\r\n"
+            "END:VEVENT\r\n"
+            "END:VCALENDAR\r\n"
+        )
+        ics_file = tmp_path / "inline.ics"
+        ics_file.write_bytes(ics_content.encode())
+        backend = ICSFeedBackend(source=str(ics_file))
+        events = backend.get_upcoming(days=36500)
+        assert len(events) == 1
+        assert events[0]["title"] == "Inline Event"
+        assert events[0]["id"] == "inline-001@test"
+
+    def test_get_upcoming_utc_normalisation(self, tmp_path):
+        """Datetime strings in returned events are UTC ISO-8601 strings."""
+        from rex.integrations.calendar.backends.ics_feed import ICSFeedBackend
+
+        ics_content = (
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "BEGIN:VEVENT\r\n"
+            "UID:tz-001@test\r\n"
+            "DTSTART:20990615T120000Z\r\n"
+            "DTEND:20990615T130000Z\r\n"
+            "SUMMARY:UTC Event\r\n"
+            "END:VEVENT\r\n"
+            "END:VCALENDAR\r\n"
+        )
+        ics_file = tmp_path / "tz.ics"
+        ics_file.write_bytes(ics_content.encode())
+        backend = ICSFeedBackend(source=str(ics_file))
+        events = backend.get_upcoming(days=36500)
+        assert len(events) == 1
+        # start and end are timezone-aware UTC ISO strings
+        start_dt = datetime.fromisoformat(events[0]["start"])
+        assert start_dt.tzinfo is not None
+        assert start_dt.tzinfo == timezone.utc
+
+    def test_get_upcoming_empty_calendar(self, tmp_path):
+        """Calendar with no VEVENT blocks returns empty list."""
+        from rex.integrations.calendar.backends.ics_feed import ICSFeedBackend
+
+        ics_content = b"BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n"
+        ics_file = tmp_path / "empty.ics"
+        ics_file.write_bytes(ics_content)
+        backend = ICSFeedBackend(source=str(ics_file))
+        assert backend.get_upcoming() == []
+
+    def test_get_upcoming_missing_file_returns_empty(self, tmp_path):
+        """Missing file logs an error and returns empty list."""
+        from rex.integrations.calendar.backends.ics_feed import ICSFeedBackend
+
+        backend = ICSFeedBackend(source=str(tmp_path / "missing.ics"))
+        assert backend.get_upcoming() == []
+
+    def test_get_upcoming_via_http_fetch_injection(self):
+        """HTTP source uses injected http_fetch callable (no live network)."""
+        from rex.integrations.calendar.backends.ics_feed import ICSFeedBackend
+
+        raw = UPCOMING_ICS.read_bytes()
+        fetched_urls: list[str] = []
+
+        def fake_fetch(url: str) -> bytes:
+            fetched_urls.append(url)
+            return raw
+
+        backend = ICSFeedBackend(
+            source="https://calendar.example.com/feed.ics",
+            http_fetch=fake_fetch,
+        )
+        events = backend.get_upcoming(days=36500)
+        assert len(events) == 3
+        assert fetched_urls == ["https://calendar.example.com/feed.ics"]
+
+    def test_create_event_raises_not_implemented(self):
+        """create_event() raises NotImplementedError — backend is read-only."""
+        from rex.integrations.calendar.backends.ics_feed import ICSFeedBackend
+
+        backend = ICSFeedBackend(source=str(UPCOMING_ICS))
+        with pytest.raises(NotImplementedError):
+            backend.create_event(
+                "Meeting", "2099-01-01T10:00:00+00:00", "2099-01-01T11:00:00+00:00"
+            )
+
+    def test_synthetic_uid_for_event_without_uid(self, tmp_path):
+        """VEVENT without UID gets a deterministic synthetic uid."""
+        from rex.integrations.calendar.backends.ics_feed import ICSFeedBackend
+
+        ics_content = (
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "BEGIN:VEVENT\r\n"
+            "DTSTART:20990701T100000Z\r\n"
+            "DTEND:20990701T110000Z\r\n"
+            "SUMMARY:No UID Event\r\n"
+            "END:VEVENT\r\n"
+            "END:VCALENDAR\r\n"
+        )
+        ics_file = tmp_path / "nouid.ics"
+        ics_file.write_bytes(ics_content.encode())
+        backend = ICSFeedBackend(source=str(ics_file))
+        events = backend.get_upcoming(days=36500)
+        assert len(events) == 1
+        assert events[0]["id"].startswith("synth-")
