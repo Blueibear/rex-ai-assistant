@@ -22,6 +22,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests.helpers.fake_twilio import FakeTwilioClient, fake_twilio_client
+
 # ---------------------------------------------------------------------------
 # Helpers — fake twilio module injected into sys.modules
 # ---------------------------------------------------------------------------
@@ -30,17 +32,19 @@ import pytest
 def _fake_twilio_module() -> ModuleType:
     """Return a minimal fake twilio package sufficient for import guards."""
     mod = ModuleType("twilio")
-    mod.rest = ModuleType("twilio.rest")  # type: ignore[attr-defined]
-    mod.base = ModuleType("twilio.base")  # type: ignore[attr-defined]
-    mod.base.exceptions = ModuleType("twilio.base.exceptions")  # type: ignore[attr-defined]
+    rest = ModuleType("twilio.rest")
+    base = ModuleType("twilio.base")
+    setattr(base, "exceptions", ModuleType("twilio.base.exceptions"))
+    setattr(mod, "rest", rest)
+    setattr(mod, "base", base)
     return mod
 
 
 def _make_twilio_rest_exc(status: int = 400, code: int = 21211) -> Exception:
     """Return an exception that duck-types as TwilioRestException."""
     exc = Exception(f"Twilio API error {status}")
-    exc.status = status  # type: ignore[attr-defined]
-    exc.code = code  # type: ignore[attr-defined]
+    setattr(exc, "status", status)
+    setattr(exc, "code", code)
     return exc
 
 
@@ -49,15 +53,16 @@ def _make_backend(
     account_sid: str = "ACtest",
     auth_token: str = "tok_test",
     from_number: str = "+15550001234",
+    create_raises: Exception | None = None,
+    fake_client: FakeTwilioClient | None = None,
 ) -> tuple:
-    """Return (backend, mock_client, mock_messages_create)."""
+    """Return (backend, fake_client) using FakeTwilioClient."""
     from rex.integrations.messaging.backends.twilio_sms import TwilioSMSBackend
 
-    mock_client = MagicMock()
-    mock_client.messages.create.return_value = MagicMock(sid="SM123")
+    fake_client = fake_client or FakeTwilioClient(create_raises=create_raises)
 
     def factory(sid, token):  # noqa: ANN001
-        return mock_client
+        return fake_client
 
     backend = TwilioSMSBackend(
         account_sid=account_sid,
@@ -65,7 +70,7 @@ def _make_backend(
         from_number=from_number,
         twilio_client_factory=factory,
     )
-    return backend, mock_client
+    return backend, fake_client
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +82,7 @@ def _make_backend(
 def inject_fake_twilio():
     """Inject a fake twilio module so import guards pass."""
     fake = _fake_twilio_module()
-    with patch.dict(sys.modules, {"twilio": fake, "twilio.rest": fake.rest}):
+    with patch.dict(sys.modules, {"twilio": fake, "twilio.rest": getattr(fake, "rest")}):
         yield
 
 
@@ -89,7 +94,7 @@ def inject_fake_twilio():
 class TestImportGuard:
     def test_import_error_when_twilio_not_installed(self):
         """Raises ImportError with install hint when twilio absent and no factory."""
-        with patch.dict(sys.modules, {"twilio": None}):  # type: ignore[dict-item]
+        with patch.dict(sys.modules, {"twilio": None}):
             # Force reload to re-evaluate the import guard
             import importlib
 
@@ -102,7 +107,7 @@ class TestImportGuard:
 
     def test_no_import_error_with_factory_injected(self):
         """No ImportError raised when factory is provided (twilio not needed)."""
-        with patch.dict(sys.modules, {"twilio": None}):  # type: ignore[dict-item]
+        with patch.dict(sys.modules, {"twilio": None}):
             from rex.integrations.messaging.backends.twilio_sms import TwilioSMSBackend
 
             # Should not raise even without twilio installed
@@ -110,7 +115,7 @@ class TestImportGuard:
                 account_sid="AC123",
                 auth_token="tok",
                 from_number="+1555",
-                twilio_client_factory=lambda sid, tok: MagicMock(),
+                twilio_client_factory=lambda sid, tok: FakeTwilioClient(),
             )
             assert backend is not None
 
@@ -121,19 +126,19 @@ class TestImportGuard:
 
 
 class TestSuccessfulSend:
-    def test_send_calls_messages_create(self):
+    def test_send_calls_messages_create(self, fake_twilio_client: FakeTwilioClient):
         """send() delegates to client.messages.create with correct args."""
-        backend, mock_client = _make_backend()
+        backend, fake_client = _make_backend(fake_client=fake_twilio_client)
         backend.send(to="+15559998888", body="Hello from Rex")
-        mock_client.messages.create.assert_called_once_with(
-            to="+15559998888",
-            from_="+15550001234",
-            body="Hello from Rex",
-        )
+        assert len(fake_client.create_calls) == 1
+        call = fake_client.create_calls[0]
+        assert call["to"] == "+15559998888"
+        assert call["from_"] == "+15550001234"
+        assert call["body"] == "Hello from Rex"
 
-    def test_send_does_not_raise_on_success(self):
+    def test_send_does_not_raise_on_success(self, fake_twilio_client: FakeTwilioClient):
         """send() returns None on success."""
-        backend, _ = _make_backend()
+        backend, _ = _make_backend(fake_client=fake_twilio_client)
         result = backend.send(to="+15559998888", body="Test")
         assert result is None
 
@@ -144,29 +149,29 @@ class TestSuccessfulSend:
 
 
 class TestCredentialResolution:
-    def test_explicit_credentials_used_directly(self):
+    def test_explicit_credentials_used_directly(self, fake_twilio_client: FakeTwilioClient):
         """Constructor credentials are used without consulting CredentialManager."""
         backend, mock_client = _make_backend(
             account_sid="ACexplicit",
             auth_token="tok_explicit",
             from_number="+10000000001",
+            fake_client=fake_twilio_client,
         )
         with patch("rex.integrations.messaging.backends.twilio_sms.CredentialManager"):
             backend.send(to="+15551112222", body="hi")
 
         # CredentialManager should still be instantiated but get_token not needed
         # since explicit values satisfy all three credentials
-        mock_client.messages.create.assert_called_once()
+        assert len(mock_client.create_calls) == 1
 
-    def test_credentials_resolved_from_credential_manager(self):
+    def test_credentials_resolved_from_credential_manager(
+        self, fake_twilio_client: FakeTwilioClient
+    ):
         """When constructor args are None, CredentialManager supplies the values."""
         from rex.integrations.messaging.backends.twilio_sms import TwilioSMSBackend
 
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = MagicMock()
-
         def factory(sid, tok):  # noqa: ANN001
-            return mock_client
+            return fake_twilio_client
 
         def fake_get_token(key: str) -> str | None:
             return {
@@ -186,7 +191,7 @@ class TestCredentialResolution:
         ):
             backend.send(to="+15559990000", body="hello")
 
-        mock_client.messages.create.assert_called_once()
+        assert len(fake_twilio_client.create_calls) == 1
         # Verify factory received the values from CredentialManager
         # (we can't easily check factory args, but create was called = success)
 
@@ -197,7 +202,7 @@ class TestCredentialResolution:
         fake_mgr = MagicMock()
         fake_mgr.get_token.return_value = None  # all credentials missing
 
-        backend = TwilioSMSBackend(twilio_client_factory=lambda s, t: MagicMock())
+        backend = TwilioSMSBackend(twilio_client_factory=lambda s, t: FakeTwilioClient())
 
         with patch(
             "rex.integrations.messaging.backends.twilio_sms.CredentialManager",
@@ -213,7 +218,7 @@ class TestCredentialResolution:
         fake_mgr = MagicMock()
         fake_mgr.get_token.return_value = None
 
-        backend = TwilioSMSBackend(twilio_client_factory=lambda s, t: MagicMock())
+        backend = TwilioSMSBackend(twilio_client_factory=lambda s, t: FakeTwilioClient())
 
         with patch(
             "rex.integrations.messaging.backends.twilio_sms.CredentialManager",
@@ -236,8 +241,7 @@ class TestErrorHandling:
         """Twilio REST exception is wrapped in SMSSendError with status/code."""
         from rex.integrations.messaging.backends.twilio_sms import SMSSendError
 
-        backend, mock_client = _make_backend()
-        mock_client.messages.create.side_effect = _make_twilio_rest_exc(status=400, code=21211)
+        backend, _ = _make_backend(create_raises=_make_twilio_rest_exc(status=400, code=21211))
 
         with pytest.raises(SMSSendError, match="400") as exc_info:
             backend.send(to="+15559998888", body="bad")
@@ -248,8 +252,7 @@ class TestErrorHandling:
         """TimeoutError is wrapped in SMSSendError with timeout detail."""
         from rex.integrations.messaging.backends.twilio_sms import SMSSendError
 
-        backend, mock_client = _make_backend()
-        mock_client.messages.create.side_effect = TimeoutError("read timeout")
+        backend, _ = _make_backend(create_raises=TimeoutError("read timeout"))
 
         with pytest.raises(SMSSendError, match="timed out"):
             backend.send(to="+15559998888", body="too slow")
@@ -258,8 +261,7 @@ class TestErrorHandling:
         """Any unexpected exception is wrapped in SMSSendError."""
         from rex.integrations.messaging.backends.twilio_sms import SMSSendError
 
-        backend, mock_client = _make_backend()
-        mock_client.messages.create.side_effect = RuntimeError("connection refused")
+        backend, _ = _make_backend(create_raises=RuntimeError("connection refused"))
 
         with pytest.raises(SMSSendError):
             backend.send(to="+15559998888", body="boom")
@@ -290,8 +292,10 @@ class TestNoSecretsLogged:
 
         from rex.integrations.messaging.backends.twilio_sms import SMSSendError
 
-        backend, mock_client = _make_backend(auth_token="SECRET_TOKEN_VALUE")
-        mock_client.messages.create.side_effect = _make_twilio_rest_exc()
+        backend, _ = _make_backend(
+            auth_token="SECRET_TOKEN_VALUE",
+            create_raises=_make_twilio_rest_exc(),
+        )
 
         with caplog.at_level(
             logging.DEBUG, logger="rex.integrations.messaging.backends.twilio_sms"

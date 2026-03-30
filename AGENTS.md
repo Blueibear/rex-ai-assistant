@@ -105,4 +105,12 @@ See `CONTRIBUTING.md` for full details and examples.
 
 Use `_import_optional(module_name)` (defined in `voice_loop.py`) or `find_spec` guards before
 importing optional packages. Heavy optional deps (TTS, Whisper, simpleaudio, sounddevice) must
-not be imported at module level — they are lazy-loaded to avoid import errors on minimal installs.
+not be imported at module level - they are lazy-loaded to avoid import errors on minimal installs.
+
+## Offline transport test harnesses live in tests/helpers
+
+For IMAP/SMTP/Twilio integration tests, prefer `tests/helpers/fake_imap.py`,
+`tests/helpers/fake_smtp.py`, and `tests/helpers/fake_twilio.py` over ad hoc `MagicMock`
+transports. These helpers record calls in simple lists/counters (for example `login_calls`,
+`send_message_calls`, `store_calls`) instead of mock assertion helpers like
+`assert_called_once_with`.

@@ -61,6 +61,20 @@
   - `monkeypatch.setattr(_mod, "CredentialManager", FakeMgr)` works cleanly when the name is a module-level attribute.
 ---
 
+## Iteration 162 - US-212: Add offline integration test harnesses
+- What was implemented:
+  1. Added `tests/__init__.py` so `tests.helpers.*` imports resolve during pytest collection.
+  2. Extended `tests/helpers/fake_imap.py` with typed IMAP response aliases plus `list()` and call recording for mailbox-listing coverage.
+  3. Added a reusable `fake_twilio_client` pytest fixture in `tests/helpers/fake_twilio.py`.
+  4. Updated `tests/test_email_backend_imap_smtp.py` to use `FakeIMAP4SSL` and `FakeSMTP` instead of ad hoc `MagicMock` transports.
+  5. Updated `tests/test_twilio_sms_backend.py` to use `FakeTwilioClient` and helper-backed error injection instead of mocked Twilio clients.
+- Files changed: `tests/__init__.py`, `tests/helpers/fake_imap.py`, `tests/helpers/fake_twilio.py`, `tests/test_email_backend_imap_smtp.py`, `tests/test_twilio_sms_backend.py`, `PRD.md`, `AGENTS.md`
+- Learnings for future iterations:
+  - `tests.helpers.*` imports require `tests/` to be a package; adding `tests/__init__.py` fixes collection cleanly.
+  - The offline transport fakes record calls with plain attributes like `login_calls`, `close_calls`, and `create_calls`; tests should assert against those lists/counters instead of mock helper methods.
+  - Focused mypy validation works best here with `--python-version 3.11 --follow-imports=skip` to avoid unrelated imported-module noise while still typechecking the touched helper/test files.
+---
+
 ## Iteration 166 - US-206: Implement IMAP read backend
 - What was implemented:
   1. Created `rex/integrations/email/backends/imap_smtp.py` with `IMAPBackend` and `EmailAuthError`.

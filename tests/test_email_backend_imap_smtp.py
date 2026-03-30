@@ -1,13 +1,12 @@
 """Tests for the IMAP/SMTP email backend.
 
-All tests use mocks/fakes — no real network calls.
+All tests use fakes/mocks — no real network calls.
 """
 
 from __future__ import annotations
 
 import imaplib
 import smtplib
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -20,6 +19,8 @@ from rex.integrations.email.backends.imap_smtp import (
     IMAPSMTPBackend,
     SMTPSendError,
 )
+from tests.helpers.fake_imap import DEFAULT_RAW_HEADERS, FakeIMAP4SSL
+from tests.helpers.fake_smtp import FakeSMTP
 
 # ---------------------------------------------------------------------------
 # Stub backend tests
@@ -158,20 +159,15 @@ class TestImapSmtpBackend:
         )
 
     def test_connect_success(self):
-        mock_imap = MagicMock()
-        mock_imap.login.return_value = ("OK", [])
-        mock_imap.select.return_value = ("OK", [b"1"])
+        mock_imap = FakeIMAP4SSL()
 
         backend = self._make_backend(imap_mock=lambda: mock_imap)
         assert backend.connect() is True
         assert backend.is_connected is True
-        mock_imap.login.assert_called_once_with("user@example.com", "secret")
+        assert mock_imap.login_calls == [("user@example.com", "secret")]
 
     def test_connect_auth_failure(self):
-        import imaplib
-
-        mock_imap = MagicMock()
-        mock_imap.login.side_effect = imaplib.IMAP4.error("auth failed")
+        mock_imap = FakeIMAP4SSL(login_raises=imaplib.IMAP4.error("auth failed"))
 
         backend = self._make_backend(imap_mock=lambda: mock_imap)
         assert backend.connect() is False
@@ -189,21 +185,13 @@ class TestImapSmtpBackend:
         assert backend.fetch_unread() == []
 
     def test_fetch_unread_empty(self):
-        mock_imap = MagicMock()
-        mock_imap.login.return_value = ("OK", [])
-        mock_imap.select.return_value = ("OK", [b"1"])
-        mock_imap.search.return_value = ("OK", [b""])
+        mock_imap = FakeIMAP4SSL(search_result=("OK", [b""]))
 
         backend = self._make_backend(imap_mock=lambda: mock_imap)
         backend.connect()
         assert backend.fetch_unread() == []
 
     def test_fetch_unread_parses_headers(self):
-        mock_imap = MagicMock()
-        mock_imap.login.return_value = ("OK", [])
-        mock_imap.select.return_value = ("OK", [b"1"])
-        mock_imap.search.return_value = ("OK", [b"1"])
-
         raw_headers = (
             b"From: sender@example.com\r\n"
             b"To: me@example.com\r\n"
@@ -212,7 +200,10 @@ class TestImapSmtpBackend:
             b"Message-ID: <msg-001@example.com>\r\n"
             b"\r\n"
         )
-        mock_imap.fetch.return_value = ("OK", [(b"1 (RFC822.HEADER {200}", raw_headers)])
+        mock_imap = FakeIMAP4SSL(
+            search_result=("OK", [b"1"]),
+            fetch_result=("OK", [(b"1 (RFC822.HEADER {200}", raw_headers)]),
+        )
 
         backend = self._make_backend(imap_mock=lambda: mock_imap)
         backend.connect()
@@ -225,12 +216,7 @@ class TestImapSmtpBackend:
         assert "unread" in env.labels
 
     def test_send_success(self):
-        mock_smtp = MagicMock()
-        mock_smtp.ehlo.return_value = (250, b"OK")
-        mock_smtp.starttls.return_value = (220, b"OK")
-        mock_smtp.login.return_value = (235, b"OK")
-        mock_smtp.send_message.return_value = {}
-        mock_smtp.quit.return_value = (221, b"Bye")
+        mock_smtp = FakeSMTP()
 
         backend = self._make_backend(smtp_mock=lambda: mock_smtp)
         result = backend.send(
@@ -240,16 +226,13 @@ class TestImapSmtpBackend:
             body="Hello, World!",
         )
         assert result.ok is True
-        mock_smtp.login.assert_called_once_with("user@example.com", "secret")
-        mock_smtp.send_message.assert_called_once()
+        assert mock_smtp.login_calls == [("user@example.com", "secret")]
+        assert len(mock_smtp.send_message_calls) == 1
 
     def test_send_auth_failure(self):
-        import smtplib
-
-        mock_smtp = MagicMock()
-        mock_smtp.ehlo.return_value = (250, b"OK")
-        mock_smtp.starttls.return_value = (220, b"OK")
-        mock_smtp.login.side_effect = smtplib.SMTPAuthenticationError(535, b"bad creds")
+        mock_smtp = FakeSMTP(
+            login_raises=smtplib.SMTPAuthenticationError(535, b"bad creds")
+        )
 
         backend = self._make_backend(smtp_mock=lambda: mock_smtp)
         result = backend.send(
@@ -262,13 +245,7 @@ class TestImapSmtpBackend:
         assert "authentication" in (result.error or "").lower()
 
     def test_send_smtp_error(self):
-        import smtplib
-
-        mock_smtp = MagicMock()
-        mock_smtp.ehlo.return_value = (250, b"OK")
-        mock_smtp.starttls.return_value = (220, b"OK")
-        mock_smtp.login.return_value = (235, b"OK")
-        mock_smtp.send_message.side_effect = smtplib.SMTPException("relay denied")
+        mock_smtp = FakeSMTP(send_raises=smtplib.SMTPException("relay denied"))
 
         backend = self._make_backend(smtp_mock=lambda: mock_smtp)
         result = backend.send(
@@ -281,12 +258,11 @@ class TestImapSmtpBackend:
         assert result.error is not None
 
     def test_list_mailboxes(self):
-        mock_imap = MagicMock()
-        mock_imap.login.return_value = ("OK", [])
-        mock_imap.select.return_value = ("OK", [b"1"])
-        mock_imap.list.return_value = (
-            "OK",
-            [b'(\\HasNoChildren) "/" "INBOX"', b'(\\HasNoChildren) "/" "Sent"'],
+        mock_imap = FakeIMAP4SSL(
+            list_result=(
+                "OK",
+                [b'(\\HasNoChildren) "/" "INBOX"', b'(\\HasNoChildren) "/" "Sent"'],
+            ),
         )
 
         backend = self._make_backend(imap_mock=lambda: mock_imap)
@@ -296,21 +272,15 @@ class TestImapSmtpBackend:
         assert "Sent" in boxes
 
     def test_mark_as_read(self):
-        mock_imap = MagicMock()
-        mock_imap.login.return_value = ("OK", [])
-        mock_imap.select.return_value = ("OK", [b"1"])
-        mock_imap.search.return_value = ("OK", [b"42"])
-        mock_imap.store.return_value = ("OK", [])
+        mock_imap = FakeIMAP4SSL(search_result=("OK", [b"42"]))
 
         backend = self._make_backend(imap_mock=lambda: mock_imap)
         backend.connect()
         assert backend.mark_as_read("<msg-001@example.com>") is True
-        mock_imap.store.assert_called_once()
+        assert mock_imap.store_calls == [(b"42", "+FLAGS", "\\Seen")]
 
     def test_disconnect(self):
-        mock_imap = MagicMock()
-        mock_imap.login.return_value = ("OK", [])
-        mock_imap.select.return_value = ("OK", [b"1"])
+        mock_imap = FakeIMAP4SSL()
 
         backend = self._make_backend(imap_mock=lambda: mock_imap)
         backend.connect()
@@ -348,43 +318,44 @@ class TestBackendInterface:
 # IMAPBackend (new transport-layer interface) — US-206
 # ---------------------------------------------------------------------------
 
-_RAW_HEADER_BYTES = (
-    b"From: alice@example.com\r\n"
-    b"To: bob@example.com\r\n"
-    b"Subject: Hello from Alice\r\n"
-    b"Date: Thu, 28 Mar 2026 09:00:00 +0000\r\n"
-    b"Message-ID: <msg-001@example.com>\r\n"
-    b"\r\n"
-)
+# Use DEFAULT_RAW_HEADERS from FakeIMAP4SSL helper so tests share the same fixture.
+_RAW_HEADER_BYTES = DEFAULT_RAW_HEADERS
 
 
+def _make_imap_fake(
+    search_result=("OK", [b"1"]),
+    fetch_result=None,
+    login_raises=None,
+):
+    """Return a FakeIMAP4SSL configured for common test scenarios."""
+    return FakeIMAP4SSL(
+        search_result=search_result,
+        fetch_result=fetch_result
+        or ("OK", [(b"1 (RFC822.HEADER {350})", DEFAULT_RAW_HEADERS)]),
+        login_raises=login_raises,
+    )
+
+
+# Keep _make_imap_mock as an alias so existing TestImapSmtpBackend callers still work.
 def _make_imap_mock(
     search_result=("OK", [b"1"]),
     fetch_result=None,
     login_raises=None,
 ):
-    mock_conn = MagicMock(spec=imaplib.IMAP4_SSL)
-    if login_raises is not None:
-        mock_conn.login.side_effect = login_raises
-    else:
-        mock_conn.login.return_value = ("OK", [b"Logged in"])
-    mock_conn.select.return_value = ("OK", [b"1"])
-    mock_conn.search.return_value = search_result
-    if fetch_result is None:
-        fetch_result = ("OK", [(b"1 (RFC822.HEADER {350})", _RAW_HEADER_BYTES)])
-    mock_conn.fetch.return_value = fetch_result
-    mock_conn.close.return_value = ("OK", [b"Closed"])
-    mock_conn.logout.return_value = ("BYE", [b"Logging out"])
-    return mock_conn
+    return _make_imap_fake(
+        search_result=search_result,
+        fetch_result=fetch_result,
+        login_raises=login_raises,
+    )
 
 
-def _make_imap_backend(mock_conn):
+def _make_imap_backend(fake_conn):
     return IMAPBackend(
         host="imap.example.com",
         port=993,
         username="user@example.com",
         password="secret",
-        imap_factory=lambda: mock_conn,
+        imap_factory=lambda: fake_conn,
     )
 
 
@@ -428,7 +399,6 @@ class TestIMAPBackend:
 
     def test_fetch_unread_respects_limit(self):
         mock_conn = _make_imap_mock(search_result=("OK", [b"1 2"]))
-        mock_conn.fetch.return_value = ("OK", [(b"2 (RFC822.HEADER {350})", _RAW_HEADER_BYTES)])
         backend = _make_imap_backend(mock_conn)
         assert len(backend.fetch_unread(limit=1)) == 1
 
@@ -436,8 +406,8 @@ class TestIMAPBackend:
         mock_conn = _make_imap_mock()
         backend = _make_imap_backend(mock_conn)
         backend.fetch_unread()
-        mock_conn.close.assert_called_once()
-        mock_conn.logout.assert_called_once()
+        assert mock_conn.close_calls == 1
+        assert mock_conn.logout_calls == 1
 
     # --- auth failure ---
 
@@ -475,35 +445,37 @@ class TestIMAPBackend:
 # ---------------------------------------------------------------------------
 
 
+def _make_smtp_fake(
+    login_raises=None,
+    send_raises=None,
+    tls_raises=None,
+):
+    """Return a FakeSMTP configured for common test scenarios.
+
+    ``tls_raises`` is not directly supported by FakeSMTP (starttls is not the
+    failure point there); for TLS-level failures the factory itself should raise.
+    """
+    return FakeSMTP(
+        login_raises=login_raises,
+        send_raises=send_raises,
+    )
+
+
+# Keep _make_smtp_mock as an alias for TestIMAPSMTPBackend callers.
 def _make_smtp_mock(
     login_raises=None,
     send_raises=None,
     tls_raises=None,
     timeout_on_connect=False,
 ):
-    mock_smtp = MagicMock(spec=smtplib.SMTP)
-    mock_smtp.ehlo.return_value = (250, b"OK")
-    if tls_raises is not None:
-        mock_smtp.starttls.side_effect = tls_raises
-    else:
-        mock_smtp.starttls.return_value = (220, b"OK")
-    if login_raises is not None:
-        mock_smtp.login.side_effect = login_raises
-    else:
-        mock_smtp.login.return_value = (235, b"OK")
-    if send_raises is not None:
-        mock_smtp.send_message.side_effect = send_raises
-    else:
-        mock_smtp.send_message.return_value = {}
-    mock_smtp.quit.return_value = (221, b"Bye")
-    return mock_smtp
+    return _make_smtp_fake(login_raises=login_raises, send_raises=send_raises)
 
 
-def _make_smtp_backend(smtp_mock, timeout_on_connect=False):
+def _make_smtp_backend(smtp_fake, timeout_on_connect=False):
     if timeout_on_connect:
         factory = None  # will be unused; we'll patch _create_smtp_connection
     else:
-        factory = lambda: smtp_mock  # noqa: E731
+        factory = lambda: smtp_fake  # noqa: E731
     return IMAPSMTPBackend(
         host="imap.example.com",
         port=993,
@@ -512,7 +484,7 @@ def _make_smtp_backend(smtp_mock, timeout_on_connect=False):
         smtp_host="smtp.example.com",
         smtp_port=587,
         use_starttls=True,
-        imap_factory=lambda: _make_imap_mock(),
+        imap_factory=lambda: _make_imap_fake(),
         smtp_factory=factory,
     )
 
@@ -538,19 +510,19 @@ class TestIMAPSMTPBackend:
         smtp_mock = _make_smtp_mock()
         backend = _make_smtp_backend(smtp_mock)
         backend.send(to="bob@example.com", subject="S", body="B")
-        smtp_mock.login.assert_called_once_with("user@example.com", "secret")
+        assert smtp_mock.login_calls == [("user@example.com", "secret")]
 
     def test_send_calls_send_message(self):
         smtp_mock = _make_smtp_mock()
         backend = _make_smtp_backend(smtp_mock)
         backend.send(to="bob@example.com", subject="Hello", body="World")
-        smtp_mock.send_message.assert_called_once()
+        assert len(smtp_mock.send_message_calls) == 1
 
     def test_send_calls_quit_on_success(self):
         smtp_mock = _make_smtp_mock()
         backend = _make_smtp_backend(smtp_mock)
         backend.send(to="bob@example.com", subject="S", body="B")
-        smtp_mock.quit.assert_called_once()
+        assert smtp_mock.quit_calls == 1
 
     def test_send_never_logs_password(self, caplog):
         import logging as _logging
@@ -638,4 +610,4 @@ class TestIMAPSMTPBackend:
             smtp_factory=lambda: smtp_mock,
         )
         backend.send(to="bob@example.com", subject="S", body="B")
-        smtp_mock.login.assert_called_once_with("user@example.com", "resolved-password")
+        assert smtp_mock.login_calls == [("user@example.com", "resolved-password")]

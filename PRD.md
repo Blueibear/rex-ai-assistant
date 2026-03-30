@@ -669,15 +669,15 @@ that the "upcoming events" command returns real calendar data.
 as test fixtures so that integration tests run fully offline with no credentials.
 
 **Acceptance Criteria:**
-- [ ] `tests/helpers/fake_imap.py` provides a `FakeIMAP4SSL` class that behaves like
+- [x] `tests/helpers/fake_imap.py` provides a `FakeIMAP4SSL` class that behaves like
   `imaplib.IMAP4_SSL` for use in tests
-- [ ] `tests/helpers/fake_smtp.py` provides a `FakeSMTP` class for both `SMTP` and `SMTP_SSL`
-- [ ] `tests/helpers/fake_twilio.py` provides a fake Twilio `Client` fixture
-- [ ] All existing `tests/test_email_backend_imap_smtp.py` and `tests/test_twilio_sms_backend.py`
+- [x] `tests/helpers/fake_smtp.py` provides a `FakeSMTP` class for both `SMTP` and `SMTP_SSL`
+- [x] `tests/helpers/fake_twilio.py` provides a fake Twilio `Client` fixture
+- [x] All existing `tests/test_email_backend_imap_smtp.py` and `tests/test_twilio_sms_backend.py`
   tests switch to using these helpers
-- [ ] `pytest -q tests/test_email_backend_imap_smtp.py tests/test_twilio_sms_backend.py`
+- [x] `pytest -q tests/test_email_backend_imap_smtp.py tests/test_twilio_sms_backend.py`
   exits 0 with no live network access
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 
