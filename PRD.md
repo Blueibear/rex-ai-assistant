@@ -493,15 +493,15 @@ warnings so that corrupted session files are detectable and diagnosable.
 conversation turns can be persisted and retrieved across restarts.
 
 **Acceptance Criteria:**
-- [ ] New file `rex/history_store.py` defines `HistoryStore` with:
+- [x] New file `rex/history_store.py` defines `HistoryStore` with:
   - `__init__(self, db_path: Path)` — creates/migrates the DB on first call
   - `save_turn(user_id: str, role: str, content: str, timestamp: datetime) -> None`
   - `load_history(user_id: str, limit: int = 50) -> list[dict]`
   - `prune(user_id: str, keep_days: int = 30) -> int` — returns rows deleted
-- [ ] Schema uses a single `turns` table: `(id, user_id, role, content, timestamp)`
-- [ ] DB is created at `data/history.db` by default, path is configurable
-- [ ] `pytest -q tests/test_history_store.py` exits 0 (new test file covers CRUD + prune)
-- [ ] Typecheck passes
+- [x] Schema uses a single `turns` table: `(id, user_id, role, content, timestamp)`
+- [x] DB is created at `data/history.db` by default, path is configurable
+- [x] `pytest -q tests/test_history_store.py` exits 0 (new test file covers CRUD + prune)
+- [x] Typecheck passes
 
 ---
 
