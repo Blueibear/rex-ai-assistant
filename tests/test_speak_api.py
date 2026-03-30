@@ -209,3 +209,65 @@ def test_generate_speech_holds_lock_during_synthesis(monkeypatch):
 
     assert lock_held_during_engine_call, "_get_tts_engine was not called"
     assert lock_held_during_engine_call[0], "_tts_lock was NOT held during _get_tts_engine call"
+
+
+# ---------------------------------------------------------------------------
+# Request body size limit (US-200)
+# ---------------------------------------------------------------------------
+
+
+def test_max_request_bytes_constant_exists():
+    import rex_speak_api
+
+    assert hasattr(rex_speak_api, "MAX_REQUEST_BYTES")
+    assert isinstance(rex_speak_api.MAX_REQUEST_BYTES, int)
+    assert rex_speak_api.MAX_REQUEST_BYTES > 0
+
+
+def test_oversized_request_body_returns_413(monkeypatch):
+    """A 100 KB request body must be rejected with 413 before synthesis."""
+    import rex_speak_api
+
+    monkeypatch.setenv("REX_SPEAK_API_KEY", "testkey")
+
+    from rex_speak_api import app
+
+    app.config["TESTING"] = True
+    # Ensure limit is 64 KB for this test regardless of env
+    app.config["MAX_CONTENT_LENGTH"] = 65536
+    monkeypatch.setattr(rex_speak_api, "MAX_REQUEST_BYTES", 65536)
+
+    client = app.test_client()
+    large_body = b"x" * (100 * 1024)  # 100 KB — well above the 64 KB limit
+    resp = client.post(
+        "/speak",
+        data=large_body,
+        content_type="application/json",
+        headers={"X-API-Key": "testkey"},
+    )
+    assert resp.status_code == 413
+
+
+def test_request_within_size_limit_proceeds(monkeypatch):
+    """A request body under MAX_REQUEST_BYTES must not be rejected with 413."""
+    import rex_speak_api
+
+    monkeypatch.setenv("REX_SPEAK_API_KEY", "testkey")
+
+    def fake_generate(text, language, user_key):
+        return b"\x52\x49\x46\x46"
+
+    monkeypatch.setattr(rex_speak_api, "generate_speech", fake_generate)
+
+    from rex_speak_api import app
+
+    app.config["TESTING"] = True
+    app.config["MAX_CONTENT_LENGTH"] = 65536
+
+    client = app.test_client()
+    resp = client.post(
+        "/speak",
+        json={"text": "hello", "language": "en"},
+        headers={"X-API-Key": "testkey"},
+    )
+    assert resp.status_code == 200

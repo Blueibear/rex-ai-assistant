@@ -25,6 +25,7 @@ from rex.health import check_config, create_health_blueprint
 from rex.http_errors import (
     BAD_REQUEST,
     INTERNAL_ERROR,
+    PAYLOAD_TOO_LARGE,
     TOO_MANY_REQUESTS,
     UNAUTHORIZED,
     error_response,
@@ -168,7 +169,16 @@ RATE_LIMIT_WINDOW = _parse_int(
     "REX_SPEAK_RATE_WINDOW", os.getenv("REX_SPEAK_RATE_WINDOW"), default=60
 )
 MAX_TEXT_LENGTH = _parse_int("REX_SPEAK_MAX_CHARS", os.getenv("REX_SPEAK_MAX_CHARS"), default=800)
+MAX_REQUEST_BYTES = _parse_int(
+    "REX_SPEAK_MAX_REQUEST_BYTES",
+    os.getenv("REX_SPEAK_MAX_REQUEST_BYTES"),
+    default=65536,  # 64 KB
+)
 TTS_SPEED = load_config().tts_speed
+
+# Enforce body-size limit via Flask: rejects Content-Length violations before the body
+# is read and caps streamed reads at MAX_REQUEST_BYTES for requests without Content-Length.
+app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BYTES
 
 if RATE_LIMIT > 0 and RATE_LIMIT_WINDOW > 0:
     _UNIT_MAP = {1: "second", 60: "minute", 3600: "hour", 86400: "day"}
@@ -190,6 +200,16 @@ def _reject_during_shutdown() -> tuple[Response, int] | None:
     """Return 503 when a SIGTERM-triggered shutdown is in progress."""
     if get_shutdown_handler().is_shutting_down:
         resp, status = error_response("SERVICE_UNAVAILABLE", "Server is shutting down", 503)
+        return resp, status
+    return None
+
+
+@app.before_request
+def _check_request_size() -> tuple[Response, int] | None:
+    """Reject requests whose Content-Length exceeds MAX_REQUEST_BYTES before reading body."""
+    cl = request.content_length
+    if cl is not None and cl > MAX_REQUEST_BYTES:
+        resp, status = error_response(PAYLOAD_TOO_LARGE, "Request body too large", 413)
         return resp, status
     return None
 

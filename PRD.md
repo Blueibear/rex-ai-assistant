@@ -461,12 +461,12 @@ abbreviations like "Dr.", "Mr.", "e.g.", and "etc." so that speech sounds natura
 over a configurable size limit so that the server cannot be exhausted by oversized payloads.
 
 **Acceptance Criteria:**
-- [ ] `rex_speak_api.py` reads `MAX_REQUEST_BYTES` from config (default: 64 KB)
-- [ ] Requests where `Content-Length` exceeds `MAX_REQUEST_BYTES` are rejected with 413
+- [x] `rex_speak_api.py` reads `MAX_REQUEST_BYTES` from config (default: 64 KB)
+- [x] Requests where `Content-Length` exceeds `MAX_REQUEST_BYTES` are rejected with 413
   before the body is read
-- [ ] Requests without `Content-Length` are read with a stream cap at `MAX_REQUEST_BYTES`
-- [ ] A test sends a request body of 100 KB and asserts the response is 413
-- [ ] Typecheck passes
+- [x] Requests without `Content-Length` are read with a stream cap at `MAX_REQUEST_BYTES`
+- [x] A test sends a request body of 100 KB and asserts the response is 413
+- [x] Typecheck passes
 
 ---
 
