@@ -84,6 +84,20 @@ def resolve_wakeword_keyword(
 
 
 @dataclass
+class EmailAccountConfig:
+    """Configuration for a single email account (IMAP read + SMTP send)."""
+
+    id: str
+    address: str
+    imap_host: str
+    imap_port: int = 993
+    smtp_host: str = ""
+    smtp_port: int = 587
+    credential_ref: str = ""
+    use_starttls: bool = True
+
+
+@dataclass
 class AppConfig:
     """Application configuration combining JSON config and environment secrets."""
 
@@ -167,6 +181,10 @@ class AppConfig:
 
     # Integration credential detection
     email_provider: str = "none"  # none | gmail | outlook
+
+    # Multi-account email config (US-208)
+    email_accounts: List[EmailAccountConfig] = field(default_factory=list)
+    email_default_account_id: str = ""
 
     # Location and weather
     default_location: Optional[str] = None
@@ -276,6 +294,32 @@ def _coerce_int(json_config: dict, path: str, default: int) -> int:
             raw,
         )
     return int(float(raw))
+
+
+def _parse_email_accounts(raw: object) -> List[EmailAccountConfig]:
+    """Parse ``email.accounts`` from JSON config into a list of EmailAccountConfig."""
+    if not isinstance(raw, list):
+        return []
+    accounts: List[EmailAccountConfig] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        try:
+            accounts.append(
+                EmailAccountConfig(
+                    id=str(item["id"]),
+                    address=str(item["address"]),
+                    imap_host=str(item.get("imap_host", item.get("imap", {}).get("host", ""))),
+                    imap_port=int(item.get("imap_port", item.get("imap", {}).get("port", 993))),
+                    smtp_host=str(item.get("smtp_host", item.get("smtp", {}).get("host", ""))),
+                    smtp_port=int(item.get("smtp_port", item.get("smtp", {}).get("port", 587))),
+                    credential_ref=str(item.get("credential_ref", "")),
+                    use_starttls=bool(item.get("use_starttls", True)),
+                )
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            LOGGER.warning("Skipping malformed email account entry: %s", exc)
+    return accounts
 
 
 def _merge_profile_config(base_config: dict) -> dict:
@@ -413,6 +457,9 @@ def build_app_config(json_config: dict) -> AppConfig:
         openclaw_gateway_timeout=_coerce_int(json_config, "openclaw.gateway_timeout", 30),
         openclaw_gateway_max_retries=_coerce_int(json_config, "openclaw.gateway_max_retries", 3),
         openclaw_gateway_token=os.getenv("OPENCLAW_GATEWAY_TOKEN"),  # SECRET from env
+        # Multi-account email (US-208)
+        email_accounts=_parse_email_accounts(_get_nested(json_config, "email.accounts", [])),
+        email_default_account_id=_get_nested(json_config, "email.default_account_id", ""),
         # History persistence
         persist_history=bool(_get_nested(json_config, "runtime.persist_history", True)),
         history_db_path=Path(
