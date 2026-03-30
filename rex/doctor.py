@@ -449,10 +449,11 @@ def check_audio_input_device() -> CheckResult:
                 details="Connect a microphone and check system audio settings.",
             )
         default = sd.query_devices(kind="input")
+        available_names = ", ".join(str(device["name"]) for device in input_devices)
         return CheckResult(
             name="Audio Input",
             status=Status.OK,
-            message=f"Input device found: {default['name']}",
+            message=f"Input device found: {default['name']} (available: {available_names})",
         )
     except ImportError:
         return CheckResult(

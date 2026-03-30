@@ -127,6 +127,27 @@ class TestCheckAudioInput:
         assert result.status == Status.OK
         assert "Microphone" in result.message
 
+    def test_audio_input_lists_available_device_names(self):
+        mock_sd = MagicMock()
+
+        def query_devices_side_effect(kind=None):
+            if kind == "input":
+                return {"name": "Desk Mic", "max_input_channels": 2}
+            return [
+                {"name": "Desk Mic", "max_input_channels": 2, "max_output_channels": 0},
+                {"name": "USB Mic", "max_input_channels": 1, "max_output_channels": 0},
+                {"name": "Speaker", "max_input_channels": 0, "max_output_channels": 2},
+            ]
+
+        mock_sd.query_devices.side_effect = query_devices_side_effect
+
+        with patch.dict("sys.modules", {"sounddevice": mock_sd}):
+            result = check_audio_input_device()
+
+        assert result.status == Status.OK
+        assert "Desk Mic" in result.message
+        assert "USB Mic" in result.message
+
     def test_fail_when_no_input_devices(self):
         mock_sd = MagicMock()
 

@@ -720,14 +720,14 @@ a cryptic exception.
 at startup so that misconfigured devices produce a clear error before the voice loop begins.
 
 **Acceptance Criteria:**
-- [ ] During voice loop initialization, the configured input device index is validated
+- [x] During voice loop initialization, the configured input device index is validated
   against `sounddevice.query_devices()`
-- [ ] Invalid device index raises `AudioDeviceError(f"Input device {idx} not found. "
+- [x] Invalid device index raises `AudioDeviceError(f"Input device {idx} not found. "
   f"Available: {available_list}")` before the wake word listener starts
-- [ ] `rex doctor` includes an audio device check and prints available device names
-- [ ] A test mocks `sounddevice.query_devices()` to simulate a missing device and asserts
+- [x] `rex doctor` includes an audio device check and prints available device names
+- [x] A test mocks `sounddevice.query_devices()` to simulate a missing device and asserts
   the correct error is raised
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 

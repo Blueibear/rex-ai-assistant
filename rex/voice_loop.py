@@ -107,6 +107,56 @@ def _require_sounddevice():
     return module
 
 
+def _device_name(device: Any) -> str:
+    if isinstance(device, dict):
+        return str(device.get("name", "<unknown>"))
+    return str(getattr(device, "name", "<unknown>"))
+
+
+def _max_input_channels(device: Any) -> int:
+    if isinstance(device, dict):
+        value = device.get("max_input_channels", 0)
+    else:
+        value = getattr(device, "max_input_channels", 0)
+    return int(value or 0)
+
+
+def _available_input_devices(devices: Any) -> list[str]:
+    available: list[str] = []
+    for index, device in enumerate(devices):
+        if _max_input_channels(device) > 0:
+            available.append(f"{index}: {_device_name(device)}")
+    return available
+
+
+def _validate_input_device_index(device_index: int | None) -> int | None:
+    if device_index is None:
+        return None
+
+    sd_module = _require_sounddevice()
+    try:
+        devices = sd_module.query_devices()
+    except Exception as exc:
+        raise AudioDeviceError(str(exc)) from exc
+
+    available_devices = _available_input_devices(devices)
+    available_list = ", ".join(available_devices) if available_devices else "none"
+
+    try:
+        device = devices[device_index]
+    except (IndexError, KeyError, TypeError):
+        raise AudioDeviceError(
+            f"Input device {device_index} not found. Available: {available_list}"
+        ) from None
+
+    if _max_input_channels(device) <= 0:
+        raise AudioDeviceError(
+            f"Input device {device_index} not found. Available: {available_list}"
+        )
+
+    return device_index
+
+
 def _detect_audio_format(audio_buffer: bytes) -> str:
     header = audio_buffer[:4]
     if not header:
@@ -285,11 +335,13 @@ class AsyncMicrophone:
         sample_rate: int,
         detection_seconds: float,
         capture_seconds: float,
+        device_index: int | None = None,
         recorder: RecorderCallable | None = None,
     ) -> None:
         self.sample_rate = sample_rate
         self._detection_seconds = detection_seconds
         self._capture_seconds = capture_seconds
+        self._device_index = device_index
         self._recorder = recorder
 
     async def detection_frame(self) -> AudioArray:
@@ -317,7 +369,13 @@ class AsyncMicrophone:
         frames = max(int(self.sample_rate * duration), 1)
 
         def _capture() -> np.ndarray:  # type: ignore[name-defined]
-            recording = sd.rec(frames, samplerate=self.sample_rate, channels=1, dtype="float32")
+            recording = sd.rec(
+                frames,
+                samplerate=self.sample_rate,
+                channels=1,
+                dtype="float32",
+                device=self._device_index,
+            )
             sd.wait()
             return recording.reshape(-1)
 
@@ -923,12 +981,15 @@ def build_voice_loop(
     and at least one user is enrolled, an ``identify_speaker`` callback is
     built and wired into the voice loop automatically.
     """
+    input_device_index = _validate_input_device_index(settings.audio_input_device)
+
     from .wakeword.listener import build_default_detector
 
     mic = AsyncMicrophone(
         sample_rate=sample_rate,
         detection_seconds=detection_seconds,
         capture_seconds=capture_seconds,
+        device_index=input_device_index,
     )
 
     wake_listener = build_default_detector(

@@ -208,6 +208,24 @@ def test_voice_loop_propagates_audio_errors():
     assert assistant.calls == []
 
 
+def test_build_voice_loop_raises_for_missing_configured_input_device(monkeypatch):
+    class DummySoundDevice:
+        @staticmethod
+        def query_devices():
+            return [
+                {"name": "Mic 0", "max_input_channels": 1},
+                {"name": "Mic 1", "max_input_channels": 1},
+            ]
+
+    monkeypatch.setattr(_rvl, "sd", DummySoundDevice())
+    monkeypatch.setattr(_rvl.settings, "audio_input_device", 9)
+
+    with pytest.raises(AudioDeviceError) as excinfo:
+        _rvl.build_voice_loop(object())
+
+    assert str(excinfo.value) == "Input device 9 not found. Available: 0: Mic 0, 1: Mic 1"
+
+
 # ---------------------------------------------------------------------------
 # Temp file cleanup tests (US-196)
 # ---------------------------------------------------------------------------
