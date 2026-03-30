@@ -133,6 +133,112 @@ def test_openai_tool_calls_serialized_to_json(monkeypatch):
     assert "current weather" in tc["function"]["arguments"]
 
 
+def test_ollama_connection_refused_returns_friendly_message(monkeypatch):
+    """ConnectionRefusedError → connection-failed sentinel string."""
+    from rex.llm_client import OllamaStrategy, GenerationConfig
+
+    strategy = OllamaStrategy.__new__(OllamaStrategy)
+    strategy.model_name = "llama3"
+    strategy.base_url = "http://localhost:11434"
+    strategy.use_cloud = False
+    strategy._ollama = None
+    strategy._client = None
+    strategy._retry_config = __import__("rex.retry", fromlist=["RetryConfig"]).RetryConfig(
+        max_attempts=1
+    )
+
+    monkeypatch.setattr(
+        "rex.llm_client.with_retry",
+        lambda fn, **_kw: (_ for _ in ()).throw(ConnectionRefusedError("refused")),
+    )
+
+    result = strategy.generate("hello", GenerationConfig(100, 0.7, 1.0, 50, 42))
+    assert result == "[Ollama: connection failed — is Ollama running?]"
+
+
+def test_ollama_httpx_connect_error_returns_friendly_message(monkeypatch):
+    """httpx.ConnectError → connection-failed sentinel string."""
+    from rex.llm_client import OllamaStrategy, GenerationConfig
+
+    strategy = OllamaStrategy.__new__(OllamaStrategy)
+    strategy.model_name = "llama3"
+    strategy.base_url = "http://localhost:11434"
+    strategy.use_cloud = False
+    strategy._ollama = None
+    strategy._client = None
+    strategy._retry_config = __import__("rex.retry", fromlist=["RetryConfig"]).RetryConfig(
+        max_attempts=1
+    )
+
+    # Simulate an httpx.ConnectError by raising a class that looks like one
+    class _FakeConnectError(Exception):
+        pass
+
+    _FakeConnectError.__name__ = "ConnectError"
+    _FakeConnectError.__qualname__ = "ConnectError"
+    _FakeConnectError.__module__ = "httpx"
+
+    monkeypatch.setattr(
+        "rex.llm_client.with_retry",
+        lambda fn, **_kw: (_ for _ in ()).throw(_FakeConnectError("connect error")),
+    )
+
+    result = strategy.generate("hello", GenerationConfig(100, 0.7, 1.0, 50, 42))
+    assert result == "[Ollama: connection failed — is Ollama running?]"
+
+
+def test_ollama_model_not_found_returns_pull_hint(monkeypatch):
+    """Exception with status_code=404 → model-not-found sentinel string."""
+    from rex.llm_client import OllamaStrategy, GenerationConfig
+
+    strategy = OllamaStrategy.__new__(OllamaStrategy)
+    strategy.model_name = "no-such-model"
+    strategy.base_url = "http://localhost:11434"
+    strategy.use_cloud = False
+    strategy._ollama = None
+    strategy._client = None
+    strategy._retry_config = __import__("rex.retry", fromlist=["RetryConfig"]).RetryConfig(
+        max_attempts=1
+    )
+
+    class _ResponseError(Exception):
+        status_code = 404
+
+    monkeypatch.setattr(
+        "rex.llm_client.with_retry",
+        lambda fn, **_kw: (_ for _ in ()).throw(_ResponseError("model not found")),
+    )
+
+    result = strategy.generate("hello", GenerationConfig(100, 0.7, 1.0, 50, 42))
+    assert result == (
+        "[Ollama: model 'no-such-model' not found — run: ollama pull no-such-model]"
+    )
+
+
+def test_ollama_unexpected_error_returns_generic_message(monkeypatch):
+    """Any other exception → generic unexpected-error sentinel string."""
+    from rex.llm_client import OllamaStrategy, GenerationConfig
+
+    strategy = OllamaStrategy.__new__(OllamaStrategy)
+    strategy.model_name = "llama3"
+    strategy.base_url = "http://localhost:11434"
+    strategy.use_cloud = False
+    strategy._ollama = None
+    strategy._client = None
+    strategy._retry_config = __import__("rex.retry", fromlist=["RetryConfig"]).RetryConfig(
+        max_attempts=1
+    )
+
+    monkeypatch.setattr(
+        "rex.llm_client.with_retry",
+        lambda fn, **_kw: (_ for _ in ()).throw(RuntimeError("some weird error")),
+    )
+
+    result = strategy.generate("hello", GenerationConfig(100, 0.7, 1.0, 50, 42))
+    assert result.startswith("[Ollama: unexpected error:")
+    assert "some weird error" in result
+
+
 def test_language_model_custom_strategy():
     """Test injecting a custom backend via register_strategy."""
 

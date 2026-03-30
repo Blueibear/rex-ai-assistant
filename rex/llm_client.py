@@ -277,16 +277,25 @@ class OllamaStrategy:
         try:
             return with_retry(_call, config=self._retry_config)
         except Exception as exc:
-            logger.error(
-                "Ollama generation failed (model=%s, host=%s): %s",
-                self.model_name,
-                self.base_url,
-                exc,
-            )
-            return (
-                f"I had trouble contacting the Ollama server at {self.base_url}. "
-                f"Make sure `ollama serve` is running and the `{self.model_name}` model is pulled."
-            )
+            # Connection errors: server not running or unreachable
+            if isinstance(exc, ConnectionRefusedError):
+                logger.error("Ollama connection failed: %s", exc)
+                return "[Ollama: connection failed — is Ollama running?]"
+            # httpx.ConnectError — ollama uses httpx internally; avoid top-level import
+            exc_cls = type(exc)
+            if exc_cls.__name__ == "ConnectError" and exc_cls.__module__ == "httpx":
+                logger.error("Ollama connection failed: %s", exc)
+                return "[Ollama: connection failed — is Ollama running?]"
+            # 404 model-not-found (ollama.ResponseError carries status_code)
+            if getattr(exc, "status_code", None) == 404:
+                logger.error("Ollama model '%s' not found: %s", self.model_name, exc)
+                return (
+                    f"[Ollama: model '{self.model_name}' not found"
+                    f" — run: ollama pull {self.model_name}]"
+                )
+            # All other errors
+            logger.error("Ollama unexpected error (model=%s): %s", self.model_name, exc)
+            return f"[Ollama: unexpected error: {exc}]"
 
 
 class AnthropicStrategy:

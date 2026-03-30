@@ -428,13 +428,13 @@ speech processing to be cleaned up reliably so that orphaned files do not accumu
 from missing-model errors so that users see accurate troubleshooting messages.
 
 **Acceptance Criteria:**
-- [ ] `OllamaStrategy` catches `httpx.ConnectError` / `ConnectionRefusedError` and returns
+- [x] `OllamaStrategy` catches `httpx.ConnectError` / `ConnectionRefusedError` and returns
   `"[Ollama: connection failed — is Ollama running?]"`
-- [ ] `OllamaStrategy` catches 404 model-not-found responses and returns
+- [x] `OllamaStrategy` catches 404 model-not-found responses and returns
   `"[Ollama: model '{model}' not found — run: ollama pull {model}]"`
-- [ ] All other errors return `"[Ollama: unexpected error: {detail}]"`
-- [ ] Tests cover all three error paths with mocked HTTP responses
-- [ ] Typecheck passes
+- [x] All other errors return `"[Ollama: unexpected error: {detail}]"`
+- [x] Tests cover all three error paths with mocked HTTP responses
+- [x] Typecheck passes
 
 ---
 
