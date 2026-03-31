@@ -223,11 +223,11 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want all completed or superseded PRD files moved to `docs/archive/prd/` so only active planning documents remain visible at the root.
 
 **Acceptance Criteria:**
-- [ ] Directory `docs/archive/prd/` created
-- [ ] The following moved via `git mv`: `PRD-ci-fix-pr216.md`, `PRD-complete.md`, `PRD-full-repo-audit.md`, `PRD-full-test-and-fix.md`, `PRD-gui-autonomy-integrations.md`, `PRD-openclaw-http-integration.md`, `PRD-openclaw-pivot-for-rex.md`, `PRD-repo-quality.md`, `PRD-voice-selector-and-fixes.md`, `PRD-complete-3_31.md`
-- [ ] `PRD-master-next-cycle.md` (this file) remains at root as the active PRD
-- [ ] `docs/archive/prd/INDEX.md` created with one-line description per archived PRD
-- [ ] Typecheck passes
+- [x] Directory `docs/archive/prd/` created
+- [x] The following moved via `git mv`: `PRD-ci-fix-pr216.md`, `PRD-complete.md`, `PRD-full-repo-audit.md`, `PRD-full-test-and-fix.md`, `PRD-gui-autonomy-integrations.md`, `PRD-openclaw-http-integration.md`, `PRD-openclaw-pivot-for-rex.md`, `PRD-repo-quality.md`, `PRD-voice-selector-and-fixes.md`, `PRD-complete-3_31.md`
+- [x] `PRD-master-next-cycle.md` (this file) remains at root as the active PRD
+- [x] `docs/archive/prd/INDEX.md` created with one-line description per archived PRD
+- [x] Typecheck passes
 
 ---
 
