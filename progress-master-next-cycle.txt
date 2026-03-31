@@ -1,0 +1,15 @@
+## Iteration 1 - US-CI-001: Fix ruff lint — suppress phantom deleted-file errors
+- What was implemented:
+  - The CI lint script's `[ -f "$f" ]` filter was already present in the committed code
+  - Fixed ruff violations (UP035, UP007, UP045) in rex/voice_loop.py which was a changed file
+  - Removed unused `Union` import and `typing_extensions.TypeAlias` import after ruff --fix
+  - Ran black to reformat rex/voice_loop.py
+- Files changed:
+  - rex/voice_loop.py (ruff fixes: replaced Union/Optional with pipe syntax, removed typing_extensions import)
+  - PRD-master-next-cycle.md (marked US-CI-001 complete)
+- Learnings for future iterations:
+  - The CI file already had the deleted-file filter from a prior commit; key fix was ruff violations in changed files
+  - `ruff check --fix` leaves some violations (UP007 on complex Union expressions); fix manually then remove unused imports
+  - Always run black after ruff --fix since ruff may leave formatting inconsistencies
+  - Always remove unused imports after ruff rewrites type annotations (Union, Optional, typing_extensions.TypeAlias)
+---

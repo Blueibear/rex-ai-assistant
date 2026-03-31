@@ -25,9 +25,7 @@ from dataclasses import dataclass
 from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
-
-from typing_extensions import TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 from wake_acknowledgment import ensure_wake_acknowledgment_sound
 
@@ -190,7 +188,9 @@ def _to_wav_buffer(audio: AudioArray | bytes | bytearray | memoryview, sample_ra
         return buffer.getvalue()
 
 
-def _prepare_audio_for_stt(audio: AudioArray | bytes | bytearray | memoryview) -> AudioArray | bytes:
+def _prepare_audio_for_stt(
+    audio: AudioArray | bytes | bytearray | memoryview,
+) -> AudioArray | bytes:
     """Return STT input with non-finite values removed and amplitude clamped.
 
     Whisper on CUDA can fail with NaN logits if the captured microphone buffer
@@ -218,8 +218,8 @@ if TYPE_CHECKING:
 else:
     AudioArray: TypeAlias = Any
 
-RecorderCallable = Callable[[float], Union[Awaitable[AudioArray], AudioArray]]
-IdentifySpeakerCallable = Union[Callable[[AudioArray], Optional[str]], Callable[[], Optional[str]]]
+RecorderCallable = Callable[[float], Awaitable[AudioArray] | AudioArray]
+IdentifySpeakerCallable = Callable[[AudioArray], str | None] | Callable[[], str | None]
 
 # Backwards-compatible runtime alias used by optional-import tests.
 _NDArray = np.ndarray if np is not None else Any
@@ -489,7 +489,7 @@ class SpeechToText:
 
         if language is _USE_CONFIG_LANGUAGE:
             language = getattr(settings, "whisper_language", "en")
-        self._language = cast(Optional[str], language)
+        self._language = cast(str | None, language)
         self._device = device
 
         if device == "auto":
