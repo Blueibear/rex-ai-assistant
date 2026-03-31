@@ -80,11 +80,11 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want import blocks sorted in the two files that trigger I001 so CI is fully green on lint.
 
 **Acceptance Criteria:**
-- [ ] `tests/test_us025_planner_task_execution.py` import block sorted per ruff I001
-- [ ] `tests/test_us029_event_triggers.py` import block sorted per ruff I001
-- [ ] `ruff check` exits 0 on both files
-- [ ] `black --check` exits 0 on both files
-- [ ] Typecheck passes
+- [x] `tests/test_us025_planner_task_execution.py` import block sorted per ruff I001
+- [x] `tests/test_us029_event_triggers.py` import block sorted per ruff I001
+- [x] `ruff check` exits 0 on both files
+- [x] `black --check` exits 0 on both files
+- [x] Typecheck passes
 
 ---
 
