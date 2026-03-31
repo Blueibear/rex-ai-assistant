@@ -1,4 +1,4 @@
-# Notes for Cole
+# Notes for Morgan
 
 Wants Rex to understand context over time
 

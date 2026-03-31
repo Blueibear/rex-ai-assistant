@@ -290,13 +290,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want the `Memory/` directory to contain only template or clearly synthetic sample profiles so no real personal data is committed to the default repo state.
 
 **Acceptance Criteria:**
-- [ ] All files under `Memory/alice/`, `Memory/cole/`, `Memory/james/`, `Memory/voice-user/` inspected for real PII (names, emails, phone numbers, addresses)
-- [ ] Any file containing real personal data is either deleted or replaced with a clearly synthetic placeholder (e.g. `alice@example.com`, fictional phone numbers)
-- [ ] `Memory/README.md` created explaining these are example profiles and that real user data should never be committed
-- [ ] `Rex_Settings_Reference.xlsx` checked for personal data; sanitized or moved to `docs/archive/`
-- [ ] `.gitignore` updated to include `Memory/*/` so real runtime memory is not accidentally committed
-- [ ] `pytest -q` still passes
-- [ ] Typecheck passes
+- [x] All files under `Memory/alice/`, `Memory/cole/`, `Memory/james/`, `Memory/voice-user/` inspected for real PII (names, emails, phone numbers, addresses)
+- [x] Any file containing real personal data is either deleted or replaced with a clearly synthetic placeholder (e.g. `alice@example.com`, fictional phone numbers)
+- [x] `Memory/README.md` created explaining these are example profiles and that real user data should never be committed
+- [x] `Rex_Settings_Reference.xlsx` checked for personal data; sanitized or moved to `docs/archive/`
+- [x] `.gitignore` updated to include `Memory/*/` so real runtime memory is not accidentally committed
+- [x] `pytest -q` still passes
+- [x] Typecheck passes
 
 ---
 

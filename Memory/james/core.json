@@ -1,7 +1,7 @@
 {
-  "name": "James",
+  "name": "Alex",
   "role": "Owner and primary user",
-  "user": "james",
+  "user": "alex",
   "personality_traits": [
     "curious",
     "strategic",
@@ -12,24 +12,21 @@
     "conversation_style": "laid-back",
     "topics": [
       "travel",
-      "pets",
       "AI",
       "automation",
-      "t-shirts",
       "privacy",
-      "voice assistants",
-      "star trek"
+      "voice assistants"
     ]
   },
   "voice": {
-    "sample_path": "C:/AI/CoquiXTTS/james_voice.wav",
-    "speaker_name": "james_xtts",
+    "sample_path": "Memory/alex/voice_sample.wav",
+    "speaker_name": "alex_xtts",
     "gender": "male",
     "style": "friendly and warm"
   },
   "testing_mode": false,
   "created_at": "2025-09-23T00:00:00Z",
   "last_updated": "2025-09-23T00:00:00Z",
-  "notes_path": "Memory/james/notes.md"
+  "notes_path": "Memory/alex/notes.md"
 }
 

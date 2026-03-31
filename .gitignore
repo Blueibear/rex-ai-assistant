@@ -97,6 +97,8 @@ transcripts/
 !transcripts/README.md
 
 # Memory storage (exclude content but keep metadata)
+# Memory/*/ subdirectories are excluded by the Memory/ rule below.
+# Real runtime user profiles must never be committed.
 Memory/
 !Memory/.gitkeep
 !Memory/README.md

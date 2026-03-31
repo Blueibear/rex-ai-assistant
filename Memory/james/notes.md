@@ -1,4 +1,4 @@
-# Notes for James
+# Notes for Alex
 
 Wants Rex to understand context over time
 

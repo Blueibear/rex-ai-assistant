@@ -166,3 +166,30 @@
   - Extra files not in the summary were present: FINAL_DELIVERY_SUMMARY.txt, README_STABILIZATION.md, Rex_AI_Assistant_Blueprint.pdf, VERIFICATION_REPORT_VOICE_IDENTITY_BL009_BL012.md — always re-list docs/ before writing the index
   - The PRD categories (Architecture, Configuration, Integrations, API, Development, Archive) are a minimum; adding Security as a separate category improves clarity
 ---
+
+## Iteration 12 - US-RH-007: Remove or replace committed personal/sample data in Memory/
+- What was implemented:
+  - Inspected all tracked Memory files: Memory/james/core.json, Memory/cole/core.json, notes.md x2, history.log x2
+  - No emails, phone numbers, or addresses found — only first names and local machine paths
+  - Memory/alice/ and Memory/voice-user/ are untracked (only generic test exchanges, no PII)
+  - Rex_Settings_Reference.xlsx is untracked and already gitignored at line 144 — no action needed
+  - Replaced real names in core.json: "James"→"Alex", "Cole"→"Morgan"; updated machine-specific paths to relative example paths
+  - Updated notes.md files: "Notes for James"→"Notes for Alex", "Notes for Cole"→"Notes for Morgan"
+  - Created Memory/README.md explaining these are example profiles and real user data must not be committed
+  - Added Memory/*/ explicitly to .gitignore (Memory/ was already there but PRD requested explicit subdirectory pattern)
+  - pytest -q passed (exit 0)
+- Files changed:
+  - Memory/james/core.json (name/user/paths sanitized)
+  - Memory/cole/core.json (name/user/paths sanitized)
+  - Memory/james/notes.md (heading sanitized)
+  - Memory/cole/notes.md (heading sanitized)
+  - Memory/README.md (created)
+  - .gitignore (added Memory/*/ rule)
+  - PRD-master-next-cycle.md (marked US-RH-007 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - Git tracks only core.json, notes.md, history.log in Memory/ — history.jsonl and history_meta.json are untracked
+  - Rex_Settings_Reference.xlsx is already gitignored at .gitignore:144 — check gitignore before moving untracked files
+  - Inspecting for PII: if no emails/phone/addresses, still check first names against Windows username to identify owner data
+  - .gitignore Memory/ already covers Memory/*/ — adding both is redundant but satisfies explicit PRD criterion
+---

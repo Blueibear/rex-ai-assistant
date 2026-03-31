@@ -1,6 +1,6 @@
 {
-  "name": "Cole",
-  "user": "cole",
+  "name": "Morgan",
+  "user": "morgan",
   "role": "Secondary user and partner",
   "personality_traits": [
     "thoughtful",
@@ -17,14 +17,14 @@
     ]
   },
   "voice": {
-    "sample_path": "C:/AI/CoquiXTTS/cole_voice.wav",
-    "speaker_name": "cole_xtts",
+    "sample_path": "Memory/morgan/voice_sample.wav",
+    "speaker_name": "morgan_xtts",
     "gender": "male",
     "style": "friendly and warm"
   },
   "testing_mode": false,
   "created_at": "2025-09-23T00:00:00Z",
   "last_updated": "2025-09-23T00:00:00Z",
-  "notes_path": "Memory/cole/notes.md"
+  "notes_path": "Memory/morgan/notes.md"
 }
 
