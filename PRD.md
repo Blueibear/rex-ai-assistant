@@ -801,11 +801,11 @@ Black on staged files so that lint and format regressions are caught before they
 or above the 75% threshold so that this cycle is provably complete.
 
 **Acceptance Criteria:**
-- [ ] `pytest -q` exits 0 with no failures or errors
-- [ ] `pytest --cov=rex --cov-report=term-missing` reports overall coverage >= 75%
-- [ ] No test is marked `xfail` that was previously passing
-- [ ] All new test files from this cycle are included in the run
-- [ ] Typecheck passes
+- [x] `pytest -q` exits 0 with no failures or errors
+- [x] `pytest --cov=rex --cov-report=term-missing` reports overall coverage >= 75%
+- [x] No test is marked `xfail` that was previously passing
+- [x] All new test files from this cycle are included in the run
+- [x] Typecheck passes
 
 ---
 

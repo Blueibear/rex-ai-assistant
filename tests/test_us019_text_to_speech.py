@@ -60,7 +60,11 @@ class TestTTSEngineLoads:
             patch("rex.voice_loop._lazy_import_tts", return_value=fake_cls),
             patch.dict(sys.modules, {"torch": fake_torch}),
             patch("rex.voice_loop.import_module", return_value=fake_torch),
+            patch("rex.voice_loop.settings") as mock_settings,
         ):
+            mock_settings.tts_provider = "xtts"
+            mock_settings.tts_voice = None
+            mock_settings.tts_speed = 1.0
             from rex.voice_loop import TextToSpeech
 
             tts = TextToSpeech(language="en")
@@ -82,7 +86,13 @@ class TestTTSEngineLoads:
 
     def test_xtts_retries_init_during_speak_and_surfaces_reason(self):
         """When XTTS init fails at runtime, error includes actionable reason."""
-        with patch("rex.voice_loop._lazy_import_tts", return_value=None):
+        with (
+            patch("rex.voice_loop._lazy_import_tts", return_value=None),
+            patch("rex.voice_loop.settings") as mock_settings,
+        ):
+            mock_settings.tts_provider = "xtts"
+            mock_settings.tts_voice = None
+            mock_settings.tts_speed = 1.0
             from rex.voice_loop import TextToSpeech
 
             tts = TextToSpeech(language="en")
@@ -159,7 +169,11 @@ class TestAudioGenerated:
             patch.dict(sys.modules, {"torch": fake_torch}),
             patch("rex.voice_loop._lazy_import_soundfile", return_value=fake_sf),
             patch("rex.voice_loop.sa", fake_sa),
+            patch("rex.voice_loop.settings") as mock_settings,
         ):
+            mock_settings.tts_provider = "xtts"
+            mock_settings.tts_voice = None
+            mock_settings.tts_speed = 1.0
             from rex.voice_loop import TextToSpeech
 
             tts = TextToSpeech(language="en")
@@ -278,7 +292,11 @@ class TestAudioPlaysAutomatically:
             patch.dict(sys.modules, {"torch": fake_torch}),
             patch("rex.voice_loop._lazy_import_soundfile", return_value=fake_sf),
             patch("rex.voice_loop.sa", fake_sa),
+            patch("rex.voice_loop.settings") as mock_settings,
         ):
+            mock_settings.tts_provider = "xtts"
+            mock_settings.tts_voice = None
+            mock_settings.tts_speed = 1.0
             from rex.voice_loop import TextToSpeech
 
             tts = TextToSpeech(language="en")

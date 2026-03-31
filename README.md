@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="https://github.com/Blueibear/askrex-assistant/actions/workflows/ci.yml/badge.svg" alt="CI status" />
-  <img src="https://img.shields.io/badge/python-3.9%2B-blue" alt="Python 3.9+" />
+  <img src="https://img.shields.io/badge/python-3.11-blue" alt="Python 3.11" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />
   <a href="https://www.buymeacoffee.com/Blueibear" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 28px !important;width: 120px !important;" ></a>
 </p>
@@ -33,32 +33,50 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
    cd askrex-assistant
    ```
 
-2. **Run the installer for your platform:**
+2. **Use Python 3.11 and create a virtual environment:**
+
+   Windows (PowerShell):
+   ```powershell
+   py -3.11 -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   ```
 
    macOS / Linux:
+   ```bash
+   python3.11 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+3. **Install Rex:**
+
+   macOS / Linux full install:
    ```bash
    bash install.sh
    ```
 
-   Windows (PowerShell):
+   Windows full install:
    ```powershell
    .\install.ps1
    ```
 
-3. **Configure LM Studio** — download and open [LM Studio](https://lmstudio.ai), load a model, and start the local server on `http://localhost:1234`. Then set your model in `config/rex_config.json`:
+   Windows GPU + TTS path:
+   ```powershell
+   pip install --upgrade pip setuptools wheel
+   pip install -r requirements-gpu-cu124.txt
+   ```
+
+4. **Configure your model provider**. LM Studio remains optional. Ollama and OpenAI-compatible local servers also work. If using LM Studio, start the local server on `http://localhost:1234` and set your model in `config/rex_config.json`:
    ```json
    { "openai": { "base_url": "http://localhost:1234/v1", "model": "your-model-name" } }
    ```
 
-4. **Run Rex:**
+5. **Run Rex and verify** — Rex prints `Rex assistant ready` and responds to your first message:
    ```bash
    rex
+   python -m rex doctor
    ```
 
-5. **Verify it works** — Rex prints `Rex assistant ready` and responds to your first message. Run the health check to confirm all components are operational:
-   ```bash
-   python scripts/doctor.py
-   ```
+> Python support is intentionally strict: the current dependency stack is validated on Python 3.11. Fresh installs on Python 3.13/3.14 are known to fail in the ML/TTS path, so unsupported versions now fail fast.
 
 > **Advanced / Developer Install** — for GPU setups, custom extras, Docker, or development workflows, see [docs/advanced-install.md](docs/advanced-install.md).
 >
@@ -87,7 +105,7 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
 | Component | Requirement |
 |-----------|-------------|
 | **OS** | macOS 11+, Windows 10/11, or Ubuntu 20.04+ |
-| **Python** | 3.9 through 3.13 (3.10+ recommended) |
+| **Python** | 3.11 |
 | **FFmpeg** | Must be installed and available on PATH |
 | **Hardware** | Microphone and speakers for voice mode |
 | **GPU** (optional) | NVIDIA GPU with CUDA 11.8+ for acceleration |
@@ -103,7 +121,7 @@ Rex uses a dual-config system:
 - **Runtime settings** (models, audio, wake word, feature flags) → `config/rex_config.json`
   Edit this file directly or use `rex-config` to manage it.
 
-See [CONFIGURATION.md](CONFIGURATION.md) for the full reference including configuration precedence, migration from legacy env vars, and all available fields.
+See [CONFIGURATION.md](CONFIGURATION.md) for the full reference including configuration precedence, migration from legacy env vars, and all available fields. For a complete list of supported environment variables see [docs/environment-variables.md](docs/environment-variables.md).
 
 ## Usage
 
@@ -141,7 +159,7 @@ Each user has a dedicated profile in `Memory/<username>/` with preferences, hist
 
 ## Development
 
-For development workflows including pip extras, GPU setup, code quality tools, and running tests, see [docs/advanced-install.md](docs/advanced-install.md).
+For development workflows including pip extras, GPU setup, code quality tools, and running tests, see [docs/advanced-install.md](docs/advanced-install.md). The full voice stack, including Windows GPU + TTS, is currently supported on Python 3.11 only.
 
 ### Available Test Markers
 

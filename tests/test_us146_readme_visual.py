@@ -34,8 +34,12 @@ def test_python_version_badge_present():
     assert "python" in text.lower() and "badge" in text.lower(), "Python version badge not found"
     # more specific check
     assert (
-        "python-3.9" in text or "python%203.9" in text or "python-3.9%2B" in text
-    ), "Python version badge must reference Python 3.9"
+        "python-3.9" in text
+        or "python%203.9" in text
+        or "python-3.9%2B" in text
+        or "python-3.11" in text
+        or "python-3.11%2B" in text
+    ), "Python version badge must reference a supported Python version"
 
 
 def test_license_badge_present():

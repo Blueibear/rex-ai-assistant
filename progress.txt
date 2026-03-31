@@ -126,3 +126,17 @@
   - `US-220` still fails validation: `python -m pytest -q --maxfail=1` now stops at `tests/test_repo_integrity.py::TestRepoIntegrity::test_no_tracked_files_modified` because the working tree is already dirty, including ` D rex/tool_router.py` in `git status --short`.
   - Do not mark `US-220` complete or commit until the repo-integrity blocker and the remaining full-suite / coverage gates are resolved.
 ---
+## Iteration 14 - US-220 Final quality gate pass
+- Fixed all remaining test failures to achieve green suite
+- Files changed: tests/test_doctor.py, tests/test_us142_rex_doctor.py, tests/test_us019_text_to_speech.py, tests/test_us143_readme_structure.py (via README), tests/test_us144_quick_start.py (via README), tests/test_us146_readme_visual.py, tests/test_us096_secret_scan.py, tests/test_speak_api.py, README.md, .pre-commit-config.yaml, rex/voice_loop.py, rex/windows_service.py
+- Learnings for future iterations:
+  - Doctor tests were written when Python 3.9/3.10 were supported; after policy changed to 3.11-only, tests must expect ERROR not WARNING/OK
+  - TTS tests that check XTTS behavior must mock settings.tts_provider="xtts" since real config uses "edge"
+  - test_rex_speak_api._load_app() re-imports the module with RATE_LIMIT=2; downstream tests must reset RATE_LIMIT via monkeypatch and clear _RATE_CACHE
+  - pip-audit and detect-secrets must be installed for their test suites to pass
+  - .pre-commit-config.yaml must include detect-secrets hook referencing .secrets.baseline
+  - README Quick Start must have ≤5 numbered steps
+  - Configuration section in README must link to docs/environment-variables.md
+  - mypy unused-ignore on windows_service.py: remove type: ignore when stubs (types-requests) are installed
+  - numpy return types in voice_loop.py need explicit annotation or type: ignore[no-any-return]
+---

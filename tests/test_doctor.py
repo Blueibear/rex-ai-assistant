@@ -127,10 +127,10 @@ class TestPythonVersionCheck:
             assert "3.8" in result.message
 
     def test_python_39_warning(self):
-        """Test that Python 3.9 gives warning."""
+        """Test that Python 3.9 is not supported (policy: 3.11 only)."""
         with patch("rex.doctor.sys.version_info", MockVersionInfo(3, 9, 0)):
             result = check_python_version()
-            assert result.status == Status.WARNING
+            assert result.status == Status.ERROR
             assert "3.9" in result.message
 
     def test_python_311_ok(self):

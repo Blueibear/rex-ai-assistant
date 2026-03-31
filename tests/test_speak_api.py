@@ -74,6 +74,12 @@ def test_concurrent_speak_requests(monkeypatch):
     """5 concurrent /speak requests must all return 200 with non-empty audio."""
     import rex_speak_api
 
+    # Reset rate limiter state to avoid cross-test contamination from prior test modules
+    # (test_rex_speak_api re-imports the module with RATE_LIMIT=2)
+    monkeypatch.setattr(rex_speak_api, "RATE_LIMIT", 30)
+    if rex_speak_api._RATE_CACHE is not None:
+        rex_speak_api._RATE_CACHE.clear()
+
     call_count = 0
     call_lock = threading.Lock()
 
@@ -247,6 +253,12 @@ def test_oversized_request_body_returns_413(monkeypatch):
 def test_request_within_size_limit_proceeds(monkeypatch):
     """A request body under MAX_REQUEST_BYTES must not be rejected with 413."""
     import rex_speak_api
+
+    # Reset rate limiter state to avoid cross-test contamination from prior test modules
+    # (test_rex_speak_api re-imports the module with RATE_LIMIT=2)
+    monkeypatch.setattr(rex_speak_api, "RATE_LIMIT", 30)
+    if rex_speak_api._RATE_CACHE is not None:
+        rex_speak_api._RATE_CACHE.clear()
 
     monkeypatch.setenv("REX_SPEAK_API_KEY", "testkey")
 

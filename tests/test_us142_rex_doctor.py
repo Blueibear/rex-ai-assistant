@@ -37,17 +37,18 @@ class TestCheckPythonVersion:
     def test_pass_for_310_plus(self):
         import sys
 
+        # Policy: only Python 3.11 is supported; 3.10 returns ERROR
         with patch.object(sys, "version_info", self._make_version(3, 10, 0)):
             result = check_python_version()
-        assert result.status == Status.OK
+        assert result.status == Status.ERROR
 
     def test_pass_for_39(self):
         import sys
 
+        # Policy: only Python 3.11 is supported; 3.9 returns ERROR
         with patch.object(sys, "version_info", self._make_version(3, 9, 0)):
             result = check_python_version()
-        # 3.9 is supported with warning
-        assert result.status in (Status.OK, Status.WARNING)
+        assert result.status == Status.ERROR
 
     def test_fail_for_38(self):
         import sys

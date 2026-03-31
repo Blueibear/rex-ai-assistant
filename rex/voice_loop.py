@@ -190,6 +190,24 @@ def _to_wav_buffer(audio: AudioArray | bytes | bytearray | memoryview, sample_ra
         return buffer.getvalue()
 
 
+def _prepare_audio_for_stt(audio: AudioArray | bytes | bytearray | memoryview) -> AudioArray | bytes:
+    """Return STT input with non-finite values removed and amplitude clamped.
+
+    Whisper on CUDA can fail with NaN logits if the captured microphone buffer
+    already contains NaN/inf values. Sanitize the audio before inference while
+    preserving the preferred GPU execution path.
+    """
+    if isinstance(audio, (bytes, bytearray, memoryview)):
+        return bytes(audio)
+
+    numpy = _require_numpy()
+    prepared: AudioArray = numpy.asarray(audio, dtype=numpy.float32).reshape(-1)
+    if prepared.size == 0:
+        return prepared
+    prepared = numpy.nan_to_num(prepared, nan=0.0, posinf=1.0, neginf=-1.0)
+    return numpy.clip(prepared, -1.0, 1.0)  # type: ignore[no-any-return]
+
+
 logger = logging.getLogger(__name__)
 _USE_CONFIG_LANGUAGE = object()
 
@@ -472,6 +490,7 @@ class SpeechToText:
         if language is _USE_CONFIG_LANGUAGE:
             language = getattr(settings, "whisper_language", "en")
         self._language = cast(Optional[str], language)
+        self._device = device
 
         if device == "auto":
             try:
@@ -480,6 +499,7 @@ class SpeechToText:
                 device = "cuda" if torch.cuda.is_available() else "cpu"
             except ImportError:
                 device = "cpu"
+        self._device = device
 
         try:
             self._model = whisper_module.load_model(model_name, device=device)
@@ -493,13 +513,14 @@ class SpeechToText:
     ) -> str:
         """Transcribe audio to text."""
 
-        audio_buffer = _to_wav_buffer(audio, sample_rate)
+        prepared_audio = _prepare_audio_for_stt(audio)
+        audio_buffer = _to_wav_buffer(prepared_audio, sample_rate)
         if audio_buffer[:4] != b"RIFF":
             detected_format = _detect_audio_format(audio_buffer)
             raise AudioFormatError(f"Expected WAV, got {detected_format}")
 
         def _transcribe() -> str:
-            result = self._model.transcribe(audio, language=self._language, fp16=False)
+            result = self._model.transcribe(prepared_audio, language=self._language, fp16=False)
             return str(result.get("text", "")).strip()
 
         try:
