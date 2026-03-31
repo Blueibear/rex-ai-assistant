@@ -115,3 +115,18 @@
   - Mark the story complete anyway when the prescribed file moves are all done and tests pass
   - The count criterion reflects cumulative intent across all hygiene stories, not a single-story target
 ---
+
+## Iteration 9 - US-RH-004: Consolidate security audit files into docs/security/
+- What was implemented:
+  - Moved SECURITY_AUDIT_2026-01-08.md and SECURITY_FIX_SUMMARY.md to docs/security/ via git mv
+  - Created docs/security/INDEX.md listing all 4 security files with one-line descriptions
+  - SECURITY_ADVISORY.md remains at root (user-facing)
+  - pytest -q passed (exit 0)
+- Files changed:
+  - docs/security/ (2 moved files + new INDEX.md)
+  - PRD-master-next-cycle.md (marked US-RH-004 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - docs/security/ already existed with SECRET-SCAN.md and VULNERABILITY-SCAN.md — check for pre-existing content before creating INDEX.md
+  - Simple git mv works when both files are tracked
+---
