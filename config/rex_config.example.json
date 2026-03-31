@@ -173,5 +173,13 @@
         "timeout_seconds": 30
       }
     ]
+  },
+  "model_routing": {
+    "default": "",
+    "coding": "",
+    "reasoning": "",
+    "search": "",
+    "vision": "",
+    "fast": ""
   }
 }

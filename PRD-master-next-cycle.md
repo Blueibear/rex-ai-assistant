@@ -311,12 +311,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want `AppConfig` to support a `model_routing` block that maps task categories to model identifiers so routing rules are declared in config rather than hardcoded.
 
 **Acceptance Criteria:**
-- [ ] `AppConfig` gains a `model_routing: ModelRoutingConfig` field (Pydantic model)
-- [ ] `ModelRoutingConfig` has fields: `default`, `coding`, `reasoning`, `search`, `vision`, `fast`, each accepting a string model identifier
-- [ ] `config/rex_config.example.json` updated with a `model_routing` block showing sensible defaults
-- [ ] `config/rex_config.json` schema docs updated
-- [ ] Existing config loads without error when `model_routing` is absent (all fields optional with defaults)
-- [ ] Typecheck passes
+- [x] `AppConfig` gains a `model_routing: ModelRoutingConfig` field (Pydantic model)
+- [x] `ModelRoutingConfig` has fields: `default`, `coding`, `reasoning`, `search`, `vision`, `fast`, each accepting a string model identifier
+- [x] `config/rex_config.example.json` updated with a `model_routing` block showing sensible defaults
+- [x] `config/rex_config.json` schema docs updated
+- [x] Existing config loads without error when `model_routing` is absent (all fields optional with defaults)
+- [x] Typecheck passes
 
 ---
 

@@ -378,6 +378,42 @@
           "default": false
         }
       }
+    },
+    "model_routing": {
+      "type": "object",
+      "description": "Maps task categories to LLM model identifiers. Empty string means fall back to models.llm_model.",
+      "properties": {
+        "default": {
+          "type": "string",
+          "description": "Default model for unclassified requests (empty = use models.llm_model)",
+          "default": ""
+        },
+        "coding": {
+          "type": "string",
+          "description": "Model for code generation and debugging tasks",
+          "default": ""
+        },
+        "reasoning": {
+          "type": "string",
+          "description": "Model for complex multi-step reasoning tasks",
+          "default": ""
+        },
+        "search": {
+          "type": "string",
+          "description": "Model for web search and research tasks",
+          "default": ""
+        },
+        "vision": {
+          "type": "string",
+          "description": "Model for image description and visual tasks",
+          "default": ""
+        },
+        "fast": {
+          "type": "string",
+          "description": "Model for simple factual questions requiring low latency",
+          "default": ""
+        }
+      }
     }
   },
   "required": ["audio", "wake_word", "models", "runtime"]

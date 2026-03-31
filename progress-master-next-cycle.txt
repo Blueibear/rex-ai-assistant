@@ -193,3 +193,27 @@
   - Inspecting for PII: if no emails/phone/addresses, still check first names against Windows username to identify owner data
   - .gitignore Memory/ already covers Memory/*/ — adding both is redundant but satisfies explicit PRD criterion
 ---
+
+## Iteration 13 - US-MM-001: Add model routing config schema
+- What was implemented:
+  - AppConfig is a dataclass (not Pydantic) — the PRD says "Pydantic model" but dataclass is the established pattern
+  - Added ModelRoutingConfig dataclass before EmailAccountConfig in rex/config.py
+  - Fields: default, coding, reasoning, search, vision, fast — all str with default ""
+  - Added model_routing: ModelRoutingConfig field to AppConfig with default_factory=ModelRoutingConfig
+  - Added _parse_model_routing() helper that reads from "model_routing" JSON key, returns default if absent/invalid
+  - Wired model_routing= into build_app_config() at end of AppConfig() call
+  - Added model_routing block to config/rex_config.example.json (all fields empty string)
+  - Added model_routing block to config/rex_config.schema.json with property descriptions
+  - mypy 0 errors on rex/config.py; pytest -q exit 0
+- Files changed:
+  - rex/config.py (ModelRoutingConfig class, AppConfig field, _parse_model_routing helper, build_app_config wiring)
+  - config/rex_config.example.json (model_routing block added)
+  - config/rex_config.schema.json (model_routing property definitions added)
+  - PRD-master-next-cycle.md (marked US-MM-001 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - AppConfig is a dataclass, not Pydantic — the PRD's "Pydantic model" wording reflects intent; use dataclass for consistency
+  - Empty string default for model identifiers means "use global llm_model" — document this in the docstring and schema
+  - _parse_model_routing() pattern matches _parse_email_accounts() — read raw dict, return typed dataclass
+  - Placing new field before Aliases block keeps field grouping logical
+---

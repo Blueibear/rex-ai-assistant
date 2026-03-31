@@ -84,6 +84,23 @@ def resolve_wakeword_keyword(
 
 
 @dataclass
+class ModelRoutingConfig:
+    """Maps task categories to LLM model identifiers.
+
+    Each field accepts a model identifier string (e.g. ``"gpt-4o"``,
+    ``"llama3"``) or an empty string to fall back to the global
+    ``AppConfig.llm_model`` setting.  All fields are optional.
+    """
+
+    default: str = ""
+    coding: str = ""
+    reasoning: str = ""
+    search: str = ""
+    vision: str = ""
+    fast: str = ""
+
+
+@dataclass
 class EmailAccountConfig:
     """Configuration for a single email account (IMAP read + SMTP send)."""
 
@@ -210,6 +227,9 @@ class AppConfig:
     openclaw_gateway_max_retries: int = 3
     openclaw_gateway_token: Optional[str] = None
 
+    # Model routing
+    model_routing: ModelRoutingConfig = field(default_factory=ModelRoutingConfig)
+
     # Aliases
     llm_backend: Optional[str] = None
     temperature: Optional[float] = None
@@ -322,6 +342,20 @@ def _parse_email_accounts(raw: object) -> List[EmailAccountConfig]:
         except (KeyError, TypeError, ValueError) as exc:
             LOGGER.warning("Skipping malformed email account entry: %s", exc)
     return accounts
+
+
+def _parse_model_routing(raw: object) -> ModelRoutingConfig:
+    """Parse ``model_routing`` block from JSON config."""
+    if not isinstance(raw, dict):
+        return ModelRoutingConfig()
+    return ModelRoutingConfig(
+        default=str(raw.get("default", "")),
+        coding=str(raw.get("coding", "")),
+        reasoning=str(raw.get("reasoning", "")),
+        search=str(raw.get("search", "")),
+        vision=str(raw.get("vision", "")),
+        fast=str(raw.get("fast", "")),
+    )
 
 
 def _merge_profile_config(base_config: dict) -> dict:
@@ -470,6 +504,8 @@ def build_app_config(json_config: dict) -> AppConfig:
             _get_nested(json_config, "runtime.history_db_path", "data/history.db")
         ),
         history_retention_days=_coerce_int(json_config, "runtime.history_retention_days", 30),
+        # Model routing
+        model_routing=_parse_model_routing(_get_nested(json_config, "model_routing", {})),
     )
 
     return config
