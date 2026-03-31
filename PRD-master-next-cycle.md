@@ -192,9 +192,9 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want `tests/test_us174.py::test_chat_mode_not_affected` to not read from the deleted `rex/dashboard/routes.py` so pytest does not fail on file-not-found.
 
 **Acceptance Criteria:**
-- [ ] Test updated to either target the correct current routes module or marked `pytest.mark.skip(reason="dashboard routes retired")`
-- [ ] `pytest -q tests/test_us174.py` exits 0
-- [ ] Typecheck passes
+- [x] Test updated to either target the correct current routes module or marked `pytest.mark.skip(reason="dashboard routes retired")`
+- [x] `pytest -q tests/test_us174.py` exits 0
+- [x] Typecheck passes
 
 ---
 
