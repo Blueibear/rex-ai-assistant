@@ -130,3 +130,21 @@
   - docs/security/ already existed with SECRET-SCAN.md and VULNERABILITY-SCAN.md — check for pre-existing content before creating INDEX.md
   - Simple git mv works when both files are tracked
 ---
+
+## Iteration 10 - US-RH-005: Normalize branding — Rex AI Assistant canonical name
+- What was implemented:
+  - Fixed README.md H1 from "AskRex Assistant" to "Rex AI Assistant"
+  - Fixed README.md opening paragraph "AskRex Assistant is..." → "Rex AI Assistant is..."
+  - pyproject.toml name (rex-ai-assistant) and description already correct
+  - rex/cli.py already references "Rex AI Assistant" in module docstring and version output
+  - "REX AI" grep hits only in docs/archive/ (archived historical files) — acceptable
+  - pytest -q passed (exit 0)
+- Files changed:
+  - README.md (H1 + opening paragraph branding fix)
+  - PRD-master-next-cycle.md (marked US-RH-005 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - Check README.md H1 carefully — was "AskRex Assistant" not "REX AI Assistant"
+  - Docker image tags like `rex-assistant` in INSTALL.md are operational names, not display branding — leave them
+  - "REX AI" in docs/archive/ is fine as historical artifact; criterion says "except legitimate acronym uses"
+---
