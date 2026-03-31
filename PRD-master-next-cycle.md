@@ -325,12 +325,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want a `ModelRouter` class that classifies an incoming user message into a task category so the correct model can be selected.
 
 **Acceptance Criteria:**
-- [ ] `rex/model_router.py` created with `ModelRouter` class
-- [ ] `ModelRouter.classify(message: str) -> TaskCategory` method implemented
-- [ ] `TaskCategory` is a `StrEnum` with values: `coding`, `reasoning`, `search`, `vision`, `fast`, `default`
-- [ ] Classification uses keyword/pattern heuristics (no LLM call) for deterministic, zero-latency routing
-- [ ] Unit tests in `tests/test_model_router.py` cover: code-related messages → `coding`, complex multi-step → `reasoning`, web search intent → `search`, image description request → `vision`, simple factual → `fast`
-- [ ] Typecheck passes
+- [x] `rex/model_router.py` created with `ModelRouter` class
+- [x] `ModelRouter.classify(message: str) -> TaskCategory` method implemented
+- [x] `TaskCategory` is a `StrEnum` with values: `coding`, `reasoning`, `search`, `vision`, `fast`, `default`
+- [x] Classification uses keyword/pattern heuristics (no LLM call) for deterministic, zero-latency routing
+- [x] Unit tests in `tests/test_model_router.py` cover: code-related messages → `coding`, complex multi-step → `reasoning`, web search intent → `search`, image description request → `vision`, simple factual → `fast`
+- [x] Typecheck passes
 
 ---
 

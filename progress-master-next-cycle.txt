@@ -217,3 +217,23 @@
   - _parse_model_routing() pattern matches _parse_email_accounts() — read raw dict, return typed dataclass
   - Placing new field before Aliases block keeps field grouping logical
 ---
+
+## Iteration 14 - US-MM-002: Implement model router — intent classification
+- What was implemented:
+  - Created rex/model_router.py with TaskCategory StrEnum and ModelRouter class
+  - TaskCategory uses StrEnum (with Python <3.11 fallback); values: coding, reasoning, search, vision, fast, default
+  - ModelRouter.classify() uses regex pattern tables, priority order: vision > coding > search > reasoning > fast > default
+  - Created tests/test_model_router.py with 28 tests covering all 6 categories
+  - One test fix: "web search for Python tutorials" matched coding due to python keyword — changed test to avoid ambiguous input
+  - mypy 0 errors; pytest 28 passed
+- Files changed:
+  - rex/model_router.py (new file)
+  - tests/test_model_router.py (new file)
+  - PRD-master-next-cycle.md (marked US-MM-002 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - Priority ordering matters: vision before coding, coding before search — test messages must not contain keywords from higher-priority categories
+  - StrEnum requires Python 3.11+; use try/except ImportError to provide fallback for older versions
+  - Pattern tables as module-level Sequence[str] constants keep classify() readable
+  - The default category is a fallback — any message that doesn't match a specific pattern lands here
+---
