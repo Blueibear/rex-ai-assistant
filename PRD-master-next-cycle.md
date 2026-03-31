@@ -262,13 +262,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want every reference to "REX", "rex-assistant", "rex_assistant", or informal variants in user-facing strings, README, and package metadata to use the canonical name "Rex AI Assistant" (display) / `rex-ai-assistant` (slug) / `rex` (CLI command) consistently.
 
 **Acceptance Criteria:**
-- [ ] `pyproject.toml` `name` field is `rex-ai-assistant`
-- [ ] `pyproject.toml` `description` field uses "Rex AI Assistant"
-- [ ] `README.md` H1 heading is "Rex AI Assistant"
-- [ ] `rex/cli.py` version/help string references "Rex AI Assistant"
-- [ ] No inconsistent capitalizations (e.g. "REX AI", "rex assistant") in any top-level `.md` file
-- [ ] `grep -r "REX AI\b" docs/ README.md` returns 0 matches (except legitimate acronym uses)
-- [ ] Typecheck passes
+- [x] `pyproject.toml` `name` field is `rex-ai-assistant`
+- [x] `pyproject.toml` `description` field uses "Rex AI Assistant"
+- [x] `README.md` H1 heading is "Rex AI Assistant"
+- [x] `rex/cli.py` version/help string references "Rex AI Assistant"
+- [x] No inconsistent capitalizations (e.g. "REX AI", "rex assistant") in any top-level `.md` file
+- [x] `grep -r "REX AI\b" docs/ README.md` returns 0 matches (except legitimate acronym uses)
+- [x] Typecheck passes
 
 ---
 
