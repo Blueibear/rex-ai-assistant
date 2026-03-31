@@ -83,3 +83,19 @@
   - No tests import VERIFICATION_REPORT paths so moves are safe
   - pytest output is verbose (torch logs); rely on exit code not output text
 ---
+
+## Iteration 7 - US-RH-002: Archive stale PRD files from root
+- What was implemented:
+  - Created docs/archive/prd/ directory
+  - Moved 7 tracked PRDs via `git mv`; 3 untracked (in .gitignore / .git/info/exclude) via `mv` + `git add -f`
+  - Created docs/archive/prd/INDEX.md with one-line description per archived PRD
+  - pytest -q passed (exit 0)
+- Files changed:
+  - docs/archive/prd/ (new directory with 10 archived PRDs + INDEX.md)
+  - PRD-master-next-cycle.md (marked US-RH-002 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - Some root PRD files were in .gitignore or .git/info/exclude — `git mv` fails with "not under version control"; use `mv` + `git add -f` for those
+  - Check `git ls-files <file>` before using `git mv` to confirm files are tracked
+  - `.git/info/exclude` is a local-only gitignore; check with `git check-ignore -v` to diagnose add failures
+---
