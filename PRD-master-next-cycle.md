@@ -93,11 +93,11 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want unnecessary `# type: ignore` comments removed from `rex/wakeword/embedding.py` and `rex/compat/transformers_shims.py` so mypy reports no unused-ignore errors.
 
 **Acceptance Criteria:**
-- [ ] `# type: ignore[assignment]` removed from `rex/wakeword/embedding.py` line 20
-- [ ] `# type: ignore[attr-defined]` removed from `rex/compat/transformers_shims.py` line 76
-- [ ] `mypy rex --ignore-missing-imports` reports 0 errors on these two files
-- [ ] Existing tests still pass
-- [ ] Typecheck passes
+- [x] `# type: ignore[assignment]` removed from `rex/wakeword/embedding.py` line 20
+- [x] `# type: ignore[attr-defined]` removed from `rex/compat/transformers_shims.py` line 76
+- [x] `mypy rex --ignore-missing-imports` reports 0 errors on these two files
+- [x] Existing tests still pass
+- [x] Typecheck passes
 
 ---
 

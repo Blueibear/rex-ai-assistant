@@ -22,7 +22,7 @@ import hashlib
 import logging
 import urllib.request
 from collections.abc import Callable, Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import cast
 
@@ -80,7 +80,7 @@ class ICSFeedBackend(CalendarBackend):
             logger.error("ICSFeedBackend: failed to load feed from %r: %s", self._source, exc)
             return []
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = now + timedelta(days=days)
         events: list[dict] = []
 
@@ -148,7 +148,7 @@ class ICSFeedBackend(CalendarBackend):
 
 def _parse_with_icalendar(raw: bytes) -> Iterator[dict]:
     """Parse ICS using the ``icalendar`` package."""
-    import icalendar  # type: ignore[import-untyped]
+    import icalendar
 
     try:
         cal = icalendar.Calendar.from_ical(raw)
@@ -292,7 +292,7 @@ def _parse_ics_datetime(value: str) -> datetime | None:
         try:
             dt = datetime.strptime(value, fmt)
             if is_utc or dt.tzinfo is None:
-                return dt.replace(tzinfo=timezone.utc)
+                return dt.replace(tzinfo=UTC)
             return dt
         except ValueError:
             continue
@@ -305,10 +305,10 @@ def _to_utc(dt: object) -> datetime:
 
     if isinstance(dt, datetime):
         if dt.tzinfo is None:
-            return dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc)
+            return dt.replace(tzinfo=UTC)
+        return dt.astimezone(UTC)
     if isinstance(dt, date_type):
-        return datetime(dt.year, dt.month, dt.day, tzinfo=timezone.utc)
+        return datetime(dt.year, dt.month, dt.day, tzinfo=UTC)
     raise TypeError(f"Cannot convert {type(dt)} to datetime")
 
 
