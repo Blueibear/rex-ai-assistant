@@ -249,11 +249,11 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want all security-related audit and fix documents moved under `docs/security/` alongside the existing `docs/security/` contents so security posture history is in one place.
 
 **Acceptance Criteria:**
-- [ ] `SECURITY_AUDIT_2026-01-08.md` moved to `docs/security/` via `git mv`
-- [ ] `SECURITY_FIX_SUMMARY.md` moved to `docs/security/` via `git mv`
-- [ ] `SECURITY_ADVISORY.md` at root retained (it is user-facing)
-- [ ] `docs/security/INDEX.md` updated or created to list all files
-- [ ] Typecheck passes
+- [x] `SECURITY_AUDIT_2026-01-08.md` moved to `docs/security/` via `git mv`
+- [x] `SECURITY_FIX_SUMMARY.md` moved to `docs/security/` via `git mv`
+- [x] `SECURITY_ADVISORY.md` at root retained (it is user-facing)
+- [x] `docs/security/INDEX.md` updated or created to list all files
+- [x] Typecheck passes
 
 ---
 
