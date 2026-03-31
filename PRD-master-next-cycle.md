@@ -236,11 +236,11 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want one-off housekeeping files that served a single session moved to `docs/archive/housekeeping/` so the root contains only files with ongoing operational value.
 
 **Acceptance Criteria:**
-- [ ] Directory `docs/archive/housekeeping/` created
-- [ ] The following moved via `git mv`: `AGENTS.md`, `APP_ROADMAP.md`, `BACKLOG.md`, `BATCH_001_PROMPT.md`, `CHANGELOG_IMPROVEMENTS.md`, `CODEX_REPO_AUDIT.md`, `CODEX_REPO_AUDIT_ISSUES.json`, `COMPLETED_WORK_SUMMARY.md`, `FINAL_SUMMARY.txt`, `ROADMAP_BIBLE.md`, `STABILIZATION_REPORT.md`, `STABILIZATION_REPORT.txt`, `TEST_FIXES.md`
-- [ ] `CHANGELOG.md`, `CONTRIBUTING.md`, `LICENSE`, `README.md`, `SECURITY_ADVISORY.md` remain at root
-- [ ] Root file count ≤ 35 after this story
-- [ ] Typecheck passes
+- [x] Directory `docs/archive/housekeeping/` created
+- [x] The following moved via `git mv`: `AGENTS.md`, `APP_ROADMAP.md`, `BACKLOG.md`, `BATCH_001_PROMPT.md`, `CHANGELOG_IMPROVEMENTS.md`, `CODEX_REPO_AUDIT.md`, `CODEX_REPO_AUDIT_ISSUES.json`, `COMPLETED_WORK_SUMMARY.md`, `FINAL_SUMMARY.txt`, `ROADMAP_BIBLE.md`, `STABILIZATION_REPORT.md`, `STABILIZATION_REPORT.txt`, `TEST_FIXES.md`
+- [x] `CHANGELOG.md`, `CONTRIBUTING.md`, `LICENSE`, `README.md`, `SECURITY_ADVISORY.md` remain at root
+- [x] Root file count ≤ 35 after this story
+- [x] Typecheck passes
 
 ---
 
