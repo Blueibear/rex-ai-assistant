@@ -209,12 +209,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want all `VERIFICATION_REPORT_*.md` and `VERIFICATION_REPORT_*.txt` files in the repo root moved to `docs/archive/verification/` so the root is uncluttered.
 
 **Acceptance Criteria:**
-- [ ] Directory `docs/archive/verification/` created
-- [ ] All 18+ `VERIFICATION_REPORT_*` files in repo root moved there via `git mv`
-- [ ] `docs/archive/verification/INDEX.md` created listing all moved files with a one-line description each
-- [ ] Root directory file count reduced by at least 18
-- [ ] `pytest -q` still passes (no test imports these paths)
-- [ ] Typecheck passes
+- [x] Directory `docs/archive/verification/` created
+- [x] All 18+ `VERIFICATION_REPORT_*` files in repo root moved there via `git mv`
+- [x] `docs/archive/verification/INDEX.md` created listing all moved files with a one-line description each
+- [x] Root directory file count reduced by at least 18
+- [x] `pytest -q` still passes (no test imports these paths)
+- [x] Typecheck passes
 
 ---
 
