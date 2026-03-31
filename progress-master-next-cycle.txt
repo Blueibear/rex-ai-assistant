@@ -148,3 +148,21 @@
   - Docker image tags like `rex-assistant` in INSTALL.md are operational names, not display branding — leave them
   - "REX AI" in docs/archive/ is fine as historical artifact; criterion says "except legitimate acronym uses"
 ---
+
+## Iteration 11 - US-RH-006: Establish single documentation hierarchy under docs/
+- What was implemented:
+  - docs/INDEX.md already existed but was a stale deployment manifest from October 2025 stabilization
+  - Overwrote docs/INDEX.md with a proper documentation hierarchy index
+  - Organized all 60+ files under docs/ into categories: Architecture, Configuration, Integrations, API, Development (including Claude Reference and Prompt Templates subcategories), Security, Archive
+  - Added "Full Documentation" link to README.md Table of Contents pointing to docs/INDEX.md
+  - pytest -q passed (exit 0)
+- Files changed:
+  - docs/INDEX.md (replaced stale deployment manifest with documentation hierarchy index)
+  - README.md (added "Full Documentation" link in Table of Contents)
+  - PRD-master-next-cycle.md (marked US-RH-006 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - docs/INDEX.md already existed as a stale file — always read before overwriting
+  - Extra files not in the summary were present: FINAL_DELIVERY_SUMMARY.txt, README_STABILIZATION.md, Rex_AI_Assistant_Blueprint.pdf, VERIFICATION_REPORT_VOICE_IDENTITY_BL009_BL012.md — always re-list docs/ before writing the index
+  - The PRD categories (Architecture, Configuration, Integrations, API, Development, Archive) are a minimum; adding Security as a separate category improves clarity
+---

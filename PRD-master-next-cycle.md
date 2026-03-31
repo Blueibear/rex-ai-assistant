@@ -277,11 +277,11 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want a top-level `docs/INDEX.md` that maps every documentation file in the repo so contributors can find any doc without guessing.
 
 **Acceptance Criteria:**
-- [ ] `docs/INDEX.md` created listing all files under `docs/` organized by category (Architecture, Configuration, Integrations, API, Development, Archive)
-- [ ] Each entry has a one-line description
-- [ ] `README.md` links to `docs/INDEX.md` as the "Full Documentation" entry point
-- [ ] All file paths in `docs/INDEX.md` are validated (no 404 links to moved files)
-- [ ] Typecheck passes
+- [x] `docs/INDEX.md` created listing all files under `docs/` organized by category (Architecture, Configuration, Integrations, API, Development, Archive)
+- [x] Each entry has a one-line description
+- [x] `README.md` links to `docs/INDEX.md` as the "Full Documentation" entry point
+- [x] All file paths in `docs/INDEX.md` are validated (no 404 links to moved files)
+- [x] Typecheck passes
 
 ---
 

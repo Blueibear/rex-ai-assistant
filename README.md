@@ -24,6 +24,7 @@ Rex AI Assistant is a local-first, voice-activated AI companion that runs entire
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
+- [Full Documentation](docs/INDEX.md)
 
 ## Quick Start
 

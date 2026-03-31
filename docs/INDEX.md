@@ -1,347 +1,134 @@
-# 📦 Rex AI Assistant Stabilization - Complete Deliverable Index
+# Rex AI Assistant — Documentation Index
 
-## 🎯 What You Have
-
-All stabilization files are in the `/mnt/user-data/outputs/` directory.
-You need to copy these to your Windows project at:
-`C:\Users\james\rex-ai-test\rex-ai-assistant`
+All documentation files under `docs/`, organized by category.
 
 ---
 
-## 📋 FILE MANIFEST
+## Architecture
 
-### 🐍 Python Modules (4 files)
-
-#### 1. **rex_assistant_errors.py** (1.5 KB)
-**Purpose:** Zero-dependency exception hierarchy
-**Deploy to:** `rex/assistant_errors.py`
-**Action:** OVERWRITE existing file
-**Critical:** Must be deployed first (breaks circular imports)
-
-#### 2. **rex_config.py** (12 KB)
-**Purpose:** Unified configuration system with security
-**Deploy to:** `rex/config.py`
-**Action:** OVERWRITE existing file
-**Features:**
-- HMAC API key validation
-- Path traversal prevention
-- 40+ environment variables
-- Backward compatibility aliases
-
-#### 3. **rex_speak_api_fixed.py** (11 KB)
-**Purpose:** Secure Flask TTS API
-**Deploy to:** `rex_speak_api.py`
-**Action:** OVERWRITE existing file
-**Enhancements:**
-- Proper Response import
-- HMAC key validation
-- Path sanitization
-- Rate limiting
-
-#### 4. **requirements.txt** (1.0 KB)
-**Purpose:** Corrected dependencies
-**Deploy to:** `requirements.txt`
-**Action:** OVERWRITE existing file
-**Key fix:** `torch==2.5.1` (was 2.8.0)
+| File | Description |
+|------|-------------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | High-level system architecture overview |
+| [autonomy.md](autonomy.md) | Autonomy engine design and behavior |
+| [event_bus.md](event_bus.md) | Event bus architecture and message routing |
+| [scheduler_event_bus.md](scheduler_event_bus.md) | Scheduler and event bus integration patterns |
+| [workflow-engine.md](workflow-engine.md) | Workflow engine design and execution model |
+| [contracts.md](contracts.md) | Runtime contract definitions and protocol interfaces |
+| [contracts/](contracts/) | JSON schema files for typed contracts (Action, Task, ToolCall, etc.) |
 
 ---
 
-### 📚 Documentation (5 files)
+## Configuration
 
-#### 5. **README_STABILIZATION.md** (9.5 KB, ~10 pages)
-**Purpose:** Complete technical documentation
-**Deploy to:** `docs/README_STABILIZATION.md` (new directory)
-**Contains:**
-- All issues fixed with code examples
-- Migration guide
-- Security checklist
-- Troubleshooting
-
-#### 6. **DEPLOYMENT_CHECKLIST.md** (8.5 KB, ~8 pages)
-**Purpose:** Step-by-step deployment process
-**Deploy to:** `docs/DEPLOYMENT_CHECKLIST.md`
-**Contains:**
-- 8 deployment phases
-- Time estimates (65 min total)
-- Validation steps
-- Rollback instructions
-
-#### 7. **FINAL_DELIVERY_SUMMARY.txt** (12 KB, ~10 pages)
-**Purpose:** Executive summary
-**Deploy to:** `docs/FINAL_DELIVERY_SUMMARY.txt`
-**Contains:**
-- Complete project status
-- All fixes documented
-- Before/after metrics
-- Sign-off checklist
-
-#### 8. **QUICK_REFERENCE.md** (5.5 KB, ~6 pages)
-**Purpose:** Quick lookup guide
-**Deploy to:** `docs/QUICK_REFERENCE.md`
-**Contains:**
-- 5-step deployment (20 min)
-- One-liner tests
-- Troubleshooting commands
-- Printable reference card
-
-#### 9. **validate_deployment.py** (7.0 KB)
-**Purpose:** Automated validation script
-**Deploy to:** `scripts/validate_deployment.py` or project root
-**Usage:** `python validate_deployment.py`
-**Checks:**
-- Python version
-- File existence
-- Imports
-- Configuration
-- PyTorch & CUDA
-- Dependencies
+| File | Description |
+|------|-------------|
+| [configuration.md](configuration.md) | Application configuration reference (AppConfig, rex_config.json) |
+| [environment-variables.md](environment-variables.md) | Complete environment variable reference |
+| [credentials.md](credentials.md) | Credential management and secret storage guide |
+| [policy.md](policy.md) | Policy configuration for access control |
+| [hardening.md](hardening.md) | Security hardening checklist and recommendations |
 
 ---
 
-## 🚀 DEPLOYMENT ORDER
+## Integrations
 
-### Phase 1: Preparation (5 min)
-1. Backup project: `git commit -m "pre-stabilization backup"`
-2. Create staging area on Windows desktop
-3. Download all 9 files from outputs/
-
-### Phase 2: Core Files (5 min)
-Copy in this exact order:
-```
-rex_assistant_errors.py  →  rex/assistant_errors.py
-rex_config.py            →  rex/config.py
-requirements.txt         →  requirements.txt
-rex_speak_api_fixed.py  →  rex_speak_api.py
-```
-
-### Phase 3: Documentation (2 min)
-```
-mkdir docs
-README_STABILIZATION.md   →  docs/README_STABILIZATION.md
-DEPLOYMENT_CHECKLIST.md   →  docs/DEPLOYMENT_CHECKLIST.md
-FINAL_DELIVERY_SUMMARY.txt →  docs/FINAL_DELIVERY_SUMMARY.txt
-QUICK_REFERENCE.md        →  docs/QUICK_REFERENCE.md
-validate_deployment.py    →  scripts/validate_deployment.py
-```
+| File | Description |
+|------|-------------|
+| [calendar.md](calendar.md) | Calendar integration (Google, ICS) setup and usage |
+| [email.md](email.md) | Email backend setup and usage |
+| [messaging.md](messaging.md) | Messaging backend (SMS, Twilio) setup |
+| [home_assistant.md](home_assistant.md) | Home Assistant MQTT integration |
+| [wordpress_woocommerce.md](wordpress_woocommerce.md) | WordPress/WooCommerce read/write integration |
+| [browser_os.md](browser_os.md) | Browser and OS automation via OpenClaw |
+| [computers.md](computers.md) | Desktop automation integration |
+| [openclaw-agent-setup.md](openclaw-agent-setup.md) | OpenClaw agent server setup guide |
+| [openclaw-migration-status.md](openclaw-migration-status.md) | OpenClaw HTTP migration progress and status |
+| [scheduler.md](scheduler.md) | Task scheduler configuration and usage |
+| [notifications.md](notifications.md) | Notification delivery (SSE, push) setup |
+| [knowledge_base.md](knowledge_base.md) | Knowledge base integration |
+| [memory.md](memory.md) | Per-user memory system design and usage |
+| [followup_engine.md](followup_engine.md) | Follow-up engine for deferred tasks |
+| [voice_identity.md](voice_identity.md) | Voice identity and speaker recognition |
+| [tools.md](tools.md) | Built-in tool reference (search, weather, etc.) |
 
 ---
 
-## 📦 Phase 10: Hardening & Distribution
+## API
 
-For reliability, service supervision, packaging, and remote node deployments, see:
-- `docs/hardening.md`
-- `docs/distribution.md`
-
-### Phase 4: Dependencies (10 min)
-```powershell
-.\.venv\Scripts\activate
-pip uninstall -y torch torchvision torchaudio
-pip install torch==2.5.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-pip install -r requirements.txt
-```
-
-### Phase 5: Configuration (5 min)
-Create/update `.env`:
-```bash
-REX_SPEAK_API_KEY=<generate-secure-key>
-REX_ACTIVE_USER=james
-REX_WAKEWORD=rex
-REX_LLM_MODEL=distilgpt2
-```
-
-### Phase 6: Validation (5 min)
-```powershell
-python scripts/validate_deployment.py
-python scripts/doctor.py
-```
-
-**Total Time:** ~32 minutes
+| File | Description |
+|------|-------------|
+| [api.md](api.md) | REST API endpoints and authentication reference |
+| [dashboard.md](dashboard.md) | Dashboard API and SSE event streaming |
+| [deployment.md](deployment.md) | Production deployment guide (systemd, reverse proxy) |
+| [docker.md](docker.md) | Docker container setup and usage |
+| [runbook.md](runbook.md) | Operational runbook for production deployments |
+| [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) | Step-by-step deployment checklist |
 
 ---
 
-## 📊 FILE SIZE SUMMARY
+## Development
 
-| Type | Count | Total Size |
-|------|-------|------------|
-| Python Code | 4 | ~25.5 KB |
-| Documentation | 5 | ~43.5 KB |
-| **Total** | **9** | **~69 KB** |
+| File | Description |
+|------|-------------|
+| [DEPENDENCIES.md](DEPENDENCIES.md) | Dependency overview and version constraints |
+| [developer_tools.md](developer_tools.md) | Development tooling and local workflow |
+| [distribution.md](distribution.md) | Packaging and distribution guide |
+| [github.md](github.md) | GitHub Actions and CI/CD configuration |
+| [performance-baseline.md](performance-baseline.md) | Performance benchmarks and optimization targets |
+| [production-readiness-checklist.md](production-readiness-checklist.md) | Pre-production readiness checks |
+| [troubleshooting.md](troubleshooting.md) | Common issues and solutions |
+| [doctor.md](doctor.md) | `rex doctor` health check command reference |
+| [audit.md](audit.md) | Code and security audit notes |
+| [branch_sync.md](branch_sync.md) | Branch synchronization procedures |
+| [codex_verification_audit_2026-02-16.md](codex_verification_audit_2026-02-16.md) | Codex verification audit (2026-02-16) |
+| [security-scan.md](security-scan.md) | Security scanning procedures and results |
+| [SECURITY_DEPENDENCIES.md](SECURITY_DEPENDENCIES.md) | Security-relevant dependency notes |
+| [usage.md](usage.md) | End-user usage guide |
+| [advanced-install.md](advanced-install.md) | Advanced installation scenarios |
+| [INSTRUCTION_MANUAL.md](INSTRUCTION_MANUAL.md) | Comprehensive user instruction manual |
+| [QUICK_REFERENCE.md](QUICK_REFERENCE.md) | Quick reference card for common operations |
+| [WORKFLOW.md](WORKFLOW.md) | Development workflow and contribution guide |
+| [README_STABILIZATION.md](README_STABILIZATION.md) | Stabilization notes from October 2025 |
+| [FINAL_DELIVERY_SUMMARY.txt](FINAL_DELIVERY_SUMMARY.txt) | Delivery summary from October 2025 stabilization |
+| [VERIFICATION_REPORT_VOICE_IDENTITY_BL009_BL012.md](VERIFICATION_REPORT_VOICE_IDENTITY_BL009_BL012.md) | Voice identity verification (BL-009, BL-012) |
+| [Rex_AI_Assistant_Blueprint.pdf](Rex_AI_Assistant_Blueprint.pdf) | System blueprint (PDF) |
 
----
+### Claude Code Reference
 
-## 🔍 WHAT EACH FILE FIXES
+| File | Description |
+|------|-------------|
+| [claude/COMMANDS_AND_ENTRYPOINTS.md](claude/COMMANDS_AND_ENTRYPOINTS.md) | CLI commands and entry point reference for Claude Code |
+| [claude/CONFIG_AND_SECURITY.md](claude/CONFIG_AND_SECURITY.md) | Config and security patterns for Claude Code sessions |
+| [claude/INTEGRATIONS_STATUS.md](claude/INTEGRATIONS_STATUS.md) | Integration completion status |
+| [claude/TESTING_AND_QUALITY.md](claude/TESTING_AND_QUALITY.md) | Testing standards and quality requirements |
 
-### rex_assistant_errors.py
-- ✅ Eliminates circular imports
-- ✅ Zero dependencies
-- ✅ Legacy aliases for compatibility
+### Prompt Templates
 
-### rex_config.py
-- ✅ Unifies dual config systems
-- ✅ HMAC API key validation
-- ✅ Path traversal prevention
-- ✅ 40+ env var mappings
-- ✅ Type-safe casting
-
-### rex_speak_api_fixed.py
-- ✅ Adds missing Response import
-- ✅ HMAC key validation
-- ✅ Path sanitization
-- ✅ Enhanced error handling
-
-### requirements.txt
-- ✅ Fixes PyTorch 2.8.0 → 2.5.1
-- ✅ Adds cryptography library
-
-### Documentation Files
-- ✅ Complete migration guide
-- ✅ Security checklist
-- ✅ Troubleshooting
-- ✅ Deployment process
-- ✅ Executive summary
-
----
-
-## ⚠️ CRITICAL NOTES
-
-### Must Do:
-1. **Backup first!** Use git or manual copy
-2. **Deploy in order** (errors.py first, then config.py)
-3. **Update .env** with secure API key
-4. **Reinstall PyTorch** (correct version)
-5. **Run validation** before considering done
-
-### Must Not Do:
-1. ❌ Skip the backup step
-2. ❌ Copy files randomly (order matters!)
-3. ❌ Forget to update .env
-4. ❌ Leave old PyTorch installed
-5. ❌ Deploy to production without testing
+| File | Description |
+|------|-------------|
+| [prompts/CLAUDE_BUILD_PROMPT.txt](prompts/CLAUDE_BUILD_PROMPT.txt) | Claude build prompt template |
+| [prompts/CODEX_REVIEW_FIX_PROMPT.txt](prompts/CODEX_REVIEW_FIX_PROMPT.txt) | Codex review and fix prompt template |
 
 ---
 
-## 🎯 SUCCESS CRITERIA
+## Security
 
-After deployment, you should be able to:
-- [x] Import `from rex.config import settings` without errors
-- [x] Import `from rex.assistant_errors import AssistantError` without errors
-- [x] Run `python scripts/doctor.py` with no critical errors
-- [x] Run `python scripts/validate_deployment.py` with >80% pass rate
-- [x] Start `python rex_speak_api.py` without crashes
-- [x] Execute `python rex_assistant.py` and get responses
-
----
-
-## 📞 QUICK HELP
-
-### Import Error?
-```bash
-python -c "from rex.config import settings; print('OK')"
-```
-
-### Config Not Loading?
-```bash
-python -c "from rex.config import settings; print(settings.dict())"
-```
-
-### PyTorch Wrong Version?
-```bash
-python -c "import torch; print(torch.__version__)"
-# Should show 2.5.1+cu118
-```
-
-### API Won't Start?
-```bash
-python -c "import flask, TTS; print('Dependencies OK')"
-```
+| File | Description |
+|------|-------------|
+| [security/INDEX.md](security/INDEX.md) | Security documents index |
+| [security/SECURITY_AUDIT_2026-01-08.md](security/SECURITY_AUDIT_2026-01-08.md) | Full security audit conducted 2026-01-08 |
+| [security/SECURITY_FIX_SUMMARY.md](security/SECURITY_FIX_SUMMARY.md) | Security fixes applied after 2026-01-08 audit |
+| [security/SECRET-SCAN.md](security/SECRET-SCAN.md) | Secret scanning results |
+| [security/VULNERABILITY-SCAN.md](security/VULNERABILITY-SCAN.md) | Dependency vulnerability scan results |
 
 ---
 
-## 📖 READING ORDER
+## Archive
 
-For fastest deployment:
-1. **QUICK_REFERENCE.md** - Start here (6 pages)
-2. **DEPLOYMENT_CHECKLIST.md** - Follow step-by-step (8 pages)
-3. Run validation script
-4. If issues: **README_STABILIZATION.md** - Troubleshooting (10 pages)
-5. For management: **FINAL_DELIVERY_SUMMARY.txt** - Overview (10 pages)
+Historical files from completed development cycles.
 
----
-
-## 🔐 SECURITY REMINDER
-
-Before deploying:
-- [ ] Ensure `.env` is in `.gitignore`
-- [ ] Generate secure `REX_SPEAK_API_KEY` (32+ chars)
-- [ ] Never commit `.env` to git
-- [ ] Test API key validation works (401 for wrong keys)
-
----
-
-## 🎉 YOU'RE READY!
-
-You have everything needed for a successful stabilization:
-- ✅ 4 corrected Python modules
-- ✅ 5 comprehensive documentation files
-- ✅ 1 automated validation script
-- ✅ Clear deployment instructions
-- ✅ Troubleshooting guides
-- ✅ Security checklist
-
-**Next step:** Copy files to Windows and start Phase 1!
-
----
-
-## 📁 FILE TREE STRUCTURE
-
-```
-outputs/                                  ← You are here
-├── rex_assistant_errors.py              ← Deploy to rex/
-├── rex_config.py                        ← Deploy to rex/
-├── rex_speak_api_fixed.py              ← Deploy to root as rex_speak_api.py
-├── requirements.txt                     ← Deploy to root
-├── README_STABILIZATION.md             ← Deploy to docs/
-├── DEPLOYMENT_CHECKLIST.md             ← Deploy to docs/
-├── FINAL_DELIVERY_SUMMARY.txt          ← Deploy to docs/
-├── QUICK_REFERENCE.md                  ← Deploy to docs/
-├── validate_deployment.py              ← Deploy to scripts/
-└── INDEX.md                            ← This file (deploy to docs/)
-```
-
----
-
-## 💾 BACKUP LOCATIONS
-
-Recommended backup before deployment:
-```
-C:\Users\james\Desktop\rex-backup-2025-10-16\
-```
-
-Or use git:
-```bash
-git tag pre-stabilization-2025-10-16
-```
-
----
-
-## 🏁 FINAL CHECKLIST
-
-Before starting deployment:
-- [ ] All 9 files downloaded from outputs/
-- [ ] Project backed up
-- [ ] Virtual environment ready
-- [ ] `.env` file prepared
-- [ ] Read QUICK_REFERENCE.md
-- [ ] 1 hour available for deployment
-- [ ] Windows machine with admin access
-- [ ] Internet connection (for pip install)
-
----
-
-**Document:** INDEX.md
-**Version:** 1.0
-**Date:** October 16, 2025
-**Status:** Ready for deployment
-**Confidence:** Very High (95%)
-
-🚀 **Let's stabilize Rex!**
+| File | Description |
+|------|-------------|
+| [archive/prd/INDEX.md](archive/prd/INDEX.md) | Index of archived PRD files |
+| [archive/verification/INDEX.md](archive/verification/INDEX.md) | Index of archived verification reports |
+| [archive/housekeeping/](archive/housekeeping/) | Archived housekeeping and summary files |
