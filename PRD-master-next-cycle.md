@@ -106,11 +106,11 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want the `subscribe` and `publish` overload implementations in `rex/openclaw/event_bus.py` to match their declared signatures so mypy reports no misc errors.
 
 **Acceptance Criteria:**
-- [ ] `subscribe` overload implementation signature at line 86 (approx) matches all `@overload` variants
-- [ ] `publish` overload implementation signature at line 151 (approx) matches all `@overload` variants
-- [ ] `mypy rex --ignore-missing-imports` reports 0 errors on `rex/openclaw/event_bus.py`
-- [ ] Existing event_bus tests pass
-- [ ] Typecheck passes
+- [x] `subscribe` overload implementation signature at line 86 (approx) matches all `@overload` variants
+- [x] `publish` overload implementation signature at line 151 (approx) matches all `@overload` variants
+- [x] `mypy rex --ignore-missing-imports` reports 0 errors on `rex/openclaw/event_bus.py`
+- [x] Existing event_bus tests pass
+- [x] Typecheck passes
 
 ---
 
@@ -119,11 +119,11 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want `rex/openclaw/event_bridge.py` and `rex/openclaw/browser_core.py` to carry correct type annotations so mypy reports zero errors in both files.
 
 **Acceptance Criteria:**
-- [ ] `event_bridge.py` line 95: return type narrowed or cast so it does not return `Any` where `Callable[[], None] | None` is expected
-- [ ] `browser_core.py` lines 92, 97, 100-102, 248-252: untyped instance variables annotated in `__init__` so attr-defined errors are gone
-- [ ] `mypy rex --ignore-missing-imports` reports 0 errors on both files
-- [ ] Existing tests pass
-- [ ] Typecheck passes
+- [x] `event_bridge.py` line 95: return type narrowed or cast so it does not return `Any` where `Callable[[], None] | None` is expected
+- [x] `browser_core.py` lines 92, 97, 100-102, 248-252: untyped instance variables annotated in `__init__` so attr-defined errors are gone
+- [x] `mypy rex --ignore-missing-imports` reports 0 errors on both files
+- [x] Existing tests pass
+- [x] Typecheck passes
 
 ---
 
@@ -132,11 +132,11 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want `rex/openclaw/tool_executor.py` to have no variable redefinition or incompatible assignment errors so mypy is fully clean.
 
 **Acceptance Criteria:**
-- [ ] Line 274 `result` variable renamed or conditional branch restructured to eliminate no-redef error
-- [ ] Line 948 assignment type narrowed or cast to eliminate incompatible-types error
-- [ ] `mypy rex --ignore-missing-imports` exits 0 on `rex/openclaw/tool_executor.py`
-- [ ] Existing tool_executor tests pass
-- [ ] Typecheck passes
+- [x] Line 274 `result` variable renamed or conditional branch restructured to eliminate no-redef error
+- [x] Line 948 assignment type narrowed or cast to eliminate incompatible-types error
+- [x] `mypy rex --ignore-missing-imports` exits 0 on `rex/openclaw/tool_executor.py`
+- [x] Existing tool_executor tests pass
+- [x] Typecheck passes
 
 ---
 
@@ -145,10 +145,10 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want the 11 dashboard test files that read from the deleted `rex/dashboard/static/` and `rex/dashboard/templates/` directories to be skipped so pytest reports no failures from them.
 
 **Acceptance Criteria:**
-- [ ] The following files each receive a module-level `pytest.mark.skip(reason="rex/dashboard retired")` decorator: `test_us149_gui_shell.py`, `test_us150_design_system.py`, `test_us151_nav_state.py`, `test_us152_chat_message_list.py`, `test_us153_chat_input.py`, `test_us157_voice_waveform.py`, `test_us161_schedule_coming_up.py`, `test_us163_overview_quick_actions.py`, `test_us164_hover_focus_states.py`, `test_us165_loading_error_states.py`, `test_us166_accessibility.py`
-- [ ] `pytest -q` reports 0 failed tests (was 261 failed)
-- [ ] Test count of previously passing tests does not decrease
-- [ ] Typecheck passes
+- [x] The following files each receive a module-level `pytest.mark.skip(reason="rex/dashboard retired")` decorator: `test_us149_gui_shell.py`, `test_us150_design_system.py`, `test_us151_nav_state.py`, `test_us152_chat_message_list.py`, `test_us153_chat_input.py`, `test_us157_voice_waveform.py`, `test_us161_schedule_coming_up.py`, `test_us163_overview_quick_actions.py`, `test_us164_hover_focus_states.py`, `test_us165_loading_error_states.py`, `test_us166_accessibility.py`
+- [x] `pytest -q` reports 0 failed tests (was 261 failed)
+- [x] Test count of previously passing tests does not decrease
+- [x] Typecheck passes
 
 ---
 
@@ -157,10 +157,10 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want the three test files that monkeypatch `voice_loop.load_plugins` to target the correct name `_load_plugins_impl` so the patches actually apply and tests pass.
 
 **Acceptance Criteria:**
-- [ ] All `mock.patch("…voice_loop.load_plugins")` calls in affected test files updated to `mock.patch("…voice_loop._load_plugins_impl")`
-- [ ] Previously failing tests in those 3 files now pass
-- [ ] `pytest -q` exits 0 on those files
-- [ ] Typecheck passes
+- [x] All `mock.patch("…voice_loop.load_plugins")` calls in affected test files updated to `mock.patch("…voice_loop._load_plugins_impl")`
+- [x] Previously failing tests in those 3 files now pass
+- [x] `pytest -q` exits 0 on those files
+- [x] Typecheck passes
 
 ---
 
@@ -169,10 +169,10 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want `test_us140_full_extra.py` to import `tomllib` with a Python 3.10 fallback so the test collection never errors on older interpreters.
 
 **Acceptance Criteria:**
-- [ ] File updated to: `try: import tomllib except ImportError: import tomli as tomllib`
-- [ ] `pyproject.toml` or test requirements includes `tomli` as a test dependency
-- [ ] `pytest --collect-only tests/test_us140_full_extra.py` exits 0
-- [ ] Typecheck passes
+- [x] File updated to: `try: import tomllib except ImportError: import tomli as tomllib`
+- [x] `pyproject.toml` or test requirements includes `tomli` as a test dependency
+- [x] `pytest --collect-only tests/test_us140_full_extra.py` exits 0
+- [x] Typecheck passes
 
 ---
 
@@ -181,9 +181,9 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want `tests/test_openclaw_browser_bridge.py::test_satisfies_protocol` to either import from the correct module path or be skipped with a clear reason so pytest collects cleanly.
 
 **Acceptance Criteria:**
-- [ ] Import updated to the correct current module path, OR test marked `pytest.mark.skip(reason="rex.contracts.browser retired in Phase 7")`
-- [ ] `pytest -q tests/test_openclaw_browser_bridge.py` exits 0
-- [ ] Typecheck passes
+- [x] Import updated to the correct current module path, OR test marked `pytest.mark.skip(reason="rex.contracts.browser retired in Phase 7")`
+- [x] `pytest -q tests/test_openclaw_browser_bridge.py` exits 0
+- [x] Typecheck passes
 
 ---
 
