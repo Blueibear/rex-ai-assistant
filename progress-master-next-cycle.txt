@@ -254,3 +254,28 @@
   - Always run the actual tests before assuming implementation is missing
   - The integration test file was listed as untracked in git status — it was already created in the prior iteration
 ---
+
+## Iteration 16 - US-MM-004: Add Ollama model availability check to router fallback
+- What was implemented:
+  - Added `_is_ollama_model()` module-level function: non-Ollama = OpenAI prefixes (gpt-, claude-, etc.) or HuggingFace "/" paths
+  - Updated `ModelRouter.__init__` to accept `ollama_base_url` and `routing_config`; detects if any routing target is Ollama
+  - `_fetch_ollama_models()`: GETs /api/tags, caches name and name-without-tag in set; logs warning on failure
+  - `_start_refresh_thread()`: daemon thread, refreshes every 60s via threading.Event.wait
+  - `_is_available(model_id)`: non-Ollama always True; Ollama checked against cache
+  - `resolve_model(category, routing_config) -> str`: category lookup → availability check → fallback to default with warning
+  - Updated `Assistant.__init__` to pass routing config and ollama_base_url to ModelRouter
+  - Updated `generate_reply()` to use `router.resolve_model()` instead of `_resolve_model()`
+  - Updated `test_model_routing_integration.py`: `_make_assistant` now monkeypatches `_fetch_ollama_models` and seeds available models; added 2 new tests (unavailable fallback, no-network-call for OpenAI)
+  - 34 tests pass; mypy 0 errors
+- Files changed:
+  - rex/model_router.py (complete rewrite with Ollama availability logic)
+  - rex/assistant.py (pass routing config to ModelRouter, use router.resolve_model())
+  - tests/test_model_routing_integration.py (updated helper + 2 new tests)
+  - PRD-master-next-cycle.md (marked US-MM-004 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - Test stub model names like "coding-model" have no slash and no OpenAI prefix → treated as Ollama → monkeypatch _fetch_ollama_models to avoid live HTTP calls in tests
+  - Use threading.Event.wait(timeout) instead of time.sleep in refresh loops — cleaner stop behavior
+  - urllib.request is in stdlib; no new dependency needed for the /api/tags probe
+  - Store both "name" and "name:tag" from Ollama response for flexible matching
+---

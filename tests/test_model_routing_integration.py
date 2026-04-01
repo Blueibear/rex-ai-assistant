@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import rex.assistant as assistant_module
-from rex.model_router import TaskCategory
+from rex.model_router import ModelRouter, TaskCategory
 
 
 # ---------------------------------------------------------------------------
@@ -70,18 +70,45 @@ class _CapturingLLM:
         return "stub reply"
 
 
-def _make_assistant(monkeypatch, settings_obj, llm):
-    """Build an Assistant with stubbed LanguageModel and settings."""
+def _make_assistant(monkeypatch, settings_obj, llm, *, available_models: set[str] | None = None):
+    """Build an Assistant with stubbed LanguageModel and settings.
+
+    *available_models* seeds the router's Ollama available-model cache so
+    tests are not dependent on a live Ollama instance.  Pass an empty set to
+    simulate "Ollama not running".  If omitted, all models are declared
+    available (bypasses the check entirely).
+    """
 
     class _LLMFactory:
         def __new__(cls, *args, **kwargs):
             return llm
 
     monkeypatch.setattr(assistant_module, "LanguageModel", _LLMFactory)
-    return assistant_module.Assistant(
+
+    # Suppress the real Ollama HTTP probe and optionally inject known models.
+    def _fake_fetch(self) -> None:
+        if available_models is not None:
+            self._available_ollama_models = available_models
+
+    monkeypatch.setattr(ModelRouter, "_fetch_ollama_models", _fake_fetch)
+
+    a = assistant_module.Assistant(
         settings_obj=settings_obj,
         transcripts_dir="transcripts",
     )
+
+    # If no specific available_models given, mark all routing targets as available
+    # so tests that don't care about Ollama probing still work correctly.
+    if available_models is None:
+        routing = getattr(settings_obj, "model_routing", None)
+        if routing is not None:
+            all_models = {
+                getattr(routing, f, "") or ""
+                for f in ("default", "coding", "reasoning", "search", "vision", "fast")
+            }
+            a._router._available_ollama_models = all_models - {""}
+
+    return a
 
 
 # ---------------------------------------------------------------------------
@@ -162,3 +189,53 @@ def test_no_routing_config_uses_existing_model(monkeypatch):
     asyncio.run(a.generate_reply("Hello"))
 
     assert llm.model_name == "my-configured-model"
+
+
+def test_unavailable_ollama_model_falls_back_to_default(monkeypatch):
+    """When the preferred Ollama model is not running, falls back to routing default."""
+    settings = _SettingsStub(
+        model_routing=_ModelRoutingStub(
+            default="default-model",
+            coding="codellama",  # Ollama model that is NOT in available list
+        )
+    )
+    llm = _CapturingLLM()
+    # available_models only contains default-model, not codellama
+    a = _make_assistant(monkeypatch, settings, llm, available_models={"default-model"})
+
+    asyncio.run(a.generate_reply("Write a Python function"))
+
+    assert llm.calls, "LLM was never called"
+    assert llm.calls[0] == "default-model", (
+        f"Expected default-model fallback but got {llm.calls[0]!r}"
+    )
+
+
+def test_no_network_call_for_openai_models(monkeypatch):
+    """When all routing targets are OpenAI models, no Ollama probe is made."""
+    settings = _SettingsStub(
+        model_routing=_ModelRoutingStub(
+            default="gpt-3.5-turbo",
+            coding="gpt-4",
+        )
+    )
+    llm = _CapturingLLM()
+
+    fetch_called = []
+
+    def _track_fetch(self) -> None:
+        fetch_called.append(True)
+
+    monkeypatch.setattr(ModelRouter, "_fetch_ollama_models", _track_fetch)
+
+    class _LLMFactory:
+        def __new__(cls, *args, **kwargs):
+            return llm
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", _LLMFactory)
+    assistant_module.Assistant(
+        settings_obj=settings,
+        transcripts_dir="transcripts",
+    )
+
+    assert not fetch_called, "Ollama was probed even though all routing targets are OpenAI models"

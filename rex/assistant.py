@@ -17,6 +17,7 @@ from .ha_bridge import HABridge
 from .history_store import HistoryStore
 from .llm_client import LanguageModel
 from .memory import trim_history
+from .model_router import ModelRouter, TaskCategory
 from .plugins import PluginSpec
 
 logger = logging.getLogger(__name__)
@@ -78,6 +79,17 @@ class Assistant:
         # Lock protects the one-shot followup injection across concurrent generate_reply calls
         self._followup_lock = asyncio.Lock()
         self._init_followup_engine()
+
+        # Model router for task-category-based model selection.
+        # Pass routing config so the router can probe Ollama availability at init.
+        _routing_cfg = getattr(self._settings, "model_routing", None)
+        _ollama_url: str = getattr(
+            self._settings, "ollama_base_url", ModelRouter._DEFAULT_OLLAMA_URL
+        )
+        self._router = ModelRouter(
+            ollama_base_url=_ollama_url,
+            routing_config=_routing_cfg,
+        )
 
         # Route all tool calls through OpenClaw ToolBridge (US-P7-008)
         from .openclaw.tool_bridge import ToolBridge
@@ -296,6 +308,29 @@ class Assistant:
 
         self._log_turn(transcript, completion)
 
+    def _resolve_model(self, category: TaskCategory) -> str:
+        """Resolve the LLM model identifier for the given task category.
+
+        Looks up *category* in ``settings.model_routing``.  If the category
+        has no configured model, falls back to ``model_routing.default``.
+        Returns an empty string when no routing overrides are configured,
+        meaning the global ``llm_model`` is used unchanged.
+        """
+        routing = getattr(self._settings, "model_routing", None)
+        if routing is None:
+            return ""
+        model: str = getattr(routing, str(category), "") or ""
+        if model:
+            return model
+        default: str = getattr(routing, "default", "") or ""
+        if default:
+            logger.warning(
+                "model_router: no model configured for category %r, falling back to default %r",
+                str(category),
+                default,
+            )
+        return default
+
     async def stream_reply(
         self, transcript: str, *, voice_mode: bool = False
     ) -> AsyncIterator[str]:
@@ -362,18 +397,41 @@ class Assistant:
         loop = asyncio.get_running_loop()
         completion: str | None = None
 
-        if self._ha_bridge and self._ha_bridge.enabled:
-            completion = await loop.run_in_executor(
-                None,
-                self._ha_bridge.process_transcript,
-                transcript,
+        # Model routing: classify the message and resolve the target model.
+        category = self._router.classify(transcript)
+        _routing_cfg = getattr(self._settings, "model_routing", None)
+        resolved_model = self._router.resolve_model(category, _routing_cfg)
+        prev_model: str | None = getattr(self._llm, "model_name", None)
+        if resolved_model and resolved_model != prev_model:
+            logger.debug(
+                "model_router: classified as %s, using %s", category, resolved_model
+            )
+            if hasattr(self._llm, "model_name"):
+                self._llm.model_name = resolved_model
+        else:
+            logger.debug(
+                "model_router: classified as %s, using %s",
+                category,
+                prev_model or "default",
             )
 
-        if completion is None:
-            prompt = await self._prepare_prompt(transcript, voice_mode=voice_mode)
+        try:
+            if self._ha_bridge and self._ha_bridge.enabled:
+                completion = await loop.run_in_executor(
+                    None,
+                    self._ha_bridge.process_transcript,
+                    transcript,
+                )
 
-            completion = await loop.run_in_executor(None, self._llm.generate, prompt)
-            completion = await self._post_process_completion(transcript, completion)
+            if completion is None:
+                prompt = await self._prepare_prompt(transcript, voice_mode=voice_mode)
+
+                completion = await loop.run_in_executor(None, self._llm.generate, prompt)
+                completion = await self._post_process_completion(transcript, completion)
+        finally:
+            # Restore the previous model name after this call.
+            if prev_model is not None and hasattr(self._llm, "model_name"):
+                self._llm.model_name = prev_model
 
         self._record_completion(transcript, completion)
         return completion

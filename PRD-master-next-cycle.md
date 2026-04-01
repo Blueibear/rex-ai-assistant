@@ -354,11 +354,11 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want the model router to check Ollama availability at startup and cache the result so fallback decisions are fast and do not block each request.
 
 **Acceptance Criteria:**
-- [ ] `ModelRouter` checks Ollama `/api/tags` at init time if any routing target is an Ollama model
-- [ ] Available Ollama model list cached; refreshed every 60 seconds via background thread
-- [ ] If a routed model is not in the available list, `ModelRouter.classify()` still returns the category but `resolve_model()` returns the fallback
-- [ ] No external network call made if all routing targets are OpenAI or local Transformers models
-- [ ] Typecheck passes
+- [x] `ModelRouter` checks Ollama `/api/tags` at init time if any routing target is an Ollama model
+- [x] Available Ollama model list cached; refreshed every 60 seconds via background thread
+- [x] If a routed model is not in the available list, `ModelRouter.classify()` still returns the category but `resolve_model()` returns the fallback
+- [x] No external network call made if all routing targets are OpenAI or local Transformers models
+- [x] Typecheck passes
 
 ---
 
