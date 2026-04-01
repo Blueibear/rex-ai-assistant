@@ -339,13 +339,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want `Assistant.generate_reply()` to automatically select the model from the routing config based on the user's message so different task types use the best available model.
 
 **Acceptance Criteria:**
-- [ ] `Assistant.generate_reply()` calls `ModelRouter.classify(message)` before invoking the LLM
-- [ ] The classified category is used to look up the model identifier in `AppConfig.model_routing`
-- [ ] If the resolved model is not available (e.g. Ollama not running), falls back to `model_routing.default` with a logged warning
-- [ ] Model selection is logged at DEBUG level: `"model_router: classified as {category}, using {model}"`
-- [ ] Existing tests that mock `LanguageModel.generate` still pass
-- [ ] New tests in `tests/test_model_routing_integration.py` verify: coding message → coding model used, fallback on unavailable model
-- [ ] Typecheck passes
+- [x] `Assistant.generate_reply()` calls `ModelRouter.classify(message)` before invoking the LLM
+- [x] The classified category is used to look up the model identifier in `AppConfig.model_routing`
+- [x] If the resolved model is not available (e.g. Ollama not running), falls back to `model_routing.default` with a logged warning
+- [x] Model selection is logged at DEBUG level: `"model_router: classified as {category}, using {model}"`
+- [x] Existing tests that mock `LanguageModel.generate` still pass
+- [x] New tests in `tests/test_model_routing_integration.py` verify: coding message → coding model used, fallback on unavailable model
+- [x] Typecheck passes
 
 ---
 

@@ -237,3 +237,20 @@
   - Pattern tables as module-level Sequence[str] constants keep classify() readable
   - The default category is a fallback — any message that doesn't match a specific pattern lands here
 ---
+
+## Iteration 15 - US-MM-003: Wire model router into Assistant.generate_reply()
+- What was implemented:
+  - All acceptance criteria were already implemented from prior work
+  - `generate_reply()` already calls `self._router.classify(transcript)` and `self._resolve_model(category)`
+  - `_resolve_model()` already logs at DEBUG level and falls back to `model_routing.default` with a warning
+  - `tests/test_model_routing_integration.py` already existed with 4 passing tests
+  - mypy passes with 0 errors on both rex/assistant.py and rex/model_router.py
+  - Full pytest suite passes (exit 0)
+- Files changed:
+  - PRD-master-next-cycle.md (marked US-MM-003 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - Prior iterations (MM-001, MM-002) already wired routing logic into assistant.py and created the integration test file
+  - Always run the actual tests before assuming implementation is missing
+  - The integration test file was listed as untracked in git status — it was already created in the prior iteration
+---
