@@ -449,12 +449,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want a `SkillRegistry` that stores custom skills as structured records so Rex can load, list, and execute them.
 
 **Acceptance Criteria:**
-- [ ] `rex/skills/registry.py` created with `SkillRegistry` class
-- [ ] Each skill record: `id`, `name`, `description`, `trigger_patterns: list[str]`, `handler: str` (module path or script path), `created_at`, `enabled: bool`
-- [ ] Registry persisted to `config/skills.json`
-- [ ] `SkillRegistry.register()`, `list_skills()`, `enable()`, `disable()`, `delete()` methods implemented
-- [ ] Unit tests cover CRUD operations and persistence
-- [ ] Typecheck passes
+- [x] `rex/skills/registry.py` created with `SkillRegistry` class
+- [x] Each skill record: `id`, `name`, `description`, `trigger_patterns: list[str]`, `handler: str` (module path or script path), `created_at`, `enabled: bool`
+- [x] Registry persisted to `config/skills.json`
+- [x] `SkillRegistry.register()`, `list_skills()`, `enable()`, `disable()`, `delete()` methods implemented
+- [x] Unit tests cover CRUD operations and persistence
+- [x] Typecheck passes
 
 ---
 

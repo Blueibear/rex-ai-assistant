@@ -323,3 +323,22 @@
   - SpeakerRecognizer.recognize() sets best_user_id=None when decision==UNKNOWN — check best_user_id not decision
   - Setting review_threshold == accept_threshold means review zone collapses to zero; anything below threshold → UNKNOWN
 ---
+
+## Iteration 19 - US-VID-003: Auto-switch user profile on speaker identification
+- What was implemented:
+  - Added _load_user_profile_context(user_id) to Assistant: loads Memory/{user_id}/core.json, extracts name/tone/topics, returns formatted context string
+  - Updated _build_prompt() to inject rich profile context line (name, tone, interests) when active_user_id is set
+  - In generate_reply(): save/restore self._user_id around the call; set self._user_id=active_user_id temporarily for per-user history, transcripts, and tool scoping
+  - Fallback graceful: unknown user_id (no profile file) logs nothing extra and continues with default profile
+  - 5 integration tests: profile injected, two users, user_id restored, None fallback, unknown user no-crash
+- Files changed:
+  - rex/assistant.py (_load_user_profile_context, _build_prompt, generate_reply user_id swap)
+  - tests/test_voice_id_profile_switch.py (new file)
+  - PRD-master-next-cycle.md (marked US-VID-003 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - load_memory_profile uses MEMORY_ROOT from memory_utils — patch that constant in tests rather than touching disk paths in config
+  - test uses patch("rex.memory_utils.MEMORY_ROOT", tmp_path) — this must match the import path in assistant.py's _load_user_profile_context
+  - self._user_id swap must be restored in finally block to survive exceptions during generate_reply
+  - The "per-user credentials" criterion is satisfied by self._user_id scoping: email tools that query by user_id will now get the correct user
+---
