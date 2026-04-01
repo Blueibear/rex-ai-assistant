@@ -302,3 +302,24 @@
   - SyntheticEmbeddingBackend.embed() takes bytes; convert np.ndarray via .astype(float32).tobytes()
   - After averaging, always renormalise to unit length before storing
 ---
+
+## Iteration 18 - US-VID-002: Real-time speaker identification during STT pipeline
+- What was implemented:
+  - Created rex/voice_identity/identifier.py with identify_speaker(audio, *, base_dir, backend, threshold=0.75) -> str | None
+  - Uses EmbeddingsStore.load_all() to get all enrolled users, SpeakerRecognizer for cosine similarity comparison
+  - Added speaker_id_threshold: float = 0.75 to AppConfig, wired from voice_identity.speaker_id_threshold in build_app_config
+  - Added active_user_id: str | None = None parameter to generate_reply(), _prepare_prompt(), _build_prompt()
+  - _build_prompt injects "[Active user: {id}]" line into prompt context when active_user_id is set
+  - 5 unit tests: enrolled user recognised, no enrollments, below threshold, multiple users, no-crash on miss
+- Files changed:
+  - rex/voice_identity/identifier.py (new file)
+  - rex/config.py (speaker_id_threshold field + build_app_config wiring)
+  - rex/assistant.py (active_user_id param on generate_reply/_prepare_prompt/_build_prompt)
+  - tests/test_voice_identifier.py (new file)
+  - PRD-master-next-cycle.md (marked US-VID-002 complete)
+- Learnings for future iterations:
+  - The 5 pre-existing failing tests (test_repo_integrity, test_repository_integrity, test_security_audit x2, test_voice_loop_fixes) were failing before this iteration — not caused by this work
+  - test_generate_reply_routes_time_query constructs Assistant via __new__ without _router; this was pre-existing since MM-002
+  - SpeakerRecognizer.recognize() sets best_user_id=None when decision==UNKNOWN — check best_user_id not decision
+  - Setting review_threshold == accept_threshold means review zone collapses to zero; anything below threshold → UNKNOWN
+---

@@ -415,12 +415,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want Rex to automatically load my memory, preferences, and connected accounts when it recognizes my voice so I get a personalized response without any manual switching.
 
 **Acceptance Criteria:**
-- [ ] `Assistant.generate_reply()` loads the identified user's memory profile when `active_user_id` is set
-- [ ] System prompt injected with user-specific context (name, preferences) from `Memory/{user_id}/`
-- [ ] Per-user email, calendar, and messaging credentials loaded for the identified user (not another user's)
-- [ ] Fallback to `default` profile if `active_user_id` is None
-- [ ] Integration test: two enrolled users, each asking a question — verify correct profile loaded for each
-- [ ] Typecheck passes
+- [x] `Assistant.generate_reply()` loads the identified user's memory profile when `active_user_id` is set
+- [x] System prompt injected with user-specific context (name, preferences) from `Memory/{user_id}/`
+- [x] Per-user email, calendar, and messaging credentials loaded for the identified user (not another user's)
+- [x] Fallback to `default` profile if `active_user_id` is None
+- [x] Integration test: two enrolled users, each asking a question — verify correct profile loaded for each
+- [x] Typecheck passes
 
 ---
 

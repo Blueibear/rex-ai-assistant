@@ -427,6 +427,14 @@ class Assistant:
                 prev_model or "default",
             )
 
+        # Per-user credential/history scoping: swap self._user_id for the
+        # duration of this call so history, transcripts, and tool calls use
+        # the identified user's context.  Restore unconditionally in finally.
+        prev_user_id = self._user_id
+        if active_user_id is not None:
+            self._user_id = active_user_id
+            logger.debug("voice_identity: switching active user to %r", active_user_id)
+
         try:
             if self._ha_bridge and self._ha_bridge.enabled:
                 completion = await loop.run_in_executor(
@@ -443,9 +451,10 @@ class Assistant:
                 completion = await loop.run_in_executor(None, self._llm.generate, prompt)
                 completion = await self._post_process_completion(transcript, completion)
         finally:
-            # Restore the previous model name after this call.
+            # Restore the previous model name and user ID after this call.
             if prev_model is not None and hasattr(self._llm, "model_name"):
                 self._llm.model_name = prev_model
+            self._user_id = prev_user_id
 
         self._record_completion(transcript, completion)
         return completion
@@ -545,6 +554,37 @@ class Assistant:
 
         return ctx
 
+    def _load_user_profile_context(self, user_id: str) -> str | None:
+        """Load a user's memory profile and format it as a context string.
+
+        Returns a short context string suitable for injection into the system
+        prompt, or ``None`` if no profile is found.
+        """
+        try:
+            from rex.memory_utils import MEMORY_ROOT, load_memory_profile
+
+            profile = load_memory_profile(user_id, MEMORY_ROOT)
+        except Exception:
+            return None
+
+        parts: list[str] = []
+        name = profile.get("name")
+        if name:
+            parts.append(f"name={name}")
+
+        prefs = profile.get("preferences")
+        if isinstance(prefs, dict):
+            tone = prefs.get("tone")
+            if tone:
+                parts.append(f"tone={tone}")
+            topics = prefs.get("topics")
+            if isinstance(topics, list) and topics:
+                parts.append(f"interests={', '.join(str(t) for t in topics[:5])}")
+
+        if not parts:
+            return f"[Active user: {user_id}]"
+        return f"[Active user: {user_id} — {'; '.join(parts)}]"
+
     def _build_prompt(
         self,
         transcript: str,
@@ -555,7 +595,11 @@ class Assistant:
         system_context = self._build_system_context()
         history_lines = [system_context]
         if active_user_id is not None:
-            history_lines.append(f"[Active user: {active_user_id}]")
+            user_ctx = self._load_user_profile_context(active_user_id)
+            if user_ctx:
+                history_lines.append(user_ctx)
+            else:
+                history_lines.append(f"[Active user: {active_user_id}]")
         history_lines += [f"{turn.speaker}: {turn.text}" for turn in self._history[-4:]]
         history_lines.append(f"user: {transcript}")
         if voice_mode:
