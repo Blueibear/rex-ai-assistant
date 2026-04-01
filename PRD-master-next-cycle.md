@@ -387,12 +387,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to enroll my voice with Rex so it can recognize me automatically without me having to say who I am.
 
 **Acceptance Criteria:**
-- [ ] `rex/voice_identity/enrollment.py` (or equivalent) provides `enroll_user(user_id: str, audio_samples: list[np.ndarray]) -> None`
-- [ ] Speaker embeddings computed and stored in `Memory/{user_id}/voice_embedding.npy`
-- [ ] Enrollment requires at least 3 audio samples; raises `ValueError` if fewer provided
-- [ ] Existing `rex/voice_identity/` structure respected; no duplicate implementations
-- [ ] Unit tests cover: successful enrollment, insufficient samples error, embedding file created
-- [ ] Typecheck passes
+- [x] `rex/voice_identity/enrollment.py` (or equivalent) provides `enroll_user(user_id: str, audio_samples: list[np.ndarray]) -> None`
+- [x] Speaker embeddings computed and stored in `Memory/{user_id}/voice_embedding.npy`
+- [x] Enrollment requires at least 3 audio samples; raises `ValueError` if fewer provided
+- [x] Existing `rex/voice_identity/` structure respected; no duplicate implementations
+- [x] Unit tests cover: successful enrollment, insufficient samples error, embedding file created
+- [x] Typecheck passes
 
 ---
 

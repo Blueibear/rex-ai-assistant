@@ -279,3 +279,26 @@
   - urllib.request is in stdlib; no new dependency needed for the /api/tags probe
   - Store both "name" and "name:tag" from Ollama response for flexible matching
 ---
+
+## Iteration 17 - US-VID-001: Voice enrollment — capture and store speaker embeddings
+- What was implemented:
+  - Skipped US-MM-005 (requires React SPA from US-UI-001 through US-UI-003; "Verify changes work in browser" is not completable without UI infrastructure)
+  - Created rex/voice_identity/enrollment.py with enroll_user(user_id, audio_samples, *, base_dir, backend)
+  - Validates >= 3 samples; raises ValueError if fewer
+  - Computes per-sample embeddings via backend.embed(bytes), averages, normalises to unit length
+  - Persists JSON via EmbeddingsStore (voice_embeddings.json — canonical store, respects existing structure)
+  - Also saves numpy .npy at Memory/{user_id}/voice_embedding.npy (PRD requirement)
+  - Default backend: SyntheticEmbeddingBackend (stdlib only, no heavy deps)
+  - 10 unit tests covering: successful enrollment, .npy created, npy == json, unit length, ValueError cases, sample_count stored
+  - mypy 0 errors; all 10 tests pass
+- Files changed:
+  - rex/voice_identity/enrollment.py (new file)
+  - tests/test_voice_enrollment.py (new file)
+  - PRD-master-next-cycle.md (marked US-VID-001 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - US-MM-005 is blocked on US-UI-001 (React SPA) — skip it and come back after UI stories are done
+  - Existing EmbeddingsStore stores to voice_embeddings.json; PRD wants .npy too — write both for compatibility
+  - SyntheticEmbeddingBackend.embed() takes bytes; convert np.ndarray via .astype(float32).tobytes()
+  - After averaging, always renormalise to unit length before storing
+---
