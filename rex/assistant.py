@@ -96,6 +96,14 @@ class Assistant:
 
         self._tool_router_fn = ToolBridge().route_if_tool_request
 
+        # Skill trainer and registry for natural language skill creation (US-SK-003)
+        from .skills.registry import SkillRegistry
+        from .skills.trainer import SkillTrainer
+
+        _skills_path = getattr(self._settings, "skills_path", None)
+        self._skill_registry = SkillRegistry(skills_path=_skills_path)
+        self._skill_trainer = SkillTrainer()
+
         # Only create HABridge if HA is configured
         self._ha_bridge: HABridge | None = None
         if self._settings.ha_base_url and self._settings.ha_token:
@@ -426,6 +434,18 @@ class Assistant:
                 category,
                 prev_model or "default",
             )
+
+        # Skill training: intercept natural language skill creation requests
+        # before routing to the LLM (US-SK-003).
+        _skill_trainer = getattr(self, "_skill_trainer", None)
+        _skill_registry = getattr(self, "_skill_registry", None)
+        if _skill_trainer is not None and _skill_registry is not None:
+            training_response = _skill_trainer.handle_if_training_request(
+                transcript, _skill_registry
+            )
+            if training_response is not None:
+                self._record_completion(transcript, training_response)
+                return training_response
 
         # Per-user credential/history scoping: swap self._user_id for the
         # duration of this call so history, transcripts, and tool calls use

@@ -477,13 +477,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to describe a new skill to Rex in plain language so Rex creates and registers the skill automatically without me needing to write Python.
 
 **Acceptance Criteria:**
-- [ ] `Assistant` detects skill-creation intent (e.g. "teach yourself to…", "learn how to…", "add a skill that…")
-- [ ] On detection, Rex prompts for: skill name, what it should do, example trigger phrases
-- [ ] Rex generates a Python skill script using the `SKILL_METADATA` pattern and saves it to `plugins/skills/`
-- [ ] New skill immediately registered in `SkillRegistry` and available for invocation
-- [ ] Rex confirms: "I've learned how to [X]. You can trigger it by saying [example phrase]."
-- [ ] Integration test: user message "teach yourself to tell me the current battery level", skill script created, registered, and callable
-- [ ] Typecheck passes
+- [x] `Assistant` detects skill-creation intent (e.g. "teach yourself to…", "learn how to…", "add a skill that…")
+- [x] On detection, Rex prompts for: skill name, what it should do, example trigger phrases
+- [x] Rex generates a Python skill script using the `SKILL_METADATA` pattern and saves it to `plugins/skills/`
+- [x] New skill immediately registered in `SkillRegistry` and available for invocation
+- [x] Rex confirms: "I've learned how to [X]. You can trigger it by saying [example phrase]."
+- [x] Integration test: user message "teach yourself to tell me the current battery level", skill script created, registered, and callable
+- [x] Typecheck passes
 
 ---
 
