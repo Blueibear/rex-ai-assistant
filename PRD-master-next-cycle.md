@@ -401,12 +401,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want the STT pipeline to identify which enrolled user is speaking before passing the transcript to the Assistant so the correct user profile is active.
 
 **Acceptance Criteria:**
-- [ ] `rex/voice_identity/identifier.py` provides `identify_speaker(audio: np.ndarray) -> str | None` returning the matched `user_id` or `None` if no match
-- [ ] Cosine similarity threshold configurable via `AppConfig` (default 0.75)
-- [ ] Identification result injected into `Assistant.generate_reply()` context as `active_user_id`
-- [ ] If speaker unrecognized, Rex responds with a default profile and does not crash
-- [ ] Unit tests cover: enrolled user recognized, unrecognized speaker returns None, below-threshold returns None
-- [ ] Typecheck passes
+- [x] `rex/voice_identity/identifier.py` provides `identify_speaker(audio: np.ndarray) -> str | None` returning the matched `user_id` or `None` if no match
+- [x] Cosine similarity threshold configurable via `AppConfig` (default 0.75)
+- [x] Identification result injected into `Assistant.generate_reply()` context as `active_user_id`
+- [x] If speaker unrecognized, Rex responds with a default profile and does not crash
+- [x] Unit tests cover: enrolled user recognized, unrecognized speaker returns None, below-threshold returns None
+- [x] Typecheck passes
 
 ---
 

@@ -7,7 +7,7 @@ import logging
 import threading
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .calendar_service import get_calendar_service
@@ -242,11 +242,19 @@ class Assistant:
             self._followup_lock = lock
         return lock
 
-    async def _prepare_prompt(self, transcript: str, *, voice_mode: bool = False) -> str:
+    async def _prepare_prompt(
+        self,
+        transcript: str,
+        *,
+        voice_mode: bool = False,
+        active_user_id: str | None = None,
+    ) -> str:
         if not transcript.strip():
             raise ValueError("Transcript must not be empty")
 
-        prompt = self._build_prompt(transcript, voice_mode=voice_mode)
+        prompt = self._build_prompt(
+            transcript, voice_mode=voice_mode, active_user_id=active_user_id
+        )
 
         async with self._get_followup_lock():
             if self._pending_followup:
@@ -393,7 +401,13 @@ class Assistant:
         completion = await self._post_process_completion(transcript, completion)
         self._record_completion(transcript, completion)
 
-    async def generate_reply(self, transcript: str, *, voice_mode: bool = False) -> str:
+    async def generate_reply(
+        self,
+        transcript: str,
+        *,
+        voice_mode: bool = False,
+        active_user_id: str | None = None,
+    ) -> str:
         loop = asyncio.get_running_loop()
         completion: str | None = None
 
@@ -403,9 +417,7 @@ class Assistant:
         resolved_model = self._router.resolve_model(category, _routing_cfg)
         prev_model: str | None = getattr(self._llm, "model_name", None)
         if resolved_model and resolved_model != prev_model:
-            logger.debug(
-                "model_router: classified as %s, using %s", category, resolved_model
-            )
+            logger.debug("model_router: classified as %s, using %s", category, resolved_model)
             if hasattr(self._llm, "model_name"):
                 self._llm.model_name = resolved_model
         else:
@@ -424,7 +436,9 @@ class Assistant:
                 )
 
             if completion is None:
-                prompt = await self._prepare_prompt(transcript, voice_mode=voice_mode)
+                prompt = await self._prepare_prompt(
+                    transcript, voice_mode=voice_mode, active_user_id=active_user_id
+                )
 
                 completion = await loop.run_in_executor(None, self._llm.generate, prompt)
                 completion = await self._post_process_completion(transcript, completion)
@@ -473,7 +487,6 @@ class Assistant:
 
     def _build_system_context(self) -> str:
         """Return a system context string with current date/time and user location."""
-        from datetime import timezone as _utc_tz
 
         _settings = getattr(self, "_settings", None)
         tz_name: str | None = getattr(_settings, "default_timezone", None)
@@ -488,10 +501,10 @@ class Assistant:
 
                 now = datetime.now(tz=ZoneInfo(tz_name))
             else:
-                now = datetime.now(tz=_utc_tz.utc)
+                now = datetime.now(tz=UTC)
                 tz_name = "UTC"
         except Exception:
-            now = datetime.now(tz=_utc_tz.utc)
+            now = datetime.now(tz=UTC)
             tz_name = "UTC"
 
         lines = [f"Current date and time: {now.strftime('%Y-%m-%d %H:%M')} {tz_name}"]
@@ -532,9 +545,17 @@ class Assistant:
 
         return ctx
 
-    def _build_prompt(self, transcript: str, *, voice_mode: bool = False) -> str:
+    def _build_prompt(
+        self,
+        transcript: str,
+        *,
+        voice_mode: bool = False,
+        active_user_id: str | None = None,
+    ) -> str:
         system_context = self._build_system_context()
         history_lines = [system_context]
+        if active_user_id is not None:
+            history_lines.append(f"[Active user: {active_user_id}]")
         history_lines += [f"{turn.speaker}: {turn.text}" for turn in self._history[-4:]]
         history_lines.append(f"user: {transcript}")
         if voice_mode:
