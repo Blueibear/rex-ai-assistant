@@ -342,3 +342,23 @@
   - self._user_id swap must be restored in finally block to survive exceptions during generate_reply
   - The "per-user credentials" criterion is satisfied by self._user_id scoping: email tools that query by user_id will now get the correct user
 ---
+
+## Iteration 20 - US-SK-001: Skill registry — data model and storage
+- What was implemented:
+  - Skipped US-VID-004 (requires browser UI — same blocker as US-MM-005)
+  - Created rex/skills/__init__.py and rex/skills/registry.py
+  - Skill dataclass: id (UUID), name, description, trigger_patterns, handler, created_at, enabled
+  - SkillRegistry: register(), list_skills(include_disabled), get(), enable(), disable(), delete()
+  - Persistence: load on init from config/skills.json; save on every mutation
+  - 14 unit tests covering all CRUD, enable/disable toggle, JSON persistence, empty-file start
+- Files changed:
+  - rex/skills/__init__.py (new)
+  - rex/skills/registry.py (new)
+  - tests/test_skill_registry.py (new)
+  - PRD-master-next-cycle.md (marked US-SK-001 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - Skills path defaults to config/skills.json; tests use tmp_path to avoid touching real config
+  - ruff UP rules: use list[str] not List[str], datetime.UTC not timezone.utc — ruff --fix handles these
+  - Skill.new() pattern (classmethod factory) keeps __init__ args minimal and handles UUID/timestamp generation
+---

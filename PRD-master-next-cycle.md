@@ -463,12 +463,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want to register a new skill by placing a Python script in `plugins/skills/` with a standard header so Rex automatically discovers and loads it.
 
 **Acceptance Criteria:**
-- [ ] Rex scans `plugins/skills/` at startup for `*.py` files with a `SKILL_METADATA` dict at the top
-- [ ] `SKILL_METADATA` must contain: `name`, `description`, `triggers: list[str]`
-- [ ] Valid scripts auto-registered in `SkillRegistry`; invalid scripts logged and skipped gracefully
-- [ ] Example skill `plugins/skills/example_weather_skill.py` added showing the pattern
-- [ ] Unit tests cover: valid script discovered, invalid script skipped, metadata extracted correctly
-- [ ] Typecheck passes
+- [x] Rex scans `plugins/skills/` at startup for `*.py` files with a `SKILL_METADATA` dict at the top
+- [x] `SKILL_METADATA` must contain: `name`, `description`, `triggers: list[str]`
+- [x] Valid scripts auto-registered in `SkillRegistry`; invalid scripts logged and skipped gracefully
+- [x] Example skill `plugins/skills/example_weather_skill.py` added showing the pattern
+- [x] Unit tests cover: valid script discovered, invalid script skipped, metadata extracted correctly
+- [x] Typecheck passes
 
 ---
 
