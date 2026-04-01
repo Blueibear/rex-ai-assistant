@@ -96,13 +96,15 @@ class Assistant:
 
         self._tool_router_fn = ToolBridge().route_if_tool_request
 
-        # Skill trainer and registry for natural language skill creation (US-SK-003)
+        # Skill trainer, registry, and router (US-SK-003, US-SK-004)
         from .skills.registry import SkillRegistry
+        from .skills.router import SkillRouter
         from .skills.trainer import SkillTrainer
 
         _skills_path = getattr(self._settings, "skills_path", None)
         self._skill_registry = SkillRegistry(skills_path=_skills_path)
         self._skill_trainer = SkillTrainer()
+        self._skill_router = SkillRouter(self._skill_registry)
 
         # Only create HABridge if HA is configured
         self._ha_bridge: HABridge | None = None
@@ -445,7 +447,18 @@ class Assistant:
             )
             if training_response is not None:
                 self._record_completion(transcript, training_response)
-                return training_response
+                return str(training_response)
+
+        # Skill invocation: check registered skill triggers before the LLM
+        # (US-SK-004).  On a match the skill handler is executed and the
+        # result returned directly; on no match normal routing proceeds.
+        _skill_router = getattr(self, "_skill_router", None)
+        if _skill_router is not None:
+            matched_skill = _skill_router.match(transcript)
+            if matched_skill is not None:
+                skill_response = str(_skill_router.execute(matched_skill, transcript))
+                self._record_completion(transcript, skill_response)
+                return skill_response
 
         # Per-user credential/history scoping: swap self._user_id for the
         # duration of this call so history, transcripts, and tool calls use

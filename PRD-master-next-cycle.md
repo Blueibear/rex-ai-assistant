@@ -492,13 +492,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want the `Assistant` to check registered skill triggers before routing to the LLM so custom skills can intercept and handle matching messages.
 
 **Acceptance Criteria:**
-- [ ] `SkillRouter.match(message: str) -> Skill | None` checks all enabled skills' `trigger_patterns` against the user message
-- [ ] On match, skill handler executed; result returned to user
-- [ ] On no match, normal LLM routing proceeds
-- [ ] Skill execution errors caught and reported to user gracefully; Rex does not crash
-- [ ] Skill invocations logged at INFO level
-- [ ] Unit tests cover: match found and executed, no match falls through, execution error handled
-- [ ] Typecheck passes
+- [x] `SkillRouter.match(message: str) -> Skill | None` checks all enabled skills' `trigger_patterns` against the user message
+- [x] On match, skill handler executed; result returned to user
+- [x] On no match, normal LLM routing proceeds
+- [x] Skill execution errors caught and reported to user gracefully; Rex does not crash
+- [x] Skill invocations logged at INFO level
+- [x] Unit tests cover: match found and executed, no match falls through, execution error handled
+- [x] Typecheck passes
 
 ---
 
