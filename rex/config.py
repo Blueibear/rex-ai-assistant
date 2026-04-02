@@ -233,6 +233,9 @@ class AppConfig:
     # Voice identity
     speaker_id_threshold: float = 0.75
 
+    # Tool dispatch
+    tool_timeout_seconds: float = 10.0
+
     # Aliases
     llm_backend: Optional[str] = None
     temperature: Optional[float] = None

@@ -542,12 +542,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want each tool invocation wrapped in a timeout and one-retry policy so a slow tool does not hang Rex indefinitely.
 
 **Acceptance Criteria:**
-- [ ] Each tool call wrapped with configurable timeout (default 10s, configurable via `AppConfig.tool_timeout_seconds`)
-- [ ] On timeout, Rex reports "I couldn't reach [tool name] in time" and continues with available results
-- [ ] One automatic retry on transient errors (network timeout, HTTP 5xx); no retry on auth errors
-- [ ] All tool invocations logged: tool name, duration, success/failure
-- [ ] Unit tests cover: successful invocation, timeout, retry on transient error, no retry on auth error
-- [ ] Typecheck passes
+- [x] Each tool call wrapped with configurable timeout (default 10s, configurable via `AppConfig.tool_timeout_seconds`)
+- [x] On timeout, Rex reports "I couldn't reach [tool name] in time" and continues with available results
+- [x] One automatic retry on transient errors (network timeout, HTTP 5xx); no retry on auth errors
+- [x] All tool invocations logged: tool name, duration, success/failure
+- [x] Unit tests cover: successful invocation, timeout, retry on transient error, no retry on auth error
+- [x] Typecheck passes
 
 ---
 

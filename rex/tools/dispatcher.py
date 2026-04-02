@@ -1,15 +1,17 @@
-"""Auto tool selection — map user intent to tools (US-TD-002).
+"""Auto tool selection — map user intent to tools (US-TD-002/US-TD-003).
 
 ``ToolDispatcher.select_tools()`` maps a user message to zero or more
-registered tools via keyword/intent matching.  When multiple domains are
-detected all matching tools are returned so the caller can invoke them in
-parallel and aggregate results as LLM context.
+registered tools via keyword/intent matching.  ``execute_tools()`` invokes
+each selected tool with a configurable timeout and a single retry on
+transient network errors.
 """
 
 from __future__ import annotations
 
+import concurrent.futures
 import logging
 import re
+import time
 from typing import Any
 
 from .registry import Tool, ToolRegistry
@@ -66,20 +68,72 @@ _INTENT_RULES: list[tuple[str, re.Pattern[str]]] = [
     ),
 ]
 
+# ---------------------------------------------------------------------------
+# Error classification helpers
+# ---------------------------------------------------------------------------
+
+#: Exception types that indicate a transient network problem (retry once).
+_TRANSIENT_TYPES = (
+    TimeoutError,
+    ConnectionError,
+    ConnectionResetError,
+    ConnectionRefusedError,
+    ConnectionAbortedError,
+    OSError,
+)
+
+#: Exception types that indicate an auth failure (never retry).
+_AUTH_TYPES = (PermissionError,)
+
+
+def _is_transient_error(exc: BaseException) -> bool:
+    """Return True if *exc* is a retriable network/transient error.
+
+    Also recognises HTTP-style errors with a ``status_code`` attribute
+    whose value is >= 500 (server-side transient).
+    """
+    if isinstance(exc, _TRANSIENT_TYPES):
+        return True
+    # HTTP-style exception with a status code
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    if isinstance(status, int) and status >= 500:
+        return True
+    # Explicit opt-in marker on custom exceptions
+    return bool(getattr(exc, "is_transient", False))
+
+
+def _is_auth_error(exc: BaseException) -> bool:
+    """Return True if *exc* is an authentication / authorisation failure."""
+    if isinstance(exc, _AUTH_TYPES):
+        return True
+    status = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    if isinstance(status, int) and status in (401, 403):
+        return True
+    return bool(getattr(exc, "auth_error", False))
+
+
+# ---------------------------------------------------------------------------
+# ToolDispatcher
+# ---------------------------------------------------------------------------
+
+_DEFAULT_TIMEOUT: float = 10.0
+
 
 class ToolDispatcher:
-    """Select tools from a registry based on keyword/intent matching.
+    """Select and execute tools from a registry.
 
     Args:
         registry: The ``ToolRegistry`` to pull tools from.
-        config: Optional ``AppConfig`` instance used to filter unavailable
-            tools.  When *None* all registered tools are candidates.
+        config: Optional ``AppConfig`` instance.  Used to filter unavailable
+            tools and to read ``tool_timeout_seconds``.  When *None* all
+            registered tools are candidates and the default timeout applies.
 
     Usage::
 
         dispatcher = ToolDispatcher(registry, config=app_config)
         tools = dispatcher.select_tools("What's the weather and check my email?")
-        # returns [Tool(weather_now), Tool(send_email)]
+        results = dispatcher.execute_tools(tools, message)
+        context = dispatcher.format_tool_context(results)
     """
 
     def __init__(
@@ -89,6 +143,9 @@ class ToolDispatcher:
     ) -> None:
         self._registry = registry
         self._config = config
+        self._timeout_seconds: float = float(
+            getattr(config, "tool_timeout_seconds", _DEFAULT_TIMEOUT) or _DEFAULT_TIMEOUT
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -140,27 +197,37 @@ class ToolDispatcher:
         return selected
 
     def execute_tools(self, tools: list[Tool], message: str) -> dict[str, Any]:
-        """Invoke *tools* and return a mapping of tool name → result.
+        """Invoke *tools* with timeout + one-retry on transient errors.
 
-        Each handler is called with ``transcript=message``.  Exceptions are
-        caught and stored as strings so one failing tool doesn't block others.
+        Each handler is called with ``transcript=message``.  For each tool:
+
+        * If the call succeeds within the timeout the result is stored.
+        * If the call times out the message
+          ``"I couldn't reach {name} in time"`` is stored.
+        * If the call raises a transient error (network, HTTP 5xx) it is
+          retried **once**.  Auth errors are never retried.
+        * All invocations are logged with tool name, duration, and
+          success/failure.
 
         Args:
             tools: Tools to execute (from :meth:`select_tools`).
             message: The user message passed as ``transcript`` kwarg.
 
         Returns:
-            Dict mapping tool name to its result (or error string).
+            Dict mapping tool name to its result (or error/timeout string).
         """
         results: dict[str, Any] = {}
         for tool in tools:
-            try:
-                result = tool.handler(transcript=message)
-                results[tool.name] = result
-                logger.info("tool_dispatcher: executed %r successfully", tool.name)
-            except Exception as exc:
-                logger.warning("tool_dispatcher: %r raised %s", tool.name, exc)
-                results[tool.name] = f"[tool error: {exc}]"
+            start = time.monotonic()
+            value, ok = self._invoke_with_timeout_retry(tool, message)
+            duration = time.monotonic() - start
+            logger.info(
+                "tool_dispatcher: %r %.3fs %s",
+                tool.name,
+                duration,
+                "ok" if ok else "failed",
+            )
+            results[tool.name] = value
         return results
 
     @staticmethod
@@ -176,3 +243,46 @@ class ToolDispatcher:
             lines.append(f"  {name}: {value}")
         lines.append("]")
         return "\n".join(lines)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _invoke_with_timeout_retry(self, tool: Tool, message: str) -> tuple[Any, bool]:
+        """Invoke *tool* handler; retry once on transient errors.
+
+        Returns:
+            ``(result_value, success_bool)``
+        """
+        timeout = self._timeout_seconds
+        last_exc: BaseException | None = None
+
+        for attempt in range(2):
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(tool.handler, transcript=message)
+                try:
+                    result = future.result(timeout=timeout)
+                    return result, True
+                except concurrent.futures.TimeoutError:
+                    future.cancel()
+                    logger.warning(
+                        "tool_dispatcher: %r timed out after %.1fs",
+                        tool.name,
+                        timeout,
+                    )
+                    return f"I couldn't reach {tool.name} in time", False
+                except Exception as exc:
+                    last_exc = exc
+                    if attempt == 0 and _is_transient_error(exc) and not _is_auth_error(exc):
+                        logger.debug(
+                            "tool_dispatcher: %r transient error on attempt 1, retrying: %s",
+                            tool.name,
+                            exc,
+                        )
+                        continue
+                    # Non-transient or second attempt — fail fast
+                    break
+
+        exc_msg = str(last_exc) if last_exc is not None else "unknown error"
+        logger.warning("tool_dispatcher: %r failed: %s", tool.name, exc_msg)
+        return f"[tool error: {exc_msg}]", False

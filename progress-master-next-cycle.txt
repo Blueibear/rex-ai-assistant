@@ -473,3 +473,28 @@
   - getattr guard in generate_reply is critical for __new__-constructed test assistants that skip __init__
   - tool_context injected into _build_prompt BEFORE history lines so LLM sees fresh data before old conversation
 ---
+
+## Iteration 26 - US-TD-003: Tool execution pipeline with timeout and retry
+- What was implemented:
+  - Added `tool_timeout_seconds: float = 10.0` to AppConfig in rex/config.py
+  - Rewrote `ToolDispatcher.execute_tools()` with timeout + retry logic
+  - `_invoke_with_timeout_retry()`: uses `concurrent.futures.ThreadPoolExecutor` per-call; `future.result(timeout=N)` raises `TimeoutError` → stored as "I couldn't reach [name] in time"
+  - Transient errors (ConnectionError, OSError, HTTP 5xx, `is_transient=True`): retry once
+  - Auth errors (PermissionError, HTTP 401/403, `auth_error=True`): never retry
+  - All executions logged at INFO: tool name, duration (%.3fs), "ok"/"failed"
+  - `_is_transient_error()` and `_is_auth_error()` module-level helpers (also exported for tests)
+  - ToolDispatcher.__init__ reads `config.tool_timeout_seconds` (defaults to 10.0)
+  - 23 unit tests in tests/test_tool_pipeline.py; all pass
+- Files changed:
+  - rex/tools/dispatcher.py (timeout+retry rewrite, _is_transient_error, _is_auth_error)
+  - rex/config.py (tool_timeout_seconds field)
+  - tests/test_tool_pipeline.py (new)
+  - PRD-master-next-cycle.md (marked US-TD-003 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - ThreadPoolExecutor must be created fresh per attempt (not shared across retries)
+  - `future.result(timeout=N)` raises `concurrent.futures.TimeoutError` not stdlib `TimeoutError`; no special handling needed since the handler runs in a thread
+  - Barrier (threading.Event) in slow-handler tests prevents the thread from hanging the test suite after the timeout
+  - ruff F841 catches unused `results = ...` assignments in tests — reassign to _ or drop
+  - Patch `rex.tools.dispatcher.logger` via `patch.object(_mod.logger, "info")` for reliable log assertion
+---
