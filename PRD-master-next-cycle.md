@@ -513,12 +513,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want a `ToolRegistry` that catalogs every tool Rex can invoke (search, email, calendar, Home Assistant, etc.) with metadata for auto-dispatch.
 
 **Acceptance Criteria:**
-- [ ] `rex/tools/registry.py` created with `ToolRegistry` class
-- [ ] Each tool entry: `name`, `description`, `capability_tags: list[str]`, `requires_config: list[str]`, `handler: Callable`
-- [ ] All existing tools registered: web search, email read/send, calendar, Home Assistant, messaging, weather, file ops
-- [ ] `ToolRegistry.available_tools()` returns only tools whose `requires_config` fields are satisfied by current `AppConfig`
-- [ ] Unit tests cover: tool registration, availability filter, missing config excludes tool
-- [ ] Typecheck passes
+- [x] `rex/tools/registry.py` created with `ToolRegistry` class
+- [x] Each tool entry: `name`, `description`, `capability_tags: list[str]`, `requires_config: list[str]`, `handler: Callable`
+- [x] All existing tools registered: web search, email read/send, calendar, Home Assistant, messaging, weather, file ops
+- [x] `ToolRegistry.available_tools()` returns only tools whose `requires_config` fields are satisfied by current `AppConfig`
+- [x] Unit tests cover: tool registration, availability filter, missing config excludes tool
+- [x] Typecheck passes
 
 ---
 
