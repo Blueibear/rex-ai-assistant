@@ -499,6 +499,31 @@
   - Patch `rex.tools.dispatcher.logger` via `patch.object(_mod.logger, "info")` for reliable log assertion
 ---
 
+## Iteration 30 - US-WIN-004: Windows issue diagnosis and repair suggestions
+- What was implemented:
+  - Created rex/tools/windows_repair.py with 4 functions: check_disk_health, check_windows_update_status, flush_dns_cache, run_sfc_scan
+  - All functions return structured {status, findings, recommended_actions} dicts
+  - Non-Windows: returns {status: "platform_not_supported"} (not NotImplementedError)
+  - run_sfc_scan: returns requires_confirmation dict when confirmed=False; proceeds when confirmed=True
+  - check_disk_health: parses MSStorageDriver_FailurePredictStatus WMI output
+  - check_windows_update_status: uses Microsoft.Update.Session COM object via PowerShell
+  - flush_dns_cache: uses ipconfig /flushdns (not PowerShell)
+  - Registered 4 new tools in _build_default_registry(); tags use "repair" not "diagnostics"
+  - 22 unit tests in tests/test_windows_repair.py; all pass
+- Files changed:
+  - rex/tools/windows_repair.py (new)
+  - rex/tools/registry.py (4 new tool registrations + repair imports)
+  - tests/test_windows_repair.py (new)
+  - PRD-master-next-cycle.md (marked US-WIN-004 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - test_diagnostics_tools_have_correct_tags asserts len==6 for "diagnostics"-tagged tools; do NOT add "diagnostics" to repair tool tags — use "repair" instead
+  - flush_dns_cache uses subprocess.run with ["ipconfig", "/flushdns"], NOT PowerShell — simpler and always available
+  - Non-Windows guard returns dict (not raises) so ToolDispatcher can handle gracefully
+  - SFC timeout=300s (5 minutes) — SFC can take several minutes on real systems
+  - _platform_not_supported() returns a copy of the template dict (dict(_NOT_SUPPORTED)) to avoid mutation bugs
+---
+
 ## Iteration 29 - US-WIN-003: Windows settings read/write via PowerShell bridge
 - What was implemented:
   - Created rex/tools/windows_settings.py with 5 functions: get_volume, set_volume, set_brightness, get_power_plan, set_power_plan
