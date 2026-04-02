@@ -562,13 +562,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want Rex to read and write files on my local machine when I ask it to so I can manage documents through voice or chat.
 
 **Acceptance Criteria:**
-- [ ] `rex/tools/file_ops.py` created with tools: `read_file(path)`, `write_file(path, content)`, `list_directory(path)`, `move_file(src, dst)`, `delete_file(path)`
-- [ ] All paths validated against an allowlist root (configurable `AppConfig.allowed_file_roots`, default: user home directory)
-- [ ] Path traversal attacks blocked (no `../` escapes outside allowlist)
-- [ ] Operations log at INFO level with path and operation type
-- [ ] Tools registered in `ToolRegistry`
-- [ ] Unit tests cover: read existing file, write new file, directory listing, path traversal blocked
-- [ ] Typecheck passes
+- [x] `rex/tools/file_ops.py` created with tools: `read_file(path)`, `write_file(path, content)`, `list_directory(path)`, `move_file(src, dst)`, `delete_file(path)`
+- [x] All paths validated against an allowlist root (configurable `AppConfig.allowed_file_roots`, default: user home directory)
+- [x] Path traversal attacks blocked (no `../` escapes outside allowlist)
+- [x] Operations log at INFO level with path and operation type
+- [x] Tools registered in `ToolRegistry`
+- [x] Unit tests cover: read existing file, write new file, directory listing, path traversal blocked
+- [x] Typecheck passes
 
 ---
 

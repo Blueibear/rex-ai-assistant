@@ -135,6 +135,7 @@ def _build_default_registry() -> ToolRegistry:
     from rex.openclaw.tools.sms_tool import send_sms
     from rex.openclaw.tools.time_tool import time_now as _time_now
     from rex.openclaw.tools.weather_tool import weather_now
+    from rex.tools.file_ops import read_file as _read_file
 
     registry = ToolRegistry()
 
@@ -220,7 +221,7 @@ def _build_default_registry() -> ToolRegistry:
             ),
             capability_tags=["file", "filesystem", "local"],
             requires_config=[],
-            handler=_noop_handler,
+            handler=_read_file,
         )
     )
 

@@ -236,6 +236,9 @@ class AppConfig:
     # Tool dispatch
     tool_timeout_seconds: float = 10.0
 
+    # Local file access allowlist (US-WIN-001)
+    allowed_file_roots: List[str] = field(default_factory=lambda: [str(Path.home())])
+
     # Aliases
     llm_backend: Optional[str] = None
     temperature: Optional[float] = None
@@ -362,6 +365,17 @@ def _parse_model_routing(raw: object) -> ModelRoutingConfig:
         vision=str(raw.get("vision", "")),
         fast=str(raw.get("fast", "")),
     )
+
+
+def _parse_allowed_file_roots(raw: object) -> list[str]:
+    """Parse ``file_ops.allowed_roots`` list from JSON config.
+
+    Returns a list of root path strings.  Falls back to the user home directory
+    when *raw* is not a non-empty list.
+    """
+    if isinstance(raw, list) and raw:
+        return [str(item) for item in raw if item]
+    return [str(Path.home())]
 
 
 def _merge_profile_config(base_config: dict) -> dict:
@@ -515,6 +529,10 @@ def build_app_config(json_config: dict) -> AppConfig:
         # Voice identity
         speaker_id_threshold=_coerce_float(
             json_config, "voice_identity.speaker_id_threshold", 0.75
+        ),
+        # Local file access allowlist
+        allowed_file_roots=_parse_allowed_file_roots(
+            _get_nested(json_config, "file_ops.allowed_roots", [])
         ),
     )
 
