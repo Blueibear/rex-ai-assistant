@@ -577,13 +577,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want Rex to report on Windows system health (CPU, RAM, disk, battery, running processes) so I can diagnose issues through conversation.
 
 **Acceptance Criteria:**
-- [ ] `rex/tools/windows_diagnostics.py` created (Windows-only; gracefully no-ops on non-Windows)
-- [ ] Implements: `get_system_info()`, `get_cpu_usage()`, `get_memory_usage()`, `get_disk_usage()`, `get_battery_status()`, `list_processes()`
-- [ ] Uses `psutil` (already in dependency tree); no new heavy dependencies
-- [ ] Each function returns a structured dict suitable for LLM context injection
-- [ ] Tools registered in `ToolRegistry` with `capability_tags: ["windows", "diagnostics"]`
-- [ ] Unit tests mock `psutil` and verify output structure
-- [ ] Typecheck passes
+- [x] `rex/tools/windows_diagnostics.py` created (Windows-only; gracefully no-ops on non-Windows)
+- [x] Implements: `get_system_info()`, `get_cpu_usage()`, `get_memory_usage()`, `get_disk_usage()`, `get_battery_status()`, `list_processes()`
+- [x] Uses `psutil` (already in dependency tree); no new heavy dependencies
+- [x] Each function returns a structured dict suitable for LLM context injection
+- [x] Tools registered in `ToolRegistry` with `capability_tags: ["windows", "diagnostics"]`
+- [x] Unit tests mock `psutil` and verify output structure
+- [x] Typecheck passes
 
 ---
 

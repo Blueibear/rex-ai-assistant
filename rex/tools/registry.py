@@ -136,6 +136,14 @@ def _build_default_registry() -> ToolRegistry:
     from rex.openclaw.tools.time_tool import time_now as _time_now
     from rex.openclaw.tools.weather_tool import weather_now
     from rex.tools.file_ops import read_file as _read_file
+    from rex.tools.windows_diagnostics import (
+        get_battery_status,
+        get_cpu_usage,
+        get_disk_usage,
+        get_memory_usage,
+        get_system_info,
+        list_processes,
+    )
 
     registry = ToolRegistry()
 
@@ -222,6 +230,66 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["file", "filesystem", "local"],
             requires_config=[],
             handler=_read_file,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_system_info",
+            description="Get OS and hardware information (platform, CPU count, total RAM, boot time).",
+            capability_tags=["windows", "diagnostics", "system"],
+            requires_config=[],
+            handler=get_system_info,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_cpu_usage",
+            description="Get current CPU usage percentage and frequency.",
+            capability_tags=["windows", "diagnostics", "cpu"],
+            requires_config=[],
+            handler=get_cpu_usage,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_memory_usage",
+            description="Get current RAM and swap memory usage statistics.",
+            capability_tags=["windows", "diagnostics", "memory", "ram"],
+            requires_config=[],
+            handler=get_memory_usage,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_disk_usage",
+            description="Get disk usage for all mounted partitions.",
+            capability_tags=["windows", "diagnostics", "disk", "storage"],
+            requires_config=[],
+            handler=get_disk_usage,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_battery_status",
+            description="Get battery charge level and charging status.",
+            capability_tags=["windows", "diagnostics", "battery"],
+            requires_config=[],
+            handler=get_battery_status,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="list_processes",
+            description="List running processes sorted by CPU usage.",
+            capability_tags=["windows", "diagnostics", "processes"],
+            requires_config=[],
+            handler=list_processes,
         )
     )
 
