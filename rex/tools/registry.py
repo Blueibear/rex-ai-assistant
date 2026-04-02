@@ -144,6 +144,13 @@ def _build_default_registry() -> ToolRegistry:
         get_system_info,
         list_processes,
     )
+    from rex.tools.windows_settings import (
+        get_power_plan,
+        get_volume,
+        set_brightness,
+        set_power_plan,
+        set_volume,
+    )
 
     registry = ToolRegistry()
 
@@ -290,6 +297,56 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["windows", "diagnostics", "processes"],
             requires_config=[],
             handler=list_processes,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_volume",
+            description="Get the current system master volume level (0–100).",
+            capability_tags=["windows", "settings", "audio", "volume"],
+            requires_config=[],
+            handler=get_volume,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="set_volume",
+            description="Set the system master volume level (0–100).",
+            capability_tags=["windows", "settings", "audio", "volume"],
+            requires_config=[],
+            handler=set_volume,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="set_brightness",
+            description="Set the display brightness level (0–100).",
+            capability_tags=["windows", "settings", "display", "brightness"],
+            requires_config=[],
+            handler=set_brightness,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="get_power_plan",
+            description="Get the name of the currently active Windows power plan.",
+            capability_tags=["windows", "settings", "power"],
+            requires_config=[],
+            handler=get_power_plan,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="set_power_plan",
+            description="Switch the active Windows power plan by name (e.g. Balanced, High performance).",
+            capability_tags=["windows", "settings", "power"],
+            requires_config=[],
+            handler=set_power_plan,
         )
     )
 

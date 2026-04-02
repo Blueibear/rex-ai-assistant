@@ -592,13 +592,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want Rex to adjust common Windows settings (volume, display brightness, default apps, power plan) through voice commands so I can manage my PC hands-free.
 
 **Acceptance Criteria:**
-- [ ] `rex/tools/windows_settings.py` created with: `set_volume(level: int)`, `get_volume()`, `set_brightness(level: int)`, `get_power_plan()`, `set_power_plan(name: str)`
-- [ ] Each function executes via `subprocess` calling PowerShell cmdlets or `nircmd`; non-Windows raises `NotImplementedError` gracefully
-- [ ] Operations confirmed by re-reading the setting after writing and logging the result
-- [ ] Settings changes require user confirmation if `AppConfig.require_confirm_system_changes` is True (default True)
-- [ ] Tools registered in `ToolRegistry`
-- [ ] Unit tests mock `subprocess.run` and verify PowerShell command strings
-- [ ] Typecheck passes
+- [x] `rex/tools/windows_settings.py` created with: `set_volume(level: int)`, `get_volume()`, `set_brightness(level: int)`, `get_power_plan()`, `set_power_plan(name: str)`
+- [x] Each function executes via `subprocess` calling PowerShell cmdlets or `nircmd`; non-Windows raises `NotImplementedError` gracefully
+- [x] Operations confirmed by re-reading the setting after writing and logging the result
+- [x] Settings changes require user confirmation if `AppConfig.require_confirm_system_changes` is True (default True)
+- [x] Tools registered in `ToolRegistry`
+- [x] Unit tests mock `subprocess.run` and verify PowerShell command strings
+- [x] Typecheck passes
 
 ---
 

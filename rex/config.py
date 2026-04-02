@@ -239,6 +239,9 @@ class AppConfig:
     # Local file access allowlist (US-WIN-001)
     allowed_file_roots: List[str] = field(default_factory=lambda: [str(Path.home())])
 
+    # Windows settings — require user confirmation before applying system changes (US-WIN-003)
+    require_confirm_system_changes: bool = True
+
     # Aliases
     llm_backend: Optional[str] = None
     temperature: Optional[float] = None
@@ -533,6 +536,10 @@ def build_app_config(json_config: dict) -> AppConfig:
         # Local file access allowlist
         allowed_file_roots=_parse_allowed_file_roots(
             _get_nested(json_config, "file_ops.allowed_roots", [])
+        ),
+        # Windows settings confirmation
+        require_confirm_system_changes=bool(
+            _get_nested(json_config, "windows.require_confirm_system_changes", True)
         ),
     )
 
