@@ -362,3 +362,87 @@
   - ruff UP rules: use list[str] not List[str], datetime.UTC not timezone.utc — ruff --fix handles these
   - Skill.new() pattern (classmethod factory) keeps __init__ args minimal and handles UUID/timestamp generation
 ---
+
+## Iteration 21 - US-SK-002: Script-based skill registration
+- What was implemented:
+  - Created rex/skills/loader.py with load_skills_from_directory(registry, skills_dir)
+  - Uses ast.parse + ast.literal_eval to safely extract SKILL_METADATA without executing files
+  - Validates required keys (name, description, triggers), non-empty name, non-empty triggers list
+  - Invalid/missing metadata: logged and skipped gracefully (no crash)
+  - Idempotent: compares handler paths against existing registrations to avoid double-register
+  - Created plugins/skills/example_weather_skill.py with full SKILL_METADATA and run() stub
+  - Created plugins/skills/__init__.py
+  - 11 unit tests covering acceptance criteria
+- Files changed:
+  - rex/skills/loader.py (new)
+  - plugins/skills/__init__.py (new)
+  - plugins/skills/example_weather_skill.py (new)
+  - tests/test_skill_loader.py (new)
+  - PRD-master-next-cycle.md (marked US-SK-002 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - ast.parse + ast.literal_eval is the safe way to extract metadata without executing the file
+  - handler = str(path) (absolute path string); track set of existing handlers for idempotency
+  - ruff UP006 (typing.Dict → dict) appears in test files too; ruff --fix handles it
+---
+
+## Iteration 22 - US-SK-003: Natural language skill creation via chat
+- What was implemented:
+  - Created rex/skills/trainer.py with detect_skill_creation_intent() and SkillTrainer class
+  - detect_skill_creation_intent() matches "teach yourself to X", "learn how to X", "add a skill that/to/for X", "create a skill that/to/for X", "remember how to X", "make a skill that/to/for X"
+  - SkillTrainer.handle_if_training_request() derives name/description/triggers, generates SKILL_METADATA Python script, writes to plugins/skills/, registers in SkillRegistry, returns confirmation
+  - Wired into Assistant.__init__ (creates _skill_registry and _skill_trainer) and generate_reply() (intercepts before LLM call via getattr guard for __new__-constructed test assistants)
+  - 21 unit + integration tests in tests/test_skill_trainer.py; all pass
+- Files changed:
+  - rex/skills/trainer.py (new)
+  - rex/assistant.py (init skill trainer/registry, intercept in generate_reply)
+  - tests/test_skill_trainer.py (new)
+  - PRD-master-next-cycle.md (marked US-SK-003 complete)
+- Learnings for future iterations:
+  - Use getattr(self, "_skill_trainer", None) in generate_reply() so tests using __new__ without initializing the trainer still work
+  - TYPE_CHECKING guard for SkillRegistry import in trainer.py avoids circular import; ruff auto-fixes the TYPE_CHECKING import
+  - _derive_triggers() strips common filler words for an alternate short trigger form; always include the base intent as the first trigger
+  - Generated script uses f-string template with SKILL_METADATA dict and a run(transcript) stub function
+---
+
+## Iteration 23 - US-SK-004: Skill invocation — auto-dispatch from user message
+- What was implemented:
+  - Created rex/skills/router.py with SkillRouter class
+  - SkillRouter.match(message) iterates enabled skills, re.search each trigger_pattern (case-insensitive); returns first matched Skill or None; logs bad regexes and skips them
+  - SkillRouter.execute(skill, transcript) dispatches to script file (importlib.util.spec_from_file_location) or dotted module path (importlib.import_module); catches all exceptions and returns human-readable error string; logs at INFO level
+  - Wired into Assistant.__init__: self._skill_router = SkillRouter(self._skill_registry) after trainer init
+  - Wired into generate_reply() after skill trainer block: match → execute → record → return (uses getattr guard for __new__ tests)
+  - Fixed existing str(training_response) cast to satisfy mypy no-any-return
+  - 13 unit tests covering all acceptance criteria; ruff + black + mypy all clean
+- Files changed:
+  - rex/skills/router.py (new)
+  - rex/assistant.py (init router, dispatch block in generate_reply)
+  - tests/test_skill_router.py (new)
+  - PRD-master-next-cycle.md (marked US-SK-004 complete)
+- Learnings for future iterations:
+  - spec.loader.exec_module() does not need type: ignore in Python 3.11 — mypy resolves it correctly
+  - getattr(self, "_skill_router", None) guard is essential for __new__-constructed assistants in tests
+  - Module handler format: "package.module:function" (rsplit on last ":"); plain "package.module" defaults to "run"
+  - str() cast on return values from getattr-based calls silences mypy no-any-return errors
+---
+
+## Iteration 24 - US-TD-001: Tool registry — catalog all available Rex tools
+- What was implemented:
+  - Created rex/tools/__init__.py and rex/tools/registry.py
+  - Tool dataclass: name, description, capability_tags, requires_config, handler — raises ValueError on empty name/description
+  - ToolRegistry: register(), get(), all_tools(), available_tools(config) — filters by requires_config attribute truthiness
+  - _build_default_registry() pre-populates all 8 Rex tools: time_now, weather_now, web_search, send_email, calendar_create, home_assistant_call_service, send_sms, file_ops
+  - get_default_registry() lazy module-level singleton
+  - 15 unit tests in tests/test_tools_registry.py covering all acceptance criteria
+  - ruff --fix + black: clean; mypy: 0 errors; full pytest: exit 0
+- Files changed:
+  - rex/tools/__init__.py (new)
+  - rex/tools/registry.py (new)
+  - tests/test_tools_registry.py (new)
+  - PRD-master-next-cycle.md (marked US-TD-001 complete)
+- Learnings for future iterations:
+  - tests/test_tool_registry.py already exists and tests rex.openclaw.tool_registry — create tests/test_tools_registry.py (plural) to avoid conflict
+  - requires_config uses truthy check: empty list [] is falsy → use email_accounts (list) not email_provider ("none" string)
+  - ruff UP035: use collections.abc.Callable not typing.Callable; ruff fixes it automatically
+  - _noop_handler placeholder for tools whose dispatch routes through another executor at runtime
+---
