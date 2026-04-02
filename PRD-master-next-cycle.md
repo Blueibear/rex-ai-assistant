@@ -607,13 +607,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want Rex to diagnose common Windows issues and suggest or apply fixes so I can resolve problems through conversation.
 
 **Acceptance Criteria:**
-- [ ] `rex/tools/windows_repair.py` implements: `check_disk_health()` (SMART via PowerShell), `check_windows_update_status()`, `flush_dns_cache()`, `run_sfc_scan()` (System File Checker, requires elevation prompt)
-- [ ] Each tool returns a structured result with `status`, `findings`, `recommended_actions`
-- [ ] Elevation-required operations inform user and request confirmation before executing
-- [ ] Tools that cannot run on non-Windows return a clear `platform_not_supported` status
-- [ ] Tools registered in `ToolRegistry`
-- [ ] Unit tests mock subprocess calls
-- [ ] Typecheck passes
+- [x] `rex/tools/windows_repair.py` implements: `check_disk_health()` (SMART via PowerShell), `check_windows_update_status()`, `flush_dns_cache()`, `run_sfc_scan()` (System File Checker, requires elevation prompt)
+- [x] Each tool returns a structured result with `status`, `findings`, `recommended_actions`
+- [x] Elevation-required operations inform user and request confirmation before executing
+- [x] Tools that cannot run on non-Windows return a clear `platform_not_supported` status
+- [x] Tools registered in `ToolRegistry`
+- [x] Unit tests mock subprocess calls
+- [x] Typecheck passes
 
 ---
 

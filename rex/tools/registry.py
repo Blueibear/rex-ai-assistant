@@ -144,6 +144,12 @@ def _build_default_registry() -> ToolRegistry:
         get_system_info,
         list_processes,
     )
+    from rex.tools.windows_repair import (
+        check_disk_health,
+        check_windows_update_status,
+        flush_dns_cache,
+        run_sfc_scan,
+    )
     from rex.tools.windows_settings import (
         get_power_plan,
         get_volume,
@@ -347,6 +353,49 @@ def _build_default_registry() -> ToolRegistry:
             capability_tags=["windows", "settings", "power"],
             requires_config=[],
             handler=set_power_plan,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="check_disk_health",
+            description="Check disk SMART health status and report any failure predictions.",
+            capability_tags=["windows", "repair", "disk"],
+            requires_config=[],
+            handler=check_disk_health,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="check_windows_update_status",
+            description="Check for pending Windows updates and list them.",
+            capability_tags=["windows", "repair", "update"],
+            requires_config=[],
+            handler=check_windows_update_status,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="flush_dns_cache",
+            description="Flush the Windows DNS resolver cache to fix name-resolution issues.",
+            capability_tags=["windows", "repair", "dns", "network"],
+            requires_config=[],
+            handler=flush_dns_cache,
+        )
+    )
+
+    registry.register(
+        Tool(
+            name="run_sfc_scan",
+            description=(
+                "Run System File Checker (sfc /scannow) to detect and repair corrupted "
+                "Windows system files. Requires Administrator elevation and user confirmation."
+            ),
+            capability_tags=["windows", "repair", "sfc", "system"],
+            requires_config=[],
+            handler=run_sfc_scan,
         )
     )
 

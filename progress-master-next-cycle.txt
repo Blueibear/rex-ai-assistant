@@ -498,3 +498,75 @@
   - ruff F841 catches unused `results = ...` assignments in tests — reassign to _ or drop
   - Patch `rex.tools.dispatcher.logger` via `patch.object(_mod.logger, "info")` for reliable log assertion
 ---
+
+## Iteration 29 - US-WIN-003: Windows settings read/write via PowerShell bridge
+- What was implemented:
+  - Created rex/tools/windows_settings.py with 5 functions: get_volume, set_volume, set_brightness, get_power_plan, set_power_plan
+  - All set_* functions check config.require_confirm_system_changes; when True and confirmed=False, return {requires_confirmation: True, action, message}
+  - Operations re-read the setting after write and log the actual value
+  - Non-Windows platforms raise NotImplementedError via _require_windows() guard at the top of each function
+  - PowerShell invoked via _run_ps() helper using subprocess.run with -NonInteractive -NoProfile
+  - Added require_confirm_system_changes: bool = True field to AppConfig; wired from windows.require_confirm_system_changes JSON key
+  - Registered 5 tools in _build_default_registry() with capability_tags=["windows", "settings", ...]
+  - 24 unit tests; all pass; ruff + black clean
+- Files changed:
+  - rex/tools/windows_settings.py (new)
+  - rex/config.py (require_confirm_system_changes field + build_app_config wiring)
+  - rex/tools/registry.py (5 new tool registrations)
+  - tests/test_windows_settings.py (new)
+  - PRD-master-next-cycle.md (marked US-WIN-003 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - patch.object(_mod, "_IS_WINDOWS", True/False) is the clean way to test platform-guarded code
+  - Confirmation pattern: set_*(level, confirmed=False, **kwargs) checks kwargs.get("config"); return requires_confirmation dict when not confirmed
+  - _run_ps() raises RuntimeError on non-zero returncode; tests mock subprocess.run returning _ps_result(stdout, returncode)
+  - powercfg /list output format: "Power Scheme GUID: <guid>  (<name>)" — parse GUID and name from that line
+  - set_power_plan makes 3 subprocess calls: /list, /setactive, /getactivescheme (readback)
+---
+
+## Iteration 28 - US-WIN-002: Windows diagnostics — system info and hardware status
+- What was implemented:
+  - Created rex/tools/windows_diagnostics.py with 6 functions: get_system_info, get_cpu_usage, get_memory_usage, get_disk_usage, get_battery_status, list_processes
+  - All functions use module-level `import psutil` (not lazy) so patch("rex.tools.windows_diagnostics.psutil") works in tests
+  - Each function returns {"error": str} on failure; get_battery_status returns {"status": "platform_not_supported"} when no battery sensor
+  - list_processes capped at 50, sorted by cpu_percent descending
+  - Registered all 6 tools in _build_default_registry() with capability_tags=["windows", "diagnostics", ...]
+  - 20 unit tests in tests/test_windows_diagnostics.py mocking psutil
+  - All 20 tests pass; ruff + black clean
+- Files changed:
+  - rex/tools/windows_diagnostics.py (new)
+  - rex/tools/registry.py (6 new tool registrations)
+  - tests/test_windows_diagnostics.py (new)
+  - PRD-master-next-cycle.md (marked US-WIN-002 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - Import psutil at module level (not inside functions) so `patch("rex.tools.windows_diagnostics.psutil")` works
+  - platform, socket imports also need to be at module level for patching to work in get_system_info tests
+  - Use `type(bad_proc).info = PropertyMock(side_effect=...)` to raise an exception on attribute access (not callable mock)
+  - Use `mock_psutil.sensors_battery.side_effect = AttributeError(...)` rather than `del mock_psutil.sensors_battery` for test_attribute_error cases
+  - psutil.NoSuchProcess and psutil.AccessDenied need to be set on the mock: mock_psutil.NoSuchProcess = ProcessLookupError
+---
+
+## Iteration 27 - US-WIN-001: Local file read/write capability
+- What was implemented:
+  - Created rex/tools/file_ops.py with read_file, write_file, list_directory, move_file, delete_file
+  - All ops validated via _validate_path() against allowed_file_roots; PermissionError returned as {"error": ...} for out-of-allowlist paths
+  - Path.resolve() used to defeat symlinks and ../.. traversal
+  - Operations logged at INFO: operation type, path, size/count
+  - Added allowed_file_roots: List[str] field to AppConfig (default: [Path.home()])
+  - Added _parse_allowed_file_roots() helper; wired into build_app_config() via "file_ops.allowed_roots" JSON key
+  - Updated _build_default_registry() to import and use _read_file as the file_ops handler
+  - 16 unit tests covering all acceptance criteria; full suite exit 0
+- Files changed:
+  - rex/tools/file_ops.py (new)
+  - rex/tools/registry.py (import _read_file, use as file_ops handler)
+  - rex/config.py (allowed_file_roots field, _parse_allowed_file_roots helper, build_app_config wiring)
+  - tests/test_file_ops.py (new)
+  - PRD-master-next-cycle.md (marked US-WIN-001 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - Use Path.resolve() for both the candidate path and the allowlist roots before relative_to() check
+  - All 5 ops return {"error": str} on any failure — uniform shape simplifies dispatcher handling
+  - ruff removed unused `import os` (was in initial write but not needed after using pathlib) — let ruff --fix handle it
+  - ToolRegistry still has _noop_handler as the dispatcher-level fallback; the "real" handler on the Tool is read_file but full multi-op dispatch should go through the op kwarg (future work)
+---
