@@ -527,13 +527,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want the `Assistant` to automatically select and invoke the right tool(s) for a user request without the user having to specify a tool name.
 
 **Acceptance Criteria:**
-- [ ] `ToolDispatcher.select_tools(message: str) -> list[Tool]` implemented using keyword/intent matching
-- [ ] Rules cover: email intent → email tool, weather intent → weather tool, search intent → search tool, calendar intent → calendar tool, smart home intent → Home Assistant tool
-- [ ] Multiple tools selected when intent spans multiple domains
-- [ ] Results from all selected tools aggregated and passed to LLM as context
-- [ ] No tool invoked if no intent match (normal LLM path)
-- [ ] Integration tests cover: email question → email tool invoked, weather question → weather tool invoked, compound question → both tools invoked
-- [ ] Typecheck passes
+- [x] `ToolDispatcher.select_tools(message: str) -> list[Tool]` implemented using keyword/intent matching
+- [x] Rules cover: email intent → email tool, weather intent → weather tool, search intent → search tool, calendar intent → calendar tool, smart home intent → Home Assistant tool
+- [x] Multiple tools selected when intent spans multiple domains
+- [x] Results from all selected tools aggregated and passed to LLM as context
+- [x] No tool invoked if no intent match (normal LLM path)
+- [x] Integration tests cover: email question → email tool invoked, weather question → weather tool invoked, compound question → both tools invoked
+- [x] Typecheck passes
 
 ---
 

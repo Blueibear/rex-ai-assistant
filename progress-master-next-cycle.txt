@@ -446,3 +446,30 @@
   - ruff UP035: use collections.abc.Callable not typing.Callable; ruff fixes it automatically
   - _noop_handler placeholder for tools whose dispatch routes through another executor at runtime
 ---
+
+## Iteration 25 - US-TD-002: Auto tool selection — map user intent to tools
+- What was implemented:
+  - Created rex/tools/dispatcher.py with ToolDispatcher class
+  - _INTENT_RULES: list of (capability_tag, compiled_regex) covering email, weather, search, calendar, smart_home
+  - select_tools(message) builds tag→tool index from available_tools() (or all_tools() if no config), applies intent rules, returns deduped list
+  - execute_tools(tools, message) invokes each handler with transcript=message, catches exceptions as error strings
+  - format_tool_context(results) returns "[Tool results: ...]" block or "" for empty
+  - Wired into Assistant.__init__: self._tool_dispatcher = ToolDispatcher(get_default_registry(), config=self._settings)
+  - _build_prompt() accepts tool_context: str | None, injects block before history
+  - _prepare_prompt() accepts and passes tool_context
+  - generate_reply() calls select_tools, execute_tools, format_tool_context; passes result to _prepare_prompt as tool_context
+  - Uses getattr(self, "_tool_dispatcher", None) guard for __new__-constructed test assistants
+  - 15 tests in tests/test_tool_dispatcher.py; all pass; ruff + black clean
+- Files changed:
+  - rex/tools/dispatcher.py (new)
+  - rex/assistant.py (init tool dispatcher, wire into generate_reply, _prepare_prompt, _build_prompt)
+  - tests/test_tool_dispatcher.py (new)
+  - PRD-master-next-cycle.md (marked US-TD-002 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - _INTENT_RULES is a module-level list of (tag, pattern) tuples; tag must match tool.capability_tags for routing to work
+  - The tag_index dict (capability_tag → list[Tool]) is built fresh per select_tools() call from available_tools()
+  - execute_tools passes transcript as a kwarg; tool handlers receiving **kw must accept it or it will error
+  - getattr guard in generate_reply is critical for __new__-constructed test assistants that skip __init__
+  - tool_context injected into _build_prompt BEFORE history lines so LLM sees fresh data before old conversation
+---

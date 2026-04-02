@@ -106,6 +106,12 @@ class Assistant:
         self._skill_trainer = SkillTrainer()
         self._skill_router = SkillRouter(self._skill_registry)
 
+        # Auto tool dispatcher (US-TD-002)
+        from .tools.dispatcher import ToolDispatcher
+        from .tools.registry import get_default_registry
+
+        self._tool_dispatcher = ToolDispatcher(get_default_registry(), config=self._settings)
+
         # Only create HABridge if HA is configured
         self._ha_bridge: HABridge | None = None
         if self._settings.ha_base_url and self._settings.ha_token:
@@ -258,12 +264,16 @@ class Assistant:
         *,
         voice_mode: bool = False,
         active_user_id: str | None = None,
+        tool_context: str | None = None,
     ) -> str:
         if not transcript.strip():
             raise ValueError("Transcript must not be empty")
 
         prompt = self._build_prompt(
-            transcript, voice_mode=voice_mode, active_user_id=active_user_id
+            transcript,
+            voice_mode=voice_mode,
+            active_user_id=active_user_id,
+            tool_context=tool_context,
         )
 
         async with self._get_followup_lock():
@@ -468,6 +478,22 @@ class Assistant:
             self._user_id = active_user_id
             logger.debug("voice_identity: switching active user to %r", active_user_id)
 
+        # Auto tool dispatch: select tools by intent, execute, aggregate context
+        # (US-TD-002).  Uses getattr guard so __new__-constructed test instances
+        # without _tool_dispatcher still work.
+        _tool_context: str | None = None
+        _dispatcher = getattr(self, "_tool_dispatcher", None)
+        if _dispatcher is not None:
+            _selected_tools = _dispatcher.select_tools(transcript)
+            if _selected_tools:
+                _tool_results = await loop.run_in_executor(
+                    None,
+                    _dispatcher.execute_tools,
+                    _selected_tools,
+                    transcript,
+                )
+                _tool_context = _dispatcher.format_tool_context(_tool_results) or None
+
         try:
             if self._ha_bridge and self._ha_bridge.enabled:
                 completion = await loop.run_in_executor(
@@ -478,7 +504,10 @@ class Assistant:
 
             if completion is None:
                 prompt = await self._prepare_prompt(
-                    transcript, voice_mode=voice_mode, active_user_id=active_user_id
+                    transcript,
+                    voice_mode=voice_mode,
+                    active_user_id=active_user_id,
+                    tool_context=_tool_context,
                 )
 
                 completion = await loop.run_in_executor(None, self._llm.generate, prompt)
@@ -624,6 +653,7 @@ class Assistant:
         *,
         voice_mode: bool = False,
         active_user_id: str | None = None,
+        tool_context: str | None = None,
     ) -> str:
         system_context = self._build_system_context()
         history_lines = [system_context]
@@ -633,6 +663,8 @@ class Assistant:
                 history_lines.append(user_ctx)
             else:
                 history_lines.append(f"[Active user: {active_user_id}]")
+        if tool_context:
+            history_lines.append(tool_context)
         history_lines += [f"{turn.speaker}: {turn.text}" for turn in self._history[-4:]]
         history_lines.append(f"user: {transcript}")
         if voice_mode:
