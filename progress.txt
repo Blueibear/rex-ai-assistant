@@ -302,6 +302,17 @@ No stories started yet. Begin with US-CI-001 (first story with unchecked criteri
   - 17 pre-existing mypy errors in 7 files are unchanged; YAML-only changes do not introduce new type errors
 ---
 
+## Iteration 22 - US-235 Determine canonical branch and document branch strategy
+- Ran `gh repo view --json defaultBranchRef` — confirmed canonical branch is `master`
+- Added "Branch Strategy" section to CONTRIBUTING.md documenting master as primary branch, PR model, and claude/** branch policy
+- Added "Branch Strategy" section to CLAUDE.md referencing canonical branch and pointing to CONTRIBUTING.md
+- Marked all US-235 acceptance criteria [x] in PRD.md
+- Files changed: CONTRIBUTING.md, CLAUDE.md, PRD.md, progress.txt
+- Learnings for future iterations:
+  - PRD says "docs/CONTRIBUTING.md" but CONTRIBUTING.md lives at repo root (GitHub convention); root location satisfies the intent
+  - 17 pre-existing mypy errors unchanged; docs-only changes do not introduce type errors
+---
+
 ## Iteration 17 - US-230 Define canonical product name and create naming ruleset
 - Created docs/BRANDING.md with canonical product name (AskRex Assistant), package name (askrex-assistant), CLI command (rex), GitHub URL, legacy alias policy, and banned names table
 - Updated CLAUDE.md Project Overview to use canonical name and reference docs/BRANDING.md
