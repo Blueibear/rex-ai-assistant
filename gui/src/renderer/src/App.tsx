@@ -92,6 +92,7 @@ function AppShell(): React.ReactElement {
           <Route path="/sms" element={<ErrorBoundary><SmsPage /></ErrorBoundary>} />
           <Route path="/notifications" element={<ErrorBoundary><NotificationsPage /></ErrorBoundary>} />
           <Route path="/shopping" element={<ErrorBoundary><ShoppingListPage /></ErrorBoundary>} />
+          <Route path="/logs" element={<ErrorBoundary><LogsPage /></ErrorBoundary>} />
           <Route path="/settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
         </Routes>
       </PageTransition>

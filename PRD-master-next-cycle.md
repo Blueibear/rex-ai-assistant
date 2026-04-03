@@ -1103,7 +1103,7 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 - [x] "Pause" button freezes the stream; "Resume" re-tails from current position
 - [x] "Download" button exports the current log file as a `.log` file
 - [x] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Verify changes work in browser
 
 ---
 

@@ -1,3 +1,23 @@
+## Iteration 113 - US-LOG-002: Log viewer — browser verification
+- Story: US-LOG-002
+- What was implemented
+  - Discovered /logs route missing from App.tsx (LogsPage was imported but not routed)
+  - Added `<Route path="/logs" element={<ErrorBoundary><LogsPage /></ErrorBoundary>} />` to App.tsx
+  - AppLayout.tsx already had the Logs nav item and sectionNames entry for /logs
+  - LogsPage.tsx: complete implementation — level filter, search, pause/resume, download, live tail via IPC
+  - gui/src/main/handlers/logs.ts: IPC handlers (rex:getLogs, rex:startLogTail, rex:stopLogTail, rex:downloadLogs, rex:logEntry)
+  - preload/index.ts: all log methods exposed on window.rex
+  - registerLogsHandlers() already called in main/index.ts
+  - 5/5 backend tests pass; TypeScript typecheck passes
+- Files changed
+  - gui/src/renderer/src/App.tsx (added /logs route)
+  - PRD-master-next-cycle.md (marked [x])
+  - progress-master-next-cycle.txt
+- Learnings for future iterations:
+  - Always check App.tsx routes when a page component exists — import ≠ routed
+  - LogsPage uses Electron IPC (not SSE/HTTP) for log tailing; handlers in gui/src/main/handlers/logs.ts
+---
+
 ## Iteration 112 - US-WW-002: Custom wake word training — browser verification
 - Story: US-WW-002
 - What was implemented
