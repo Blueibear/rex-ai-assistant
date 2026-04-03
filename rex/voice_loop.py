@@ -595,6 +595,9 @@ class TextToSpeech:
         self._provider = getattr(settings, "tts_provider", "xtts").lower()
         self._edge_voice = getattr(settings, "tts_voice", None) or "en-US-AndrewNeural"
 
+        # Smart speaker output device name (US-SP-002); None → local audio
+        self._tts_output_device: str | None = getattr(settings, "tts_output_device", None)
+
         self._tts = None
         self._xtts_init_error: str | None = None
         self._speaking = threading.Event()
@@ -667,6 +670,37 @@ class TextToSpeech:
         text = ". ".join(sentences[:2])
         return text + "." if text and not text.endswith(".") else text
 
+    def _try_smart_speaker(self, wav_path: str) -> bool:
+        """Attempt to play *wav_path* on the configured smart speaker.
+
+        Returns ``True`` if the audio was routed successfully so the caller
+        can skip local playback.  Returns ``False`` if no smart speaker is
+        configured or playback failed (caller should fall back to local audio).
+        """
+        if not self._tts_output_device:
+            return False
+        try:
+            from rex.audio.smart_speaker_output import get_smart_speaker_output
+            from rex.audio.speaker_discovery import get_speaker_discovery
+
+            cached = get_speaker_discovery().get_cached_speakers()
+            target = next(
+                (s for s in cached if s.name == self._tts_output_device),
+                None,
+            )
+            if target is None:
+                logger.warning(
+                    "[TTS] Smart speaker %r not found in cached speakers; falling back to local.",
+                    self._tts_output_device,
+                )
+                return False
+            return get_smart_speaker_output().play_wav(
+                wav_path, provider=target.provider, ip=target.ip
+            )
+        except Exception as exc:
+            logger.warning("[TTS] Smart speaker routing failed: %s", exc)
+            return False
+
     async def _speak_xtts(self, text: str, speaker_wav: str | None) -> None:
         """Synthesize speech using XTTS, playing each chunk immediately."""
         if self._tts is None and not self._initialize_xtts():
@@ -706,14 +740,16 @@ class TextToSpeech:
 
             await asyncio.to_thread(_synthesize)
 
-            if sa is not None and Path(chunk_path).exists():
+            if Path(chunk_path).exists():
+                routed = await asyncio.to_thread(self._try_smart_speaker, chunk_path)
+                if not routed and sa is not None:
 
-                def _play(_path=chunk_path) -> None:
-                    wave_obj = sa.WaveObject.from_wave_file(_path)
-                    play_obj = wave_obj.play()
-                    play_obj.wait_done()
+                    def _play(_path=chunk_path) -> None:
+                        wave_obj = sa.WaveObject.from_wave_file(_path)
+                        play_obj = wave_obj.play()
+                        play_obj.wait_done()
 
-                await asyncio.to_thread(_play)
+                    await asyncio.to_thread(_play)
         finally:
             try:
                 os.unlink(chunk_path)
@@ -772,19 +808,25 @@ class TextToSpeech:
             communicate = edge_tts.Communicate(text, self._edge_voice)
             await communicate.save(output_path)
 
-            if sa is not None and Path(output_path).exists():
-                # Convert mp3 to wav and play — all blocking I/O in thread executor.
+            if Path(output_path).exists():
+                # Convert mp3 to wav — blocking I/O in thread executor.
                 wav_path = output_path.replace(".mp3", ".wav")
 
-                def _convert_and_play(_src=output_path, _dst=wav_path) -> None:
+                def _convert(_src=output_path, _dst=wav_path) -> None:
                     data, rate = sf.read(_src)
                     sf.write(_dst, data, rate)
-                    wave_obj = sa.WaveObject.from_wave_file(_dst)
-                    play_obj = wave_obj.play()
-                    play_obj.wait_done()
 
                 try:
-                    await asyncio.to_thread(_convert_and_play)
+                    await asyncio.to_thread(_convert)
+                    routed = await asyncio.to_thread(self._try_smart_speaker, wav_path)
+                    if not routed and sa is not None:
+
+                        def _play(_path=wav_path) -> None:
+                            wave_obj = sa.WaveObject.from_wave_file(_path)
+                            play_obj = wave_obj.play()
+                            play_obj.wait_done()
+
+                        await asyncio.to_thread(_play)
                 finally:
                     try:
                         os.unlink(wav_path)

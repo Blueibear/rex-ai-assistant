@@ -269,6 +269,9 @@ class AppConfig:
     # Shopping list PWA (US-SL-004) — optional PIN; empty/None means no auth
     shopping_pwa_pin: Optional[str] = None
 
+    # Smart speaker TTS output (US-SP-002) — name of discovered speaker, or None for local audio
+    tts_output_device: Optional[str] = None
+
     # Aliases
     llm_backend: Optional[str] = None
     temperature: Optional[float] = None
@@ -541,6 +544,7 @@ def build_app_config(json_config: dict) -> AppConfig:
         sample_rate=_coerce_int(json_config, "audio.sample_rate", 16000),
         audio_input_device=_get_nested(json_config, "audio.input_device_index"),
         audio_output_device=_get_nested(json_config, "audio.output_device_index"),
+        tts_output_device=_get_nested(json_config, "audio.tts_output_device"),
         # Model settings from JSON
         whisper_model=_get_nested(json_config, "models.stt_model", "base"),
         whisper_device=_get_nested(json_config, "models.stt_device", "auto"),
