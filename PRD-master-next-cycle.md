@@ -1082,12 +1082,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want Rex to write structured JSON logs to a rotating log file so the UI log viewer has a machine-readable source.
 
 **Acceptance Criteria:**
-- [ ] `rex/logging_config.py` updated to add a `RotatingFileHandler` writing to `logs/rex.log`
-- [ ] Each log line is valid JSON: `{timestamp, level, logger, message, extra}`
-- [ ] Log rotation: 5MB max per file, keep last 5 files
-- [ ] Log directory created automatically if absent
-- [ ] `logs/` added to `.gitignore`
-- [ ] Typecheck passes
+- [x] `rex/logging_config.py` updated to add a `RotatingFileHandler` writing to `logs/rex.log`
+- [x] Each log line is valid JSON: `{timestamp, level, logger, message, extra}`
+- [x] Log rotation: 5MB max per file, keep last 5 files
+- [x] Log directory created automatically if absent
+- [x] `logs/` added to `.gitignore`
+- [x] Typecheck passes
 
 ---
 

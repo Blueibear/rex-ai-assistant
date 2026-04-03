@@ -1,3 +1,17 @@
+## Iteration 105 - US-LOG-001: Structured logging to rotating file
+- Story: US-LOG-001
+- What was implemented
+  - New rex/logging_config.py: setup_file_logging() attaches a RotatingFileHandler (5MB/5 backups) with JsonFormatter to the root logger; creates log dir automatically; deduplicates handlers on repeated calls; exposes LOG_FILE, MAX_BYTES, BACKUP_COUNT constants
+  - Updated rex/logging_utils.py: JsonFormatter now emits extra={} field with non-standard LogRecord attributes; maxBytes bumped from 1MB to 5MB in configure_logging()
+  - logs/ already present in .gitignore (verified in tests)
+  - 11 unit tests (all pass); typecheck clean
+- Files changed
+  - rex/logging_config.py (new)
+  - rex/logging_utils.py (JsonFormatter extra field, maxBytes 5MB)
+  - tests/test_log001_structured_logging.py (new)
+  - PRD-master-next-cycle.md
+  - progress-master-next-cycle.txt
+
 ## Iteration 104 - US-WW-002: Custom wake word training via UI
 - Story: US-WW-002
 - What was implemented

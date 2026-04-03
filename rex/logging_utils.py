@@ -7,7 +7,7 @@ import logging
 import os
 import sys
 from collections.abc import Iterable, Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -34,11 +34,18 @@ class JsonFormatter(logging.Formatter):
     """
 
     def format(self, record: logging.LogRecord) -> str:
-        entry: dict[str, str] = {
-            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+        # Collect any extra fields attached to the record.
+        _standard = frozenset(logging.LogRecord("", 0, "", 0, "", (), None).__dict__.keys()) | {
+            "message",
+            "asctime",
+        }
+        extra: dict[str, object] = {k: v for k, v in record.__dict__.items() if k not in _standard}
+        entry: dict[str, object] = {
+            "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
+            "extra": extra,
         }
         if record.exc_info:
             entry["exception"] = self.formatException(record.exc_info)
@@ -209,10 +216,10 @@ def configure_logging(
             error_path.parent.mkdir(parents=True, exist_ok=True)
 
             file_handler = RotatingFileHandler(
-                log_path, maxBytes=1_000_000, backupCount=5, encoding="utf-8"
+                log_path, maxBytes=5_000_000, backupCount=5, encoding="utf-8"
             )
             error_handler = RotatingFileHandler(
-                error_path, maxBytes=1_000_000, backupCount=5, encoding="utf-8"
+                error_path, maxBytes=5_000_000, backupCount=5, encoding="utf-8"
             )
             error_handler.setLevel(logging.ERROR)
 
