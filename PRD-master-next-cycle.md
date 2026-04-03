@@ -1060,13 +1060,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to record a custom wake word through the UI so Rex responds to my own chosen phrase instead of the presets.
 
 **Acceptance Criteria:**
-- [ ] "Train Custom Wake Word" button in Settings → Voice → Wake Word
-- [ ] UI guides user through recording 10 positive samples of the chosen phrase and 5 negative samples
-- [ ] openWakeWord (or compatible) training script invoked with recorded samples
-- [ ] Trained model saved to `config/wake_words/{phrase}/model.onnx`
-- [ ] New wake word appears in dropdown and can be selected (US-WW-001)
-- [ ] Training progress shown in UI; estimated time displayed
-- [ ] Typecheck passes
+- [x] "Train Custom Wake Word" button in Settings → Voice → Wake Word
+- [x] UI guides user through recording 10 positive samples of the chosen phrase and 5 negative samples
+- [x] openWakeWord (or compatible) training script invoked with recorded samples
+- [x] Trained model saved to `config/wake_words/{phrase}/model.onnx`
+- [x] New wake word appears in dropdown and can be selected (US-WW-001)
+- [x] Training progress shown in UI; estimated time displayed
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---

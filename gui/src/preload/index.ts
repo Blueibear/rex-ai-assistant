@@ -26,7 +26,8 @@ import type {
   GuiNotification,
   SmartSpeaker,
   FileExtractResult,
-  ShoppingItem
+  ShoppingItem,
+  WakeWordInfo
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -254,7 +255,20 @@ const rexAPI = {
   uncheckShoppingItem: (id: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:uncheckShoppingItem', id),
   clearCheckedShoppingItems: (): Promise<{ ok: boolean; count?: number; error?: string }> =>
-    ipcRenderer.invoke('rex:clearCheckedShoppingItems')
+    ipcRenderer.invoke('rex:clearCheckedShoppingItems'),
+  listWakeWords: (): Promise<{ ok: boolean; wake_words: WakeWordInfo[]; error?: string; warning?: string }> =>
+    ipcRenderer.invoke('rex:listWakeWords'),
+  uploadCustomVoice: (
+    filePath: string,
+    voiceName: string
+  ): Promise<{ ok: boolean; voice_id?: string; voice_name?: string; duration?: number; error?: string }> =>
+    ipcRenderer.invoke('rex:uploadCustomVoice', filePath, voiceName),
+  trainWakeWord: (
+    phrase: string,
+    positiveSamples: number[][],
+    negativeSamples: number[][]
+  ): Promise<{ ok: boolean; model_path?: string; phrase?: string; error?: string }> =>
+    ipcRenderer.invoke('rex:trainWakeWord', phrase, positiveSamples, negativeSamples)
 }
 
 if (process.contextIsolated) {

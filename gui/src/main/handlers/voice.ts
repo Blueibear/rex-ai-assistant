@@ -255,6 +255,47 @@ export function registerVoiceHandlers(): void {
   )
 
   ipcMain.handle(
+    'rex:trainWakeWord',
+    async (
+      _event,
+      phrase: string,
+      positiveSamples: number[][],
+      negativeSamples: number[][]
+    ): Promise<{ ok: boolean; model_path?: string; phrase?: string; error?: string }> => {
+      const scriptPath = resolveBridgeScript('rex_wakeword_train_bridge.py')
+      return new Promise((resolve) => {
+        const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+        let stdout = ''
+        let stderr = ''
+        py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
+        py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+        py.on('close', (code) => {
+          if (code !== 0 && stdout.trim() === '') {
+            resolve({ ok: false, error: stderr || `Bridge exited with code ${code}` })
+            return
+          }
+          try {
+            const result = JSON.parse(stdout.trim()) as {
+              ok: boolean
+              model_path?: string
+              phrase?: string
+              error?: string
+            }
+            resolve(result)
+          } catch {
+            resolve({ ok: false, error: stderr || 'Failed to parse response' })
+          }
+        })
+        py.on('error', (err) => {
+          resolve({ ok: false, error: `Failed to start bridge: ${err.message}` })
+        })
+        py.stdin?.write(JSON.stringify({ phrase, positive_samples: positiveSamples, negative_samples: negativeSamples }) + '\n')
+        py.stdin?.end()
+      })
+    }
+  )
+
+  ipcMain.handle(
     'rex:getVoiceEnrollments',
     async (): Promise<BridgeResult<{ active_user_id: string; enrollments: unknown[] }>> => {
       return callEnrollmentBridge({

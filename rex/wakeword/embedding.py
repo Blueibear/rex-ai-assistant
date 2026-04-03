@@ -53,7 +53,7 @@ def load_embedding(path: str | Path) -> np.ndarray:
     if np is None:
         raise RuntimeError("numpy is required to load embedding files")
 
-    data: Any = torch.load(Path(path), map_location="cpu")
+    data: Any = torch.load(Path(path), map_location="cpu", weights_only=False)
     if isinstance(data, dict) and "embedding" in data:
         data = data["embedding"]
 

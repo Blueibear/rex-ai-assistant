@@ -376,6 +376,11 @@ export interface RexAPI {
   getUnreadNotificationCount: () => Promise<number>
   onNewNotification: (cb: (notification: GuiNotification) => void) => void
   listWakeWords: () => Promise<{ ok: boolean; wake_words: WakeWordInfo[]; error?: string; warning?: string }>
+  trainWakeWord: (
+    phrase: string,
+    positiveSamples: number[][],
+    negativeSamples: number[][]
+  ) => Promise<{ ok: boolean; model_path?: string; phrase?: string; error?: string }>
   listVoices: (provider: string) => Promise<{ ok: boolean; voices: VoiceInfo[]; error?: string }>
   previewVoice: (
     provider: string,

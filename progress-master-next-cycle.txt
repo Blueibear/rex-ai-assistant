@@ -1,3 +1,30 @@
+## Iteration 104 - US-WW-002: Custom wake word training via UI
+- Story: US-WW-002
+- What was implemented
+  - New rex/wakeword/trainer.py: train_from_samples() computes FFT embeddings from positive audio samples, averages them, saves to config/wake_words/{slug}/embedding.pt; list_custom_wake_words() scans config/wake_words/ for trained models
+  - New rex_wakeword_train_bridge.py: bridge script accepting {phrase, positive_samples, negative_samples} JSON on stdin; returns {ok, model_path, phrase}
+  - Updated rex_wakeword_list_bridge.py: appends custom trained embeddings (engine=custom_embedding) after openWakeWord built-ins
+  - Added rex:trainWakeWord IPC handler to gui/src/main/handlers/voice.ts (same bridge pattern)
+  - Added trainWakeWord() to RexAPI in gui/src/types/ipc.ts
+  - Added listWakeWords, uploadCustomVoice, trainWakeWord to gui/src/preload/index.ts
+  - SettingsPage.tsx: "Train Custom Wake Word" expandable panel below wake word dropdown; records WW_POSITIVE_TARGET=5 positive + WW_NEGATIVE_TARGET=3 background samples using existing captureEnrollmentSample()/runEnrollmentCountdown() pattern; shows per-phase progress
+  - Fixed rex/wakeword/embedding.py: torch.load now passes weights_only=False for numpy array compatibility
+  - 15 unit tests (all pass); typecheck clean
+- Files changed
+  - rex/wakeword/trainer.py (new)
+  - rex/wakeword/embedding.py (weights_only fix)
+  - rex_wakeword_train_bridge.py (new)
+  - rex_wakeword_list_bridge.py (custom wake word scan)
+  - gui/src/main/handlers/voice.ts (trainWakeWord IPC handler)
+  - gui/src/types/ipc.ts (trainWakeWord type + preload entries)
+  - gui/src/preload/index.ts (listWakeWords, uploadCustomVoice, trainWakeWord)
+  - gui/src/pages/SettingsPage.tsx (training UI panel + state)
+  - tests/test_ww002_wakeword_train.py (new)
+  - PRD-master-next-cycle.md
+- Learnings for future iterations:
+  - torch.load defaults to weights_only=True in PyTorch 2.6+; must pass weights_only=False when loading numpy arrays saved via torch.save
+  - Module-level constants (e.g. WW_POSITIVE_TARGET) must be at module scope to be referenced in JSX; never declare inside async handler functions
+
 ## Iteration 110 - US-SP-003: Wake word detection from smart speaker microphone
 - Story: US-SP-003
 - What was implemented
@@ -1845,7 +1872,12 @@
 - progress-master-next-cycle.txt
 - Learnings for future iterations:
   - US-SP-001 remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked [x]
-  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus mypy on ex/audio/speaker_discovery.py, ex/doctor.py, ex/app.py, ex/gui_app.py, and ex/startup.py
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus mypy on 
+ex/audio/speaker_discovery.py, 
+ex/doctor.py, 
+ex/app.py, 
+ex/gui_app.py, and 
+ex/startup.py
 - AGENTS.md is still absent at C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md, so there was no reusable project note to update
 ---
 ## Iteration 83 - US-SP-001: Smart speaker discovery revalidation

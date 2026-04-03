@@ -7,6 +7,7 @@ Writes a JSON response to stdout:
 
 Used by the Electron GUI main process to populate the wake word dropdown.
 Falls back to a bundled default list if openWakeWord is not installed.
+Also includes any custom trained wake words from config/wake_words/.
 """
 
 from __future__ import annotations
@@ -52,6 +53,18 @@ def main() -> None:
             }
             for kw in keywords
         ]
+
+        # Append custom trained embeddings.
+        try:
+            from rex.wakeword.trainer import list_custom_wake_words
+
+            custom = list_custom_wake_words()
+            wake_words.extend(
+                {"id": c["id"], "name": c["name"], "engine": c["engine"]} for c in custom
+            )
+        except Exception:
+            pass
+
         print(json.dumps({"ok": True, "wake_words": wake_words}), flush=True)
     except Exception as exc:
         # Fall back to the default list so the UI is never empty.

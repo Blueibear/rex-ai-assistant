@@ -406,6 +406,8 @@ interface MediaDeviceOption {
 const ENROLLMENT_SAMPLE_TARGET = 3
 const ENROLLMENT_SAMPLE_DURATION_MS = 1600
 const ENROLLMENT_COUNTDOWN_SECONDS = 3
+const WW_POSITIVE_TARGET = 5
+const WW_NEGATIVE_TARGET = 3
 const ENROLLMENT_SAMPLE_RATE = 16000
 
 function sleep(ms: number): Promise<void> {
@@ -543,6 +545,15 @@ function VoicePanel(): React.ReactElement {
   const [previewing, setPreviewing] = useState(false)
   const [wakeWords, setWakeWords] = useState<WakeWordInfo[]>([])
   const [previewingWakeWord, setPreviewingWakeWord] = useState(false)
+  const [showWwTrainer, setShowWwTrainer] = useState(false)
+  const [wwTrainPhrase, setWwTrainPhrase] = useState('')
+  const [wwTraining, setWwTraining] = useState(false)
+  const [wwTrainStep, setWwTrainStep] = useState<'idle' | 'positive' | 'negative' | 'done'>('idle')
+  const [wwPositiveSamples, setWwPositiveSamples] = useState<number[][]>([])
+  const [wwNegativeSamples, setWwNegativeSamples] = useState<number[][]>([])
+  const [wwTrainMessage, setWwTrainMessage] = useState<string | null>(null)
+  const [wwTrainError, setWwTrainError] = useState<string | null>(null)
+  const [wwTrainCountdown, setWwTrainCountdown] = useState(0)
   const [activeUserId, setActiveUserId] = useState('default')
   const [enrollments, setEnrollments] = useState<VoiceEnrollment[]>([])
   const [enrollmentCountdown, setEnrollmentCountdown] = useState(0)
@@ -776,6 +787,69 @@ function VoicePanel(): React.ReactElement {
       })
       .catch(() => addToast('Preview failed', 'error'))
       .finally(() => setPreviewingWakeWord(false))
+  }
+
+  async function handleStartWwTraining(): Promise<void> {
+    if (!wwTrainPhrase.trim()) {
+      setWwTrainError('Enter a wake word phrase first.')
+      return
+    }
+    setWwTraining(true)
+    setWwTrainError(null)
+    setWwTrainMessage(null)
+    setWwPositiveSamples([])
+    setWwNegativeSamples([])
+    setWwTrainStep('positive')
+
+    let stream: MediaStream | null = null
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: form.microphoneDeviceId ? { deviceId: { exact: form.microphoneDeviceId } } : true
+      })
+
+      // Record positive samples
+      const positives: number[][] = []
+      for (let i = 0; i < WW_POSITIVE_TARGET; i++) {
+        setWwTrainMessage(`Say "${wwTrainPhrase.trim()}" — sample ${i + 1} of ${WW_POSITIVE_TARGET}`)
+        await runEnrollmentCountdown(setWwTrainCountdown)
+        const sample = await captureEnrollmentSample(stream)
+        positives.push(sample)
+        setWwPositiveSamples([...positives])
+        await sleep(300)
+      }
+
+      // Record negative samples (background noise / other speech)
+      setWwTrainStep('negative')
+      const negatives: number[][] = []
+      for (let i = 0; i < WW_NEGATIVE_TARGET; i++) {
+        setWwTrainMessage(`Stay silent or say something else — sample ${i + 1} of ${WW_NEGATIVE_TARGET}`)
+        await runEnrollmentCountdown(setWwTrainCountdown)
+        const sample = await captureEnrollmentSample(stream)
+        negatives.push(sample)
+        setWwNegativeSamples([...negatives])
+        await sleep(300)
+      }
+
+      setWwTrainMessage('Training… please wait.')
+      const result = await window.rex.trainWakeWord(wwTrainPhrase.trim(), positives, negatives)
+      if (!result.ok) {
+        throw new Error(result.error ?? 'Training failed')
+      }
+
+      setWwTrainStep('done')
+      setWwTrainMessage(`Wake word "${result.phrase ?? wwTrainPhrase.trim()}" trained successfully!`)
+      addToast('Custom wake word trained', 'success')
+      loadWakeWords()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setWwTrainError(msg)
+      setWwTrainStep('idle')
+      addToast(msg, 'error')
+    } finally {
+      setWwTraining(false)
+      setWwTrainCountdown(0)
+      stream?.getTracks().forEach((t) => t.stop())
+    }
   }
 
   function handleUploadFileChange(e: React.ChangeEvent<HTMLInputElement>): void {
@@ -1089,6 +1163,91 @@ function VoicePanel(): React.ReactElement {
           Uses openWakeWord. Select a model or leave disabled to start Rex manually.
           Changes take effect when the voice loop restarts.
         </p>
+      </div>
+
+      {/* Train custom wake word */}
+      <div className="mb-5">
+        <button
+          onClick={() => {
+            setShowWwTrainer((v) => !v)
+            setWwTrainStep('idle')
+            setWwTrainError(null)
+            setWwTrainMessage(null)
+          }}
+          className="text-sm font-medium text-accent hover:underline focus:outline-none"
+        >
+          {showWwTrainer ? 'Hide wake word trainer' : 'Train Custom Wake Word'}
+        </button>
+
+        {showWwTrainer && (
+          <div className="mt-3 p-4 bg-surface-raised border border-border rounded-lg space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1">Phrase</label>
+              <input
+                type="text"
+                placeholder='e.g. "hey rex"'
+                value={wwTrainPhrase}
+                onChange={(e) => setWwTrainPhrase(e.target.value)}
+                disabled={wwTraining}
+                className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50"
+              />
+            </div>
+
+            {wwTrainStep === 'positive' && (
+              <div className="text-sm text-text-primary">
+                <p className="font-medium mb-1">Recording positive samples</p>
+                <p className="text-text-secondary">{wwTrainMessage}</p>
+                {wwTrainCountdown > 0 && (
+                  <p className="text-accent font-bold text-lg">{wwTrainCountdown}</p>
+                )}
+                <p className="text-xs text-text-secondary mt-1">
+                  {wwPositiveSamples.length} / {WW_POSITIVE_TARGET} captured
+                </p>
+              </div>
+            )}
+
+            {wwTrainStep === 'negative' && (
+              <div className="text-sm text-text-primary">
+                <p className="font-medium mb-1">Recording background samples</p>
+                <p className="text-text-secondary">{wwTrainMessage}</p>
+                {wwTrainCountdown > 0 && (
+                  <p className="text-accent font-bold text-lg">{wwTrainCountdown}</p>
+                )}
+                <p className="text-xs text-text-secondary mt-1">
+                  {wwNegativeSamples.length} / {WW_NEGATIVE_TARGET} captured
+                </p>
+              </div>
+            )}
+
+            {wwTrainStep === 'done' && wwTrainMessage && (
+              <p className="text-sm text-green-400">{wwTrainMessage}</p>
+            )}
+
+            {wwTrainError && (
+              <p className="text-sm text-red-400">{wwTrainError}</p>
+            )}
+
+            {wwTrainStep === 'idle' && !wwTraining && (
+              <p className="text-xs text-text-secondary">
+                You will record {WW_POSITIVE_TARGET} samples of the phrase and {WW_NEGATIVE_TARGET} background samples.
+                Keep recordings to ~1 second each.
+              </p>
+            )}
+
+            <button
+              onClick={() => { void handleStartWwTraining() }}
+              disabled={wwTraining || !wwTrainPhrase.trim()}
+              className="flex items-center gap-2 bg-accent hover:bg-accent/90 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg"
+            >
+              {wwTraining && (
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                </svg>
+              )}
+              {wwTraining ? 'Recording…' : 'Start Recording'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* TTS engine */}
