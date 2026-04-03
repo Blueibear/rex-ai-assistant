@@ -19,6 +19,7 @@ import os
 import re
 import sys
 import tempfile
+import threading
 import wave
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
@@ -437,17 +438,38 @@ class AsyncMicrophone:
 class WakeAcknowledgement:
     """Play acknowledgement sound when wake word is detected."""
 
-    def __init__(self, sound_path: Path | None = None) -> None:
+    def __init__(
+        self,
+        sound_path: Path | None = None,
+        *,
+        filler_phrase: str | None = None,
+        is_speaking: Callable[[], bool] | None = None,
+        filler_speak: Callable[[str], Awaitable[None]] | None = None,
+    ) -> None:
         default_path = Path(__file__).resolve().parents[1] / "assets" / "wake_acknowledgment.wav"
         self._sound_path = Path(sound_path) if sound_path else default_path
-        if not self._sound_path.exists():
+        self._filler_phrase = filler_phrase
+        self._is_speaking = is_speaking
+        self._filler_speak = filler_speak
+        if not filler_phrase and not self._sound_path.exists():
             try:
                 ensure_wake_acknowledgment_sound(path=str(self._sound_path))
             except Exception as exc:
                 logger.warning("Failed to generate wake acknowledgment sound: %s", exc)
 
     async def play(self) -> None:
-        """Play the wake acknowledgement sound."""
+        """Play the wake acknowledgement sound or spoken filler phrase."""
+        if self._is_speaking is not None and self._is_speaking():
+            logger.debug("TTS is speaking; skipping wake acknowledgment")
+            return
+
+        if self._filler_phrase and self._filler_speak is not None:
+            try:
+                await self._filler_speak(self._filler_phrase)
+            except Exception as exc:
+                logger.warning("Filler phrase acknowledgment failed: %s", exc)
+            return
+
         if not self._sound_path.exists():
             return
         if sa is None and _load_sounddevice() is None:
@@ -544,8 +566,13 @@ class TextToSpeech:
 
         self._tts = None
         self._xtts_init_error: str | None = None
+        self._speaking = threading.Event()
         if self._provider == "xtts":
             self._initialize_xtts()
+
+    def is_speaking(self) -> bool:
+        """Return True while TTS audio playback is in progress."""
+        return self._speaking.is_set()
 
     def _initialize_xtts(self) -> bool:
         """Initialize XTTS model, storing diagnostics on failure."""
@@ -582,6 +609,7 @@ class TextToSpeech:
         if not text:
             return
 
+        self._speaking.set()
         try:
             if self._provider == "xtts":
                 await self._speak_xtts(text, speaker_wav)
@@ -594,6 +622,8 @@ class TextToSpeech:
         except Exception as exc:
             logger.error("[TTS] Failed: %s", exc)
             print(f"Rex: {text}")
+        finally:
+            self._speaking.clear()
 
     def _clean_text(self, text: str) -> str:
         """Clean text for TTS."""
@@ -1053,7 +1083,27 @@ def build_voice_loop(
 
     stt = SpeechToText(model_name=whisper_model, device=device)
     tts = TextToSpeech(language=language, default_speaker=speaker_wav)
-    ack = WakeAcknowledgement(sound_path=wake_sound_path)
+
+    ack_sound = getattr(settings, "acknowledgment_sound", "chime")
+    if ack_sound and ack_sound != "chime" and not ack_sound.lower().endswith((".wav", ".mp3")):
+        # Spoken filler phrase (e.g. "mm-hmm", "one moment")
+        ack = WakeAcknowledgement(
+            filler_phrase=ack_sound,
+            is_speaking=tts.is_speaking,
+            filler_speak=lambda text: tts.speak(text),
+        )
+    elif ack_sound and ack_sound != "chime":
+        # Custom audio file path
+        ack = WakeAcknowledgement(
+            sound_path=Path(ack_sound),
+            is_speaking=tts.is_speaking,
+        )
+    else:
+        # Default chime (use wake_sound_path override if provided)
+        ack = WakeAcknowledgement(
+            sound_path=wake_sound_path,
+            is_speaking=tts.is_speaking,
+        )
 
     identify_speaker = _build_voice_id_callback()
 

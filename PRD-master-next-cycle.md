@@ -797,11 +797,11 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want Rex to immediately acknowledge my voice input with a short audio cue so I know it heard me while it processes the full response.
 
 **Acceptance Criteria:**
-- [ ] Within 200ms of wake word + end-of-utterance detection, Rex plays a short audio chime or says "mm-hmm" / "one moment"
-- [ ] Acknowledgment sound is configurable: chime file path or spoken filler phrase
-- [ ] Acknowledgment does not interrupt TTS if Rex is already speaking
-- [ ] Configurable via `AppConfig.acknowledgment_sound` (default: chime)
-- [ ] Typecheck passes
+- [x] Within 200ms of wake word + end-of-utterance detection, Rex plays a short audio chime or says "mm-hmm" / "one moment"
+- [x] Acknowledgment sound is configurable: chime file path or spoken filler phrase
+- [x] Acknowledgment does not interrupt TTS if Rex is already speaking
+- [x] Configurable via `AppConfig.acknowledgment_sound` (default: chime)
+- [x] Typecheck passes
 
 ---
 

@@ -158,6 +158,7 @@ class AppConfig:
     session_ttl_hours: int = 8
     default_user: Optional[str] = None
     wake_sound_path: Optional[str] = None
+    acknowledgment_sound: str = "chime"  # "chime", a .wav path, or a spoken filler phrase
 
     active_profile: str = "default"
     capabilities: List[str] = field(default_factory=list)
@@ -423,6 +424,7 @@ def build_app_config(json_config: dict) -> AppConfig:
         wakeword_window=_coerce_float(json_config, "wake_word.window", 1.0),
         wakeword_poll_interval=_coerce_float(json_config, "wake_word.poll_interval", 0.01),
         wake_sound_path=_get_nested(json_config, "wake_word.wake_sound_path"),
+        acknowledgment_sound=_get_nested(json_config, "acknowledgment.sound", "chime"),
         wakeword_model_path=_get_nested(json_config, "wake_word.model_path"),
         wakeword_embedding_path=_get_nested(json_config, "wake_word.embedding_path"),
         wakeword_fallback_to_builtin=bool(
