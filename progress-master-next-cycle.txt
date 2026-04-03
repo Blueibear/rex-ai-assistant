@@ -672,3 +672,22 @@
   - `dataclass field` default values must be simple types (not mutable) — `float` default is fine for TTL
   - TTL of 0 should disable the cache by setting `self._response_cache = None`; test this explicitly
 ---
+
+## Iteration 34 - US-SL-001: Shopping list data model and storage
+- What was implemented:
+  - Created `rex/shopping_list.py` with `ShoppingItem` dataclass and `ShoppingList` class
+  - ShoppingItem: id (uuid4), name, quantity (float), unit, added_by, checked (bool), added_at (ISO-8601 UTC), checked_at
+  - ShoppingList: thread-safe via threading.Lock; persists to JSON; handles missing/corrupt file gracefully
+  - add_item() deduplicates unchecked items with same normalised name by incrementing quantity
+  - list_items() supports include_checked and added_by keyword filters
+  - clear_checked() removes all checked items, returns count removed
+  - All users can see and check items; added_by is just metadata for attribution
+- Files changed:
+  - rex/shopping_list.py (new)
+  - tests/test_sl001_shopping_list.py (24 tests)
+  - PRD-master-next-cycle.md (US-SL-001 marked complete)
+- Learnings for future iterations:
+  - ruff F841 fires on unused variable assignments left from test scaffolding — remove them before final check
+  - Black reformats long string sets in assert to multi-line — always run black after writing tests
+  - `from typing import Optional` is unused when using `str | None` — ruff auto-fixes this (UP007/UP045)
+---
