@@ -262,6 +262,9 @@ const defaultSettingsMap: Record<string, Settings> = {
     budgetPerStep: 0,
     modelRouting: normalizeAiModelRouting({})
   } satisfies AiSettings as unknown as Settings,
+  users: {
+    names: {}
+  },
   integrations: {
     emailProvider: 'gmail',
     emailClientId: '',
