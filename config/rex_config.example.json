@@ -181,5 +181,23 @@
     "search": "",
     "vision": "",
     "fast": ""
+  },
+  "users": {
+    "alice": {
+      "email_accounts": [
+        {
+          "account_id": "work",
+          "display_name": "Alice Work Email",
+          "backend": "imap",
+          "credentials_key": "EMAIL_ALICE_WORK"
+        },
+        {
+          "account_id": "personal",
+          "display_name": "Alice Personal Gmail",
+          "backend": "gmail",
+          "credentials_key": "EMAIL_ALICE_PERSONAL"
+        }
+      ]
+    }
   }
 }

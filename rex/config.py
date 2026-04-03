@@ -115,6 +115,21 @@ class EmailAccountConfig:
 
 
 @dataclass
+class UserEmailAccount:
+    """Per-user email account entry (US-ME-001).
+
+    Lightweight descriptor that names an email account, its backend type, and
+    the ``.env`` key where credentials are stored.  Full connection details
+    (host, port, etc.) are resolved at runtime from the credentials key.
+    """
+
+    account_id: str
+    display_name: str = ""
+    backend: str = "imap"  # "imap" | "gmail" | "outlook"
+    credentials_key: str = ""  # e.g. "EMAIL_ALICE_WORK" in .env
+
+
+@dataclass
 class AppConfig:
     """Application configuration combining JSON config and environment secrets."""
 
@@ -206,6 +221,10 @@ class AppConfig:
     # Multi-account email config (US-208)
     email_accounts: List[EmailAccountConfig] = field(default_factory=list)
     email_default_account_id: str = ""
+
+    # Per-user multi-email accounts (US-ME-001)
+    # Keyed by user_id; each value is the list of email accounts for that user.
+    user_email_accounts: Dict[str, List[UserEmailAccount]] = field(default_factory=dict)
 
     # Location and weather
     default_location: Optional[str] = None
@@ -356,6 +375,71 @@ def _parse_email_accounts(raw: object) -> List[EmailAccountConfig]:
         except (KeyError, TypeError, ValueError) as exc:
             LOGGER.warning("Skipping malformed email account entry: %s", exc)
     return accounts
+
+
+def _parse_user_email_account(raw: dict) -> UserEmailAccount:
+    """Parse a single user email account dict."""
+    return UserEmailAccount(
+        account_id=str(raw["account_id"]),
+        display_name=str(raw.get("display_name", "")),
+        backend=str(raw.get("backend", "imap")).lower(),
+        credentials_key=str(raw.get("credentials_key", "")),
+    )
+
+
+def _parse_user_email_accounts(
+    users_block: object,
+    legacy_email_accounts: object,
+) -> Dict[str, List[UserEmailAccount]]:
+    """Parse ``users.{user_id}.email_accounts`` into a per-user dict.
+
+    Migration shim: if the new ``users`` block is absent or empty but the
+    legacy ``email.accounts`` list is present, its entries are migrated to the
+    ``"default"`` user using their ``id`` as ``account_id`` and ``credential_ref``
+    as ``credentials_key``.
+    """
+    result: Dict[str, List[UserEmailAccount]] = {}
+
+    # Parse new format: users.{user_id}.email_accounts
+    if isinstance(users_block, dict):
+        for user_id, user_data in users_block.items():
+            if not isinstance(user_data, dict):
+                continue
+            accounts_raw = user_data.get("email_accounts", [])
+            if not isinstance(accounts_raw, list):
+                continue
+            parsed: List[UserEmailAccount] = []
+            for entry in accounts_raw:
+                if not isinstance(entry, dict) or "account_id" not in entry:
+                    continue
+                try:
+                    parsed.append(_parse_user_email_account(entry))
+                except (KeyError, TypeError, ValueError) as exc:
+                    LOGGER.warning("Skipping malformed user email account: %s", exc)
+            if parsed:
+                result[str(user_id)] = parsed
+
+    # Migration shim: promote legacy email.accounts to user "default" if no new entries
+    if not result and isinstance(legacy_email_accounts, list):
+        migrated: List[UserEmailAccount] = []
+        for item in legacy_email_accounts:
+            if not isinstance(item, dict):
+                continue
+            account_id = str(item.get("id", ""))
+            if not account_id:
+                continue
+            migrated.append(
+                UserEmailAccount(
+                    account_id=account_id,
+                    display_name=str(item.get("address", "")),
+                    backend="imap",
+                    credentials_key=str(item.get("credential_ref", "")),
+                )
+            )
+        if migrated:
+            result["default"] = migrated
+
+    return result
 
 
 def _parse_model_routing(raw: object) -> ModelRoutingConfig:
@@ -525,6 +609,11 @@ def build_app_config(json_config: dict) -> AppConfig:
         # Multi-account email (US-208)
         email_accounts=_parse_email_accounts(_get_nested(json_config, "email.accounts", [])),
         email_default_account_id=_get_nested(json_config, "email.default_account_id", ""),
+        # Per-user multi-email accounts (US-ME-001)
+        user_email_accounts=_parse_user_email_accounts(
+            _get_nested(json_config, "users", {}),
+            _get_nested(json_config, "email.accounts", []),
+        ),
         # History persistence
         persist_history=bool(_get_nested(json_config, "runtime.persist_history", True)),
         history_db_path=Path(
