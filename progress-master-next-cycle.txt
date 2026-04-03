@@ -595,3 +595,55 @@
   - ruff removed unused `import os` (was in initial write but not needed after using pathlib) — let ruff --fix handle it
   - ToolRegistry still has _noop_handler as the dispatcher-level fallback; the "real" handler on the Tool is read_file but full multi-op dispatch should go through the op kwarg (future work)
 ---
+
+## Iteration 31 - US-LAT-002: Acoustic "thinking" feedback during processing
+- What was implemented:
+  - Added `acknowledgment_sound: str = "chime"` to AppConfig; wired from `acknowledgment.sound` JSON key
+  - Added `threading.Event` `_speaking` to TextToSpeech; set before `speak()`, cleared in `finally`
+  - Added `is_speaking() -> bool` method to TextToSpeech
+  - Updated `WakeAcknowledgement.__init__` to accept `is_speaking`, `filler_phrase`, and `filler_speak`
+  - `WakeAcknowledgement.play()` skips all output when `is_speaking()` is True
+  - `WakeAcknowledgement.play()` calls `filler_speak(phrase)` when `filler_phrase` is set
+  - Updated `build_voice_loop` to read `settings.acknowledgment_sound` and wire accordingly:
+    - "chime" → default wav chime with is_speaking guard
+    - ".wav"/".mp3" suffix → custom audio file with is_speaking guard
+    - any other string → spoken filler phrase via TTS with is_speaking guard
+  - 11 unit tests in tests/test_lat002_acknowledgment.py; all pass
+- Files changed:
+  - rex/config.py (acknowledgment_sound field + build_app_config wiring)
+  - rex/voice_loop.py (threading import, TextToSpeech._speaking, WakeAcknowledgement updates, build_voice_loop wiring)
+  - tests/test_lat002_acknowledgment.py (new)
+  - PRD-master-next-cycle.md (marked US-LAT-002 complete)
+- Learnings for future iterations:
+  - US-MM-005, US-VID-004 remain blocked (require React SPA / browser UI); skipped again
+  - US-LAT-001 also requires browser; US-LAT-002 was the first completable LAT story
+  - WakeAcknowledgement generates the chime wav automatically in __init__ if missing — test for "missing file" must mock ensure_wake_acknowledgment_sound to prevent auto-generation
+  - threading.Event is correct for is_speaking state (TTS plays in asyncio.to_thread which runs in a thread pool thread); Event.set/clear in async speak() is safe since the event loop awaits to_thread
+  - ruff I001 fires when `import dataclasses` appears after `from rex.config import AppConfig` in a test — reorder or let ruff --fix handle it
+---
+
+## Iteration 32 - US-LAT-003: STT pipeline warm-up — pre-load Whisper model at startup
+- What was implemented:
+  - Added `async_load: bool = False` parameter to `SpeechToText.__init__`
+  - Extracted model loading to `_load_model()` which stores error in `_load_error` and always sets `_load_event`
+  - When `async_load=True`, a daemon thread named 'stt-warmup' calls `_load_model()`
+  - `transcribe()` awaits `_load_event` via `asyncio.to_thread(event.wait)` so it never loads the model twice
+  - Sync path (default) still raises `SpeechToTextError` immediately if load fails
+  - `is_loaded()` method returns True when event is set and no error occurred
+  - `build_voice_loop()` updated to pass `async_load=True`
+  - `check_stt_warmup(stt=None)` added to `rex/doctor.py`; wired into `run_diagnostics()`
+  - `docs/performance-baseline.md` updated with STT warm-up memory footprint table
+  - `find_spec` imported at module level in doctor.py to allow test patching
+- Files changed:
+  - rex/voice_loop.py (SpeechToText refactor, build_voice_loop update)
+  - rex/doctor.py (check_stt_warmup, module-level find_spec import)
+  - docs/performance-baseline.md (STT warm-up section added)
+  - tests/test_lat003_stt_warmup.py (13 new tests)
+  - PRD-master-next-cycle.md (US-LAT-003 marked complete)
+- Learnings for future iterations:
+  - Async load with threading.Event: store in module scope only if needed cross-process; doctor check passes stt instance for same-process status
+  - The sync path must still raise SpeechToTextError on failure — _load_model() stores the error but init needs to check and re-raise
+  - After refactoring __init__ to defer model load, update any existing tests that expect SpeechToTextError from __init__ in the sync path
+  - `from importlib.util import find_spec` must be at module level for tests to patch `rex.doctor.find_spec`
+  - ruff B011 fires on `assert False` — use `raise AssertionError(...)` instead
+---
