@@ -337,12 +337,12 @@ use AskRex Assistant so that internal docs and CLAUDE reference files do not con
 the public docs.
 
 **Acceptance Criteria:**
-- [ ] `grep -r "Rex AI Assistant" docs/` returns zero results
+- [x] `grep -r "Rex AI Assistant" docs/` returns zero results
   (CHANGELOG and historical audit docs in `docs/archive/` are exempt)
-- [ ] `docs/claude/` reference files updated (COMMANDS_AND_ENTRYPOINTS.md, etc.)
-- [ ] `docs/security/SECURITY_AUDIT_2026-01-08.md` product name references updated
-- [ ] `CLAUDE.md` updated throughout to use canonical name
-- [ ] Typecheck passes
+- [x] `docs/claude/` reference files updated (COMMANDS_AND_ENTRYPOINTS.md, etc.)
+- [x] `docs/security/SECURITY_AUDIT_2026-01-08.md` product name references updated
+- [x] `CLAUDE.md` updated throughout to use canonical name
+- [x] Typecheck passes
 
 ---
 

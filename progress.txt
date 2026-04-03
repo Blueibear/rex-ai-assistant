@@ -271,6 +271,19 @@ No stories started yet. Begin with US-CI-001 (first story with unchecked criteri
   - setup.py in this repo only declares py_modules, no name/url fields to update
 ---
 
+## Iteration 19 - US-232 Update README.md, INSTALL.md, CHANGELOG.md with canonical name
+- Replaced "Rex AI Assistant" with "AskRex Assistant" in 35 non-archive .md files via batch sed
+- Fixed old GitHub slug `askrex-assistant` to `AskRex-Assistant` in README.md, README.windows.md, docs/INSTRUCTION_MANUAL.md
+- Added "Unreleased" rename entry to CHANGELOG.md noting effective date 2026-04-03
+- Files changed: README.md, INSTALL.md, CHANGELOG.md, RUNNING.md, README.windows.md, CONFIGURATION.md, CONTRIBUTING.md, and 29 docs/ files, PRD.md
+- Learnings for future iterations:
+  - docs/BRANDING.md and PRD.md are exempt from the grep check (authoritative/historical context)
+  - docs/archive/ files are also exempt as historical documents
+  - Memory/README.md is gitignored and not tracked; skip it in git add commands
+  - CHANGELOG.md entries mentioning the old product name are exempt ("historical CHANGELOG entries")
+  - Docs-only changes: mypy 17 pre-existing errors are unchanged; 112 README-related tests pass
+---
+
 ## Iteration 17 - US-230 Define canonical product name and create naming ruleset
 - Created docs/BRANDING.md with canonical product name (AskRex Assistant), package name (askrex-assistant), CLI command (rex), GitHub URL, legacy alias policy, and banned names table
 - Updated CLAUDE.md Project Overview to use canonical name and reference docs/BRANDING.md
