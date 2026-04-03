@@ -299,14 +299,14 @@ name, package name, and correct repository URL so that pip installs, PyPI listin
 and tooling all show consistent identity.
 
 **Acceptance Criteria:**
-- [ ] `pyproject.toml:6` — `name = "askrex-assistant"` (was `rex-ai-assistant`)
-- [ ] `pyproject.toml` — `description` field updated to reference "AskRex Assistant"
-- [ ] `pyproject.toml:146` — `Homepage` URL set to `https://github.com/Blueibear/AskRex-Assistant`
-- [ ] `pyproject.toml` — any `Repository`, `Source`, or `Bug Tracker` URLs updated to match
-- [ ] `setup.py` — any `name=` or `url=` fields updated to match
-- [ ] `pip install -e .` succeeds after the change
-- [ ] `pip show askrex-assistant` returns the correct metadata
-- [ ] Typecheck passes
+- [x] `pyproject.toml:6` — `name = "askrex-assistant"` (was `rex-ai-assistant`)
+- [x] `pyproject.toml` — `description` field updated to reference "AskRex Assistant"
+- [x] `pyproject.toml:146` — `Homepage` URL set to `https://github.com/Blueibear/AskRex-Assistant`
+- [x] `pyproject.toml` — any `Repository`, `Source`, or `Bug Tracker` URLs updated to match
+- [x] `setup.py` — any `name=` or `url=` fields updated to match
+- [x] `pip install -e .` succeeds after the change
+- [x] `pip show askrex-assistant` returns the correct metadata
+- [x] Typecheck passes
 
 ---
 

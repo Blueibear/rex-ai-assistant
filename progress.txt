@@ -257,3 +257,25 @@ No stories started yet. Begin with US-CI-001 (first story with unchecked criteri
 | US-PH-004  | Phone integration settings UI                        |      |
 
 ---
+
+## Iteration 18 - US-231 Update pyproject.toml with canonical name and metadata
+- Changed `name` from `rex-ai-assistant` to `askrex-assistant` in pyproject.toml
+- Updated `description` to reference "AskRex Assistant"
+- Updated `authors` name to "AskRex Assistant Contributors"
+- Updated Homepage, Repository, and Issues URLs to `https://github.com/Blueibear/AskRex-Assistant`
+- setup.py has no `name=` or `url=` fields; all config delegated to pyproject.toml
+- Files changed: pyproject.toml, PRD.md, progress.txt
+- Learnings for future iterations:
+  - `pip install -e .` fails on Python 3.14 due to `requires-python = ">=3.11,<3.12"` constraint; use `--ignore-requires-python` or use the .venv (Python 3.11)
+  - mypy pre-existing 17 errors in 7 files are unchanged; metadata-only changes do not introduce new type errors
+  - setup.py in this repo only declares py_modules, no name/url fields to update
+---
+
+## Iteration 17 - US-230 Define canonical product name and create naming ruleset
+- Created docs/BRANDING.md with canonical product name (AskRex Assistant), package name (askrex-assistant), CLI command (rex), GitHub URL, legacy alias policy, and banned names table
+- Updated CLAUDE.md Project Overview to use canonical name and reference docs/BRANDING.md
+- Files changed: docs/BRANDING.md, CLAUDE.md, PRD.md
+- Learnings for future iterations:
+  - US-230 is a docs-only story; mypy pre-existing failures (17 errors in 7 files) are unrelated to non-Python changes and do not block this story
+  - The canonical CLI command is `rex` (not `askrex`); BRANDING.md documents this explicitly
+---
