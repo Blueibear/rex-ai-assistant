@@ -85,21 +85,23 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
 
 ## Features
 
-- 🔊 **Wake word detection** via openWakeWord (customizable trigger phrases)
-- 🗣️ **Speech-to-text** using OpenAI Whisper (runs offline)
-- 🤖 **LLM responses** via Transformers (local), OpenAI API, or Ollama
-- 🔉 **Text-to-speech** with Coqui XTTS, edge-tts, or pyttsx3 (voice cloning supported)
-- 🌐 **Web search plugins** for SerpAPI, Brave, Google CSE, and DuckDuckGo
-- 🧠 **Per-user memory** profiles with conversation history and preferences
-- 📧 **Email and calendar** integration with triage and scheduling *(beta — stub/mock data only)*
-- 📱 **Multi-channel messaging** via SMS *(beta — stub scaffolding, real delivery requires Twilio credentials)*
-- 🔔 **Smart notifications** with priority routing, digest mode, quiet hours, and auto-escalation *(beta — stub scaffolding)*
-- 🤖 **Autonomous workflows** with planner and workflow runner for multi-step task automation
-- 🎯 **Smart planning** converts natural language goals into structured workflows
-- ⚙️ **Configurable autonomy modes** (OFF/SUGGEST/AUTO) for fine-grained control
-- 🔐 **Flask TTS API** with authentication and rate limiting
-- ✅ **CI/CD** with GitHub Actions and Release Please automation
-- 🐳 **Docker support** for containerized deployment
+> **Alpha software** — core voice pipeline works today; integrations and advanced features vary by maturity (see labels below).
+
+- 🔊 **Wake word detection** via openWakeWord (customizable trigger phrases) `[Works today]`
+- 🗣️ **Speech-to-text** using OpenAI Whisper (runs offline) `[Works today]`
+- 🤖 **LLM responses** via Transformers (local), OpenAI API, or Ollama `[Works today]`
+- 🔉 **Text-to-speech** with Coqui XTTS, edge-tts, or pyttsx3 (voice cloning supported) `[Works today]`
+- 🌐 **Web search plugins** for SerpAPI, Brave, Google CSE, and DuckDuckGo `[Requires configuration]`
+- 🧠 **Per-user memory** profiles with conversation history and preferences `[In progress — not production ready]`
+- 📧 **Email and calendar** integration with triage and scheduling `[Requires configuration — IMAP/SMTP credentials needed]`
+- 📱 **Multi-channel messaging** via SMS `[Requires configuration — Twilio credentials needed]`
+- 🔔 **Smart notifications** with priority routing, digest mode, quiet hours, and auto-escalation; dashboard channel persists to local SQLite store with real API endpoints `[Works today]`
+- 🤖 **Autonomous workflows** with planner and workflow runner for multi-step task automation `[In progress — not production ready]`
+- 🎯 **Smart planning** converts natural language goals into structured workflows `[In progress — not production ready]`
+- ⚙️ **Configurable autonomy modes** (OFF/SUGGEST/AUTO) for fine-grained control `[Works today]`
+- 🔐 **Flask TTS API** with authentication and rate limiting `[Works today]`
+- ✅ **CI/CD** with GitHub Actions and Release Please automation `[Works today]`
+- 🐳 **Docker support** for containerized deployment `[Works today]`
 
 ## Requirements
 
@@ -134,10 +136,10 @@ The following integrations are **beta / stub scaffolding** and do not yet connec
 
 | Feature | Status | Details |
 |---------|--------|---------|
-| **Email** | Beta (real backend available) | Supports real IMAP4-SSL read + SMTP send when configured; defaults to stub/mock for offline dev. Multi-account support included. |
-| **Calendar** | Beta (ICS read-only + stub fallback) | Supports reading events from local `.ics` files or HTTPS ICS feeds; defaults to stub/mock for offline dev. CalDAV/Google OAuth planned. |
-| **SMS / Messaging** | Beta (real backend available) | Real SMS delivery and inbound webhook receiver via Twilio when configured (opt-in); defaults to stub/mock for offline dev. Multi-account support and inbound message routing included. |
-| **Notifications** | Beta (dashboard + email channels real) | Priority routing and digest logic exist; dashboard channel persists to local SQLite store with API endpoints; email channel uses real SMTP when configured. |
+| **Email** | Requires configuration | Supports real IMAP4-SSL read + SMTP send; falls back to offline stub when IMAP/SMTP credentials are absent. Multi-account support included. |
+| **Calendar** | Requires configuration | Supports reading events from local `.ics` files or HTTPS ICS feeds; falls back to offline stub when no feed is configured. CalDAV/Google OAuth planned. |
+| **SMS / Messaging** | Requires configuration | Real SMS delivery and inbound webhook receiver via Twilio; falls back to offline stub when Twilio credentials are absent. Multi-account support and inbound message routing included. |
+| **Notifications** | Works today | Priority routing and digest logic active; dashboard channel persists to local SQLite store with real API endpoints; email channel uses real SMTP when configured. |
 | **Identity** | Beta (session-scoped fallback) | When voice/speaker recognition is unavailable, use `rex identify` or `rex whoami` to set/view the active user for the session. |
 | **WordPress** | Beta (read-only) | Health check (`rex wp health`) via WP REST API. Supports `none`, `application_password`, and `basic` auth methods. Write actions deferred to Cycle 6.3. |
 | **WooCommerce** | Beta (read-only) | Orders list and products list (`rex wc orders list`, `rex wc products list`) via WC REST API v3. Client-side low-stock filter supported. Write actions deferred to Cycle 6.3. |

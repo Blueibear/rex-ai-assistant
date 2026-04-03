@@ -417,18 +417,18 @@ that work today, features that require configuration, and features that are in p
 so that I can set accurate expectations before installing.
 
 **Acceptance Criteria:**
-- [ ] Every bullet in the README feature list is classified with one of:
+- [x] Every bullet in the README feature list is classified with one of:
   `[Works today]`, `[Requires configuration]`, or `[In progress — not production ready]`
-- [ ] "Autonomous workflows with planner" is marked `[In progress]` (per `PRD.md` roadmap)
-- [ ] "Conversation history persistence" is marked `[In progress]`
-- [ ] Email integration is marked `[Requires configuration — IMAP/SMTP credentials needed]`
+- [x] "Autonomous workflows with planner" is marked `[In progress]` (per `PRD.md` roadmap)
+- [x] "Conversation history persistence" is marked `[In progress]`
+- [x] Email integration is marked `[Requires configuration — IMAP/SMTP credentials needed]`
   (not "stub/mock data only" since real backend exists per `INTEGRATIONS_STATUS.md:30`)
-- [ ] SMS / Twilio is marked `[Requires configuration — Twilio credentials needed]`
-- [ ] "Smart notifications" description reflects what the dashboard store actually does
-- [ ] `grep "stub/mock data only" README.md` returns zero results
-- [ ] `grep "Autonomous workflows" README.md` is followed by a `[In progress]` annotation
-- [ ] `pyproject.toml:17` classifier is `Development Status :: 3 - Alpha`; README reflects this
-- [ ] Typecheck passes
+- [x] SMS / Twilio is marked `[Requires configuration — Twilio credentials needed]`
+- [x] "Smart notifications" description reflects what the dashboard store actually does
+- [x] `grep "stub/mock data only" README.md` returns zero results
+- [x] `grep "Autonomous workflows" README.md` is followed by a `[In progress]` annotation
+- [x] `pyproject.toml:17` classifier is `Development Status :: 3 - Alpha`; README reflects this
+- [x] Typecheck passes
 
 ---
 
