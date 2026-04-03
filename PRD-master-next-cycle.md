@@ -1030,7 +1030,7 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 - [x] New voice appears in voice selection dropdown (US-VC-001) within 30 seconds of successful training
 - [x] Training progress shown in UI (loading state during save)
 - [x] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Verify changes work in browser
 
 ---
 
