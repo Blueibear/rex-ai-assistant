@@ -50,14 +50,14 @@ Rex AI Assistant is a local-first, voice-activated AI companion that runs entire
 
 3. **Install Rex:**
 
-   macOS / Linux full install:
-   ```bash
-   bash install.sh
-   ```
-
    Windows full install:
    ```powershell
    .\install.ps1
+   ```
+
+   macOS / Linux full install:
+   ```bash
+   bash install.sh
    ```
 
    Windows GPU + TTS path:
