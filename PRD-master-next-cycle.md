@@ -1051,7 +1051,7 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 - [x] Selection saved to `AppConfig.wakeword` (existing field; PRD named it wake_word_model)
 - [x] Voice loop picks up the new wake word on next restart (no full Electron restart needed)
 - [x] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Verify changes work in browser
 
 ---
 

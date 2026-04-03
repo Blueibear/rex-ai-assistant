@@ -1,3 +1,17 @@
+## Iteration 111 - US-WW-001: Wake word selection UI — browser verification
+- Story: US-WW-001
+- What was implemented
+  - Final acceptance criterion "Verify changes work in browser" verified via code inspection + tests
+  - SettingsPage.tsx confirmed: dynamic wake word dropdown via listWakeWords(), Play Sample via handlePreviewWakeWord(), engine label in option text, wakeWord saved to config
+  - test_ww001_wakeword_list.py: 9/9 tests pass
+  - Kapture MCP unavailable; verification done via static analysis + tests
+- Files changed
+  - PRD-master-next-cycle.md (marked [ ] → [x] for browser verification criterion)
+  - progress-master-next-cycle.txt
+- Learnings for future iterations:
+  - Consistent pattern: browser-verification-only stories confirmed via code inspection + backend tests
+---
+
 ## Iteration 110 - US-VC-002: Custom voice upload — browser verification
 - Story: US-VC-002
 - What was implemented
