@@ -68,14 +68,14 @@ development artifacts.
 production-required files so that the resulting image is minimal and safe.
 
 **Acceptance Criteria:**
-- [x] Dockerfile runtime stage replaces `COPY . .` with explicit allowlist covering only:
+- [ ] Dockerfile runtime stage replaces `COPY . .` with explicit allowlist covering only:
   `rex/`, `rex_speak_api.py`, `rex_loop.py`, `voice_loop.py`, `pyproject.toml`,
   `config/rex_config.example.json`, `assets/`, and entry-point scripts
-- [x] Image builds successfully: `docker build -t rex-test .` exits 0
-- [x] `docker run --rm rex-test python -c "import rex"` exits 0
-- [x] Image does not contain `.env`, `tests/`, `venv/`, or `Memory/` directories
-- [x] Dockerfile comments document which mounts are expected at runtime (config, data)
-- [x] Typecheck passes
+- [ ] Image builds successfully: `docker build -t rex-test .` exits 0
+- [ ] `docker run --rm rex-test python -c "import rex"` exits 0
+- [ ] Image does not contain `.env`, `tests/`, `venv/`, or `Memory/` directories
+- [ ] Dockerfile comments document which mounts are expected at runtime (config, data)
+- [ ] Typecheck passes
 
 ---
 
@@ -87,10 +87,10 @@ production-required files so that the resulting image is minimal and safe.
 fixed so that the linter baseline is clean before enforcing it in CI.
 
 **Acceptance Criteria:**
-- [x] `ruff check rex/ --select I,F` exits 0 (import order + unused imports/variables)
-- [x] No `noqa` suppressions added that were not already present
-- [x] `pytest -q` exits 0 after changes (no regressions)
-- [x] Typecheck passes
+- [ ] `ruff check rex/ --select I,F` exits 0 (import order + unused imports/variables)
+- [ ] No `noqa` suppressions added that were not already present
+- [ ] `pytest -q` exits 0 after changes (no regressions)
+- [ ] Typecheck passes
 
 ---
 
@@ -100,11 +100,11 @@ fixed so that the linter baseline is clean before enforcing it in CI.
 resolved so that `ruff check rex/` exits clean.
 
 **Acceptance Criteria:**
-- [x] `ruff check rex/` exits 0 with zero errors
-- [x] `ruff check rex/ --statistics` shows 0 total
-- [x] No existing `# noqa` comments were silently widened to suppress new categories
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] `ruff check rex/` exits 0 with zero errors
+- [ ] `ruff check rex/ --statistics` shows 0 total
+- [ ] No existing `# noqa` comments were silently widened to suppress new categories
+- [ ] `pytest -q` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -114,11 +114,11 @@ resolved so that `ruff check rex/` exits clean.
 `black --check` passes on every Python file.
 
 **Acceptance Criteria:**
-- [x] `black --check rex/` exits 0
-- [x] `black --check *.py` exits 0 for all root-level Python files
-- [x] No logic changes introduced — only whitespace/formatting
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] `black --check rex/` exits 0
+- [ ] `black --check *.py` exits 0 for all root-level Python files
+- [ ] No logic changes introduced — only whitespace/formatting
+- [ ] `pytest -q` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -128,10 +128,10 @@ resolved so that `ruff check rex/` exits clean.
 so that type coverage improves measurably.
 
 **Acceptance Criteria:**
-- [x] `mypy rex/assistant.py rex/config.py rex/llm_client.py rex/voice_loop.py` exits 0
-- [x] No `type: ignore` comments added without an inline explanation
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] `mypy rex/assistant.py rex/config.py rex/llm_client.py rex/voice_loop.py` exits 0
+- [ ] No `type: ignore` comments added without an inline explanation
+- [ ] `pytest -q` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -141,11 +141,11 @@ so that type coverage improves measurably.
 the codebase has a clean type baseline.
 
 **Acceptance Criteria:**
-- [x] `mypy rex/` exits 0 with zero errors
-- [x] All `type: ignore` comments that remained from batch 1 are either resolved or
+- [ ] `mypy rex/` exits 0 with zero errors
+- [ ] All `type: ignore` comments that remained from batch 1 are either resolved or
   documented with a specific reason comment
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] `pytest -q` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -158,14 +158,14 @@ baseline at the start of the test session and compare against that baseline so t
 pre-existing dirty files do not cause false failures.
 
 **Acceptance Criteria:**
-- [x] `tests/test_repo_integrity.py` captures `git status --porcelain` output before any
+- [ ] `tests/test_repo_integrity.py` captures `git status --porcelain` output before any
   test runs and stores it as the session baseline
-- [x] `tests/test_repository_integrity.py` uses the same baseline approach
-- [x] Running `pytest -q tests/test_repo_integrity.py tests/test_repository_integrity.py`
+- [ ] `tests/test_repository_integrity.py` uses the same baseline approach
+- [ ] Running `pytest -q tests/test_repo_integrity.py tests/test_repository_integrity.py`
   exits 0 even when `requirements-gpu-cu124.txt` (or any other pre-existing tracked
   modification) is already dirty
-- [x] Both files include a comment explaining the baseline approach
-- [x] Typecheck passes
+- [ ] Both files include a comment explaining the baseline approach
+- [ ] Typecheck passes
 
 ---
 
@@ -177,13 +177,13 @@ pre-existing dirty files do not cause false failures.
 source files and exclude generated caches so that its output is actionable rather than noisy.
 
 **Acceptance Criteria:**
-- [x] `scripts/security_audit.py` excludes `.mypy_cache/`, `.ruff_cache/`, `.pytest_cache/`,
+- [ ] `scripts/security_audit.py` excludes `.mypy_cache/`, `.ruff_cache/`, `.pytest_cache/`,
   `__pycache__/`, `venv/`, `.venv/`, `*.egg-info/`, `build/`, and `node_modules/`
-- [x] Total scanned file count reported separately from excluded files
-- [x] Script output categorizes findings by: source code vs documentation vs configuration
-- [x] Running `python scripts/security_audit.py` reports fewer than 50 findings on a
+- [ ] Total scanned file count reported separately from excluded files
+- [ ] Script output categorizes findings by: source code vs documentation vs configuration
+- [ ] Running `python scripts/security_audit.py` reports fewer than 50 findings on a
   clean checkout (eliminating the 295 false-positive count)
-- [x] Typecheck passes
+- [ ] Typecheck passes
 
 ---
 
@@ -193,14 +193,14 @@ source files and exclude generated caches so that its output is actionable rathe
 current runtime model so that it gives accurate pass/fail verdicts.
 
 **Acceptance Criteria:**
-- [x] `scripts/validate_deployment.py` checks for `config/rex_config.json` existence and
+- [ ] `scripts/validate_deployment.py` checks for `config/rex_config.json` existence and
   schema validity instead of `REX_ACTIVE_USER` environment variable
-- [x] Script validates torch version against the range in `pyproject.toml` (`>=2.6.0,<2.9.0`)
+- [ ] Script validates torch version against the range in `pyproject.toml` (`>=2.6.0,<2.9.0`)
   instead of expecting `2.5.x`
-- [x] Script validates that all CLI entrypoints from `pyproject.toml` are importable
-- [x] `python scripts/validate_deployment.py` exits 0 on a properly configured install
-- [x] Score output accurately reflects the 7 checks (all 7 passing on valid install)
-- [x] Typecheck passes
+- [ ] Script validates that all CLI entrypoints from `pyproject.toml` are importable
+- [ ] `python scripts/validate_deployment.py` exits 0 on a properly configured install
+- [ ] Score output accurately reflects the 7 checks (all 7 passing on valid install)
+- [ ] Typecheck passes
 
 ---
 
@@ -212,15 +212,15 @@ current runtime model so that it gives accurate pass/fail verdicts.
 executable end-to-end so that the Planner, registry, and router all agree on scope.
 
 **Acceptance Criteria:**
-- [x] New file `rex/tool_catalog.py` defines `EXECUTABLE_TOOLS: frozenset[str]` containing
+- [ ] New file `rex/tool_catalog.py` defines `EXECUTABLE_TOOLS: frozenset[str]` containing
   exactly the tools with real handlers: `time_now`, `weather_now`, `web_search`,
   `send_email`, `calendar_create_event`, `home_assistant_call_service`
-- [x] `rex/tool_registry.py` imports and validates against `EXECUTABLE_TOOLS` at registration time
-- [x] `rex/planner.py` imports `EXECUTABLE_TOOLS` and limits plan generation to that set
-- [x] `rex/tool_router.py` imports `EXECUTABLE_TOOLS` and raises `UnknownToolError` (not a
+- [ ] `rex/tool_registry.py` imports and validates against `EXECUTABLE_TOOLS` at registration time
+- [ ] `rex/planner.py` imports `EXECUTABLE_TOOLS` and limits plan generation to that set
+- [ ] `rex/tool_router.py` imports `EXECUTABLE_TOOLS` and raises `UnknownToolError` (not a
   generic exception) for any tool not in the catalog
-- [x] `pytest -q tests/test_tool_registry.py tests/test_tool_router.py` exits 0
-- [x] Typecheck passes
+- [ ] `pytest -q tests/test_tool_registry.py tests/test_tool_router.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -230,14 +230,14 @@ executable end-to-end so that the Planner, registry, and router all agree on sco
 when those integrations are configured so that Rex can answer factual questions.
 
 **Acceptance Criteria:**
-- [x] `rex/tool_router.py` `weather_now` handler calls the configured weather provider
+- [ ] `rex/tool_router.py` `weather_now` handler calls the configured weather provider
   (existing `rex/tools/weather.py` or equivalent) and returns a formatted string
-- [x] `rex/tool_router.py` `web_search` handler calls the configured search provider
+- [ ] `rex/tool_router.py` `web_search` handler calls the configured search provider
   (existing search integration) and returns top-3 result summaries
-- [x] Both handlers return a graceful `"[integration not configured]"` string when no
+- [ ] Both handlers return a graceful `"[integration not configured]"` string when no
   API key is present (not an exception)
-- [x] `pytest -q tests/test_tool_router.py` exits 0 with mocked provider responses
-- [x] Typecheck passes
+- [ ] `pytest -q tests/test_tool_router.py` exits 0 with mocked provider responses
+- [ ] Typecheck passes
 
 ---
 
@@ -247,13 +247,13 @@ when those integrations are configured so that Rex can answer factual questions.
 calendar events when those integrations are configured.
 
 **Acceptance Criteria:**
-- [x] `rex/tool_router.py` `send_email` handler accepts `{to, subject, body}` and calls
+- [ ] `rex/tool_router.py` `send_email` handler accepts `{to, subject, body}` and calls
   `EmailService.send()`, returning `"Email sent"` or a descriptive error string
-- [x] `rex/tool_router.py` `calendar_create_event` handler accepts `{title, start, end}`
+- [ ] `rex/tool_router.py` `calendar_create_event` handler accepts `{title, start, end}`
   and calls `CalendarService.create_event()`, returning confirmation or error string
-- [x] Both handlers degrade gracefully when the backend is not configured
-- [x] `pytest -q tests/test_tool_router.py` exits 0
-- [x] Typecheck passes
+- [ ] Both handlers degrade gracefully when the backend is not configured
+- [ ] `pytest -q tests/test_tool_router.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -263,12 +263,12 @@ calendar events when those integrations are configured.
 Planner can emit is executable through the router so that COR-001 cannot regress.
 
 **Acceptance Criteria:**
-- [x] New file `tests/test_planner_tool_e2e.py` tests each tool in `EXECUTABLE_TOOLS`
-- [x] Each test: generates a minimal plan containing that tool, executes it through
+- [ ] New file `tests/test_planner_tool_e2e.py` tests each tool in `EXECUTABLE_TOOLS`
+- [ ] Each test: generates a minimal plan containing that tool, executes it through
   `execute_tool()`, asserts the result is a non-empty string (not an exception)
-- [x] All tests use mocked external services (no real API calls)
-- [x] `pytest -q tests/test_planner_tool_e2e.py` exits 0
-- [x] Typecheck passes
+- [ ] All tests use mocked external services (no real API calls)
+- [ ] `pytest -q tests/test_planner_tool_e2e.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -280,12 +280,12 @@ Planner can emit is executable through the router so that COR-001 cannot regress
 (JSON runtime config + secrets-only .env) so that setup instructions are not misleading.
 
 **Acceptance Criteria:**
-- [x] README no longer presents large env-var configuration tables as the primary setup method
-- [x] README clearly states: secrets go in `.env`, runtime settings go in
+- [ ] README no longer presents large env-var configuration tables as the primary setup method
+- [ ] README clearly states: secrets go in `.env`, runtime settings go in
   `config/rex_config.json`, and links to `CONFIGURATION.md` for the full reference
-- [x] `.env.example` is referenced in the README and its role is described accurately
-- [x] Existing Quick Start section steps remain accurate after the change
-- [x] Typecheck passes
+- [ ] `.env.example` is referenced in the README and its role is described accurately
+- [ ] Existing Quick Start section steps remain accurate after the change
+- [ ] Typecheck passes
 
 ---
 
@@ -295,13 +295,13 @@ Planner can emit is executable through the router so that COR-001 cannot regress
 startup commands for each runtime mode so that I can launch Rex successfully.
 
 **Acceptance Criteria:**
-- [x] `README.windows.md` describes four distinct runtime modes with their correct commands:
+- [ ] `README.windows.md` describes four distinct runtime modes with their correct commands:
   text chat (`python -m rex`), voice loop (`python rex_loop.py`),
   dashboard (`python run_gui.py`), TTS API (`python rex_speak_api.py`)
-- [x] All PowerShell activation and launch commands are tested as syntactically correct
-- [x] Guide no longer instructs users to configure runtime behavior via environment variables
-- [x] Guide references `config/rex_config.example.json` for runtime configuration
-- [x] Typecheck passes
+- [ ] All PowerShell activation and launch commands are tested as syntactically correct
+- [ ] Guide no longer instructs users to configure runtime behavior via environment variables
+- [ ] Guide references `config/rex_config.example.json` for runtime configuration
+- [ ] Typecheck passes
 
 ---
 
@@ -312,13 +312,13 @@ or describe retired architecture to be clearly archived or corrected so that no 
 misleads contributors.
 
 **Acceptance Criteria:**
-- [x] Any document claiming "production-ready" status is updated to reflect the actual
+- [ ] Any document claiming "production-ready" status is updated to reflect the actual
   state or moved to `docs/archive/` with an `ARCHIVED:` prefix in its title
-- [x] Documents referencing the retired OpenClaw Python package import architecture are
+- [ ] Documents referencing the retired OpenClaw Python package import architecture are
   updated to describe the current HTTP integration approach
-- [x] `docs/claude/INTEGRATIONS_STATUS.md` accurately reflects which integrations are real
+- [ ] `docs/claude/INTEGRATIONS_STATUS.md` accurately reflects which integrations are real
   vs stub (email, calendar, SMS)
-- [x] Typecheck passes
+- [ ] Typecheck passes
 
 ---
 
@@ -328,13 +328,13 @@ misleads contributors.
 `rex/` package resolved so that there is one documented, authoritative startup path.
 
 **Acceptance Criteria:**
-- [x] `CLAUDE.md` documents which file is the canonical voice loop entry point and why
+- [ ] `CLAUDE.md` documents which file is the canonical voice loop entry point and why
   the second exists (or it is removed if unused)
-- [x] `rex_loop.py` (root) explicitly imports from the canonical module and does not
+- [ ] `rex_loop.py` (root) explicitly imports from the canonical module and does not
   duplicate business logic
-- [x] Both `voice_loop.py` files have a header comment explaining their relationship
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] Both `voice_loop.py` files have a header comment explaining their relationship
+- [ ] `pytest -q` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -347,13 +347,13 @@ PyTorch, and CUDA targets so that requirements files, pyproject.toml, the Docker
 and the validation script all agree.
 
 **Acceptance Criteria:**
-- [x] `docs/DEPENDENCIES.md` (new or updated) documents the canonical matrix:
+- [ ] `docs/DEPENDENCIES.md` (new or updated) documents the canonical matrix:
   Python 3.10–3.13, torch 2.6.x–2.8.x (CPU), cu118 variant, cu124 variant
-- [x] `requirements-cpu.txt` does not pin a CUDA variant of torch
-- [x] `pyproject.toml` optional ML extras match the documented matrix
-- [x] `Dockerfile` torch version falls within the documented matrix
-- [x] `scripts/validate_deployment.py` (from US-184) validates against the documented matrix
-- [x] Typecheck passes
+- [ ] `requirements-cpu.txt` does not pin a CUDA variant of torch
+- [ ] `pyproject.toml` optional ML extras match the documented matrix
+- [ ] `Dockerfile` torch version falls within the documented matrix
+- [ ] `scripts/validate_deployment.py` (from US-184) validates against the documented matrix
+- [ ] Typecheck passes
 
 ---
 
@@ -365,12 +365,12 @@ and the validation script all agree.
 so that concurrent HTTP requests to `/speak` cannot cause race conditions or corrupt state.
 
 **Acceptance Criteria:**
-- [x] `rex_speak_api.py` introduces `_tts_lock = threading.Lock()` at module level
-- [x] All access to `_TTS_ENGINE` (read and write) is wrapped in `with _tts_lock:`
-- [x] The lock is acquired before initialization check and released after synthesis completes
-- [x] A test in `tests/test_speak_api.py` (or new file) fires 5 concurrent `/speak` requests
+- [ ] `rex_speak_api.py` introduces `_tts_lock = threading.Lock()` at module level
+- [ ] All access to `_TTS_ENGINE` (read and write) is wrapped in `with _tts_lock:`
+- [ ] The lock is acquired before initialization check and released after synthesis completes
+- [ ] A test in `tests/test_speak_api.py` (or new file) fires 5 concurrent `/speak` requests
   using `threading.Thread` and asserts all return 200 with non-empty audio
-- [x] Typecheck passes
+- [ ] Typecheck passes
 
 ---
 
@@ -381,13 +381,13 @@ use an `asyncio.Lock` so that concurrent `generate_reply` calls cannot inject fo
 context twice.
 
 **Acceptance Criteria:**
-- [x] `Assistant` replaces `self._followup_injected: bool` with
+- [ ] `Assistant` replaces `self._followup_injected: bool` with
   `self._followup_lock: asyncio.Lock` initialized in `__init__`
-- [x] The injection block is wrapped in `async with self._followup_lock:`
-- [x] A test simulates two concurrent `generate_reply` calls and asserts followup context
+- [ ] The injection block is wrapped in `async with self._followup_lock:`
+- [ ] A test simulates two concurrent `generate_reply` calls and asserts followup context
   is injected at most once across both calls
-- [x] `pytest -q tests/test_assistant.py` exits 0
-- [x] Typecheck passes
+- [ ] `pytest -q tests/test_assistant.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -397,13 +397,13 @@ context twice.
 speech processing to be cleaned up reliably so that orphaned files do not accumulate.
 
 **Acceptance Criteria:**
-- [x] All `tempfile.NamedTemporaryFile` and manual temp-path usages in `rex/voice_loop.py`
+- [ ] All `tempfile.NamedTemporaryFile` and manual temp-path usages in `rex/voice_loop.py`
   and root `voice_loop.py` are wrapped in `try/finally` blocks that call `os.unlink()`
-- [x] Cleanup catches and logs `OSError` / `PermissionError` instead of raising
-- [x] A test creates a voice processing cycle with a mock audio source and asserts the
+- [ ] Cleanup catches and logs `OSError` / `PermissionError` instead of raising
+- [ ] A test creates a voice processing cycle with a mock audio source and asserts the
   temp directory has no leftover `.wav` files after the call
-- [x] `pytest -q tests/test_voice_loop.py` exits 0
-- [x] Typecheck passes
+- [ ] `pytest -q tests/test_voice_loop.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -413,12 +413,12 @@ speech processing to be cleaned up reliably so that orphaned files do not accumu
 `tool_calls` in responses so that function-calling is not silently ignored.
 
 **Acceptance Criteria:**
-- [x] `rex/llm_client.py` `OpenAIStrategy.generate()` checks `message.tool_calls` and,
+- [ ] `rex/llm_client.py` `OpenAIStrategy.generate()` checks `message.tool_calls` and,
   when present, serializes them into the response string as structured JSON tool call data
-- [x] A test mocks an OpenAI response with `tool_calls` and asserts the returned
+- [ ] A test mocks an OpenAI response with `tool_calls` and asserts the returned
   string contains the tool name and arguments
-- [x] No existing tests regress
-- [x] Typecheck passes
+- [ ] No existing tests regress
+- [ ] Typecheck passes
 
 ---
 
@@ -428,13 +428,13 @@ speech processing to be cleaned up reliably so that orphaned files do not accumu
 from missing-model errors so that users see accurate troubleshooting messages.
 
 **Acceptance Criteria:**
-- [x] `OllamaStrategy` catches `httpx.ConnectError` / `ConnectionRefusedError` and returns
+- [ ] `OllamaStrategy` catches `httpx.ConnectError` / `ConnectionRefusedError` and returns
   `"[Ollama: connection failed — is Ollama running?]"`
-- [x] `OllamaStrategy` catches 404 model-not-found responses and returns
+- [ ] `OllamaStrategy` catches 404 model-not-found responses and returns
   `"[Ollama: model '{model}' not found — run: ollama pull {model}]"`
-- [x] All other errors return `"[Ollama: unexpected error: {detail}]"`
-- [x] Tests cover all three error paths with mocked HTTP responses
-- [x] Typecheck passes
+- [ ] All other errors return `"[Ollama: unexpected error: {detail}]"`
+- [ ] Tests cover all three error paths with mocked HTTP responses
+- [ ] Typecheck passes
 
 ---
 
@@ -444,14 +444,14 @@ from missing-model errors so that users see accurate troubleshooting messages.
 abbreviations like "Dr.", "Mr.", "e.g.", and "etc." so that speech sounds natural.
 
 **Acceptance Criteria:**
-- [x] `rex/voice_loop.py` sentence splitter uses an abbreviation-aware approach
+- [ ] `rex/voice_loop.py` sentence splitter uses an abbreviation-aware approach
   (either an allowlist of common titles/abbreviations or NLTK `sent_tokenize` if available,
   with regex fallback)
-- [x] "Dr. Smith said the treatment works." is treated as a single sentence
-- [x] "She said it was great. He agreed." is correctly split into two sentences
-- [x] "e.g. this example." is treated as one sentence
-- [x] Existing TTS pipeline tests pass
-- [x] Typecheck passes
+- [ ] "Dr. Smith said the treatment works." is treated as a single sentence
+- [ ] "She said it was great. He agreed." is correctly split into two sentences
+- [ ] "e.g. this example." is treated as one sentence
+- [ ] Existing TTS pipeline tests pass
+- [ ] Typecheck passes
 
 ---
 
@@ -461,12 +461,12 @@ abbreviations like "Dr.", "Mr.", "e.g.", and "etc." so that speech sounds natura
 over a configurable size limit so that the server cannot be exhausted by oversized payloads.
 
 **Acceptance Criteria:**
-- [x] `rex_speak_api.py` reads `MAX_REQUEST_BYTES` from config (default: 64 KB)
-- [x] Requests where `Content-Length` exceeds `MAX_REQUEST_BYTES` are rejected with 413
+- [ ] `rex_speak_api.py` reads `MAX_REQUEST_BYTES` from config (default: 64 KB)
+- [ ] Requests where `Content-Length` exceeds `MAX_REQUEST_BYTES` are rejected with 413
   before the body is read
-- [x] Requests without `Content-Length` are read with a stream cap at `MAX_REQUEST_BYTES`
-- [x] A test sends a request body of 100 KB and asserts the response is 413
-- [x] Typecheck passes
+- [ ] Requests without `Content-Length` are read with a stream cap at `MAX_REQUEST_BYTES`
+- [ ] A test sends a request body of 100 KB and asserts the response is 413
+- [ ] Typecheck passes
 
 ---
 
@@ -476,12 +476,12 @@ over a configurable size limit so that the server cannot be exhausted by oversiz
 warnings so that corrupted session files are detectable and diagnosable.
 
 **Acceptance Criteria:**
-- [x] `rex/identity.py` `_load_session()` catches `json.JSONDecodeError` and logs a
+- [ ] `rex/identity.py` `_load_session()` catches `json.JSONDecodeError` and logs a
   `logger.warning(f"Corrupted session file {path}, resetting: {e}")` before returning `{}`
-- [x] The function no longer silently swallows parse errors
-- [x] A test writes a malformed JSON session file and asserts: the function returns `{}`
+- [ ] The function no longer silently swallows parse errors
+- [ ] A test writes a malformed JSON session file and asserts: the function returns `{}`
   and a warning is logged
-- [x] Typecheck passes
+- [ ] Typecheck passes
 
 ---
 
@@ -493,15 +493,15 @@ warnings so that corrupted session files are detectable and diagnosable.
 conversation turns can be persisted and retrieved across restarts.
 
 **Acceptance Criteria:**
-- [x] New file `rex/history_store.py` defines `HistoryStore` with:
+- [ ] New file `rex/history_store.py` defines `HistoryStore` with:
   - `__init__(self, db_path: Path)` — creates/migrates the DB on first call
   - `save_turn(user_id: str, role: str, content: str, timestamp: datetime) -> None`
   - `load_history(user_id: str, limit: int = 50) -> list[dict]`
   - `prune(user_id: str, keep_days: int = 30) -> int` — returns rows deleted
-- [x] Schema uses a single `turns` table: `(id, user_id, role, content, timestamp)`
-- [x] DB is created at `data/history.db` by default, path is configurable
-- [x] `pytest -q tests/test_history_store.py` exits 0 (new test file covers CRUD + prune)
-- [x] Typecheck passes
+- [ ] Schema uses a single `turns` table: `(id, user_id, role, content, timestamp)`
+- [ ] DB is created at `data/history.db` by default, path is configurable
+- [ ] `pytest -q tests/test_history_store.py` exits 0 (new test file covers CRUD + prune)
+- [ ] Typecheck passes
 
 ---
 
@@ -511,15 +511,15 @@ conversation turns can be persisted and retrieved across restarts.
 that Rex can reference previous exchanges without the session being lost.
 
 **Acceptance Criteria:**
-- [x] `Assistant.__init__` instantiates `HistoryStore` if `config.persist_history` is True
+- [ ] `Assistant.__init__` instantiates `HistoryStore` if `config.persist_history` is True
   (default: True)
-- [x] `Assistant.generate_reply()` calls `history_store.save_turn()` for each user prompt
+- [ ] `Assistant.generate_reply()` calls `history_store.save_turn()` for each user prompt
   and assistant response
-- [x] `Assistant.__init__` preloads the last 50 turns from `HistoryStore` into the in-memory
+- [ ] `Assistant.__init__` preloads the last 50 turns from `HistoryStore` into the in-memory
   history on startup
-- [x] `AppConfig` gains a `persist_history: bool = True` field
-- [x] `pytest -q tests/test_assistant.py` exits 0
-- [x] Typecheck passes
+- [ ] `AppConfig` gains a `persist_history: bool = True` field
+- [ ] `pytest -q tests/test_assistant.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -529,13 +529,13 @@ that Rex can reference previous exchanges without the session being lost.
 window to be pruned automatically so that the database does not grow unbounded.
 
 **Acceptance Criteria:**
-- [x] `AppConfig` gains `history_retention_days: int = 30`
-- [x] `rex/history_store.py` `prune()` is called by the scheduler (or a startup hook)
+- [ ] `AppConfig` gains `history_retention_days: int = 30`
+- [ ] `rex/history_store.py` `prune()` is called by the scheduler (or a startup hook)
   once per day
-- [x] Pruning is idempotent — running twice produces the same result as running once
-- [x] A test asserts that turns older than retention window are deleted and recent turns
+- [ ] Pruning is idempotent — running twice produces the same result as running once
+- [ ] A test asserts that turns older than retention window are deleted and recent turns
   are preserved
-- [x] Typecheck passes
+- [ ] Typecheck passes
 
 ---
 
@@ -547,15 +547,15 @@ window to be pruned automatically so that the database does not grow unbounded.
 integration backend so that real and stub implementations are interchangeable.
 
 **Acceptance Criteria:**
-- [x] `rex/integrations/email/backends/base.py` defines `EmailBackend` ABC with:
+- [ ] `rex/integrations/email/backends/base.py` defines `EmailBackend` ABC with:
   `fetch_unread(limit: int) -> list[dict]` and `send(to, subject, body) -> None`
-- [x] `rex/integrations/calendar/backends/base.py` defines `CalendarBackend` ABC with:
+- [ ] `rex/integrations/calendar/backends/base.py` defines `CalendarBackend` ABC with:
   `get_upcoming(days: int) -> list[dict]` and `create_event(title, start, end) -> dict`
-- [x] `rex/integrations/messaging/backends/base.py` defines `SMSBackend` ABC with:
+- [ ] `rex/integrations/messaging/backends/base.py` defines `SMSBackend` ABC with:
   `send(to, body) -> None` and `receive() -> list[dict]`
-- [x] Existing mock/stub implementations are refactored to implement these interfaces
-- [x] `pytest -q` exits 0 (no regressions)
-- [x] Typecheck passes
+- [ ] Existing mock/stub implementations are refactored to implement these interfaces
+- [ ] `pytest -q` exits 0 (no regressions)
+- [ ] Typecheck passes
 
 ---
 
@@ -565,15 +565,15 @@ integration backend so that real and stub implementations are interchangeable.
 the "read my email" command returns live inbox contents.
 
 **Acceptance Criteria:**
-- [x] New file `rex/integrations/email/backends/imap_smtp.py` defines `IMAPBackend`
+- [ ] New file `rex/integrations/email/backends/imap_smtp.py` defines `IMAPBackend`
   implementing `EmailBackend.fetch_unread()`
-- [x] Uses stdlib `imaplib.IMAP4_SSL` with configurable host, port, and SSL flag
-- [x] Connection timeout is enforced (default: 10 s)
-- [x] On auth failure, raises a descriptive `EmailAuthError` (not a raw exception)
-- [x] `tests/test_email_backend_imap_smtp.py` tests happy-path and auth-failure cases
+- [ ] Uses stdlib `imaplib.IMAP4_SSL` with configurable host, port, and SSL flag
+- [ ] Connection timeout is enforced (default: 10 s)
+- [ ] On auth failure, raises a descriptive `EmailAuthError` (not a raw exception)
+- [ ] `tests/test_email_backend_imap_smtp.py` tests happy-path and auth-failure cases
   using `unittest.mock` on the socket layer (no live network calls)
-- [x] `pytest -q tests/test_email_backend_imap_smtp.py` exits 0
-- [x] Typecheck passes
+- [ ] `pytest -q tests/test_email_backend_imap_smtp.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -583,13 +583,13 @@ the "read my email" command returns live inbox contents.
 commands deliver to the actual recipient.
 
 **Acceptance Criteria:**
-- [x] `IMAPSMTPBackend` (same file as US-206) implements `EmailBackend.send()` using
+- [ ] `IMAPSMTPBackend` (same file as US-206) implements `EmailBackend.send()` using
   stdlib `smtplib.SMTP` with STARTTLS or `smtplib.SMTP_SSL`
-- [x] Credentials are loaded via `CredentialManager` using the account's `credential_ref`
-- [x] Sensitive data (password) is never logged
-- [x] Tests cover: successful send, auth failure, TLS failure, and timeout — all with mocks
-- [x] `pytest -q tests/test_email_backend_imap_smtp.py` exits 0
-- [x] Typecheck passes
+- [ ] Credentials are loaded via `CredentialManager` using the account's `credential_ref`
+- [ ] Sensitive data (password) is never logged
+- [ ] Tests cover: successful send, auth failure, TLS failure, and timeout — all with mocks
+- [ ] `pytest -q tests/test_email_backend_imap_smtp.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -599,15 +599,15 @@ commands deliver to the actual recipient.
 reads/sends to the correct account so that work and personal email are separate.
 
 **Acceptance Criteria:**
-- [x] `AppConfig` (via `rex_config.json`) supports:
+- [ ] `AppConfig` (via `rex_config.json`) supports:
   `email.accounts[]` (list of account objects with `id`, `address`, `imap`, `smtp`,
   `credential_ref`) and `email.default_account_id`
-- [x] `EmailService` accepts optional `account_id` on `fetch_unread()` and `send()`;
+- [ ] `EmailService` accepts optional `account_id` on `fetch_unread()` and `send()`;
   falls back to `default_account_id` when omitted
-- [x] Invalid `account_id` raises `ValueError` with an actionable message
-- [x] Backward-compatible when only a single legacy account config is present
-- [x] `pytest -q tests/test_email_multi_account.py` exits 0 (new test file)
-- [x] Typecheck passes
+- [ ] Invalid `account_id` raises `ValueError` with an actionable message
+- [ ] Backward-compatible when only a single legacy account config is present
+- [ ] `pytest -q tests/test_email_multi_account.py` exits 0 (new test file)
+- [ ] Typecheck passes
 
 ---
 
@@ -617,12 +617,12 @@ reads/sends to the correct account so that work and personal email are separate.
 the real SMTP backend so that I receive email alerts.
 
 **Acceptance Criteria:**
-- [x] `rex/notification.py` `_send_to_email()` replaces the `"Would send."` log with a
+- [ ] `rex/notification.py` `_send_to_email()` replaces the `"Would send."` log with a
   real call to `EmailService.send()`
-- [x] Digest flush also dispatches through `EmailService`
-- [x] On send failure, notification is marked failed (not silently dropped) and logged
-- [x] `pytest -q tests/test_notification_email_delivery.py` exits 0 (new test file)
-- [x] Typecheck passes
+- [ ] Digest flush also dispatches through `EmailService`
+- [ ] On send failure, notification is marked failed (not silently dropped) and logged
+- [ ] `pytest -q tests/test_notification_email_delivery.py` exits 0 (new test file)
+- [ ] Typecheck passes
 
 ---
 
@@ -632,16 +632,16 @@ the real SMTP backend so that I receive email alerts.
 that the "upcoming events" command returns real calendar data.
 
 **Acceptance Criteria:**
-- [x] New file `rex/integrations/calendar/backends/ics_feed.py` defines `ICSFeedBackend`
+- [ ] New file `rex/integrations/calendar/backends/ics_feed.py` defines `ICSFeedBackend`
   implementing `CalendarBackend.get_upcoming()`
-- [x] Accepts a local file path or HTTP URL as the feed source
-- [x] Normalizes event timezones to UTC internally
-- [x] Handles malformed VEVENT blocks gracefully (logs warning, skips entry)
-- [x] Uses stdlib only (no `icalendar` package) for base parsing; falls back to `icalendar`
+- [ ] Accepts a local file path or HTTP URL as the feed source
+- [ ] Normalizes event timezones to UTC internally
+- [ ] Handles malformed VEVENT blocks gracefully (logs warning, skips entry)
+- [ ] Uses stdlib only (no `icalendar` package) for base parsing; falls back to `icalendar`
   if installed
-- [x] `tests/test_calendar_ics_backend.py` uses fixture `.ics` files; no live HTTP
-- [x] `pytest -q tests/test_calendar_ics_backend.py` exits 0
-- [x] Typecheck passes
+- [ ] `tests/test_calendar_ics_backend.py` uses fixture `.ics` files; no live HTTP
+- [ ] `pytest -q tests/test_calendar_ics_backend.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -651,15 +651,15 @@ that the "upcoming events" command returns real calendar data.
 "send SMS" command delivers to the recipient's phone.
 
 **Acceptance Criteria:**
-- [x] New file `rex/integrations/messaging/backends/twilio_sms.py` defines `TwilioSMSBackend`
+- [ ] New file `rex/integrations/messaging/backends/twilio_sms.py` defines `TwilioSMSBackend`
   implementing `SMSBackend.send()`
-- [x] Uses the `twilio` optional extra; imports are guarded with a helpful error if not installed
-- [x] Credentials (`account_sid`, `auth_token`, `from_number`) loaded via `CredentialManager`
-- [x] On 4xx response: raises `SMSSendError` with Twilio error code
-- [x] On network timeout: raises `SMSSendError` with timeout detail
-- [x] No secrets logged at any log level
-- [x] `pytest -q tests/test_twilio_sms_backend.py` exits 0 with mocked Twilio client
-- [x] Typecheck passes
+- [ ] Uses the `twilio` optional extra; imports are guarded with a helpful error if not installed
+- [ ] Credentials (`account_sid`, `auth_token`, `from_number`) loaded via `CredentialManager`
+- [ ] On 4xx response: raises `SMSSendError` with Twilio error code
+- [ ] On network timeout: raises `SMSSendError` with timeout detail
+- [ ] No secrets logged at any log level
+- [ ] `pytest -q tests/test_twilio_sms_backend.py` exits 0 with mocked Twilio client
+- [ ] Typecheck passes
 
 ---
 
@@ -669,15 +669,15 @@ that the "upcoming events" command returns real calendar data.
 as test fixtures so that integration tests run fully offline with no credentials.
 
 **Acceptance Criteria:**
-- [x] `tests/helpers/fake_imap.py` provides a `FakeIMAP4SSL` class that behaves like
+- [ ] `tests/helpers/fake_imap.py` provides a `FakeIMAP4SSL` class that behaves like
   `imaplib.IMAP4_SSL` for use in tests
-- [x] `tests/helpers/fake_smtp.py` provides a `FakeSMTP` class for both `SMTP` and `SMTP_SSL`
-- [x] `tests/helpers/fake_twilio.py` provides a fake Twilio `Client` fixture
-- [x] All existing `tests/test_email_backend_imap_smtp.py` and `tests/test_twilio_sms_backend.py`
+- [ ] `tests/helpers/fake_smtp.py` provides a `FakeSMTP` class for both `SMTP` and `SMTP_SSL`
+- [ ] `tests/helpers/fake_twilio.py` provides a fake Twilio `Client` fixture
+- [ ] All existing `tests/test_email_backend_imap_smtp.py` and `tests/test_twilio_sms_backend.py`
   tests switch to using these helpers
-- [x] `pytest -q tests/test_email_backend_imap_smtp.py tests/test_twilio_sms_backend.py`
+- [ ] `pytest -q tests/test_email_backend_imap_smtp.py tests/test_twilio_sms_backend.py`
   exits 0 with no live network access
-- [x] Typecheck passes
+- [ ] Typecheck passes
 
 ---
 
@@ -689,12 +689,12 @@ as test fixtures so that integration tests run fully offline with no credentials
 that non-English speakers receive accurate transcriptions.
 
 **Acceptance Criteria:**
-- [x] `AppConfig` gains `whisper_language: str = "en"` (None = auto-detect)
-- [x] `SpeechToText` passes `language=config.whisper_language` to `whisper.transcribe()`
-- [x] Setting `whisper_language = null` in config enables Whisper auto-detection
-- [x] `rex doctor` output includes the current `whisper_language` value
-- [x] `pytest -q tests/test_speech_to_text.py` exits 0
-- [x] Typecheck passes
+- [ ] `AppConfig` gains `whisper_language: str = "en"` (None = auto-detect)
+- [ ] `SpeechToText` passes `language=config.whisper_language` to `whisper.transcribe()`
+- [ ] Setting `whisper_language = null` in config enables Whisper auto-detection
+- [ ] `rex doctor` output includes the current `whisper_language` value
+- [ ] `pytest -q tests/test_speech_to_text.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -705,12 +705,12 @@ as WAV before transcription so that malformed files fail with a clear error rath
 a cryptic exception.
 
 **Acceptance Criteria:**
-- [x] `SpeechToText.transcribe()` validates the first 4 bytes of the audio buffer equal
+- [ ] `SpeechToText.transcribe()` validates the first 4 bytes of the audio buffer equal
   `b"RIFF"` (WAV magic bytes) before passing to Whisper
-- [x] Non-WAV input raises `AudioFormatError("Expected WAV, got {detected_format}")`
-- [x] The exception is caught in the voice loop and logged; the loop re-arms without crashing
-- [x] A test passes a fake MP3 header and asserts `AudioFormatError` is raised
-- [x] Typecheck passes
+- [ ] Non-WAV input raises `AudioFormatError("Expected WAV, got {detected_format}")`
+- [ ] The exception is caught in the voice loop and logged; the loop re-arms without crashing
+- [ ] A test passes a fake MP3 header and asserts `AudioFormatError` is raised
+- [ ] Typecheck passes
 
 ---
 
@@ -720,14 +720,14 @@ a cryptic exception.
 at startup so that misconfigured devices produce a clear error before the voice loop begins.
 
 **Acceptance Criteria:**
-- [x] During voice loop initialization, the configured input device index is validated
+- [ ] During voice loop initialization, the configured input device index is validated
   against `sounddevice.query_devices()`
-- [x] Invalid device index raises `AudioDeviceError(f"Input device {idx} not found. "
+- [ ] Invalid device index raises `AudioDeviceError(f"Input device {idx} not found. "
   f"Available: {available_list}")` before the wake word listener starts
-- [x] `rex doctor` includes an audio device check and prints available device names
-- [x] A test mocks `sounddevice.query_devices()` to simulate a missing device and asserts
+- [ ] `rex doctor` includes an audio device check and prints available device names
+- [ ] A test mocks `sounddevice.query_devices()` to simulate a missing device and asserts
   the correct error is raised
-- [x] Typecheck passes
+- [ ] Typecheck passes
 
 ---
 
@@ -737,13 +737,13 @@ at startup so that misconfigured devices produce a clear error before the voice 
 treated as expired so that stale user selections do not persist indefinitely.
 
 **Acceptance Criteria:**
-- [x] `rex/identity.py` `_load_session()` reads the session file `mtime` and rejects it
+- [ ] `rex/identity.py` `_load_session()` reads the session file `mtime` and rejects it
   if older than `SESSION_TTL_HOURS` (default: 8)
-- [x] Expired sessions are deleted and `{}` is returned
-- [x] `AppConfig` gains `session_ttl_hours: int = 8`
-- [x] A test writes a session file with an artificially old mtime and asserts the
+- [ ] Expired sessions are deleted and `{}` is returned
+- [ ] `AppConfig` gains `session_ttl_hours: int = 8`
+- [ ] A test writes a session file with an artificially old mtime and asserts the
   function returns `{}` and deletes the file
-- [x] Typecheck passes
+- [ ] Typecheck passes
 
 ---
 
@@ -753,14 +753,14 @@ treated as expired so that stale user selections do not persist indefinitely.
 first words of a response appear faster while the rest is being generated.
 
 **Acceptance Criteria:**
-- [x] `LanguageModelStrategy` protocol gains `stream(messages, **kwargs) -> Iterator[str]`
+- [ ] `LanguageModelStrategy` protocol gains `stream(messages, **kwargs) -> Iterator[str]`
   method (default implementation raises `NotImplementedError`)
-- [x] `OpenAIStrategy.stream()` uses `stream=True` and yields token deltas as strings
-- [x] The voice loop detects streaming availability and feeds tokens to the TTS sentence
+- [ ] `OpenAIStrategy.stream()` uses `stream=True` and yields token deltas as strings
+- [ ] The voice loop detects streaming availability and feeds tokens to the TTS sentence
   buffer as they arrive (sentence-boundary flush unchanged)
-- [x] `EchoStrategy.stream()` yields the prompt text word by word (for testing)
-- [x] `pytest -q tests/test_llm_client.py` exits 0
-- [x] Typecheck passes
+- [ ] `EchoStrategy.stream()` yields the prompt text word by word (for testing)
+- [ ] `pytest -q tests/test_llm_client.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -770,12 +770,12 @@ first words of a response appear faster while the rest is being generated.
 so that all supported backends benefit from lower perceived latency.
 
 **Acceptance Criteria:**
-- [x] `AnthropicStrategy.stream()` uses the Anthropic streaming API and yields string deltas
-- [x] `OllamaStrategy.stream()` uses Ollama's streaming endpoint and yields string deltas
-- [x] Both implementations handle stream interruptions gracefully (log warning, return
+- [ ] `AnthropicStrategy.stream()` uses the Anthropic streaming API and yields string deltas
+- [ ] `OllamaStrategy.stream()` uses Ollama's streaming endpoint and yields string deltas
+- [ ] Both implementations handle stream interruptions gracefully (log warning, return
   what was collected)
-- [x] `pytest -q tests/test_llm_client.py` exits 0
-- [x] Typecheck passes
+- [ ] `pytest -q tests/test_llm_client.py` exits 0
+- [ ] Typecheck passes
 
 ---
 
@@ -787,11 +787,11 @@ so that all supported backends benefit from lower perceived latency.
 Black on staged files so that lint and format regressions are caught before they reach CI.
 
 **Acceptance Criteria:**
-- [x] `.pre-commit-config.yaml` exists at the repo root with hooks for:
+- [ ] `.pre-commit-config.yaml` exists at the repo root with hooks for:
   `ruff` (autofix: true) and `black`
-- [x] `pre-commit run --all-files` exits 0 on a clean checkout
-- [x] `CONTRIBUTING.md` (or `CLAUDE.md`) documents: `pip install pre-commit && pre-commit install`
-- [x] Typecheck passes
+- [ ] `pre-commit run --all-files` exits 0 on a clean checkout
+- [ ] `CONTRIBUTING.md` (or `CLAUDE.md`) documents: `pip install pre-commit && pre-commit install`
+- [ ] Typecheck passes
 
 ---
 
@@ -801,11 +801,11 @@ Black on staged files so that lint and format regressions are caught before they
 or above the 75% threshold so that this cycle is provably complete.
 
 **Acceptance Criteria:**
-- [x] `pytest -q` exits 0 with no failures or errors
-- [x] `pytest --cov=rex --cov-report=term-missing` reports overall coverage >= 75%
-- [x] No test is marked `xfail` that was previously passing
-- [x] All new test files from this cycle are included in the run
-- [x] Typecheck passes
+- [ ] `pytest -q` exits 0 with no failures or errors
+- [ ] `pytest --cov=rex --cov-report=term-missing` reports overall coverage >= 75%
+- [ ] No test is marked `xfail` that was previously passing
+- [ ] All new test files from this cycle are included in the run
+- [ ] Typecheck passes
 
 ---
 
@@ -852,3 +852,206 @@ python scripts/validate_deployment.py
 - US-217 must precede US-218
 - US-219 has no dependencies
 - US-220 must come last
+
+---
+
+# PHASE K — Active CI Failures (Run 23946480448)
+
+> **Context:** CI run 23946480448 exposed four failing jobs: Type Check (mypy), Python 3.11
+> Tests & Coverage, Pre-commit Hook Validation, and indirectly the logo asset gap.
+> Stories US-221 through US-229 fix every failure and bring the repo to production-ready
+> state. They must be completed before US-220 is re-verified.
+
+---
+
+### US-221: Fix mypy no-redef error in rex/wakeword/embedding.py
+
+**Description:** As a developer, I want the duplicate `_torch` symbol definition in
+`embedding.py` removed so that mypy passes with zero no-redef errors in that file.
+
+**Acceptance Criteria:**
+- [ ] `rex/wakeword/embedding.py` defines `_torch` exactly once — either inside the
+  `try` block or via a single `TYPE_CHECKING` guard, not both
+- [ ] The torch import still degrades gracefully when torch is not installed
+  (no `ImportError` at module load time)
+- [ ] `mypy rex/wakeword/embedding.py --ignore-missing-imports` exits 0
+- [ ] `pytest -q tests/` exits 0 (no regressions)
+- [ ] Typecheck passes
+
+---
+
+### US-222: Fix mypy no-any-return errors in custom_voices.py and audio/smart_speaker_output.py
+
+**Description:** As a developer, I want functions with declared return types of `float`
+or `str` to return explicitly typed values so that mypy's `no-any-return` rule is satisfied.
+
+**Acceptance Criteria:**
+- [ ] `rex/custom_voices.py` line ~52: return value from `soundfile.info().duration`
+  is cast to `float` (e.g. `return float(info.duration)`)
+- [ ] `rex/audio/smart_speaker_output.py` line ~41: return value declared `float` is cast
+  with `float(...)` before returning
+- [ ] `rex/audio/smart_speaker_output.py` line ~52: return value declared `str` is cast
+  with `str(...)` before returning
+- [ ] `mypy rex/custom_voices.py rex/audio/smart_speaker_output.py --ignore-missing-imports`
+  exits 0
+- [ ] `pytest -q` exits 0
+- [ ] Typecheck passes
+
+---
+
+### US-223: Remove stale type:ignore comments in compat, audio, shopping_pwa, and voice_loop
+
+**Description:** As a developer, I want all `# type: ignore` comments that mypy now flags
+as `[unused-ignore]` removed so that the annotation layer is clean and maintainable.
+
+**Acceptance Criteria:**
+- [ ] `rex/compat/transformers_shims.py` line ~76: stale `# type: ignore` removed (or
+  replaced with a scoped `# type: ignore[attr-defined]` if the attribute access genuinely
+  needs suppression — document why with an inline comment)
+- [ ] `rex/audio/smart_speaker_output.py` line ~87: stale `# type: ignore` removed
+- [ ] `rex/shopping_pwa.py` lines ~337, 361, 369, 378, 385, 399, 413: all seven stale
+  `# type: ignore` comments removed
+- [ ] `rex/voice_loop.py` line ~209: stale `# type: ignore` removed
+- [ ] `mypy rex/compat/transformers_shims.py rex/audio/smart_speaker_output.py rex/shopping_pwa.py rex/voice_loop.py --ignore-missing-imports`
+  exits 0 with zero `[unused-ignore]` errors
+- [ ] `pytest -q` exits 0
+- [ ] Typecheck passes
+
+---
+
+### US-224: Fix mypy return-value and call-arg errors in shopping_pwa.py and twilio_handler.py
+
+**Description:** As a developer, I want Flask route handlers to return `flask.wrappers.Response`
+(not `werkzeug.wrappers.response.Response`) and the `Assistant` constructor to be called
+with its supported arguments so that mypy's `[return-value]` and `[call-arg]` rules pass.
+
+**Acceptance Criteria:**
+- [ ] `rex/shopping_pwa.py` line ~339: the route handler return type is corrected — either
+  import and return `flask.Response(...)` directly, or cast via
+  `typing.cast(flask.wrappers.Response, ...)`, with a comment explaining the approach
+- [ ] `rex/telephony/twilio_handler.py` line ~88: the function declared to return `bool`
+  returns `bool(...)` explicitly so `[no-any-return]` is resolved
+- [ ] `rex/telephony/twilio_handler.py` line ~399: the `Assistant(config=...)` call is
+  corrected to match `Assistant.__init__`'s actual signature (remove or rename the
+  unsupported `config` keyword argument; check `rex/assistant.py` for the real parameter name)
+- [ ] `mypy rex/shopping_pwa.py rex/telephony/twilio_handler.py --ignore-missing-imports`
+  exits 0
+- [ ] `pytest -q` exits 0
+- [ ] Typecheck passes
+
+---
+
+### US-225: Fix psutil ModuleNotFoundError blocking CI test collection
+
+**Description:** As a developer, I want `rex/tools/windows_diagnostics.py` to import
+`psutil` conditionally so that test collection does not fail on Linux CI runners where
+psutil is absent, and I want psutil added to dev requirements so Windows diagnostics
+tests can run locally.
+
+**Acceptance Criteria:**
+- [ ] `rex/tools/windows_diagnostics.py` wraps `import psutil` in a `try/except ImportError`
+  block; when psutil is unavailable, module-level functions return a descriptive
+  `"psutil not installed"` fallback dict and a `logger.warning` is emitted
+- [ ] `tests/test_windows_diagnostics.py` adds a `pytest.importorskip("psutil")` guard
+  at the top of the file (or individual test functions) so the test is skipped gracefully
+  on environments without psutil
+- [ ] `requirements-dev.txt` (or `requirements-cpu.txt`) adds `psutil>=5.9` so psutil is
+  available in CI and local dev installs
+- [ ] `pytest -q tests/test_windows_diagnostics.py` exits 0 (skipped or passing — not erroring)
+  on a Linux runner without psutil installed
+- [ ] `pytest -q` exits 0 on a full run
+- [ ] Typecheck passes
+
+---
+
+### US-226: Suppress pre-commit secret-detection false positives in docs and test fixtures
+
+**Description:** As a developer, I want lines in documentation and test helpers that
+detect-secrets flags as secrets to carry inline `# pragma: allowlist secret` (Python)
+or `pragma: allowlist secret` (Markdown) suppression markers so that the pre-commit
+hook exits clean on legitimate test fixtures and security-audit documentation.
+
+**Acceptance Criteria:**
+- [ ] `tests/helpers/fake_smtp.py` line ~15: the flagged line has `  # pragma: allowlist secret`
+  appended (confirming it is a test credential, not a real secret)
+- [ ] `tests/test_email_backend_imap_smtp.py` line ~602: same treatment
+- [ ] `docs/ARCHITECTURE.md` line ~448: same treatment using Markdown comment syntax
+  `<!-- pragma: allowlist secret -->` on the flagged line or the line above
+- [ ] `docs/security/SECURITY_AUDIT_2026-01-08.md` lines ~40–41: both flagged lines
+  suppressed with inline markers
+- [ ] `pre-commit run detect-secrets --all-files` exits 0 after changes
+- [ ] No real credentials exist at these locations (verify content is placeholder/example only)
+- [ ] Typecheck passes
+
+---
+
+### US-227: Add AskRex brand logo assets to the repository
+
+**Description:** As a developer, I want all official AskRex brand logo variants stored
+under `assets/brand/` so that they are available to the GUI, README, shopping PWA, and
+any other surface that needs them.
+
+**Acceptance Criteria:**
+- [ ] Directory `assets/brand/` is created
+- [ ] The following logo variants are present as PNG files at `@2x` resolution (minimum
+  512 px on the longest axis) plus one SVG where a vector source is available:
+  - `icon-square.png` — T-Rex skull icon on dark rounded-square background
+  - `icon-circle.png` — T-Rex skull icon on circular background
+  - `icon-r.png` — R lettermark with embedded T-Rex silhouette
+  - `wordmark-dark.png` — "AskRex" text on dark pill background
+  - `wordmark-light.png` — "AskRex" text on transparent/white background
+  - `wordmark-reverse.png` — "AskRex" text on white pill background, dark border
+  - `primary-horizontal.png` — full horizontal lockup (icon + wordmark side-by-side)
+  - `stacked.png` — full stacked lockup (icon above wordmark)
+  - `favicon.ico` — 16/32/48 px multi-size favicon derived from `icon-square.png`
+- [ ] `assets/brand/README.md` documents each variant, intended use, and minimum clear-space
+  guidelines
+- [ ] `assets/logo.svg` is updated or superseded by the canonical vector source if a higher-
+  fidelity version is available
+- [ ] Typecheck passes (no Python changes required; this is an asset story)
+
+---
+
+### US-228: Update README.md to use official AskRex brand logo
+
+**Description:** As a user visiting the repository, I want to see the official AskRex
+logo in the README so that the project presents a professional, branded identity.
+
+**Acceptance Criteria:**
+- [ ] `README.md` opens with an `<img>` tag (or Markdown image) referencing
+  `assets/brand/primary-horizontal.png` (or `stacked.png`) at a display width of 400 px
+- [ ] The image has a descriptive `alt` attribute: `"AskRex — local-first AI assistant"`
+- [ ] The existing placeholder logo reference (if any) is removed
+- [ ] README renders correctly on GitHub (verify via `gh browse` or manual inspection)
+- [ ] Typecheck passes
+
+---
+
+### US-229: Update Electron GUI and shopping PWA to use official brand assets
+
+**Description:** As a user running the desktop GUI or accessing the shopping PWA, I want
+the official AskRex icon and wordmark to appear in the application chrome so that the
+branded experience is consistent across all surfaces.
+
+**Acceptance Criteria:**
+- [ ] Electron app `package.json` (under `gui/`) sets `"icon"` to the path of
+  `assets/brand/icon-square.png` (or `.ico` on Windows)
+- [ ] Electron `BrowserWindow` creation passes the brand icon path for the taskbar/dock icon
+- [ ] Shopping PWA HTML template (`rex/shopping_pwa/` or equivalent template file) includes
+  the AskRex `icon-square.png` as `<link rel="icon">` and `<link rel="apple-touch-icon">`
+- [ ] Shopping PWA `<title>` tag reads `"AskRex — Shopping"` (or similar brand-consistent name)
+- [ ] Shopping PWA renders the `wordmark-dark.png` or `wordmark-light.png` in its header
+- [ ] `pytest -q` exits 0 (no Python regressions)
+- [ ] Typecheck passes
+
+---
+
+**Story ordering note (Phase K additions):**
+- US-221 through US-224 are independent of each other and may run in parallel; all must
+  complete before US-220 is re-verified
+- US-225 (psutil) has no dependencies
+- US-226 (secrets) has no dependencies
+- US-227 must complete before US-228 and US-229
+- US-228 and US-229 are independent of each other but both depend on US-227
+- US-220 must remain the final verification story and should be re-run after all Phase K
+  stories are complete

@@ -40,5 +40,3 @@ coverage.txt
 .git
 .gitignore
 
-# ─── Assets (large binary files; mount at runtime if needed) ────────────────
-assets/
