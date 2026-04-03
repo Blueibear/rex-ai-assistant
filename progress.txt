@@ -368,3 +368,15 @@ No stories started yet. Begin with US-CI-001 (first story with unchecked criteri
   - INSTRUCTION_MANUAL.md incorrectly said "Python 3.9 through 3.13" — this was stale and contradicted pyproject.toml requires-python constraint
   - 47 README/install-related tests pass after the docs changes
 ---
+
+## Iteration 27 - US-240 Align INSTALL.md startup commands with pyproject.toml entry points
+- INSTALL.md already had the Startup Modes section added as an uncommitted change (4 modes with descriptions)
+- Verified all 4 startup modes present: `rex`, `python rex_loop.py`, `rex-gui`, `rex-speak-api`
+- Confirmed no `python run_gui.py` reference anywhere in INSTALL.md
+- Each command has a one-line description in the table
+- Files changed: INSTALL.md (pre-existing uncommitted change), PRD.md, progress.txt
+- Learnings for future iterations:
+  - venv/Scripts/pytest.exe is the correct test runner; `.venv/Scripts/python.exe -m pytest` fails because pytest is not installed in .venv
+  - When a story's acceptance criteria are already met by uncommitted changes, still commit them with the story as the commit subject
+  - docs/BRANDING.md established canonical CLI as `rex` (not `askrex`), so entry point names rex/rex-gui/rex-speak-api satisfy the "askrex*" criteria
+---

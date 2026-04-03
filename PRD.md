@@ -455,15 +455,15 @@ to correspond to a real, working entry point or script, so that I can actually r
 the software after installing it.
 
 **Acceptance Criteria:**
-- [ ] `INSTALL.md` lists the four supported startup modes:
+- [x] `INSTALL.md` lists the four supported startup modes:
   1. Text chat: `askrex` (or `python -m rex` — per canonical CLI name from US-231)
   2. Voice loop: `python rex_loop.py`
   3. Web dashboard: `askrex-gui` (or whatever the canonical entry point resolves to after US-231)
   4. TTS API: `askrex-speak-api` (or equivalent)
-- [ ] No startup command in `INSTALL.md` references `python run_gui.py` as a primary path
+- [x] No startup command in `INSTALL.md` references `python run_gui.py` as a primary path
   (it is deprecated per WS-D)
-- [ ] Each command includes a one-line description of what it launches
-- [ ] Typecheck passes
+- [x] Each command includes a one-line description of what it launches
+- [x] Typecheck passes
 
 ---
 

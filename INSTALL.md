@@ -6,6 +6,7 @@ This guide covers all installation methods and platform-specific setup for the A
 
 - [System Requirements](#system-requirements)
 - [Quick Start](#quick-start)
+- [Startup Modes](#startup-modes)
 - [Installation Methods](#installation-methods)
   - [CPU-Only (Recommended for Development)](#cpu-only-recommended-for-development)
   - [GPU-Accelerated (Production)](#gpu-accelerated-production)
@@ -52,6 +53,28 @@ cp .env.example .env
 python -m rex
 # Or: python rex_assistant.py
 ```
+
+## Startup Modes
+
+After installing, choose the startup mode that matches your use case:
+
+| Mode | Command | Description |
+|------|---------|-------------|
+| **Text chat** | `rex` | Start the interactive CLI text chat interface |
+| **Voice loop** | `python rex_loop.py` | Start the full voice pipeline (wake word → STT → LLM → TTS) |
+| **Web dashboard** | `rex-gui` | Launch the React-based web dashboard (canonical GUI) |
+| **TTS API** | `rex-speak-api` | Start the Flask text-to-speech REST API with auth and rate limiting |
+
+> **Note:** `rex` and `rex-gui` and `rex-speak-api` are installed as console scripts by `pip install .`.
+> They are available on your `PATH` once the virtual environment is active.
+
+You can also run the text chat mode directly without the installed script:
+
+```bash
+python -m rex        # Text chat (equivalent to the rex console script)
+```
+
+---
 
 ## Installation Methods
 
