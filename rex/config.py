@@ -159,6 +159,7 @@ class AppConfig:
     default_user: Optional[str] = None
     wake_sound_path: Optional[str] = None
     acknowledgment_sound: str = "chime"  # "chime", a .wav path, or a spoken filler phrase
+    response_cache_ttl: float = 300.0  # seconds; 0 disables response caching
 
     active_profile: str = "default"
     capabilities: List[str] = field(default_factory=list)
@@ -425,6 +426,7 @@ def build_app_config(json_config: dict) -> AppConfig:
         wakeword_poll_interval=_coerce_float(json_config, "wake_word.poll_interval", 0.01),
         wake_sound_path=_get_nested(json_config, "wake_word.wake_sound_path"),
         acknowledgment_sound=_get_nested(json_config, "acknowledgment.sound", "chime"),
+        response_cache_ttl=_coerce_float(json_config, "response_cache.ttl", 300.0),
         wakeword_model_path=_get_nested(json_config, "wake_word.model_path"),
         wakeword_embedding_path=_get_nested(json_config, "wake_word.embedding_path"),
         wakeword_fallback_to_builtin=bool(

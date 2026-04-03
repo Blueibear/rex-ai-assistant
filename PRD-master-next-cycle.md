@@ -823,13 +823,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want frequently asked identical or near-identical questions to return cached answers so Rex responds instantly for common queries.
 
 **Acceptance Criteria:**
-- [ ] `ResponseCache` implemented with TTL (default 5 minutes, configurable)
-- [ ] Cache keyed on normalized message text (lowercased, stripped punctuation)
-- [ ] Cache bypassed when message references time-sensitive intents ("right now", "current", "today")
-- [ ] Cache bypassed for tool-invoking queries (email, calendar, Home Assistant)
-- [ ] Cache hit rate logged at DEBUG level
-- [ ] Unit tests cover: cache hit, cache miss, TTL expiry, bypass conditions
-- [ ] Typecheck passes
+- [x] `ResponseCache` implemented with TTL (default 5 minutes, configurable)
+- [x] Cache keyed on normalized message text (lowercased, stripped punctuation)
+- [x] Cache bypassed when message references time-sensitive intents ("right now", "current", "today")
+- [x] Cache bypassed for tool-invoking queries (email, calendar, Home Assistant)
+- [x] Cache hit rate logged at DEBUG level
+- [x] Unit tests cover: cache hit, cache miss, TTL expiry, bypass conditions
+- [x] Typecheck passes
 
 ---
 

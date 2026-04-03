@@ -112,6 +112,14 @@ class Assistant:
 
         self._tool_dispatcher = ToolDispatcher(get_default_registry(), config=self._settings)
 
+        # Response cache for repeated factual queries (US-LAT-004)
+        from .response_cache import ResponseCache
+
+        _cache_ttl = float(getattr(self._settings, "response_cache_ttl", 300.0))
+        self._response_cache: ResponseCache | None = (
+            ResponseCache(ttl=_cache_ttl) if _cache_ttl > 0 else None
+        )
+
         # Only create HABridge if HA is configured
         self._ha_bridge: HABridge | None = None
         if self._settings.ha_base_url and self._settings.ha_token:
@@ -494,6 +502,14 @@ class Assistant:
                 )
                 _tool_context = _dispatcher.format_tool_context(_tool_results) or None
 
+        # Check response cache before hitting the LLM.
+        _cache = self._response_cache
+        _cached: str | None = _cache.get(transcript) if _cache is not None else None
+        if _cached is not None:
+            self._user_id = prev_user_id
+            self._record_completion(transcript, _cached)
+            return _cached
+
         try:
             if self._ha_bridge and self._ha_bridge.enabled:
                 completion = await loop.run_in_executor(
@@ -517,6 +533,10 @@ class Assistant:
             if prev_model is not None and hasattr(self._llm, "model_name"):
                 self._llm.model_name = prev_model
             self._user_id = prev_user_id
+
+        # Store result in cache for future identical queries.
+        if _cache is not None:
+            _cache.put(transcript, completion)
 
         self._record_completion(transcript, completion)
         return completion
