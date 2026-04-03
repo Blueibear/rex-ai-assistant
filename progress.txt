@@ -169,6 +169,16 @@ No stories started yet. Begin with US-CI-001 (first story with unchecked criteri
   - 14 pre-existing test failures remain unrelated to docker/dockerignore changes
 ---
 
+## Iteration 16 - US-177 Restore Ruff I,F lint compliance
+- Fixed I001 import sort in rex/audio/speaker_discovery.py (auto-fixed by ruff --fix)
+- Removed unused `caller` variable in rex/telephony/twilio_handler.py (F841)
+- Files changed: rex/audio/speaker_discovery.py, rex/telephony/twilio_handler.py, PRD.md
+- Learnings for future iterations:
+  - Only 2 ruff I,F violations existed; quick fix
+  - ruff --fix handles I001 automatically; F841 requires manual deletion of the unused assignment
+  - Same 14 pre-existing test failures remain; no regressions introduced
+---
+
 ## Story Completion Tracker
 
 | Story ID   | Title                                                | Done |

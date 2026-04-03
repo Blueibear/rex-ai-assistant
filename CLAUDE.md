@@ -2,12 +2,15 @@
 
 ## Project Overview
 
-Rex AI Assistant is a local-first, voice-activated AI companion. It supports wake word detection, speech-to-text, LLM chat, and text-to-speech, with optional integrations for search, messaging, email, calendar, and Home Assistant.
+AskRex Assistant is a local-first, voice-activated AI companion. It supports wake word detection, speech-to-text, LLM chat, and text-to-speech, with optional integrations for search, messaging, email, calendar, and Home Assistant.
 
 Primary goals:
 - reliability
 - security by default
 - smooth day-to-day usage on Windows 10/11, macOS, and Linux
+
+For canonical product name, package name, CLI alias policy, and banned names see:
+**docs/BRANDING.md**
 
 ## Claude Reference Docs
 
