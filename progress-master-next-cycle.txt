@@ -712,3 +712,118 @@
   - "I need X" is intentionally broad (matches "I need help") — acceptable for voice assistant where "help" would be added to list
   - Wire new handlers after skill routing but before per-user scoping to keep return paths consistent
 ---
+
+## US-ME-001: Multi-email config schema — per-user account list
+- Commit: af7d340
+- Added `UserEmailAccount` dataclass (account_id, display_name, backend, credentials_key)
+- Added `user_email_accounts: Dict[str, List[UserEmailAccount]]` to AppConfig
+- Migration shim: promotes old `email.accounts` list to `user_email_accounts["default"]` when no `users` block present
+- New-format `users` block takes priority; legacy shim skipped when new format present
+- Example config updated with alice having two accounts (work IMAP, personal gmail)
+- 10 tests — all pass; ruff/black/mypy clean
+
+## US-ME-002: Email service — route operations to requesting user's accounts only
+- Commit: 783e093
+- Added `user_email_accounts` constructor param to `EmailService`
+- Added `get_accounts(user_id)` — returns only that user's accounts (empty list for unknown users)
+- Added `_check_account_access(user_id, account_id)` — raises `PermissionError` on cross-user access; no-op when no scoping configured (backwards compat)
+- Added `user_id` kwarg to `fetch_unread()` and `send()`; `send()` enforces ownership when both `user_id` and `account_id` are supplied
+- `ToolDispatcher.execute_tools()` gains `user_id` kwarg; threaded to handlers as `_user_id` in kwargs
+- `send_email` tool handler in `rex/openclaw/tools/email_tool.py` accepts `**kwargs` to absorb dispatcher-injected keys, extracts `_user_id` and forwards to `EmailService.send()`
+- `Assistant.generate_reply()` now passes `user_id=active_user_id or self._user_id` via `functools.partial` when calling `execute_tools`
+- 11 tests — all pass; ruff/black/mypy clean
+
+## Iteration 36 - US-MM-005: UI model routing settings
+- What was implemented
+- Added `modelRouting` to the GUI AI settings shape and normalized it into the six `model_routing` categories used by `config/rex_config.json`
+- Extended the Electron settings bridge to load AI defaults from `rex_config.json`, persist AI settings back through `setSettings('ai', ...)`, and mirror `model_routing` into the root config file
+- Added a new "Model Routing" section to the AI settings page with inputs for `default`, `coding`, `reasoning`, `search`, `vision`, and `fast`, plus a dedicated Save Routing button
+- Files changed
+- `gui/src/types/ipc.ts`
+- `gui/src/main/index.ts`
+- `gui/src/pages/SettingsPage.tsx`
+- Learnings for future iterations:
+  - The Electron GUI stores section state in `config/gui_settings.json` but the Python runtime consumes `config/rex_config.json`; AI settings work needs both paths kept in sync
+  - `AiSettings` does not satisfy the generic `Settings` index-signature type without explicit casts in the Electron IPC layer
+  - Browser verification is still outstanding for US-MM-005; typecheck and production build passed, but the story should not be marked complete until the live settings page is exercised
+---
+
+## Iteration 37 - US-MM-005: Validate and close model routing UI settings
+- What was implemented
+- Re-ran GUI validation for the existing model-routing settings flow without changing source behavior
+- Confirmed `npm run typecheck` and `npm run build` both pass under `gui/`
+- Confirmed `.venv\\Scripts\\python.exe -m mypy rex --ignore-missing-imports` passes
+- Verified the live Electron settings UI by opening Settings, switching to the AI tab, editing `default` and `coding`, clicking `Save Routing`, and confirming persistence into the real `config/rex_config.json` and `config/gui_settings.json` files before restoring the originals
+- Marked US-MM-005 acceptance criteria complete in the PRD
+- Files changed
+  - `PRD-master-next-cycle.md`
+  - `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - Electron smoke harnesses launched from a temp script must call `app.setAppPath(<repo>/gui)` or config writes will resolve relative to the temp script instead of the repo
+  - The Settings page opens on the `General` sub-tab by default; UI verification for AI settings must switch to the `AI` tab before asserting model-routing controls
+  - For this app, renderer-level verification can be done reliably via `BrowserWindow.getAllWindows()[0].webContents.executeJavaScript(...)` against the built Electron app
+---
+
+## Iteration 38 - US-VID-004: Voice enrollment UI
+- What was implemented
+- Added a Python UI service plus `rex_voice_enrollment_bridge.py` for listing, enrolling, and deleting voice enrollments from the Electron UI
+- Extended the Electron preload/API surface with `getVoiceEnrollments`, `enrollVoice`, and `deleteVoiceEnrollment`
+- Added a Voice settings enrollment flow with 3-sample countdown capture, progress indicator, success/error feedback, and an enrolled-users list with delete actions
+- Added unit coverage for the new Python enrollment UI service
+- Files changed
+- `rex/voice_identity/ui_service.py`
+- `rex_voice_enrollment_bridge.py`
+- `tests/test_voice_enrollment_ui_service.py`
+- `gui/src/main/handlers/voice.ts`
+- `gui/src/preload/index.ts`
+- `gui/src/types/ipc.ts`
+- `gui/src/pages/SettingsPage.tsx`
+- Learnings for future iterations:
+  - The repo's Python validation tools are available in `.venv`, while `.venv-validate311` does not include `pytest` or `mypy`
+  - Direct bridge validation works from the repo root via `.venv\\Scripts\\python.exe rex_voice_enrollment_bridge.py`
+  - Electron smoke launch works with `app.setAppPath(process.cwd())`, but the full browser automation harness for this enrollment flow currently hangs before returning results, so browser verification is still blocked
+---
+
+## Iteration 39 - Close US-VID-004 voice enrollment UI
+- Story: US-VID-004
+- What was implemented
+- Fixed the Electron voice handler to launch Rex Python bridges from the repo virtualenv instead of the system `python`
+- Fixed voice bridge script resolution so the built Electron app loads `rex_voice_enrollment_bridge.py` and related voice bridges from the repo root
+- Anchored the enrollment UI service's default `Memory/` directory to the repo root so browser-driven enrollments persist in the shared voice store instead of `gui/Memory/`
+- Re-validated the voice enrollment UI in the built Electron app: the live Voice settings page showed the 3-sample countdown/progress flow, rendered the success state, and listed the enrolled user with a `Delete Enrollment` action
+- Files changed
+- `gui/src/main/handlers/voice.ts`
+- `rex/voice_identity/ui_service.py`
+- `PRD-master-next-cycle.md`
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - Electron handlers in `gui/` should resolve both the Python executable and bridge script paths from `app.getAppPath()`/repo root; relying on `python` or `__dirname` in the built bundle can silently point at the wrong interpreter or wrong directory
+  - Repo-relative storage used from Electron should be anchored with an absolute path in Python helpers; otherwise the app's working directory can redirect writes into `gui/`
+  - The Voice settings page can already prove browser verification without a real microphone by stubbing `navigator.mediaDevices.getUserMedia` inside `webContents.executeJavaScript(...)` and reading the rendered UI state from the built Electron app
+---
+
+## Iteration N - US-UI-001: UI framework scaffolding — single-page app with nav
+- What was implemented:
+  - Created rex/ui/ with Vite 5 + React 18 + react-router-dom 6 setup
+  - index.html, src/main.jsx, src/App.jsx with HashRouter + NavLink navigation
+  - 7 placeholder page components: Dashboard, Chat, Voice, Settings, Logs, ShoppingList, About
+  - vite.config.js with base: '/ui/' and outDir: 'dist'
+  - package.json with dev/build/preview scripts
+  - Added AppConfig.ui_enabled: bool = True to rex/config.py
+  - Updated rex/gui_app.py: serves rex/ui/dist/ at /ui/ using send_from_directory;
+    /dashboard now redirects to /ui/; loads ui_enabled from AppConfig
+  - npm install + npm run build succeeds; dist/ is gitignored
+  - mypy passes on config.py + gui_app.py; ruff + black clean
+- Files changed:
+  - rex/ui/ (new: index.html, package.json, vite.config.js, src/main.jsx, src/App.jsx,
+    src/pages/Dashboard.jsx, Chat.jsx, Voice.jsx, Settings.jsx, Logs.jsx, ShoppingList.jsx, About.jsx)
+  - rex/config.py (added ui_enabled field)
+  - rex/gui_app.py (serve /ui/ from dist/, redirect /dashboard → /ui/)
+  - PRD-master-next-cycle.md (marked US-UI-001 complete)
+- Learnings for future iterations:
+  - Use HashRouter for React SPA so server-side routing isn't needed (all routes client-side)
+  - Vite's base: '/ui/' ensures asset paths in built HTML/JS use /ui/ prefix
+  - rex/ui/dist/ and rex/ui/node_modules/ are covered by .gitignore (dist/ and node_modules/ patterns)
+  - test_no_tracked_binary_artifacts and test_repo_integrity failures were pre-existing (PRD.md deletion from prior iteration)
+  - Run npm install + build inside rex/ui/ not the repo root (different working dir)
+---
