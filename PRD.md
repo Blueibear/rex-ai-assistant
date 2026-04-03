@@ -474,13 +474,13 @@ definitive status reference for all integrations and for README to defer to it, 
 integration status is maintained in one place.
 
 **Acceptance Criteria:**
-- [ ] `INTEGRATIONS_STATUS.md` covers every integration listed in README with one of:
+- [x] `INTEGRATIONS_STATUS.md` covers every integration listed in README with one of:
   `REAL`, `STUB`, `PARTIAL`, or `NOT STARTED` classification and a one-line evidence note
-- [ ] `README.md` integration section links to `INTEGRATIONS_STATUS.md` rather than
+- [x] `README.md` integration section links to `INTEGRATIONS_STATUS.md` rather than
   embedding its own status claims
-- [ ] `INTEGRATIONS_STATUS.md` removes advisory language like "do NOT imply"
+- [x] `INTEGRATIONS_STATUS.md` removes advisory language like "do NOT imply"
   (that instruction belongs in `CLAUDE.md`, not in a status file)
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 

@@ -132,19 +132,19 @@ Rex supports text chat, voice mode, GUI configuration, audio device mnb setup, T
 
 ## Current Limitations
 
-The following integrations are **beta / stub scaffolding** and do not yet connect to live services:
+Integration readiness varies. For a complete, up-to-date classification of every integration
+(REAL / PARTIAL / STUB / NOT STARTED) with evidence notes, see
+[docs/claude/INTEGRATIONS_STATUS.md](docs/claude/INTEGRATIONS_STATUS.md).
 
-| Feature | Status | Details |
-|---------|--------|---------|
-| **Email** | Requires configuration | Supports real IMAP4-SSL read + SMTP send; falls back to offline stub when IMAP/SMTP credentials are absent. Multi-account support included. |
-| **Calendar** | Requires configuration | Supports reading events from local `.ics` files or HTTPS ICS feeds; falls back to offline stub when no feed is configured. CalDAV/Google OAuth planned. |
-| **SMS / Messaging** | Requires configuration | Real SMS delivery and inbound webhook receiver via Twilio; falls back to offline stub when Twilio credentials are absent. Multi-account support and inbound message routing included. |
-| **Notifications** | Works today | Priority routing and digest logic active; dashboard channel persists to local SQLite store with real API endpoints; email channel uses real SMTP when configured. |
-| **Identity** | Beta (session-scoped fallback) | When voice/speaker recognition is unavailable, use `rex identify` or `rex whoami` to set/view the active user for the session. |
-| **WordPress** | Beta (read-only) | Health check (`rex wp health`) via WP REST API. Supports `none`, `application_password`, and `basic` auth methods. Write actions deferred to Cycle 6.3. |
-| **WooCommerce** | Beta (read-only) | Orders list and products list (`rex wc orders list`, `rex wc products list`) via WC REST API v3. Client-side low-stock filter supported. Write actions deferred to Cycle 6.3. |
+Summary of integrations that require credentials or have known gaps:
 
-All stub commands are fully usable for development and testing. Contributions to add real backends are welcome.
+- **Email** — PARTIAL: real IMAP/SMTP backend; falls back to stub without credentials.
+- **Calendar** — PARTIAL: ICS read-only; no write support; CalDAV/Google OAuth not implemented.
+- **SMS / Messaging** — PARTIAL: real Twilio backend; falls back to stub without credentials.
+- **Notifications** — REAL: priority routing, digest, SQLite dashboard, SSE push all active.
+- **Voice Identity** — PARTIAL: enrollment scaffolding present; not universally production-ready.
+- **Autonomous Workflows** — STUB: scaffolding only; roadmap item.
+- **WordPress / WooCommerce** — PARTIAL: read-only REST API access; write actions deferred.
 
 ## OpenClaw Integration
 

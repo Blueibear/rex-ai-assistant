@@ -6,114 +6,84 @@
 ```md
 # Claude Reference: Integrations Status
 
-This file is reference material.
-Use it when a task touches integrations, capability claims, roadmap sequencing, or docs language about readiness.
+This file is the single source of truth for integration readiness.
+Each integration is classified as **REAL**, **PARTIAL**, **STUB**, or **NOT STARTED**.
 
-## Status language rules
-Use only these labels in docs when appropriate:
-- Stub
-- Beta
-- Production-ready
+- **REAL** — backend is complete, tested, and usable in production with credentials.
+- **PARTIAL** — backend exists but has meaningful gaps (read-only, credential-gated fallback, or missing hardening).
+- **STUB** — scaffolding exists; no real external service connection.
+- **NOT STARTED** — feature is in the roadmap only; no code exists.
 
-Do not use stronger language than the actual implementation supports.
+---
 
-## Current repo-wide reality
-Rex is not production-ready overall.
-Some subsystems are meaningful and usable.
-Some integration surfaces are real but partial.
-Some claims in older docs are broader than the current implementation supports.
+## Integration Status Snapshot
 
-## Integration status snapshot
 ### Email
-Status: Beta
-Reality:
-- Real IMAP read and SMTP send backend exists
-- Multi-account foundation exists
-- Account-aware routing exists
-- Must still be described carefully unless current verification says otherwise
+**Status: PARTIAL**
+Evidence: Real IMAP4-SSL read and SMTP send backend exists (`rex/integrations/email/backends/imap_smtp.py`). Multi-account routing exists. Falls back to offline stub when IMAP/SMTP credentials are absent. CalDAV/Google OAuth not implemented.
 
 ### Calendar
-Status: Beta
-Reality:
-- ICS read-only backend exists
-- Local file and HTTPS source support exist
-- Do not imply full calendar write support
+**Status: PARTIAL**
+Evidence: ICS read-only backend exists (`rex/integrations/calendar/backends/ics_feed.py`). Supports local `.ics` files and HTTPS ICS sources. No calendar write support. CalDAV/Google OAuth not implemented.
 
-### Messaging
-Status: Beta
-Reality:
-- Twilio send backend exists
-- inbound SMS webhook/store exists
-- optional and credential-gated
+### SMS / Messaging
+**Status: PARTIAL**
+Evidence: Real SMS delivery and inbound webhook receiver via Twilio exists (`rex/integrations/messaging/backends/twilio_sms.py`). Multi-account routing and inbound message handling included. Falls back to offline stub when Twilio credentials are absent.
 
 ### Notifications
-Status: Beta
-Reality:
-- dashboard notification store exists
-- API endpoints exist
-- SSE exists for real-time push
-- retention cleanup scheduling exists
-- do not imply full production hardening automatically
+**Status: REAL**
+Evidence: Priority routing, digest logic, quiet hours, and auto-escalation are active. Dashboard channel persists to local SQLite store with real API endpoints and SSE push (`rex/notifications/`, `rex/dashboard_store.py`). Email channel uses real SMTP when configured.
 
-### Voice identity
-Status: Beta or MVP-in-progress depending on the specific doc
-Reality:
-- scaffolding exists
-- enrollment and calibration commands exist
-- optional dependency model exists
-- do not overstate it as universally production-ready
+### Voice Identity / Speaker Recognition
+**Status: PARTIAL**
+Evidence: Embeddings store and enrollment commands exist (`rex/voice_identity/`). Calibration and recognition scaffolding present. Not universally production-ready; optional dependency model used.
 
-### Windows computer control
-Status: Beta
-Reality:
-- client foundation exists
-- Windows agent server exists
-- approval and allowlist model exists
-- boot-persistence and service-wrapper hardening remain roadmap work
-
-### WordPress and WooCommerce
-Status: Beta
-Reality:
-- read-only monitoring and write-gated paths exist in current repo docs and code history
-- keep wording specific to verified commands and approval-gated writes
-- do not imply broad CMS automation
+### Windows Computer Control
+**Status: PARTIAL**
+Evidence: Windows agent server and client foundation exist (`rex/computers/`). Approval and allowlist model present. Boot-persistence and service-wrapper hardening are roadmap items.
 
 ### Home Assistant TTS
-Status: Beta
-Reality:
-- optional notification channel exists
-- disabled by default
-- auth and SSRF hardening matter
+**Status: PARTIAL**
+Evidence: Optional notification channel exists (`rex/ha_bridge.py`). Disabled by default. Auth and SSRF hardening are required for production use.
 
-## Known caution areas from the audit
-Be extra careful in these areas:
-- autonomous tool execution claims
-- scheduler-triggered workflow execution claims
-- replay claims
-- Docker deployment guidance
-- Windows quickstart wording
-- production-ready stabilization claims
+### WordPress / WooCommerce
+**Status: PARTIAL**
+Evidence: Read-only health check via WP REST API (`rex wp health`). Orders and products list via WC REST API v3 (`rex wc orders list`, `rex wc products list`). Write actions deferred to future cycle.
 
-## Roadmap phase order
-Recommended phase order:
-1. Finish notification usability end to end
-2. Finish Windows computer-control safety and ops hardening
-3. Add WordPress and WooCommerce integration work in the planned sequence
-4. Promote voice identity from scaffolding to MVP
-5. Real-time notifications and remaining hardening work
+### Web Search
+**Status: PARTIAL**
+Evidence: Backends for SerpAPI, Brave, Google CSE, and DuckDuckGo exist (`rex/search/`). Requires API credentials; no credential = no results.
 
-## Docs rules for integrations
-When editing integration docs:
-- include a top-level Implementation Status section
-- keep commands and config snippets accurate
-- separate real behavior from planned behavior
-- avoid capability wording that outruns code or verification
-- if README limitations change, update the related integration docs in the same PR
+### OpenClaw Gateway
+**Status: REAL**
+Evidence: HTTP integration complete (Phase 8). All calls use `rex/openclaw/http_client.py` with retries and auth. Feature flags in `config/rex_config.json` under `openclaw` control voice-backend and tool-routing paths.
 
-## When to include this file in a task packet
-Include this file only when the task touches:
+### Per-User Memory / Conversation History
+**Status: PARTIAL**
+Evidence: Per-user memory profiles exist (`Memory/`). Conversation history persistence is in progress and not production-ready.
+
+### Autonomous Workflows / Planner
+**Status: STUB**
+Evidence: Workflow runner scaffolding exists (`rex/workflow_runner.py`, `rex/autonomy/`). Not production-ready; roadmap item for future cycle.
+
+### Identity (Session-Scoped Fallback)
+**Status: PARTIAL**
+Evidence: `rex identify` and `rex whoami` commands work for session-scoped identity. Full voice/speaker recognition is PARTIAL (see Voice Identity above).
+
+---
+
+## Known Caution Areas
+
+- Autonomous tool execution and scheduler-triggered workflow claims are STUB level.
+- Docker deployment guidance may not reflect latest Dockerfile state.
+- Windows quickstart commands should be verified on target Python 3.11 environment.
+
+## When to Include This File in a Task Packet
+
+Include this file when the task touches:
 - integration docs
 - roadmap sequencing
 - feature-readiness wording
 - capability claims
 - implementation status labels
+```
