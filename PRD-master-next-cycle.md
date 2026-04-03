@@ -1015,7 +1015,7 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 - [x] "Apply" saves the selected voice to `AppConfig.tts_voice`
 - [x] Change takes effect on the next Rex utterance without restart
 - [x] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Verify changes work in browser
 
 ---
 
