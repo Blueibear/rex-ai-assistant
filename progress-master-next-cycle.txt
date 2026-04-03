@@ -647,3 +647,28 @@
   - `from importlib.util import find_spec` must be at module level for tests to patch `rex.doctor.find_spec`
   - ruff B011 fires on `assert False` — use `raise AssertionError(...)` instead
 ---
+
+## Iteration 33 - US-LAT-004: Response caching for repeated factual queries
+- What was implemented:
+  - Created `rex/response_cache.py` with `ResponseCache` class
+  - Thread-safe dict store with `threading.Lock`; TTL via `time.monotonic()`
+  - Cache key: `_normalize(text)` — lowercased, punctuation stripped, whitespace collapsed
+  - Bypass via `_should_bypass()`: checks `_TIME_SENSITIVE_PATTERNS` (regex) + `_TOOL_KEYWORDS` (substring)
+  - `get()` returns None on miss/bypass/expiry; `put()` stores with TTL; `clear()` resets stats
+  - `hit_rate` property for monitoring; DEBUG logging on every hit/miss
+  - FIFO eviction when `max_size` (default 256) is exceeded
+  - `AppConfig.response_cache_ttl` field (default 300.0); wired from `response_cache.ttl` in JSON
+  - `Assistant.__init__` creates `ResponseCache(ttl=...)` or `None` when ttl=0
+  - `generate_reply()` checks cache before LLM, returns early on hit; stores after generation
+- Files changed:
+  - rex/response_cache.py (new)
+  - rex/assistant.py (cache init in __init__, cache check/store in generate_reply)
+  - rex/config.py (response_cache_ttl field, build_app_config wiring)
+  - tests/test_lat004_response_cache.py (25 tests)
+  - PRD-master-next-cycle.md (US-LAT-004 marked complete)
+- Learnings for future iterations:
+  - Using `getattr(self, "_response_cache", None)` returns `Any` in mypy; directly access `self._response_cache` after proper typed `__init__` assignment instead
+  - ruff may auto-fix import ordering/style on first pass; always run ruff --fix then ruff check to confirm clean
+  - `dataclass field` default values must be simple types (not mutable) — `float` default is fine for TTL
+  - TTL of 0 should disable the cache by setting `self._response_cache = None`; test this explicitly
+---
