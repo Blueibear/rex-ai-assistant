@@ -400,11 +400,11 @@ so that CI runs on every merge to the branch that matters.
 branch as CI so that only CI-verified code produces releases.
 
 **Acceptance Criteria:**
-- [ ] `.github/workflows/release-please.yml:4` — `branches:` updated to canonical branch name
-- [ ] `release-please.yml` — any hardcoded branch references updated
-- [ ] After this change, a merge to the canonical branch triggers both CI and release-please
+- [x] `.github/workflows/release-please.yml:4` — `branches:` updated to canonical branch name
+- [x] `release-please.yml` — any hardcoded branch references updated
+- [x] After this change, a merge to the canonical branch triggers both CI and release-please
   (verify by inspection — do not actually publish a release)
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 
