@@ -844,13 +844,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want a persistent shopping list data model so items added through any interface survive restarts.
 
 **Acceptance Criteria:**
-- [ ] `rex/shopping_list.py` created with `ShoppingList` class
-- [ ] Each item: `id`, `name`, `quantity`, `unit`, `added_by: str`, `checked: bool`, `added_at`, `checked_at`
-- [ ] Persisted to `data/shopping_list.json` (created if absent)
-- [ ] Methods: `add_item()`, `check_item()`, `uncheck_item()`, `remove_item()`, `list_items()`, `clear_checked()`
-- [ ] Per-user shopping list scoped by `added_by` but all users can view and check items
-- [ ] Unit tests cover all CRUD operations and persistence
-- [ ] Typecheck passes
+- [x] `rex/shopping_list.py` created with `ShoppingList` class
+- [x] Each item: `id`, `name`, `quantity`, `unit`, `added_by: str`, `checked: bool`, `added_at`, `checked_at`
+- [x] Persisted to `data/shopping_list.json` (created if absent)
+- [x] Methods: `add_item()`, `check_item()`, `uncheck_item()`, `remove_item()`, `list_items()`, `clear_checked()`
+- [x] Per-user shopping list scoped by `added_by` but all users can view and check items
+- [x] Unit tests cover all CRUD operations and persistence
+- [x] Typecheck passes
 
 ---
 
