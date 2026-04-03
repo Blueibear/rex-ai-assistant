@@ -272,6 +272,9 @@ class AppConfig:
     # Smart speaker TTS output (US-SP-002) — name of discovered speaker, or None for local audio
     tts_output_device: Optional[str] = None
 
+    # Smart speaker microphone input (US-SP-003) — name of discovered speaker, or None/auto for local mic
+    wake_word_input_device: Optional[str] = None
+
     # Aliases
     llm_backend: Optional[str] = None
     temperature: Optional[float] = None
@@ -545,6 +548,7 @@ def build_app_config(json_config: dict) -> AppConfig:
         audio_input_device=_get_nested(json_config, "audio.input_device_index"),
         audio_output_device=_get_nested(json_config, "audio.output_device_index"),
         tts_output_device=_get_nested(json_config, "audio.tts_output_device"),
+        wake_word_input_device=_get_nested(json_config, "audio.wake_word_input_device"),
         # Model settings from JSON
         whisper_model=_get_nested(json_config, "models.stt_model", "base"),
         whisper_device=_get_nested(json_config, "models.stt_device", "auto"),

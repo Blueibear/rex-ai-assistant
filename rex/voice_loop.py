@@ -1142,11 +1142,46 @@ def build_voice_loop(
 
     from .wakeword.listener import build_default_detector
 
+    # Smart speaker microphone input (US-SP-003)
+    smart_mic_recorder = None
+    wake_word_device = getattr(settings, "wake_word_input_device", None)
+    if wake_word_device and wake_word_device != "auto":
+        try:
+            from rex.audio.smart_speaker_mic import SmartSpeakerMic
+            from rex.audio.speaker_discovery import get_speaker_discovery
+
+            cached = get_speaker_discovery().get_cached_speakers()
+            target = next((s for s in cached if s.name == wake_word_device), None)
+            if target is not None:
+                smart_mic = SmartSpeakerMic(
+                    provider=target.provider,
+                    ip=target.ip,
+                    sample_rate=sample_rate,
+                )
+                if smart_mic.connect():
+                    smart_mic_recorder = smart_mic.read_frame
+                    logger.info(
+                        "[voice] Wake word input routed to %r (%s).", target.name, target.ip
+                    )
+                else:
+                    logger.warning(
+                        "[voice] Smart speaker mic %r unavailable; falling back to local mic.",
+                        wake_word_device,
+                    )
+            else:
+                logger.warning(
+                    "[voice] Wake word device %r not found in cached speakers; using local mic.",
+                    wake_word_device,
+                )
+        except Exception as exc:
+            logger.warning("[voice] Smart speaker mic setup failed: %s — using local mic.", exc)
+
     mic = AsyncMicrophone(
         sample_rate=sample_rate,
         detection_seconds=detection_seconds,
         capture_seconds=capture_seconds,
         device_index=input_device_index,
+        recorder=smart_mic_recorder,
     )
 
     wake_listener = build_default_detector(
