@@ -23,7 +23,8 @@ import type {
   TimeSlot,
   SMSThread,
   SMSMessage,
-  GuiNotification
+  GuiNotification,
+  SmartSpeaker
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -229,7 +230,9 @@ const rexAPI = {
   getApiKeys: (): Promise<{ openai_key_set: boolean }> =>
     ipcRenderer.invoke('rex:getApiKeys'),
   setApiKey: (name: string, value: string): Promise<{ ok: boolean; error?: string }> =>
-    ipcRenderer.invoke('rex:setApiKey', name, value)
+    ipcRenderer.invoke('rex:setApiKey', name, value),
+  getSmartSpeakers: (): Promise<{ ok: boolean; speakers: SmartSpeaker[]; error?: string }> =>
+    ipcRenderer.invoke('rex:getSmartSpeakers')
 }
 
 if (process.contextIsolated) {

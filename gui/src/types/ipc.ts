@@ -129,6 +129,13 @@ export interface VoiceSettings {
   wakeWord: string
 }
 
+export interface SmartSpeaker {
+  provider: string
+  name: string
+  ip: string
+  model: string
+}
+
 export interface VoiceEnrollment {
   user_id: string
   sample_count: number
@@ -346,4 +353,5 @@ export interface RexAPI {
   ) => Promise<{ ok: boolean; transcript?: string; error?: string }>
   getApiKeys: () => Promise<{ openai_key_set: boolean }>
   setApiKey: (name: string, value: string) => Promise<{ ok: boolean; error?: string }>
+  getSmartSpeakers: () => Promise<{ ok: boolean; speakers: SmartSpeaker[]; error?: string }>
 }

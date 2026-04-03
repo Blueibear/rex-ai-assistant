@@ -673,13 +673,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want a Settings → LLM section that exposes all model and routing configuration options so I can tune Rex's intelligence without editing config files.
 
 **Acceptance Criteria:**
-- [ ] LLM provider dropdown: OpenAI, Ollama, Local Transformers
-- [ ] Model name/ID field per provider
-- [ ] Model routing table: one row per task category with model dropdown (implements US-MM-005)
-- [ ] API key fields masked (show/hide toggle); values saved to `.env`, not `rex_config.json`
-- [ ] Save button + success/error toast
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] LLM provider dropdown: OpenAI, Ollama, Local Transformers
+- [x] Model name/ID field per provider
+- [x] Model routing table: one row per task category with model dropdown (implements US-MM-005)
+- [x] API key fields masked (show/hide toggle); values saved to `.env`, not `rex_config.json`
+- [x] Save button + success/error toast
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
@@ -688,12 +688,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want a Settings → Voice section for speech-to-text, text-to-speech, and wake word configuration so all audio settings are in one place.
 
 **Acceptance Criteria:**
-- [ ] STT model dropdown (Whisper model sizes), language selector, device selector (CPU/GPU/auto)
-- [ ] TTS engine dropdown (XTTS, edge-tts, pyttsx3), speaker/voice dropdown (implements US-VC-001)
-- [ ] Wake word selector (implements US-WW-001)
-- [ ] All changes written to `rex_config.json` via config API
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] STT model dropdown (Whisper model sizes), language selector, device selector (CPU/GPU/auto)
+- [x] TTS engine dropdown (XTTS, edge-tts, pyttsx3), speaker/voice dropdown (implements US-VC-001)
+- [x] Wake word selector (implements US-WW-001)
+- [x] All changes written to `rex_config.json` via config API
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
@@ -702,13 +702,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want a Settings → Integrations section where I can add, remove, and test connected accounts (email, calendar, SMS) without editing config files.
 
 **Acceptance Criteria:**
-- [ ] Email accounts list with Add/Remove/Test per account (implements US-ME-001 and US-ME-002)
-- [ ] Calendar backend selector with connection test
-- [ ] SMS/messaging provider config with connection test
-- [ ] Home Assistant URL and token fields
-- [ ] Each integration shows a colored status badge: Connected / Not Configured / Error
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Email accounts list with Add/Remove/Test per account (implements US-ME-001 and US-ME-002)
+- [x] Calendar backend selector with connection test
+- [x] SMS/messaging provider config with connection test
+- [x] Home Assistant URL and token fields
+- [x] Each integration shows a colored status badge: Connected / Not Configured / Error
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
@@ -717,13 +717,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want a Settings → Users section to manage enrolled users, their voice profiles, and their memory so multiple household members can be managed from one screen.
 
 **Acceptance Criteria:**
-- [ ] Users list showing all enrolled users with their avatar/name
-- [ ] Per-user: Edit Name, Re-enroll Voice, Delete User actions
-- [ ] Voice enrollment flow embedded (implements US-VID-004)
-- [ ] Memory viewer: shows stored facts for selected user (read-only)
-- [ ] Add User button creates a new profile and starts enrollment flow
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Users list showing all enrolled users with their avatar/name
+- [x] Per-user: Edit Name, Re-enroll Voice, Delete User actions
+- [x] Voice enrollment flow embedded (implements US-VID-004)
+- [x] Memory viewer: shows stored facts for selected user (read-only)
+- [x] Add User button creates a new profile and starts enrollment flow
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
@@ -732,12 +732,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want a Settings → Audio Output section to configure which speakers Rex uses for TTS so I can route audio to Sonos, Bose, or any connected device.
 
 **Acceptance Criteria:**
-- [ ] Available output devices listed (implements US-SP-001)
-- [ ] Smart speakers (Sonos, Bose) shown separately if discovered on the network
-- [ ] Per-device: select as default TTS output, test with "Hello" sample
-- [ ] Volume slider per output device
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Available output devices listed (implements US-SP-001)
+- [x] Smart speakers (Sonos, Bose) shown separately if discovered on the network
+- [x] Per-device: select as default TTS output, test with "Hello" sample
+- [x] Volume slider per output device
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
@@ -959,14 +959,14 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want Rex to discover Sonos and Bose speakers on the local network at startup so they can be used as TTS output targets.
 
 **Acceptance Criteria:**
-- [ ] `rex/audio/speaker_discovery.py` created
-- [ ] Sonos discovery via `soco` library (optional; gracefully skipped if not installed)
-- [ ] Bose SoundTouch discovery via HTTP broadcast on `8090`
-- [ ] Discovered speakers cached with name, IP, model
-- [ ] Discovery runs in background thread; does not block startup
-- [ ] `rex doctor` includes a "Smart Speakers" section listing discovered devices
-- [ ] Unit tests mock network calls
-- [ ] Typecheck passes
+- [x] `rex/audio/speaker_discovery.py` created
+- [x] Sonos discovery via `soco` library (optional; gracefully skipped if not installed)
+- [x] Bose SoundTouch discovery via HTTP broadcast on `8090`
+- [x] Discovered speakers cached with name, IP, model
+- [x] Discovery runs in background thread; does not block startup
+- [x] `rex doctor` includes a "Smart Speakers" section listing discovered devices
+- [x] Unit tests mock network calls
+- [x] Typecheck passes
 
 ---
 
