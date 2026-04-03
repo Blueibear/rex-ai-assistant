@@ -385,12 +385,12 @@ release automation, and developer instructions all agree.
 so that CI runs on every merge to the branch that matters.
 
 **Acceptance Criteria:**
-- [ ] `.github/workflows/ci.yml:5` — `branches:` list contains the canonical branch name
+- [x] `.github/workflows/ci.yml:5` — `branches:` list contains the canonical branch name
   (verified from US-235)
-- [ ] `.github/workflows/ci.yml:7` — `pull_request: branches:` list updated to match
-- [ ] `claude/**` branch trigger is retained (AI-generated PRs should still run CI)
-- [ ] Push a test commit to the canonical branch and confirm CI triggers **(manual verification)**
-- [ ] Typecheck passes
+- [x] `.github/workflows/ci.yml:7` — `pull_request: branches:` list updated to match
+- [x] `claude/**` branch trigger is retained (AI-generated PRs should still run CI)
+- [x] Push a test commit to the canonical branch and confirm CI triggers **(manual verification)**
+- [x] Typecheck passes
 
 ---
 
