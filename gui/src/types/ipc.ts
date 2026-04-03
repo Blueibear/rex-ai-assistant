@@ -159,16 +159,26 @@ export interface AiSettings {
   modelRouting: AiModelRoutingSettings
 }
 
+export interface EmailAccount {
+  id: string
+  provider: 'gmail' | 'outlook'
+  clientId: string
+  clientSecret: string
+}
+
 export interface IntegrationsSettings {
   emailProvider: 'gmail' | 'outlook'
   emailClientId: string
   emailClientSecret: string
+  emailAccounts: EmailAccount[]
   calendarProvider: 'gmail' | 'outlook'
   calendarClientId: string
   calendarClientSecret: string
   smsSid: string
   smsAuthToken: string
   smsFromNumber: string
+  haUrl: string
+  haToken: string
 }
 
 export interface NotificationsSettings {
@@ -301,7 +311,7 @@ export interface RexAPI {
   deleteMemory: (id: string) => Promise<void>
   getVersionInfo: () => Promise<VersionInfo>
   testVoice: (settings: VoiceSettings) => Promise<{ ok: boolean; error?: string }>
-  testIntegration: (type: 'email' | 'calendar' | 'sms') => Promise<{ ok: boolean; error?: string }>
+  testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant') => Promise<{ ok: boolean; error?: string }>
   getPreferenceSuggestions: () => Promise<PreferenceSuggestion[]>
   applyPreferenceSuggestion: (field: string, value: string | number) => Promise<{ ok: boolean }>
   getEmailInbox: () => Promise<EmailMessage[]>

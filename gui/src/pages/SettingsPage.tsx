@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, NotificationsSettings, Settings, VersionInfo, PreferenceSuggestion, VoiceInfo, VoiceEnrollment } from '../types/ipc'
+import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, EmailAccount, NotificationsSettings, Settings, VersionInfo, PreferenceSuggestion, VoiceInfo, VoiceEnrollment } from '../types/ipc'
 import { useToast } from '../components/ui/Toast'
 import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
 import { SkeletonLine } from '../components/ui/SkeletonLine'
@@ -1815,8 +1815,47 @@ function AiPanel(): React.ReactElement {
   )
 }
 
-type IntegrationSection = 'email' | 'calendar' | 'sms'
+type IntegrationSection = 'email' | 'calendar' | 'sms' | 'homeassistant'
 type TestStatus = 'idle' | 'testing' | 'ok' | 'error'
+
+function ConnectionBadge({
+  status,
+  hasCredentials
+}: {
+  status: TestStatus
+  hasCredentials: boolean
+}): React.ReactElement {
+  if (status === 'ok') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-xs font-medium text-success">
+        <span className="h-1.5 w-1.5 rounded-full bg-success" />
+        Connected
+      </span>
+    )
+  }
+  if (status === 'error') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-danger/15 px-2 py-0.5 text-xs font-medium text-danger">
+        <span className="h-1.5 w-1.5 rounded-full bg-danger" />
+        Error
+      </span>
+    )
+  }
+  if (!hasCredentials) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-border px-2 py-0.5 text-xs font-medium text-text-secondary">
+        <span className="h-1.5 w-1.5 rounded-full bg-text-secondary" />
+        Not Configured
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
+      <span className="h-1.5 w-1.5 rounded-full bg-warning" />
+      Untested
+    </span>
+  )
+}
 
 function EyeIcon({ open }: { open: boolean }): React.ReactElement {
   if (open) {
@@ -1925,19 +1964,23 @@ function IntegrationsPanel(): React.ReactElement {
     emailProvider: 'gmail',
     emailClientId: '',
     emailClientSecret: '',
+    emailAccounts: [],
     calendarProvider: 'gmail',
     calendarClientId: '',
     calendarClientSecret: '',
     smsSid: '',
     smsAuthToken: '',
-    smsFromNumber: ''
+    smsFromNumber: '',
+    haUrl: '',
+    haToken: ''
   })
   const [loading, setLoading] = useState(true)
   const [savedField, setSavedField] = useState<keyof IntegrationsSettings | null>(null)
   const [testStatus, setTestStatus] = useState<Record<IntegrationSection, TestStatus>>({
     email: 'idle',
     calendar: 'idle',
-    sms: 'idle'
+    sms: 'idle',
+    homeassistant: 'idle'
   })
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const testTimers = useRef<Partial<Record<IntegrationSection, ReturnType<typeof setTimeout>>>>({})
@@ -1946,12 +1989,19 @@ function IntegrationsPanel(): React.ReactElement {
     window.rex
       .getSettings('integrations')
       .then((settings: Settings) => {
+        const rawAccounts = settings.emailAccounts
+        const emailAccounts: EmailAccount[] = Array.isArray(rawAccounts)
+          ? (rawAccounts as EmailAccount[]).filter(
+              (a) => typeof a === 'object' && a !== null && typeof a.id === 'string'
+            )
+          : []
         setForm({
           emailProvider:
             settings.emailProvider === 'outlook' ? 'outlook' : 'gmail',
           emailClientId: typeof settings.emailClientId === 'string' ? settings.emailClientId : '',
           emailClientSecret:
             typeof settings.emailClientSecret === 'string' ? settings.emailClientSecret : '',
+          emailAccounts,
           calendarProvider:
             settings.calendarProvider === 'outlook' ? 'outlook' : 'gmail',
           calendarClientId:
@@ -1960,7 +2010,9 @@ function IntegrationsPanel(): React.ReactElement {
             typeof settings.calendarClientSecret === 'string' ? settings.calendarClientSecret : '',
           smsSid: typeof settings.smsSid === 'string' ? settings.smsSid : '',
           smsAuthToken: typeof settings.smsAuthToken === 'string' ? settings.smsAuthToken : '',
-          smsFromNumber: typeof settings.smsFromNumber === 'string' ? settings.smsFromNumber : ''
+          smsFromNumber: typeof settings.smsFromNumber === 'string' ? settings.smsFromNumber : '',
+          haUrl: typeof settings.haUrl === 'string' ? settings.haUrl : '',
+          haToken: typeof settings.haToken === 'string' ? settings.haToken : ''
         })
       })
       .catch(() => {
@@ -2012,6 +2064,42 @@ function IntegrationsPanel(): React.ReactElement {
       })
   }
 
+  function handleAddEmailAccount(): void {
+    const newAccount: EmailAccount = {
+      id: `${Date.now()}`,
+      provider: 'gmail',
+      clientId: '',
+      clientSecret: ''
+    }
+    const updated = { ...form, emailAccounts: [...form.emailAccounts, newAccount] }
+    setForm(updated)
+    window.rex.setSettings('integrations', updated as unknown as Settings).catch(() => {
+      addToast('Failed to save email account', 'error')
+    })
+  }
+
+  function handleUpdateEmailAccount(id: string, patch: Partial<EmailAccount>): void {
+    const updated = {
+      ...form,
+      emailAccounts: form.emailAccounts.map((a) => (a.id === id ? { ...a, ...patch } : a))
+    }
+    setForm(updated)
+    window.rex.setSettings('integrations', updated as unknown as Settings).catch(() => {
+      addToast('Failed to save email account', 'error')
+    })
+  }
+
+  function handleRemoveEmailAccount(id: string): void {
+    const updated = {
+      ...form,
+      emailAccounts: form.emailAccounts.filter((a) => a.id !== id)
+    }
+    setForm(updated)
+    window.rex.setSettings('integrations', updated as unknown as Settings).catch(() => {
+      addToast('Failed to remove email account', 'error')
+    })
+  }
+
   const inputClass =
     'w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent'
 
@@ -2025,13 +2113,19 @@ function IntegrationsPanel(): React.ReactElement {
 
       {/* Email section */}
       <section className="mb-7">
-        <h3 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-            <polyline points="22,6 12,13 2,6" />
-          </svg>
-          Email
-        </h3>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
+            Email
+          </h3>
+          <ConnectionBadge
+            status={testStatus.email}
+            hasCredentials={form.emailClientId.trim() !== '' || form.emailAccounts.length > 0}
+          />
+        </div>
 
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1.5">
@@ -2080,21 +2174,95 @@ function IntegrationsPanel(): React.ReactElement {
         </div>
 
         <TestConnectionButton status={testStatus.email} onTest={() => handleTest('email')} />
+
+        {/* Multi-account email list */}
+        <div className="mt-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-text-primary">Additional Accounts</span>
+            <button
+              type="button"
+              onClick={handleAddEmailAccount}
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-raised px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:bg-border focus:outline-none focus:ring-2 focus:ring-accent"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Add Account
+            </button>
+          </div>
+          {form.emailAccounts.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border bg-surface-raised/40 px-4 py-4 text-sm text-text-secondary">
+              No additional accounts. Click "Add Account" to connect another inbox.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {form.emailAccounts.map((account) => (
+                <div key={account.id} className="rounded-xl border border-border bg-surface-raised p-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <select
+                      value={account.provider}
+                      onChange={(e) =>
+                        handleUpdateEmailAccount(account.id, {
+                          provider: e.target.value as EmailAccount['provider']
+                        })
+                      }
+                      className="flex-1 bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                    >
+                      <option value="gmail">Gmail</option>
+                      <option value="outlook">Outlook</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveEmailAccount(account.id)}
+                      className="rounded-lg border border-danger/30 px-2.5 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10 focus:outline-none"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="mb-2">
+                    <input
+                      type="text"
+                      value={account.clientId}
+                      placeholder="OAuth Client ID"
+                      onChange={(e) =>
+                        handleUpdateEmailAccount(account.id, { clientId: e.target.value })
+                      }
+                      className={`${inputClass} mb-2`}
+                    />
+                    <PasswordInput
+                      id={`email-secret-${account.id}`}
+                      value={account.clientSecret}
+                      placeholder="OAuth Client Secret"
+                      onChange={(v) => handleUpdateEmailAccount(account.id, { clientSecret: v })}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       <div className="border-t border-border mb-7" />
 
       {/* Calendar section */}
       <section className="mb-7">
-        <h3 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-          Calendar
-        </h3>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            Calendar
+          </h3>
+          <ConnectionBadge
+            status={testStatus.calendar}
+            hasCredentials={form.calendarClientId.trim() !== ''}
+          />
+        </div>
 
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1.5">
@@ -2148,13 +2316,19 @@ function IntegrationsPanel(): React.ReactElement {
       <div className="border-t border-border mb-7" />
 
       {/* SMS section */}
-      <section className="mb-2">
-        <h3 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          SMS (Twilio)
-        </h3>
+      <section className="mb-7">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            SMS (Twilio)
+          </h3>
+          <ConnectionBadge
+            status={testStatus.sms}
+            hasCredentials={form.smsSid.trim() !== ''}
+          />
+        </div>
 
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1.5">
@@ -2203,6 +2377,57 @@ function IntegrationsPanel(): React.ReactElement {
         </div>
 
         <TestConnectionButton status={testStatus.sms} onTest={() => handleTest('sms')} />
+      </section>
+
+      <div className="border-t border-border mb-7" />
+
+      {/* Home Assistant section */}
+      <section className="mb-2">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+            Home Assistant
+          </h3>
+          <ConnectionBadge
+            status={testStatus.homeassistant}
+            hasCredentials={form.haUrl.trim() !== ''}
+          />
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="haUrl" className="text-sm font-medium text-text-primary">Base URL</label>
+            <SavedIndicator visible={savedField === 'haUrl'} />
+          </div>
+          <input
+            id="haUrl"
+            type="text"
+            value={form.haUrl}
+            placeholder="http://homeassistant.local:8123"
+            onChange={(e) => setForm((f) => ({ ...f, haUrl: e.target.value }))}
+            onBlur={(e) => handleFieldChange('haUrl', e.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="mb-2">
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="haToken" className="text-sm font-medium text-text-primary">Long-Lived Access Token</label>
+            <SavedIndicator visible={savedField === 'haToken'} />
+          </div>
+          <PasswordInput
+            id="haToken"
+            value={form.haToken}
+            placeholder="Enter access token"
+            onChange={(v) => setForm((f) => ({ ...f, haToken: v }))}
+            onBlur={() => handleFieldChange('haToken', form.haToken)}
+          />
+        </div>
+
+        <TestConnectionButton status={testStatus.homeassistant} onTest={() => handleTest('homeassistant')} />
       </section>
     </div>
   )

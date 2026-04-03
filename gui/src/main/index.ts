@@ -4,7 +4,7 @@ import { homedir } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { createTray, destroyTray } from './tray'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
-import type { Settings, GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, PreferenceSuggestion } from '../types/ipc'
+import type { Settings, GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, EmailAccount, PreferenceSuggestion } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
 import { registerVoiceHandlers } from './handlers/voice'
 import { registerTaskHandlers } from './handlers/tasks'
@@ -266,12 +266,15 @@ const defaultSettingsMap: Record<string, Settings> = {
     emailProvider: 'gmail',
     emailClientId: '',
     emailClientSecret: '',
+    emailAccounts: [] as EmailAccount[],
     calendarProvider: 'gmail',
     calendarClientId: '',
     calendarClientSecret: '',
     smsSid: '',
     smsAuthToken: '',
-    smsFromNumber: ''
+    smsFromNumber: '',
+    haUrl: '',
+    haToken: ''
   } satisfies IntegrationsSettings
 }
 
@@ -340,6 +343,14 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
         typeof integrations.smsSid === 'string' && integrations.smsSid.trim() !== '' &&
         typeof integrations.smsAuthToken === 'string' && integrations.smsAuthToken.trim() !== '' &&
         typeof integrations.smsFromNumber === 'string' && integrations.smsFromNumber.trim() !== ''
+      if (!hasCredentials) return { ok: false, error: 'No credentials configured' }
+      return { ok: true }
+    }
+
+    if (type === 'homeassistant') {
+      const hasCredentials =
+        typeof integrations.haUrl === 'string' && integrations.haUrl.trim() !== '' &&
+        typeof integrations.haToken === 'string' && integrations.haToken.trim() !== ''
       if (!hasCredentials) return { ok: false, error: 'No credentials configured' }
       return { ok: true }
     }
