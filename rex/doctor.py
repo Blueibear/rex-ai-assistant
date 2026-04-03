@@ -21,7 +21,15 @@ import stat
 import sys
 from dataclasses import dataclass, field
 from enum import Enum
+from importlib.util import find_spec
 from pathlib import Path
+
+from python_compat import (
+    SUPPORTED_VERSION_LABEL,
+    WINDOWS_GPU_INSTALL_LABEL,
+    is_supported_python,
+    unsupported_python_message,
+)
 
 
 class Status(Enum):
@@ -101,25 +109,21 @@ def check_python_version() -> CheckResult:
     version = sys.version_info
     version_str = f"{version.major}.{version.minor}.{version.micro}"
 
-    if version < (3, 9):
+    if not is_supported_python(version):
         return CheckResult(
             name="Python Version",
             status=Status.ERROR,
             message=f"Python {version_str} is not supported",
-            details="Rex requires Python 3.9 or later. Please upgrade your Python installation.",
-        )
-    elif version < (3, 10):
-        return CheckResult(
-            name="Python Version",
-            status=Status.WARNING,
-            message=f"Python {version_str} is supported but 3.10+ recommended",
-            details="Consider upgrading to Python 3.10+ for best performance and compatibility.",
+            details=(
+                unsupported_python_message(version, install_target=WINDOWS_GPU_INSTALL_LABEL)
+                + f" The supported runtime window is {SUPPORTED_VERSION_LABEL}."
+            ),
         )
     else:
         return CheckResult(
             name="Python Version",
             status=Status.OK,
-            message=f"Python {version_str}",
+            message=f"Python {version_str} ({SUPPORTED_VERSION_LABEL})",
         )
 
 
@@ -526,7 +530,7 @@ def check_lm_studio_reachability(
             message=f"LM Studio not running (connection refused on {host}:{port})",
             details=f"Start LM Studio and enable the local API server on port {port} for local LLM support.",
         )
-    except (socket.timeout, TimeoutError):
+    except TimeoutError:
         return CheckResult(
             name="LM Studio",
             status=Status.WARNING,
@@ -539,6 +543,57 @@ def check_lm_studio_reachability(
             status=Status.WARNING,
             message=f"LM Studio not reachable: {e}",
             details=f"Ensure LM Studio is running and listening on {host}:{port}.",
+        )
+
+
+def check_stt_warmup(stt: object | None = None) -> CheckResult:
+    """Check the STT model warm-up status.
+
+    When called with a live ``SpeechToText`` instance the result reflects
+    whether the background-loaded model has finished loading.  When called
+    without an instance (e.g. from a standalone ``rex doctor`` run) it falls
+    back to checking whether the ``whisper`` package is importable.
+    """
+    if stt is not None:
+        is_loaded = getattr(stt, "is_loaded", lambda: False)()
+        load_error: str | None = getattr(stt, "_load_error", None)
+        if load_error is not None:
+            return CheckResult(
+                name="STT model",
+                status=Status.ERROR,
+                message=f"STT model: load failed — {load_error}",
+            )
+        if is_loaded:
+            return CheckResult(
+                name="STT model",
+                status=Status.OK,
+                message="STT model: loaded",
+            )
+        return CheckResult(
+            name="STT model",
+            status=Status.INFO,
+            message="STT model: loading...",
+        )
+
+    # Standalone path: check whisper availability
+    try:
+        if find_spec("whisper") is not None:
+            return CheckResult(
+                name="STT model",
+                status=Status.OK,
+                message="STT model: whisper available (warm-up enabled at startup)",
+            )
+        return CheckResult(
+            name="STT model",
+            status=Status.WARNING,
+            message="STT model: whisper not installed",
+            details="Install whisper: pip install openai-whisper",
+        )
+    except Exception as exc:
+        return CheckResult(
+            name="STT model",
+            status=Status.ERROR,
+            message=f"STT model check failed: {exc}",
         )
 
 
@@ -599,6 +654,9 @@ def run_diagnostics(verbose: bool = False) -> int:
     # External dependencies
     for result in check_external_dependencies():
         report.add(result)
+
+    # STT warm-up
+    report.add(check_stt_warmup())
 
     # GPU check
     report.add(check_gpu_availability())

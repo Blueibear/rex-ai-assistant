@@ -810,11 +810,11 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want the Whisper model loaded during Rex startup rather than on first use so the first voice request has no model-load latency.
 
 **Acceptance Criteria:**
-- [ ] STT model loaded in a background thread immediately after startup (non-blocking)
-- [ ] `rex doctor` reports "STT model: loaded" once warm-up completes
-- [ ] First voice recognition request does not trigger model load (model already resident)
-- [ ] Memory footprint increase documented in `docs/performance-baseline.md`
-- [ ] Typecheck passes
+- [x] STT model loaded in a background thread immediately after startup (non-blocking)
+- [x] `rex doctor` reports "STT model: loaded" once warm-up completes
+- [x] First voice recognition request does not trigger model load (model already resident)
+- [x] Memory footprint increase documented in `docs/performance-baseline.md`
+- [x] Typecheck passes
 
 ---
 

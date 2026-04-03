@@ -504,6 +504,8 @@ class SpeechToText:
         model_name: str,
         device: str,
         language: str | None | object = _USE_CONFIG_LANGUAGE,
+        *,
+        async_load: bool = False,
     ) -> None:
         whisper_module = _lazy_import_whisper()
         if whisper_module is None:
@@ -512,7 +514,6 @@ class SpeechToText:
         if language is _USE_CONFIG_LANGUAGE:
             language = getattr(settings, "whisper_language", "en")
         self._language = cast(str | None, language)
-        self._device = device
 
         if device == "auto":
             try:
@@ -522,11 +523,34 @@ class SpeechToText:
             except ImportError:
                 device = "cpu"
         self._device = device
+        self._model_name = model_name
+        self._whisper_module = whisper_module
+        self._model: Any = None
+        self._load_event = threading.Event()
+        self._load_error: str | None = None
 
+        if async_load:
+            t = threading.Thread(target=self._load_model, daemon=True, name="stt-warmup")
+            t.start()
+        else:
+            self._load_model()
+            if self._load_error is not None:
+                raise SpeechToTextError(self._load_error)
+
+    def _load_model(self) -> None:
+        """Load the Whisper model; called synchronously or from a background thread."""
         try:
-            self._model = whisper_module.load_model(model_name, device=device)
+            self._model = self._whisper_module.load_model(self._model_name, device=self._device)
+            logger.info("[STT] Model '%s' loaded on %s", self._model_name, self._device)
         except Exception as exc:
-            raise SpeechToTextError(str(exc)) from exc
+            self._load_error = str(exc)
+            logger.error("[STT] Model load failed: %s", exc)
+        finally:
+            self._load_event.set()
+
+    def is_loaded(self) -> bool:
+        """Return True when the Whisper model has finished loading without error."""
+        return self._load_event.is_set() and self._load_error is None
 
     async def transcribe(
         self,
@@ -534,6 +558,13 @@ class SpeechToText:
         sample_rate: int,
     ) -> str:
         """Transcribe audio to text."""
+
+        if not self._load_event.is_set():
+            logger.info("[STT] Waiting for model warm-up to complete...")
+            await asyncio.to_thread(self._load_event.wait)
+
+        if self._load_error is not None:
+            raise SpeechToTextError(f"Model failed to load: {self._load_error}")
 
         prepared_audio = _prepare_audio_for_stt(audio)
         audio_buffer = _to_wav_buffer(prepared_audio, sample_rate)
@@ -1081,7 +1112,7 @@ def build_voice_loop(
         chunk_duration=detection_seconds,
     )
 
-    stt = SpeechToText(model_name=whisper_model, device=device)
+    stt = SpeechToText(model_name=whisper_model, device=device, async_load=True)
     tts = TextToSpeech(language=language, default_speaker=speaker_wav)
 
     ack_sound = getattr(settings, "acknowledgment_sound", "chime")
