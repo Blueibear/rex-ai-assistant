@@ -691,3 +691,24 @@
   - Black reformats long string sets in assert to multi-line — always run black after writing tests
   - `from typing import Optional` is unused when using `str | None` — ruff auto-fixes this (UP007/UP045)
 ---
+
+## Iteration 35 - US-SL-002: Voice commands for shopping list
+- What was implemented:
+  - Created `rex/shopping_list_handler.py` with `ShoppingListHandler` class
+  - Add patterns (regex): "add X to (the|my) list", "put X on (the|my) list", "I need X"
+  - Multi-item extraction: splits on commas, "and", semicolons via _ITEM_SPLIT_RE
+  - Read patterns: "what's on my list", "what is on the list", "read my list", "show me my list"
+  - `handle()` returns None for unmatched utterances (falls through to LLM)
+  - Wired into `Assistant.__init__` (creates ShoppingListHandler with ShoppingList)
+  - Wired into `generate_reply()` before LLM path, after skill routing
+  - ShoppingList path configurable via `settings.shopping_list_path` (defaults to data/shopping_list.json)
+- Files changed:
+  - rex/shopping_list_handler.py (new)
+  - rex/assistant.py (ShoppingListHandler wired in)
+  - tests/test_sl002_voice_shopping.py (18 tests)
+  - PRD-master-next-cycle.md (US-SL-002 marked complete)
+- Learnings for future iterations:
+  - black reformats long regex strings and multi-line returns — always run black after writing handler files
+  - "I need X" is intentionally broad (matches "I need help") — acceptable for voice assistant where "help" would be added to list
+  - Wire new handlers after skill routing but before per-user scoping to keep return paths consistent
+---
