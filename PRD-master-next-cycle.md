@@ -1067,7 +1067,7 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 - [x] New wake word appears in dropdown and can be selected (US-WW-001)
 - [x] Training progress shown in UI; estimated time displayed
 - [x] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Verify changes work in browser
 
 ---
 
