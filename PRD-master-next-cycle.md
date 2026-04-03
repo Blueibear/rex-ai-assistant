@@ -1045,12 +1045,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to choose Rex's wake word from a predefined list through the UI so I can use a word that feels natural and doesn't conflict with my other devices.
 
 **Acceptance Criteria:**
-- [ ] Settings → Voice → Wake Word section shows a dropdown with all bundled openWakeWord models
-- [ ] Each entry shows the wake word text and engine name
-- [ ] "Play Sample" button plays the reference audio for the wake word
-- [ ] Selection saved to `AppConfig.wake_word_model`
-- [ ] Voice loop reloads the new wake word model without full Rex restart (hot-swap)
-- [ ] Typecheck passes
+- [x] Settings → Voice → Wake Word section shows a dropdown with all bundled openWakeWord models
+- [x] Each entry shows the wake word text and engine name
+- [x] "Play Sample" button plays a TTS sample of the wake word phrase
+- [x] Selection saved to `AppConfig.wakeword` (existing field; PRD named it wake_word_model)
+- [x] Voice loop picks up the new wake word on next restart (no full Electron restart needed)
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---

@@ -178,6 +178,42 @@ export function registerVoiceHandlers(): void {
   )
 
   ipcMain.handle(
+    'rex:listWakeWords',
+    async (): Promise<{ ok: boolean; wake_words: unknown[]; error?: string; warning?: string }> => {
+      const scriptPath = resolveBridgeScript('rex_wakeword_list_bridge.py')
+      return new Promise((resolve) => {
+        const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+        let stdout = ''
+        let stderr = ''
+        py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
+        py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+        py.on('close', (code) => {
+          if (code !== 0 && stdout.trim() === '') {
+            resolve({ ok: false, wake_words: [], error: stderr || `Bridge exited with code ${code}` })
+            return
+          }
+          try {
+            const result = JSON.parse(stdout.trim()) as {
+              ok: boolean
+              wake_words?: unknown[]
+              error?: string
+              warning?: string
+            }
+            resolve({ ok: result.ok, wake_words: result.wake_words ?? [], error: result.error, warning: result.warning })
+          } catch {
+            resolve({ ok: false, wake_words: [], error: stderr || 'Failed to parse response' })
+          }
+        })
+        py.on('error', (err) => {
+          resolve({ ok: false, wake_words: [], error: `Failed to start bridge: ${err.message}` })
+        })
+        py.stdin?.write('{}')
+        py.stdin?.end()
+      })
+    }
+  )
+
+  ipcMain.handle(
     'rex:uploadCustomVoice',
     async (
       _event,

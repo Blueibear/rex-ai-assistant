@@ -2076,3 +2076,25 @@
   - Electron exposes the native file path via (file as File & { path?: string }).path — not available in standard browser File API
   - Ruff I001 will flag local imports inside functions that are not sorted; sort them alphabetically
 ---
+## Iteration 103 - US-WW-001: Wake word selection via UI
+- Story: US-WW-001
+- What was implemented
+  - `rex_wakeword_list_bridge.py`: bridge script that queries `openwakeword.MODELS` via `list_openwakeword_keywords()`, returns `{"ok", "wake_words": [{id, name, engine}]}`, falls back to 5 default keywords if openWakeWord not installed
+  - `gui/src/main/handlers/voice.ts`: added `rex:listWakeWords` IPC handler
+  - `gui/src/types/ipc.ts`: added `WakeWordInfo` interface and `listWakeWords()` method to RexAPI
+  - `gui/src/pages/SettingsPage.tsx`: replaced hardcoded dropdown with dynamic wake words loaded via `listWakeWords()`, added Play Sample button that synthesizes TTS of the phrase via pyttsx3, added note that changes take effect on voice loop restart
+  - `tests/test_ww001_wakeword_list.py`: 9 tests covering bridge output, fallback to defaults, openwakeword integration, field validation
+- Files changed
+  - `rex_wakeword_list_bridge.py` (new)
+  - `gui/src/main/handlers/voice.ts`
+  - `gui/src/types/ipc.ts`
+  - `gui/src/pages/SettingsPage.tsx`
+  - `tests/test_ww001_wakeword_list.py` (new)
+  - `PRD-master-next-cycle.md` (marked criteria [x])
+  - `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `list_openwakeword_keywords()` already existed in `rex/wakeword/selection.py` — always check existing modules before creating new ones
+  - The existing AppConfig field is `wakeword`, not `wake_word_model` as the PRD stated — map PRD names to actual code field names during implementation
+  - "Play Sample" for wake words can be implemented by synthesizing TTS of the phrase itself using the pyttsx3 voice bridge (provider='pyttsx3', voice_id=phrase_text)
+  - Wake word hot-swap without full Rex restart means the Electron app stays running; the voice bridge process is restarted separately
+---

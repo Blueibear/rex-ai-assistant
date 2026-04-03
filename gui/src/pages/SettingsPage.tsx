@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, EmailAccount, NotificationsSettings, Settings, VersionInfo, PreferenceSuggestion, VoiceInfo, VoiceEnrollment, Memory, SmartSpeaker, SystemSettings } from '../types/ipc'
+import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, EmailAccount, NotificationsSettings, Settings, VersionInfo, PreferenceSuggestion, VoiceInfo, WakeWordInfo, VoiceEnrollment, Memory, SmartSpeaker, SystemSettings } from '../types/ipc'
 import { useToast } from '../components/ui/Toast'
 import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
 import { SkeletonLine } from '../components/ui/SkeletonLine'
@@ -541,6 +541,8 @@ function VoicePanel(): React.ReactElement {
   const [voices, setVoices] = useState<VoiceInfo[]>([])
   const [voicesLoading, setVoicesLoading] = useState(false)
   const [previewing, setPreviewing] = useState(false)
+  const [wakeWords, setWakeWords] = useState<WakeWordInfo[]>([])
+  const [previewingWakeWord, setPreviewingWakeWord] = useState(false)
   const [activeUserId, setActiveUserId] = useState('default')
   const [enrollments, setEnrollments] = useState<VoiceEnrollment[]>([])
   const [enrollmentCountdown, setEnrollmentCountdown] = useState(0)
@@ -575,6 +577,15 @@ function VoicePanel(): React.ReactElement {
         setVoices([])
       })
       .finally(() => setVoicesLoading(false))
+  }
+
+  function loadWakeWords(): void {
+    window.rex
+      .listWakeWords()
+      .then((res) => {
+        setWakeWords(res.wake_words ?? [])
+      })
+      .catch(() => setWakeWords([]))
   }
 
   function loadEnrollmentState(): void {
@@ -650,6 +661,7 @@ function VoicePanel(): React.ReactElement {
       .finally(() => setLoading(false))
 
     loadEnrollmentState()
+    loadWakeWords()
   }, [addToast])
 
   useEffect(() => {
@@ -734,6 +746,36 @@ function VoicePanel(): React.ReactElement {
         addToast('Preview failed', 'error')
       })
       .finally(() => setPreviewing(false))
+  }
+
+  function handlePreviewWakeWord(): void {
+    if (!form.wakeWord) return
+    setPreviewingWakeWord(true)
+    const phrase = form.wakeWord.replace(/_/g, ' ')
+    window.rex
+      .previewVoice('pyttsx3', phrase)
+      .then((res) => {
+        if (res.ok && res.audio_base64) {
+          const binary = atob(res.audio_base64)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i)
+          }
+          const ctx = new AudioContext()
+          ctx.decodeAudioData(bytes.buffer).then((buf) => {
+            const src = ctx.createBufferSource()
+            src.buffer = buf
+            src.connect(ctx.destination)
+            src.start()
+          }).catch(() => {
+            addToast('Could not play wake word sample', 'error')
+          })
+        } else {
+          addToast(res.error ?? 'Preview failed', 'error')
+        }
+      })
+      .catch(() => addToast('Preview failed', 'error'))
+      .finally(() => setPreviewingWakeWord(false))
   }
 
   function handleUploadFileChange(e: React.ChangeEvent<HTMLInputElement>): void {
@@ -998,21 +1040,54 @@ function VoicePanel(): React.ReactElement {
           </label>
           <SavedIndicator visible={savedField === 'wakeWord'} />
         </div>
-        <select
-          id="wakeWord"
-          value={form.wakeWord}
-          onChange={(e) => handleFieldChange('wakeWord', e.target.value)}
-          className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-        >
-          <option value="">Disabled</option>
-          <option value="hey_jarvis">Hey Jarvis</option>
-          <option value="hey_mycroft">Hey Mycroft</option>
-          <option value="hey_rhasspy">Hey Rhasspy</option>
-          <option value="ok_nabu">OK Nabu</option>
-          <option value="alexa">Alexa</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            id="wakeWord"
+            value={form.wakeWord}
+            onChange={(e) => handleFieldChange('wakeWord', e.target.value)}
+            className="flex-1 bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+          >
+            <option value="">Disabled</option>
+            {wakeWords.length > 0
+              ? wakeWords.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name} [{w.engine}]
+                  </option>
+                ))
+              : /* fallback hardcoded list when bridge hasn't loaded yet */
+                [
+                  { id: 'hey_jarvis', name: 'Hey Jarvis' },
+                  { id: 'hey_mycroft', name: 'Hey Mycroft' },
+                  { id: 'hey_rhasspy', name: 'Hey Rhasspy' },
+                  { id: 'ok_nabu', name: 'OK Nabu' },
+                  { id: 'alexa', name: 'Alexa' },
+                ].map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+          </select>
+          <button
+            onClick={handlePreviewWakeWord}
+            disabled={previewingWakeWord || !form.wakeWord}
+            title="Play a sample of this wake word"
+            className="flex items-center gap-1.5 bg-surface-raised hover:bg-surface border border-border disabled:opacity-40 text-text-primary text-sm font-medium px-3 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg shrink-0"
+          >
+            {previewingWakeWord ? (
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="5 3 19 12 5 21 5 3" />
+              </svg>
+            )}
+            Sample
+          </button>
+        </div>
         <p className="mt-1 text-xs text-text-secondary">
           Uses openWakeWord. Select a model or leave disabled to start Rex manually.
+          Changes take effect when the voice loop restarts.
         </p>
       </div>
 

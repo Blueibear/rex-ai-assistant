@@ -24,6 +24,12 @@ export interface VoiceInfo {
   engine?: string
 }
 
+export interface WakeWordInfo {
+  id: string
+  name: string
+  engine: string
+}
+
 export interface VoiceTranscriptEntry {
   text: string
   role: 'user' | 'rex'
@@ -369,6 +375,7 @@ export interface RexAPI {
   dismissNotification: (id: string) => Promise<void>
   getUnreadNotificationCount: () => Promise<number>
   onNewNotification: (cb: (notification: GuiNotification) => void) => void
+  listWakeWords: () => Promise<{ ok: boolean; wake_words: WakeWordInfo[]; error?: string; warning?: string }>
   listVoices: (provider: string) => Promise<{ ok: boolean; voices: VoiceInfo[]; error?: string }>
   previewVoice: (
     provider: string,
