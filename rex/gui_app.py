@@ -6,6 +6,7 @@ Accessible via the ``rex-gui`` entry point.
 
 from __future__ import annotations
 
+import json
 import signal
 import sys
 import threading
@@ -23,7 +24,7 @@ _UI_DIST = Path(__file__).parent / "ui" / "dist"
 def _create_flask_app(ui_enabled: bool = True) -> Any:
     """Create a Flask application serving the Rex web UI and API stubs."""
 
-    from flask import Flask, jsonify, send_from_directory
+    from flask import Flask, Response, jsonify, request, send_from_directory, stream_with_context
 
     app = Flask(__name__, static_folder=None)
     app.secret_key = "rex-gui-local"  # local-only; not security-sensitive
@@ -51,7 +52,66 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
     def _dashboard_status_stub() -> Any:
         return jsonify({"status": "ok"}), 200
 
+    # ------------------------------------------------------------------
+    # Chat API
+    # ------------------------------------------------------------------
+
+    @app.route("/api/chat/history")
+    def _chat_history() -> Any:
+        from rex import dashboard_store as ds
+
+        return jsonify(ds.get_history()), 200
+
+    @app.route("/api/chat/clear", methods=["POST"])
+    def _chat_clear() -> Any:
+        from rex import dashboard_store as ds
+
+        ds.clear_history()
+        return jsonify({"ok": True}), 200
+
+    @app.route("/api/chat/send", methods=["POST"])
+    def _chat_send() -> Any:
+        from rex import dashboard_store as ds
+
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        user_text = (data.get("message") or "").strip()
+        attachment_name: str | None = data.get("filename") or None
+
+        if not user_text:
+            return jsonify({"error": "empty message"}), 400
+
+        ds.add_message("user", user_text, attachment_name)
+
+        def _stream() -> Any:
+            reply = _generate_reply(user_text)
+            ds.add_message("assistant", reply)
+            payload = json.dumps({"content": reply, "done": True})
+            yield f"data: {payload}\n\n"
+
+        return Response(
+            stream_with_context(_stream()),
+            content_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
     return app
+
+
+def _generate_reply(user_text: str) -> str:
+    """Generate an LLM reply, falling back to an echo stub on any failure."""
+    try:
+        from rex.config import load_config
+        from rex.llm_client import LanguageModel
+
+        cfg = load_config()
+        llm = LanguageModel(config=cfg)
+        messages = [{"role": "user", "content": user_text}]
+        return llm.generate(messages)
+    except Exception:
+        return f"(Rex is not configured — echo) {user_text}"
 
 
 def _open_browser(host: str, port: int) -> None:

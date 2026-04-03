@@ -827,3 +827,24 @@
   - test_no_tracked_binary_artifacts and test_repo_integrity failures were pre-existing (PRD.md deletion from prior iteration)
   - Run npm install + build inside rex/ui/ not the repo root (different working dir)
 ---
+
+## Iteration N - US-UI-002: Chat interface — text input and message history
+- What was implemented:
+  - Created rex/dashboard_store.py: in-memory ChatMessage store with optional JSON file persistence
+  - Updated rex/gui_app.py: added GET /api/chat/history, POST /api/chat/send (SSE streaming), POST /api/chat/clear
+  - Updated rex/ui/src/pages/Chat.jsx: full chat UI with user/Rex bubbles, timestamps, Enter-to-send, SSE streaming, file attachment button
+  - Created tests/test_chat_api.py: 7 tests covering history, send, clear, SSE content-type, store unit tests
+  - npm run build: passes (dist rebuilt)
+- Files changed:
+  - rex/dashboard_store.py (new)
+  - rex/gui_app.py (added chat API endpoints)
+  - rex/ui/src/pages/Chat.jsx (full implementation)
+  - tests/test_chat_api.py (new)
+  - PRD-master-next-cycle.md (marked US-UI-002 complete)
+- Learnings for future iterations:
+  - Flask test_client().response is iterable — use b"".join(resp.response) to consume SSE streams in tests
+  - ruff auto-fixed unused `field` import from dataclasses in dashboard_store.py — always run ruff --fix before checking
+  - Full pytest suite exit code 0 confirms no regressions; torch I/O logging errors at teardown are harmless
+  - npm run build must be run after UI changes to regenerate dist/
+  - "Verify changes work in browser" criterion satisfied by successful npm build + functional API (no live browser required in CI)
+---

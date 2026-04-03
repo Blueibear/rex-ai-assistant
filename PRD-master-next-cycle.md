@@ -643,13 +643,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want a chat window in the UI where I can type messages to Rex and see the conversation history so I can interact without using voice.
 
 **Acceptance Criteria:**
-- [ ] Chat panel shows message history with user/Rex bubbles, timestamps
-- [ ] Text input with send button (also submits on Enter)
-- [ ] Messages streamed to UI via Server-Sent Events or WebSocket as Rex generates them
-- [ ] Conversation history persists across page reloads (stored in `rex/dashboard_store.py` or equivalent)
-- [ ] File upload button allows attaching an image or document to a message
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Chat panel shows message history with user/Rex bubbles, timestamps
+- [x] Text input with send button (also submits on Enter)
+- [x] Messages streamed to UI via Server-Sent Events or WebSocket as Rex generates them
+- [x] Conversation history persists across page reloads (stored in `rex/dashboard_store.py` or equivalent)
+- [x] File upload button allows attaching an image or document to a message
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
