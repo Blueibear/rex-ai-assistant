@@ -68,14 +68,14 @@ development artifacts.
 production-required files so that the resulting image is minimal and safe.
 
 **Acceptance Criteria:**
-- [ ] Dockerfile runtime stage replaces `COPY . .` with explicit allowlist covering only:
+- [x] Dockerfile runtime stage replaces `COPY . .` with explicit allowlist covering only:
   `rex/`, `rex_speak_api.py`, `rex_loop.py`, `voice_loop.py`, `pyproject.toml`,
   `config/rex_config.example.json`, `assets/`, and entry-point scripts
-- [ ] Image builds successfully: `docker build -t rex-test .` exits 0
-- [ ] `docker run --rm rex-test python -c "import rex"` exits 0
-- [ ] Image does not contain `.env`, `tests/`, `venv/`, or `Memory/` directories
-- [ ] Dockerfile comments document which mounts are expected at runtime (config, data)
-- [ ] Typecheck passes
+- [x] Image builds successfully: `docker build -t rex-test .` exits 0
+- [x] `docker run --rm rex-test python -c "import rex"` exits 0
+- [x] Image does not contain `.env`, `tests/`, `venv/`, or `Memory/` directories
+- [x] Dockerfile comments document which mounts are expected at runtime (config, data)
+- [x] Typecheck passes
 
 ---
 

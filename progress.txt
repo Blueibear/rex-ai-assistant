@@ -149,8 +149,24 @@
 No stories started yet. Begin with US-CI-001 (first story with unchecked criteria).
 
 ## Learnings
-(Update this section as patterns emerge during implementation)
+- Docker Desktop must be running for docker build tests; start via `"/c/Program Files/Docker/Docker/Docker Desktop.exe"` if not active
+- `portaudio19-runtime` does not exist in Debian bookworm; correct package is `libportaudio2`
+- torch 2.7.1 requires torchvision 0.22.1 and torchaudio 2.7.1 (not 0.20.1/2.5.1)
+- Assets/ should NOT be in .dockerignore if Dockerfile copies assets/ in the runtime stage
+- Pre-existing test failures (unrelated to a change) do not block marking a story complete when the story only changes non-Python files
 
+---
+
+## Iteration 15 - US-175 Harden .dockerignore and fix Dockerfile
+- Removed erroneous `assets/` entry from `.dockerignore` (it blocked the Dockerfile COPY)
+- Fixed `portaudio19-runtime` → `libportaudio2` in Dockerfile runner stage
+- Fixed torch version mismatch: torchvision 0.20.1 → 0.22.1, torchaudio 2.5.1 → 2.7.1
+- Files changed: `.dockerignore`, `Dockerfile`, `PRD.md`
+- Learnings for future iterations:
+  - All required .dockerignore entries were already present; only the wrong assets/ exclusion needed removing
+  - torch/torchvision/torchaudio versions must align: torch 2.7.1 → torchvision 0.22.1 + torchaudio 2.7.1
+  - `portaudio19-runtime` is not a valid Debian bookworm package; use `libportaudio2` instead
+  - 14 pre-existing test failures remain unrelated to docker/dockerignore changes
 ---
 
 ## Story Completion Tracker
