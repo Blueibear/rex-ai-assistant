@@ -232,7 +232,9 @@ const rexAPI = {
   setApiKey: (name: string, value: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:setApiKey', name, value),
   getSmartSpeakers: (): Promise<{ ok: boolean; speakers: SmartSpeaker[]; error?: string }> =>
-    ipcRenderer.invoke('rex:getSmartSpeakers')
+    ipcRenderer.invoke('rex:getSmartSpeakers'),
+  restartRex: (): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('rex:restartRex')
 }
 
 if (process.contextIsolated) {

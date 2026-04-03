@@ -108,6 +108,14 @@ export interface MemoryUpdateInput {
   category: string
 }
 
+export interface SystemSettings {
+  autonomyMode: 'manual' | 'supervised' | 'full-auto'
+  toolTimeoutSeconds: number
+  requireConfirmSystemChanges: boolean
+  allowedFileRoots: string
+  debugLogging: boolean
+}
+
 export interface GeneralSettings {
   displayName: string
   timezone: string
@@ -354,4 +362,5 @@ export interface RexAPI {
   getApiKeys: () => Promise<{ openai_key_set: boolean }>
   setApiKey: (name: string, value: string) => Promise<{ ok: boolean; error?: string }>
   getSmartSpeakers: () => Promise<{ ok: boolean; speakers: SmartSpeaker[]; error?: string }>
+  restartRex: () => Promise<{ ok: boolean; error?: string }>
 }

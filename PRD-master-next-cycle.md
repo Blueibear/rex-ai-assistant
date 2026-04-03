@@ -746,14 +746,14 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want a Settings → System section for advanced Rex options so power users can tune behavior without CLI access.
 
 **Acceptance Criteria:**
-- [ ] Autonomy mode selector (read-only / confirm / auto-execute)
-- [ ] Tool timeout slider
-- [ ] Require-confirm for system changes toggle (implements US-WIN-003)
-- [ ] Allowed file roots configuration (comma-separated paths)
-- [ ] Debug logging toggle
-- [ ] Restart Rex button (gracefully restarts the Flask + voice loop)
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Autonomy mode selector (read-only / confirm / auto-execute)
+- [x] Tool timeout slider
+- [x] Require-confirm for system changes toggle (implements US-WIN-003)
+- [x] Allowed file roots configuration (comma-separated paths)
+- [x] Debug logging toggle
+- [x] Restart Rex button (gracefully restarts the Flask + voice loop)
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

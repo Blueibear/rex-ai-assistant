@@ -4,7 +4,7 @@ import { homedir } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { createTray, destroyTray } from './tray'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
-import type { Settings, GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, EmailAccount, PreferenceSuggestion } from '../types/ipc'
+import type { Settings, GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, EmailAccount, PreferenceSuggestion, SystemSettings } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
 import { registerVoiceHandlers } from './handlers/voice'
 import { registerTaskHandlers } from './handlers/tasks'
@@ -221,6 +221,31 @@ function mirrorToRexConfig(section: string, values: Settings): void {
       rexConfig.ui = ui
       writeRexConfig(rexConfig)
     }
+
+    if (section === 'system') {
+      if (typeof values.toolTimeoutSeconds === 'number') {
+        rexConfig.tool_timeout_seconds = values.toolTimeoutSeconds
+      }
+      if (typeof values.requireConfirmSystemChanges === 'boolean') {
+        const windows = ((rexConfig.windows ?? {}) as Record<string, unknown>)
+        windows.require_confirm_system_changes = values.requireConfirmSystemChanges
+        rexConfig.windows = windows
+      }
+      if (typeof values.allowedFileRoots === 'string' && values.allowedFileRoots.trim()) {
+        rexConfig.allowed_file_roots = values.allowedFileRoots.split(',').map((s: string) => s.trim()).filter(Boolean)
+      }
+      if (typeof values.debugLogging === 'boolean') {
+        const runtime = ((rexConfig.runtime ?? {}) as Record<string, unknown>)
+        runtime.log_level = values.debugLogging ? 'DEBUG' : 'INFO'
+        rexConfig.runtime = runtime
+      }
+      if (typeof values.autonomyMode === 'string') {
+        const models = ((rexConfig.models ?? {}) as Record<string, unknown>)
+        models.autonomy_mode = values.autonomyMode
+        rexConfig.models = models
+      }
+      writeRexConfig(rexConfig)
+    }
   } catch {
     // Non-fatal: GUI settings were already persisted; rex_config mirror is best-effort
   }
@@ -279,7 +304,14 @@ const defaultSettingsMap: Record<string, Settings> = {
     smsFromNumber: '',
     haUrl: '',
     haToken: ''
-  } satisfies IntegrationsSettings
+  } satisfies IntegrationsSettings,
+  system: {
+    autonomyMode: 'manual',
+    toolTimeoutSeconds: 10,
+    requireConfirmSystemChanges: true,
+    allowedFileRoots: '',
+    debugLogging: false
+  } satisfies SystemSettings
 }
 
 function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
@@ -471,6 +503,16 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
       rex: rexVersion,
       electron: process.versions.electron ?? 'unknown',
       node: process.versions.node ?? 'unknown'
+    }
+  })
+
+  ipcMain.handle('rex:restartRex', (): { ok: boolean; error?: string } => {
+    try {
+      app.relaunch()
+      app.exit(0)
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }
   })
 }
