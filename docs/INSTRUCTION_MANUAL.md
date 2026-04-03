@@ -29,9 +29,8 @@ The project is Python-based, exposes a `rex` CLI, and also includes separate ent
 
 ### Python
 
-- Supported: Python 3.9 through 3.13
-- Recommended: Python 3.10+
-- Best documented Windows path: Python 3.11+
+- Required: Python 3.11 (Python 3.12 and above are not supported)
+- Best documented Windows path: Python 3.11
 
 ### Required system tools
 
@@ -176,7 +175,7 @@ brew install ffmpeg portaudio python@3.11
 
 Install:
 
-- Python 3.11+
+- Python 3.11 (3.12 and above are not supported)
 - Git
 - FFmpeg
 - NVIDIA drivers if using GPU

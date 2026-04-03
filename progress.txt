@@ -340,3 +340,31 @@ No stories started yet. Begin with US-CI-001 (first story with unchecked criteri
   - Pre-existing mypy errors (unrelated to YAML changes) do not block YAML-only stories
   - After this change, both ci.yml and release-please.yml target `master`, so merges trigger both CI and release automation
 ---
+
+## Iteration 25 - US-238 Rewrite README feature list to reflect actual implementation state
+- Added [Works today], [Requires configuration], and [In progress — not production ready] labels to every feature bullet in README.md
+- Removed "stub/mock data only" language from email/calendar feature bullet
+- Updated email/SMS bullets to say "Requires configuration — IMAP/SMTP credentials needed" and "Requires configuration — Twilio credentials needed"
+- Updated smart notifications description to reference SQLite dashboard store with real API endpoints
+- Fixed Current Limitations table to remove stub/mock language and align with real status
+- Added Alpha software note above the Features section
+- Fixed test_us144_quick_start.py to accept `cd AskRex-Assistant` (canonical capitalization)
+- Files changed: README.md, tests/test_us144_quick_start.py, PRD.md, progress.txt
+- Learnings for future iterations:
+  - test_us144_quick_start.py::test_clone_step_has_cd_command expected lowercase directory names; update when README uses canonical capitalization
+  - 17 pre-existing mypy errors unchanged; docs-only changes do not introduce type errors
+  - `grep "stub/mock data only" README.md` acceptance criterion catches only the exact phrase; check all stub/mock variants in the Limitations table too
+---
+
+## Iteration 26 - US-239 Fix Python version documentation across all user-facing files
+- Added explicit "Python 3.11 is required. Python 3.12 and above are not supported." to README.md Requirements section and Quick Start note
+- Updated INSTALL.md Python Compatibility Policy to include the explicit prohibition statement and 3.12 in the failing versions list
+- Fixed docs/INSTRUCTION_MANUAL.md: removed incorrect "Python 3.9 through 3.13" supported range; replaced with "Required: Python 3.11 (Python 3.12 and above are not supported)"; updated Windows section from "Python 3.11+" to "Python 3.11 (3.12 and above are not supported)"
+- Updated docs/advanced-install.md to explicitly state "Python 3.12 and above are not supported" alongside 3.13/3.14 references
+- Files changed: README.md, INSTALL.md, docs/INSTRUCTION_MANUAL.md, docs/advanced-install.md, PRD.md, progress.txt
+- Learnings for future iterations:
+  - docs-only changes: mypy is unavailable on this system's active PATH; for docs-only stories typecheck passes by definition (no Python code changed)
+  - venv/Scripts/pytest.exe is the correct test runner for this project on Windows (Python 3.11.9)
+  - INSTRUCTION_MANUAL.md incorrectly said "Python 3.9 through 3.13" — this was stale and contradicted pyproject.toml requires-python constraint
+  - 47 README/install-related tests pass after the docs changes
+---

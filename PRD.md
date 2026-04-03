@@ -439,12 +439,12 @@ is required and Python 3.12+ is not supported, so that I do not waste time on a 
 install with an unhelpful error message.
 
 **Acceptance Criteria:**
-- [ ] `README.md` contains an explicit "Requirements" or "Prerequisites" section stating:
+- [x] `README.md` contains an explicit "Requirements" or "Prerequisites" section stating:
   "Python 3.11 is required. Python 3.12 and above are not supported."
-- [ ] `INSTALL.md` contains the same explicit statement
-- [ ] `pyproject.toml:10` — `requires-python = ">=3.11,<3.12"` — unchanged (already correct)
-- [ ] Any guide or doc that previously said "Python 3.11" without the 3.12 prohibition is updated
-- [ ] Typecheck passes
+- [x] `INSTALL.md` contains the same explicit statement
+- [x] `pyproject.toml:10` — `requires-python = ">=3.11,<3.12"` — unchanged (already correct)
+- [x] Any guide or doc that previously said "Python 3.11" without the 3.12 prohibition is updated
+- [x] Typecheck passes
 
 ---
 

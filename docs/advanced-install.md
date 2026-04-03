@@ -6,7 +6,7 @@ Current compatibility policy:
 
 - Supported Python version: `3.11`
 - Validated full Windows GPU + TTS path: `Python 3.11` + `requirements-gpu-cu124.txt`
-- Python 3.13 and 3.14 are known to fail in the ML/TTS dependency path and are intentionally rejected by the supported install scripts
+- Python 3.12 and above are not supported. Python 3.12, 3.13, and 3.14 are known to fail in the ML/TTS dependency path and are intentionally rejected by the supported install scripts
 
 ---
 

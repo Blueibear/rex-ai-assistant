@@ -365,10 +365,10 @@ After installation:
 
 ## Python Compatibility Policy
 
-Rex currently supports **Python 3.11** for the install paths documented in this repository.
+**Python 3.11 is required. Python 3.12 and above are not supported.**
 
 - The default install path is validated on Python 3.11.
 - The full Windows GPU + TTS path is validated on Python 3.11.
-- Fresh installs on Python 3.13 and 3.14 are known to fail in the ML/TTS dependency path.
+- Fresh installs on Python 3.12, 3.13, and 3.14 are known to fail in the ML/TTS dependency path and are intentionally rejected by the supported install scripts.
 
 The package metadata, installers, and `rex doctor` now fail fast on unsupported Python versions so users do not get stuck in long pip resolution failures.

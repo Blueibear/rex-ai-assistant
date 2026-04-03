@@ -77,7 +77,7 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
    python -m rex doctor
    ```
 
-> Python support is intentionally strict: the current dependency stack is validated on Python 3.11. Fresh installs on Python 3.13/3.14 are known to fail in the ML/TTS path, so unsupported versions now fail fast.
+> **Python 3.11 is required. Python 3.12 and above are not supported.** The current dependency stack is validated on Python 3.11 only. Fresh installs on Python 3.12, 3.13, and 3.14 are rejected; the ML/TTS dependency path is known to fail on those versions.
 
 > **Advanced / Developer Install** — for GPU setups, custom extras, Docker, or development workflows, see [docs/advanced-install.md](docs/advanced-install.md).
 >
@@ -108,7 +108,7 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
 | Component | Requirement |
 |-----------|-------------|
 | **OS** | macOS 11+, Windows 10/11, or Ubuntu 20.04+ |
-| **Python** | 3.11 |
+| **Python** | 3.11 (Python 3.12 and above are not supported) |
 | **FFmpeg** | Must be installed and available on PATH |
 | **Hardware** | Microphone and speakers for voice mode |
 | **GPU** (optional) | NVIDIA GPU with CUDA 11.8+ for acceleration |
