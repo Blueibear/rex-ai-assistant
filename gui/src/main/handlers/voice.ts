@@ -1,9 +1,21 @@
-import { ipcMain } from 'electron'
+import { app, ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import { join } from 'path'
+import { existsSync } from 'fs'
 import type { ChildProcess } from 'child_process'
 
 let voiceProcess: ChildProcess | null = null
+
+type BridgeResult<T> = T & { ok: boolean; error?: string }
+
+function resolvePythonCommand(): string {
+  const bundledVenvPython = join(app.getAppPath(), '..', '.venv', 'Scripts', 'python.exe')
+  return existsSync(bundledVenvPython) ? bundledVenvPython : 'python'
+}
+
+function resolveBridgeScript(scriptName: string): string {
+  return join(app.getAppPath(), '..', scriptName)
+}
 
 function killVoiceProcess(): void {
   const py = voiceProcess
@@ -25,9 +37,9 @@ export function registerVoiceHandlers(): void {
       killVoiceProcess()
     }
 
-    const scriptPath = join(__dirname, '../../../../rex_voice_bridge.py')
+    const scriptPath = resolveBridgeScript('rex_voice_bridge.py')
 
-    const py = spawn('python', [scriptPath], {
+    const py = spawn(resolvePythonCommand(), [scriptPath], {
       stdio: ['pipe', 'pipe', 'pipe']
     })
 
@@ -102,9 +114,9 @@ export function registerVoiceHandlers(): void {
       _event,
       provider: string
     ): Promise<{ ok: boolean; voices: unknown[]; error?: string }> => {
-      const scriptPath = join(__dirname, '../../../../rex_voices_bridge.py')
+      const scriptPath = resolveBridgeScript('rex_voices_bridge.py')
       return new Promise((resolve) => {
-        const py = spawn('python', [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+        const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
         let stdout = ''
         let stderr = ''
         py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
@@ -137,9 +149,9 @@ export function registerVoiceHandlers(): void {
       provider: string,
       voiceId: string
     ): Promise<{ ok: boolean; audio_base64?: string; error?: string }> => {
-      const scriptPath = join(__dirname, '../../../../rex_voice_sample_bridge.py')
+      const scriptPath = resolveBridgeScript('rex_voice_sample_bridge.py')
       return new Promise((resolve) => {
-        const py = spawn('python', [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+        const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
         let stdout = ''
         let stderr = ''
         py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
@@ -164,4 +176,104 @@ export function registerVoiceHandlers(): void {
       })
     }
   )
+
+  ipcMain.handle(
+    'rex:uploadCustomVoice',
+    async (
+      _event,
+      filePath: string,
+      voiceName: string
+    ): Promise<{ ok: boolean; voice_id?: string; voice_name?: string; duration?: number; error?: string }> => {
+      const scriptPath = resolveBridgeScript('rex_voice_upload_bridge.py')
+      return new Promise((resolve) => {
+        const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+        let stdout = ''
+        let stderr = ''
+        py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
+        py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+        py.on('close', (code) => {
+          if (code !== 0 && stdout.trim() === '') {
+            resolve({ ok: false, error: stderr || `Bridge exited with code ${code}` })
+            return
+          }
+          try {
+            const result = JSON.parse(stdout.trim()) as {
+              ok: boolean
+              voice_id?: string
+              voice_name?: string
+              duration?: number
+              error?: string
+            }
+            resolve(result)
+          } catch {
+            resolve({ ok: false, error: stderr || 'Failed to parse response' })
+          }
+        })
+        py.on('error', (err) => {
+          resolve({ ok: false, error: `Failed to start bridge: ${err.message}` })
+        })
+        py.stdin?.write(JSON.stringify({ file_path: filePath, voice_name: voiceName }) + '\n')
+        py.stdin?.end()
+      })
+    }
+  )
+
+  ipcMain.handle(
+    'rex:getVoiceEnrollments',
+    async (): Promise<BridgeResult<{ active_user_id: string; enrollments: unknown[] }>> => {
+      return callEnrollmentBridge({
+        action: 'list'
+      }) as Promise<BridgeResult<{ active_user_id: string; enrollments: unknown[] }>>
+    }
+  )
+
+  ipcMain.handle(
+    'rex:enrollVoice',
+    async (
+      _event,
+      userId: string,
+      samples: number[][]
+    ): Promise<BridgeResult<{ enrollment?: unknown }>> => {
+      return callEnrollmentBridge({ action: 'enroll', user_id: userId, samples })
+    }
+  )
+
+  ipcMain.handle(
+    'rex:deleteVoiceEnrollment',
+    async (_event, userId: string): Promise<BridgeResult<{ deleted?: boolean }>> => {
+      return callEnrollmentBridge({ action: 'delete', user_id: userId })
+    }
+  )
+}
+
+function callEnrollmentBridge(payload: Record<string, unknown>): Promise<BridgeResult<Record<string, unknown>>> {
+  const scriptPath = resolveBridgeScript('rex_voice_enrollment_bridge.py')
+  return new Promise((resolve) => {
+    const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+    let stdout = ''
+    let stderr = ''
+
+    py.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString()
+    })
+    py.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString()
+    })
+    py.on('close', (code) => {
+      if (code !== 0 && stdout.trim() === '') {
+        resolve({ ok: false, error: stderr || `Bridge exited with code ${code}` })
+        return
+      }
+      try {
+        resolve(JSON.parse(stdout.trim()) as BridgeResult<Record<string, unknown>>)
+      } catch {
+        resolve({ ok: false, error: stderr || 'Failed to parse response' })
+      }
+    })
+    py.on('error', (err) => {
+      resolve({ ok: false, error: `Failed to start bridge: ${err.message}` })
+    })
+    py.stdin?.write(JSON.stringify(payload) + '\n')
+    py.stdin?.end()
+  })
 }

@@ -2052,3 +2052,27 @@
   - `TextToSpeech._edge_voice` is set at init time from the cached `settings` singleton; for hot-swap, always read directly from `rex_config.json` via `config_manager.load_config()`
   - Black reformats comprehensions that exceed the line length limit; always run `black --check` before committing
 ---
+## Iteration 102 - US-VC-002: Personalized voice creation via audio file upload
+- Story: US-VC-002
+- What was implemented
+  - `rex/custom_voices.py`: new module with `get_audio_duration()` (WAV via stdlib wave, MP3/other via soundfile), `save_custom_voice()` (validates ≥10s, sanitizes name, saves to voices/ dir), `_sanitize_name()` helper
+  - `rex_voice_upload_bridge.py`: bridge script that accepts `{"file_path", "voice_name"}` from stdin, validates, saves, returns `{"ok", "voice_id", "voice_name", "duration"}` or error
+  - `gui/src/main/handlers/voice.ts`: added `rex:uploadCustomVoice` IPC handler following existing bridge pattern
+  - `gui/src/types/ipc.ts`: added `uploadCustomVoice` method signature to RexAPI interface
+  - `gui/src/pages/SettingsPage.tsx`: added Custom Voice upload section (XTTS only) with file picker, duration display with "need Xs more" warning, name input, Create Voice button, success/error feedback, auto-refreshes voice list on success
+  - `tests/test_vc002_custom_voices.py`: 15 tests covering duration validation, name sanitization, success/failure paths, bridge script
+- Files changed
+  - `rex/custom_voices.py` (new)
+  - `rex_voice_upload_bridge.py` (new)
+  - `gui/src/main/handlers/voice.ts`
+  - `gui/src/types/ipc.ts`
+  - `gui/src/pages/SettingsPage.tsx`
+  - `tests/test_vc002_custom_voices.py` (new)
+  - `PRD-master-next-cycle.md` (marked criteria [x])
+  - `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - XTTS v2 uses WAV files directly as speaker references (speaker_wav param); no .pt fine-tuning needed for voice "cloning" — just save the WAV to the voices/ directory
+  - The HTML5 Audio element's loadedmetadata event gives duration client-side without any server roundtrip
+  - Electron exposes the native file path via (file as File & { path?: string }).path — not available in standard browser File API
+  - Ruff I001 will flag local imports inside functions that are not sorted; sort them alphabetically
+---

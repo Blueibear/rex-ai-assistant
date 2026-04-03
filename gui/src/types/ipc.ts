@@ -374,6 +374,10 @@ export interface RexAPI {
     provider: string,
     voiceId: string
   ) => Promise<{ ok: boolean; audio_base64?: string; error?: string }>
+  uploadCustomVoice: (
+    filePath: string,
+    voiceName: string
+  ) => Promise<{ ok: boolean; voice_id?: string; voice_name?: string; duration?: number; error?: string }>
   getVoiceEnrollments: () => Promise<{
     ok: boolean
     active_user_id: string

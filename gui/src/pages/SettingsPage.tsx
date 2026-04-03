@@ -549,6 +549,11 @@ function VoicePanel(): React.ReactElement {
   const [enrollmentError, setEnrollmentError] = useState<string | null>(null)
   const [enrolling, setEnrolling] = useState(false)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploadFileDuration, setUploadFileDuration] = useState<number | null>(null)
+  const [uploadVoiceName, setUploadVoiceName] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadResult, setUploadResult] = useState<{ ok: boolean; message: string } | null>(null)
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const testResultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -729,6 +734,61 @@ function VoicePanel(): React.ReactElement {
         addToast('Preview failed', 'error')
       })
       .finally(() => setPreviewing(false))
+  }
+
+  function handleUploadFileChange(e: React.ChangeEvent<HTMLInputElement>): void {
+    const file = e.target.files?.[0] ?? null
+    setUploadFile(file)
+    setUploadFileDuration(null)
+    setUploadResult(null)
+    if (file) {
+      setUploadVoiceName(file.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' '))
+      const audio = new Audio(URL.createObjectURL(file))
+      audio.addEventListener('loadedmetadata', () => {
+        setUploadFileDuration(audio.duration)
+      })
+      audio.addEventListener('error', () => {
+        setUploadFileDuration(0)
+      })
+    } else {
+      setUploadVoiceName('')
+    }
+  }
+
+  async function handleUploadCustomVoice(): Promise<void> {
+    if (!uploadFile || !uploadVoiceName.trim()) return
+    setUploading(true)
+    setUploadResult(null)
+    try {
+      // Write file to a temp path via the file system API is unavailable in the
+      // renderer; instead we use a blob URL and pass the file path from the
+      // webkitRelativePath or name. For Electron, we read the file as an
+      // ArrayBuffer and write to a temp path via the main process.
+      // Simpler approach: use the native file path exposed by Electron.
+      const nativePath: string = (uploadFile as File & { path?: string }).path ?? ''
+      if (!nativePath) {
+        setUploadResult({ ok: false, message: 'Cannot read file path. Try again.' })
+        setUploading(false)
+        return
+      }
+      const res = await window.rex.uploadCustomVoice(nativePath, uploadVoiceName.trim())
+      if (res.ok) {
+        setUploadResult({ ok: true, message: `Voice "${res.voice_name}" saved successfully.` })
+        setUploadFile(null)
+        setUploadVoiceName('')
+        setUploadFileDuration(null)
+        // Refresh voice list so the new voice appears in the dropdown.
+        if (form.ttsEngine === 'xtts') {
+          loadVoices('xtts')
+        }
+      } else {
+        setUploadResult({ ok: false, message: res.error ?? 'Upload failed.' })
+      }
+    } catch (err) {
+      setUploadResult({ ok: false, message: String(err) })
+    } finally {
+      setUploading(false)
+    }
   }
 
   async function handleStartEnrollment(): Promise<void> {
@@ -1039,6 +1099,63 @@ function VoicePanel(): React.ReactElement {
           </button>
         </div>
       </div>
+
+      {/* Custom Voice Upload (XTTS only) */}
+      {form.ttsEngine === 'xtts' && (
+        <div className="mb-5 p-4 bg-surface-raised border border-border rounded-lg">
+          <p className="text-sm font-medium text-text-primary mb-3">Upload Custom Voice (XTTS)</p>
+          <p className="text-xs text-text-secondary mb-3">
+            Upload a WAV or MP3 recording (minimum 10 seconds) to create a custom speaker voice.
+          </p>
+          <div className="space-y-3">
+            <input
+              type="file"
+              accept=".wav,.mp3"
+              onChange={handleUploadFileChange}
+              className="block w-full text-sm text-text-secondary file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-accent file:text-white hover:file:bg-accent/80 cursor-pointer"
+            />
+            {uploadFile && uploadFileDuration !== null && (
+              <div className="text-xs">
+                {uploadFileDuration >= 10 ? (
+                  <span className="text-green-500">{uploadFileDuration.toFixed(1)}s — ready</span>
+                ) : (
+                  <span className="text-amber-500">
+                    {uploadFileDuration.toFixed(1)}s — need {(10 - uploadFileDuration).toFixed(1)}s more
+                  </span>
+                )}
+              </div>
+            )}
+            {uploadFile && (
+              <input
+                type="text"
+                value={uploadVoiceName}
+                placeholder="Voice name"
+                onChange={(e) => setUploadVoiceName(e.target.value)}
+                className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+              />
+            )}
+            {uploadFile && (
+              <button
+                onClick={handleUploadCustomVoice}
+                disabled={uploading || !uploadVoiceName.trim() || (uploadFileDuration !== null && uploadFileDuration < 10)}
+                className="flex items-center gap-2 bg-accent hover:bg-accent/80 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent"
+              >
+                {uploading ? (
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                  </svg>
+                ) : null}
+                {uploading ? 'Saving…' : 'Create Voice'}
+              </button>
+            )}
+            {uploadResult && (
+              <p className={`text-xs ${uploadResult.ok ? 'text-green-500' : 'text-red-400'}`}>
+                {uploadResult.message}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Speech rate */}
       <div className="mb-5">

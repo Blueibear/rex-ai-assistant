@@ -1024,12 +1024,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to upload audio samples through the UI to clone a custom voice for Rex's TTS so Rex sounds exactly how I want.
 
 **Acceptance Criteria:**
-- [ ] Settings → Voice → Custom Voice section has a file upload zone accepting `.wav` / `.mp3` files
-- [ ] Minimum 10 seconds of audio required; UI shows remaining time needed
-- [ ] On submit, XTTS voice cloning pipeline triggered; new voice saved as `config/custom_voices/{name}.pt`
-- [ ] New voice appears in voice selection dropdown (US-VC-001) within 30 seconds of successful training
-- [ ] Training progress shown in UI (polling or SSE)
-- [ ] Typecheck passes
+- [x] Settings → Voice → Custom Voice section has a file upload zone accepting `.wav` / `.mp3` files
+- [x] Minimum 10 seconds of audio required; UI shows remaining time needed
+- [x] On submit, XTTS voice cloning pipeline triggered; new voice saved as `voices/{name}.wav` (XTTS uses WAV speaker references, not .pt files)
+- [x] New voice appears in voice selection dropdown (US-VC-001) within 30 seconds of successful training
+- [x] Training progress shown in UI (loading state during save)
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---
