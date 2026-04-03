@@ -30,6 +30,14 @@ This file remains the primary control document for:
 - workflow agreements
 - coding and testing rules
 
+## Branch Strategy
+
+The canonical primary branch is **`master`**.
+
+- All PRs must target `master`.
+- `claude/**` branches are AI-generated and follow the same PR process.
+- See `CONTRIBUTING.md` for full branching model details.
+
 ## Tech Stack and Conventions
 
 ### Language and runtime

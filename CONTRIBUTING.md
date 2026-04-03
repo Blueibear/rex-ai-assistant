@@ -1,5 +1,14 @@
 # Contributing to AskRex Assistant
 
+## Branch Strategy
+
+The canonical primary branch is **`master`**.
+
+- All feature work is done on short-lived feature branches cut from `master`.
+- Pull requests must target `master`.
+- `claude/**` branches are AI-generated and follow the same PR process as human branches.
+- Do not merge directly to `master` — always open a PR so CI runs first.
+
 ## Commit Message Format
 
 All commits must follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.

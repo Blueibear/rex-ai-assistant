@@ -368,14 +368,14 @@ canonical package name so that release tags and changelog entries are correctly 
 release automation, and developer instructions all agree.
 
 **Acceptance Criteria:**
-- [ ] Inspect actual GitHub default branch **(run: `gh repo view --json defaultBranchRef`)** and
+- [x] Inspect actual GitHub default branch **(run: `gh repo view --json defaultBranchRef`)** and
   document the result
-- [ ] `docs/CONTRIBUTING.md` (create if absent) documents:
+- [x] `CONTRIBUTING.md` documents:
   - The canonical primary branch name
   - The branching model (feature branches from primary, PRs back to primary)
   - That `claude/**` branches are AI-generated and follow the same PR process
-- [ ] `CLAUDE.md` updated to state the canonical branch name
-- [ ] Typecheck passes
+- [x] `CLAUDE.md` updated to state the canonical branch name
+- [x] Typecheck passes
 
 ---
 
