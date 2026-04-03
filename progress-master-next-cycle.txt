@@ -1,3 +1,45 @@
+## Iteration 108 - US-PH-002: Inbound call STT + LLM conversation loop
+- Story: US-PH-002
+- What was implemented
+  - Extended rex/telephony/twilio_handler.py with:
+    - _detect_voicemail_intent(): keyword-based voicemail intent detection
+    - _detect_transfer_intent(): keyword-based transfer intent detection
+    - _save_voicemail(): saves caller transcription to data/voicemail/{caller}_{timestamp}.txt
+    - _get_transfer_number(): reads TWILIO_TRANSFER_NUMBER env var
+    - _build_gather_twiml(): builds TwiML <Gather input=speech> with fallback hand-crafted XML
+    - _build_hangup_twiml(): builds TwiML <Say>+<Hangup> with fallback
+    - _generate_reply(): shared LLM helper (SMS and call share same impl)
+    - Modified inbound_call route: now uses <Gather> instead of bare <Say>
+    - New inbound_gather route: STT→LLM→TTS loop, tracks turn via ?turn= query param
+    - New inbound_voicemail route: saves TranscriptionText or SpeechResult to disk
+  - 21 new unit tests (all pass); existing 15 PH-001 tests still pass (36 total)
+- Files changed
+  - rex/telephony/twilio_handler.py (extended)
+  - tests/test_ph002_inbound_conversation.py (new)
+  - PRD-master-next-cycle.md
+  - progress-master-next-cycle.txt
+- Learnings for future iterations:
+  - Twilio's <Gather input="speech"> sends SpeechResult in POST body; turn tracking via URL query params works cleanly
+  - _generate_sms_reply was refactored to delegate to _generate_reply to avoid duplication
+  - TWILIO_TRANSFER_NUMBER env var (not AppConfig) is the right config point for optional transfer number — keeps it consistent with other TWILIO_* vars
+---
+
+## Iteration 107 - US-PH-001: Twilio inbound webhook handler
+- Story: US-PH-001
+- What was implemented
+  - New rex/telephony/__init__.py package
+  - New rex/telephony/twilio_handler.py: Flask Blueprint with POST /telephony/inbound/call (TwiML greeting) and POST /telephony/inbound/sms (LLM reply via Twilio REST); module-level _validate_twilio_signature() using twilio.request_validator; graceful 503 when TWILIO_ACCOUNT_SID/AUTH_TOKEN/PHONE_NUMBER absent; fallback TwiML when twilio package not installed; _generate_sms_reply() via asyncio.new_event_loop + Assistant.generate_reply(); _send_sms() via twilio.rest.Client
+  - is_configured() public helper for feature-flag checks
+  - 15 unit tests (all pass); typecheck clean
+- Files changed
+  - rex/telephony/__init__.py (new)
+  - rex/telephony/twilio_handler.py (new)
+  - tests/test_ph001_twilio_handler.py (new)
+  - PRD-master-next-cycle.md
+  - progress-master-next-cycle.txt
+- Learnings for future iterations:
+  - Nested functions inside create_blueprint() cannot be patched via unittest.mock.patch — always define helper functions at module level for testability
+
 ## Iteration 106 - US-LOG-002: Log viewer UI with live tail, filter, search
 - Story: US-LOG-002
 - What was implemented

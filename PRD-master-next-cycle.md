@@ -1118,13 +1118,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want Rex to receive inbound calls and SMS messages via a Twilio phone number so Rex can act as a voice assistant and message handler on a real phone line.
 
 **Acceptance Criteria:**
-- [ ] `rex/telephony/twilio_handler.py` created implementing Twilio webhook routes: `/telephony/inbound/call` and `/telephony/inbound/sms`
-- [ ] Twilio credentials (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`) loaded from `.env`
-- [ ] Inbound call answered with a TwiML greeting: "Hi, you've reached Rex. How can I help?"
-- [ ] Inbound SMS text passed to `Assistant.generate_reply()` and response sent back via SMS
-- [ ] Webhook signature validated (prevents spoofed requests)
-- [ ] Integration gracefully disabled if Twilio credentials absent
-- [ ] Typecheck passes
+- [x] `rex/telephony/twilio_handler.py` created implementing Twilio webhook routes: `/telephony/inbound/call` and `/telephony/inbound/sms`
+- [x] Twilio credentials (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`) loaded from `.env`
+- [x] Inbound call answered with a TwiML greeting: "Hi, you've reached Rex. How can I help?"
+- [x] Inbound SMS text passed to `Assistant.generate_reply()` and response sent back via SMS
+- [x] Webhook signature validated (prevents spoofed requests)
+- [x] Integration gracefully disabled if Twilio credentials absent
+- [x] Typecheck passes
 
 ---
 
@@ -1133,12 +1133,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want callers to be able to speak with Rex on the phone so Rex can answer questions, take messages, and route calls.
 
 **Acceptance Criteria:**
-- [ ] TwiML `<Gather>` collects caller speech; transcription forwarded to `Assistant.generate_reply()`
-- [ ] Rex's response synthesized via TTS and played back as TwiML `<Say>` or `<Play>`
-- [ ] Conversation continues for up to 5 turns before ending gracefully
-- [ ] "Leave a message" intent detected; caller's message saved to `data/voicemail/{caller_number}_{timestamp}.txt`
-- [ ] Rex can transfer the call (TwiML `<Dial>`) if user has configured a transfer number
-- [ ] Typecheck passes
+- [x] TwiML `<Gather>` collects caller speech; transcription forwarded to `Assistant.generate_reply()`
+- [x] Rex's response synthesized via TTS and played back as TwiML `<Say>` or `<Play>`
+- [x] Conversation continues for up to 5 turns before ending gracefully
+- [x] "Leave a message" intent detected; caller's message saved to `data/voicemail/{caller_number}_{timestamp}.txt`
+- [x] Rex can transfer the call (TwiML `<Dial>`) if user has configured a transfer number
+- [x] Typecheck passes
 
 ---
 
