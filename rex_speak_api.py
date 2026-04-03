@@ -138,6 +138,19 @@ _RATE_CACHE: dict[str, deque] | None = (
 
 app.register_blueprint(create_ha_blueprint())
 
+# Shopping list PWA (US-SL-004)
+try:
+    from rex.shopping_list import ShoppingList as _ShoppingList
+    from rex.shopping_pwa import create_blueprint as _create_shopping_blueprint
+
+    _shopping_pwa_pin = os.getenv("REX_SHOPPING_PIN") or None
+    app.register_blueprint(_create_shopping_blueprint(_ShoppingList(), pin=_shopping_pwa_pin))
+    logger.info(
+        "Shopping list PWA registered at /shopping (pin=%s)", "set" if _shopping_pwa_pin else "none"
+    )
+except Exception as _e:
+    logger.warning("Shopping list PWA not registered: %s", _e)
+
 # ------------------------------------------------------------------------------
 # Config and Globals
 # ------------------------------------------------------------------------------

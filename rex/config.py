@@ -266,6 +266,9 @@ class AppConfig:
     # Web UI (US-UI-001)
     ui_enabled: bool = True
 
+    # Shopping list PWA (US-SL-004) — optional PIN; empty/None means no auth
+    shopping_pwa_pin: Optional[str] = None
+
     # Aliases
     llm_backend: Optional[str] = None
     temperature: Optional[float] = None

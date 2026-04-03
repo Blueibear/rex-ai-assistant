@@ -890,13 +890,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to access the shopping list from my phone browser so I can check items off at the store without the Rex desktop app.
 
 **Acceptance Criteria:**
-- [ ] Shopping list page at `/shopping` is a standalone minimal HTML page (no full app shell)
-- [ ] Page is mobile-responsive (works at 375px width)
-- [ ] Includes a `<link rel="manifest">` PWA manifest so it can be added to home screen
-- [ ] PIN or shared-secret protected (configurable, default: off) to prevent public access
-- [ ] Check/uncheck syncs to the main `ShoppingList` storage in real time
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Shopping list page at `/shopping` is a standalone minimal HTML page (no full app shell)
+- [x] Page is mobile-responsive (works at 375px width)
+- [x] Includes a `<link rel="manifest">` PWA manifest so it can be added to home screen
+- [x] PIN or shared-secret protected (configurable, default: off) to prevent public access
+- [x] Check/uncheck syncs to the main `ShoppingList` storage in real time
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
