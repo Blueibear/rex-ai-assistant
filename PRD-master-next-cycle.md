@@ -975,13 +975,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want Rex's voice responses to play through my Sonos or Bose speaker so I can hear Rex in any room.
 
 **Acceptance Criteria:**
-- [ ] TTS pipeline checks `AppConfig.tts_output_device`; if set to a discovered smart speaker, streams audio to that device
-- [ ] Sonos: audio served as HTTP from Rex and played via `soco.play_uri()`
-- [ ] Bose SoundTouch: audio played via SoundTouch REST API
-- [ ] Fallback to local audio output if smart speaker unreachable
-- [ ] Speaker selection persisted across restarts
-- [ ] Unit tests mock speaker APIs
-- [ ] Typecheck passes
+- [x] TTS pipeline checks `AppConfig.tts_output_device`; if set to a discovered smart speaker, streams audio to that device
+- [x] Sonos: audio served as HTTP from Rex and played via `soco.play_uri()`
+- [x] Bose SoundTouch: audio played via SoundTouch REST API
+- [x] Fallback to local audio output if smart speaker unreachable
+- [x] Speaker selection persisted across restarts
+- [x] Unit tests mock speaker APIs
+- [x] Typecheck passes
 
 ---
 

@@ -1,3 +1,65 @@
+## Iteration 109 - US-SP-002: Route TTS output to selected smart speaker
+- Story: US-SP-002
+- What was implemented
+  - New `rex/audio/smart_speaker_output.py`: SmartSpeakerOutput class with play_wav(wav_path, provider, ip) -> bool
+  - Sonos: WAV served via temporary Python HTTPServer, played via soco.play_uri(); waits duration + 1s buffer then calls device.stop()
+  - Bose SoundTouch: WAV served via temporary HTTPServer, POST to SoundTouch REST API at /select (port 8090)
+  - Both providers: graceful ImportError fallback if soco/requests not installed; Exception fallback if device unreachable
+  - AppConfig.tts_output_device (Optional[str]) field added; JSON path: audio.tts_output_device
+  - TextToSpeech._try_smart_speaker(wav_path): resolves device name against SpeakerDiscoveryService cache, delegates to SmartSpeakerOutput
+  - Hooked into _synthesize_and_play_chunk (XTTS) and _speak_edge (Edge TTS): tries smart speaker before local simpleaudio
+  - 13 unit tests (all pass); typecheck clean
+- Files changed
+  - rex/audio/smart_speaker_output.py (new)
+  - rex/config.py (AppConfig.tts_output_device field + JSON loader)
+  - rex/voice_loop.py (TextToSpeech: _tts_output_device field, _try_smart_speaker method, hooks in _synthesize_and_play_chunk and _speak_edge)
+  - tests/test_sp002_smart_speaker_output.py (new)
+  - PRD-master-next-cycle.md
+- Learnings for future iterations:
+  - Patch importlib IN the module's namespace (patch("module.importlib")) rather than globally (patch("importlib.import_module")) to avoid interfering with other patches in the same with-block
+  - patch.dict("sys.modules", {...}) is an alternative for injecting optional-import mocks without affecting patch's internal module resolution
+---
+
+## Iteration 108 - US-ME-003: Email UI — multi-account with IMAP, test, and last-synced
+- Story: US-ME-003
+- What was implemented
+  - Extended `EmailAccount` interface: backend ('imap'|'gmail'|'outlook'), displayName, host, port, username, password, lastSynced?
+  - Per-account card in IntegrationsPanel: display-name input, backend dropdown, IMAP fields (host/port/username/password) or OAuth fields, per-account Test Connection button, last-synced timestamp display
+  - Added accountTestStatus state + handleTestEmailAccount() function
+  - Added rex:testEmailAccount IPC handler validating credentials by backend type
+  - Added testEmailAccount preload binding and RexAPI type entry
+  - Backward-compat migration on load: old 'provider' field mapped to 'backend'
+  - Section relabelled "Email Accounts"
+- Files changed
+  - gui/src/types/ipc.ts, gui/src/preload/index.ts, gui/src/main/index.ts
+  - gui/src/pages/SettingsPage.tsx
+  - PRD-master-next-cycle.md
+- Learnings for future iterations:
+  - TypeScript typecheck: cd gui && node_modules/.bin/tsc --noEmit — zero output = clean pass
+  - Per-account test pattern: separate Record<string, TestStatus> state (not the global testStatus record)
+  - Backward-compat shape migration in .then() load callback: map old fields to new field names
+  - Conditional credential fields via account.backend === 'imap' ? ... : ... JSX expression
+---
+## Iteration 107 - US-SL-004: Shopping list mobile PWA endpoint
+- Story: US-SL-004
+- What was implemented
+  - Created `rex/shopping_pwa.py` — Flask Blueprint with /shopping HTML shell, /shopping/manifest.json, and REST API (/shopping/api/items, PATCH, clear-checked)
+  - Added `shopping_pwa_pin: Optional[str]` to `AppConfig` in `rex/config.py`
+  - Registered blueprint in `rex_speak_api.py` using `REX_SHOPPING_PIN` env var; wrapped in try/except for graceful fallback
+  - Created `tests/test_sl004_shopping_pwa.py` — 17 tests covering open access, PIN auth (wrong/correct/cookie), and all API endpoints
+- Files changed
+  - `rex/shopping_pwa.py` (new)
+  - `tests/test_sl004_shopping_pwa.py` (new)
+  - `rex/config.py`
+  - `rex_speak_api.py`
+  - `PRD-master-next-cycle.md`
+- Learnings for future iterations:
+  - Flask Blueprint pattern: `create_blueprint(shopping_list, pin=...)` factory returns bp with all routes; register in speak_api with try/except guard
+  - PIN auth via HMAC-signed cookie: hash PIN with SHA-256, sign with ephemeral `secrets.token_hex(32)` per process, store in `rex_shopping_auth` cookie (httponly, SameStrict, 24h)
+  - `hmac.new(key, msg, hashlib.sha256).hexdigest()` is correct Python idiom (not `hmac.HMAC()` directly)
+  - Inline HTML/JS in Python strings avoids needing templates directory (dashboard templates were retired)
+  - Pre-existing ruff B905 in rex_speak_api.py line 343 — do not fix in unrelated PRs
+---
 ## Iteration 106 - US-SL-003: Shopping list UI — view, add, check off, and clear
 - Story: US-SL-003
 - What was implemented
