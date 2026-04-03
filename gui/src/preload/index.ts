@@ -5,6 +5,7 @@ import type {
   SetSettingsResponse,
   VoiceTranscriptEntry,
   VoiceInfo,
+  VoiceEnrollment,
   Task,
   TaskInput,
   TaskRun,
@@ -206,10 +207,29 @@ const rexAPI = {
     voiceId: string
   ): Promise<{ ok: boolean; audio_base64?: string; error?: string }> =>
     ipcRenderer.invoke('rex:previewVoice', provider, voiceId),
+  getVoiceEnrollments: (): Promise<{
+    ok: boolean
+    active_user_id: string
+    enrollments: VoiceEnrollment[]
+    error?: string
+  }> => ipcRenderer.invoke('rex:getVoiceEnrollments'),
+  enrollVoice: (
+    userId: string,
+    samples: number[][]
+  ): Promise<{ ok: boolean; enrollment?: VoiceEnrollment; error?: string }> =>
+    ipcRenderer.invoke('rex:enrollVoice', userId, samples),
+  deleteVoiceEnrollment: (
+    userId: string
+  ): Promise<{ ok: boolean; deleted?: boolean; error?: string }> =>
+    ipcRenderer.invoke('rex:deleteVoiceEnrollment', userId),
   sendChatAudio: (
     audioBase64: string
   ): Promise<{ ok: boolean; transcript?: string; error?: string }> =>
-    ipcRenderer.invoke('rex:sendChatAudio', audioBase64)
+    ipcRenderer.invoke('rex:sendChatAudio', audioBase64),
+  getApiKeys: (): Promise<{ openai_key_set: boolean }> =>
+    ipcRenderer.invoke('rex:getApiKeys'),
+  setApiKey: (name: string, value: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('rex:setApiKey', name, value)
 }
 
 if (process.contextIsolated) {

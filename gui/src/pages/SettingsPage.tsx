@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, NotificationsSettings, Settings, VersionInfo, PreferenceSuggestion, VoiceInfo } from '../types/ipc'
+import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, NotificationsSettings, Settings, VersionInfo, PreferenceSuggestion, VoiceInfo, VoiceEnrollment } from '../types/ipc'
 import { useToast } from '../components/ui/Toast'
 import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
 import { SkeletonLine } from '../components/ui/SkeletonLine'
@@ -369,6 +369,121 @@ interface MediaDeviceOption {
   label: string
 }
 
+const ENROLLMENT_SAMPLE_TARGET = 3
+const ENROLLMENT_SAMPLE_DURATION_MS = 1600
+const ENROLLMENT_COUNTDOWN_SECONDS = 3
+const ENROLLMENT_SAMPLE_RATE = 16000
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
+}
+
+function mergeFloat32Arrays(chunks: Float32Array[]): Float32Array {
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+  const merged = new Float32Array(totalLength)
+  let offset = 0
+  for (const chunk of chunks) {
+    merged.set(chunk, offset)
+    offset += chunk.length
+  }
+  return merged
+}
+
+function downsampleFloat32(
+  samples: Float32Array,
+  inputSampleRate: number,
+  outputSampleRate: number
+): Float32Array {
+  if (inputSampleRate === outputSampleRate) {
+    return samples
+  }
+  if (inputSampleRate < outputSampleRate) {
+    throw new Error('Microphone sample rate is lower than the enrollment target rate')
+  }
+
+  const ratio = inputSampleRate / outputSampleRate
+  const outputLength = Math.max(1, Math.round(samples.length / ratio))
+  const output = new Float32Array(outputLength)
+
+  for (let i = 0; i < outputLength; i += 1) {
+    const start = Math.floor(i * ratio)
+    const end = Math.min(samples.length, Math.floor((i + 1) * ratio))
+    let sum = 0
+    let count = 0
+    for (let j = start; j < end; j += 1) {
+      sum += samples[j]
+      count += 1
+    }
+    output[i] = count > 0 ? sum / count : samples[Math.min(start, samples.length - 1)]
+  }
+
+  return output
+}
+
+async function captureEnrollmentSample(stream: MediaStream): Promise<number[]> {
+  const audioContext = new AudioContext()
+  const source = audioContext.createMediaStreamSource(stream)
+  const processor = audioContext.createScriptProcessor(4096, 1, 1)
+  const sink = audioContext.createGain()
+  const chunks: Float32Array[] = []
+
+  sink.gain.value = 0
+
+  return new Promise<number[]>((resolve, reject) => {
+    let settled = false
+
+    const cleanup = (): void => {
+      if (!settled) {
+        settled = true
+        processor.disconnect()
+        sink.disconnect()
+        source.disconnect()
+        void audioContext.close()
+      }
+    }
+
+    processor.onaudioprocess = (event) => {
+      const channel = event.inputBuffer.getChannelData(0)
+      chunks.push(new Float32Array(channel))
+    }
+
+    source.connect(processor)
+    processor.connect(sink)
+    sink.connect(audioContext.destination)
+
+    window.setTimeout(() => {
+      try {
+        if (chunks.length === 0) {
+          throw new Error('No microphone audio was captured')
+        }
+        const merged = mergeFloat32Arrays(chunks)
+        const downsampled = downsampleFloat32(
+          merged,
+          audioContext.sampleRate,
+          ENROLLMENT_SAMPLE_RATE
+        )
+        resolve(Array.from(downsampled))
+      } catch (error) {
+        reject(error)
+      } finally {
+        cleanup()
+      }
+    }, ENROLLMENT_SAMPLE_DURATION_MS)
+  })
+}
+
+async function runEnrollmentCountdown(
+  onTick: (remaining: number) => void
+): Promise<void> {
+  for (let remaining = ENROLLMENT_COUNTDOWN_SECONDS; remaining > 0; remaining -= 1) {
+    onTick(remaining)
+    await sleep(1000)
+  }
+  onTick(0)
+}
+
 function VoicePanel(): React.ReactElement {
   const addToast = useToast()
   const [form, setForm] = useState<VoiceSettings>({
@@ -388,6 +503,14 @@ function VoicePanel(): React.ReactElement {
   const [voices, setVoices] = useState<VoiceInfo[]>([])
   const [voicesLoading, setVoicesLoading] = useState(false)
   const [previewing, setPreviewing] = useState(false)
+  const [activeUserId, setActiveUserId] = useState('default')
+  const [enrollments, setEnrollments] = useState<VoiceEnrollment[]>([])
+  const [enrollmentCountdown, setEnrollmentCountdown] = useState(0)
+  const [capturedSamples, setCapturedSamples] = useState(0)
+  const [enrollmentMessage, setEnrollmentMessage] = useState<string | null>(null)
+  const [enrollmentError, setEnrollmentError] = useState<string | null>(null)
+  const [enrolling, setEnrolling] = useState(false)
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const testResultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -409,6 +532,22 @@ function VoicePanel(): React.ReactElement {
         setVoices([])
       })
       .finally(() => setVoicesLoading(false))
+  }
+
+  function loadEnrollmentState(): void {
+    window.rex
+      .getVoiceEnrollments()
+      .then((result) => {
+        if (!result.ok) {
+          throw new Error(result.error ?? 'Failed to load enrollments')
+        }
+        setActiveUserId(result.active_user_id || 'default')
+        setEnrollments(result.enrollments ?? [])
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Failed to load voice enrollments'
+        setEnrollmentError(message)
+      })
   }
 
   useEffect(() => {
@@ -453,6 +592,8 @@ function VoicePanel(): React.ReactElement {
         addToast('Failed to load voice settings', 'error')
       })
       .finally(() => setLoading(false))
+
+    loadEnrollmentState()
   }, [addToast])
 
   useEffect(() => {
@@ -537,6 +678,76 @@ function VoicePanel(): React.ReactElement {
         addToast('Preview failed', 'error')
       })
       .finally(() => setPreviewing(false))
+  }
+
+  async function handleStartEnrollment(): Promise<void> {
+    setEnrolling(true)
+    setEnrollmentCountdown(0)
+    setCapturedSamples(0)
+    setEnrollmentMessage(null)
+    setEnrollmentError(null)
+
+    let stream: MediaStream | null = null
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: form.microphoneDeviceId
+          ? { deviceId: { exact: form.microphoneDeviceId } }
+          : true
+      })
+
+      const samples: number[][] = []
+      for (let index = 0; index < ENROLLMENT_SAMPLE_TARGET; index += 1) {
+        await runEnrollmentCountdown(setEnrollmentCountdown)
+        const sample = await captureEnrollmentSample(stream)
+        samples.push(sample)
+        setCapturedSamples(index + 1)
+        setEnrollmentMessage(`Captured sample ${index + 1} of ${ENROLLMENT_SAMPLE_TARGET}.`)
+        await sleep(250)
+      }
+
+      const result = await window.rex.enrollVoice(activeUserId, samples)
+      if (!result.ok) {
+        throw new Error(result.error ?? 'Voice enrollment failed')
+      }
+
+      setEnrollmentMessage(`Voice enrollment saved for ${activeUserId}.`)
+      addToast('Voice enrollment saved', 'success')
+      loadEnrollmentState()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Voice enrollment failed'
+      setEnrollmentError(message)
+      addToast(message, 'error')
+    } finally {
+      setEnrollmentCountdown(0)
+      setEnrolling(false)
+      stream?.getTracks().forEach((track) => track.stop())
+    }
+  }
+
+  function handleDeleteEnrollment(userId: string): void {
+    setDeletingUserId(userId)
+    setEnrollmentError(null)
+    setEnrollmentMessage(null)
+    window.rex
+      .deleteVoiceEnrollment(userId)
+      .then((result) => {
+        if (!result.ok) {
+          throw new Error(result.error ?? 'Failed to delete voice enrollment')
+        }
+        setEnrollmentMessage(`Deleted enrollment for ${userId}.`)
+        addToast('Voice enrollment deleted', 'success')
+        loadEnrollmentState()
+      })
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error ? error.message : 'Failed to delete voice enrollment'
+        setEnrollmentError(message)
+        addToast(message, 'error')
+      })
+      .finally(() => {
+        setDeletingUserId(null)
+      })
   }
 
   if (loading) {
@@ -779,6 +990,117 @@ function VoicePanel(): React.ReactElement {
           <span className="text-xs text-danger">Failed to play sample</span>
         )}
       </div>
+
+      <div className="mt-8 border-t border-border pt-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold text-text-primary">Enroll Voice</h3>
+            <p className="mt-1 text-sm text-text-secondary">
+              Record three short samples for the active user so Rex can recognize your voice.
+            </p>
+            <p className="mt-1 text-xs text-text-secondary">
+              Active user: <span className="font-medium text-text-primary">{activeUserId}</span>
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              void handleStartEnrollment()
+            }}
+            disabled={enrolling}
+            className="flex items-center gap-2 bg-accent hover:bg-accent/90 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg"
+          >
+            {enrolling ? (
+              <>
+                <svg
+                  className="animate-spin h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                </svg>
+                Recording...
+              </>
+            ) : (
+              'Start Enrollment'
+            )}
+          </button>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-border bg-surface-raised p-4">
+          <div className="flex items-center justify-between text-sm text-text-primary">
+            <span>Samples captured</span>
+            <span>
+              {capturedSamples}/{ENROLLMENT_SAMPLE_TARGET}
+            </span>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface">
+            <div
+              className="h-full rounded-full bg-accent transition-all duration-300"
+              style={{
+                width: `${(capturedSamples / ENROLLMENT_SAMPLE_TARGET) * 100}%`
+              }}
+            />
+          </div>
+          <div className="mt-4 flex items-center justify-between text-sm">
+            <span className="text-text-secondary">
+              {enrollmentCountdown > 0
+                ? `Sample ${Math.min(capturedSamples + 1, ENROLLMENT_SAMPLE_TARGET)} starts in`
+                : enrolling
+                  ? 'Recording now'
+                  : 'Ready to record'}
+            </span>
+            <span className="text-2xl font-semibold text-text-primary tabular-nums">
+              {enrollmentCountdown > 0 ? enrollmentCountdown : enrolling ? 'REC' : '--'}
+            </span>
+          </div>
+          {enrollmentMessage && (
+            <p className="mt-3 text-sm text-success">{enrollmentMessage}</p>
+          )}
+          {enrollmentError && (
+            <p className="mt-3 text-sm text-danger">{enrollmentError}</p>
+          )}
+        </div>
+
+        <div className="mt-6">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold text-text-primary">Enrolled Users</h4>
+            <span className="text-xs text-text-secondary">{enrollments.length} total</span>
+          </div>
+          <div className="mt-3 space-y-3">
+            {enrollments.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-surface-raised px-4 py-5 text-sm text-text-secondary">
+                No voice enrollments yet.
+              </div>
+            ) : (
+              enrollments.map((enrollment) => (
+                <div
+                  key={enrollment.user_id}
+                  className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface-raised px-4 py-3"
+                >
+                  <div>
+                    <div className="text-sm font-medium text-text-primary">
+                      {enrollment.user_id}
+                    </div>
+                    <div className="mt-1 text-xs text-text-secondary">
+                      {enrollment.sample_count} samples, {enrollment.model_id}
+                      {enrollment.updated_at ? `, updated ${new Date(enrollment.updated_at).toLocaleString()}` : ''}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteEnrollment(enrollment.user_id)}
+                    disabled={deletingUserId === enrollment.user_id}
+                    className="rounded-lg border border-danger/30 px-3 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
+                  >
+                    {deletingUserId === enrollment.user_id ? 'Deleting...' : 'Delete Enrollment'}
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -791,22 +1113,53 @@ const AI_MODELS: Array<{ value: AiSettings['model']; label: string }> = [
   { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' }
 ]
 
+const MODEL_ROUTING_FIELDS: Array<{
+  key: keyof AiSettings['modelRouting']
+  label: string
+  placeholder: string
+}> = [
+  { key: 'default', label: 'Default', placeholder: 'gpt-4o' },
+  { key: 'coding', label: 'Coding', placeholder: 'claude-sonnet-4' },
+  { key: 'reasoning', label: 'Reasoning', placeholder: 'o3-mini' },
+  { key: 'search', label: 'Search', placeholder: 'gpt-4o-mini' },
+  { key: 'vision', label: 'Vision', placeholder: 'gpt-4o' },
+  { key: 'fast', label: 'Fast', placeholder: 'llama3.2' }
+]
+
+type SavedField = keyof AiSettings | 'modelRouting'
+
 function AiPanel(): React.ReactElement {
   const addToast = useToast()
   const [form, setForm] = useState<AiSettings>({
     model: 'claude-sonnet-4',
+    provider: 'openai',
+    customModelId: '',
+    ollamaBaseUrl: 'http://localhost:11434',
     temperature: 0.7,
     maxTokens: 2048,
     systemPrompt: '',
     autonomyMode: 'manual',
     budgetPerPlan: 0,
-    budgetPerStep: 0
+    budgetPerStep: 0,
+    modelRouting: {
+      default: '',
+      coding: '',
+      reasoning: '',
+      search: '',
+      vision: '',
+      fast: ''
+    }
   })
   const [loading, setLoading] = useState(true)
-  const [savedField, setSavedField] = useState<keyof AiSettings | null>(null)
+  const [savedField, setSavedField] = useState<SavedField | null>(null)
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [suggestions, setSuggestions] = useState<PreferenceSuggestion[]>([])
   const [dismissedFields, setDismissedFields] = useState<Set<string>>(new Set())
+  const [routingDirty, setRoutingDirty] = useState(false)
+  const [savingRouting, setSavingRouting] = useState(false)
+  const [apiKeySet, setApiKeySet] = useState(false)
+  const [apiKeyValue, setApiKeyValue] = useState('')
+  const [apiKeySaving, setApiKeySaving] = useState(false)
 
   function loadSuggestions(): void {
     window.rex
@@ -821,10 +1174,22 @@ function AiPanel(): React.ReactElement {
     window.rex
       .getSettings('ai')
       .then((settings: Settings) => {
+        const modelRouting =
+          settings.modelRouting && typeof settings.modelRouting === 'object'
+            ? (settings.modelRouting as Record<string, unknown>)
+            : {}
+        const rawProvider = settings.provider
+        const provider: AiSettings['provider'] =
+          rawProvider === 'openai' || rawProvider === 'ollama' || rawProvider === 'local'
+            ? rawProvider
+            : 'openai'
         setForm({
           model: (AI_MODELS.some((m) => m.value === settings.model)
             ? settings.model
             : 'claude-sonnet-4') as AiSettings['model'],
+          provider,
+          customModelId: typeof settings.customModelId === 'string' ? settings.customModelId : '',
+          ollamaBaseUrl: typeof settings.ollamaBaseUrl === 'string' ? settings.ollamaBaseUrl : 'http://localhost:11434',
           temperature: typeof settings.temperature === 'number' ? settings.temperature : 0.7,
           maxTokens: typeof settings.maxTokens === 'number' ? settings.maxTokens : 2048,
           systemPrompt: typeof settings.systemPrompt === 'string' ? settings.systemPrompt : '',
@@ -833,18 +1198,34 @@ function AiPanel(): React.ReactElement {
               ? settings.autonomyMode
               : 'manual',
           budgetPerPlan: typeof settings.budgetPerPlan === 'number' ? settings.budgetPerPlan : 0,
-          budgetPerStep: typeof settings.budgetPerStep === 'number' ? settings.budgetPerStep : 0
+          budgetPerStep: typeof settings.budgetPerStep === 'number' ? settings.budgetPerStep : 0,
+          modelRouting: {
+            default: typeof modelRouting.default === 'string' ? modelRouting.default : '',
+            coding: typeof modelRouting.coding === 'string' ? modelRouting.coding : '',
+            reasoning: typeof modelRouting.reasoning === 'string' ? modelRouting.reasoning : '',
+            search: typeof modelRouting.search === 'string' ? modelRouting.search : '',
+            vision: typeof modelRouting.vision === 'string' ? modelRouting.vision : '',
+            fast: typeof modelRouting.fast === 'string' ? modelRouting.fast : ''
+          }
         })
+        setRoutingDirty(false)
       })
       .catch(() => {
         addToast('Failed to load AI settings', 'error')
       })
       .finally(() => setLoading(false))
 
+    window.rex
+      .getApiKeys()
+      .then((keys) => setApiKeySet(keys.openai_key_set))
+      .catch(() => {
+        // Non-fatal — API key status will show as unset
+      })
+
     loadSuggestions()
   }, [addToast])
 
-  function showSaved(field: keyof AiSettings): void {
+  function showSaved(field: SavedField): void {
     if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
     setSavedField(field)
     savedTimerRef.current = setTimeout(() => setSavedField(null), 2000)
@@ -859,6 +1240,39 @@ function AiPanel(): React.ReactElement {
       .catch(() => {
         addToast('Failed to save AI settings', 'error')
       })
+  }
+
+  function handleRoutingChange(
+    field: keyof AiSettings['modelRouting'],
+    value: string
+  ): void {
+    setForm((current) => ({
+      ...current,
+      modelRouting: {
+        ...current.modelRouting,
+        [field]: value
+      }
+    }))
+    setRoutingDirty(true)
+  }
+
+  function handleSaveRouting(): void {
+    const updated = {
+      ...form,
+      modelRouting: { ...form.modelRouting }
+    }
+    setSavingRouting(true)
+    window.rex
+      .setSettings('ai', updated as unknown as Settings)
+      .then(() => {
+        setForm(updated)
+        setRoutingDirty(false)
+        showSaved('modelRouting')
+      })
+      .catch(() => {
+        addToast('Failed to save model routing', 'error')
+      })
+      .finally(() => setSavingRouting(false))
   }
 
   function handleApplySuggestion(suggestion: PreferenceSuggestion): void {
@@ -878,6 +1292,26 @@ function AiPanel(): React.ReactElement {
     setDismissedFields((prev) => new Set(prev).add(field))
   }
 
+  function handleSaveApiKey(): void {
+    if (!apiKeyValue.trim()) return
+    setApiKeySaving(true)
+    window.rex
+      .setApiKey('OPENAI_API_KEY', apiKeyValue.trim())
+      .then((result) => {
+        if (result.ok) {
+          setApiKeySet(true)
+          setApiKeyValue('')
+          addToast('API key saved', 'success')
+        } else {
+          addToast(result.error ?? 'Failed to save API key', 'error')
+        }
+      })
+      .catch(() => {
+        addToast('Failed to save API key', 'error')
+      })
+      .finally(() => setApiKeySaving(false))
+  }
+
   const activeSuggestion = suggestions.find((s) => !dismissedFields.has(s.field)) ?? null
 
   if (loading) {
@@ -888,26 +1322,189 @@ function AiPanel(): React.ReactElement {
     <div className="p-6 max-w-lg">
       <h2 className="text-lg font-semibold text-text-primary mb-6">AI</h2>
 
-      {/* AI Model */}
+      {/* LLM Provider */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-1.5">
-          <label htmlFor="aiModel" className="text-sm font-medium text-text-primary">
-            AI Model
+          <label htmlFor="llmProvider" className="text-sm font-medium text-text-primary">
+            LLM Provider
           </label>
-          <SavedIndicator visible={savedField === 'model'} />
+          <SavedIndicator visible={savedField === 'provider'} />
         </div>
         <select
-          id="aiModel"
-          value={form.model}
-          onChange={(e) => handleFieldChange('model', e.target.value as AiSettings['model'])}
+          id="llmProvider"
+          value={form.provider}
+          onChange={(e) => handleFieldChange('provider', e.target.value as AiSettings['provider'])}
           className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
         >
-          {AI_MODELS.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
+          <option value="openai">OpenAI</option>
+          <option value="ollama">Ollama (local)</option>
+          <option value="local">Local Transformers</option>
         </select>
+      </div>
+
+      {/* OpenAI: model dropdown + API key */}
+      {form.provider === 'openai' && (
+        <>
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="aiModel" className="text-sm font-medium text-text-primary">
+                AI Model
+              </label>
+              <SavedIndicator visible={savedField === 'model'} />
+            </div>
+            <select
+              id="aiModel"
+              value={form.model}
+              onChange={(e) => handleFieldChange('model', e.target.value as AiSettings['model'])}
+              className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+            >
+              {AI_MODELS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* OpenAI API Key */}
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="openaiApiKey" className="text-sm font-medium text-text-primary">
+                OpenAI API Key
+              </label>
+              {apiKeySet && (
+                <span className="text-xs text-success font-medium">Key set</span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <PasswordInput
+                  id="openaiApiKey"
+                  value={apiKeyValue}
+                  placeholder={apiKeySet ? '••••••••••••••••' : 'sk-…'}
+                  onChange={setApiKeyValue}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleSaveApiKey}
+                disabled={apiKeySaving || !apiKeyValue.trim()}
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50 shrink-0"
+              >
+                {apiKeySaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-text-secondary">
+              Saved to .env at the repo root. Never stored in gui_settings.json.
+            </p>
+          </div>
+        </>
+      )}
+
+      {/* Ollama: base URL + model name */}
+      {form.provider === 'ollama' && (
+        <>
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="ollamaBaseUrl" className="text-sm font-medium text-text-primary">
+                Ollama Base URL
+              </label>
+              <SavedIndicator visible={savedField === 'ollamaBaseUrl'} />
+            </div>
+            <input
+              id="ollamaBaseUrl"
+              type="text"
+              value={form.ollamaBaseUrl}
+              placeholder="http://localhost:11434"
+              onChange={(e) => setForm((f) => ({ ...f, ollamaBaseUrl: e.target.value }))}
+              onBlur={(e) => handleFieldChange('ollamaBaseUrl', e.target.value)}
+              className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          </div>
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="customModelId" className="text-sm font-medium text-text-primary">
+                Model Name / Tag
+              </label>
+              <SavedIndicator visible={savedField === 'customModelId'} />
+            </div>
+            <input
+              id="customModelId"
+              type="text"
+              value={form.customModelId}
+              placeholder="e.g. llama3:8b"
+              onChange={(e) => setForm((f) => ({ ...f, customModelId: e.target.value }))}
+              onBlur={(e) => handleFieldChange('customModelId', e.target.value)}
+              className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          </div>
+        </>
+      )}
+
+      {/* Local Transformers: model path */}
+      {form.provider === 'local' && (
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="customModelId" className="text-sm font-medium text-text-primary">
+              Model Name or Path
+            </label>
+            <SavedIndicator visible={savedField === 'customModelId'} />
+          </div>
+          <input
+            id="customModelId"
+            type="text"
+            value={form.customModelId}
+            placeholder="e.g. mistralai/Mistral-7B-Instruct-v0.3"
+            onChange={(e) => setForm((f) => ({ ...f, customModelId: e.target.value }))}
+            onBlur={(e) => handleFieldChange('customModelId', e.target.value)}
+            className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+        </div>
+      )}
+
+      <div className="mb-6 rounded-xl border border-border bg-surface-raised/40 p-4">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold text-text-primary">Model Routing</h3>
+            <p className="mt-1 text-xs text-text-secondary">
+              Override the model used for each task category. Leave a field blank to fall back to Rex’s default routing.
+            </p>
+          </div>
+          <SavedIndicator visible={savedField === 'modelRouting'} />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {MODEL_ROUTING_FIELDS.map((field) => (
+            <div key={field.key}>
+              <label
+                htmlFor={`model-routing-${field.key}`}
+                className="mb-1.5 block text-sm font-medium text-text-primary"
+              >
+                {field.label}
+              </label>
+              <input
+                id={`model-routing-${field.key}`}
+                type="text"
+                value={form.modelRouting[field.key]}
+                placeholder={field.placeholder}
+                onChange={(e) => handleRoutingChange(field.key, e.target.value)}
+                className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+              />
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <p className="text-xs text-text-secondary">
+            Supported values include OpenAI model IDs, Claude model names, or local model identifiers such as Ollama tags.
+          </p>
+          <button
+            type="button"
+            onClick={handleSaveRouting}
+            disabled={!routingDirty || savingRouting}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {savingRouting ? 'Saving…' : 'Save Routing'}
+          </button>
+        </div>
       </div>
 
       {/* Temperature */}

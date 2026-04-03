@@ -64,6 +64,122 @@ function writeRexConfig(config: Record<string, unknown>): void {
   writeFileSync(getRexConfigPath(), JSON.stringify(config, null, 2), 'utf8')
 }
 
+// ---------------------------------------------------------------------------
+// .env file helpers (API keys)
+// ---------------------------------------------------------------------------
+
+function getEnvFilePath(): string {
+  return join(app.getAppPath(), '..', '.env')
+}
+
+function readEnvFile(): Record<string, string> {
+  try {
+    const p = getEnvFilePath()
+    if (!existsSync(p)) return {}
+    const lines = readFileSync(p, 'utf8').split('\n')
+    const result: Record<string, string> = {}
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const eq = trimmed.indexOf('=')
+      if (eq === -1) continue
+      const key = trimmed.slice(0, eq).trim()
+      const val = trimmed.slice(eq + 1).trim()
+      result[key] = val
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
+
+function writeEnvKey(name: string, value: string): void {
+  const p = getEnvFilePath()
+  let lines: string[] = []
+  try {
+    if (existsSync(p)) {
+      lines = readFileSync(p, 'utf8').split('\n')
+    }
+  } catch {
+    lines = []
+  }
+  const keyPrefix = `${name}=`
+  const newLine = `${name}=${value}`
+  let found = false
+  lines = lines.map((line) => {
+    if (line.startsWith(keyPrefix) || line.trim().startsWith(keyPrefix)) {
+      found = true
+      return newLine
+    }
+    return line
+  })
+  if (!found) {
+    lines.push(newLine)
+  }
+  // Trim trailing empty lines then add single newline at end
+  while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop()
+  writeFileSync(p, lines.join('\n') + '\n', 'utf8')
+}
+
+function normalizeAiModelRouting(raw: unknown): AiSettings['modelRouting'] {
+  const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  return {
+    default: typeof source.default === 'string' ? source.default : '',
+    coding: typeof source.coding === 'string' ? source.coding : '',
+    reasoning: typeof source.reasoning === 'string' ? source.reasoning : '',
+    search: typeof source.search === 'string' ? source.search : '',
+    vision: typeof source.vision === 'string' ? source.vision : '',
+    fast: typeof source.fast === 'string' ? source.fast : ''
+  }
+}
+
+function buildAiSettings(raw: Settings = {}): AiSettings {
+  const rexConfig = readRexConfig()
+  const models = rexConfig.models && typeof rexConfig.models === 'object'
+    ? (rexConfig.models as Record<string, unknown>)
+    : {}
+  const rawModel = typeof raw.model === 'string' ? raw.model : null
+  const model = rawModel === 'gpt-4o' || rawModel === 'gpt-4-turbo' || rawModel === 'claude-opus-4' || rawModel === 'claude-sonnet-4' || rawModel === 'gemini-1.5-pro'
+    ? rawModel
+    : 'claude-sonnet-4'
+  const routingSource =
+    raw.modelRouting && typeof raw.modelRouting === 'object'
+      ? raw.modelRouting
+      : rexConfig.model_routing
+  const rawProvider = typeof raw.provider === 'string' ? raw.provider : null
+  const provider: AiSettings['provider'] =
+    rawProvider === 'openai' || rawProvider === 'ollama' || rawProvider === 'local'
+      ? rawProvider
+      : 'openai'
+
+  return {
+    model,
+    provider,
+    customModelId: typeof raw.customModelId === 'string' ? raw.customModelId : '',
+    ollamaBaseUrl: typeof raw.ollamaBaseUrl === 'string' ? raw.ollamaBaseUrl : 'http://localhost:11434',
+    temperature:
+      typeof raw.temperature === 'number'
+        ? raw.temperature
+        : typeof models.llm_temperature === 'string'
+          ? parseFloat(models.llm_temperature) || 0.7
+          : 0.7,
+    maxTokens:
+      typeof raw.maxTokens === 'number'
+        ? raw.maxTokens
+        : typeof models.llm_max_tokens === 'number'
+          ? models.llm_max_tokens
+          : 2048,
+    systemPrompt: typeof raw.systemPrompt === 'string' ? raw.systemPrompt : '',
+    autonomyMode:
+      raw.autonomyMode === 'supervised' || raw.autonomyMode === 'full-auto'
+        ? raw.autonomyMode
+        : 'manual',
+    budgetPerPlan: typeof raw.budgetPerPlan === 'number' ? raw.budgetPerPlan : 0,
+    budgetPerStep: typeof raw.budgetPerStep === 'number' ? raw.budgetPerStep : 0,
+    modelRouting: normalizeAiModelRouting(routingSource)
+  }
+}
+
 /** Mirror GUI settings into rex_config.json for sections that overlap. */
 function mirrorToRexConfig(section: string, values: Settings): void {
   try {
@@ -73,7 +189,11 @@ function mirrorToRexConfig(section: string, values: Settings): void {
       const models = ((rexConfig.models ?? {}) as Record<string, unknown>)
       if (typeof values.temperature === 'number') models.llm_temperature = String(values.temperature)
       if (typeof values.maxTokens === 'number') models.llm_max_tokens = values.maxTokens
+      if (typeof values.provider === 'string') models.llm_provider = values.provider
+      if (typeof values.ollamaBaseUrl === 'string') models.ollama_base_url = values.ollamaBaseUrl
+      if (typeof values.customModelId === 'string') models.custom_model_id = values.customModelId
       rexConfig.models = models
+      rexConfig.model_routing = normalizeAiModelRouting(values.modelRouting)
       writeRexConfig(rexConfig)
     }
 
@@ -119,13 +239,17 @@ const defaultSettingsMap: Record<string, Settings> = {
   } satisfies VoiceSettings,
   ai: {
     model: 'claude-sonnet-4',
+    provider: 'openai',
+    customModelId: '',
+    ollamaBaseUrl: 'http://localhost:11434',
     temperature: 0.7,
     maxTokens: 2048,
     systemPrompt: '',
     autonomyMode: 'manual',
     budgetPerPlan: 0,
-    budgetPerStep: 0
-  } satisfies AiSettings,
+    budgetPerStep: 0,
+    modelRouting: normalizeAiModelRouting({})
+  } satisfies AiSettings as unknown as Settings,
   integrations: {
     emailProvider: 'gmail',
     emailClientId: '',
@@ -156,15 +280,20 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
 
   ipcMain.handle('rex:getSettings', (_event, section: string): Settings => {
     const stored = readGuiSettings()
+    if (section === 'ai') {
+      return buildAiSettings((stored[section] ?? {}) as Settings) as unknown as Settings
+    }
     return stored[section] ?? defaultSettingsMap[section] ?? {}
   })
 
   ipcMain.handle('rex:setSettings', (_event, section: string, values: Settings) => {
     const stored = readGuiSettings()
-    stored[section] = values
+    const normalizedValues =
+      section === 'ai' ? (buildAiSettings(values) as unknown as Settings) : values
+    stored[section] = normalizedValues
     writeGuiSettings(stored)
     // Mirror relevant fields to rex_config.json so the Python backend picks them up
-    mirrorToRexConfig(section, values)
+    mirrorToRexConfig(section, normalizedValues)
     return { ok: true }
   })
 
@@ -268,15 +397,36 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
     'rex:applyPreferenceSuggestion',
     (_event, field: string, value: string | number) => {
       const stored = readGuiSettings()
-      const aiSection = ({ ...(stored['ai'] ?? defaultSettingsMap['ai'] ?? {}) }) as Record<
-        string,
-        unknown
-      >
+      const aiSection = buildAiSettings((stored['ai'] ?? defaultSettingsMap['ai'] ?? {}) as Settings) as unknown as Record<string, unknown>
       aiSection[field] = value
       stored['ai'] = aiSection as Settings
       writeGuiSettings(stored)
       mirrorToRexConfig('ai', aiSection as Settings)
       return { ok: true }
+    }
+  )
+
+  ipcMain.handle('rex:getApiKeys', () => {
+    const env = readEnvFile()
+    return {
+      openai_key_set: typeof env['OPENAI_API_KEY'] === 'string' && env['OPENAI_API_KEY'].trim() !== ''
+    }
+  })
+
+  ipcMain.handle(
+    'rex:setApiKey',
+    (_event, name: string, value: string): { ok: boolean; error?: string } => {
+      try {
+        // Validate key name to prevent arbitrary env writes
+        const allowedKeys = ['OPENAI_API_KEY', 'ELEVENLABS_API_KEY', 'SERPAPI_KEY', 'BRAVE_API_KEY']
+        if (!allowedKeys.includes(name)) {
+          return { ok: false, error: `Key "${name}" is not allowed` }
+        }
+        writeEnvKey(name, value)
+        return { ok: true }
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
     }
   )
 

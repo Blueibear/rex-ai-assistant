@@ -125,14 +125,34 @@ export interface VoiceSettings {
   volume: number
 }
 
+export interface VoiceEnrollment {
+  user_id: string
+  sample_count: number
+  updated_at: string
+  model_id: string
+}
+
+export interface AiModelRoutingSettings {
+  default: string
+  coding: string
+  reasoning: string
+  search: string
+  vision: string
+  fast: string
+}
+
 export interface AiSettings {
   model: 'gpt-4o' | 'gpt-4-turbo' | 'claude-opus-4' | 'claude-sonnet-4' | 'gemini-1.5-pro'
+  provider: 'openai' | 'ollama' | 'local'
+  customModelId: string
+  ollamaBaseUrl: string
   temperature: number
   maxTokens: number
   systemPrompt: string
   autonomyMode: 'manual' | 'supervised' | 'full-auto'
   budgetPerPlan: number
   budgetPerStep: number
+  modelRouting: AiModelRoutingSettings
 }
 
 export interface IntegrationsSettings {
@@ -296,7 +316,20 @@ export interface RexAPI {
     provider: string,
     voiceId: string
   ) => Promise<{ ok: boolean; audio_base64?: string; error?: string }>
+  getVoiceEnrollments: () => Promise<{
+    ok: boolean
+    active_user_id: string
+    enrollments: VoiceEnrollment[]
+    error?: string
+  }>
+  enrollVoice: (
+    userId: string,
+    samples: number[][]
+  ) => Promise<{ ok: boolean; enrollment?: VoiceEnrollment; error?: string }>
+  deleteVoiceEnrollment: (userId: string) => Promise<{ ok: boolean; deleted?: boolean; error?: string }>
   sendChatAudio: (
     audioBase64: string
   ) => Promise<{ ok: boolean; transcript?: string; error?: string }>
+  getApiKeys: () => Promise<{ openai_key_set: boolean }>
+  setApiKey: (name: string, value: string) => Promise<{ ok: boolean; error?: string }>
 }
