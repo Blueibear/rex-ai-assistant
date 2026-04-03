@@ -41,10 +41,11 @@ TOOL_DESCRIPTION = (
 
 
 def send_email(
-    to: str | list[str],
-    subject: str,
-    body: str,
+    to: str | list[str] = "",
+    subject: str = "",
+    body: str = "",
     context: dict[str, Any] | None = None,
+    **kwargs: Any,
 ) -> dict[str, Any]:
     """Send an email via Rex's EmailService.
 
@@ -62,10 +63,13 @@ def send_email(
         body:    Plain-text message body.
         context: Optional ambient context dict (unused; reserved for future
             timezone / locale injection).
+        **kwargs: Absorbs dispatcher-injected keys such as ``transcript``
+            and ``_user_id`` without raising TypeError.
 
     Returns:
         A dict with keys ``ok`` (bool), ``message_id`` (str|None), and
         ``error`` (str|None).
     """
+    user_id: str | None = kwargs.get("_user_id")
     service = _get_email_service()
-    return service.send(to=to, subject=subject, body=body)
+    return service.send(to=to, subject=subject, body=body, user_id=user_id)

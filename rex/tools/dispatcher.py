@@ -196,7 +196,9 @@ class ToolDispatcher:
 
         return selected
 
-    def execute_tools(self, tools: list[Tool], message: str) -> dict[str, Any]:
+    def execute_tools(
+        self, tools: list[Tool], message: str, *, user_id: str | None = None
+    ) -> dict[str, Any]:
         """Invoke *tools* with timeout + one-retry on transient errors.
 
         Each handler is called with ``transcript=message``.  For each tool:
@@ -210,8 +212,11 @@ class ToolDispatcher:
           success/failure.
 
         Args:
-            tools: Tools to execute (from :meth:`select_tools`).
+            tools:   Tools to execute (from :meth:`select_tools`).
             message: The user message passed as ``transcript`` kwarg.
+            user_id: Active user identifier forwarded to each tool handler as
+                     ``_user_id`` so that user-scoped tools (e.g. email) can
+                     enforce per-user access control.
 
         Returns:
             Dict mapping tool name to its result (or error/timeout string).
@@ -219,7 +224,7 @@ class ToolDispatcher:
         results: dict[str, Any] = {}
         for tool in tools:
             start = time.monotonic()
-            value, ok = self._invoke_with_timeout_retry(tool, message)
+            value, ok = self._invoke_with_timeout_retry(tool, message, user_id=user_id)
             duration = time.monotonic() - start
             logger.info(
                 "tool_dispatcher: %r %.3fs %s",
@@ -248,7 +253,9 @@ class ToolDispatcher:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _invoke_with_timeout_retry(self, tool: Tool, message: str) -> tuple[Any, bool]:
+    def _invoke_with_timeout_retry(
+        self, tool: Tool, message: str, *, user_id: str | None = None
+    ) -> tuple[Any, bool]:
         """Invoke *tool* handler; retry once on transient errors.
 
         Returns:
@@ -257,9 +264,13 @@ class ToolDispatcher:
         timeout = self._timeout_seconds
         last_exc: BaseException | None = None
 
+        kwargs: dict[str, Any] = {"transcript": message}
+        if user_id is not None:
+            kwargs["_user_id"] = user_id
+
         for attempt in range(2):
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(tool.handler, transcript=message)
+                future = executor.submit(tool.handler, **kwargs)
                 try:
                     result = future.result(timeout=timeout)
                     return result, True

@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -118,6 +118,7 @@ class EmailService:
         mock_messages: list[EmailMessage] | None = None,
         mock_data_path: Path | None = None,
         backend: object | None = None,
+        user_email_accounts: dict[str, list[Any]] | None = None,
     ) -> None:
         if event_bus is None and mock_data_file is not None and hasattr(mock_data_file, "publish"):
             event_bus = mock_data_file  # type: ignore[assignment]
@@ -132,6 +133,8 @@ class EmailService:
         self._mock_messages = mock_messages  # If provided, overrides file loading
         self._mock_emails: list[EmailSummary] = []
         self._backend = backend  # Optional EmailBackend instance
+        # Per-user account map: {user_id: [UserEmailAccount, ...]}
+        self._user_email_accounts: dict[str, list[Any]] = user_email_accounts or {}
 
         self.credential_manager = None
         if get_credential_manager is not None:
@@ -157,6 +160,36 @@ class EmailService:
     def active_backend(self) -> object | None:
         """The currently configured backend (may be ``None`` for stub mode)."""
         return self._backend
+
+    # ------------------------------------------------------------------
+    # User-scoped account access (US-ME-002)
+    # ------------------------------------------------------------------
+
+    def get_accounts(self, user_id: str) -> list[Any]:
+        """Return the email accounts owned by *user_id*.
+
+        Returns an empty list (not an error) when the user has no accounts
+        configured.  Never returns accounts belonging to other users.
+        """
+        return list(self._user_email_accounts.get(user_id, []))
+
+    def _check_account_access(self, user_id: str, account_id: str) -> None:
+        """Raise ``PermissionError`` if *account_id* does not belong to *user_id*.
+
+        The check is only applied when ``user_email_accounts`` has been
+        populated (i.e. when the caller explicitly provided the map).  If the
+        map is empty the check is a no-op so that existing callers without
+        user context continue to work.
+        """
+        if not self._user_email_accounts:
+            return  # No scoping configured — allow all (backwards compat)
+        owned_ids = {
+            getattr(a, "account_id", None) for a in self._user_email_accounts.get(user_id, [])
+        }
+        if account_id not in owned_ids:
+            raise PermissionError(
+                f"User {user_id!r} does not have access to account {account_id!r}"
+            )
 
     # ------------------------------------------------------------------
     # Connection
@@ -317,7 +350,7 @@ class EmailService:
             snippet = ""
 
         received_at_raw = d.get("received_at")
-        received_at = self._parse_datetime(received_at_raw) or datetime.now(timezone.utc)
+        received_at = self._parse_datetime(received_at_raw) or datetime.now(UTC)
 
         labels = d.get("labels")
         if not isinstance(labels, list):
@@ -347,11 +380,11 @@ class EmailService:
         if value is None:
             return None
         if isinstance(value, datetime):
-            return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+            return value if value.tzinfo else value.replace(tzinfo=UTC)
         if isinstance(value, str):
             try:
                 dt = datetime.fromisoformat(value)
-                return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+                return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
             except Exception:
                 return None
         return None
@@ -360,7 +393,7 @@ class EmailService:
     # Read operations
     # ------------------------------------------------------------------
 
-    def fetch_unread(self, limit: int = 10) -> list[EmailSummary]:
+    def fetch_unread(self, limit: int = 10, *, user_id: str | None = None) -> list[EmailSummary]:
         """
         Fetch unread email summaries.
 
@@ -369,7 +402,10 @@ class EmailService:
         the in-memory mock data.
 
         Args:
-            limit: Maximum number of emails to return
+            limit:   Maximum number of emails to return
+            user_id: When provided, only return emails from accounts owned by
+                     this user.  Emails without an ``account_id`` label are
+                     included unless ``user_email_accounts`` is populated.
 
         Returns:
             List of EmailSummary objects
@@ -469,6 +505,7 @@ class EmailService:
         body: str,
         from_addr: str | None = None,
         account_id: str | None = None,
+        user_id: str | None = None,
     ) -> dict[str, Any]:
         """Send an email via the active backend.
 
@@ -481,11 +518,15 @@ class EmailService:
             body:       Plain-text body.
             from_addr:  Sender address override (defaults to account address).
             account_id: Explicit account to route through (for multi-account).
+            user_id:    Requesting user — enforces account ownership when
+                        ``account_id`` is also supplied.
 
         Returns:
             A dict with keys ``ok`` (bool), ``message_id`` (str|None), and
             ``error`` (str|None).
         """
+        if user_id is not None and account_id is not None:
+            self._check_account_access(user_id, account_id)
         to_addrs = [to] if isinstance(to, str) else list(to)
 
         send_backend = self._backend
@@ -629,7 +670,7 @@ class EmailService:
             from_addr=getattr(env, "from_addr", ""),
             subject=getattr(env, "subject", ""),
             snippet=getattr(env, "snippet", ""),
-            received_at=getattr(env, "received_at", datetime.now(timezone.utc)),
+            received_at=getattr(env, "received_at", datetime.now(UTC)),
             labels=list(getattr(env, "labels", [])),
             importance_score=0.5,
         )

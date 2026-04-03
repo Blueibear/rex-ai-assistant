@@ -512,11 +512,17 @@ class Assistant:
         if _dispatcher is not None:
             _selected_tools = _dispatcher.select_tools(transcript)
             if _selected_tools:
+                _effective_user = active_user_id or self._user_id
+                import functools
+
                 _tool_results = await loop.run_in_executor(
                     None,
-                    _dispatcher.execute_tools,
-                    _selected_tools,
-                    transcript,
+                    functools.partial(
+                        _dispatcher.execute_tools,
+                        _selected_tools,
+                        transcript,
+                        user_id=_effective_user,
+                    ),
                 )
                 _tool_context = _dispatcher.format_tool_context(_tool_results) or None
 
