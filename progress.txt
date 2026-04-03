@@ -284,6 +284,15 @@ No stories started yet. Begin with US-CI-001 (first story with unchecked criteri
   - Docs-only changes: mypy 17 pre-existing errors are unchanged; 112 README-related tests pass
 ---
 
+## Iteration 20 - US-233 Update docs/ subdirectory canonical name references
+- Replaced "Rex AI Assistant" with "AskRex Assistant" in docs/FINAL_DELIVERY_SUMMARY.txt (lines 1 and 400)
+- docs/claude/ and docs/security/ had no occurrences; CLAUDE.md was already clean
+- Files changed: docs/FINAL_DELIVERY_SUMMARY.txt, PRD.md, progress.txt
+- Learnings for future iterations:
+  - docs/archive/** and docs/BRANDING.md banned-names table are exempt from the grep check
+  - 17 pre-existing mypy errors in 7 files are unchanged; docs-only changes do not introduce new type errors
+---
+
 ## Iteration 17 - US-230 Define canonical product name and create naming ruleset
 - Created docs/BRANDING.md with canonical product name (AskRex Assistant), package name (askrex-assistant), CLI command (rex), GitHub URL, legacy alias policy, and banned names table
 - Updated CLAUDE.md Project Overview to use canonical name and reference docs/BRANDING.md
