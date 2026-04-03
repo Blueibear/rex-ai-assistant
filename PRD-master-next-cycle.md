@@ -859,13 +859,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to add items to the shopping list by voice so I can capture grocery needs hands-free while cooking or moving around.
 
 **Acceptance Criteria:**
-- [ ] `Assistant` detects shopping list intent: "add [item] to the shopping list", "I need [item]", "put [item] on the list"
-- [ ] Item extracted and added to `ShoppingList` for the identified user
-- [ ] Rex confirms verbally: "Added [item] to your shopping list"
-- [ ] Multiple items in one utterance handled: "add milk, eggs, and butter"
-- [ ] "What's on my shopping list?" reads back unchecked items
-- [ ] Integration test: voice utterance → item added → item appears in list
-- [ ] Typecheck passes
+- [x] `Assistant` detects shopping list intent: "add [item] to the shopping list", "I need [item]", "put [item] on the list"
+- [x] Item extracted and added to `ShoppingList` for the identified user
+- [x] Rex confirms verbally: "Added [item] to your shopping list"
+- [x] Multiple items in one utterance handled: "add milk, eggs, and butter"
+- [x] "What's on my shopping list?" reads back unchecked items
+- [x] Integration test: voice utterance → item added → item appears in list
+- [x] Typecheck passes
 
 ---
 

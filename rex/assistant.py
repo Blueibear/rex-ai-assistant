@@ -112,6 +112,16 @@ class Assistant:
 
         self._tool_dispatcher = ToolDispatcher(get_default_registry(), config=self._settings)
 
+        # Shopping list voice handler (US-SL-002)
+        from .shopping_list import ShoppingList
+        from .shopping_list_handler import ShoppingListHandler
+
+        _sl_path = getattr(self._settings, "shopping_list_path", None)
+        _shopping_list = ShoppingList(path=_sl_path) if _sl_path else ShoppingList()
+        self._shopping_list_handler: ShoppingListHandler | None = ShoppingListHandler(
+            _shopping_list
+        )
+
         # Response cache for repeated factual queries (US-LAT-004)
         from .response_cache import ResponseCache
 
@@ -477,6 +487,14 @@ class Assistant:
                 skill_response = str(_skill_router.execute(matched_skill, transcript))
                 self._record_completion(transcript, skill_response)
                 return skill_response
+
+        # Shopping list voice commands (US-SL-002)
+        _sl_handler = self._shopping_list_handler
+        if _sl_handler is not None:
+            _sl_response = _sl_handler.handle(transcript, user_id=active_user_id or self._user_id)
+            if _sl_response is not None:
+                self._record_completion(transcript, _sl_response)
+                return _sl_response
 
         # Per-user credential/history scoping: swap self._user_id for the
         # duration of this call so history, transcripts, and tool calls use
