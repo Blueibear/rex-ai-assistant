@@ -352,11 +352,11 @@ the public docs.
 canonical package name so that release tags and changelog entries are correctly attributed.
 
 **Acceptance Criteria:**
-- [ ] `.github/workflows/release-please.yml:15` — `package-name: askrex-assistant`
+- [x] `.github/workflows/release-please.yml:15` — `package-name: askrex-assistant`
   (was `rex-ai-assistant`)
-- [ ] Any workflow step that echoes or logs the product name uses "AskRex Assistant"
-- [ ] `grep -r "rex-ai-assistant" .github/` returns zero results after change
-- [ ] Typecheck passes
+- [x] Any workflow step that echoes or logs the product name uses "AskRex Assistant"
+- [x] `grep -r "rex-ai-assistant" .github/` returns zero results after change
+- [x] Typecheck passes
 
 ---
 

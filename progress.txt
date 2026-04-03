@@ -293,6 +293,15 @@ No stories started yet. Begin with US-CI-001 (first story with unchecked criteri
   - 17 pre-existing mypy errors in 7 files are unchanged; docs-only changes do not introduce new type errors
 ---
 
+## Iteration 21 - US-234 Update release-please and CI workflow name references
+- Updated `.github/workflows/release-please.yml` to use `package-name: askrex-assistant` (was `rex-ai-assistant`)
+- No workflow steps echo the product name so no other changes were needed
+- Files changed: .github/workflows/release-please.yml, PRD.md, progress.txt
+- Learnings for future iterations:
+  - `grep -r "rex-ai-assistant" .github/` was clean after the single-line change
+  - 17 pre-existing mypy errors in 7 files are unchanged; YAML-only changes do not introduce new type errors
+---
+
 ## Iteration 17 - US-230 Define canonical product name and create naming ruleset
 - Created docs/BRANDING.md with canonical product name (AskRex Assistant), package name (askrex-assistant), CLI command (rex), GitHub URL, legacy alias policy, and banned names table
 - Updated CLAUDE.md Project Overview to use canonical name and reference docs/BRANDING.md
