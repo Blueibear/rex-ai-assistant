@@ -2311,3 +2311,38 @@ ex/startup.py
   - "Play Sample" for wake words can be implemented by synthesizing TTS of the phrase itself using the pyttsx3 voice bridge (provider='pyttsx3', voice_id=phrase_text)
   - Wake word hot-swap without full Rex restart means the Electron app stays running; the voice bridge process is restarted separately
 ---
+## Iteration 104 - US-PH-003: Outbound calling via Twilio REST API
+- Story: US-PH-003
+- What was implemented
+  - `rex/telephony/__init__.py`: package marker
+  - `rex/telephony/outbound.py`: `make_call()`, `lookup_contact()`, `log_call()`, `detect_call_intent()`, `is_phone_number()`, `_build_say_twiml()`, `_get_rex_base_url()`
+  - `rex/config.py`: added `contacts_file: Optional[str] = None` to `AppConfig`
+  - `tests/test_ph003_outbound_calling.py`: 28 tests covering all public functions; uses sys.modules injection to mock twilio without installing it
+- Files changed
+  - `rex/telephony/__init__.py` (new)
+  - `rex/telephony/outbound.py` (new)
+  - `rex/config.py`
+  - `tests/test_ph003_outbound_calling.py` (new)
+  - `PRD-master-next-cycle.md` (marked criteria [x])
+  - `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - When mocking an uninstalled package (e.g. twilio), use `mock.patch.dict(sys.modules, {"twilio": ..., "twilio.rest": ...})` to inject fake module objects; `mock.patch("twilio.rest.Client")` fails with ModuleNotFoundError because it tries to import the real package first
+---
+## Iteration 105 - US-PH-004: Phone integration settings UI
+- Story: US-PH-004
+- What was implemented
+  - `gui/src/types/ipc.ts`: added `phoneSid`, `phoneAuthToken`, `phoneNumber`, `phoneTransferNumber`, `voicemailNotificationsEnabled`, `contactsFilePath` to `IntegrationsSettings`; updated `RexAPI.testIntegration` union to include `'phone'`; added `uploadContactsFile()` method
+  - `gui/src/preload/index.ts`: added `uploadContactsFile` IPC binding; updated `testIntegration` type to include `'phone'`
+  - `gui/src/main/index.ts`: added `dialog` to electron imports; added `'phone'` branch to `rex:testIntegration` handler; added `rex:uploadContactsFile` handler using `dialog.showOpenDialog`
+  - `gui/src/pages/SettingsPage.tsx`: extended `IntegrationSection` type; added phone fields to form defaults, useEffect loader, and testStatus init; added Phone (Twilio) section JSX with Account SID, Auth Token (masked), Phone Number, Transfer-to Number, Voicemail toggle, Contacts file browse button
+- Files changed
+  - `gui/src/types/ipc.ts`
+  - `gui/src/preload/index.ts`
+  - `gui/src/main/index.ts`
+  - `gui/src/pages/SettingsPage.tsx`
+  - `PRD-master-next-cycle.md` (marked criteria [x])
+  - `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The `IntegrationSection` type must be updated alongside testStatus initial state — they are tightly coupled; missing one causes a TypeScript error
+  - `dialog.showOpenDialog` must be imported from `electron` (not `@electron/remote`) in the main process; add `dialog` to the destructure on the first import line
+---

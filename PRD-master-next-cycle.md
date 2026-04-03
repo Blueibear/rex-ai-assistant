@@ -1162,13 +1162,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to configure phone integration through the Settings UI so I can link my Twilio number and set call routing preferences without editing config files.
 
 **Acceptance Criteria:**
-- [ ] Settings → Integrations → Phone section with fields: Twilio Account SID, Auth Token (masked), Phone Number
-- [ ] "Verify Connection" button calls Twilio API and reports status
-- [ ] Transfer-to number field (where to forward calls Rex cannot handle)
-- [ ] Voicemail notification toggle (notify user via chat when a voicemail is saved)
-- [ ] Contact list file upload (`.vcf` or `.json`)
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Settings → Integrations → Phone section with fields: Twilio Account SID, Auth Token (masked), Phone Number
+- [x] "Verify Connection" button calls Twilio API and reports status
+- [x] Transfer-to number field (where to forward calls Rex cannot handle)
+- [x] Voicemail notification toggle (notify user via chat when a voicemail is saved)
+- [x] Contact list file upload (`.vcf` or `.json`)
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

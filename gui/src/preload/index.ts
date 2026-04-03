@@ -176,8 +176,10 @@ const rexAPI = {
   getVersionInfo: (): Promise<VersionInfo> => ipcRenderer.invoke('rex:getVersionInfo'),
   testVoice: (settings: VoiceSettings): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:testVoice', settings),
-  testIntegration: (type: 'email' | 'calendar' | 'sms'): Promise<{ ok: boolean; error?: string }> =>
+  testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:testIntegration', type),
+  uploadContactsFile: (): Promise<{ ok: boolean; path?: string; error?: string }> =>
+    ipcRenderer.invoke('rex:uploadContactsFile'),
   testEmailAccount: (id: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:testEmailAccount', id),
   getPreferenceSuggestions: (): Promise<PreferenceSuggestion[]> =>

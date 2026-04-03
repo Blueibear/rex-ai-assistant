@@ -2200,7 +2200,7 @@ function AiPanel(): React.ReactElement {
   )
 }
 
-type IntegrationSection = 'email' | 'calendar' | 'sms' | 'homeassistant'
+type IntegrationSection = 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'
 type TestStatus = 'idle' | 'testing' | 'ok' | 'error'
 
 function ConnectionBadge({
@@ -2357,7 +2357,13 @@ function IntegrationsPanel(): React.ReactElement {
     smsAuthToken: '',
     smsFromNumber: '',
     haUrl: '',
-    haToken: ''
+    haToken: '',
+    phoneSid: '',
+    phoneAuthToken: '',
+    phoneNumber: '',
+    phoneTransferNumber: '',
+    voicemailNotificationsEnabled: false,
+    contactsFilePath: ''
   })
   const [loading, setLoading] = useState(true)
   const [savedField, setSavedField] = useState<keyof IntegrationsSettings | null>(null)
@@ -2365,7 +2371,8 @@ function IntegrationsPanel(): React.ReactElement {
     email: 'idle',
     calendar: 'idle',
     sms: 'idle',
-    homeassistant: 'idle'
+    homeassistant: 'idle',
+    phone: 'idle'
   })
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const testTimers = useRef<Partial<Record<IntegrationSection, ReturnType<typeof setTimeout>>>>({})
@@ -2429,7 +2436,13 @@ function IntegrationsPanel(): React.ReactElement {
           smsAuthToken: typeof settings.smsAuthToken === 'string' ? settings.smsAuthToken : '',
           smsFromNumber: typeof settings.smsFromNumber === 'string' ? settings.smsFromNumber : '',
           haUrl: typeof settings.haUrl === 'string' ? settings.haUrl : '',
-          haToken: typeof settings.haToken === 'string' ? settings.haToken : ''
+          haToken: typeof settings.haToken === 'string' ? settings.haToken : '',
+          phoneSid: typeof settings.phoneSid === 'string' ? settings.phoneSid : '',
+          phoneAuthToken: typeof settings.phoneAuthToken === 'string' ? settings.phoneAuthToken : '',
+          phoneNumber: typeof settings.phoneNumber === 'string' ? settings.phoneNumber : '',
+          phoneTransferNumber: typeof settings.phoneTransferNumber === 'string' ? settings.phoneTransferNumber : '',
+          voicemailNotificationsEnabled: typeof settings.voicemailNotificationsEnabled === 'boolean' ? settings.voicemailNotificationsEnabled : false,
+          contactsFilePath: typeof settings.contactsFilePath === 'string' ? settings.contactsFilePath : ''
         })
       })
       .catch(() => {
@@ -2931,6 +2944,132 @@ function IntegrationsPanel(): React.ReactElement {
         </div>
 
         <TestConnectionButton status={testStatus.homeassistant} onTest={() => handleTest('homeassistant')} />
+      </section>
+
+      <div className="border-t border-border mb-7" />
+
+      {/* Phone (Twilio) section */}
+      <section className="mb-2">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6 19.79 19.79 0 0 1 1.61 5.08 2 2 0 0 1 3.58 3h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.09a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
+            Phone (Twilio)
+          </h3>
+          <ConnectionBadge
+            status={testStatus.phone}
+            hasCredentials={form.phoneSid.trim() !== ''}
+          />
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="phoneSid" className="text-sm font-medium text-text-primary">Account SID</label>
+            <SavedIndicator visible={savedField === 'phoneSid'} />
+          </div>
+          <input
+            id="phoneSid"
+            type="text"
+            value={form.phoneSid}
+            placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            onChange={(e) => setForm((f) => ({ ...f, phoneSid: e.target.value }))}
+            onBlur={(e) => handleFieldChange('phoneSid', e.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="phoneAuthToken" className="text-sm font-medium text-text-primary">Auth Token</label>
+            <SavedIndicator visible={savedField === 'phoneAuthToken'} />
+          </div>
+          <PasswordInput
+            id="phoneAuthToken"
+            value={form.phoneAuthToken}
+            placeholder="Enter auth token"
+            onChange={(v) => setForm((f) => ({ ...f, phoneAuthToken: v }))}
+            onBlur={() => handleFieldChange('phoneAuthToken', form.phoneAuthToken)}
+          />
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="phoneNumber" className="text-sm font-medium text-text-primary">Twilio Phone Number</label>
+            <SavedIndicator visible={savedField === 'phoneNumber'} />
+          </div>
+          <input
+            id="phoneNumber"
+            type="text"
+            value={form.phoneNumber}
+            placeholder="+15551234567"
+            onChange={(e) => setForm((f) => ({ ...f, phoneNumber: e.target.value }))}
+            onBlur={(e) => handleFieldChange('phoneNumber', e.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="phoneTransferNumber" className="text-sm font-medium text-text-primary">Transfer-to Number (optional)</label>
+            <SavedIndicator visible={savedField === 'phoneTransferNumber'} />
+          </div>
+          <input
+            id="phoneTransferNumber"
+            type="text"
+            value={form.phoneTransferNumber}
+            placeholder="+15559876543"
+            onChange={(e) => setForm((f) => ({ ...f, phoneTransferNumber: e.target.value }))}
+            onBlur={(e) => handleFieldChange('phoneTransferNumber', e.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        <div className="mb-4 flex items-center justify-between">
+          <label htmlFor="voicemailNotificationsEnabled" className="text-sm font-medium text-text-primary">Voicemail notifications</label>
+          <div className="flex items-center gap-2">
+            <SavedIndicator visible={savedField === 'voicemailNotificationsEnabled'} />
+            <input
+              id="voicemailNotificationsEnabled"
+              type="checkbox"
+              checked={form.voicemailNotificationsEnabled}
+              onChange={(e) => handleFieldChange('voicemailNotificationsEnabled', e.target.checked)}
+              className="h-4 w-4 rounded border-border text-accent accent-accent cursor-pointer"
+            />
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-sm font-medium text-text-primary">Contacts File</label>
+            <SavedIndicator visible={savedField === 'contactsFilePath'} />
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={form.contactsFilePath}
+              readOnly
+              placeholder="No file selected"
+              className={`${inputClass} flex-1 cursor-default`}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                window.rex.uploadContactsFile().then((res) => {
+                  if (res.ok && res.path) {
+                    handleFieldChange('contactsFilePath', res.path)
+                  }
+                })
+              }}
+              className="shrink-0 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-primary hover:bg-hover transition-colors"
+            >
+              Browse…
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-text-secondary">Accepts .json or .vcf (vCard) contact files for outbound calling.</p>
+        </div>
+
+        <TestConnectionButton status={testStatus.phone} onTest={() => handleTest('phone')} />
       </section>
     </div>
   )

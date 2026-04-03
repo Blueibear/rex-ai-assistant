@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { homedir } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -398,7 +398,38 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
       return { ok: true }
     }
 
+    if (type === 'phone') {
+      const hasCredentials =
+        typeof integrations.phoneSid === 'string' && integrations.phoneSid.trim() !== '' &&
+        typeof integrations.phoneAuthToken === 'string' && integrations.phoneAuthToken.trim() !== '' &&
+        typeof integrations.phoneNumber === 'string' && integrations.phoneNumber.trim() !== ''
+      if (!hasCredentials) return { ok: false, error: 'No credentials configured' }
+      return { ok: true }
+    }
+
     return { ok: false, error: 'Unknown integration type' }
+  })
+
+  ipcMain.handle('rex:uploadContactsFile', async (): Promise<{ ok: boolean; path?: string; error?: string }> => {
+    const result = await dialog.showOpenDialog({
+      title: 'Select Contacts File',
+      filters: [
+        { name: 'Contacts', extensions: ['vcf', 'json'] },
+        { name: 'All Files', extensions: ['*'] }
+      ],
+      properties: ['openFile']
+    })
+    if (result.canceled || result.filePaths.length === 0) {
+      return { ok: false, error: 'No file selected' }
+    }
+    const selectedPath = result.filePaths[0]
+    // Persist path to integrations settings
+    const stored = readGuiSettings()
+    const integrations = (stored['integrations'] ?? {}) as Record<string, unknown>
+    integrations.contactsFilePath = selectedPath
+    stored['integrations'] = integrations
+    writeGuiSettings(stored)
+    return { ok: true, path: selectedPath }
   })
 
   ipcMain.handle('rex:testEmailAccount', (_event, id: string) => {
