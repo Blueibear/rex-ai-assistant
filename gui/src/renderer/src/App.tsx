@@ -19,6 +19,7 @@ import { SmsPage } from '../../pages/SmsPage'
 import { NotificationsPage } from '../../pages/NotificationsPage'
 import { SettingsPage } from '../../pages/SettingsPage'
 import { ShoppingListPage } from '../../pages/ShoppingListPage'
+import { LogsPage } from '../../pages/LogsPage'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 
 const PRIORITY_TOAST_TYPE: Record<NotificationPriority, ToastType> = {

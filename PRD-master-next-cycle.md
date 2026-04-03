@@ -1096,13 +1096,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to view Rex's logs in real time from the UI so I can diagnose issues without SSH access.
 
 **Acceptance Criteria:**
-- [ ] Logs nav item in UI (see US-UI-001) opens the log viewer
-- [ ] Logs tail in real time via SSE from `/api/logs/stream`
-- [ ] Filter by log level (DEBUG / INFO / WARNING / ERROR / CRITICAL)
-- [ ] Full-text search box filters visible entries
-- [ ] "Pause" button freezes the stream; "Resume" re-tails from current position
-- [ ] "Download" button exports the current log file as a `.log` file
-- [ ] Typecheck passes
+- [x] Logs nav item in UI (see US-UI-001) opens the log viewer
+- [x] Logs tail in real time via SSE from `/api/logs/stream`
+- [x] Filter by log level (DEBUG / INFO / WARNING / ERROR / CRITICAL)
+- [x] Full-text search box filters visible entries
+- [x] "Pause" button freezes the stream; "Resume" re-tails from current position
+- [x] "Download" button exports the current log file as a `.log` file
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---

@@ -329,6 +329,15 @@ export interface FindMeetingSlotsParams {
   timezone: string
 }
 
+
+export interface LogEntry {
+  timestamp: string
+  level: string
+  logger: string
+  message: string
+  extra: Record<string, unknown>
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
@@ -419,4 +428,9 @@ export interface RexAPI {
   checkShoppingItem: (id: string) => Promise<{ ok: boolean; error?: string }>
   uncheckShoppingItem: (id: string) => Promise<{ ok: boolean; error?: string }>
   clearCheckedShoppingItems: () => Promise<{ ok: boolean; count?: number; error?: string }>
+  getLogs: (limit?: number) => Promise<{ ok: boolean; entries: LogEntry[]; log_path?: string; error?: string }>
+  startLogTail: () => Promise<{ ok: boolean; error?: string }>
+  stopLogTail: () => Promise<{ ok: boolean }>
+  downloadLogs: () => Promise<{ ok: boolean; content?: string; filename?: string; error?: string }>
+  onLogEntry: (cb: (entry: LogEntry) => void) => void
 }

@@ -157,6 +157,16 @@ const navItems: NavItem[] = [
     )
   },
   {
+    path: '/logs',
+    label: 'Logs',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <rect x="2" y="2" width="14" height="14" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+        <path d="M5 6h8M5 9h6M5 12h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      </svg>
+    )
+  },
+  {
     path: '/settings',
     label: 'Settings',
     icon: (
@@ -185,6 +195,7 @@ const sectionNames: Record<string, string> = {
   '/sms': 'SMS',
   '/notifications': 'Notifications',
   '/shopping': 'Shopping List',
+  '/logs': 'Logs',
   '/settings': 'Settings'
 }
 

@@ -14,6 +14,8 @@ import webbrowser
 from pathlib import Path
 from typing import Any
 
+from rex.audio.speaker_discovery import start_smart_speaker_discovery
+
 _DEFAULT_HOST = "127.0.0.1"
 _DEFAULT_PORT = 8765
 
@@ -97,6 +99,53 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
             },
         )
 
+    # ------------------------------------------------------------------
+    # Logs API
+    # ------------------------------------------------------------------
+
+    _LOG_FILE = Path(__file__).resolve().parent.parent / "logs" / "rex.log"
+
+    @app.route("/api/logs/stream")
+    def _logs_stream() -> Any:
+        """SSE endpoint that tails logs/rex.log in real time."""
+        import time
+
+        def _generate() -> Any:
+            if not _LOG_FILE.exists():
+                yield f"data: {json.dumps({'level': 'INFO', 'message': 'Log file not found yet.'})}\n\n"
+                return
+            with _LOG_FILE.open("r", encoding="utf-8", errors="replace") as fh:
+                fh.seek(0, 2)  # seek to end
+                while True:
+                    line = fh.readline()
+                    if line:
+                        line = line.strip()
+                        if line:
+                            yield f"data: {line}\n\n"
+                    else:
+                        time.sleep(0.25)
+
+        return Response(
+            stream_with_context(_generate()),
+            content_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    @app.route("/api/logs/download")
+    def _logs_download() -> Any:
+        """Download the current log file."""
+        if not _LOG_FILE.exists():
+            return jsonify({"error": "Log file not found"}), 404
+        return send_from_directory(
+            str(_LOG_FILE.parent),
+            _LOG_FILE.name,
+            as_attachment=True,
+            download_name="rex.log",
+        )
+
     return app
 
 
@@ -109,7 +158,7 @@ def _generate_reply(user_text: str) -> str:
         cfg = load_config()
         llm = LanguageModel(config=cfg)
         messages = [{"role": "user", "content": user_text}]
-        return llm.generate(messages)
+        return llm.generate(messages=messages)
     except Exception:
         return f"(Rex is not configured — echo) {user_text}"
 
@@ -141,6 +190,7 @@ def main() -> None:
         ui_enabled = True
 
     app = _create_flask_app(ui_enabled=ui_enabled)
+    start_smart_speaker_discovery()
 
     # Open the browser in a background thread so the server starts first.
     browser_thread = threading.Thread(target=_open_browser, args=(host, port), daemon=True)

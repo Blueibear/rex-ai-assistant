@@ -17,6 +17,7 @@ import { registerNotificationHandlers } from './handlers/notifications'
 import { registerSpeakerHandlers } from './handlers/speakers'
 import { registerFileHandlers } from './handlers/files'
 import { registerShoppingHandlers } from './handlers/shopping'
+import { registerLogsHandlers } from './handlers/logs'
 
 // ---------------------------------------------------------------------------
 // Config file helpers
@@ -329,6 +330,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
   registerSpeakerHandlers()
   registerFileHandlers()
   registerShoppingHandlers()
+  registerLogsHandlers()
 
   ipcMain.handle('rex:getStatus', () => {
     return { ok: true, status: 'idle' }

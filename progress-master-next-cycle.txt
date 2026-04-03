@@ -1,3 +1,27 @@
+## Iteration 106 - US-LOG-002: Log viewer UI with live tail, filter, search
+- Story: US-LOG-002
+- What was implemented
+  - New gui/src/pages/LogsPage.tsx: full log viewer with level filter (DEBUG/INFO/WARNING/ERROR/CRITICAL), full-text search, live tail via IPC, Pause/Resume, Download buttons; auto-scroll to bottom when streaming
+  - New gui/src/main/handlers/logs.ts: IPC handlers rex:getLogs (last 200 lines), rex:startLogTail (fs.watch), rex:stopLogTail, rex:downloadLogs
+  - Registered logs handlers in gui/src/main/index.ts
+  - Added LogEntry interface to gui/src/types/ipc.ts; added getLogs/startLogTail/stopLogTail/downloadLogs/onLogEntry to RexAPI
+  - Added preload bindings in gui/src/preload/index.ts
+  - Added /logs nav item to AppLayout.tsx; /logs route to App.tsx
+  - Added /api/logs/stream SSE endpoint and /api/logs/download to rex/gui_app.py (Flask web dashboard)
+  - 5 backend tests (all pass); TypeScript typecheck clean
+- Files changed
+  - gui/src/pages/LogsPage.tsx (new)
+  - gui/src/main/handlers/logs.ts (new)
+  - gui/src/main/index.ts (import + registerLogsHandlers())
+  - gui/src/types/ipc.ts (LogEntry, RexAPI methods)
+  - gui/src/preload/index.ts (log method bindings)
+  - gui/src/layouts/AppLayout.tsx (Logs nav item + sectionNames)
+  - gui/src/renderer/src/App.tsx (LogsPage import + Route)
+  - rex/gui_app.py (/api/logs/stream SSE + /api/logs/download)
+  - tests/test_log002_log_viewer.py (new)
+  - PRD-master-next-cycle.md
+  - progress-master-next-cycle.txt
+
 ## Iteration 105 - US-LOG-001: Structured logging to rotating file
 - Story: US-LOG-001
 - What was implemented

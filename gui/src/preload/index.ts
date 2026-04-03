@@ -27,7 +27,8 @@ import type {
   SmartSpeaker,
   FileExtractResult,
   ShoppingItem,
-  WakeWordInfo
+  WakeWordInfo,
+  LogEntry
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -268,7 +269,18 @@ const rexAPI = {
     positiveSamples: number[][],
     negativeSamples: number[][]
   ): Promise<{ ok: boolean; model_path?: string; phrase?: string; error?: string }> =>
-    ipcRenderer.invoke('rex:trainWakeWord', phrase, positiveSamples, negativeSamples)
+    ipcRenderer.invoke('rex:trainWakeWord', phrase, positiveSamples, negativeSamples),
+  getLogs: (limit?: number): Promise<{ ok: boolean; entries: LogEntry[]; log_path?: string; error?: string }> =>
+    ipcRenderer.invoke('rex:getLogs', limit),
+  startLogTail: (): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('rex:startLogTail'),
+  stopLogTail: (): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('rex:stopLogTail'),
+  downloadLogs: (): Promise<{ ok: boolean; content?: string; filename?: string; error?: string }> =>
+    ipcRenderer.invoke('rex:downloadLogs'),
+  onLogEntry: (cb: (entry: LogEntry) => void): void => {
+    ipcRenderer.on('rex:logEntry', (_event, entry: LogEntry) => cb(entry))
+  }
 }
 
 if (process.contextIsolated) {
