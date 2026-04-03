@@ -783,12 +783,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want Rex's text responses to stream into the chat window as they are generated so I see output immediately rather than waiting for the full response.
 
 **Acceptance Criteria:**
-- [ ] `LanguageModel.generate()` supports a streaming mode returning tokens as they arrive (SSE or WebSocket)
-- [ ] Chat UI renders tokens progressively with a blinking cursor
-- [ ] TTS begins speaking the first completed sentence while the rest is still generating
-- [ ] Non-streaming fallback remains for API clients that do not support streaming
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] `LanguageModel.generate()` supports a streaming mode returning tokens as they arrive (SSE or WebSocket)
+- [x] Chat UI renders tokens progressively with a blinking cursor
+- [x] TTS begins speaking the first completed sentence while the rest is still generating
+- [x] Non-streaming fallback remains for API clients that do not support streaming
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

@@ -41,7 +41,11 @@ def main() -> None:
         plugin_specs = load_plugins()
         assistant = Assistant(history_limit=settings.max_memory_items, plugins=plugin_specs)
         try:
-            stream_fn = getattr(assistant, "generate_reply_stream", None)
+            # Prefer stream_reply (async generator) for true token-by-token streaming.
+            # Fall back to generate_reply_stream for forward-compat, then to full reply.
+            stream_fn = getattr(assistant, "stream_reply", None) or getattr(
+                assistant, "generate_reply_stream", None
+            )
             if stream_fn is not None:
                 async for token in stream_fn(message):
                     emit({"type": "token", "token": str(token)})
