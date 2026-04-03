@@ -275,6 +275,9 @@ class AppConfig:
     # Smart speaker microphone input (US-SP-003) — name of discovered speaker, or None/auto for local mic
     wake_word_input_device: Optional[str] = None
 
+    # Outbound calling — path to contacts JSON or vCard file (US-PH-003)
+    contacts_file: Optional[str] = None
+
     # Aliases
     llm_backend: Optional[str] = None
     temperature: Optional[float] = None

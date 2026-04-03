@@ -1147,13 +1147,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to ask Rex to call a contact on my behalf so I can make hands-free calls without picking up my phone.
 
 **Acceptance Criteria:**
-- [ ] `rex/telephony/outbound.py` implements `make_call(to_number: str, message: str | None)` using Twilio REST API
-- [ ] User says: "Call [contact name]" or "Call [phone number]"
-- [ ] If contact name given, Rex looks up number in user's contact list (configurable JSON file or vCard)
-- [ ] Rex calls the number and plays `message` if provided, or connects to Rex's conversation loop
-- [ ] Outbound calls logged with timestamp, number, outcome
-- [ ] Requires explicit user confirmation before dialing
-- [ ] Typecheck passes
+- [x] `rex/telephony/outbound.py` implements `make_call(to_number: str, message: str | None)` using Twilio REST API
+- [x] User says: "Call [contact name]" or "Call [phone number]"
+- [x] If contact name given, Rex looks up number in user's contact list (configurable JSON file or vCard)
+- [x] Rex calls the number and plays `message` if provided, or connects to Rex's conversation loop
+- [x] Outbound calls logged with timestamp, number, outcome
+- [x] Requires explicit user confirmation before dialing
+- [x] Typecheck passes
 
 ---
 

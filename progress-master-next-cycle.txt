@@ -1,3 +1,24 @@
+## Iteration 114 - US-PH-003: Outbound calling via Twilio REST API
+- Story: US-PH-003
+- What was implemented
+  - New rex/telephony/outbound.py: make_call(to_number, message=None, *, confirmed=False) using Twilio REST Client; returns needs_confirmation dict when confirmed=False
+  - lookup_contact(name, contacts_file): JSON + vCard (.vcf) support; partial name matching (case-insensitive)
+  - log_call(to_number, outcome, message=None): appends JSON record to data/outbound_calls.log
+  - detect_call_intent(text): regex patterns for "call/dial/phone/ring [target]"
+  - is_phone_number(target): E.164/formatted number detection
+  - AppConfig.contacts_file (Optional[str] = None) added to rex/config.py
+  - 28 unit tests (all pass); sys.modules patching used for twilio since package not installed in CI
+- Files changed
+  - rex/telephony/outbound.py (new)
+  - rex/config.py (contacts_file field)
+  - tests/test_ph003_outbound_calling.py (new)
+  - PRD-master-next-cycle.md
+  - progress-master-next-cycle.txt
+- Learnings for future iterations:
+  - Use mock.patch.dict(sys.modules, {"twilio": ..., "twilio.rest": ...}) when twilio not installed; avoids ModuleNotFoundError in mock.patch("twilio.rest.Client")
+  - detect_call_intent uses regex on the text; keep patterns at module level for testability
+---
+
 ## Iteration 113 - US-LOG-002: Log viewer — browser verification
 - Story: US-LOG-002
 - What was implemented
