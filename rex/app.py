@@ -17,6 +17,7 @@ import signal
 import sys
 import time
 
+from rex.audio.speaker_discovery import start_smart_speaker_discovery
 from rex.credentials import get_credential_manager
 from rex.logging_utils import _LEVEL_NAMES, configure_logging
 from rex.memory import get_long_term_memory, get_working_memory
@@ -90,6 +91,7 @@ def main(argv: list[str] | None = None) -> int:
     # Configure logging
     configure_logging(level=_LEVEL_NAMES.get(args.log_level.upper(), None))
     logger.info(f"Starting Rex runtime on health port {args.port}")
+    start_smart_speaker_discovery()
 
     try:
         default_services = {

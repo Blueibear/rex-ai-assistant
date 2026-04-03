@@ -16,8 +16,8 @@ import re
 import threading
 import urllib.error
 import urllib.request
+from collections.abc import Sequence
 from enum import auto
-from typing import Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -215,10 +215,7 @@ class ModelRouter:
     def _any_ollama_target(routing_config: object) -> bool:
         if routing_config is None:
             return False
-        return any(
-            _is_ollama_model(getattr(routing_config, f, "") or "")
-            for f in _ROUTING_FIELDS
-        )
+        return any(_is_ollama_model(getattr(routing_config, f, "") or "") for f in _ROUTING_FIELDS)
 
     def _fetch_ollama_models(self) -> None:
         """Fetch available Ollama models from ``/api/tags`` and update the cache."""
@@ -236,13 +233,9 @@ class ModelRouter:
                     # Also store the name without the tag (e.g. "llama3" from "llama3:latest")
                     names.add(name.split(":")[0])
             self._available_ollama_models = names
-            logger.debug(
-                "model_router: Ollama models available: %s", sorted(names)
-            )
+            logger.debug("model_router: Ollama models available: %s", sorted(names))
         except Exception as exc:
-            logger.warning(
-                "model_router: failed to fetch Ollama model list from %s: %s", url, exc
-            )
+            logger.warning("model_router: failed to fetch Ollama model list from %s: %s", url, exc)
             self._available_ollama_models = set()
 
     def _start_refresh_thread(self) -> None:
@@ -250,9 +243,7 @@ class ModelRouter:
             while not self._stop_event.wait(self._refresh_interval):
                 self._fetch_ollama_models()
 
-        t = threading.Thread(
-            target=_loop, daemon=True, name="ModelRouter-ollama-refresh"
-        )
+        t = threading.Thread(target=_loop, daemon=True, name="ModelRouter-ollama-refresh")
         t.start()
         self._refresh_thread = t
 

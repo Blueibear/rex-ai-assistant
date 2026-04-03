@@ -78,6 +78,30 @@ def test_speech_to_text_rejects_non_wav_audio(monkeypatch) -> None:
         asyncio.run(stt.transcribe(audio=b"ID3\x04fake-mp3-data", sample_rate=16000))
 
 
+def test_speech_to_text_sanitizes_non_finite_audio(monkeypatch) -> None:
+    from rex.voice_loop import SpeechToText
+
+    captured_audio = []
+    fake = types.ModuleType("whisper")
+
+    class FakeModel:
+        def transcribe(self, audio, language="en", fp16=False):
+            captured_audio.append(audio)
+            return {"text": "clean audio"}
+
+    fake.load_model = lambda name, device="cpu": FakeModel()
+
+    monkeypatch.setattr("rex.voice_loop._lazy_import_whisper", lambda: fake)
+    stt = SpeechToText(model_name="base", device="cpu")
+
+    audio = [0.0, float("nan"), float("inf"), float("-inf"), 1.5, -2.0]
+    result = asyncio.run(stt.transcribe(audio=audio, sample_rate=16000))
+
+    assert result == "clean audio"
+    sanitized = captured_audio[0]
+    assert list(sanitized) == [0.0, 0.0, 1.0, -1.0, 1.0, -1.0]
+
+
 def test_doctor_output_includes_whisper_language(capsys, monkeypatch) -> None:
     ok = CheckResult(name="OK", status=Status.OK, message="ok")
 
@@ -91,6 +115,7 @@ def test_doctor_output_includes_whisper_language(capsys, monkeypatch) -> None:
     monkeypatch.setattr("rex.doctor.check_core_dependencies", lambda: [ok])
     monkeypatch.setattr("rex.doctor.check_audio_input_device", lambda: ok)
     monkeypatch.setattr("rex.doctor.check_audio_output_device", lambda: ok)
+    monkeypatch.setattr("rex.doctor.check_smart_speakers", lambda: ok)
     monkeypatch.setattr("rex.doctor.check_lm_studio_reachability", lambda: ok)
     monkeypatch.setattr("rex.doctor.check_external_dependencies", lambda: [ok])
     monkeypatch.setattr("rex.doctor.check_gpu_availability", lambda: ok)

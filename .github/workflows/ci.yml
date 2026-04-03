@@ -111,7 +111,7 @@ jobs:
           mypy rex --ignore-missing-imports
 
   tests:
-    name: Python Tests & Coverage
+    name: Python 3.11 Tests & Coverage
     runs-on: ubuntu-latest
 
     steps:
@@ -151,6 +151,10 @@ jobs:
           python -m pip install --upgrade "pip>=26.0" "setuptools>=78.1.1" wheel
           pip install -e ".[dev]"
           pip install pip-audit
+
+      - name: ✅ Verify CLI entrypoint
+        run: |
+          python -m rex --help
 
       - name: 🧪 Run tests with coverage
         shell: bash

@@ -4,7 +4,7 @@ This guide provides exact commands for running Rex on Windows.
 
 ## Platform Support
 
-- **Python**: Supports Python 3.9 through 3.13
+- **Python**: Supported on Python 3.11
 - **Windows**: Fully supported on Windows 10 and 11
 - **Audio Playback**: The `simpleaudio` library is automatically disabled on Windows due to build issues. Audio files are still generated but won't auto-play.
 - **Noise Suppression**: The `speexdsp_ns` library (used for real-time noise suppression) is not available on Windows. Noise suppression is automatically disabled on all platforms to ensure Windows compatibility. Audio quality is still excellent for most use cases.
@@ -15,7 +15,7 @@ This guide provides exact commands for running Rex on Windows.
 
 ```powershell
 # Create virtual environment
-python -m venv .venv
+py -3.11 -m venv .venv
 
 # Activate it
 .\.venv\Scripts\Activate.ps1
@@ -39,6 +39,8 @@ pip install -r requirements-cpu.txt
 # Optional: CUDA 12.4 GPU stack (RTX 3060)
 pip install -r requirements-gpu-cu124.txt
 ```
+
+The current ML/TTS install path is validated on Python 3.11. Fresh installs on Python 3.13/3.14 are known to fail in the dependency path, so use 3.11 for predictable setup.
 
 ### 3. Configure Environment
 

@@ -27,6 +27,8 @@ import logging
 import sys
 from pathlib import Path
 
+from rex.audio.speaker_discovery import start_smart_speaker_discovery
+
 logger = logging.getLogger(__name__)
 
 _TOTAL_STEPS = 4
@@ -48,6 +50,7 @@ def run_startup_sequence() -> None:
     _run_config_validation()
     _run_database_connectivity()
     _run_migration_check()
+    start_smart_speaker_discovery()
 
 
 # ---------------------------------------------------------------------------

@@ -47,9 +47,8 @@ rex doctor --help
 
 Checks that your Python version is supported:
 
-- **OK**: Python 3.10+
-- **Warning**: Python 3.9 (supported but 3.10+ recommended)
-- **Error**: Python < 3.9 (not supported)
+- **OK**: Python 3.11
+- **Error**: Any other Python version
 
 ### 2. Package Installation
 
@@ -189,7 +188,7 @@ Install ffmpeg:
 
 ### "Python X.X is not supported"
 
-Upgrade to Python 3.9 or later. We recommend Python 3.11+.
+Use Python 3.11. The current Rex dependency stack is validated on Python 3.11, and fresh installs on Python 3.13/3.14 are known to fail in the ML/TTS path.
 
 ### ".env file is world-readable"
 

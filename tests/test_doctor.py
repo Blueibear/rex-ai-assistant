@@ -319,6 +319,37 @@ class TestRunDiagnostics:
         exit_code = run_diagnostics(verbose=True)
         assert isinstance(exit_code, int)
 
+    def test_run_diagnostics_includes_smart_speaker_details(self, monkeypatch, capsys):
+        """Smart speaker listings are printed even without verbose mode."""
+        ok = CheckResult(name="OK", status=Status.OK, message="ok")
+        smart = CheckResult(
+            name="Smart Speakers",
+            status=Status.OK,
+            message="1 smart speaker(s) discovered",
+            details="- Sonos: Office (Era 100) @ 192.168.1.40",
+        )
+
+        monkeypatch.setattr("rex.doctor._find_project_root", lambda: None)
+        monkeypatch.setattr("rex.doctor.check_python_version", lambda: ok)
+        monkeypatch.setattr("rex.doctor.check_package_installation", lambda: ok)
+        monkeypatch.setattr("rex.doctor.check_config_file", lambda root: ok)
+        monkeypatch.setattr("rex.doctor.check_env_file", lambda root: ok)
+        monkeypatch.setattr("rex.doctor.check_environment_variables", lambda: ok)
+        monkeypatch.setattr("rex.doctor.check_config_permissions", lambda root: ok)
+        monkeypatch.setattr("rex.doctor.check_core_dependencies", lambda: [ok])
+        monkeypatch.setattr("rex.doctor.check_audio_input_device", lambda: ok)
+        monkeypatch.setattr("rex.doctor.check_audio_output_device", lambda: ok)
+        monkeypatch.setattr("rex.doctor.check_smart_speakers", lambda: smart)
+        monkeypatch.setattr("rex.doctor.check_lm_studio_reachability", lambda: ok)
+        monkeypatch.setattr("rex.doctor.check_external_dependencies", lambda: [ok])
+        monkeypatch.setattr("rex.doctor.check_gpu_availability", lambda: ok)
+
+        assert run_diagnostics(verbose=False) == 0
+        output = capsys.readouterr().out
+
+        assert "Smart Speakers" in output
+        assert "Office (Era 100)" in output
+
 
 class TestDoctorCLI:
     """Integration tests for rex doctor CLI."""

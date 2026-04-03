@@ -4,14 +4,9 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from typing import Optional
-from unittest.mock import MagicMock
-
-import pytest
 
 import rex.assistant as assistant_module
-from rex.model_router import ModelRouter, TaskCategory
-
+from rex.model_router import ModelRouter
 
 # ---------------------------------------------------------------------------
 # Minimal Settings stub
@@ -41,8 +36,8 @@ class _SettingsStub:
     transcripts_dir: str = "transcripts"
     persist_history: bool = False
     followups_enabled: bool = False
-    ha_base_url: Optional[str] = None
-    ha_token: Optional[str] = None
+    ha_base_url: str | None = None
+    ha_token: str | None = None
     user_id: str = "test"
     active_profile: str = "default"
     model_routing: _ModelRoutingStub = field(
@@ -130,9 +125,9 @@ def test_coding_message_uses_coding_model(monkeypatch, tmp_path):
     asyncio.run(a.generate_reply("Write a function to reverse a string"))
 
     assert llm.calls, "LLM was never called"
-    assert llm.calls[0] == "coding-model", (
-        f"Expected coding-model but LLM was called with model {llm.calls[0]!r}"
-    )
+    assert (
+        llm.calls[0] == "coding-model"
+    ), f"Expected coding-model but LLM was called with model {llm.calls[0]!r}"
 
 
 def test_unconfigured_category_falls_back_to_default(monkeypatch, tmp_path):
@@ -150,9 +145,9 @@ def test_unconfigured_category_falls_back_to_default(monkeypatch, tmp_path):
     asyncio.run(a.generate_reply("Describe this image for me"))
 
     assert llm.calls, "LLM was never called"
-    assert llm.calls[0] == "default-model", (
-        f"Expected default-model fallback but got {llm.calls[0]!r}"
-    )
+    assert (
+        llm.calls[0] == "default-model"
+    ), f"Expected default-model fallback but got {llm.calls[0]!r}"
 
 
 def test_model_restored_after_call(monkeypatch):
@@ -169,9 +164,7 @@ def test_model_restored_after_call(monkeypatch):
 
     asyncio.run(a.generate_reply("Write a function in Python"))
 
-    assert llm.model_name == original_model, (
-        "model_name was not restored after generate_reply"
-    )
+    assert llm.model_name == original_model, "model_name was not restored after generate_reply"
 
 
 def test_no_routing_config_uses_existing_model(monkeypatch):
@@ -206,9 +199,9 @@ def test_unavailable_ollama_model_falls_back_to_default(monkeypatch):
     asyncio.run(a.generate_reply("Write a Python function"))
 
     assert llm.calls, "LLM was never called"
-    assert llm.calls[0] == "default-model", (
-        f"Expected default-model fallback but got {llm.calls[0]!r}"
-    )
+    assert (
+        llm.calls[0] == "default-model"
+    ), f"Expected default-model fallback but got {llm.calls[0]!r}"
 
 
 def test_no_network_call_for_openai_models(monkeypatch):

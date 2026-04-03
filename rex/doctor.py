@@ -30,6 +30,7 @@ from python_compat import (
     is_supported_python,
     unsupported_python_message,
 )
+from rex.audio.speaker_discovery import get_speaker_discovery
 
 
 class Status(Enum):
@@ -597,6 +598,30 @@ def check_stt_warmup(stt: object | None = None) -> CheckResult:
         )
 
 
+def check_smart_speakers() -> CheckResult:
+    """Check for discovered Sonos and Bose speakers on the local network."""
+    service = get_speaker_discovery()
+    speakers = service.discover_now()
+    if not speakers:
+        return CheckResult(
+            name="Smart Speakers",
+            status=Status.INFO,
+            message="No Sonos or Bose speakers discovered",
+            details="Discovery runs in the background at startup. Ensure speakers are on the same LAN.",
+        )
+
+    details = "\n".join(
+        f"- {speaker.provider.title()}: {speaker.name} ({speaker.model}) @ {speaker.ip}"
+        for speaker in speakers
+    )
+    return CheckResult(
+        name="Smart Speakers",
+        status=Status.OK,
+        message=f"{len(speakers)} smart speaker(s) discovered",
+        details=details,
+    )
+
+
 def _current_whisper_language() -> str:
     try:
         from .config import load_config
@@ -647,6 +672,7 @@ def run_diagnostics(verbose: bool = False) -> int:
     # Audio devices
     report.add(check_audio_input_device())
     report.add(check_audio_output_device())
+    report.add(check_smart_speakers())
 
     # LM Studio reachability
     report.add(check_lm_studio_reachability())
@@ -665,7 +691,11 @@ def run_diagnostics(verbose: bool = False) -> int:
     for result in report.results:
         symbol = _status_symbol(result.status)
         print(f"{symbol:8s} {result.name}: {result.message}")
-        if result.details and (verbose or result.status == Status.ERROR):
+        show_details = bool(
+            result.details
+            and (verbose or result.status == Status.ERROR or result.name == "Smart Speakers")
+        )
+        if show_details:
             for line in result.details.split("\n"):
                 print(f"         {line}")
 

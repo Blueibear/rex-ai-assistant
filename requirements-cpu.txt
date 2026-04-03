@@ -2,8 +2,8 @@
 # Use this for CPU-only deployments or CI environments that need the ML stack.
 
 # PyTorch CPU versions (PyPI CPU wheels)
-# torch 2.6.0 satisfies security fixes for DoS vulnerabilities (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
-torch==2.7.1
+# Verified working stack uses torch 2.6.0 with TTS 0.22.0 on Python 3.11.
+torch==2.6.0
 torchvision==0.21.0
 torchaudio==2.6.0
 

@@ -18,6 +18,7 @@ from pathlib import Path
 from assistant_errors import AssistantError, AudioDeviceError
 from audio_config import list_devices
 from logging_utils import get_logger
+from python_compat import DEFAULT_INSTALL_LABEL, is_supported_python, unsupported_python_message
 
 logger = get_logger(__name__)
 
@@ -37,8 +38,10 @@ def _install_file(path: Path) -> None:
 
 
 def check_python_version() -> None:
-    if sys.version_info < (3, 10):
-        raise AssistantError("Python 3.10 or newer is required.")
+    if not is_supported_python(sys.version_info):
+        raise AssistantError(
+            unsupported_python_message(sys.version_info, install_target=DEFAULT_INSTALL_LABEL)
+        )
     logger.info("✅ Python version: %s", platform.python_version())
 
 

@@ -2,9 +2,9 @@
 # Use this for CUDA 11.8 environments (Linux). For CUDA 12.4, use requirements-gpu-cu124.txt.
 
 # PyTorch CUDA 11.8 versions (compatible set)
-# torch 2.6.0 satisfies security fixes for DoS vulnerabilities (GHSA-3749-ghw9-m3mg, GHSA-887c-mr87-cxwp)
+# Keep the torch/torchvision/torchaudio trio on the same verified 2.6.x line.
 --extra-index-url https://download.pytorch.org/whl/cu118
-torch==2.7.1+cu118
+torch==2.6.0+cu118
 torchvision==0.21.0+cu118
 torchaudio==2.6.0+cu118
 

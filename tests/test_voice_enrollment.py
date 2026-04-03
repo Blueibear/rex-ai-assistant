@@ -2,16 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import math
-from pathlib import Path
 
 import numpy as np
 import pytest
 
-from rex.voice_identity.enrollment import _MIN_SAMPLES, _NPY_FILENAME, enroll_user
 from rex.voice_identity.embeddings_store import EmbeddingsStore
-
+from rex.voice_identity.enrollment import _MIN_SAMPLES, _NPY_FILENAME, enroll_user
 
 # ---------------------------------------------------------------------------
 # Helpers

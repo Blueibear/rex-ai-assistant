@@ -32,19 +32,29 @@ class TestCodingClassification:
 
 class TestReasoningClassification:
     def test_analyze(self, router):
-        assert router.classify("Analyze the pros and cons of this approach") == TaskCategory.reasoning
+        assert (
+            router.classify("Analyze the pros and cons of this approach") == TaskCategory.reasoning
+        )
 
     def test_step_by_step(self, router):
         assert router.classify("Walk me through this step by step") == TaskCategory.reasoning
 
     def test_complex_plan(self, router):
-        assert router.classify("Help me plan a complex migration strategy") == TaskCategory.reasoning
+        assert (
+            router.classify("Help me plan a complex migration strategy") == TaskCategory.reasoning
+        )
 
     def test_compare(self, router):
-        assert router.classify("Compare these two frameworks and explain the tradeoffs") == TaskCategory.reasoning
+        assert (
+            router.classify("Compare these two frameworks and explain the tradeoffs")
+            == TaskCategory.reasoning
+        )
 
     def test_evaluate(self, router):
-        assert router.classify("Evaluate the best approach to scaling this service") == TaskCategory.reasoning
+        assert (
+            router.classify("Evaluate the best approach to scaling this service")
+            == TaskCategory.reasoning
+        )
 
 
 class TestSearchClassification:
@@ -58,7 +68,10 @@ class TestSearchClassification:
         assert router.classify("Find me information about Rex AI") == TaskCategory.search
 
     def test_web_search(self, router):
-        assert router.classify("Do a web search for the best coffee shops near me") == TaskCategory.search
+        assert (
+            router.classify("Do a web search for the best coffee shops near me")
+            == TaskCategory.search
+        )
 
 
 class TestVisionClassification:
@@ -69,7 +82,10 @@ class TestVisionClassification:
         assert router.classify("What is in the photo?") == TaskCategory.vision
 
     def test_screenshot(self, router):
-        assert router.classify("Look at this screenshot and tell me what you see") == TaskCategory.vision
+        assert (
+            router.classify("Look at this screenshot and tell me what you see")
+            == TaskCategory.vision
+        )
 
     def test_ocr(self, router):
         assert router.classify("Use OCR to read the text in this image") == TaskCategory.vision

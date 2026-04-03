@@ -13,16 +13,16 @@ fail() {
 
 # Verify Python is available
 if ! command -v "$PYTHON" >/dev/null 2>&1; then
-    fail "Python not found. Install Python 3.10+ and ensure it is on your PATH."
+    fail "Python not found. Install Python 3.11 and ensure it is on your PATH."
 fi
 
-# Require Python 3.9+
+# Require Python 3.11 exactly for the supported full install path
 PYTHON_VERSION=$("$PYTHON" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null) \
     || fail "Could not determine Python version."
 MAJOR="${PYTHON_VERSION%%.*}"
 MINOR="${PYTHON_VERSION#*.}"
-if [ "$MAJOR" -lt 3 ] || { [ "$MAJOR" -eq 3 ] && [ "$MINOR" -lt 9 ]; }; then
-    fail "Python 3.9 or newer is required (found $PYTHON_VERSION)."
+if [ "$MAJOR" -ne 3 ] || [ "$MINOR" -ne 11 ]; then
+    fail "Unsupported Python $PYTHON_VERSION for the Rex full install path. Use Python 3.11. Fresh installs on Python 3.13/3.14 are known to fail in the ML/TTS dependency path."
 fi
 
 echo "Creating virtual environment in $VENV_DIR ..."
@@ -35,7 +35,7 @@ echo "Upgrading pip ..."
 "$PIP" install --upgrade pip setuptools wheel >/dev/null \
     || fail "Failed to upgrade pip."
 
-echo "Installing Rex with all dependencies ..."
+echo "Installing Rex with the supported full dependency set ..."
 "$PIP" install "$REPO_DIR[full]" \
     || fail "pip install failed. Check the error above and re-run after resolving it."
 

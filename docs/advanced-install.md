@@ -2,6 +2,12 @@
 
 This document covers installation options beyond the single-command `install.sh` / `install.ps1` scripts. Use it if you need GPU support, a custom extras selection, development tooling, or a Docker-based workflow.
 
+Current compatibility policy:
+
+- Supported Python version: `3.11`
+- Validated full Windows GPU + TTS path: `Python 3.11` + `requirements-gpu-cu124.txt`
+- Python 3.13 and 3.14 are known to fail in the ML/TTS dependency path and are intentionally rejected by the supported install scripts
+
 ---
 
 ## Manual Install (macOS / Linux)
@@ -12,7 +18,7 @@ git clone https://github.com/Blueibear/rex-ai-assistant.git
 cd rex-ai-assistant
 
 # Create and activate virtual environment
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 
 # Copy environment template
@@ -46,7 +52,7 @@ git clone https://github.com/Blueibear/rex-ai-assistant.git
 cd rex-ai-assistant
 
 # Create and activate virtual environment
-python -m venv .venv
+py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
 # Copy environment template
@@ -83,7 +89,7 @@ pip install -e ".[ml,audio]"     # ML + audio stack
 pip install -e ".[full]"         # full install (ml + audio + sms)
 ```
 
-`requirements.txt` serves as a pointer with guidance; use the split requirements files for CPU/GPU installs to avoid CUDA-only wheels in CI.
+`requirements.txt` serves as a pointer with guidance; use the split requirements files for CPU/GPU installs to avoid CUDA-only wheels in CI. The `[full]` extra is only supported on Python 3.11.
 
 ---
 
@@ -146,6 +152,7 @@ This installs:
 - `torch==2.6.0+cu124`
 - `torchvision==0.21.0+cu124`
 - `torchaudio==2.6.0+cu124`
+- `TTS==0.22.0` via the `ml` extra
 
 **Verify GPU is detected:**
 ```bash

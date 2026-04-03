@@ -8,7 +8,7 @@ with the ranges listed here.
 
 | Component | Supported range | Notes |
 |-----------|----------------|-------|
-| **Python** | 3.10 – 3.13 | 3.11 recommended; 3.9 still functional but unsupported |
+| **Python** | 3.11 | Full install, ML/audio extras, and Windows GPU + TTS path are currently validated only on Python 3.11 |
 | **torch (CPU)** | 2.6.x – 2.8.x | Install from PyPI without extra index URL |
 | **torch (CUDA 11.8)** | 2.6.x – 2.8.x | `--index-url https://download.pytorch.org/whl/cu118` |
 | **torch (CUDA 12.4)** | 2.6.x – 2.8.x | `--index-url https://download.pytorch.org/whl/cu124` |
@@ -50,7 +50,7 @@ The `Pipfile` and `Pipfile.lock` exist **primarily so Dependabot can scan for vu
 | `torch`, `torchvision`, `torchaudio` | Standard PyPI Linux wheel pulls in triton + all NVIDIA CUDA packages (~300 MB), making `pipenv lock` fail on clean systems | `requirements-cpu.txt`, `requirements-gpu*.txt` |
 | `openai-whisper` | Depends on numba + triton, which require native toolchain (LLVM) and pull CUDA libs | `requirements-cpu.txt` |
 | `openwakeword` | Depends on onnxruntime, which requires numpy ≥ 2.x, conflicting with numpy 1.x pin | `requirements-cpu.txt` |
-| `TTS` (Coqui) | Depends on torch (see above) and has many complex transitive deps | `requirements-cpu.txt` |
+| `TTS` (Coqui) | Depends on torch (see above), has many complex transitive deps, and is only validated here on Python 3.11 | `requirements-cpu.txt` |
 
 > **Rule:** Any package that causes `pipenv lock` to fail on a clean Debian/Ubuntu Linux environment without CUDA must not be added to `Pipfile`. Keep those in the split requirements files instead.
 
@@ -151,6 +151,7 @@ python gui.py           # Test GUI loads
 
 - **torch**: Must use CPU builds (no CUDA). Not in Pipfile due to CUDA transitive deps on Linux PyPI.
 - **TTS**: Requires transformers compatibility shim
+- **Python**: Repository install paths are intentionally constrained to Python 3.11 until broader compatibility is validated end-to-end.
 - **numpy**: Keep <2.0 in requirements-cpu.txt for compatibility with numba/TTS/other scientific packages
 - **speechbrain / resemblyzer**: Voice identity optional extras only (`pip install '.[voice-id]'`). Not in Pipfile or default dependencies.
 

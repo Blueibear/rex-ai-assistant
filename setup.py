@@ -15,6 +15,7 @@ setup(
         "rex_speak_api",
         "llm_client",
         "memory_utils",
+        "python_compat",
         "config",
         "audio_config",
         "conversation_memory",

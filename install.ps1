@@ -17,10 +17,10 @@ function Fail {
 # Verify Python is available
 $Python = Get-Command python -ErrorAction SilentlyContinue
 if (-not $Python) {
-    Fail "Python not found. Install Python 3.10+ from https://python.org and ensure it is on your PATH."
+    Fail "Python not found. Install Python 3.11 from https://python.org and ensure it is on your PATH."
 }
 
-# Require Python 3.9+
+# Require Python 3.11 exactly for the supported full install path
 try {
     $VersionOutput = & python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>&1
     $Parts = $VersionOutput -split '\.'
@@ -29,8 +29,8 @@ try {
 } catch {
     Fail "Could not determine Python version."
 }
-if ($Major -lt 3 -or ($Major -eq 3 -and $Minor -lt 9)) {
-    Fail "Python 3.9 or newer is required (found $VersionOutput)."
+if ($Major -ne 3 -or $Minor -ne 11) {
+    Fail "Unsupported Python $VersionOutput for the Rex full install path. Use Python 3.11. Fresh installs on Python 3.13/3.14 are known to fail in the ML/TTS dependency path."
 }
 
 Write-Host "Creating virtual environment in $VenvDir ..."
@@ -44,7 +44,7 @@ Write-Host "Upgrading pip ..."
 & (Join-Path $VenvDir "Scripts\python.exe") -m pip install --upgrade pip setuptools wheel | Out-Null
 if ($LASTEXITCODE -ne 0) { Fail "Failed to upgrade pip." }
 
-Write-Host "Installing Rex with all dependencies ..."
+Write-Host "Installing Rex with the supported full dependency set ..."
 & $Pip install "$RepoDir[full]"
 if ($LASTEXITCODE -ne 0) { Fail "pip install failed. Check the error above and re-run after resolving it." }
 

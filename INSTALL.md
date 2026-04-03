@@ -18,7 +18,7 @@ This guide covers all installation methods and platform-specific setup for the R
 
 ### Minimum Requirements
 - **OS**: Linux, macOS, Windows (WSL2 recommended)
-- **Python**: 3.9 or higher
+- **Python**: 3.11
 - **RAM**: 4GB minimum, 8GB recommended
 - **Disk**: 5GB free space (for models)
 - **Audio**: Working microphone and speakers
@@ -35,10 +35,10 @@ git clone https://github.com/Blueibear/rex-ai-assistant.git
 cd rex-ai-assistant
 
 # Create and activate virtual environment
-python -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install base dependencies (no ML stack)
+# Install base dependencies
 pip install .
 
 # Optional: install CPU-only ML + audio stack
@@ -82,10 +82,10 @@ pip install -r requirements-cpu.txt
 GPU acceleration provides significantly faster speech processing for production deployments.
 
 ```bash
-# Install CUDA 12.4 compatible PyTorch (Windows RTX 3060)
+# Install the validated Windows GPU + TTS stack (Python 3.11 only)
 pip install -r requirements-gpu-cu124.txt
 
-# For CUDA 11.8 (Linux)
+# For CUDA 11.8 (Linux, also Python 3.11 only)
 pip install -r requirements-gpu.txt
 ```
 
@@ -307,7 +307,7 @@ nvidia-smi  # Check CUDA version
 
 Run the built-in diagnostics:
 ```bash
-python scripts/doctor.py
+python -m rex doctor
 ```
 
 This will check:
@@ -359,6 +359,16 @@ After installation:
 
 1. Configure your `.env` file with API keys
 2. Test audio devices: `python -c "import sounddevice; print(sounddevice.query_devices())"`
-3. Run the environment doctor: `python scripts/environment_doctor.py`
+3. Run the environment doctor: `python -m rex doctor`
 4. Start Rex: `python -m rex`
 5. Say your wake word (default: "rex") and start chatting!
+
+## Python Compatibility Policy
+
+Rex currently supports **Python 3.11** for the install paths documented in this repository.
+
+- The default install path is validated on Python 3.11.
+- The full Windows GPU + TTS path is validated on Python 3.11.
+- Fresh installs on Python 3.13 and 3.14 are known to fail in the ML/TTS dependency path.
+
+The package metadata, installers, and `rex doctor` now fail fast on unsupported Python versions so users do not get stuck in long pip resolution failures.

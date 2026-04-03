@@ -140,3 +140,94 @@
   - mypy unused-ignore on windows_service.py: remove type: ignore when stubs (types-requests) are installed
   - numpy return types in voice_loop.py need explicit annotation or type: ignore[no-any-return]
 ---
+
+# ============================================================
+# PRD-master-next-cycle.md — Story Completion Log
+# ============================================================
+
+## Status
+No stories started yet. Begin with US-CI-001 (first story with unchecked criteria).
+
+## Learnings
+(Update this section as patterns emerge during implementation)
+
+---
+
+## Story Completion Tracker
+
+| Story ID   | Title                                                | Done |
+|------------|------------------------------------------------------|------|
+| US-CI-001  | Fix ruff lint — phantom deleted-file errors          |      |
+| US-CI-002  | Fix ruff lint — sort imports in two test files       |      |
+| US-CI-003  | Fix mypy — remove stale type: ignore comments        |      |
+| US-CI-004  | Fix mypy — event_bus overload signatures             |      |
+| US-CI-005  | Fix mypy — event_bridge/browser_core                 |      |
+| US-CI-006  | Fix mypy — tool_executor.py                          |      |
+| US-CI-007  | Retire 11 dashboard test files                       |      |
+| US-CI-008  | Fix voice_loop patch target in 3 test files          |      |
+| US-CI-009  | Fix tomllib import fallback                          |      |
+| US-CI-010  | Fix missing rex.contracts.browser import             |      |
+| US-CI-011  | Fix retired routes.py reference in test_us174        |      |
+| US-RH-001  | Archive VERIFICATION_REPORT files                    |      |
+| US-RH-002  | Archive stale PRD files from root                    |      |
+| US-RH-003  | Archive housekeeping/summary files                   |      |
+| US-RH-004  | Consolidate security audit files                     |      |
+| US-RH-005  | Normalize branding                                   |      |
+| US-RH-006  | Establish docs hierarchy                             |      |
+| US-RH-007  | Remove/replace personal/sample data                  |      |
+| US-MM-001  | Model routing config schema                          |      |
+| US-MM-002  | Model router — intent classification                 |      |
+| US-MM-003  | Wire model router into Assistant                     |      |
+| US-MM-004  | Ollama availability check in router                  |      |
+| US-MM-005  | UI — model routing settings panel                   |      |
+| US-VID-001 | Voice enrollment — embeddings                        |      |
+| US-VID-002 | Real-time speaker identification                     |      |
+| US-VID-003 | Auto-switch user profile on speaker ID               |      |
+| US-VID-004 | Voice enrollment UI                                  |      |
+| US-SK-001  | Skill registry data model                            |      |
+| US-SK-002  | Script-based skill registration                      |      |
+| US-SK-003  | Natural language skill creation                      |      |
+| US-SK-004  | Skill invocation auto-dispatch                       |      |
+| US-TD-001  | Tool registry                                        |      |
+| US-TD-002  | Auto tool selection                                  |      |
+| US-TD-003  | Tool execution pipeline with timeout/retry           |      |
+| US-WIN-001 | Local file read/write                                |      |
+| US-WIN-002 | Windows diagnostics                                  |      |
+| US-WIN-003 | Windows settings via PowerShell                      |      |
+| US-WIN-004 | Windows diagnosis and repair                         |      |
+| US-UI-001  | UI framework scaffolding                             |      |
+| US-UI-002  | Chat interface                                       |      |
+| US-UI-003  | Voice interface                                      |      |
+| US-UI-004  | Settings — LLM and model routing                     |      |
+| US-UI-005  | Settings — STT, TTS, wake word                       |      |
+| US-UI-006  | Settings — integrations                              |      |
+| US-UI-007  | Settings — users and voice profiles                  |      |
+| US-UI-008  | Settings — speakers and audio output                 |      |
+| US-UI-009  | Settings — system and advanced                       |      |
+| US-UI-010  | File and image upload for LLM context                |      |
+| US-LAT-001 | LLM response streaming                               |      |
+| US-LAT-002 | Acoustic "thinking" feedback                         |      |
+| US-LAT-003 | STT pipeline warm-up                                 |      |
+| US-LAT-004 | Response caching                                     |      |
+| US-SL-001  | Shopping list data model                             |      |
+| US-SL-002  | Voice commands for shopping list                     |      |
+| US-SL-003  | Shopping list UI                                     |      |
+| US-SL-004  | Shopping list mobile PWA                             |      |
+| US-ME-001  | Multi-email config schema                            |      |
+| US-ME-002  | Email service — per-user scoping                     |      |
+| US-ME-003  | Email UI — multi-account management                  |      |
+| US-SP-001  | Smart speaker discovery                              |      |
+| US-SP-002  | Route TTS to smart speaker                           |      |
+| US-SP-003  | Wake word via smart speaker mic                      |      |
+| US-VC-001  | Voice selection UI with sample playback              |      |
+| US-VC-002  | Personalized voice creation via upload               |      |
+| US-WW-001  | Wake word selection UI                               |      |
+| US-WW-002  | Custom wake word training UI                         |      |
+| US-LOG-001 | Structured logging to rotating file                  |      |
+| US-LOG-002 | Log viewer UI                                        |      |
+| US-PH-001  | Phone number linking — Twilio inbound webhook        |      |
+| US-PH-002  | Inbound call STT/LLM loop                            |      |
+| US-PH-003  | Outbound calling                                     |      |
+| US-PH-004  | Phone integration settings UI                        |      |
+
+---

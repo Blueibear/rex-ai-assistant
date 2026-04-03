@@ -37,6 +37,20 @@ pip uninstall -y torch torchvision torchaudio
 pip install -r requirements-gpu.txt
 ```
 
+## Unsupported Python Version
+
+**Error:** `Unsupported Python ... for Rex ...`
+
+**Solution:** Recreate the environment with Python 3.11.
+
+```powershell
+py -3.11 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip setuptools wheel
+```
+
+The current Rex install paths are validated on Python 3.11. Fresh installs on Python 3.13 and 3.14 are known to fail in the ML/TTS dependency path, so the installers now stop immediately instead of letting pip fail later.
+
 ## Microphone Permissions (macOS)
 
 **Error:** `Audio device not accessible`

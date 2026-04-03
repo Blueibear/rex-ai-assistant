@@ -31,10 +31,16 @@ This file remains the primary control document for:
 
 ### Language and runtime
 
-Language: Python 3.9 to 3.13 (3.10+ preferred)
+Language: Python 3.11
 
 Packaging: pyproject.toml with setuptools backend  
 Install via: pip install .
+
+Current install/runtime compatibility policy:
+
+- Default supported install path: Python 3.11
+- Full Windows GPU + TTS path: Python 3.11 with `requirements-gpu-cu124.txt`
+- Do not claim Python 3.12+ support unless the dependency stack has been validated end-to-end and docs, CI, and package metadata are updated together
 
 Entry points:
 
@@ -176,7 +182,7 @@ pip install -r requirements-dev.txt
 
 Health check:
 
-python scripts/doctor.py
+python -m rex doctor
 
 Text mode:
 

@@ -3,3 +3,4 @@
 #   pip install -e ".[ml]"
 #   pip install -r requirements-cpu.txt
 #   pip install -r requirements-gpu-cu124.txt
+# These ML/TTS install paths are currently validated on Python 3.11.

@@ -103,7 +103,8 @@ async def _run(args) -> None:
         return
 
     mqtt_router = None
-    if MQTT_AVAILABLE and MqttAudioRouter is not None:
+    mqtt_broker = getattr(rex.settings, "mqtt_broker", None)
+    if MQTT_AVAILABLE and MqttAudioRouter is not None and mqtt_broker:
         try:
             mqtt_router = MqttAudioRouter(assistant=assistant)
             await mqtt_router.start()
@@ -113,6 +114,8 @@ async def _run(args) -> None:
             mqtt_router = None
     elif not MQTT_AVAILABLE:
         logger.info("MQTT audio router disabled (dependency not available)")
+    else:
+        logger.info("MQTT audio router disabled (mqtt_broker not configured)")
 
     logger.info("🎙️ Voice loop started. Press Ctrl+C to exit.")
     try:

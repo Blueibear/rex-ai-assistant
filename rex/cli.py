@@ -42,8 +42,14 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from python_compat import DEFAULT_INSTALL_LABEL, is_supported_python, unsupported_python_message
 from rex.exception_handler import wrap_entrypoint
 from rex.startup_validation import check_startup_env
+
+if not is_supported_python(sys.version_info):
+    raise SystemExit(
+        unsupported_python_message(sys.version_info, install_target=DEFAULT_INSTALL_LABEL)
+    )
 
 
 def get_browser_service():

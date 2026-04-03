@@ -8,7 +8,7 @@ This guide covers Windows-specific setup for Rex AI Assistant. For full project 
 
 ### 1. Prerequisites
 
-- Python **3.11+**
+- Python **3.11**
 - Git
 - [FFmpeg](https://ffmpeg.org/download.html) — must be on PATH
 - Microphone + speakers (for voice mode)
@@ -20,7 +20,7 @@ This guide covers Windows-specific setup for Rex AI Assistant. For full project 
 git clone https://github.com/Blueibear/askrex-assistant.git
 cd rex-ai-assistant
 
-python -m venv .venv
+py -3.11 -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
 
@@ -35,7 +35,6 @@ pip install .
 **GPU (CUDA 12.4 — RTX 30xx / 40xx):**
 ```powershell
 pip install --upgrade pip setuptools wheel
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 pip install -r requirements-gpu-cu124.txt
 ```
 
@@ -112,7 +111,7 @@ pytest -q
 ## Health check
 
 ```powershell
-python scripts/doctor.py
+python -m rex doctor
 ```
 
 ---
@@ -123,3 +122,4 @@ python scripts/doctor.py
 - Voices can be customised by adding a WAV file to your profile
 - Web search requires a `SERPAPI_KEY` or `BRAVE_API_KEY` in `.env`; DuckDuckGo scraping is used as a fallback
 - See [CONFIGURATION.md](CONFIGURATION.md) for the full configuration reference
+- The full Windows voice stack is currently validated on Python 3.11 only. Python 3.13/3.14 installs are known to fail in the TTS/ML dependency path, so the installer now rejects them immediately.

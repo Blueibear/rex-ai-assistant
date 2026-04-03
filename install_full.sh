@@ -22,6 +22,11 @@ Options:
 USAGE
 }
 
+fail() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --prefix)
@@ -55,6 +60,14 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
+
+PYTHON_VERSION=$("$REX_PYTHON" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null) \
+  || fail "Could not determine Python version."
+MAJOR="${PYTHON_VERSION%%.*}"
+MINOR="${PYTHON_VERSION#*.}"
+if [ "$MAJOR" -ne 3 ] || [ "$MINOR" -ne 11 ]; then
+  fail "Unsupported Python $PYTHON_VERSION for the Rex full install path. Use Python 3.11."
+fi
 
 install_cmd=("$REX_PYTHON" -m pip install "${ROOT_DIR}[ml,audio,sms,devtools]")
 if [ -n "$REX_INSTALL_PREFIX" ]; then
