@@ -1,3 +1,25 @@
+## Iteration 110 - US-SP-003: Wake word detection from smart speaker microphone
+- Story: US-SP-003
+- What was implemented
+  - New `rex/audio/smart_speaker_mic.py`: SmartSpeakerMic class with connect()/read_frame()/disconnect()
+  - Sonos: HTTP streaming from port 1400 /api/v1/audio/capture; reads 16-bit LE PCM, converts to float32 numpy array
+  - Bose: no mic API available — always returns False from connect() (instant fallback)
+  - AppConfig.wake_word_input_device (Optional[str]) field; JSON path: audio.wake_word_input_device
+  - build_voice_loop: resolves device name against SpeakerDiscoveryService cache, creates SmartSpeakerMic, passes read_frame as AsyncMicrophone's recorder callback
+  - openWakeWord integration unchanged — only the audio source callable changes
+  - Graceful fallback to local sounddevice mic on: device not found, connect() failure, stream error
+  - 11 unit tests (all pass); typecheck clean
+- Files changed
+  - rex/audio/smart_speaker_mic.py (new)
+  - rex/config.py (AppConfig.wake_word_input_device field + JSON loader)
+  - rex/voice_loop.py (build_voice_loop: smart mic resolution + AsyncMicrophone recorder wiring)
+  - tests/test_sp003_smart_speaker_mic.py (new)
+  - PRD-master-next-cycle.md
+- Learnings for future iterations:
+  - Local imports inside functions (from .wakeword.listener import X) must be patched at source module (rex.wakeword.listener.X), not at the calling module
+  - AsyncMicrophone.recorder parameter is the clean injection point for alternative audio sources — no changes to wake word detection needed
+---
+
 ## Iteration 109 - US-SP-002: Route TTS output to selected smart speaker
 - Story: US-SP-002
 - What was implemented

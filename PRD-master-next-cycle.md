@@ -990,11 +990,11 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want Rex to listen for its wake word through a Sonos or compatible microphone-enabled speaker so I can summon Rex from across the room.
 
 **Acceptance Criteria:**
-- [ ] `AppConfig.wake_word_input_device` accepts a discovered smart speaker name or `auto`
-- [ ] For microphone-enabled Sonos devices, audio stream captured via HTTP or local Alexa-compatible endpoint (where available)
-- [ ] Wake word detection pipeline accepts the remote audio stream with no changes to the core openWakeWord integration
-- [ ] Graceful fallback to local microphone if remote audio unavailable
-- [ ] Typecheck passes
+- [x] `AppConfig.wake_word_input_device` accepts a discovered smart speaker name or `auto`
+- [x] For microphone-enabled Sonos devices, audio stream captured via HTTP or local Alexa-compatible endpoint (where available)
+- [x] Wake word detection pipeline accepts the remote audio stream with no changes to the core openWakeWord integration
+- [x] Graceful fallback to local microphone if remote audio unavailable
+- [x] Typecheck passes
 
 ---
 
