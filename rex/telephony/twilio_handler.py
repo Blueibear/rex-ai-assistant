@@ -251,7 +251,6 @@ def create_blueprint() -> Blueprint:
             return sig_error
 
         speech_result = request.form.get("SpeechResult", "").strip()
-        caller = request.form.get("From", "unknown")
 
         try:
             turn = int(request.args.get("turn", "1"))

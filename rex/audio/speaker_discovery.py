@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import logging
 import importlib
+import logging
 import socket
 import threading
 import time
