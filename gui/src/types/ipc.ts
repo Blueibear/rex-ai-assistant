@@ -119,10 +119,14 @@ export interface GeneralSettings {
 export interface VoiceSettings {
   microphoneDeviceId: string
   speakerDeviceId: string
-  ttsEngine: 'system' | 'openai' | 'elevenlabs'
+  ttsEngine: 'system' | 'openai' | 'elevenlabs' | 'xtts' | 'edge-tts' | 'pyttsx3'
   ttsVoice: string
   speechRate: number
   volume: number
+  sttModel: string
+  sttLanguage: string
+  sttDevice: 'auto' | 'cpu' | 'cuda'
+  wakeWord: string
 }
 
 export interface VoiceEnrollment {

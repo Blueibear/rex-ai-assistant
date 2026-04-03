@@ -489,10 +489,14 @@ function VoicePanel(): React.ReactElement {
   const [form, setForm] = useState<VoiceSettings>({
     microphoneDeviceId: '',
     speakerDeviceId: '',
-    ttsEngine: 'system',
+    ttsEngine: 'pyttsx3',
     ttsVoice: '',
     speechRate: 1.0,
-    volume: 1.0
+    volume: 1.0,
+    sttModel: 'base',
+    sttLanguage: 'auto',
+    sttDevice: 'auto',
+    wakeWord: ''
   })
   const [loading, setLoading] = useState(true)
   const [mics, setMics] = useState<MediaDeviceOption[]>([])
@@ -515,8 +519,8 @@ function VoicePanel(): React.ReactElement {
   const testResultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   function engineToProvider(engine: VoiceSettings['ttsEngine']): string {
-    if (engine === 'openai') return 'edge-tts'
-    if (engine === 'elevenlabs') return 'xtts'
+    if (engine === 'xtts' || engine === 'elevenlabs') return 'xtts'
+    if (engine === 'edge-tts' || engine === 'openai') return 'edge-tts'
     return 'pyttsx3'
   }
 
@@ -574,18 +578,31 @@ function VoicePanel(): React.ReactElement {
     window.rex
       .getSettings('voice')
       .then((settings: Settings) => {
+        const rawEngine = settings.ttsEngine
+        const ttsEngine: VoiceSettings['ttsEngine'] =
+          rawEngine === 'xtts' || rawEngine === 'edge-tts' || rawEngine === 'pyttsx3'
+            ? rawEngine
+            : rawEngine === 'elevenlabs'
+              ? 'xtts'
+              : rawEngine === 'openai'
+                ? 'edge-tts'
+                : 'pyttsx3'
+        const rawSttDevice = settings.sttDevice
+        const sttDevice: VoiceSettings['sttDevice'] =
+          rawSttDevice === 'cpu' || rawSttDevice === 'cuda' ? rawSttDevice : 'auto'
         setForm({
           microphoneDeviceId:
             typeof settings.microphoneDeviceId === 'string' ? settings.microphoneDeviceId : '',
           speakerDeviceId:
             typeof settings.speakerDeviceId === 'string' ? settings.speakerDeviceId : '',
-          ttsEngine:
-            settings.ttsEngine === 'openai' || settings.ttsEngine === 'elevenlabs'
-              ? settings.ttsEngine
-              : 'system',
+          ttsEngine,
           ttsVoice: typeof settings.ttsVoice === 'string' ? settings.ttsVoice : '',
           speechRate: typeof settings.speechRate === 'number' ? settings.speechRate : 1.0,
-          volume: typeof settings.volume === 'number' ? settings.volume : 1.0
+          volume: typeof settings.volume === 'number' ? settings.volume : 1.0,
+          sttModel: typeof settings.sttModel === 'string' ? settings.sttModel : 'base',
+          sttLanguage: typeof settings.sttLanguage === 'string' ? settings.sttLanguage : 'auto',
+          sttDevice,
+          wakeWord: typeof settings.wakeWord === 'string' ? settings.wakeWord : ''
         })
       })
       .catch(() => {
@@ -804,6 +821,107 @@ function VoicePanel(): React.ReactElement {
         </select>
       </div>
 
+      {/* STT section */}
+      <div className="mb-6 rounded-xl border border-border bg-surface-raised/40 p-4">
+        <h3 className="mb-4 text-sm font-semibold text-text-primary">Speech-to-Text (Whisper)</h3>
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="sttModel" className="text-sm font-medium text-text-primary">
+              Model Size
+            </label>
+            <SavedIndicator visible={savedField === 'sttModel'} />
+          </div>
+          <select
+            id="sttModel"
+            value={form.sttModel}
+            onChange={(e) => handleFieldChange('sttModel', e.target.value)}
+            className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+          >
+            <option value="tiny">tiny — fastest, lowest accuracy</option>
+            <option value="base">base — good balance</option>
+            <option value="small">small</option>
+            <option value="medium">medium</option>
+            <option value="large">large</option>
+            <option value="large-v2">large-v2</option>
+            <option value="large-v3">large-v3 — best accuracy</option>
+          </select>
+        </div>
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="sttLanguage" className="text-sm font-medium text-text-primary">
+              Language
+            </label>
+            <SavedIndicator visible={savedField === 'sttLanguage'} />
+          </div>
+          <select
+            id="sttLanguage"
+            value={form.sttLanguage}
+            onChange={(e) => handleFieldChange('sttLanguage', e.target.value)}
+            className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+          >
+            <option value="auto">Auto-detect</option>
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="it">Italian</option>
+            <option value="pt">Portuguese</option>
+            <option value="zh">Chinese</option>
+            <option value="ja">Japanese</option>
+            <option value="ko">Korean</option>
+            <option value="ar">Arabic</option>
+            <option value="ru">Russian</option>
+            <option value="nl">Dutch</option>
+            <option value="pl">Polish</option>
+            <option value="tr">Turkish</option>
+          </select>
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="sttDevice" className="text-sm font-medium text-text-primary">
+              Device
+            </label>
+            <SavedIndicator visible={savedField === 'sttDevice'} />
+          </div>
+          <select
+            id="sttDevice"
+            value={form.sttDevice}
+            onChange={(e) => handleFieldChange('sttDevice', e.target.value as VoiceSettings['sttDevice'])}
+            className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+          >
+            <option value="auto">Auto (prefer GPU)</option>
+            <option value="cpu">CPU</option>
+            <option value="cuda">GPU (CUDA)</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Wake word */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-1.5">
+          <label htmlFor="wakeWord" className="text-sm font-medium text-text-primary">
+            Wake Word
+          </label>
+          <SavedIndicator visible={savedField === 'wakeWord'} />
+        </div>
+        <select
+          id="wakeWord"
+          value={form.wakeWord}
+          onChange={(e) => handleFieldChange('wakeWord', e.target.value)}
+          className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          <option value="">Disabled</option>
+          <option value="hey_jarvis">Hey Jarvis</option>
+          <option value="hey_mycroft">Hey Mycroft</option>
+          <option value="hey_rhasspy">Hey Rhasspy</option>
+          <option value="ok_nabu">OK Nabu</option>
+          <option value="alexa">Alexa</option>
+        </select>
+        <p className="mt-1 text-xs text-text-secondary">
+          Uses openWakeWord. Select a model or leave disabled to start Rex manually.
+        </p>
+      </div>
+
       {/* TTS engine */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-1.5">
@@ -821,9 +939,9 @@ function VoicePanel(): React.ReactElement {
           }}
           className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
         >
-          <option value="system">System</option>
-          <option value="openai">OpenAI</option>
-          <option value="elevenlabs">ElevenLabs</option>
+          <option value="pyttsx3">pyttsx3 (offline, system voices)</option>
+          <option value="edge-tts">edge-tts (Microsoft, requires internet)</option>
+          <option value="xtts">XTTS (Coqui, voice cloning)</option>
         </select>
       </div>
 

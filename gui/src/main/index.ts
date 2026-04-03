@@ -202,7 +202,15 @@ function mirrorToRexConfig(section: string, values: Settings): void {
       if (typeof values.ttsEngine === 'string') models.tts_provider = values.ttsEngine
       if (typeof values.ttsVoice === 'string') models.tts_voice = values.ttsVoice
       if (typeof values.speechRate === 'number') models.tts_speed = values.speechRate
+      if (typeof values.sttModel === 'string') models.whisper_model = values.sttModel
+      if (typeof values.sttDevice === 'string') models.whisper_device = values.sttDevice
+      if (typeof values.sttLanguage === 'string') models.stt_language = values.sttLanguage
       rexConfig.models = models
+      if (typeof values.wakeWord === 'string' && values.wakeWord) {
+        const wakeword = ((rexConfig.wakeword ?? {}) as Record<string, unknown>)
+        wakeword.model = values.wakeWord
+        rexConfig.wakeword = wakeword
+      }
       writeRexConfig(rexConfig)
     }
 
@@ -232,10 +240,14 @@ const defaultSettingsMap: Record<string, Settings> = {
   voice: {
     microphoneDeviceId: '',
     speakerDeviceId: '',
-    ttsEngine: 'system',
+    ttsEngine: 'pyttsx3',
     ttsVoice: '',
     speechRate: 1.0,
-    volume: 1.0
+    volume: 1.0,
+    sttModel: 'base',
+    sttLanguage: 'auto',
+    sttDevice: 'auto',
+    wakeWord: ''
   } satisfies VoiceSettings,
   ai: {
     model: 'claude-sonnet-4',
