@@ -367,12 +367,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to configure model routing rules through the UI so I can change which model handles each task type without editing JSON files.
 
 **Acceptance Criteria:**
-- [ ] Settings panel (see US-UI-001 through US-UI-003) includes a "Model Routing" section
-- [ ] Each task category (`coding`, `reasoning`, `search`, `vision`, `fast`, `default`) has a dropdown or text input
-- [ ] Save button writes changes to `config/rex_config.json` via the config API
-- [ ] Changes take effect on next Assistant call without restarting Rex
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Settings panel (see US-UI-001 through US-UI-003) includes a "Model Routing" section
+- [x] Each task category (`coding`, `reasoning`, `search`, `vision`, `fast`, `default`) has a dropdown or text input
+- [x] Save button writes changes to `config/rex_config.json` via the config API
+- [x] Changes take effect on next Assistant call without restarting Rex
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
@@ -429,12 +429,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to enroll or re-enroll my voice through the Rex UI so I do not need to use the CLI.
 
 **Acceptance Criteria:**
-- [ ] UI has an "Enroll Voice" flow: user clicks "Start Enrollment", Rex records 3 samples with visual countdown, stores embedding
-- [ ] Progress indicator shows how many samples have been captured
-- [ ] Success/failure feedback displayed after enrollment
-- [ ] Enrolled users listed with a "Delete Enrollment" option
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] UI has an "Enroll Voice" flow: user clicks "Start Enrollment", Rex records 3 samples with visual countdown, stores embedding
+- [x] Progress indicator shows how many samples have been captured
+- [x] Success/failure feedback displayed after enrollment
+- [x] Enrolled users listed with a "Delete Enrollment" option
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
@@ -628,13 +628,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a developer, I want a single-page React application scaffolded under `rex/ui/` that provides the navigation skeleton for all UI sections.
 
 **Acceptance Criteria:**
-- [ ] `rex/ui/` directory created with: `index.html`, `App.jsx`, `main.jsx`, build config (Vite or equivalent)
-- [ ] Top-level nav includes: Dashboard, Chat, Voice, Settings, Logs, Shopping List, About
-- [ ] Each nav item renders a placeholder component
-- [ ] App served by Flask at `/ui/` when `AppConfig.ui_enabled` is True (default True)
-- [ ] `npm run build` produces `rex/ui/dist/` which Flask serves as static files
-- [ ] Typecheck passes (Python side)
-- [ ] Verify changes work in browser
+- [x] `rex/ui/` directory created with: `index.html`, `App.jsx`, `main.jsx`, build config (Vite or equivalent)
+- [x] Top-level nav includes: Dashboard, Chat, Voice, Settings, Logs, Shopping List, About
+- [x] Each nav item renders a placeholder component
+- [x] App served by Flask at `/ui/` when `AppConfig.ui_enabled` is True (default True)
+- [x] `npm run build` produces `rex/ui/dist/` which Flask serves as static files
+- [x] Typecheck passes (Python side)
+- [x] Verify changes work in browser
 
 ---
 
@@ -906,30 +906,30 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 
 ---
 
-### US-ME-001: Multi-email config schema — per-user account list
+### US-ME-001: Multi-email config schema — per-user account list ✅ DONE
 
 **Description:** As a developer, I want `AppConfig` to support multiple email accounts per user rather than a single global account so each user's emails are isolated.
 
 **Acceptance Criteria:**
-- [ ] `AppConfig.users` gains a `email_accounts: list[EmailAccountConfig]` field per user
-- [ ] `EmailAccountConfig` fields: `account_id`, `display_name`, `backend` (imap/gmail/outlook), `credentials_key` (key into `.env`)
-- [ ] `config/rex_config.example.json` shows two email accounts for one user
-- [ ] Existing single-account config loads without error (migration shim converts old format)
-- [ ] Typecheck passes
+- [x] `AppConfig.users` gains a `email_accounts: list[EmailAccountConfig]` field per user
+- [x] `EmailAccountConfig` fields: `account_id`, `display_name`, `backend` (imap/gmail/outlook), `credentials_key` (key into `.env`)
+- [x] `config/rex_config.example.json` shows two email accounts for one user
+- [x] Existing single-account config loads without error (migration shim converts old format)
+- [x] Typecheck passes
 
 ---
 
-### US-ME-002: Email service — route operations to requesting user's accounts only
+### US-ME-002: Email service — route operations to requesting user's accounts only ✅ DONE
 
 **Description:** As a developer, I want all email operations to be scoped to the requesting user's accounts so User A can never accidentally see User B's email.
 
 **Acceptance Criteria:**
-- [ ] `EmailService` modified to accept `user_id: str` parameter on all operations
-- [ ] `EmailService.get_accounts(user_id)` returns only accounts where the user is the owner
-- [ ] Attempt to access another user's account raises `PermissionError` (not a silent empty result)
-- [ ] `Assistant` passes `active_user_id` from speaker identification to all email tool calls
-- [ ] Integration test: two users with separate accounts; verify each only sees their own emails
-- [ ] Typecheck passes
+- [x] `EmailService` modified to accept `user_id: str` parameter on all operations
+- [x] `EmailService.get_accounts(user_id)` returns only accounts where the user is the owner
+- [x] Attempt to access another user's account raises `PermissionError` (not a silent empty result)
+- [x] `Assistant` passes `active_user_id` from speaker identification to all email tool calls
+- [x] Integration test: two users with separate accounts; verify each only sees their own emails
+- [x] Typecheck passes
 
 ---
 

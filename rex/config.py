@@ -263,6 +263,9 @@ class AppConfig:
     # Windows settings — require user confirmation before applying system changes (US-WIN-003)
     require_confirm_system_changes: bool = True
 
+    # Web UI (US-UI-001)
+    ui_enabled: bool = True
+
     # Aliases
     llm_backend: Optional[str] = None
     temperature: Optional[float] = None
