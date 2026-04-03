@@ -24,7 +24,8 @@ import type {
   SMSThread,
   SMSMessage,
   GuiNotification,
-  SmartSpeaker
+  SmartSpeaker,
+  FileExtractResult
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -234,7 +235,13 @@ const rexAPI = {
   getSmartSpeakers: (): Promise<{ ok: boolean; speakers: SmartSpeaker[]; error?: string }> =>
     ipcRenderer.invoke('rex:getSmartSpeakers'),
   restartRex: (): Promise<{ ok: boolean; error?: string }> =>
-    ipcRenderer.invoke('rex:restartRex')
+    ipcRenderer.invoke('rex:restartRex'),
+  extractFileForChat: (params: {
+    filename: string
+    dataBase64: string
+    mimeType: string
+    sizeBytes: number
+  }): Promise<FileExtractResult> => ipcRenderer.invoke('rex:extractFileForChat', params)
 }
 
 if (process.contextIsolated) {

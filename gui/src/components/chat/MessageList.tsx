@@ -1,11 +1,18 @@
 import React, { useEffect, useRef } from 'react'
 
+export interface MessageAttachment {
+  name: string
+  isImage: boolean
+  dataUrl?: string // data URL for inline image display
+}
+
 export interface Message {
   id: string
   role: 'user' | 'rex'
   content: string
   timestamp: Date
   streaming?: boolean
+  attachments?: MessageAttachment[]
 }
 
 export interface MessageListProps {
@@ -144,6 +151,28 @@ export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
                 : 'bg-surface-raised text-text-primary rounded-bl-sm'
             ].join(' ')}
           >
+            {msg.attachments && msg.attachments.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {msg.attachments.map((att, i) =>
+                  att.isImage && att.dataUrl ? (
+                    <img
+                      key={i}
+                      src={att.dataUrl}
+                      alt={att.name}
+                      className="max-w-[200px] max-h-[150px] rounded object-contain"
+                    />
+                  ) : (
+                    <div
+                      key={i}
+                      className="flex items-center gap-1 bg-black/10 rounded px-2 py-1 text-xs"
+                    >
+                      <span aria-hidden="true">📎</span>
+                      <span>{att.name}</span>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
             {msg.role === 'rex' ? (
               <>
                 {renderMarkdown(msg.content, msg.id)}

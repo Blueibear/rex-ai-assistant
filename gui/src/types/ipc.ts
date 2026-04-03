@@ -214,6 +214,13 @@ export interface VersionInfo {
   node: string
 }
 
+export interface FileExtractResult {
+  ok: boolean
+  isImage: boolean
+  extractedText?: string
+  error?: string
+}
+
 export interface PreferenceSuggestion {
   field: string
   current_value: string | number
@@ -363,4 +370,10 @@ export interface RexAPI {
   setApiKey: (name: string, value: string) => Promise<{ ok: boolean; error?: string }>
   getSmartSpeakers: () => Promise<{ ok: boolean; speakers: SmartSpeaker[]; error?: string }>
   restartRex: () => Promise<{ ok: boolean; error?: string }>
+  extractFileForChat: (params: {
+    filename: string
+    dataBase64: string
+    mimeType: string
+    sizeBytes: number
+  }) => Promise<FileExtractResult>
 }

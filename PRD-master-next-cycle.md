@@ -762,13 +762,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to upload files and images through the chat UI so Rex can analyze them and answer questions about their content.
 
 **Acceptance Criteria:**
-- [ ] Drag-and-drop or browse file picker in chat input area
-- [ ] Supported types: `.txt`, `.md`, `.pdf`, `.png`, `.jpg`, `.jpeg`, `.csv`
-- [ ] Files sent to backend, extracted text / image injected into LLM context
-- [ ] Images displayed inline in chat bubble; documents shown as attachment chip
-- [ ] File size limit enforced: 10MB per file, 50MB per session (configurable)
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Drag-and-drop or browse file picker in chat input area
+- [x] Supported types: `.txt`, `.md`, `.pdf`, `.png`, `.jpg`, `.jpeg`, `.csv`
+- [x] Files sent to backend, extracted text / image injected into LLM context
+- [x] Images displayed inline in chat bubble; documents shown as attachment chip
+- [x] File size limit enforced: 10MB per file, 50MB per session (configurable)
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

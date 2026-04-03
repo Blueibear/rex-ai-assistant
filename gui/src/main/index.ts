@@ -15,6 +15,7 @@ import { registerEmailHandlers } from './handlers/email'
 import { registerSMSHandlers } from './handlers/sms'
 import { registerNotificationHandlers } from './handlers/notifications'
 import { registerSpeakerHandlers } from './handlers/speakers'
+import { registerFileHandlers } from './handlers/files'
 
 // ---------------------------------------------------------------------------
 // Config file helpers
@@ -325,6 +326,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
   registerSMSHandlers()
   registerNotificationHandlers(mainWindow)
   registerSpeakerHandlers()
+  registerFileHandlers()
 
   ipcMain.handle('rex:getStatus', () => {
     return { ok: true, status: 'idle' }

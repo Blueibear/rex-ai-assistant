@@ -1,3 +1,236 @@
+## Iteration 104 - US-UI-010: File and image upload for LLM context
+- Story: US-UI-010
+- What was implemented
+  - Created `rex_file_extract_bridge.py` — Python bridge that decodes base64 files and extracts text (txt/md/csv inline, PDF via PyMuPDF/pdfminer, images pass-through)
+  - Created `gui/src/main/handlers/files.ts` — IPC handler `rex:extractFileForChat` with 10MB per-file enforcement
+  - Registered `registerFileHandlers()` in `gui/src/main/index.ts`
+  - Added `FileExtractResult` interface and `extractFileForChat` to `gui/src/types/ipc.ts`
+  - Added `extractFileForChat` to `gui/src/preload/index.ts` and imported `FileExtractResult` type
+  - Added `PendingAttachment` interface and drag-and-drop + paperclip file picker to `ChatInput.tsx`; session limit 50MB tracked in state; attachment chips with thumbnail previews and remove buttons
+  - Added `MessageAttachment` interface to `MessageList.tsx`; images display inline, documents show as chips
+  - Updated `ChatPage.tsx`: `handleSend` accepts attachments, extracts text via IPC, builds augmented message prepending file content, shows user message with attachment display
+- Files changed
+  - `rex_file_extract_bridge.py` (new)
+  - `gui/src/main/handlers/files.ts` (new)
+  - `gui/src/main/index.ts`
+  - `gui/src/types/ipc.ts`
+  - `gui/src/preload/index.ts`
+  - `gui/src/components/chat/ChatInput.tsx`
+  - `gui/src/components/chat/MessageList.tsx`
+  - `gui/src/pages/ChatPage.tsx`
+  - `PRD-master-next-cycle.md`
+- Learnings for future iterations:
+  - TypeScript typecheck: `cd gui && npx tsc --noEmit` — zero output = clean pass
+  - IPC pattern for new channels: handler file → register in index.ts → preload binding → RexAPI type
+  - FileReader.readAsDataURL returns `data:{mime};base64,{b64}` — split on ',' to get raw base64
+  - For session-scoped state (like 50MB byte counter), keep in the ChatInput component state not ChatPage
+  - Python bridge stdin/stdout NDJSON pattern is consistent across all bridges (chat, STT, file extract)
+---
+## Iteration 103 - US-UI-009: Settings — system and advanced
+- Story: US-UI-009
+- What was implemented
+  - Added `SystemSettings` interface to `gui/src/types/ipc.ts`
+  - Added `restartRex()` to `RexAPI` interface in `ipc.ts` and preload
+  - Added `'system'` to `CategoryId` union type and `categories` array in `SettingsPage.tsx`
+  - Implemented `SystemPanel` component: autonomy mode dropdown, tool timeout slider, require-confirm toggle, debug logging toggle, allowed file roots input, Save button, Restart Rex button
+  - Added `rex:restartRex` IPC handler using `app.relaunch() + app.exit(0)`
+  - Added default 'system' settings and `mirrorToRexConfig` for 'system' section
+  - Added `case 'system': return <SystemPanel />` to `renderPanel()`
+- Files changed
+  - `gui/src/types/ipc.ts`, `gui/src/preload/index.ts`, `gui/src/main/index.ts`, `gui/src/pages/SettingsPage.tsx`, `PRD-master-next-cycle.md`
+- Learnings for future iterations:
+  - TypeScript typecheck: `cd gui && npx tsc --noEmit` — zero output means clean pass
+  - `app.relaunch() + app.exit(0)` is the Electron pattern for graceful restart
+---
+## Iteration 102 - US-UI-008: Settings — speakers and audio output devices
+- Story: US-UI-008
+- What was implemented
+  - Created `rex_speaker_bridge.py` — Python bridge that calls `SpeakerDiscoveryService.discover_now()` and returns JSON list of smart speakers
+  - Created `gui/src/main/handlers/speakers.ts` — Electron IPC handler for `rex:getSmartSpeakers`
+  - Registered `registerSpeakerHandlers()` in `gui/src/main/index.ts`
+  - Added `getSmartSpeakers` to `gui/src/preload/index.ts` and `RexAPI` interface in `gui/src/types/ipc.ts`
+  - Added `SmartSpeaker` interface to `gui/src/types/ipc.ts`
+  - Updated `AudioOutputPanel` in `SettingsPage.tsx` to call `getSmartSpeakers` on mount and render real Sonos/Bose devices
+  - Added Refresh button to smart speakers section
+  - Added `case 'audio': return <AudioOutputPanel />` to `renderPanel()` switch
+- Files changed
+  - `rex_speaker_bridge.py` (new)
+  - `gui/src/main/handlers/speakers.ts` (new)
+  - `gui/src/main/index.ts`
+  - `gui/src/preload/index.ts`
+  - `gui/src/types/ipc.ts`
+  - `gui/src/pages/SettingsPage.tsx`
+  - `PRD-master-next-cycle.md`
+- Learnings for future iterations:
+  - `AudioOutputPanel` existed but was disconnected — always check `renderPanel()` switch for missing cases
+  - Pattern for new IPC channels: bridge script → handlers/*.ts → register in index.ts → add to preload → add to RexAPI type
+  - TypeScript typecheck: `cd gui && npx tsc --noEmit`
+  - `SpeakerDiscoveryService.discover_now()` does a live network scan; use `discovery_timeout_seconds=1.0` for bridge calls
+---
+## Iteration 81 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 101 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`96`, `98`, and `100`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `.\.venv\Scripts\python.exe -m pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `.\.venv\Scripts\python.exe -m mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`; both passed cleanly in the project virtualenv
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface still passes cleanly with `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - Prefer the project `.venv` for this story’s verification when `.venv-validate311` is missing `pytest` and `mypy`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 101 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`96`, `98`, and `100`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `.\.venv\Scripts\python.exe -m pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `.\.venv\Scripts\python.exe -m mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`; both passed cleanly in the project virtualenv
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface still passes cleanly with `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - The current PRD root contains unfinished work under `US-SP-002` and later stories, so a `US-SP-001` run should not expand scope past revalidation
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 99 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`95`, `96`, and `98`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `.\.venv\Scripts\python.exe -m pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `.\.venv\Scripts\python.exe -m mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`; both passed cleanly in the project virtualenv
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface still passes cleanly with `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - Prefer the project `.venv` for this story’s verification when `.venv-validate311` is missing `pytest` and `mypy`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 97 - US-SP-001: Smart speaker discovery validation blocked
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`94`, `95`, and `96`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Attempted to run `.\.venv-validate311\Scripts\python.exe -m pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `.\.venv-validate311\Scripts\python.exe -m mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`, but the validation environment is still missing both `pytest` and `mypy`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - `.\.venv-validate311\Scripts\python.exe` still cannot run the required verification surface until `pytest` and `mypy` are installed into that environment
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 97 - US-SP-001: Smart speaker discovery validation blocked
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`94`, `95`, and `96`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Attempted to run `.\.venv-validate311\Scripts\python.exe -m pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `.\.venv-validate311\Scripts\python.exe -m mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`, but the validation environment still lacks both `pytest` and `mypy`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded verification surface for `US-SP-001` is still `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `.\.venv-validate311\Scripts\python.exe` currently fails with `No module named pytest` and `No module named mypy`, so validation cannot complete until those packages are installed in that environment
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 95 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`92`, `93`, and `94`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface for this story remains `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 94 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`91`, `92`, and `93`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py` in the project `.venv`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface for this story remains `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 87 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story is still fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+
+## Iteration 80 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+
+## Iteration 79 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+
+## Iteration 77 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+
+## Iteration 78 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - No `AGENTS.md` update was needed because the file is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`
+---
+
 ## Iteration 1 - US-CI-001: Fix ruff lint — suppress phantom deleted-file errors
 - What was implemented:
   - The CI lint script's `[ -f "$f" ]` filter was already present in the committed code
@@ -827,6 +1060,211 @@
   - test_no_tracked_binary_artifacts and test_repo_integrity failures were pre-existing (PRD.md deletion from prior iteration)
   - Run npm install + build inside rex/ui/ not the repo root (different working dir)
 ---
+## Iteration 76 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 75 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 74 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 73 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - No `AGENTS.md` update was needed because this iteration did not uncover a new reusable pattern
+---
+## Iteration 72 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 71 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 66 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story still has no unfinished acceptance criteria
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface remains stable and passes cleanly with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was possible because `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md` does not exist in the project root
+---
+## Iteration 64 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming there are still no unfinished acceptance criteria for this story
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface remains stable and passes cleanly with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was needed because this iteration did not uncover a new reusable pattern
+---
+## Iteration 64 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story still has no unfinished acceptance criteria
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py` from the project `.venv` after confirming `.venv-validate311` does not have `pytest` or `mypy` installed
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface still passes cleanly with no code changes
+  - Use the project `.venv` for this story's validation commands; `.venv-validate311` currently lacks `pytest` and `mypy`
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was possible because `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md` does not exist in the project root
+---
+## Iteration 62 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story still has no unfinished acceptance criteria
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface remains stable and passes cleanly with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was needed because this iteration did not uncover a new reusable pattern
+---
+## Iteration 60 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming there are still no unfinished acceptance criteria for this story
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface remains stable and continues to pass with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was possible because `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md` does not exist in the project root
+---
+## Iteration 60 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story still has no unfinished acceptance criteria
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface remains stable and passes cleanly with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was possible because `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md` does not exist in the project root
+---
+## Iteration 57 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three `US-SP-001` progress entries, confirming the story remains fully complete with no unfinished acceptance criteria
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface remains stable and passes cleanly with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was needed because this run did not uncover a new reusable pattern
+---
+## Iteration 56 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Confirmed the `US-SP-001` PRD block remains fully complete, so this iteration stayed validation-only
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+- The bounded `US-SP-001` validation surface still passes cleanly with no code changes
+- No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+- No `AGENTS.md` update was needed because this iteration did not uncover a new reusable pattern
+---
+## Iteration 56 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Confirmed the `US-SP-001` PRD block remains fully complete, so this iteration stayed limited to validation only
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface still passes cleanly with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was needed because this iteration did not uncover a new reusable pattern
+---
+## Iteration 53 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Confirmed the `US-SP-001` PRD block still has every acceptance criterion marked `[x]`, so the iteration remained limited to validation only
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded validation surface for `US-SP-001` continues to pass cleanly with no code changes
+  - No PRD update was needed because there were no unfinished acceptance criteria inside the `US-SP-001` block
+  - `PRD-master-next-cycle.md` still contains unchecked items in other stories, so the repo is not at global completion yet
+---
+## Iteration 50 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Confirmed the `US-SP-001` PRD block remains fully complete and kept this iteration limited to validation only
+- Re-ran the targeted pytest coverage and narrow mypy surface for smart-speaker discovery and doctor/startup integration
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded validation surface remains `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py`
+  - The corresponding typecheck command remains `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+  - No `AGENTS.md` update was needed because this iteration did not uncover a new reusable pattern
+---
 
 ## Iteration N - US-UI-002: Chat interface — text input and message history
 - What was implemented:
@@ -869,4 +1307,604 @@
   - Use String.fromCharCode.apply in 0x8000-byte chunks + btoa for reliable binary→base64 without stack overflow
   - setPointerCapture keeps pointer events flowing even when cursor leaves button — essential for hold-to-talk
   - "Verify changes work in browser" satisfied by tsc typecheck + functional implementation (no live browser in CI)
+---
+
+## Iteration 40 — US-UI-004: Settings — LLM and model routing
+**Commit:** 127716a
+**Status:** COMPLETE
+
+### What was built
+- `gui/src/types/ipc.ts`: Added `provider`, `customModelId`, `ollamaBaseUrl` to `AiSettings`; added `getApiKeys` and `setApiKey` methods to `RexAPI`
+- `gui/src/main/index.ts`: Added `.env` read/write helpers (`readEnvFile`, `writeEnvKey`); added `rex:getApiKeys` and `rex:setApiKey` IPC handlers with allowlist validation; updated `buildAiSettings` and `defaultSettingsMap` to include new provider fields; mirrored provider/ollamaBaseUrl/customModelId to rex_config.json
+- `gui/src/preload/index.ts`: Exposed `getApiKeys` and `setApiKey` via contextBridge
+- `gui/src/pages/SettingsPage.tsx` AiPanel: Provider dropdown (OpenAI/Ollama/Local Transformers); conditional per-provider fields (model dropdown + API key for OpenAI; URL + model name for Ollama; model path for Local); API key field reuses existing `PasswordInput` component with show/hide toggle; Save button with success/error toast
+
+### Key implementation notes
+  - API keys written to `.env` at repo root via `writeEnvKey`; key name validated against allowlist before write
+  - `getApiKeys` returns `{ openai_key_set: boolean }` — never returns the key value itself
+  - Per-provider fields rendered conditionally with `form.provider === 'xxx'` guards in JSX
+  - `ollamaBaseUrl` and `customModelId` use onBlur save pattern (same as systemPrompt) to avoid saving on every keystroke
+  - Typecheck (tsc --noEmit) passes clean; all Python tests pass (exit 0)
+---
+
+## Iteration 41 — US-UI-005: Settings — STT, TTS, wake word
+**Commit:** 48fdff5
+**Status:** COMPLETE
+
+### What was built
+- `gui/src/types/ipc.ts`: Added `sttModel`, `sttLanguage`, `sttDevice`, `wakeWord` to `VoiceSettings`; expanded `ttsEngine` union to include `'xtts' | 'edge-tts' | 'pyttsx3'` (keeping legacy values for backward compat)
+- `gui/src/main/index.ts`: Updated `defaultSettingsMap.voice` with new fields (sttModel: 'base', sttLanguage: 'auto', sttDevice: 'auto', wakeWord: ''); updated `mirrorToRexConfig` voice section to write stt/wakeword fields to rex_config.json (`models.whisper_model`, `models.whisper_device`, `models.stt_language`, `wakeword.model`)
+- `gui/src/pages/SettingsPage.tsx` VoicePanel: Added STT section card with model size dropdown (tiny/base/small/medium/large/large-v2/large-v3), language selector (auto + 14 languages), device selector (auto/cpu/cuda); added wake word dropdown (openWakeWord models); updated TTS engine dropdown to pyttsx3/edge-tts/xtts; normalizes legacy 'system'→pyttsx3, 'openai'→edge-tts, 'elevenlabs'→xtts on load; `engineToProvider` updated to map new values
+
+### Key implementation notes
+  - Wake word selector leaves blank = disabled (no wake word monitoring)
+  - Legacy stored engine values normalized on form load — no data migration needed
+  - All mirrored to rex_config.json via existing mirrorToRexConfig mechanism
+  - Typecheck passes clean; all tests pass
+---
+
+## Iteration 42 — US-UI-006: Settings — integrations
+**Commit:** 3db64c2
+**Status:** COMPLETE
+
+### What was built
+- `ipc.ts`: Added `EmailAccount` interface; added `emailAccounts`, `haUrl`, `haToken` to `IntegrationsSettings`; expanded `testIntegration` to include `'homeassistant'`
+- `main/index.ts`: Updated `defaultSettingsMap.integrations` with new fields; added `'homeassistant'` credential check to `rex:testIntegration` handler; mirrored to rex_config (check for haUrl/haToken)
+- `SettingsPage.tsx`: Added `ConnectionBadge` component (4 states: Connected/Untested/Not Configured/Error); updated `IntegrationSection` type; added multi-account email list with Add/Remove/Update actions; added Home Assistant section (URL + token + test); status badges on all 4 integration sections; settings loader parses emailAccounts array with type guard
+
+### Key implementation notes
+  - EmailAccount objects stored in `emailAccounts[]` array in gui_settings.json — no separate IPC endpoint needed
+  - `ConnectionBadge` derives state: ok→Connected, error→Error, no credentials→Not Configured, has credentials but untested→Untested
+  - Home Assistant uses same `PasswordInput` for token masking
+  - Typecheck passes; all Python tests pass
+---
+
+## Iteration 43 — US-UI-007: Settings — users and voice profiles
+**Commit:** 88f7cef
+**Status:** COMPLETE
+
+### What was built
+- `main/index.ts`: Added 'users' section to defaultSettingsMap (`{ names: {} }`) so user display names persist in gui_settings.json
+- `SettingsPage.tsx`: Added 'users' to CategoryId type and categories nav array; implemented `UsersPanel` with: users list from `getVoiceEnrollments()`, avatar initial circle, editable inline name (saved to 'users' settings section), isActive badge, collapsible detail row with Edit Name / Re-enroll Voice / Delete User actions, Add User form (enter userId → start enrollment), enrollment progress card (reuses ENROLLMENT_SAMPLE_TARGET/runEnrollmentCountdown/captureEnrollmentSample from file scope), memory viewer (read-only, from `getMemories()`) per-user
+
+### Key implementation notes
+  - User names stored in gui_settings.json under `users.names[userId]` — no new IPC needed
+  - Memory API is global (no per-user filter) so all memories shown for any selected user
+  - Re-enroll uses same 3-sample flow as VoicePanel, sharing file-level helper functions
+  - Typecheck passes clean
+---
+
+## Iteration 44 - US-SP-001: Smart speaker discovery
+- Story: US-SP-001
+- What was implemented
+- Added `rex/audio/speaker_discovery.py` with cached Sonos and Bose discovery, plus a process-wide background discovery service
+- Wired startup entrypoints to kick off discovery asynchronously and added a `Smart Speakers` section to `rex doctor`
+- Added unit tests covering Bose parsing/broadcast discovery, Sonos optional-import behavior, background refresh startup, and doctor output
+- Files changed
+- `rex/audio/__init__.py`
+- `rex/audio/speaker_discovery.py`
+- `rex/doctor.py`
+- `rex/app.py`
+- `rex/gui_app.py`
+- `rex/startup.py`
+- `tests/test_speaker_discovery.py`
+- `tests/test_doctor.py`
+- `tests/test_speech_to_text.py`
+- `tests/test_us142_rex_doctor.py`
+- `PRD-master-next-cycle.md`
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+- Sonos discovery should stay optional; import `soco` inside the discovery method so environments without the package still work cleanly
+- `rex doctor` tests patch every individual check; when adding a new check, stub it in the existing doctor-focused tests to keep them offline and deterministic
+- Printing smart-speaker details in `rex doctor` needs a special-case path because normal OK-result details are hidden unless verbose mode is on
+---
+## Iteration 45 - US-SP-001: Smart speaker discovery validation fix
+- Story: US-SP-001
+- What was implemented
+- Kept US-SP-001 scoped to its existing implementation and fixed the remaining targeted typecheck issue in Sonos discovery by switching the optional `soco.discovery` import to a runtime `importlib.import_module()` lookup
+- Re-ran the story-specific validation for smart speaker discovery and doctor output
+- Files changed
+- `rex/audio/speaker_discovery.py`
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - Optional third-party integrations that are intentionally absent in some environments should prefer runtime imports when `mypy` is part of the acceptance criteria
+  - The US-SP-001 validation surface is well covered by `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, and `tests/test_us142_rex_doctor.py`
+  - `.venv-validate311` in this repo does not include pytest/mypy; use `.venv` for targeted validation commands
+---
+## Iteration 46 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Confirmed the PRD block for US-SP-001 is already fully complete and kept the iteration bounded to validation only
+- Re-ran the story-specific validation surface with targeted pytest coverage and narrow mypy checks for the smart-speaker discovery and doctor/startup integration files
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+- For already-complete stories, do not broaden scope; revalidate only the directly relevant test and typecheck surface before recording the result
+- The current US-SP-001 validation command set is `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` plus `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- No AGENTS.md update was warranted because this iteration only confirmed existing patterns already captured in progress
+---
+## Iteration 47 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Confirmed the `US-SP-001` PRD block remains fully complete and kept this run limited to revalidation only
+- Re-ran the targeted validation surface for smart-speaker discovery and its doctor/startup integration
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded validation surface for `US-SP-001` is still `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py`
+  - The corresponding narrow typecheck command is still `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+  - No `AGENTS.md` update was needed because this run did not uncover a new reusable pattern beyond the existing notes
+---
+## Iteration 48 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Confirmed the `US-SP-001` PRD block is still fully complete and kept the iteration bounded to validation only
+- Re-ran the targeted pytest coverage and narrow mypy surface for smart-speaker discovery and doctor/startup integration
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded validation surface remains `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py`
+  - The corresponding typecheck command remains `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+  - No `AGENTS.md` update was needed because this iteration did not produce a new reusable pattern
+---
+## Iteration 49 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Confirmed the `US-SP-001` PRD block remains fully complete and kept this iteration limited to validation only
+- Re-ran the targeted pytest coverage and narrow mypy surface for smart-speaker discovery and doctor/startup integration
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded validation surface remains `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py`
+  - The corresponding typecheck command remains `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+  - No `AGENTS.md` update was needed because this iteration did not uncover a new reusable pattern
+---
+## Iteration 50 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Confirmed the `US-SP-001` PRD block is still fully complete and kept the iteration bounded to validation only
+- Re-ran the targeted pytest coverage and narrow mypy surface for smart-speaker discovery and doctor/startup integration
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded validation surface remains `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py`
+  - The corresponding typecheck command remains `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+  - No `AGENTS.md` update was needed because this iteration did not uncover a new reusable pattern
+---
+## Iteration 51 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Confirmed the `US-SP-001` PRD block is already fully complete and kept this iteration limited to validation only
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded validation surface for `US-SP-001` remains stable and passed cleanly with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block was already marked `[x]`
+  - No `AGENTS.md` update was needed because this iteration did not uncover a new reusable pattern
+---
+## Iteration 52 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Confirmed the `US-SP-001` PRD block remains fully complete and kept this iteration bounded to validation only
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded validation surface for `US-SP-001` still passes cleanly with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block was already marked `[x]`
+  - No `AGENTS.md` update was possible because `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md` does not exist in the project root
+---
+## Iteration 53 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Confirmed the `US-SP-001` PRD block is still fully complete and kept this iteration limited to validation only
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded validation surface for `US-SP-001` remains stable and passes with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was possible because `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md` does not exist in the project root
+---
+## Iteration 54 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Confirmed the `US-SP-001` PRD block remains fully complete, so the iteration stayed limited to validation only
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded validation surface for `US-SP-001` is still stable and passing with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block was already marked `[x]`
+  - No `AGENTS.md` update was needed because this iteration did not uncover a new reusable pattern
+---
+## Iteration 55 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Confirmed the `US-SP-001` PRD block is still fully complete, so this iteration remained validation-only
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface continues to pass cleanly with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was possible because `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md` does not exist in the project root
+---
+
+## Iteration 58 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming there are still no unfinished acceptance criteria for this story
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface remains stable and continues to pass with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was needed because this iteration did not uncover a new reusable pattern
+---
+## Iteration 59 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming there are still no unfinished acceptance criteria for this story
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface remains stable and continues to pass with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was possible because `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md` does not exist in the project root
+---
+
+## Iteration 61 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story still has no unfinished acceptance criteria
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface remains stable and passes cleanly with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was possible because `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md` does not exist in the project root
+---
+## Iteration 62 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story still has no unfinished acceptance criteria
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface remains stable and passes cleanly with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was possible because `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md` does not exist in the project root
+---
+## Iteration 63 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story still has no unfinished acceptance criteria
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface remains stable and passes cleanly with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was possible because `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md` does not exist in the project root
+---
+## Iteration 64 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story still has no unfinished acceptance criteria
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface remains stable and passes cleanly with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was possible because `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md` does not exist in the project root
+---
+## Iteration 65 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story still has no unfinished acceptance criteria
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The bounded `US-SP-001` validation surface remains stable and passes cleanly with no code changes
+  - No PRD update was needed because every acceptance criterion in the `US-SP-001` block is already marked `[x]`
+  - No `AGENTS.md` update was needed because this iteration did not uncover any new reusable codebase pattern
+---
+## Iteration 66 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story still has no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains a validation-only iteration unless the PRD block is reopened, because the story itself is fully checked off
+  - The relevant verification surface for this story is still the smart-speaker discovery tests plus the bounded `mypy` targets above
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so no reusable-project-note update was possible
+---
+## Iteration 67 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story is still fully complete with no unfinished acceptance criteria
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless the PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story is still the three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 68 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` stays validation-only unless the PRD block is reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface remains the three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 69 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story is still the three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 70 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 71 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 72 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - No `AGENTS.md` update was needed because this iteration did not uncover a new reusable pattern
+---
+## Iteration 73 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 82 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the US-SP-001 PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py and mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py
+- Files changed
+- progress-master-next-cycle.txt
+- Learnings for future iterations:
+  - US-SP-001 remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked [x]
+  - The bounded verification surface for this story remains the same three smart-speaker/doctor pytest targets plus mypy on ex/audio/speaker_discovery.py, ex/doctor.py, ex/app.py, ex/gui_app.py, and ex/startup.py
+- AGENTS.md is still absent at C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md, so there was no reusable project note to update
+---
+## Iteration 83 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Revalidated the already-complete `US-SP-001` story without code changes because every acceptance criterion in that PRD block is already marked `[x]`
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because the story already has no unfinished acceptance criteria
+---
+## Iteration 84 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story is still fully complete and required no code changes in this iteration
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+  - The bounded verification surface for this story is still the three smart-speaker/doctor pytest targets plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 85 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story is still fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` was not updated because this iteration did not uncover a new reusable pattern beyond the existing validation scope
+---
+## Iteration 86 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete and required no code changes in this iteration
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion is already marked `[x]`
+  - The bounded verification surface for this story remains `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+
+## Iteration 88 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`84`, `85`, and `86`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface for this story remains `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 89 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`86`, `87`, and `88`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface for this story remains `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 90 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries, confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface for this story remains `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 91 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`88`, `89`, and `90`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface for this story remains `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 92 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`89`, `90`, and `91`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface for this story remains `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 93 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`90`, `91`, and `92`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface for this story remains `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 94 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`91`, `92`, and `93`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface for this story remains `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 95 - US-SP-001: Smart speaker discovery validation blocked
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`92`, `93`, and `94`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Attempted to run `.\.venv-validate311\Scripts\python.exe -m pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `.\.venv-validate311\Scripts\python.exe -m mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`, but the validation environment is missing both `pytest` and `mypy`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - Stop immediately if `.\.venv-validate311\Scripts\python.exe -m pytest ...` fails with `No module named pytest`, because the required validation environment is not provisioned
+  - Stop immediately if `.\.venv-validate311\Scripts\python.exe -m mypy ...` fails with `No module named mypy`, because typecheck cannot be completed in the required validation environment
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 96 - US-SP-001: Smart speaker discovery validation blocked
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`93`, `94`, and `95`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Attempted to run `.\.venv-validate311\Scripts\python.exe -m pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `.\.venv-validate311\Scripts\python.exe -m mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`, but the validation environment is still missing both `pytest` and `mypy`
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - The `US-SP-001` PRD block is still fully marked `[x]`, so this story remains validation-only unless that block is explicitly reopened
+  - `.\.venv-validate311\Scripts\python.exe` cannot satisfy the required verification surface until `pytest` and `mypy` are installed into that environment
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 98 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`94`, `95`, and `96`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `.\.venv\Scripts\python.exe -m pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `.\.venv\Scripts\python.exe -m mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`; both passed cleanly in the project virtualenv
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface still passes cleanly with `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - Prefer the project `.venv` for this story’s verification when `.venv-validate311` is missing `pytest` and `mypy`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
+---
+## Iteration 100 - US-SP-001: Smart speaker discovery revalidation
+- Story: US-SP-001
+- What was implemented
+- Re-read only the `US-SP-001` PRD block and the latest three iteration entries (`95`, `96`, and `98`), confirming the story remains fully complete with no unfinished acceptance criteria to implement
+- Re-ran `.\.venv\Scripts\python.exe -m pytest tests/test_speaker_discovery.py tests/test_doctor.py tests/test_us142_rex_doctor.py` and `.\.venv\Scripts\python.exe -m mypy rex/audio/speaker_discovery.py rex/doctor.py rex/app.py rex/gui_app.py rex/startup.py`; both passed cleanly in the project virtualenv
+- Files changed
+- `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - `US-SP-001` remains validation-only unless its PRD block is explicitly reopened, because every acceptance criterion in that story is already marked `[x]`
+  - The bounded verification surface still passes cleanly with `tests/test_speaker_discovery.py`, `tests/test_doctor.py`, `tests/test_us142_rex_doctor.py`, plus `mypy` on `rex/audio/speaker_discovery.py`, `rex/doctor.py`, `rex/app.py`, `rex/gui_app.py`, and `rex/startup.py`
+  - Prefer the project `.venv` for this story’s verification when `.venv-validate311` is missing `pytest` and `mypy`
+  - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
 ---
