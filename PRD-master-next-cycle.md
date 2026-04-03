@@ -658,13 +658,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to see the voice loop status in the UI and trigger voice input manually so I can use Rex hands-free or with a button.
 
 **Acceptance Criteria:**
-- [ ] UI shows live wake word status indicator (listening / detected / processing)
-- [ ] "Push to Talk" button triggers one-shot STT without wake word
-- [ ] Audio waveform visualization displays during recording
-- [ ] Transcription shown in real time as Rex processes it
-- [ ] Microphone device selector dropdown (populated from available input devices)
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] UI shows live wake word status indicator (listening / detected / processing)
+- [x] "Push to Talk" button triggers one-shot STT without wake word
+- [x] Audio waveform visualization displays during recording
+- [x] Transcription shown in real time as Rex processes it
+- [x] Microphone device selector dropdown (populated from available input devices)
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

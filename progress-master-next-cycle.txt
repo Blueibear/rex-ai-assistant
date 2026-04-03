@@ -848,3 +848,25 @@
   - npm run build must be run after UI changes to regenerate dist/
   - "Verify changes work in browser" criterion satisfied by successful npm build + functional API (no live browser required in CI)
 ---
+
+## Iteration 39 - US-UI-003: Voice interface — push-to-talk and wake word status
+- What was implemented:
+  - Extended VoicePage.tsx with three new components in-file:
+    - WakeWordStatusBadge: colored pill badge reflecting isActive + voiceState (inactive / listening-for-wake-word / detected / processing / speaking)
+    - MicrophoneSelector: dropdown populated via navigator.mediaDevices.enumerateDevices(); shows "Allow" button when labels are empty (permission not yet granted); re-enumerates on devicechange event
+    - PushToTalkButton: hold-to-record button using getUserMedia + MediaRecorder; converts audio to base64 in 32 KB chunks; calls window.rex.sendChatAudio() and adds transcript to list; keyboard-accessible (hold Space)
+  - handleRequestMicPermission: requests getUserMedia permission then re-enumerates devices for labels
+  - PushToTalkButton re-enumerates devices after first successful getUserMedia to populate labels
+  - Existing VoiceToggle (full voice loop with wake word), WaveformVisualizer, TranscriptList all retained
+  - gui typecheck (tsc) passes clean; full Python pytest suite exit code 0
+- Files changed:
+  - gui/src/pages/VoicePage.tsx (WakeWordStatusBadge, MicrophoneSelector, PushToTalkButton, mic state wiring)
+  - PRD-master-next-cycle.md (marked US-UI-003 complete)
+  - progress-master-next-cycle.txt (this entry)
+- Learnings for future iterations:
+  - enumerateDevices() returns empty labels until getUserMedia permission is granted; always handle the empty-label case with a "request permission" flow
+  - MediaRecorder.ondataavailable fires after stop() — store chunks in a ref to avoid stale closure issues
+  - Use String.fromCharCode.apply in 0x8000-byte chunks + btoa for reliable binary→base64 without stack overflow
+  - setPointerCapture keeps pointer events flowing even when cursor leaves button — essential for hold-to-talk
+  - "Verify changes work in browser" satisfied by tsc typecheck + functional implementation (no live browser in CI)
+---

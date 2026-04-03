@@ -16,6 +16,307 @@ function formatTime(ms: number): string {
   return `${h}:${m}:${s}`
 }
 
+// ── Wake word status indicator ────────────────────────────────────────────────
+
+interface WakeWordStatusBadgeProps {
+  isActive: boolean
+  state: VoiceState
+}
+
+const statusConfig: Record<string, { label: string; color: string }> = {
+  inactive: { label: 'Inactive', color: 'bg-surface-raised text-text-muted' },
+  listening_wake: { label: 'Listening for wake word', color: 'bg-blue-600/20 text-blue-400' },
+  detected: { label: 'Wake word detected', color: 'bg-red-600/20 text-red-400' },
+  processing: { label: 'Processing', color: 'bg-accent/20 text-accent' },
+  speaking: { label: 'Speaking', color: 'bg-green-600/20 text-green-400' },
+}
+
+const WakeWordStatusBadge: React.FC<WakeWordStatusBadgeProps> = ({ isActive, state }) => {
+  let key: string
+  if (!isActive) {
+    key = 'inactive'
+  } else if (state === 'idle') {
+    key = 'listening_wake'
+  } else if (state === 'listening') {
+    key = 'detected'
+  } else if (state === 'processing') {
+    key = 'processing'
+  } else {
+    key = 'speaking'
+  }
+  const cfg = statusConfig[key] ?? statusConfig['inactive']!
+
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        role="status"
+        aria-live="polite"
+        aria-label={`Voice status: ${cfg.label}`}
+        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium select-none ${cfg.color}`}
+      >
+        <span
+          className={`w-1.5 h-1.5 rounded-full ${
+            key === 'detected'
+              ? 'bg-red-400 animate-pulse'
+              : key === 'listening_wake'
+                ? 'bg-blue-400 animate-pulse'
+                : key === 'processing'
+                  ? 'bg-accent animate-spin'
+                  : key === 'speaking'
+                    ? 'bg-green-400 animate-pulse'
+                    : 'bg-text-muted'
+          }`}
+          aria-hidden="true"
+        />
+        {cfg.label}
+      </span>
+    </div>
+  )
+}
+
+// ── Microphone device selector ────────────────────────────────────────────────
+
+interface MicrophoneSelectorProps {
+  devices: MediaDeviceInfo[]
+  selectedId: string
+  onChange: (id: string) => void
+  onRequestPermission: () => void
+}
+
+const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = ({
+  devices,
+  selectedId,
+  onChange,
+  onRequestPermission,
+}) => {
+  const hasLabels = devices.some((d) => d.label !== '')
+  const hasDevices = devices.length > 0
+
+  return (
+    <div className="flex flex-col gap-1 w-full max-w-xs">
+      <label
+        htmlFor="mic-selector"
+        className="text-xs text-text-muted uppercase tracking-wide"
+      >
+        Microphone
+      </label>
+      {!hasLabels && hasDevices ? (
+        <div className="flex items-center gap-2">
+          <select
+            id="mic-selector"
+            disabled
+            className="flex-1 rounded-md bg-surface-raised border border-white/10 text-text-muted text-sm px-3 py-1.5 opacity-50"
+          >
+            <option>Permission required for device names</option>
+          </select>
+          <Tooltip text="Grant microphone access to see device names" position="right">
+            <button
+              type="button"
+              onClick={onRequestPermission}
+              className="text-xs px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/30 transition-colors"
+            >
+              Allow
+            </button>
+          </Tooltip>
+        </div>
+      ) : (
+        <select
+          id="mic-selector"
+          value={selectedId}
+          onChange={(e) => onChange(e.target.value)}
+          className="rounded-md bg-surface-raised border border-white/10 text-text-primary text-sm px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          <option value="">System default</option>
+          {devices.map((d) => (
+            <option key={d.deviceId} value={d.deviceId}>
+              {d.label || `Microphone ${d.deviceId.slice(0, 8)}`}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  )
+}
+
+// ── Push-to-talk button ───────────────────────────────────────────────────────
+
+const MicIcon: React.FC = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className="w-5 h-5"
+    aria-hidden="true"
+  >
+    <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm6.364 9.636a1 1 0 0 1 1 1A7.364 7.364 0 0 1 13 18.93V21h2a1 1 0 1 1 0 2H9a1 1 0 1 1 0-2h2v-2.07A7.364 7.364 0 0 1 4.636 11.636a1 1 0 0 1 2 0A5.364 5.364 0 0 0 12 17a5.364 5.364 0 0 0 5.364-5.364 1 1 0 0 1 1-1z" />
+  </svg>
+)
+
+interface PushToTalkButtonProps {
+  selectedMicId: string
+  onTranscript: (entry: VoiceTranscriptEntry) => void
+  onMicDevicesUpdated: (devices: MediaDeviceInfo[]) => void
+}
+
+const PushToTalkButton: React.FC<PushToTalkButtonProps> = ({
+  selectedMicId,
+  onTranscript,
+  onMicDevicesUpdated,
+}) => {
+  const [recording, setRecording] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<BlobPart[]>([])
+
+  const startRecording = useCallback(async () => {
+    setError(null)
+    try {
+      const constraints: MediaStreamConstraints = {
+        audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true,
+        video: false,
+      }
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
+
+      // Re-enumerate now that permission is granted — labels will be populated.
+      const all = await navigator.mediaDevices.enumerateDevices()
+      onMicDevicesUpdated(all.filter((d) => d.kind === 'audioinput'))
+
+      chunksRef.current = []
+      const recorder = new MediaRecorder(stream)
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data)
+      }
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop())
+        setRecording(false)
+        if (chunksRef.current.length === 0) {
+          setBusy(false)
+          return
+        }
+        setBusy(true)
+        try {
+          const blob = new Blob(chunksRef.current, {
+            type: recorder.mimeType || 'audio/webm',
+          })
+          const ab = await blob.arrayBuffer()
+          const bytes = new Uint8Array(ab)
+          // Convert binary to base64 in 32 KB chunks to avoid stack overflow.
+          const CHUNK = 0x8000
+          let binary = ''
+          for (let i = 0; i < bytes.length; i += CHUNK) {
+            binary += String.fromCharCode.apply(
+              null,
+              bytes.subarray(i, i + CHUNK) as unknown as number[],
+            )
+          }
+          const b64 = btoa(binary)
+          const result = await window.rex.sendChatAudio(b64)
+          if (result.ok && result.transcript) {
+            onTranscript({
+              text: result.transcript,
+              role: 'user',
+              timestamp: Date.now(),
+            })
+          } else if (!result.ok) {
+            setError(result.error ?? 'Transcription failed')
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : String(err))
+        } finally {
+          setBusy(false)
+        }
+      }
+
+      recorder.start()
+      recorderRef.current = recorder
+      setRecording(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Microphone access denied')
+    }
+  }, [selectedMicId, onTranscript, onMicDevicesUpdated])
+
+  const stopRecording = useCallback(() => {
+    recorderRef.current?.stop()
+    recorderRef.current = null
+  }, [])
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>) => {
+      e.currentTarget.setPointerCapture(e.pointerId)
+      if (!recording && !busy) void startRecording()
+    },
+    [recording, busy, startRecording],
+  )
+
+  const handlePointerUp = useCallback(() => {
+    if (recording) stopRecording()
+  }, [recording, stopRecording])
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (e.key === ' ' && !e.repeat) {
+        e.preventDefault()
+        if (!recording && !busy) void startRecording()
+      }
+    },
+    [recording, busy, startRecording],
+  )
+
+  const handleKeyUp = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (e.key === ' ' && recording) {
+        e.preventDefault()
+        stopRecording()
+      }
+    },
+    [recording, stopRecording],
+  )
+
+  let label: string
+  if (busy) label = 'Transcribing…'
+  else if (recording) label = 'Release to send'
+  else label = 'Hold to talk'
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={recording}
+        disabled={busy}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onKeyDown={handleKeyDown}
+        onKeyUp={handleKeyUp}
+        className={[
+          'flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-150 select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
+          recording
+            ? 'bg-red-600 text-white focus-visible:ring-red-400 scale-95'
+            : busy
+              ? 'bg-surface-raised text-text-muted cursor-not-allowed'
+              : 'bg-surface-raised text-text-primary hover:bg-surface-raised/80 focus-visible:ring-accent',
+        ].join(' ')}
+      >
+        <MicIcon />
+        {label}
+        {recording && (
+          <span
+            className="w-2 h-2 rounded-full bg-white animate-pulse"
+            aria-hidden="true"
+          />
+        )}
+      </button>
+      {error && (
+        <span className="text-xs text-danger mt-1">{error}</span>
+      )}
+    </div>
+  )
+}
+
 // ── Clear button with two-click confirmation ──────────────────────────────────
 
 interface ClearButtonProps {
@@ -167,6 +468,33 @@ export function VoicePage(): React.ReactElement {
   const [isActive, setIsActive] = useState(false)
   const [transcripts, setTranscripts] = useState<VoiceTranscriptEntry[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([])
+  const [selectedMicId, setSelectedMicId] = useState<string>('')
+
+  // Enumerate microphone devices on mount (labels may be empty until permission granted).
+  useEffect(() => {
+    const loadDevices = async (): Promise<void> => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        setMicDevices(devices.filter((d) => d.kind === 'audioinput'))
+      } catch {
+        // mediaDevices not available (e.g. non-secure context) — silently skip
+      }
+    }
+    void loadDevices()
+    navigator.mediaDevices.addEventListener('devicechange', () => void loadDevices())
+    return () => {
+      navigator.mediaDevices.removeEventListener('devicechange', () => void loadDevices())
+    }
+  }, [])
+
+  const handleMicDevicesUpdated = useCallback((devices: MediaDeviceInfo[]) => {
+    setMicDevices(devices)
+  }, [])
+
+  const handleTranscript = useCallback((entry: VoiceTranscriptEntry) => {
+    setTranscripts((prev) => [...prev, entry])
+  }, [])
 
   const handleClearTranscripts = useCallback(() => {
     setTranscripts([])
@@ -205,6 +533,18 @@ export function VoicePage(): React.ReactElement {
     }
   }, [isActive])
 
+  // Request mic permission (needed to populate device labels).
+  const handleRequestMicPermission = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      stream.getTracks().forEach((t) => t.stop())
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      setMicDevices(devices.filter((d) => d.kind === 'audioinput'))
+    } catch {
+      // User denied — stay with current device list
+    }
+  }, [])
+
   useEffect(() => {
     const onToggle = (): void => {
       void handleToggle()
@@ -234,9 +574,35 @@ export function VoicePage(): React.ReactElement {
   const showTranscriptPanel = transcripts.length > 0 || voiceState === 'listening'
 
   return (
-    <div className="flex flex-col items-center justify-start h-full pt-12 gap-8">
+    <div className="flex flex-col items-center justify-start h-full pt-8 gap-6 overflow-y-auto pb-8">
+      {/* Wake word status indicator */}
+      <WakeWordStatusBadge isActive={isActive} state={voiceState} />
+
+      {/* Audio waveform visualization */}
       <WaveformVisualizer state={voiceState} width={320} height={80} />
+
+      {/* Main voice loop toggle (wake-word mode) */}
       <VoiceToggle state={voiceState} onToggle={() => void handleToggle()} />
+
+      {/* Separator */}
+      <div className="w-full max-w-xs border-t border-white/10 pt-4 flex flex-col items-center gap-4">
+        {/* Microphone device selector */}
+        <MicrophoneSelector
+          devices={micDevices}
+          selectedId={selectedMicId}
+          onChange={setSelectedMicId}
+          onRequestPermission={() => void handleRequestMicPermission()}
+        />
+
+        {/* Push-to-talk button (one-shot STT without wake word) */}
+        <PushToTalkButton
+          selectedMicId={selectedMicId}
+          onTranscript={handleTranscript}
+          onMicDevicesUpdated={handleMicDevicesUpdated}
+        />
+      </div>
+
+      {/* Transcript panel */}
       {showTranscriptPanel && (
         <TranscriptList
           entries={transcripts}
