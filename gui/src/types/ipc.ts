@@ -214,6 +214,17 @@ export interface VersionInfo {
   node: string
 }
 
+export interface ShoppingItem {
+  id: string
+  name: string
+  quantity: number
+  unit: string
+  added_by: string
+  checked: boolean
+  added_at: string
+  checked_at: string | null
+}
+
 export interface FileExtractResult {
   ok: boolean
   isImage: boolean
@@ -376,4 +387,9 @@ export interface RexAPI {
     mimeType: string
     sizeBytes: number
   }) => Promise<FileExtractResult>
+  getShoppingItems: () => Promise<{ ok: boolean; items: ShoppingItem[]; error?: string }>
+  addShoppingItem: (name: string, quantity: number, unit: string) => Promise<{ ok: boolean; item?: ShoppingItem; error?: string }>
+  checkShoppingItem: (id: string) => Promise<{ ok: boolean; error?: string }>
+  uncheckShoppingItem: (id: string) => Promise<{ ok: boolean; error?: string }>
+  clearCheckedShoppingItems: () => Promise<{ ok: boolean; count?: number; error?: string }>
 }

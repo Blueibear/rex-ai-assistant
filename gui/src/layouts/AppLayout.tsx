@@ -140,6 +140,23 @@ const navItems: NavItem[] = [
     )
   },
   {
+    path: '/shopping',
+    label: 'Shopping List',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <path
+          d="M3 2h1.5l2 8h7l1.5-6H5.5"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle cx="7.5" cy="14" r="1.2" fill="currentColor" />
+        <circle cx="12.5" cy="14" r="1.2" fill="currentColor" />
+      </svg>
+    )
+  },
+  {
     path: '/settings',
     label: 'Settings',
     icon: (
@@ -167,6 +184,7 @@ const sectionNames: Record<string, string> = {
   '/email': 'Email',
   '/sms': 'SMS',
   '/notifications': 'Notifications',
+  '/shopping': 'Shopping List',
   '/settings': 'Settings'
 }
 

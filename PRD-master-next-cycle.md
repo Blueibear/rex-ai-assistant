@@ -874,14 +874,14 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want a Shopping List page in the UI where I can manually add, check off, and manage items so the list is useful even without voice.
 
 **Acceptance Criteria:**
-- [ ] Shopping List nav item in UI (see US-UI-001)
-- [ ] Items displayed in two sections: "To Buy" and "Got It" (checked)
-- [ ] Check box per item; clicking checks/unchecks it
-- [ ] Text input to manually add items with quantity field
-- [ ] "Clear checked" button removes all checked items
-- [ ] Items update in real time without page refresh (SSE or polling every 5s)
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Shopping List nav item in UI (see US-UI-001)
+- [x] Items displayed in two sections: "To Buy" and "Got It" (checked)
+- [x] Check box per item; clicking checks/unchecks it
+- [x] Text input to manually add items with quantity field
+- [x] "Clear checked" button removes all checked items
+- [x] Items update in real time without page refresh (SSE or polling every 5s)
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

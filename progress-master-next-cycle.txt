@@ -1,3 +1,42 @@
+## Iteration 106 - US-SL-003: Shopping list UI — view, add, check off, and clear
+- Story: US-SL-003
+- What was implemented
+  - Created `rex_shopping_list_bridge.py` — Python bridge (list/add/check/uncheck/clear_checked) wrapping `ShoppingList`
+  - Created `gui/src/main/handlers/shopping.ts` — five IPC handlers using the bridge
+  - Added `ShoppingItem` interface to `gui/src/types/ipc.ts`; added five shopping methods to `RexAPI` interface
+  - Added import + five methods to `gui/src/preload/index.ts`
+  - Registered `registerShoppingHandlers()` in `gui/src/main/index.ts`
+  - Created `gui/src/pages/ShoppingListPage.tsx` — "To Buy" / "Got It" two-section layout, checkbox toggle, add-item form (name + qty + unit), "Clear checked" button, polls every 5s
+  - Added "Shopping List" nav item with cart icon to `AppLayout.tsx` and `/shopping` route in `App.tsx`
+- Files changed
+  - `rex_shopping_list_bridge.py` (new)
+  - `gui/src/main/handlers/shopping.ts` (new)
+  - `gui/src/pages/ShoppingListPage.tsx` (new)
+  - `gui/src/types/ipc.ts`
+  - `gui/src/preload/index.ts`
+  - `gui/src/main/index.ts`
+  - `gui/src/layouts/AppLayout.tsx`
+  - `gui/src/renderer/src/App.tsx`
+  - `PRD-master-next-cycle.md`
+- Learnings for future iterations:
+  - Standard IPC pattern: bridge script → handlers/*.ts → register in index.ts → preload binding → RexAPI type → page component
+  - TypeScript typecheck: `cd gui && npx tsc --noEmit` — zero output = clean pass
+  - Python bridge quick sanity check: `echo '{"command":"list"}' | python rex_shopping_list_bridge.py`
+---
+## Iteration 105 - US-LAT-001: LLM response streaming to chat UI
+- Story: US-LAT-001
+- What was implemented
+  - Fixed `rex_chat_stream_bridge.py` to call `stream_reply` on `Assistant` (existing async generator) instead of looking for `generate_reply_stream` (which did not exist). The bridge was silently falling back to single-token non-streaming mode.
+  - All other pieces were already in place: `LanguageModel.stream()`, blinking cursor in `MessageList.tsx`, `speak_streaming` TTS in `voice_loop.py`, non-streaming `rex:sendChat` fallback, TypeScript IPC plumbing.
+- Files changed
+  - `rex_chat_stream_bridge.py`
+  - `PRD-master-next-cycle.md`
+- Learnings for future iterations:
+  - When a streaming bridge "silently falls back" to non-streaming mode, look for the `getattr(assistant, "generate_reply_stream", None)` pattern — check if the actual method name on `Assistant` matches what the bridge expects.
+  - `Assistant.stream_reply()` is the canonical async generator for streaming LLM output; `generate_reply_stream` is a forward-compat alias pattern that doesn't exist.
+  - TTS first-sentence streaming was already wired in `voice_loop.py` via `speak_streaming` + `_sentence_buffer_stream` — no additional work needed there.
+  - TypeScript typecheck: `cd gui && npx tsc --noEmit` — zero output = clean pass.
+---
 ## Iteration 104 - US-UI-010: File and image upload for LLM context
 - Story: US-UI-010
 - What was implemented

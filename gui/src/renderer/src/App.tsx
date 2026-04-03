@@ -18,6 +18,7 @@ import { EmailPage } from '../../pages/EmailPage'
 import { SmsPage } from '../../pages/SmsPage'
 import { NotificationsPage } from '../../pages/NotificationsPage'
 import { SettingsPage } from '../../pages/SettingsPage'
+import { ShoppingListPage } from '../../pages/ShoppingListPage'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 
 const PRIORITY_TOAST_TYPE: Record<NotificationPriority, ToastType> = {
@@ -89,6 +90,7 @@ function AppShell(): React.ReactElement {
           <Route path="/email" element={<ErrorBoundary><EmailPage /></ErrorBoundary>} />
           <Route path="/sms" element={<ErrorBoundary><SmsPage /></ErrorBoundary>} />
           <Route path="/notifications" element={<ErrorBoundary><NotificationsPage /></ErrorBoundary>} />
+          <Route path="/shopping" element={<ErrorBoundary><ShoppingListPage /></ErrorBoundary>} />
           <Route path="/settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
         </Routes>
       </PageTransition>

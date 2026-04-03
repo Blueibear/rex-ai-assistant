@@ -25,7 +25,8 @@ import type {
   SMSMessage,
   GuiNotification,
   SmartSpeaker,
-  FileExtractResult
+  FileExtractResult,
+  ShoppingItem
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -241,7 +242,17 @@ const rexAPI = {
     dataBase64: string
     mimeType: string
     sizeBytes: number
-  }): Promise<FileExtractResult> => ipcRenderer.invoke('rex:extractFileForChat', params)
+  }): Promise<FileExtractResult> => ipcRenderer.invoke('rex:extractFileForChat', params),
+  getShoppingItems: (): Promise<{ ok: boolean; items: ShoppingItem[]; error?: string }> =>
+    ipcRenderer.invoke('rex:getShoppingItems'),
+  addShoppingItem: (name: string, quantity: number, unit: string): Promise<{ ok: boolean; item?: ShoppingItem; error?: string }> =>
+    ipcRenderer.invoke('rex:addShoppingItem', name, quantity, unit),
+  checkShoppingItem: (id: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('rex:checkShoppingItem', id),
+  uncheckShoppingItem: (id: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('rex:uncheckShoppingItem', id),
+  clearCheckedShoppingItems: (): Promise<{ ok: boolean; count?: number; error?: string }> =>
+    ipcRenderer.invoke('rex:clearCheckedShoppingItems')
 }
 
 if (process.contextIsolated) {
