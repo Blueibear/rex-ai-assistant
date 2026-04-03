@@ -57,6 +57,7 @@ def _list_xtts_voices(*, speakers_dir: Path | None = None) -> list[dict]:
                 "name": stem.replace("_", " ").replace("-", " ").title(),
                 "language": "en",
                 "gender": None,
+                "engine": "xtts",
             }
         )
     return voices
@@ -85,7 +86,7 @@ def _list_edge_tts_voices() -> list[dict]:
                 for v in raw
             ]
 
-        _edge_tts_cache = asyncio.run(_fetch())
+        _edge_tts_cache = [{**v, "engine": "edge-tts"} for v in asyncio.run(_fetch())]
         return _edge_tts_cache
     except ImportError:
         logger.debug("edge-tts not installed; no voices available")
@@ -116,6 +117,7 @@ def _list_pyttsx3_voices() -> list[dict]:
                     "name": name,
                     "language": lang,
                     "gender": None,
+                    "engine": "pyttsx3",
                 }
             )
         engine.stop()

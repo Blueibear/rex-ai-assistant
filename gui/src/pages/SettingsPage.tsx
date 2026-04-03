@@ -1005,7 +1005,7 @@ function VoicePanel(): React.ReactElement {
               <option value="">Select a voice…</option>
               {voices.map((v) => (
                 <option key={v.id} value={v.id}>
-                  {v.name}{v.language ? ` (${v.language})` : ''}
+                  {v.name}{v.language ? ` (${v.language})` : ''}{v.engine ? ` [${v.engine}]` : ''}
                 </option>
               ))}
             </select>

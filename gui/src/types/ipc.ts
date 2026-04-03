@@ -21,6 +21,7 @@ export interface VoiceInfo {
   name: string
   language: string
   gender: string | null
+  engine?: string
 }
 
 export interface VoiceTranscriptEntry {

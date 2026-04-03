@@ -604,6 +604,17 @@ class TextToSpeech:
         if self._provider == "xtts":
             self._initialize_xtts()
 
+    def _current_edge_voice(self) -> str:
+        """Return the active edge-tts voice, re-reading rex_config.json for hot-swap support."""
+        try:
+            from rex.config_manager import load_config as _load_json_config
+
+            raw = _load_json_config()
+            voice = str(raw.get("models", {}).get("tts_voice", "") or "")
+            return voice or self._edge_voice
+        except Exception:
+            return self._edge_voice
+
     def is_speaking(self) -> bool:
         """Return True while TTS audio playback is in progress."""
         return self._speaking.is_set()
@@ -805,7 +816,7 @@ class TextToSpeech:
             output_path = tmp.name
 
         try:
-            communicate = edge_tts.Communicate(text, self._edge_voice)
+            communicate = edge_tts.Communicate(text, self._current_edge_voice())
             await communicate.save(output_path)
 
             if Path(output_path).exists():

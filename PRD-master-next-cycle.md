@@ -1009,12 +1009,12 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to browse available TTS voices in the UI and hear a sample before selecting so I can choose a voice I like.
 
 **Acceptance Criteria:**
-- [ ] Settings → Voice → TTS Voice section shows a dropdown listing all available voices for the selected TTS engine
-- [ ] Each voice entry includes: name, language, engine label
-- [ ] "Play Sample" button plays a 3-second preview using that voice ("Hi, I'm Rex. How can I help?")
-- [ ] "Apply" saves the selected voice to `AppConfig.tts_voice`
-- [ ] Change takes effect on the next Rex utterance without restart
-- [ ] Typecheck passes
+- [x] Settings → Voice → TTS Voice section shows a dropdown listing all available voices for the selected TTS engine
+- [x] Each voice entry includes: name, language, engine label
+- [x] "Play Sample" button plays a 3-second preview using that voice ("Hi, I'm Rex. How can I help?")
+- [x] "Apply" saves the selected voice to `AppConfig.tts_voice`
+- [x] Change takes effect on the next Rex utterance without restart
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---

@@ -2031,3 +2031,24 @@
   - Prefer the project `.venv` for this story’s verification when `.venv-validate311` is missing `pytest` and `mypy`
   - `AGENTS.md` is still absent at `C:\Users\james\rex-ai-test\rex-ai-assistant\AGENTS.md`, so there was no reusable project note to update
 ---
+## Iteration 101 - US-VC-001: Voice selection UI — dropdown with sample playback
+- Story: US-VC-001
+- What was implemented
+  - `rex/tts_voices.py`: added `engine` field to all voice dicts returned by `list_voices()` (`"xtts"`, `"edge-tts"`, `"pyttsx3"`)
+  - `rex_voice_sample_bridge.py`: updated default sample text to `"Hi, I'm Rex. How can I help?"`
+  - `rex/voice_loop.py`: added `TextToSpeech._current_edge_voice()` method that re-reads `rex_config.json` via `rex.config_manager.load_config()` for hot-swap support; updated `_speak_edge()` to call `self._current_edge_voice()` instead of using the cached `self._edge_voice`
+  - `gui/src/types/ipc.ts`: added optional `engine?: string` field to `VoiceInfo` interface
+  - `gui/src/pages/SettingsPage.tsx`: updated voice dropdown option to include engine label `[engine]` suffix
+- Files changed
+  - `rex/tts_voices.py`
+  - `rex_voice_sample_bridge.py`
+  - `rex/voice_loop.py`
+  - `gui/src/types/ipc.ts`
+  - `gui/src/pages/SettingsPage.tsx`
+  - `PRD-master-next-cycle.md` (marked criteria [x])
+  - `progress-master-next-cycle.txt`
+- Learnings for future iterations:
+  - When a file has been heavily modified in a prior context, the Edit tool requires a Read first even in a new session
+  - `TextToSpeech._edge_voice` is set at init time from the cached `settings` singleton; for hot-swap, always read directly from `rex_config.json` via `config_manager.load_config()`
+  - Black reformats comprehensions that exceed the line length limit; always run `black --check` before committing
+---
