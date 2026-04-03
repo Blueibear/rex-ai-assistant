@@ -938,13 +938,13 @@ Stories are ordered by dependency. Each story is sized to complete in one Ralph 
 **Description:** As a user, I want to add multiple email accounts for my profile through the Settings UI so I can check all my inboxes through Rex.
 
 **Acceptance Criteria:**
-- [ ] Settings → Integrations → Email section lists all accounts for the current UI user
-- [ ] "Add Account" flow: choose backend (IMAP / Gmail OAuth / Outlook OAuth), enter credentials, test connection
-- [ ] Test connection button sends a test fetch and reports success/failure
-- [ ] Delete account removes credentials from `.env` and config
-- [ ] Each account shows last-synced timestamp
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Settings → Integrations → Email section lists all accounts for the current UI user
+- [x] "Add Account" flow: choose backend (IMAP / Gmail OAuth / Outlook OAuth), enter credentials, test connection
+- [x] Test connection button sends a test fetch and reports success/failure
+- [x] Delete account removes credentials from `.env` and config
+- [x] Each account shows last-synced timestamp
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

@@ -2018,6 +2018,27 @@ function IntegrationsPanel(): React.ReactElement {
   })
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const testTimers = useRef<Partial<Record<IntegrationSection, ReturnType<typeof setTimeout>>>>({})
+  const [accountTestStatus, setAccountTestStatus] = useState<Record<string, TestStatus>>({})
+  const accountTestTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
+  function handleTestEmailAccount(id: string): void {
+    setAccountTestStatus((s) => ({ ...s, [id]: 'testing' }))
+    window.rex
+      .testEmailAccount(id)
+      .then((res) => {
+        setAccountTestStatus((s) => ({ ...s, [id]: res.ok ? 'ok' : 'error' }))
+      })
+      .catch(() => {
+        setAccountTestStatus((s) => ({ ...s, [id]: 'error' }))
+      })
+      .finally(() => {
+        if (accountTestTimers.current[id]) clearTimeout(accountTestTimers.current[id])
+        accountTestTimers.current[id] = setTimeout(
+          () => setAccountTestStatus((s) => ({ ...s, [id]: 'idle' })),
+          5000
+        )
+      })
+  }
 
   useEffect(() => {
     window.rex
@@ -2025,9 +2046,20 @@ function IntegrationsPanel(): React.ReactElement {
       .then((settings: Settings) => {
         const rawAccounts = settings.emailAccounts
         const emailAccounts: EmailAccount[] = Array.isArray(rawAccounts)
-          ? (rawAccounts as EmailAccount[]).filter(
-              (a) => typeof a === 'object' && a !== null && typeof a.id === 'string'
-            )
+          ? (rawAccounts as EmailAccount[])
+              .filter((a) => typeof a === 'object' && a !== null && typeof a.id === 'string')
+              .map((a) => ({
+                id: a.id,
+                backend: a.backend ?? (a as unknown as { provider?: string }).provider ?? 'gmail',
+                displayName: a.displayName ?? '',
+                clientId: a.clientId ?? '',
+                clientSecret: a.clientSecret ?? '',
+                host: a.host ?? '',
+                port: typeof a.port === 'number' ? a.port : 993,
+                username: a.username ?? '',
+                password: a.password ?? '',
+                lastSynced: a.lastSynced
+              } as EmailAccount))
           : []
         setForm({
           emailProvider:
@@ -2101,9 +2133,14 @@ function IntegrationsPanel(): React.ReactElement {
   function handleAddEmailAccount(): void {
     const newAccount: EmailAccount = {
       id: `${Date.now()}`,
-      provider: 'gmail',
+      backend: 'gmail',
+      displayName: '',
       clientId: '',
-      clientSecret: ''
+      clientSecret: '',
+      host: '',
+      port: 993,
+      username: '',
+      password: ''
     }
     const updated = { ...form, emailAccounts: [...form.emailAccounts, newAccount] }
     setForm(updated)
@@ -2212,7 +2249,7 @@ function IntegrationsPanel(): React.ReactElement {
         {/* Multi-account email list */}
         <div className="mt-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-text-primary">Additional Accounts</span>
+            <span className="text-sm font-medium text-text-primary">Email Accounts</span>
             <button
               type="button"
               onClick={handleAddEmailAccount}
@@ -2231,48 +2268,129 @@ function IntegrationsPanel(): React.ReactElement {
             </div>
           ) : (
             <div className="space-y-3">
-              {form.emailAccounts.map((account) => (
-                <div key={account.id} className="rounded-xl border border-border bg-surface-raised p-4">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <select
-                      value={account.provider}
-                      onChange={(e) =>
-                        handleUpdateEmailAccount(account.id, {
-                          provider: e.target.value as EmailAccount['provider']
-                        })
-                      }
-                      className="flex-1 bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-                    >
-                      <option value="gmail">Gmail</option>
-                      <option value="outlook">Outlook</option>
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveEmailAccount(account.id)}
-                      className="rounded-lg border border-danger/30 px-2.5 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10 focus:outline-none"
-                    >
-                      Remove
-                    </button>
+              {form.emailAccounts.map((account) => {
+                const acctTestStatus = accountTestStatus[account.id] ?? 'idle'
+                return (
+                  <div key={account.id} className="rounded-xl border border-border bg-surface-raised p-4">
+                    {/* Header row: display name + remove */}
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <input
+                        type="text"
+                        value={account.displayName}
+                        placeholder="Account label (e.g. Work Gmail)"
+                        onChange={(e) =>
+                          handleUpdateEmailAccount(account.id, { displayName: e.target.value })
+                        }
+                        className="flex-1 bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveEmailAccount(account.id)}
+                        className="rounded-lg border border-danger/30 px-2.5 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger/10 focus:outline-none"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    {/* Backend selector */}
+                    <div className="mb-2">
+                      <select
+                        value={account.backend}
+                        onChange={(e) =>
+                          handleUpdateEmailAccount(account.id, {
+                            backend: e.target.value as EmailAccount['backend']
+                          })
+                        }
+                        className="w-full bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                      >
+                        <option value="gmail">Gmail OAuth</option>
+                        <option value="outlook">Outlook OAuth</option>
+                        <option value="imap">IMAP</option>
+                      </select>
+                    </div>
+
+                    {/* Credential fields */}
+                    {account.backend === 'imap' ? (
+                      <div className="space-y-2 mb-2">
+                        <input
+                          type="text"
+                          value={account.host}
+                          placeholder="IMAP host (e.g. imap.gmail.com)"
+                          onChange={(e) =>
+                            handleUpdateEmailAccount(account.id, { host: e.target.value })
+                          }
+                          className={inputClass}
+                        />
+                        <input
+                          type="number"
+                          value={account.port}
+                          placeholder="Port (993)"
+                          onChange={(e) =>
+                            handleUpdateEmailAccount(account.id, { port: parseInt(e.target.value, 10) || 993 })
+                          }
+                          className={inputClass}
+                        />
+                        <input
+                          type="text"
+                          value={account.username}
+                          placeholder="Username / email address"
+                          onChange={(e) =>
+                            handleUpdateEmailAccount(account.id, { username: e.target.value })
+                          }
+                          className={inputClass}
+                        />
+                        <PasswordInput
+                          id={`imap-pass-${account.id}`}
+                          value={account.password}
+                          placeholder="Password or app password"
+                          onChange={(v) => handleUpdateEmailAccount(account.id, { password: v })}
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-2 mb-2">
+                        <input
+                          type="text"
+                          value={account.clientId}
+                          placeholder="OAuth Client ID"
+                          onChange={(e) =>
+                            handleUpdateEmailAccount(account.id, { clientId: e.target.value })
+                          }
+                          className={inputClass}
+                        />
+                        <PasswordInput
+                          id={`email-secret-${account.id}`}
+                          value={account.clientSecret}
+                          placeholder="OAuth Client Secret"
+                          onChange={(v) => handleUpdateEmailAccount(account.id, { clientSecret: v })}
+                        />
+                      </div>
+                    )}
+
+                    {/* Test connection + last-synced */}
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleTestEmailAccount(account.id)}
+                        disabled={acctTestStatus === 'testing'}
+                        className="flex items-center gap-1.5 rounded-lg border border-border bg-surface-raised px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:bg-border focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-50"
+                      >
+                        {acctTestStatus === 'testing' ? 'Testing…' : 'Test Connection'}
+                      </button>
+                      {acctTestStatus === 'ok' && (
+                        <span className="text-xs font-medium text-success">Connected</span>
+                      )}
+                      {acctTestStatus === 'error' && (
+                        <span className="text-xs font-medium text-danger">Failed</span>
+                      )}
+                      {account.lastSynced && (
+                        <span className="ml-auto text-xs text-text-secondary">
+                          Synced {new Date(account.lastSynced).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="mb-2">
-                    <input
-                      type="text"
-                      value={account.clientId}
-                      placeholder="OAuth Client ID"
-                      onChange={(e) =>
-                        handleUpdateEmailAccount(account.id, { clientId: e.target.value })
-                      }
-                      className={`${inputClass} mb-2`}
-                    />
-                    <PasswordInput
-                      id={`email-secret-${account.id}`}
-                      value={account.clientSecret}
-                      placeholder="OAuth Client Secret"
-                      onChange={(v) => handleUpdateEmailAccount(account.id, { clientSecret: v })}
-                    />
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

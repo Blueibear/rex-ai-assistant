@@ -176,9 +176,18 @@ export interface AiSettings {
 
 export interface EmailAccount {
   id: string
-  provider: 'gmail' | 'outlook'
+  backend: 'imap' | 'gmail' | 'outlook'
+  displayName: string
+  // OAuth fields (gmail / outlook)
   clientId: string
   clientSecret: string
+  // IMAP fields
+  host: string
+  port: number
+  username: string
+  password: string
+  // State
+  lastSynced?: string
 }
 
 export interface IntegrationsSettings {
@@ -345,6 +354,7 @@ export interface RexAPI {
   getVersionInfo: () => Promise<VersionInfo>
   testVoice: (settings: VoiceSettings) => Promise<{ ok: boolean; error?: string }>
   testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant') => Promise<{ ok: boolean; error?: string }>
+  testEmailAccount: (id: string) => Promise<{ ok: boolean; error?: string }>
   getPreferenceSuggestions: () => Promise<PreferenceSuggestion[]>
   applyPreferenceSuggestion: (field: string, value: string | number) => Promise<{ ok: boolean }>
   getEmailInbox: () => Promise<EmailMessage[]>

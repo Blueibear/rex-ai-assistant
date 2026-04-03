@@ -176,6 +176,8 @@ const rexAPI = {
     ipcRenderer.invoke('rex:testVoice', settings),
   testIntegration: (type: 'email' | 'calendar' | 'sms'): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:testIntegration', type),
+  testEmailAccount: (id: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('rex:testEmailAccount', id),
   getPreferenceSuggestions: (): Promise<PreferenceSuggestion[]> =>
     ipcRenderer.invoke('rex:getPreferenceSuggestions'),
   applyPreferenceSuggestion: (field: string, value: string | number): Promise<{ ok: boolean }> =>

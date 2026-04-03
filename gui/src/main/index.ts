@@ -399,6 +399,27 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
     return { ok: false, error: 'Unknown integration type' }
   })
 
+  ipcMain.handle('rex:testEmailAccount', (_event, id: string) => {
+    // Check that the identified account has the required credentials configured
+    const stored = readGuiSettings()
+    const integrations = (stored['integrations'] ?? {}) as Record<string, unknown>
+    const accounts = Array.isArray(integrations.emailAccounts) ? integrations.emailAccounts : []
+    const account = (accounts as EmailAccount[]).find((a) => a.id === id)
+    if (!account) return { ok: false, error: 'Account not found' }
+    if (account.backend === 'imap') {
+      const ok =
+        typeof account.host === 'string' && account.host.trim() !== '' &&
+        typeof account.username === 'string' && account.username.trim() !== '' &&
+        typeof account.password === 'string' && account.password.trim() !== ''
+      return ok ? { ok: true } : { ok: false, error: 'IMAP host, username, and password are required' }
+    }
+    // gmail / outlook OAuth
+    const ok =
+      typeof account.clientId === 'string' && account.clientId.trim() !== '' &&
+      typeof account.clientSecret === 'string' && account.clientSecret.trim() !== ''
+    return ok ? { ok: true } : { ok: false, error: 'OAuth Client ID and Secret are required' }
+  })
+
   ipcMain.handle('rex:getPreferenceSuggestions', (): PreferenceSuggestion[] => {
     const prefsPath = join(homedir(), '.rex', 'preferences.json')
     let profile: Record<string, unknown> = {}
