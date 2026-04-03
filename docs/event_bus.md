@@ -1,6 +1,6 @@
 # Event Bus
 
-The Rex AI Assistant includes an event bus that provides publish-subscribe messaging for internal components. The event bus enables loose coupling between modules and facilitates reactive programming patterns.
+The AskRex Assistant includes an event bus that provides publish-subscribe messaging for internal components. The event bus enables loose coupling between modules and facilitates reactive programming patterns.
 
 ## Overview
 

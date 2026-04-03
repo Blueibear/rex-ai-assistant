@@ -1,4 +1,4 @@
-# 🚀 Rex AI Assistant - Deployment Checklist
+# 🚀 AskRex Assistant - Deployment Checklist
 
 ## Pre-Deployment Validation
 

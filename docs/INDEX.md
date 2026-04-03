@@ -1,4 +1,4 @@
-# Rex AI Assistant — Documentation Index
+# AskRex Assistant — Documentation Index
 
 All documentation files under `docs/`, organized by category.
 

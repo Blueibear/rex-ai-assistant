@@ -1,6 +1,6 @@
-# Rex AI Assistant — Windows Quickstart
+# AskRex Assistant — Windows Quickstart
 
-This guide covers Windows-specific setup for Rex AI Assistant. For full project details, see [README.md](README.md).
+This guide covers Windows-specific setup for AskRex Assistant. For full project details, see [README.md](README.md).
 
 ---
 
@@ -17,7 +17,7 @@ This guide covers Windows-specific setup for Rex AI Assistant. For full project 
 ### 2. Clone and create a virtual environment
 
 ```powershell
-git clone https://github.com/Blueibear/askrex-assistant.git
+git clone https://github.com/Blueibear/AskRex-Assistant.git
 cd rex-ai-assistant
 
 py -3.11 -m venv .venv

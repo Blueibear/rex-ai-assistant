@@ -1,6 +1,6 @@
 # Memory Profiles
 
-This directory contains per-user memory profiles for Rex AI Assistant.
+This directory contains per-user memory profiles for AskRex Assistant.
 
 ## Structure
 

@@ -1,6 +1,6 @@
 # Rex Doctor
 
-`rex doctor` is a diagnostic command that checks your Rex AI Assistant environment for common issues and misconfigurations.
+`rex doctor` is a diagnostic command that checks your AskRex Assistant environment for common issues and misconfigurations.
 
 ## Purpose
 

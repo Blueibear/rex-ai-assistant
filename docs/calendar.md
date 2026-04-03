@@ -2,7 +2,7 @@
 
 **Implementation Status: Beta (ICS read-only backend available + stub fallback)**
 
-The Rex AI Assistant includes calendar integration that allows Rex to read calendar events, detect conflicts, and keep you informed of upcoming appointments. This enables Rex to proactively manage your schedule and trigger workflows based on calendar events.
+The AskRex Assistant includes calendar integration that allows Rex to read calendar events, detect conflicts, and keep you informed of upcoming appointments. This enables Rex to proactively manage your schedule and trigger workflows based on calendar events.
 
 ## Overview
 

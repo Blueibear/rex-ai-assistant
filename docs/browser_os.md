@@ -1,6 +1,6 @@
 # Browser and OS Automation
 
-Rex AI Assistant provides browser automation and OS-level automation capabilities with built-in security controls.
+AskRex Assistant provides browser automation and OS-level automation capabilities with built-in security controls.
 
 ## Browser Automation
 
@@ -55,7 +55,7 @@ Create a JSON script file with automation steps:
       "action": "type",
       "params": {
         "selector": "#search-input",
-        "text": "Rex AI Assistant"
+        "text": "AskRex Assistant"
       }
     },
     {

@@ -700,7 +700,7 @@ If you just want the safest path to a working Rex instance:
 ### macOS/Linux
 
 ```bash
-git clone https://github.com/Blueibear/askrex-assistant.git
+git clone https://github.com/Blueibear/AskRex-Assistant.git
 cd rex-ai-assistant
 python3 -m venv .venv
 source .venv/bin/activate
@@ -715,7 +715,7 @@ python -m rex
 ### Windows PowerShell
 
 ```powershell
-git clone https://github.com/Blueibear/askrex-assistant.git
+git clone https://github.com/Blueibear/AskRex-Assistant.git
 cd rex-ai-assistant
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1

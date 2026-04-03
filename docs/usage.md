@@ -1,4 +1,4 @@
-# Rex AI Assistant — Usage Guide
+# AskRex Assistant — Usage Guide
 
 ## 1. Text-Based Chat Mode
 

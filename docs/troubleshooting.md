@@ -1,4 +1,4 @@
-# Rex AI Assistant — Troubleshooting
+# AskRex Assistant — Troubleshooting
 
 ## Missing API Keys
 

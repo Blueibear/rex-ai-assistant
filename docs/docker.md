@@ -1,4 +1,4 @@
-# Rex AI Assistant — Docker
+# AskRex Assistant — Docker
 
 ## Build and Run
 

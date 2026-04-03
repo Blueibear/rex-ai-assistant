@@ -1,4 +1,4 @@
-# Rex AI Assistant - Architecture Documentation
+# AskRex Assistant - Architecture Documentation
 
 ## Overview
 

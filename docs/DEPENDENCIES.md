@@ -22,7 +22,7 @@ CVEs GHSA-3749-ghw9-m3mg and GHSA-887c-mr87-cxwp (DoS vulnerabilities).
 
 ## Overview
 
-Rex AI Assistant splits dependencies by install target so CPU-only installs and CI do not pull CUDA/GPU wheels. Base installs come from `pyproject.toml`, while optional ML/audio stacks live in split requirements files.
+AskRex Assistant splits dependencies by install target so CPU-only installs and CI do not pull CUDA/GPU wheels. Base installs come from `pyproject.toml`, while optional ML/audio stacks live in split requirements files.
 
 ## Files
 

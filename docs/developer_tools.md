@@ -1,6 +1,6 @@
 # Developer Tools Integration
 
-Rex AI Assistant provides integrated developer tools for working with code, GitHub, and development workflows.
+AskRex Assistant provides integrated developer tools for working with code, GitHub, and development workflows.
 
 ## GitHub Integration
 

@@ -1,4 +1,4 @@
-# How to Run Rex AI Assistant
+# How to Run AskRex Assistant
 
 This guide provides exact commands for running Rex on Windows.
 

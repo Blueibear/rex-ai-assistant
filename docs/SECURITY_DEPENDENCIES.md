@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This report documents the security vulnerabilities discovered in Rex AI Assistant dependencies and the fixes applied to resolve them. A comprehensive audit using `pip-audit` identified **15 vulnerabilities across 8 packages** in requirements.txt. All vulnerabilities have been remediated by upgrading to patched versions.
+This report documents the security vulnerabilities discovered in AskRex Assistant dependencies and the fixes applied to resolve them. A comprehensive audit using `pip-audit` identified **15 vulnerabilities across 8 packages** in requirements.txt. All vulnerabilities have been remediated by upgrading to patched versions.
 
 **Impact:** All identified CVEs have been fixed with no breaking changes to the Rex runtime.
 
@@ -278,4 +278,4 @@ $ python -c "from transformers import BeamSearchScorer; print('Shim OK')"
 
 **Report Status:** ✅ Complete
 **Next Review:** 2026-02-08 (monthly)
-**Maintained By:** Rex AI Assistant Security Team
+**Maintained By:** AskRex Assistant Security Team

@@ -1,4 +1,4 @@
-# Performance Baseline — Rex AI Assistant API
+# Performance Baseline — AskRex Assistant API
 
 **Date:** 2026-03-12
 **Environment:** Windows 11, Python 3.11, Flask test client (in-process), no external service dependencies

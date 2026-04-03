@@ -1,13 +1,13 @@
-# Rex AI Assistant
+# AskRex Assistant
 
 <p align="center">
-  <img src="https://github.com/Blueibear/askrex-assistant/actions/workflows/ci.yml/badge.svg" alt="CI status" />
+  <img src="https://github.com/Blueibear/AskRex-Assistant/actions/workflows/ci.yml/badge.svg" alt="CI status" />
   <img src="https://img.shields.io/badge/python-3.11-blue" alt="Python 3.11" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />
   <a href="https://www.buymeacoffee.com/Blueibear" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 28px !important;width: 120px !important;" ></a>
 </p>
 
-Rex AI Assistant is a local-first, voice-activated AI companion that runs entirely on your machine — no cloud subscription required. It combines wake word detection, offline speech recognition via OpenAI Whisper, LLM-powered responses through Transformers, OpenAI, or Ollama, and text-to-speech synthesis, making it a practical choice for hobbyists, home-automation enthusiasts, and developers who want a private, customisable assistant.
+AskRex Assistant is a local-first, voice-activated AI companion that runs entirely on your machine — no cloud subscription required. It combines wake word detection, offline speech recognition via OpenAI Whisper, LLM-powered responses through Transformers, OpenAI, or Ollama, and text-to-speech synthesis, making it a practical choice for hobbyists, home-automation enthusiasts, and developers who want a private, customisable assistant.
 
 ## Table of Contents
 
@@ -30,8 +30,8 @@ Rex AI Assistant is a local-first, voice-activated AI companion that runs entire
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/Blueibear/askrex-assistant.git
-   cd askrex-assistant
+   git clone https://github.com/Blueibear/AskRex-Assistant.git
+   cd AskRex-Assistant
    ```
 
 2. **Use Python 3.11 and create a virtual environment:**
@@ -206,4 +206,4 @@ See [LICENSE](LICENSE) for full details.
 
 ---
 
-**Need help?** Check the [Troubleshooting](#troubleshooting) section or file an issue at https://github.com/Blueibear/askrex-assistant/issues
+**Need help?** Check the [Troubleshooting](#troubleshooting) section or file an issue at https://github.com/Blueibear/AskRex-Assistant/issues

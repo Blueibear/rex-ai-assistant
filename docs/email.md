@@ -1,6 +1,6 @@
 # Email Integration
 
-The Rex AI Assistant includes email triage functionality that allows Rex to read, categorize, and process emails automatically. This enables Rex to keep you informed of important communications and trigger workflows based on email content.
+The AskRex Assistant includes email triage functionality that allows Rex to read, categorize, and process emails automatically. This enables Rex to keep you informed of important communications and trigger workflows based on email content.
 
 ## Implementation Status
 

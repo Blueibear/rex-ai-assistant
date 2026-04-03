@@ -1,4 +1,4 @@
-# 🔧 Rex AI Assistant - Stabilization Report
+# 🔧 AskRex Assistant - Stabilization Report
 
 ## ✅ Critical Issues Resolved
 

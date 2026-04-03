@@ -1,4 +1,4 @@
-# Contributing to Rex AI Assistant
+# Contributing to AskRex Assistant
 
 ## Commit Message Format
 

@@ -1,6 +1,6 @@
-# Rex AI Assistant — API Reference
+# AskRex Assistant — API Reference
 
-This document covers all public HTTP endpoints exposed by the Rex AI Assistant
+This document covers all public HTTP endpoints exposed by the AskRex Assistant
 services. Two processes expose HTTP APIs:
 
 - **Flask proxy** (`python flask_proxy.py`) — default port 5000

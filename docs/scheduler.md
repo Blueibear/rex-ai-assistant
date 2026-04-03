@@ -1,6 +1,6 @@
 # Scheduler
 
-The Rex AI Assistant includes a job scheduler that enables automated task execution on recurring schedules. The scheduler provides persistent storage, background execution, and integration with the workflow system and event bus.
+The AskRex Assistant includes a job scheduler that enables automated task execution on recurring schedules. The scheduler provides persistent storage, background execution, and integration with the workflow system and event bus.
 
 ## Overview
 

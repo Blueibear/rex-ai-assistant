@@ -1,6 +1,6 @@
 # Security Documents
 
-Security audit reports, vulnerability scans, and fix summaries for Rex AI Assistant.
+Security audit reports, vulnerability scans, and fix summaries for AskRex Assistant.
 
 | File | Description |
 |------|-------------|

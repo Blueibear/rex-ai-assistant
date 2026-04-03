@@ -1,6 +1,6 @@
-# Rex AI Assistant - Installation Guide
+# AskRex Assistant - Installation Guide
 
-This guide covers all installation methods and platform-specific setup for the Rex AI Assistant.
+This guide covers all installation methods and platform-specific setup for the AskRex Assistant.
 
 ## Table of Contents
 

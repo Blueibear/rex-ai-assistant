@@ -316,17 +316,17 @@ and tooling all show consistent identity.
 to use the canonical product name so that there is no confusion about what I am installing.
 
 **Acceptance Criteria:**
-- [ ] `README.md:1` — title updated to `# AskRex Assistant`
-- [ ] `README.md:3` — all badge URLs updated to use `https://github.com/Blueibear/AskRex-Assistant`
-- [ ] `README.md:33` — clone URL updated to `https://github.com/Blueibear/AskRex-Assistant.git`
-- [ ] `INSTALL.md:1` — title updated to reference AskRex Assistant
-- [ ] `CHANGELOG.md` — top entry notes the rename from Rex AI Assistant to AskRex Assistant
+- [x] `README.md:1` — title updated to `# AskRex Assistant`
+- [x] `README.md:3` — all badge URLs updated to use `https://github.com/Blueibear/AskRex-Assistant`
+- [x] `README.md:33` — clone URL updated to `https://github.com/Blueibear/AskRex-Assistant.git`
+- [x] `INSTALL.md:1` — title updated to reference AskRex Assistant
+- [x] `CHANGELOG.md` — top entry notes the rename from Rex AI Assistant to AskRex Assistant
   with the effective date
-- [ ] `grep -r "Rex AI Assistant" --include="*.md" .` returns zero results
+- [x] `grep -r "Rex AI Assistant" --include="*.md" .` returns zero results
   (except historical CHANGELOG entries, which are exempt)
-- [ ] `grep -r "askrex-assistant" --include="*.md" .` returns zero results
+- [x] `grep -r "askrex-assistant" --include="*.md" .` returns zero results
   (except `docs/BRANDING.md` banned-names table)
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 

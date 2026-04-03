@@ -1,6 +1,6 @@
 # Rex Dashboard
 
-The Rex Dashboard is a responsive web interface for managing your Rex AI Assistant. It provides a single point of tactile interface for settings, chat, and reminders.
+The Rex Dashboard is a responsive web interface for managing your AskRex Assistant. It provides a single point of tactile interface for settings, chat, and reminders.
 
 ## Features
 

@@ -1,7 +1,7 @@
-# Rex AI Assistant — Operations Runbook
+# AskRex Assistant — Operations Runbook
 
 This runbook covers day-to-day operational tasks: starting, stopping, restarting,
-diagnosing, and recovering Rex AI Assistant in production.
+diagnosing, and recovering AskRex Assistant in production.
 
 For initial deployment from scratch see `docs/deployment.md`.
 For environment variable reference see `docs/configuration.md`.

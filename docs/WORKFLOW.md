@@ -1,4 +1,4 @@
-# Rex AI Assistant - Development Workflow
+# AskRex Assistant - Development Workflow
 
 ## Overview
 Rex now uses a clean two-branch workflow to maintain stability while allowing ongoing development and experimentation.

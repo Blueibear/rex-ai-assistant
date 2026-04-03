@@ -1,6 +1,6 @@
-# Rex AI Assistant — Production Deployment Guide
+# AskRex Assistant — Production Deployment Guide
 
-This guide walks a new operator through deploying Rex AI Assistant from scratch.
+This guide walks a new operator through deploying AskRex Assistant from scratch.
 Follow each section in order. No prior knowledge of the codebase is assumed.
 
 ---

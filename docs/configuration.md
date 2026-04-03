@@ -1,6 +1,6 @@
-# Rex AI Assistant — Configuration Reference
+# AskRex Assistant — Configuration Reference
 
-This document lists every environment variable recognised by Rex AI Assistant.
+This document lists every environment variable recognised by AskRex Assistant.
 Variables marked **REQUIRED** must be set for the relevant feature to work.
 All others are optional and use the shown default when omitted.
 

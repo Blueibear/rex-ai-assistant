@@ -1,6 +1,6 @@
 # Production Readiness Checklist
 
-This checklist covers every phase and user story in the Rex AI Assistant PRD.
+This checklist covers every phase and user story in the AskRex Assistant PRD.
 Each item is marked complete with the US number that satisfied it.
 Items that were explicitly waived include a justification.
 
@@ -301,4 +301,4 @@ Items that were explicitly waived include a justification.
 
 All 132 user stories across 47 phases are complete.
 Zero open CVEs. Zero leaked secrets. Full test suite passes.
-This checklist satisfies the production readiness gate for the Rex AI Assistant v1.0 release.
+This checklist satisfies the production readiness gate for the AskRex Assistant v1.0 release.

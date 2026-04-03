@@ -1,4 +1,4 @@
-# Rex AI Assistant — Environment Variables
+# AskRex Assistant — Environment Variables
 
 Rex uses a dual-configuration system for better security:
 - **config/rex_config.json** — Runtime settings (audio, models, wake word, etc.)
