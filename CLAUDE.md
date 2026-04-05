@@ -56,6 +56,7 @@ Current install/runtime compatibility policy:
 Entry points:
 
 - rex -> rex.cli:main
+- rex-gui -> rex.gui_app:main
 - rex-config -> rex.config:cli
 - rex-speak-api -> rex_speak_api:main
 - rex-agent -> rex.computers.agent_server:main
@@ -63,6 +64,8 @@ Entry points:
 ### Core components
 
 API: Flask (Flask-CORS, Flask-Limiter)
+
+GUI: Web dashboard via `rex.gui_app` (React + Flask). `gui.py` is deprecated.
 
 Config: Pydantic v2, python-dotenv
 
@@ -136,8 +139,8 @@ Top-level directories:
 - rex_loop.py — full voice loop (wake word → STT → LLM → TTS)
 - voice_loop.py — core voice loop helpers
 - wakeword_listener.py — wake word listener utilities
+- rex/gui_app.py — canonical React + Flask web dashboard entry point
 - rex_speak_api.py — Flask TTS API with auth and rate limiting
-- run_gui.py / gui.py — desktop GUI
 
 ### Important subpackages
 
@@ -205,7 +208,7 @@ python rex_loop.py
 
 GUI:
 
-python run_gui.py
+rex-gui
 
 TTS API:
 
@@ -317,6 +320,7 @@ Add a short rule here that would have prevented the mistake.
 - The root-level `voice_loop.py` and `rex/voice_loop.py` are two separate implementations. `rex/voice_loop.py` is the **canonical** implementation: `rex_loop.py` imports `build_voice_loop` from `rex.voice_loop` (the package). Root `voice_loop.py` is a legacy file kept only for `AsyncRexAssistant` backward-compat re-exports. Changes to root `voice_loop.py` do NOT affect the CLI voice loop startup path.
 - `AppConfig.whisper_device` defaults to `"auto"`. When device is `"auto"`, resolve to `"cuda"` or `"cpu"` at model load time using `torch.cuda.is_available()`.
 - The voice loop must use `Assistant.generate_reply()` (which includes tool routing and system context injection) rather than calling `LanguageModel.generate()` directly. Direct LLM calls bypass time/weather tools and produce hallucinated answers for factual questions.
+- The canonical wake-word implementation is `rex/wakeword/` (`rex.wakeword.utils`, `rex.wakeword.listener`). Root-level `wakeword_utils.py` and `wakeword_listener.py` were stale re-exports and have been deleted. Use `rex.wakeword_utils` (package shim) or `rex.wakeword.utils` directly.
 
 ## OpenClaw Migration Status
 

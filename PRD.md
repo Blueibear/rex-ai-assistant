@@ -700,14 +700,14 @@ project files.
 can be removed.
 
 **Acceptance Criteria:**
-- [ ] Read `wakeword_listener.py` (root) and `rex/wakeword/` — document differences in commit
-- [ ] If root versions are stale re-exports: `git rm wakeword_listener.py wakeword_utils.py`
+- [x] Read `wakeword_listener.py` (root) and `rex/wakeword/` — document differences in commit
+- [x] If root versions are stale re-exports: `git rm wakeword_listener.py wakeword_utils.py`
   and add a note to `CLAUDE.md` that the canonical implementation is `rex/wakeword/`
-- [ ] If root versions contain unique code: move unique code into `rex/wakeword/` then delete roots
-- [ ] `grep -r "from wakeword_listener\|import wakeword_listener" --include="*.py" .` returns
+- [x] If root versions contain unique code: move unique code into `rex/wakeword/` then delete roots
+- [x] `grep -r "from wakeword_listener\|import wakeword_listener" --include="*.py" .` returns
   zero results after removal (or references are updated to `rex.wakeword`)
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ---
 

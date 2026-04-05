@@ -4,7 +4,7 @@ import pytest
 
 np = pytest.importorskip("numpy")
 
-from wakeword_utils import detect_wakeword  # noqa: E402
+from rex.wakeword_utils import detect_wakeword  # noqa: E402
 
 
 class DummyModel:
