@@ -771,16 +771,16 @@ so that broken entry points are caught before release.
 to contain only current, justified entries so that the scan output is meaningful.
 
 **Acceptance Criteria:**
-- [ ] Read `ci.yml:217–304` (all `--ignore-vuln` entries) and compare against current
+- [x] Read `ci.yml:217–304` (all `--ignore-vuln` entries) and compare against current
   `pip-audit` output on the installed dependency set
-- [ ] Entries where the vulnerable package is no longer installed are removed
-- [ ] The duplicate `CVE-2026-4539` entry (appears at lines 272 and 304) is deduplicated
-- [ ] Each remaining `--ignore-vuln` entry has a corresponding entry in
+- [x] Entries where the vulnerable package is no longer installed are removed
+- [x] The duplicate `CVE-2026-4539` entry (appears at lines 272 and 304) is deduplicated
+- [x] Each remaining `--ignore-vuln` entry has a corresponding entry in
   `docs/security/VULNERABILITY-SCAN.md` with: CVE ID, affected package, reason accepted,
   and date of last review
-- [ ] `pip-audit` run in CI exits 0 after cleanup (all remaining CVEs are suppressed for
+- [x] `pip-audit` run in CI exits 0 after cleanup (all remaining CVEs are suppressed for
   documented reasons)
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 
