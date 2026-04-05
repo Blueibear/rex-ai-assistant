@@ -1,3 +1,19 @@
+## Iteration 86 - US-259 Evaluate setup.py py_modules backward-compat shims
+- Story: US-259
+- Searched for external references to config, llm_client, memory_utils, logging_utils — all have active callers outside rex/
+- config: gui.py, tests/test_llm_client.py, tests/test_memory_utils.py, tests/test_us013-016_*.py
+- llm_client: tests/test_llm_client.py, tests/test_us013-016_*.py
+- memory_utils: flask_proxy.py, gui.py, tests/test_memory_utils.py
+- logging_utils: audio_config.py, gui.py, gui_settings_tab.py, install.py
+- Added DeprecationWarning to all four shims pointing callers to rex.* equivalents
+- Documented setup.py with rationale and caller list for next cycle
+- 56 shim-related tests pass; mypy rex: 250 source files, no issues
+- Files changed: config.py, llm_client.py, memory_utils.py, logging_utils.py, setup.py, PRD.md, progress.txt
+- Learnings for future iterations:
+  - All four root-level shims have real callers — they cannot be deleted yet
+  - Next cycle should migrate callers to rex.* then delete shims and simplify setup.py
+  - DeprecationWarning is the right signal; callers see it in pytest output
+---
 ## Iteration 85 - US-258 Update VULNERABILITY-SCAN.md to cover all remaining suppressions
 - Story: US-258
 - Added a master index table with all 85 --ignore-vuln CVEs from ci.yml; each row has CVE ID, package, installed version, accepted reason, review date
