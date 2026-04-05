@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from rex.calendar_backends.free_busy_stub import FreeBusyBlock
 
@@ -132,14 +132,14 @@ def find_free_slots(
             current_day.month,
             current_day.day,
             day_start_hour,
-            tzinfo=timezone.utc,
+            tzinfo=UTC,
         )
         day_close = datetime(
             current_day.year,
             current_day.month,
             current_day.day,
             day_end_hour,
-            tzinfo=timezone.utc,
+            tzinfo=UTC,
         )
 
         # Clip to the caller-supplied range
@@ -229,8 +229,8 @@ def _collect_day_slots(
 def _ensure_utc(dt: datetime) -> datetime:
     """Return *dt* as a UTC-aware datetime."""
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 __all__ = [

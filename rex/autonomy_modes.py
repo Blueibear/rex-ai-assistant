@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import json
 import logging
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 from rex.workflow import Workflow
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_AUTONOMY_CONFIG = Path("config/autonomy.json")
 
 
-class AutonomyMode(str, Enum):
+class AutonomyMode(StrEnum):
     """Autonomy mode for workflow execution.
 
     - OFF: No automatic execution, user must explicitly trigger

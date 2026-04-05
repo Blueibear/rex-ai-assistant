@@ -15,8 +15,9 @@ Tools query the CredentialManager when invoked, not at registration time.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from rex.credentials import CredentialManager, get_credential_manager
 

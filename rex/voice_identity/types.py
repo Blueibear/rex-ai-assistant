@@ -6,10 +6,10 @@ All types are pure-Python dataclasses with no heavy dependencies.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class RecognitionDecision(str, Enum):
+class RecognitionDecision(StrEnum):
     """Outcome of a speaker recognition attempt."""
 
     RECOGNIZED = "recognized"

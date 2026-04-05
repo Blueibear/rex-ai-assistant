@@ -27,8 +27,8 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
-from typing import Any, Callable
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from rex.openclaw.event_bus import EventBus as _EventBus
 from rex.openclaw.event_bus import get_event_bus as _get_event_bus

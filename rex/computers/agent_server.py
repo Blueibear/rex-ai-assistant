@@ -47,7 +47,7 @@ import socket
 import subprocess
 import time
 from collections import defaultdict, deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from getpass import getuser
 from typing import Any
 
@@ -257,7 +257,7 @@ def create_app(
 
     @app.route("/status", methods=["GET"])
     def status() -> tuple[Response, int]:
-        now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+        now = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%S")
         try:
             current_user = getuser()
         except Exception:  # noqa: BLE001

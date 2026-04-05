@@ -12,7 +12,7 @@ the service can be tested without live network connections.
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from rex.config import EmailAccountConfig
 from rex.integrations.email.backends.base import EmailBackend

@@ -1,3 +1,17 @@
+## Iteration 99 - US-178/179/180/181/182/183/184 Lint, formatting, and mypy compliance
+- Stories: US-178, US-179, US-180, US-181, US-182, US-183, US-184
+- US-178: Fixed ruff B010 in rex/compat/transformers_shims.py: setattr → direct assignment with type: ignore[attr-defined]
+- US-179: Applied black to rex/ (8 files reformatted) and root *.py (2 files); both --check commands now pass
+- US-180: mypy rex/assistant.py rex/config.py rex/llm_client.py rex/voice_loop.py → Success (already clean)
+- US-181: Fixed mypy no-any-return in rex/calendar_backends/ics_backend.py line 164: response.text → str(response.text); mypy rex/ now Success: 250 files
+- US-182: pytest tests/test_repo_integrity.py → 1 passed (already passing)
+- US-183: scripts/security_audit.py already excludes caches; reports 39 < 50 findings
+- US-184: .venv/Scripts/python.exe scripts/validate_deployment.py → 7/7 checks PASS, exit 0
+- Files changed: rex/compat/transformers_shims.py, rex/calendar_backends/ics_backend.py, 10 Black-formatted files, PRD.md, progress.txt
+- Learnings for future iterations:
+  - ruff B010: replace setattr(obj, "const", val) with obj.const = val plus type: ignore[attr-defined] when needed
+  - mypy treats requests.Response.text as str but flags it as Any in some versions — explicit str() cast resolves
+---
 ## Iteration 95 - US-267/268/269 Brand asset integration (WS-I)
 - Stories: US-267, US-268, US-269
 - US-267: assets/brand/ already partially populated; generated missing hyphen-named variants from underscore originals using Pillow

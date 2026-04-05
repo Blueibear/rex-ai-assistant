@@ -39,7 +39,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from python_compat import DEFAULT_INSTALL_LABEL, is_supported_python, unsupported_python_message
@@ -2425,7 +2425,7 @@ def cmd_voice_id(args: argparse.Namespace) -> int:
             return 1
 
         # Store embedding
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from rex.voice_identity.types import VoiceEmbedding
 
@@ -2439,7 +2439,7 @@ def cmd_voice_id(args: argparse.Namespace) -> int:
             vector=vector,
             model_id=vi_cfg.model_id,
             sample_count=sample_count,
-            updated_at=datetime.now(timezone.utc).isoformat(),
+            updated_at=datetime.now(UTC).isoformat(),
         )
         try:
             store.save(user_id, emb)

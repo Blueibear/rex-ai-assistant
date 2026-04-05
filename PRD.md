@@ -1226,33 +1226,33 @@ fixed so that the linter baseline is clean before enforcing it in CI.
 ### US-178: Restore Ruff lint compliance — remaining rule violations
 
 **Acceptance Criteria:**
-- [ ] `ruff check rex/` exits 0 with zero errors
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `ruff check rex/` exits 0 with zero errors
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ### US-179: Restore Black formatting compliance
 
 **Acceptance Criteria:**
-- [ ] `black --check rex/` exits 0
-- [ ] `black --check *.py` exits 0
-- [ ] No logic changes introduced
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `black --check rex/` exits 0
+- [x] `black --check *.py` exits 0
+- [x] No logic changes introduced
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ### US-180: Resolve mypy type errors — batch 1 (core package)
 
 **Acceptance Criteria:**
-- [ ] `mypy rex/assistant.py rex/config.py rex/llm_client.py rex/voice_loop.py` exits 0
-- [ ] No unexplained `type: ignore` comments added
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `mypy rex/assistant.py rex/config.py rex/llm_client.py rex/voice_loop.py` exits 0
+- [x] No unexplained `type: ignore` comments added
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ### US-181: Resolve mypy type errors — batch 2 (integrations and remaining files)
 
 **Acceptance Criteria:**
-- [ ] `mypy rex/` exits 0 with zero errors
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `mypy rex/` exits 0 with zero errors
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ---
 
@@ -1261,9 +1261,9 @@ fixed so that the linter baseline is clean before enforcing it in CI.
 ### US-182: Fix brittle repo-integrity tests
 
 **Acceptance Criteria:**
-- [ ] `tests/test_repo_integrity.py` captures `git status --porcelain` baseline before any test
-- [ ] `pytest -q tests/test_repo_integrity.py` exits 0 even when pre-existing dirty files exist
-- [ ] Typecheck passes
+- [x] `tests/test_repo_integrity.py` captures `git status --porcelain` baseline before any test
+- [x] `pytest -q tests/test_repo_integrity.py` exits 0 even when pre-existing dirty files exist
+- [x] Typecheck passes
 
 ---
 
@@ -1272,17 +1272,17 @@ fixed so that the linter baseline is clean before enforcing it in CI.
 ### US-183: Fix security audit script false positives
 
 **Acceptance Criteria:**
-- [ ] `scripts/security_audit.py` excludes `.mypy_cache/`, `.ruff_cache/`, caches, venv
-- [ ] Running script reports fewer than 50 findings on clean checkout
-- [ ] Typecheck passes
+- [x] `scripts/security_audit.py` excludes `.mypy_cache/`, `.ruff_cache/`, caches, venv
+- [x] Running script reports fewer than 50 findings on clean checkout
+- [x] Typecheck passes
 
 ### US-184: Rewrite deployment validation script
 
 **Acceptance Criteria:**
-- [ ] `scripts/validate_deployment.py` checks `config/rex_config.json` existence and schema
-- [ ] Script validates torch version against `pyproject.toml` range
-- [ ] `python scripts/validate_deployment.py` exits 0 on properly configured install
-- [ ] Typecheck passes
+- [x] `scripts/validate_deployment.py` checks `config/rex_config.json` existence and schema
+- [x] Script validates torch version against `pyproject.toml` range
+- [x] `python scripts/validate_deployment.py` exits 0 on properly configured install
+- [x] Typecheck passes
 
 ---
 

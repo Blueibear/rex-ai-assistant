@@ -24,7 +24,7 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -111,7 +111,7 @@ def _parse_datetime(date_str: str, time_str: str) -> datetime:
     combined = f"{date_str} {time_str}"
     for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S"):
         try:
-            return datetime.strptime(combined, fmt).replace(tzinfo=timezone.utc)
+            return datetime.strptime(combined, fmt).replace(tzinfo=UTC)
         except ValueError:
             continue
     raise ValueError(f"Cannot parse datetime from {combined!r}")
@@ -122,7 +122,7 @@ def _parse_iso_datetime(text: str) -> datetime:
     text = text.strip().replace("T", " ")
     for fmt in _DATE_TIME_FORMATS:
         try:
-            return datetime.strptime(text, fmt).replace(tzinfo=timezone.utc)
+            return datetime.strptime(text, fmt).replace(tzinfo=UTC)
         except ValueError:
             continue
     raise ValueError(f"Cannot parse ISO datetime from {text!r}")
@@ -281,7 +281,7 @@ def to_ical(invite: MeetingInvite) -> str:
     Returns:
         A string in iCalendar format (CRLF line endings per RFC 5545 §3.1).
     """
-    dtstamp = datetime.now(timezone.utc).strftime(_ICS_DT_FORMAT)
+    dtstamp = datetime.now(UTC).strftime(_ICS_DT_FORMAT)
     lines: list[str] = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
@@ -295,7 +295,7 @@ def to_ical(invite: MeetingInvite) -> str:
         start_utc = (
             invite.start_time
             if invite.start_time.tzinfo is not None
-            else invite.start_time.replace(tzinfo=timezone.utc)
+            else invite.start_time.replace(tzinfo=UTC)
         )
         lines.append(f"DTSTART:{start_utc.strftime(_ICS_DT_FORMAT)}")
 
@@ -303,7 +303,7 @@ def to_ical(invite: MeetingInvite) -> str:
         end_utc = (
             invite.end_time
             if invite.end_time.tzinfo is not None
-            else invite.end_time.replace(tzinfo=timezone.utc)
+            else invite.end_time.replace(tzinfo=UTC)
         )
         lines.append(f"DTEND:{end_utc.strftime(_ICS_DT_FORMAT)}")
 

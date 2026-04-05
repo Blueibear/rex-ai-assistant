@@ -19,9 +19,10 @@ import logging
 import os
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Callable, Literal
+from datetime import UTC, datetime
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 from rex.audit import LogEntry, get_audit_logger
@@ -331,7 +332,7 @@ def _log_audit_entry(
     try:
         duration_ms = int((time.monotonic() - start_time) * 1000)
         entry = LogEntry(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             action_id=action_id,
             task_id=task_id,
             tool=tool,

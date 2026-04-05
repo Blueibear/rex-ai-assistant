@@ -29,8 +29,9 @@ import asyncio
 import json
 import logging
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Literal, cast
+from typing import Any, Literal, cast
 
 from rex.autonomy.clarifier import Clarifier
 from rex.autonomy.cost_estimator import CostEstimate, CostEstimator, check_budget

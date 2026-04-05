@@ -27,7 +27,7 @@ import threading
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, overload
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class Event:
 
     event_type: str
     payload: dict[str, Any]
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __repr__(self) -> str:
         return f"Event(type={self.event_type}, timestamp={self.timestamp.isoformat()})"
@@ -164,7 +164,7 @@ class EventBus:
 
         event_type = str(arg1)
         payload = arg2 if isinstance(arg2, dict) else {}
-        event = Event(event_type=event_type, payload=payload, timestamp=datetime.now(timezone.utc))
+        event = Event(event_type=event_type, payload=payload, timestamp=datetime.now(UTC))
         self._publish_event(event)
         return event
 

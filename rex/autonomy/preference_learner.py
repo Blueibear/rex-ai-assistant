@@ -14,7 +14,7 @@ After each successful execution the learner updates three rolling signals:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from rex.autonomy.history import ExecutionRecord
 from rex.autonomy.preferences import UserPreferenceProfile
@@ -53,7 +53,7 @@ class PreferenceLearner:
         updated = profile.model_copy(deep=True)
 
         # 1. active_hours — append current hour if not already present.
-        current_hour: int = datetime.now(timezone.utc).hour
+        current_hour: int = datetime.now(UTC).hour
         if current_hour not in updated.active_hours:
             updated.active_hours.append(current_hour)
             logger.debug(
@@ -87,7 +87,7 @@ class PreferenceLearner:
                 len(updated.common_goal_patterns),
             )
 
-        updated.last_updated = datetime.now(timezone.utc)
+        updated.last_updated = datetime.now(UTC)
         return updated
 
 

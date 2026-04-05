@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from rex.integrations.models import SMSMessage, SMSThread
@@ -31,7 +31,7 @@ _STUB_USER = "+15559876543"
 
 def _build_stub_threads() -> list[SMSThread]:
     """Return two realistic stub SMS threads."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     def _mins_ago(m: int) -> datetime:
         return now - timedelta(minutes=m)
@@ -207,7 +207,7 @@ class SMSService:
             body=body,
             from_number=self._from_number,
             to_number=to,
-            sent_at=datetime.now(timezone.utc),
+            sent_at=datetime.now(UTC),
             status="stub",
         )
 
@@ -235,11 +235,7 @@ class SMSService:
                     body=m.body,
                     from_number=m.from_,
                     to_number=m.to,
-                    sent_at=(
-                        m.date_sent.replace(tzinfo=timezone.utc)
-                        if m.date_sent
-                        else datetime.now(timezone.utc)
-                    ),
+                    sent_at=(m.date_sent.replace(tzinfo=UTC) if m.date_sent else datetime.now(UTC)),
                     status="delivered",
                 )
                 if thread_id not in threads:
@@ -274,7 +270,7 @@ class SMSService:
                 body=body,
                 from_number=self._from_number,
                 to_number=to,
-                sent_at=datetime.now(timezone.utc),
+                sent_at=datetime.now(UTC),
                 status="sent",
             )
         except Exception as exc:  # noqa: BLE001
@@ -287,7 +283,7 @@ class SMSService:
                 body=body,
                 from_number=self._from_number,
                 to_number=to,
-                sent_at=datetime.now(timezone.utc),
+                sent_at=datetime.now(UTC),
                 status="stub",
             )
 

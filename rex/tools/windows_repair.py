@@ -59,9 +59,7 @@ def _run_ps(script: str, timeout: float = 30.0) -> str:
         timeout=timeout,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"PowerShell error (rc={result.returncode}): {result.stderr.strip()}"
-        )
+        raise RuntimeError(f"PowerShell error (rc={result.returncode}): {result.stderr.strip()}")
     return result.stdout.strip()
 
 
@@ -197,9 +195,7 @@ foreach ($u in $results.Updates) { $u.Title }
         return {
             "status": "error",
             "findings": [f"Could not check Windows Update status: {exc}"],
-            "recommended_actions": [
-                "Open Windows Update settings manually to check for updates."
-            ],
+            "recommended_actions": ["Open Windows Update settings manually to check for updates."],
         }
 
 
@@ -248,9 +244,7 @@ def flush_dns_cache(**kwargs: Any) -> dict[str, Any]:
         return {
             "status": "error",
             "findings": [f"Could not flush DNS cache: {exc}"],
-            "recommended_actions": [
-                "Run 'ipconfig /flushdns' from an elevated Command Prompt."
-            ],
+            "recommended_actions": ["Run 'ipconfig /flushdns' from an elevated Command Prompt."],
         }
 
 
@@ -339,7 +333,5 @@ def run_sfc_scan(confirmed: bool = False, **kwargs: Any) -> dict[str, Any]:
         return {
             "status": "error",
             "findings": [f"Could not run SFC scan: {exc}"],
-            "recommended_actions": [
-                "Run 'sfc /scannow' from an elevated Command Prompt manually."
-            ],
+            "recommended_actions": ["Run 'sfc /scannow' from an elevated Command Prompt manually."],
         }

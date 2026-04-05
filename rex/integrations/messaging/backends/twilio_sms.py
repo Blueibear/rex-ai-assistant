@@ -28,14 +28,12 @@ logger = logging.getLogger(__name__)
 
 
 class _TwilioMessagesProtocol(Protocol):
-    def create(self, *, to: str, from_: str, body: str) -> object:
-        ...
+    def create(self, *, to: str, from_: str, body: str) -> object: ...
 
 
 class _TwilioClientProtocol(Protocol):
     @property
-    def messages(self) -> _TwilioMessagesProtocol:
-        ...
+    def messages(self) -> _TwilioMessagesProtocol: ...
 
 
 class SMSSendError(Exception):

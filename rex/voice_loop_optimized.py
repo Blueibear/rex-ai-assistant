@@ -17,19 +17,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-import sys
 import tempfile
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
-
-if sys.version_info >= (3, 10):
-    from typing import TypeAlias
-else:
-    from typing_extensions import TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 if TYPE_CHECKING:
     import numpy as np
@@ -39,7 +33,7 @@ else:
     except ImportError:
         np = None
 
-from wake_acknowledgment import ensure_wake_acknowledgment_sound
+from rex.wake_acknowledgment import ensure_wake_acknowledgment_sound
 
 from .assistant_errors import AudioDeviceError, SpeechToTextError, TextToSpeechError
 from .config import settings

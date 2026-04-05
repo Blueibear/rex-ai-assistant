@@ -36,7 +36,8 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from rex.openclaw.errors import OpenClawAPIError, OpenClawAuthError, OpenClawConnectionError
 from rex.openclaw.http_client import get_openclaw_client

@@ -161,7 +161,7 @@ class ICSCalendarBackend(CalendarBackend):
             headers={"Accept": "text/calendar, text/plain"},
         )
         response.raise_for_status()
-        return response.text
+        return str(response.text)
 
 
 def _looks_like_windows_path(source: str) -> bool:

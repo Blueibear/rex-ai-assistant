@@ -130,7 +130,7 @@ class SpeakerDiscoveryService:
             return []
 
         try:
-            discover = getattr(discovery_module, "discover")
+            discover = discovery_module.discover
             devices = discover(timeout=self._discovery_timeout_seconds) or set()
         except Exception:
             logger.exception("Sonos discovery failed")
@@ -146,7 +146,9 @@ class SpeakerDiscoveryService:
                 speakers.append(
                     DiscoveredSpeaker(
                         provider="sonos",
-                        name=str(getattr(device, "player_name", info.get("zone_name", "Sonos Speaker"))),
+                        name=str(
+                            getattr(device, "player_name", info.get("zone_name", "Sonos Speaker"))
+                        ),
                         ip=str(getattr(device, "ip_address", info.get("ip_address", ""))),
                         model=str(info.get("model_name") or getattr(device, "model_name", "Sonos")),
                     )
@@ -166,7 +168,7 @@ class SpeakerDiscoveryService:
                 while True:
                     try:
                         payload, addr = sock.recvfrom(65535)
-                    except socket.timeout:
+                    except TimeoutError:
                         break
                     speaker = _parse_bose_response(payload, addr[0])
                     if speaker is not None:

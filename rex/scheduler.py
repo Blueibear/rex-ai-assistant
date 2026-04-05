@@ -31,10 +31,11 @@ import logging
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ def _utc_now() -> datetime:
 def _ensure_tz(dt: datetime) -> datetime:
     if dt.tzinfo is None:
         return dt
-    return dt.astimezone(timezone.utc)
+    return dt.astimezone(UTC)
 
 
 def _parse_dt(value: Any) -> datetime | None:

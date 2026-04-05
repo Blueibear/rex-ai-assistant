@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from rex.priority_notification_router import DigestEntry, PriorityNotificationRouter
@@ -71,7 +71,7 @@ class DigestResult:
         error: Human-readable error string on failure.
     """
 
-    ran_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    ran_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     entries_processed: int = 0
     delivered: bool = False
     notification_id: str | None = None
@@ -155,7 +155,7 @@ class DigestJob:
         Returns:
             A :class:`DigestResult` describing the outcome.
         """
-        ran_at = datetime.now(timezone.utc)
+        ran_at = datetime.now(UTC)
         entries: list[DigestEntry] = self._router.drain_digest_queue()
 
         if not entries:

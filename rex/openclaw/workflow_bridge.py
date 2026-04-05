@@ -40,8 +40,9 @@ Typical usage::
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from rex.workflow import Workflow, WorkflowStep
 from rex.workflow_runner import (

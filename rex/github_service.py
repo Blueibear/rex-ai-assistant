@@ -18,7 +18,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -39,7 +39,7 @@ class Repository:
     full_name: str
     owner: str
     url: str
-    description: Optional[str]
+    description: str | None
     private: bool
     default_branch: str
 
@@ -91,7 +91,7 @@ class GitHubService:
         credential_name: str = "github",
         api_base: str = "https://api.github.com",
         mock_mode: bool = False,
-        mock_data_path: Optional[str] = None,
+        mock_data_path: str | None = None,
     ):
         """
         Initialize GitHub service.
@@ -128,8 +128,8 @@ class GitHubService:
         self,
         method: str,
         endpoint: str,
-        data: Optional[dict] = None,
-        params: Optional[dict] = None,
+        data: dict | None = None,
+        params: dict | None = None,
     ) -> dict[str, Any]:
         """
         Make a GitHub API request.
@@ -342,7 +342,7 @@ class GitHubService:
         repo: str,
         title: str,
         body: str,
-        labels: Optional[list[str]] = None,
+        labels: list[str] | None = None,
     ) -> Issue:
         """
         Create an issue in a repository.
@@ -683,7 +683,7 @@ class GitHubService:
         message: str,
         content: str,
         branch: str = "main",
-        sha: Optional[str] = None,
+        sha: str | None = None,
     ) -> dict[str, Any]:
         """
         Create or update a file in a repository via the GitHub Contents API.
@@ -773,7 +773,7 @@ class GitHubService:
         repo_path: str,
         branch: str,
         patch_file: str,
-        commit_message: Optional[str] = None,
+        commit_message: str | None = None,
     ) -> dict[str, Any]:
         """
         Apply a patch file to a local repository.
@@ -906,7 +906,7 @@ class GitHubService:
 
 
 # Singleton instance
-_github_service: Optional[GitHubService] = None
+_github_service: GitHubService | None = None
 
 
 def get_github_service() -> GitHubService:

@@ -17,17 +17,9 @@ import threading
 import urllib.error
 import urllib.request
 from collections.abc import Sequence
-from enum import auto
+from enum import StrEnum, auto
 
 logger = logging.getLogger(__name__)
-
-try:
-    from enum import StrEnum
-except ImportError:  # Python < 3.11
-    from enum import Enum
-
-    class StrEnum(str, Enum):  # type: ignore[no-redef]
-        pass
 
 
 class TaskCategory(StrEnum):

@@ -28,7 +28,7 @@ from importlib.util import find_spec
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
-from wake_acknowledgment import ensure_wake_acknowledgment_sound
+from rex.wake_acknowledgment import ensure_wake_acknowledgment_sound
 
 from .assistant_errors import (
     AudioDeviceError,
@@ -1170,7 +1170,14 @@ def build_voice_loop(
                     sample_rate=sample_rate,
                 )
                 if smart_mic.connect():
-                    smart_mic_recorder = smart_mic.read_frame
+
+                    def _smart_mic_recorder(duration: float) -> AudioArray:
+                        frame = smart_mic.read_frame(duration)
+                        if frame is None:
+                            raise AudioDeviceError("Smart speaker microphone stream disconnected")
+                        return cast(AudioArray, frame)
+
+                    smart_mic_recorder = _smart_mic_recorder
                     logger.info(
                         "[voice] Wake word input routed to %r (%s).", target.name, target.ip
                     )

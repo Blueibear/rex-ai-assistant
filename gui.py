@@ -1,3 +1,6 @@
+# DEPRECATED: Use `askrex-gui` (web dashboard) instead.
+# This Tkinter launcher will be removed in the next major release.
+# See docs/UI_SURFACES.md for the canonical GUI entry point.
 """Simple Tkinter dashboard for monitoring the Rex assistant."""
 
 # ruff: noqa: E402, I001

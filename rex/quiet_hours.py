@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, time, timezone
+from datetime import UTC, datetime, time
 from typing import Any
 
 from rex.notification_priority import NotificationPriority
@@ -193,7 +193,7 @@ class QuietHoursGuard:
         Args:
             now: Timestamp to check (defaults to current UTC time).
         """
-        ts = now or datetime.now(timezone.utc)
+        ts = now or datetime.now(UTC)
         return self._config.is_quiet(ts)
 
     def submit(
@@ -213,7 +213,7 @@ class QuietHoursGuard:
         Returns:
             A :class:`SubmitResult` describing what happened.
         """
-        ts = now or datetime.now(timezone.utc)
+        ts = now or datetime.now(UTC)
 
         # Critical always bypasses.
         if notification.priority in _BYPASS_PRIORITIES:
@@ -278,7 +278,7 @@ class QuietHoursGuard:
                     exc,
                 )
 
-        ts = now or datetime.now(timezone.utc)
+        ts = now or datetime.now(UTC)
         logger.info(
             "[QuietHoursGuard] Released %d held notification(s) at %s.",
             count,

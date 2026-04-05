@@ -33,7 +33,8 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from rex.openclaw.event_bridge import EventBridge as _EventBridge
 from rex.openclaw.event_bus import EventBus as _EventBus

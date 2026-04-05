@@ -25,9 +25,10 @@ from __future__ import annotations
 import logging
 import sys
 import traceback
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from functools import wraps
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 _LOG = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ def handle_unhandled_exception(
     makes the function testable.
     """
     tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
     logger.critical(
         "Unhandled exception — %s: %s | timestamp=%s\n%s",
         type(exc).__name__,

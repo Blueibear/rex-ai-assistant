@@ -32,9 +32,7 @@ def main() -> None:
     try:
         if command == "list":
             items = sl.list_items()
-            sys.stdout.write(
-                json.dumps({"ok": True, "items": [i.to_dict() for i in items]})
-            )
+            sys.stdout.write(json.dumps({"ok": True, "items": [i.to_dict() for i in items]}))
 
         elif command == "add":
             name = str(payload.get("name", "")).strip()
@@ -49,12 +47,16 @@ def main() -> None:
         elif command == "check":
             item_id = str(payload.get("id", ""))
             found = sl.check_item(item_id)
-            sys.stdout.write(json.dumps({"ok": found, "error": None if found else "item not found"}))
+            sys.stdout.write(
+                json.dumps({"ok": found, "error": None if found else "item not found"})
+            )
 
         elif command == "uncheck":
             item_id = str(payload.get("id", ""))
             found = sl.uncheck_item(item_id)
-            sys.stdout.write(json.dumps({"ok": found, "error": None if found else "item not found"}))
+            sys.stdout.write(
+                json.dumps({"ok": found, "error": None if found else "item not found"})
+            )
 
         elif command == "clear_checked":
             count = sl.clear_checked()

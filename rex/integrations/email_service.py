@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from rex.integrations.models import EmailMessage
 
@@ -34,7 +34,7 @@ _STUB_MESSAGES: list[EmailMessage] = [
             "Hi there,\n\nWelcome aboard! Rex is ready to help you stay organised.\n\n"
             "Best,\nThe Rex Team"
         ),
-        received_at=datetime.now(timezone.utc) - timedelta(hours=2),
+        received_at=datetime.now(UTC) - timedelta(hours=2),
         labels=["INBOX"],
         is_read=False,
         priority="medium",
@@ -46,7 +46,7 @@ _STUB_MESSAGES: list[EmailMessage] = [
         sender="notifications@rex.ai",
         recipients=["user@example.com"],
         body_text="Here is your weekly activity summary from Rex.",
-        received_at=datetime.now(timezone.utc) - timedelta(hours=10),
+        received_at=datetime.now(UTC) - timedelta(hours=10),
         labels=["INBOX"],
         is_read=True,
         priority="low",
@@ -58,7 +58,7 @@ _STUB_MESSAGES: list[EmailMessage] = [
         sender="billing@vendor.example.com",
         recipients=["user@example.com"],
         body_text="Please review and pay invoice #4821 by end of week.",
-        received_at=datetime.now(timezone.utc) - timedelta(days=1),
+        received_at=datetime.now(UTC) - timedelta(days=1),
         labels=["INBOX", "IMPORTANT"],
         is_read=False,
         priority="high",
@@ -70,7 +70,7 @@ _STUB_MESSAGES: list[EmailMessage] = [
         sender="colleague@example.com",
         recipients=["user@example.com"],
         body_text="Hi, I've attached the notes from today's Q2 planning session.",
-        received_at=datetime.now(timezone.utc) - timedelta(days=2),
+        received_at=datetime.now(UTC) - timedelta(days=2),
         labels=["INBOX"],
         is_read=True,
         priority="medium",
@@ -82,7 +82,7 @@ _STUB_MESSAGES: list[EmailMessage] = [
         sender="alerts@monitoring.example.com",
         recipients=["user@example.com", "ops@example.com"],
         body_text="High CPU usage detected on prod-web-01. Immediate attention required.",
-        received_at=datetime.now(timezone.utc) - timedelta(minutes=15),
+        received_at=datetime.now(UTC) - timedelta(minutes=15),
         labels=["INBOX", "IMPORTANT"],
         is_read=False,
         priority="critical",
@@ -164,7 +164,7 @@ class EmailService:
             sender="user@example.com",
             recipients=[to],
             body_text=body,
-            received_at=datetime.now(timezone.utc),
+            received_at=datetime.now(UTC),
             labels=["SENT"],
             is_read=True,
             priority="low",
@@ -271,7 +271,7 @@ class EmailService:
                 sender="me",
                 recipients=[to],
                 body_text=body,
-                received_at=datetime.now(timezone.utc),
+                received_at=datetime.now(UTC),
                 labels=["SENT"],
                 is_read=True,
                 priority="low",
@@ -285,7 +285,7 @@ class EmailService:
                 sender="user@example.com",
                 recipients=[to],
                 body_text=body,
-                received_at=datetime.now(timezone.utc),
+                received_at=datetime.now(UTC),
                 labels=["SENT"],
                 is_read=True,
                 priority="low",
@@ -347,11 +347,9 @@ class EmailService:
 
             internal_date = data.get("internalDate")
             if internal_date is not None:
-                received_at = datetime.fromtimestamp(
-                    int(str(internal_date)) / 1000, tz=timezone.utc
-                )
+                received_at = datetime.fromtimestamp(int(str(internal_date)) / 1000, tz=UTC)
             else:
-                received_at = datetime.now(timezone.utc)
+                received_at = datetime.now(UTC)
 
             snippet = str(data.get("snippet", ""))
             msg_id = str(data.get("id", uuid.uuid4().hex))

@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from rex.notification_priority import NotificationPriority
@@ -168,7 +168,7 @@ class EscalationResult:
             ``max_attempts`` this run (escalation halted for these).
     """
 
-    ran_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    ran_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     escalated: list[EscalationAttempt] = field(default_factory=list)
     max_reached_ids: list[str] = field(default_factory=list)
 
@@ -313,7 +313,7 @@ class EscalationJob:
             An :class:`EscalationResult` with this run's escalation attempts
             and any IDs that hit the maximum attempt count.
         """
-        ran_at = datetime.now(timezone.utc)
+        ran_at = datetime.now(UTC)
         result = EscalationResult(ran_at=ran_at)
 
         for record in self._tracked.values():

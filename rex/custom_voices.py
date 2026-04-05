@@ -49,7 +49,7 @@ def get_audio_duration(file_path: str | Path) -> float:
         import soundfile as sf
 
         info = sf.info(str(path))
-        return info.duration
+        return float(info.duration)
     except ImportError:
         raise ValueError(
             f"soundfile is required to read {suffix.upper()} files. "

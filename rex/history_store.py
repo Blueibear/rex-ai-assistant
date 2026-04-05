@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import sqlite3
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ class HistoryStore:
             content:   Message text.
             timestamp: When the turn occurred.  Stored as UTC ISO-8601.
         """
-        ts = timestamp.astimezone(timezone.utc).isoformat()
+        ts = timestamp.astimezone(UTC).isoformat()
         with self._lock:
             with self._connect() as conn:
                 conn.execute(
@@ -127,7 +127,7 @@ class HistoryStore:
         """
         from datetime import timedelta
 
-        cutoff = datetime.now(timezone.utc) - timedelta(days=keep_days)
+        cutoff = datetime.now(UTC) - timedelta(days=keep_days)
         cutoff_ts = cutoff.isoformat()
         with self._lock:
             with self._connect() as conn:

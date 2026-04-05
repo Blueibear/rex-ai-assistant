@@ -17,7 +17,7 @@ import time
 import wave
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ def _wav_duration_seconds(wav_path: str) -> float:
     """Return the duration of a WAV file in seconds (defaults to 5.0 on error)."""
     try:
         with wave.open(wav_path) as wf:
-            return wf.getnframes() / wf.getframerate()
+            return float(wf.getnframes()) / float(wf.getframerate())
     except Exception:
         return 5.0
 
@@ -49,7 +49,7 @@ def _get_local_ip() -> str:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         with s:
             s.connect(("8.8.8.8", 80))
-            return s.getsockname()[0]
+            return cast(str, s.getsockname()[0])
     except OSError:
         return "127.0.0.1"
 
@@ -84,7 +84,7 @@ def _make_file_handler(wav_path: str) -> type[BaseHTTPRequestHandler]:
             self.end_headers()
             self.wfile.write(data)
 
-        def log_message(self, fmt: str, *args: Any) -> None:  # type: ignore[override]
+        def log_message(self, fmt: str, *args: Any) -> None:
             logger.debug("[smart-speaker-http] " + fmt, *args)
 
     return _Handler

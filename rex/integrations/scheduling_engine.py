@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Protocol, cast, runtime_checkable
 
 from rex.integrations.models import CalendarEvent, TimeSlot
@@ -124,7 +124,7 @@ class SchedulingEngine:
         Returns:
             List of up to 3 :class:`TimeSlot` objects ordered by start time.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         earliest = earliest or now
         latest = latest or (now + timedelta(days=7))
 

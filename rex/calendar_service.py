@@ -13,7 +13,7 @@ import os
 import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -50,8 +50,8 @@ def _ensure_aware_utc(dt: datetime) -> datetime:
     If a naive datetime is provided, it is assumed to already be UTC.
     """
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 @dataclass(slots=True, init=False)  # type: ignore[call-overload]
@@ -183,7 +183,7 @@ class CalendarService:
 
     def list_upcoming(self, *, horizon_hours: int = 72) -> list[CalendarEvent]:
         events = self._load_events()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         horizon = now + timedelta(hours=horizon_hours)
 
         # Upcoming includes events that start within horizon or are currently ongoing
@@ -224,7 +224,7 @@ class CalendarService:
 
     def list_past_events(self, *, lookback_hours: int = 72) -> list[CalendarEvent]:
         """Return events that ended within the lookback window."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         start = now - timedelta(hours=lookback_hours)
         events = self.get_events(start, now)
         past_events = [event for event in events if event.end_time <= now]
@@ -354,7 +354,7 @@ class CalendarService:
         return conflicts
 
     def get_upcoming_events(self, days: int = 7) -> list[CalendarEvent]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         end = now + timedelta(days=days)
         return self.get_events(now, end)
 
@@ -410,7 +410,7 @@ class CalendarService:
             elif isinstance(start_raw, datetime):
                 start_dt = start_raw
             else:
-                start_dt = datetime.now(timezone.utc)
+                start_dt = datetime.now(UTC)
 
             if isinstance(end_raw, str):
                 end_dt = datetime.fromisoformat(end_raw)
@@ -457,7 +457,7 @@ class CalendarService:
             logger.error("Failed to save mock calendar data: %s", e, exc_info=True)
 
     def _default_mock_events(self) -> list[CalendarEvent]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return [
             CalendarEvent(
                 event_id="event-001",
@@ -490,7 +490,7 @@ class CalendarService:
         Returns:
             List of events that ended within the window, sorted by end_time.
         """
-        check_time = now or datetime.now(timezone.utc)
+        check_time = now or datetime.now(UTC)
         window_start = check_time - timedelta(hours=hours)
 
         events = self._load_events()
@@ -529,7 +529,7 @@ class CalendarService:
             logger.warning("CueStore not available, cannot generate followup cues")
             return 0
 
-        check_time = now or datetime.now(timezone.utc)
+        check_time = now or datetime.now(UTC)
         past_events = self.get_past_events(hours=lookback_hours, now=check_time)
         cue_store = get_cue_store()
 

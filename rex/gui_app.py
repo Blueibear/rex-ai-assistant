@@ -7,6 +7,7 @@ Accessible via the ``rex-gui`` entry point.
 from __future__ import annotations
 
 import json
+import os
 import signal
 import sys
 import threading
@@ -21,6 +22,23 @@ _DEFAULT_PORT = 8765
 
 # Path to the pre-built React UI (rex/ui/dist/)
 _UI_DIST = Path(__file__).parent / "ui" / "dist"
+
+
+def _resolve_server_port() -> int:
+    """Return the dashboard port, allowing a simple env override."""
+    raw_port = os.getenv("REX_GUI_PORT")
+    if raw_port is None:
+        return _DEFAULT_PORT
+
+    try:
+        port = int(raw_port)
+    except ValueError as exc:
+        raise ValueError("REX_GUI_PORT must be an integer") from exc
+
+    if not 1 <= port <= 65535:
+        raise ValueError("REX_GUI_PORT must be between 1 and 65535")
+
+    return port
 
 
 def _create_flask_app(ui_enabled: bool = True) -> Any:
@@ -179,7 +197,7 @@ def main() -> None:
     logging.basicConfig(level=logging.WARNING)
 
     host = _DEFAULT_HOST
-    port = _DEFAULT_PORT
+    port = _resolve_server_port()
 
     try:
         from rex.config import load_config

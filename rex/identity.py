@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .config import settings
@@ -57,8 +57,8 @@ def _load_session() -> dict:
     path = _session_state_path()
     if path.exists():
         try:
-            modified_at = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
-            age = datetime.now(timezone.utc) - modified_at
+            modified_at = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)
+            age = datetime.now(UTC) - modified_at
             if age.total_seconds() > settings.session_ttl_hours * 3600:
                 path.unlink(missing_ok=True)
                 return {}
@@ -239,7 +239,7 @@ def create_user_profile(
 
     profile_dir.mkdir(parents=True, exist_ok=True)
 
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     data: dict = {
         "name": name,
         "role": role,
@@ -309,7 +309,7 @@ def update_user_preferences(
             existing_prefs = {}
         existing_prefs.update(preferences)
         data["preferences"] = existing_prefs
-        data["last_updated"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        data["last_updated"] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         core_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         logger.info("Updated preferences for user %s", user_id)
         return True

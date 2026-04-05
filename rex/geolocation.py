@@ -44,7 +44,7 @@ async def detect_location() -> dict[str, object] | None:
         if result is not None:
             _location_cache = result
         return result
-    except asyncio.TimeoutError:
+    except TimeoutError:
         LOGGER.warning("IP geolocation timed out after %.1fs", _TIMEOUT_SECONDS)
         return None
     except Exception as exc:

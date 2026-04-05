@@ -32,9 +32,10 @@ Usage example::
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable
+from datetime import UTC, datetime
+from typing import Any
 
 from rex.notification_priority import NotificationPriority
 
@@ -77,7 +78,7 @@ class RoutableNotification:
     body: str = ""
     channels: list[str] = field(default_factory=lambda: ["dashboard"])
     metadata: dict[str, Any] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass
@@ -108,7 +109,7 @@ class DigestEntry:
     """A single entry in the digest queue."""
 
     notification: RoutableNotification
-    queued_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    queued_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 # ---------------------------------------------------------------------------

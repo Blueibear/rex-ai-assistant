@@ -17,7 +17,7 @@ import imaplib
 import logging
 import smtplib
 import ssl
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.message import EmailMessage
 
 from rex.email_backends.base import EmailBackend, EmailEnvelope, SendResult
@@ -161,7 +161,7 @@ class ImapSmtpEmailBackend(EmailBackend):
         to_addrs_raw = msg.get("To", "")
         message_id = msg.get("Message-ID", str(msg_num))
 
-        received_at = _parse_email_date(date_str) or datetime.now(timezone.utc)
+        received_at = _parse_email_date(date_str) or datetime.now(UTC)
         snippet = subject[:200] if subject else ""
         to_addrs = [addr.strip() for addr in to_addrs_raw.split(",") if addr.strip()]
 
@@ -304,7 +304,7 @@ def _parse_email_date(date_str: str) -> datetime | None:
     try:
         parsed = email.utils.parsedate_to_datetime(date_str)
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
+            parsed = parsed.replace(tzinfo=UTC)
         return parsed
     except Exception:
         return None

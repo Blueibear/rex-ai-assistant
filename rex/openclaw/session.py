@@ -18,7 +18,7 @@ Typical usage::
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from rex.identity import get_user_profile, list_known_users, resolve_active_user
@@ -70,7 +70,7 @@ def build_session_context(
     session: dict[str, Any] = {
         # Primary identity fields (remapped once OpenClaw schema is known)
         "user_id": user_id,
-        "session_started_at": datetime.now(tz=timezone.utc).isoformat(),
+        "session_started_at": datetime.now(tz=UTC).isoformat(),
         # Rex-specific extras
         "rex_known_users": list_known_users(),
         "rex_user_profile": user_profile,

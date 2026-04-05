@@ -8,6 +8,7 @@ Writes JSON to stdout (single line):
   {"ok": true, "is_image": true}
   {"ok": false, "error": "..."}
 """
+
 from __future__ import annotations
 
 import base64
@@ -88,9 +89,7 @@ def main() -> None:
         return
 
     # Text types and fallback
-    if mime_type in TEXT_MIME_TYPES or filename.lower().endswith(
-        (".txt", ".md", ".csv")
-    ):
+    if mime_type in TEXT_MIME_TYPES or filename.lower().endswith((".txt", ".md", ".csv")):
         try:
             text = data.decode("utf-8")
         except UnicodeDecodeError:
@@ -112,9 +111,7 @@ def main() -> None:
             flush=True,
         )
     except Exception:
-        print(
-            json.dumps({"ok": False, "error": "Unsupported file type"}), flush=True
-        )
+        print(json.dumps({"ok": False, "error": "Unsupported file type"}), flush=True)
         sys.exit(1)
 
 

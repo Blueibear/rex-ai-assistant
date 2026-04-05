@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import copy
 import re
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 # --- Enums ---
 
 
-class EvidenceKind(str, Enum):
+class EvidenceKind(StrEnum):
     """Types of evidence that can be attached to actions or results."""
 
     SCREENSHOT = "screenshot"
@@ -35,7 +35,7 @@ class EvidenceKind(str, Enum):
     OTHER = "other"
 
 
-class ApprovalStatus(str, Enum):
+class ApprovalStatus(StrEnum):
     """Status of an approval request."""
 
     PENDING = "pending"
@@ -44,7 +44,7 @@ class ApprovalStatus(str, Enum):
     EXPIRED = "expired"
 
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     """Risk classification for actions."""
 
     LOW = "low"
@@ -52,7 +52,7 @@ class RiskLevel(str, Enum):
     HIGH = "high"
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     """Status of a task in its lifecycle."""
 
     QUEUED = "queued"
@@ -63,7 +63,7 @@ class TaskStatus(str, Enum):
     CANCELED = "canceled"
 
 
-class NotificationChannel(str, Enum):
+class NotificationChannel(StrEnum):
     """Channels through which notifications can be delivered."""
 
     DASHBOARD = "dashboard"
@@ -74,7 +74,7 @@ class NotificationChannel(str, Enum):
     OTHER = "other"
 
 
-class NotificationPriority(str, Enum):
+class NotificationPriority(StrEnum):
     """Priority levels for notifications."""
 
     URGENT = "urgent"
@@ -137,7 +137,7 @@ def redact_sensitive_keys(
 
 def _utc_now() -> datetime:
     """Return the current UTC datetime."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # --- Models ---

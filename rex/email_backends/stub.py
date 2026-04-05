@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -154,7 +154,7 @@ class StubEmailBackend(EmailBackend):
         snippet = d.get("snippet") or str(d.get("body", ""))[:200]
 
         received_raw = d.get("received_at")
-        received_at = _parse_dt(received_raw) or datetime.now(timezone.utc)
+        received_at = _parse_dt(received_raw) or datetime.now(UTC)
 
         labels = d.get("labels")
         if not isinstance(labels, list):
@@ -179,11 +179,11 @@ def _parse_dt(value: Any) -> datetime | None:
     if value is None:
         return None
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
     if isinstance(value, str):
         try:
             dt = datetime.fromisoformat(value)
-            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+            return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
         except Exception:
             return None
     return None

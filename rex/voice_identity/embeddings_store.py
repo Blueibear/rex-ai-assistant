@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PurePath
 
 from rex.voice_identity.types import VoiceEmbedding
@@ -70,7 +70,7 @@ class EmbeddingsStore:
         data = {
             "model_id": embedding.model_id,
             "sample_count": embedding.sample_count,
-            "updated_at": embedding.updated_at or datetime.now(timezone.utc).isoformat(),
+            "updated_at": embedding.updated_at or datetime.now(UTC).isoformat(),
             "embedding": embedding.vector,
         }
         path.write_text(json.dumps(data, indent=2), encoding="utf-8")

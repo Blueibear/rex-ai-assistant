@@ -16,7 +16,7 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, time, timezone
+from datetime import UTC, datetime, time
 from pathlib import Path
 from typing import Literal
 
@@ -43,7 +43,7 @@ def get_email_service():
 
 def _utc_now() -> datetime:
     """Return the current UTC datetime."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # --- Models ---

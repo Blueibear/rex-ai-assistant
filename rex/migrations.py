@@ -26,7 +26,7 @@ import logging
 import os
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -146,7 +146,7 @@ def mark_migration_applied(name: str, db_path: Path | None = None) -> None:
     conn = _open_db(resolved)
     try:
         conn.execute(_SCHEMA_TABLE_SQL)
-        applied_at = datetime.now(timezone.utc).isoformat()
+        applied_at = datetime.now(UTC).isoformat()
         conn.execute(
             "INSERT OR IGNORE INTO schema_migrations (name, applied_at) VALUES (?, ?)",
             (name, applied_at),

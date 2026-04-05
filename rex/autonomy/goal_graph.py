@@ -11,7 +11,7 @@ Provides:
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 
-class GoalStatus(str, Enum):
+class GoalStatus(StrEnum):
     """Lifecycle status of a :class:`Goal`."""
 
     PENDING = "pending"

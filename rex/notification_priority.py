@@ -14,10 +14,10 @@ Usage example::
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
-class NotificationPriority(str, Enum):
+class NotificationPriority(StrEnum):
     """Priority levels for notifications.
 
     Values are lowercase strings so they can be stored directly in SQLite

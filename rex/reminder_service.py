@@ -25,7 +25,7 @@ import json
 import logging
 import uuid
 from collections.abc import Iterable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
@@ -42,14 +42,14 @@ _LEGACY_DATA_DIR = Path("data/followups")
 
 def _utc_now() -> datetime:
     """Return the current UTC datetime."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _ensure_utc(dt: datetime) -> datetime:
     """Ensure a datetime is timezone-aware and normalized to UTC."""
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def _ensure_data_dir() -> Path:

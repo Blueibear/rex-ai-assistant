@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -64,7 +64,7 @@ class Notification(BaseModel):
     channel: NotificationChannel = "desktop"
     digest_eligible: bool = False
     quiet_hours_exempt: bool = False
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     delivered_at: datetime | None = None
     read_at: datetime | None = None
     escalation_due_at: datetime | None = None
@@ -201,7 +201,7 @@ class NotificationStore:
 
         Does nothing if the ID does not exist.
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         with self._connect() as con:
             con.execute(
                 "UPDATE notifications SET read_at = ? WHERE id = ?",

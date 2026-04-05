@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from rex.integrations.models import CalendarEvent
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 def _days_from_now(days: float, hour: int = 9, minute: int = 0) -> datetime:
-    base = datetime.now(timezone.utc).replace(hour=hour, minute=minute, second=0, microsecond=0)
+    base = datetime.now(UTC).replace(hour=hour, minute=minute, second=0, microsecond=0)
     return base + timedelta(days=days)
 
 
@@ -215,7 +215,7 @@ class CalendarService:
         if isinstance(start, str):
             start = datetime.fromisoformat(start)
         if not isinstance(start, datetime):
-            start = datetime.now(timezone.utc)
+            start = datetime.now(UTC)
 
         if isinstance(end, str):
             end = datetime.fromisoformat(end)
@@ -373,8 +373,8 @@ class CalendarService:
             if is_all_day:
                 start_str = str(start_raw.get("date", ""))
                 end_str = str(end_raw.get("date", ""))
-                start = datetime.fromisoformat(start_str).replace(tzinfo=timezone.utc)
-                end = datetime.fromisoformat(end_str).replace(tzinfo=timezone.utc)
+                start = datetime.fromisoformat(start_str).replace(tzinfo=UTC)
+                end = datetime.fromisoformat(end_str).replace(tzinfo=UTC)
             else:
                 start_str = str(start_raw.get("dateTime", ""))
                 end_str = str(end_raw.get("dateTime", ""))

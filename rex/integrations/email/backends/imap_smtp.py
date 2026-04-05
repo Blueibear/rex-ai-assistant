@@ -17,8 +17,8 @@ import imaplib
 import logging
 import smtplib
 import ssl
-from datetime import datetime, timezone
-from typing import Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
 
 from rex.credentials import CredentialManager
 from rex.integrations.email.backends.base import EmailBackend
@@ -185,7 +185,7 @@ class IMAPBackend(EmailBackend):
         date_str = msg.get("Date", "")
         message_id = msg.get("Message-ID", num.decode() if isinstance(num, bytes) else str(num))
 
-        received_at = _parse_email_date(date_str) or datetime.now(timezone.utc)
+        received_at = _parse_email_date(date_str) or datetime.now(UTC)
         snippet = (subject_str or "")[:200]
 
         return {
@@ -341,7 +341,7 @@ def _parse_email_date(date_str: str) -> datetime | None:
     try:
         parsed = email.utils.parsedate_to_datetime(date_str)
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
+            parsed = parsed.replace(tzinfo=UTC)
         return parsed
     except Exception:
         return None

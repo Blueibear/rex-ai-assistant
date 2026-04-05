@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from rex.notifications.models import NotificationPriority, NotificationStore
@@ -107,7 +107,7 @@ class EscalationEngine:
         3. Update ``escalation_due_at`` to ``now + escalation_delay`` and
            persist via :meth:`~NotificationStore.update`.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         delay_minutes = _load_escalation_delay(self._config)
         delay = timedelta(minutes=delay_minutes)
         unread = self._store.get_unread()
@@ -118,7 +118,7 @@ class EscalationEngine:
             # Ensure comparison is timezone-aware.
             due = notification.escalation_due_at
             if due.tzinfo is None:
-                due = due.replace(tzinfo=timezone.utc)
+                due = due.replace(tzinfo=UTC)
             if due > now:
                 continue
 

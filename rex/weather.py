@@ -38,7 +38,7 @@ async def get_weather(location: str, api_key: str) -> dict[str, Any]:
             loop.run_in_executor(None, _fetch_weather, url),
             timeout=5.0,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return {"error": "Weather API request timed out"}
     except Exception as exc:
         return {"error": f"Weather API request failed: {exc}"}

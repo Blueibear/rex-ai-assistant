@@ -9,8 +9,8 @@ Defines:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 def _utc_now() -> datetime:
     """Return the current UTC datetime."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -30,7 +30,7 @@ def _utc_now() -> datetime:
 # ---------------------------------------------------------------------------
 
 
-class StepStatus(str, Enum):
+class StepStatus(StrEnum):
     """Lifecycle status of a single plan step."""
 
     PENDING = "pending"
@@ -40,7 +40,7 @@ class StepStatus(str, Enum):
     SKIPPED = "skipped"
 
 
-class PlanStatus(str, Enum):
+class PlanStatus(StrEnum):
     """Lifecycle status of an overall plan."""
 
     PENDING = "pending"

@@ -17,7 +17,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from rex.audit import LogEntry, get_audit_logger
 from rex.contracts.core import ToolCall
@@ -50,9 +50,9 @@ class OSAutomationService:
 
     def __init__(
         self,
-        allowed_commands: Optional[list[str]] = None,
-        config_path: Optional[str] = None,
-        data_path: Optional[str] = None,
+        allowed_commands: list[str] | None = None,
+        config_path: str | None = None,
+        data_path: str | None = None,
     ):
         """
         Initialize OS automation service.
@@ -109,7 +109,7 @@ class OSAutomationService:
         self,
         cmd: list[str],
         timeout: int = 30,
-        cwd: Optional[str] = None,
+        cwd: str | None = None,
     ) -> CommandResult:
         """
         Run a command if it's in the allowed list.
@@ -559,7 +559,7 @@ class OSAutomationService:
 
 
 # Singleton instance
-_os_service: Optional[OSAutomationService] = None
+_os_service: OSAutomationService | None = None
 
 
 def get_os_service() -> OSAutomationService:

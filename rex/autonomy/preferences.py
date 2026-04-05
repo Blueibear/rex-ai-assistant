@@ -13,7 +13,7 @@ first save.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -51,7 +51,7 @@ class UserPreferenceProfile(BaseModel):
     common_goal_patterns: list[str] = Field(default_factory=list)
     active_hours: list[int] = Field(default_factory=list)
     avg_budget_usd: float = 0.0
-    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 # ---------------------------------------------------------------------------

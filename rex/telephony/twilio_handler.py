@@ -85,7 +85,7 @@ def _validate_twilio_signature(auth_token: str) -> bool:
         url = request.url
         post_data = request.form.to_dict()
         signature = request.headers.get("X-Twilio-Signature", "")
-        return validator.validate(url, post_data, signature)
+        return bool(validator.validate(url, post_data, signature))
     except ImportError:
         logger.warning("twilio package not installed; skipping signature validation")
         return True
@@ -156,9 +156,7 @@ def _build_gather_twiml(say_text: str, gather_action: str) -> str:
         resp.hangup()
         return str(resp)
     except ImportError:
-        safe_text = (
-            say_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        )
+        safe_text = say_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         return (
             "<?xml version='1.0' encoding='UTF-8'?>"
             "<Response>"
@@ -182,9 +180,7 @@ def _build_hangup_twiml(say_text: str) -> str:
         resp.hangup()
         return str(resp)
     except ImportError:
-        safe_text = (
-            say_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        )
+        safe_text = say_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         return (
             "<?xml version='1.0' encoding='UTF-8'?>"
             f"<Response><Say>{safe_text}</Say><Hangup/></Response>"
@@ -395,7 +391,7 @@ def _generate_reply(text: str) -> str:
         from rex.config import load_config
 
         cfg = load_config()
-        assistant = Assistant(config=cfg)
+        assistant = Assistant(settings_obj=cfg)
         loop = asyncio.new_event_loop()
         try:
             reply: str = loop.run_until_complete(assistant.generate_reply(text))

@@ -12,7 +12,7 @@ returns ``None`` and :meth:`DigestBuilder.run_digest` is a no-op.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Protocol, runtime_checkable
 
 from rex.notifications.models import Notification, NotificationStore
@@ -150,7 +150,7 @@ class DigestBuilder:
 
         _send_desktop("Rex Digest", summary)
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for n in eligible:
             delivered = n.model_copy(update={"delivered_at": now})
             self._store.update(delivered)

@@ -29,7 +29,7 @@ Typical usage::
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from rex.calendar_service import get_calendar_service as _get_calendar_service
@@ -57,7 +57,7 @@ def _parse_dt(value: str | datetime) -> datetime:
     else:
         dt = datetime.fromisoformat(str(value))
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt
 
 

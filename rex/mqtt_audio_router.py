@@ -9,7 +9,7 @@ import contextlib
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 def _utc_iso() -> str:
-    return datetime.now(tz=timezone.utc).isoformat()
+    return datetime.now(tz=UTC).isoformat()
 
 
 def _decode_mulaw(payload: str) -> bytes:

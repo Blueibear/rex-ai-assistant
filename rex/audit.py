@@ -15,7 +15,7 @@ before being written to disk to prevent sensitive data exposure.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 from typing import Any, Literal
@@ -33,7 +33,7 @@ DEFAULT_LOG_FILE = "audit.log"
 
 def _utc_now() -> datetime:
     """Return the current UTC datetime."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class LogEntry(BaseModel):

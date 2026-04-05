@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from rex.integrations.messaging.backends.base import SMSBackend
 
@@ -45,7 +45,7 @@ class StubSMSBackend(SMSBackend):
                 "id": f"stub-sms-out-{uuid.uuid4().hex[:8]}",
                 "to": to,
                 "body": body,
-                "sent_at": datetime.now(timezone.utc).isoformat(),
+                "sent_at": datetime.now(UTC).isoformat(),
             }
         )
 

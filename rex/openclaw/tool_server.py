@@ -51,7 +51,8 @@ import logging
 import os
 import time
 from collections import defaultdict, deque
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from flask import Blueprint, Flask, Response, jsonify, request
 

@@ -7,7 +7,7 @@ as a no-op.  Implements the :class:`EmailBackend` transport-layer interface.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from rex.integrations.email.backends.base import EmailBackend
 
@@ -50,7 +50,7 @@ class StubEmailBackend(EmailBackend):
                 "to": to,
                 "subject": subject,
                 "body": body,
-                "sent_at": datetime.now(timezone.utc).isoformat(),
+                "sent_at": datetime.now(UTC).isoformat(),
             }
         )
 

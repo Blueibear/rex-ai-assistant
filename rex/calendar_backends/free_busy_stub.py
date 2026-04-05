@@ -18,7 +18,7 @@ requested time window — the busy blocks used by the free-time finder.
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from rex.calendar_backends.base import CalendarBackend
 from rex.calendar_service import CalendarEvent
@@ -73,7 +73,7 @@ class FreeBusyBlock:
 
 
 def _utc(d: date, hour: int, minute: int = 0) -> datetime:
-    return datetime(d.year, d.month, d.day, hour, minute, tzinfo=timezone.utc)
+    return datetime(d.year, d.month, d.day, hour, minute, tzinfo=UTC)
 
 
 def _build_mock_events(anchor: date) -> list[CalendarEvent]:
@@ -310,8 +310,8 @@ class CalendarStub(CalendarBackend):
 def _ensure_utc(dt: datetime) -> datetime:
     """Return *dt* as a UTC-aware datetime."""
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 __all__ = [

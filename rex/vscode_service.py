@@ -17,7 +17,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from rex.audit import LogEntry, get_audit_logger
 from rex.contracts.core import ToolCall
@@ -61,7 +61,7 @@ class VSCodeService:
     - Audit logging for all operations
     """
 
-    def __init__(self, workspace_path: Optional[str] = None):
+    def __init__(self, workspace_path: str | None = None):
         """
         Initialize VS Code service.
 
@@ -343,8 +343,8 @@ class VSCodeService:
 
     def run_tests(
         self,
-        test_path: Optional[str] = None,
-        pattern: Optional[str] = None,
+        test_path: str | None = None,
+        pattern: str | None = None,
         verbose: bool = False,
     ) -> PyTestRunResult:
         """
@@ -558,7 +558,7 @@ class VSCodeService:
     def list_files(
         self,
         directory: str = ".",
-        pattern: Optional[str] = None,
+        pattern: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         List files in a directory.
@@ -604,7 +604,7 @@ class VSCodeService:
 
 
 # Singleton instance
-_vscode_service: Optional[VSCodeService] = None
+_vscode_service: VSCodeService | None = None
 
 
 def get_vscode_service() -> VSCodeService:

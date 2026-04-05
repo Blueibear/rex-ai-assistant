@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import re
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from rex.calendar_service import CalendarEvent
 
@@ -45,17 +45,17 @@ def _parse_dt(value: str) -> tuple[datetime, bool]:
 
     # UTC datetime: 20260220T140000Z
     if value.endswith("Z"):
-        return datetime.strptime(value, _DT_FORMAT_UTC).replace(tzinfo=timezone.utc), False
+        return datetime.strptime(value, _DT_FORMAT_UTC).replace(tzinfo=UTC), False
 
     # Local datetime: 20260220T140000
     if "T" in value:
         dt = datetime.strptime(value, _DT_FORMAT_BASIC)
         # Treat naive datetimes as UTC (safe default)
-        return dt.replace(tzinfo=timezone.utc), False
+        return dt.replace(tzinfo=UTC), False
 
     # Date only: 20260220
     if len(value) == 8 and value.isdigit():
-        dt = datetime.strptime(value, _DATE_FORMAT).replace(tzinfo=timezone.utc)
+        dt = datetime.strptime(value, _DATE_FORMAT).replace(tzinfo=UTC)
         return dt, True
 
     raise ValueError(f"Unrecognised ICS date/time value: {value!r}")

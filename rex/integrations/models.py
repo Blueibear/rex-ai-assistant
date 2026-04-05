@@ -5,7 +5,7 @@ All models are Pydantic v2 models with full type annotations.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -41,7 +41,7 @@ class EmailMessage(BaseModel):
     recipients: list[str] = Field(default_factory=list)
     body_text: str = ""
     body_html: str | None = None
-    received_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    received_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     labels: list[str] = Field(default_factory=list)
     is_read: bool = False
     priority: PriorityLevel = "low"
@@ -129,7 +129,7 @@ class SMSMessage(BaseModel):
     body: str
     from_number: str
     to_number: str
-    sent_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    sent_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     status: SMSStatus = "stub"
 
 
@@ -149,7 +149,7 @@ class SMSThread(BaseModel):
     contact_name: str
     contact_number: str
     messages: list[SMSMessage] = Field(default_factory=list)
-    last_message_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_message_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     unread_count: int = 0
 
 

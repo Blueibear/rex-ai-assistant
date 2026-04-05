@@ -6,7 +6,7 @@ import json
 import os
 from collections import deque
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .assistant_errors import ConfigurationError
@@ -277,7 +277,7 @@ def append_history_entry(
     if limit <= 0:
         raise ConfigurationError("History retention limit must be positive.")
 
-    timestamp = entry.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
+    timestamp = entry.setdefault("timestamp", datetime.now(UTC).isoformat())
     if "role" not in entry or "text" not in entry:
         raise ConfigurationError("History entries require 'role' and 'text' fields.")
 
@@ -344,13 +344,13 @@ def export_transcript(
     transcripts_root = transcripts_base / sanitized_key
     _validate_path_within(transcripts_root, transcripts_base)
     _ensure_directory(transcripts_root)
-    file_path = transcripts_root / f"{datetime.now(timezone.utc).date()}.txt"
+    file_path = transcripts_root / f"{datetime.now(UTC).date()}.txt"
 
     with file_path.open("a", encoding="utf-8") as handle:
         for turn in conversation:
             role = turn.get("role", "unknown")
             text = turn.get("text", "")
-            timestamp = turn.get("timestamp") or datetime.now(timezone.utc).isoformat()
+            timestamp = turn.get("timestamp") or datetime.now(UTC).isoformat()
             handle.write(f"[{timestamp}] {role}: {text}\n")
 
     return file_path

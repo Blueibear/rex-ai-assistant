@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from rex.audit import LogEntry
@@ -63,7 +63,7 @@ def reconstruct_tool_call(entry: LogEntry) -> ToolCall:
         args=entry.tool_call_args,
         requested_by=f"replay:{entry.action_id}",
         idempotency_key=f"replay-{entry.action_id}",
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
 
 
@@ -144,7 +144,7 @@ def replay(entry: LogEntry, *, dry_run: bool = True) -> ReplayResult:
         new_result=stub_result,
         comparison=comparison,
         dry_run=dry_run,
-        replayed_at=datetime.now(timezone.utc),
+        replayed_at=datetime.now(UTC),
         notes=notes,
     )
 
@@ -182,7 +182,7 @@ def batch_replay(
                     new_result=None,
                     comparison={"error": str(e)},
                     dry_run=dry_run,
-                    replayed_at=datetime.now(timezone.utc),
+                    replayed_at=datetime.now(UTC),
                     notes=f"Replay failed: {e}",
                 )
             )

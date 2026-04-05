@@ -8,6 +8,7 @@ misleading error message.
 from __future__ import annotations
 
 import logging
+from datetime import UTC
 from typing import Any
 
 from rex.calendar_service import CalendarService
@@ -46,10 +47,10 @@ class UnknownToolError(Exception):
 
 def _handle_time_now(args: dict[str, Any]) -> str:
     """Return the current time, optionally for a given timezone."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     location = args.get("location", "local")
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     return f"Current UTC time: {now.strftime('%Y-%m-%d %H:%M:%S')} (requested for: {location})"
 
 
@@ -142,14 +143,14 @@ def _handle_send_email(args: dict[str, Any]) -> str:
 
 def _handle_calendar_create_event(args: dict[str, Any]) -> str:
     """Create a calendar event via CalendarService.  Accepts {title, start, end}."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     title: str = str(args.get("title") or args.get("summary") or "New Event").strip()
     start_raw: str = str(args.get("start") or "").strip()
     end_raw: str = str(args.get("end") or "").strip()
 
     # Parse start time (ISO format); default to now + 1 hour if missing
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     try:
         start_dt = datetime.fromisoformat(start_raw) if start_raw else now + timedelta(hours=1)
     except ValueError:

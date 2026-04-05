@@ -37,10 +37,11 @@ Usage:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from rex.audit import AuditLogger, LogEntry, get_audit_logger
 from rex.contracts import ToolCall
@@ -204,8 +205,8 @@ class WorkflowRunner:
             if step is None:
                 # No more steps, workflow is complete
                 self.workflow.status = "completed"
-                self.workflow.completed_at = datetime.now(timezone.utc)
-                self.workflow.updated_at = datetime.now(timezone.utc)
+                self.workflow.completed_at = datetime.now(UTC)
+                self.workflow.updated_at = datetime.now(UTC)
                 self._save_workflow()
                 break
 
@@ -781,7 +782,7 @@ def approve_workflow(
     approval.status = "approved"
     approval.decided_by = decided_by
     approval.reason = reason
-    approval.decided_at = datetime.now(timezone.utc)
+    approval.decided_at = datetime.now(UTC)
     approval.save(approval_dir)
 
     logger.info("Approved workflow approval %s by %s", approval_id, decided_by)
@@ -816,7 +817,7 @@ def deny_workflow(
     approval.status = "denied"
     approval.decided_by = decided_by
     approval.reason = reason
-    approval.decided_at = datetime.now(timezone.utc)
+    approval.decided_at = datetime.now(UTC)
     approval.save(approval_dir)
 
     logger.info("Denied workflow approval %s by %s", approval_id, decided_by)

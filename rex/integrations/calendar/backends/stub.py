@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from rex.integrations.calendar.backends.base import CalendarBackend
 
@@ -20,7 +20,7 @@ def _iso(dt: datetime) -> str:
 
 
 def _stub_events() -> list[dict]:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return [
         {
             "id": "stub-cal-001",

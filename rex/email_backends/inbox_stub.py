@@ -17,7 +17,7 @@ logic can read it without knowing the stub internals.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from rex.email_backends.base import EmailBackend, EmailEnvelope, SendResult
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # Built-in mock emails
 # ---------------------------------------------------------------------------
 
-_NOW = datetime(2026, 3, 11, 9, 0, 0, tzinfo=timezone.utc)
+_NOW = datetime(2026, 3, 11, 9, 0, 0, tzinfo=UTC)
 
 
 def _dt(day: int, hour: int = 9) -> datetime:

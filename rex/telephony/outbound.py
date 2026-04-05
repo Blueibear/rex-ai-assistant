@@ -209,8 +209,7 @@ def make_call(
             "to": to_number,
             "message": message,
             "prompt": (
-                f"Are you sure you want Rex to call {to_number}? "
-                "Reply 'yes' to confirm."
+                f"Are you sure you want Rex to call {to_number}? " "Reply 'yes' to confirm."
             ),
         }
 

@@ -8,7 +8,8 @@ implements these methods satisfies the protocol (structural subtyping via
 
 from __future__ import annotations
 
-from typing import Any, Callable, Protocol, runtime_checkable
+from collections.abc import Callable
+from typing import Any, Protocol, runtime_checkable
 
 
 @runtime_checkable

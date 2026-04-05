@@ -108,7 +108,7 @@ from rex.plugins import PluginSpec as _PluginSpec
 from rex.plugins import load_plugins as _load_plugins_impl
 from rex.tts_utils import chunk_text_for_xtts
 from rex.wakeword_utils import detect_wakeword, load_wakeword_model
-from wake_acknowledgment import ensure_wake_acknowledgment_sound
+from rex.wake_acknowledgment import ensure_wake_acknowledgment_sound
 from utils.audio_device import (
     enumerate_input_devices,
     load_audio_config,

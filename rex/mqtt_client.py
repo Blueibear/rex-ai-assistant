@@ -12,12 +12,12 @@ import json
 import logging
 import ssl
 import time
-from collections.abc import Awaitable, Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from contextlib import suppress
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from rex.assistant_errors import ConfigurationError
@@ -66,7 +66,7 @@ def _topic_matches(subscription: str, topic: str) -> bool:
 
 def _now_iso() -> str:
     """Return the current UTC timestamp in ISO-8601 format."""
-    return datetime.now(tz=timezone.utc).isoformat()
+    return datetime.now(tz=UTC).isoformat()
 
 
 def _resolve_optional_path(path: str | None) -> Path | None:
@@ -195,7 +195,7 @@ class RexMQTTClient:
             return
         try:
             await asyncio.wait_for(self._connected_event.wait(), timeout)
-        except asyncio.TimeoutError as exc:
+        except TimeoutError as exc:
             raise TimeoutError("MQTT connection timed out.") from exc
 
     async def publish(
@@ -429,7 +429,7 @@ class RexMQTTClient:
                     f"{error_prefix}timestamp must be an ISO-8601 string."
                 ) from exc
 
-            now = datetime.now(tz=timezone.utc)
+            now = datetime.now(tz=UTC)
             if parsed > now + timedelta(seconds=30):
                 raise PayloadValidationError(f"{error_prefix}timestamp is in the future.")
 

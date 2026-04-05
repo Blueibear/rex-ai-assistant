@@ -10,7 +10,7 @@ the hot path fast and free from additional network calls.
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 from pydantic import BaseModel
 
