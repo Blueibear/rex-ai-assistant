@@ -152,11 +152,15 @@ jobs:
           pip install -e ".[dev]"
           pip install pip-audit
 
-      - name: ✅ Verify CLI entrypoint
+      - name: ✅ Verify CLI entrypoints
         run: |
           python -m rex --help
           rex-config --help
+          python -c "from rex.cli import main; print('rex ok')"
+          python -c "from rex.config import cli; print('rex-config ok')"
+          python -c "import rex_speak_api; print('rex-speak-api ok')"
           python -c "from rex.computers.agent_server import main; print('rex-agent ok')"
+          python -c "from rex.gui_app import main; print('rex-gui ok')"
           python -c "from rex.openclaw.tool_server import main; print('rex-tool-server ok')"
 
       - name: 🧪 Run tests with coverage

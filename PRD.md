@@ -749,7 +749,7 @@ working so that operators can rely on them.
 so that broken entry points are caught before release.
 
 **Acceptance Criteria:**
-- [ ] `ci.yml` smoke-test step runs:
+- [x] `ci.yml` smoke-test step runs:
   ```bash
   python -c "from rex.cli import main; print('rex ok')"
   python -c "from rex.config import cli; print('rex-config ok')"  # or corrected path
@@ -758,8 +758,8 @@ so that broken entry points are caught before release.
   python -c "from rex.gui_app import main; print('rex-gui ok')"
   python -c "from rex.openclaw.tool_server import main; print('rex-tool-server ok')"
   ```
-- [ ] All six checks pass
-- [ ] Typecheck passes
+- [x] All six checks pass
+- [x] Typecheck passes
 
 ---
 
