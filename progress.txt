@@ -1,3 +1,15 @@
+## Iteration 88 - US-261 Fix mypy no-redef error in rex/wakeword/embedding.py
+- Story: US-261
+- Renamed `torch` → `_torch` with explicit `ModuleType | None` annotation before the try block
+- Pattern: `_torch: ModuleType | None = None; try: import torch as _torch; except: pass`
+- Removed stale `# type: ignore[import-untyped]` — torch has stubs on this system, so the ignore was unused
+- `mypy rex/wakeword/embedding.py --ignore-missing-imports` exits 0 (Success)
+- 79 wakeword/embedding tests pass
+- Files changed: rex/wakeword/embedding.py, PRD.md, progress.txt
+- Learnings for future iterations:
+  - Pattern for optional module import that satisfies mypy: declare `_var: ModuleType | None = None` before try block, then `import x as _var` in try, `pass` in except
+  - On this system, torch has stubs, so `# type: ignore[import-untyped]` causes an `[unused-ignore]` error — always run mypy to verify before committing
+---
 ## Iteration 87 - US-260 Move docs/security/ files to canonical location and verify accuracy
 - Story: US-260
 - Removed docs/security/INDEX.md and docs/security/SECURITY_FIX_SUMMARY.md (no tests protect them)

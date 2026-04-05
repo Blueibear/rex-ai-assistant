@@ -14,13 +14,11 @@ else:
     except Exception:  # pragma: no cover - optional dependency
         np = None
 
-_torch: ModuleType | None
+_torch: ModuleType | None = None
 try:  # pragma: no cover - optional dependency
     import torch as _torch
 except Exception:  # pragma: no cover - optional dependency
-    _torch = None
-
-torch: ModuleType | None = _torch
+    pass
 
 DEFAULT_EMBEDDING_BINS = 128
 
@@ -48,12 +46,12 @@ def compute_embedding(audio_frame: np.ndarray, *, bins: int = DEFAULT_EMBEDDING_
 
 
 def load_embedding(path: str | Path) -> np.ndarray:
-    if torch is None:
+    if _torch is None:
         raise RuntimeError("torch is required to load embedding files")
     if np is None:
         raise RuntimeError("numpy is required to load embedding files")
 
-    data: Any = torch.load(Path(path), map_location="cpu", weights_only=False)
+    data: Any = _torch.load(Path(path), map_location="cpu", weights_only=False)
     if isinstance(data, dict) and "embedding" in data:
         data = data["embedding"]
 
@@ -76,8 +74,8 @@ def load_embedding(path: str | Path) -> np.ndarray:
 
 
 def save_embedding(path: str | Path, embedding: np.ndarray) -> None:
-    if torch is None:
+    if _torch is None:
         raise RuntimeError("torch is required to save embedding files")
     if np is None:
         raise RuntimeError("numpy is required to save embedding files")
-    torch.save(embedding, Path(path))
+    _torch.save(embedding, Path(path))

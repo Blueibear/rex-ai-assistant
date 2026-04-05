@@ -844,11 +844,11 @@ that `setup.py` can be simplified or removed.
 `embedding.py` so that mypy passes with zero `[no-redef]` errors in that file.
 
 **Acceptance Criteria:**
-- [ ] `rex/wakeword/embedding.py` defines `_torch` exactly once
-- [ ] Torch import degrades gracefully when torch is not installed
-- [ ] `mypy rex/wakeword/embedding.py --ignore-missing-imports` exits 0
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `rex/wakeword/embedding.py` defines `_torch` exactly once
+- [x] Torch import degrades gracefully when torch is not installed
+- [x] `mypy rex/wakeword/embedding.py --ignore-missing-imports` exits 0
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ---
 
