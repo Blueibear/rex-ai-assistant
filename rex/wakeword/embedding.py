@@ -14,11 +14,10 @@ else:
     except Exception:  # pragma: no cover - optional dependency
         np = None
 
-_torch: ModuleType | None = None
 try:  # pragma: no cover - optional dependency
     import torch as _torch
 except Exception:  # pragma: no cover - optional dependency
-    _torch = None
+    _torch: ModuleType | None = None
 
 DEFAULT_EMBEDDING_BINS = 128
 

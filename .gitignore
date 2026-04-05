@@ -28,6 +28,7 @@ coverage.xml
 htmlcov/
 test-audit-*.txt
 *.patch
+!docs/archive/housekeeping/ci-fixes.patch
 
 # Logs & temp files
 *.log
@@ -121,6 +122,7 @@ Memory/*/history.log
 !.claude-project.yaml
 
 # Local-only scratch and environments
+backups
 backups/
 source/
 /list_audio.py
@@ -129,6 +131,8 @@ source/
 # Binary artifacts
 caddy.zip
 OLLAMA_INTEGRATION_GUIDE.txt
+assets/brand/*.png
+assets/brand/*.ico
 
 # Test artifacts in data/ subdirectories
 data/approvals/
