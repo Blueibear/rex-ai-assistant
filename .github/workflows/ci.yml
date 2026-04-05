@@ -156,6 +156,8 @@ jobs:
         run: |
           python -m rex --help
           rex-config --help
+          python -c "from rex.computers.agent_server import main; print('rex-agent ok')"
+          python -c "from rex.openclaw.tool_server import main; print('rex-tool-server ok')"
 
       - name: 🧪 Run tests with coverage
         shell: bash

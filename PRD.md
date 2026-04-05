@@ -735,11 +735,11 @@ rather than failing because it targets the wrong module.
 working so that operators can rely on them.
 
 **Acceptance Criteria:**
-- [ ] `python -c "from rex.computers.agent_server import main; print('ok')"` exits 0
-- [ ] `python -c "from rex.openclaw.tool_server import main; print('ok')"` exits 0
-- [ ] If either import fails: fix the import path in `pyproject.toml` or fix the module
-- [ ] CI smoke-test step adds both import checks
-- [ ] Typecheck passes
+- [x] `python -c "from rex.computers.agent_server import main; print('ok')"` exits 0
+- [x] `python -c "from rex.openclaw.tool_server import main; print('ok')"` exits 0
+- [x] If either import fails: fix the import path in `pyproject.toml` or fix the module
+- [x] CI smoke-test step adds both import checks
+- [x] Typecheck passes
 
 ---
 
