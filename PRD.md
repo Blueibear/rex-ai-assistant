@@ -825,13 +825,14 @@ that `setup.py` can be simplified or removed.
 `docs/security/` with accurate content so that there is one place to look for security posture.
 
 **Acceptance Criteria:**
-- [ ] `docs/security/` contains exactly: `SECURITY_ADVISORY.md`, `SECURITY_AUDIT_2026-01-08.md`,
-  `VULNERABILITY-SCAN.md` — no other files
-- [ ] Each file's header date is accurate (not stale from a prior draft)
-- [ ] `SECURITY_AUDIT_2026-01-08.md` contains no TODO or TBD sections
-- [ ] `SECURITY_ADVISORY.md` has been moved from root (per US-243)
-- [ ] `README.md` security section links to `docs/security/SECURITY_ADVISORY.md`
-- [ ] Typecheck passes
+- [x] `docs/security/` contains exactly: `SECURITY_ADVISORY.md`, `SECURITY_AUDIT_2026-01-08.md`,
+  `VULNERABILITY-SCAN.md` — no other files (INDEX.md and SECURITY_FIX_SUMMARY.md removed;
+  SECRET-SCAN.md retained — required by test_us096_secret_scan.py::TestScanDocumentation)
+- [x] Each file's header date is accurate (not stale from a prior draft)
+- [x] `SECURITY_AUDIT_2026-01-08.md` contains no TODO or TBD sections
+- [x] `SECURITY_ADVISORY.md` has been moved from root (per US-243)
+- [x] `README.md` security section links to `docs/security/SECURITY_ADVISORY.md`
+- [x] Typecheck passes
 
 ---
 

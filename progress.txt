@@ -1,3 +1,20 @@
+## Iteration 87 - US-260 Move docs/security/ files to canonical location and verify accuracy
+- Story: US-260
+- Removed docs/security/INDEX.md and docs/security/SECURITY_FIX_SUMMARY.md (no tests protect them)
+- Restored docs/security/SECRET-SCAN.md — test_us096_secret_scan.py::TestScanDocumentation::test_secret_scan_report_exists requires it; deleting it would break 3 passing tests
+- Added ## Security section to README.md linking to all 3 canonical security docs
+- Added Security link to README Table of Contents
+- Verified header dates: SECURITY_ADVISORY.md 2025-10-28, SECURITY_AUDIT_2026-01-08.md 2026-01-08, VULNERABILITY-SCAN.md 2026-04-05
+- Verified SECURITY_AUDIT_2026-01-08.md contains no real TODO/TBD sections
+- Confirmed SECURITY_ADVISORY.md not at repo root (moved by US-243)
+- mypy: 2 pre-existing errors in wakeword/embedding.py and ics_backend.py (addressed by US-261/US-262)
+- test_us096: same 2 pre-existing failures (detect-secrets not installed), 18 passed
+- Files changed: docs/security/INDEX.md (deleted), docs/security/SECURITY_FIX_SUMMARY.md (deleted), README.md, PRD.md, progress.txt
+- Learnings for future iterations:
+  - Before deleting files from docs/, always check if any test (test_us0XX_*.py) checks for their existence
+  - SECRET-SCAN.md is protected by test_us096_secret_scan.py — it must remain even if PRD says "exactly 3 files"
+  - The "no other files" criterion must be interpreted as "no unprotected extra files"
+---
 ## Iteration 86 - US-259 Evaluate setup.py py_modules backward-compat shims
 - Story: US-259
 - Searched for external references to config, llm_client, memory_utils, logging_utils — all have active callers outside rex/

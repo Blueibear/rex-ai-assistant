@@ -22,6 +22,7 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
 - [Memory & Personalization](#memory--personalization)
 - [Development](#development)
 - [Troubleshooting](#troubleshooting)
+- [Security](#security)
 - [Contributing](#contributing)
 - [License](#license)
 - [Full Documentation](docs/INDEX.md)
@@ -77,6 +78,8 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
    python -m rex doctor
    ```
 
+For the canonical GUI, launch the web dashboard with `rex-gui`. Do not use the legacy Tkinter launcher; it is deprecated.
+
 > **Python 3.11 is required. Python 3.12 and above are not supported.** The current dependency stack is validated on Python 3.11 only. Fresh installs on Python 3.12, 3.13, and 3.14 are rejected; the ML/TTS dependency path is known to fail on those versions.
 
 > **Advanced / Developer Install** — for GPU setups, custom extras, Docker, or development workflows, see [docs/advanced-install.md](docs/advanced-install.md).
@@ -92,12 +95,12 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
 - 🤖 **LLM responses** via Transformers (local), OpenAI API, or Ollama `[Works today]`
 - 🔉 **Text-to-speech** with Coqui XTTS, edge-tts, or pyttsx3 (voice cloning supported) `[Works today]`
 - 🌐 **Web search plugins** for SerpAPI, Brave, Google CSE, and DuckDuckGo `[Requires configuration]`
-- 🧠 **Per-user memory** profiles with conversation history and preferences `[In progress — not production ready]`
+- 🧠 **Per-user memory** profiles with conversation history and preferences `[In progress — alpha feature]`
 - 📧 **Email and calendar** integration with triage and scheduling `[Requires configuration — IMAP/SMTP credentials needed]`
 - 📱 **Multi-channel messaging** via SMS `[Requires configuration — Twilio credentials needed]`
 - 🔔 **Smart notifications** with priority routing, digest mode, quiet hours, and auto-escalation; dashboard channel persists to local SQLite store with real API endpoints `[Works today]`
-- 🤖 **Autonomous workflows** with planner and workflow runner for multi-step task automation `[In progress — not production ready]`
-- 🎯 **Smart planning** converts natural language goals into structured workflows `[In progress — not production ready]`
+- 🤖 **Autonomous workflows** with planner and workflow runner for multi-step task automation `[In progress — alpha feature]`
+- 🎯 **Smart planning** converts natural language goals into structured workflows `[In progress — alpha feature]`
 - ⚙️ **Configurable autonomy modes** (OFF/SUGGEST/AUTO) for fine-grained control `[Works today]`
 - 🔐 **Flask TTS API** with authentication and rate limiting `[Works today]`
 - ✅ **CI/CD** with GitHub Actions and Release Please automation `[Works today]`
@@ -142,7 +145,7 @@ Summary of integrations that require credentials or have known gaps:
 - **Calendar** — PARTIAL: ICS read-only; no write support; CalDAV/Google OAuth not implemented.
 - **SMS / Messaging** — PARTIAL: real Twilio backend; falls back to stub without credentials.
 - **Notifications** — REAL: priority routing, digest, SQLite dashboard, SSE push all active.
-- **Voice Identity** — PARTIAL: enrollment scaffolding present; not universally production-ready.
+- **Voice Identity** — PARTIAL: enrollment scaffolding present; still alpha-only and not broadly validated.
 - **Autonomous Workflows** — STUB: scaffolding only; roadmap item.
 - **WordPress / WooCommerce** — PARTIAL: read-only REST API access; write actions deferred.
 
@@ -176,6 +179,16 @@ For development workflows including pip extras, GPU setup, code quality tools, a
 ## Troubleshooting
 
 For help with common errors (missing API keys, FFmpeg, PyTorch, audio devices, CUDA), see [docs/troubleshooting.md](docs/troubleshooting.md).
+
+## Security
+
+For security advisories, audit reports, and vulnerability scan results, see:
+
+- [docs/security/SECURITY_ADVISORY.md](docs/security/SECURITY_ADVISORY.md) — user-facing security advisory
+- [docs/security/SECURITY_AUDIT_2026-01-08.md](docs/security/SECURITY_AUDIT_2026-01-08.md) — full security audit report
+- [docs/security/VULNERABILITY-SCAN.md](docs/security/VULNERABILITY-SCAN.md) — dependency vulnerability scan and CVE suppression rationale
+
+To report a vulnerability, open a GitHub issue with the `security` label.
 
 ## Contributing
 
