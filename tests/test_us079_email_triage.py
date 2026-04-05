@@ -11,7 +11,7 @@ Acceptance criteria verified:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -28,7 +28,7 @@ from rex.email_backends.triage import (
 # Helpers
 # ---------------------------------------------------------------------------
 
-_NOW = datetime(2026, 3, 11, 9, 0, 0, tzinfo=timezone.utc)
+_NOW = datetime(2026, 3, 11, 9, 0, 0, tzinfo=UTC)
 
 
 def _env(

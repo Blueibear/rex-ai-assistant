@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import rex.assistant as assistant_module
 
@@ -237,8 +237,8 @@ def test_history_store_preloads_on_startup(monkeypatch, tmp_path):
     db_path = tmp_path / "history.db"
     # Pre-seed the DB with a prior turn
     store = HistoryStore(db_path=db_path)
-    store.save_turn("default", "user", "prior question", datetime.now(timezone.utc))
-    store.save_turn("default", "assistant", "prior answer", datetime.now(timezone.utc))
+    store.save_turn("default", "user", "prior question", datetime.now(UTC))
+    store.save_turn("default", "assistant", "prior answer", datetime.now(UTC))
 
     cfg = AppConfig(
         llm_provider="transformers",
@@ -260,14 +260,14 @@ def test_history_pruned_on_startup(monkeypatch, tmp_path):
     """Old turns beyond retention_days should be pruned when the assistant starts."""
     monkeypatch.setattr(assistant_module, "LanguageModel", _make_dummy_lm_class())
 
-    from datetime import timedelta, timezone
+    from datetime import timedelta
 
     from rex.config import AppConfig
     from rex.history_store import HistoryStore
 
     db_path = tmp_path / "history.db"
     store = HistoryStore(db_path=db_path)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     old_ts = now - timedelta(days=40)
     recent_ts = now - timedelta(days=1)
     store.save_turn("default", "user", "very old message", old_ts)
@@ -294,14 +294,14 @@ def test_prune_idempotent_via_assistant(monkeypatch, tmp_path):
     """Running prune twice gives the same result as running once (idempotency)."""
     monkeypatch.setattr(assistant_module, "LanguageModel", _make_dummy_lm_class())
 
-    from datetime import timedelta, timezone
+    from datetime import timedelta
 
     from rex.config import AppConfig
     from rex.history_store import HistoryStore
 
     db_path = tmp_path / "history.db"
     store = HistoryStore(db_path=db_path)
-    old_ts = datetime.now(timezone.utc) - timedelta(days=40)
+    old_ts = datetime.now(UTC) - timedelta(days=40)
     store.save_turn("default", "user", "old", old_ts)
 
     cfg = AppConfig(

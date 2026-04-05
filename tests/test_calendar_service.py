@@ -32,7 +32,7 @@ incompatible tests, so your suite stays green as the calendar service evolves.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -65,8 +65,8 @@ def _calendar_service_accepts_event_bus() -> bool:
 
 def _make_utc(dt: datetime) -> datetime:
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 # -------------------------------------------------------------------
@@ -143,7 +143,7 @@ def test_calendar_conflict_detection_and_publish() -> None:
 
     bus.subscribe("calendar.created", handler)
 
-    start = datetime(2024, 1, 1, 10, 0, tzinfo=timezone.utc)
+    start = datetime(2024, 1, 1, 10, 0, tzinfo=UTC)
 
     existing = CalendarEvent(
         event_id="event-1",
@@ -584,7 +584,7 @@ def test_mock_events_mode_does_not_write_to_disk(tmp_path: Path) -> None:
     from rex.openclaw.event_bus import EventBus
 
     bus = EventBus()
-    start = datetime(2024, 6, 1, 10, 0, tzinfo=timezone.utc)
+    start = datetime(2024, 6, 1, 10, 0, tzinfo=UTC)
     seed = CalendarEvent(
         event_id="e1",
         title="Seed",
@@ -616,7 +616,7 @@ def test_explicit_path_writes_only_to_that_path(tmp_path: Path) -> None:
     service = CalendarService(mock_data_path=cal_file)
     service.connect()
 
-    start = datetime(2024, 6, 1, 10, 0, tzinfo=timezone.utc)
+    start = datetime(2024, 6, 1, 10, 0, tzinfo=UTC)
     service.create_event(
         "Meeting",
         start,

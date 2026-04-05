@@ -11,16 +11,16 @@ All external services are mocked — no real API calls are made.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from rex.local_tool_executor import execute_tool
 from rex.openclaw.tool_registry import ToolMeta, ToolRegistry, set_tool_registry
 from rex.planner import Planner
 from rex.tool_catalog import EXECUTABLE_TOOLS
-from rex.local_tool_executor import execute_tool
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -93,8 +93,8 @@ def _all_service_patches() -> list:
 
     mock_cal_event = MagicMock()
     mock_cal_event.title = "Test Event"
-    mock_cal_event.start_time = datetime(2026, 4, 1, 10, 0, tzinfo=timezone.utc)
-    mock_cal_event.end_time = datetime(2026, 4, 1, 11, 0, tzinfo=timezone.utc)
+    mock_cal_event.start_time = datetime(2026, 4, 1, 10, 0, tzinfo=UTC)
+    mock_cal_event.end_time = datetime(2026, 4, 1, 11, 0, tzinfo=UTC)
     mock_cal_svc = MagicMock()
     mock_cal_svc.create_event.return_value = mock_cal_event
 

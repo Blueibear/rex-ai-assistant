@@ -9,7 +9,7 @@ Acceptance criteria:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from rex.scheduler import ScheduledJob, Scheduler, get_scheduler, set_scheduler
@@ -20,7 +20,7 @@ from rex.scheduler import ScheduledJob, Scheduler, get_scheduler, set_scheduler
 
 
 def utc_now() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 def make_scheduler(tmp_path: Path, now_func=None) -> Scheduler:

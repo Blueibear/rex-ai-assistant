@@ -26,7 +26,6 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 # Paths excluded from self-scan: this script and its dedicated test file, both of
 # which contain the marker patterns intentionally (pattern definitions / test fixtures).
@@ -177,7 +176,7 @@ def scan_file(
     filepath: Path,
     *,
     strict_markdown_secrets: bool = False,
-    allowlisted_paths: Optional[set[Path]] = None,
+    allowlisted_paths: set[Path] | None = None,
 ) -> tuple[list[str], list[str], list[str]]:
     """Scan a file and return lists of issues found.
 
@@ -325,7 +324,7 @@ def get_tracked_files(repo_root: Path) -> tuple[list[Path], int]:
     return files, excluded
 
 
-def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(description="Security audit for Rex AI Assistant repository.")
     parser.add_argument(
@@ -351,7 +350,7 @@ def _parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """Run security audit."""
     _configure_text_io()
     args = _parse_args(argv)

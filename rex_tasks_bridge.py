@@ -27,12 +27,12 @@ from __future__ import annotations
 import json
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
 def _utc_now() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 def _schedule_to_interval(gui_schedule: str) -> int:
@@ -56,7 +56,7 @@ def _next_run_display(next_run: datetime | None) -> str:
     try:
         # Make next_run tz-aware if needed
         if next_run.tzinfo is None:
-            next_run = next_run.replace(tzinfo=timezone.utc)
+            next_run = next_run.replace(tzinfo=UTC)
         diff = (next_run - _utc_now()).total_seconds()
         if diff < 0:
             return "Overdue"

@@ -8,7 +8,7 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 # ---------------------------------------------------------------------------
@@ -173,8 +173,8 @@ class TestCalendarTool:
         mock_service = MagicMock()
         mock_service.create_event.return_value = event
 
-        start_dt = datetime(2026, 3, 23, 9, 0, tzinfo=timezone.utc)
-        end_dt = datetime(2026, 3, 23, 9, 30, tzinfo=timezone.utc)
+        start_dt = datetime(2026, 3, 23, 9, 0, tzinfo=UTC)
+        end_dt = datetime(2026, 3, 23, 9, 30, tzinfo=UTC)
 
         with patch(
             "rex.openclaw.tools.calendar_tool._get_calendar_service", return_value=mock_service

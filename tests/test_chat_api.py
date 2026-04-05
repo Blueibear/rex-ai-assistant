@@ -15,9 +15,9 @@ def _make_app() -> object:
 
 def test_chat_history_empty() -> None:
     """GET /api/chat/history returns an empty list initially."""
-    import rex.dashboard_store as ds
+    from rex.gui_app import _store_clear_history
 
-    ds.clear_history()
+    _store_clear_history()
     with _make_app().test_client() as client:
         resp = client.get("/api/chat/history")
         assert resp.status_code == 200
@@ -27,9 +27,9 @@ def test_chat_history_empty() -> None:
 
 def test_chat_send_requires_message() -> None:
     """POST /api/chat/send with empty message returns 400."""
-    import rex.dashboard_store as ds
+    from rex.gui_app import _store_clear_history
 
-    ds.clear_history()
+    _store_clear_history()
     with _make_app().test_client() as client:
         resp = client.post(
             "/api/chat/send",
@@ -41,9 +41,9 @@ def test_chat_send_requires_message() -> None:
 
 def test_chat_send_stores_user_message() -> None:
     """POST /api/chat/send adds the user message to history."""
-    import rex.dashboard_store as ds
+    from rex.gui_app import _store_clear_history, _store_get_history
 
-    ds.clear_history()
+    _store_clear_history()
     with _make_app().test_client() as client:
         # Consume the SSE response fully
         resp = client.post(
@@ -56,7 +56,7 @@ def test_chat_send_stores_user_message() -> None:
         body = b"".join(resp.response).decode()
         assert "data:" in body
 
-    history = ds.get_history()
+    history = _store_get_history()
     roles = [m["role"] for m in history]
     assert "user" in roles
     assert "assistant" in roles
@@ -64,9 +64,9 @@ def test_chat_send_stores_user_message() -> None:
 
 def test_chat_send_sse_content_type() -> None:
     """POST /api/chat/send returns text/event-stream content type."""
-    import rex.dashboard_store as ds
+    from rex.gui_app import _store_clear_history
 
-    ds.clear_history()
+    _store_clear_history()
     with _make_app().test_client() as client:
         resp = client.post(
             "/api/chat/send",
@@ -79,24 +79,24 @@ def test_chat_send_sse_content_type() -> None:
 
 def test_chat_clear() -> None:
     """POST /api/chat/clear empties the history."""
-    import rex.dashboard_store as ds
+    from rex.gui_app import _store_add_message, _store_clear_history, _store_get_history
 
-    ds.clear_history()
-    ds.add_message("user", "test")
+    _store_clear_history()
+    _store_add_message("user", "test")
     with _make_app().test_client() as client:
         resp = client.post("/api/chat/clear")
         assert resp.status_code == 200
 
-    assert ds.get_history() == []
+    assert _store_get_history() == []
 
 
 def test_chat_history_persists_messages() -> None:
     """GET /api/chat/history returns messages added via the store directly."""
-    import rex.dashboard_store as ds
+    from rex.gui_app import _store_add_message, _store_clear_history
 
-    ds.clear_history()
-    ds.add_message("user", "hello")
-    ds.add_message("assistant", "hi there")
+    _store_clear_history()
+    _store_add_message("user", "hello")
+    _store_add_message("assistant", "hi there")
     with _make_app().test_client() as client:
         resp = client.get("/api/chat/history")
         data = json.loads(resp.data)
@@ -105,19 +105,19 @@ def test_chat_history_persists_messages() -> None:
         assert data[1]["role"] == "assistant"
 
 
-def test_dashboard_store_add_and_clear() -> None:
-    """Unit test: dashboard_store add_message / clear_history."""
-    import rex.dashboard_store as ds
+def test_chat_store_add_and_clear() -> None:
+    """Unit test: inline store add_message / clear_history."""
+    from rex.gui_app import _store_add_message, _store_clear_history, _store_get_history
 
-    ds.clear_history()
-    msg = ds.add_message("user", "hello", attachment_name="file.txt")
+    _store_clear_history()
+    msg = _store_add_message("user", "hello", attachment_name="file.txt")
     assert msg.role == "user"
     assert msg.content == "hello"
     assert msg.attachment_name == "file.txt"
 
-    history = ds.get_history()
+    history = _store_get_history()
     assert len(history) == 1
     assert history[0]["id"] == msg.id
 
-    ds.clear_history()
-    assert ds.get_history() == []
+    _store_clear_history()
+    assert _store_get_history() == []

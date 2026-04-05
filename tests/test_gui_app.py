@@ -6,7 +6,6 @@ import pytest
 
 from rex import gui_app
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 

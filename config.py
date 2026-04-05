@@ -23,7 +23,7 @@ warnings.warn(
 )
 
 # Re-export all configuration utilities from the rex.config module
-from rex.config import (
+from rex.config import (  # noqa: E402
     ENV_MAPPING,
     ENV_PATH,
     REQUIRED_ENV_KEYS,

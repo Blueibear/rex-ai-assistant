@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from rex.autonomy.preferences import PreferenceStore, UserPreferenceProfile
@@ -46,7 +46,7 @@ class TestUserPreferenceProfileDefaults:
 
 class TestUserPreferenceProfileFields:
     def test_set_all_fields(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         profile = UserPreferenceProfile(
             preferred_autonomy_mode="full-auto",
             preferred_model="gpt-4o",
@@ -117,7 +117,7 @@ class TestPreferenceStoreRoundTrip:
     def test_save_then_load_returns_same_profile(self, tmp_path: Path) -> None:
         path = tmp_path / "prefs.json"
         store = PreferenceStore(prefs_path=path)
-        now = datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2025, 6, 1, 12, 0, 0, tzinfo=UTC)
         original = UserPreferenceProfile(
             preferred_autonomy_mode="supervised",
             preferred_model="claude-3-opus",

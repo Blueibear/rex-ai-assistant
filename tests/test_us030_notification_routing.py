@@ -9,6 +9,8 @@ Acceptance criteria:
 
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
 
 from rex.notification import (
@@ -308,11 +310,11 @@ def test_idempotency_key_prevents_duplicate(tmp_path):
 
 def test_escalation_manager_quiet_hours_suppress_normal(tmp_path):
     """Normal notifications suppressed during quiet hours."""
-    from datetime import datetime, time, timezone
+    from datetime import datetime, time
 
     em = EscalationManager(quiet_hours_start=time(22, 0), quiet_hours_end=time(7, 0))
     # Midnight — within quiet hours
-    dt_midnight = datetime(2024, 1, 15, 0, 0, 0, tzinfo=timezone.utc)
+    dt_midnight = datetime(2024, 1, 15, 0, 0, 0, tzinfo=UTC)
     assert em.is_quiet_hours(dt_midnight)
 
     notif = NotificationRequest(title="T", body="B", priority="normal")

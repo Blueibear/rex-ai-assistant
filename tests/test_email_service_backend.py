@@ -10,7 +10,7 @@ Verifies:
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 import pytest
@@ -68,7 +68,7 @@ class TestEmailServiceBackend:
             from_addr="sender@x.com",
             subject="Backend Msg",
             snippet="Hello from backend",
-            received_at=datetime(2026, 1, 15, tzinfo=timezone.utc),
+            received_at=datetime(2026, 1, 15, tzinfo=UTC),
             labels=["unread"],
         )
         mock_backend = MagicMock()

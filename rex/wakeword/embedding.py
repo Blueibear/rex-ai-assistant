@@ -18,7 +18,7 @@ _torch: ModuleType | None = None
 try:  # pragma: no cover - optional dependency
     import torch as _torch
 except Exception:  # pragma: no cover - optional dependency
-    pass
+    _torch = None
 
 DEFAULT_EMBEDDING_BINS = 128
 

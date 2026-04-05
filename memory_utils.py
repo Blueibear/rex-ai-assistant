@@ -20,7 +20,7 @@ warnings.warn(
 )
 
 # Re-export all utilities from the rex.memory_utils package
-from rex.memory_utils import (
+from rex.memory_utils import (  # noqa: E402
     append_history_entry,
     export_transcript,
     extract_voice_reference,

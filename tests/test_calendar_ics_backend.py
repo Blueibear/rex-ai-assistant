@@ -5,7 +5,7 @@ All tests are offline and deterministic — no network calls are made.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -41,8 +41,8 @@ class TestICSParser:
         assert len(standup) == 1
         evt = standup[0]
         assert evt.event_id == "evt-ics-001@rex-ai"
-        assert evt.start_time == datetime(2026, 2, 20, 14, 0, tzinfo=timezone.utc)
-        assert evt.end_time == datetime(2026, 2, 20, 15, 0, tzinfo=timezone.utc)
+        assert evt.start_time == datetime(2026, 2, 20, 14, 0, tzinfo=UTC)
+        assert evt.end_time == datetime(2026, 2, 20, 15, 0, tzinfo=UTC)
         assert evt.location == "Zoom"
         assert evt.description == "Daily team standup meeting"
         assert "alice@example.com" in evt.attendees
@@ -66,7 +66,7 @@ class TestICSParser:
         review = [e for e in events if e.title == "Architecture Review"]
         assert len(review) == 1
         evt = review[0]
-        expected_end = datetime(2026, 2, 25, 10, 30, tzinfo=timezone.utc)
+        expected_end = datetime(2026, 2, 25, 10, 30, tzinfo=UTC)
         assert evt.end_time == expected_end
 
     def test_events_sorted_by_start_time(self):
@@ -431,8 +431,8 @@ class TestCalendarServiceICSIntegration:
         try:
             svc = get_calendar_service(config=config)
             # Query a range that includes Team Standup (2026-02-20 14:00 UTC)
-            start = datetime(2026, 2, 20, 0, 0, tzinfo=timezone.utc)
-            end = datetime(2026, 2, 21, 0, 0, tzinfo=timezone.utc)
+            start = datetime(2026, 2, 20, 0, 0, tzinfo=UTC)
+            end = datetime(2026, 2, 21, 0, 0, tzinfo=UTC)
             day_events = svc.get_events(start, end)
             titles = [e.title for e in day_events]
             assert "Team Standup" in titles
@@ -589,7 +589,7 @@ class TestICSFeedBackend:
         # start and end are timezone-aware UTC ISO strings
         start_dt = datetime.fromisoformat(events[0]["start"])
         assert start_dt.tzinfo is not None
-        assert start_dt.tzinfo == timezone.utc
+        assert start_dt.tzinfo == UTC
 
     def test_get_upcoming_empty_calendar(self, tmp_path):
         """Calendar with no VEVENT blocks returns empty list."""

@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 # Ensure the project root is in the path
@@ -94,7 +94,7 @@ def export_schemas(output_dir: Path | None = None) -> dict[str, str]:
     # Generate index file
     index = {
         "contract_version": CONTRACT_VERSION,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "schemas": schema_entries,
     }
 

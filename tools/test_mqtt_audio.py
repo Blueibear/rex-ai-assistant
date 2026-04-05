@@ -13,7 +13,7 @@ import base64
 import math
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -24,7 +24,7 @@ from rex.mqtt_client import RexMQTTClient
 
 
 def _utc_iso() -> str:
-    return datetime.now(tz=timezone.utc).isoformat()
+    return datetime.now(tz=UTC).isoformat()
 
 
 def _load_audio(audio_path: Path | None, sample_rate: int) -> tuple[np.ndarray, int]:
@@ -163,7 +163,7 @@ def main() -> int:
                 timeout=args.timeout,
             )
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         print("Timed out waiting for Rex reply on MQTT.")
         return 1
 
