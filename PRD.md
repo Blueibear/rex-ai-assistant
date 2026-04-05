@@ -719,13 +719,13 @@ can be removed.
 rather than failing because it targets the wrong module.
 
 **Acceptance Criteria:**
-- [ ] Read `rex/config.py` (or `rex/config_manager.py`) and confirm which file contains
+- [x] Read `rex/config.py` (or `rex/config_manager.py`) and confirm which file contains
   a `cli()` function
-- [ ] If `rex.config:cli` does not exist: update `pyproject.toml` to point to the correct
+- [x] If `rex.config:cli` does not exist: update `pyproject.toml` to point to the correct
   module and function (likely `rex.config_manager:cli` or create the `cli` function)
-- [ ] `rex-config --help` (after `pip install -e .`) exits 0 and prints usage
-- [ ] CI `ci.yml` adds: `rex-config --help` to the smoke-test step
-- [ ] Typecheck passes
+- [x] `rex-config --help` (after `pip install -e .`) exits 0 and prints usage
+- [x] CI `ci.yml` adds: `rex-config --help` to the smoke-test step
+- [x] Typecheck passes
 
 ---
 

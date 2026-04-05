@@ -155,6 +155,7 @@ jobs:
       - name: ✅ Verify CLI entrypoint
         run: |
           python -m rex --help
+          rex-config --help
 
       - name: 🧪 Run tests with coverage
         shell: bash
