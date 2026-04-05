@@ -380,3 +380,140 @@ No stories started yet. Begin with US-CI-001 (first story with unchecked criteri
   - When a story's acceptance criteria are already met by uncommitted changes, still commit them with the story as the commit subject
   - docs/BRANDING.md established canonical CLI as `rex` (not `askrex`), so entry point names rex/rex-gui/rex-speak-api satisfy the "askrex*" criteria
 ---
+
+## Iteration 28 - US-241 Correct INTEGRATIONS_STATUS.md to be the single source of truth
+- Rewrote docs/claude/INTEGRATIONS_STATUS.md with REAL/PARTIAL/STUB/NOT STARTED labels and one-line evidence notes for all integrations referenced in README (Email, Calendar, SMS/Messaging, Notifications, Voice Identity, Windows Computer Control, Home Assistant, WordPress/WooCommerce, Web Search, OpenClaw, Memory, Autonomous Workflows, Identity)
+- Removed advisory "do NOT imply" / "do not imply" language from INTEGRATIONS_STATUS.md
+- Updated README Current Limitations section to link to INTEGRATIONS_STATUS.md instead of embedding its own status table
+- Files changed: docs/claude/INTEGRATIONS_STATUS.md, README.md, PRD.md, progress.txt
+- Learnings for future iterations:
+  - 47 README-related tests (test_us143, test_us144, test_us146) all pass after the README change
+  - INTEGRATIONS_STATUS.md now uses a code-fence format matching the file's wrapping convention
+  - Advisory language in reference docs should belong in CLAUDE.md, not in status files
+---
+
+## Iteration 29 - US-242 Remove aspirational language from current docs
+- Story: US-242
+- Updated current docs to remove stale "production-ready" language and replace it with Alpha/current-state wording in `README.md`, `docs/claude/INTEGRATIONS_STATUS.md`, `docs/credentials.md`, `docs/calendar.md`, and `docs/WORKFLOW.md`
+- Renamed `docs/README_STABILIZATION.md` section header from "Remaining TODOs" to "Remaining Follow-up Items" and replaced current `TBD` markers in `docs/openclaw-migration-status.md` with explicit "not mapped yet" / "planned" wording
+- Verified `docs/claude/COMMANDS_AND_ENTRYPOINTS.md` only documents the currently working virtualenv commands it contains
+- Validation status: `venv\\Scripts\\pytest.exe tests/test_us143_readme_structure.py tests/test_us144_quick_start.py tests/test_us146_readme_visual.py -q` passed (47 tests), but `venv\\Scripts\\mypy.exe rex --ignore-missing-imports` failed on 17 pre-existing source errors unrelated to these doc edits, so US-242 was not marked complete
+- Files changed: README.md, docs/claude/INTEGRATIONS_STATUS.md, docs/credentials.md, docs/calendar.md, docs/WORKFLOW.md, docs/README_STABILIZATION.md, docs/openclaw-migration-status.md, progress.txt
+- Learnings for future iterations:
+  - `venv\\Scripts\\mypy.exe rex --ignore-missing-imports` is the working local typecheck command on this machine
+  - Current mypy baseline still fails in existing Python files including `rex/custom_voices.py`, `rex/audio/smart_speaker_output.py`, `rex/shopping_pwa.py`, `rex/telephony/twilio_handler.py`, `rex/wakeword/embedding.py`, and `rex/voice_loop.py`
+  - The README-focused validation subset remains stable: `tests/test_us143_readme_structure.py`, `tests/test_us144_quick_start.py`, and `tests/test_us146_readme_visual.py`
+---
+## Iteration 30 - US-242 Complete typecheck and final doc cleanup
+- Story: US-242
+- Fixed the remaining mypy errors blocking the story by tightening return typing in `rex/custom_voices.py`, `rex/audio/smart_speaker_output.py`, and `rex/telephony/twilio_handler.py`, switching the shopping PWA route annotations to `ResponseReturnValue`, removing the stale transformers shim ignore, simplifying the optional `torch` import in `rex/wakeword/embedding.py`, and wrapping the smart-speaker recorder in `rex/voice_loop.py` with a typed adapter that rejects disconnected streams
+- Reviewed the last live `docs/` production-ready phrase and corrected `docs/security/SECURITY_FIX_SUMMARY.md` to alpha-appropriate wording
+- Files changed: PRD.md, progress.txt, docs/security/SECURITY_FIX_SUMMARY.md, rex/custom_voices.py, rex/compat/transformers_shims.py, rex/audio/smart_speaker_output.py, rex/shopping_pwa.py, rex/telephony/twilio_handler.py, rex/wakeword/embedding.py, rex/voice_loop.py
+- Learnings for future iterations:
+  - `flask.typing.ResponseReturnValue` is the right annotation for Flask route handlers that may return either a Flask response or a redirect
+  - `Assistant` expects `settings_obj=...`, not `config=...`
+  - `AsyncMicrophone` recorder callbacks should always return audio arrays, so external microphone integrations need a typed adapter instead of passing nullable reader methods directly
+---
+
+## Iteration 31 - Move SECURITY_ADVISORY.md under docs/security
+- Story: US-243
+- Moved `SECURITY_ADVISORY.md` to `docs/security/SECURITY_ADVISORY.md` with `git mv` and updated the live documentation references in `docs/security/INDEX.md` and `docs/ARCHITECTURE.md` to the new path
+- Files changed: PRD.md, progress.txt, docs/security/SECURITY_ADVISORY.md, docs/security/INDEX.md, docs/ARCHITECTURE.md
+- Learnings for future iterations:
+  - Security documentation now lives under `docs/security/`; new references should point to `docs/security/SECURITY_ADVISORY.md`, not a root-level file
+  - Use `git mv` for documentation relocations when PRD acceptance criteria require preserved history
+  - `venv\\Scripts\\mypy.exe rex --ignore-missing-imports` currently passes on this machine
+---
+
+## Iteration 32 - US-244 Classify UI surfaces and document canonical GUI
+- Story: US-244
+- Created `docs/UI_SURFACES.md` as the authoritative UI surface inventory, using the current packaged `rex*` console scripts and marking the Tkinter launcher as deprecated
+- Updated `README.md` Quick Start to point contributors to `rex-gui` as the canonical GUI and explicitly steer them away from `python run_gui.py`
+- Added a focused regression test for the new UI surfaces doc and canonical GUI guidance, then validated with README tests and typecheck
+- Files changed: docs/UI_SURFACES.md, README.md, tests/test_us244_ui_surfaces.py, PRD.md, progress.txt
+- Learnings for future iterations:
+  - The current packaged console scripts are `rex`, `rex-gui`, and `rex-speak-api`; planning docs that still say `askrex*` are stale and should be reconciled against `pyproject.toml`
+  - `venv\\Scripts\\pytest.exe` plus `venv\\Scripts\\mypy.exe rex --ignore-missing-imports` is the working validation path for doc-driven stories on this machine
+  - A small story-specific regression test is worth adding when PRD language lags behind current entrypoint names
+---
+
+## Iteration 33 - US-245 Deprecate legacy Tkinter launchers
+- Story: US-245
+- Added the required deprecation header to `run_gui.py` and `gui.py`, kept both files in place for the deprecation cycle, and removed the remaining `python run_gui.py` startup guidance from `README.md`
+- Extended the focused UI-surface regression test to assert the launcher headers and to enforce zero `run_gui.py` references in `README.md` and `INSTALL.md`
+- Files changed: PRD.md, progress.txt, README.md, run_gui.py, gui.py, tests/test_us244_ui_surfaces.py
+- Learnings for future iterations:
+  - `rg` exiting with code `1` is the expected success signal for zero-match acceptance criteria like `run_gui.py` doc removals
+  - The PRD still uses `askrex-gui` in deprecation copy, but the actual packaged console script remains `rex-gui`; reconcile stale naming only when a story explicitly targets it
+  - The existing `tests/test_us244_ui_surfaces.py` file is the right place to extend doc-and-launcher regression coverage for adjacent UI-surface stories
+---
+## Iteration 34 - US-246 Verify web dashboard entry point works end-to-end
+- Story: US-246
+- Verified that `rex.gui_app` serves the built React dashboard from `rex/ui/dist/`, added a focused GUI smoke/regression test module, and made the dashboard port configurable via `REX_GUI_PORT` while preserving the default `127.0.0.1:8765`
+- Documented the default web dashboard URL and the `REX_GUI_PORT` override in `INSTALL.md`
+- Files changed: PRD.md, progress.txt, INSTALL.md, rex/gui_app.py, tests/test_gui_app.py
+- Learnings for future iterations:
+  - `rex.gui_app._create_flask_app(ui_enabled=True)` is sufficient for dashboard smoke coverage with Flask’s test client; a live subprocess is not necessary for this story
+  - `rex/ui/dist/index.html` is the canonical built artifact to validate before claiming the web dashboard entry point works
+  - `REX_GUI_PORT` is now the supported override for changing the `rex-gui` dashboard port without changing the default host or entry point
+---
+## Iteration 35 - US-247 Canonicalize CLAUDE GUI guidance
+- Story: US-247
+- Updated `CLAUDE.md` so the canonical GUI is the React + Flask dashboard via `rex.gui_app`, added the `rex-gui` entry point, replaced the legacy GUI run command, and removed remaining `run_gui`/Tkinter references from the file
+- Added a focused regression test to keep the canonical GUI wording and zero-match legacy-term requirement stable
+- Files changed: PRD.md, progress.txt, CLAUDE.md, tests/test_us247_claude_md.py
+- Learnings for future iterations:
+  - `CLAUDE.md` still contains some stale entrypoint guidance from older launcher eras; use story-specific regression tests when reconciling canonical command names there
+  - The `US-247` acceptance text is internally inconsistent because it mentions `run_gui.py` while also requiring zero `run_gui` matches; prefer satisfying the zero-match condition and the canonical `rex.gui_app` intent together
+  - `venv\\Scripts\\pytest.exe` plus `venv\\Scripts\\mypy.exe rex --ignore-missing-imports` remains the working validation path for documentation-only stories on this machine
+---
+## Iteration 36 - US-248 Archive root progress logs
+- Story: US-248
+- Created `docs/archive/progress/`, moved every root `progress*.txt` log into the archive, and updated `.gitignore` so new root progress logs stay untracked while archived logs remain commit-eligible
+- Added a focused regression test covering the archive directory, the zero-root-files condition, and the new ignore rule
+- Files changed: PRD.md, .gitignore, tests/test_us248_progress_archive.py, docs/archive/progress/*.txt
+- Learnings for future iterations:
+  - `progress*.txt` needs explicit unignore rules for `docs/archive/progress/` or Git will ignore the archived logs too
+  - Root-hygiene stories are easy to stabilize with a small filesystem assertion test rather than broader integration coverage
+  - When moving ignored historical artifacts into a tracked archive, stage them first and then move them into the unignored destination
+---
+## Iteration 37 - US-249 Remove generated artifacts from root and update .gitignore
+- Story: US-249
+- Removed `test-audit-coverage.txt` and `test-audit-final-results.txt` from git tracking, added the missing coverage and patch ignore rules, and added a focused regression test for ignored and untracked root artifacts
+- Files changed: PRD.md, .gitignore, tests/test_us249_root_artifact_hygiene.py, docs/archive/progress/progress.txt
+- Learnings for future iterations:
+  - For root-hygiene stories, `git check-ignore -v` plus `git ls-files` is a stable way to assert ignore behavior and tracked-state separately
+  - A narrow `pytest --cov` run can be used to validate artifact generation, but it may need `--cov-fail-under=0` when the story is about file hygiene rather than repo-wide coverage
+  - After US-248, the canonical iteration log lives at `docs/archive/progress/progress.txt`, not the repo root
+---
+## Iteration 38 - US-250 Remove backup env files
+- Story: US-250
+- Removed the tracked backup template `.env.example.backup_before_refactor`, deleted the root `.env.backup-legacy` file, added backup-env ignore patterns to `.gitignore`, and added a focused regression test covering ignored backup paths, tracked-state cleanup, and `backups/` hygiene
+- Files changed: .gitignore, tests/test_us250_env_backup_hygiene.py, .env.example.backup_before_refactor, .env.backup-legacy, docs/archive/progress/progress.txt
+- Learnings for future iterations:
+  - For root-hygiene stories, deleting a tracked file from disk is not enough; `git rm` is required so `git ls-files` stops reporting it
+  - `backups/` is already ignored and currently contains no tracked files, so this story only needed a regression assertion for that decision
+  - Validation is still blocked on the acceptance criterion that root `ls` shows only `.env.example`, because this workspace intentionally keeps an untracked local `.env` and the docs/runtime still depend on that developer file
+---
+## Iteration 83 - US-253 Evaluate and remove root-level wakeword files
+- Story: US-253
+- Both root files were stale: wakeword_utils.py was an explicit compat shim re-exporting from rex.wakeword_utils; wakeword_listener.py was a standalone test script with no unique code
+- git rm'd both root files
+- Updated tests/test_wakeword_utils.py to import from rex.wakeword_utils (was from root wakeword_utils)
+- Created tests/test_us253_wakeword_hygiene.py with 4 assertions; all 6 tests pass
+- Added CLAUDE.md learned rule: canonical wake-word implementation is rex/wakeword/
+- mypy rex exits 0 (250 source files)
+- Files changed: wakeword_listener.py (deleted), wakeword_utils.py (deleted), tests/test_wakeword_utils.py, tests/test_us253_wakeword_hygiene.py, CLAUDE.md, PRD.md
+- Learnings for future iterations:
+  - The correct venv for this repo is `venv/` (not `.venv/`); use `venv/Scripts/python.exe -m pytest`
+  - progress.txt is gitignored at root; the live progress log is docs/archive/progress/progress.txt
+---
+## Iteration N - US-255 Verify rex-agent and rex-tool-server entry points
+- Both `from rex.computers.agent_server import main` and `from rex.openclaw.tool_server import main` already import cleanly; no module fixes were needed.
+- Added import smoke-test lines for both entry points to the "Verify CLI entrypoint" step in `.github/workflows/ci.yml`.
+- Files changed: `.github/workflows/ci.yml`, `PRD.md`, `docs/archive/progress/progress.txt`
+- Learnings for future iterations:
+  - The venv in this environment is `.venv/` (not `venv/`); use `.venv/Scripts/python -m pytest` or `.venv/Scripts/mypy`.
+  - Both entry point modules load cleanly in the installed environment; the CI step addition is sufficient to satisfy US-255.
+  - Typecheck with `--ignore-missing-imports` passes for both files.
+---
