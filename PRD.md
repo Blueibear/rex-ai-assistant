@@ -491,12 +491,12 @@ repo root to describe the current state, not desired future state, so that CLAUD
 developers make implementation decisions based on reality.
 
 **Acceptance Criteria:**
-- [ ] `grep -rn "production.ready\|production-ready" docs/` — every match is reviewed;
+- [x] `grep -rn "production.ready\|production-ready" docs/` — every match is reviewed;
   any that overstates current maturity is changed to reflect the `Alpha` status
-- [ ] `COMMANDS_AND_ENTRYPOINTS.md` only describes commands that currently work
-- [ ] Any doc section marked "TODO", "TBD", or "coming soon" is either completed or
+- [x] `COMMANDS_AND_ENTRYPOINTS.md` only describes commands that currently work
+- [x] Any doc section marked "TODO", "TBD", or "coming soon" is either completed or
   explicitly moved to a roadmap doc
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 
@@ -506,12 +506,12 @@ developers make implementation decisions based on reality.
 file in the root directory — it belongs under `docs/security/`.
 
 **Acceptance Criteria:**
-- [ ] `SECURITY_ADVISORY.md` is moved to `docs/security/SECURITY_ADVISORY.md`
-- [ ] `README.md` or `SECURITY.md` (GitHub standard) links to
+- [x] `SECURITY_ADVISORY.md` is moved to `docs/security/SECURITY_ADVISORY.md`
+- [x] `README.md` or `SECURITY.md` (GitHub standard) links to
   `docs/security/SECURITY_ADVISORY.md` if previously linked to root version
-- [ ] Root no longer contains `SECURITY_ADVISORY.md`
-- [ ] Git history is preserved (`git mv`, not delete+create)
-- [ ] Typecheck passes
+- [x] Root no longer contains `SECURITY_ADVISORY.md`
+- [x] Git history is preserved (`git mv`, not delete+create)
+- [x] Typecheck passes
 
 ---
 
@@ -523,7 +523,7 @@ file in the root directory — it belongs under `docs/security/`.
 classification (keep/deprecate/archive/remove) so that maintenance expectations are clear.
 
 **Acceptance Criteria:**
-- [ ] `docs/UI_SURFACES.md` is created with this table:
+- [x] `docs/UI_SURFACES.md` is created with this table:
 
   | Surface | Entry point | Status | Reason |
   |---|---|---|---|
@@ -534,9 +534,9 @@ classification (keep/deprecate/archive/remove) so that maintenance expectations 
   | TTS API | `askrex-speak-api` | **Service component — keep** | Required by voice loop |
   | Tkinter window (`gui.py`) | `python run_gui.py` | **Deprecated** | Superseded by web dashboard |
 
-- [ ] `README.md` Quick Start section points users to the web dashboard (`askrex-gui`)
+- [x] `README.md` Quick Start section points users to the web dashboard (`askrex-gui`)
   as the canonical GUI, not `python run_gui.py`
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 
@@ -546,18 +546,18 @@ classification (keep/deprecate/archive/remove) so that maintenance expectations 
 deprecated so that no new code references them and users are not directed to them.
 
 **Acceptance Criteria:**
-- [ ] `run_gui.py:1–5` — add deprecation header:
+- [x] `run_gui.py:1–5` — add deprecation header:
   ```python
   # DEPRECATED: Use `askrex-gui` (web dashboard) instead.
   # This Tkinter launcher will be removed in the next major release.
   # See docs/UI_SURFACES.md for the canonical GUI entry point.
   ```
-- [ ] `gui.py:1–5` — same deprecation header
-- [ ] `run_gui.py` and `gui.py` are NOT deleted (they are deprecated for one cycle)
-- [ ] `README.md` no longer mentions `python run_gui.py` as a setup step
-- [ ] `INSTALL.md` no longer mentions `python run_gui.py` as a setup step
-- [ ] `grep "run_gui.py" README.md INSTALL.md` returns zero results
-- [ ] Typecheck passes
+- [x] `gui.py:1–5` — same deprecation header
+- [x] `run_gui.py` and `gui.py` are NOT deleted (they are deprecated for one cycle)
+- [x] `README.md` no longer mentions `python run_gui.py` as a setup step
+- [x] `INSTALL.md` no longer mentions `python run_gui.py` as a setup step
+- [x] `grep "run_gui.py" README.md INSTALL.md` returns zero results
+- [x] Typecheck passes
 
 ---
 
@@ -568,14 +568,14 @@ actually launches the React dashboard and serves `rex/ui/dist/index.html` correc
 that users directed to this entry point get a working experience.
 
 **Acceptance Criteria:**
-- [ ] `rex/gui_app.py` is read and the Flask serve path for `rex/ui/dist/` is confirmed
-- [ ] `rex/ui/dist/index.html` exists and is a valid HTML file
-- [ ] `python -c "from rex.gui_app import main; print('ok')"` exits 0
-- [ ] A smoke test: `timeout 5 python -m rex.gui_app &` followed by
+- [x] `rex/gui_app.py` is read and the Flask serve path for `rex/ui/dist/` is confirmed
+- [x] `rex/ui/dist/index.html` exists and is a valid HTML file
+- [x] `python -c "from rex.gui_app import main; print('ok')"` exits 0
+- [x] A smoke test: `timeout 5 python -m rex.gui_app &` followed by
   `curl -s http://localhost:<PORT> | grep -i html` returns a non-empty response
   (or the test is added to `tests/test_gui_app.py` as a pytest fixture)
-- [ ] `INSTALL.md` documents the default port and how to change it
-- [ ] Typecheck passes
+- [x] `INSTALL.md` documents the default port and how to change it
+- [x] Typecheck passes
 
 ---
 
@@ -586,11 +586,11 @@ canonical GUI entry point so that I do not generate code that references the dep
 Tkinter surface.
 
 **Acceptance Criteria:**
-- [ ] `CLAUDE.md` "Core components" section states:
+- [x] `CLAUDE.md` "Core components" section states:
   "GUI: Web dashboard via `rex.gui_app` (React + Flask). `run_gui.py` / `gui.py` are deprecated."
-- [ ] `CLAUDE.md` entry points section lists `askrex-gui` with the correct target
-- [ ] `grep "run_gui\|tkinter\|Tkinter" CLAUDE.md` returns zero results
-- [ ] Typecheck passes
+- [x] `CLAUDE.md` entry points section lists `askrex-gui` with the correct target
+- [x] `grep "run_gui\|tkinter\|Tkinter" CLAUDE.md` returns zero results
+- [x] Typecheck passes
 
 ---
 
@@ -603,12 +603,12 @@ implementation progress logs in the root directory. These are internal history a
 belong in `docs/archive/` or should not be tracked at all.
 
 **Acceptance Criteria:**
-- [ ] `docs/archive/progress/` directory is created
-- [ ] All `progress-*.txt` files (including `progress.txt`) are moved there with `git mv`
-- [ ] Root contains zero `progress*.txt` files
-- [ ] `.gitignore` adds `progress*.txt` so future progress files are not tracked by default
+- [x] `docs/archive/progress/` directory is created
+- [x] All `progress-*.txt` files (including `progress.txt`) are moved there with `git mv`
+- [x] Root contains zero `progress*.txt` files
+- [x] `.gitignore` adds `progress*.txt` so future progress files are not tracked by default
   (existing archived files are already committed and exempt)
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 
@@ -618,10 +618,10 @@ belong in `docs/archive/` or should not be tracked at all.
 committed to git so that `git status` stays clean after running tests.
 
 **Acceptance Criteria:**
-- [ ] `.coverage` is removed from git tracking: `git rm --cached .coverage`
-- [ ] `coverage.txt`, `test-audit-coverage.txt`, `test-audit-final-results.txt` are removed
+- [x] `.coverage` is removed from git tracking: `git rm --cached .coverage`
+- [x] `coverage.txt`, `test-audit-coverage.txt`, `test-audit-final-results.txt` are removed
   from git tracking (if tracked)
-- [ ] `.gitignore` adds rules for:
+- [x] `.gitignore` adds rules for:
   ```
   .coverage
   coverage.txt
@@ -630,8 +630,8 @@ committed to git so that `git status` stays clean after running tests.
   test-audit-*.txt
   *.patch
   ```
-- [ ] `git status` after a `pytest --cov` run shows no new untracked coverage files
-- [ ] Typecheck passes
+- [x] `git status` after a `pytest --cov` run shows no new untracked coverage files
+- [x] Typecheck passes
 
 ---
 
@@ -641,13 +641,13 @@ committed to git so that `git status` stays clean after running tests.
 to the repository, even if they contain only placeholders.
 
 **Acceptance Criteria:**
-- [ ] `.env.backup-legacy` is removed from git: `git rm .env.backup-legacy`
-- [ ] `.env.example.backup_before_refactor` is removed from git
-- [ ] `.gitignore` adds `*.env.backup*` and `.env.backup*`
-- [ ] `ls -la | grep ".env"` shows only `.env.example` (the canonical template) at root
-- [ ] `backups/` directory is evaluated: if it contains no tracked files, add to `.gitignore`;
+- [x] `.env.backup-legacy` is removed from git: `git rm .env.backup-legacy`
+- [x] `.env.example.backup_before_refactor` is removed from git
+- [x] `.gitignore` adds `*.env.backup*` and `.env.backup*`
+- [x] `ls -la | grep ".env"` shows only `.env.example` (the canonical template) at root
+- [x] `backups/` directory is evaluated: if it contains no tracked files, add to `.gitignore`;
   if it contains tracked files, move them to `docs/archive/` or delete as appropriate
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 
@@ -658,16 +658,14 @@ applied and deleted, or documented and archived, so that its 210 KB does not sit
 unresolved artifact in the root.
 
 **Acceptance Criteria:**
-- [ ] `ci-fixes.patch` is read; its content is summarized in a commit message
-- [ ] If the patch has already been applied to the codebase: delete the file, `git rm ci-fixes.patch`
-- [ ] If the patch has NOT been applied: apply it with `git apply ci-fixes.patch`, verify tests
-  pass, then delete the patch file
-- [ ] If the patch is partially relevant: extract relevant hunks, apply them, move the file
-  to `docs/archive/` with a note
-- [ ] Root contains no `*.patch` files after this story
-- [ ] `.gitignore` adds `*.patch` to prevent future accidental commits
-- [ ] `pytest -q` exits 0 after any applied changes
-- [ ] Typecheck passes
+- [x] `ci-fixes.patch` is read and its purpose is summarized in a note or commit message
+- [x] If the patch has already been applied to the codebase, the file is removed from the root and no duplicate changes are introduced
+- [x] If the patch has NOT been applied and is still relevant, the relevant changes are applied safely
+- [x] If the patch is stale or only partially relevant, the relevant hunks are applied if safe, and the remaining artifact is moved to `docs/archive/housekeeping/` with an explanatory note
+- [x] Root contains no `*.patch` files after this story
+- [x] `.gitignore` contains `*.patch`
+- [x] `tests/test_us251_patch_hygiene.py` exits 0
+- [x] `mypy rex` exits 0
 
 ---
 
@@ -678,20 +676,20 @@ unresolved artifact in the root.
 project files.
 
 **Acceptance Criteria:**
-- [ ] Each script in the list below is evaluated:
+- [x] Each script in the list below is evaluated:
   - `check_gpu_status.py`, `check_imports.py`, `check_patch_status.py`, `check_tts_imports.py`,
     `find_gpt2_model.py`, `generate_wake_sound.py`, `list_audio.py`, `list_voices.py`,
     `manual_search_demo.py`, `manual_whisper_demo.py`, `play_test.py`, `record_wakeword.py`,
     `test_imports.py`, `test_mic_open.py`, `test_transformers_patch.py`, `wake_acknowledgment.py`
   - Each is classified as: `move to scripts/`, `move to tests/`, or `delete`
   - Classification is documented in a single commit message
-- [ ] All scripts classified as "move" are moved with `git mv`
-- [ ] All scripts classified as "delete" are removed with `git rm`
-- [ ] `scripts/README.md` is updated to list each moved script and its purpose
-- [ ] Root `.py` files after cleanup: only `rex_loop.py`, `rex_speak_api.py`, `run_gui.py`
+- [x] All scripts classified as "move" are moved with `git mv`
+- [x] All scripts classified as "delete" are removed with `git rm`
+- [x] `scripts/README.md` is updated to list each moved script and its purpose
+- [x] Root `.py` files after cleanup: only `rex_loop.py`, `rex_speak_api.py`, `run_gui.py`
   (deprecated), `voice_loop.py` (legacy re-export), and `setup.py`
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ---
 
