@@ -1,3 +1,22 @@
+## Iteration 95 - US-267/268/269 Brand asset integration (WS-I)
+- Stories: US-267, US-268, US-269
+- US-267: assets/brand/ already partially populated; generated missing hyphen-named variants from underscore originals using Pillow
+  - icon-square.png (upscaled from 313x376 → 426x512), icon-circle.png, icon-r.png, primary-horizontal.png
+  - Generated wordmark-dark.png (copy of primary-horizontal), wordmark-light.png (RGB-inverted), wordmark-reverse.png (white-bg composite)
+  - Generated favicon.ico (multi-size 16/32/48 px from favicon.png)
+  - Created assets/brand/README.md documenting all 9 variants
+- US-268: Added <img> tag at top of README.md: assets/brand/primary-horizontal.png, width=400, correct alt text
+- US-269: gui/package.json "icon" set to ../assets/brand/icon-square.png
+  - shopping_pwa.py: <link rel="icon"> → favicon.ico, <link rel="apple-touch-icon"> → icon-square.png
+  - shopping_pwa.py: <title> → "AskRex — Shopping", header img → wordmark-light.png
+  - Added /assets/brand/<path:filename> route via send_from_directory to serve brand assets
+  - Added pathlib.Path and send_from_directory imports
+- mypy rex/shopping_pwa.py → Success; 1171 passed, 25 skipped (1 pre-existing failure: test_install_lean_script_dry_run fails due to system Python 3.14 in shell env)
+- Files changed: assets/brand/ (new files), assets/brand/README.md, README.md, gui/package.json, rex/shopping_pwa.py, PRD.md, progress.txt
+- Learnings for future iterations:
+  - When adding static file serving to a Flask Blueprint, add a route using send_from_directory; don't assume the main app handles it
+  - test_install_lean_script_dry_run is a pre-existing environment failure (system Python 3.14 not supported by install_lean.sh) — not caused by code changes
+---
 ## Iteration 92 - US-266 Suppress pre-commit secret-detection false positives
 - Story: US-266
 - Added `# pragma: allowlist secret` to tests/helpers/fake_smtp.py line 15 (password="pw")

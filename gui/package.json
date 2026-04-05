@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Rex AI Assistant desktop GUI",
   "main": "./dist-electron/main/index.js",
+  "icon": "../assets/brand/icon-square.png",
   "author": "Rex AI",
   "homepage": ".",
   "scripts": {

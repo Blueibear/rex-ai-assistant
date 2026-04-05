@@ -24,9 +24,11 @@ import logging
 import secrets
 from collections.abc import Callable
 from functools import wraps
+from pathlib import Path
 from typing import Any
 
-from flask import Blueprint, Response, make_response, redirect, request
+from flask import Blueprint, Response, make_response, redirect, request, send_from_directory
+from flask.typing import ResponseReturnValue
 
 from rex.shopping_list import ShoppingList
 
@@ -83,7 +85,7 @@ _PIN_PAGE = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Rex Shopping — Sign In</title>
+<title>AskRex — Shopping</title>
 <style>
   body{font-family:system-ui,sans-serif;background:#f5f5f5;display:flex;
        align-items:center;justify-content:center;min-height:100vh;margin:0}
@@ -120,9 +122,11 @@ _MAIN_PAGE = """<!DOCTYPE html>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Rex Shopping">
+<meta name="apple-mobile-web-app-title" content="AskRex — Shopping">
+<link rel="icon" href="/assets/brand/favicon.ico">
+<link rel="apple-touch-icon" href="/assets/brand/icon-square.png">
 <link rel="manifest" href="/shopping/manifest.json">
-<title>Rex Shopping List</title>
+<title>AskRex — Shopping</title>
 <style>
   *{box-sizing:border-box}
   body{font-family:system-ui,sans-serif;background:#f5f7fa;margin:0;min-height:100vh;
@@ -163,7 +167,8 @@ _MAIN_PAGE = """<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>🛒 Shopping List</h1>
+  <img src="/assets/brand/wordmark-light.png" alt="AskRex" style="height:28px;margin-right:.5rem">
+  <h1>Shopping List</h1>
   <button class="refresh-btn" onclick="load()">Refresh</button>
 </header>
 <main>
@@ -334,7 +339,7 @@ def create_blueprint(shopping_list: ShoppingList, *, pin: str | None = None) -> 
     # ------------------------------------------------------------------
 
     @bp.route("/shopping/pin", methods=["POST"])
-    def pin_submit() -> Response:  # type: ignore[return]
+    def pin_submit() -> ResponseReturnValue:
         if _pin_hash is None:
             return redirect("/shopping")
         submitted = (request.form.get("pin") or "").strip()
@@ -358,7 +363,7 @@ def create_blueprint(shopping_list: ShoppingList, *, pin: str | None = None) -> 
 
     @bp.route("/shopping")
     @_login_required
-    def shopping_index() -> Response:  # type: ignore[return]
+    def shopping_index() -> ResponseReturnValue:
         return make_response(_MAIN_PAGE, 200, {"Content-Type": "text/html; charset=utf-8"})
 
     # ------------------------------------------------------------------
@@ -366,7 +371,7 @@ def create_blueprint(shopping_list: ShoppingList, *, pin: str | None = None) -> 
     # ------------------------------------------------------------------
 
     @bp.route("/shopping/manifest.json")
-    def shopping_manifest() -> Response:  # type: ignore[return]
+    def shopping_manifest() -> ResponseReturnValue:
         return _json(_MANIFEST)
 
     # ------------------------------------------------------------------
@@ -375,14 +380,14 @@ def create_blueprint(shopping_list: ShoppingList, *, pin: str | None = None) -> 
 
     @bp.route("/shopping/api/items", methods=["GET"])
     @_login_required
-    def api_list_items() -> Response:  # type: ignore[return]
+    def api_list_items() -> ResponseReturnValue:
         assert _shopping_list is not None
         items = [i.to_dict() for i in _shopping_list.list_items()]
         return _json({"items": items})
 
     @bp.route("/shopping/api/items", methods=["POST"])
     @_login_required
-    def api_add_item() -> Response:  # type: ignore[return]
+    def api_add_item() -> ResponseReturnValue:
         assert _shopping_list is not None
         body = request.get_json(force=True, silent=True) or {}
         name = (body.get("name") or "").strip()
@@ -396,7 +401,7 @@ def create_blueprint(shopping_list: ShoppingList, *, pin: str | None = None) -> 
 
     @bp.route("/shopping/api/items/<item_id>", methods=["PATCH"])
     @_login_required
-    def api_toggle_item(item_id: str) -> Response:  # type: ignore[return]
+    def api_toggle_item(item_id: str) -> ResponseReturnValue:
         assert _shopping_list is not None
         body = request.get_json(force=True, silent=True) or {}
         checked = bool(body.get("checked", True))
@@ -410,10 +415,16 @@ def create_blueprint(shopping_list: ShoppingList, *, pin: str | None = None) -> 
 
     @bp.route("/shopping/api/clear-checked", methods=["POST"])
     @_login_required
-    def api_clear_checked() -> Response:  # type: ignore[return]
+    def api_clear_checked() -> ResponseReturnValue:
         assert _shopping_list is not None
         removed = _shopping_list.clear_checked()
         return _json({"removed": removed})
+
+    _BRAND_DIR = Path(__file__).resolve().parent.parent / "assets" / "brand"
+
+    @bp.route("/assets/brand/<path:filename>")
+    def brand_asset(filename: str) -> ResponseReturnValue:
+        return send_from_directory(str(_BRAND_DIR), filename)
 
     return bp
 

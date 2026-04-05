@@ -942,15 +942,15 @@ detect-secrets flags to carry inline suppression markers so that pre-commit exit
 stored under `assets/brand/` with a usage README so that all UI surfaces can reference them.
 
 **Acceptance Criteria:**
-- [ ] `assets/brand/` directory is created
-- [ ] The following variants are present:
+- [x] `assets/brand/` directory is created
+- [x] The following variants are present:
   `icon-square.png`, `icon-circle.png`, `icon-r.png`,
   `wordmark-dark.png`, `wordmark-light.png`, `wordmark-reverse.png`,
   `primary-horizontal.png`, `stacked.png`, `favicon.ico`
-- [ ] Each PNG is at minimum 512 px on longest axis; favicon.ico is multi-size (16/32/48 px)
-- [ ] `assets/brand/README.md` documents each variant and its intended use
-- [ ] `assets/logo.svg` is updated or replaced if a higher-fidelity vector source is available
-- [ ] Typecheck passes (asset-only story; no Python changes required)
+- [x] Each PNG is at minimum 512 px on longest axis; favicon.ico is multi-size (16/32/48 px)
+- [x] `assets/brand/README.md` documents each variant and its intended use
+- [x] `assets/logo.svg` is updated or replaced if a higher-fidelity vector source is available
+- [x] Typecheck passes (asset-only story; no Python changes required)
 
 ---
 
@@ -960,12 +960,12 @@ stored under `assets/brand/` with a usage README so that all UI surfaces can ref
 Assistant logo so that the project presents a professional identity.
 
 **Acceptance Criteria:**
-- [ ] `README.md` opens with an `<img>` tag referencing `assets/brand/primary-horizontal.png`
+- [x] `README.md` opens with an `<img>` tag referencing `assets/brand/primary-horizontal.png`
   or `assets/brand/stacked.png` at display width 400 px
-- [ ] Alt text: `"AskRex Assistant — local-first voice AI"`
-- [ ] Any previous placeholder logo reference is removed
-- [ ] README renders correctly (verify via `gh browse` or manual check)
-- [ ] Typecheck passes
+- [x] Alt text: `"AskRex Assistant — local-first voice AI"`
+- [x] Any previous placeholder logo reference is removed
+- [x] README renders correctly (verify via `gh browse` or manual check)
+- [x] Typecheck passes
 
 ---
 
@@ -975,13 +975,13 @@ Assistant logo so that the project presents a professional identity.
 AskRex icon and wordmark to appear in application chrome.
 
 **Acceptance Criteria:**
-- [ ] Electron `gui/package.json` — `"icon"` field set to `assets/brand/icon-square.png`
-- [ ] Shopping PWA HTML template — `<link rel="icon">` uses `assets/brand/favicon.ico`
-- [ ] Shopping PWA `<link rel="apple-touch-icon">` uses `assets/brand/icon-square.png`
-- [ ] Shopping PWA `<title>` reads `"AskRex — Shopping"`
-- [ ] Shopping PWA header renders `assets/brand/wordmark-dark.png` or `wordmark-light.png`
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] Electron `gui/package.json` — `"icon"` field set to `assets/brand/icon-square.png`
+- [x] Shopping PWA HTML template — `<link rel="icon">` uses `assets/brand/favicon.ico`
+- [x] Shopping PWA `<link rel="apple-touch-icon">` uses `assets/brand/icon-square.png`
+- [x] Shopping PWA `<title>` reads `"AskRex — Shopping"`
+- [x] Shopping PWA header renders `assets/brand/wordmark-dark.png` or `wordmark-light.png`
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ---
 

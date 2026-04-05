@@ -1,6 +1,10 @@
 # AskRex Assistant
 
 <p align="center">
+  <img src="assets/brand/primary-horizontal.png" alt="AskRex Assistant — local-first voice AI" width="400" />
+</p>
+
+<p align="center">
   <img src="https://github.com/Blueibear/AskRex-Assistant/actions/workflows/ci.yml/badge.svg" alt="CI status" />
   <img src="https://img.shields.io/badge/python-3.11-blue" alt="Python 3.11" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />
