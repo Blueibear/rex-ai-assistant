@@ -1,3 +1,42 @@
+## Iteration 92 - US-266 Suppress pre-commit secret-detection false positives
+- Story: US-266
+- Added `# pragma: allowlist secret` to tests/helpers/fake_smtp.py line 15 (password="pw")
+- Added `# pragma: allowlist secret` to tests/test_email_backend_imap_smtp.py line 602 (password="fallback")
+- Added `<!-- pragma: allowlist secret -->` to docs/ARCHITECTURE.md line 448 (OPENCLAW_GATEWAY_TOKEN ref)
+- Added `<!-- pragma: allowlist secret -->` to docs/security/SECURITY_AUDIT_2026-01-08.md lines 40-41 (pattern examples)
+- Regenerated .secrets.baseline: 67 findings in 36 files (down from 69 in 37 — suppressed lines no longer counted)
+- All suppressed lines verified as placeholder/test values only — no real credentials
+- 55 email tests pass; full suite exits 0
+- Files changed: tests/helpers/fake_smtp.py, tests/test_email_backend_imap_smtp.py, docs/ARCHITECTURE.md, docs/security/SECURITY_AUDIT_2026-01-08.md, .secrets.baseline, PRD.md, progress.txt
+- Learnings for future iterations:
+  - `# pragma: allowlist secret` for Python/YAML lines; `<!-- pragma: allowlist secret -->` for Markdown
+  - After adding pragma markers, regenerate .secrets.baseline so line hashes reflect suppressed lines
+---
+## Iteration 91 - US-265 Fix psutil ModuleNotFoundError blocking CI test collection
+- Story: US-265
+- Added explicit `if psutil is None: logger.warning(...); return {"error": "psutil not installed"}` guard to all 6 functions in rex/tools/windows_diagnostics.py
+- Added `pytest.importorskip("psutil")` to tests/test_windows_diagnostics.py
+- Added `psutil>=5.9` to requirements-dev.txt
+- 20 windows_diagnostics tests pass; mypy exits 0; full suite exits 0
+- Files changed: rex/tools/windows_diagnostics.py, tests/test_windows_diagnostics.py, requirements-dev.txt, PRD.md, progress.txt
+- Learnings for future iterations:
+  - Use `pytest.importorskip("psutil")` in tests for optional platform deps; whole module skips cleanly on CI without psutil
+---
+## Iteration 90 - US-262/263/264 mypy checks already satisfied
+- Stories: US-262, US-263, US-264
+- Ran mypy on all target files; all passed with "Success: no issues found"
+- US-262: custom_voices.py and smart_speaker_output.py — already clean
+- US-263: transformers_shims.py, smart_speaker_output.py, shopping_pwa.py, voice_loop.py — already clean
+- US-264: shopping_pwa.py, twilio_handler.py — already clean
+- Marked all 3 stories complete in PRD.md
+- Learnings: Always run mypy before attempting to fix — prior sessions may have already resolved the issue
+---
+## Iteration 89 - US-262 attempt (discovered already done)
+- Story: US-262
+- Ran mypy rex/custom_voices.py rex/audio/smart_speaker_output.py — Success, no issues
+- Both files already had correct float/str return casts from prior work
+- Marked US-262 complete; proceeded to US-263 and beyond
+---
 ## Iteration 88 - US-261 Fix mypy no-redef error in rex/wakeword/embedding.py
 - Story: US-261
 - Renamed `torch` → `_torch` with explicit `ModuleType | None` annotation before the try block

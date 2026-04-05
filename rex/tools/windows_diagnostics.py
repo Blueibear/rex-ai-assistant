@@ -19,7 +19,13 @@ import platform
 import socket
 from typing import Any
 
-import psutil
+try:
+    import psutil as _psutil
+except ModuleNotFoundError:
+    # Keep the module importable in lean dev/test environments where psutil is optional.
+    _psutil = None
+
+psutil: Any = _psutil
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +37,9 @@ def get_system_info(**kwargs: Any) -> dict[str, Any]:
         Dict with keys: ``platform``, ``platform_version``, ``architecture``,
         ``hostname``, ``cpu_count``, ``total_memory_gb``, ``boot_time``.
     """
+    if psutil is None:
+        logger.warning("windows_diagnostics: psutil not installed")
+        return {"error": "psutil not installed"}
     try:
         mem = psutil.virtual_memory()
         boot_str = datetime.datetime.fromtimestamp(psutil.boot_time()).isoformat()
@@ -59,6 +68,9 @@ def get_cpu_usage(**kwargs: Any) -> dict[str, Any]:
         (list), ``frequency_mhz``, ``cpu_count_logical``,
         ``cpu_count_physical``.
     """
+    if psutil is None:
+        logger.warning("windows_diagnostics: psutil not installed")
+        return {"error": "psutil not installed"}
     try:
         freq = psutil.cpu_freq()
         result: dict[str, Any] = {
@@ -82,6 +94,9 @@ def get_memory_usage(**kwargs: Any) -> dict[str, Any]:
         Dict with keys: ``total_gb``, ``available_gb``, ``used_gb``,
         ``percent``, ``swap_total_gb``, ``swap_used_gb``, ``swap_percent``.
     """
+    if psutil is None:
+        logger.warning("windows_diagnostics: psutil not installed")
+        return {"error": "psutil not installed"}
     try:
         mem = psutil.virtual_memory()
         swap = psutil.swap_memory()
@@ -109,6 +124,9 @@ def get_disk_usage(**kwargs: Any) -> dict[str, Any]:
         ``device``, ``mountpoint``, ``fstype``, ``total_gb``, ``used_gb``,
         ``free_gb``, ``percent``.
     """
+    if psutil is None:
+        logger.warning("windows_diagnostics: psutil not installed")
+        return {"error": "psutil not installed"}
     try:
         partitions = []
         for part in psutil.disk_partitions(all=False):
@@ -145,6 +163,9 @@ def get_battery_status(**kwargs: Any) -> dict[str, Any]:
         when a battery is present; or ``status: platform_not_supported`` when
         no battery sensor is available.
     """
+    if psutil is None:
+        logger.warning("windows_diagnostics: psutil not installed")
+        return {"error": "psutil not installed"}
     try:
         battery = psutil.sensors_battery()
         if battery is None:
@@ -174,6 +195,9 @@ def list_processes(**kwargs: Any) -> dict[str, Any]:
         Dict with key ``processes``: list of dicts each containing ``pid``,
         ``name``, ``cpu_percent``, ``memory_mb``, ``status``.
     """
+    if psutil is None:
+        logger.warning("windows_diagnostics: psutil not installed")
+        return {"error": "psutil not installed"}
     try:
         procs = []
         for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_info", "status"]):

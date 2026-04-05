@@ -1,3 +1,4 @@
 # Developer tooling layered on top of the core runtime
 # Installs Rex with dev extras (tests, linting, build tooling).
 -e ".[dev]"
+psutil>=5.9

@@ -858,12 +858,12 @@ that `setup.py` can be simplified or removed.
 to return explicitly typed values so that mypy's `no-any-return` rule is satisfied.
 
 **Acceptance Criteria:**
-- [ ] `rex/custom_voices.py` line ~52: return cast to `float` (e.g. `return float(info.duration)`)
-- [ ] `rex/audio/smart_speaker_output.py` line ~41: return cast to `float`
-- [ ] `rex/audio/smart_speaker_output.py` line ~52: return cast to `str`
-- [ ] `mypy rex/custom_voices.py rex/audio/smart_speaker_output.py --ignore-missing-imports` exits 0
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `rex/custom_voices.py` line ~52: return cast to `float` (e.g. `return float(info.duration)`)
+- [x] `rex/audio/smart_speaker_output.py` line ~41: return cast to `float`
+- [x] `rex/audio/smart_speaker_output.py` line ~52: return cast to `str`
+- [x] `mypy rex/custom_voices.py rex/audio/smart_speaker_output.py --ignore-missing-imports` exits 0
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ---
 
@@ -873,15 +873,15 @@ to return explicitly typed values so that mypy's `no-any-return` rule is satisfi
 `[unused-ignore]` removed so that the annotation layer is clean.
 
 **Acceptance Criteria:**
-- [ ] `rex/compat/transformers_shims.py` line ~76: stale `# type: ignore` removed or
+- [x] `rex/compat/transformers_shims.py` line ~76: stale `# type: ignore` removed or
   replaced with a scoped `# type: ignore[attr-defined]` with an explanatory comment
-- [ ] `rex/audio/smart_speaker_output.py` line ~87: removed
-- [ ] `rex/shopping_pwa.py` lines ~337, 361, 369, 378, 385, 399, 413: all seven removed
-- [ ] `rex/voice_loop.py` line ~209: removed
-- [ ] `mypy rex/compat/transformers_shims.py rex/audio/smart_speaker_output.py rex/shopping_pwa.py rex/voice_loop.py --ignore-missing-imports`
+- [x] `rex/audio/smart_speaker_output.py` line ~87: removed
+- [x] `rex/shopping_pwa.py` lines ~337, 361, 369, 378, 385, 399, 413: all seven removed
+- [x] `rex/voice_loop.py` line ~209: removed
+- [x] `mypy rex/compat/transformers_shims.py rex/audio/smart_speaker_output.py rex/shopping_pwa.py rex/voice_loop.py --ignore-missing-imports`
   exits 0 with zero `[unused-ignore]` errors
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ---
 
@@ -891,13 +891,13 @@ to return explicitly typed values so that mypy's `no-any-return` rule is satisfi
 type and `Assistant` to be called with valid arguments.
 
 **Acceptance Criteria:**
-- [ ] `rex/shopping_pwa.py` line ~339: return type corrected to `flask.wrappers.Response`
-- [ ] `rex/telephony/twilio_handler.py` line ~88: return cast to `bool`
-- [ ] `rex/telephony/twilio_handler.py` line ~399: `Assistant(config=...)` corrected to
+- [x] `rex/shopping_pwa.py` line ~339: return type corrected to `flask.wrappers.Response`
+- [x] `rex/telephony/twilio_handler.py` line ~88: return cast to `bool`
+- [x] `rex/telephony/twilio_handler.py` line ~399: `Assistant(config=...)` corrected to
   match `Assistant.__init__` actual signature (inspect `rex/assistant.py` for real params)
-- [ ] `mypy rex/shopping_pwa.py rex/telephony/twilio_handler.py --ignore-missing-imports` exits 0
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `mypy rex/shopping_pwa.py rex/telephony/twilio_handler.py --ignore-missing-imports` exits 0
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ---
 
@@ -907,14 +907,14 @@ type and `Assistant` to be called with valid arguments.
 `psutil` conditionally so that test collection does not fail on Linux CI runners.
 
 **Acceptance Criteria:**
-- [ ] `rex/tools/windows_diagnostics.py` wraps `import psutil` in `try/except ImportError`;
+- [x] `rex/tools/windows_diagnostics.py` wraps `import psutil` in `try/except ImportError`;
   when absent, functions return a `{"error": "psutil not installed"}` dict and emit
   `logger.warning`
-- [ ] `tests/test_windows_diagnostics.py` adds `pytest.importorskip("psutil")` at the top
-- [ ] `requirements-dev.txt` adds `psutil>=5.9`
-- [ ] `pytest -q tests/test_windows_diagnostics.py` exits 0 (skipped or passing, not erroring)
-- [ ] `pytest -q` full run exits 0
-- [ ] Typecheck passes
+- [x] `tests/test_windows_diagnostics.py` adds `pytest.importorskip("psutil")` at the top
+- [x] `requirements-dev.txt` adds `psutil>=5.9`
+- [x] `pytest -q tests/test_windows_diagnostics.py` exits 0 (skipped or passing, not erroring)
+- [x] `pytest -q` full run exits 0
+- [x] Typecheck passes
 
 ---
 
@@ -924,13 +924,13 @@ type and `Assistant` to be called with valid arguments.
 detect-secrets flags to carry inline suppression markers so that pre-commit exits clean.
 
 **Acceptance Criteria:**
-- [ ] `tests/helpers/fake_smtp.py` line ~15: `  # pragma: allowlist secret` appended
-- [ ] `tests/test_email_backend_imap_smtp.py` line ~602: same
-- [ ] `docs/ARCHITECTURE.md` line ~448: `<!-- pragma: allowlist secret -->` added
-- [ ] `docs/security/SECURITY_AUDIT_2026-01-08.md` lines ~40–41: both suppressed
-- [ ] `pre-commit run detect-secrets --all-files` exits 0
-- [ ] Verified that suppressed lines contain only placeholder/test values, not real credentials
-- [ ] Typecheck passes
+- [x] `tests/helpers/fake_smtp.py` line ~15: `  # pragma: allowlist secret` appended
+- [x] `tests/test_email_backend_imap_smtp.py` line ~602: same
+- [x] `docs/ARCHITECTURE.md` line ~448: `<!-- pragma: allowlist secret -->` added
+- [x] `docs/security/SECURITY_AUDIT_2026-01-08.md` lines ~40–41: both suppressed
+- [x] `pre-commit run detect-secrets --all-files` exits 0
+- [x] Verified that suppressed lines contain only placeholder/test values, not real credentials
+- [x] Typecheck passes
 
 ---
 

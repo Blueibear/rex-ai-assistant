@@ -37,8 +37,8 @@ No merge conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) found in any tracked
 **Patterns Checked:**
 - OpenAI API keys: `sk-[A-Za-z0-9]{40,}` (real keys, not placeholders)
 - Generic API keys: `api_key = "..."` with non-placeholder values
-- Private keys: `-----BEGIN PRIVATE KEY-----`
-- AWS secrets: `aws_secret_access_key = ...`
+- Private keys: `-----BEGIN PRIVATE KEY-----` <!-- pragma: allowlist secret -->
+- AWS secrets: `aws_secret_access_key = ...` <!-- pragma: allowlist secret -->
 
 **Result:** ✅ **CLEAN**
 No real API keys, tokens, or credentials found in source code.

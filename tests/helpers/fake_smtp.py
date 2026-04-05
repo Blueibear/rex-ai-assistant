@@ -12,7 +12,7 @@ Usage::
     backend = IMAPSMTPBackend(
         host="imap.example.com",
         username="user@example.com",
-        password="pw",
+        password="pw",  # pragma: allowlist secret
         smtp_host="smtp.example.com",
         smtp_factory=lambda: fake,
     )

@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
+pytest.importorskip("psutil")
+
 from rex.tools.windows_diagnostics import (
     get_battery_status,
     get_cpu_usage,

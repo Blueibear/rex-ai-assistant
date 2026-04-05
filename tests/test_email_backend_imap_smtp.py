@@ -599,7 +599,7 @@ class TestIMAPSMTPBackend:
             host="imap.example.com",
             port=993,
             username="user@example.com",
-            password="fallback",
+            password="fallback",  # pragma: allowlist secret
             smtp_host="smtp.example.com",
             smtp_port=587,
             credential_ref="email",

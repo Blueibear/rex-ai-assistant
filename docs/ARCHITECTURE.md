@@ -377,7 +377,7 @@ path = _validate_path_within(user_folder, file)
 ### Dependency Security
 
 **Tracked in:**
-- `SECURITY_ADVISORY.md` - Known vulnerabilities
+- `docs/security/SECURITY_ADVISORY.md` - Known vulnerabilities
 - `requirements.txt` - Minimum safe versions
 - `pyproject.toml` - Security-critical dependencies
 
@@ -385,7 +385,7 @@ path = _validate_path_within(user_folder, file)
 1. Dependabot alerts
 2. Review CVE severity
 3. Update minimum versions
-4. Document in SECURITY_ADVISORY.md
+4. Document in `docs/security/SECURITY_ADVISORY.md`
 
 ## Deployment
 
@@ -445,7 +445,7 @@ Rex integrates with OpenClaw over HTTP (not as a Python package). Phase 8 (HTTP 
 
 OpenClaw adapters live in `rex/openclaw/` and include bridges for tools, events, browser automation, workflows, voice, and identity. Feature flags in `config/rex_config.json` under the `openclaw` key control which code paths use the OpenClaw gateway.
 
-**HTTP client:** `rex/openclaw/http_client.py` (`OpenClawClient`) handles auth, retries, and timeouts for all gateway calls. Config fields: `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries`; secret: `OPENCLAW_GATEWAY_TOKEN` in `.env`.
+**HTTP client:** `rex/openclaw/http_client.py` (`OpenClawClient`) handles auth, retries, and timeouts for all gateway calls. Config fields: `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries`; secret: `OPENCLAW_GATEWAY_TOKEN` in `.env`. <!-- pragma: allowlist secret -->
 
 All `# OPENCLAW-REPLACE` modules from earlier phases have been retired. All `find_spec("openclaw")` / `import openclaw` stubs have been replaced with HTTP client calls.
 
@@ -469,7 +469,7 @@ See [docs/openclaw-migration-status.md](openclaw-migration-status.md) for the co
 ## References
 
 - **Main README:** `../README.md`
-- **Security Advisory:** `../SECURITY_ADVISORY.md`
+- **Security Advisory:** `security/SECURITY_ADVISORY.md`
 - **Environment Config:** `../.env.example`
 - **Plugin Example:** `../plugins/web_search.py`
 - **Test Examples:** `../tests/`
