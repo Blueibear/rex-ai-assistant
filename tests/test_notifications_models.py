@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -79,7 +79,7 @@ class TestNotificationModel:
             assert n.channel == ch
 
     def test_model_dump_round_trip(self) -> None:
-        dt = datetime(2025, 6, 1, 12, 0, tzinfo=timezone.utc)
+        dt = datetime(2025, 6, 1, 12, 0, tzinfo=UTC)
         n = Notification(
             id="test-id",
             title="Hi",
@@ -145,7 +145,7 @@ class TestNotificationStore:
         store = _make_store()
         from datetime import timedelta
 
-        base = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
+        base = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
         n1 = _make_notification(title="First", created_at=base)
         n2 = _make_notification(title="Second", created_at=base + timedelta(hours=1))
         store.add(n1)
@@ -176,7 +176,7 @@ class TestNotificationStore:
 
     def test_optional_datetime_fields_persist(self) -> None:
         store = _make_store()
-        dt = datetime(2025, 3, 15, 9, 0, tzinfo=timezone.utc)
+        dt = datetime(2025, 3, 15, 9, 0, tzinfo=UTC)
         n = _make_notification(
             escalation_due_at=dt,
             digest_eligible=True,

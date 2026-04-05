@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from rex.escalation_job import (
     EscalationConfig,
@@ -29,7 +29,7 @@ def _notif(
         priority=priority,
         title=title,
         body=body,
-        created_at=created_at or datetime.now(timezone.utc),
+        created_at=created_at or datetime.now(UTC),
     )
 
 
@@ -40,7 +40,7 @@ def _old_notif(
     title: str = "Old notification",
 ) -> RoutableNotification:
     """Notification created `minutes_ago` minutes in the past."""
-    created_at = datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)
+    created_at = datetime.now(UTC) - timedelta(minutes=minutes_ago)
     return _notif(nid=nid, priority=priority, title=title, created_at=created_at)
 
 
@@ -187,9 +187,9 @@ class TestEscalationJobRun:
         job = EscalationJob()
         n = _old_notif(minutes_ago=20)
         job.track(n)
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         result = job.run()
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
         attempt = result.escalated[0]
         assert before <= attempt.escalated_at <= after
 

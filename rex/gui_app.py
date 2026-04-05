@@ -11,11 +11,56 @@ import os
 import signal
 import sys
 import threading
+import time
+import uuid
 import webbrowser
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 from rex.audio.speaker_discovery import start_smart_speaker_discovery
+
+# ---------------------------------------------------------------------------
+# Inline chat history store (replaces retired rex.dashboard_store)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ChatMessage:
+    id: str
+    role: str
+    content: str
+    timestamp: float
+    attachment_name: str | None = None
+
+
+_CHAT_HISTORY: list[ChatMessage] = []
+
+
+def _store_add_message(
+    role: str,
+    content: str,
+    attachment_name: str | None = None,
+) -> ChatMessage:
+    msg = ChatMessage(
+        id=str(uuid.uuid4()),
+        role=role,
+        content=content,
+        timestamp=time.time(),
+        attachment_name=attachment_name,
+    )
+    _CHAT_HISTORY.append(msg)
+    return msg
+
+
+def _store_get_history() -> list[dict[str, Any]]:
+    return [asdict(m) for m in _CHAT_HISTORY]
+
+
+def _store_clear_history() -> None:
+    global _CHAT_HISTORY
+    _CHAT_HISTORY = []
+
 
 _DEFAULT_HOST = "127.0.0.1"
 _DEFAULT_PORT = 8765
@@ -78,21 +123,15 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
     @app.route("/api/chat/history")
     def _chat_history() -> Any:
-        from rex import dashboard_store as ds
-
-        return jsonify(ds.get_history()), 200
+        return jsonify(_store_get_history()), 200
 
     @app.route("/api/chat/clear", methods=["POST"])
     def _chat_clear() -> Any:
-        from rex import dashboard_store as ds
-
-        ds.clear_history()
+        _store_clear_history()
         return jsonify({"ok": True}), 200
 
     @app.route("/api/chat/send", methods=["POST"])
     def _chat_send() -> Any:
-        from rex import dashboard_store as ds
-
         data: dict[str, Any] = request.get_json(silent=True) or {}
         user_text = (data.get("message") or "").strip()
         attachment_name: str | None = data.get("filename") or None
@@ -100,11 +139,11 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         if not user_text:
             return jsonify({"error": "empty message"}), 400
 
-        ds.add_message("user", user_text, attachment_name)
+        _store_add_message("user", user_text, attachment_name)
 
         def _stream() -> Any:
             reply = _generate_reply(user_text)
-            ds.add_message("assistant", reply)
+            _store_add_message("assistant", reply)
             payload = json.dumps({"content": reply, "done": True})
             yield f"data: {payload}\n\n"
 

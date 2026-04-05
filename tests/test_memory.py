@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from rex.memory import (
     LongTermMemory,
@@ -127,7 +127,7 @@ class TestMemoryEntry:
 
     def test_is_expired_when_future(self):
         """Test that entry with future expiry is not expired."""
-        future = datetime.now(timezone.utc) + timedelta(days=7)
+        future = datetime.now(UTC) + timedelta(days=7)
         entry = MemoryEntry(
             category="test",
             content={"key": "value"},
@@ -137,7 +137,7 @@ class TestMemoryEntry:
 
     def test_is_expired_when_past(self):
         """Test that entry with past expiry is expired."""
-        past = datetime.now(timezone.utc) - timedelta(days=1)
+        past = datetime.now(UTC) - timedelta(days=1)
         entry = MemoryEntry(
             category="test",
             content={"key": "value"},
@@ -256,7 +256,7 @@ class TestLongTermMemory:
         ltm = LongTermMemory(storage_path=storage)
 
         # Add an already-expired entry
-        past = datetime.now(timezone.utc) - timedelta(days=1)
+        past = datetime.now(UTC) - timedelta(days=1)
         entry = MemoryEntry(
             category="expired",
             content={"expired": True},
@@ -272,7 +272,7 @@ class TestLongTermMemory:
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
 
-        past = datetime.now(timezone.utc) - timedelta(days=1)
+        past = datetime.now(UTC) - timedelta(days=1)
         entry = MemoryEntry(
             category="expired",
             content={"expired": True},
@@ -329,7 +329,7 @@ class TestLongTermMemory:
         ltm = LongTermMemory(storage_path=storage)
 
         # Add expired entries directly
-        past = datetime.now(timezone.utc) - timedelta(days=1)
+        past = datetime.now(UTC) - timedelta(days=1)
         for i in range(3):
             entry = MemoryEntry(
                 entry_id=f"expired_{i}",
@@ -390,7 +390,7 @@ class TestLongTermMemory:
 
         ltm.add_entry(category="active", content={})
 
-        past = datetime.now(timezone.utc) - timedelta(days=1)
+        past = datetime.now(UTC) - timedelta(days=1)
         entry = MemoryEntry(
             category="expired",
             content={},

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -27,11 +27,11 @@ def _make_router(store: NotificationStore) -> NotificationRouter:
 
 
 def _past(minutes: int = 10) -> datetime:
-    return datetime.now(timezone.utc) - timedelta(minutes=minutes)
+    return datetime.now(UTC) - timedelta(minutes=minutes)
 
 
 def _future(minutes: int = 10) -> datetime:
-    return datetime.now(timezone.utc) + timedelta(minutes=minutes)
+    return datetime.now(UTC) + timedelta(minutes=minutes)
 
 
 def _make_notification(
@@ -170,7 +170,7 @@ class TestReroutingAndUpdate:
         engine = EscalationEngine(
             store, router, config={"notifications_escalation_delay_minutes": 30}
         )
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         engine.check_escalations()
         updated = next(x for x in store.get_unread() if x.id == n.id)
         assert updated.escalation_due_at is not None
@@ -185,7 +185,7 @@ class TestReroutingAndUpdate:
         engine = EscalationEngine(
             store, router, config={"notifications_escalation_delay_minutes": delay}
         )
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         engine.check_escalations()
         updated = next(x for x in store.get_unread() if x.id == n.id)
         assert updated.escalation_due_at is not None
@@ -220,7 +220,7 @@ class TestDefaultDelay:
         store.add(n)
         # empty config → should use default 30 min delay
         engine = EscalationEngine(store, router, config={})
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         engine.check_escalations()
         updated = next(x for x in store.get_unread() if x.id == n.id)
         assert updated.escalation_due_at is not None

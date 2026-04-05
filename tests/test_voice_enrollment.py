@@ -22,7 +22,7 @@ def _make_samples(n: int, length: int = 1600) -> list[np.ndarray]:
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
     mag_a = math.sqrt(sum(x * x for x in a))
     mag_b = math.sqrt(sum(x * x for x in b))
     if mag_a == 0 or mag_b == 0:
@@ -72,7 +72,7 @@ def test_npy_matches_json_embedding(tmp_path):
     arr = np.load(str(npy_path))
 
     assert len(emb.vector) == len(arr)
-    for json_val, npy_val in zip(emb.vector, arr.tolist()):
+    for json_val, npy_val in zip(emb.vector, arr.tolist(), strict=False):
         assert abs(json_val - npy_val) < 1e-5, "JSON and .npy vectors differ"
 
 

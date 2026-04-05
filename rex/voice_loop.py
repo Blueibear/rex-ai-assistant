@@ -206,7 +206,7 @@ def _prepare_audio_for_stt(
     if prepared.size == 0:
         return prepared
     prepared = numpy.nan_to_num(prepared, nan=0.0, posinf=1.0, neginf=-1.0)
-    return numpy.clip(prepared, -1.0, 1.0)  # type: ignore[no-any-return]
+    return numpy.clip(prepared, -1.0, 1.0)
 
 
 logger = logging.getLogger(__name__)

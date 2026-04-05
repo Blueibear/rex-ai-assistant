@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tests.helpers.fake_twilio import FakeTwilioClient, fake_twilio_client
+from tests.helpers.fake_twilio import FakeTwilioClient
 
 # ---------------------------------------------------------------------------
 # Helpers — fake twilio module injected into sys.modules

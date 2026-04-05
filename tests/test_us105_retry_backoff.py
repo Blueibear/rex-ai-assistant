@@ -202,7 +202,7 @@ class TestWithRetrySuccess:
         # Delays: ~0.5, ~1.0, ~2.0, ~4.0 (with up to 10% jitter)
         expected = [0.5, 1.0, 2.0, 4.0]
         assert len(mock_sleep.call_args_list) == 4
-        for actual_call, exp in zip(mock_sleep.call_args_list, expected):
+        for actual_call, exp in zip(mock_sleep.call_args_list, expected, strict=False):
             assert actual_call[0][0] == pytest.approx(exp, rel=0.15)
 
 
@@ -316,7 +316,7 @@ class TestExponentialBackoff:
         # Delays: ~0.25, ~0.5, ~1.0 (with up to 10% jitter)
         expected_delays = [0.25, 0.5, 1.0]
         assert len(mock_sleep.call_args_list) == 3
-        for actual_call, exp in zip(mock_sleep.call_args_list, expected_delays):
+        for actual_call, exp in zip(mock_sleep.call_args_list, expected_delays, strict=False):
             assert actual_call[0][0] == pytest.approx(exp, rel=0.15)
 
     @patch("rex.retry.time.sleep")

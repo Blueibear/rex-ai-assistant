@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 SUPPORTED_MAJOR = 3
 SUPPORTED_MINOR = 11
@@ -22,8 +22,8 @@ ML_AUDIO_EXTRAS_LABEL = "ML/audio/TTS extras"
 def normalize_version(version_info: object) -> tuple[int, int, int]:
     """Normalize sys.version_info-like values into a simple version tuple."""
     if hasattr(version_info, "major") and hasattr(version_info, "minor"):
-        major = int(getattr(version_info, "major"))
-        minor = int(getattr(version_info, "minor"))
+        major = int(version_info.major)
+        minor = int(version_info.minor)
         micro = int(getattr(version_info, "micro", 0))
         return (major, minor, micro)
 

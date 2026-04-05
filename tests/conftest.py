@@ -49,9 +49,7 @@ def tracked_modifications_baseline() -> set[str]:
     return _tracked_modified_files()
 
 
-def pytest_collection_modifyitems(
-    config: pytest.Config, items: list[pytest.Item]
-) -> None:
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Run legacy asyncio-marked tests through the installed anyio plugin."""
     del config
     for item in items:

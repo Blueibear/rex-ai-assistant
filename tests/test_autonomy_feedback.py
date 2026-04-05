@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 from rex.autonomy.feedback import FeedbackAnalyzer
@@ -44,7 +44,7 @@ def _make_record(
         duration_s=1.0,
         replan_count=replan_count,
         error_summary=error_summary,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
     )
 
 

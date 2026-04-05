@@ -10,7 +10,7 @@ Acceptance criteria verified:
 from __future__ import annotations
 
 import socket
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -26,12 +26,12 @@ _ANCHOR = date(2026, 3, 9)  # Monday
 
 
 def _utc(year: int, month: int, day: int, hour: int, minute: int = 0) -> datetime:
-    return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
+    return datetime(year, month, day, hour, minute, tzinfo=UTC)
 
 
 def _window(day_offset: int, start_h: int, end_h: int) -> tuple[datetime, datetime]:
     """Return a [start, end) window relative to the default anchor Monday."""
-    monday = datetime(2026, 3, 9, tzinfo=timezone.utc)
+    monday = datetime(2026, 3, 9, tzinfo=UTC)
     base = monday + timedelta(days=day_offset)
     return (
         base.replace(hour=start_h, minute=0, second=0, microsecond=0),

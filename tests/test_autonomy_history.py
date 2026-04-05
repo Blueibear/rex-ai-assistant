@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import timezone
+from datetime import UTC
 from pathlib import Path
 
 import pytest
@@ -56,7 +56,7 @@ class TestExecutionRecord:
     def test_timestamp_is_utc(self) -> None:
         record = _make_record()
         assert record.timestamp.tzinfo is not None
-        assert record.timestamp.tzinfo == timezone.utc
+        assert record.timestamp.tzinfo == UTC
 
     def test_fields_stored_correctly(self) -> None:
         record = _make_record(

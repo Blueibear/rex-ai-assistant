@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -43,7 +43,7 @@ class TestLogEntry:
 
     def test_full_instantiation(self):
         """LogEntry should accept all fields."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         entry = LogEntry(
             timestamp=now,
             action_id="act_002",
@@ -217,7 +217,7 @@ class TestAuditLogger:
         """Reading with start_time should filter entries."""
         with tempfile.TemporaryDirectory() as tmpdir:
             logger = AuditLogger(log_dir=tmpdir)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
             # Create entries with different timestamps
             for i, hours_ago in enumerate([2, 1, 0]):
@@ -239,7 +239,7 @@ class TestAuditLogger:
         """Reading with end_time should filter entries."""
         with tempfile.TemporaryDirectory() as tmpdir:
             logger = AuditLogger(log_dir=tmpdir)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
             # Create entries with different timestamps
             for i, hours_ago in enumerate([2, 1, 0]):
@@ -261,7 +261,7 @@ class TestAuditLogger:
         """Reading with both start and end time should filter correctly."""
         with tempfile.TemporaryDirectory() as tmpdir:
             logger = AuditLogger(log_dir=tmpdir)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
             # Create entries at hours ago: 3, 2, 1, 0
             for i, hours_ago in enumerate([3, 2, 1, 0]):

@@ -22,7 +22,7 @@ warnings.warn(
 )
 
 # Re-export all classes and functions from the rex.llm_client package
-from rex.llm_client import (
+from rex.llm_client import (  # noqa: E402
     TORCH_AVAILABLE,
     TRANSFORMERS_AVAILABLE,
     GenerationConfig,

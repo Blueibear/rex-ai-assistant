@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -104,7 +104,7 @@ class TestPlan:
         assert plan.steps[0].id == "s1"
 
     def test_completed_plan(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         plan = Plan(
             id="p3",
             goal="Send a report",

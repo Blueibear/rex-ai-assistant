@@ -6,11 +6,8 @@ All subprocess calls are mocked so tests run on any platform.
 from __future__ import annotations
 
 import subprocess
-import sys
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 import rex.tools.windows_repair as _mod
 
@@ -67,8 +64,9 @@ class TestPlatformNotSupported:
 class TestCheckDiskHealth:
     def test_smart_ok_single_drive(self):
         smart_output = "\\\\?\\SCSI#Disk&Ven_Samsung|False|0"
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run", return_value=_ps_result(stdout=smart_output)
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch("subprocess.run", return_value=_ps_result(stdout=smart_output)),
         ):
             result = _mod.check_disk_health()
 
@@ -78,8 +76,9 @@ class TestCheckDiskHealth:
 
     def test_smart_failure_predicted(self):
         smart_output = "\\\\?\\SCSI#Disk&Ven_WD|True|32"
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run", return_value=_ps_result(stdout=smart_output)
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch("subprocess.run", return_value=_ps_result(stdout=smart_output)),
         ):
             result = _mod.check_disk_health()
 
@@ -88,8 +87,9 @@ class TestCheckDiskHealth:
         assert len(result["recommended_actions"]) > 0
 
     def test_no_smart_data(self):
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run", return_value=_ps_result(stdout="")
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch("subprocess.run", return_value=_ps_result(stdout="")),
         ):
             result = _mod.check_disk_health()
 
@@ -97,8 +97,9 @@ class TestCheckDiskHealth:
         assert any("No SMART data" in f for f in result["findings"])
 
     def test_subprocess_error(self):
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run", side_effect=Exception("Access denied")
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch("subprocess.run", side_effect=Exception("Access denied")),
         ):
             result = _mod.check_disk_health()
 
@@ -113,8 +114,9 @@ class TestCheckDiskHealth:
 
 class TestCheckWindowsUpdateStatus:
     def test_no_updates(self):
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run", return_value=_ps_result(stdout="0")
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch("subprocess.run", return_value=_ps_result(stdout="0")),
         ):
             result = _mod.check_windows_update_status()
 
@@ -123,8 +125,9 @@ class TestCheckWindowsUpdateStatus:
 
     def test_pending_updates(self):
         output = "2\nCumulative Update for Windows 11\nSecurity Update KB5034441"
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run", return_value=_ps_result(stdout=output)
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch("subprocess.run", return_value=_ps_result(stdout=output)),
         ):
             result = _mod.check_windows_update_status()
 
@@ -133,16 +136,18 @@ class TestCheckWindowsUpdateStatus:
         assert len(result["recommended_actions"]) > 0
 
     def test_empty_output(self):
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run", return_value=_ps_result(stdout="")
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch("subprocess.run", return_value=_ps_result(stdout="")),
         ):
             result = _mod.check_windows_update_status()
 
         assert result["status"] == "warning"
 
     def test_powershell_exception(self):
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="ps", timeout=60)
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="ps", timeout=60)),
         ):
             result = _mod.check_windows_update_status()
 
@@ -157,10 +162,13 @@ class TestCheckWindowsUpdateStatus:
 
 class TestFlushDnsCache:
     def test_flush_success(self):
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run",
-            return_value=_ps_result(
-                stdout="Successfully flushed the DNS Resolver Cache.", returncode=0
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch(
+                "subprocess.run",
+                return_value=_ps_result(
+                    stdout="Successfully flushed the DNS Resolver Cache.", returncode=0
+                ),
             ),
         ):
             result = _mod.flush_dns_cache()
@@ -170,9 +178,12 @@ class TestFlushDnsCache:
         assert result["recommended_actions"] == []
 
     def test_flush_failure(self):
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run",
-            return_value=_ps_result(stdout="", stderr="Access denied.", returncode=1),
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch(
+                "subprocess.run",
+                return_value=_ps_result(stdout="", stderr="Access denied.", returncode=1),
+            ),
         ):
             result = _mod.flush_dns_cache()
 
@@ -180,8 +191,9 @@ class TestFlushDnsCache:
         assert len(result["recommended_actions"]) > 0
 
     def test_flush_exception(self):
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run", side_effect=FileNotFoundError("ipconfig not found")
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch("subprocess.run", side_effect=FileNotFoundError("ipconfig not found")),
         ):
             result = _mod.flush_dns_cache()
 
@@ -205,8 +217,9 @@ class TestRunSfcScan:
 
     def test_no_integrity_violations(self):
         output = "Windows Resource Protection did not find any integrity violations."
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run", return_value=_ps_result(stdout=output, returncode=0)
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch("subprocess.run", return_value=_ps_result(stdout=output, returncode=0)),
         ):
             result = _mod.run_sfc_scan(confirmed=True)
 
@@ -214,11 +227,10 @@ class TestRunSfcScan:
         assert any("no integrity violations" in f for f in result["findings"])
 
     def test_found_and_repaired(self):
-        output = (
-            "Windows Resource Protection found corrupt files and successfully repaired them."
-        )
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run", return_value=_ps_result(stdout=output, returncode=0)
+        output = "Windows Resource Protection found corrupt files and successfully repaired them."
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch("subprocess.run", return_value=_ps_result(stdout=output, returncode=0)),
         ):
             result = _mod.run_sfc_scan(confirmed=True)
 
@@ -230,8 +242,9 @@ class TestRunSfcScan:
         output = (
             "Windows Resource Protection found corrupt files but was unable to fix some of them."
         )
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run", return_value=_ps_result(stdout=output, returncode=0)
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch("subprocess.run", return_value=_ps_result(stdout=output, returncode=0)),
         ):
             result = _mod.run_sfc_scan(confirmed=True)
 
@@ -239,9 +252,12 @@ class TestRunSfcScan:
         assert any("DISM" in r for r in result["recommended_actions"])
 
     def test_non_zero_exit(self):
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run",
-            return_value=_ps_result(stdout="", stderr="Must run as admin.", returncode=1),
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch(
+                "subprocess.run",
+                return_value=_ps_result(stdout="", stderr="Must run as admin.", returncode=1),
+            ),
         ):
             result = _mod.run_sfc_scan(confirmed=True)
 
@@ -249,8 +265,9 @@ class TestRunSfcScan:
         assert any("Administrator" in r for r in result["recommended_actions"])
 
     def test_subprocess_exception(self):
-        with patch.object(_mod, "_IS_WINDOWS", True), patch(
-            "subprocess.run", side_effect=FileNotFoundError("sfc not found")
+        with (
+            patch.object(_mod, "_IS_WINDOWS", True),
+            patch("subprocess.run", side_effect=FileNotFoundError("sfc not found")),
         ):
             result = _mod.run_sfc_scan(confirmed=True)
 
@@ -265,7 +282,6 @@ class TestRunSfcScan:
 
 class TestToolRegistration:
     def test_all_repair_tools_registered(self):
-        from rex.tools.registry import ToolRegistry
 
         # Build a minimal registry without importing the full default registry
         # (which has heavy optional deps); instead just verify our module

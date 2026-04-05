@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import socket
 from types import SimpleNamespace
 
 from rex.audio.speaker_discovery import (
+    _BOSE_DISCOVERY_PAYLOAD,
     DiscoveredSpeaker,
     SpeakerDiscoveryService,
-    _BOSE_DISCOVERY_PAYLOAD,
     _parse_bose_response,
 )
 
@@ -16,7 +15,7 @@ class _FakeSocket:
         self._responses = list(responses)
         self.sent_packets: list[tuple[bytes, tuple[str, int]]] = []
 
-    def __enter__(self) -> "_FakeSocket":
+    def __enter__(self) -> _FakeSocket:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -33,7 +32,7 @@ class _FakeSocket:
 
     def recvfrom(self, size: int) -> tuple[bytes, tuple[str, int]]:
         if not self._responses:
-            raise socket.timeout()
+            raise TimeoutError()
         return self._responses.pop(0)
 
 
@@ -65,7 +64,9 @@ def test_discover_bose_uses_broadcast_and_caches_unique_responses(monkeypatch) -
         ),
     ]
     fake_socket = _FakeSocket(responses)
-    monkeypatch.setattr("rex.audio.speaker_discovery.socket.socket", lambda *args, **kwargs: fake_socket)
+    monkeypatch.setattr(
+        "rex.audio.speaker_discovery.socket.socket", lambda *args, **kwargs: fake_socket
+    )
 
     service = SpeakerDiscoveryService()
     speakers = service._discover_bose()
@@ -107,7 +108,11 @@ def test_discover_sonos_normalizes_devices(monkeypatch) -> None:
             return hash(self.ip_address)
 
     speaker = _FakeSpeaker()
-    monkeypatch.setitem(__import__("sys").modules, "soco.discovery", SimpleNamespace(discover=lambda timeout: {speaker}))
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "soco.discovery",
+        SimpleNamespace(discover=lambda timeout: {speaker}),
+    )
 
     service = SpeakerDiscoveryService()
     speakers = service._discover_sonos()
