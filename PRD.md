@@ -791,11 +791,11 @@ written justification in `docs/security/VULNERABILITY-SCAN.md` so that the suppr
 list is auditable.
 
 **Acceptance Criteria:**
-- [ ] `docs/security/VULNERABILITY-SCAN.md` contains one entry per `--ignore-vuln` CVE
+- [x] `docs/security/VULNERABILITY-SCAN.md` contains one entry per `--ignore-vuln` CVE
   in `ci.yml` with: CVE ID, affected package, installed version, accepted reason, review date
-- [ ] Total entry count in the doc matches total `--ignore-vuln` count in `ci.yml`
-- [ ] No "TBD" or placeholder justifications remain
-- [ ] Typecheck passes
+- [x] Total entry count in the doc matches total `--ignore-vuln` count in `ci.yml`
+- [x] No "TBD" or placeholder justifications remain
+- [x] Typecheck passes
 
 ---
 
