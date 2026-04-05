@@ -1,3 +1,16 @@
+## Iteration 85 - US-258 Update VULNERABILITY-SCAN.md to cover all remaining suppressions
+- Story: US-258
+- Added a master index table with all 85 --ignore-vuln CVEs from ci.yml; each row has CVE ID, package, installed version, accepted reason, review date
+- Expanded grouped gradio section (was "33 findings") to list all 33 CVEs individually
+- Expanded grouped pypdf section (was "14 findings") to list all 13 CVEs individually; corrected the count
+- Added explicit "Review date: 2026-04-05" to every per-package justification section
+- mypy rex: Success, 250 source files, no issues
+- Files changed: docs/security/VULNERABILITY-SCAN.md, PRD.md, progress.txt
+- Learnings for future iterations:
+  - "one entry per CVE" means a row per CVE, not per package — use a table format
+  - ci.yml --ignore-vuln count: 85; verify with `grep -c "\-\-ignore-vuln" ci.yml`
+  - gradio has 33 suppressions (largest group), pypdf has 13 (not 14 as the old doc claimed)
+---
 ## Iteration 84 - US-257 Audit CVE suppression list and remove stale entries
 - Story: US-257
 - Ran pip-audit against local venv; found: CVE-2026-1703 (pip), CVE-2026-4539 (pygments), plus setuptools/requests CVEs only present in older local venv (not in CI environment which uses Python 3.11 with upgraded pip)
