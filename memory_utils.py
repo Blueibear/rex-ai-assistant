@@ -1,9 +1,23 @@
 """Backward compatibility wrapper - imports from rex.memory_utils.
 
 New code should import directly from rex.memory_utils.
+
+.. deprecated::
+    Import from ``rex.memory_utils`` instead. This shim will be removed in a future cycle.
+    References still exist in: flask_proxy.py, gui.py, tests/test_memory_utils.py
 """
 
 from __future__ import annotations
+
+import warnings
+
+warnings.warn(
+    "Importing from root-level 'memory_utils' is deprecated. "
+    "Use 'from rex.memory_utils import ...' instead. "
+    "This shim will be removed in a future release.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 # Re-export all utilities from the rex.memory_utils package
 from rex.memory_utils import (

@@ -806,16 +806,16 @@ list is auditable.
 that `setup.py` can be simplified or removed.
 
 **Acceptance Criteria:**
-- [ ] `grep -rn "from config import\|import config\b" --include="*.py" .` is run and
+- [x] `grep -rn "from config import\|import config\b" --include="*.py" .` is run and
   results documented in the commit message
-- [ ] Same search for `llm_client`, `memory_utils`, `logging_utils`
-- [ ] If zero external references: delete the root-level shim files and remove them from
+- [x] Same search for `llm_client`, `memory_utils`, `logging_utils`
+- [x] If zero external references: delete the root-level shim files and remove them from
   `setup.py:13–23`; add them to `.gitignore` or note deletion
-- [ ] If references exist outside `rex/`: create a deprecation warning in each shim pointing
+- [x] If references exist outside `rex/`: create a deprecation warning in each shim pointing
   to the correct package path; schedule removal in next cycle
-- [ ] `setup.py` is either cleaned up or documented with a comment explaining why it still exists
-- [ ] `pytest -q` exits 0
-- [ ] Typecheck passes
+- [x] `setup.py` is either cleaned up or documented with a comment explaining why it still exists
+- [x] `pytest -q` exits 0
+- [x] Typecheck passes
 
 ---
 
