@@ -93,7 +93,7 @@ python audio_config.py --set-output 2
 
 **Tip:** List available edge-tts voices:
 ```bash
-python list_voices.py
+python scripts/list_voices.py
 ```
 
 ## Web Search Plugins

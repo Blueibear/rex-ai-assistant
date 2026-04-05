@@ -149,7 +149,7 @@ HA_TOKEN=your_long_lived_access_token
 Run the import checker to verify all modules are syntactically correct:
 
 ```powershell
-python check_imports.py
+python scripts/check_imports.py
 ```
 
 ## Updating Dependencies

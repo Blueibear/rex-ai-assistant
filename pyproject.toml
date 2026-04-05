@@ -173,6 +173,7 @@ markers = [
     "gpu: Tests that require GPU acceleration",
     "network: Tests that require network access",
     "asyncio: mark a test as using asyncio",
+    "anyio: mark a test as using anyio",
     "smoke: Smoke tests that verify critical paths against a running local instance",
 ]
 
@@ -248,6 +249,7 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
+disable_error_code = ["import-untyped", "import-not-found"]
 
 # Optional dependencies without type stubs — suppress import errors
 [[tool.mypy.overrides]]
@@ -336,6 +338,30 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "TTS.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "psutil"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "icalendar"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "bs4"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "bs4.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "torch"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "torch.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

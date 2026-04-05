@@ -1,22 +1,22 @@
 # AskRex Assistant - Development Workflow
 
 ## Overview
-Rex now uses a clean two-branch workflow to maintain stability while allowing ongoing development and experimentation.
+Rex uses a two-branch workflow to separate validated changes from ongoing development work.
 
 ---
 
 ## Branch Structure
 
-### main (protected)
-- Represents the **stable, release-ready version** of Rex.
-- All code in this branch should be fully tested and production-ready.
+### master (protected)
+- Represents the primary branch for validated changes.
+- Changes merged here should have passed the repository's current validation checks.
 - No direct commits or force pushes are allowed.
 - All changes must be merged through a **pull request** from `dev`.
 
 ### dev (active development)
 - Used for all current work: feature additions, experiments, and fixes.
 - Commits can be made freely.
-- Periodically merged into `main` once stability is confirmed.
+- Periodically merged into `master` once validation is complete.
 
 ---
 
@@ -34,7 +34,7 @@ Rex now uses a clean two-branch workflow to maintain stability while allowing on
    git push
    ```
 
-3. **Merge to main**
+3. **Merge to master**
    - Go to the GitHub repo page.
    - Click **Compare & pull request** next to the dev branch.
    - Review, confirm, and merge.

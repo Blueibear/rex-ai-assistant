@@ -1,17 +1,17 @@
 # Credential Management
 
-## Implementation Status: Production-ready
+## Implementation Status: Implemented in current alpha builds
 
-The credential manager is fully implemented and used by all integration backends.
+The credential manager is implemented and used by the current integration backends in the repo's alpha state.
 
 | Feature | Status |
 |---------|--------|
-| Environment variable loading | Production-ready |
-| Config file loading (`config/credentials.json`) | Production-ready |
-| Token expiration tracking | Production-ready |
-| Runtime credential updates | Production-ready |
-| Refresh handler registration | Production-ready |
-| Token masking in logs | Production-ready |
+| Environment variable loading | Implemented |
+| Config file loading (`config/credentials.json`) | Implemented |
+| Token expiration tracking | Implemented |
+| Runtime credential updates | Implemented |
+| Refresh handler registration | Implemented |
+| Token masking in logs | Implemented |
 
 Rex uses a centralized credential vault to manage API tokens and secrets for various services. This document explains how credentials are loaded, configured, and used throughout the system.
 

@@ -682,9 +682,9 @@ Only 2 production callers. No other rex/* modules import browser_automation dire
 
 | Rex function/pattern | OpenClaw equivalent | Coverage | Gap notes |
 |---------------------|---------------------|----------|-----------|
-| `BrowserSession.navigate()` | OpenClaw browser control (TBD) | Unknown — stub | Confirm once OpenClaw browser API is known |
-| `BrowserSession.click()`, `type_text()` | OpenClaw browser control (TBD) | Unknown — stub | |
-| `BrowserSession.screenshot()` | OpenClaw browser control (TBD) | Unknown — stub | |
+| `BrowserSession.navigate()` | OpenClaw browser control (not mapped yet) | Unknown — stub | Confirm once OpenClaw browser API is known |
+| `BrowserSession.click()`, `type_text()` | OpenClaw browser control (not mapped yet) | Unknown — stub | |
+| `BrowserSession.screenshot()` | OpenClaw browser control (not mapped yet) | Unknown — stub | |
 | `BrowserSession.login()` | No direct equivalent | Gap | Rex login helper integrates Rex credential manager; OpenClaw would need a credential bridge |
 | `run_browser_script(steps)` | No direct equivalent | Gap | Rex-specific JSON script format; bridge would need to translate |
 | `BrowserAutomationService.list_sessions()` | No direct equivalent | Keep | Rex session management is Rex-specific |
@@ -744,15 +744,15 @@ Only 2 production callers. No other rex/* modules import browser_automation dire
 
 | Rex concept | Rex class/field | OpenClaw equivalent | Notes |
 |-------------|----------------|---------------------|-------|
-| Workflow | `Workflow` (Pydantic model) | OpenClaw Task/Plan (TBD) | Workflow = ordered sequence of tool calls with policy gating |
-| Workflow step | `WorkflowStep` | OpenClaw Task step / skill invocation (TBD) | Each step wraps a `ToolCall` (tool name + args) |
-| Step result | `StepResult` | OpenClaw step result (TBD) | `success`, `output`, `error`, `skipped`, `skip_reason` |
+| Workflow | `Workflow` (Pydantic model) | OpenClaw Task/Plan (not mapped yet) | Workflow = ordered sequence of tool calls with policy gating |
+| Workflow step | `WorkflowStep` | OpenClaw Task step / skill invocation (not mapped yet) | Each step wraps a `ToolCall` (tool name + args) |
+| Step result | `StepResult` | OpenClaw step result (not mapped yet) | `success`, `output`, `error`, `skipped`, `skip_reason` |
 | Precondition | `WorkflowStep.precondition` (str fn name) | No direct equivalent | Rex-specific: callable resolved from registry. Bridge must preserve. |
 | Postcondition | `WorkflowStep.postcondition` (str fn name) | No direct equivalent | Rex-specific: result validator. Bridge must preserve. |
 | Idempotency key | `WorkflowStep.idempotency_key` | No direct equivalent | Rex-specific: skip already-executed steps. Bridge must preserve. |
-| Approval gate | `WorkflowStep.requires_approval`, `WorkflowApproval` | OpenClaw approval mechanism (TBD) | Already bridged via `ApprovalAdapter` (US-P3). |
-| Policy check | `WorkflowRunner` consults `PolicyEngine` before each step | OpenClaw policy (TBD) | Rex `PolicyEngine` is authority; bridge must not bypass. |
-| Persistence | `data/workflows/{id}.json` | OpenClaw state store (TBD) | Rex-specific disk persistence. Bridge should preserve during migration. |
+| Approval gate | `WorkflowStep.requires_approval`, `WorkflowApproval` | OpenClaw approval mechanism (planned) | Already bridged via `ApprovalAdapter` (US-P3). |
+| Policy check | `WorkflowRunner` consults `PolicyEngine` before each step | OpenClaw policy surface (planned) | Rex `PolicyEngine` is authority; bridge must not bypass. |
+| Persistence | `data/workflows/{id}.json` | OpenClaw state store (planned) | Rex-specific disk persistence. Bridge should preserve during migration. |
 | Dry run | `WorkflowRunner(dry_run=True)` | No direct equivalent | Rex-specific: previews actions without executing. Preserve. |
 | Tool execution | `WorkflowRunner` calls tool_router per step | Via ToolBridge (bridged in US-P4) | ToolBridge already routes tool calls. |
 

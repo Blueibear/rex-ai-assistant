@@ -21,7 +21,7 @@ The calendar service supports two backends:
 
 | Backend | Status | Capabilities |
 |---------|--------|-------------|
-| **stub** (default) | Production-ready for dev/test | Read/write mock events from JSON |
+| **stub** (default) | Available for local dev/test | Read/write mock events from JSON |
 | **ics** | Beta | Read-only from local `.ics` files or HTTPS ICS feeds |
 
 CalDAV and Google Calendar OAuth backends are planned for future releases.

@@ -629,7 +629,7 @@ pip install -r requirements-gpu.txt
 ```bash
 python audio_config.py --list
 python wakeword_listener.py
-python record_wakeword.py
+python scripts/record_wakeword.py
 ```
 
 Consider lowering the threshold in runtime config.

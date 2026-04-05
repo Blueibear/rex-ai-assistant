@@ -1,8 +1,7 @@
 """Tests for rex.wake_acknowledgment module.
 
-This is distinct from tests/test_wake_acknowledgment.py which imports the
-root-level wake_acknowledgment.py shim.  These tests exercise the canonical
-rex package module at rex/wake_acknowledgment.py.
+These tests exercise the canonical rex package module at
+rex/wake_acknowledgment.py.
 """
 
 from __future__ import annotations

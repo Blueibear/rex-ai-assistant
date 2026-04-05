@@ -218,17 +218,17 @@ Summary: 1 warning(s) detected.
 
 **Test Whisper transcription:**
 ```bash
-python manual_whisper_demo.py path/to/audio.wav --model base
+python scripts/manual_whisper_demo.py path/to/audio.wav --model base
 ```
 
 **Test web search:**
 ```bash
-python manual_search_demo.py "Python programming tutorials"
+python scripts/manual_search_demo.py "Python programming tutorials"
 ```
 
 **Record custom wake word:**
 ```bash
-python record_wakeword.py
+python scripts/record_wakeword.py
 ```
 
 ## 9. Autonomous Workflows

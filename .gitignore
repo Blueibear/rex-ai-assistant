@@ -18,12 +18,16 @@ build/
 
 # Coverage & test reports
 coverage/
-.nyc_output/
 .coverage
 .coverage.*
+coverage.txt
+coverage.html
+.nyc_output/
 coverage.xml
 *.cover
 htmlcov/
+test-audit-*.txt
+*.patch
 
 # Logs & temp files
 *.log
@@ -62,6 +66,9 @@ dmypy.json
 .env
 .env.local
 .env.*.local
+.env.backup*
+*.env.backup*
+.env.example.backup*
 
 # User-specific config
 config/
@@ -116,8 +123,8 @@ Memory/*/history.log
 # Local-only scratch and environments
 backups/
 source/
-list_audio.py
-test_mic_open.py
+/list_audio.py
+/test_mic_open.py
 
 # Binary artifacts
 caddy.zip
@@ -138,11 +145,6 @@ ralph.ps1
 coverage.json
 coverage.txt
 
-.env.backup-legacy
-
-coverage.json
-coverage.txt
-
 Rex_Settings_Reference.xlsx
 ~.xlsx
 `n~$Rex_Settings_Reference.xlsx
@@ -155,7 +157,8 @@ Rex_Settings_Reference.xlsx
 data/reminders/
 
 PRD-ci-fix-pr216.md
-progress-ci-fix-pr216.txt
-ci-fixes.patch
+progress*.txt
+!docs/archive/progress/
+!docs/archive/progress/*.txt
 
 data/memory/

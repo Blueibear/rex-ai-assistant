@@ -75,7 +75,7 @@ The current Rex install paths are validated on Python 3.11. Fresh installs on Py
 1. Check microphone is working: `python audio_config.py --list`
 2. Lower threshold: `REX_WAKEWORD_THRESHOLD=0.3` in `.env`
 3. Test wake word detection: `python wakeword_listener.py`
-4. Record custom wake word: `python record_wakeword.py`
+4. Record custom wake word: `python scripts/record_wakeword.py`
 
 ## Rate Limit Errors (TTS API)
 

@@ -3,6 +3,13 @@
 from __future__ import annotations
 
 # ruff: noqa: E402
+import os
+import sys
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 # Load .env before accessing any environment variables
 from utils.env_loader import load as _load_env
 

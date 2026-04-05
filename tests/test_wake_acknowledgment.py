@@ -2,7 +2,7 @@ import os
 import wave
 from pathlib import Path
 
-from wake_acknowledgment import (
+from rex.wake_acknowledgment import (
     DEFAULT_WAKE_ACK_RELATIVE_PATH,
     ensure_wake_acknowledgment_sound,
 )

@@ -67,6 +67,11 @@ After installing, choose the startup mode that matches your use case:
 
 > **Note:** `rex` and `rex-gui` and `rex-speak-api` are installed as console scripts by `pip install .`.
 > They are available on your `PATH` once the virtual environment is active.
+>
+> `rex-gui` serves the dashboard on `http://127.0.0.1:8765/ui/` by default. To use a
+> different port, set `REX_GUI_PORT` before launching it, for example
+> `REX_GUI_PORT=9000 rex-gui` on macOS/Linux or `$env:REX_GUI_PORT=9000; rex-gui` in
+> PowerShell.
 
 You can also run the text chat mode directly without the installed script:
 

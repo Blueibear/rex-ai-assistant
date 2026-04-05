@@ -290,7 +290,7 @@ curl -X POST http://localhost:5000/speak \
 
 ---
 
-## 📝 Remaining TODOs
+## 📝 Remaining Follow-up Items
 
 ### Non-Critical Items (Future Work):
 

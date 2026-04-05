@@ -36,7 +36,7 @@ Evidence: Priority routing, digest logic, quiet hours, and auto-escalation are a
 
 ### Voice Identity / Speaker Recognition
 **Status: PARTIAL**
-Evidence: Embeddings store and enrollment commands exist (`rex/voice_identity/`). Calibration and recognition scaffolding present. Not universally production-ready; optional dependency model used.
+Evidence: Embeddings store and enrollment commands exist (`rex/voice_identity/`). Calibration and recognition scaffolding present. Still alpha-only; optional dependency model used.
 
 ### Windows Computer Control
 **Status: PARTIAL**
@@ -60,11 +60,11 @@ Evidence: HTTP integration complete (Phase 8). All calls use `rex/openclaw/http_
 
 ### Per-User Memory / Conversation History
 **Status: PARTIAL**
-Evidence: Per-user memory profiles exist (`Memory/`). Conversation history persistence is in progress and not production-ready.
+Evidence: Per-user memory profiles exist (`Memory/`). Conversation history persistence is in progress and remains alpha-only.
 
 ### Autonomous Workflows / Planner
 **Status: STUB**
-Evidence: Workflow runner scaffolding exists (`rex/workflow_runner.py`, `rex/autonomy/`). Not production-ready; roadmap item for future cycle.
+Evidence: Workflow runner scaffolding exists (`rex/workflow_runner.py`, `rex/autonomy/`). Still alpha-only; roadmap item for future cycle.
 
 ### Identity (Session-Scoped Fallback)
 **Status: PARTIAL**
