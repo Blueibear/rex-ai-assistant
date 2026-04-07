@@ -19,12 +19,14 @@ _REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
 
 
 def main() -> None:
+    raw = sys.stdin.read()
     try:
-        payload = json.loads(sys.stdin.read().strip() or "{}")
-    except json.JSONDecodeError:
-        payload = {}
+        payload = json.loads(raw)
+    except (json.JSONDecodeError, ValueError) as exc:
+        print(json.dumps({"ok": False, "error": f"Bad input: {exc}"}))
+        return
 
-    command = payload.get("command", "list")
+    command = payload.get("action") or payload.get("command", "list")
 
     if command == "list":
         try:

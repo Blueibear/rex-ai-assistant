@@ -101,11 +101,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want the `rex_shopping_list_bridge.py` and `rex_speaker_bridge.py` scripts to exist and conform to the standard JSON I/O contract.
 
 **Acceptance Criteria:**
-- [ ] `rex_shopping_list_bridge.py` exists, accepts JSON on stdin, returns JSON on stdout
-- [ ] `rex_speaker_bridge.py` exists with the same JSON I/O pattern
-- [ ] Each script returns `{"error": "..."}` on invalid input
-- [ ] Smoke test for each returns valid JSON
-- [ ] Typecheck passes
+- [x] `rex_shopping_list_bridge.py` exists, accepts JSON on stdin, returns JSON on stdout
+- [x] `rex_speaker_bridge.py` exists with the same JSON I/O pattern
+- [x] Each script returns `{"error": "..."}` on invalid input
+- [x] Smoke test for each returns valid JSON
+- [x] Typecheck passes
 
 ---
 

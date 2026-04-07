@@ -31,7 +31,7 @@ def main() -> None:
         sys.exit(1)
 
     sl = ShoppingList()
-    command = payload.get("command", "")
+    command = payload.get("action") or payload.get("command", "")
 
     try:
         if command == "list":
