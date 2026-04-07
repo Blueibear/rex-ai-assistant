@@ -1009,6 +1009,7 @@ class VoiceLoop:
                     # Get LLM response - voice_mode=True enables conciseness prompt
                     tracker.mark("llm_start")
                     tracker.mark("tts_synthesis_start")
+                    llm_response: str | None = None
                     if self._speak_streaming is not None and callable(stream_reply):
                         tracker.mark("tts_first_chunk")
                         await self._speak_streaming(
@@ -1016,13 +1017,15 @@ class VoiceLoop:
                         )
                         tracker.mark("llm_end")
                     else:
-                        response = await self._assistant.generate_reply(transcript, voice_mode=True)
+                        llm_response = await self._assistant.generate_reply(
+                            transcript, voice_mode=True
+                        )
                         tracker.mark("llm_end")
 
-                        if response and not response.endswith("."):
-                            response = response + "."
+                        if llm_response and not llm_response.endswith("."):
+                            llm_response = llm_response + "."
 
-                        await self._speak(response)
+                        await self._speak(llm_response)
                     tracker.mark("tts_synthesis_end")
                     tracker.mark("playback_start")
                     tracker.log_summary()
@@ -1034,6 +1037,17 @@ class VoiceLoop:
                         extra={"event": "stt_error", "error": str(exc)},
                     )
                     # Continue loop on transcription errors
+                except TextToSpeechError as exc:
+                    logger.error(
+                        "TTS error: %s — resetting pipeline",
+                        exc,
+                        extra={
+                            "event": "tts_error",
+                            "error": str(exc),
+                            "llm_response": llm_response,
+                        },
+                    )
+                    # Continue loop on TTS errors; text response preserved in log
                 except AudioDeviceError as exc:
                     logger.error("Audio device error: %s", exc)
                     break

@@ -138,11 +138,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want the LLM response to be generated from the transcript and spoken back via TTS so that the full voice loop completes.
 
 **Acceptance Criteria:**
-- [ ] STT result is passed to `Assistant.generate_reply()` (not raw `LanguageModel.generate()`)
-- [ ] LLM response is passed to the TTS engine and audio playback begins
-- [ ] If TTS fails, the text response is logged and the pipeline resets (no hang)
-- [ ] End-to-end test covers STT transcript -> LLM -> TTS with mocks
-- [ ] Typecheck passes
+- [x] STT result is passed to `Assistant.generate_reply()` (not raw `LanguageModel.generate()`)
+- [x] LLM response is passed to the TTS engine and audio playback begins
+- [x] If TTS fails, the text response is logged and the pipeline resets (no hang)
+- [x] End-to-end test covers STT transcript -> LLM -> TTS with mocks
+- [x] Typecheck passes
 
 ---
 
