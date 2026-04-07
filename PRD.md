@@ -298,11 +298,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want STT to accept `"auto"` as a language setting and fall back to `"en"` without crashing.
 
 **Acceptance Criteria:**
-- [ ] If `stt_language` config is `"auto"`, STT engine is called with `language=None` (auto-detect)
-- [ ] If STT engine does not support auto-detect, falls back to `"en"`
-- [ ] No crash or exception when `stt_language` is `"auto"`, empty string, or missing
-- [ ] Unit test covers `"auto"`, `"en"`, `""`, and `None` inputs
-- [ ] Typecheck passes
+- [x] If `stt_language` config is `"auto"`, STT engine is called with `language=None` (auto-detect)
+- [x] If STT engine does not support auto-detect, falls back to `"en"`
+- [x] No crash or exception when `stt_language` is `"auto"`, empty string, or missing
+- [x] Unit test covers `"auto"`, `"en"`, `""`, and `None` inputs
+- [x] Typecheck passes
 
 ---
 

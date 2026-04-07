@@ -521,6 +521,9 @@ class SpeechToText:
 
         if language is _USE_CONFIG_LANGUAGE:
             language = getattr(settings, "whisper_language", "en")
+        # Normalise "auto" and "" to None so Whisper uses its built-in auto-detect.
+        if language in ("auto", ""):
+            language = None
         self._language = cast(str | None, language)
 
         if device == "auto":
@@ -581,7 +584,14 @@ class SpeechToText:
             raise AudioFormatError(f"Expected WAV, got {detected_format}")
 
         def _transcribe() -> str:
-            result = self._model.transcribe(prepared_audio, language=self._language, fp16=False)
+            try:
+                result = self._model.transcribe(prepared_audio, language=self._language, fp16=False)
+            except Exception:
+                if self._language is None:
+                    logger.warning("[STT] Auto-detect not supported; falling back to language='en'")
+                    result = self._model.transcribe(prepared_audio, language="en", fp16=False)
+                else:
+                    raise
             return str(result.get("text", "")).strip()
 
         try:
