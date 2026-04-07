@@ -107,3 +107,31 @@
   - Pre-existing mypy error in rex/wakeword/embedding.py (no-redef for _torch) — not introduced by this work
   - Log `extra={"event": ...}` fields are accessible on LogRecord via `getattr(record, "event", None)` in caplog
 ---
+
+## Iteration 9 - US-009: Trace and fix voice pipeline STT-to-LLM-to-TTS stage
+- AC #1 (generate_reply) and AC #2 (speak called with response) were already satisfied
+- Added explicit `except TextToSpeechError` handler in VoiceLoop.run() logging `tts_error` event with `llm_response` field
+- Renamed local `response` to `llm_response` so it's accessible in the error handler
+- Written tests/test_us009_voice_pipeline.py with 5 tests (generate_reply called with transcript, speak called with LLM response, TTS failure logs text, pipeline resets without hang, end-to-end happy path)
+- Tests skip without numpy (same pattern as US-007/008); 28 existing tests still pass
+- ruff, black, mypy all pass (3 pre-existing mypy errors, none new)
+- Files changed: rex/voice_loop.py, tests/test_us009_voice_pipeline.py, PRD.md
+- Learnings for future iterations:
+  - `llm_response` must be initialized to None before the if/else streaming block so the error handler can reference it regardless of which branch ran
+  - `getattr(assistant, "stream_reply", None)` combined with `del assistant.stream_reply` in tests forces the non-streaming path to exercise generate_reply
+  - TextToSpeechError is imported from rex.assistant_errors (same module as SpeechToTextError)
+---
+
+## Iteration 10 - US-075: Fix config type validation and coercion warnings
+- Fixed config/rex_config.json: changed llm_temperature from string "0.7" to float 0.7 (config is gitignored so not committed)
+- Updated _coerce_float() and _coerce_int() in rex/config.py to raise ConfigurationError (with field path and bad value) on unparseable inputs like "abc"
+- Added check_config_types() function to rex/doctor.py capturing coercion warnings via logging.Handler, returning OK/WARNING/ERROR based on config state
+- Called check_config_types(project_root) from run_diagnostics() after check_config_file()
+- Written tests/test_us075_config_validation.py with 9 tests (invalid float raises, invalid int raises, error message includes bad value, valid coercion still works, doctor check for OK/WARNING/ERROR)
+- ruff, black, 18 tests pass (9 new + 9 existing coercion tests)
+- Files changed: rex/config.py, rex/doctor.py, tests/test_us075_config_validation.py, PRD.md
+- Learnings for future iterations:
+  - config/ directory is gitignored — changes to rex_config.json cannot be committed; note this but don't fail the task
+  - Use a logging.Handler subclass to capture WARNING-level log output without interfering with test caplog
+  - _coerce_float/int changes must preserve the happy path (non-string values still work via float(raw))
+---

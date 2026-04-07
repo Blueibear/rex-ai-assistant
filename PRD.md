@@ -164,14 +164,14 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want config values like `llm_temperature` to be stored and validated as their correct types so that runtime coercion warnings are eliminated.
 
 **Acceptance Criteria:**
-- [ ] `AppConfig` field `llm_temperature` is typed as `float` (not `str`), with a Pydantic validator that coerces string input and logs a deprecation warning
-- [ ] All other config fields that are currently stored as strings but used as numeric types are similarly corrected
-- [ ] `config/rex_config.json` template uses correct JSON types (numbers, not quoted numbers)
-- [ ] Config validation runs on load and raises clear errors for invalid values (e.g., `"temperature": "abc"`)
-- [ ] `rex doctor` includes a config validation check that reports any type mismatches
-- [ ] No `UserWarning` or coercion warning on clean config load
-- [ ] Unit test confirms both correct-type and string-type inputs are handled
-- [ ] Typecheck passes
+- [x] `AppConfig` field `llm_temperature` is typed as `float` (not `str`), with a Pydantic validator that coerces string input and logs a deprecation warning
+- [x] All other config fields that are currently stored as strings but used as numeric types are similarly corrected
+- [x] `config/rex_config.json` template uses correct JSON types (numbers, not quoted numbers)
+- [x] Config validation runs on load and raises clear errors for invalid values (e.g., `"temperature": "abc"`)
+- [x] `rex doctor` includes a config validation check that reports any type mismatches
+- [x] No `UserWarning` or coercion warning on clean config load
+- [x] Unit test confirms both correct-type and string-type inputs are handled
+- [x] Typecheck passes
 
 ---
 
