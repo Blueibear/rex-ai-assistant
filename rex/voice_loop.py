@@ -891,6 +891,9 @@ class VoiceLoop:
         acknowledge: Callable[[], Awaitable[None]] | None = None,
         identify_speaker: IdentifySpeakerCallable | None = None,
         sample_rate: int = 16000,
+        stt_timeout: float = 30.0,
+        llm_timeout: float = 60.0,
+        tts_timeout: float = 30.0,
     ) -> None:
         self._assistant = assistant
         if getattr(settings, "use_openclaw_voice_backend", False):
@@ -916,6 +919,9 @@ class VoiceLoop:
             identify_speaker
         )
         self._sample_rate = sample_rate
+        self._stt_timeout = stt_timeout
+        self._llm_timeout = llm_timeout
+        self._tts_timeout = tts_timeout
 
     @staticmethod
     def _resolve_identify_speaker_signature(
@@ -1008,7 +1014,17 @@ class VoiceLoop:
                         extra={"event": "stt_handoff", "audio_samples": audio_samples},
                     )
                     tracker.mark("stt_start")
-                    transcript = await self._transcribe(audio)
+                    try:
+                        transcript = await asyncio.wait_for(
+                            self._transcribe(audio), timeout=self._stt_timeout
+                        )
+                    except TimeoutError:
+                        logger.error(
+                            "STT stage timed out after %.0fs — resetting pipeline",
+                            self._stt_timeout,
+                            extra={"event": "pipeline_timeout", "stage": "stt"},
+                        )
+                        continue
                     tracker.mark("stt_end")
                     if not transcript:
                         logger.info("No speech detected")
@@ -1022,20 +1038,56 @@ class VoiceLoop:
                     llm_response: str | None = None
                     if self._speak_streaming is not None and callable(stream_reply):
                         tracker.mark("tts_first_chunk")
-                        await self._speak_streaming(
-                            _sentence_buffer_stream(stream_reply(transcript, voice_mode=True))
-                        )
+                        try:
+                            await asyncio.wait_for(
+                                self._speak_streaming(
+                                    _sentence_buffer_stream(
+                                        stream_reply(transcript, voice_mode=True)
+                                    )
+                                ),
+                                timeout=self._llm_timeout + self._tts_timeout,
+                            )
+                        except TimeoutError:
+                            logger.error(
+                                "LLM+TTS streaming stage timed out after %.0fs — resetting pipeline",
+                                self._llm_timeout + self._tts_timeout,
+                                extra={"event": "pipeline_timeout", "stage": "llm_tts_streaming"},
+                            )
+                            continue
                         tracker.mark("llm_end")
                     else:
-                        llm_response = await self._assistant.generate_reply(
-                            transcript, voice_mode=True
-                        )
+                        try:
+                            llm_response = await asyncio.wait_for(
+                                self._assistant.generate_reply(transcript, voice_mode=True),
+                                timeout=self._llm_timeout,
+                            )
+                        except TimeoutError:
+                            logger.error(
+                                "LLM stage timed out after %.0fs — resetting pipeline",
+                                self._llm_timeout,
+                                extra={"event": "pipeline_timeout", "stage": "llm"},
+                            )
+                            continue
                         tracker.mark("llm_end")
 
                         if llm_response and not llm_response.endswith("."):
                             llm_response = llm_response + "."
 
-                        await self._speak(llm_response)
+                        try:
+                            await asyncio.wait_for(
+                                self._speak(llm_response), timeout=self._tts_timeout
+                            )
+                        except TimeoutError:
+                            logger.error(
+                                "TTS stage timed out after %.0fs — resetting pipeline",
+                                self._tts_timeout,
+                                extra={
+                                    "event": "pipeline_timeout",
+                                    "stage": "tts",
+                                    "llm_response": llm_response,
+                                },
+                            )
+                            continue
                     tracker.mark("tts_synthesis_end")
                     tracker.mark("playback_start")
                     tracker.log_summary()

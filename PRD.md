@@ -222,12 +222,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want the voice loop to have timeouts at each stage so that it never hangs indefinitely.
 
 **Acceptance Criteria:**
-- [ ] Configurable timeout (default 30s) for STT transcription
-- [ ] Configurable timeout (default 60s) for LLM generation
-- [ ] Configurable timeout (default 30s) for TTS synthesis
-- [ ] On timeout, pipeline logs the stage, resets, and re-enters listening state
-- [ ] Test simulates a timeout at each stage and confirms recovery
-- [ ] Typecheck passes
+- [x] Configurable timeout (default 30s) for STT transcription
+- [x] Configurable timeout (default 60s) for LLM generation
+- [x] Configurable timeout (default 30s) for TTS synthesis
+- [x] On timeout, pipeline logs the stage, resets, and re-enters listening state
+- [x] Test simulates a timeout at each stage and confirms recovery
+- [x] Typecheck passes
 
 ---
 
