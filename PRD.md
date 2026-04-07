@@ -76,11 +76,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want bridge scripts to resolve the repo root correctly so that relative path failures are eliminated.
 
 **Acceptance Criteria:**
-- [ ] `rex/bridge_utils.py` exports `repo_root()` returning the absolute path to the repo root (directory containing `pyproject.toml`)
-- [ ] All `rex_*_bridge.py` files use `repo_root()` to build absolute paths to scripts and config
-- [ ] No bridge script uses `os.getcwd()` or relative paths to locate other scripts
-- [ ] Unit test confirms `repo_root()` returns the correct directory
-- [ ] Typecheck passes
+- [x] `rex/bridge_utils.py` exports `repo_root()` returning the absolute path to the repo root (directory containing `pyproject.toml`)
+- [x] All `rex_*_bridge.py` files use `repo_root()` to build absolute paths to scripts and config
+- [x] No bridge script uses `os.getcwd()` or relative paths to locate other scripts
+- [x] Unit test confirms `repo_root()` returns the correct directory
+- [x] Typecheck passes
 
 ---
 

@@ -16,10 +16,11 @@ from __future__ import annotations
 import json
 import sys
 
-from rex.bridge_utils import resolve_python
+from rex.bridge_utils import repo_root, resolve_python
 from rex.shopping_list import ShoppingList
 
 _PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
+_REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
 
 
 def main() -> None:

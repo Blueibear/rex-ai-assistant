@@ -20,9 +20,10 @@ import threading
 import time
 from contextlib import suppress
 
-from rex.bridge_utils import resolve_python
+from rex.bridge_utils import repo_root, resolve_python
 
 _PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
+_REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
 
 
 def emit(obj: dict) -> None:  # type: ignore[type-arg]
