@@ -16,6 +16,10 @@ import asyncio
 import json
 import sys
 
+from rex.bridge_utils import resolve_python
+
+_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
+
 
 def emit(obj: dict) -> None:  # noqa: ANN001
     print(json.dumps(obj), flush=True)

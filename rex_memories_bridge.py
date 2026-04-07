@@ -23,12 +23,16 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
+
+from rex.bridge_utils import resolve_python
+
+_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(tz=timezone.utc).isoformat()
+    return datetime.now(tz=UTC).isoformat()
 
 
 def _entry_to_gui(entry: Any) -> dict[str, Any]:

@@ -15,6 +15,10 @@ from __future__ import annotations
 import json
 import sys
 
+from rex.bridge_utils import resolve_python
+
+_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
+
 # Default set of known openWakeWord keywords returned when the library is not
 # installed, ensuring the dropdown is never empty.
 _DEFAULT_KEYWORDS = [

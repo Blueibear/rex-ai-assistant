@@ -24,6 +24,10 @@ import sys
 import tempfile
 from pathlib import Path
 
+from rex.bridge_utils import resolve_python
+
+_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
+
 
 def emit(obj: dict) -> None:  # type: ignore[type-arg]
     print(json.dumps(obj), flush=True)

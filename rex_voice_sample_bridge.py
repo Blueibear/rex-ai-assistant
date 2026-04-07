@@ -20,6 +20,10 @@ import base64
 import json
 import sys
 
+from rex.bridge_utils import resolve_python
+
+_PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
+
 
 def main() -> None:
     try:

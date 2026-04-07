@@ -53,11 +53,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want all bridge scripts (`rex_*_bridge.py`) to use the venv-aware resolver so that subprocess calls never use the wrong interpreter.
 
 **Acceptance Criteria:**
-- [ ] Every `rex_*_bridge.py` file at repo root imports and uses `resolve_python()` from `rex/bridge_utils.py`
-- [ ] No raw `"python"` or `"python3"` string remains in any bridge subprocess call
-- [ ] `grep -r "subprocess.*['\"]python" rex_*_bridge.py` returns zero matches
-- [ ] Existing bridge tests still pass
-- [ ] Typecheck passes
+- [x] Every `rex_*_bridge.py` file at repo root imports and uses `resolve_python()` from `rex/bridge_utils.py`
+- [x] No raw `"python"` or `"python3"` string remains in any bridge subprocess call
+- [x] `grep -r "subprocess.*['\"]python" rex_*_bridge.py` returns zero matches
+- [x] Existing bridge tests still pass
+- [x] Typecheck passes
 
 ---
 
