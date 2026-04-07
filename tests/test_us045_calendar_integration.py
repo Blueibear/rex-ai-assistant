@@ -10,7 +10,7 @@ Acceptance criteria:
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -36,7 +36,7 @@ def _make_service(tmp_path: Path) -> CalendarService:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -256,10 +256,12 @@ class TestErrorsHandled:
         event = svc.create_event("Reversed", now + timedelta(hours=2), now + timedelta(hours=1))
         assert event.title == "Reversed"
 
-    def test_get_calendar_service_global_singleton(self, tmp_path):
-        """get_calendar_service() returns a CalendarService."""
-        svc = get_calendar_service()
-        assert isinstance(svc, CalendarService)
+    def test_get_calendar_service_raises_when_unconfigured(self, tmp_path):
+        """get_calendar_service() raises IntegrationNotConfiguredError when not configured."""
+        from rex.assistant_errors import IntegrationNotConfiguredError
+
+        with pytest.raises(IntegrationNotConfiguredError):
+            get_calendar_service(config={})
 
     def test_set_calendar_service_replaces_global(self, tmp_path):
         now = _now()

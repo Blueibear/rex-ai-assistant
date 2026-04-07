@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from .assistant_errors import IntegrationNotConfiguredError
 from .calendar_service import get_calendar_service
 from .config import Settings, settings
 from .followup_engine import FollowupEngine
@@ -230,6 +231,9 @@ class Assistant:
         try:
             try:
                 calendar_service = get_calendar_service()
+            except IntegrationNotConfiguredError:
+                logger.info("Calendar: not configured")
+                calendar_service = None
             except Exception as exc:  # pragma: no cover - defensive guard
                 logger.warning("Failed to initialize calendar service: %s", exc)
                 calendar_service = None

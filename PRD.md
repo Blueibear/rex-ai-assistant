@@ -179,13 +179,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want the voice loop to use real calendar integration (or report "not configured") instead of silently running in mock mode.
 
 **Acceptance Criteria:**
-- [ ] Voice loop startup log does NOT show "Calendar service connected (mock mode)" when calendar is configured with real credentials
-- [ ] If calendar ICS URL is not configured, voice loop logs "Calendar: not configured" (not "mock mode")
-- [ ] Mock calendar data is only used in test fixtures, never in production runtime paths
-- [ ] `rex/calendar_service.py` raises `IntegrationNotConfiguredError` instead of returning mock data when unconfigured
-- [ ] Voice loop gracefully handles missing calendar (no crash, just skips calendar-related tool)
-- [ ] Test confirms mock is never loaded outside of test context
-- [ ] Typecheck passes
+- [x] Voice loop startup log does NOT show "Calendar service connected (mock mode)" when calendar is configured with real credentials
+- [x] If calendar ICS URL is not configured, voice loop logs "Calendar: not configured" (not "mock mode")
+- [x] Mock calendar data is only used in test fixtures, never in production runtime paths
+- [x] `rex/calendar_service.py` raises `IntegrationNotConfiguredError` instead of returning mock data when unconfigured
+- [x] Voice loop gracefully handles missing calendar (no crash, just skips calendar-related tool)
+- [x] Test confirms mock is never loaded outside of test context
+- [x] Typecheck passes
 
 ---
 

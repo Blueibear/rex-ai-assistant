@@ -89,9 +89,9 @@ def setup_calendar_job() -> ScheduledJob:
     def sync_calendar(job: ScheduledJob) -> None:
         """Sync calendar and publish event."""
         logger.info("Running scheduled calendar sync")
-        calendar_service = get_calendar_service()
 
         try:
+            calendar_service = get_calendar_service()
             if not calendar_service.connected:
                 calendar_service.connect()
 

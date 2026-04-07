@@ -17,6 +17,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from rex.assistant_errors import IntegrationNotConfiguredError
 from rex.openclaw.event_bus import EventBus
 
 logger = logging.getLogger(__name__)
@@ -170,7 +171,7 @@ class CalendarService:
         try:
             self._events = self._load_events()
             self.connected = True
-            logger.info("Calendar service connected (mock mode)")
+            logger.info("Calendar service connected (local storage)")
             self._event_bus.publish(
                 "calendar.connected", {"connected": True, "count": len(self._events)}
             )
@@ -669,8 +670,7 @@ def get_calendar_service(
     if backend_name == "ics":
         _calendar_service = _create_ics_backed_service(cal_cfg, event_bus)
     else:
-        _calendar_service = CalendarService(event_bus=event_bus)
-        _calendar_service.connect()
+        raise IntegrationNotConfiguredError("Calendar: not configured")
 
     return _calendar_service
 
@@ -687,18 +687,12 @@ def _create_ics_backed_service(
     url_timeout = int(ics_cfg.get("url_timeout", 15))
 
     if not source:
-        logger.warning("calendar.backend is 'ics' but no source configured; using stub")
-        svc = CalendarService(event_bus=event_bus)
-        svc.connect()
-        return svc
+        raise IntegrationNotConfiguredError("Calendar: not configured")
 
     backend = ICSCalendarBackend(source=source, url_timeout=url_timeout)
     ok = backend.connect()
     if not ok:
-        logger.warning("ICS backend failed to connect; falling back to stub")
-        svc = CalendarService(event_bus=event_bus)
-        svc.connect()
-        return svc
+        raise IntegrationNotConfiguredError("Calendar ICS backend failed to connect")
 
     events = backend.fetch_events()
     svc = CalendarService(event_bus=event_bus, mock_events=events)
@@ -715,6 +709,7 @@ def set_calendar_service(service: CalendarService) -> None:
 __all__ = [
     "CalendarEvent",
     "CalendarService",
+    "IntegrationNotConfiguredError",
     "get_calendar_service",
     "set_calendar_service",
 ]

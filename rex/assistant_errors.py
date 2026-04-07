@@ -51,6 +51,10 @@ class AuthenticationError(AssistantError):
     """Raised when API authentication fails."""
 
 
+class IntegrationNotConfiguredError(AssistantError):
+    """Raised when an optional integration is requested but not configured."""
+
+
 __all__ = [
     "AssistantError",
     "ConfigurationError",
@@ -63,4 +67,5 @@ __all__ = [
     "PluginError",
     "PluginExecutionError",
     "AuthenticationError",
+    "IntegrationNotConfiguredError",
 ]
