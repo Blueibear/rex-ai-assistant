@@ -373,9 +373,8 @@ class CalendarService:
                 self._events = list(events)
                 return list(events)
 
-        events = self._default_mock_events()
-        self._events = list(events)
-        return list(events)
+        self._events = []
+        return []
 
     def _load_mock_events(self, path: Path) -> list[CalendarEvent]:
         """
@@ -456,25 +455,6 @@ class CalendarService:
             self._storage_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         except Exception as e:
             logger.error("Failed to save mock calendar data: %s", e, exc_info=True)
-
-    def _default_mock_events(self) -> list[CalendarEvent]:
-        now = datetime.now(UTC)
-        return [
-            CalendarEvent(
-                event_id="event-001",
-                title="Product sync",
-                start_time=now + timedelta(hours=2),
-                end_time=now + timedelta(hours=3),
-                location="Zoom",
-            ),
-            CalendarEvent(
-                event_id="event-002",
-                title="1:1 check-in",
-                start_time=now + timedelta(hours=6),
-                end_time=now + timedelta(hours=6, minutes=30),
-                location="Conference Room A",
-            ),
-        ]
 
     def get_past_events(
         self,

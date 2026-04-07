@@ -262,11 +262,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want the calendar integration to return real data (or a clear "not configured" message) instead of fake events.
 
 **Acceptance Criteria:**
-- [ ] No hardcoded fake calendar events remain in `rex/calendar_service.py` or `rex/calendar_backends/`
-- [ ] If ICS feed URL is not configured, API returns `{"status": "not_configured", "message": "..."}`
-- [ ] If ICS feed URL is configured, API returns real parsed events
-- [ ] Test covers both configured and not-configured paths
-- [ ] Typecheck passes
+- [x] No hardcoded fake calendar events remain in `rex/calendar_service.py` or `rex/calendar_backends/`
+- [x] If ICS feed URL is not configured, API returns `{"status": "not_configured", "message": "..."}`
+- [x] If ICS feed URL is configured, API returns real parsed events
+- [x] Test covers both configured and not-configured paths
+- [x] Typecheck passes
 
 ---
 
