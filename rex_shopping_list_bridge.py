@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import sys
 
-from rex.bridge_utils import repo_root, resolve_python
+from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
 from rex.shopping_list import ShoppingList
 
 _PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
@@ -70,7 +70,7 @@ def main() -> None:
             sys.stdout.write(json.dumps({"ok": False, "error": f"unknown command: {command}"}))
 
     except Exception as exc:
-        sys.stdout.write(json.dumps({"ok": False, "error": str(exc)}))
+        sys.stdout.write(json.dumps(bridge_error_response(exc)))
 
 
 if __name__ == "__main__":

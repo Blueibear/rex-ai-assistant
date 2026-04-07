@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import sys
 
-from rex.bridge_utils import repo_root, resolve_python
+from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
 
 _PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
 _REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
@@ -51,7 +51,7 @@ def main() -> None:
             sys.exit(1)
     except Exception as exc:
         print(
-            json.dumps({"ok": False, "error": str(exc), "duration": 0.0}),
+            json.dumps({**bridge_error_response(exc), "duration": 0.0}),
             flush=True,
         )
         sys.exit(1)

@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import sys
 
-from rex.bridge_utils import repo_root, resolve_python
+from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
 
 _PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
 _REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
@@ -43,7 +43,7 @@ def main() -> None:
             ]
             print(json.dumps({"ok": True, "speakers": result}))
         except Exception as exc:  # noqa: BLE001
-            print(json.dumps({"ok": False, "speakers": [], "error": str(exc)}))
+            print(json.dumps({**bridge_error_response(exc), "speakers": []}))
     else:
         print(json.dumps({"ok": False, "error": f"unknown command: {command}"}))
 

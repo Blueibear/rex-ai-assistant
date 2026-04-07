@@ -26,7 +26,7 @@ import sys
 from datetime import UTC, datetime
 from typing import Any
 
-from rex.bridge_utils import repo_root, resolve_python
+from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
 
 _PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
 _REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
@@ -142,7 +142,7 @@ def main() -> None:
         else:
             result = {"ok": False, "error": f"Unknown command: {command!r}"}
     except Exception as exc:
-        result = {"ok": False, "error": str(exc)}
+        result = bridge_error_response(exc)
 
     print(json.dumps(result), flush=True)
 

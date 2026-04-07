@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import sys
 
-from rex.bridge_utils import repo_root, resolve_python
+from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
 
 _PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
 _REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
@@ -70,7 +70,7 @@ def main() -> None:
 
         raise ValueError(f"Unsupported action: {action}")
     except Exception as exc:
-        print(json.dumps({"ok": False, "error": str(exc)}), flush=True)
+        print(json.dumps(bridge_error_response(exc)), flush=True)
         sys.exit(1)
 
 

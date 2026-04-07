@@ -18,6 +18,7 @@ import json
 import sys
 import threading
 import time
+import traceback as _traceback
 from contextlib import suppress
 
 from rex.bridge_utils import repo_root, resolve_python
@@ -272,7 +273,7 @@ def main() -> None:
         emit({"type": "error", "error": f"Voice dependencies unavailable: {exc}"})
         _run_stub_loop()
     except Exception as exc:
-        emit({"type": "error", "error": str(exc)})
+        emit({"type": "error", "error": str(exc), "traceback": _traceback.format_exc()})
         _run_stub_loop()
 
 

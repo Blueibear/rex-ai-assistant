@@ -286,11 +286,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want bridge script failures to surface tracebacks, stderr, and meaningful messages instead of opaque exit codes.
 
 **Acceptance Criteria:**
-- [ ] All bridge scripts wrap execution in try/except and return `{"error": "<message>", "traceback": "<tb>"}` on failure
-- [ ] GUI backend captures stderr from subprocess calls and includes it in error responses
-- [ ] CLI mode prints the actual error message, not just "exit code 2"
-- [ ] Test confirms a deliberately broken bridge returns a readable error
-- [ ] Typecheck passes
+- [x] All bridge scripts wrap execution in try/except and return `{"error": "<message>", "traceback": "<tb>"}` on failure
+- [x] GUI backend captures stderr from subprocess calls and includes it in error responses
+- [x] CLI mode prints the actual error message, not just "exit code 2"
+- [x] Test confirms a deliberately broken bridge returns a readable error
+- [x] Typecheck passes
 
 ---
 

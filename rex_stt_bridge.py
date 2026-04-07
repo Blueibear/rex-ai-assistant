@@ -24,7 +24,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from rex.bridge_utils import repo_root, resolve_python
+from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
 
 _PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
 _REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
@@ -111,7 +111,7 @@ def main() -> None:
                     pass
 
         except Exception as exc:
-            emit({"ok": False, "error": str(exc), "request_id": request_id})
+            emit({**bridge_error_response(exc), "request_id": request_id})
 
 
 if __name__ == "__main__":

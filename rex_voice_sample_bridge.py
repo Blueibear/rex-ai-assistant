@@ -20,7 +20,7 @@ import base64
 import json
 import sys
 
-from rex.bridge_utils import repo_root, resolve_python
+from rex.bridge_utils import bridge_error_response, repo_root, resolve_python
 
 _PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
 _REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
@@ -47,7 +47,7 @@ def main() -> None:
         audio_base64 = base64.b64encode(audio_bytes).decode("ascii")
         print(json.dumps({"ok": True, "audio_base64": audio_base64}), flush=True)
     except Exception as exc:
-        print(json.dumps({"ok": False, "error": str(exc)}), flush=True)
+        print(json.dumps(bridge_error_response(exc)), flush=True)
         sys.exit(1)
 
 

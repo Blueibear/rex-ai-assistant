@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+import traceback
 
 from rex.bridge_utils import repo_root, resolve_python
 
@@ -64,7 +65,7 @@ def main() -> None:
         asyncio.run(run())
         emit({"type": "done"})
     except Exception as exc:
-        emit({"type": "error", "error": str(exc)})
+        emit({"type": "error", "error": str(exc), "traceback": traceback.format_exc()})
         sys.exit(1)
 
 

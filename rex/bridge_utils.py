@@ -2,7 +2,22 @@
 
 import os
 import sys
+import traceback as _traceback
 from pathlib import Path
+from typing import Any
+
+
+def bridge_error_response(exc: Exception) -> dict[str, Any]:
+    """Return a standard bridge error dict that includes the traceback.
+
+    Callers should ``print(json.dumps(bridge_error_response(exc)), flush=True)``
+    so that the GUI backend and CLI both receive a readable error with context.
+    """
+    return {
+        "ok": False,
+        "error": str(exc),
+        "traceback": _traceback.format_exc(),
+    }
 
 
 def resolve_python() -> str:
@@ -44,7 +59,5 @@ def repo_root() -> Path:
         parent = current.parent
         if parent == current:
             # Reached filesystem root without finding pyproject.toml
-            raise RuntimeError(
-                "Could not locate repository root (pyproject.toml not found)"
-            )
+            raise RuntimeError("Could not locate repository root (pyproject.toml not found)")
         current = parent
