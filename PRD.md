@@ -235,13 +235,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want `edge-tts` and `pyttsx3` and any other missing voice deps included in the install so that all TTS backends work out of the box.
 
 **Acceptance Criteria:**
-- [ ] `edge-tts` is in `requirements.txt` (or `pyproject.toml` dependencies)
-- [ ] `pyttsx3` is in `requirements.txt` (or `pyproject.toml` dependencies)
-- [ ] `pip install .` in a fresh venv installs both without errors
-- [ ] `python -c "import edge_tts; import pyttsx3"` succeeds after install
-- [ ] No other runtime `ModuleNotFoundError` for voice-related imports
-- [ ] Works on Windows, macOS, Linux
-- [ ] Typecheck passes
+- [x] `edge-tts` is in `requirements.txt` (or `pyproject.toml` dependencies)
+- [x] `pyttsx3` is in `requirements.txt` (or `pyproject.toml` dependencies)
+- [x] `pip install .` in a fresh venv installs both without errors
+- [x] `python -c "import edge_tts; import pyttsx3"` succeeds after install
+- [x] No other runtime `ModuleNotFoundError` for voice-related imports
+- [x] Works on Windows, macOS, Linux
+- [x] Typecheck passes
 
 ---
 

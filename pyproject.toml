@@ -44,6 +44,10 @@ dependencies = [
     "urllib3>=2.6.3",        # CVE-2025-50181, CVE-2025-50182, CVE-2025-66418, CVE-2025-66471, CVE-2026-21441 fixed in 2.6.x
     "certifi>=2024.2.2",     # Certificate validation fixes
     "aiosqlite>=0.20.0",
+
+    # TTS backends (lightweight, cross-platform)
+    "edge-tts>=6.1.9",
+    "pyttsx3>=2.90",
 ]
 
 [project.optional-dependencies]
