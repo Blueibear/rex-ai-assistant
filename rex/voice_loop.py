@@ -20,6 +20,7 @@ import re
 import sys
 import tempfile
 import threading
+import warnings
 import wave
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
@@ -44,6 +45,13 @@ from .memory import (
     resolve_user_key,
 )
 from .tts_utils import chunk_text_for_xtts
+
+# Suppress torio FFmpeg extension warnings — FFmpeg is not required for audio
+# capture/playback (sounddevice handles that).  It is only used internally by
+# Coqui XTTS; the XTTS fallback path handles the case where it is absent.
+warnings.filterwarnings("ignore", message=".*FFmpeg extension.*")
+warnings.filterwarnings("ignore", message=".*libtorio.*")
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="torio")
 
 
 def _import_optional(module_name: str):

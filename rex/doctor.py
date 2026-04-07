@@ -284,9 +284,12 @@ def check_binary(name: str, purpose: str) -> CheckResult:
 
 
 def check_external_dependencies() -> list[CheckResult]:
-    """Check for external binary dependencies."""
+    """Check for external binary dependencies (git and other tools).
+
+    FFmpeg has its own dedicated check (``check_ffmpeg_for_tts``) that reports
+    whether FFmpeg is required based on the active TTS provider.
+    """
     dependencies = [
-        ("ffmpeg", "audio processing and transcoding"),
         ("git", "version control"),
     ]
 
@@ -710,6 +713,57 @@ def check_config_types(root: Path | None) -> CheckResult:
     )
 
 
+def check_ffmpeg_for_tts() -> CheckResult:
+    """Check FFmpeg availability relative to the active TTS backend.
+
+    FFmpeg is required only when XTTS (Coqui TTS) is the active provider because
+    torio (a Coqui dependency) attempts to load FFmpeg extension libraries at
+    import time.  For edge-tts and pyttsx3, FFmpeg is not needed.
+    """
+    # Determine the active TTS provider from config (default: "xtts")
+    tts_provider = "xtts"
+    try:
+        from rex.config import load_config
+
+        cfg = load_config()
+        tts_provider = getattr(cfg, "tts_provider", "xtts") or "xtts"
+    except Exception:
+        pass  # Fall through with the default
+
+    ffmpeg_path = shutil.which("ffmpeg")
+    xtts_providers = {"xtts", "coqui"}
+    requires_ffmpeg = tts_provider.lower() in xtts_providers
+
+    if ffmpeg_path:
+        return CheckResult(
+            name="FFmpeg (TTS)",
+            status=Status.OK,
+            message=f"FFmpeg found: {ffmpeg_path}",
+            details=f"Active TTS provider: {tts_provider}",
+        )
+
+    if requires_ffmpeg:
+        return CheckResult(
+            name="FFmpeg (TTS)",
+            status=Status.WARNING,
+            message=f"FFmpeg not found — required for active TTS provider '{tts_provider}'",
+            details=(
+                "Install FFmpeg and ensure it is on your PATH.\n"
+                "Windows: https://ffmpeg.org/download.html\n"
+                "macOS:   brew install ffmpeg\n"
+                "Linux:   sudo apt install ffmpeg\n"
+                "Rex will attempt to fall back to edge-tts if XTTS fails to load."
+            ),
+        )
+
+    return CheckResult(
+        name="FFmpeg (TTS)",
+        status=Status.INFO,
+        message=f"FFmpeg not found — not required for active TTS provider '{tts_provider}'",
+        details="Audio capture and playback use sounddevice and do not require FFmpeg.",
+    )
+
+
 def check_xtts_transformers_compat() -> CheckResult:
     """Check XTTS + transformers version compatibility status."""
     if find_spec("TTS") is None:
@@ -824,9 +878,12 @@ def run_diagnostics(verbose: bool = False) -> int:
     # LM Studio reachability
     report.add(check_lm_studio_reachability())
 
-    # External dependencies
+    # External dependencies (git and other binaries)
     for result in check_external_dependencies():
         report.add(result)
+
+    # FFmpeg — report status relative to the active TTS backend
+    report.add(check_ffmpeg_for_tts())
 
     # STT warm-up
     report.add(check_stt_warmup())

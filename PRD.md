@@ -207,14 +207,14 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want FFmpeg extension loading failures in torio to be resolved or handled so the voice pipeline does not crash on audio operations.
 
 **Acceptance Criteria:**
-- [ ] Determine whether FFmpeg is required for the voice pipeline audio path (capture, playback) or only for XTTS
-- [ ] If required: add FFmpeg to install docs and `rex doctor` prerequisites; `install.py` checks for FFmpeg
-- [ ] If not required: suppress torio FFmpeg warnings and ensure audio operations use an alternative backend
-- [ ] Voice pipeline audio capture and playback work without FFmpeg extensions loaded (or FFmpeg is present)
-- [ ] `rex doctor` reports FFmpeg status and whether it is required for the active TTS backend
-- [ ] No unhandled exception from torio/FFmpeg during voice loop operation
-- [ ] Test confirms voice pipeline startup succeeds with and without FFmpeg
-- [ ] Typecheck passes
+- [x] Determine whether FFmpeg is required for the voice pipeline audio path (capture, playback) or only for XTTS
+- [x] If required: add FFmpeg to install docs and `rex doctor` prerequisites; `install.py` checks for FFmpeg
+- [x] If not required: suppress torio FFmpeg warnings and ensure audio operations use an alternative backend
+- [x] Voice pipeline audio capture and playback work without FFmpeg extensions loaded (or FFmpeg is present)
+- [x] `rex doctor` reports FFmpeg status and whether it is required for the active TTS backend
+- [x] No unhandled exception from torio/FFmpeg during voice loop operation
+- [x] Test confirms voice pipeline startup succeeds with and without FFmpeg
+- [x] Typecheck passes
 
 ---
 
