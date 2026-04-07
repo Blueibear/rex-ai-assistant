@@ -88,12 +88,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want the `rex_tasks_bridge.py`, `rex_reminders_bridge.py`, and `rex_memories_bridge.py` scripts to exist and conform to the standard JSON I/O contract.
 
 **Acceptance Criteria:**
-- [ ] `rex_tasks_bridge.py` exists, accepts JSON on stdin `{"action": "list"|"add"|"complete", ...}`, returns JSON on stdout
-- [ ] `rex_reminders_bridge.py` exists with the same JSON I/O pattern
-- [ ] `rex_memories_bridge.py` exists with the same JSON I/O pattern
-- [ ] Each script returns `{"error": "..."}` on invalid input (not a traceback)
-- [ ] Smoke test for each: `echo '{"action":"list"}' | python <bridge>.py` returns valid JSON
-- [ ] Typecheck passes
+- [x] `rex_tasks_bridge.py` exists, accepts JSON on stdin `{"action": "list"|"add"|"complete", ...}`, returns JSON on stdout
+- [x] `rex_reminders_bridge.py` exists with the same JSON I/O pattern
+- [x] `rex_memories_bridge.py` exists with the same JSON I/O pattern
+- [x] Each script returns `{"error": "..."}` on invalid input (not a traceback)
+- [x] Smoke test for each: `echo '{"action":"list"}' | python <bridge>.py` returns valid JSON
+- [x] Typecheck passes
 
 ---
 

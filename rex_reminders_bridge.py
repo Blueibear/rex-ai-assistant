@@ -125,7 +125,7 @@ def _handle_complete(reminder_id: str) -> dict[str, Any]:
 def main() -> None:
     try:
         payload: dict[str, Any] = json.loads(sys.stdin.read())
-        command = str(payload.get("command") or "")
+        command = str(payload.get("action") or payload.get("command") or "")
     except Exception as exc:
         print(json.dumps({"ok": False, "error": f"Bad input: {exc}"}), flush=True)
         sys.exit(1)

@@ -97,7 +97,7 @@ def _job_to_task(job: Any) -> dict[str, Any]:
 
 
 def _handle_list() -> dict[str, Any]:
-    from rex.scheduler import get_scheduler  # type: ignore[import]
+    from rex.scheduler import get_scheduler
 
     scheduler = get_scheduler()
     tasks = [_job_to_task(j) for j in scheduler.list_jobs()]
@@ -165,7 +165,7 @@ def _handle_set_enabled(task_id: str, enabled: bool) -> dict[str, Any]:
 def main() -> None:
     try:
         payload: dict[str, Any] = json.loads(sys.stdin.read())
-        command = str(payload.get("command") or "")
+        command = str(payload.get("action") or payload.get("command") or "")
     except Exception as exc:
         print(json.dumps({"ok": False, "error": f"Bad input: {exc}"}), flush=True)
         sys.exit(1)

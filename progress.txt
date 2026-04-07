@@ -52,3 +52,15 @@
   - Use patch.object(bu.sys, "platform", ...) to simulate cross-platform path resolution
   - repo_root() walks up from __file__ looking for pyproject.toml — tests just validate the happy path
 ---
+
+## Iteration 5 - US-005: Verify and create missing bridge scripts (tasks, reminders, memory)
+- All 3 scripts existed but used `"command"` key instead of `"action"` key specified in AC
+- Added `payload.get("action") or payload.get("command")` in main() of all 3 scripts
+- Written tests/test_us005_bridge_json_io.py with 12 tests (action/command aliases, invalid input, unknown action)
+- ruff, black, mypy (pre-existing unused-ignore warnings only), 20 tests pass
+- Files changed: rex_tasks_bridge.py, rex_reminders_bridge.py, rex_memories_bridge.py, tests/test_us005_bridge_json_io.py, PRD.md
+- Learnings for future iterations:
+  - Bridge scripts already had rich implementations; AC's "action" key just needed alias for "command"
+  - Full pytest suite hits INTERNALERROR on Python 3.14 (project requires 3.11); run targeted tests instead
+  - `_run_main()` pattern (mock sys.stdin/stdout, call mod.main()) cleanly tests bridge JSON I/O without subprocess
+---
