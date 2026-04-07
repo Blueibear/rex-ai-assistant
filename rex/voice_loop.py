@@ -1058,7 +1058,11 @@ class VoiceLoop:
                 if max_interactions is not None and interactions >= max_interactions:
                     break
         except AudioDeviceError as exc:
-            logger.error("Audio device error: %s", exc)
+            logger.error(
+                "Audio device error — pipeline halted: %s",
+                exc,
+                extra={"event": "pipeline_blocker", "stage": "audio_device", "error": str(exc)},
+            )
 
 
 def _build_voice_id_callback() -> IdentifySpeakerCallable | None:
@@ -1188,7 +1192,28 @@ def build_voice_loop(
     and at least one user is enrolled, an ``identify_speaker`` callback is
     built and wired into the voice loop automatically.
     """
-    input_device_index = _validate_input_device_index(settings.audio_input_device)
+    logger.info(
+        "[Pipeline] Initialising voice pipeline stages...",
+        extra={"event": "pipeline_stage_start", "stage": "audio_device"},
+    )
+    try:
+        input_device_index = _validate_input_device_index(settings.audio_input_device)
+    except AudioDeviceError as exc:
+        logger.error(
+            "[Pipeline] Audio device stage failed: %s",
+            exc,
+            extra={"event": "pipeline_stage_failed", "stage": "audio_device", "error": str(exc)},
+        )
+        raise
+    logger.info(
+        "[Pipeline] Audio device stage OK (index=%s)",
+        input_device_index,
+        extra={
+            "event": "pipeline_stage_ok",
+            "stage": "audio_device",
+            "device_index": input_device_index,
+        },
+    )
 
     from .wakeword.listener import build_default_detector
 
@@ -1241,13 +1266,55 @@ def build_voice_loop(
         recorder=smart_mic_recorder,
     )
 
-    wake_listener = build_default_detector(
-        sample_rate=sample_rate,
-        chunk_duration=detection_seconds,
+    logger.info(
+        "[Pipeline] Initialising wake-word detector...",
+        extra={"event": "pipeline_stage_start", "stage": "wake_word"},
+    )
+    try:
+        wake_listener = build_default_detector(
+            sample_rate=sample_rate,
+            chunk_duration=detection_seconds,
+        )
+    except Exception as exc:
+        logger.error(
+            "[Pipeline] Wake-word stage failed: %s",
+            exc,
+            extra={"event": "pipeline_stage_failed", "stage": "wake_word", "error": str(exc)},
+        )
+        raise
+    logger.info(
+        "[Pipeline] Wake-word detector ready",
+        extra={"event": "pipeline_stage_ok", "stage": "wake_word"},
     )
 
+    logger.info(
+        "[Pipeline] Initialising STT (model=%s, device=%s)...",
+        whisper_model,
+        device,
+        extra={
+            "event": "pipeline_stage_start",
+            "stage": "stt",
+            "model": whisper_model,
+            "device": device,
+        },
+    )
     stt = SpeechToText(model_name=whisper_model, device=device, async_load=True)
+    logger.info(
+        "[Pipeline] STT initialised (background model load in progress)",
+        extra={"event": "pipeline_stage_ok", "stage": "stt"},
+    )
+
+    logger.info(
+        "[Pipeline] Initialising TTS (language=%s)...",
+        language,
+        extra={"event": "pipeline_stage_start", "stage": "tts", "language": language},
+    )
     tts = TextToSpeech(language=language, default_speaker=speaker_wav)
+    logger.info(
+        "[Pipeline] TTS initialised (provider=%s)",
+        tts._provider,
+        extra={"event": "pipeline_stage_ok", "stage": "tts", "provider": tts._provider},
+    )
 
     ack_sound = getattr(settings, "acknowledgment_sound", "chime")
     if ack_sound and ack_sound != "chime" and not ack_sound.lower().endswith((".wav", ".mp3")):
@@ -1271,6 +1338,11 @@ def build_voice_loop(
         )
 
     identify_speaker = _build_voice_id_callback()
+
+    logger.info(
+        "[Pipeline] All stages ready — voice loop active",
+        extra={"event": "pipeline_ready"},
+    )
 
     return VoiceLoop(
         assistant,

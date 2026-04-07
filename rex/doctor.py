@@ -622,6 +622,94 @@ def check_smart_speakers() -> CheckResult:
     )
 
 
+def check_config_types(root: Path | None) -> CheckResult:
+    """Load rex_config.json and validate field types via build_app_config.
+
+    Returns WARNING if any numeric fields carry string-typed values, and
+    ERROR if any field holds an invalid (non-parseable) value.
+    """
+    if root is None:
+        return CheckResult(
+            name="Config Types",
+            status=Status.INFO,
+            message="Could not determine project root (skipped)",
+        )
+
+    config_path = root / "config" / "rex_config.json"
+    if not config_path.exists():
+        return CheckResult(
+            name="Config Types",
+            status=Status.INFO,
+            message="rex_config.json not found (skipped)",
+        )
+
+    import json
+    import logging
+
+    try:
+        with open(config_path) as f:
+            raw = json.load(f)
+    except (json.JSONDecodeError, OSError) as exc:
+        return CheckResult(
+            name="Config Types",
+            status=Status.ERROR,
+            message=f"Cannot read config for type check: {exc}",
+        )
+
+    warnings_found: list[str] = []
+
+    class _WarningCatcher(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            if record.levelno >= logging.WARNING and "coercing" in record.getMessage():
+                warnings_found.append(record.getMessage())
+
+    logger = logging.getLogger("rex.config")
+    handler = _WarningCatcher()
+    logger.addHandler(handler)
+    try:
+        from rex.assistant_errors import ConfigurationError
+        from rex.config import build_app_config
+
+        build_app_config(raw)
+    except ConfigurationError as exc:
+        return CheckResult(
+            name="Config Types",
+            status=Status.ERROR,
+            message=f"Config type validation failed: {exc}",
+            details="Fix the value in rex_config.json and run rex doctor again.",
+        )
+    except (ValueError, TypeError) as exc:
+        return CheckResult(
+            name="Config Types",
+            status=Status.ERROR,
+            message=f"Config has invalid value: {exc}",
+        )
+    except Exception as exc:
+        return CheckResult(
+            name="Config Types",
+            status=Status.WARNING,
+            message=f"Config type check could not complete: {exc}",
+        )
+    finally:
+        logger.removeHandler(handler)
+
+    if warnings_found:
+        details = "\n".join(f"- {w}" for w in warnings_found)
+        details += "\nFix these fields in rex_config.json to use JSON numbers (not strings)."
+        return CheckResult(
+            name="Config Types",
+            status=Status.WARNING,
+            message=f"{len(warnings_found)} field(s) have string-typed numeric values",
+            details=details,
+        )
+
+    return CheckResult(
+        name="Config Types",
+        status=Status.OK,
+        message="All config fields have correct types",
+    )
+
+
 def _current_whisper_language() -> str:
     try:
         from .config import load_config
@@ -661,6 +749,7 @@ def run_diagnostics(verbose: bool = False) -> int:
     report.add(check_python_version())
     report.add(check_package_installation())
     report.add(check_config_file(project_root))
+    report.add(check_config_types(project_root))
     report.add(check_env_file(project_root))
     report.add(check_environment_variables())
     report.add(check_config_permissions(project_root))

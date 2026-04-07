@@ -338,6 +338,9 @@ def _coerce_float(json_config: dict, path: str, default: float) -> float:
     Pydantic/dataclass coercion silently accepts string-typed floats from
     JSON, which can hide misconfigured ``rex_config.json`` files.  This
     helper logs a WARNING so operators know to fix the source file.
+
+    Raises:
+        ConfigurationError: If the value cannot be converted to float.
     """
     raw = _get_nested(json_config, path, default)
     if isinstance(raw, str):
@@ -347,13 +350,21 @@ def _coerce_float(json_config: dict, path: str, default: float) -> float:
             path,
             raw,
         )
-    return float(raw)
+    try:
+        return float(raw)
+    except (ValueError, TypeError) as exc:
+        raise ConfigurationError(
+            f"Config field {path!r} has invalid value {raw!r}: cannot convert to float."
+        ) from exc
 
 
 def _coerce_int(json_config: dict, path: str, default: int) -> int:
     """Get an int config value, warning if the raw value is a string.
 
     See :func:`_coerce_float` for rationale.
+
+    Raises:
+        ConfigurationError: If the value cannot be converted to int.
     """
     raw = _get_nested(json_config, path, default)
     if isinstance(raw, str):
@@ -363,7 +374,12 @@ def _coerce_int(json_config: dict, path: str, default: int) -> int:
             path,
             raw,
         )
-    return int(float(raw))
+    try:
+        return int(float(raw))
+    except (ValueError, TypeError) as exc:
+        raise ConfigurationError(
+            f"Config field {path!r} has invalid value {raw!r}: cannot convert to int."
+        ) from exc
 
 
 def _parse_email_accounts(raw: object) -> List[EmailAccountConfig]:

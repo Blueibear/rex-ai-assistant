@@ -150,13 +150,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want `rex_loop.py` (the standalone voice loop entry point) to complete a full voice conversation reliably, not just detect the wake word.
 
 **Acceptance Criteria:**
-- [ ] Run `python rex_loop.py` and document which stages succeed: wake word detection, audio capture, STT transcription, LLM response generation, TTS spoken output
-- [ ] For each failing stage, add a structured log message identifying the failure point and cause
-- [ ] Fix all identified failures so that a full wake -> capture -> transcribe -> LLM -> speak cycle completes
-- [ ] `rex_loop.py` uses `build_voice_loop` from `rex.voice_loop` (the canonical implementation, per learned rules)
-- [ ] If a stage cannot be fixed in this story (e.g., missing hardware), the loop logs the blocker and exits cleanly instead of hanging
-- [ ] Integration test with mocked audio confirms full pipeline completion
-- [ ] Typecheck passes
+- [x] Run `python rex_loop.py` and document which stages succeed: wake word detection, audio capture, STT transcription, LLM response generation, TTS spoken output
+- [x] For each failing stage, add a structured log message identifying the failure point and cause
+- [x] Fix all identified failures so that a full wake -> capture -> transcribe -> LLM -> speak cycle completes
+- [x] `rex_loop.py` uses `build_voice_loop` from `rex.voice_loop` (the canonical implementation, per learned rules)
+- [x] If a stage cannot be fixed in this story (e.g., missing hardware), the loop logs the blocker and exits cleanly instead of hanging
+- [x] Integration test with mocked audio confirms full pipeline completion
+- [x] Typecheck passes
 
 ---
 
