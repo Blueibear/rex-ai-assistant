@@ -65,10 +65,10 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want `rex/gui_app.py` and any GUI subprocess calls to use the venv-aware resolver.
 
 **Acceptance Criteria:**
-- [ ] `rex/gui_app.py` uses `resolve_python()` for all subprocess invocations
-- [ ] `grep -r "subprocess.*['\"]python" rex/gui_app.py` returns zero matches
-- [ ] GUI launch still works via `rex-gui` entry point
-- [ ] Typecheck passes
+- [x] `rex/gui_app.py` uses `resolve_python()` for all subprocess invocations
+- [x] `grep -r "subprocess.*['\"]python" rex/gui_app.py` returns zero matches
+- [x] GUI launch still works via `rex-gui` entry point
+- [x] Typecheck passes
 
 ---
 
