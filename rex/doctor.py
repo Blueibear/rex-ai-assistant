@@ -710,6 +710,64 @@ def check_config_types(root: Path | None) -> CheckResult:
     )
 
 
+def check_xtts_transformers_compat() -> CheckResult:
+    """Check XTTS + transformers version compatibility status."""
+    if find_spec("TTS") is None:
+        return CheckResult(
+            name="XTTS Compatibility",
+            status=Status.INFO,
+            message="Coqui TTS not installed (XTTS check skipped)",
+        )
+
+    if find_spec("transformers") is None:
+        return CheckResult(
+            name="XTTS Compatibility",
+            status=Status.WARNING,
+            message="transformers not installed; XTTS may not work",
+            details="Install transformers: pip install 'transformers>=4.38.0,<5.0'",
+        )
+
+    try:
+        import transformers
+
+        transformers_version = getattr(transformers, "__version__", "unknown")
+
+        if hasattr(transformers, "BeamSearchScorer"):
+            return CheckResult(
+                name="XTTS Compatibility",
+                status=Status.OK,
+                message=f"transformers {transformers_version}: compatible (BeamSearchScorer available)",
+            )
+
+        # BeamSearchScorer missing — try the shim
+        from rex.compat import ensure_transformers_compatibility
+
+        ensure_transformers_compatibility()
+
+        if hasattr(transformers, "BeamSearchScorer"):
+            return CheckResult(
+                name="XTTS Compatibility",
+                status=Status.OK,
+                message=(
+                    f"transformers {transformers_version}: compatible"
+                    " (compatibility shim applied for BeamSearchScorer)"
+                ),
+            )
+
+        return CheckResult(
+            name="XTTS Compatibility",
+            status=Status.WARNING,
+            message=f"transformers {transformers_version}: BeamSearchScorer missing after shim",
+            details="XTTS may fail to load. TTS will fall back to edge-tts automatically.",
+        )
+    except Exception as exc:
+        return CheckResult(
+            name="XTTS Compatibility",
+            status=Status.WARNING,
+            message=f"XTTS compatibility check failed: {exc}",
+        )
+
+
 def _current_whisper_language() -> str:
     try:
         from .config import load_config
@@ -775,6 +833,9 @@ def run_diagnostics(verbose: bool = False) -> int:
 
     # GPU check
     report.add(check_gpu_availability())
+
+    # XTTS + transformers compatibility
+    report.add(check_xtts_transformers_compat())
 
     # Print results
     for result in report.results:

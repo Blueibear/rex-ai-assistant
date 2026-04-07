@@ -716,7 +716,9 @@ class TextToSpeech:
         """Synthesize speech using XTTS, playing each chunk immediately."""
         if self._tts is None and not self._initialize_xtts():
             reason = self._xtts_init_error or "unknown initialization error"
-            raise TextToSpeechError(f"XTTS not initialized: {reason}")
+            logger.warning("[TTS] XTTS not available (%s); falling back to edge-tts", reason)
+            await self._speak_edge(text)
+            return
         sf = _lazy_import_soundfile()
         if sf is None:
             raise TextToSpeechError("soundfile is required for XTTS output")

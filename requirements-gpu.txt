@@ -8,5 +8,9 @@ torch==2.6.0+cu118
 torchvision==0.21.0+cu118
 torchaudio==2.6.0+cu118
 
+# transformers: pin to a semver-compatible range for Coqui TTS 0.22.0.
+# BeamSearchScorer was removed in 4.38+; the rex/compat/ shim restores it.
+transformers>=4.38.0,<5.0
+
 # Install Rex with ML + audio extras
 -e ".[ml,audio]"

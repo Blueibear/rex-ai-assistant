@@ -193,13 +193,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want XTTS to load successfully by pinning compatible transformers version or patching the missing `BeamSearchScorer` import.
 
 **Acceptance Criteria:**
-- [ ] `requirements-gpu-cu124.txt` (and other GPU requirements files) pin a transformers version compatible with the installed XTTS version
-- [ ] If `BeamSearchScorer` is missing from the installed transformers, a compatibility shim provides it before XTTS loads
-- [ ] Shim is applied in `rex/compat/` and triggered by lazy import logic (using `find_spec()` per learned rules)
-- [ ] If pinned version is not available, TTS falls back to edge-tts with a clear log message
-- [ ] `rex doctor` reports XTTS + transformers version compatibility status
-- [ ] Test confirms XTTS loads (or falls back cleanly) with both compatible and incompatible transformers versions
-- [ ] Typecheck passes
+- [x] `requirements-gpu-cu124.txt` (and other GPU requirements files) pin a transformers version compatible with the installed XTTS version
+- [x] If `BeamSearchScorer` is missing from the installed transformers, a compatibility shim provides it before XTTS loads
+- [x] Shim is applied in `rex/compat/` and triggered by lazy import logic (using `find_spec()` per learned rules)
+- [x] If pinned version is not available, TTS falls back to edge-tts with a clear log message
+- [x] `rex doctor` reports XTTS + transformers version compatibility status
+- [x] Test confirms XTTS loads (or falls back cleanly) with both compatible and incompatible transformers versions
+- [x] Typecheck passes
 
 ---
 

@@ -122,6 +122,23 @@
   - TextToSpeechError is imported from rex.assistant_errors (same module as SpeechToTextError)
 ---
 
+## Iteration 11 - US-076: Remove mock calendar from voice loop runtime path
+- Added `IntegrationNotConfiguredError` to `rex/assistant_errors.py`
+- Updated `get_calendar_service()` to raise `IntegrationNotConfiguredError("Calendar: not configured")` for stub/unconfigured case instead of returning mock-backed service
+- Updated `_create_ics_backed_service()` to raise instead of falling back to stub on empty source or failed ICS connect
+- Changed `CalendarService.connect()` log from "mock mode" to "local storage"
+- Updated `rex/assistant.py` to catch `IntegrationNotConfiguredError` with `info` logging (not `warning`)
+- Moved `get_calendar_service()` inside try/except in `rex/integrations.py` and `rex/integrations/_setup.py`
+- Updated `test_us045_calendar_integration.py` to test new behavior (raises when unconfigured)
+- Written `tests/test_us076_calendar_mock_removal.py` with 8 tests
+- 167 tests pass, 28 skipped; ruff and black pass
+- Files changed: rex/assistant_errors.py, rex/calendar_service.py, rex/assistant.py, rex/integrations.py, rex/integrations/_setup.py, tests/test_us076_calendar_mock_removal.py, tests/test_us045_calendar_integration.py, PRD.md
+- Learnings for future iterations:
+  - `get_calendar_service()` now raises `IntegrationNotConfiguredError` when no ICS backend configured — callers must catch it
+  - The global `_calendar_service` singleton is only set when ICS connects successfully
+  - `CalendarService` direct instantiation still works fine for test fixtures using mock_events/mock_data_path
+---
+
 ## Iteration 10 - US-075: Fix config type validation and coercion warnings
 - Fixed config/rex_config.json: changed llm_temperature from string "0.7" to float 0.7 (config is gitignored so not committed)
 - Updated _coerce_float() and _coerce_int() in rex/config.py to raise ConfigurationError (with field path and bad value) on unparseable inputs like "abc"
@@ -134,4 +151,18 @@
   - config/ directory is gitignored — changes to rex_config.json cannot be committed; note this but don't fail the task
   - Use a logging.Handler subclass to capture WARNING-level log output without interfering with test caplog
   - _coerce_float/int changes must preserve the happy path (non-string values still work via float(raw))
+---
+
+## Iteration 12 - US-077: Pin XTTS/transformers compatible versions and patch BeamSearchScorer
+- Added `transformers>=4.38.0,<5.0` pin to requirements-gpu-cu124.txt and requirements-gpu.txt
+- `rex/compat/transformers_shims.py` and `_lazy_import_tts()` shim already existed (pre-satisfied)
+- Modified `_speak_xtts()` in rex/voice_loop.py: instead of raising TextToSpeechError, logs warning and falls back to edge-tts when XTTS init fails
+- Added `check_xtts_transformers_compat()` to rex/doctor.py and called it from `run_diagnostics()`
+- Written tests/test_us077_xtts_compat.py with 7 tests (5 pass, 2 skip without numpy): doctor checks for INFO/WARNING/OK paths and edge-tts fallback with log warning
+- ruff, black pass; 35 tests pass, 2 skipped
+- Files changed: rex/voice_loop.py, rex/doctor.py, requirements-gpu-cu124.txt, requirements-gpu.txt, tests/test_us077_xtts_compat.py, PRD.md
+- Learnings for future iterations:
+  - async tests must use asyncio.run() in sync test functions (anyio/pytest-asyncio not installed)
+  - MagicMock(spec=[]) gives hasattr() False for unlisted attrs; SimpleNamespace gives full control
+  - `from rex.compat import ensure_transformers_compatibility` inside a function body picks up the patched version when rex.compat.ensure_transformers_compatibility is patched before the call
 ---
