@@ -880,6 +880,7 @@ class VoiceLoop:
         warmup: Callable[[], Awaitable[None]] | None = None,
         acknowledge: Callable[[], Awaitable[None]] | None = None,
         identify_speaker: IdentifySpeakerCallable | None = None,
+        sample_rate: int = 16000,
     ) -> None:
         self._assistant = assistant
         if getattr(settings, "use_openclaw_voice_backend", False):
@@ -904,6 +905,7 @@ class VoiceLoop:
         self._identify_speaker_accepts_audio = self._resolve_identify_speaker_signature(
             identify_speaker
         )
+        self._sample_rate = sample_rate
 
     @staticmethod
     def _resolve_identify_speaker_signature(
@@ -965,6 +967,20 @@ class VoiceLoop:
                     # Record user speech
                     audio = await self._record_phrase()
 
+                    audio_samples = len(audio) if hasattr(audio, "__len__") else 0
+                    audio_duration_s = (
+                        audio_samples / self._sample_rate if self._sample_rate > 0 else 0.0
+                    )
+                    logger.debug(
+                        "Audio capture complete: %.2fs captured",
+                        audio_duration_s,
+                        extra={
+                            "event": "audio_capture_complete",
+                            "audio_duration_s": audio_duration_s,
+                            "audio_samples": audio_samples,
+                        },
+                    )
+
                     # Optionally identify the speaker from voice
                     if self._identify_speaker is not None:
                         try:
@@ -976,6 +992,11 @@ class VoiceLoop:
                             logger.warning("Voice identity check failed: %s", exc)
 
                     # Transcribe to text
+                    logger.debug(
+                        "Handing audio buffer to STT engine (%d samples)",
+                        audio_samples,
+                        extra={"event": "stt_handoff", "audio_samples": audio_samples},
+                    )
                     tracker.mark("stt_start")
                     transcript = await self._transcribe(audio)
                     tracker.mark("stt_end")
@@ -1007,7 +1028,11 @@ class VoiceLoop:
                     tracker.log_summary()
 
                 except SpeechToTextError as exc:
-                    logger.error("STT error: %s", exc)
+                    logger.error(
+                        "STT error: %s — resetting pipeline",
+                        exc,
+                        extra={"event": "stt_error", "error": str(exc)},
+                    )
                     # Continue loop on transcription errors
                 except AudioDeviceError as exc:
                     logger.error("Audio device error: %s", exc)
@@ -1244,6 +1269,7 @@ def build_voice_loop(
         warmup=lambda: tts.warmup(speaker_wav=speaker_wav),
         acknowledge=ack.play,
         identify_speaker=identify_speaker,
+        sample_rate=sample_rate,
     )
 
 

@@ -126,11 +126,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want captured audio to be reliably passed to the STT engine so that transcription always occurs after capture.
 
 **Acceptance Criteria:**
-- [ ] Audio capture completion emits a structured log event with audio duration
-- [ ] STT engine receives the audio buffer and begins transcription (log confirms handoff)
-- [ ] If STT fails, the error is logged and the pipeline resets (no hang)
-- [ ] Test covers capture -> STT handoff with a mock audio buffer
-- [ ] Typecheck passes
+- [x] Audio capture completion emits a structured log event with audio duration
+- [x] STT engine receives the audio buffer and begins transcription (log confirms handoff)
+- [x] If STT fails, the error is logged and the pipeline resets (no hang)
+- [x] Test covers capture -> STT handoff with a mock audio buffer
+- [x] Typecheck passes
 
 ---
 
