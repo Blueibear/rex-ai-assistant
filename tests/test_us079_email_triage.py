@@ -11,7 +11,7 @@ Acceptance criteria verified:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -28,7 +28,7 @@ from rex.email_backends.triage import (
 # Helpers
 # ---------------------------------------------------------------------------
 
-_NOW = datetime(2026, 3, 11, 9, 0, 0, tzinfo=timezone.utc)
+_NOW = datetime(2026, 3, 11, 9, 0, 0, tzinfo=UTC)
 
 
 def _env(
@@ -274,29 +274,99 @@ class TestTriageEmails:
 # ---------------------------------------------------------------------------
 
 
+def _make_test_emails() -> list[EmailEnvelope]:
+    """Return a representative set of test EmailEnvelope objects for triage tests."""
+    _now = datetime(2026, 3, 11, 9, 0, 0, tzinfo=UTC)
+    return [
+        EmailEnvelope(
+            message_id="mock-urgent-001",
+            from_addr="cto@example.com",
+            subject="URGENT: Production outage — all hands",
+            snippet="Our payment service is down.",
+            received_at=_now.replace(hour=6),
+            to_addrs=["team@example.com"],
+            labels=["unread", "urgent"],
+        ),
+        EmailEnvelope(
+            message_id="mock-urgent-002",
+            from_addr="alerts@monitor.example.com",
+            subject="CRITICAL: Disk usage at 98% on prod-db-01",
+            snippet="Disk usage has exceeded 95%. Immediate action required.",
+            received_at=_now.replace(hour=7),
+            to_addrs=["ops@example.com"],
+            labels=["unread", "urgent"],
+        ),
+        EmailEnvelope(
+            message_id="mock-action-001",
+            from_addr="hr@example.com",
+            subject="Action required: please complete your annual review by Friday",
+            snippet="Your self-review form is due this Friday.",
+            received_at=_now.replace(day=10, hour=14),
+            to_addrs=["user@example.com"],
+            labels=["unread", "action_required"],
+        ),
+        EmailEnvelope(
+            message_id="mock-action-002",
+            from_addr="billing@saas-vendor.com",
+            subject="Invoice #INV-20260310 due in 7 days",
+            snippet="Your subscription invoice of $299 is due on March 18.",
+            received_at=_now.replace(day=10, hour=11),
+            to_addrs=["accounts@example.com"],
+            labels=["unread", "action_required"],
+        ),
+        EmailEnvelope(
+            message_id="mock-fyi-001",
+            from_addr="newsletter@techdigest.example.com",
+            subject="This week in AI — March 2026 edition",
+            snippet="Top stories: new open-weight models, AGI timeline debate, and more.",
+            received_at=_now.replace(day=9, hour=8),
+            to_addrs=["user@example.com"],
+            labels=["fyi"],
+        ),
+        EmailEnvelope(
+            message_id="mock-fyi-002",
+            from_addr="noreply@github.com",
+            subject="Your pull request was merged",
+            snippet="rex-ai-assistant #205 has been merged into master by james.",
+            received_at=_now.replace(day=9, hour=16),
+            to_addrs=["user@example.com"],
+            labels=["fyi"],
+        ),
+        EmailEnvelope(
+            message_id="mock-fyi-003",
+            from_addr="calendar-noreply@example.com",
+            subject="Reminder: team stand-up tomorrow at 09:00",
+            snippet="Just a friendly reminder about tomorrow's stand-up.",
+            received_at=_now.replace(day=10, hour=17),
+            to_addrs=["team@example.com"],
+            labels=["fyi"],
+        ),
+    ]
+
+
 class TestMockInboxCoverage:
-    """Confirm the built-in mock data yields at least one email per category."""
+    """Confirm injected test data yields at least one email per category."""
 
     def setup_method(self) -> None:
-        stub = EmailInboxStub()
+        stub = EmailInboxStub(emails=_make_test_emails())
         self.all_emails = stub.all_emails
         self.grouped = triage_emails(self.all_emails)
 
     def test_mock_inbox_has_urgent_emails(self) -> None:
-        assert len(self.grouped["urgent"]) >= 1, "Mock inbox must contain at least one urgent email"
+        assert len(self.grouped["urgent"]) >= 1, "Test inbox must contain at least one urgent email"
 
     def test_mock_inbox_has_action_required_emails(self) -> None:
         assert (
             len(self.grouped["action_required"]) >= 1
-        ), "Mock inbox must contain at least one action_required email"
+        ), "Test inbox must contain at least one action_required email"
 
     def test_mock_inbox_has_newsletter_emails(self) -> None:
         assert (
             len(self.grouped["newsletter"]) >= 1
-        ), "Mock inbox must contain at least one newsletter email"
+        ), "Test inbox must contain at least one newsletter email"
 
     def test_mock_inbox_has_fyi_emails(self) -> None:
-        assert len(self.grouped["fyi"]) >= 1, "Mock inbox must contain at least one fyi email"
+        assert len(self.grouped["fyi"]) >= 1, "Test inbox must contain at least one fyi email"
 
     def test_mock_urgent_emails_are_correct(self) -> None:
         """Both 'mock-urgent-*' emails categorize as urgent."""
@@ -322,7 +392,7 @@ class TestMockInboxCoverage:
         assert "mock-fyi-003" in fyi_ids
 
     def test_filter_by_category_urgent_on_mock_data(self) -> None:
-        """filter_by_category('urgent') returns only urgent emails from mock inbox."""
+        """filter_by_category('urgent') returns only urgent emails from test inbox."""
         results = filter_by_category(self.all_emails, "urgent")
         assert len(results) >= 1
         for env in results:

@@ -10,10 +10,54 @@ Acceptance criteria:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 
 from rex.email_backends.base import EmailBackend, EmailEnvelope, SendResult
 from rex.email_backends.inbox_stub import EmailInboxStub
+
+# ---------------------------------------------------------------------------
+# Test fixture data covering all three triage categories
+# ---------------------------------------------------------------------------
+
+_NOW = datetime(2026, 3, 11, 9, 0, 0, tzinfo=UTC)
+
+_TEST_EMAILS: list[EmailEnvelope] = [
+    EmailEnvelope(
+        message_id="test-urgent-001",
+        from_addr="cto@example.com",
+        subject="URGENT: Production outage",
+        snippet="Payment service is down.",
+        received_at=_NOW.replace(hour=6),
+        to_addrs=["team@example.com"],
+        labels=["unread", "urgent"],
+    ),
+    EmailEnvelope(
+        message_id="test-action-001",
+        from_addr="hr@example.com",
+        subject="Action required: complete review",
+        snippet="Your self-review form is due Friday.",
+        received_at=_NOW.replace(hour=14),
+        to_addrs=["user@example.com"],
+        labels=["unread", "action_required"],
+    ),
+    EmailEnvelope(
+        message_id="test-fyi-001",
+        from_addr="newsletter@techdigest.example.com",
+        subject="This week in AI",
+        snippet="Top stories in AI this week.",
+        received_at=_NOW.replace(hour=8),
+        to_addrs=["user@example.com"],
+        labels=["fyi"],
+    ),
+]
+
+
+def _stub_with_data() -> EmailInboxStub:
+    """Return a stub pre-loaded with test fixture emails."""
+    return EmailInboxStub(emails=_TEST_EMAILS)
+
 
 # ---------------------------------------------------------------------------
 # Instantiation — no credentials or network calls required
@@ -95,7 +139,7 @@ def test_implements_disconnect() -> None:
 
 
 def test_all_emails_returns_email_envelopes() -> None:
-    stub = EmailInboxStub()
+    stub = _stub_with_data()
     emails = stub.all_emails
     assert len(emails) > 0
     for email in emails:
@@ -112,7 +156,7 @@ def test_fetch_unread_returns_email_envelopes() -> None:
 
 
 def test_envelope_fields_populated() -> None:
-    stub = EmailInboxStub()
+    stub = _stub_with_data()
     for email in stub.all_emails:
         assert email.message_id, "message_id must be non-empty"
         assert email.from_addr, "from_addr must be non-empty"
@@ -126,31 +170,31 @@ def test_envelope_fields_populated() -> None:
 
 
 def test_urgent_category_present() -> None:
-    stub = EmailInboxStub()
+    stub = _stub_with_data()
     urgent = stub.fetch_by_category("urgent")
-    assert len(urgent) >= 1, "At least one mock email must be in the 'urgent' category"
+    assert len(urgent) >= 1, "At least one test email must be in the 'urgent' category"
 
 
 def test_action_required_category_present() -> None:
-    stub = EmailInboxStub()
+    stub = _stub_with_data()
     action = stub.fetch_by_category("action_required")
-    assert len(action) >= 1, "At least one mock email must be in 'action_required'"
+    assert len(action) >= 1, "At least one test email must be in 'action_required'"
 
 
 def test_fyi_category_present() -> None:
-    stub = EmailInboxStub()
+    stub = _stub_with_data()
     fyi = stub.fetch_by_category("fyi")
-    assert len(fyi) >= 1, "At least one mock email must be in the 'fyi' category"
+    assert len(fyi) >= 1, "At least one test email must be in the 'fyi' category"
 
 
 def test_three_categories_covered() -> None:
-    stub = EmailInboxStub()
+    stub = _stub_with_data()
     all_labels: set[str] = set()
     for email in stub.all_emails:
         all_labels.update(email.labels)
     required = {"urgent", "action_required", "fyi"}
     missing = required - all_labels
-    assert not missing, f"Missing categories in mock data: {missing}"
+    assert not missing, f"Missing categories in test data: {missing}"
 
 
 # ---------------------------------------------------------------------------
@@ -222,7 +266,7 @@ def test_send_multiple_records_all() -> None:
 
 
 def test_mark_as_read_removes_unread_label() -> None:
-    stub = EmailInboxStub()
+    stub = _stub_with_data()
     stub.connect()
     unread_before = stub.fetch_unread()
     assert len(unread_before) >= 1

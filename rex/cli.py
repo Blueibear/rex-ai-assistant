@@ -967,8 +967,14 @@ def cmd_scheduler(args: argparse.Namespace) -> int:
 
 def cmd_email(args: argparse.Namespace) -> int:
     """Manage email."""
+    from rex.assistant_errors import IntegrationNotConfiguredError
+
     _ = _resolve_cli_user(args)
-    email_service = get_email_service()
+    try:
+        email_service = get_email_service()
+    except IntegrationNotConfiguredError:
+        print("Email integration not configured. Set IMAP/SMTP credentials in config.")
+        return 1
     subcommand = args.email_command
 
     if subcommand == "unread":
@@ -1100,7 +1106,13 @@ def _cmd_email_send(args: argparse.Namespace) -> int:
         print("Error: --to, --subject, and --body are required")
         return 1
 
-    email_service = get_email_service()
+    from rex.assistant_errors import IntegrationNotConfiguredError
+
+    try:
+        email_service = get_email_service()
+    except IntegrationNotConfiguredError:
+        print("Email integration not configured. Set IMAP/SMTP credentials in config.")
+        return 1
     if not email_service.connected:
         if not email_service.connect():
             print("Error: Failed to connect to email service")

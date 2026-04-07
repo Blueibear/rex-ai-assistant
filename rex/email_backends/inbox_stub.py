@@ -1,108 +1,22 @@
-"""EmailInboxStub — in-memory email inbox stub with built-in mock data.
+"""EmailInboxStub — in-memory email backend for unit tests.
 
 This module provides ``EmailInboxStub``, a zero-dependency email backend
-whose mock data is defined in code rather than loaded from a fixture file.
-It is designed for unit tests and beta-phase triage feature development where
-no live credentials or network access is available.
+designed for unit tests and offline feature development.  It carries no
+built-in mock data; callers must inject email fixtures via the ``emails``
+constructor parameter.
 
-Mock emails cover at least three triage categories:
-  - ``urgent``          — time-sensitive / high-priority messages
-  - ``action_required`` — messages that need a response or action
-  - ``fyi``             — informational messages requiring no action
-
-The category is stored as a label on ``EmailEnvelope.labels`` so that triage
-logic can read it without knowing the stub internals.
+The stub implements the same ``EmailBackend`` interface as the real IMAP/SMTP
+backend so that calling code needs no changes when switching backends.
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
 from typing import Any
 
 from rex.email_backends.base import EmailBackend, EmailEnvelope, SendResult
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Built-in mock emails
-# ---------------------------------------------------------------------------
-
-_NOW = datetime(2026, 3, 11, 9, 0, 0, tzinfo=UTC)
-
-
-def _dt(day: int, hour: int = 9) -> datetime:
-    return _NOW.replace(day=day, hour=hour)
-
-
-_MOCK_EMAILS: list[EmailEnvelope] = [
-    # ── urgent ──────────────────────────────────────────────────────────────
-    EmailEnvelope(
-        message_id="mock-urgent-001",
-        from_addr="cto@example.com",
-        subject="URGENT: Production outage — all hands",
-        snippet="Our payment service is down. Please join the incident bridge immediately.",
-        received_at=_dt(11, 6),
-        to_addrs=["team@example.com"],
-        labels=["unread", "urgent"],
-    ),
-    EmailEnvelope(
-        message_id="mock-urgent-002",
-        from_addr="alerts@monitor.example.com",
-        subject="CRITICAL: Disk usage at 98% on prod-db-01",
-        snippet="Disk usage has exceeded the 95% threshold. Immediate action required.",
-        received_at=_dt(11, 7),
-        to_addrs=["ops@example.com"],
-        labels=["unread", "urgent"],
-    ),
-    # ── action_required ─────────────────────────────────────────────────────
-    EmailEnvelope(
-        message_id="mock-action-001",
-        from_addr="hr@example.com",
-        subject="Action required: please complete your annual review by Friday",
-        snippet="Your annual self-review form is due this Friday. Please log in to complete it.",
-        received_at=_dt(10, 14),
-        to_addrs=["user@example.com"],
-        labels=["unread", "action_required"],
-    ),
-    EmailEnvelope(
-        message_id="mock-action-002",
-        from_addr="billing@saas-vendor.com",
-        subject="Invoice #INV-20260310 due in 7 days",
-        snippet="Your subscription invoice of $299 is due on March 18. Please update payment.",
-        received_at=_dt(10, 11),
-        to_addrs=["accounts@example.com"],
-        labels=["unread", "action_required"],
-    ),
-    # ── fyi ─────────────────────────────────────────────────────────────────
-    EmailEnvelope(
-        message_id="mock-fyi-001",
-        from_addr="newsletter@techdigest.example.com",
-        subject="This week in AI — March 2026 edition",
-        snippet="Top stories: new open-weight models, AGI timeline debate, and more.",
-        received_at=_dt(9, 8),
-        to_addrs=["user@example.com"],
-        labels=["fyi"],
-    ),
-    EmailEnvelope(
-        message_id="mock-fyi-002",
-        from_addr="noreply@github.com",
-        subject="Your pull request was merged",
-        snippet="rex-ai-assistant #205 has been merged into master by james.",
-        received_at=_dt(9, 16),
-        to_addrs=["user@example.com"],
-        labels=["fyi"],
-    ),
-    EmailEnvelope(
-        message_id="mock-fyi-003",
-        from_addr="calendar-noreply@example.com",
-        subject="Reminder: team stand-up tomorrow at 09:00",
-        snippet="Just a friendly reminder about tomorrow's stand-up.",
-        received_at=_dt(10, 17),
-        to_addrs=["team@example.com"],
-        labels=["fyi"],
-    ),
-]
 
 
 # ---------------------------------------------------------------------------
@@ -111,18 +25,17 @@ _MOCK_EMAILS: list[EmailEnvelope] = [
 
 
 class EmailInboxStub(EmailBackend):
-    """In-memory email backend with built-in mock data.
+    """In-memory email backend for unit tests.
 
-    Designed for offline unit tests and beta-phase triage features.
-    All reads return data from ``_MOCK_EMAILS``; sends are no-ops that record
+    Starts empty unless ``emails`` is provided.  Sends are no-ops that record
     the outbound message in ``sent_messages``.
 
     The stub implements the same ``EmailBackend`` interface as the real IMAP/SMTP
     backend so that calling code needs no changes when switching backends.
     """
 
-    def __init__(self) -> None:
-        self._emails: list[EmailEnvelope] = list(_MOCK_EMAILS)
+    def __init__(self, emails: list[EmailEnvelope] | None = None) -> None:
+        self._emails: list[EmailEnvelope] = list(emails) if emails is not None else []
         self._sent: list[dict[str, Any]] = []
         self._connected = False
 
@@ -132,7 +45,7 @@ class EmailInboxStub(EmailBackend):
 
     def connect(self) -> bool:
         self._connected = True
-        logger.info("EmailInboxStub connected (using built-in mock data)")
+        logger.info("EmailInboxStub connected (%d emails loaded)", len(self._emails))
         return True
 
     def fetch_unread(self, limit: int = 10) -> list[EmailEnvelope]:

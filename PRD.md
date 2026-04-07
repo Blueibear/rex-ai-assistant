@@ -274,11 +274,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want the email integration to return real data (or a clear "not configured" message) instead of fake messages.
 
 **Acceptance Criteria:**
-- [ ] No hardcoded fake email data remains in `rex/email_service.py` or `rex/email_backends/`
-- [ ] If IMAP/SMTP credentials are absent, API returns `{"status": "not_configured", "message": "..."}`
-- [ ] If credentials are present, API returns real inbox data
-- [ ] Test covers both configured and not-configured paths
-- [ ] Typecheck passes
+- [x] No hardcoded fake email data remains in `rex/email_service.py` or `rex/email_backends/`
+- [x] If IMAP/SMTP credentials are absent, API returns `{"status": "not_configured", "message": "..."}`
+- [x] If credentials are present, API returns real inbox data
+- [x] Test covers both configured and not-configured paths
+- [x] Typecheck passes
 
 ---
 

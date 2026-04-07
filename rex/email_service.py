@@ -37,6 +37,11 @@ try:
 except Exception:  # pragma: no cover
     get_credential_manager = None  # type: ignore
 
+try:
+    from rex.assistant_errors import IntegrationNotConfiguredError
+except Exception:  # pragma: no cover
+    IntegrationNotConfiguredError = RuntimeError  # type: ignore
+
 # Optional Pydantic import (nice to have, not required at runtime)
 try:
     from pydantic import BaseModel, ConfigDict, Field, field_serializer
@@ -680,11 +685,29 @@ class EmailService:
 _email_service: EmailService | None = None
 
 
+def _create_configured_email_service() -> EmailService:
+    """Create an EmailService backed by real IMAP credentials.
+
+    Raises:
+        IntegrationNotConfiguredError: when no IMAP/SMTP credentials are found.
+    """
+    service = EmailService()
+    backend, _account = service._resolve_backend_from_config()
+    if backend is None:
+        raise IntegrationNotConfiguredError("Email: not configured")
+    service.set_backend(backend)
+    return service
+
+
 def get_email_service() -> EmailService:
-    """Get the global email service instance."""
+    """Get the global email service instance.
+
+    Raises:
+        IntegrationNotConfiguredError: when no IMAP/SMTP credentials are configured.
+    """
     global _email_service
     if _email_service is None:
-        _email_service = EmailService()
+        _email_service = _create_configured_email_service()
     return _email_service
 
 
