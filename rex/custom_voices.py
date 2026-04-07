@@ -18,6 +18,12 @@ logger = logging.getLogger(__name__)
 # Minimum audio duration required for a usable XTTS speaker reference.
 MIN_DURATION_SECONDS: float = 10.0
 
+# Maximum audio duration accepted for a speaker reference.
+MAX_DURATION_SECONDS: float = 300.0
+
+# Formats supported natively (WAV) or via soundfile (MP3, FLAC, OGG).
+ACCEPTED_FORMATS: tuple[str, ...] = (".wav", ".mp3", ".flac", ".ogg")
+
 # Directory where XTTS speaker WAV files are stored (project root / voices).
 _VOICES_DIR = Path(__file__).resolve().parent.parent / "voices"
 
@@ -37,6 +43,11 @@ def get_audio_duration(file_path: str | Path) -> float:
 
     suffix = path.suffix.lower()
 
+    if suffix not in ACCEPTED_FORMATS:
+        fmt_label = suffix.lstrip(".").upper() if suffix else "(no extension)"
+        accepted = ", ".join(f.lstrip(".").upper() for f in ACCEPTED_FORMATS)
+        raise ValueError(f"Unsupported format: {fmt_label}. Accepted formats: {accepted}")
+
     if suffix == ".wav":
         try:
             with wave.open(str(path), "rb") as wf:
@@ -51,8 +62,10 @@ def get_audio_duration(file_path: str | Path) -> float:
         info = sf.info(str(path))
         return float(info.duration)
     except ImportError:
+        fmt_label = suffix.lstrip(".").upper()
+        accepted = ", ".join(f.lstrip(".").upper() for f in ACCEPTED_FORMATS)
         raise ValueError(
-            f"soundfile is required to read {suffix.upper()} files. "
+            f"soundfile is required to read {fmt_label} files. "
             "Install it with: pip install soundfile"
         )
     except Exception as exc:
@@ -97,13 +110,16 @@ def save_custom_voice(
         return {"ok": False, "error": str(exc), "duration": 0.0}
 
     if duration < MIN_DURATION_SECONDS:
-        remaining = MIN_DURATION_SECONDS - duration
         return {
             "ok": False,
-            "error": (
-                f"Audio is too short ({duration:.1f}s). "
-                f"Need {remaining:.1f}s more to reach the 10-second minimum."
-            ),
+            "error": (f"Sample is {duration:.1f}s, minimum is {MIN_DURATION_SECONDS:.0f}s"),
+            "duration": duration,
+        }
+
+    if duration > MAX_DURATION_SECONDS:
+        return {
+            "ok": False,
+            "error": (f"Sample is {duration:.1f}s, maximum is {MAX_DURATION_SECONDS:.0f}s"),
             "duration": duration,
         }
 
@@ -147,6 +163,8 @@ def save_custom_voice(
 
 __all__ = [
     "MIN_DURATION_SECONDS",
+    "MAX_DURATION_SECONDS",
+    "ACCEPTED_FORMATS",
     "get_audio_duration",
     "save_custom_voice",
 ]

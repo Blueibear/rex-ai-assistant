@@ -249,12 +249,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want accurate validation messaging when uploading a custom voice sample so that I know exactly what is wrong.
 
 **Acceptance Criteria:**
-- [ ] Duration check in `rex/custom_voices.py` correctly calculates audio duration in seconds
-- [ ] If sample is too short, message says "Sample is X.Xs, minimum is Ys"
-- [ ] If sample is too long, message says "Sample is X.Xs, maximum is Ys"
-- [ ] If format is unsupported, message names the format and lists accepted formats
-- [ ] Unit test with known-duration audio files confirms correct validation
-- [ ] Typecheck passes
+- [x] Duration check in `rex/custom_voices.py` correctly calculates audio duration in seconds
+- [x] If sample is too short, message says "Sample is X.Xs, minimum is Ys"
+- [x] If sample is too long, message says "Sample is X.Xs, maximum is Ys"
+- [x] If format is unsupported, message names the format and lists accepted formats
+- [x] Unit test with known-duration audio files confirms correct validation
+- [x] Typecheck passes
 
 ---
 
