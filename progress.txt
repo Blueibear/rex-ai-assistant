@@ -53,6 +53,18 @@
   - repo_root() walks up from __file__ looking for pyproject.toml — tests just validate the happy path
 ---
 
+## Iteration 6 - US-006: Verify and create missing bridge scripts (shopping, speakers)
+- Both scripts existed; rex_speaker_bridge.py silently fell back to {} on invalid JSON (AC violation)
+- Fixed speaker bridge: invalid JSON now returns `{"ok": False, "error": "Bad input: ..."}` and returns
+- Added `action` alias (`payload.get("action") or payload.get("command", ...)`) to both scripts
+- Written tests/test_us006_bridge_json_io.py with 8 tests (list via command/action, invalid input, unknown command)
+- ruff, black, mypy all pass; 8 new tests pass
+- Files changed: rex_shopping_list_bridge.py, rex_speaker_bridge.py, tests/test_us006_bridge_json_io.py, PRD.md
+- Learnings for future iterations:
+  - Speaker bridge had a silent fallback on bad JSON — always test the invalid-input path explicitly
+  - `_run_main()` pattern from US-005 reused cleanly; mocking `sys.modules` for lazy imports works well
+---
+
 ## Iteration 5 - US-005: Verify and create missing bridge scripts (tasks, reminders, memory)
 - All 3 scripts existed but used `"command"` key instead of `"action"` key specified in AC
 - Added `payload.get("action") or payload.get("command")` in main() of all 3 scripts
@@ -63,4 +75,35 @@
   - Bridge scripts already had rich implementations; AC's "action" key just needed alias for "command"
   - Full pytest suite hits INTERNALERROR on Python 3.14 (project requires 3.11); run targeted tests instead
   - `_run_main()` pattern (mock sys.stdin/stdout, call mod.main()) cleanly tests bridge JSON I/O without subprocess
+---
+
+## Iteration 8 - US-008: Trace and fix voice pipeline capture-to-STT stage
+- Added `sample_rate: int = 16000` param to `VoiceLoop.__init__` (stored as `self._sample_rate`)
+- After `_record_phrase()`: logs `audio_capture_complete` with `audio_duration_s` and `audio_samples` fields
+- Before `_transcribe()`: logs `stt_handoff` with `audio_samples` field
+- Enhanced `except SpeechToTextError` to log `stt_error` event with "resetting pipeline" message
+- Updated `build_voice_loop` to pass `sample_rate` to `VoiceLoop`
+- Written tests/test_us008_voice_pipeline.py with 5 tests (capture log, duration field, handoff log, ordering, error reset)
+- Tests skip without numpy (same pattern as US-007); 28 existing tests still pass
+- ruff, black, mypy all pass (3 pre-existing mypy errors, none new)
+- Files changed: rex/voice_loop.py, tests/test_us008_voice_pipeline.py, PRD.md
+- Learnings for future iterations:
+  - VoiceLoop.run() does not have direct access to sample_rate; add it as an __init__ param
+  - `hasattr(audio, '__len__')` safely handles both numpy arrays and bytes for duration calc
+  - numpy-dependent tests skip cleanly via pytest.importorskip at module level
+---
+
+## Iteration 7 - US-007: Trace and fix voice pipeline wake-to-capture stage
+- Replaced `print("🎤 Wakeword DETECTED!")` in listener.py with `logger.info(..., extra={"event": "wakeword_detected", ...})`
+- Added `logger.debug(..., extra={"event": "audio_capture_start", ...})` immediately before `yield frame`
+- Added `import time` to listener.py to record monotonic timestamps in log extra fields
+- Added empty/whitespace keyword validation in `build_default_detector` raising `WakeWordError` before model load
+- Replaced all `print()` calls in `detect_wakeword` (utils.py) with `logger.debug()` calls
+- Written tests/test_us007_wakeword_pipeline.py with 5 tests (structured log on detection, capture log event, order, empty/whitespace keyword raises WakeWordError)
+- ruff, black pass; 28 existing tests pass; wakeword tests skip (numpy not installed — matches existing project pattern)
+- Files changed: rex/wakeword/listener.py, rex/wakeword/utils.py, tests/test_us007_wakeword_pipeline.py, PRD.md
+- Learnings for future iterations:
+  - Wakeword tests use `pytest.importorskip("numpy")` — skip without numpy, same as test_wakeword.py
+  - Pre-existing mypy error in rex/wakeword/embedding.py (no-redef for _torch) — not introduced by this work
+  - Log `extra={"event": ...}` fields are accessible on LogRecord via `getattr(record, "event", None)` in caplog
 ---
