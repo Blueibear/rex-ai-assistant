@@ -274,25 +274,25 @@ def detect_wakeword(
     """Run wakeword detection on an audio frame with debug logging."""
     if np is None:
         raise RuntimeError("numpy is required for wake word detection")
-    print(f"[wakeword] Received audio frame: shape={audio_frame.shape}, dtype={audio_frame.dtype}")
+    logger.debug("Received audio frame: shape=%s, dtype=%s", audio_frame.shape, audio_frame.dtype)
 
     if audio_frame.ndim != 1:
         audio_frame = np.reshape(audio_frame, (-1,))
-        print(f"[wakeword] Reshaped audio_frame to shape={audio_frame.shape}")
+        logger.debug("Reshaped audio_frame to shape=%s", audio_frame.shape)
 
     if audio_frame.dtype != np.int16:
         scaled = np.clip(audio_frame, -1.0, 1.0)
         audio_frame = (scaled * np.iinfo(np.int16).max).astype(np.int16)
-        print("[wakeword] Converted audio_frame to int16 format")
+        logger.debug("Converted audio_frame to int16 format")
 
     predictions = model.predict(audio_frame)  # type: ignore[attr-defined]
-    print(f"[wakeword] Predictions: {predictions}")
+    logger.debug("Predictions: %s", predictions)
 
     triggered = any(score >= threshold for score in predictions.values())
     if triggered:
-        print(f"[wakeword] Wakeword detected! (threshold={threshold})")
+        logger.debug("Wake word detected (threshold=%.2f)", threshold)
     else:
-        print(f"[wakeword] No wakeword detected (threshold={threshold})")
+        logger.debug("No wake word detected (threshold=%.2f)", threshold)
 
     return triggered
 

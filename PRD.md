@@ -113,12 +113,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want the wake word detection to reliably trigger audio capture so that the voice pipeline does not hang at the first stage.
 
 **Acceptance Criteria:**
-- [ ] `rex/wakeword/listener.py` emits a structured log event on wake word detection
-- [ ] Audio capture begins within 200ms of wake word detection (log timestamps confirm)
-- [ ] If wake word config is empty or invalid, a clear error is raised at startup (not a silent hang)
-- [ ] Test covers the wake -> capture transition with a mock audio stream
-- [ ] Works on Windows, macOS, Linux
-- [ ] Typecheck passes
+- [x] `rex/wakeword/listener.py` emits a structured log event on wake word detection
+- [x] Audio capture begins within 200ms of wake word detection (log timestamps confirm)
+- [x] If wake word config is empty or invalid, a clear error is raised at startup (not a silent hang)
+- [x] Test covers the wake -> capture transition with a mock audio stream
+- [x] Works on Windows, macOS, Linux
+- [x] Typecheck passes
 
 ---
 

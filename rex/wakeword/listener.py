@@ -4,16 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 
 import numpy as np
 
 from ..assistant_errors import WakeWordError
 from .utils import detect_wakeword, load_wakeword_model
-
-# Optional: TTS
-# import pyttsx3
-# tts = pyttsx3.init()
 
 logger = logging.getLogger(__name__)
 
@@ -47,12 +44,17 @@ class WakeWordListener:
                     triggered = False
 
                 if triggered:
-                    print("🎤 Wakeword DETECTED! Rex is listening...")
-
-                    # Optional: Speak a response
-                    # tts.say("Hello, how can I help?")
-                    # tts.runAndWait()
-
+                    detected_at = time.monotonic()
+                    logger.info(
+                        "Wake word detected; initiating audio capture",
+                        extra={"event": "wakeword_detected", "detected_at": detected_at},
+                    )
+                    capture_at = time.monotonic()
+                    logger.debug(
+                        "Audio capture started (%.1f ms after detection)",
+                        (capture_at - detected_at) * 1000,
+                        extra={"event": "audio_capture_start", "capture_at": capture_at},
+                    )
                     yield frame
 
                 await asyncio.sleep(self._poll_interval)
@@ -77,6 +79,11 @@ def build_default_detector(
     fallback_keyword: str | None = None,
 ) -> WakeWordListener:
     """Build a WakeWordListener with the default wake-word model."""
+    if keyword is not None and keyword.strip() == "":
+        raise WakeWordError(
+            "Wake word keyword must not be empty. "
+            "Set a valid keyword or leave keyword=None to use the default."
+        )
     try:
         model, _ = load_wakeword_model(
             keyword=keyword,
