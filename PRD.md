@@ -1,1368 +1,1191 @@
-# PRD: AskRex Assistant — Consolidation, Trust, and Production Readiness
+# PRD: AskRex Assistant — Full Roadmap
 
 > **Codex/Ralph task selection rule**
 > A "task" means one full User Story (US-###), not an individual checkbox line.
 > Choose the first US-### that contains any unchecked acceptance criteria `[ ]`.
-> Complete the full story in one iteration. If it cannot be completed in one iteration, split it first.
-> Only mark acceptance criteria `[x]` when the full story is done and tests pass.
-> **Phase priority: consolidation stories (WS-A through WS-H) must be completed before
-> feature stories (Phase K and the legacy backlog in the appendix).**
+
+## Introduction
+
+AskRex Assistant is a local-first, voice-activated AI companion supporting wake word detection, STT, LLM chat, TTS, and optional integrations for search, messaging, email, calendar, and Home Assistant. This PRD covers the complete roadmap across 9 phases, from critical system fixes through developer tooling. Each user story is sized for a single AI implementation context window (~10 min of work) and ordered by dependency.
+
+**Tech stack:** Python 3.11, Flask, React (GUI), Pydantic v2, OpenAI Whisper, openWakeWord, Coqui XTTS, edge-tts, pyttsx3, Ollama/OpenAI LLM backends.
+
+**Target platforms:** Windows 11, macOS, Linux (all AC must pass cross-platform).
 
 ---
 
-## 1. Title
+## Goals
 
-AskRex Assistant — Consolidation, Trust, and Production Readiness
-
----
-
-## 2. Executive Summary
-
-The AskRex Assistant repository contains working code, real integrations, and a substantial
-completed implementation backlog. However, it is not production-ready. The blockers are not
-missing features — they are fragmented identity, broken automation, misleading documentation,
-an unclear UI story, a cluttered repository root, and accumulated architectural sediment.
-
-This PRD covers cleanup, consolidation, and truth. It does not add new capabilities.
-Every story in this document exists to make the repo easier to trust, navigate, and maintain.
+- Eliminate all blocking runtime failures (bridge execution, voice pipeline, dependency resolution)
+- Establish a reliable, cross-platform voice loop (wake -> STT -> LLM -> TTS)
+- Connect real Home Assistant control with context-aware, alias-friendly commands
+- Build assistant intelligence (tool selection, speed perception, proactive suggestions)
+- Add communication layer (Telegram, notifications, cloud usage tracking)
+- Implement multi-user system with permissions and personality
+- Enable safe desktop/computer control
+- Overhaul UI/UX for discoverability and guided setup
+- Bring documentation, installer, and CI to production quality
+- Establish structured logging and debug infrastructure
 
 ---
 
-## 3. Problem Statement
-
-The repository currently:
-
-- Uses at least two product names ("Rex AI Assistant" and "AskRex") inconsistently across
-  docs, package metadata, and repository URLs. The canonical name is **AskRex Assistant**.
-- Has CI running on `master` and release automation targeting `main` — two different branches
-  that do not overlap, making automated releases silently broken.
-- Has a README that markets features as "beta" that are either real working backends or
-  incomplete stubs, with no reliable signal to distinguish them.
-- Contains four separate UI entry points (Tkinter, web/React, Flask API, CLI) with no
-  documentation about which is the primary user experience.
-- Has 20+ root-level utility scripts, 500+ KB of progress log files, unresolved patch files,
-  and backup `.env` files all committed to git.
-- Has a CI vulnerability scan that suppresses 103 CVEs — with at least one duplicate — and
-  no mechanism to re-evaluate suppressions over time.
-- Has entry points in `pyproject.toml` that target modules inconsistently (some root-level,
-  some package-level) with no CI verification that they actually work.
+## User Stories
 
 ---
 
-## 4. Why This Work Matters Now
-
-Feature development is blocked by the above. Specifically:
-
-- Contributors cannot be confident their code reaches a release because the release pipeline
-  is disconnected from the branch where CI runs.
-- Users cannot trust documentation because it mixes aspirational and real claims.
-- The four UI surfaces create maintenance ambiguity — every feature must be considered for
-  each surface or silently neglected.
-- Root clutter signals to any reviewer that the codebase is in a transitional state, not a
-  production-ready one.
-
-This work must happen before the next feature cycle.
+### PHASE 1 -- CORE SYSTEM FIXES (BLOCKERS)
 
 ---
 
-## 5. Goals
-
-- Establish **AskRex Assistant** as the single canonical product name everywhere in the repo.
-- Ensure CI and release automation target the same branch and produce verified releases.
-- Ensure documentation describes what is true today, not what may be true later.
-- Establish one canonical UI entry point; classify all others as keep/deprecate/archive/remove.
-- Clean the root directory to contain only production-relevant files.
-- Ensure every declared entry point is tested in CI.
-- Remove or justify every CVE suppression in the vulnerability scan workflow.
-- Ensure security and dependency docs are accurate and not placeholder-heavy.
-- Produce a repo that a new contributor can clone, read, and understand in under 30 minutes.
-
----
-
-## 6. Non-Goals
-
-This PRD explicitly does not cover:
-
-- Adding new features, integrations, or capabilities.
-- Adding new UI surfaces or design changes.
-- OAuth calendar backends (Google, Microsoft).
-- LLM streaming (tracked in the legacy backlog appendix; must wait for consolidation).
-- Multi-user or RBAC support.
-- GPU-specific CI runners.
-- Mobile apps.
-- Any story that was already marked `[x]` complete in the previous cycle.
-
----
-
-## 7. Current-State Findings
-
-All findings below are based on direct file inspection. Uncertain items are marked
-**(NEEDS VERIFICATION)**.
-
-### 7.1 Product Naming
-
-| Naming Variant | Locations | Status |
-|---|---|---|
-| "Rex AI Assistant" | `README.md:1`, `pyproject.toml:6`, `INSTALL.md:1`, all security docs | Wrong — must change to AskRex Assistant |
-| "askrex-assistant" | `README.md:33` (clone URL), badge URL in `README.md:3` | Wrong — stale GitHub slug |
-| "rex-ai-assistant" | `pyproject.toml:6` (project name field), `release-please.yml:15` (package-name) | Wrong — must update |
-| "AskRex" | GitHub repo URL `github.com/Blueibear/AskRex-Assistant` (visible in CI run URL) | Partial — correct repo slug, wrong casing/suffix |
-| "AskRex Assistant" | Nowhere currently | **Target canonical name** |
-
-`README.md:3` badge URL points to `github.com/Blueibear/askrex-assistant` (old slug).
-`pyproject.toml:146` Homepage points to `github.com/Blueibear/rex-ai-assistant` (different slug).
-Neither matches the actual repo URL `github.com/Blueibear/AskRex-Assistant`.
-
-### 7.2 Branch and Automation
-
-- `.github/workflows/ci.yml:5` — triggers on `branches: [master, claude/**]`
-- `.github/workflows/ci.yml:7` — pull_request targets `master`
-- `.github/workflows/release-please.yml:4` — triggers on `branches: [ main ]`
-- These branches do not overlap. CI never triggers a release. Releases never run on CI-tested code.
-- `release-please.yml:15` — `package-name: rex-ai-assistant` (stale name, will generate wrong tags)
-- **(NEEDS VERIFICATION):** Confirm actual GitHub default branch (`master` or `main`).
-
-### 7.3 Documentation Drift
-
-- `pyproject.toml:17` — `Development Status :: 3 - Alpha`
-- `README.md` — features listed without "alpha" caveat; some listed as "beta stub" are real backends
-- `INTEGRATIONS_STATUS.md:30` — states real IMAP/SMTP backend exists
-- `README.md:93` — states email is "stub/mock data only" — contradicts INTEGRATIONS_STATUS
-- `README.md:96` — lists "Autonomous workflows with planner" as a feature; `PRD.md` (previous cycle) shows this as a roadmap item, not complete
-- `README.md:79` — states Python 3.12 is unsupported but does not say `pyproject.toml` blocks it
-- `pyproject.toml:10` — `requires-python = ">=3.11,<3.12"` — 3.12 is hard-blocked, not just discouraged
-
-### 7.4 UI Surfaces
-
-| Surface | Entry Point | Framework | Classification |
-|---|---|---|---|
-| CLI (text chat) | `rex` → `rex.cli:main` | None | **Keep — primary non-voice surface** |
-| Voice loop | `python rex_loop.py` | None | **Keep — primary voice surface** |
-| Web dashboard | `rex-gui` → `rex.gui_app:main` | Flask + React (pre-built in `rex/ui/dist/`) | **Keep — canonical GUI** |
-| Tkinter window | `python run_gui.py` → `gui.py` | Tkinter | **Deprecate** |
-| Shopping PWA | Blueprint in `rex/shopping_pwa.py` | Flask | **Keep — optional feature surface** |
-| TTS API | `rex-speak-api` → `rex_speak_api:main` | Flask | **Keep — service component** |
-
-`run_gui.py:6` claims to be "the canonical way to launch the Rex GUI on Windows" but launches
-Tkinter (`gui.py:1`). The actual canonical GUI is `rex-gui` (web/React). This is a direct contradiction.
-
-`rex/ui/dist/` contains pre-built React assets. This is the correct modern GUI.
-
-### 7.5 Root-Level Sediment
-
-Files at repo root that are not production entry points:
-
-**Utility/check scripts (should move to `scripts/` or be removed):**
-- `check_gpu_status.py`, `check_imports.py`, `check_patch_status.py`, `check_tts_imports.py`
-- `find_gpt2_model.py`, `generate_wake_sound.py`, `list_audio.py`, `list_voices.py`
-- `manual_search_demo.py`, `manual_whisper_demo.py`, `play_test.py`, `record_wakeword.py`
-- `test_imports.py`, `test_mic_open.py`, `test_transformers_patch.py`, `wake_acknowledgment.py`
-- `wakeword_listener.py`, `wakeword_utils.py` (likely duplicate of `rex/wakeword/`)
-
-**Patch files (must be applied or deleted):**
-- `ci-fixes.patch` (210,156 bytes) — committed but not applied; status unknown
-
-**Progress/audit logs (must be archived or deleted):**
-- `progress.txt`, `progress-master-next-cycle.txt` (181 KB), `progress-openclaw-pivot-for-rex.txt`
-- `progress-gui-autonomy-integrations.txt`, `progress-full-repo-audit.txt`
-- `progress-full-test-and-fix.txt`, `progress-voice-selector-and-fixes.txt`
-- `progress-openclaw-pivot.txt`, `progress-ci-fix-pr216.txt`, `progress-repo-quality.txt`
-- `progress-openclaw-http-integration.txt`
-- Total: ~600+ KB of progress notes committed to git
-
-**Generated artifacts (must be in .gitignore):**
-- `.coverage` — generated by `pytest --cov`; should never be committed
-- `coverage.txt`, `test-audit-coverage.txt`, `test-audit-final-results.txt`
-
-**Backup files (must be removed):**
-- `.env.backup-legacy`, `.env.example.backup_before_refactor`
-- `backups/` directory
-
-**Security advisory (belongs in `docs/security/`):**
-- `SECURITY_ADVISORY.md` at root (13,227 bytes)
-
-**Backward-compatibility shims (must be evaluated):**
-- `setup.py` — exists to expose root-level py_modules for backward compat (`setup.py:13–23`)
-- Root-level `config.py`, `llm_client.py`, `memory_utils.py`, `logging_utils.py`
-  listed in `setup.py` — unclear if any external code depends on these
-
-### 7.6 Entry Point Alignment
-
-Declared in `pyproject.toml:137–143`:
-- `rex` → `rex.cli:main` — verified
-- `rex-config` → `rex.config:cli` — **unverified**; `gui.py:35` imports `rex.config_manager`, not `rex.config`
-- `rex-speak-api` → `rex_speak_api:main` — verified (root-level module in `setup.py`)
-- `rex-agent` → `rex.computers.agent_server:main` — **unverified**
-- `rex-gui` → `rex.gui_app:main` — verified (React/web dashboard)
-- `rex-tool-server` → `rex.openclaw.tool_server:main` — **unverified**
-
-CI only tests `python -m rex --help` (`ci.yml:156`). All other entry points are untested.
-
-### 7.7 CVE Suppression
-
-`.github/workflows/ci.yml:217–304` suppresses 103 CVEs with `--ignore-vuln` flags.
-- `CVE-2026-4539` appears at both line 272 and line 304 (duplicate).
-- `docs/security/VULNERABILITY-SCAN.md` (9,647 bytes) is unlikely to contain per-item
-  justifications for all 103 entries.
-- No mechanism exists to re-evaluate suppressions when packages are updated.
-
-### 7.8 Security and Dependency Docs
-
-- `docs/security/SECURITY_AUDIT_2026-01-08.md` — internal audit doc; reports 30 "findings"
-  but all flagged as legitimate (false positives). Useful internally but potentially
-  confusing for external contributors.
-- `SECURITY_ADVISORY.md` at root — belongs in `docs/security/`.
-- `docs/security/VULNERABILITY-SCAN.md` — last modified Mar 27 (one week before audit);
-  may not cover CVEs added after that date.
-- **(NEEDS VERIFICATION):** Confirm whether all 103 CVE suppressions have written justifications.
-
----
-
-## 8. Scope by Workstream
-
-| ID | Workstream | Stories |
-|---|---|---|
-| WS-A | Product identity (naming) | US-230 – US-234 |
-| WS-B | Branch and release automation | US-235 – US-237 |
-| WS-C | Documentation truth | US-238 – US-243 |
-| WS-D | UI consolidation | US-244 – US-247 |
-| WS-E | Root directory hygiene | US-248 – US-253 |
-| WS-F | Entry point correctness | US-254 – US-256 |
-| WS-G | CVE and security doc cleanup | US-257 – US-260 |
-| WS-H | Active CI failures (current run) | US-261 – US-269 |
-| WS-I | Brand asset integration | US-270 – US-273 |
-| APPENDIX | Legacy feature backlog (previous cycle) | US-175 – US-229 |
-
----
-
-## 9. Risks and Constraints
-
-| Risk | Mitigation |
-|---|---|
-| Renaming package breaks existing installs | Provide migration note; keep `rex` CLI alias temporarily |
-| Moving root-level py_modules breaks external imports | Usage-check before removal; keep `setup.py` until verified safe |
-| Branch rename breaks open PRs or forks | Check open PRs before renaming; announce in CHANGELOG |
-| Deleting progress files loses history | Archive to `docs/archive/` before deleting from root |
-| Removing Tkinter GUI breaks undocumented user workflows | Mark deprecated for one cycle; do not hard-delete |
-| CVE suppression removal triggers CI failures | Remove suppressions one at a time; document expected outcome |
-| ci-fixes.patch content is unknown | Read and apply or discard before closing the story |
-
----
-
-## 10. Phase Plan
-
-```
-Phase 1 (WS-A):  Product identity           — no dependencies; do first
-Phase 2 (WS-B):  Branch/release fix          — depends on Phase 1 (name in release-please)
-Phase 3 (WS-C):  Documentation truth         — depends on Phase 1 (canonical name needed)
-Phase 4 (WS-D):  UI consolidation            — depends on Phase 3 (docs must be ready)
-Phase 5 (WS-E):  Root hygiene               — depends on Phase 4 (classify root files last)
-Phase 6 (WS-F):  Entry point correctness     — depends on Phase 5 (root modules may change)
-Phase 7 (WS-G):  Security doc cleanup        — no blocking dependencies; can run after Phase 3
-Phase 8 (WS-H):  Active CI failures          — no blocking dependencies; run in parallel
-Phase 9 (WS-I):  Brand assets               — depends on Phase 1 (canonical name confirmed)
-THEN: Legacy feature backlog (US-175–US-229) — run only after Phases 1–9 are complete
-```
-
----
-
-## 11. Atomic Implementation Backlog
-
----
-
-# WORKSTREAM A — Product Identity (Naming)
-
-### US-230: Define canonical product name and create naming ruleset
-
-**Description:** As a developer, I need one authoritative document that defines the canonical
-product name and where each name variant is allowed or forbidden, so that all subsequent
-stories apply consistent naming.
+#### US-001: Add venv-aware Python resolver utility
+**Description:** As a developer, I want a utility function that resolves the correct venv Python binary so that all bridge scripts use a consistent interpreter.
 
 **Acceptance Criteria:**
-- [x] `docs/BRANDING.md` is created and contains:
-  - Canonical product name: **AskRex Assistant**
-  - Canonical package name (pip): `askrex-assistant`
-  - Canonical CLI command: `askrex` (or `rex` as an alias — define which)
-  - Canonical GitHub repo URL: `https://github.com/Blueibear/AskRex-Assistant`
-  - Allowed legacy alias table: where `rex` CLI name may remain and where it must change
-  - A "banned names" table listing `Rex AI Assistant`, `askrex-assistant` (as repo slug),
-    `rex-ai-assistant` (as package name) and their replacement
-- [x] `CLAUDE.md` Project Overview section updated to reference `docs/BRANDING.md`
-- [x] Typecheck passes (no new errors introduced; pre-existing mypy errors are tracked separately)
+- [x] New module `rex/bridge_utils.py` exports `resolve_python()` returning the absolute path to the active venv Python
+- [x] On Windows, resolves `.venv\Scripts\python.exe`; on macOS/Linux, resolves `.venv/bin/python`
+- [x] Falls back to `sys.executable` if no venv detected
+- [x] Unit test covers Windows, macOS, Linux path resolution
+- [x] Typecheck passes (`mypy rex/bridge_utils.py`)
 
 ---
 
-### US-231: Update pyproject.toml and setup.py with canonical name and metadata
-
-**Description:** As a developer, I want `pyproject.toml` to reflect the canonical product
-name, package name, and correct repository URL so that pip installs, PyPI listings,
-and tooling all show consistent identity.
+#### US-002: Replace raw `python` calls in bridge scripts with venv resolver
+**Description:** As a developer, I want all bridge scripts (`rex_*_bridge.py`) to use the venv-aware resolver so that subprocess calls never use the wrong interpreter.
 
 **Acceptance Criteria:**
-- [x] `pyproject.toml:6` — `name = "askrex-assistant"` (was `rex-ai-assistant`)
-- [x] `pyproject.toml` — `description` field updated to reference "AskRex Assistant"
-- [x] `pyproject.toml:146` — `Homepage` URL set to `https://github.com/Blueibear/AskRex-Assistant`
-- [x] `pyproject.toml` — any `Repository`, `Source`, or `Bug Tracker` URLs updated to match
-- [x] `setup.py` — any `name=` or `url=` fields updated to match
-- [x] `pip install -e .` succeeds after the change
-- [x] `pip show askrex-assistant` returns the correct metadata
-- [x] Typecheck passes
+- [ ] Every `rex_*_bridge.py` file at repo root imports and uses `resolve_python()` from `rex/bridge_utils.py`
+- [ ] No raw `"python"` or `"python3"` string remains in any bridge subprocess call
+- [ ] `grep -r "subprocess.*['\"]python" rex_*_bridge.py` returns zero matches
+- [ ] Existing bridge tests still pass
+- [ ] Typecheck passes
 
 ---
 
-### US-232: Update README.md, INSTALL.md, and CHANGELOG.md with canonical name
-
-**Description:** As a user reading the repository, I want all top-level user-facing documents
-to use the canonical product name so that there is no confusion about what I am installing.
+#### US-003: Replace raw `python` calls in GUI backend with venv resolver
+**Description:** As a developer, I want `rex/gui_app.py` and any GUI subprocess calls to use the venv-aware resolver.
 
 **Acceptance Criteria:**
-- [x] `README.md:1` — title updated to `# AskRex Assistant`
-- [x] `README.md:3` — all badge URLs updated to use `https://github.com/Blueibear/AskRex-Assistant`
-- [x] `README.md:33` — clone URL updated to `https://github.com/Blueibear/AskRex-Assistant.git`
-- [x] `INSTALL.md:1` — title updated to reference AskRex Assistant
-- [x] `CHANGELOG.md` — top entry notes the rename from Rex AI Assistant to AskRex Assistant
-  with the effective date
-- [x] `grep -r "Rex AI Assistant" --include="*.md" .` returns zero results
-  (except historical CHANGELOG entries, which are exempt)
-- [x] `grep -r "askrex-assistant" --include="*.md" .` returns zero results
-  (except `docs/BRANDING.md` banned-names table)
-- [x] Typecheck passes
+- [ ] `rex/gui_app.py` uses `resolve_python()` for all subprocess invocations
+- [ ] `grep -r "subprocess.*['\"]python" rex/gui_app.py` returns zero matches
+- [ ] GUI launch still works via `rex-gui` entry point
+- [ ] Typecheck passes
 
 ---
 
-### US-233: Update all docs/ subdirectory references to canonical name
-
-**Description:** As a developer, I want all documentation under `docs/` to consistently
-use AskRex Assistant so that internal docs and CLAUDE reference files do not contradict
-the public docs.
+#### US-004: Fix working directory resolution for bridge scripts
+**Description:** As a developer, I want bridge scripts to resolve the repo root correctly so that relative path failures are eliminated.
 
 **Acceptance Criteria:**
-- [x] `grep -r "Rex AI Assistant" docs/` returns zero results
-  (CHANGELOG and historical audit docs in `docs/archive/` are exempt)
-- [x] `docs/claude/` reference files updated (COMMANDS_AND_ENTRYPOINTS.md, etc.)
-- [x] `docs/security/SECURITY_AUDIT_2026-01-08.md` product name references updated
-- [x] `CLAUDE.md` updated throughout to use canonical name
-- [x] Typecheck passes
+- [ ] `rex/bridge_utils.py` exports `repo_root()` returning the absolute path to the repo root (directory containing `pyproject.toml`)
+- [ ] All `rex_*_bridge.py` files use `repo_root()` to build absolute paths to scripts and config
+- [ ] No bridge script uses `os.getcwd()` or relative paths to locate other scripts
+- [ ] Unit test confirms `repo_root()` returns the correct directory
+- [ ] Typecheck passes
 
 ---
 
-### US-234: Update release-please and CI workflow name references
-
-**Description:** As a developer, I want the `release-please.yml` package name to match the
-canonical package name so that release tags and changelog entries are correctly attributed.
+#### US-005: Verify and create missing bridge scripts (tasks, reminders, memory)
+**Description:** As a developer, I want the `rex_tasks_bridge.py`, `rex_reminders_bridge.py`, and `rex_memories_bridge.py` scripts to exist and conform to the standard JSON I/O contract.
 
 **Acceptance Criteria:**
-- [x] `.github/workflows/release-please.yml:15` — `package-name: askrex-assistant`
-  (was `rex-ai-assistant`)
-- [x] Any workflow step that echoes or logs the product name uses "AskRex Assistant"
-- [x] `grep -r "rex-ai-assistant" .github/` returns zero results after change
-- [x] Typecheck passes
+- [ ] `rex_tasks_bridge.py` exists, accepts JSON on stdin `{"action": "list"|"add"|"complete", ...}`, returns JSON on stdout
+- [ ] `rex_reminders_bridge.py` exists with the same JSON I/O pattern
+- [ ] `rex_memories_bridge.py` exists with the same JSON I/O pattern
+- [ ] Each script returns `{"error": "..."}` on invalid input (not a traceback)
+- [ ] Smoke test for each: `echo '{"action":"list"}' | python <bridge>.py` returns valid JSON
+- [ ] Typecheck passes
 
 ---
 
-# WORKSTREAM B — Branch and Release Automation
-
-### US-235: Determine canonical branch and document branch strategy
-
-**Description:** As a developer, I need to know the one canonical primary branch so that CI,
-release automation, and developer instructions all agree.
+#### US-006: Verify and create missing bridge scripts (shopping, speakers)
+**Description:** As a developer, I want the `rex_shopping_list_bridge.py` and `rex_speaker_bridge.py` scripts to exist and conform to the standard JSON I/O contract.
 
 **Acceptance Criteria:**
-- [x] Inspect actual GitHub default branch **(run: `gh repo view --json defaultBranchRef`)** and
-  document the result
-- [x] `CONTRIBUTING.md` documents:
-  - The canonical primary branch name
-  - The branching model (feature branches from primary, PRs back to primary)
-  - That `claude/**` branches are AI-generated and follow the same PR process
-- [x] `CLAUDE.md` updated to state the canonical branch name
-- [x] Typecheck passes
+- [ ] `rex_shopping_list_bridge.py` exists, accepts JSON on stdin, returns JSON on stdout
+- [ ] `rex_speaker_bridge.py` exists with the same JSON I/O pattern
+- [ ] Each script returns `{"error": "..."}` on invalid input
+- [ ] Smoke test for each returns valid JSON
+- [ ] Typecheck passes
 
 ---
 
-### US-236: Align CI workflow to canonical branch
-
-**Description:** As a developer, I want `ci.yml` to trigger on the canonical primary branch
-so that CI runs on every merge to the branch that matters.
+#### US-007: Trace and fix voice pipeline wake-to-capture stage
+**Description:** As a developer, I want the wake word detection to reliably trigger audio capture so that the voice pipeline does not hang at the first stage.
 
 **Acceptance Criteria:**
-- [x] `.github/workflows/ci.yml:5` — `branches:` list contains the canonical branch name
-  (verified from US-235)
-- [x] `.github/workflows/ci.yml:7` — `pull_request: branches:` list updated to match
-- [x] `claude/**` branch trigger is retained (AI-generated PRs should still run CI)
-- [x] Push a test commit to the canonical branch and confirm CI triggers **(manual verification)**
-- [x] Typecheck passes
+- [ ] `rex/wakeword/listener.py` emits a structured log event on wake word detection
+- [ ] Audio capture begins within 200ms of wake word detection (log timestamps confirm)
+- [ ] If wake word config is empty or invalid, a clear error is raised at startup (not a silent hang)
+- [ ] Test covers the wake -> capture transition with a mock audio stream
+- [ ] Works on Windows, macOS, Linux
+- [ ] Typecheck passes
 
 ---
 
-### US-237: Align release-please workflow to canonical branch
-
-**Description:** As a developer, I want `release-please.yml` to trigger on the same canonical
-branch as CI so that only CI-verified code produces releases.
+#### US-008: Trace and fix voice pipeline capture-to-STT stage
+**Description:** As a developer, I want captured audio to be reliably passed to the STT engine so that transcription always occurs after capture.
 
 **Acceptance Criteria:**
-- [x] `.github/workflows/release-please.yml:4` — `branches:` updated to canonical branch name
-- [x] `release-please.yml` — any hardcoded branch references updated
-- [x] After this change, a merge to the canonical branch triggers both CI and release-please
-  (verify by inspection — do not actually publish a release)
-- [x] Typecheck passes
+- [ ] Audio capture completion emits a structured log event with audio duration
+- [ ] STT engine receives the audio buffer and begins transcription (log confirms handoff)
+- [ ] If STT fails, the error is logged and the pipeline resets (no hang)
+- [ ] Test covers capture -> STT handoff with a mock audio buffer
+- [ ] Typecheck passes
 
 ---
 
-# WORKSTREAM C — Documentation Truth
-
-### US-238: Rewrite README feature list to reflect actual implementation state
-
-**Description:** As a user, I want the README feature list to distinguish between features
-that work today, features that require configuration, and features that are in progress,
-so that I can set accurate expectations before installing.
+#### US-009: Trace and fix voice pipeline STT-to-LLM-to-TTS stage
+**Description:** As a developer, I want the LLM response to be generated from the transcript and spoken back via TTS so that the full voice loop completes.
 
 **Acceptance Criteria:**
-- [x] Every bullet in the README feature list is classified with one of:
-  `[Works today]`, `[Requires configuration]`, or `[In progress — not production ready]`
-- [x] "Autonomous workflows with planner" is marked `[In progress]` (per `PRD.md` roadmap)
-- [x] "Conversation history persistence" is marked `[In progress]`
-- [x] Email integration is marked `[Requires configuration — IMAP/SMTP credentials needed]`
-  (not "stub/mock data only" since real backend exists per `INTEGRATIONS_STATUS.md:30`)
-- [x] SMS / Twilio is marked `[Requires configuration — Twilio credentials needed]`
-- [x] "Smart notifications" description reflects what the dashboard store actually does
-- [x] `grep "stub/mock data only" README.md` returns zero results
-- [x] `grep "Autonomous workflows" README.md` is followed by a `[In progress]` annotation
-- [x] `pyproject.toml:17` classifier is `Development Status :: 3 - Alpha`; README reflects this
-- [x] Typecheck passes
+- [ ] STT result is passed to `Assistant.generate_reply()` (not raw `LanguageModel.generate()`)
+- [ ] LLM response is passed to the TTS engine and audio playback begins
+- [ ] If TTS fails, the text response is logged and the pipeline resets (no hang)
+- [ ] End-to-end test covers STT transcript -> LLM -> TTS with mocks
+- [ ] Typecheck passes
 
 ---
 
-### US-239: Fix Python version documentation across all user-facing files
-
-**Description:** As a user, I want install documentation to clearly state that Python 3.11
-is required and Python 3.12+ is not supported, so that I do not waste time on a failing
-install with an unhelpful error message.
+#### US-074: Diagnose and fix standalone rex_loop.py voice conversation
+**Description:** As a developer, I want `rex_loop.py` (the standalone voice loop entry point) to complete a full voice conversation reliably, not just detect the wake word.
 
 **Acceptance Criteria:**
-- [x] `README.md` contains an explicit "Requirements" or "Prerequisites" section stating:
-  "Python 3.11 is required. Python 3.12 and above are not supported."
-- [x] `INSTALL.md` contains the same explicit statement
-- [x] `pyproject.toml:10` — `requires-python = ">=3.11,<3.12"` — unchanged (already correct)
-- [x] Any guide or doc that previously said "Python 3.11" without the 3.12 prohibition is updated
-- [x] Typecheck passes
+- [ ] Run `python rex_loop.py` and document which stages succeed: wake word detection, audio capture, STT transcription, LLM response generation, TTS spoken output
+- [ ] For each failing stage, add a structured log message identifying the failure point and cause
+- [ ] Fix all identified failures so that a full wake -> capture -> transcribe -> LLM -> speak cycle completes
+- [ ] `rex_loop.py` uses `build_voice_loop` from `rex.voice_loop` (the canonical implementation, per learned rules)
+- [ ] If a stage cannot be fixed in this story (e.g., missing hardware), the loop logs the blocker and exits cleanly instead of hanging
+- [ ] Integration test with mocked audio confirms full pipeline completion
+- [ ] Typecheck passes
 
 ---
 
-### US-240: Align INSTALL.md startup commands with pyproject.toml entry points
-
-**Description:** As a user following `INSTALL.md`, I want every startup command shown
-to correspond to a real, working entry point or script, so that I can actually run
-the software after installing it.
+#### US-075: Fix config type validation and coercion warnings
+**Description:** As a developer, I want config values like `llm_temperature` to be stored and validated as their correct types so that runtime coercion warnings are eliminated.
 
 **Acceptance Criteria:**
-- [x] `INSTALL.md` lists the four supported startup modes:
-  1. Text chat: `askrex` (or `python -m rex` — per canonical CLI name from US-231)
-  2. Voice loop: `python rex_loop.py`
-  3. Web dashboard: `askrex-gui` (or whatever the canonical entry point resolves to after US-231)
-  4. TTS API: `askrex-speak-api` (or equivalent)
-- [x] No startup command in `INSTALL.md` references `python run_gui.py` as a primary path
-  (it is deprecated per WS-D)
-- [x] Each command includes a one-line description of what it launches
-- [x] Typecheck passes
+- [ ] `AppConfig` field `llm_temperature` is typed as `float` (not `str`), with a Pydantic validator that coerces string input and logs a deprecation warning
+- [ ] All other config fields that are currently stored as strings but used as numeric types are similarly corrected
+- [ ] `config/rex_config.json` template uses correct JSON types (numbers, not quoted numbers)
+- [ ] Config validation runs on load and raises clear errors for invalid values (e.g., `"temperature": "abc"`)
+- [ ] `rex doctor` includes a config validation check that reports any type mismatches
+- [ ] No `UserWarning` or coercion warning on clean config load
+- [ ] Unit test confirms both correct-type and string-type inputs are handled
+- [ ] Typecheck passes
 
 ---
 
-### US-241: Correct INTEGRATIONS_STATUS.md to be the single source of truth
-
-**Description:** As a developer, I want `docs/claude/INTEGRATIONS_STATUS.md` to be the
-definitive status reference for all integrations and for README to defer to it, so that
-integration status is maintained in one place.
+#### US-076: Remove mock calendar from voice loop runtime path
+**Description:** As a developer, I want the voice loop to use real calendar integration (or report "not configured") instead of silently running in mock mode.
 
 **Acceptance Criteria:**
-- [x] `INTEGRATIONS_STATUS.md` covers every integration listed in README with one of:
-  `REAL`, `STUB`, `PARTIAL`, or `NOT STARTED` classification and a one-line evidence note
-- [x] `README.md` integration section links to `INTEGRATIONS_STATUS.md` rather than
-  embedding its own status claims
-- [x] `INTEGRATIONS_STATUS.md` removes advisory language like "do NOT imply"
-  (that instruction belongs in `CLAUDE.md`, not in a status file)
-- [x] Typecheck passes
+- [ ] Voice loop startup log does NOT show "Calendar service connected (mock mode)" when calendar is configured with real credentials
+- [ ] If calendar ICS URL is not configured, voice loop logs "Calendar: not configured" (not "mock mode")
+- [ ] Mock calendar data is only used in test fixtures, never in production runtime paths
+- [ ] `rex/calendar_service.py` raises `IntegrationNotConfiguredError` instead of returning mock data when unconfigured
+- [ ] Voice loop gracefully handles missing calendar (no crash, just skips calendar-related tool)
+- [ ] Test confirms mock is never loaded outside of test context
+- [ ] Typecheck passes
 
 ---
 
-### US-242: Remove or correct aspirational language from all top-level docs
-
-**Description:** As a developer, I want all documentation under `docs/claude/` and at the
-repo root to describe the current state, not desired future state, so that CLAUDE and
-developers make implementation decisions based on reality.
+#### US-077: Pin XTTS/transformers compatible versions and patch BeamSearchScorer
+**Description:** As a developer, I want XTTS to load successfully by pinning compatible transformers version or patching the missing `BeamSearchScorer` import.
 
 **Acceptance Criteria:**
-- [x] `grep -rn "production.ready\|production-ready" docs/` — every match is reviewed;
-  any that overstates current maturity is changed to reflect the `Alpha` status
-- [x] `COMMANDS_AND_ENTRYPOINTS.md` only describes commands that currently work
-- [x] Any doc section marked "TODO", "TBD", or "coming soon" is either completed or
-  explicitly moved to a roadmap doc
-- [x] Typecheck passes
+- [ ] `requirements-gpu-cu124.txt` (and other GPU requirements files) pin a transformers version compatible with the installed XTTS version
+- [ ] If `BeamSearchScorer` is missing from the installed transformers, a compatibility shim provides it before XTTS loads
+- [ ] Shim is applied in `rex/compat/` and triggered by lazy import logic (using `find_spec()` per learned rules)
+- [ ] If pinned version is not available, TTS falls back to edge-tts with a clear log message
+- [ ] `rex doctor` reports XTTS + transformers version compatibility status
+- [ ] Test confirms XTTS loads (or falls back cleanly) with both compatible and incompatible transformers versions
+- [ ] Typecheck passes
 
 ---
 
-### US-243: Move SECURITY_ADVISORY.md to docs/security/
-
-**Description:** As a developer browsing the root, I do not want to see a security advisory
-file in the root directory — it belongs under `docs/security/`.
+#### US-078: Fix torio/FFmpeg runtime dependency for voice pipeline
+**Description:** As a developer, I want FFmpeg extension loading failures in torio to be resolved or handled so the voice pipeline does not crash on audio operations.
 
 **Acceptance Criteria:**
-- [x] `SECURITY_ADVISORY.md` is moved to `docs/security/SECURITY_ADVISORY.md`
-- [x] `README.md` or `SECURITY.md` (GitHub standard) links to
-  `docs/security/SECURITY_ADVISORY.md` if previously linked to root version
-- [x] Root no longer contains `SECURITY_ADVISORY.md`
-- [x] Git history is preserved (`git mv`, not delete+create)
-- [x] Typecheck passes
+- [ ] Determine whether FFmpeg is required for the voice pipeline audio path (capture, playback) or only for XTTS
+- [ ] If required: add FFmpeg to install docs and `rex doctor` prerequisites; `install.py` checks for FFmpeg
+- [ ] If not required: suppress torio FFmpeg warnings and ensure audio operations use an alternative backend
+- [ ] Voice pipeline audio capture and playback work without FFmpeg extensions loaded (or FFmpeg is present)
+- [ ] `rex doctor` reports FFmpeg status and whether it is required for the active TTS backend
+- [ ] No unhandled exception from torio/FFmpeg during voice loop operation
+- [ ] Test confirms voice pipeline startup succeeds with and without FFmpeg
+- [ ] Typecheck passes
 
 ---
 
-# WORKSTREAM D — UI Consolidation
-
-### US-244: Formally classify all UI surfaces and update documentation
-
-**Description:** As a contributor, I want one authoritative list of UI surfaces with their
-classification (keep/deprecate/archive/remove) so that maintenance expectations are clear.
+#### US-010: Fix voice pipeline hang states
+**Description:** As a developer, I want the voice loop to have timeouts at each stage so that it never hangs indefinitely.
 
 **Acceptance Criteria:**
-- [x] `docs/UI_SURFACES.md` is created with this table:
-
-  | Surface | Entry point | Status | Reason |
-  |---|---|---|---|
-  | CLI (text chat) | `askrex` | **Primary — keep** | Core text interface |
-  | Voice loop | `python rex_loop.py` | **Primary — keep** | Core voice interface |
-  | Web dashboard | `askrex-gui` | **Primary GUI — keep** | React, modern, canonical |
-  | Shopping PWA | served by `askrex` or `askrex-gui` | **Optional feature — keep** | Functional feature surface |
-  | TTS API | `askrex-speak-api` | **Service component — keep** | Required by voice loop |
-  | Tkinter window (`gui.py`) | `python run_gui.py` | **Deprecated** | Superseded by web dashboard |
-
-- [x] `README.md` Quick Start section points users to the web dashboard (`askrex-gui`)
-  as the canonical GUI, not `python run_gui.py`
-- [x] Typecheck passes
+- [ ] Configurable timeout (default 30s) for STT transcription
+- [ ] Configurable timeout (default 60s) for LLM generation
+- [ ] Configurable timeout (default 30s) for TTS synthesis
+- [ ] On timeout, pipeline logs the stage, resets, and re-enters listening state
+- [ ] Test simulates a timeout at each stage and confirms recovery
+- [ ] Typecheck passes
 
 ---
 
-### US-245: Deprecate run_gui.py and gui.py; update startup documentation
-
-**Description:** As a developer, I want `run_gui.py` and `gui.py` to be clearly marked
-deprecated so that no new code references them and users are not directed to them.
+#### US-011: Add missing voice dependencies to requirements
+**Description:** As a developer, I want `edge-tts` and `pyttsx3` and any other missing voice deps included in the install so that all TTS backends work out of the box.
 
 **Acceptance Criteria:**
-- [x] `run_gui.py:1–5` — add deprecation header:
-  ```python
-  # DEPRECATED: Use `askrex-gui` (web dashboard) instead.
-  # This Tkinter launcher will be removed in the next major release.
-  # See docs/UI_SURFACES.md for the canonical GUI entry point.
-  ```
-- [x] `gui.py:1–5` — same deprecation header
-- [x] `run_gui.py` and `gui.py` are NOT deleted (they are deprecated for one cycle)
-- [x] `README.md` no longer mentions `python run_gui.py` as a setup step
-- [x] `INSTALL.md` no longer mentions `python run_gui.py` as a setup step
-- [x] `grep "run_gui.py" README.md INSTALL.md` returns zero results
-- [x] Typecheck passes
+- [ ] `edge-tts` is in `requirements.txt` (or `pyproject.toml` dependencies)
+- [ ] `pyttsx3` is in `requirements.txt` (or `pyproject.toml` dependencies)
+- [ ] `pip install .` in a fresh venv installs both without errors
+- [ ] `python -c "import edge_tts; import pyttsx3"` succeeds after install
+- [ ] No other runtime `ModuleNotFoundError` for voice-related imports
+- [ ] Works on Windows, macOS, Linux
+- [ ] Typecheck passes
 
 ---
 
-### US-246: Verify web dashboard entry point works end-to-end
-
-**Description:** As a developer, I want to confirm that `askrex-gui` (`rex.gui_app:main`)
-actually launches the React dashboard and serves `rex/ui/dist/index.html` correctly, so
-that users directed to this entry point get a working experience.
+#### US-012: Fix custom voice duration validation
+**Description:** As a user, I want accurate validation messaging when uploading a custom voice sample so that I know exactly what is wrong.
 
 **Acceptance Criteria:**
-- [x] `rex/gui_app.py` is read and the Flask serve path for `rex/ui/dist/` is confirmed
-- [x] `rex/ui/dist/index.html` exists and is a valid HTML file
-- [x] `python -c "from rex.gui_app import main; print('ok')"` exits 0
-- [x] A smoke test: `timeout 5 python -m rex.gui_app &` followed by
-  `curl -s http://localhost:<PORT> | grep -i html` returns a non-empty response
-  (or the test is added to `tests/test_gui_app.py` as a pytest fixture)
-- [x] `INSTALL.md` documents the default port and how to change it
-- [x] Typecheck passes
+- [ ] Duration check in `rex/custom_voices.py` correctly calculates audio duration in seconds
+- [ ] If sample is too short, message says "Sample is X.Xs, minimum is Ys"
+- [ ] If sample is too long, message says "Sample is X.Xs, maximum is Ys"
+- [ ] If format is unsupported, message names the format and lists accepted formats
+- [ ] Unit test with known-duration audio files confirms correct validation
+- [ ] Typecheck passes
 
 ---
 
-### US-247: Update CLAUDE.md to state canonical UI and remove Tkinter references
-
-**Description:** As an AI agent working in this repo, I want `CLAUDE.md` to name the
-canonical GUI entry point so that I do not generate code that references the deprecated
-Tkinter surface.
+#### US-013: Remove mock calendar data and connect real backend
+**Description:** As a user, I want the calendar integration to return real data (or a clear "not configured" message) instead of fake events.
 
 **Acceptance Criteria:**
-- [x] `CLAUDE.md` "Core components" section states:
-  "GUI: Web dashboard via `rex.gui_app` (React + Flask). `run_gui.py` / `gui.py` are deprecated."
-- [x] `CLAUDE.md` entry points section lists `askrex-gui` with the correct target
-- [x] `grep "run_gui\|tkinter\|Tkinter" CLAUDE.md` returns zero results
-- [x] Typecheck passes
+- [ ] No hardcoded fake calendar events remain in `rex/calendar_service.py` or `rex/calendar_backends/`
+- [ ] If ICS feed URL is not configured, API returns `{"status": "not_configured", "message": "..."}`
+- [ ] If ICS feed URL is configured, API returns real parsed events
+- [ ] Test covers both configured and not-configured paths
+- [ ] Typecheck passes
 
 ---
 
-# WORKSTREAM E — Root Directory Hygiene
-
-### US-248: Archive all progress-*.txt files from root
-
-**Description:** As a developer cloning the repo, I do not want to see 600+ KB of
-implementation progress logs in the root directory. These are internal history and
-belong in `docs/archive/` or should not be tracked at all.
+#### US-014: Remove mock email data and connect real backend
+**Description:** As a user, I want the email integration to return real data (or a clear "not configured" message) instead of fake messages.
 
 **Acceptance Criteria:**
-- [x] `docs/archive/progress/` directory is created
-- [x] All `progress-*.txt` files (including `progress.txt`) are moved there with `git mv`
-- [x] Root contains zero `progress*.txt` files
-- [x] `.gitignore` adds `progress*.txt` so future progress files are not tracked by default
-  (existing archived files are already committed and exempt)
-- [x] Typecheck passes
+- [ ] No hardcoded fake email data remains in `rex/email_service.py` or `rex/email_backends/`
+- [ ] If IMAP/SMTP credentials are absent, API returns `{"status": "not_configured", "message": "..."}`
+- [ ] If credentials are present, API returns real inbox data
+- [ ] Test covers both configured and not-configured paths
+- [ ] Typecheck passes
 
 ---
 
-### US-249: Remove generated artifacts from root and update .gitignore
-
-**Description:** As a developer, I want generated test and coverage artifacts to not be
-committed to git so that `git status` stays clean after running tests.
+#### US-015: Replace "exit code 2" with meaningful error reporting
+**Description:** As a developer, I want bridge script failures to surface tracebacks, stderr, and meaningful messages instead of opaque exit codes.
 
 **Acceptance Criteria:**
-- [x] `.coverage` is removed from git tracking: `git rm --cached .coverage`
-- [x] `coverage.txt`, `test-audit-coverage.txt`, `test-audit-final-results.txt` are removed
-  from git tracking (if tracked)
-- [x] `.gitignore` adds rules for:
-  ```
-  .coverage
-  coverage.txt
-  coverage.html
-  coverage/
-  test-audit-*.txt
-  *.patch
-  ```
-- [x] `git status` after a `pytest --cov` run shows no new untracked coverage files
-- [x] Typecheck passes
+- [ ] All bridge scripts wrap execution in try/except and return `{"error": "<message>", "traceback": "<tb>"}` on failure
+- [ ] GUI backend captures stderr from subprocess calls and includes it in error responses
+- [ ] CLI mode prints the actual error message, not just "exit code 2"
+- [ ] Test confirms a deliberately broken bridge returns a readable error
+- [ ] Typecheck passes
 
 ---
 
-### US-250: Remove backup .env files and document their absence
-
-**Description:** As a security reviewer, I want no backup or legacy `.env` files committed
-to the repository, even if they contain only placeholders.
+#### US-016: Fix STT language handling for "auto" mode
+**Description:** As a user, I want STT to accept `"auto"` as a language setting and fall back to `"en"` without crashing.
 
 **Acceptance Criteria:**
-- [x] `.env.backup-legacy` is removed from git: `git rm .env.backup-legacy`
-- [x] `.env.example.backup_before_refactor` is removed from git
-- [x] `.gitignore` adds `*.env.backup*` and `.env.backup*`
-- [x] `ls -la | grep ".env"` shows only `.env.example` (the canonical template) at root
-- [x] `backups/` directory is evaluated: if it contains no tracked files, add to `.gitignore`;
-  if it contains tracked files, move them to `docs/archive/` or delete as appropriate
-- [x] Typecheck passes
+- [ ] If `stt_language` config is `"auto"`, STT engine is called with `language=None` (auto-detect)
+- [ ] If STT engine does not support auto-detect, falls back to `"en"`
+- [ ] No crash or exception when `stt_language` is `"auto"`, empty string, or missing
+- [ ] Unit test covers `"auto"`, `"en"`, `""`, and `None` inputs
+- [ ] Typecheck passes
 
 ---
 
-### US-251: Evaluate and resolve ci-fixes.patch
-
-**Description:** As a developer, I want the committed `ci-fixes.patch` file to either be
-applied and deleted, or documented and archived, so that its 210 KB does not sit as an
-unresolved artifact in the root.
+#### US-017: Fix Whisper/STT runtime failure and error exposure
+**Description:** As a developer, I want Whisper STT failures to produce real error messages and for the correct backend (faster-whisper vs whisper) to be verified at startup.
 
 **Acceptance Criteria:**
-- [x] `ci-fixes.patch` is read and its purpose is summarized in a note or commit message
-- [x] If the patch has already been applied to the codebase, the file is removed from the root and no duplicate changes are introduced
-- [x] If the patch has NOT been applied and is still relevant, the relevant changes are applied safely
-- [x] If the patch is stale or only partially relevant, the relevant hunks are applied if safe, and the remaining artifact is moved to `docs/archive/housekeeping/` with an explanatory note
-- [x] Root contains no `*.patch` files after this story
-- [x] `.gitignore` contains `*.patch`
-- [x] `tests/test_us251_patch_hygiene.py` exits 0
-- [x] `mypy rex` exits 0
+- [ ] `rex doctor` checks which STT backend is installed and reports it
+- [ ] If neither whisper nor faster-whisper is installed, `rex doctor` reports the gap
+- [ ] STT runtime errors are caught and logged with full traceback (not swallowed)
+- [ ] If transcription fails, the voice loop logs the error and resets (no hang)
+- [ ] Test simulates STT failure and confirms error is surfaced
+- [ ] Typecheck passes
 
 ---
 
-### US-252: Move root-level utility scripts to scripts/ or remove them
-
-**Description:** As a developer, I want root-level one-off utility scripts moved to
-`scripts/` so that the root directory only contains production entry points and standard
-project files.
+#### US-018: Fix wake word config mismatch and empty resolution
+**Description:** As a developer, I want the wake word config to resolve consistently so that an empty or mismatched setting does not silently break detection.
 
 **Acceptance Criteria:**
-- [x] Each script in the list below is evaluated:
-  - `check_gpu_status.py`, `check_imports.py`, `check_patch_status.py`, `check_tts_imports.py`,
-    `find_gpt2_model.py`, `generate_wake_sound.py`, `list_audio.py`, `list_voices.py`,
-    `manual_search_demo.py`, `manual_whisper_demo.py`, `play_test.py`, `record_wakeword.py`,
-    `test_imports.py`, `test_mic_open.py`, `test_transformers_patch.py`, `wake_acknowledgment.py`
-  - Each is classified as: `move to scripts/`, `move to tests/`, or `delete`
-  - Classification is documented in a single commit message
-- [x] All scripts classified as "move" are moved with `git mv`
-- [x] All scripts classified as "delete" are removed with `git rm`
-- [x] `scripts/README.md` is updated to list each moved script and its purpose
-- [x] Root `.py` files after cleanup: only `rex_loop.py`, `rex_speak_api.py`, `run_gui.py`
-  (deprecated), `voice_loop.py` (legacy re-export), and `setup.py`
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] If `wake_word` config is empty or `None`, a sensible default is used (e.g., `"hey_rex"`)
+- [ ] If the configured wake word model file does not exist, startup raises a clear error
+- [ ] `rex doctor` validates wake word config and reports status
+- [ ] Test covers empty, None, valid, and invalid wake word configs
+- [ ] Typecheck passes
 
 ---
 
-### US-253: Evaluate wakeword_listener.py and wakeword_utils.py at root
-
-**Description:** As a developer, I want to know whether `wakeword_listener.py` and
-`wakeword_utils.py` at the root are duplicates of `rex/wakeword/` so that one copy
-can be removed.
+#### US-019: Fix XTTS/transformers compatibility issues
+**Description:** As a developer, I want XTTS and transformers to load without import errors or deprecation crashes.
 
 **Acceptance Criteria:**
-- [x] Read `wakeword_listener.py` (root) and `rex/wakeword/` — document differences in commit
-- [x] If root versions are stale re-exports: `git rm wakeword_listener.py wakeword_utils.py`
-  and add a note to `CLAUDE.md` that the canonical implementation is `rex/wakeword/`
-- [x] If root versions contain unique code: move unique code into `rex/wakeword/` then delete roots
-- [x] `grep -r "from wakeword_listener\|import wakeword_listener" --include="*.py" .` returns
-  zero results after removal (or references are updated to `rex.wakeword`)
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] Lazy import of XTTS uses `find_spec()` before `import_module()` (per learned rules)
+- [ ] Compatibility shims for transformers version differences are applied before XTTS load
+- [ ] If XTTS is not installed, TTS gracefully falls back to edge-tts or pyttsx3
+- [ ] No `ImportError` or `AttributeError` on `import rex.tts_utils` with or without XTTS installed
+- [ ] Test covers XTTS-present and XTTS-absent scenarios
+- [ ] Typecheck passes
 
 ---
 
-# WORKSTREAM F — Entry Point Correctness
-
-### US-254: Verify and fix rex-config entry point
-
-**Description:** As a developer running `rex-config`, I want the command to actually work
-rather than failing because it targets the wrong module.
+#### US-020: Fix FFmpeg/torio errors and config coercion warnings
+**Description:** As a developer, I want FFmpeg and torio-related errors to be handled cleanly and config coercion warnings to be resolved.
 
 **Acceptance Criteria:**
-- [x] Read `rex/config.py` (or `rex/config_manager.py`) and confirm which file contains
-  a `cli()` function
-- [x] If `rex.config:cli` does not exist: update `pyproject.toml` to point to the correct
-  module and function (likely `rex.config_manager:cli` or create the `cli` function)
-- [x] `rex-config --help` (after `pip install -e .`) exits 0 and prints usage
-- [x] CI `ci.yml` adds: `rex-config --help` to the smoke-test step
-- [x] Typecheck passes
+- [ ] If FFmpeg is not on PATH, a clear warning is logged at startup (not a crash)
+- [ ] `rex doctor` checks for FFmpeg and reports its presence/version
+- [ ] Config values that trigger coercion warnings are fixed to use correct types in `AppConfig`
+- [ ] No `UserWarning` or `DeprecationWarning` from config loading
+- [ ] Test confirms config loads without warnings
+- [ ] Typecheck passes
 
 ---
 
-### US-255: Verify rex-agent and rex-tool-server entry points
+### PHASE 2 -- HOME AUTOMATION CORE
 
-**Description:** As a developer, I want the less-commonly-used entry points to be verified
-working so that operators can rely on them.
+---
+
+#### US-021: Add Music Assistant HTTP client
+**Description:** As a developer, I need an HTTP client for Music Assistant so that Rex can send playback commands.
 
 **Acceptance Criteria:**
-- [x] `python -c "from rex.computers.agent_server import main; print('ok')"` exits 0
-- [x] `python -c "from rex.openclaw.tool_server import main; print('ok')"` exits 0
-- [x] If either import fails: fix the import path in `pyproject.toml` or fix the module
-- [x] CI smoke-test step adds both import checks
-- [x] Typecheck passes
+- [ ] New module `rex/integrations/music_assistant.py` with `MusicAssistantClient` class
+- [ ] Client supports: `play(query, room=None)`, `pause(room=None)`, `resume(room=None)`, `skip(room=None)`, `set_volume(level, room=None)`
+- [ ] Config fields: `music_assistant_url`, `music_assistant_token` in `AppConfig`
+- [ ] If not configured, all methods raise `IntegrationNotConfiguredError`
+- [ ] Unit test with mocked HTTP responses for each method
+- [ ] Typecheck passes
 
 ---
 
-### US-256: Add CI smoke test for all six entry points
-
-**Description:** As a developer, I want CI to verify all declared entry points are importable
-so that broken entry points are caught before release.
+#### US-022: Wire Music Assistant commands to assistant tool routing
+**Description:** As a user, I want to say "play Shape of You" and have Rex send the command to Music Assistant.
 
 **Acceptance Criteria:**
-- [x] `ci.yml` smoke-test step runs:
-  ```bash
-  python -c "from rex.cli import main; print('rex ok')"
-  python -c "from rex.config import cli; print('rex-config ok')"  # or corrected path
-  python -c "import rex_speak_api; print('rex-speak-api ok')"
-  python -c "from rex.computers.agent_server import main; print('rex-agent ok')"
-  python -c "from rex.gui_app import main; print('rex-gui ok')"
-  python -c "from rex.openclaw.tool_server import main; print('rex-tool-server ok')"
-  ```
-- [x] All six checks pass
-- [x] Typecheck passes
+- [ ] `Assistant.generate_reply()` recognizes music intent and routes to `MusicAssistantClient`
+- [ ] Tool catalog includes music commands (play, pause, resume, skip, volume)
+- [ ] Room targeting works: "play jazz in the kitchen" targets the kitchen speaker
+- [ ] If Music Assistant is not configured, assistant replies "Music Assistant is not set up"
+- [ ] Integration test with mocked Music Assistant confirms routing
+- [ ] Typecheck passes
 
 ---
 
-# WORKSTREAM G — Security and Dependency Doc Cleanup
-
-### US-257: Audit CVE suppression list and remove stale entries
-
-**Description:** As a security reviewer, I want the CI vulnerability scan suppression list
-to contain only current, justified entries so that the scan output is meaningful.
+#### US-023: Add room context system
+**Description:** As a developer, I need a room context module so that commands can be scoped to the room the user is in.
 
 **Acceptance Criteria:**
-- [x] Read `ci.yml:217–304` (all `--ignore-vuln` entries) and compare against current
-  `pip-audit` output on the installed dependency set
-- [x] Entries where the vulnerable package is no longer installed are removed
-- [x] The duplicate `CVE-2026-4539` entry (appears at lines 272 and 304) is deduplicated
-- [x] Each remaining `--ignore-vuln` entry has a corresponding entry in
-  `docs/security/VULNERABILITY-SCAN.md` with: CVE ID, affected package, reason accepted,
-  and date of last review
-- [x] `pip-audit` run in CI exits 0 after cleanup (all remaining CVEs are suppressed for
-  documented reasons)
-- [x] Typecheck passes
+- [ ] New module `rex/context/room.py` with `RoomContext` class
+- [ ] `RoomContext.current_room` is settable via: explicit parameter, speaker origin, last active UI context, config default
+- [ ] Priority order: explicit > speaker origin > last active > config default
+- [ ] Unit test confirms priority resolution
+- [ ] Typecheck passes
 
 ---
 
-### US-258: Update VULNERABILITY-SCAN.md to cover all remaining suppressions
-
-**Description:** As a developer, I want every CVE suppression in `ci.yml` to have a
-written justification in `docs/security/VULNERABILITY-SCAN.md` so that the suppression
-list is auditable.
+#### US-024: Add speaker origin detection to room context
+**Description:** As a user, I want Rex to know which room I am speaking from based on the input device or MQTT topic.
 
 **Acceptance Criteria:**
-- [x] `docs/security/VULNERABILITY-SCAN.md` contains one entry per `--ignore-vuln` CVE
-  in `ci.yml` with: CVE ID, affected package, installed version, accepted reason, review date
-- [x] Total entry count in the doc matches total `--ignore-vuln` count in `ci.yml`
-- [x] No "TBD" or placeholder justifications remain
-- [x] Typecheck passes
+- [ ] `RoomContext` can be populated from MQTT audio topic (e.g., `rex/audio/kitchen`)
+- [ ] `RoomContext` can be populated from a configured device-to-room mapping in config
+- [ ] If no mapping exists, `current_room` falls back to default
+- [ ] Test covers MQTT topic, device mapping, and fallback paths
+- [ ] Typecheck passes
 
 ---
 
-### US-259: Evaluate setup.py py_modules backward-compat shims
-
-**Description:** As a developer, I want to know whether the root-level `config.py`,
-`llm_client.py`, `memory_utils.py`, and `logging_utils.py` shims are still needed so
-that `setup.py` can be simplified or removed.
+#### US-025: Add device alias system with synonym and fuzzy matching
+**Description:** As a user, I want to say "turn on the bedroom light" and have Rex resolve that to the actual Home Assistant entity ID.
 
 **Acceptance Criteria:**
-- [x] `grep -rn "from config import\|import config\b" --include="*.py" .` is run and
-  results documented in the commit message
-- [x] Same search for `llm_client`, `memory_utils`, `logging_utils`
-- [x] If zero external references: delete the root-level shim files and remove them from
-  `setup.py:13–23`; add them to `.gitignore` or note deletion
-- [x] If references exist outside `rex/`: create a deprecation warning in each shim pointing
-  to the correct package path; schedule removal in next cycle
-- [x] `setup.py` is either cleaned up or documented with a comment explaining why it still exists
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] New module `rex/ha/device_aliases.py` with `AliasResolver` class
+- [ ] Aliases stored in `config/device_aliases.json` mapping natural names to HA entity IDs
+- [ ] Fuzzy matching: "bedrom light" resolves to "bedroom light" (Levenshtein distance <= 2)
+- [ ] Synonyms: "lamp" matches "light" if configured
+- [ ] `resolve(query)` returns `(entity_id, confidence)` or `None`
+- [ ] Unit test covers exact match, fuzzy match, synonym, and no-match cases
+- [ ] Typecheck passes
 
 ---
 
-### US-260: Move docs/security/ files to canonical location and verify accuracy
-
-**Description:** As a developer, I want all security-related documentation to live under
-`docs/security/` with accurate content so that there is one place to look for security posture.
+#### US-026: Add device discovery via Home Assistant API
+**Description:** As a user, I want Rex to scan Home Assistant for available devices so I can approve and name them.
 
 **Acceptance Criteria:**
-- [x] `docs/security/` contains exactly: `SECURITY_ADVISORY.md`, `SECURITY_AUDIT_2026-01-08.md`,
-  `VULNERABILITY-SCAN.md` — no other files (INDEX.md and SECURITY_FIX_SUMMARY.md removed;
-  SECRET-SCAN.md retained — required by test_us096_secret_scan.py::TestScanDocumentation)
-- [x] Each file's header date is accurate (not stale from a prior draft)
-- [x] `SECURITY_AUDIT_2026-01-08.md` contains no TODO or TBD sections
-- [x] `SECURITY_ADVISORY.md` has been moved from root (per US-243)
-- [x] `README.md` security section links to `docs/security/SECURITY_ADVISORY.md`
-- [x] Typecheck passes
+- [ ] `rex/ha/discovery.py` calls HA `/api/states` to list all entities
+- [ ] Returns list of `{entity_id, friendly_name, domain, state}`
+- [ ] Results cached for 5 minutes (configurable)
+- [ ] If HA is not configured, returns empty list with a log warning
+- [ ] Unit test with mocked HA API response
+- [ ] Typecheck passes
 
 ---
 
-# WORKSTREAM H — Active CI Failures (Run 23946480448)
-
-### US-261: Fix mypy no-redef error in rex/wakeword/embedding.py
-
-**Description:** As a developer, I want the duplicate `_torch` symbol removed from
-`embedding.py` so that mypy passes with zero `[no-redef]` errors in that file.
+#### US-027: Add device approval and rename workflow
+**Description:** As a user, I want to approve discovered devices and give them custom names that Rex will recognize.
 
 **Acceptance Criteria:**
-- [x] `rex/wakeword/embedding.py` defines `_torch` exactly once
-- [x] Torch import degrades gracefully when torch is not installed
-- [x] `mypy rex/wakeword/embedding.py --ignore-missing-imports` exits 0
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] `rex/ha/discovery.py` exports `approve_device(entity_id, alias)` and `ignore_device(entity_id)`
+- [ ] Approved devices are written to `config/device_aliases.json`
+- [ ] Ignored devices are written to `config/device_ignore.json`
+- [ ] CLI command `rex ha approve` lists pending devices and accepts approval
+- [ ] Test covers approve, rename, and ignore workflows
+- [ ] Typecheck passes
 
 ---
 
-### US-262: Fix mypy no-any-return in custom_voices.py and smart_speaker_output.py
-
-**Description:** As a developer, I want functions declaring `float` or `str` return types
-to return explicitly typed values so that mypy's `no-any-return` rule is satisfied.
+#### US-028: Add device state awareness
+**Description:** As a developer, I need Rex to query real-time device state from HA so it can respond intelligently.
 
 **Acceptance Criteria:**
-- [x] `rex/custom_voices.py` line ~52: return cast to `float` (e.g. `return float(info.duration)`)
-- [x] `rex/audio/smart_speaker_output.py` line ~41: return cast to `float`
-- [x] `rex/audio/smart_speaker_output.py` line ~52: return cast to `str`
-- [x] `mypy rex/custom_voices.py rex/audio/smart_speaker_output.py --ignore-missing-imports` exits 0
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] `rex/ha/device_state.py` queries HA `/api/states/<entity_id>` for current state
+- [ ] Returns structured data: `{entity_id, state, attributes: {brightness, volume, media_title, ...}}`
+- [ ] If entity not found, returns `None`
+- [ ] `Assistant` can answer "is the kitchen light on?" using device state
+- [ ] Unit test with mocked HA state responses
+- [ ] Typecheck passes
 
 ---
 
-### US-263: Remove stale type:ignore comments in four files
-
-**Description:** As a developer, I want all `# type: ignore` comments flagged as
-`[unused-ignore]` removed so that the annotation layer is clean.
+#### US-029: Add command confirmation and undo support
+**Description:** As a user, I want Rex to confirm actions ("Turned off the bedroom light") and offer undo ("Say undo to turn it back on").
 
 **Acceptance Criteria:**
-- [x] `rex/compat/transformers_shims.py` line ~76: stale `# type: ignore` removed or
-  replaced with a scoped `# type: ignore[attr-defined]` with an explanatory comment
-- [x] `rex/audio/smart_speaker_output.py` line ~87: removed
-- [x] `rex/shopping_pwa.py` lines ~337, 361, 369, 378, 385, 399, 413: all seven removed
-- [x] `rex/voice_loop.py` line ~209: removed
-- [x] `mypy rex/compat/transformers_shims.py rex/audio/smart_speaker_output.py rex/shopping_pwa.py rex/voice_loop.py --ignore-missing-imports`
-  exits 0 with zero `[unused-ignore]` errors
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] After executing an HA command, Rex speaks a confirmation including device name and action
+- [ ] Undo state is stored for the last 5 commands (FIFO)
+- [ ] "Undo" or "undo that" within 30 seconds reverses the last command
+- [ ] Undo sends the inverse HA command (on->off, off->on, volume up->volume down)
+- [ ] Test covers confirmation message generation and undo reversal
+- [ ] Typecheck passes
 
 ---
 
-### US-264: Fix mypy return-value and call-arg errors in shopping_pwa.py and twilio_handler.py
-
-**Description:** As a developer, I want Flask route handlers to return the correct Response
-type and `Assistant` to be called with valid arguments.
+#### US-030: Add clarification system for ambiguous commands
+**Description:** As a user, I want Rex to ask for clarification when a command is ambiguous instead of guessing wrong.
 
 **Acceptance Criteria:**
-- [x] `rex/shopping_pwa.py` line ~339: return type corrected to `flask.wrappers.Response`
-- [x] `rex/telephony/twilio_handler.py` line ~88: return cast to `bool`
-- [x] `rex/telephony/twilio_handler.py` line ~399: `Assistant(config=...)` corrected to
-  match `Assistant.__init__` actual signature (inspect `rex/assistant.py` for real params)
-- [x] `mypy rex/shopping_pwa.py rex/telephony/twilio_handler.py --ignore-missing-imports` exits 0
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] If `AliasResolver.resolve()` returns multiple matches with similar confidence, Rex asks "Did you mean X or Y?"
+- [ ] If a command is missing required context (e.g., "turn it on" with no recent device reference), Rex asks "Which device?"
+- [ ] Clarification question is spoken via TTS and the pipeline re-enters listening for the answer
+- [ ] Test covers multi-match and missing-context scenarios
+- [ ] Typecheck passes
 
 ---
 
-### US-265: Fix psutil ModuleNotFoundError blocking CI test collection
-
-**Description:** As a developer, I want `rex/tools/windows_diagnostics.py` to import
-`psutil` conditionally so that test collection does not fail on Linux CI runners.
+#### US-031: Add error recovery with alternative suggestions
+**Description:** As a user, I want Rex to suggest alternatives when a command fails instead of just saying "error."
 
 **Acceptance Criteria:**
-- [x] `rex/tools/windows_diagnostics.py` wraps `import psutil` in `try/except ImportError`;
-  when absent, functions return a `{"error": "psutil not installed"}` dict and emit
-  `logger.warning`
-- [x] `tests/test_windows_diagnostics.py` adds `pytest.importorskip("psutil")` at the top
-- [x] `requirements-dev.txt` adds `psutil>=5.9`
-- [x] `pytest -q tests/test_windows_diagnostics.py` exits 0 (skipped or passing, not erroring)
-- [x] `pytest -q` full run exits 0
-- [x] Typecheck passes
+- [ ] If an HA command fails (device offline, unreachable), Rex says what went wrong and suggests an alternative
+- [ ] Example: "The kitchen light is not responding. Would you like me to try the dining room light instead?"
+- [ ] Alternatives sourced from same-room devices or recently used devices
+- [ ] If no alternative exists, Rex says "I could not complete that. The device may be offline."
+- [ ] Test covers device-offline and alternative-suggestion paths
+- [ ] Typecheck passes
 
 ---
 
-### US-266: Suppress pre-commit secret-detection false positives
+### PHASE 3 -- ASSISTANT INTELLIGENCE
 
-**Description:** As a developer, I want lines in test fixtures and security docs that
-detect-secrets flags to carry inline suppression markers so that pre-commit exits clean.
+---
+
+#### US-032: Add tool auto-selection system
+**Description:** As a user, I want Rex to automatically choose the right tool (search, HA, calendar, email) without me specifying which one to use.
 
 **Acceptance Criteria:**
-- [x] `tests/helpers/fake_smtp.py` line ~15: `  # pragma: allowlist secret` appended
-- [x] `tests/test_email_backend_imap_smtp.py` line ~602: same
-- [x] `docs/ARCHITECTURE.md` line ~448: `<!-- pragma: allowlist secret -->` added
-- [x] `docs/security/SECURITY_AUDIT_2026-01-08.md` lines ~40–41: both suppressed
-- [x] `pre-commit run detect-secrets --all-files` exits 0
-- [x] Verified that suppressed lines contain only placeholder/test values, not real credentials
-- [x] Typecheck passes
+- [ ] `rex/tool_catalog.py` exposes a registry of available tools with intent patterns
+- [ ] `Assistant.generate_reply()` uses LLM function-calling or pattern matching to select the right tool
+- [ ] If multiple tools match, the highest-confidence one is chosen
+- [ ] If no tool matches, Rex falls back to conversational LLM response
+- [ ] Test covers weather (search), "turn on light" (HA), "what's on my calendar" (calendar) routing
+- [ ] Typecheck passes
 
 ---
 
-# WORKSTREAM I — Brand Asset Integration
-
-### US-267: Add AskRex brand logo assets to assets/brand/
-
-**Description:** As a developer, I want all official AskRex Assistant brand logo variants
-stored under `assets/brand/` with a usage README so that all UI surfaces can reference them.
+#### US-033: Add perceived speed system (instant acknowledgment)
+**Description:** As a user, I want Rex to immediately acknowledge my command so I know it was heard, even if processing takes time.
 
 **Acceptance Criteria:**
-- [x] `assets/brand/` directory is created
-- [x] The following variants are present:
-  `icon-square.png`, `icon-circle.png`, `icon-r.png`,
-  `wordmark-dark.png`, `wordmark-light.png`, `wordmark-reverse.png`,
-  `primary-horizontal.png`, `stacked.png`, `favicon.ico`
-- [x] Each PNG is at minimum 512 px on longest axis; favicon.ico is multi-size (16/32/48 px)
-- [x] `assets/brand/README.md` documents each variant and its intended use
-- [x] `assets/logo.svg` is updated or replaced if a higher-fidelity vector source is available
-- [x] Typecheck passes (asset-only story; no Python changes required)
+- [ ] After wake word + STT, Rex plays a short acknowledgment sound or speaks "On it" before LLM processing
+- [ ] Acknowledgment happens within 500ms of STT completion
+- [ ] Acknowledgment is configurable (sound, phrase, or disabled)
+- [ ] Config field: `acknowledgment_mode` in `AppConfig` (values: `"sound"`, `"phrase"`, `"none"`)
+- [ ] Test confirms acknowledgment fires before LLM call
+- [ ] Typecheck passes
 
 ---
 
-### US-268: Update README.md with official AskRex brand logo
-
-**Description:** As a user visiting the repository, I want to see the official AskRex
-Assistant logo so that the project presents a professional identity.
+#### US-034: Add progressive response system
+**Description:** As a user, I want Rex to speak partial responses as they stream in for long answers.
 
 **Acceptance Criteria:**
-- [x] `README.md` opens with an `<img>` tag referencing `assets/brand/primary-horizontal.png`
-  or `assets/brand/stacked.png` at display width 400 px
-- [x] Alt text: `"AskRex Assistant — local-first voice AI"`
-- [x] Any previous placeholder logo reference is removed
-- [x] README renders correctly (verify via `gh browse` or manual check)
-- [x] Typecheck passes
+- [ ] If LLM supports streaming, TTS begins on the first complete sentence
+- [ ] Subsequent sentences are queued and spoken sequentially
+- [ ] If LLM does not support streaming, behavior falls back to full-response TTS
+- [ ] No audio overlap between sentence chunks
+- [ ] Test confirms sentence-level streaming with a mock streaming LLM
+- [ ] Typecheck passes
 
 ---
 
-### US-269: Update Electron GUI and shopping PWA with brand assets
-
-**Description:** As a user running the desktop app or shopping PWA, I want the official
-AskRex icon and wordmark to appear in application chrome.
+#### US-035: Add proactive suggestion engine (pattern detection)
+**Description:** As a developer, I need a module that detects repeated user patterns and suggests automations.
 
 **Acceptance Criteria:**
-- [x] Electron `gui/package.json` — `"icon"` field set to `assets/brand/icon-square.png`
-- [x] Shopping PWA HTML template — `<link rel="icon">` uses `assets/brand/favicon.ico`
-- [x] Shopping PWA `<link rel="apple-touch-icon">` uses `assets/brand/icon-square.png`
-- [x] Shopping PWA `<title>` reads `"AskRex — Shopping"`
-- [x] Shopping PWA header renders `assets/brand/wordmark-dark.png` or `wordmark-light.png`
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] New module `rex/suggestions/pattern_detector.py`
+- [ ] Tracks command history and detects patterns (e.g., "user turns on kitchen light every day at 7am")
+- [ ] Pattern requires at least 3 occurrences within a time window to be considered
+- [ ] `detect_patterns()` returns a list of `{pattern, frequency, suggested_automation}`
+- [ ] Suggestions are never acted on automatically; always presented as questions
+- [ ] Unit test with synthetic command history confirms pattern detection
+- [ ] Typecheck passes
 
 ---
 
-## 12. Acceptance Criteria by Workstream
-
-### WS-A: Product Identity
-- `grep -r "Rex AI Assistant" . --include="*.md" --include="*.toml" --include="*.py"` returns
-  zero results outside `docs/archive/` and historical CHANGELOG entries
-- `grep -r "rex-ai-assistant" . --include="*.yml"` returns zero results
-- `pip show askrex-assistant` returns correct metadata after `pip install -e .`
-
-### WS-B: Branch and Release
-- CI and release-please `on: push: branches:` entries are identical
-- A push to the canonical branch triggers both CI and release-please jobs
-  (verify by inspection of job run history after the change)
-
-### WS-C: Documentation Truth
-- `grep "stub/mock data only" README.md` — zero results
-- `grep "Autonomous workflows" README.md` — accompanied by `[In progress]` annotation
-- `grep "requires-python" pyproject.toml` — value is `>=3.11,<3.12`
-- README explicitly states "Python 3.12 and above are not supported"
-- Feature list has `[Works today]`, `[Requires configuration]`, or `[In progress]` on every bullet
-
-### WS-D: UI Consolidation
-- `grep "run_gui.py" README.md INSTALL.md` — zero results
-- `docs/UI_SURFACES.md` exists with complete classification table
-- `askrex-gui` entry point launches without error
-
-### WS-E: Root Hygiene
-- `ls *.txt` at root — zero results (progress files archived)
-- `ls progress*.txt` — zero results
-- `ls *.patch` — zero results
-- `ls .env.backup*` — zero results
-- `.gitignore` contains: `.coverage`, `*.patch`, `progress*.txt`
-- Root `.py` files: only `rex_loop.py`, `rex_speak_api.py`, `run_gui.py` (deprecated),
-  `voice_loop.py` (legacy), `setup.py`
-
-### WS-F: Entry Points
-- `rex-config --help` exits 0
-- `rex-agent --help` (or equivalent import check) exits 0
-- `rex-tool-server --help` (or equivalent import check) exits 0
-- All six entry point smoke tests in CI pass
-
-### WS-G: Security Docs
-- `--ignore-vuln` count in `ci.yml` == entry count in `VULNERABILITY-SCAN.md`
-- No duplicate CVE IDs in `ci.yml`
-- `docs/security/` contains exactly three files; no `SECURITY_ADVISORY.md` at root
-
-### WS-H: Active CI Failures
-- `mypy rex --ignore-missing-imports` exits 0 with zero errors
-- `pytest -q` exits 0 with no collection errors
-- `pre-commit run --all-files` exits 0
-
-### WS-I: Brand Assets
-- `ls assets/brand/` shows all nine expected files
-- `README.md` first image tag references `assets/brand/`
-
----
-
-## 13. Validation and Verification Commands
-
-Run these after each phase to confirm it is complete.
-
-```bash
-# Phase 1 (WS-A) — Naming
-grep -r "Rex AI Assistant" . --include="*.md" --include="*.toml" --include="*.py" \
-  --exclude-dir=".git" --exclude-dir="docs/archive"
-grep -r "rex-ai-assistant" .github/ --include="*.yml"
-pip show askrex-assistant | grep -E "Name|Home-page"
-
-# Phase 2 (WS-B) — Branch
-grep "branches:" .github/workflows/ci.yml .github/workflows/release-please.yml
-
-# Phase 3 (WS-C) — Docs truth
-grep "stub/mock data only" README.md
-grep "In progress\|Works today\|Requires configuration" README.md | wc -l
-grep "requires-python" pyproject.toml
-
-# Phase 4 (WS-D) — UI
-grep "run_gui.py" README.md INSTALL.md
-python -c "from rex.gui_app import main; print('gui ok')"
-
-# Phase 5 (WS-E) — Root hygiene
-ls *.txt *.patch 2>/dev/null
-ls .env.backup* 2>/dev/null
-git ls-files | grep "progress" | grep -v "docs/archive"
-
-# Phase 6 (WS-F) — Entry points
-rex-config --help
-python -c "from rex.computers.agent_server import main; print('ok')"
-python -c "from rex.openclaw.tool_server import main; print('ok')"
-
-# Phase 7 (WS-G) — Security
-grep -c "ignore-vuln" .github/workflows/ci.yml
-grep -c "CVE-" docs/security/VULNERABILITY-SCAN.md
-
-# Phase 8 (WS-H) — CI failures
-mypy rex --ignore-missing-imports 2>&1 | tail -3
-pytest -q 2>&1 | tail -5
-pre-commit run --all-files 2>&1 | tail -10
-
-# Full quality gate (run before any story marked complete)
-ruff check rex/
-black --check rex/ *.py
-mypy rex --ignore-missing-imports
-pytest -q
-```
-
----
-
-## 14. Archive Strategy
-
-The following items must be archived rather than deleted outright, because they represent
-legitimate project history that may need to be referenced.
-
-| Item | Current Location | Archive Location | Action |
-|---|---|---|---|
-| `progress-*.txt` files | Root | `docs/archive/progress/` | `git mv` |
-| `coverage.txt`, `test-audit-*.txt` | Root | Remove from git tracking | `git rm --cached` |
-| `ci-fixes.patch` | Root | Apply or move to `docs/archive/` | Evaluate content first |
-| `SECURITY_ADVISORY.md` | Root | `docs/security/` | `git mv` |
-| `SECURITY_AUDIT_2026-01-08.md` | `docs/security/` | Keep in place | No change needed |
-| `.env.backup-legacy` | Root | **Delete** — not a doc, just a leaked backup | `git rm` |
-| `.env.example.backup_before_refactor` | Root | **Delete** | `git rm` |
-| `gui.py` / `run_gui.py` | Root | Keep as deprecated for one cycle | Add deprecation header |
-| `backups/` directory | Root | Evaluate contents; add to `.gitignore` | Check tracked files |
-
-**Rule for archiving vs. deleting:**
-- Archive if: the file contains reasoning, decisions, or investigation results that may
-  be referenced to understand why current code is the way it is.
-- Delete if: the file is a generated artifact, a duplicate, or an accidentally committed
-  backup with no documentation value.
-
----
-
-## 15. Definition of Done
-
-The overall PRD is complete when all of the following are true:
-
-1. `grep -r "Rex AI Assistant" . --include="*.md" --include="*.toml" --include="*.py" \`
-   `--exclude-dir=".git" --exclude-dir="docs/archive"` returns zero results.
-
-2. `grep "branches:" .github/workflows/ci.yml` and
-   `grep "branches:" .github/workflows/release-please.yml` return the same branch name.
-
-3. `README.md` feature list has an explicit status annotation on every bullet (`[Works today]`,
-   `[Requires configuration]`, or `[In progress]`), and contains no claim that contradicts
-   `docs/claude/INTEGRATIONS_STATUS.md`.
-
-4. `docs/UI_SURFACES.md` exists with a complete surface classification table.
-
-5. `python run_gui.py` prints a deprecation warning before launching.
-
-6. `ls *.txt *.patch .env.backup* 2>/dev/null` at the repo root returns nothing.
-
-7. All six entry point smoke tests pass in CI.
-
-8. `--ignore-vuln` count in `ci.yml` == CVE entry count in `VULNERABILITY-SCAN.md`,
-   with zero duplicates.
-
-9. `mypy rex --ignore-missing-imports` exits 0.
-
-10. `pytest -q` exits 0 with coverage >= 75%.
-
-11. `pre-commit run --all-files` exits 0.
-
-12. `assets/brand/` contains all nine logo variants.
-
-13. `pip install -e . && pip show askrex-assistant` returns correct metadata with
-    canonical name and GitHub URL.
-
-14. A reviewer unfamiliar with the project can clone the repo, read `README.md` and
-    `INSTALL.md`, and successfully run `askrex` (or `python -m rex`) within 30 minutes
-    without consulting any other document.
-
----
-
-## Appendix: Legacy Feature Backlog
-
-The stories below were written in a prior cycle. They cover real integrations, bug fixes,
-and feature additions. **Do not start these until all WS-A through WS-I stories above are
-complete.** Starting feature work before consolidation is done will create new inconsistencies
-faster than they are being resolved.
-
-All stories below retain their original `[x]`/`[ ]` state from prior runs.
-
-Story IDs US-175 through US-220 are the previous production-readiness cycle.
-Story IDs US-221 through US-229 are CI failure fixes and brand asset stories (now
-superseded by WS-H and WS-I above with renumbered IDs US-261–US-269; skip if already done).
-
----
-
-# APPENDIX PHASE A — Security and Docker Hardening
-
-### US-175: Harden .dockerignore to exclude secrets and local state
-
-**Description:** As an operator, I want the Docker build context to exclude secrets and
-local runtime state so that `docker build` never captures `.env`, credentials, or
-development artifacts.
+#### US-036: Surface proactive suggestions to the user
+**Description:** As a user, I want Rex to occasionally suggest automations based on my habits, and let me accept or dismiss them.
 
 **Acceptance Criteria:**
-- [x] `.dockerignore` excludes: `.env`, `.env.*`, `venv/`, `.venv/`, `config/credentials.json`,
-  `data/`, `logs/`, `transcripts/`, `Memory/`, `session_summaries/`, `backups/`, `*.log`,
-  `*.bundle`, `*.egg-info/`, `__pycache__/`, `.mypy_cache/`, `.ruff_cache/`, `.pytest_cache/`
-- [x] `.dockerignore` excludes test artifacts: `tests/`, `coverage.json`, `coverage.txt`
-- [x] `docker build .` succeeds after the change
-- [x] Running `docker build .` in a directory containing a `.env` file does NOT include
-  `.env` in the image (verify with `docker run --rm <image> ls /app/.env || echo "not found"`)
-- [x] Typecheck passes
+- [ ] At most one suggestion per session (not spammy)
+- [ ] Suggestion is spoken: "I noticed you turn on the kitchen light at 7am most days. Want me to automate that?"
+- [ ] User can accept ("yes") or dismiss ("no thanks")
+- [ ] Dismissed patterns are not suggested again for 30 days
+- [ ] Accepted patterns create a scheduled automation entry
+- [ ] Test covers suggest, accept, and dismiss flows
+- [ ] Typecheck passes
 
 ---
 
-### US-176: Replace broad Dockerfile COPY with allowlist
-
-**Description:** As an operator, I want the Dockerfile runtime stage to copy only
-production-required files so that the resulting image is minimal and safe.
+#### US-037: Add capability registry
+**Description:** As a developer, I need a structured registry of all Rex capabilities so the LLM, UI, and docs can query it.
 
 **Acceptance Criteria:**
-- [x] Dockerfile runtime stage replaces `COPY . .` with explicit allowlist covering only:
-  `rex/`, `rex_speak_api.py`, `rex_loop.py`, `voice_loop.py`, `pyproject.toml`,
-  `config/rex_config.example.json`, `assets/`, and entry-point scripts
-- [x] Image builds successfully: `docker build -t rex-test .` exits 0
-- [x] `docker run --rm rex-test python -c "import rex"` exits 0
-- [x] Image does not contain `.env`, `tests/`, `venv/`, or `Memory/` directories
-- [x] Typecheck passes
+- [ ] New module `rex/capabilities/registry.py` with `CapabilityRegistry` class
+- [ ] Each capability has: `name`, `description`, `inputs`, `outputs`, `triggers`, `enabled`
+- [ ] Registry auto-populates from installed integrations at startup
+- [ ] `registry.list()` returns all capabilities; `registry.search(query)` filters by keyword
+- [ ] Unit test confirms registry populates and search works
+- [ ] Typecheck passes
 
 ---
 
-# APPENDIX PHASE B — Code Quality Restoration
-
-### US-177: Restore Ruff lint compliance — import and unused-code violations
-
-**Description:** As a developer, I want all Ruff import-order and unused-symbol violations
-fixed so that the linter baseline is clean before enforcing it in CI.
+#### US-038: Add "What can you do?" dynamic response
+**Description:** As a user, I want to ask "What can you do?" and get an accurate, context-aware list of current capabilities.
 
 **Acceptance Criteria:**
-- [x] `ruff check rex/ --select I,F` exits 0 (import order + unused imports/variables)
-- [x] No `noqa` suppressions added that were not already present
-- [x] `pytest -q` exits 0 after changes (no regressions)
-- [x] Typecheck passes
+- [ ] "What can you do?" intent is recognized by the assistant
+- [ ] Response is generated from `CapabilityRegistry`, listing only enabled capabilities
+- [ ] Response is grouped by category (Home, Communication, Productivity, etc.)
+- [ ] If no capabilities are configured, Rex says "I can chat with you, but no integrations are set up yet"
+- [ ] Test confirms response reflects actual enabled capabilities
+- [ ] Typecheck passes
 
-### US-178: Restore Ruff lint compliance — remaining rule violations
+---
+
+### PHASE 4 -- COMMUNICATION LAYER
+
+---
+
+#### US-039: Add Telegram bot integration (send messages)
+**Description:** As a developer, I need a Telegram bot client so Rex can send messages to the user.
 
 **Acceptance Criteria:**
-- [x] `ruff check rex/` exits 0 with zero errors
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] New module `rex/integrations/telegram/client.py` with `TelegramClient` class
+- [ ] Config fields: `telegram_bot_token`, `telegram_chat_id` in `AppConfig`; token in `.env`
+- [ ] `send_message(text)` sends a message to the configured chat
+- [ ] If not configured, raises `IntegrationNotConfiguredError`
+- [ ] Unit test with mocked Telegram API
+- [ ] Typecheck passes
 
-### US-179: Restore Black formatting compliance
+---
+
+#### US-040: Add Telegram bot integration (receive commands)
+**Description:** As a user, I want to send commands to Rex via Telegram and get responses back.
 
 **Acceptance Criteria:**
-- [x] `black --check rex/` exits 0
-- [x] `black --check *.py` exits 0
-- [x] No logic changes introduced
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] Telegram webhook or polling handler receives incoming messages
+- [ ] Incoming text is routed through `Assistant.generate_reply()`
+- [ ] Response is sent back to the Telegram chat
+- [ ] Unrecognized commands get a conversational LLM response
+- [ ] Test covers inbound message -> assistant -> outbound response flow
+- [ ] Typecheck passes
 
-### US-180: Resolve mypy type errors — batch 1 (core package)
+---
+
+#### US-041: Add local desktop notifications
+**Description:** As a user, I want Rex to show desktop notifications for important events (reminders, alerts).
 
 **Acceptance Criteria:**
-- [x] `mypy rex/assistant.py rex/config.py rex/llm_client.py rex/voice_loop.py` exits 0
-- [x] No unexplained `type: ignore` comments added
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] New module `rex/notifications/desktop.py`
+- [ ] Uses `plyer` or platform-native API for cross-platform notifications
+- [ ] `notify(title, message, urgency="normal")` shows a desktop notification
+- [ ] Works on Windows (toast), macOS (notification center), Linux (libnotify)
+- [ ] If notification system unavailable, logs a warning (no crash)
+- [ ] Unit test confirms notification call is made (mocked)
+- [ ] Typecheck passes
 
-### US-181: Resolve mypy type errors — batch 2 (integrations and remaining files)
+---
+
+#### US-042: Add push notification support
+**Description:** As a user, I want to receive push notifications on my phone when Rex has an alert.
 
 **Acceptance Criteria:**
-- [x] `mypy rex/` exits 0 with zero errors
-- [x] `pytest -q` exits 0
-- [x] Typecheck passes
+- [ ] New module `rex/notifications/push.py` supporting at least one provider (ntfy.sh or Pushover)
+- [ ] Config fields: `push_provider`, `push_token`, `push_topic` in `AppConfig`
+- [ ] `send_push(title, message, priority="normal")` sends a push notification
+- [ ] If not configured, raises `IntegrationNotConfiguredError`
+- [ ] Unit test with mocked HTTP
+- [ ] Typecheck passes
 
 ---
 
-# APPENDIX PHASE C — Test Infrastructure
-
-### US-182: Fix brittle repo-integrity tests
+#### US-043: Add Ollama cloud usage tracking
+**Description:** As a developer, I need to track per-request token usage for Ollama so users know their consumption.
 
 **Acceptance Criteria:**
-- [x] `tests/test_repo_integrity.py` captures `git status --porcelain` baseline before any test
-- [x] `pytest -q tests/test_repo_integrity.py` exits 0 even when pre-existing dirty files exist
-- [x] Typecheck passes
+- [ ] `rex/llm_client.py` Ollama backend logs `{model, prompt_tokens, completion_tokens, timestamp}` per request
+- [ ] Usage records stored in `data/llm_usage.json` (append-only, rotated at 10MB)
+- [ ] `rex usage` CLI command prints a summary (total requests, total tokens, by model)
+- [ ] Unit test confirms usage is recorded on LLM call
+- [ ] Typecheck passes
 
 ---
 
-# APPENDIX PHASE D — Operations Scripts
-
-### US-183: Fix security audit script false positives
+#### US-044: Add smart cloud routing (prefer local)
+**Description:** As a user, I want Rex to prefer local Ollama for simple tasks and reserve cloud LLM for complex ones.
 
 **Acceptance Criteria:**
-- [x] `scripts/security_audit.py` excludes `.mypy_cache/`, `.ruff_cache/`, caches, venv
-- [x] Running script reports fewer than 50 findings on clean checkout
-- [x] Typecheck passes
+- [ ] `rex/model_router.py` routes based on estimated complexity (message length, tool requirements)
+- [ ] Simple queries (< 200 tokens, no tools) go to local Ollama if available
+- [ ] Complex queries (tools required, long context) go to cloud provider if configured
+- [ ] If local is unavailable, all queries go to cloud (with a log warning)
+- [ ] Config: `llm_routing_mode` in `AppConfig` (values: `"local_preferred"`, `"cloud_only"`, `"local_only"`)
+- [ ] Test covers routing decisions for simple and complex queries
+- [ ] Typecheck passes
 
-### US-184: Rewrite deployment validation script
+---
+
+#### US-045: Add cloud fallback when usage limit hit
+**Description:** As a user, I want Rex to automatically fall back to local when my cloud API limit is reached.
 
 **Acceptance Criteria:**
-- [x] `scripts/validate_deployment.py` checks `config/rex_config.json` existence and schema
-- [x] Script validates torch version against `pyproject.toml` range
-- [x] `python scripts/validate_deployment.py` exits 0 on properly configured install
-- [x] Typecheck passes
+- [ ] If cloud LLM returns 429 (rate limit) or 402 (quota exceeded), model router switches to local
+- [ ] User is notified: "Cloud limit reached, switching to local model"
+- [ ] Router retries cloud after a configurable cooldown (default 1 hour)
+- [ ] Test simulates 429 response and confirms fallback
+- [ ] Typecheck passes
 
 ---
 
-# APPENDIX PHASE E — Execution Surface Correctness
+#### US-046: Add cloud usage visibility to UI
+**Description:** As a user, I want to see local vs cloud LLM usage in the dashboard.
 
-### US-185: Define authoritative executable tool catalog
-### US-186: Implement weather_now and web_search tool handlers
-### US-187: Implement send_email and calendar_create_event tool handlers
-### US-188: Add planner-to-router end-to-end integration tests
-
-*(Full acceptance criteria in prior cycle document; stories not yet marked complete)*
-
----
-
-# APPENDIX PHASE F — Documentation
-
-### US-189: Align README runtime configuration section
-### US-190: Rewrite Windows quickstart with correct entrypoints
-### US-191: Archive and correct stale architecture and status documents
-### US-192: Consolidate to one canonical voice loop entry point
-
-*(Full acceptance criteria in prior cycle; US-192 partially addressed by WS-D above)*
+**Acceptance Criteria:**
+- [ ] Dashboard API endpoint `GET /api/usage` returns `{local: {requests, tokens}, cloud: {requests, tokens}}`
+- [ ] React dashboard displays usage summary (today, this week, this month)
+- [ ] Percentage bar shows local vs cloud split
+- [ ] Data sourced from `data/llm_usage.json`
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
 
 ---
 
-# APPENDIX PHASE G — Dependency Alignment
-
-### US-193: Define and document the canonical runtime matrix
-
-*(Full acceptance criteria in prior cycle)*
+### PHASE 5 -- USER SYSTEM
 
 ---
 
-# APPENDIX PHASE H — Bug Fixes
+#### US-047: Add user authentication (login system)
+**Description:** As a user, I want to log in with a username and password so my data is separate from other users.
 
-### US-194: Thread-safe TTS engine in rex_speak_api.py
-### US-195: Fix _followup_injected race condition in assistant.py
-### US-196: Fix inconsistent temp file cleanup in voice_loop.py
-### US-197: Process OpenAI tool_calls in LLM client
-### US-198: Fix Ollama error message taxonomy
-### US-199: Fix sentence splitting for abbreviations in TTS pipeline
-### US-200: Add request body size limit to rex_speak_api.py
-### US-201: Fix suppressed JSON errors in identity.py
-
-*(Full acceptance criteria in prior cycle)*
-
----
-
-# APPENDIX PHASE I — Conversation History
-
-### US-202 – US-204: History persistence via SQLite HistoryStore
-
-*(Full acceptance criteria in prior cycle)*
+**Acceptance Criteria:**
+- [ ] New module `rex/auth.py` with `create_user(username, password)`, `authenticate(username, password)`, `get_current_user()`
+- [ ] Passwords hashed with bcrypt
+- [ ] Users stored in `data/users.db` (SQLite)
+- [ ] Session tokens issued on login (JWT, 24h expiry)
+- [ ] API endpoints: `POST /api/auth/login`, `POST /api/auth/register`, `POST /api/auth/logout`
+- [ ] Unit test covers registration, login, bad password, and token validation
+- [ ] Typecheck passes
 
 ---
 
-# APPENDIX PHASE J — Real Integration Backends
+#### US-048: Add per-user data isolation
+**Description:** As a user, I want my memories, preferences, and history to be separate from other users.
 
-### US-205 – US-212: Email, calendar, SMS, and offline test harnesses
-
-*(Full acceptance criteria in prior cycle)*
-
----
-
-# APPENDIX PHASE K — Features
-
-### US-213 – US-220: Whisper language, audio validation, LLM streaming, pre-commit, test suite green
-
-*(Full acceptance criteria in prior cycle; US-220 is the final integration gate)*
+**Acceptance Criteria:**
+- [ ] Memory profiles keyed by user ID (not just default profile)
+- [ ] Conversation history keyed by user ID
+- [ ] Config preferences (TTS voice, wake word) stored per user
+- [ ] API requests require valid session token; data scoped to authenticated user
+- [ ] Test confirms User A cannot see User B's data
+- [ ] Typecheck passes
 
 ---
 
-**Story ordering note (consolidated):**
-- WS-A (US-230–234) has no dependencies; do first
-- WS-B (US-235–237) depends on WS-A
-- WS-C (US-238–243) depends on WS-A
-- WS-D (US-244–247) depends on WS-C
-- WS-E (US-248–253) depends on WS-D
-- WS-F (US-254–256) depends on WS-E
-- WS-G (US-257–260) depends on WS-C; can run in parallel with WS-D and WS-E
-- WS-H (US-261–266) has no blocking dependencies; run in parallel with any workstream
-- WS-I (US-267–269) depends on WS-A
-- Appendix stories (US-175–US-220) must wait until all WS-A through WS-I are complete
+#### US-049: Add profile picture support
+**Description:** As a user, I want to upload a profile picture that appears in the dashboard.
+
+**Acceptance Criteria:**
+- [ ] API endpoint `POST /api/user/avatar` accepts image upload (JPEG/PNG, max 2MB)
+- [ ] Image stored in `data/avatars/<user_id>.jpg` (resized to 256x256)
+- [ ] API endpoint `GET /api/user/avatar` returns the image
+- [ ] Default avatar used if none uploaded
+- [ ] Dashboard displays the avatar in the header
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+#### US-050: Add personality system (backend)
+**Description:** As a developer, I need a personality system that controls the assistant's tone and style.
+
+**Acceptance Criteria:**
+- [ ] New module `rex/personality.py` with `Personality` dataclass: `name`, `system_prompt`, `tone_keywords`, `greeting`
+- [ ] Built-in personalities: "Professional", "Friendly", "Minimal"
+- [ ] `get_personality(name)` returns the personality; `list_personalities()` returns all
+- [ ] `Assistant` injects the active personality's system prompt into LLM calls
+- [ ] Config field: `personality` in per-user config (default: "Friendly")
+- [ ] Unit test confirms personality prompt injection
+- [ ] Typecheck passes
+
+---
+
+#### US-051: Add personality preview and selection UI
+**Description:** As a user, I want to preview and switch personalities in the dashboard.
+
+**Acceptance Criteria:**
+- [ ] Dashboard settings page shows available personalities with preview text
+- [ ] Selecting a personality updates the user's config
+- [ ] Preview shows a sample greeting in the selected personality's tone
+- [ ] Change takes effect on next interaction (no restart required)
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+#### US-052: Add permissions system
+**Description:** As an admin, I want to restrict sensitive actions (computer control, email send) to specific users.
+
+**Acceptance Criteria:**
+- [ ] New module `rex/permissions.py` with `Permission` enum and `check_permission(user, action)` function
+- [ ] Permissions: `computer_control`, `email_send`, `sms_send`, `ha_control`, `admin`
+- [ ] Permissions stored per user in `data/users.db`
+- [ ] First registered user gets `admin` permission by default
+- [ ] API actions check permissions before execution; return 403 if denied
+- [ ] Unit test covers grant, revoke, and denial
+- [ ] Typecheck passes
+
+---
+
+### PHASE 6 -- DESKTOP / COMPUTER CONTROL
+
+---
+
+#### US-053: Add desktop file read/write capability
+**Description:** As a user, I want Rex to read and write files on my computer when I ask.
+
+**Acceptance Criteria:**
+- [ ] `rex/computers/file_ops.py` exports `read_file(path)`, `write_file(path, content)`, `list_dir(path)`
+- [ ] Operations restricted to an allowlisted set of directories (configurable)
+- [ ] Attempts to access paths outside the allowlist return a permission error
+- [ ] Works on Windows, macOS, Linux (path normalization handled)
+- [ ] Unit test covers read, write, list, and blocked-path scenarios
+- [ ] Typecheck passes
+
+---
+
+#### US-054: Add desktop program launch capability
+**Description:** As a user, I want Rex to open applications when I ask ("open Notepad", "launch Chrome").
+
+**Acceptance Criteria:**
+- [ ] `rex/computers/app_launcher.py` exports `launch_app(name)`
+- [ ] App name resolved via a configurable app registry (`config/app_registry.json`)
+- [ ] On Windows, uses `os.startfile()` or `subprocess`; on macOS, uses `open`; on Linux, uses `xdg-open`
+- [ ] If app not found in registry, Rex says "I don't know how to open that. You can add it in settings."
+- [ ] Unit test with mocked subprocess calls
+- [ ] Typecheck passes
+
+---
+
+#### US-055: Add safety layer for computer control
+**Description:** As a user, I want Rex to ask for confirmation before executing potentially dangerous computer actions.
+
+**Acceptance Criteria:**
+- [ ] Actions classified as `safe` (read file, list dir) or `dangerous` (write file, delete, execute command)
+- [ ] Dangerous actions require voice or UI confirmation before execution
+- [ ] Configurable: `computer_control_confirmation` in `AppConfig` (values: `"always"`, `"dangerous_only"`, `"never"`)
+- [ ] Default is `"dangerous_only"`
+- [ ] Test covers confirmation flow for dangerous action and bypass for safe action
+- [ ] Typecheck passes
+
+---
+
+#### US-056: Add file summarization and search
+**Description:** As a user, I want Rex to summarize a document or search my files for content.
+
+**Acceptance Criteria:**
+- [ ] `rex/computers/file_ops.py` exports `summarize_file(path)` and `search_files(directory, query)`
+- [ ] Summarize reads the file and passes content to LLM with a summarize prompt
+- [ ] Search uses `grep`-like matching across files in the directory (text files only)
+- [ ] Both respect the directory allowlist
+- [ ] Test covers summarize and search with mock file content
+- [ ] Typecheck passes
+
+---
+
+### PHASE 7 -- UI / UX
+
+---
+
+#### US-057: Audit and expose all features in the UI
+**Description:** As a user, I want every Rex feature to be visible and accessible in the dashboard (no hidden capabilities).
+
+**Acceptance Criteria:**
+- [ ] Dashboard navigation includes sections for: Chat, Voice, Home, Integrations, Settings, About
+- [ ] Each configured integration has a visible entry in the Integrations section
+- [ ] Each tool in the capability registry has a visible entry
+- [ ] No feature is only accessible via CLI without a corresponding UI element
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+#### US-058: Add guided first-run setup wizard
+**Description:** As a new user, I want a step-by-step setup wizard on first launch so I can configure Rex without guesswork.
+
+**Acceptance Criteria:**
+- [ ] On first launch (no `data/users.db`), the dashboard shows a setup wizard
+- [ ] Steps: Create account -> Choose LLM provider -> Configure TTS -> (Optional) Home Assistant -> Done
+- [ ] Each step validates input before allowing next
+- [ ] Wizard writes config to `config/rex_config.json` and `.env`
+- [ ] After completion, wizard does not show again
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+#### US-059: Add Home Assistant setup screen in dashboard
+**Description:** As a user, I want a dedicated HA setup screen where I can enter my HA URL, token, and test the connection.
+
+**Acceptance Criteria:**
+- [ ] New dashboard page: Settings -> Home Assistant
+- [ ] Fields: HA URL, Long-lived access token
+- [ ] "Test Connection" button that calls HA `/api/` and reports success or failure
+- [ ] On success, saves to `config/rex_config.json`
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+#### US-060: Add device control panel in dashboard
+**Description:** As a user, I want a device control panel with toggles and sliders for my HA devices.
+
+**Acceptance Criteria:**
+- [ ] New dashboard page: Home -> Devices
+- [ ] Lists approved devices from `config/device_aliases.json`
+- [ ] Lights: on/off toggle + brightness slider
+- [ ] Switches: on/off toggle
+- [ ] Media players: play/pause, volume slider
+- [ ] Controls send commands to HA in real-time
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+#### US-061: Add command history panel
+**Description:** As a user, I want to see a history of recent commands and their results.
+
+**Acceptance Criteria:**
+- [ ] New dashboard panel: History
+- [ ] Shows last 50 commands with: timestamp, command text, result, success/failure indicator
+- [ ] Commands stored in `data/command_history.db` (SQLite)
+- [ ] API endpoint: `GET /api/history?limit=50`
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+#### US-062: Add status indicators to dashboard
+**Description:** As a user, I want to see Rex's current state (listening, thinking, executing, done) in the dashboard.
+
+**Acceptance Criteria:**
+- [ ] Dashboard header shows a status indicator with icon and label
+- [ ] States: Idle, Listening, Thinking, Executing, Done, Error
+- [ ] Status updates pushed via SSE (`rex/dashboard/sse.py`)
+- [ ] Voice loop emits status change events at each pipeline stage
+- [ ] Test confirms status events are emitted at each stage
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+#### US-063: Add quick actions panel
+**Description:** As a user, I want one-click buttons for common actions (e.g., "Lights off", "Play music", "Lock up").
+
+**Acceptance Criteria:**
+- [ ] New dashboard panel: Quick Actions
+- [ ] User can add/remove quick actions via settings
+- [ ] Each action maps to a Rex command (text input to `Assistant.generate_reply()`)
+- [ ] Quick actions stored in per-user config
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+#### US-064: Overhaul settings UX
+**Description:** As a user, I want the settings page to use dropdowns, tooltips, and inline API instructions instead of raw text fields.
+
+**Acceptance Criteria:**
+- [ ] LLM provider selection uses a dropdown (Ollama, OpenAI, Local)
+- [ ] TTS engine selection uses a dropdown (XTTS, edge-tts, pyttsx3)
+- [ ] API key fields have a tooltip explaining where to get the key
+- [ ] Each integration section has a link to setup docs
+- [ ] No raw JSON editing required for any standard setting
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+#### US-065: Implement branding in UI
+**Description:** As a user, I want the AskRex brand (logo, icons) to be consistent across the dashboard, system tray, and taskbar.
+
+**Acceptance Criteria:**
+- [ ] Dashboard header displays the AskRex logo
+- [ ] System tray icon uses the AskRex icon (Windows, macOS, Linux)
+- [ ] Taskbar/dock icon uses the AskRex icon
+- [ ] Favicon is the AskRex icon
+- [ ] No "Rex AI" or other banned names appear in the UI (per `docs/BRANDING.md`)
+- [ ] Typecheck passes
+- [ ] Verify changes work in browser
+
+---
+
+### PHASE 8 -- REPO + DOCUMENTATION
+
+---
+
+#### US-066: Full repo capability audit
+**Description:** As a developer, I want a verified list of what Rex can and cannot do, so docs and UI do not overclaim.
+
+**Acceptance Criteria:**
+- [ ] Every feature listed in README.md is verified against `docs/claude/INTEGRATIONS_STATUS.md`
+- [ ] Any feature marked STUB or NOT STARTED is either removed from README or explicitly marked as "coming soon"
+- [ ] No feature is claimed as working that is not at least PARTIAL status
+- [ ] `docs/claude/INTEGRATIONS_STATUS.md` is updated to reflect current state
+- [ ] Typecheck passes
+
+---
+
+#### US-067: Documentation overhaul (README + INSTALL)
+**Description:** As a new user, I want simple, accurate, step-by-step docs so I can install and run Rex without confusion.
+
+**Acceptance Criteria:**
+- [ ] `README.md` has: one-paragraph description, quick start (5 steps max), feature list (only verified features), link to full docs
+- [ ] `INSTALL.md` has: prerequisites, step-by-step install for Windows/macOS/Linux, troubleshooting section
+- [ ] No outdated commands or references to removed features
+- [ ] A new user can follow INSTALL.md on a fresh machine and reach a working `rex doctor` output
+- [ ] Typecheck passes
+
+---
+
+#### US-068: Simplify installer to "click install, it works"
+**Description:** As a user, I want the install script to handle everything (venv, deps, config) in one command.
+
+**Acceptance Criteria:**
+- [ ] `install.py` (or `install.ps1` on Windows, `install.sh` on Linux/macOS) creates venv, installs deps, creates default config
+- [ ] Script is idempotent (safe to run twice)
+- [ ] On failure, script prints the exact error and suggests a fix
+- [ ] After install, `rex doctor` passes all checks
+- [ ] Works on Windows 11, macOS, Linux
+- [ ] Typecheck passes
+
+---
+
+#### US-069: Ensure CLI/UI feature parity
+**Description:** As a user, I want every feature available in the CLI to also be accessible in the UI, and vice versa.
+
+**Acceptance Criteria:**
+- [ ] Audit of CLI commands vs dashboard pages; gaps documented
+- [ ] Each CLI-only feature gets a corresponding dashboard UI element (or API endpoint)
+- [ ] Each UI-only feature gets a corresponding CLI command
+- [ ] Gap list is zero at completion
+- [ ] Typecheck passes
+
+---
+
+### PHASE 9 -- DEV + DEBUG SYSTEMS
+
+---
+
+#### US-070: Add structured logging system
+**Description:** As a developer, I want structured JSON logging so that logs are parseable and filterable.
+
+**Acceptance Criteria:**
+- [ ] `rex/logging_config.py` configures structured JSON logging (using `python-json-logger` or similar)
+- [ ] Each log entry includes: `timestamp`, `level`, `module`, `message`, `extra` (dict)
+- [ ] Console output remains human-readable; file output is JSON
+- [ ] Log file: `logs/rex.log` (rotated at 10MB, keep 5)
+- [ ] All existing `logging.info/warning/error` calls continue to work
+- [ ] Unit test confirms JSON log format in file output
+- [ ] Typecheck passes
+
+---
+
+#### US-071: Add debug mode toggle
+**Description:** As a developer, I want a `--debug` flag that enables verbose output for troubleshooting.
+
+**Acceptance Criteria:**
+- [ ] `rex --debug` sets log level to DEBUG across all modules
+- [ ] Debug mode prints: config values (redacted secrets), loaded integrations, model info
+- [ ] `rex doctor --debug` includes additional diagnostic info
+- [ ] Config field: `debug_mode` in `AppConfig` (can also be set via env var `REX_DEBUG=1`)
+- [ ] Typecheck passes
+
+---
+
+#### US-072: Stabilize flaky tests
+**Description:** As a developer, I want all tests to pass reliably so that CI is trustworthy.
+
+**Acceptance Criteria:**
+- [ ] Run `pytest -q` 5 times; all runs produce the same pass/fail result
+- [ ] Any test that depends on timing uses mocked time or generous tolerances
+- [ ] Any test that depends on network uses mocked HTTP
+- [ ] Any test that depends on filesystem uses `tmp_path` fixture
+- [ ] No test is marked `@pytest.mark.skip` without a linked issue
+- [ ] Typecheck passes
+
+---
+
+#### US-073: Enforce CI (tests + lint must pass)
+**Description:** As a developer, I want CI to block merges if tests or lint fail.
+
+**Acceptance Criteria:**
+- [ ] GitHub Actions workflow runs: `pytest -q`, `ruff check`, `black --check`
+- [ ] Workflow triggers on: push to `master`, pull request to `master`
+- [ ] Branch protection rule on `master` requires CI to pass
+- [ ] Workflow runs on Python 3.11, Ubuntu latest
+- [ ] `mypy` check included (non-blocking warning for now)
+- [ ] Typecheck passes
+
+---
+
+## Non-Goals
+
+- No mobile app (Telegram covers mobile interaction for now)
+- No multi-language UI (English only for this cycle)
+- No voice assistant marketplace or third-party skill system
+- No cloud-hosted deployment (local-first only)
+- No real-time video or camera integration
+- No smart home protocols beyond Home Assistant (no direct Zigbee/Z-Wave)
+- No billing or payment system for cloud LLM usage
+- No automatic priority assignment based on ML models (pattern detection is rule-based)
+
+---
+
+## Technical Considerations
+
+- **Existing components to reuse:** `rex/ha_bridge.py` (HA integration base), `rex/tool_catalog.py` (tool registry), `rex/dashboard_store.py` (SQLite persistence), `rex/dashboard/sse.py` (real-time push), `rex/notifications/` (notification infrastructure), `rex/computers/` (agent server base)
+- **Config split:** Secrets in `.env`, runtime config in `config/rex_config.json` (per CLAUDE.md)
+- **Lazy imports:** All heavy ML imports (whisper, XTTS, transformers) must use `find_spec()` before `import_module()` (per learned rules)
+- **Windows compatibility:** All file paths must use `pathlib.Path`; no hardcoded `/` separators
+- **Branding:** Product name is "AskRex Assistant"; CLI is `rex`; see `docs/BRANDING.md` for banned names
+
+---
+
+## Implementation Priority
+
+The recommended implementation order based on the user's priority list:
+
+1. **Bridge system** (US-001 through US-006, US-015) -- unblocks all GUI functionality
+2. **Voice loop** (US-007 through US-010, US-016 through US-020, US-074 through US-078) -- unblocks core voice experience
+3. **Dependencies** (US-011) -- unblocks TTS
+4. **Home Assistant** (US-021 through US-031, US-059) -- primary feature focus
+5. **Context + aliases** (US-023 through US-025) -- makes HA usable
+6. **Feedback + status** (US-033, US-062) -- makes Rex feel responsive
+7. **Everything else** in phase order
+
+---
+
+## Issue-to-Story Mapping
+
+| Issue | Stories |
+|-------|---------|
+| ISSUE-001 | US-001, US-002, US-003 |
+| ISSUE-002 | US-004 |
+| ISSUE-003 | US-005, US-006 |
+| ISSUE-004 | US-007, US-008, US-009, US-010 |
+| ISSUE-005 | US-011 |
+| ISSUE-006 | US-012 |
+| ISSUE-007 | US-013, US-014 |
+| ISSUE-008 | US-015 |
+| ISSUE-009 | US-070 |
+| ISSUE-013 | US-047, US-048 |
+| ISSUE-015 | US-049 |
+| ISSUE-016 | US-039, US-040 |
+| ISSUE-017 | US-041 |
+| ISSUE-018 | US-042 |
+| ISSUE-019 | US-021, US-022 |
+| ISSUE-023 | US-066 |
+| ISSUE-024 | US-066 |
+| ISSUE-025 | US-023, US-024 |
+| ISSUE-026 | US-025 |
+| ISSUE-027 | US-026, US-027 |
+| ISSUE-028 | US-032 |
+| ISSUE-029 | US-033, US-034 |
+| ISSUE-030 | US-035, US-036 |
+| ISSUE-032 | US-057 |
+| ISSUE-033 | US-058 |
+| ISSUE-034 | US-065 |
+| ISSUE-035 | US-050 |
+| ISSUE-036 | US-051 |
+| ISSUE-037 | US-043 |
+| ISSUE-038 | US-044 |
+| ISSUE-039 | US-045 |
+| ISSUE-040 | US-046 |
+| ISSUE-041 | US-028 |
+| ISSUE-042 | US-029 |
+| ISSUE-043 | US-030 |
+| ISSUE-044 | US-031 |
+| ISSUE-045 | US-037 |
+| ISSUE-046 | US-038 |
+| ISSUE-047 | US-052 |
+| ISSUE-048 | US-053, US-054 |
+| ISSUE-049 | US-055 |
+| ISSUE-050 | US-056 |
+| ISSUE-051 | US-059 |
+| ISSUE-052 | US-060 |
+| ISSUE-053 | US-061 |
+| ISSUE-054 | US-062 |
+| ISSUE-055 | US-063 |
+| ISSUE-056 | US-064 |
+| ISSUE-057 | US-067 |
+| ISSUE-058 | US-068 |
+| ISSUE-059 | US-069 |
+| ISSUE-060 | US-071 |
+| ISSUE-061 | US-072 |
+| ISSUE-062 | US-073 |
+| ISSUE-063 | US-016 |
+| ISSUE-064 | US-017 |
+| ISSUE-065 | US-018 |
+| ISSUE-066 | US-019, US-020 |
+| ISSUE-067 | US-074 |
+| ISSUE-068 | US-075 |
+| ISSUE-069 | US-076 |
+| ISSUE-070 | US-077 |
+| ISSUE-071 | US-078 |
