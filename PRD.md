@@ -455,12 +455,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I need Rex to query real-time device state from HA so it can respond intelligently.
 
 **Acceptance Criteria:**
-- [ ] `rex/ha/device_state.py` queries HA `/api/states/<entity_id>` for current state
-- [ ] Returns structured data: `{entity_id, state, attributes: {brightness, volume, media_title, ...}}`
-- [ ] If entity not found, returns `None`
-- [ ] `Assistant` can answer "is the kitchen light on?" using device state
-- [ ] Unit test with mocked HA state responses
-- [ ] Typecheck passes
+- [x] `rex/ha/device_state.py` queries HA `/api/states/<entity_id>` for current state
+- [x] Returns structured data: `{entity_id, state, attributes: {brightness, volume, media_title, ...}}`
+- [x] If entity not found, returns `None`
+- [x] `Assistant` can answer "is the kitchen light on?" using device state
+- [x] Unit test with mocked HA state responses
+- [x] Typecheck passes
 
 ---
 

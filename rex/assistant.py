@@ -132,6 +132,16 @@ class Assistant:
         _ma_client = MusicAssistantClient(base_url=_ma_url, token=_ma_token)
         self._music_handler: MusicHandler | None = MusicHandler(_ma_client)
 
+        # Device state query handler (US-028)
+        from .ha.state_handler import DeviceStateHandler
+
+        _ha_url = getattr(self._settings, "ha_base_url", None)
+        _ha_token = getattr(self._settings, "ha_token", None)
+        self._device_state_handler: DeviceStateHandler | None = DeviceStateHandler(
+            base_url=_ha_url,
+            token=_ha_token,
+        )
+
         # Response cache for repeated factual queries (US-LAT-004)
         from .response_cache import ResponseCache
 
@@ -516,6 +526,14 @@ class Assistant:
             if _music_response is not None:
                 self._record_completion(transcript, _music_response)
                 return _music_response
+
+        # Device state queries (US-028)
+        _ds_handler = getattr(self, "_device_state_handler", None)
+        if _ds_handler is not None:
+            _ds_response = _ds_handler.handle(transcript)
+            if _ds_response is not None:
+                self._record_completion(transcript, _ds_response)
+                return _ds_response
 
         # Per-user credential/history scoping: swap self._user_id for the
         # duration of this call so history, transcripts, and tool calls use
