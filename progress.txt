@@ -980,3 +980,14 @@
 - Changed verification step from rex --help to rex doctor with actionable warning on failure
 - Both scripts print the exact error (via set -euo pipefail / $ErrorActionPreference=Stop) and suggest edits
 ---
+
+## Iteration 69 - US-069: Ensure CLI/UI feature parity
+- Audited all CLI commands vs GUI pages; found 3 UI-only features with no CLI commands and 1 CLI-only feature (rex tools) with no API endpoint
+- Added CLI commands to rex/cli.py: `rex shopping` (list/add/clear), `rex history` (with --limit), `rex quick-actions` (with --user filter)
+- Added `GET /api/tools` endpoint to rex/gui_app.py using openclaw tool_registry; returns name, description, capabilities, enabled, version per tool
+- Files changed: rex/cli.py, rex/gui_app.py, PRD.md
+- Learnings:
+  - `list_known_users()` returns list[dict] with 'id' key; `list_user_ids()` does not exist
+  - Canonical tool registry for CLI is rex.openclaw.tool_registry (has ToolMeta); rex.tools.registry is a different lighter registry
+  - black reformats automatically but ruff check must pass on both before and after black
+---

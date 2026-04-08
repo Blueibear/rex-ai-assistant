@@ -1021,11 +1021,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want every feature available in the CLI to also be accessible in the UI, and vice versa.
 
 **Acceptance Criteria:**
-- [ ] Audit of CLI commands vs dashboard pages; gaps documented
-- [ ] Each CLI-only feature gets a corresponding dashboard UI element (or API endpoint)
-- [ ] Each UI-only feature gets a corresponding CLI command
-- [ ] Gap list is zero at completion
-- [ ] Typecheck passes
+- [x] Audit of CLI commands vs dashboard pages; gaps documented
+- [x] Each CLI-only feature gets a corresponding dashboard UI element (or API endpoint)
+- [x] Each UI-only feature gets a corresponding CLI command
+- [x] Gap list is zero at completion
+- [x] Typecheck passes
 
 ---
 

@@ -1010,6 +1010,29 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
             caps = []
         return jsonify({"capabilities": caps}), 200
 
+    @app.route("/api/tools", methods=["GET"])
+    @_require_auth
+    def _list_tools() -> Any:
+        """Return registered tools with health status."""
+        try:
+            from rex.openclaw.tool_registry import get_tool_registry
+
+            registry = get_tool_registry()
+            tool_list = registry.list_tools(include_disabled=True)
+            tools = [
+                {
+                    "name": t.name,
+                    "description": t.description,
+                    "capabilities": t.capabilities,
+                    "enabled": t.enabled,
+                    "version": t.version,
+                }
+                for t in tool_list
+            ]
+        except Exception:
+            tools = []
+        return jsonify({"tools": tools}), 200
+
     return app
 
 
