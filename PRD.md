@@ -996,11 +996,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a new user, I want simple, accurate, step-by-step docs so I can install and run Rex without confusion.
 
 **Acceptance Criteria:**
-- [ ] `README.md` has: one-paragraph description, quick start (5 steps max), feature list (only verified features), link to full docs
-- [ ] `INSTALL.md` has: prerequisites, step-by-step install for Windows/macOS/Linux, troubleshooting section
-- [ ] No outdated commands or references to removed features
-- [ ] A new user can follow INSTALL.md on a fresh machine and reach a working `rex doctor` output
-- [ ] Typecheck passes
+- [x] `README.md` has: one-paragraph description, quick start (5 steps max), feature list (only verified features), link to full docs
+- [x] `INSTALL.md` has: prerequisites, step-by-step install for Windows/macOS/Linux, troubleshooting section
+- [x] No outdated commands or references to removed features
+- [x] A new user can follow INSTALL.md on a fresh machine and reach a working `rex doctor` output
+- [x] Typecheck passes
 
 ---
 

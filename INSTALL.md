@@ -32,8 +32,8 @@ This guide covers all installation methods and platform-specific setup for the A
 
 ```bash
 # Clone the repository
-git clone https://github.com/Blueibear/rex-ai-assistant.git
-cd rex-ai-assistant
+git clone https://github.com/Blueibear/AskRex-Assistant.git
+cd AskRex-Assistant
 
 # Create and activate virtual environment
 python3.11 -m venv venv
@@ -365,7 +365,7 @@ pytest-watch
 
 ```bash
 # Remove pip package
-pip uninstall rex-ai-assistant
+pip uninstall askrex-assistant
 
 # Remove virtual environment
 rm -rf venv/
@@ -377,7 +377,7 @@ rm -rf models/ Memory/ transcripts/ logs/
 ## Getting Help
 
 - **Documentation**: See `README.md` for usage guide
-- **Issues**: Report bugs at https://github.com/Blueibear/rex-ai-assistant/issues
+- **Issues**: Report bugs at https://github.com/Blueibear/AskRex-Assistant/issues
 - **Discussions**: Ask questions in GitHub Discussions
 - **Windows Users**: See `README.windows.md` for platform-specific tips
 

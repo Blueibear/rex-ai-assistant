@@ -967,3 +967,9 @@
 - Changed Docker label to "Requires manual validation" (per known caution area)
 - Added "Home Assistant Device Control: PARTIAL" and "User Authentication and Data Isolation: REAL" to INTEGRATIONS_STATUS.md
 ---
+
+## US-067: Documentation overhaul (README + INSTALL)
+- README already has one-paragraph description, 4-step quick start, verified feature list, and docs links
+- INSTALL.md already has prerequisites, Windows/macOS/Linux steps, troubleshooting section
+- Fixed: INSTALL.md clone URL (rex-ai-assistant → AskRex-Assistant), uninstall package name (→ askrex-assistant), issues URL
+---
