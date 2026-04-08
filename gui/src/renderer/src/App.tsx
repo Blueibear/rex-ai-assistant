@@ -25,6 +25,7 @@ import { HomePage } from '../../pages/HomePage'
 import { IntegrationsPage } from '../../pages/IntegrationsPage'
 import { AboutPage } from '../../pages/AboutPage'
 import { SetupWizardPage } from '../../pages/SetupWizardPage'
+import { HomeAssistantSettingsPage } from '../../pages/HomeAssistantSettingsPage'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 
 const PRIORITY_TOAST_TYPE: Record<NotificationPriority, ToastType> = {
@@ -118,6 +119,7 @@ function AppShell(): React.ReactElement {
           <Route path="/usage" element={<ErrorBoundary><UsagePage /></ErrorBoundary>} />
           <Route path="/integrations" element={<ErrorBoundary><IntegrationsPage /></ErrorBoundary>} />
           <Route path="/settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
+          <Route path="/settings/home-assistant" element={<ErrorBoundary><HomeAssistantSettingsPage /></ErrorBoundary>} />
           <Route path="/about" element={<ErrorBoundary><AboutPage /></ErrorBoundary>} />
         </Routes>
       </PageTransition>

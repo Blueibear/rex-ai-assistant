@@ -618,6 +618,85 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         return jsonify({"ok": True}), 200
 
     # ------------------------------------------------------------------
+    # Home Assistant setup API (US-059)
+    # ------------------------------------------------------------------
+
+    @app.route("/api/ha/test", methods=["POST"])
+    def _ha_test_connection() -> Any:
+        """Test a Home Assistant connection using the supplied URL and token.
+
+        Body: ``{ha_base_url: str, ha_token: str}``
+
+        Returns ``{ok: bool, error?: str}``; does **not** require auth so the
+        setup wizard can call it before the first user is created.
+        """
+        import urllib.request
+
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        base_url = (data.get("ha_base_url") or "").rstrip("/")
+        token = (data.get("ha_token") or "").strip()
+
+        if not base_url:
+            return jsonify({"ok": False, "error": "ha_base_url is required"}), 400
+
+        api_url = f"{base_url}/api/"
+        req = urllib.request.Request(api_url)
+        if token:
+            req.add_header("Authorization", f"Bearer {token}")
+
+        try:
+            with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
+                ok = resp.status == 200
+        except Exception as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 200
+
+        return jsonify({"ok": ok}), 200
+
+    @app.route("/api/ha/save", methods=["POST"])
+    def _ha_save_config() -> Any:
+        """Save Home Assistant URL and token.  Requires auth.
+
+        Body: ``{ha_base_url: str, ha_token?: str}``
+
+        Writes ``ha_base_url`` to ``config/rex_config.json`` (non-secret) and
+        ``ha_token`` to ``.env`` (secret).
+        """
+        user, err = _require_auth()
+        if err:
+            return err
+
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        base_url = (data.get("ha_base_url") or "").strip()
+        token = (data.get("ha_token") or "").strip()
+
+        if not base_url:
+            return jsonify({"error": "ha_base_url is required"}), 400
+
+        # Persist non-secret settings to rex_config.json.
+        try:
+            from rex.config_manager import load_config as _load_json_cfg
+            from rex.config_manager import save_config as _save_json_cfg
+
+            json_cfg: dict[str, Any] = _load_json_cfg() or {}
+            json_cfg.setdefault("home_assistant", {})["base_url"] = base_url
+            _save_json_cfg(json_cfg)
+        except Exception as exc:
+            return jsonify({"error": f"failed to save config: {exc}"}), 500
+
+        # Persist secret token to .env.
+        if token:
+            try:
+                from rex.bridge_utils import repo_root
+
+                env_path = repo_root() / ".env"
+            except Exception:
+                env_path = Path(".env")
+
+            _write_env_secrets(env_path, llm_provider="", llm_api_key="", ha_token=token)
+
+        return jsonify({"ok": True}), 200
+
+    # ------------------------------------------------------------------
     # Integrations API (US-057)
     # ------------------------------------------------------------------
 

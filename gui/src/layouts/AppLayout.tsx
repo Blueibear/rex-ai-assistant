@@ -249,6 +249,7 @@ const sectionNames: Record<string, string> = {
   '/usage': 'Usage',
   '/integrations': 'Integrations',
   '/settings': 'Settings',
+  '/settings/home-assistant': 'Home Assistant',
   '/about': 'About'
 }
 

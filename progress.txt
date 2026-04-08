@@ -891,3 +891,14 @@
 - Files changed: rex/gui_app.py, gui/src/pages/SetupWizardPage.tsx, gui/src/renderer/src/App.tsx, tests/test_us058_setup_wizard.py (new), PRD.md
 - Key pattern: _open_db() from rex.auth used to count users; noqa: PLC2701 silences private import linter warning
 ---
+
+## Iteration 60 - US-059: Add Home Assistant setup screen in dashboard
+- Added POST /api/ha/test endpoint (public) — tests HA connection via urllib, returns {ok, error?}
+- Added POST /api/ha/save endpoint (auth required) — writes ha_base_url to rex_config.json, ha_token to .env
+- Created gui/src/pages/HomeAssistantSettingsPage.tsx — form with URL, token, Test Connection, Save buttons
+- Added /settings/home-assistant route in App.tsx
+- Added "Full setup →" NavLink to Settings page's HA section
+- Added /settings/home-assistant to sectionNames in AppLayout.tsx
+- 10 tests in tests/test_us059_ha_setup.py: test endpoint (400, public, success, failure, non-200), save (401, 400, ok, config, env)
+- Key: /api/ha/test uses urllib.request.urlopen with timeout=5 (no extra deps); save uses _write_env_secrets for secret management
+---

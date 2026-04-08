@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { NavLink } from 'react-router-dom'
 import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, EmailAccount, NotificationsSettings, Settings, VersionInfo, PreferenceSuggestion, VoiceInfo, WakeWordInfo, VoiceEnrollment, Memory, SmartSpeaker, SystemSettings } from '../types/ipc'
 import { useToast } from '../components/ui/Toast'
 import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
@@ -2964,10 +2965,18 @@ function IntegrationsPanel(): React.ReactElement {
             </svg>
             Home Assistant
           </h3>
-          <ConnectionBadge
-            status={testStatus.homeassistant}
-            hasCredentials={form.haUrl.trim() !== ''}
-          />
+          <div className="flex items-center gap-2">
+            <NavLink
+              to="/settings/home-assistant"
+              className="text-xs text-accent hover:underline"
+            >
+              Full setup →
+            </NavLink>
+            <ConnectionBadge
+              status={testStatus.homeassistant}
+              hasCredentials={form.haUrl.trim() !== ''}
+            />
+          </div>
         </div>
 
         <div className="mb-4">

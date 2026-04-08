@@ -884,12 +884,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want a dedicated HA setup screen where I can enter my HA URL, token, and test the connection.
 
 **Acceptance Criteria:**
-- [ ] New dashboard page: Settings -> Home Assistant
-- [ ] Fields: HA URL, Long-lived access token
-- [ ] "Test Connection" button that calls HA `/api/` and reports success or failure
-- [ ] On success, saves to `config/rex_config.json`
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] New dashboard page: Settings -> Home Assistant
+- [x] Fields: HA URL, Long-lived access token
+- [x] "Test Connection" button that calls HA `/api/` and reports success or failure
+- [x] On success, saves to `config/rex_config.json`
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
