@@ -998,3 +998,16 @@
 - Created tests/test_us070_structured_logging.py with 10 tests covering JSON fields, extra, ISO 8601 timestamp, file creation, JSON format per line, rotation config, idempotent handler, compat with existing calls, console plain text
 - Files changed: rex/logging_config.py, tests/test_us070_structured_logging.py (new), PRD.md
 ---
+
+## Iteration 71 - US-071: Add debug mode toggle
+- Added debug_mode field to AppConfig (default False, set via REX_DEBUG=1 env var)
+- Added --debug flag to root parser and doctor subparser in rex/cli.py
+- main() applies --debug by setting REX_DEBUG=1 env var and calling set_global_level(DEBUG)
+- Added _print_debug_info() to rex/doctor.py; run_diagnostics() now accepts debug param
+- _print_debug_info() shows root log level, REX_DEBUG, redacted config fields, integrations, model info
+- 6 tests pass (4 skipped on Python 3.14 due to rex.cli SystemExit guard)
+- Files changed: rex/config.py, rex/doctor.py, rex/cli.py, tests/test_us071_debug_mode.py (new), PRD.md
+- Learnings:
+  - load_config() uses _cached_config; tests must monkeypatch it to None before testing env-driven fields
+  - rex.cli raises SystemExit at module level on Python != 3.11; use try/except + pytest.mark.skipif
+---

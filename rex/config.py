@@ -185,6 +185,7 @@ class AppConfig:
     audio_output_device: Optional[int | str] = None
 
     debug_logging: bool = False
+    debug_mode: bool = False  # set via REX_DEBUG=1 or rex --debug
     file_logging_enabled: bool = False
     memory_max_bytes: int = 131072
     conversation_export: bool = True
@@ -635,8 +636,9 @@ def build_app_config(json_config: dict) -> AppConfig:
         # All secrets from env only
         brave_api_key=os.getenv("BRAVE_API_KEY"),
         speak_api_key=os.getenv("REX_SPEAK_API_KEY"),
-        # Logging from JSON
+        # Logging from JSON + env
         debug_logging=_get_nested(json_config, "runtime.log_level", "INFO").upper() == "DEBUG",
+        debug_mode=os.getenv("REX_DEBUG", "0").strip() not in ("0", "false", "no", ""),
         file_logging_enabled=bool(_get_nested(json_config, "runtime.file_logging_enabled", False)),
         memory_max_bytes=_coerce_int(json_config, "runtime.memory_max_bytes", 131072),
         # Profile metadata

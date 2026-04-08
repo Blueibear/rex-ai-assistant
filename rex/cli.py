@@ -127,7 +127,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     """Run environment diagnostics."""
     from rex.doctor import run_diagnostics
 
-    return run_diagnostics(verbose=args.verbose)
+    debug = getattr(args, "debug", False)
+    return run_diagnostics(verbose=args.verbose, debug=debug)
 
 
 def cmd_chat(args: argparse.Namespace) -> int:
@@ -3621,6 +3622,11 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     )
 
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable DEBUG logging across all modules (equivalent to REX_DEBUG=1)",
+    )
     parser.add_argument("--version", action="version", version=f"%(prog)s {_get_version()}")
 
     subparsers = parser.add_subparsers(
@@ -3638,6 +3644,11 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     )
     doctor_parser.add_argument(
         "-v", "--verbose", action="store_true", help="Show detailed diagnostic information"
+    )
+    doctor_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Include additional low-level diagnostic info (log level, env vars)",
     )
     doctor_parser.set_defaults(func=cmd_doctor)
 
@@ -5220,6 +5231,16 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     parser = create_parser()
     args = parser.parse_args(argv)
+
+    # Apply --debug flag: set env var so load_config() picks it up, then
+    # immediately raise the root log level so all subsequent imports log verbosely.
+    if getattr(args, "debug", False):
+        import os
+
+        os.environ["REX_DEBUG"] = "1"
+        from rex.logging_utils import set_global_level
+
+        set_global_level(__import__("logging").DEBUG)
 
     if args.command is None:
         if getattr(args, "verbose", False):

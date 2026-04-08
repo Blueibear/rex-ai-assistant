@@ -1051,11 +1051,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want a `--debug` flag that enables verbose output for troubleshooting.
 
 **Acceptance Criteria:**
-- [ ] `rex --debug` sets log level to DEBUG across all modules
-- [ ] Debug mode prints: config values (redacted secrets), loaded integrations, model info
-- [ ] `rex doctor --debug` includes additional diagnostic info
-- [ ] Config field: `debug_mode` in `AppConfig` (can also be set via env var `REX_DEBUG=1`)
-- [ ] Typecheck passes
+- [x] `rex --debug` sets log level to DEBUG across all modules
+- [x] Debug mode prints: config values (redacted secrets), loaded integrations, model info
+- [x] `rex doctor --debug` includes additional diagnostic info
+- [x] Config field: `debug_mode` in `AppConfig` (can also be set via env var `REX_DEBUG=1`)
+- [x] Typecheck passes
 
 ---
 

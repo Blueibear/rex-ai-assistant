@@ -922,11 +922,73 @@ def _current_whisper_language() -> str:
         return "unavailable"
 
 
-def run_diagnostics(verbose: bool = False) -> int:
+def _print_debug_info() -> None:
+    """Print extra low-level diagnostic info when --debug is active."""
+    import logging
+    import os
+
+    print("=== DEBUG INFO ===")
+
+    # Log level
+    root_level = logging.getLevelName(logging.getLogger().getEffectiveLevel())
+    print(f"  Root log level : {root_level}")
+
+    # REX_DEBUG env var
+    print(f"  REX_DEBUG      : {os.getenv('REX_DEBUG', '(not set)')}")
+
+    # Config values (redact secrets)
+    try:
+        from rex.config import load_config
+
+        cfg = load_config()
+        secret_fields = {
+            "openai_api_key",
+            "anthropic_api_key",
+            "brave_api_key",
+            "speak_api_key",
+            "ollama_api_key",
+        }
+        print("  Config fields  :")
+        for field_name, value in vars(cfg).items():
+            if field_name in secret_fields:
+                display = "***" if value else "(not set)"
+            else:
+                display = repr(value)
+            print(f"    {field_name} = {display}")
+    except Exception as exc:
+        print(f"  Config load failed: {exc}")
+
+    # Loaded integrations (providers that are configured)
+    try:
+        from rex.config import load_config
+
+        cfg = load_config()
+        integrations = []
+        if cfg.openai_api_key:
+            integrations.append("openai")
+        if cfg.anthropic_api_key:
+            integrations.append("anthropic")
+        if cfg.brave_api_key:
+            integrations.append("brave-search")
+        if getattr(cfg, "ha_base_url", None):
+            integrations.append("home-assistant")
+        print(f"  Configured integrations: {', '.join(integrations) or '(none)'}")
+        print(f"  LLM provider   : {cfg.llm_provider}")
+        print(f"  LLM model      : {cfg.llm_model}")
+        print(f"  TTS provider   : {cfg.tts_provider}")
+    except Exception:
+        pass
+
+    print("==================")
+    print()
+
+
+def run_diagnostics(verbose: bool = False, debug: bool = False) -> int:
     """Run all diagnostic checks and print results.
 
     Args:
         verbose: If True, show detailed information for all checks.
+        debug: If True, print additional low-level diagnostic info.
 
     Returns:
         Exit code: 0 if no errors, 1 if errors found.
@@ -934,6 +996,9 @@ def run_diagnostics(verbose: bool = False) -> int:
     print("Rex Doctor - Environment Diagnostics")
     print("=" * 40)
     print()
+
+    if debug:
+        _print_debug_info()
 
     report = DiagnosticsReport()
     project_root = _find_project_root()
