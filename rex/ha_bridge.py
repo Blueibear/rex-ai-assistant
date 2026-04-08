@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, cast
 from rex.ha.clarification import ClarificationHandler
 from rex.ha.command_history import CommandHistory
 from rex.ha.device_aliases import AliasResolver
+from rex.ha.error_recovery import suggest_alternatives
 
 try:
     import requests as _imported_requests
@@ -194,7 +195,13 @@ class HABridge:
                 description=match.description,
             )
             return message
-        return f"I attempted to perform that action but hit an error: {message}"
+        return suggest_alternatives(
+            failed_entity_id=match.entity_id,
+            domain=match.domain,
+            entity_map=self._entity_map,
+            entity_cache=self._entity_cache,
+            recent_entity_ids=self._command_history.recent_entity_ids(),
+        )
 
     def undo_last(self, window: float = 30.0) -> str:
         """Reverse the most recent reversible command if within *window* seconds.

@@ -98,5 +98,9 @@ class CommandHistory:
             self._entries.pop()
         return candidate
 
+    def recent_entity_ids(self) -> list[str]:
+        """Return entity IDs from stored history, oldest first."""
+        return [e.entity_id for e in self._entries]
+
     def __len__(self) -> int:
         return len(self._entries)

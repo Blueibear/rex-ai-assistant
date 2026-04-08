@@ -493,12 +493,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to suggest alternatives when a command fails instead of just saying "error."
 
 **Acceptance Criteria:**
-- [ ] If an HA command fails (device offline, unreachable), Rex says what went wrong and suggests an alternative
-- [ ] Example: "The kitchen light is not responding. Would you like me to try the dining room light instead?"
-- [ ] Alternatives sourced from same-room devices or recently used devices
-- [ ] If no alternative exists, Rex says "I could not complete that. The device may be offline."
-- [ ] Test covers device-offline and alternative-suggestion paths
-- [ ] Typecheck passes
+- [x] If an HA command fails (device offline, unreachable), Rex says what went wrong and suggests an alternative
+- [x] Example: "The kitchen light is not responding. Would you like me to try the dining room light instead?"
+- [x] Alternatives sourced from same-room devices or recently used devices
+- [x] If no alternative exists, Rex says "I could not complete that. The device may be offline."
+- [x] Test covers device-offline and alternative-suggestion paths
+- [x] Typecheck passes
 
 ---
 
