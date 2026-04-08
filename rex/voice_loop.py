@@ -17,6 +17,7 @@ import io
 import logging
 import os
 import re
+import shutil
 import sys
 import tempfile
 import threading
@@ -1392,6 +1393,19 @@ def build_voice_loop(
         tts._provider,
         extra={"event": "pipeline_stage_ok", "stage": "tts", "provider": tts._provider},
     )
+
+    # AC US-020 #1: warn at startup if FFmpeg is absent and XTTS is active.
+    # XTTS relies on torio which uses FFmpeg for audio decoding; other providers
+    # (edge-tts, pyttsx3) work without it so the warning is scoped to XTTS.
+    if tts._provider == "xtts" and shutil.which("ffmpeg") is None:
+        logger.warning(
+            "[Pipeline] FFmpeg not found on PATH. XTTS requires FFmpeg for audio "
+            "decoding. Install FFmpeg or switch to a different TTS provider. "
+            "Windows: https://ffmpeg.org/download.html  "
+            "macOS: brew install ffmpeg  "
+            "Linux: sudo apt install ffmpeg",
+            extra={"event": "ffmpeg_missing", "tts_provider": tts._provider},
+        )
 
     ack_sound = getattr(settings, "acknowledgment_sound", "chime")
     if ack_sound and ack_sound != "chime" and not ack_sound.lower().endswith((".wav", ".mp3")):

@@ -348,12 +348,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want FFmpeg and torio-related errors to be handled cleanly and config coercion warnings to be resolved.
 
 **Acceptance Criteria:**
-- [ ] If FFmpeg is not on PATH, a clear warning is logged at startup (not a crash)
-- [ ] `rex doctor` checks for FFmpeg and reports its presence/version
-- [ ] Config values that trigger coercion warnings are fixed to use correct types in `AppConfig`
-- [ ] No `UserWarning` or `DeprecationWarning` from config loading
-- [ ] Test confirms config loads without warnings
-- [ ] Typecheck passes
+- [x] If FFmpeg is not on PATH, a clear warning is logged at startup (not a crash)
+- [x] `rex doctor` checks for FFmpeg and reports its presence/version
+- [x] Config values that trigger coercion warnings are fixed to use correct types in `AppConfig`
+- [x] No `UserWarning` or `DeprecationWarning` from config loading
+- [x] Test confirms config loads without warnings
+- [x] Typecheck passes
 
 ---
 
