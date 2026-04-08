@@ -660,11 +660,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I need to track per-request token usage for Ollama so users know their consumption.
 
 **Acceptance Criteria:**
-- [ ] `rex/llm_client.py` Ollama backend logs `{model, prompt_tokens, completion_tokens, timestamp}` per request
-- [ ] Usage records stored in `data/llm_usage.json` (append-only, rotated at 10MB)
-- [ ] `rex usage` CLI command prints a summary (total requests, total tokens, by model)
-- [ ] Unit test confirms usage is recorded on LLM call
-- [ ] Typecheck passes
+- [x] `rex/llm_client.py` Ollama backend logs `{model, prompt_tokens, completion_tokens, timestamp}` per request
+- [x] Usage records stored in `data/llm_usage.json` (append-only, rotated at 10MB)
+- [x] `rex usage` CLI command prints a summary (total requests, total tokens, by model)
+- [x] Unit test confirms usage is recorded on LLM call
+- [x] Typecheck passes
 
 ---
 

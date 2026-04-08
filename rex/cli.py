@@ -27,6 +27,7 @@ This module provides the main CLI entry point with subcommands:
     rex wc           - WooCommerce monitoring + approval-gated write actions
     rex voice-id     - Voice speaker identity enrollment, calibration, and status
     rex ha           - Home Assistant integration commands (TTS test)
+    rex usage        - Show LLM usage summary (total requests, tokens, by model)
 
 Usage:
     rex [command] [options]
@@ -3392,6 +3393,34 @@ def _cmd_wc_coupon_disable(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_usage(args: argparse.Namespace) -> int:
+    """Print LLM usage summary."""
+    from rex.llm_usage import summarise
+
+    summary = summarise()
+    total_requests = summary["total_requests"]
+    total_tokens = summary["total_tokens"]
+    by_model = summary["by_model"]
+
+    if total_requests == 0:
+        print("No LLM usage recorded yet.")
+        return 0
+
+    print("LLM Usage Summary")
+    print("=" * 50)
+    print(f"Total requests : {total_requests}")
+    print(f"Total tokens   : {total_tokens}")
+    print()
+    print("By model:")
+    for model, stats in sorted(by_model.items()):
+        print(f"  {model}")
+        print(f"    Requests          : {stats['requests']}")
+        print(f"    Prompt tokens     : {stats['prompt_tokens']}")
+        print(f"    Completion tokens : {stats['completion_tokens']}")
+        print(f"    Total tokens      : {stats['total_tokens']}")
+    return 0
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser with all subcommands."""
     parser = argparse.ArgumentParser(
@@ -4992,6 +5021,14 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     voice_id_calibrate.set_defaults(func=cmd_voice_id, voice_id_command="calibrate")
 
     voice_id_parser.set_defaults(func=cmd_voice_id, voice_id_command="status")
+
+    # usage
+    usage_parser = subparsers.add_parser(
+        "usage",
+        help="Show LLM usage summary (total requests, tokens, by model)",
+        description="Display per-model token usage recorded from Ollama and other backends.",
+    )
+    usage_parser.set_defaults(func=cmd_usage)
 
     return parser
 
