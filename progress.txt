@@ -924,3 +924,17 @@
 - Added /history route in App.tsx; History added to sectionNames in AppLayout.tsx
 - 12 tests: store unit tests (record, get_recent, limit, clamp, clear, keys), API tests (401, history key, limit, required fields)
 ---
+
+## Iteration 63 - US-062: Add status indicators to dashboard
+- Created rex/dashboard/__init__.py and rex/dashboard/sse.py: SSE status broker
+  - RexStatus constants: idle, listening, thinking, executing, done, error
+  - emit_status(status) → pushes to all subscribed client queues + updates _current_status
+  - subscribe()/unsubscribe() — per-client queue management
+  - subscription() — context manager for auto-unsubscribe
+- Added voice loop status hooks in rex/voice_loop.py via _emit() helper (best-effort, try/except):
+  - idle at start, listening after wake word, thinking after transcript, executing before LLM, done after TTS, error on exceptions
+- Added GET /api/status/current (public) and GET /api/status/stream (SSE) endpoints to gui_app.py
+- Updated AppLayout.tsx header: added StatusIndicator component with useRexStatus hook (SSE + fallback REST)
+  - Color-coded by status: idle=muted, listening=blue, thinking=amber, executing=purple, done=green, error=red
+- 13 tests in tests/test_us062_status_sse.py
+---

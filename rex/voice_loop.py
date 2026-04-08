@@ -992,12 +992,23 @@ class VoiceLoop:
         """Run the voice loop for a specified number of interactions."""
         from .voice_latency import VoiceLatencyTracker  # noqa: PLC0415
 
+        def _emit(status: str) -> None:
+            """Emit a status event (best-effort, never raises)."""
+            try:
+                from rex.dashboard.sse import emit_status  # noqa: PLC0415
+
+                emit_status(status)
+            except Exception:
+                pass
+
         interactions = 0
 
+        _emit("idle")
         try:
             async for _ in self._wake_listener.listen(self._detection_source):
                 try:
                     tracker = VoiceLatencyTracker()
+                    _emit("listening")
 
                     # Fire acknowledgment tone concurrently with recording so the
                     # microphone starts capturing immediately after wake word.
@@ -1053,7 +1064,10 @@ class VoiceLoop:
                     tracker.mark("stt_end")
                     if not transcript:
                         logger.info("No speech detected")
+                        _emit("idle")
                         continue
+
+                    _emit("thinking")
 
                     # Post-STT acknowledgment: fires after transcription and before
                     # LLM processing, giving the user quick confirmation that their
@@ -1065,6 +1079,7 @@ class VoiceLoop:
                     stream_reply = getattr(self._assistant, "stream_reply", None)
 
                     # Get LLM response - voice_mode=True enables conciseness prompt
+                    _emit("executing")
                     tracker.mark("llm_start")
                     tracker.mark("tts_synthesis_start")
                     llm_response: str | None = None
@@ -1123,6 +1138,7 @@ class VoiceLoop:
                     tracker.mark("tts_synthesis_end")
                     tracker.mark("playback_start")
                     tracker.log_summary()
+                    _emit("done")
 
                 except SpeechToTextError as exc:
                     logger.error(
@@ -1131,6 +1147,7 @@ class VoiceLoop:
                         exc_info=True,
                         extra={"event": "stt_error", "error": str(exc)},
                     )
+                    _emit("error")
                     # Continue loop on transcription errors
                 except TextToSpeechError as exc:
                     logger.error(
@@ -1142,12 +1159,15 @@ class VoiceLoop:
                             "llm_response": llm_response,
                         },
                     )
+                    _emit("error")
                     # Continue loop on TTS errors; text response preserved in log
                 except AudioDeviceError as exc:
                     logger.error("Audio device error: %s", exc)
+                    _emit("error")
                     break
                 except Exception as exc:
                     logger.error("Unexpected error in voice loop: %s", exc)
+                    _emit("error")
 
                 interactions += 1
                 if max_interactions is not None and interactions >= max_interactions:

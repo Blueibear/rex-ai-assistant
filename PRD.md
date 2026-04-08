@@ -925,13 +925,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want to see Rex's current state (listening, thinking, executing, done) in the dashboard.
 
 **Acceptance Criteria:**
-- [ ] Dashboard header shows a status indicator with icon and label
-- [ ] States: Idle, Listening, Thinking, Executing, Done, Error
-- [ ] Status updates pushed via SSE (`rex/dashboard/sse.py`)
-- [ ] Voice loop emits status change events at each pipeline stage
-- [ ] Test confirms status events are emitted at each stage
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Dashboard header shows a status indicator with icon and label
+- [x] States: Idle, Listening, Thinking, Executing, Done, Error
+- [x] Status updates pushed via SSE (`rex/dashboard/sse.py`)
+- [x] Voice loop emits status change events at each pipeline stage
+- [x] Test confirms status events are emitted at each stage
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

@@ -4,6 +4,71 @@ import { useNotificationsStore } from '../store/notificationsStore'
 import { useGlobalShortcuts } from '../hooks/useGlobalShortcuts'
 import { HelpOverlay } from '../components/HelpOverlay'
 
+type RexStatusValue = 'idle' | 'listening' | 'thinking' | 'executing' | 'done' | 'error'
+
+const STATUS_LABEL: Record<RexStatusValue, string> = {
+  idle: 'Idle',
+  listening: 'Listening',
+  thinking: 'Thinking',
+  executing: 'Executing',
+  done: 'Done',
+  error: 'Error'
+}
+
+const STATUS_COLOR: Record<RexStatusValue, string> = {
+  idle: 'bg-surface-raised text-text-muted',
+  listening: 'bg-blue-500/15 text-blue-400',
+  thinking: 'bg-amber-500/15 text-amber-400',
+  executing: 'bg-purple-500/15 text-purple-400',
+  done: 'bg-green-500/15 text-green-400',
+  error: 'bg-red-500/15 text-red-400'
+}
+
+function useRexStatus(): RexStatusValue {
+  const [status, setStatus] = useState<RexStatusValue>('idle')
+
+  useEffect(() => {
+    // Load initial status.
+    fetch('/api/status/current')
+      .then((r) => r.json())
+      .then((d) => {
+        const s = (d as { status?: string }).status ?? 'idle'
+        setStatus(s as RexStatusValue)
+      })
+      .catch(() => {/* ignore */})
+
+    // Stream status changes.
+    let es: EventSource | null = null
+    try {
+      es = new EventSource('/api/status/stream')
+      es.onmessage = (event) => {
+        setStatus((event.data as string).trim() as RexStatusValue)
+      }
+    } catch {
+      // SSE not available — fall back to polling.
+    }
+    return () => {
+      es?.close()
+    }
+  }, [])
+
+  return status
+}
+
+function StatusIndicator(): React.ReactElement {
+  const status = useRexStatus()
+  const label = STATUS_LABEL[status] ?? status
+  const colorClass = STATUS_COLOR[status] ?? STATUS_COLOR.idle
+  return (
+    <span
+      className={`text-xs font-medium px-2 py-0.5 rounded-full ${colorClass} flex-shrink-0`}
+      aria-label={`Rex status: ${label}`}
+    >
+      {label}
+    </span>
+  )
+}
+
 interface AppLayoutProps {
   children: React.ReactNode
 }
@@ -393,8 +458,9 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
       {/* Main content */}
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Topbar */}
-        <header className="flex items-center h-14 px-6 border-b border-border bg-surface flex-shrink-0">
+        <header className="flex items-center justify-between h-14 px-6 border-b border-border bg-surface flex-shrink-0">
           <h1 className="text-text-primary font-semibold text-base">{sectionName}</h1>
+          <StatusIndicator />
         </header>
 
         {/* Scrollable content area */}

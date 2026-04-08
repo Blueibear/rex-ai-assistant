@@ -792,6 +792,43 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         return jsonify({"ok": True}), 200
 
     # ------------------------------------------------------------------
+    # Status / SSE API (US-062)
+    # ------------------------------------------------------------------
+
+    @app.route("/api/status/current", methods=["GET"])
+    def _status_current() -> Any:
+        """Return the current Rex status (public, no auth required)."""
+        from rex.dashboard.sse import get_current_status
+
+        return jsonify({"status": get_current_status()}), 200
+
+    @app.route("/api/status/stream", methods=["GET"])
+    def _status_stream() -> Any:
+        """Stream Rex status changes as Server-Sent Events."""
+        from flask import Response
+
+        from rex.dashboard.sse import get_current_status, subscription
+
+        def _generate() -> Any:
+            yield f"data: {get_current_status()}\n\n"
+            with subscription() as client_q:
+                while True:
+                    try:
+                        status = client_q.get(timeout=30)
+                        yield f"data: {status}\n\n"
+                    except Exception:
+                        yield ": ping\n\n"
+
+        return Response(
+            _generate(),
+            content_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    # ------------------------------------------------------------------
     # Command history API (US-061)
     # ------------------------------------------------------------------
 
