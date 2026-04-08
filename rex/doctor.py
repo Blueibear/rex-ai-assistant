@@ -550,6 +550,44 @@ def check_lm_studio_reachability(
         )
 
 
+def check_stt_backend() -> CheckResult:
+    """Check which STT backend (whisper or faster-whisper) is installed.
+
+    Reports OK when at least one backend is available, ERROR when neither is
+    found so that ``rex doctor`` surfaces the gap before the voice loop starts.
+    """
+    has_whisper = find_spec("whisper") is not None
+    has_faster_whisper = find_spec("faster_whisper") is not None
+
+    if has_whisper and has_faster_whisper:
+        return CheckResult(
+            name="STT Backend",
+            status=Status.OK,
+            message="Both openai-whisper and faster-whisper are installed",
+            details="Rex will use openai-whisper by default.",
+        )
+    if has_whisper:
+        return CheckResult(
+            name="STT Backend",
+            status=Status.OK,
+            message="STT backend: openai-whisper",
+        )
+    if has_faster_whisper:
+        return CheckResult(
+            name="STT Backend",
+            status=Status.OK,
+            message="STT backend: faster-whisper",
+        )
+    return CheckResult(
+        name="STT Backend",
+        status=Status.ERROR,
+        message="No STT backend installed (whisper or faster-whisper required)",
+        details=(
+            "Install one of:\n" "  pip install openai-whisper\n" "  pip install faster-whisper"
+        ),
+    )
+
+
 def check_stt_warmup(stt: object | None = None) -> CheckResult:
     """Check the STT model warm-up status.
 
@@ -884,6 +922,9 @@ def run_diagnostics(verbose: bool = False) -> int:
 
     # FFmpeg — report status relative to the active TTS backend
     report.add(check_ffmpeg_for_tts())
+
+    # STT backend availability
+    report.add(check_stt_backend())
 
     # STT warm-up
     report.add(check_stt_warmup())

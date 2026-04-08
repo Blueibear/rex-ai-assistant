@@ -310,12 +310,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want Whisper STT failures to produce real error messages and for the correct backend (faster-whisper vs whisper) to be verified at startup.
 
 **Acceptance Criteria:**
-- [ ] `rex doctor` checks which STT backend is installed and reports it
-- [ ] If neither whisper nor faster-whisper is installed, `rex doctor` reports the gap
-- [ ] STT runtime errors are caught and logged with full traceback (not swallowed)
-- [ ] If transcription fails, the voice loop logs the error and resets (no hang)
-- [ ] Test simulates STT failure and confirms error is surfaced
-- [ ] Typecheck passes
+- [x] `rex doctor` checks which STT backend is installed and reports it
+- [x] If neither whisper nor faster-whisper is installed, `rex doctor` reports the gap
+- [x] STT runtime errors are caught and logged with full traceback (not swallowed)
+- [x] If transcription fails, the voice loop logs the error and resets (no hang)
+- [x] Test simulates STT failure and confirms error is surfaced
+- [x] Typecheck passes
 
 ---
 

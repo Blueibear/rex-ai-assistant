@@ -597,7 +597,7 @@ class SpeechToText:
         try:
             return await asyncio.to_thread(_transcribe)
         except Exception as exc:
-            logger.error("[STT] Whisper failed: %s", exc)
+            logger.error("[STT] Whisper failed: %s", exc, exc_info=True)
             raise SpeechToTextError(str(exc)) from exc
 
 
@@ -1106,6 +1106,7 @@ class VoiceLoop:
                     logger.error(
                         "STT error: %s — resetting pipeline",
                         exc,
+                        exc_info=True,
                         extra={"event": "stt_error", "error": str(exc)},
                     )
                     # Continue loop on transcription errors
