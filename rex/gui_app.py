@@ -164,6 +164,17 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
             download_name="rex.log",
         )
 
+    # ------------------------------------------------------------------
+    # Usage API (US-046)
+    # ------------------------------------------------------------------
+
+    @app.route("/api/usage")
+    def _usage_summary() -> Any:
+        """Return local vs cloud LLM usage split by period."""
+        from rex.llm_usage import usage_api_summary
+
+        return jsonify(usage_api_summary()), 200
+
     return app
 
 

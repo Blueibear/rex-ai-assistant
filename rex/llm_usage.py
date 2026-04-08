@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -118,4 +118,110 @@ def summarise(path: Path | None = None) -> dict[str, Any]:
         "total_requests": total_requests,
         "total_tokens": total_prompt + total_completion,
         "by_model": dict(by_model),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Cloud vs local classification
+# ---------------------------------------------------------------------------
+
+_CLOUD_PREFIXES = (
+    "gpt-",
+    "text-",
+    "o1",
+    "o3",
+    "babbage",
+    "davinci",
+    "curie",
+    "ada",
+    "claude-",
+    "gemini-",
+    "mistral-",
+)
+
+
+def _is_cloud_model(model: str) -> bool:
+    """Return True if *model* is a cloud-hosted model (OpenAI, Anthropic, Google, etc.)."""
+    if not model:
+        return False
+    lower = model.lower()
+    for prefix in _CLOUD_PREFIXES:
+        if lower.startswith(prefix):
+            return True
+    return False
+
+
+def _empty_bucket() -> dict[str, int]:
+    return {"requests": 0, "tokens": 0}
+
+
+def _period_start(now: datetime, period: str) -> datetime:
+    if period == "today":
+        return now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if period == "week":
+        return (now - timedelta(days=now.weekday())).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+    # month
+    return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+def usage_api_summary(path: Path | None = None) -> dict[str, Any]:
+    """Return usage split by local/cloud for today, this week, and this month.
+
+    Returns::
+
+        {
+            "local": {"requests": int, "tokens": int},
+            "cloud": {"requests": int, "tokens": int},
+            "by_period": {
+                "today": {
+                    "local": {"requests": int, "tokens": int},
+                    "cloud": {"requests": int, "tokens": int},
+                },
+                "week": {...},
+                "month": {...},
+            },
+        }
+    """
+    records = load_records(path)
+    now = datetime.now(UTC)
+
+    totals: dict[str, dict[str, int]] = {
+        "local": _empty_bucket(),
+        "cloud": _empty_bucket(),
+    }
+    by_period: dict[str, dict[str, dict[str, int]]] = {
+        "today": {"local": _empty_bucket(), "cloud": _empty_bucket()},
+        "week": {"local": _empty_bucket(), "cloud": _empty_bucket()},
+        "month": {"local": _empty_bucket(), "cloud": _empty_bucket()},
+    }
+    period_starts = {p: _period_start(now, p) for p in ("today", "week", "month")}
+
+    for rec in records:
+        model = str(rec.get("model", "unknown"))
+        bucket = "cloud" if _is_cloud_model(model) else "local"
+        tokens = int(rec.get("prompt_tokens", 0)) + int(rec.get("completion_tokens", 0))
+
+        totals[bucket]["requests"] += 1
+        totals[bucket]["tokens"] += tokens
+
+        ts_raw = rec.get("timestamp", "")
+        try:
+            ts = datetime.fromisoformat(str(ts_raw))
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=UTC)
+        except (ValueError, TypeError):
+            ts = None
+
+        if ts is not None:
+            for period, start in period_starts.items():
+                if ts >= start:
+                    by_period[period][bucket]["requests"] += 1
+                    by_period[period][bucket]["tokens"] += tokens
+
+    return {
+        "local": totals["local"],
+        "cloud": totals["cloud"],
+        "by_period": by_period,
     }

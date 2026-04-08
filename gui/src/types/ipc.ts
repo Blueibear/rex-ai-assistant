@@ -345,6 +345,28 @@ export interface LogEntry {
   extra: Record<string, unknown>
 }
 
+export interface UsageBucket {
+  requests: number
+  tokens: number
+}
+
+export interface UsagePeriodSplit {
+  local: UsageBucket
+  cloud: UsageBucket
+}
+
+export interface UsageSummary {
+  ok: boolean
+  local: UsageBucket
+  cloud: UsageBucket
+  by_period: {
+    today: UsagePeriodSplit
+    week: UsagePeriodSplit
+    month: UsagePeriodSplit
+  }
+  error?: string
+}
+
 export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
@@ -441,4 +463,5 @@ export interface RexAPI {
   stopLogTail: () => Promise<{ ok: boolean }>
   downloadLogs: () => Promise<{ ok: boolean; content?: string; filename?: string; error?: string }>
   onLogEntry: (cb: (entry: LogEntry) => void) => void
+  getUsage: () => Promise<UsageSummary>
 }

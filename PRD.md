@@ -698,12 +698,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want to see local vs cloud LLM usage in the dashboard.
 
 **Acceptance Criteria:**
-- [ ] Dashboard API endpoint `GET /api/usage` returns `{local: {requests, tokens}, cloud: {requests, tokens}}`
-- [ ] React dashboard displays usage summary (today, this week, this month)
-- [ ] Percentage bar shows local vs cloud split
-- [ ] Data sourced from `data/llm_usage.json`
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Dashboard API endpoint `GET /api/usage` returns `{local: {requests, tokens}, cloud: {requests, tokens}}`
+- [x] React dashboard displays usage summary (today, this week, this month)
+- [x] Percentage bar shows local vs cloud split
+- [x] Data sourced from `data/llm_usage.json`
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

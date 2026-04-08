@@ -28,7 +28,8 @@ import type {
   FileExtractResult,
   ShoppingItem,
   WakeWordInfo,
-  LogEntry
+  LogEntry,
+  UsageSummary
 } from '../types/ipc'
 
 function makeSendChatStream(
@@ -282,7 +283,8 @@ const rexAPI = {
     ipcRenderer.invoke('rex:downloadLogs'),
   onLogEntry: (cb: (entry: LogEntry) => void): void => {
     ipcRenderer.on('rex:logEntry', (_event, entry: LogEntry) => cb(entry))
-  }
+  },
+  getUsage: (): Promise<UsageSummary> => ipcRenderer.invoke('rex:getUsage')
 }
 
 if (process.contextIsolated) {
