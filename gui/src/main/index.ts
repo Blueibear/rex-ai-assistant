@@ -591,10 +591,16 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
 }
 
 function createWindow(): BrowserWindow {
+  const appIconPath = app.isPackaged
+    ? join(process.resourcesPath, 'assets', 'tray-icon-32.png')
+    : join(__dirname, '../../../../assets', 'tray-icon-32.png')
+
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     show: false,
+    title: 'AskRex Assistant',
+    icon: appIconPath,
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

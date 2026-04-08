@@ -55,7 +55,7 @@ export function createTray(mainWindow: BrowserWindow): void {
   const icon = nativeImage.createFromPath(getIconPath(32))
 
   tray = new Tray(icon)
-  tray.setToolTip('Rex AI Assistant')
+  tray.setToolTip('AskRex Assistant')
   tray.setContextMenu(buildContextMenu(mainWindow))
 
   // Single-click on the tray icon restores the window

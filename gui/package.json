@@ -1,10 +1,10 @@
 {
   "name": "rex-gui",
   "version": "1.0.0",
-  "description": "Rex AI Assistant desktop GUI",
+  "description": "AskRex Assistant desktop GUI",
   "main": "./dist-electron/main/index.js",
   "icon": "../assets/brand/icon-square.png",
-  "author": "Rex AI",
+  "author": "AskRex",
   "homepage": ".",
   "scripts": {
     "dev": "electron-vite dev",

@@ -363,7 +363,7 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
             </svg>
           </div>
           {!narrow && (
-            <span className="text-text-primary font-semibold text-lg tracking-tight">Rex</span>
+            <span className="text-text-primary font-semibold text-lg tracking-tight">AskRex</span>
           )}
         </div>
 

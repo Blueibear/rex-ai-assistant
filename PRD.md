@@ -966,13 +966,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want the AskRex brand (logo, icons) to be consistent across the dashboard, system tray, and taskbar.
 
 **Acceptance Criteria:**
-- [ ] Dashboard header displays the AskRex logo
-- [ ] System tray icon uses the AskRex icon (Windows, macOS, Linux)
-- [ ] Taskbar/dock icon uses the AskRex icon
-- [ ] Favicon is the AskRex icon
-- [ ] No "Rex AI" or other banned names appear in the UI (per `docs/BRANDING.md`)
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Dashboard header displays the AskRex logo
+- [x] System tray icon uses the AskRex icon (Windows, macOS, Linux)
+- [x] Taskbar/dock icon uses the AskRex icon
+- [x] Favicon is the AskRex icon
+- [x] No "Rex AI" or other banned names appear in the UI (per `docs/BRANDING.md`)
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

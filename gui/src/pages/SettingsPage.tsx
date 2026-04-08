@@ -3599,7 +3599,7 @@ function AboutPanel(): React.ReactElement {
           <span className="text-accent font-bold text-lg">R</span>
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-text-primary">Rex AI Assistant</h2>
+          <h2 className="text-lg font-semibold text-text-primary">AskRex Assistant</h2>
           <p className="text-sm text-text-secondary">Local-first AI companion</p>
         </div>
       </div>
@@ -3625,7 +3625,7 @@ function AboutPanel(): React.ReactElement {
 
       <div className="mt-8 pt-6 border-t border-border">
         <p className="text-xs text-text-secondary">
-          Rex AI Assistant is a local-first, voice-activated AI companion. All data is stored on
+          AskRex Assistant is a local-first, voice-activated AI companion. All data is stored on
           your device.
         </p>
       </div>

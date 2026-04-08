@@ -953,3 +953,10 @@
 - Added setup doc links in Email (Google Console), Calendar (Google Console), SMS (Twilio Console), Phone (Twilio Console) section headers
 - No raw JSON editing exists for standard settings (system prompt uses textarea, not JSON)
 ---
+
+## US-065: Implement branding in UI
+- Replaced "Rex AI Assistant" with "AskRex Assistant" in: index.html title, tray.ts tooltip, package.json description/author, SettingsPage.tsx about section
+- Added favicon link in index.html pointing to tray-icon-32.png
+- Added title: 'AskRex Assistant' and icon: tray-icon-32.png to BrowserWindow in index.ts
+- Sidebar wordmark updated: "Rex" → "AskRex"
+---
