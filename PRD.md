@@ -590,12 +590,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want to ask "What can you do?" and get an accurate, context-aware list of current capabilities.
 
 **Acceptance Criteria:**
-- [ ] "What can you do?" intent is recognized by the assistant
-- [ ] Response is generated from `CapabilityRegistry`, listing only enabled capabilities
-- [ ] Response is grouped by category (Home, Communication, Productivity, etc.)
-- [ ] If no capabilities are configured, Rex says "I can chat with you, but no integrations are set up yet"
-- [ ] Test confirms response reflects actual enabled capabilities
-- [ ] Typecheck passes
+- [x] "What can you do?" intent is recognized by the assistant
+- [x] Response is generated from `CapabilityRegistry`, listing only enabled capabilities
+- [x] Response is grouped by category (Home, Communication, Productivity, etc.)
+- [x] If no capabilities are configured, Rex says "I can chat with you, but no integrations are set up yet"
+- [x] Test confirms response reflects actual enabled capabilities
+- [x] Typecheck passes
 
 ---
 

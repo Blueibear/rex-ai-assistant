@@ -490,6 +490,17 @@ class Assistant:
         loop = asyncio.get_running_loop()
         completion: str | None = None
 
+        # Capability query: "What can you do?" (US-038) — intercept before any
+        # model routing or tool dispatch so the answer is always fast and accurate.
+        from .capabilities.registry import get_capability_registry
+        from .capabilities.responder import build_capability_response, is_capability_query
+
+        if is_capability_query(transcript):
+            _registry = get_capability_registry(config=self._settings)
+            _cap_reply = build_capability_response(_registry)
+            self._record_completion(transcript, _cap_reply)
+            return _cap_reply
+
         # Proactive suggestion response handling (US-036): intercept yes/no
         # answers while a suggestion is pending, before any other processing.
         _sug_engine = getattr(self, "_suggestion_engine", None)
