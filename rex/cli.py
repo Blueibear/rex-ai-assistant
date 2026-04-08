@@ -2185,8 +2185,93 @@ def cmd_ha(args: argparse.Namespace) -> int:
     ha_command = getattr(args, "ha_command", None)
     if ha_command == "tts":
         return _cmd_ha_tts(args)
+    if ha_command == "approve":
+        return _cmd_ha_approve(args)
     print("Unknown ha subcommand. Use 'rex ha --help'")
     return 1
+
+
+def _cmd_ha_approve(args: argparse.Namespace) -> int:
+    """List discovered HA devices and interactively approve or ignore them."""
+    from rex.config import load_config
+    from rex.ha.device_aliases import AliasResolver
+    from rex.ha.discovery import (
+        approve_device,
+        discover_devices,
+        ignore_device,
+        load_ignored_devices,
+    )
+
+    cfg = load_config()
+    base_url: str = getattr(cfg, "ha_base_url", "") or ""
+    token: str = getattr(cfg, "ha_token", "") or ""
+
+    if not base_url or not token:
+        print("Home Assistant is not configured (ha_base_url / HA_TOKEN not set).")
+        print(
+            "Set these values in config/rex_config.json and your .env before running 'rex ha approve'."
+        )
+        return 1
+
+    print("Discovering devices from Home Assistant…")
+    devices = discover_devices(base_url=base_url, token=token)
+    if not devices:
+        print("No devices found.")
+        return 0
+
+    # Load already-known entity IDs from aliases file and ignore file
+    aliases_path = getattr(args, "aliases_path", None)
+    ignore_path = getattr(args, "ignore_path", None)
+
+    resolver = AliasResolver(aliases_path)
+    approved_entity_ids: set[str] = set(resolver._aliases.values())  # noqa: SLF001
+    ignored_entity_ids: set[str] = set(load_ignored_devices(ignore_path))
+
+    pending = [
+        d
+        for d in devices
+        if d["entity_id"] not in approved_entity_ids and d["entity_id"] not in ignored_entity_ids
+    ]
+
+    if not pending:
+        print(f"All {len(devices)} discovered device(s) are already approved or ignored.")
+        return 0
+
+    print(f"\nFound {len(pending)} pending device(s):\n")
+    for i, dev in enumerate(pending, 1):
+        print(f"  [{i:3d}] {dev['entity_id']}  ({dev['friendly_name']}, state={dev['state']})")
+
+    print(
+        "\nFor each device enter:\n"
+        "  <alias>   — approve with this friendly name\n"
+        "  i         — ignore (hide from Rex)\n"
+        "  s / Enter — skip for now\n"
+    )
+
+    approved_count = 0
+    ignored_count = 0
+    for dev in pending:
+        entity_id = dev["entity_id"]
+        friendly = dev["friendly_name"]
+        try:
+            response = input(f"  {entity_id} ({friendly}): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nAborted.")
+            break
+
+        if response.lower() == "i":
+            ignore_device(entity_id, ignore_path)
+            print(f"    → ignored {entity_id}")
+            ignored_count += 1
+        elif response and response.lower() not in ("s", "skip"):
+            approve_device(entity_id, response, aliases_path)
+            print(f"    → approved as '{response}'")
+            approved_count += 1
+        else:
+            print("    → skipped")
+
+    print(f"\nDone: {approved_count} approved, {ignored_count} ignored.")
+    return 0
 
 
 def _cmd_ha_tts(args: argparse.Namespace) -> int:
@@ -4767,6 +4852,34 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     ha_tts_test.set_defaults(func=cmd_ha, ha_command="tts", ha_tts_command="test")
 
     ha_tts_parser.set_defaults(func=cmd_ha, ha_command="tts", ha_tts_command="test")
+
+    # ha approve
+    ha_approve_parser = ha_subparsers.add_parser(
+        "approve",
+        help="List discovered HA devices and approve or ignore them",
+        description=(
+            "Scan Home Assistant for devices, then interactively approve each one\n"
+            "with a friendly alias or mark it as ignored.  Approved devices are\n"
+            "written to config/device_aliases.json; ignored devices to\n"
+            "config/device_ignore.json."
+        ),
+    )
+    ha_approve_parser.add_argument(
+        "--aliases-path",
+        dest="aliases_path",
+        type=str,
+        default=None,
+        help="Override path to device_aliases.json (default: config/device_aliases.json)",
+    )
+    ha_approve_parser.add_argument(
+        "--ignore-path",
+        dest="ignore_path",
+        type=str,
+        default=None,
+        help="Override path to device_ignore.json (default: config/device_ignore.json)",
+    )
+    ha_approve_parser.set_defaults(func=cmd_ha, ha_command="approve")
+
     ha_parser.set_defaults(func=cmd_ha, ha_command="tts")
 
     # voice-id (voice speaker identity enrollment, calibration, and status)

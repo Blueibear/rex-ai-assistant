@@ -12,10 +12,19 @@ degrades gracefully.
 
 from __future__ import annotations
 
+import json
 import logging
 import time
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Default config paths
+# ---------------------------------------------------------------------------
+
+_DEFAULT_ALIASES_PATH = Path("config/device_aliases.json")
+_DEFAULT_IGNORE_PATH = Path("config/device_ignore.json")
 
 # ---------------------------------------------------------------------------
 # Types
@@ -167,3 +176,82 @@ def discover_devices(
         extra={"event": "ha_discovery_complete"},
     )
     return list(entries)
+
+
+# ---------------------------------------------------------------------------
+# Device approval / ignore
+# ---------------------------------------------------------------------------
+
+
+def approve_device(
+    entity_id: str,
+    alias: str,
+    aliases_path: Path | str | None = None,
+) -> None:
+    """Add *entity_id* to the device aliases file under the given *alias*.
+
+    The alias is stored lower-cased so :class:`~rex.ha.device_aliases.AliasResolver`
+    can find it without extra normalisation.
+
+    Args:
+        entity_id: The Home Assistant entity ID (e.g. ``light.bedroom_main``).
+        alias: Human-readable name (e.g. ``bedroom light``).
+        aliases_path: Override the path to ``device_aliases.json``.
+    """
+    path = Path(aliases_path) if aliases_path is not None else _DEFAULT_ALIASES_PATH
+    data: dict = {"aliases": {}, "synonyms": {}}
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("approve_device: failed to read %s: %s", path, exc)
+
+    data.setdefault("aliases", {})
+    data["aliases"][alias.lower()] = entity_id
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    logger.info("approve_device: approved %s as %r", entity_id, alias)
+
+
+def ignore_device(
+    entity_id: str,
+    ignore_path: Path | str | None = None,
+) -> None:
+    """Add *entity_id* to the device ignore list.
+
+    The ignore list is stored as a JSON object with an ``"ignored"`` list.
+
+    Args:
+        entity_id: The Home Assistant entity ID to ignore.
+        ignore_path: Override the path to ``device_ignore.json``.
+    """
+    path = Path(ignore_path) if ignore_path is not None else _DEFAULT_IGNORE_PATH
+    data: dict = {"ignored": []}
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("ignore_device: failed to read %s: %s", path, exc)
+
+    data.setdefault("ignored", [])
+    if entity_id not in data["ignored"]:
+        data["ignored"].append(entity_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    logger.info("ignore_device: ignored %s", entity_id)
+
+
+def load_ignored_devices(ignore_path: Path | str | None = None) -> list[str]:
+    """Return the list of ignored entity IDs from *device_ignore.json*.
+
+    Returns an empty list if the file does not exist or cannot be parsed.
+    """
+    path = Path(ignore_path) if ignore_path is not None else _DEFAULT_IGNORE_PATH
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return list(data.get("ignored", []))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("load_ignored_devices: failed to read %s: %s", path, exc)
+        return []

@@ -426,14 +426,15 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 ---
 
 #### US-026: Add device discovery via Home Assistant API
-**Description:** As a user, I want Rex to scan Home Assistant for available devices so I can approve and name them.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+**Description:** As a user, I want Rex to scan Home Assistant for available devices so I can approve and name them.
+
 **Acceptance Criteria:**
-- [ ] `rex/ha/discovery.py` calls HA `/api/states` to list all entities
-- [ ] Returns list of `{entity_id, friendly_name, domain, state}`
-- [ ] Results cached for 5 minutes (configurable)
-- [ ] If HA is not configured, returns empty list with a log warning
-- [ ] Unit test with mocked HA API response
-- [ ] Typecheck passes
+- [x] `rex/ha/discovery.py` calls HA `/api/states` to list all entities
+- [x] Returns list of `{entity_id, friendly_name, domain, state}`
+- [x] Results cached for 5 minutes (configurable)
+- [x] If HA is not configured, returns empty list with a log warning
+- [x] Unit test with mocked HA API response
+- [x] Typecheck passes
 
 ---
 
@@ -441,12 +442,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want to approve discovered devices and give them custom names that Rex will recognize.
 
 **Acceptance Criteria:**
-- [ ] `rex/ha/discovery.py` exports `approve_device(entity_id, alias)` and `ignore_device(entity_id)`
-- [ ] Approved devices are written to `config/device_aliases.json`
-- [ ] Ignored devices are written to `config/device_ignore.json`
-- [ ] CLI command `rex ha approve` lists pending devices and accepts approval
-- [ ] Test covers approve, rename, and ignore workflows
-- [ ] Typecheck passes
+- [x] `rex/ha/discovery.py` exports `approve_device(entity_id, alias)` and `ignore_device(entity_id)`
+- [x] Approved devices are written to `config/device_aliases.json`
+- [x] Ignored devices are written to `config/device_ignore.json`
+- [x] CLI command `rex ha approve` lists pending devices and accepts approval
+- [x] Test covers approve, rename, and ignore workflows
+- [x] Typecheck passes
 
 ---
 
