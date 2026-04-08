@@ -792,6 +792,32 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         return jsonify({"ok": True}), 200
 
     # ------------------------------------------------------------------
+    # Command history API (US-061)
+    # ------------------------------------------------------------------
+
+    @app.route("/api/history", methods=["GET"])
+    def _command_history() -> Any:
+        """Return recent command history.  Requires auth.
+
+        Query params:
+            limit (int): Max entries to return (1–500, default 50).
+        """
+        user, err = _require_auth()
+        if err:
+            return err
+
+        try:
+            limit = int(request.args.get("limit", 50))
+        except ValueError:
+            limit = 50
+
+        from rex.command_history import CommandHistoryStore
+
+        store = CommandHistoryStore()
+        entries = store.get_recent(limit=limit)
+        return jsonify({"history": entries}), 200
+
+    # ------------------------------------------------------------------
     # Integrations API (US-057)
     # ------------------------------------------------------------------
 

@@ -246,6 +246,7 @@ const sectionNames: Record<string, string> = {
   '/notifications': 'Notifications',
   '/shopping': 'Shopping List',
   '/logs': 'Logs',
+  '/history': 'History',
   '/usage': 'Usage',
   '/integrations': 'Integrations',
   '/settings': 'Settings',

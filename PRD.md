@@ -912,12 +912,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want to see a history of recent commands and their results.
 
 **Acceptance Criteria:**
-- [ ] New dashboard panel: History
-- [ ] Shows last 50 commands with: timestamp, command text, result, success/failure indicator
-- [ ] Commands stored in `data/command_history.db` (SQLite)
-- [ ] API endpoint: `GET /api/history?limit=50`
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] New dashboard panel: History
+- [x] Shows last 50 commands with: timestamp, command text, result, success/failure indicator
+- [x] Commands stored in `data/command_history.db` (SQLite)
+- [x] API endpoint: `GET /api/history?limit=50`
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

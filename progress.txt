@@ -913,3 +913,14 @@
 - 11 tests: list devices (returns key, from config, empty on missing, no auth), command (401, 400 missing, 400 unknown, 503 not configured, 200 turn_on, brightness value, failed HA call)
 - Key: Device types map to UI control components; commands use urllib (no extra deps); config path uses bridge_utils.repo_root
 ---
+
+## Iteration 62 - US-061: Add command history panel
+- Created rex/command_history.py: CommandHistoryStore backed by data/command_history.db (SQLite)
+  - record(command, result, success, timestamp) — appends entry, returns row id
+  - get_recent(limit=50) — returns newest first, clamps to 1-500
+  - clear() — deletes all entries
+- Added GET /api/history?limit=50 endpoint (auth required) — returns {history: [...]}
+- Created gui/src/pages/CommandHistoryPage.tsx — table showing timestamp, command, result, success badge
+- Added /history route in App.tsx; History added to sectionNames in AppLayout.tsx
+- 12 tests: store unit tests (record, get_recent, limit, clamp, clear, keys), API tests (401, history key, limit, required fields)
+---
