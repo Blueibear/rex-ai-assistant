@@ -577,12 +577,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I need a structured registry of all Rex capabilities so the LLM, UI, and docs can query it.
 
 **Acceptance Criteria:**
-- [ ] New module `rex/capabilities/registry.py` with `CapabilityRegistry` class
-- [ ] Each capability has: `name`, `description`, `inputs`, `outputs`, `triggers`, `enabled`
-- [ ] Registry auto-populates from installed integrations at startup
-- [ ] `registry.list()` returns all capabilities; `registry.search(query)` filters by keyword
-- [ ] Unit test confirms registry populates and search works
-- [ ] Typecheck passes
+- [x] New module `rex/capabilities/registry.py` with `CapabilityRegistry` class
+- [x] Each capability has: `name`, `description`, `inputs`, `outputs`, `triggers`, `enabled`
+- [x] Registry auto-populates from installed integrations at startup
+- [x] `registry.list()` returns all capabilities; `registry.search(query)` filters by keyword
+- [x] Unit test confirms registry populates and search works
+- [x] Typecheck passes
 
 ---
 

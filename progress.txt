@@ -9,6 +9,20 @@
 
 ---
 
+## Iteration 41 - US-037: Add capability registry
+- Created `rex/capabilities/registry.py` with `Capability` dataclass and `CapabilityRegistry` class
+- `CapabilityRegistry.list()` returns enabled capabilities sorted by name; `search(query)` filters case-insensitively across name/description/category/triggers
+- `populate_from_config(registry, config)` enables capabilities based on AppConfig fields (ha_token, openweathermap_api_key, email_provider, music_assistant_url, etc.)
+- Global singleton via `get_capability_registry(config=None)` / `reset_capability_registry()`
+- Built-in capabilities: chat, time_now, weather_now, web_search, home_assistant, send_email, music_assistant
+- Created `tests/test_capability_registry.py` with 29 tests covering all AC
+- Files changed: `rex/capabilities/registry.py` (new), `tests/test_capability_registry.py` (new), `PRD.md`
+- Learnings for future iterations:
+  - Naming a method `list` inside a class shadows the builtin `list` type for mypy; fix with `builtins.list[T]` in the annotations (NOT `typing.List` which ruff UP006/UP035 flags as deprecated)
+  - ruff I001 fires when imports are not isort-ordered; use `ruff check --fix` to auto-fix
+  - `black` must be run after `ruff --fix` since ruff may produce non-black-formatted output
+---
+
 ## Iteration 4 - US-004: Fix working directory resolution for bridge scripts
 - repo_root() was already in bridge_utils.py (implemented in US-001); AC #1, 3, 4 were pre-satisfied
 - Added `from rex.bridge_utils import repo_root, resolve_python` and `_REPO_ROOT = repo_root()` to all 16 root-level rex_*_bridge.py files
