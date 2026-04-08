@@ -1037,13 +1037,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want structured JSON logging so that logs are parseable and filterable.
 
 **Acceptance Criteria:**
-- [ ] `rex/logging_config.py` configures structured JSON logging (using `python-json-logger` or similar)
-- [ ] Each log entry includes: `timestamp`, `level`, `module`, `message`, `extra` (dict)
-- [ ] Console output remains human-readable; file output is JSON
-- [ ] Log file: `logs/rex.log` (rotated at 10MB, keep 5)
-- [ ] All existing `logging.info/warning/error` calls continue to work
-- [ ] Unit test confirms JSON log format in file output
-- [ ] Typecheck passes
+- [x] `rex/logging_config.py` configures structured JSON logging (using `python-json-logger` or similar)
+- [x] Each log entry includes: `timestamp`, `level`, `module`, `message`, `extra` (dict)
+- [x] Console output remains human-readable; file output is JSON
+- [x] Log file: `logs/rex.log` (rotated at 10MB, keep 5)
+- [x] All existing `logging.info/warning/error` calls continue to work
+- [x] Unit test confirms JSON log format in file output
+- [x] Typecheck passes
 
 ---
 

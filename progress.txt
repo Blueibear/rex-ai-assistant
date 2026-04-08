@@ -991,3 +991,10 @@
   - Canonical tool registry for CLI is rex.openclaw.tool_registry (has ToolMeta); rex.tools.registry is a different lighter registry
   - black reformats automatically but ruff check must pass on both before and after black
 ---
+
+## Iteration 70 - US-070: Add structured logging system
+- logging_config.py and logging_utils.py (JsonFormatter, configure_logging) already existed
+- Updated MAX_BYTES from 5MB to 10MB to match AC
+- Created tests/test_us070_structured_logging.py with 10 tests covering JSON fields, extra, ISO 8601 timestamp, file creation, JSON format per line, rotation config, idempotent handler, compat with existing calls, console plain text
+- Files changed: rex/logging_config.py, tests/test_us070_structured_logging.py (new), PRD.md
+---

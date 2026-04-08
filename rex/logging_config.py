@@ -25,7 +25,7 @@ from pathlib import Path
 from .logging_utils import JsonFormatter
 
 LOG_FILE = Path("logs/rex.log")
-MAX_BYTES = 5_000_000  # 5 MB
+MAX_BYTES = 10_000_000  # 10 MB
 BACKUP_COUNT = 5
 
 
