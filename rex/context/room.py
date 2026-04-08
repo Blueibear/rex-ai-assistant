@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 
 class RoomContext:
     """Tracks which room the user is currently in.
@@ -40,6 +42,46 @@ class RoomContext:
     def set_config_default(self, room: str | None) -> None:
         """Update the config-level default room."""
         self._config_default = room
+
+    # -- speaker origin helpers -------------------------------------------
+
+    # Matches topics of the form  rex/audio/<room>  (room segment is non-empty)
+    _MQTT_AUDIO_RE = re.compile(r"^rex/audio/([^/]+)$")
+
+    def set_speaker_origin_from_topic(self, topic: str) -> bool:
+        """Populate speaker_origin from an MQTT audio topic.
+
+        Recognises topics of the form ``rex/audio/<room>`` (e.g.
+        ``rex/audio/kitchen``).
+
+        Returns:
+            ``True`` if the topic matched and speaker_origin was updated,
+            ``False`` otherwise (speaker_origin is left unchanged).
+        """
+        match = self._MQTT_AUDIO_RE.match(topic)
+        if match:
+            self._speaker_origin = match.group(1)
+            return True
+        return False
+
+    def set_speaker_origin_from_device(
+        self, device_id: str, device_room_map: dict[str, str]
+    ) -> bool:
+        """Populate speaker_origin by looking up *device_id* in a mapping.
+
+        Args:
+            device_id: Identifier of the audio input device.
+            device_room_map: Mapping of device IDs to room names.
+
+        Returns:
+            ``True`` if the device was found and speaker_origin was updated,
+            ``False`` otherwise (speaker_origin is left unchanged).
+        """
+        room = device_room_map.get(device_id)
+        if room:
+            self._speaker_origin = room
+            return True
+        return False
 
     # -- read-only resolution ---------------------------------------------
 

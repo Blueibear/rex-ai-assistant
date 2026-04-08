@@ -244,6 +244,9 @@ class AppConfig:
     music_assistant_url: Optional[str] = None
     music_assistant_token: Optional[str] = None
 
+    # Room context: maps device IDs to room names (e.g. {"mic_kitchen": "kitchen"})
+    device_room_map: Dict[str, str] = field(default_factory=dict)
+
     # OpenClaw integration
     use_openclaw_tools: bool = False
     use_openclaw_voice_backend: bool = False

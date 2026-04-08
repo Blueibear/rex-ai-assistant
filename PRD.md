@@ -403,11 +403,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to know which room I am speaking from based on the input device or MQTT topic.
 
 **Acceptance Criteria:**
-- [ ] `RoomContext` can be populated from MQTT audio topic (e.g., `rex/audio/kitchen`)
-- [ ] `RoomContext` can be populated from a configured device-to-room mapping in config
-- [ ] If no mapping exists, `current_room` falls back to default
-- [ ] Test covers MQTT topic, device mapping, and fallback paths
-- [ ] Typecheck passes
+- [x] `RoomContext` can be populated from MQTT audio topic (e.g., `rex/audio/kitchen`)
+- [x] `RoomContext` can be populated from a configured device-to-room mapping in config
+- [x] If no mapping exists, `current_room` falls back to default
+- [x] Test covers MQTT topic, device mapping, and fallback paths
+- [x] Typecheck passes
 
 ---
 
