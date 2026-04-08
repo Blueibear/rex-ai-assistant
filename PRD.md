@@ -523,12 +523,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to immediately acknowledge my command so I know it was heard, even if processing takes time.
 
 **Acceptance Criteria:**
-- [ ] After wake word + STT, Rex plays a short acknowledgment sound or speaks "On it" before LLM processing
-- [ ] Acknowledgment happens within 500ms of STT completion
-- [ ] Acknowledgment is configurable (sound, phrase, or disabled)
-- [ ] Config field: `acknowledgment_mode` in `AppConfig` (values: `"sound"`, `"phrase"`, `"none"`)
-- [ ] Test confirms acknowledgment fires before LLM call
-- [ ] Typecheck passes
+- [x] After wake word + STT, Rex plays a short acknowledgment sound or speaks "On it" before LLM processing
+- [x] Acknowledgment happens within 500ms of STT completion
+- [x] Acknowledgment is configurable (sound, phrase, or disabled)
+- [x] Config field: `acknowledgment_mode` in `AppConfig` (values: `"sound"`, `"phrase"`, `"none"`)
+- [x] Test confirms acknowledgment fires before LLM call
+- [x] Typecheck passes
 
 ---
 

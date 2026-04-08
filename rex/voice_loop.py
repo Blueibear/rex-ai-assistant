@@ -904,6 +904,7 @@ class VoiceLoop:
         speak_streaming: Callable[[AsyncIterator[str]], Awaitable[None]] | None = None,
         warmup: Callable[[], Awaitable[None]] | None = None,
         acknowledge: Callable[[], Awaitable[None]] | None = None,
+        post_stt_acknowledge: Callable[[], Awaitable[None]] | None = None,
         identify_speaker: IdentifySpeakerCallable | None = None,
         sample_rate: int = 16000,
         stt_timeout: float = 30.0,
@@ -929,6 +930,7 @@ class VoiceLoop:
         self._speak_streaming = speak_streaming
         self._warmup = warmup
         self._acknowledge = acknowledge
+        self._post_stt_acknowledge = post_stt_acknowledge
         self._identify_speaker = identify_speaker
         self._identify_speaker_accepts_audio = self._resolve_identify_speaker_signature(
             identify_speaker
@@ -967,6 +969,14 @@ class VoiceLoop:
                 await self._acknowledge()
         except Exception as exc:
             logger.warning("[Ack] Acknowledgement tone failed (non-fatal): %s", exc)
+
+    async def _safe_post_stt_acknowledge(self) -> None:
+        """Play post-STT acknowledgement (after transcription, before LLM), suppressing errors."""
+        try:
+            if self._post_stt_acknowledge is not None:
+                await self._post_stt_acknowledge()
+        except Exception as exc:
+            logger.warning("[Ack] Post-STT acknowledgement failed (non-fatal): %s", exc)
 
     async def warmup(self) -> None:
         """Pre-warm TTS in the background.
@@ -1044,6 +1054,13 @@ class VoiceLoop:
                     if not transcript:
                         logger.info("No speech detected")
                         continue
+
+                    # Post-STT acknowledgment: fires after transcription and before
+                    # LLM processing, giving the user quick confirmation that their
+                    # command was heard.  Runs inline (not as a background task) so
+                    # the ack completes within the 500 ms budget before LLM starts.
+                    if self._post_stt_acknowledge is not None:
+                        await self._safe_post_stt_acknowledge()
 
                     stream_reply = getattr(self._assistant, "stream_reply", None)
 
@@ -1430,6 +1447,19 @@ def build_voice_loop(
 
     identify_speaker = _build_voice_id_callback()
 
+    # Build post-STT acknowledgment based on acknowledgment_mode config.
+    # "sound" → play the chime after STT; "phrase" → speak a filler phrase;
+    # "none" → no post-STT acknowledgment.
+    ack_mode = getattr(settings, "acknowledgment_mode", "sound")
+    post_stt_ack: Callable[[], Awaitable[None]] | None
+    if ack_mode == "phrase":
+        _phrase = "On it"
+        post_stt_ack = lambda: tts.speak(_phrase)  # noqa: E731
+    elif ack_mode == "sound":
+        post_stt_ack = ack.play
+    else:
+        post_stt_ack = None
+
     logger.info(
         "[Pipeline] All stages ready — voice loop active",
         extra={"event": "pipeline_ready"},
@@ -1445,6 +1475,7 @@ def build_voice_loop(
         speak_streaming=lambda sentences: tts.speak_streaming(sentences, speaker_wav=speaker_wav),
         warmup=lambda: tts.warmup(speaker_wav=speaker_wav),
         acknowledge=ack.play,
+        post_stt_acknowledge=post_stt_ack,
         identify_speaker=identify_speaker,
         sample_rate=sample_rate,
     )
