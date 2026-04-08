@@ -647,12 +647,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want to receive push notifications on my phone when Rex has an alert.
 
 **Acceptance Criteria:**
-- [ ] New module `rex/notifications/push.py` supporting at least one provider (ntfy.sh or Pushover)
-- [ ] Config fields: `push_provider`, `push_token`, `push_topic` in `AppConfig`
-- [ ] `send_push(title, message, priority="normal")` sends a push notification
-- [ ] If not configured, raises `IntegrationNotConfiguredError`
-- [ ] Unit test with mocked HTTP
-- [ ] Typecheck passes
+- [x] New module `rex/notifications/push.py` supporting at least one provider (ntfy.sh or Pushover)
+- [x] Config fields: `push_provider`, `push_token`, `push_topic` in `AppConfig`
+- [x] `send_push(title, message, priority="normal")` sends a push notification
+- [x] If not configured, raises `IntegrationNotConfiguredError`
+- [x] Unit test with mocked HTTP
+- [x] Typecheck passes
 
 ---
 

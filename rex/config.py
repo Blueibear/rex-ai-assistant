@@ -249,6 +249,11 @@ class AppConfig:
     telegram_bot_token: Optional[str] = None
     telegram_chat_id: Optional[str] = None
 
+    # Push notifications (US-042)
+    push_provider: Optional[str] = None  # "ntfy" or "pushover"
+    push_token: Optional[str] = None     # bearer token (ntfy) or app token (pushover)
+    push_topic: Optional[str] = None     # ntfy topic or pushover user key
+
     # Room context: maps device IDs to room names (e.g. {"mic_kitchen": "kitchen"})
     device_room_map: Dict[str, str] = field(default_factory=dict)
 
@@ -655,6 +660,10 @@ def build_app_config(json_config: dict) -> AppConfig:
         # Telegram bot integration (US-039)
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN"),  # SECRET from env
         telegram_chat_id=_get_nested(json_config, "telegram.chat_id"),
+        # Push notifications (US-042)
+        push_provider=_get_nested(json_config, "notifications.push_provider"),
+        push_token=os.getenv("PUSH_TOKEN") or _get_nested(json_config, "notifications.push_token"),
+        push_topic=_get_nested(json_config, "notifications.push_topic"),
         # Multi-account email (US-208)
         email_accounts=_parse_email_accounts(_get_nested(json_config, "email.accounts", [])),
         email_default_account_id=_get_nested(json_config, "email.default_account_id", ""),
