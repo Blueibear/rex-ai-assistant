@@ -801,12 +801,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to read and write files on my computer when I ask.
 
 **Acceptance Criteria:**
-- [ ] `rex/computers/file_ops.py` exports `read_file(path)`, `write_file(path, content)`, `list_dir(path)`
-- [ ] Operations restricted to an allowlisted set of directories (configurable)
-- [ ] Attempts to access paths outside the allowlist return a permission error
-- [ ] Works on Windows, macOS, Linux (path normalization handled)
-- [ ] Unit test covers read, write, list, and blocked-path scenarios
-- [ ] Typecheck passes
+- [x] `rex/computers/file_ops.py` exports `read_file(path)`, `write_file(path, content)`, `list_dir(path)`
+- [x] Operations restricted to an allowlisted set of directories (configurable)
+- [x] Attempts to access paths outside the allowlist return a permission error
+- [x] Works on Windows, macOS, Linux (path normalization handled)
+- [x] Unit test covers read, write, list, and blocked-path scenarios
+- [x] Typecheck passes
 
 ---
 
