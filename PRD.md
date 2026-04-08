@@ -672,13 +672,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to prefer local Ollama for simple tasks and reserve cloud LLM for complex ones.
 
 **Acceptance Criteria:**
-- [ ] `rex/model_router.py` routes based on estimated complexity (message length, tool requirements)
-- [ ] Simple queries (< 200 tokens, no tools) go to local Ollama if available
-- [ ] Complex queries (tools required, long context) go to cloud provider if configured
-- [ ] If local is unavailable, all queries go to cloud (with a log warning)
-- [ ] Config: `llm_routing_mode` in `AppConfig` (values: `"local_preferred"`, `"cloud_only"`, `"local_only"`)
-- [ ] Test covers routing decisions for simple and complex queries
-- [ ] Typecheck passes
+- [x] `rex/model_router.py` routes based on estimated complexity (message length, tool requirements)
+- [x] Simple queries (< 200 tokens, no tools) go to local Ollama if available
+- [x] Complex queries (tools required, long context) go to cloud provider if configured
+- [x] If local is unavailable, all queries go to cloud (with a log warning)
+- [x] Config: `llm_routing_mode` in `AppConfig` (values: `"local_preferred"`, `"cloud_only"`, `"local_only"`)
+- [x] Test covers routing decisions for simple and complex queries
+- [x] Typecheck passes
 
 ---
 

@@ -267,6 +267,7 @@ class AppConfig:
 
     # Model routing
     model_routing: ModelRoutingConfig = field(default_factory=ModelRoutingConfig)
+    llm_routing_mode: str = "local_preferred"  # "local_preferred", "cloud_only", "local_only"
 
     # Voice identity
     speaker_id_threshold: float = 0.75
@@ -680,6 +681,9 @@ def build_app_config(json_config: dict) -> AppConfig:
         history_retention_days=_coerce_int(json_config, "runtime.history_retention_days", 30),
         # Model routing
         model_routing=_parse_model_routing(_get_nested(json_config, "model_routing", {})),
+        llm_routing_mode=str(
+            _get_nested(json_config, "model_routing.llm_routing_mode", "local_preferred")
+        ),
         # Voice identity
         speaker_id_threshold=_coerce_float(
             json_config, "voice_identity.speaker_id_threshold", 0.75

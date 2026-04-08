@@ -9,6 +9,66 @@
 
 ---
 
+## Iteration 47 - US-043: Add Ollama cloud usage tracking
+- Created `rex/llm_usage.py` with `record_usage()`, `load_records()`, `summarise()`
+- Append-only JSON log at `data/llm_usage.json`, rotated at 10 MB
+- `OllamaStrategy.generate()` reads `prompt_eval_count`/`eval_count` from response and calls `record_usage()`
+- Added `cmd_usage` to `rex/cli.py` and registered `rex usage` subcommand
+- 8 tests in `tests/test_us043_llm_usage.py`
+- Files changed: `rex/llm_usage.py` (new), `rex/llm_client.py`, `rex/cli.py`, `tests/test_us043_llm_usage.py` (new), `PRD.md`
+- Learnings:
+  - Ollama response dict uses `prompt_eval_count` and `eval_count` for token counts (not `usage`)
+  - Tests importing `rex.cli` on Python 3.14 fail due to module-level version guard — patch `python_compat.is_supported_python` with `return_value=True` and pop `sys.modules["rex.cli"]` before importing
+  - Use `REX_LLM_USAGE_PATH` env var to redirect usage log in tests, reload `rex.llm_usage` after setting env
+---
+
+## Iteration 46 - US-042: Add push notification support
+- Created `rex/notifications/push.py` with `send_push(title, message, priority="normal")`
+- Supports ntfy.sh and Pushover providers via stdlib `urllib` (no new dependencies)
+- Added `push_provider`, `push_token`, `push_topic` fields to `AppConfig`
+- `push_token` sourced from `PUSH_TOKEN` env var or config JSON
+- Raises `IntegrationNotConfiguredError` when not configured or unknown provider
+- Updated `rex/notifications/__init__.py` to export `send_push`
+- 19 tests in `tests/test_us042_push_notifications.py` covering both providers, error cases, priority mapping, missing config
+- Files changed: `rex/notifications/push.py` (new), `rex/notifications/__init__.py`, `rex/config.py`, `tests/test_us042_push_notifications.py` (new), `PRD.md`
+- Learnings for future iterations:
+  - ntfy.sh: topic in URL path, priority as numeric string header, bearer token optional
+  - Pushover: JSON POST with token+user+message, priority as integer (-1/0/1)
+  - Using stdlib `urllib.request` avoids adding `requests` dependency
+---
+
+## Iteration 45 - US-041: Add local desktop notifications
+- Created `rex/notifications/desktop.py` with `notify(title, message, urgency="normal")`
+- Backend priority: plyer → Windows PowerShell toast → macOS osascript → Linux notify-send → log warning
+- `plyer` checked via `importlib.util.find_spec()` before import to avoid hard dependency
+- All platform backends use `subprocess.run()` with `capture_output=True, timeout=10`
+- Graceful fallback: logs `WARNING` with title/body when all backends fail (no exception)
+- Updated `rex/notifications/__init__.py` to export `notify`
+- 20 tests in `tests/test_us041_desktop_notifications.py` covering all backends, failure modes, urgency mapping, log fallback, and exports
+- Files changed: `rex/notifications/desktop.py` (new), `rex/notifications/__init__.py`, `tests/test_us041_desktop_notifications.py` (new), `PRD.md`
+- Learnings for future iterations:
+  - `type: ignore[import-untyped]` triggers unused-ignore error when mypy is run without plyer installed; use `# noqa` instead for optional deps
+  - Windows toast via PowerShell avoids win10toast/winotify dependency but is verbose; plyer is strongly preferred when available
+  - Linux urgency: "high" and "critical" both map to notify-send `--urgency=critical`
+---
+
+## Iteration 44 - US-040: Telegram bot integration (receive commands)
+- Created `rex/integrations/telegram/receiver.py` with `TelegramReceiver` class
+- Uses long-polling (`getUpdates`) in a daemon background thread
+- Authorised-chat-only filter: ignores messages from other chats
+- Routes inbound text through `asyncio.run(assistant.generate_reply(text))`
+- Sends reply via existing `TelegramClient.send_message()`
+- Also fixed pre-existing `no-any-return` mypy error in `client.py` (added `cast`)
+- Updated `rex/integrations/telegram/__init__.py` to export `TelegramReceiver`
+- 14 tests in `tests/test_us040_telegram_receiver.py`
+- Files changed: `rex/integrations/telegram/receiver.py` (new), `rex/integrations/telegram/__init__.py`, `rex/integrations/telegram/client.py`, `tests/test_us040_telegram_receiver.py` (new), `PRD.md`
+- Learnings for future iterations:
+  - `asyncio.run()` is the right bridge for calling async `generate_reply` from sync polling thread
+  - Always authorise by `chat_id` to avoid processing messages from unintended chats
+  - `http_timeout` must exceed `poll_timeout` to avoid premature socket closure
+  - `cast(list[dict[str, Any]], ...)` fixes `no-any-return` for json.loads results
+---
+
 ## Iteration 43 - US-039: Add Telegram bot integration (send messages)
 - Created `rex/integrations/telegram/__init__.py` and `rex/integrations/telegram/client.py` with `TelegramClient` class
 - Added `telegram_bot_token` (from env) and `telegram_chat_id` (from JSON) fields to `AppConfig` in `rex/config.py`

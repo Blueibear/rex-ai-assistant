@@ -302,3 +302,93 @@ class ModelRouter:
 
         # Return default regardless of its availability (caller handles final fallback)
         return default
+
+    # ------------------------------------------------------------------
+    # Smart local/cloud routing (US-044)
+    # ------------------------------------------------------------------
+
+    _SIMPLE_TOKEN_THRESHOLD = 200
+
+    @staticmethod
+    def estimate_complexity(message: str, *, requires_tools: bool = False) -> str:
+        """Return ``"simple"`` or ``"complex"`` for *message*.
+
+        A query is **simple** when:
+        - estimated token count < 200 (approximated as ``len(message.split()) * 1.3``)
+        - no tools are required
+
+        Everything else is **complex**.
+        """
+        estimated_tokens = len(message.split()) * 1.3
+        if requires_tools or estimated_tokens >= ModelRouter._SIMPLE_TOKEN_THRESHOLD:
+            return "complex"
+        return "simple"
+
+    def route(
+        self,
+        message: str,
+        *,
+        local_model: str,
+        cloud_model: str,
+        routing_mode: str = "local_preferred",
+        requires_tools: bool = False,
+    ) -> str:
+        """Return the model identifier to use for *message*.
+
+        Args:
+            message: The user message to route.
+            local_model: Ollama model identifier for local inference.
+            cloud_model: Cloud provider model identifier (e.g. ``"gpt-4o"``).
+            routing_mode: One of ``"local_preferred"``, ``"cloud_only"``,
+                ``"local_only"``.  Invalid values fall back to
+                ``"local_preferred"`` with a warning.
+            requires_tools: Whether the query needs tool dispatch.
+
+        Returns:
+            Model identifier string.
+        """
+        valid_modes = {"local_preferred", "cloud_only", "local_only"}
+        if routing_mode not in valid_modes:
+            logger.warning(
+                "model_router: unknown routing_mode %r; falling back to 'local_preferred'",
+                routing_mode,
+            )
+            routing_mode = "local_preferred"
+
+        if routing_mode == "cloud_only":
+            return cloud_model
+
+        if routing_mode == "local_only":
+            if local_model and self._is_available(local_model):
+                return local_model
+            logger.warning(
+                "model_router: local_only mode but local model %r is unavailable; "
+                "falling back to cloud model %r",
+                local_model,
+                cloud_model,
+            )
+            return cloud_model
+
+        # local_preferred
+        complexity = self.estimate_complexity(message, requires_tools=requires_tools)
+        local_available = bool(local_model) and self._is_available(local_model)
+
+        if complexity == "simple":
+            if local_available:
+                return local_model
+            logger.warning(
+                "model_router: local model %r is unavailable; routing simple query to cloud",
+                local_model,
+            )
+            return cloud_model
+        else:
+            # complex query → prefer cloud if configured
+            if cloud_model:
+                return cloud_model
+            if local_available:
+                return local_model
+            logger.warning(
+                "model_router: no cloud model configured and local model %r is unavailable",
+                local_model,
+            )
+            return local_model or cloud_model
