@@ -28,6 +28,21 @@ function useIsNarrow(): boolean {
 
 const navItems: NavItem[] = [
   {
+    path: '/home',
+    label: 'Home',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <path
+          d="M2 8L9 2l7 6v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V8z"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinejoin="round"
+        />
+        <path d="M6 17v-6h6v6" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+      </svg>
+    )
+  },
+  {
     path: '/chat',
     label: 'Chat',
     icon: (
@@ -178,6 +193,18 @@ const navItems: NavItem[] = [
     )
   },
   {
+    path: '/integrations',
+    label: 'Integrations',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <circle cx="4" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.4" />
+        <circle cx="14" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.4" />
+        <circle cx="14" cy="14" r="2.5" stroke="currentColor" strokeWidth="1.4" />
+        <path d="M6.5 8L11.5 5M6.5 10L11.5 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      </svg>
+    )
+  },
+  {
     path: '/settings',
     label: 'Settings',
     icon: (
@@ -191,11 +218,23 @@ const navItems: NavItem[] = [
         <circle cx="9" cy="9" r="2" stroke="currentColor" strokeWidth="1.2" />
       </svg>
     )
+  },
+  {
+    path: '/about',
+    label: 'About',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.4" />
+        <path d="M9 8v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        <circle cx="9" cy="5.5" r="0.8" fill="currentColor" />
+      </svg>
+    )
   }
 ]
 
 /** Map each route path to the human-readable section name shown in the topbar */
 const sectionNames: Record<string, string> = {
+  '/home': 'Home',
   '/chat': 'Chat',
   '/voice': 'Voice',
   '/tasks': 'Tasks',
@@ -208,7 +247,9 @@ const sectionNames: Record<string, string> = {
   '/shopping': 'Shopping List',
   '/logs': 'Logs',
   '/usage': 'Usage',
-  '/settings': 'Settings'
+  '/integrations': 'Integrations',
+  '/settings': 'Settings',
+  '/about': 'About'
 }
 
 export function AppLayout({ children }: AppLayoutProps): React.ReactElement {

@@ -857,12 +857,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want every Rex feature to be visible and accessible in the dashboard (no hidden capabilities).
 
 **Acceptance Criteria:**
-- [ ] Dashboard navigation includes sections for: Chat, Voice, Home, Integrations, Settings, About
-- [ ] Each configured integration has a visible entry in the Integrations section
-- [ ] Each tool in the capability registry has a visible entry
-- [ ] No feature is only accessible via CLI without a corresponding UI element
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Dashboard navigation includes sections for: Chat, Voice, Home, Integrations, Settings, About
+- [x] Each configured integration has a visible entry in the Integrations section
+- [x] Each tool in the capability registry has a visible entry
+- [x] No feature is only accessible via CLI without a corresponding UI element
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

@@ -21,6 +21,9 @@ import { SettingsPage } from '../../pages/SettingsPage'
 import { ShoppingListPage } from '../../pages/ShoppingListPage'
 import { LogsPage } from '../../pages/LogsPage'
 import { UsagePage } from '../../pages/UsagePage'
+import { HomePage } from '../../pages/HomePage'
+import { IntegrationsPage } from '../../pages/IntegrationsPage'
+import { AboutPage } from '../../pages/AboutPage'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 
 const PRIORITY_TOAST_TYPE: Record<NotificationPriority, ToastType> = {
@@ -82,7 +85,8 @@ function AppShell(): React.ReactElement {
     <AppLayout>
       <PageTransition>
         <Routes>
-          <Route path="/" element={<Navigate to="/chat" replace />} />
+          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/home" element={<ErrorBoundary><HomePage /></ErrorBoundary>} />
           <Route path="/chat" element={<ErrorBoundary><ChatPage /></ErrorBoundary>} />
           <Route path="/voice" element={<ErrorBoundary><VoicePage /></ErrorBoundary>} />
           <Route path="/tasks" element={<ErrorBoundary><TasksPage /></ErrorBoundary>} />
@@ -95,7 +99,9 @@ function AppShell(): React.ReactElement {
           <Route path="/shopping" element={<ErrorBoundary><ShoppingListPage /></ErrorBoundary>} />
           <Route path="/logs" element={<ErrorBoundary><LogsPage /></ErrorBoundary>} />
           <Route path="/usage" element={<ErrorBoundary><UsagePage /></ErrorBoundary>} />
+          <Route path="/integrations" element={<ErrorBoundary><IntegrationsPage /></ErrorBoundary>} />
           <Route path="/settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
+          <Route path="/about" element={<ErrorBoundary><AboutPage /></ErrorBoundary>} />
         </Routes>
       </PageTransition>
     </AppLayout>

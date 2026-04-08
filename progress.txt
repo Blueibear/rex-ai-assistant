@@ -9,6 +9,78 @@
 
 ---
 
+## Iteration 57 - US-056: Add file summarization and search
+- Implementation was pre-done in US-053 (file_ops.py already had summarize_file and search_files)
+- Added tests in `tests/test_us056_file_summarize_search.py` with 15 tests
+- Key fix: lazy imports inside summarize_file use local `from rex.config import load_config` / `from rex.llm_client import LanguageModel` — must patch at source module (`rex.config.load_config`, `rex.llm_client.LanguageModel`), NOT at `rex.computers.file_ops.load_config`
+- Files changed: `tests/test_us056_file_summarize_search.py` (new), `PRD.md`
+- Learnings:
+  - When functions use lazy local imports, patch at the source module (where the function is defined), not at the importing module
+  - `patch("rex.config.load_config")` works for lazy imports; `patch("rex.computers.file_ops.load_config")` fails (AttributeError — module-level name doesn't exist)
+---
+
+## Iteration 56 - US-055: Add safety layer for computer control
+- Created `rex/computers/safety.py` with `ActionType` enum, `classify_action()`, and `SafetyLayer` class
+- Safe actions: `read_file`, `list_dir`, `search_files`, `summarize_file`
+- Dangerous actions: `write_file`, `delete_file`, `execute_command`, `launch_app`; unknown → treated as dangerous
+- `SafetyLayer(mode)` supports `"always"`, `"dangerous_only"` (default), `"never"`
+- `SafetyLayer.check(action, description, confirm_fn)` calls confirm_fn only when needed; denies if no fn and confirmation required
+- Added `computer_control_confirmation: str = "dangerous_only"` to `AppConfig`
+- 29 tests in `tests/test_us055_safety_layer.py`: classify, requires_confirmation, check flows, AppConfig field
+- Files changed: `rex/computers/safety.py` (new), `rex/config.py`, `tests/test_us055_safety_layer.py` (new), `PRD.md`
+- Learnings:
+  - `confirm_fn: Callable[[str], bool] | None = None` cleanly models optional confirmation callbacks
+  - Unknown actions default to dangerous for safety (fail closed)
+  - `SafetyLayer.from_config()` classmethod handles config-load failures gracefully
+---
+
+## Iteration 55 - US-054: Add desktop program launch capability
+- Created `rex/computers/app_launcher.py` with `launch_app(name)`, `load_app_registry(path)`, platform helpers
+- Registry loaded from `config/app_registry.json` (JSON object: app_name → executable)
+- Platform dispatch: Windows → `os.startfile()`, macOS → `open`, Linux → `xdg-open`
+- Not-found path returns `APP_NOT_FOUND_MESSAGE` ("I don't know how to open that. You can add it in settings.")
+- 14 tests in `tests/test_us054_app_launcher.py`: registry load, not-found, found with mock, platform dispatch
+- `config/` is gitignored — `app_registry.json` created but not committed
+- Files changed: `rex/computers/app_launcher.py` (new), `tests/test_us054_app_launcher.py` (new), `PRD.md`
+- Learnings:
+  - `config/` is gitignored; don't try to commit files there
+  - `os.startfile` is Windows-only; mypy on non-Windows treats `# type: ignore[attr-defined]` as unused — use `# noqa` instead
+  - `patch.object(sys, "platform", "win32")` works for platform dispatch testing
+  - `patch.object(app_launcher.os, "startfile", mock, create=True)` handles the os.startfile mock correctly
+---
+
+## Iteration 54 - US-053: Add desktop file read/write capability
+- Created `rex/computers/file_ops.py` with `read_file()`, `write_file()`, `list_dir()`, `summarize_file()`, `search_files()`
+- All operations gated by `_resolve_and_check()`: resolves path via `Path.resolve()`, checks `is_relative_to()` against each allowed root
+- `allowed_roots` defaults to `AppConfig.allowed_file_roots` (which defaults to `[str(Path.home())]`)
+- `summarize_file()` and `search_files()` (US-056 ACs) also implemented here since they extend file_ops
+- Cross-platform: all paths use pathlib; path normalization handles `..` traversal
+- `write_file()` creates parent dirs automatically
+- 18 tests in `tests/test_us053_file_ops.py`: read/write/list happy path, blocked path, missing file, dir-not-file, dot-dot traversal, multiple roots
+- mypy clean (one `Any` return needed explicit annotation)
+- Files changed: `rex/computers/file_ops.py` (new), `tests/test_us053_file_ops.py` (new), `PRD.md`
+- Learnings:
+  - `Path.resolve()` + `path.relative_to(root)` (raises ValueError if not relative) is the right allowlist check pattern
+  - `allowed_roots=None` with lazy `_default_allowed_roots()` fallback keeps tests clean without monkeypatching
+  - mypy `no-any-return`: `lm.generate(prompt)` returns `Any`; assign to typed var (`result: str = ...`) then return
+---
+
+## Iteration 53 - US-052: Add permissions system
+- Created `rex/permissions.py` with `Permission` enum (computer_control, email_send, sms_send, ha_control, admin), `grant_permission`, `revoke_permission`, `check_permission`, `get_permissions`, `bootstrap_admin_if_first_user`
+- Permissions stored in `user_permissions` table in the existing `data/users.db` (shared with auth)
+- `bootstrap_admin_if_first_user()` called from `_auth_register()` in `gui_app.py` — grants admin if no admins exist yet
+- Added 3 Flask endpoints: `GET /api/user/permissions`, `POST /api/admin/permissions/grant`, `POST /api/admin/permissions/revoke`
+- Admin endpoints return 403 if caller lacks admin permission
+- Created `tests/test_us052_permissions.py` with 23 tests (enum, grant/revoke/check, bootstrap, API endpoints)
+- All 23 tests pass; mypy typecheck clean
+- Files changed: `rex/permissions.py` (new), `rex/gui_app.py`, `tests/test_us052_permissions.py` (new), `PRD.md`
+- Learnings:
+  - `user_permissions` table uses `PRIMARY KEY (user_id, permission)` and `INSERT OR IGNORE` for idempotent grants
+  - `bootstrap_admin_if_first_user` checks for any existing admin row (not user count) to avoid race-condition edge cases
+  - `_require_auth()` helper in gui_app.py already handles Bearer extraction — just call it then check_permission for admin gates
+  - `Permission(string)` raises `ValueError` for invalid strings — use that to return 400 from API
+---
+
 ## Iteration 52 - US-051: Personality preview and selection UI
 - Added `GET /api/personalities` endpoint to `rex/gui_app.py` — publicly accessible, returns list with name, greeting, tone_keywords
 - Added `personality` field to `AiSettings` interface in `gui/src/types/ipc.ts`
@@ -792,4 +864,19 @@
   - Per-user personality is stored under `Memory/<user_id>/core.json` → `preferences.personality`
   - `get_user_profile()` from `rex.identity` is the right way to load per-user preferences
   - Pre-existing mypy errors in `assistant.py` lines 511–578 are unrelated to this task
+---
+
+## Iteration 58 - US-057: Audit and expose all features in the UI
+- Added `GET /api/integrations` endpoint to `rex/gui_app.py` (8 integrations: HA, OpenAI, Anthropic, Ollama, Telegram, Music Assistant, Email, Push)
+- Added `GET /api/capabilities` endpoint to `rex/gui_app.py` (delegates to `get_capability_registry().list()`)
+- Created `gui/src/pages/HomePage.tsx` — dashboard home section with Device Control, Suggestions, Music cards
+- Created `gui/src/pages/IntegrationsPage.tsx` — fetches and displays integrations + capabilities grouped by category
+- Created `gui/src/pages/AboutPage.tsx` — app info (version, Python, platform) + privacy statement
+- Updated `gui/src/layouts/AppLayout.tsx`: added Home, Integrations, About nav items and section names
+- Updated `gui/src/renderer/src/App.tsx`: imported and routed /home, /integrations, /about; default redirect now /home
+- Added 15 tests in `tests/test_us057_integrations_capabilities_api.py`
+- Files changed: `rex/gui_app.py`, 3 new pages, `AppLayout.tsx`, `App.tsx`, `tests/test_us057_integrations_capabilities_api.py` (new), `PRD.md`
+- Learnings:
+  - Endpoints that depend on env vars (e.g. HA_TOKEN) require monkeypatch.delenv in tests for reliable assertions
+  - Public endpoints (no auth) should be tested explicitly to prevent accidental auth guard addition
 ---

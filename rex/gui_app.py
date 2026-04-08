@@ -55,7 +55,7 @@ def _require_auth() -> tuple[dict[str, Any], None] | tuple[None, Any]:
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         return None, (jsonify({"error": "authentication required"}), 401)
-    token = auth_header[len("Bearer "):]
+    token = auth_header[len("Bearer ") :]
     try:
         return get_current_user(token), None
     except ValueError as exc:
@@ -321,16 +321,19 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         """Return available personalities with name, greeting, and tone keywords."""
         from rex.personality import list_personalities
 
-        return jsonify(
-            [
-                {
-                    "name": p.name,
-                    "greeting": p.greeting,
-                    "tone_keywords": p.tone_keywords,
-                }
-                for p in list_personalities()
-            ]
-        ), 200
+        return (
+            jsonify(
+                [
+                    {
+                        "name": p.name,
+                        "greeting": p.greeting,
+                        "tone_keywords": p.tone_keywords,
+                    }
+                    for p in list_personalities()
+                ]
+            ),
+            200,
+        )
 
     # User preferences API (US-048)
     # ------------------------------------------------------------------
@@ -454,6 +457,84 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
     def _auth_logout() -> Any:
         """Logout endpoint — client should discard the token. Stateless."""
         return jsonify({"ok": True}), 200
+
+    # ------------------------------------------------------------------
+    # Integrations API (US-057)
+    # ------------------------------------------------------------------
+
+    @app.route("/api/integrations", methods=["GET"])
+    def _list_integrations() -> Any:
+        """Return configured integrations with their status (public)."""
+        from rex.config import load_config
+
+        try:
+            cfg = load_config()
+        except Exception:
+            return jsonify({"integrations": []}), 200
+
+        integrations = [
+            {
+                "name": "Home Assistant",
+                "key": "home_assistant",
+                "configured": bool(cfg.ha_base_url and cfg.ha_token),
+            },
+            {
+                "name": "OpenAI",
+                "key": "openai",
+                "configured": bool(cfg.openai_api_key),
+            },
+            {
+                "name": "Anthropic",
+                "key": "anthropic",
+                "configured": bool(cfg.anthropic_api_key),
+            },
+            {
+                "name": "Ollama",
+                "key": "ollama",
+                "configured": bool(cfg.ollama_base_url),
+            },
+            {
+                "name": "Telegram",
+                "key": "telegram",
+                "configured": bool(cfg.telegram_bot_token and cfg.telegram_chat_id),
+            },
+            {
+                "name": "Music Assistant",
+                "key": "music_assistant",
+                "configured": bool(cfg.music_assistant_url),
+            },
+            {
+                "name": "Email",
+                "key": "email",
+                "configured": cfg.email_provider not in ("none", ""),
+            },
+            {
+                "name": "Push Notifications",
+                "key": "push",
+                "configured": bool(cfg.push_provider and cfg.push_token),
+            },
+        ]
+        return jsonify({"integrations": integrations}), 200
+
+    @app.route("/api/capabilities", methods=["GET"])
+    def _list_capabilities() -> Any:
+        """Return all capabilities from the capability registry (public)."""
+        try:
+            from rex.capabilities.registry import get_capability_registry
+
+            registry = get_capability_registry()
+            caps = [
+                {
+                    "name": c.name,
+                    "description": c.description,
+                    "category": getattr(c, "category", "General"),
+                    "enabled": c.enabled,
+                }
+                for c in registry.list()
+            ]
+        except Exception:
+            caps = []
+        return jsonify({"capabilities": caps}), 200
 
     return app
 
