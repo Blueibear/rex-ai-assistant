@@ -1008,12 +1008,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want the install script to handle everything (venv, deps, config) in one command.
 
 **Acceptance Criteria:**
-- [ ] `install.py` (or `install.ps1` on Windows, `install.sh` on Linux/macOS) creates venv, installs deps, creates default config
-- [ ] Script is idempotent (safe to run twice)
-- [ ] On failure, script prints the exact error and suggests a fix
-- [ ] After install, `rex doctor` passes all checks
-- [ ] Works on Windows 11, macOS, Linux
-- [ ] Typecheck passes
+- [x] `install.py` (or `install.ps1` on Windows, `install.sh` on Linux/macOS) creates venv, installs deps, creates default config
+- [x] Script is idempotent (safe to run twice)
+- [x] On failure, script prints the exact error and suggests a fix
+- [x] After install, `rex doctor` passes all checks
+- [x] Works on Windows 11, macOS, Linux
+- [x] Typecheck passes
 
 ---
 

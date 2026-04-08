@@ -973,3 +973,10 @@
 - INSTALL.md already has prerequisites, Windows/macOS/Linux steps, troubleshooting section
 - Fixed: INSTALL.md clone URL (rex-ai-assistant → AskRex-Assistant), uninstall package name (→ askrex-assistant), issues URL
 ---
+
+## US-068: Simplify installer to "click install, it works"
+- Both install.ps1 and install.sh already create venv, install deps, and are idempotent
+- Added .env bootstrap step: copies .env.example to .env if neither exists yet (skips if .env already present)
+- Changed verification step from rex --help to rex doctor with actionable warning on failure
+- Both scripts print the exact error (via set -euo pipefail / $ErrorActionPreference=Stop) and suggest edits
+---

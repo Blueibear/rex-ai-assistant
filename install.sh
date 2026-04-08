@@ -39,9 +39,25 @@ echo "Installing Rex with the supported full dependency set ..."
 "$PIP" install "$REPO_DIR[full]" \
     || fail "pip install failed. Check the error above and re-run after resolving it."
 
-echo "Verifying install ..."
-if ! "$REX" --help >/dev/null 2>&1; then
-    fail "Rex was installed but the 'rex' command did not respond. Check the install log above."
+echo "Bootstrapping default config ..."
+ENV_FILE="$REPO_DIR/.env"
+ENV_EXAMPLE="$REPO_DIR/.env.example"
+if [ ! -f "$ENV_FILE" ] && [ -f "$ENV_EXAMPLE" ]; then
+    cp "$ENV_EXAMPLE" "$ENV_FILE"
+    echo "Created .env from .env.example — edit it to add your API keys."
+elif [ ! -f "$ENV_FILE" ]; then
+    touch "$ENV_FILE"
+    echo "Created empty .env — edit it to add your API keys before running Rex."
+else
+    echo ".env already exists — skipping."
+fi
+
+echo "Running health check ..."
+if ! "$REX" doctor 2>&1; then
+    echo ""
+    echo "WARNING: 'rex doctor' reported one or more issues (see above)."
+    echo "Rex is installed but may need additional configuration."
+    echo "Edit .env with your API keys and re-run 'rex doctor' to clear warnings."
 fi
 
 echo ""
