@@ -365,12 +365,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I need an HTTP client for Music Assistant so that Rex can send playback commands.
 
 **Acceptance Criteria:**
-- [ ] New module `rex/integrations/music_assistant.py` with `MusicAssistantClient` class
-- [ ] Client supports: `play(query, room=None)`, `pause(room=None)`, `resume(room=None)`, `skip(room=None)`, `set_volume(level, room=None)`
-- [ ] Config fields: `music_assistant_url`, `music_assistant_token` in `AppConfig`
-- [ ] If not configured, all methods raise `IntegrationNotConfiguredError`
-- [ ] Unit test with mocked HTTP responses for each method
-- [ ] Typecheck passes
+- [x] New module `rex/integrations/music_assistant.py` with `MusicAssistantClient` class
+- [x] Client supports: `play(query, room=None)`, `pause(room=None)`, `resume(room=None)`, `skip(room=None)`, `set_volume(level, room=None)`
+- [x] Config fields: `music_assistant_url`, `music_assistant_token` in `AppConfig`
+- [x] If not configured, all methods raise `IntegrationNotConfiguredError`
+- [x] Unit test with mocked HTTP responses for each method
+- [x] Typecheck passes
 
 ---
 

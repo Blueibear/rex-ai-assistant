@@ -240,6 +240,10 @@ class AppConfig:
     autonomy_budget_per_plan_usd: float = 0.0
     autonomy_budget_per_step_usd: float = 0.0
 
+    # Music Assistant integration
+    music_assistant_url: Optional[str] = None
+    music_assistant_token: Optional[str] = None
+
     # OpenClaw integration
     use_openclaw_tools: bool = False
     use_openclaw_voice_backend: bool = False
