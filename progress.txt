@@ -317,3 +317,85 @@
   - US-077 edge-tts fallback in `_speak_xtts` is compatible with US-019 error logging because: when fallback succeeds (US-077), no error is logged; when fallback fails (no soundfile), `speak()` now logs the XTTS init error instead of the soundfile error
   - Always add `import pytest` when using `pytest.importorskip` in test files that don't already import it
 ---
+
+## Iteration 24 - US-020: Fix FFmpeg/torio errors and config coercion warnings
+- AC #1: Added `import shutil` + `shutil.which("ffmpeg")` check after TTS init in `build_voice_loop()`; logs WARNING with `event="ffmpeg_missing"` when provider is "xtts" and FFmpeg absent
+- AC #2: Already satisfied by US-078 (`check_ffmpeg_for_tts()` in doctor.py)
+- AC #3: Already satisfied by US-075 (`_coerce_float/_coerce_int` raise `ConfigurationError` on bad values)
+- AC #4/#5: Verified `load_config()` raises no `UserWarning` or `DeprecationWarning`; tested via `warnings.catch_warnings(record=True)`
+- Written `tests/test_us020_ffmpeg_config_warnings.py` with 8 tests (all pass)
+- ruff auto-fixed one violation in the test file; black reformatted it
+- Files changed: rex/voice_loop.py, tests/test_us020_ffmpeg_config_warnings.py, PRD.md
+- Learnings for future iterations:
+  - `patch.multiple("rex.voice_loop", key=mock)` keys must be bare attribute names on the module, not full dotted paths
+  - `build_default_detector` is locally imported inside `build_voice_loop()` — patch target is `rex.wakeword.listener.build_default_detector` but requires the module to be in sys.modules first
+  - When numpy is absent, stub `rex.wakeword` and `rex.wakeword.listener` in sys.modules using `types.ModuleType` before calling into `build_voice_loop()` — restore original entries in a finally block
+  - Warning scope for FFmpeg: only XTTS requires FFmpeg (torio dependency); edge-tts and pyttsx3 do not → warning is scoped to `tts._provider == "xtts"`
+---
+
+## Iteration 25 - US-021: Add Music Assistant HTTP client
+- Created `rex/integrations/music_assistant.py` with `MusicAssistantClient` class
+- Methods: `play(query, room=None)`, `pause(room=None)`, `resume(room=None)`, `skip(room=None)`, `set_volume(level, room=None)`
+- Uses stdlib `urllib.request` (no extra deps); lazy imports inside `_post()` 
+- Added `music_assistant_url` and `music_assistant_token` fields to `AppConfig` in `rex/config.py`
+- All methods raise `IntegrationNotConfiguredError` when `base_url` is empty/None
+- 16 tests in `tests/test_us021_music_assistant.py` — all pass; ruff, black pass
+- Files changed: rex/integrations/music_assistant.py, rex/config.py, tests/test_us021_music_assistant.py, PRD.md
+- Learnings for future iterations:
+  - ruff UP045 fires on `Optional[X]` annotations — use `X | None` syntax in new files
+  - Inline imports inside methods need ruff I001 sort order (json, urllib.error, urllib.request alphabetically)
+  - `patch.object(Client, "_post", return_value=rv)` cleanly mocks HTTP without real network calls
+---
+
+## Iteration 26 - US-022: Wire Music Assistant commands to assistant tool routing
+- Created `rex/music_handler.py` with `MusicHandler` class using regex intent detection (play, pause, resume, skip, volume)
+- Added room targeting: "play jazz in the kitchen" extracts room from `in the <room>` phrase
+- Added `IntegrationNotConfiguredError` fallback: returns "Music Assistant is not set up." when client unconfigured
+- Added 5 music tools to `rex/tools/registry.py` (music_play, music_pause, music_resume, music_skip, music_volume), each requiring `music_assistant_url`
+- Wired `MusicHandler` into `Assistant.__init__()` (after shopping list handler) and `generate_reply()` (intercepts before LLM)
+- 35 tests in `tests/test_us022_music_handler.py` — all pass; ruff auto-fixed 4 violations, black passes
+- Files changed: rex/music_handler.py (new), rex/tools/registry.py, rex/assistant.py, tests/test_us022_music_handler.py (new), PRD.md
+- Learnings for future iterations:
+  - `patch("rex.assistant.MusicAssistantClient")` fails because the import is lazy (inside `__init__`); use `Assistant.__new__()` + direct attribute injection instead
+  - Sentinel pattern for "matched but no room" vs "no match": use tuple `(matched: bool, room | None)` — cleaner than using a sentinel object with `str | None` type hint
+  - `_match_room_command(patterns, transcript)` helper avoids duplicating the match loop across pause/resume/skip intents
+---
+
+## Iteration 27 - US-023: Add room context system
+- Created `rex/context/__init__.py` and `rex/context/room.py` with `RoomContext` class
+- Priority: explicit > speaker_origin > last_active > config_default
+- `current_room` property iterates sources in priority order, returns first non-None
+- Setters: `set_explicit`, `clear_explicit`, `set_speaker_origin`, `set_last_active`, `set_config_default`
+- 8 tests in `tests/test_us023_room_context.py` — all pass; ruff, black, mypy all pass
+- Files changed: rex/context/__init__.py (new), rex/context/room.py (new), tests/test_us023_room_context.py (new), PRD.md
+- Learnings for future iterations:
+  - `rex/context/` is a new package — needs `__init__.py` before mypy/ruff will type-check cleanly
+  - Simple priority resolution: iterate a tuple of sources in priority order, return first non-None
+---
+
+## Iteration 28 - US-024: Add speaker origin detection to room context
+- Added `set_speaker_origin_from_topic(topic)` to RoomContext: parses `rex/audio/<room>` MQTT topics via regex
+- Added `set_speaker_origin_from_device(device_id, device_room_map)` to RoomContext: dict lookup
+- Added `device_room_map: Dict[str, str]` field to AppConfig (default empty dict)
+- 11 tests in tests/test_us024_speaker_origin.py: MQTT topic match/no-match, device mapping, fallback, priority
+- ruff, black, pytest all pass
+- Files changed: rex/context/room.py, rex/config.py, tests/test_us024_speaker_origin.py, PRD.md
+- Learnings for future iterations:
+  - ruff I001 fires if `from __future__ import annotations` is not in its own block separated from stdlib imports
+  - `re.compile(r"^rex/audio/([^/]+)$")` neatly matches the required MQTT topic pattern
+  - device_room_map uses `field(default_factory=dict)` — same pattern as ha_entity_map but with non-Optional type
+---
+
+## Iteration 29 - US-025: Add device alias system with synonym and fuzzy matching
+- Created `rex/ha/__init__.py` and `rex/ha/device_aliases.py` with `AliasResolver` class
+- Pure stdlib Levenshtein implementation (no external deps); max distance 2
+- `resolve(query)` returns `(entity_id, confidence)` or `None`; confidence 1.0 exact, 0.95 synonym-exact, 0.9/0.8 fuzzy
+- Created `config/device_aliases.json` with empty aliases and sample synonyms (lamp->light, telly->tv)
+- 10 tests in `tests/test_us025_device_aliases.py` (exact, case-insensitive, fuzzy 1-edit, fuzzy 2-edit, beyond threshold, synonym, no match, empty file, missing file)
+- ruff, black, mypy all pass
+- Files changed: rex/ha/__init__.py (new), rex/ha/device_aliases.py (new), config/device_aliases.json (new), tests/test_us025_device_aliases.py (new), PRD.md
+- Learnings for future iterations:
+  - `rex/ha/` is a new package — needs `__init__.py` for mypy/ruff to type-check cleanly
+  - Pure stdlib Levenshtein avoids adding `python-Levenshtein` or `rapidfuzz` as dependencies
+  - Synonym expansion: replace individual words before looking up the full phrase; avoids O(n²) substring matching
+---

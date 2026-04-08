@@ -415,13 +415,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want to say "turn on the bedroom light" and have Rex resolve that to the actual Home Assistant entity ID.
 
 **Acceptance Criteria:**
-- [ ] New module `rex/ha/device_aliases.py` with `AliasResolver` class
-- [ ] Aliases stored in `config/device_aliases.json` mapping natural names to HA entity IDs
-- [ ] Fuzzy matching: "bedrom light" resolves to "bedroom light" (Levenshtein distance <= 2)
-- [ ] Synonyms: "lamp" matches "light" if configured
-- [ ] `resolve(query)` returns `(entity_id, confidence)` or `None`
-- [ ] Unit test covers exact match, fuzzy match, synonym, and no-match cases
-- [ ] Typecheck passes
+- [x] New module `rex/ha/device_aliases.py` with `AliasResolver` class
+- [x] Aliases stored in `config/device_aliases.json` mapping natural names to HA entity IDs
+- [x] Fuzzy matching: "bedrom light" resolves to "bedroom light" (Levenshtein distance <= 2)
+- [x] Synonyms: "lamp" matches "light" if configured
+- [x] `resolve(query)` returns `(entity_id, confidence)` or `None`
+- [x] Unit test covers exact match, fuzzy match, synonym, and no-match cases
+- [x] Typecheck passes
 
 ---
 
