@@ -13,6 +13,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from rex.ha.command_history import CommandHistory
+
 try:
     import requests as _imported_requests
 except ImportError as exc:
@@ -140,6 +142,7 @@ class HABridge:
         self._entity_cache_ttl: float = 60.0
         self._lock = threading.Lock()
         self._log_path = Path("logs/test_ha_integration.log")
+        self._command_history = CommandHistory()
 
     @staticmethod
     def _request_exception() -> type[Exception]:
@@ -174,8 +177,43 @@ class HABridge:
         success, message = self._execute_intent(match)
         self._log_event(match, success, message)
         if success:
+            self._command_history.push(
+                entity_id=match.entity_id,
+                domain=match.domain,
+                service=match.service,
+                data=match.data,
+                description=match.description,
+            )
             return message
         return f"I attempted to perform that action but hit an error: {message}"
+
+    def undo_last(self, window: float = 30.0) -> str:
+        """Reverse the most recent reversible command if within *window* seconds.
+
+        Returns a confirmation string suitable for TTS playback.
+        """
+        self._command_history.undo_window = window
+        candidate = self._command_history.pop_undo_candidate()
+        if candidate is None:
+            return "There is nothing to undo right now."
+
+        inverse = candidate.inverse_service
+        assert inverse is not None  # guaranteed by pop_undo_candidate
+
+        undo_intent = IntentMatch(
+            domain=candidate.domain,
+            service=inverse,
+            entity_id=candidate.entity_id,
+            data={"entity_id": candidate.entity_id},
+            description=f"undo: {inverse.replace('_', ' ')} {candidate.entity_id}",
+            source="undo",
+        )
+        success, message = self._execute_intent(undo_intent)
+        self._log_event(undo_intent, success, message)
+        if success:
+            inv_friendly = inverse.replace("_", " ")
+            return f"Undone. {inv_friendly.capitalize()} {candidate.entity_id.split('.')[-1]}."
+        return f"Could not undo: {message}"
 
     def post_process_response(self, response: str) -> str:
         """Execute inline HA commands embedded in an LLM response."""

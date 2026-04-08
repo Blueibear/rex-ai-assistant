@@ -468,12 +468,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to confirm actions ("Turned off the bedroom light") and offer undo ("Say undo to turn it back on").
 
 **Acceptance Criteria:**
-- [ ] After executing an HA command, Rex speaks a confirmation including device name and action
-- [ ] Undo state is stored for the last 5 commands (FIFO)
-- [ ] "Undo" or "undo that" within 30 seconds reverses the last command
-- [ ] Undo sends the inverse HA command (on->off, off->on, volume up->volume down)
-- [ ] Test covers confirmation message generation and undo reversal
-- [ ] Typecheck passes
+- [x] After executing an HA command, Rex speaks a confirmation including device name and action
+- [x] Undo state is stored for the last 5 commands (FIFO)
+- [x] "Undo" or "undo that" within 30 seconds reverses the last command
+- [x] Undo sends the inverse HA command (on->off, off->on, volume up->volume down)
+- [x] Test covers confirmation message generation and undo reversal
+- [x] Typecheck passes
 
 ---
 

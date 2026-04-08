@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import threading
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
@@ -22,6 +23,9 @@ from .model_router import ModelRouter, TaskCategory
 from .plugins import PluginSpec
 
 logger = logging.getLogger(__name__)
+
+# Matches bare "undo" or "undo that" utterances for HA command reversal
+_UNDO_PATTERN = re.compile(r"^\s*undo\s*(?:that)?\s*$", re.IGNORECASE)
 
 
 @dataclass
@@ -575,11 +579,18 @@ class Assistant:
 
         try:
             if self._ha_bridge and self._ha_bridge.enabled:
-                completion = await loop.run_in_executor(
-                    None,
-                    self._ha_bridge.process_transcript,
-                    transcript,
-                )
+                # Check for undo intent before other HA processing
+                if _UNDO_PATTERN.match(transcript):
+                    completion = await loop.run_in_executor(
+                        None,
+                        self._ha_bridge.undo_last,
+                    )
+                else:
+                    completion = await loop.run_in_executor(
+                        None,
+                        self._ha_bridge.process_transcript,
+                        transcript,
+                    )
 
             if completion is None:
                 prompt = await self._prepare_prompt(
