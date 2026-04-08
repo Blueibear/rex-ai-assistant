@@ -162,3 +162,6 @@ progress*.txt
 !docs/archive/progress/*.txt
 
 data/memory/
+
+data/llm_usage.json
+gui/data/
