@@ -633,13 +633,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to show desktop notifications for important events (reminders, alerts).
 
 **Acceptance Criteria:**
-- [ ] New module `rex/notifications/desktop.py`
-- [ ] Uses `plyer` or platform-native API for cross-platform notifications
-- [ ] `notify(title, message, urgency="normal")` shows a desktop notification
-- [ ] Works on Windows (toast), macOS (notification center), Linux (libnotify)
-- [ ] If notification system unavailable, logs a warning (no crash)
-- [ ] Unit test confirms notification call is made (mocked)
-- [ ] Typecheck passes
+- [x] New module `rex/notifications/desktop.py`
+- [x] Uses `plyer` or platform-native API for cross-platform notifications
+- [x] `notify(title, message, urgency="normal")` shows a desktop notification
+- [x] Works on Windows (toast), macOS (notification center), Linux (libnotify)
+- [x] If notification system unavailable, logs a warning (no crash)
+- [x] Unit test confirms notification call is made (mocked)
+- [x] Typecheck passes
 
 ---
 
