@@ -840,12 +840,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to summarize a document or search my files for content.
 
 **Acceptance Criteria:**
-- [ ] `rex/computers/file_ops.py` exports `summarize_file(path)` and `search_files(directory, query)`
-- [ ] Summarize reads the file and passes content to LLM with a summarize prompt
-- [ ] Search uses `grep`-like matching across files in the directory (text files only)
-- [ ] Both respect the directory allowlist
-- [ ] Test covers summarize and search with mock file content
-- [ ] Typecheck passes
+- [x] `rex/computers/file_ops.py` exports `summarize_file(path)` and `search_files(directory, query)`
+- [x] Summarize reads the file and passes content to LLM with a summarize prompt
+- [x] Search uses `grep`-like matching across files in the directory (text files only)
+- [x] Both respect the directory allowlist
+- [x] Test covers summarize and search with mock file content
+- [x] Typecheck passes
 
 ---
 
