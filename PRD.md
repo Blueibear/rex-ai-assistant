@@ -510,12 +510,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to automatically choose the right tool (search, HA, calendar, email) without me specifying which one to use.
 
 **Acceptance Criteria:**
-- [ ] `rex/tool_catalog.py` exposes a registry of available tools with intent patterns
-- [ ] `Assistant.generate_reply()` uses LLM function-calling or pattern matching to select the right tool
-- [ ] If multiple tools match, the highest-confidence one is chosen
-- [ ] If no tool matches, Rex falls back to conversational LLM response
-- [ ] Test covers weather (search), "turn on light" (HA), "what's on my calendar" (calendar) routing
-- [ ] Typecheck passes
+- [x] `rex/tool_catalog.py` exposes a registry of available tools with intent patterns
+- [x] `Assistant.generate_reply()` uses LLM function-calling or pattern matching to select the right tool
+- [x] If multiple tools match, the highest-confidence one is chosen
+- [x] If no tool matches, Rex falls back to conversational LLM response
+- [x] Test covers weather (search), "turn on light" (HA), "what's on my calendar" (calendar) routing
+- [x] Typecheck passes
 
 ---
 

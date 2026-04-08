@@ -154,47 +154,54 @@ class ToolDispatcher:
     def select_tools(self, message: str) -> list[Tool]:
         """Return tools whose domain matches the user's intent in *message*.
 
-        Intent detection is keyword-based; multiple tools are returned when
-        the message spans multiple domains.  Returns an empty list when no
-        intent is matched (normal LLM path).
+        Intent detection is keyword-based.  Each candidate tool is scored by
+        the number of its ``capability_tags`` that appear in the set of tags
+        triggered by matching intent rules.  Tools are returned sorted by
+        confidence (score) descending so that the highest-confidence match
+        comes first.  Multiple tools are returned when the message spans
+        multiple domains (e.g. "weather and email").  Returns an empty list
+        when no intent is matched — the caller falls back to the LLM path.
 
         Args:
             message: The raw user transcript or chat message.
 
         Returns:
-            Ordered list of matched ``Tool`` objects (deduped, stable order).
+            Confidence-sorted list of matched ``Tool`` objects (deduped).
         """
         if self._config is not None:
             candidates = self._registry.available_tools(self._config)
         else:
             candidates = self._registry.all_tools()
 
-        # Build a lookup: capability_tag → list[Tool]
-        tag_index: dict[str, list[Tool]] = {}
-        for tool in candidates:
-            for tag in tool.capability_tags:
-                tag_index.setdefault(tag, []).append(tool)
-
-        selected_names: set[str] = set()
-        selected: list[Tool] = []
-
+        # Determine which capability tags are triggered by matching intent rules.
+        fired_tags: set[str] = set()
         for capability_tag, pattern in _INTENT_RULES:
             if pattern.search(message):
-                matched_tools = tag_index.get(capability_tag, [])
-                for tool in matched_tools:
-                    if tool.name not in selected_names:
-                        selected_names.add(tool.name)
-                        selected.append(tool)
-                        logger.debug(
-                            "tool_dispatcher: intent=%r matched tool=%r",
-                            capability_tag,
-                            tool.name,
-                        )
+                fired_tags.add(capability_tag)
+                logger.debug("tool_dispatcher: intent rule %r fired", capability_tag)
 
-        if not selected:
+        if not fired_tags:
             logger.debug("tool_dispatcher: no intent match for message")
+            return []
 
-        return selected
+        # Score each candidate: count of capability_tags that appear in fired_tags.
+        seen_names: set[str] = set()
+        scored: list[tuple[int, Tool]] = []
+        for tool in candidates:
+            score = sum(1 for tag in tool.capability_tags if tag in fired_tags)
+            if score > 0 and tool.name not in seen_names:
+                seen_names.add(tool.name)
+                scored.append((score, tool))
+                logger.debug(
+                    "tool_dispatcher: tool=%r score=%d",
+                    tool.name,
+                    score,
+                )
+
+        # Sort by confidence descending; stable sort preserves registration
+        # order for tools with equal scores.
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [tool for _, tool in scored]
 
     def execute_tools(
         self, tools: list[Tool], message: str, *, user_id: str | None = None
