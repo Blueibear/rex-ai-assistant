@@ -880,3 +880,14 @@
   - Endpoints that depend on env vars (e.g. HA_TOKEN) require monkeypatch.delenv in tests for reliable assertions
   - Public endpoints (no auth) should be tested explicitly to prevent accidental auth guard addition
 ---
+
+## Iteration 59 - US-058: Add guided first-run setup wizard
+- Added GET /api/setup/status endpoint (public) — returns needs_setup=True when no users in DB
+- Added POST /api/setup/complete endpoint — creates user, writes non-secrets to rex_config.json, writes secrets to .env
+- Added _write_env_secrets() helper: preserves existing .env lines, updates managed keys, appends new ones
+- Created gui/src/pages/SetupWizardPage.tsx — 5-step wizard (Account, LLM, Voice, Home Assistant, Done)
+- Wired wizard into App.tsx: checks /api/setup/status on load, shows wizard if needs_setup, hides after onComplete
+- Added 15 tests: setup status (true/false), complete (success, 400, 409), env write (append, update, preserve)
+- Files changed: rex/gui_app.py, gui/src/pages/SetupWizardPage.tsx, gui/src/renderer/src/App.tsx, tests/test_us058_setup_wizard.py (new), PRD.md
+- Key pattern: _open_db() from rex.auth used to count users; noqa: PLC2701 silences private import linter warning
+---

@@ -870,13 +870,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a new user, I want a step-by-step setup wizard on first launch so I can configure Rex without guesswork.
 
 **Acceptance Criteria:**
-- [ ] On first launch (no `data/users.db`), the dashboard shows a setup wizard
-- [ ] Steps: Create account -> Choose LLM provider -> Configure TTS -> (Optional) Home Assistant -> Done
-- [ ] Each step validates input before allowing next
-- [ ] Wizard writes config to `config/rex_config.json` and `.env`
-- [ ] After completion, wizard does not show again
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] On first launch (no `data/users.db`), the dashboard shows a setup wizard
+- [x] Steps: Create account -> Choose LLM provider -> Configure TTS -> (Optional) Home Assistant -> Done
+- [x] Each step validates input before allowing next
+- [x] Wizard writes config to `config/rex_config.json` and `.env`
+- [x] After completion, wizard does not show again
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

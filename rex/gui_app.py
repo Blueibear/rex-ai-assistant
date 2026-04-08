@@ -41,6 +41,52 @@ def _resolve_server_port() -> int:
     return port
 
 
+def _write_env_secrets(
+    env_path: Path,
+    *,
+    llm_provider: str,
+    llm_api_key: str,
+    ha_token: str,
+) -> None:
+    """Write or update secrets in an .env file without overwriting unrelated lines.
+
+    Only lines whose keys are managed here are modified; all other lines are
+    left untouched.
+    """
+    managed: dict[str, str] = {}
+    if llm_provider == "openai" and llm_api_key:
+        managed["OPENAI_API_KEY"] = llm_api_key
+    elif llm_provider == "anthropic" and llm_api_key:
+        managed["ANTHROPIC_API_KEY"] = llm_api_key
+    if ha_token:
+        managed["HA_TOKEN"] = ha_token
+
+    existing_lines: list[str] = []
+    if env_path.exists():
+        existing_lines = env_path.read_text(encoding="utf-8").splitlines()
+
+    updated: list[str] = []
+    seen_keys: set[str] = set()
+    for line in existing_lines:
+        stripped = line.strip()
+        if stripped.startswith("#") or "=" not in stripped:
+            updated.append(line)
+            continue
+        key = stripped.split("=", 1)[0].strip()
+        if key in managed:
+            updated.append(f"{key}={managed[key]}")
+            seen_keys.add(key)
+        else:
+            updated.append(line)
+
+    for key, value in managed.items():
+        if key not in seen_keys:
+            updated.append(f"{key}={value}")
+
+    env_path.parent.mkdir(parents=True, exist_ok=True)
+    env_path.write_text("\n".join(updated) + "\n", encoding="utf-8")
+
+
 def _require_auth() -> tuple[dict[str, Any], None] | tuple[None, Any]:
     """Extract and validate the Bearer token from the current request.
 
@@ -208,6 +254,119 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         from rex.llm_usage import usage_api_summary
 
         return jsonify(usage_api_summary()), 200
+
+    # ------------------------------------------------------------------
+    # Setup wizard API (US-058)
+    # ------------------------------------------------------------------
+
+    @app.route("/api/setup/status", methods=["GET"])
+    def _setup_status() -> Any:
+        """Return whether the initial setup wizard needs to run.
+
+        ``needs_setup`` is True when no users exist in the database yet.
+        """
+        from rex.auth import _open_db  # noqa: PLC2701
+
+        try:
+            with _open_db() as conn:
+                row = conn.execute("SELECT COUNT(*) FROM users").fetchone()
+                count = row[0] if row else 0
+        except Exception:
+            count = 0
+        return jsonify({"needs_setup": count == 0}), 200
+
+    @app.route("/api/setup/complete", methods=["POST"])
+    def _setup_complete() -> Any:
+        """Complete the first-run wizard.
+
+        Accepts JSON body::
+
+            {
+              "username":     str,
+              "password":     str,
+              "llm_provider": "local" | "openai" | "anthropic" | "ollama",
+              "llm_api_key":  str (optional),
+              "tts_provider": "none" | "edge" | "pyttsx3" | "xtts",
+              "ha_base_url":  str (optional),
+              "ha_token":     str (optional)
+            }
+
+        Registers the user, writes non-secret settings to
+        ``config/rex_config.json``, and writes secrets to ``.env``.
+        """
+        from rex.auth import create_user
+
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        username = (data.get("username") or "").strip()
+        password = data.get("password") or ""
+        llm_provider = (data.get("llm_provider") or "local").strip()
+        llm_api_key = (data.get("llm_api_key") or "").strip()
+        tts_provider = (data.get("tts_provider") or "none").strip()
+        ha_base_url = (data.get("ha_base_url") or "").strip()
+        ha_token = (data.get("ha_token") or "").strip()
+
+        if not username or not password:
+            return jsonify({"error": "username and password are required"}), 400
+
+        # Check that setup hasn't already been completed.
+        try:
+            from rex.auth import _open_db  # noqa: PLC2701
+
+            with _open_db() as conn:
+                row = conn.execute("SELECT COUNT(*) FROM users").fetchone()
+                if row and row[0] > 0:
+                    return (
+                        jsonify({"error": "setup already completed"}),
+                        409,
+                    )
+        except Exception:
+            pass
+
+        # Create the admin user.
+        try:
+            user = create_user(username, password)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 409
+
+        try:
+            from rex.permissions import bootstrap_admin_if_first_user
+
+            bootstrap_admin_if_first_user(user["id"])
+        except Exception:
+            pass
+
+        # Write non-secret runtime settings to config/rex_config.json.
+        try:
+            from rex.config_manager import load_config as _load_json_cfg
+            from rex.config_manager import save_config as _save_json_cfg
+
+            json_cfg: dict[str, Any] = _load_json_cfg() or {}
+            json_cfg.setdefault("llm", {})["provider"] = llm_provider
+            if llm_provider == "ollama" and data.get("ollama_base_url"):
+                json_cfg.setdefault("llm", {})["ollama_base_url"] = data["ollama_base_url"]
+            json_cfg["tts_provider"] = tts_provider
+            if ha_base_url:
+                json_cfg.setdefault("home_assistant", {})["base_url"] = ha_base_url
+            _save_json_cfg(json_cfg)
+        except Exception:
+            pass
+
+        # Write secrets to .env (append / overwrite existing lines).
+        try:
+            from rex.bridge_utils import repo_root
+
+            env_path = repo_root() / ".env"
+        except Exception:
+            env_path = Path(".env")
+
+        _write_env_secrets(
+            env_path,
+            llm_provider=llm_provider,
+            llm_api_key=llm_api_key,
+            ha_token=ha_token,
+        )
+
+        return jsonify({"ok": True, "user_id": user["id"]}), 201
 
     # ------------------------------------------------------------------
     # Auth API (US-047)

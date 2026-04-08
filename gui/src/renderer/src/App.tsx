@@ -24,6 +24,7 @@ import { UsagePage } from '../../pages/UsagePage'
 import { HomePage } from '../../pages/HomePage'
 import { IntegrationsPage } from '../../pages/IntegrationsPage'
 import { AboutPage } from '../../pages/AboutPage'
+import { SetupWizardPage } from '../../pages/SetupWizardPage'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 
 const PRIORITY_TOAST_TYPE: Record<NotificationPriority, ToastType> = {
@@ -35,7 +36,19 @@ const PRIORITY_TOAST_TYPE: Record<NotificationPriority, ToastType> = {
 
 function AppShell(): React.ReactElement {
   const [status, setStatus] = useState<string>('loading…')
+  const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
   const addToast = useToast()
+
+  useEffect(() => {
+    // Check setup wizard status before loading the main app.
+    fetch('/api/setup/status')
+      .then((r) => r.json())
+      .then((d) => {
+        const ns = (d as { needs_setup?: boolean }).needs_setup ?? false
+        setNeedsSetup(ns)
+      })
+      .catch(() => setNeedsSetup(false))
+  }, [])
 
   useEffect(() => {
     window.rex
@@ -60,13 +73,17 @@ function AppShell(): React.ReactElement {
     })
   }, [addToast])
 
-  if (status === 'loading…') {
+  if (needsSetup === null || status === 'loading…') {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-bg gap-4">
         <Spinner size="lg" />
         <SkeletonLine width="200px" height="16px" />
       </div>
     )
+  }
+
+  if (needsSetup) {
+    return <SetupWizardPage onComplete={() => setNeedsSetup(false)} />
   }
 
   if (status === 'error') {
