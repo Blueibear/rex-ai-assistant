@@ -431,3 +431,96 @@
   - ruff I001: imports inside functions must be sorted alphabetically (rex.config before rex.ha.device_aliases)
   - `resolver._aliases.values()` accesses internal state — acceptable for test/CLI code since it avoids a public API round-trip
 ---
+
+## Iteration 32 - US-028: Add device state awareness
+- Created `rex/ha/device_state.py` with `get_device_state()`: calls HA `/api/states/<entity_id>`, returns `{entity_id, state, attributes}` or None on 404/not configured/error
+- Created `rex/ha/state_handler.py` with `DeviceStateHandler`: regex-detects "is X on?", "what's the status of X?", "check state of X?" questions, resolves alias via AliasResolver, queries HA, returns spoken answer
+- Wired `DeviceStateHandler` into `Assistant.__init__()` and `generate_reply()` (after music handler, before per-user scoping)
+- 11 tests in `tests/test_us028_device_state.py` — all pass; ruff, black, mypy all pass
+- Files changed: rex/ha/device_state.py (new), rex/ha/state_handler.py (new), rex/assistant.py, tests/test_us028_device_state.py (new), PRD.md
+- Learnings for future iterations:
+  - urllib.error.HTTPError must be caught inside `_fetch_entity_state`; returning None for 404 and re-raising otherwise
+  - Pattern for mocking urlopen: make a context-manager MagicMock where `__enter__` returns inner mock with `.read()` → encoded JSON
+  - ruff I001: local imports inside test methods must be sorted (stdlib before project imports)
+  - DeviceStateHandler follows exact same pattern as MusicHandler (lazy import, getattr guard in generate_reply)
+---
+  - DeviceStateHandler follows exact same pattern as MusicHandler (lazy import, getattr guard in generate_reply)
+---
+
+## Iteration 33 - US-029: Add command confirmation and undo support
+- Created rex/ha/command_history.py with CommandHistory (FIFO deque, max_size=5, undo_window=30s) and CommandEntry dataclass
+- HABridge.process_transcript() now pushes successful commands to _command_history after execution
+- Added HABridge.undo_last(window=30.0) that pops last reversible command and executes inverse service
+- Inverse map: turn_on↔turn_off, lock↔unlock, open_cover↔close_cover (set_temperature etc. are not reversible)
+- Added _UNDO_PATTERN to rex/assistant.py; generate_reply() checks undo intent before process_transcript
+- 16 tests in tests/test_us029_command_confirmation_undo.py (all pass); ruff, black pass
+- Files changed: rex/ha/command_history.py (new), rex/ha_bridge.py, rex/assistant.py, tests/test_us029_command_confirmation_undo.py (new), PRD.md
+- Learnings for future iterations:
+  - Module-level constants (like _UNDO_PATTERN) must come AFTER all imports or ruff E402 fires
+  - F841 fires for unused local variables even in short blocks — remove or use them
+  - ruff I001 auto-fixable with --fix; always run fix pass before check pass on test files
+  - async tests must use asyncio.run() in sync test functions — @pytest.mark.asyncio requires pytest-asyncio
+---
+
+## Iteration 34 - US-030: Add clarification system for ambiguous commands
+- Added `AliasResolver.resolve_all(query, min_confidence=0.7)` returning all `(alias, entity_id, confidence)` candidates sorted desc
+- Created `rex/ha/clarification.py` with `ClarificationHandler` class detecting:
+  - Pronoun-based missing device ("turn it on" → "Which device would you like to control?")
+  - Ambiguous entity: two candidates within confidence delta 0.15 → "Did you mean X or Y?"
+- Wired `ClarificationHandler` into `HABridge.process_transcript()` before intent matching
+- `HABridge.__init__` creates `AliasResolver()` using optional `ha_aliases_path` config or default path
+- 15 tests in `tests/test_us030_clarification.py` — all pass; ruff auto-fixed 3 violations, black reformatted 2 files
+- Files changed: rex/ha/device_aliases.py, rex/ha/clarification.py (new), rex/ha_bridge.py, tests/test_us030_clarification.py (new), PRD.md
+- Learnings for future iterations:
+  - "Similar confidence" ambiguity: use a delta threshold (0.15) — exact match (1.0) vs fuzzy (0.9) has delta 0.1 → triggers; exact (1.0) vs far fuzzy (0.8) has delta 0.2 → doesn't trigger
+  - Test cases for fuzzy ambiguity: use two aliases like "bedroom light" and "bedroom lights" — one is exact match, other is 1-edit from the exact query → within delta
+  - AC #3 ("pipeline re-enters listening") is satisfied automatically by the existing voice loop architecture — returning a string causes TTS + loop back
+  - `HABridge.__new__()` in tests needs only `_base_url`, `_token`, and `_clarification` set; other attrs aren't needed when clarification triggers before `_match_transcript`
+---
+
+## Iteration 35 - US-031: Add error recovery with alternative suggestions
+- Created `rex/ha/error_recovery.py` with `suggest_alternatives()` and helpers
+- `_extract_room()` extracts room name from entity_id suffix (e.g. `light.kitchen_ceiling` → `"kitchen"`)
+- `_same_room_alternatives()` finds same-domain, same-room candidates from entity_map + entity_cache
+- `suggest_alternatives()` merges same-room + recently-used alternatives; produces spoken TTS message
+- Added `recent_entity_ids()` method to `CommandHistory` (returns entity IDs oldest-first)
+- Updated `HABridge.process_transcript()`: on command failure, calls `suggest_alternatives` instead of generic error string
+- 15 tests in `tests/test_us031_error_recovery.py` — all pass; ruff, black pass
+- Files changed: rex/ha/error_recovery.py (new), rex/ha/command_history.py, rex/ha_bridge.py, tests/test_us031_error_recovery.py (new), PRD.md
+- Learnings for future iterations:
+  - ruff F821 fires on bare type annotation referencing a locally-imported class; use string annotation + `# noqa: F821`
+  - Room extraction: first word of the entity suffix after the dot (`light.kitchen_ceiling` → `kitchen`)
+  - `{**entity_cache, **entity_map}` — entity_map (config) takes precedence over entity_cache (discovery)
+---
+
+## Iteration 36 - US-032: Add tool auto-selection system
+- AC #1 (tool_catalog.py registry): Added `CatalogEntry` dataclass and `TOOL_CATALOG` list with 6 entries (weather_now, web_search, ha, calendar, send_email, time_now); each has `intent_patterns`, `capability_tags`, and `requires_config`
+- AC #2 (generate_reply uses pattern matching): Already satisfied by existing `ToolDispatcher` wired into `Assistant.generate_reply()`
+- AC #3 (highest confidence chosen): Replaced flat tag iteration in `select_tools()` with confidence scoring; score = count of tool's capability_tags in `fired_tags`; sorted descending so highest-confidence first
+- AC #4 (LLM fallback): Already satisfied; `fired_tags` empty → return `[]` → `_tool_context` is None → LLM path
+- AC #5 (3 routing tests): weather, HA, calendar routing tested; also no-match empty list and confidence ordering
+- AC #6 (typecheck): mypy passes clean on both changed files
+- 12 new tests pass; 15 existing dispatcher tests still pass; ruff auto-fixed 3 violations in test file
+- Files changed: rex/tool_catalog.py, rex/tools/dispatcher.py, tests/test_us032_tool_auto_selection.py, PRD.md
+- Learnings for future iterations:
+  - `_INTENT_RULES` maps capability_tag → compound regex (OR of keywords); "forecast" is IN the weather regex but NOT its own rule key — don't create test tools with tags that aren't rule keys
+  - Intent rule keys: "email", "weather", "search", "calendar", "smart_home" — only these 5 can appear in `fired_tags`
+  - Existing `test_compound_question_selects_multiple_tools` must stay green; confidence scoring must NOT reduce multi-domain queries to single tool
+  - Stable sort (`list.sort()`) preserves registration order for tied scores — matches expected determinism in tests
+---
+
+## Iteration 37 - US-033: Add perceived speed system (post-STT acknowledgment)
+- Added `acknowledgment_mode: str = "sound"` to `AppConfig` in `rex/config.py` (values: "sound", "phrase", "none")
+- Added `_get_nested(json_config, "acknowledgment.mode", "sound")` to `load_config()`
+- Added `post_stt_acknowledge` callable parameter to `VoiceLoop.__init__` and stored as `self._post_stt_acknowledge`
+- Added `_safe_post_stt_acknowledge()` method to `VoiceLoop` (suppresses errors, same pattern as `_safe_acknowledge`)
+- In `VoiceLoop.run()`: after transcript is validated non-empty, calls `_safe_post_stt_acknowledge()` before LLM call
+- In `build_voice_loop()`: reads `acknowledgment_mode`; "phrase" → speak "On it", "sound" → play chime, "none" → None
+- Written 6 tests in `tests/test_us033_acknowledgment.py`: 2 config tests (always pass), 4 VoiceLoop tests (skip without numpy)
+- ruff, black pass; 2 tests pass, 4 skipped
+- Files changed: rex/config.py, rex/voice_loop.py, tests/test_us033_acknowledgment.py, PRD.md
+- Learnings for future iterations:
+  - `pytest.importorskip("numpy")` at MODULE LEVEL skips the entire file (including tests before it); use `@pytest.mark.skipif(find_spec("numpy") is None, ...)` decorators on individual tests if some tests don't need numpy
+  - The existing pre-STT ack (fires at wake word detection, concurrent with recording) is separate from the new post-STT ack (fires after transcription, before LLM)
+  - `noqa: E731` needed on lambda assignment in `build_voice_loop()`; ruff auto-fixes remove it otherwise
+---
