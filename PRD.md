@@ -814,12 +814,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to open applications when I ask ("open Notepad", "launch Chrome").
 
 **Acceptance Criteria:**
-- [ ] `rex/computers/app_launcher.py` exports `launch_app(name)`
-- [ ] App name resolved via a configurable app registry (`config/app_registry.json`)
-- [ ] On Windows, uses `os.startfile()` or `subprocess`; on macOS, uses `open`; on Linux, uses `xdg-open`
-- [ ] If app not found in registry, Rex says "I don't know how to open that. You can add it in settings."
-- [ ] Unit test with mocked subprocess calls
-- [ ] Typecheck passes
+- [x] `rex/computers/app_launcher.py` exports `launch_app(name)`
+- [x] App name resolved via a configurable app registry (`config/app_registry.json`)
+- [x] On Windows, uses `os.startfile()` or `subprocess`; on macOS, uses `open`; on Linux, uses `xdg-open`
+- [x] If app not found in registry, Rex says "I don't know how to open that. You can add it in settings."
+- [x] Unit test with mocked subprocess calls
+- [x] Typecheck passes
 
 ---
 
