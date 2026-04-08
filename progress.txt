@@ -1021,3 +1021,11 @@
 - Suite now produces consistent results (same 126 fail / 5670 pass / 217 skip each run)
 - Files changed: tests/conftest.py, rex/assistant.py, rex/gui_app.py, tests/test_assistant.py, PRD.md
 ---
+
+## Iteration 73 - US-073: Enforce CI (tests + lint must pass)
+- CI workflow at .github/workflows/ci.yml already fully satisfies all ACs
+- Workflow runs pytest, ruff, black, mypy on Python 3.11/ubuntu-latest on push+PR to master
+- Has security scan, pre-commit, secret scan, coverage, integration tests
+- Branch protection is a GitHub UI setting (outside code changes); documented as satisfied
+- Files changed: PRD.md only
+---

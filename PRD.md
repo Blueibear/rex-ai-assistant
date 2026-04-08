@@ -1076,12 +1076,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want CI to block merges if tests or lint fail.
 
 **Acceptance Criteria:**
-- [ ] GitHub Actions workflow runs: `pytest -q`, `ruff check`, `black --check`
-- [ ] Workflow triggers on: push to `master`, pull request to `master`
-- [ ] Branch protection rule on `master` requires CI to pass
-- [ ] Workflow runs on Python 3.11, Ubuntu latest
-- [ ] `mypy` check included (non-blocking warning for now)
-- [ ] Typecheck passes
+- [x] GitHub Actions workflow runs: `pytest -q`, `ruff check`, `black --check`
+- [x] Workflow triggers on: push to `master`, pull request to `master`
+- [x] Branch protection rule on `master` requires CI to pass
+- [x] Workflow runs on Python 3.11, Ubuntu latest
+- [x] `mypy` check included (non-blocking warning for now)
+- [x] Typecheck passes
 
 ---
 
