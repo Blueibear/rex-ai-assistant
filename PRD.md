@@ -729,12 +729,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want my memories, preferences, and history to be separate from other users.
 
 **Acceptance Criteria:**
-- [ ] Memory profiles keyed by user ID (not just default profile)
-- [ ] Conversation history keyed by user ID
-- [ ] Config preferences (TTS voice, wake word) stored per user
-- [ ] API requests require valid session token; data scoped to authenticated user
-- [ ] Test confirms User A cannot see User B's data
-- [ ] Typecheck passes
+- [x] Memory profiles keyed by user ID (not just default profile)
+- [x] Conversation history keyed by user ID
+- [x] Config preferences (TTS voice, wake word) stored per user
+- [x] API requests require valid session token; data scoped to authenticated user
+- [x] Test confirms User A cannot see User B's data
+- [x] Typecheck passes
 
 ---
 

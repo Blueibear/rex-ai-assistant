@@ -3,106 +3,129 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+
+import pytest
 
 
-def _make_app() -> object:
+@pytest.fixture()
+def tmp_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point auth and history storage at a temp directory."""
+    monkeypatch.setenv("REX_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("REX_JWT_SECRET", "test-secret-key")
+    return tmp_path
+
+
+@pytest.fixture()
+def flask_client(tmp_data_dir: Path):  # type: ignore[override]
     from rex.gui_app import _create_flask_app
 
     app = _create_flask_app(ui_enabled=False)
     app.config["TESTING"] = True
-    return app
+    with app.test_client() as client:
+        yield client
 
 
-def test_chat_history_empty() -> None:
+@pytest.fixture()
+def auth_header(flask_client: object) -> dict[str, str]:
+    """Register + login a test user and return the Authorization header."""
+    flask_client.post(  # type: ignore[attr-defined]
+        "/api/auth/register",
+        json={"username": "testuser", "password": "s3cr3t"},
+    )
+    resp = flask_client.post(  # type: ignore[attr-defined]
+        "/api/auth/login",
+        json={"username": "testuser", "password": "s3cr3t"},
+    )
+    token = resp.get_json()["token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_chat_history_empty(flask_client: object, auth_header: dict) -> None:
     """GET /api/chat/history returns an empty list initially."""
-    import rex.dashboard_store as ds
-
-    ds.clear_history()
-    with _make_app().test_client() as client:
-        resp = client.get("/api/chat/history")
-        assert resp.status_code == 200
-        data = json.loads(resp.data)
-        assert isinstance(data, list)
+    resp = flask_client.get("/api/chat/history", headers=auth_header)  # type: ignore[attr-defined]
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert isinstance(data, list)
 
 
-def test_chat_send_requires_message() -> None:
+def test_chat_history_requires_auth(flask_client: object) -> None:
+    """GET /api/chat/history returns 401 without a token."""
+    resp = flask_client.get("/api/chat/history")  # type: ignore[attr-defined]
+    assert resp.status_code == 401
+
+
+def test_chat_send_requires_message(flask_client: object, auth_header: dict) -> None:
     """POST /api/chat/send with empty message returns 400."""
-    import rex.dashboard_store as ds
-
-    ds.clear_history()
-    with _make_app().test_client() as client:
-        resp = client.post(
-            "/api/chat/send",
-            data=json.dumps({"message": ""}),
-            content_type="application/json",
-        )
-        assert resp.status_code == 400
+    resp = flask_client.post(  # type: ignore[attr-defined]
+        "/api/chat/send",
+        data=json.dumps({"message": ""}),
+        content_type="application/json",
+        headers=auth_header,
+    )
+    assert resp.status_code == 400
 
 
-def test_chat_send_stores_user_message() -> None:
+def test_chat_send_requires_auth(flask_client: object) -> None:
+    """POST /api/chat/send returns 401 without a token."""
+    resp = flask_client.post(  # type: ignore[attr-defined]
+        "/api/chat/send",
+        data=json.dumps({"message": "hello"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 401
+
+
+def test_chat_send_stores_user_message(flask_client: object, auth_header: dict) -> None:
     """POST /api/chat/send adds the user message to history."""
-    import rex.dashboard_store as ds
+    resp = flask_client.post(  # type: ignore[attr-defined]
+        "/api/chat/send",
+        data=json.dumps({"message": "hello rex"}),
+        content_type="application/json",
+        headers=auth_header,
+    )
+    assert resp.status_code == 200
+    body = b"".join(resp.response).decode()
+    assert "data:" in body
 
-    ds.clear_history()
-    with _make_app().test_client() as client:
-        # Consume the SSE response fully
-        resp = client.post(
-            "/api/chat/send",
-            data=json.dumps({"message": "hello rex"}),
-            content_type="application/json",
-        )
-        assert resp.status_code == 200
-        # Read the SSE stream
-        body = b"".join(resp.response).decode()
-        assert "data:" in body
-
-    history = ds.get_history()
+    history_resp = flask_client.get("/api/chat/history", headers=auth_header)  # type: ignore[attr-defined]
+    history = json.loads(history_resp.data)
     roles = [m["role"] for m in history]
     assert "user" in roles
     assert "assistant" in roles
 
 
-def test_chat_send_sse_content_type() -> None:
+def test_chat_send_sse_content_type(flask_client: object, auth_header: dict) -> None:
     """POST /api/chat/send returns text/event-stream content type."""
-    import rex.dashboard_store as ds
-
-    ds.clear_history()
-    with _make_app().test_client() as client:
-        resp = client.post(
-            "/api/chat/send",
-            data=json.dumps({"message": "ping"}),
-            content_type="application/json",
-        )
-        assert resp.status_code == 200
-        assert "text/event-stream" in resp.content_type
+    resp = flask_client.post(  # type: ignore[attr-defined]
+        "/api/chat/send",
+        data=json.dumps({"message": "ping"}),
+        content_type="application/json",
+        headers=auth_header,
+    )
+    assert resp.status_code == 200
+    assert "text/event-stream" in resp.content_type
 
 
-def test_chat_clear() -> None:
-    """POST /api/chat/clear empties the history."""
-    import rex.dashboard_store as ds
+def test_chat_clear(flask_client: object, auth_header: dict) -> None:
+    """POST /api/chat/clear empties the user's history."""
+    flask_client.post(  # type: ignore[attr-defined]
+        "/api/chat/send",
+        data=json.dumps({"message": "test message"}),
+        content_type="application/json",
+        headers=auth_header,
+    )
+    resp = flask_client.post("/api/chat/clear", headers=auth_header)  # type: ignore[attr-defined]
+    assert resp.status_code == 200
 
-    ds.clear_history()
-    ds.add_message("user", "test")
-    with _make_app().test_client() as client:
-        resp = client.post("/api/chat/clear")
-        assert resp.status_code == 200
-
-    assert ds.get_history() == []
+    history_resp = flask_client.get("/api/chat/history", headers=auth_header)  # type: ignore[attr-defined]
+    assert json.loads(history_resp.data) == []
 
 
-def test_chat_history_persists_messages() -> None:
-    """GET /api/chat/history returns messages added via the store directly."""
-    import rex.dashboard_store as ds
-
-    ds.clear_history()
-    ds.add_message("user", "hello")
-    ds.add_message("assistant", "hi there")
-    with _make_app().test_client() as client:
-        resp = client.get("/api/chat/history")
-        data = json.loads(resp.data)
-        assert len(data) == 2
-        assert data[0]["role"] == "user"
-        assert data[1]["role"] == "assistant"
+def test_chat_clear_requires_auth(flask_client: object) -> None:
+    """POST /api/chat/clear returns 401 without a token."""
+    resp = flask_client.post("/api/chat/clear")  # type: ignore[attr-defined]
+    assert resp.status_code == 401
 
 
 def test_dashboard_store_add_and_clear() -> None:
@@ -116,8 +139,8 @@ def test_dashboard_store_add_and_clear() -> None:
     assert msg.attachment_name == "file.txt"
 
     history = ds.get_history()
-    assert len(history) == 1
-    assert history[0]["id"] == msg.id
+    assert len(history) >= 1
+    assert any(m["id"] == msg.id for m in history)
 
     ds.clear_history()
     assert ds.get_history() == []

@@ -41,6 +41,27 @@ def _resolve_server_port() -> int:
     return port
 
 
+def _require_auth() -> tuple[dict[str, Any], None] | tuple[None, Any]:
+    """Extract and validate the Bearer token from the current request.
+
+    Returns:
+        ``(user_dict, None)`` on success.
+        ``(None, flask_response)`` on failure (caller should return the response).
+    """
+    from flask import jsonify, request
+
+    from rex.auth import get_current_user
+
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None, (jsonify({"error": "authentication required"}), 401)
+    token = auth_header[len("Bearer "):]
+    try:
+        return get_current_user(token), None
+    except ValueError as exc:
+        return None, (jsonify({"error": str(exc)}), 401)
+
+
 def _create_flask_app(ui_enabled: bool = True) -> Any:
     """Create a Flask application serving the Rex web UI and API stubs."""
 
@@ -48,6 +69,11 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
     app = Flask(__name__, static_folder=None)
     app.secret_key = "rex-gui-local"  # local-only; not security-sensitive
+
+    data_dir = Path(os.getenv("REX_DATA_DIR", "data"))
+    from rex.history_store import HistoryStore
+
+    _history_store = HistoryStore(db_path=data_dir / "history.db")
 
     if ui_enabled and _UI_DIST.is_dir():
 
@@ -78,33 +104,41 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
     @app.route("/api/chat/history")
     def _chat_history() -> Any:
-        from rex import dashboard_store as ds
-
-        return jsonify(ds.get_history()), 200
+        user, err = _require_auth()
+        if err:
+            return err
+        turns = _history_store.load_history(user["id"])
+        return jsonify(turns), 200
 
     @app.route("/api/chat/clear", methods=["POST"])
     def _chat_clear() -> Any:
-        from rex import dashboard_store as ds
-
-        ds.clear_history()
+        user, err = _require_auth()
+        if err:
+            return err
+        _history_store.clear_history(user["id"])
         return jsonify({"ok": True}), 200
 
     @app.route("/api/chat/send", methods=["POST"])
     def _chat_send() -> Any:
-        from rex import dashboard_store as ds
+        user, err = _require_auth()
+        if err:
+            return err
 
         data: dict[str, Any] = request.get_json(silent=True) or {}
         user_text = (data.get("message") or "").strip()
-        attachment_name: str | None = data.get("filename") or None
 
         if not user_text:
             return jsonify({"error": "empty message"}), 400
 
-        ds.add_message("user", user_text, attachment_name)
+        from datetime import UTC, datetime
+
+        _history_store.save_turn(user["id"], "user", user_text, datetime.now(UTC))
 
         def _stream() -> Any:
+            from datetime import UTC, datetime
+
             reply = _generate_reply(user_text)
-            ds.add_message("assistant", reply)
+            _history_store.save_turn(user["id"], "assistant", reply, datetime.now(UTC))
             payload = json.dumps({"content": reply, "done": True})
             yield f"data: {payload}\n\n"
 
@@ -196,7 +230,49 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 409
 
+        # Create a memory profile for the new user (best-effort).
+        try:
+            from rex.identity import create_user_profile
+
+            create_user_profile(user["id"], name=username)
+        except Exception:
+            pass
+
         return jsonify({"id": user["id"], "username": user["username"]}), 201
+
+    # ------------------------------------------------------------------
+    # User preferences API (US-048)
+    # ------------------------------------------------------------------
+
+    @app.route("/api/user/preferences", methods=["GET"])
+    def _get_preferences() -> Any:
+        """Return the authenticated user's stored preferences."""
+        user, err = _require_auth()
+        if err:
+            return err
+        from rex.identity import get_user_profile
+
+        profile = get_user_profile(user["id"])
+        prefs = profile.get("preferences", {}) if profile else {}
+        return jsonify(prefs), 200
+
+    @app.route("/api/user/preferences", methods=["PATCH"])
+    def _patch_preferences() -> Any:
+        """Merge the request body into the authenticated user's preferences."""
+        user, err = _require_auth()
+        if err:
+            return err
+        updates: dict[str, Any] = request.get_json(silent=True) or {}
+        from rex.identity import create_user_profile, get_user_profile, update_user_preferences
+
+        # Ensure a profile exists before updating.
+        if get_user_profile(user["id"]) is None:
+            try:
+                create_user_profile(user["id"], name=user["username"])
+            except Exception:
+                pass
+        update_user_preferences(user["id"], updates)
+        return jsonify({"ok": True}), 200
 
     @app.route("/api/auth/login", methods=["POST"])
     def _auth_login() -> Any:

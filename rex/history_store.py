@@ -115,6 +115,16 @@ class HistoryStore:
                 )
                 return [dict(row) for row in cursor.fetchall()]
 
+    def clear_history(self, user_id: str) -> None:
+        """Delete all conversation turns for *user_id*.
+
+        Args:
+            user_id: Identifier for the user/session whose history to clear.
+        """
+        with self._lock:
+            with self._connect() as conn:
+                conn.execute("DELETE FROM turns WHERE user_id = ?", (user_id,))
+
     def prune(self, user_id: str, keep_days: int = 30) -> int:
         """Delete turns older than *keep_days* for *user_id*.
 
