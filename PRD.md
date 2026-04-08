@@ -897,14 +897,14 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want a device control panel with toggles and sliders for my HA devices.
 
 **Acceptance Criteria:**
-- [ ] New dashboard page: Home -> Devices
-- [ ] Lists approved devices from `config/device_aliases.json`
-- [ ] Lights: on/off toggle + brightness slider
-- [ ] Switches: on/off toggle
-- [ ] Media players: play/pause, volume slider
-- [ ] Controls send commands to HA in real-time
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] New dashboard page: Home -> Devices
+- [x] Lists approved devices from `config/device_aliases.json`
+- [x] Lights: on/off toggle + brightness slider
+- [x] Switches: on/off toggle
+- [x] Media players: play/pause, volume slider
+- [x] Controls send commands to HA in real-time
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

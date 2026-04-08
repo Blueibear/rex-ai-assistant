@@ -26,6 +26,7 @@ import { IntegrationsPage } from '../../pages/IntegrationsPage'
 import { AboutPage } from '../../pages/AboutPage'
 import { SetupWizardPage } from '../../pages/SetupWizardPage'
 import { HomeAssistantSettingsPage } from '../../pages/HomeAssistantSettingsPage'
+import { DevicesPage } from '../../pages/DevicesPage'
 import { ErrorBoundary } from '../../components/ErrorBoundary'
 
 const PRIORITY_TOAST_TYPE: Record<NotificationPriority, ToastType> = {
@@ -105,6 +106,7 @@ function AppShell(): React.ReactElement {
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<ErrorBoundary><HomePage /></ErrorBoundary>} />
+          <Route path="/home/devices" element={<ErrorBoundary><DevicesPage /></ErrorBoundary>} />
           <Route path="/chat" element={<ErrorBoundary><ChatPage /></ErrorBoundary>} />
           <Route path="/voice" element={<ErrorBoundary><VoicePage /></ErrorBoundary>} />
           <Route path="/tasks" element={<ErrorBoundary><TasksPage /></ErrorBoundary>} />

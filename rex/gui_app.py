@@ -618,6 +618,101 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         return jsonify({"ok": True}), 200
 
     # ------------------------------------------------------------------
+    # Device control API (US-060)
+    # ------------------------------------------------------------------
+
+    @app.route("/api/devices", methods=["GET"])
+    def _list_devices() -> Any:
+        """Return approved devices from config/device_aliases.json."""
+        try:
+            from rex.bridge_utils import repo_root
+
+            aliases_path = repo_root() / "config" / "device_aliases.json"
+        except Exception:
+            aliases_path = Path("config") / "device_aliases.json"
+
+        try:
+            raw: Any = json.loads(aliases_path.read_text(encoding="utf-8"))
+            devices = raw.get("devices", []) if isinstance(raw, dict) else []
+        except Exception:
+            devices = []
+        return jsonify({"devices": devices}), 200
+
+    @app.route("/api/devices/<path:entity_id>/command", methods=["POST"])
+    def _device_command(entity_id: str) -> Any:
+        """Send a command to a Home Assistant entity.
+
+        Requires auth.  Body: ``{command: str, value?: any}``
+
+        Commands:
+        - ``turn_on``  / ``turn_off``  — lights, switches
+        - ``set_brightness`` (0–255)   — lights
+        - ``media_play`` / ``media_pause`` / ``media_next_track`` — media players
+        - ``volume_set`` (0.0–1.0)     — media players
+        """
+        import urllib.request
+
+        user, err = _require_auth()
+        if err:
+            return err
+
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        command = (data.get("command") or "").strip()
+        value = data.get("value")
+
+        if not command:
+            return jsonify({"error": "command is required"}), 400
+
+        # Map command → HA service domain + service.
+        _COMMAND_MAP: dict[str, tuple[str, str]] = {
+            "turn_on": ("homeassistant", "turn_on"),
+            "turn_off": ("homeassistant", "turn_off"),
+            "set_brightness": ("light", "turn_on"),
+            "media_play": ("media_player", "media_play"),
+            "media_pause": ("media_player", "media_pause"),
+            "media_next_track": ("media_player", "media_next_track"),
+            "volume_set": ("media_player", "volume_set"),
+        }
+
+        if command not in _COMMAND_MAP:
+            return jsonify({"error": f"unknown command: {command}"}), 400
+
+        domain, service = _COMMAND_MAP[command]
+
+        try:
+            from rex.config import load_config
+
+            cfg = load_config()
+            ha_url = (cfg.ha_base_url or "").rstrip("/")
+            ha_token = cfg.ha_token or ""
+        except Exception:
+            return jsonify({"error": "Home Assistant is not configured"}), 503
+
+        if not ha_url:
+            return jsonify({"error": "Home Assistant URL is not configured"}), 503
+
+        service_url = f"{ha_url}/api/services/{domain}/{service}"
+        payload: dict[str, Any] = {"entity_id": entity_id}
+        if command == "set_brightness" and value is not None:
+            payload["brightness"] = int(value)
+        elif command == "volume_set" and value is not None:
+            payload["volume_level"] = float(value)
+
+        body = json.dumps(payload).encode()
+        req = urllib.request.Request(service_url, data=body, method="POST")
+        req.add_header("Content-Type", "application/json")
+        if ha_token:
+            req.add_header("Authorization", f"Bearer {ha_token}")
+
+        try:
+            with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
+                ok = resp.status in (200, 201)
+        except Exception as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 200
+
+        return jsonify({"ok": ok}), 200
+
+    # ------------------------------------------------------------------
     # Home Assistant setup API (US-059)
     # ------------------------------------------------------------------
 

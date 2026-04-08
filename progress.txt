@@ -902,3 +902,14 @@
 - 10 tests in tests/test_us059_ha_setup.py: test endpoint (400, public, success, failure, non-200), save (401, 400, ok, config, env)
 - Key: /api/ha/test uses urllib.request.urlopen with timeout=5 (no extra deps); save uses _write_env_secrets for secret management
 ---
+
+## Iteration 61 - US-060: Add device control panel in dashboard
+- Added GET /api/devices endpoint — reads devices[] from config/device_aliases.json, returns list
+- Added POST /api/devices/<entity_id>/command endpoint (auth required) — maps command → HA service, forwards via urllib
+  - Supported commands: turn_on, turn_off, set_brightness, media_play, media_pause, media_next_track, volume_set
+- Updated config/device_aliases.json with devices[] array (4 sample devices)
+- Created gui/src/pages/DevicesPage.tsx — LightControl (toggle + brightness), SwitchControl, MediaPlayerControl (play/pause, next, volume)
+- Added /home/devices route in App.tsx and Devices section name in AppLayout.tsx
+- 11 tests: list devices (returns key, from config, empty on missing, no auth), command (401, 400 missing, 400 unknown, 503 not configured, 200 turn_on, brightness value, failed HA call)
+- Key: Device types map to UI control components; commands use urllib (no extra deps); config path uses bridge_utils.repo_root
+---
