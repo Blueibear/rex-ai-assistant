@@ -563,13 +563,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to occasionally suggest automations based on my habits, and let me accept or dismiss them.
 
 **Acceptance Criteria:**
-- [ ] At most one suggestion per session (not spammy)
-- [ ] Suggestion is spoken: "I noticed you turn on the kitchen light at 7am most days. Want me to automate that?"
-- [ ] User can accept ("yes") or dismiss ("no thanks")
-- [ ] Dismissed patterns are not suggested again for 30 days
-- [ ] Accepted patterns create a scheduled automation entry
-- [ ] Test covers suggest, accept, and dismiss flows
-- [ ] Typecheck passes
+- [x] At most one suggestion per session (not spammy)
+- [x] Suggestion is spoken: "I noticed you turn on the kitchen light at 7am most days. Want me to automate that?"
+- [x] User can accept ("yes") or dismiss ("no thanks")
+- [x] Dismissed patterns are not suggested again for 30 days
+- [x] Accepted patterns create a scheduled automation entry
+- [x] Test covers suggest, accept, and dismiss flows
+- [x] Typecheck passes
 
 ---
 

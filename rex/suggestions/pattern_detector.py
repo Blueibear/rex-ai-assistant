@@ -90,6 +90,9 @@ def detect_patterns(
                 "pattern": pattern,
                 "frequency": count,
                 "suggested_automation": suggested_automation,
+                "entity_id": entity_id,
+                "service": service,
+                "start_hour": start_hour,
             }
         )
 

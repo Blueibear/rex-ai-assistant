@@ -6,6 +6,7 @@ import asyncio
 import logging
 import re
 import threading
+import time
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -163,6 +164,19 @@ class Assistant:
             except Exception as exc:
                 logger.warning("Failed to initialize Home Assistant bridge: %s", exc)
                 self._ha_bridge = None
+
+        # Proactive suggestion engine (US-036)
+        from .suggestions.engine import SuggestionEngine
+        from .suggestions.pattern_detector import PatternEntry
+
+        _dismissed_path = getattr(self._settings, "dismissed_suggestions_path", None)
+        _automations_path = getattr(self._settings, "automations_path", None)
+        self._suggestion_engine: SuggestionEngine | None = SuggestionEngine(
+            dismissed_path=_dismissed_path,
+            automations_path=_automations_path,
+        )
+        # In-memory command log for pattern detection (wall-clock timestamps)
+        self._pattern_entries: list[PatternEntry] = []
 
     def _schedule_daily_prune(self) -> None:
         """Prune old history turns and schedule the next prune in 24 hours.
@@ -476,6 +490,19 @@ class Assistant:
         loop = asyncio.get_running_loop()
         completion: str | None = None
 
+        # Proactive suggestion response handling (US-036): intercept yes/no
+        # answers while a suggestion is pending, before any other processing.
+        _sug_engine = getattr(self, "_suggestion_engine", None)
+        if _sug_engine is not None and _sug_engine.has_pending:
+            if _sug_engine.is_accept(transcript):
+                reply = _sug_engine.handle_yes()
+                self._record_completion(transcript, reply)
+                return reply
+            elif _sug_engine.is_dismiss(transcript):
+                reply = _sug_engine.handle_dismiss()
+                self._record_completion(transcript, reply)
+                return reply
+
         # Model routing: classify the message and resolve the target model.
         category = self._router.classify(transcript)
         _routing_cfg = getattr(self._settings, "model_routing", None)
@@ -586,11 +613,36 @@ class Assistant:
                         self._ha_bridge.undo_last,
                     )
                 else:
+                    _hist_len_before = len(getattr(self._ha_bridge, "_command_history", None) or [])
                     completion = await loop.run_in_executor(
                         None,
                         self._ha_bridge.process_transcript,
                         transcript,
                     )
+                    # If a new HA command succeeded, record it for pattern detection
+                    if completion is not None:
+                        _cmd_hist = getattr(self._ha_bridge, "_command_history", None)
+                        if _cmd_hist is not None and len(_cmd_hist) > _hist_len_before:
+                            _last = _cmd_hist._entries[-1]
+                            from .suggestions.pattern_detector import PatternEntry
+
+                            self._pattern_entries.append(
+                                PatternEntry(
+                                    entity_id=_last.entity_id,
+                                    service=_last.service,
+                                    timestamp=time.time(),
+                                )
+                            )
+                        # Check if a proactive suggestion is due (US-036)
+                        _sug_engine2 = getattr(self, "_suggestion_engine", None)
+                        if _sug_engine2 is not None:
+                            from .suggestions.pattern_detector import detect_patterns
+
+                            _patterns = detect_patterns(self._pattern_entries)
+                            _sug = _sug_engine2.get_suggestion(_patterns)
+                            if _sug is not None:
+                                _, _spoken = _sug
+                                completion = f"{completion} {_spoken}"
 
             if completion is None:
                 prompt = await self._prepare_prompt(

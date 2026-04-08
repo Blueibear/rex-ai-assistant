@@ -552,3 +552,24 @@
   - ruff auto-fixed: unused import (time), unused import (math), unused import (float typing)
   - Test that parses suggested_automation.split() must use index [2] (after "Automate:" and service name)
 ---
+
+## Iteration 40 - US-036: Surface proactive suggestions to the user
+- Updated `detect_patterns()` to include `entity_id`, `service`, `start_hour` in each result dict
+- Created `rex/suggestions/engine.py` with `SuggestionEngine` class:
+  - `get_suggestion(patterns)` → `(key, spoken_text) | None`; at most one per session
+  - `handle_yes()` → saves automation to JSON, returns confirmation
+  - `handle_dismiss()` → records dismissal timestamp, not re-suggested for 30 days
+  - `is_dismissed(key, window_days=30)` → reads dismiss file
+  - `is_accept(transcript)` / `is_dismiss(transcript)` → detect yes/no utterances
+- Wired into `Assistant.__init__`: creates `SuggestionEngine` and `_pattern_entries: list[PatternEntry]`
+- Wired into `Assistant.generate_reply()`:
+  - Preamble: intercepts "yes"/"no thanks" while `_sug_engine.has_pending` → handle and return
+  - After HA command: appends PatternEntry(wall-clock time), calls `detect_patterns()`, optionally appends suggestion to completion
+- 20 tests in `tests/test_us036_suggestions.py` — all pass; ruff auto-fixed 5, black reformatted 2 files
+- mypy passes clean on both suggestion files
+- Files changed: rex/suggestions/pattern_detector.py, rex/suggestions/engine.py (new), rex/assistant.py, tests/test_us036_suggestions.py (new), PRD.md
+- Learnings for future iterations:
+  - `calendar.timegm` gives UTC midnight; `datetime.fromtimestamp()` uses local TZ — use `time.mktime(date.today().timetuple())` for local midnight in tests
+  - Hour bucket `int(h / window)` rounds DOWN: hour 7 with window=2 → start_hour 6; use `time_window_hours=1.0` to keep exact hours in tests
+  - `_sug_engine.has_pending` guard ensures yes/no intercept only fires when a suggestion is awaiting an answer
+---
