@@ -179,6 +179,7 @@ class AppConfig:
 
     active_profile: str = "default"
     capabilities: List[str] = field(default_factory=list)
+    personality: str = "Friendly"  # default personality (US-050)
 
     audio_input_device: Optional[int] = None
     audio_output_device: Optional[int | str] = None

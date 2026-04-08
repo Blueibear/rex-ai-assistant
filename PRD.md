@@ -756,13 +756,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I need a personality system that controls the assistant's tone and style.
 
 **Acceptance Criteria:**
-- [ ] New module `rex/personality.py` with `Personality` dataclass: `name`, `system_prompt`, `tone_keywords`, `greeting`
-- [ ] Built-in personalities: "Professional", "Friendly", "Minimal"
-- [ ] `get_personality(name)` returns the personality; `list_personalities()` returns all
-- [ ] `Assistant` injects the active personality's system prompt into LLM calls
-- [ ] Config field: `personality` in per-user config (default: "Friendly")
-- [ ] Unit test confirms personality prompt injection
-- [ ] Typecheck passes
+- [x] New module `rex/personality.py` with `Personality` dataclass: `name`, `system_prompt`, `tone_keywords`, `greeting`
+- [x] Built-in personalities: "Professional", "Friendly", "Minimal"
+- [x] `get_personality(name)` returns the personality; `list_personalities()` returns all
+- [x] `Assistant` injects the active personality's system prompt into LLM calls
+- [x] Config field: `personality` in per-user config (default: "Friendly")
+- [x] Unit test confirms personality prompt injection
+- [x] Typecheck passes
 
 ---
 

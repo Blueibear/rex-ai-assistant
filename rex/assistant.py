@@ -804,6 +804,35 @@ class Assistant:
             return f"[Active user: {user_id}]"
         return f"[Active user: {user_id} — {'; '.join(parts)}]"
 
+    def _get_active_personality_prompt(self, active_user_id: str | None) -> str | None:
+        """Return the system prompt for the user's configured personality, or None."""
+        from .personality import get_personality
+
+        # Resolve personality name: check per-user preferences first, then settings
+        personality_name: str | None = None
+        uid = active_user_id or self._user_id
+        if uid:
+            try:
+                from rex.identity import get_user_profile
+
+                profile = get_user_profile(uid)
+                if profile:
+                    prefs = profile.get("preferences", {})
+                    if isinstance(prefs, dict):
+                        personality_name = prefs.get("personality")
+            except Exception:
+                pass
+
+        if not personality_name:
+            personality_name = getattr(self._settings, "personality", None)
+
+        if not personality_name:
+            from .personality import DEFAULT_PERSONALITY
+
+            personality_name = DEFAULT_PERSONALITY
+
+        return get_personality(personality_name).system_prompt
+
     def _build_prompt(
         self,
         transcript: str,
@@ -814,6 +843,11 @@ class Assistant:
     ) -> str:
         system_context = self._build_system_context()
         history_lines = [system_context]
+
+        # Inject active personality system prompt
+        personality_prompt = self._get_active_personality_prompt(active_user_id)
+        if personality_prompt:
+            history_lines.append(personality_prompt)
         if active_user_id is not None:
             user_ctx = self._load_user_profile_context(active_user_id)
             if user_ctx:
