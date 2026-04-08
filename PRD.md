@@ -686,11 +686,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to automatically fall back to local when my cloud API limit is reached.
 
 **Acceptance Criteria:**
-- [ ] If cloud LLM returns 429 (rate limit) or 402 (quota exceeded), model router switches to local
-- [ ] User is notified: "Cloud limit reached, switching to local model"
-- [ ] Router retries cloud after a configurable cooldown (default 1 hour)
-- [ ] Test simulates 429 response and confirms fallback
-- [ ] Typecheck passes
+- [x] If cloud LLM returns 429 (rate limit) or 402 (quota exceeded), model router switches to local
+- [x] User is notified: "Cloud limit reached, switching to local model"
+- [x] Router retries cloud after a configurable cooldown (default 1 hour)
+- [x] Test simulates 429 response and confirms fallback
+- [x] Typecheck passes
 
 ---
 

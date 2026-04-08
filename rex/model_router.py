@@ -14,9 +14,10 @@ import json
 import logging
 import re
 import threading
+import time
 import urllib.error
 import urllib.request
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from enum import StrEnum, auto
 
 logger = logging.getLogger(__name__)
@@ -180,17 +181,26 @@ class ModelRouter:
     _DEFAULT_OLLAMA_URL = "http://localhost:11434"
     _DEFAULT_REFRESH_INTERVAL = 60
 
+    _DEFAULT_COOLDOWN_SECONDS = 3600  # 1 hour
+
     def __init__(
         self,
         ollama_base_url: str = _DEFAULT_OLLAMA_URL,
         routing_config: object = None,
         refresh_interval: int = _DEFAULT_REFRESH_INTERVAL,
+        cooldown_seconds: int = _DEFAULT_COOLDOWN_SECONDS,
+        notify_callback: Callable[[str], None] | None = None,
     ) -> None:
         self._ollama_base_url = ollama_base_url.rstrip("/")
         self._refresh_interval = refresh_interval
         self._available_ollama_models: set[str] = set()
         self._stop_event = threading.Event()
         self._refresh_thread: threading.Thread | None = None
+
+        # Cloud rate-limit cooldown state
+        self._cooldown_seconds = cooldown_seconds
+        self._cloud_limited_until: float = 0.0  # epoch seconds
+        self._notify_callback = notify_callback
 
         # Determine whether any routing target could be an Ollama model.
         self._needs_ollama = self._any_ollama_target(routing_config)
@@ -254,6 +264,33 @@ class ModelRouter:
             model_id in self._available_ollama_models
             or name_no_tag in self._available_ollama_models
         )
+
+    # ------------------------------------------------------------------
+    # Cloud rate-limit / quota fallback (US-045)
+    # ------------------------------------------------------------------
+
+    def cloud_limit_hit(self, status_code: int) -> None:
+        """Record that the cloud API returned *status_code* 429 or 402.
+
+        Activates a cooldown period during which :py:meth:`route` will route
+        to the local model instead of cloud.  Calls *notify_callback* (if
+        supplied) with a human-readable message so callers can surface the
+        notification to the user.
+        """
+        if status_code not in (429, 402):
+            return
+        self._cloud_limited_until = time.monotonic() + self._cooldown_seconds
+        msg = (
+            f"Cloud limit reached (HTTP {status_code}), switching to local model. "
+            f"Cloud will be retried in {self._cooldown_seconds // 60} min."
+        )
+        logger.warning("model_router: %s", msg)
+        if self._notify_callback is not None:
+            self._notify_callback(msg)
+
+    def _cloud_in_cooldown(self) -> bool:
+        """Return True if cloud is currently under a rate-limit cooldown."""
+        return time.monotonic() < self._cloud_limited_until
 
     # ------------------------------------------------------------------
     # Public API
@@ -355,8 +392,18 @@ class ModelRouter:
             )
             routing_mode = "local_preferred"
 
+        cloud_available = cloud_model and not self._cloud_in_cooldown()
+
         if routing_mode == "cloud_only":
-            return cloud_model
+            if cloud_available:
+                return cloud_model
+            # Cloud is in cooldown — fall back to local with notification
+            logger.warning(
+                "model_router: cloud_only mode but cloud is in cooldown; "
+                "falling back to local model %r",
+                local_model,
+            )
+            return local_model or cloud_model
 
         if routing_mode == "local_only":
             if local_model and self._is_available(local_model):
@@ -382,13 +429,13 @@ class ModelRouter:
             )
             return cloud_model
         else:
-            # complex query → prefer cloud if configured
-            if cloud_model:
+            # complex query → prefer cloud if configured and not in cooldown
+            if cloud_available:
                 return cloud_model
             if local_available:
                 return local_model
             logger.warning(
-                "model_router: no cloud model configured and local model %r is unavailable",
+                "model_router: no cloud model available and local model %r is unavailable",
                 local_model,
             )
             return local_model or cloud_model

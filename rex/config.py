@@ -251,8 +251,8 @@ class AppConfig:
 
     # Push notifications (US-042)
     push_provider: Optional[str] = None  # "ntfy" or "pushover"
-    push_token: Optional[str] = None     # bearer token (ntfy) or app token (pushover)
-    push_topic: Optional[str] = None     # ntfy topic or pushover user key
+    push_token: Optional[str] = None  # bearer token (ntfy) or app token (pushover)
+    push_topic: Optional[str] = None  # ntfy topic or pushover user key
 
     # Room context: maps device IDs to room names (e.g. {"mic_kitchen": "kitchen"})
     device_room_map: Dict[str, str] = field(default_factory=dict)
@@ -268,6 +268,7 @@ class AppConfig:
     # Model routing
     model_routing: ModelRoutingConfig = field(default_factory=ModelRoutingConfig)
     llm_routing_mode: str = "local_preferred"  # "local_preferred", "cloud_only", "local_only"
+    cloud_fallback_cooldown_seconds: int = 3600  # cooldown after 429/402 before retrying cloud
 
     # Voice identity
     speaker_id_threshold: float = 0.75
@@ -683,6 +684,9 @@ def build_app_config(json_config: dict) -> AppConfig:
         model_routing=_parse_model_routing(_get_nested(json_config, "model_routing", {})),
         llm_routing_mode=str(
             _get_nested(json_config, "model_routing.llm_routing_mode", "local_preferred")
+        ),
+        cloud_fallback_cooldown_seconds=_coerce_int(
+            json_config, "model_routing.cloud_fallback_cooldown_seconds", 3600
         ),
         # Voice identity
         speaker_id_threshold=_coerce_float(
