@@ -335,12 +335,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want XTTS and transformers to load without import errors or deprecation crashes.
 
 **Acceptance Criteria:**
-- [ ] Lazy import of XTTS uses `find_spec()` before `import_module()` (per learned rules)
-- [ ] Compatibility shims for transformers version differences are applied before XTTS load
-- [ ] If XTTS is not installed, TTS gracefully falls back to edge-tts or pyttsx3
-- [ ] No `ImportError` or `AttributeError` on `import rex.tts_utils` with or without XTTS installed
-- [ ] Test covers XTTS-present and XTTS-absent scenarios
-- [ ] Typecheck passes
+- [x] Lazy import of XTTS uses `find_spec()` before `import_module()` (per learned rules)
+- [x] Compatibility shims for transformers version differences are applied before XTTS load
+- [x] If XTTS is not installed, TTS gracefully falls back to edge-tts or pyttsx3
+- [x] No `ImportError` or `AttributeError` on `import rex.tts_utils` with or without XTTS installed
+- [x] Test covers XTTS-present and XTTS-absent scenarios
+- [x] Typecheck passes
 
 ---
 

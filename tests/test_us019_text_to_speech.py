@@ -14,6 +14,8 @@ import sys
 import types
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -146,7 +148,7 @@ class TestAudioGenerated:
 
     def test_xtts_generates_audio(self, tmp_path):
         """speak() calls tts_to_file when XTTS is available."""
-        import numpy as np
+        np = pytest.importorskip("numpy")
 
         fake_cls, fake_instance = _make_fake_tts_class()
         fake_torch = _make_fake_torch()
@@ -186,6 +188,7 @@ class TestAudioGenerated:
 
     def test_edge_generates_audio(self, tmp_path):
         """speak() calls edge_tts.Communicate when edge provider is selected."""
+        np = pytest.importorskip("numpy")
         fake_communicate = AsyncMock()
         fake_communicate.save = AsyncMock()
 
@@ -193,8 +196,6 @@ class TestAudioGenerated:
         fake_edge_tts.Communicate.return_value = fake_communicate
 
         fake_sf = MagicMock()
-        import numpy as np
-
         fake_sf.read.return_value = (np.zeros(16000, dtype="float32"), 22050)
         fake_sf.write = MagicMock()
 
@@ -272,7 +273,7 @@ class TestAudioPlaysAutomatically:
 
     def test_xtts_plays_audio_automatically(self, tmp_path):
         """simpleaudio.WaveObject.play() is called after XTTS synthesis."""
-        import numpy as np
+        np = pytest.importorskip("numpy")
 
         fake_cls, fake_instance = _make_fake_tts_class()
         fake_torch = _make_fake_torch()

@@ -683,7 +683,11 @@ class TextToSpeech:
             else:
                 print(f"Rex: {text}")
         except Exception as exc:
-            logger.error("[TTS] Failed: %s", exc)
+            if self._provider == "xtts" and self._xtts_init_error:
+                reason = f"XTTS not initialized ({self._xtts_init_error})"
+                logger.error("[TTS] Failed: %s", reason)
+            else:
+                logger.error("[TTS] Failed: %s", exc)
             print(f"Rex: {text}")
         finally:
             self._speaking.clear()

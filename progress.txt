@@ -153,6 +153,20 @@
   - _coerce_float/int changes must preserve the happy path (non-string values still work via float(raw))
 ---
 
+## Iteration 13 - US-078: Fix torio/FFmpeg runtime dependency for voice pipeline
+- FFmpeg is NOT required for audio capture/playback (sounddevice); IS required for XTTS (torio dependency)
+- Added torio warning suppression to rex/voice_loop.py (after all imports to satisfy ruff E402)
+- Added check_ffmpeg_for_tts() to rex/doctor.py: WARNING if XTTS+no ffmpeg, INFO if edge-tts/pyttsx3+no ffmpeg, OK if found
+- Removed ffmpeg from check_external_dependencies() (now has dedicated check_ffmpeg_for_tts())
+- Integrated check_ffmpeg_for_tts() into run_diagnostics()
+- 8 tests in tests/test_us078_ffmpeg_tts.py (all pass); ruff, black pass
+- Files changed: rex/voice_loop.py, rex/doctor.py, tests/test_us078_ffmpeg_tts.py, PRD.md
+- Learnings for future iterations:
+  - warnings.filterwarnings() after imports causes ruff E402; place after all imports (TTS imports are lazy anyway)
+  - Load_config imported locally inside function → patch via rex.config.load_config not rex.doctor.load_config
+  - rex_loop.py and gui.py already had torio suppression; canonical package (rex/voice_loop.py) did not
+---
+
 ## Iteration 12 - US-077: Pin XTTS/transformers compatible versions and patch BeamSearchScorer
 - Added `transformers>=4.38.0,<5.0` pin to requirements-gpu-cu124.txt and requirements-gpu.txt
 - `rex/compat/transformers_shims.py` and `_lazy_import_tts()` shim already existed (pre-satisfied)
@@ -165,4 +179,141 @@
   - async tests must use asyncio.run() in sync test functions (anyio/pytest-asyncio not installed)
   - MagicMock(spec=[]) gives hasattr() False for unlisted attrs; SimpleNamespace gives full control
   - `from rex.compat import ensure_transformers_compatibility` inside a function body picks up the patched version when rex.compat.ensure_transformers_compatibility is patched before the call
+---
+
+## Iteration 14 - US-010: Fix voice pipeline hang states
+- Added `stt_timeout=30.0`, `llm_timeout=60.0`, `tts_timeout=30.0` params to `VoiceLoop.__init__`
+- Wrapped `_transcribe`, `generate_reply`, and `_speak` awaits in `asyncio.wait_for()` in `run()`
+- Streaming path wrapped with combined `llm_timeout + tts_timeout`
+- On `TimeoutError`: logs `pipeline_timeout` event with `stage` field, then `continue` to re-enter listening state
+- Tests skip without numpy (same pattern as US-007/008/009); 58 existing tests still pass
+- ruff auto-fixed: `asyncio.TimeoutError` → builtin `TimeoutError` (UP041); black reformatted test file
+- Files changed: rex/voice_loop.py, tests/test_us010_voice_pipeline_timeouts.py, PRD.md
+- Learnings for future iterations:
+  - ruff UP041: use builtin `TimeoutError` not `asyncio.TimeoutError` in Python 3.11+
+  - `asyncio.wait_for()` accepts a coroutine directly — no need to wrap in `asyncio.ensure_future()`
+  - `del assistant.stream_reply` on a MagicMock forces the non-streaming path (same pattern as US-009)
+---
+
+## Iteration 15 - US-011: Add missing voice dependencies to requirements
+- Added `edge-tts>=6.1.9` and `pyttsx3>=2.90` to [project] dependencies in pyproject.toml
+- Both are cross-platform (Windows/macOS/Linux) and lightweight (no GPU required)
+- Written tests/test_us011_voice_deps.py with 5 tests (pyproject declaration, importability, correct section)
+- 4 pass, 1 skipped (pyttsx3 not installed in test env); ruff, black pass
+- Files changed: pyproject.toml, tests/test_us011_voice_deps.py, PRD.md
+- Learnings for future iterations:
+  - edge-tts and pyttsx3 were not in any dependency section; added to main [project] dependencies so `pip install .` picks them up
+  - Both packages already had mypy ignore_missing_imports overrides in pyproject.toml (pre-existing)
+  - Test regex `r'["\'"]?pkg["\'"]?\s*>='` matches both quoted and unquoted TOML dependency strings
+---
+
+## Iteration 16 - US-012: Fix custom voice duration validation
+- Added `MAX_DURATION_SECONDS = 300.0` and `ACCEPTED_FORMATS` constants to `rex/custom_voices.py`
+- Added explicit format check in `get_audio_duration()` raising ValueError with "Unsupported format: XYZ. Accepted formats: WAV, MP3, FLAC, OGG"
+- Fixed too-short error message to "Sample is X.Xs, minimum is Ys" (was different wording)
+- Added too-long check returning "Sample is X.Xs, maximum is Ys"
+- Written tests/test_us012_custom_voice_duration.py with 9 tests using real WAV files created via stdlib wave module
+- All 9 tests pass; ruff, black pass (black reformatted custom_voices.py inline strings)
+- Files changed: rex/custom_voices.py, tests/test_us012_custom_voice_duration.py, PRD.md
+- Learnings for future iterations:
+  - Use stdlib `wave` + `struct.pack` to create real WAV files of known duration in tmp_path — no external deps
+  - `struct.pack(f"<{n_frames}h", *([0] * n_frames))` writes silent PCM frames; efficient for test sizes
+  - black reformats multi-line parenthesized f-strings to single lines; no behavior change
+---
+
+## Iteration 17 - US-013: Remove mock calendar data and connect real backend
+- Removed `_default_mock_events()` from `rex/calendar_service.py` (returned hardcoded "Product sync" and "1:1 check-in" events)
+- Updated `_load_events()` to return `[]` instead of calling `_default_mock_events()` when no file found
+- Written `tests/test_us013_calendar_no_mock.py` with 10 tests (no fake events, not-configured raises, configured returns real events)
+- 101 tests pass, 25 skipped; ruff, black pass
+- Files changed: rex/calendar_service.py, tests/test_us013_calendar_no_mock.py, PRD.md
+- Learnings for future iterations:
+  - `_default_mock_events()` only used internally; safe to remove with no external callers
+  - AC #2 "API returns not_configured" was already satisfied by US-076 (raises IntegrationNotConfiguredError)
+  - Two separate CalendarService classes exist: `rex/calendar_service.py` (main) and `rex/integrations/calendar_service.py` (integrations layer); US-013 only targets the former
+---
+
+## Iteration 18 - US-014: Remove mock email data and connect real backend
+- Removed hardcoded `_MOCK_EMAILS`, `_NOW`, `_dt` from `rex/email_backends/inbox_stub.py`
+- `EmailInboxStub.__init__` now accepts `emails: list[EmailEnvelope] | None = None`; starts empty by default
+- Added `_create_configured_email_service()` to `rex/email_service.py`; raises `IntegrationNotConfiguredError("Email: not configured")` when no IMAP credentials resolved
+- Updated `get_email_service()` to call `_create_configured_email_service()` instead of returning `EmailService()` unconditionally
+- Updated `rex/cli.py` `cmd_email` and `_cmd_email_send` to catch `IntegrationNotConfiguredError` and print friendly message
+- Updated `tests/test_us078_email_inbox_stub.py`: added `_TEST_EMAILS` fixture list and `_stub_with_data()` helper; 7 data-dependent tests now inject test data
+- Updated `tests/test_us079_email_triage.py` `TestMockInboxCoverage.setup_method` to inject test data via `_make_test_emails()`
+- Written `tests/test_us014_email_not_configured.py` with 8 tests (stub empty, inject, not-configured raises, configured returns service)
+- All 77 targeted tests pass; ruff and black pass
+- Files changed: rex/email_backends/inbox_stub.py, rex/email_service.py, rex/cli.py, tests/test_us014_email_not_configured.py, tests/test_us078_email_inbox_stub.py, tests/test_us079_email_triage.py, PRD.md
+- Learnings for future iterations:
+  - `EmailInboxStub` was used in both test_us078 and test_us079; removing hardcoded data broke both test files
+  - Pattern: move hardcoded test data into the test file itself, not into the stub class
+  - `get_email_service()` follows same IntegrationNotConfiguredError pattern as `get_calendar_service()`
+  - CLI callers need try/except around get_email_service(); check all call sites
+---
+
+## Iteration 19 - US-015: Replace "exit code 2" with meaningful error reporting
+- Added `bridge_error_response(exc)` helper to `rex/bridge_utils.py` returning `{"ok": False, "error": str(exc), "traceback": traceback.format_exc()}`
+- Updated 15 of 16 bridge scripts to use `bridge_error_response()` in their outer exception handlers; `rex_wakeword_list_bridge.py` skipped as it returns `ok: True` with warning (recovery path, not failure)
+- For NDJSON bridges (`rex_chat_stream_bridge.py`, `rex_voice_bridge.py`), added `"traceback"` directly to the `{"type": "error", ...}` emit
+- For `rex_stt_bridge.py` and `rex_speaker_bridge.py`, used `{**bridge_error_response(exc), "extra_key": ...}` to preserve extra fields
+- Written 9 tests in `tests/test_us015_bridge_error_reporting.py`; all pass
+- ruff, black pass; 9 tests pass
+- Files changed: rex/bridge_utils.py, 15 rex_*_bridge.py files, tests/test_us015_bridge_error_reporting.py, PRD.md
+- Learnings for future iterations:
+  - `import traceback as _traceback` must come before `from rex.bridge_utils import ...` in bridge files (ruff I001 import order)
+  - F841 "unused variable" fires for typed annotations like `mock_plugins: list = []` when var is never used — remove it
+  - `{**bridge_error_response(exc), "extra_field": value}` cleanly merges the standard error dict with domain-specific extra fields
+---
+
+## Iteration 20 - US-016: Fix STT language handling for "auto" mode
+- Normalised `"auto"` and `""` to `None` in `SpeechToText.__init__` (after reading from config)
+- Added inner try/except in `_transcribe()`: if `self._language is None` and transcribe raises, logs warning and retries with `language="en"` (fallback)
+- Written tests/test_us016_stt_language.py with 5 tests covering "auto", "", None, "en", and fallback path
+- All 5 tests pass; ruff and black pass
+- Files changed: rex/voice_loop.py, tests/test_us016_stt_language.py, PRD.md
+- Learnings for future iterations:
+  - Tests that call `stt.transcribe(audio=[], sample_rate=16000)` fail without numpy; patch `_prepare_audio_for_stt` and `_to_wav_buffer` to bypass
+  - numpy check happens in `_prepare_audio_for_stt` for non-bytes inputs (list [] triggers it)
+  - `_FAKE_WAV = b"RIFF\x00\x00\x00\x00WAVEfmt "` passes the WAV header check in transcribe()
+---
+
+## Iteration 22 - US-018: Fix wake word config mismatch and empty resolution
+- Changed AppConfig.wakeword default from "rex" to "hey_rex"
+- In load_config(): `_get_nested(..., "hey_rex") or "hey_rex"` normalises empty/None to "hey_rex"
+- Added Path import + model-file existence check in build_default_detector() raising WakeWordError
+- Added check_wakeword_config() to rex/doctor.py and wired into run_diagnostics()
+- 8 tests pass, 2 skipped (numpy not installed — same pattern as US-007/008/009/010)
+- ruff auto-fixed import ordering in test file; black passes
+- Files changed: rex/config.py, rex/doctor.py, rex/wakeword/listener.py, tests/test_us018_wakeword_config.py, PRD.md
+- Learnings for future iterations:
+  - load_config() takes json_config= dict arg (not config_path=) for testing; use that to inject test JSON
+  - check_wakeword_config() uses 'from .config import load_config' locally; patch rex.config.load_config with patch.object
+  - `_get_nested(json_config, key, default) or fallback` correctly handles both missing key AND empty string
+---
+
+## Iteration 21 - US-017: Fix Whisper/STT runtime failure and error exposure
+- Added `check_stt_backend()` to rex/doctor.py — checks `find_spec("whisper")` AND `find_spec("faster_whisper")`, returns OK/ERROR
+- Called `check_stt_backend()` from `run_diagnostics()` before `check_stt_warmup()`
+- Added `exc_info=True` to both STT error log calls in rex/voice_loop.py: in `_transcribe()` outer catch and in the main loop's `except SpeechToTextError` handler
+- Written tests/test_us017_stt_backend.py with 6 tests (4 pass, 2 skip without numpy)
+- ruff, black pass; 58 targeted tests pass, 5 skipped
+- Files changed: rex/doctor.py, rex/voice_loop.py, tests/test_us017_stt_backend.py, PRD.md
+- Learnings for future iterations:
+  - `find_spec("faster_whisper")` uses underscore (Python module name), not hyphen
+  - ruff B017 fires on `pytest.raises(Exception)` — add `# noqa: B017` to suppress
+  - The main loop's SpeechToTextError already `continue`s (no hang) — AC #4 was pre-satisfied
+---
+
+## Iteration 23 - US-019: Fix XTTS/transformers compatibility issues
+- AC #1-#4 were pre-satisfied: `_lazy_import_tts()` already uses `find_spec("TTS")`, `ensure_transformers_compatibility()` called before import, `rex/tts_utils.py` has no heavy imports
+- Fixed `speak()` in rex/voice_loop.py: when `_provider == "xtts"` and `_xtts_init_error` is set, log error with "XTTS not initialized ({reason})" instead of the downstream exception message
+- Fixed 3 numpy-dependent tests to use `pytest.importorskip("numpy")` instead of bare `import numpy as np` (consistent with US-007/008/009 skip pattern)
+- Added missing `import pytest` to test_us019_text_to_speech.py
+- 11 pass, 3 skipped (numpy not installed); US-077 tests still pass (5 pass, 2 skip)
+- ruff, black pass
+- Files changed: rex/voice_loop.py, tests/test_us019_text_to_speech.py, PRD.md
+- Learnings for future iterations:
+  - `mock_logger.error.call_args[0][1]` is the first format arg, not the full rendered string — the message must be in that arg
+  - US-077 edge-tts fallback in `_speak_xtts` is compatible with US-019 error logging because: when fallback succeeds (US-077), no error is logged; when fallback fails (no soundfile), `speak()` now logs the XTTS init error instead of the soundfile error
+  - Always add `import pytest` when using `pytest.importorskip` in test files that don't already import it
 ---
