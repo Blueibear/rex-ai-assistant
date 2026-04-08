@@ -827,12 +827,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to ask for confirmation before executing potentially dangerous computer actions.
 
 **Acceptance Criteria:**
-- [ ] Actions classified as `safe` (read file, list dir) or `dangerous` (write file, delete, execute command)
-- [ ] Dangerous actions require voice or UI confirmation before execution
-- [ ] Configurable: `computer_control_confirmation` in `AppConfig` (values: `"always"`, `"dangerous_only"`, `"never"`)
-- [ ] Default is `"dangerous_only"`
-- [ ] Test covers confirmation flow for dangerous action and bypass for safe action
-- [ ] Typecheck passes
+- [x] Actions classified as `safe` (read file, list dir) or `dangerous` (write file, delete, execute command)
+- [x] Dangerous actions require voice or UI confirmation before execution
+- [x] Configurable: `computer_control_confirmation` in `AppConfig` (values: `"always"`, `"dangerous_only"`, `"never"`)
+- [x] Default is `"dangerous_only"`
+- [x] Test covers confirmation flow for dangerous action and bypass for safe action
+- [x] Typecheck passes
 
 ---
 

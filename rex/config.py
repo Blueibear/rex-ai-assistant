@@ -280,6 +280,10 @@ class AppConfig:
     # Local file access allowlist (US-WIN-001)
     allowed_file_roots: List[str] = field(default_factory=lambda: [str(Path.home())])
 
+    # Computer control confirmation mode (US-055)
+    # "always" = confirm all actions, "dangerous_only" = confirm dangerous only, "never" = no confirm
+    computer_control_confirmation: str = "dangerous_only"
+
     # Windows settings — require user confirmation before applying system changes (US-WIN-003)
     require_confirm_system_changes: bool = True
 
