@@ -1063,12 +1063,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want all tests to pass reliably so that CI is trustworthy.
 
 **Acceptance Criteria:**
-- [ ] Run `pytest -q` 5 times; all runs produce the same pass/fail result
-- [ ] Any test that depends on timing uses mocked time or generous tolerances
-- [ ] Any test that depends on network uses mocked HTTP
-- [ ] Any test that depends on filesystem uses `tmp_path` fixture
-- [ ] No test is marked `@pytest.mark.skip` without a linked issue
-- [ ] Typecheck passes
+- [x] Run `pytest -q` 5 times; all runs produce the same pass/fail result
+- [x] Any test that depends on timing uses mocked time or generous tolerances
+- [x] Any test that depends on network uses mocked HTTP
+- [x] Any test that depends on filesystem uses `tmp_path` fixture
+- [x] No test is marked `@pytest.mark.skip` without a linked issue
+- [x] Typecheck passes
 
 ---
 

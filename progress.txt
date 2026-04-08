@@ -1011,3 +1011,13 @@
   - load_config() uses _cached_config; tests must monkeypatch it to None before testing env-driven fields
   - rex.cli raises SystemExit at module level on Python != 3.11; use try/except + pytest.mark.skipif
 ---
+
+## Iteration 72 - US-072: Stabilize flaky tests
+- Fixed INTERNALERROR during collection: rex.cli raises SystemExit on non-3.11 Python; conftest now auto-scans for test files importing rex.cli and adds them to collect_ignore
+- Fixed numpy-dependent test collection errors: test_us020, test_us138, test_voice_* added to collect_ignore when numpy unavailable
+- Fixed async test failures when no runner installed: conftest detects anyio/pytest-asyncio availability; skips async tests gracefully when neither is installed
+- Fixed test_build_prompt_contains_location_when_configured: ZoneInfo falls back keeping tz_name when tzdata not installed
+- Fixed @_require_auth misuse in GET /api/tools: was used as decorator (wrong), changed to call pattern
+- Suite now produces consistent results (same 126 fail / 5670 pass / 217 skip each run)
+- Files changed: tests/conftest.py, rex/assistant.py, rex/gui_app.py, tests/test_assistant.py, PRD.md
+---

@@ -1011,9 +1011,11 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         return jsonify({"capabilities": caps}), 200
 
     @app.route("/api/tools", methods=["GET"])
-    @_require_auth
     def _list_tools() -> Any:
         """Return registered tools with health status."""
+        _, err = _require_auth()
+        if err is not None:
+            return err
         try:
             from rex.openclaw.tool_registry import get_tool_registry
 

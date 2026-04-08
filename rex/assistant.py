@@ -732,8 +732,11 @@ class Assistant:
                 now = datetime.now(tz=UTC)
                 tz_name = "UTC"
         except Exception:
+            # ZoneInfo lookup failed (e.g. tzdata not installed); fall back to UTC
+            # time but keep the configured timezone name so it appears in context.
             now = datetime.now(tz=UTC)
-            tz_name = "UTC"
+            if not tz_name:
+                tz_name = "UTC"
 
         lines = [f"Current date and time: {now.strftime('%Y-%m-%d %H:%M')} {tz_name}"]
 

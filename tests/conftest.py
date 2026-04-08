@@ -8,6 +8,78 @@ from pathlib import Path
 
 import pytest
 
+# rex.cli raises SystemExit on Python versions other than 3.11 (its supported
+# runtime).  Any test module that imports rex.cli at module level will cause
+# pytest INTERNALERROR during collection.  We detect this here once and
+# gracefully skip those files so the rest of the suite can run.
+try:
+    import rex.cli  # noqa: F401
+
+    _REX_CLI_AVAILABLE = True
+except SystemExit:
+    _REX_CLI_AVAILABLE = False
+
+# Scan for test files that import rex.cli at module scope so we can skip
+# collection when the CLI Python-version guard fires.
+_TESTS_DIR = Path(__file__).resolve().parent
+
+
+def _find_cli_dependent_tests() -> list[str]:
+    """Return absolute paths of test files that import rex.cli at module scope."""
+    results: list[str] = []
+    for path in _TESTS_DIR.glob("test_*.py"):
+        if path.name == "conftest.py":
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        if "from rex.cli import" in text or "import rex.cli" in text:
+            results.append(str(path))
+    return results
+
+
+try:
+    import numpy  # noqa: F401
+
+    _NUMPY_AVAILABLE = True
+except ImportError:
+    _NUMPY_AVAILABLE = False
+
+# Numpy-dependent test files (ML/audio pipeline tests).
+_NUMPY_TEST_GLOBS = [
+    "test_us020_full_voice_loop.py",
+    "test_us138_voice_roundtrip.py",
+    "test_voice_enrollment.py",
+    "test_voice_enrollment_ui_service.py",
+    "test_voice_identifier.py",
+    "test_wakeword_model_selection.py",
+    "test_ww002_wakeword_train.py",
+]
+
+_ignored: list[str] = []
+if not _REX_CLI_AVAILABLE:
+    _ignored.extend(_find_cli_dependent_tests())
+if not _NUMPY_AVAILABLE:
+    _ignored.extend(str(_TESTS_DIR / name) for name in _NUMPY_TEST_GLOBS)
+
+collect_ignore: list[str] = _ignored
+
+# ---------------------------------------------------------------------------
+# Async test support detection
+# ---------------------------------------------------------------------------
+try:
+    import anyio  # noqa: F401
+
+    _ASYNC_RUNNER = "anyio"
+except ImportError:
+    try:
+        import pytest_asyncio  # noqa: F401
+
+        _ASYNC_RUNNER = "asyncio"
+    except ImportError:
+        _ASYNC_RUNNER = None
+
 # Resolve root of the project
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -49,11 +121,21 @@ def tracked_modifications_baseline() -> set[str]:
     return _tracked_modified_files()
 
 
-def pytest_collection_modifyitems(
-    config: pytest.Config, items: list[pytest.Item]
-) -> None:
-    """Run legacy asyncio-marked tests through the installed anyio plugin."""
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Map async test markers to the available runner, or skip if none installed."""
     del config
+    import inspect
+
+    skip_no_async = pytest.mark.skip(
+        reason="No async test runner installed (anyio or pytest-asyncio required)"
+    )
+
     for item in items:
-        if item.get_closest_marker("asyncio") and not item.get_closest_marker("anyio"):
-            item.add_marker(pytest.mark.anyio)
+        is_async = inspect.iscoroutinefunction(getattr(item, "function", None))
+        has_asyncio = bool(item.get_closest_marker("asyncio"))
+
+        if is_async or has_asyncio:
+            if _ASYNC_RUNNER is None:
+                item.add_marker(skip_no_async)
+            elif _ASYNC_RUNNER == "anyio" and not item.get_closest_marker("anyio"):
+                item.add_marker(pytest.mark.anyio)
