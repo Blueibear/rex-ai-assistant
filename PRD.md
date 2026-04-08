@@ -715,13 +715,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want to log in with a username and password so my data is separate from other users.
 
 **Acceptance Criteria:**
-- [ ] New module `rex/auth.py` with `create_user(username, password)`, `authenticate(username, password)`, `get_current_user()`
-- [ ] Passwords hashed with bcrypt
-- [ ] Users stored in `data/users.db` (SQLite)
-- [ ] Session tokens issued on login (JWT, 24h expiry)
-- [ ] API endpoints: `POST /api/auth/login`, `POST /api/auth/register`, `POST /api/auth/logout`
-- [ ] Unit test covers registration, login, bad password, and token validation
-- [ ] Typecheck passes
+- [x] New module `rex/auth.py` with `create_user(username, password)`, `authenticate(username, password)`, `get_current_user()`
+- [x] Passwords hashed with bcrypt
+- [x] Users stored in `data/users.db` (SQLite)
+- [x] Session tokens issued on login (JWT, 24h expiry)
+- [x] API endpoints: `POST /api/auth/login`, `POST /api/auth/register`, `POST /api/auth/logout`
+- [x] Unit test covers registration, login, bad password, and token validation
+- [x] Typecheck passes
 
 ---
 

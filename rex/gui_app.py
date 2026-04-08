@@ -175,6 +175,53 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
         return jsonify(usage_api_summary()), 200
 
+    # ------------------------------------------------------------------
+    # Auth API (US-047)
+    # ------------------------------------------------------------------
+
+    @app.route("/api/auth/register", methods=["POST"])
+    def _auth_register() -> Any:
+        """Register a new user. Body: {username, password}."""
+        from rex.auth import create_user
+
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        username = (data.get("username") or "").strip()
+        password = data.get("password") or ""
+
+        if not username or not password:
+            return jsonify({"error": "username and password are required"}), 400
+
+        try:
+            user = create_user(username, password)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 409
+
+        return jsonify({"id": user["id"], "username": user["username"]}), 201
+
+    @app.route("/api/auth/login", methods=["POST"])
+    def _auth_login() -> Any:
+        """Authenticate a user and return a JWT. Body: {username, password}."""
+        from rex.auth import authenticate
+
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        username = (data.get("username") or "").strip()
+        password = data.get("password") or ""
+
+        if not username or not password:
+            return jsonify({"error": "username and password are required"}), 400
+
+        try:
+            token = authenticate(username, password)
+        except ValueError:
+            return jsonify({"error": "invalid username or password"}), 401
+
+        return jsonify({"token": token}), 200
+
+    @app.route("/api/auth/logout", methods=["POST"])
+    def _auth_logout() -> Any:
+        """Logout endpoint — client should discard the token. Stateless."""
+        return jsonify({"ok": True}), 200
+
     return app
 
 
