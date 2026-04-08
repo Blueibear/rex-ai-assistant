@@ -783,13 +783,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As an admin, I want to restrict sensitive actions (computer control, email send) to specific users.
 
 **Acceptance Criteria:**
-- [ ] New module `rex/permissions.py` with `Permission` enum and `check_permission(user, action)` function
-- [ ] Permissions: `computer_control`, `email_send`, `sms_send`, `ha_control`, `admin`
-- [ ] Permissions stored per user in `data/users.db`
-- [ ] First registered user gets `admin` permission by default
-- [ ] API actions check permissions before execution; return 403 if denied
-- [ ] Unit test covers grant, revoke, and denial
-- [ ] Typecheck passes
+- [x] New module `rex/permissions.py` with `Permission` enum and `check_permission(user, action)` function
+- [x] Permissions: `computer_control`, `email_send`, `sms_send`, `ha_control`, `admin`
+- [x] Permissions stored per user in `data/users.db`
+- [x] First registered user gets `admin` permission by default
+- [x] API actions check permissions before execution; return 403 if denied
+- [x] Unit test covers grant, revoke, and denial
+- [x] Typecheck passes
 
 ---
 

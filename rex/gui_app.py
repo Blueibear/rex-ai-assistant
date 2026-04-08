@@ -238,7 +238,79 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         except Exception:
             pass
 
+        # Grant admin to the first registered user (best-effort).
+        try:
+            from rex.permissions import bootstrap_admin_if_first_user
+
+            bootstrap_admin_if_first_user(user["id"])
+        except Exception:
+            pass
+
         return jsonify({"id": user["id"], "username": user["username"]}), 201
+
+    # ------------------------------------------------------------------
+    # Permissions API (US-052)
+    # ------------------------------------------------------------------
+
+    @app.route("/api/user/permissions", methods=["GET"])
+    def _get_my_permissions() -> Any:
+        """Return the authenticated user's permissions."""
+        user, err = _require_auth()
+        if err:
+            return err
+        from rex.permissions import get_permissions
+
+        return jsonify({"permissions": get_permissions(user["id"])}), 200
+
+    @app.route("/api/admin/permissions/grant", methods=["POST"])
+    def _admin_grant_permission() -> Any:
+        """Grant a permission to a user. Requires admin. Body: {user_id, permission}."""
+        user, err = _require_auth()
+        if err:
+            return err
+        from rex.permissions import Permission, check_permission, grant_permission
+
+        if not check_permission(user["id"], Permission.admin):
+            return jsonify({"error": "forbidden: admin permission required"}), 403
+
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        target_user_id = (data.get("user_id") or "").strip()
+        permission_str = (data.get("permission") or "").strip()
+
+        if not target_user_id or not permission_str:
+            return jsonify({"error": "user_id and permission are required"}), 400
+
+        try:
+            grant_permission(target_user_id, permission_str)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+
+        return jsonify({"ok": True}), 200
+
+    @app.route("/api/admin/permissions/revoke", methods=["POST"])
+    def _admin_revoke_permission() -> Any:
+        """Revoke a permission from a user. Requires admin. Body: {user_id, permission}."""
+        user, err = _require_auth()
+        if err:
+            return err
+        from rex.permissions import Permission, check_permission, revoke_permission
+
+        if not check_permission(user["id"], Permission.admin):
+            return jsonify({"error": "forbidden: admin permission required"}), 403
+
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        target_user_id = (data.get("user_id") or "").strip()
+        permission_str = (data.get("permission") or "").strip()
+
+        if not target_user_id or not permission_str:
+            return jsonify({"error": "user_id and permission are required"}), 400
+
+        try:
+            revoke_permission(target_user_id, permission_str)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+
+        return jsonify({"ok": True}), 200
 
     # ------------------------------------------------------------------
     # Personality API (US-051)
