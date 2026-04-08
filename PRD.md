@@ -549,13 +549,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I need a module that detects repeated user patterns and suggests automations.
 
 **Acceptance Criteria:**
-- [ ] New module `rex/suggestions/pattern_detector.py`
-- [ ] Tracks command history and detects patterns (e.g., "user turns on kitchen light every day at 7am")
-- [ ] Pattern requires at least 3 occurrences within a time window to be considered
-- [ ] `detect_patterns()` returns a list of `{pattern, frequency, suggested_automation}`
-- [ ] Suggestions are never acted on automatically; always presented as questions
-- [ ] Unit test with synthetic command history confirms pattern detection
-- [ ] Typecheck passes
+- [x] New module `rex/suggestions/pattern_detector.py`
+- [x] Tracks command history and detects patterns (e.g., "user turns on kitchen light every day at 7am")
+- [x] Pattern requires at least 3 occurrences within a time window to be considered
+- [x] `detect_patterns()` returns a list of `{pattern, frequency, suggested_automation}`
+- [x] Suggestions are never acted on automatically; always presented as questions
+- [x] Unit test with synthetic command history confirms pattern detection
+- [x] Typecheck passes
 
 ---
 
