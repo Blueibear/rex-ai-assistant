@@ -860,6 +860,56 @@ def check_xtts_transformers_compat() -> CheckResult:
         )
 
 
+def check_wakeword_config() -> CheckResult:
+    """Check wake word configuration: keyword presence and model file existence."""
+    try:
+        from .config import load_config
+
+        config = load_config(reload=True)
+    except Exception as exc:
+        return CheckResult(
+            name="Wake Word Config",
+            status=Status.WARNING,
+            message=f"Could not load config: {exc}",
+        )
+
+    keyword = (config.wakeword or "").strip()
+    if not keyword:
+        return CheckResult(
+            name="Wake Word Config",
+            status=Status.ERROR,
+            message="Wake word keyword is empty",
+            details="Set wake_word.wakeword in rex_config.json (e.g. 'hey_rex').",
+        )
+
+    model_path = (config.wakeword_model_path or "").strip()
+    if model_path:
+        from pathlib import Path
+
+        resolved = Path(model_path)
+        if not resolved.is_file():
+            return CheckResult(
+                name="Wake Word Config",
+                status=Status.ERROR,
+                message=f"Wake word model file not found: {resolved}",
+                details=(
+                    "Check wake_word.model_path in rex_config.json or remove it to use "
+                    "the built-in keyword model."
+                ),
+            )
+        return CheckResult(
+            name="Wake Word Config",
+            status=Status.OK,
+            message=f"keyword='{keyword}', custom model: {resolved.name}",
+        )
+
+    return CheckResult(
+        name="Wake Word Config",
+        status=Status.OK,
+        message=f"keyword='{keyword}' (built-in model)",
+    )
+
+
 def _current_whisper_language() -> str:
     try:
         from .config import load_config
@@ -922,6 +972,9 @@ def run_diagnostics(verbose: bool = False) -> int:
 
     # FFmpeg — report status relative to the active TTS backend
     report.add(check_ffmpeg_for_tts())
+
+    # Wake word config
+    report.add(check_wakeword_config())
 
     # STT backend availability
     report.add(check_stt_backend())

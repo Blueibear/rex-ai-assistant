@@ -133,7 +133,7 @@ class UserEmailAccount:
 class AppConfig:
     """Application configuration combining JSON config and environment secrets."""
 
-    wakeword: str = "rex"
+    wakeword: str = "hey_rex"
     wakeword_backend: str = "openwakeword"
     wakeword_threshold: float = 0.5
     wakeword_window: float = 1.0
@@ -533,7 +533,7 @@ def build_app_config(json_config: dict) -> AppConfig:
     # Build config from JSON config + env secrets
     config = AppConfig(
         # Wake word settings from JSON
-        wakeword=_get_nested(json_config, "wake_word.wakeword", "rex"),
+        wakeword=_get_nested(json_config, "wake_word.wakeword", "hey_rex") or "hey_rex",
         wakeword_backend=_get_nested(json_config, "wake_word.backend", "openwakeword"),
         wakeword_keyword=_get_nested(json_config, "wake_word.keyword"),
         wakeword_threshold=_coerce_float(json_config, "wake_word.threshold", 0.5),

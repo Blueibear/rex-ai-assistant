@@ -6,6 +6,7 @@ import asyncio
 import logging
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
+from pathlib import Path
 
 import numpy as np
 
@@ -84,6 +85,13 @@ def build_default_detector(
             "Wake word keyword must not be empty. "
             "Set a valid keyword or leave keyword=None to use the default."
         )
+    if model_path is not None and model_path.strip():
+        resolved = Path(model_path)
+        if not resolved.is_file():
+            raise WakeWordError(
+                f"Wake word model file not found: {resolved}. "
+                "Check wake_word.model_path in rex_config.json."
+            )
     try:
         model, _ = load_wakeword_model(
             keyword=keyword,

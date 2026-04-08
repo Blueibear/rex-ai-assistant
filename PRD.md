@@ -323,11 +323,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want the wake word config to resolve consistently so that an empty or mismatched setting does not silently break detection.
 
 **Acceptance Criteria:**
-- [ ] If `wake_word` config is empty or `None`, a sensible default is used (e.g., `"hey_rex"`)
-- [ ] If the configured wake word model file does not exist, startup raises a clear error
-- [ ] `rex doctor` validates wake word config and reports status
-- [ ] Test covers empty, None, valid, and invalid wake word configs
-- [ ] Typecheck passes
+- [x] If `wake_word` config is empty or `None`, a sensible default is used (e.g., `"hey_rex"`)
+- [x] If the configured wake word model file does not exist, startup raises a clear error
+- [x] `rex doctor` validates wake word config and reports status
+- [x] Test covers empty, None, valid, and invalid wake word configs
+- [x] Typecheck passes
 
 ---
 
