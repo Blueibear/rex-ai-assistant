@@ -12,7 +12,7 @@ import logging
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any
+from typing import Any, cast
 
 from rex.assistant_errors import IntegrationNotConfiguredError
 
@@ -74,7 +74,7 @@ class TelegramClient:
         )
         try:
             with urllib.request.urlopen(req, timeout=self._timeout) as resp:  # noqa: S310
-                return json.loads(resp.read().decode("utf-8"))
+                return cast(dict[str, Any], json.loads(resp.read().decode("utf-8")))
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")
             logger.error("Telegram API HTTP error %s: %s", exc.code, body)

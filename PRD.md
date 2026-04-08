@@ -620,12 +620,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want to send commands to Rex via Telegram and get responses back.
 
 **Acceptance Criteria:**
-- [ ] Telegram webhook or polling handler receives incoming messages
-- [ ] Incoming text is routed through `Assistant.generate_reply()`
-- [ ] Response is sent back to the Telegram chat
-- [ ] Unrecognized commands get a conversational LLM response
-- [ ] Test covers inbound message -> assistant -> outbound response flow
-- [ ] Typecheck passes
+- [x] Telegram webhook or polling handler receives incoming messages
+- [x] Incoming text is routed through `Assistant.generate_reply()`
+- [x] Response is sent back to the Telegram chat
+- [x] Unrecognized commands get a conversational LLM response
+- [x] Test covers inbound message -> assistant -> outbound response flow
+- [x] Typecheck passes
 
 ---
 
