@@ -305,6 +305,10 @@ Use Conventional Commits for every commit and PR title.
 - Never output truncated code.
 - Never use placeholders like "..."
 - If a file changes, output the entire updated file.
+- Prefer correct, complete implementations over minimal ones.
+- Use appropriate data structures and algorithms — don't brute-force what has a known better solution.
+- When fixing a bug, fix the root cause, not the symptom.
+- If something I asked for requires error handling or validation to work reliably, include it without asking.
 
 Do not claim something is implemented unless the code shown fully implements it.
 
