@@ -391,11 +391,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I need a room context module so that commands can be scoped to the room the user is in.
 
 **Acceptance Criteria:**
-- [ ] New module `rex/context/room.py` with `RoomContext` class
-- [ ] `RoomContext.current_room` is settable via: explicit parameter, speaker origin, last active UI context, config default
-- [ ] Priority order: explicit > speaker origin > last active > config default
-- [ ] Unit test confirms priority resolution
-- [ ] Typecheck passes
+- [x] New module `rex/context/room.py` with `RoomContext` class
+- [x] `RoomContext.current_room` is settable via: explicit parameter, speaker origin, last active UI context, config default
+- [x] Priority order: explicit > speaker origin > last active > config default
+- [x] Unit test confirms priority resolution
+- [x] Typecheck passes
 
 ---
 
