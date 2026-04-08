@@ -536,12 +536,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to speak partial responses as they stream in for long answers.
 
 **Acceptance Criteria:**
-- [ ] If LLM supports streaming, TTS begins on the first complete sentence
-- [ ] Subsequent sentences are queued and spoken sequentially
-- [ ] If LLM does not support streaming, behavior falls back to full-response TTS
-- [ ] No audio overlap between sentence chunks
-- [ ] Test confirms sentence-level streaming with a mock streaming LLM
-- [ ] Typecheck passes
+- [x] If LLM supports streaming, TTS begins on the first complete sentence
+- [x] Subsequent sentences are queued and spoken sequentially
+- [x] If LLM does not support streaming, behavior falls back to full-response TTS
+- [x] No audio overlap between sentence chunks
+- [x] Test confirms sentence-level streaming with a mock streaming LLM
+- [x] Typecheck passes
 
 ---
 
