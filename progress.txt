@@ -946,3 +946,10 @@
 - Wired /quick-actions route in App.tsx and added section name to AppLayout.tsx
 - 14 tests in tests/test_us063_quick_actions.py
 ---
+
+## US-064: Overhaul settings UX
+- LLM provider dropdown (OpenAI/Ollama/Local) and TTS engine dropdown (pyttsx3/edge-tts/XTTS) were already in place
+- Added ? tooltip icons with title attributes on OpenAI API key, Gmail OAuth Client ID, Calendar OAuth Client ID, Twilio Account SID (SMS + Phone) fields
+- Added setup doc links in Email (Google Console), Calendar (Google Console), SMS (Twilio Console), Phone (Twilio Console) section headers
+- No raw JSON editing exists for standard settings (system prompt uses textarea, not JSON)
+---

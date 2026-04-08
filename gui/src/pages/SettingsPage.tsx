@@ -1930,9 +1930,18 @@ function AiPanel(): React.ReactElement {
           {/* OpenAI API Key */}
           <div className="mb-5">
             <div className="flex items-center justify-between mb-1.5">
-              <label htmlFor="openaiApiKey" className="text-sm font-medium text-text-primary">
-                OpenAI API Key
-              </label>
+              <div className="flex items-center gap-1.5">
+                <label htmlFor="openaiApiKey" className="text-sm font-medium text-text-primary">
+                  OpenAI API Key
+                </label>
+                <span
+                  title="Get your API key from platform.openai.com → API keys. Keys start with sk-."
+                  className="flex-shrink-0 w-4 h-4 rounded-full bg-surface-raised text-text-muted flex items-center justify-center text-[10px] font-bold cursor-help select-none"
+                  aria-label="API key help"
+                >
+                  ?
+                </span>
+              </div>
               {apiKeySet && (
                 <span className="text-xs text-success font-medium">Key set</span>
               )}
@@ -1956,7 +1965,7 @@ function AiPanel(): React.ReactElement {
               </button>
             </div>
             <p className="mt-1 text-xs text-text-secondary">
-              Saved to .env at the repo root. Never stored in gui_settings.json.
+              Saved to .env at the repo root. Find your key at platform.openai.com → API keys.
             </p>
           </div>
         </>
@@ -2614,10 +2623,20 @@ function IntegrationsPanel(): React.ReactElement {
             </svg>
             Email
           </h3>
-          <ConnectionBadge
-            status={testStatus.email}
-            hasCredentials={form.emailClientId.trim() !== '' || form.emailAccounts.length > 0}
-          />
+          <div className="flex items-center gap-2">
+            <a
+              href="https://console.cloud.google.com/apis/credentials"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-accent hover:underline"
+            >
+              Google Console →
+            </a>
+            <ConnectionBadge
+              status={testStatus.email}
+              hasCredentials={form.emailClientId.trim() !== '' || form.emailAccounts.length > 0}
+            />
+          </div>
         </div>
 
         <div className="mb-4">
@@ -2638,7 +2657,16 @@ function IntegrationsPanel(): React.ReactElement {
 
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1.5">
-            <label htmlFor="emailClientId" className="text-sm font-medium text-text-primary">OAuth Client ID</label>
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="emailClientId" className="text-sm font-medium text-text-primary">OAuth Client ID</label>
+              <span
+                title="Create OAuth 2.0 credentials in Google Cloud Console → APIs & Services → Credentials. Enable the Gmail API first."
+                className="flex-shrink-0 w-4 h-4 rounded-full bg-surface-raised text-text-muted flex items-center justify-center text-[10px] font-bold cursor-help select-none"
+                aria-label="OAuth Client ID help"
+              >
+                ?
+              </span>
+            </div>
             <SavedIndicator visible={savedField === 'emailClientId'} />
           </div>
           <input
@@ -2832,10 +2860,20 @@ function IntegrationsPanel(): React.ReactElement {
             </svg>
             Calendar
           </h3>
-          <ConnectionBadge
-            status={testStatus.calendar}
-            hasCredentials={form.calendarClientId.trim() !== ''}
-          />
+          <div className="flex items-center gap-2">
+            <a
+              href="https://console.cloud.google.com/apis/credentials"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-accent hover:underline"
+            >
+              Google Console →
+            </a>
+            <ConnectionBadge
+              status={testStatus.calendar}
+              hasCredentials={form.calendarClientId.trim() !== ''}
+            />
+          </div>
         </div>
 
         <div className="mb-4">
@@ -2856,7 +2894,16 @@ function IntegrationsPanel(): React.ReactElement {
 
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1.5">
-            <label htmlFor="calendarClientId" className="text-sm font-medium text-text-primary">OAuth Client ID</label>
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="calendarClientId" className="text-sm font-medium text-text-primary">OAuth Client ID</label>
+              <span
+                title="Create OAuth 2.0 credentials in Google Cloud Console → APIs & Services → Credentials. Enable the Google Calendar API first."
+                className="flex-shrink-0 w-4 h-4 rounded-full bg-surface-raised text-text-muted flex items-center justify-center text-[10px] font-bold cursor-help select-none"
+                aria-label="OAuth Client ID help"
+              >
+                ?
+              </span>
+            </div>
             <SavedIndicator visible={savedField === 'calendarClientId'} />
           </div>
           <input
@@ -2898,15 +2945,34 @@ function IntegrationsPanel(): React.ReactElement {
             </svg>
             SMS (Twilio)
           </h3>
-          <ConnectionBadge
-            status={testStatus.sms}
-            hasCredentials={form.smsSid.trim() !== ''}
-          />
+          <div className="flex items-center gap-2">
+            <a
+              href="https://console.twilio.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-accent hover:underline"
+            >
+              Twilio Console →
+            </a>
+            <ConnectionBadge
+              status={testStatus.sms}
+              hasCredentials={form.smsSid.trim() !== ''}
+            />
+          </div>
         </div>
 
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1.5">
-            <label htmlFor="smsSid" className="text-sm font-medium text-text-primary">Account SID</label>
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="smsSid" className="text-sm font-medium text-text-primary">Account SID</label>
+              <span
+                title="Find your Account SID in the Twilio Console dashboard under 'Account Info'."
+                className="flex-shrink-0 w-4 h-4 rounded-full bg-surface-raised text-text-muted flex items-center justify-center text-[10px] font-bold cursor-help select-none"
+                aria-label="Where to find Account SID"
+              >
+                ?
+              </span>
+            </div>
             <SavedIndicator visible={savedField === 'smsSid'} />
           </div>
           <input
@@ -3023,15 +3089,34 @@ function IntegrationsPanel(): React.ReactElement {
             </svg>
             Phone (Twilio)
           </h3>
-          <ConnectionBadge
-            status={testStatus.phone}
-            hasCredentials={form.phoneSid.trim() !== ''}
-          />
+          <div className="flex items-center gap-2">
+            <a
+              href="https://console.twilio.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-accent hover:underline"
+            >
+              Twilio Console →
+            </a>
+            <ConnectionBadge
+              status={testStatus.phone}
+              hasCredentials={form.phoneSid.trim() !== ''}
+            />
+          </div>
         </div>
 
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1.5">
-            <label htmlFor="phoneSid" className="text-sm font-medium text-text-primary">Account SID</label>
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="phoneSid" className="text-sm font-medium text-text-primary">Account SID</label>
+              <span
+                title="Find your Account SID in the Twilio Console dashboard under 'Account Info'."
+                className="flex-shrink-0 w-4 h-4 rounded-full bg-surface-raised text-text-muted flex items-center justify-center text-[10px] font-bold cursor-help select-none"
+                aria-label="Where to find Account SID"
+              >
+                ?
+              </span>
+            </div>
             <SavedIndicator visible={savedField === 'phoneSid'} />
           </div>
           <input

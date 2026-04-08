@@ -952,13 +952,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want the settings page to use dropdowns, tooltips, and inline API instructions instead of raw text fields.
 
 **Acceptance Criteria:**
-- [ ] LLM provider selection uses a dropdown (Ollama, OpenAI, Local)
-- [ ] TTS engine selection uses a dropdown (XTTS, edge-tts, pyttsx3)
-- [ ] API key fields have a tooltip explaining where to get the key
-- [ ] Each integration section has a link to setup docs
-- [ ] No raw JSON editing required for any standard setting
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] LLM provider selection uses a dropdown (Ollama, OpenAI, Local)
+- [x] TTS engine selection uses a dropdown (XTTS, edge-tts, pyttsx3)
+- [x] API key fields have a tooltip explaining where to get the key
+- [x] Each integration section has a link to setup docs
+- [x] No raw JSON editing required for any standard setting
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 
