@@ -13,7 +13,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from rex.ha.clarification import ClarificationHandler
 from rex.ha.command_history import CommandHistory
+from rex.ha.device_aliases import AliasResolver
 
 try:
     import requests as _imported_requests
@@ -143,6 +145,10 @@ class HABridge:
         self._lock = threading.Lock()
         self._log_path = Path("logs/test_ha_integration.log")
         self._command_history = CommandHistory()
+        _aliases_path = getattr(cfg, "ha_aliases_path", None)
+        self._clarification = ClarificationHandler(
+            AliasResolver(_aliases_path) if _aliases_path else AliasResolver()
+        )
 
     @staticmethod
     def _request_exception() -> type[Exception]:
@@ -171,6 +177,9 @@ class HABridge:
         """Detect and execute intents from a user transcript."""
         if not self.enabled:
             return None
+        clarification = self._clarification.check(transcript)
+        if clarification is not None:
+            return clarification
         match = self._match_transcript(transcript)
         if not match:
             return None

@@ -83,6 +83,42 @@ class AliasResolver:
     # Public API
     # ------------------------------------------------------------------
 
+    def resolve_all(self, query: str, min_confidence: float = 0.7) -> list[tuple[str, str, float]]:
+        """Return all ``(alias, entity_id, confidence)`` pairs above *min_confidence*.
+
+        Results are sorted by confidence descending.  Each entity_id appears at
+        most once (the highest-confidence match is kept).
+        """
+        normalised = query.strip().lower()
+        expanded = self._apply_synonyms(normalised)
+        results: list[tuple[str, str, float]] = []
+        seen_entities: set[str] = set()
+
+        for alias, entity_id in self._aliases.items():
+            conf: float | None = None
+
+            if normalised == alias:
+                conf = 1.0
+            elif expanded != normalised and expanded == alias:
+                conf = 0.95
+            else:
+                d = _levenshtein(normalised, alias)
+                if d <= _FUZZY_MAX_DISTANCE:
+                    conf = 0.9 - (d - 1) * 0.1
+                if expanded != normalised:
+                    d2 = _levenshtein(expanded, alias)
+                    if d2 <= _FUZZY_MAX_DISTANCE:
+                        exp_conf = 0.9 - (d2 - 1) * 0.1 - 0.05
+                        if conf is None or exp_conf > conf:
+                            conf = exp_conf
+
+            if conf is not None and conf >= min_confidence and entity_id not in seen_entities:
+                results.append((alias, entity_id, round(conf, 4)))
+                seen_entities.add(entity_id)
+
+        results.sort(key=lambda x: x[2], reverse=True)
+        return results
+
     def resolve(self, query: str) -> tuple[str, float] | None:
         """Return ``(entity_id, confidence)`` for *query*, or ``None`` if no match.
 

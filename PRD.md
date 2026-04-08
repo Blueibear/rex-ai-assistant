@@ -481,11 +481,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want Rex to ask for clarification when a command is ambiguous instead of guessing wrong.
 
 **Acceptance Criteria:**
-- [ ] If `AliasResolver.resolve()` returns multiple matches with similar confidence, Rex asks "Did you mean X or Y?"
-- [ ] If a command is missing required context (e.g., "turn it on" with no recent device reference), Rex asks "Which device?"
-- [ ] Clarification question is spoken via TTS and the pipeline re-enters listening for the answer
-- [ ] Test covers multi-match and missing-context scenarios
-- [ ] Typecheck passes
+- [x] If `AliasResolver.resolve()` returns multiple matches with similar confidence, Rex asks "Did you mean X or Y?"
+- [x] If a command is missing required context (e.g., "turn it on" with no recent device reference), Rex asks "Which device?"
+- [x] Clarification question is spoken via TTS and the pipeline re-enters listening for the answer
+- [x] Test covers multi-match and missing-context scenarios
+- [x] Typecheck passes
 
 ---
 
