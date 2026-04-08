@@ -742,13 +742,13 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want to upload a profile picture that appears in the dashboard.
 
 **Acceptance Criteria:**
-- [ ] API endpoint `POST /api/user/avatar` accepts image upload (JPEG/PNG, max 2MB)
-- [ ] Image stored in `data/avatars/<user_id>.jpg` (resized to 256x256)
-- [ ] API endpoint `GET /api/user/avatar` returns the image
-- [ ] Default avatar used if none uploaded
-- [ ] Dashboard displays the avatar in the header
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] API endpoint `POST /api/user/avatar` accepts image upload (JPEG/PNG, max 2MB)
+- [x] Image stored in `data/avatars/<user_id>.jpg` (resized to 256x256)
+- [x] API endpoint `GET /api/user/avatar` returns the image
+- [x] Default avatar used if none uploaded
+- [x] Dashboard displays the avatar in the header
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

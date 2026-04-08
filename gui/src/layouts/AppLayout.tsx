@@ -309,10 +309,17 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
         {/* Bottom: user avatar + settings shortcut */}
         <div className="flex items-center gap-3 px-4 py-4 border-t border-border">
           <div
-            className="flex-shrink-0 w-8 h-8 rounded-full bg-surface-raised flex items-center justify-center text-text-secondary text-sm font-medium cursor-pointer"
+            className="flex-shrink-0 w-8 h-8 rounded-full bg-surface-raised flex items-center justify-center text-text-secondary text-sm font-medium cursor-pointer overflow-hidden"
             aria-label="User avatar"
           >
-            U
+            <img
+              src="/api/user/avatar"
+              alt="User avatar"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
           </div>
           {!narrow && (
             <button

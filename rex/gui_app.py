@@ -274,6 +274,72 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         update_user_preferences(user["id"], updates)
         return jsonify({"ok": True}), 200
 
+    # ------------------------------------------------------------------
+    # Avatar API (US-049)
+    # ------------------------------------------------------------------
+
+    _AVATAR_MAX_BYTES = 2 * 1024 * 1024  # 2 MB
+    _AVATAR_SIZE = (256, 256)
+    _AVATAR_DIR = data_dir / "avatars"
+    _DEFAULT_AVATAR_SVG = (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256">'
+        '<circle cx="128" cy="128" r="128" fill="#4f46e5"/>'
+        '<text x="128" y="165" font-family="sans-serif" font-size="120" '
+        'fill="white" text-anchor="middle">R</text>'
+        "</svg>"
+    )
+
+    @app.route("/api/user/avatar", methods=["POST"])
+    def _upload_avatar() -> Any:
+        """Upload (or replace) the authenticated user's profile picture."""
+        import io
+
+        from PIL import Image
+
+        user, err = _require_auth()
+        if err:
+            return err
+
+        if "file" not in request.files:
+            return jsonify({"error": "no file uploaded"}), 400
+
+        upload = request.files["file"]
+        content_type = (upload.content_type or "").split(";")[0].strip()
+        if content_type not in ("image/jpeg", "image/png"):
+            return jsonify({"error": "only JPEG and PNG are accepted"}), 415
+
+        raw = upload.read(_AVATAR_MAX_BYTES + 1)
+        if len(raw) > _AVATAR_MAX_BYTES:
+            return jsonify({"error": "file too large (max 2 MB)"}), 413
+
+        try:
+            img = Image.open(io.BytesIO(raw)).convert("RGB")
+        except Exception:
+            return jsonify({"error": "invalid image file"}), 400
+
+        img = img.resize(_AVATAR_SIZE, Image.LANCZOS)
+
+        _AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+        avatar_path = _AVATAR_DIR / f"{user['id']}.jpg"
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=85)
+        avatar_path.write_bytes(buf.getvalue())
+
+        return jsonify({"ok": True}), 200
+
+    @app.route("/api/user/avatar", methods=["GET"])
+    def _get_avatar() -> Any:
+        """Return the user's profile picture, or a default avatar."""
+        from flask import send_file
+
+        user, _ = _require_auth()
+        if user is not None:
+            avatar_path = _AVATAR_DIR / f"{user['id']}.jpg"
+            if avatar_path.is_file():
+                return send_file(str(avatar_path), mimetype="image/jpeg")
+
+        return Response(_DEFAULT_AVATAR_SVG, mimetype="image/svg+xml")
+
     @app.route("/api/auth/login", methods=["POST"])
     def _auth_login() -> Any:
         """Authenticate a user and return a JWT. Body: {username, password}."""
