@@ -123,6 +123,15 @@ class Assistant:
             _shopping_list
         )
 
+        # Music Assistant voice handler (US-022)
+        from .integrations.music_assistant import MusicAssistantClient
+        from .music_handler import MusicHandler
+
+        _ma_url = getattr(self._settings, "music_assistant_url", None)
+        _ma_token = getattr(self._settings, "music_assistant_token", None)
+        _ma_client = MusicAssistantClient(base_url=_ma_url, token=_ma_token)
+        self._music_handler: MusicHandler | None = MusicHandler(_ma_client)
+
         # Response cache for repeated factual queries (US-LAT-004)
         from .response_cache import ResponseCache
 
@@ -499,6 +508,14 @@ class Assistant:
             if _sl_response is not None:
                 self._record_completion(transcript, _sl_response)
                 return _sl_response
+
+        # Music Assistant voice commands (US-022)
+        _music_handler = getattr(self, "_music_handler", None)
+        if _music_handler is not None:
+            _music_response = _music_handler.handle(transcript)
+            if _music_response is not None:
+                self._record_completion(transcript, _music_response)
+                return _music_response
 
         # Per-user credential/history scoping: swap self._user_id for the
         # duration of this call so history, transcripts, and tool calls use

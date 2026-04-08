@@ -378,12 +378,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want to say "play Shape of You" and have Rex send the command to Music Assistant.
 
 **Acceptance Criteria:**
-- [ ] `Assistant.generate_reply()` recognizes music intent and routes to `MusicAssistantClient`
-- [ ] Tool catalog includes music commands (play, pause, resume, skip, volume)
-- [ ] Room targeting works: "play jazz in the kitchen" targets the kitchen speaker
-- [ ] If Music Assistant is not configured, assistant replies "Music Assistant is not set up"
-- [ ] Integration test with mocked Music Assistant confirms routing
-- [ ] Typecheck passes
+- [x] `Assistant.generate_reply()` recognizes music intent and routes to `MusicAssistantClient`
+- [x] Tool catalog includes music commands (play, pause, resume, skip, volume)
+- [x] Room targeting works: "play jazz in the kitchen" targets the kitchen speaker
+- [x] If Music Assistant is not configured, assistant replies "Music Assistant is not set up"
+- [x] Integration test with mocked Music Assistant confirms routing
+- [x] Typecheck passes
 
 ---
 
