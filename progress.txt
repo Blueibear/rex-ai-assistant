@@ -9,6 +9,29 @@
 
 ---
 
+## Iteration 43 - US-039: Add Telegram bot integration (send messages)
+- Created `rex/integrations/telegram/__init__.py` and `rex/integrations/telegram/client.py` with `TelegramClient` class
+- Added `telegram_bot_token` (from env) and `telegram_chat_id` (from JSON) fields to `AppConfig` in `rex/config.py`
+- Wired both fields in `build_app_config()`
+- 17 tests in `tests/test_us039_telegram_client.py` covering: missing token, missing chat_id, happy-path send, URL construction, payload correctness, empty text, timeout, HTTP/URL error propagation, AppConfig field presence, and build_app_config wiring
+- Files changed: `rex/integrations/telegram/__init__.py` (new), `rex/integrations/telegram/client.py` (new), `rex/config.py`, `tests/test_us039_telegram_client.py` (new), `PRD.md`
+- Learnings for future iterations:
+  - Uses stdlib `urllib.request` only — no extra dependencies needed
+  - `_check_configured()` pattern mirrors `MusicAssistantClient` exactly; use it for all new integration clients
+  - Token goes in `.env` / `os.getenv()`; non-secret config (chat_id, URLs) goes in `rex_config.json` via `_get_nested()`
+---
+
+## Iteration 42 - US-038: Add "What can you do?" dynamic response
+- Created `rex/capabilities/responder.py` with `is_capability_query()` (regex intent detection) and `build_capability_response()` (grouped-by-category formatter)
+- Integrated into `assistant.generate_reply()` as the very first intercept (before model routing) so the answer is fast and never hits the LLM
+- 28 tests in `tests/test_us038_capability_response.py` covering intent recognition, grouping, disabled-capability exclusion, empty/fallback cases, and assistant integration
+- Files changed: `rex/capabilities/responder.py` (new), `tests/test_us038_capability_response.py` (new), `rex/assistant.py`, `PRD.md`
+- Learnings for future iterations:
+  - monkeypatch target for lazy imports must be the module where the function is *defined*, not where it's imported in the function body (use `rex.capabilities.registry.get_capability_registry` not `rex.assistant.get_capability_registry`)
+  - `asyncio.get_event_loop().run_until_complete()` fails on Python 3.14+ with no current event loop; use `asyncio.run()` instead
+  - Place intercepts that bypass LLM (capability query, skill router, etc.) BEFORE `self._router.classify()` to avoid AttributeError in tests that don't set up the full assistant
+---
+
 ## Iteration 41 - US-037: Add capability registry
 - Created `rex/capabilities/registry.py` with `Capability` dataclass and `CapabilityRegistry` class
 - `CapabilityRegistry.list()` returns enabled capabilities sorted by name; `search(query)` filters case-insensitively across name/description/category/triggers

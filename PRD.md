@@ -607,12 +607,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I need a Telegram bot client so Rex can send messages to the user.
 
 **Acceptance Criteria:**
-- [ ] New module `rex/integrations/telegram/client.py` with `TelegramClient` class
-- [ ] Config fields: `telegram_bot_token`, `telegram_chat_id` in `AppConfig`; token in `.env`
-- [ ] `send_message(text)` sends a message to the configured chat
-- [ ] If not configured, raises `IntegrationNotConfiguredError`
-- [ ] Unit test with mocked Telegram API
-- [ ] Typecheck passes
+- [x] New module `rex/integrations/telegram/client.py` with `TelegramClient` class
+- [x] Config fields: `telegram_bot_token`, `telegram_chat_id` in `AppConfig`; token in `.env`
+- [x] `send_message(text)` sends a message to the configured chat
+- [x] If not configured, raises `IntegrationNotConfiguredError`
+- [x] Unit test with mocked Telegram API
+- [x] Typecheck passes
 
 ---
 

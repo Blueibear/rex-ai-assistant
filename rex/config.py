@@ -245,6 +245,10 @@ class AppConfig:
     music_assistant_url: Optional[str] = None
     music_assistant_token: Optional[str] = None
 
+    # Telegram bot integration (US-039)
+    telegram_bot_token: Optional[str] = None
+    telegram_chat_id: Optional[str] = None
+
     # Room context: maps device IDs to room names (e.g. {"mic_kitchen": "kitchen"})
     device_room_map: Dict[str, str] = field(default_factory=dict)
 
@@ -648,6 +652,9 @@ def build_app_config(json_config: dict) -> AppConfig:
         openclaw_gateway_timeout=_coerce_int(json_config, "openclaw.gateway_timeout", 30),
         openclaw_gateway_max_retries=_coerce_int(json_config, "openclaw.gateway_max_retries", 3),
         openclaw_gateway_token=os.getenv("OPENCLAW_GATEWAY_TOKEN"),  # SECRET from env
+        # Telegram bot integration (US-039)
+        telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN"),  # SECRET from env
+        telegram_chat_id=_get_nested(json_config, "telegram.chat_id"),
         # Multi-account email (US-208)
         email_accounts=_parse_email_accounts(_get_nested(json_config, "email.accounts", [])),
         email_default_account_id=_get_nested(json_config, "email.default_account_id", ""),
