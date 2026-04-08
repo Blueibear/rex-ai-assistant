@@ -399,3 +399,35 @@
   - Pure stdlib Levenshtein avoids adding `python-Levenshtein` or `rapidfuzz` as dependencies
   - Synonym expansion: replace individual words before looking up the full phrase; avoids O(n²) substring matching
 ---
+
+## Iteration 30 - US-026: Add device discovery via Home Assistant API
+- Created `rex/ha/discovery.py` with `discover_devices()` function
+- Calls HA `/api/states` via stdlib `urllib.request` (no extra deps)
+- Returns list of `{entity_id, friendly_name, domain, state}` dicts
+- Module-level cache with configurable TTL (default 300 s / 5 min); `clear_cache()` and `set_cache_ttl()` for control
+- Returns `[]` and logs WARNING when `base_url` or `token` is not set
+- Returns `[]` and logs ERROR on HTTP errors
+- 8 tests in `tests/test_us026_ha_discovery.py` — all pass; ruff, black, mypy all pass
+- Files changed: rex/ha/discovery.py (new), tests/test_us026_ha_discovery.py (new), PRD.md
+- Learnings for future iterations:
+  - `autouse=True` fixture to reset module-level cache state is cleaner than per-test `clear_cache()` calls
+  - `_mock_urlopen()` helper returns a context-manager MagicMock; `__enter__` returns itself, `read()` returns encoded JSON
+  - `ssl_ctx=None` in `urlopen(..., context=None)` uses the default SSL verification — no need to pass it when verify_ssl=True
+---
+
+## Iteration 31 - US-026/US-027: Device discovery PRD fix + Device approval workflow
+- US-026 PRD ACs were unchecked despite implementation existing; marked [x] after confirming 8 tests pass
+- Added `approve_device(entity_id, alias, aliases_path)` and `ignore_device(entity_id, ignore_path)` to `rex/ha/discovery.py`
+- Added `load_ignored_devices(ignore_path)` helper to read ignore list
+- Extended discovery.py with json/Path imports and `_DEFAULT_ALIASES_PATH`/`_DEFAULT_IGNORE_PATH` constants
+- Added `_cmd_ha_approve()` to `rex/cli.py`: loads HA config, discovers devices, filters approved/ignored, prompts user
+- Registered `rex ha approve` subparser with `--aliases-path` and `--ignore-path` override flags
+- 14 tests in `tests/test_us027_device_approval.py`: 9 pass, 5 skipped (CLI tests skip on Python 3.14)
+- ruff auto-fixed 2 violations (import order, f-string); black reformatted 2 files
+- Files changed: rex/ha/discovery.py, rex/cli.py, tests/test_us027_device_approval.py, PRD.md
+- Learnings for future iterations:
+  - `rex.cli` raises SystemExit on Python != 3.11; use `sys.version_info[:2] == (3, 11)` + `@pytest.mark.skipif` for CLI tests
+  - `@pytest.mark.skipif` on a helper function (not a test) is harmless but also not needed; only mark actual test functions
+  - ruff I001: imports inside functions must be sorted alphabetically (rex.config before rex.ha.device_aliases)
+  - `resolver._aliases.values()` accesses internal state — acceptable for test/CLI code since it avoids a public API round-trip
+---
