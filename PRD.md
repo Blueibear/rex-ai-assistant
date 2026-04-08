@@ -984,11 +984,11 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a developer, I want a verified list of what Rex can and cannot do, so docs and UI do not overclaim.
 
 **Acceptance Criteria:**
-- [ ] Every feature listed in README.md is verified against `docs/claude/INTEGRATIONS_STATUS.md`
-- [ ] Any feature marked STUB or NOT STARTED is either removed from README or explicitly marked as "coming soon"
-- [ ] No feature is claimed as working that is not at least PARTIAL status
-- [ ] `docs/claude/INTEGRATIONS_STATUS.md` is updated to reflect current state
-- [ ] Typecheck passes
+- [x] Every feature listed in README.md is verified against `docs/claude/INTEGRATIONS_STATUS.md`
+- [x] Any feature marked STUB or NOT STARTED is either removed from README or explicitly marked as "coming soon"
+- [x] No feature is claimed as working that is not at least PARTIAL status
+- [x] `docs/claude/INTEGRATIONS_STATUS.md` is updated to reflect current state
+- [x] Typecheck passes
 
 ---
 

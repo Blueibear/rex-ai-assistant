@@ -46,6 +46,14 @@ Evidence: Windows agent server and client foundation exist (`rex/computers/`). A
 **Status: PARTIAL**
 Evidence: Optional notification channel exists (`rex/ha_bridge.py`). Disabled by default. Auth and SSRF hardening are required for production use.
 
+### Home Assistant Device Control
+**Status: PARTIAL**
+Evidence: Dashboard API endpoints for testing HA connectivity (`POST /api/ha/test`), saving HA URL/token (`POST /api/ha/save`), listing approved devices (`GET /api/devices` from `config/device_aliases.json`), and sending commands (`POST /api/devices/<entity_id>/command`). Commands proxied via `urllib.request` to the HA REST API. No autodiscovery; devices must be manually listed in `config/device_aliases.json`.
+
+### User Authentication and Data Isolation
+**Status: REAL**
+Evidence: Per-user authentication with bcrypt + JWT (`rex/auth.py`). Per-user chat history, preferences, and quick actions stored in `Memory/<user_id>/core.json`. Permission system in `rex/permissions.py`. Profile picture upload and personality system. Command history store (`rex/command_history.py`).
+
 ### WordPress / WooCommerce
 **Status: PARTIAL**
 Evidence: Read-only health check via WP REST API (`rex wp health`). Orders and products list via WC REST API v3 (`rex wc orders list`, `rex wc products list`). Write actions deferred to future cycle.

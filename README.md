@@ -39,11 +39,11 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
    cd AskRex-Assistant
    ```
 
-2. **Use Python 3.11 and create a virtual environment:**
+2. **Install Rex using Python 3.11**
 
    Windows (PowerShell):
    ```powershell
-   py -3.11 -m venv .venv
+   .\install.ps1
    .\.venv\Scripts\Activate.ps1
    ```
 
@@ -51,32 +51,16 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
    ```bash
    python3.11 -m venv .venv
    source .venv/bin/activate
-   ```
-
-3. **Install Rex:**
-
-   Windows full install:
-   ```powershell
-   .\install.ps1
-   ```
-
-   macOS / Linux full install:
-   ```bash
-   bash install.sh
-   ```
-
-   Windows GPU + TTS path:
-   ```powershell
    pip install --upgrade pip setuptools wheel
-   pip install -r requirements-gpu-cu124.txt
+   pip install ".[full]"
    ```
 
-4. **Configure your model provider**. LM Studio remains optional. Ollama and OpenAI-compatible local servers also work. If using LM Studio, start the local server on `http://localhost:1234` and set your model in `config/rex_config.json`:
+3. **Configure your model provider**. LM Studio remains optional. Ollama and OpenAI-compatible local servers also work. If using LM Studio, start the local server on `http://localhost:1234` and set your model in `config/rex_config.json`:
    ```json
    { "openai": { "base_url": "http://localhost:1234/v1", "model": "your-model-name" } }
    ```
 
-5. **Run Rex and verify** — Rex prints `Rex assistant ready` and responds to your first message:
+4. **Run Rex and verify**:
    ```bash
    rex
    python -m rex doctor
@@ -84,7 +68,9 @@ AskRex Assistant is a local-first, voice-activated AI companion that runs entire
 
 For the canonical GUI, launch the web dashboard with `rex-gui`. Do not use the legacy Tkinter launcher; it is deprecated.
 
-> **Python 3.11 is required. Python 3.12 and above are not supported.** The current dependency stack is validated on Python 3.11 only. Fresh installs on Python 3.12, 3.13, and 3.14 are rejected; the ML/TTS dependency path is known to fail on those versions.
+> **Python 3.11 is required. Python 3.12 and above are not supported.**  
+> On Windows, `install.ps1` uses the Windows `py` launcher to find Python 3.11 and will create or reuse `.venv` automatically.  
+> Fresh installs on Python 3.12, 3.13, and 3.14 are rejected because the current ML/TTS dependency path is only validated on Python 3.11.
 
 > **Advanced / Developer Install** — for GPU setups, custom extras, Docker, or development workflows, see [docs/advanced-install.md](docs/advanced-install.md).
 >
@@ -103,12 +89,12 @@ For the canonical GUI, launch the web dashboard with `rex-gui`. Do not use the l
 - 📧 **Email and calendar** integration with triage and scheduling `[Requires configuration — IMAP/SMTP credentials needed]`
 - 📱 **Multi-channel messaging** via SMS `[Requires configuration — Twilio credentials needed]`
 - 🔔 **Smart notifications** with priority routing, digest mode, quiet hours, and auto-escalation; dashboard channel persists to local SQLite store with real API endpoints `[Works today]`
-- 🤖 **Autonomous workflows** with planner and workflow runner for multi-step task automation `[In progress — alpha feature]`
-- 🎯 **Smart planning** converts natural language goals into structured workflows `[In progress — alpha feature]`
+- 🤖 **Autonomous workflows** with planner and workflow runner for multi-step task automation `[Coming soon — scaffolding only]`
+- 🎯 **Smart planning** converts natural language goals into structured workflows `[Coming soon — scaffolding only]`
 - ⚙️ **Configurable autonomy modes** (OFF/SUGGEST/AUTO) for fine-grained control `[Works today]`
 - 🔐 **Flask TTS API** with authentication and rate limiting `[Works today]`
 - ✅ **CI/CD** with GitHub Actions and Release Please automation `[Works today]`
-- 🐳 **Docker support** for containerized deployment `[Works today]`
+- 🐳 **Docker support** for containerized deployment `[Requires manual validation — see docs/advanced-install.md]`
 
 ## Requirements
 

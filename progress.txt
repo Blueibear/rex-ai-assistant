@@ -960,3 +960,10 @@
 - Added title: 'AskRex Assistant' and icon: tray-icon-32.png to BrowserWindow in index.ts
 - Sidebar wordmark updated: "Rex" → "AskRex"
 ---
+
+## US-066: Full repo capability audit
+- Verified all README features against INTEGRATIONS_STATUS.md
+- Changed "Autonomous workflows" and "Smart planning" labels from "alpha feature" to "Coming soon — scaffolding only" (STUB status)
+- Changed Docker label to "Requires manual validation" (per known caution area)
+- Added "Home Assistant Device Control: PARTIAL" and "User Authentication and Data Isolation: REAL" to INTEGRATIONS_STATUS.md
+---
