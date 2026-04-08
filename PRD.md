@@ -939,12 +939,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want one-click buttons for common actions (e.g., "Lights off", "Play music", "Lock up").
 
 **Acceptance Criteria:**
-- [ ] New dashboard panel: Quick Actions
-- [ ] User can add/remove quick actions via settings
-- [ ] Each action maps to a Rex command (text input to `Assistant.generate_reply()`)
-- [ ] Quick actions stored in per-user config
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] New dashboard panel: Quick Actions
+- [x] User can add/remove quick actions via settings
+- [x] Each action maps to a Rex command (text input to `Assistant.generate_reply()`)
+- [x] Quick actions stored in per-user config
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

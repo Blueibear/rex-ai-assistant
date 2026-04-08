@@ -938,3 +938,11 @@
   - Color-coded by status: idle=muted, listening=blue, thinking=amber, executing=purple, done=green, error=red
 - 13 tests in tests/test_us062_status_sse.py
 ---
+
+## US-063: Add quick actions panel
+- Added GET/POST /api/quick-actions, DELETE /api/quick-actions/<id>, POST /api/quick-actions/<id>/run to gui_app.py
+- Quick actions stored as preferences.quick_actions in per-user Memory profile (rex.identity)
+- Created gui/src/pages/QuickActionsPage.tsx: list/run/delete actions + add form
+- Wired /quick-actions route in App.tsx and added section name to AppLayout.tsx
+- 14 tests in tests/test_us063_quick_actions.py
+---

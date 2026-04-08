@@ -792,6 +792,84 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         return jsonify({"ok": True}), 200
 
     # ------------------------------------------------------------------
+    # Quick actions API (US-063)
+    # ------------------------------------------------------------------
+
+    def _get_quick_actions(user_id: str) -> list[dict[str, Any]]:
+        """Return the quick actions list from the user's profile."""
+        from rex.identity import get_user_profile
+
+        profile = get_user_profile(user_id) or {}
+        prefs = profile.get("preferences", {})
+        actions = prefs.get("quick_actions", [])
+        return actions if isinstance(actions, list) else []
+
+    def _save_quick_actions(user_id: str, actions: list[dict[str, Any]]) -> None:
+        """Persist the quick actions list to the user's profile."""
+        from rex.identity import update_user_preferences
+
+        update_user_preferences(user_id, {"quick_actions": actions})
+
+    @app.route("/api/quick-actions", methods=["GET"])
+    def _list_quick_actions() -> Any:
+        """Return the authenticated user's quick actions."""
+        user, err = _require_auth()
+        if err:
+            return err
+        return jsonify({"quick_actions": _get_quick_actions(user["id"])}), 200
+
+    @app.route("/api/quick-actions", methods=["POST"])
+    def _add_quick_action() -> Any:
+        """Add a quick action.  Body: ``{label: str, command: str}``."""
+        user, err = _require_auth()
+        if err:
+            return err
+
+        data: dict[str, Any] = request.get_json(silent=True) or {}
+        label = (data.get("label") or "").strip()
+        command = (data.get("command") or "").strip()
+
+        if not label or not command:
+            return jsonify({"error": "label and command are required"}), 400
+
+        import uuid
+
+        actions = _get_quick_actions(user["id"])
+        new_action: dict[str, Any] = {"id": str(uuid.uuid4()), "label": label, "command": command}
+        actions.append(new_action)
+        _save_quick_actions(user["id"], actions)
+        return jsonify(new_action), 201
+
+    @app.route("/api/quick-actions/<action_id>", methods=["DELETE"])
+    def _delete_quick_action(action_id: str) -> Any:
+        """Remove a quick action by id."""
+        user, err = _require_auth()
+        if err:
+            return err
+
+        actions = _get_quick_actions(user["id"])
+        new_actions = [a for a in actions if a.get("id") != action_id]
+        if len(new_actions) == len(actions):
+            return jsonify({"error": "not found"}), 404
+        _save_quick_actions(user["id"], new_actions)
+        return jsonify({"ok": True}), 200
+
+    @app.route("/api/quick-actions/<action_id>/run", methods=["POST"])
+    def _run_quick_action(action_id: str) -> Any:
+        """Execute a quick action by sending its command to the assistant."""
+        user, err = _require_auth()
+        if err:
+            return err
+
+        actions = _get_quick_actions(user["id"])
+        action = next((a for a in actions if a.get("id") == action_id), None)
+        if action is None:
+            return jsonify({"error": "not found"}), 404
+
+        reply = _generate_reply(action["command"])
+        return jsonify({"reply": reply}), 200
+
+    # ------------------------------------------------------------------
     # Status / SSE API (US-062)
     # ------------------------------------------------------------------
 
