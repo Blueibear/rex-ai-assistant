@@ -1631,6 +1631,24 @@ const MODEL_ROUTING_FIELDS: Array<{
 
 type SavedField = keyof AiSettings | 'modelRouting'
 
+const PERSONALITIES = [
+  {
+    name: 'Friendly',
+    toneKeywords: ['warm', 'conversational', 'upbeat', 'encouraging'],
+    greeting: 'Hey there! How can I help you today?'
+  },
+  {
+    name: 'Professional',
+    toneKeywords: ['precise', 'formal', 'concise', 'business-like'],
+    greeting: 'Hello. How may I assist you?'
+  },
+  {
+    name: 'Minimal',
+    toneKeywords: ['brief', 'terse', 'direct'],
+    greeting: 'Ready.'
+  }
+] as const
+
 function AiPanel(): React.ReactElement {
   const addToast = useToast()
   const [form, setForm] = useState<AiSettings>({
@@ -1651,7 +1669,8 @@ function AiPanel(): React.ReactElement {
       search: '',
       vision: '',
       fast: ''
-    }
+    },
+    personality: 'Friendly'
   })
   const [loading, setLoading] = useState(true)
   const [savedField, setSavedField] = useState<SavedField | null>(null)
@@ -1709,7 +1728,10 @@ function AiPanel(): React.ReactElement {
             search: typeof modelRouting.search === 'string' ? modelRouting.search : '',
             vision: typeof modelRouting.vision === 'string' ? modelRouting.vision : '',
             fast: typeof modelRouting.fast === 'string' ? modelRouting.fast : ''
-          }
+          },
+          personality: typeof settings.personality === 'string' && PERSONALITIES.some((p) => p.name === settings.personality)
+            ? settings.personality
+            : 'Friendly'
         })
         setRoutingDirty(false)
       })
@@ -1824,6 +1846,41 @@ function AiPanel(): React.ReactElement {
   return (
     <div className="p-6 max-w-lg">
       <h2 className="text-lg font-semibold text-text-primary mb-6">AI</h2>
+
+      {/* Personality */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-sm font-medium text-text-primary">Personality</label>
+          <SavedIndicator visible={savedField === 'personality'} />
+        </div>
+        <div className="flex flex-col gap-2">
+          {PERSONALITIES.map((p) => (
+            <button
+              key={p.name}
+              type="button"
+              onClick={() => handleFieldChange('personality', p.name)}
+              className={[
+                'text-left rounded-lg border px-4 py-3 transition-colors focus:outline-none focus:ring-2 focus:ring-accent',
+                form.personality === p.name
+                  ? 'border-accent bg-accent/10'
+                  : 'border-border bg-surface-raised hover:border-accent/50'
+              ].join(' ')}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-medium text-text-primary">{p.name}</span>
+                {form.personality === p.name && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent shrink-0">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+              </div>
+              <p className="text-xs text-text-secondary italic mb-1">"{p.greeting}"</p>
+              <p className="text-xs text-text-secondary">{p.toneKeywords.join(' · ')}</p>
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-xs text-text-secondary">Takes effect on your next message — no restart needed.</p>
+      </div>
 
       {/* LLM Provider */}
       <div className="mb-5">

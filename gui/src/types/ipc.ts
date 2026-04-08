@@ -179,6 +179,7 @@ export interface AiSettings {
   budgetPerPlan: number
   budgetPerStep: number
   modelRouting: AiModelRoutingSettings
+  personality: string
 }
 
 export interface EmailAccount {

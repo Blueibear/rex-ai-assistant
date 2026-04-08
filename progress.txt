@@ -9,6 +9,58 @@
 
 ---
 
+## Iteration 52 - US-051: Personality preview and selection UI
+- Added `GET /api/personalities` endpoint to `rex/gui_app.py` — publicly accessible, returns list with name, greeting, tone_keywords
+- Added `personality` field to `AiSettings` interface in `gui/src/types/ipc.ts`
+- Updated `buildAiSettings()` in `gui/src/main/index.ts` — reads personality from raw settings, validates against allowed list, falls back to rex_config.json then 'Friendly'
+- Updated `mirrorToRexConfig()` to write `personality` to `rex_config.json` when 'ai' section is saved
+- Updated `defaultSettingsMap.ai` to include `personality: 'Friendly'`
+- Added `PERSONALITIES` constant to `SettingsPage.tsx` with name, toneKeywords, and greeting for each personality
+- Updated `AiPanel` form state to include `personality: 'Friendly'` and load it from settings
+- Added personality selector UI at top of `AiPanel` — 3 clickable cards showing name, greeting preview, tone keywords; selected card shows accent border + checkmark
+- Change takes effect on next interaction: `rex_chat_bridge.py` spawns a fresh process per request so `load_config()` always re-reads `rex_config.json`
+- Created `tests/test_us051_personality_ui.py` with 6 tests (list personalities, greeting, tone_keywords, no-auth-required, set via preferences, change takes effect)
+- Files changed: `rex/gui_app.py`, `gui/src/types/ipc.ts`, `gui/src/main/index.ts`, `gui/src/pages/SettingsPage.tsx`, `tests/test_us051_personality_ui.py`, `PRD.md`
+- Learnings:
+  - `_create_flask_app()` does NOT take a `data_dir` param; use `monkeypatch.setenv("REX_DATA_DIR", str(tmp_path))` in tests
+  - `POST /api/auth/register` does not return a token — must call `POST /api/auth/login` separately to get token
+  - `rex_chat_bridge.py` spawns a new process per chat, so `load_config()` re-reads `rex_config.json` fresh each time — no restart needed for config changes
+  - Personality selector UI goes in `AiPanel`, not a separate panel, since personality is an AI behavior setting
+---
+
+## Iteration 51 - US-048: Per-user data isolation
+- Added `_require_auth()` module-level helper in `rex/gui_app.py` — extracts Bearer token, calls `get_current_user()`, returns (user, None) or (None, 401 response)
+- Created `HistoryStore` instance at Flask app creation time (path from `REX_DATA_DIR` env); chat endpoints now use it keyed by authenticated user ID
+- Protected `GET /api/chat/history`, `POST /api/chat/send`, `POST /api/chat/clear` with auth — unauthenticated requests return 401
+- Added `GET /api/user/preferences` and `PATCH /api/user/preferences` endpoints for per-user config preferences (stored in Memory/<user_id>/core.json)
+- `_auth_register` now calls `create_user_profile()` (best-effort) to create a Memory profile keyed by the UUID user ID
+- Added `clear_history(user_id)` method to `HistoryStore`
+- Updated `tests/test_chat_api.py` to use auth fixtures since chat endpoints now require tokens
+- Created `tests/test_us048_data_isolation.py` with 15 tests (memory isolation, history isolation, auth enforcement, preferences isolation)
+- Files changed: `rex/gui_app.py`, `rex/history_store.py`, `tests/test_us048_data_isolation.py`, `tests/test_chat_api.py`, `PRD.md`
+- Learnings:
+  - `HistoryStore` already had user_id keying — just needed to wire it up to the Flask app with env-based path
+  - Memory profiles use `Memory/<user_id>/core.json`; auth user IDs are UUIDs, so they're separate namespaces from the human-readable "james", "cole" folders
+  - Pre-existing test failures: TestIdentityCLI tests fail due to Python 3.14 incompatibility with rex.cli SystemExit — not caused by this iteration
+  - When adding auth to existing chat endpoints, must update existing test_chat_api.py to add auth fixtures
+---
+
+## Iteration 50 - US-046: Cloud usage visibility in UI
+- Added `usage_api_summary()` to `rex/llm_usage.py`: classifies models as cloud/local by prefix, splits totals by today/week/month
+- Added `GET /api/usage` Flask endpoint in `rex/gui_app.py`
+- Created `gui/src/main/handlers/usage.ts` Electron IPC handler reading `data/llm_usage.json` directly (same classification logic in TypeScript)
+- Wired IPC: registered in `main/index.ts`, added to preload, added `UsageSummary` types to `ipc.ts` and `RexAPI`
+- Created `gui/src/pages/UsagePage.tsx` with all-time buckets, period rows (today/week/month), and percent bar
+- Added `/usage` route in `App.tsx` and Usage nav item in `AppLayout.tsx`
+- 14 tests in `tests/test_us046_usage_ui.py` (model classification, period bucketing, Flask endpoint)
+- Files changed: `rex/llm_usage.py`, `rex/gui_app.py`, `gui/src/main/handlers/usage.ts` (new), `gui/src/main/index.ts`, `gui/src/preload/index.ts`, `gui/src/types/ipc.ts`, `gui/src/pages/UsagePage.tsx` (new), `gui/src/renderer/src/App.tsx`, `gui/src/layouts/AppLayout.tsx`, `tests/test_us046_usage_ui.py` (new), `PRD.md`
+- Learnings:
+  - Cloud model classification uses prefix matching: gpt-, claude-, gemini-, text-, mistral-, o1, o3, etc.
+  - Bare "mistral" is local Ollama; "mistral-" prefix is cloud Mistral API
+  - Electron IPC handlers can read data files directly (like logs.ts) without going through Flask
+  - `datetime.fromisoformat()` handles ISO-8601 strings; naive datetimes get UTC timezone attached
+---
+
 ## Iteration 47 - US-043: Add Ollama cloud usage tracking
 - Created `rex/llm_usage.py` with `record_usage()`, `load_records()`, `summarise()`
 - Append-only JSON log at `data/llm_usage.json`, rotated at 10 MB
@@ -669,4 +721,75 @@
   - `calendar.timegm` gives UTC midnight; `datetime.fromtimestamp()` uses local TZ — use `time.mktime(date.today().timetuple())` for local midnight in tests
   - Hour bucket `int(h / window)` rounds DOWN: hour 7 with window=2 → start_hour 6; use `time_window_hours=1.0` to keep exact hours in tests
   - `_sug_engine.has_pending` guard ensures yes/no intercept only fires when a suggestion is awaiting an answer
+---
+
+## Iteration 48 - US-044: Add smart cloud routing (prefer local)
+- Added `ModelRouter.route()` with local/cloud selection based on query complexity
+- Added `ModelRouter.estimate_complexity()`: <200 estimated tokens and no tools → "simple", else "complex"
+- Added `AppConfig.llm_routing_mode` field (default: "local_preferred"; accepts "cloud_only", "local_only")
+- Routing modes: local_preferred (simple→local, complex→cloud), cloud_only (always cloud), local_only (local with cloud fallback)
+- If local is unavailable in any mode, falls back to cloud with a warning log
+- 17 tests in `tests/test_us044_smart_routing.py`
+- Files changed: `rex/model_router.py`, `rex/config.py`, `tests/test_us044_smart_routing.py`, `PRD.md`
+- Learnings:
+  - Token estimation: `len(message.split()) * 1.3` is a good-enough heuristic for word→token conversion
+  - `_is_available()` already handles Ollama model availability; patch it in tests to avoid network calls
+  - `llm_routing_mode` config path is `model_routing.llm_routing_mode` in JSON config
+---
+
+## Iteration 49 - US-045: Add cloud fallback when usage limit hit
+- Added `cloud_limit_hit(status_code)` to `ModelRouter`: records cooldown deadline when 429/402 received
+- Added `_cloud_in_cooldown()`: returns True while `time.monotonic() < _cloud_limited_until`
+- Added `notify_callback: Callable[[str], None] | None` parameter to `ModelRouter.__init__`
+- Added `cooldown_seconds` parameter (default 3600) to `ModelRouter.__init__`
+- Modified `route()`: checks `_cloud_in_cooldown()` before selecting cloud in local_preferred and cloud_only modes
+- Added `cloud_fallback_cooldown_seconds: int = 3600` to `AppConfig`
+- 12 tests in `tests/test_us045_cloud_fallback.py` — all pass; ruff/black/mypy clean
+- Files changed: `rex/model_router.py`, `rex/config.py`, `tests/test_us045_cloud_fallback.py`, `PRD.md`
+- Learnings:
+  - `estimate_complexity` uses token count heuristic only (word count * 1.3); short messages are always "simple" regardless of content — use `requires_tools=True` to force complex classification in tests
+  - `ModelRouter.__new__` + manual attribute assignment is the right pattern for constructing test instances without triggering Ollama network calls
+  - `time.monotonic()` is used for cooldown deadline (not `time.time()`) to avoid wall-clock skew issues
+---
+
+## Iteration 51 - US-047: User authentication (login system)
+- Created `rex/auth.py`: `create_user()`, `authenticate()`, `get_current_user()`
+- Passwords hashed with bcrypt; users stored in SQLite at `data/users.db`
+- JWTs signed with HS256, 24h expiry; secret from `REX_JWT_SECRET` env var
+- Added three Flask endpoints in `rex/gui_app.py`: POST /api/auth/login, /api/auth/register, /api/auth/logout
+- Added `bcrypt>=4.0.0` and `PyJWT>=2.8.0` to pyproject.toml dependencies
+- 18 tests in `tests/test_us047_user_auth.py` (unit + Flask endpoint coverage)
+- Files changed: `rex/auth.py` (new), `rex/gui_app.py`, `tests/test_us047_user_auth.py` (new), `pyproject.toml`, `PRD.md`
+- Learnings:
+  - PyJWT uses `datetime.UTC` (not `timezone.utc`) when targeting Python 3.11+ — ruff UP017 fix auto-corrects this
+  - `REX_DATA_DIR` env var controls where `data/users.db` is written; monkeypatching it in tests keeps them isolated
+  - The short test secret key (15 bytes) triggers InsecureKeyLengthWarning from PyJWT — acceptable in tests only
+---
+
+## Iteration 52 - US-049: Profile picture support
+- Added `POST /api/user/avatar` endpoint (requires auth): validates JPEG/PNG, max 2 MB, resizes to 256×256, stores at `data/avatars/<user_id>.jpg`
+- Added `GET /api/user/avatar` endpoint: returns stored JPEG if authed + uploaded, otherwise returns a default SVG (always 200 OK — no 401 for GET)
+- Updated `gui/src/layouts/AppLayout.tsx` sidebar footer: replaced static "U" text with `<img src="/api/user/avatar">` with `onError` fallback
+- Created `tests/test_us049_avatar.py` with 12 tests covering upload success (JPEG/PNG), auth requirement, size/type rejection, 256×256 resize, default avatar, and per-user isolation
+- Files changed: `rex/gui_app.py`, `gui/src/layouts/AppLayout.tsx`, `tests/test_us049_avatar.py`, `PRD.md`
+- Learnings:
+  - `Pillow` is already in `pyproject.toml` as a dependency — no new dep needed
+  - `GET /api/user/avatar` intentionally does NOT require auth — returns default SVG for unauthenticated requests; the frontend has no token management yet so this keeps the avatar visible
+  - Python 3.14 incompatibility with `rex.cli` causes INTERNALERROR for all test files importing from `rex.cli`; run targeted tests avoiding those files
+---
+
+## Iteration 52 - US-050: Personality system (backend)
+- Created `rex/personality.py` with `Personality` frozen dataclass (`name`, `system_prompt`, `tone_keywords`, `greeting`)
+- Three built-in personalities: "Friendly", "Professional", "Minimal"
+- `get_personality(name)` with fallback to DEFAULT_PERSONALITY ("Friendly") on unknown name
+- `list_personalities()` returns all built-ins
+- Added `personality: str = "Friendly"` field to `AppConfig` in `rex/config.py`
+- Added `_get_active_personality_prompt()` to `Assistant` — checks per-user preferences first, then AppConfig, then default
+- Modified `_build_prompt()` to inject personality system prompt after system context
+- Created `tests/test_us050_personality.py` with 11 passing tests
+- Files changed: `rex/personality.py` (new), `rex/assistant.py`, `rex/config.py`, `tests/test_us050_personality.py` (new), `PRD.md`
+- Learnings for future iterations:
+  - Per-user personality is stored under `Memory/<user_id>/core.json` → `preferences.personality`
+  - `get_user_profile()` from `rex.identity` is the right way to load per-user preferences
+  - Pre-existing mypy errors in `assistant.py` lines 511–578 are unrelated to this task
 ---

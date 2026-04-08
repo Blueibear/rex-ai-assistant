@@ -770,12 +770,12 @@ AskRex Assistant is a local-first, voice-activated AI companion supporting wake 
 **Description:** As a user, I want to preview and switch personalities in the dashboard.
 
 **Acceptance Criteria:**
-- [ ] Dashboard settings page shows available personalities with preview text
-- [ ] Selecting a personality updates the user's config
-- [ ] Preview shows a sample greeting in the selected personality's tone
-- [ ] Change takes effect on next interaction (no restart required)
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] Dashboard settings page shows available personalities with preview text
+- [x] Selecting a personality updates the user's config
+- [x] Preview shows a sample greeting in the selected personality's tone
+- [x] Change takes effect on next interaction (no restart required)
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

@@ -241,6 +241,25 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         return jsonify({"id": user["id"], "username": user["username"]}), 201
 
     # ------------------------------------------------------------------
+    # Personality API (US-051)
+    # ------------------------------------------------------------------
+
+    @app.route("/api/personalities", methods=["GET"])
+    def _list_personalities() -> Any:
+        """Return available personalities with name, greeting, and tone keywords."""
+        from rex.personality import list_personalities
+
+        return jsonify(
+            [
+                {
+                    "name": p.name,
+                    "greeting": p.greeting,
+                    "tone_keywords": p.tone_keywords,
+                }
+                for p in list_personalities()
+            ]
+        ), 200
+
     # User preferences API (US-048)
     # ------------------------------------------------------------------
 

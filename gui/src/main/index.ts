@@ -157,6 +157,14 @@ function buildAiSettings(raw: Settings = {}): AiSettings {
       ? rawProvider
       : 'openai'
 
+  const VALID_PERSONALITIES = ['Friendly', 'Professional', 'Minimal']
+  const rawPersonality = typeof raw.personality === 'string' ? raw.personality : null
+  const personality = rawPersonality && VALID_PERSONALITIES.includes(rawPersonality)
+    ? rawPersonality
+    : typeof rexConfig.personality === 'string' && VALID_PERSONALITIES.includes(rexConfig.personality as string)
+      ? rexConfig.personality as string
+      : 'Friendly'
+
   return {
     model,
     provider,
@@ -181,7 +189,8 @@ function buildAiSettings(raw: Settings = {}): AiSettings {
         : 'manual',
     budgetPerPlan: typeof raw.budgetPerPlan === 'number' ? raw.budgetPerPlan : 0,
     budgetPerStep: typeof raw.budgetPerStep === 'number' ? raw.budgetPerStep : 0,
-    modelRouting: normalizeAiModelRouting(routingSource)
+    modelRouting: normalizeAiModelRouting(routingSource),
+    personality
   }
 }
 
@@ -199,6 +208,9 @@ function mirrorToRexConfig(section: string, values: Settings): void {
       if (typeof values.customModelId === 'string') models.custom_model_id = values.customModelId
       rexConfig.models = models
       rexConfig.model_routing = normalizeAiModelRouting(values.modelRouting)
+      if (typeof values.personality === 'string' && values.personality) {
+        rexConfig.personality = values.personality
+      }
       writeRexConfig(rexConfig)
     }
 
@@ -290,7 +302,8 @@ const defaultSettingsMap: Record<string, Settings> = {
     autonomyMode: 'manual',
     budgetPerPlan: 0,
     budgetPerStep: 0,
-    modelRouting: normalizeAiModelRouting({})
+    modelRouting: normalizeAiModelRouting({}),
+    personality: 'Friendly'
   } satisfies AiSettings as unknown as Settings,
   users: {
     names: {}
