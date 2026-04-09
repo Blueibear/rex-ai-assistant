@@ -42,6 +42,7 @@ from rex.logging_utils import get_logger, set_global_level
 from rex.profile_manager import (
     DEFAULT_PROFILES_DIR,
     apply_profile,
+    ensure_default_profile,
     get_active_profile_name,
     load_profile,
 )
@@ -526,7 +527,18 @@ def _parse_allowed_file_roots(raw: object) -> list[str]:
 def _merge_profile_config(base_config: dict) -> dict:
     profile_name = get_active_profile_name(base_config)
     profiles_dir = base_config.get("profiles_dir", DEFAULT_PROFILES_DIR)
-    profile = load_profile(profile_name, profiles_dir=profiles_dir)
+    ensure_default_profile(profiles_dir)
+    try:
+        profile = load_profile(profile_name, profiles_dir=profiles_dir)
+    except FileNotFoundError:
+        if profile_name != "default":
+            LOGGER.warning(
+                "Profile '%s' not found; falling back to 'default'.", profile_name
+            )
+            profile = load_profile("default", profiles_dir=profiles_dir)
+            profile_name = "default"
+        else:
+            raise
     merged_config = apply_profile(base_config, profile)
     merged_config["active_profile"] = profile_name
     merged_config.setdefault("profiles_dir", profiles_dir)

@@ -1,4 +1,4 @@
-# PRD: AskRex Assistant — Full Roadmap
+# PRD: AskRex Stability and Completeness
 
 > **Codex/Ralph task selection rule**
 > A "task" means one full User Story (US-###), not an individual checkbox line.
@@ -6,1186 +6,424 @@
 
 ## Introduction
 
-AskRex Assistant is a local-first, voice-activated AI companion supporting wake word detection, STT, LLM chat, TTS, and optional integrations for search, messaging, email, calendar, and Home Assistant. This PRD covers the complete roadmap across 9 phases, from critical system fixes through developer tooling. Each user story is sized for a single AI implementation context window (~10 min of work) and ordered by dependency.
+AskRex Assistant has accumulated 44 tracked issues spanning critical runtime blockers, broken GUI features, incomplete setup flows, and missing control surfaces. This PRD converts those issues into dependency-ordered, single-context-window user stories so they can be executed sequentially by an AI implementation loop (Ralph) or a human developer.
 
-**Tech stack:** Python 3.11, Flask, React (GUI), Pydantic v2, OpenAI Whisper, openWakeWord, Coqui XTTS, edge-tts, pyttsx3, Ollama/OpenAI LLM backends.
-
-**Target platforms:** Windows 11, macOS, Linux (all AC must pass cross-platform).
-
----
+The goal is to take AskRex from "demo with known breakage" to "reliably boots, voice works, GUI is a complete control surface for all configured integrations."
 
 ## Goals
 
-- Eliminate all blocking runtime failures (bridge execution, voice pipeline, dependency resolution)
-- Establish a reliable, cross-platform voice loop (wake -> STT -> LLM -> TTS)
-- Connect real Home Assistant control with context-aware, alias-friendly commands
-- Build assistant intelligence (tool selection, speed perception, proactive suggestions)
-- Add communication layer (Telegram, notifications, cloud usage tracking)
-- Implement multi-user system with permissions and personality
-- Enable safe desktop/computer control
-- Overhaul UI/UX for discoverability and guided setup
-- Bring documentation, installer, and CI to production quality
-- Establish structured logging and debug infrastructure
-
----
+- Every CLI entry point (`rex whoami`, `rex chat`, `rex identify`) runs without crash on a clean install
+- XTTS voice output initializes successfully under PyTorch 2.6
+- All Electron bridge scripts resolve to real, working Python scripts
+- GUI text chat produces streaming responses end-to-end
+- Voice config has a single source of truth with no duplicate/conflicting sections
+- Every GUI settings page is wired to real backend state (no placeholder data, no dead links)
+- Scaffolding features (memory, autonomy, planning) have minimal viable implementations
 
 ## User Stories
 
 ---
 
-### PHASE 1 -- CORE SYSTEM FIXES (BLOCKERS)
+### Phase 1: Critical Blockers
 
 ---
 
-#### US-001: Add venv-aware Python resolver utility
-**Description:** As a developer, I want a utility function that resolves the correct venv Python binary so that all bridge scripts use a consistent interpreter.
+### US-301: Graceful default profile creation on first run
+**Description:** As a user running Rex for the first time, I want the app to create a usable default profile automatically so that CLI commands and GUI flows don't crash on missing `profiles/default.json`.
 
 **Acceptance Criteria:**
-- [x] New module `rex/bridge_utils.py` exports `resolve_python()` returning the absolute path to the active venv Python
-- [x] On Windows, resolves `.venv\Scripts\python.exe`; on macOS/Linux, resolves `.venv/bin/python`
-- [x] Falls back to `sys.executable` if no venv detected
-- [x] Unit test covers Windows, macOS, Linux path resolution
-- [x] Typecheck passes (`mypy rex/bridge_utils.py`)
-
----
-
-#### US-002: Replace raw `python` calls in bridge scripts with venv resolver
-**Description:** As a developer, I want all bridge scripts (`rex_*_bridge.py`) to use the venv-aware resolver so that subprocess calls never use the wrong interpreter.
-
-**Acceptance Criteria:**
-- [x] Every `rex_*_bridge.py` file at repo root imports and uses `resolve_python()` from `rex/bridge_utils.py`
-- [x] No raw `"python"` or `"python3"` string remains in any bridge subprocess call
-- [x] `grep -r "subprocess.*['\"]python" rex_*_bridge.py` returns zero matches
-- [x] Existing bridge tests still pass
-- [x] Typecheck passes
-
----
-
-#### US-003: Replace raw `python` calls in GUI backend with venv resolver
-**Description:** As a developer, I want `rex/gui_app.py` and any GUI subprocess calls to use the venv-aware resolver.
-
-**Acceptance Criteria:**
-- [x] `rex/gui_app.py` uses `resolve_python()` for all subprocess invocations
-- [x] `grep -r "subprocess.*['\"]python" rex/gui_app.py` returns zero matches
-- [x] GUI launch still works via `rex-gui` entry point
-- [x] Typecheck passes
-
----
-
-#### US-004: Fix working directory resolution for bridge scripts
-**Description:** As a developer, I want bridge scripts to resolve the repo root correctly so that relative path failures are eliminated.
-
-**Acceptance Criteria:**
-- [x] `rex/bridge_utils.py` exports `repo_root()` returning the absolute path to the repo root (directory containing `pyproject.toml`)
-- [x] All `rex_*_bridge.py` files use `repo_root()` to build absolute paths to scripts and config
-- [x] No bridge script uses `os.getcwd()` or relative paths to locate other scripts
-- [x] Unit test confirms `repo_root()` returns the correct directory
-- [x] Typecheck passes
-
----
-
-#### US-005: Verify and create missing bridge scripts (tasks, reminders, memory)
-**Description:** As a developer, I want the `rex_tasks_bridge.py`, `rex_reminders_bridge.py`, and `rex_memories_bridge.py` scripts to exist and conform to the standard JSON I/O contract.
-
-**Acceptance Criteria:**
-- [x] `rex_tasks_bridge.py` exists, accepts JSON on stdin `{"action": "list"|"add"|"complete", ...}`, returns JSON on stdout
-- [x] `rex_reminders_bridge.py` exists with the same JSON I/O pattern
-- [x] `rex_memories_bridge.py` exists with the same JSON I/O pattern
-- [x] Each script returns `{"error": "..."}` on invalid input (not a traceback)
-- [x] Smoke test for each: `echo '{"action":"list"}' | python <bridge>.py` returns valid JSON
-- [x] Typecheck passes
-
----
-
-#### US-006: Verify and create missing bridge scripts (shopping, speakers)
-**Description:** As a developer, I want the `rex_shopping_list_bridge.py` and `rex_speaker_bridge.py` scripts to exist and conform to the standard JSON I/O contract.
-
-**Acceptance Criteria:**
-- [x] `rex_shopping_list_bridge.py` exists, accepts JSON on stdin, returns JSON on stdout
-- [x] `rex_speaker_bridge.py` exists with the same JSON I/O pattern
-- [x] Each script returns `{"error": "..."}` on invalid input
-- [x] Smoke test for each returns valid JSON
-- [x] Typecheck passes
-
----
-
-#### US-007: Trace and fix voice pipeline wake-to-capture stage
-**Description:** As a developer, I want the wake word detection to reliably trigger audio capture so that the voice pipeline does not hang at the first stage.
-
-**Acceptance Criteria:**
-- [x] `rex/wakeword/listener.py` emits a structured log event on wake word detection
-- [x] Audio capture begins within 200ms of wake word detection (log timestamps confirm)
-- [x] If wake word config is empty or invalid, a clear error is raised at startup (not a silent hang)
-- [x] Test covers the wake -> capture transition with a mock audio stream
-- [x] Works on Windows, macOS, Linux
-- [x] Typecheck passes
-
----
-
-#### US-008: Trace and fix voice pipeline capture-to-STT stage
-**Description:** As a developer, I want captured audio to be reliably passed to the STT engine so that transcription always occurs after capture.
-
-**Acceptance Criteria:**
-- [x] Audio capture completion emits a structured log event with audio duration
-- [x] STT engine receives the audio buffer and begins transcription (log confirms handoff)
-- [x] If STT fails, the error is logged and the pipeline resets (no hang)
-- [x] Test covers capture -> STT handoff with a mock audio buffer
-- [x] Typecheck passes
-
----
-
-#### US-009: Trace and fix voice pipeline STT-to-LLM-to-TTS stage
-**Description:** As a developer, I want the LLM response to be generated from the transcript and spoken back via TTS so that the full voice loop completes.
-
-**Acceptance Criteria:**
-- [x] STT result is passed to `Assistant.generate_reply()` (not raw `LanguageModel.generate()`)
-- [x] LLM response is passed to the TTS engine and audio playback begins
-- [x] If TTS fails, the text response is logged and the pipeline resets (no hang)
-- [x] End-to-end test covers STT transcript -> LLM -> TTS with mocks
-- [x] Typecheck passes
-
----
-
-#### US-074: Diagnose and fix standalone rex_loop.py voice conversation
-**Description:** As a developer, I want `rex_loop.py` (the standalone voice loop entry point) to complete a full voice conversation reliably, not just detect the wake word.
-
-**Acceptance Criteria:**
-- [x] Run `python rex_loop.py` and document which stages succeed: wake word detection, audio capture, STT transcription, LLM response generation, TTS spoken output
-- [x] For each failing stage, add a structured log message identifying the failure point and cause
-- [x] Fix all identified failures so that a full wake -> capture -> transcribe -> LLM -> speak cycle completes
-- [x] `rex_loop.py` uses `build_voice_loop` from `rex.voice_loop` (the canonical implementation, per learned rules)
-- [x] If a stage cannot be fixed in this story (e.g., missing hardware), the loop logs the blocker and exits cleanly instead of hanging
-- [x] Integration test with mocked audio confirms full pipeline completion
-- [x] Typecheck passes
-
----
-
-#### US-075: Fix config type validation and coercion warnings
-**Description:** As a developer, I want config values like `llm_temperature` to be stored and validated as their correct types so that runtime coercion warnings are eliminated.
-
-**Acceptance Criteria:**
-- [x] `AppConfig` field `llm_temperature` is typed as `float` (not `str`), with a Pydantic validator that coerces string input and logs a deprecation warning
-- [x] All other config fields that are currently stored as strings but used as numeric types are similarly corrected
-- [x] `config/rex_config.json` template uses correct JSON types (numbers, not quoted numbers)
-- [x] Config validation runs on load and raises clear errors for invalid values (e.g., `"temperature": "abc"`)
-- [x] `rex doctor` includes a config validation check that reports any type mismatches
-- [x] No `UserWarning` or coercion warning on clean config load
-- [x] Unit test confirms both correct-type and string-type inputs are handled
-- [x] Typecheck passes
-
----
-
-#### US-076: Remove mock calendar from voice loop runtime path
-**Description:** As a developer, I want the voice loop to use real calendar integration (or report "not configured") instead of silently running in mock mode.
-
-**Acceptance Criteria:**
-- [x] Voice loop startup log does NOT show "Calendar service connected (mock mode)" when calendar is configured with real credentials
-- [x] If calendar ICS URL is not configured, voice loop logs "Calendar: not configured" (not "mock mode")
-- [x] Mock calendar data is only used in test fixtures, never in production runtime paths
-- [x] `rex/calendar_service.py` raises `IntegrationNotConfiguredError` instead of returning mock data when unconfigured
-- [x] Voice loop gracefully handles missing calendar (no crash, just skips calendar-related tool)
-- [x] Test confirms mock is never loaded outside of test context
-- [x] Typecheck passes
-
----
-
-#### US-077: Pin XTTS/transformers compatible versions and patch BeamSearchScorer
-**Description:** As a developer, I want XTTS to load successfully by pinning compatible transformers version or patching the missing `BeamSearchScorer` import.
-
-**Acceptance Criteria:**
-- [x] `requirements-gpu-cu124.txt` (and other GPU requirements files) pin a transformers version compatible with the installed XTTS version
-- [x] If `BeamSearchScorer` is missing from the installed transformers, a compatibility shim provides it before XTTS loads
-- [x] Shim is applied in `rex/compat/` and triggered by lazy import logic (using `find_spec()` per learned rules)
-- [x] If pinned version is not available, TTS falls back to edge-tts with a clear log message
-- [x] `rex doctor` reports XTTS + transformers version compatibility status
-- [x] Test confirms XTTS loads (or falls back cleanly) with both compatible and incompatible transformers versions
-- [x] Typecheck passes
-
----
-
-#### US-078: Fix torio/FFmpeg runtime dependency for voice pipeline
-**Description:** As a developer, I want FFmpeg extension loading failures in torio to be resolved or handled so the voice pipeline does not crash on audio operations.
-
-**Acceptance Criteria:**
-- [x] Determine whether FFmpeg is required for the voice pipeline audio path (capture, playback) or only for XTTS
-- [x] If required: add FFmpeg to install docs and `rex doctor` prerequisites; `install.py` checks for FFmpeg
-- [x] If not required: suppress torio FFmpeg warnings and ensure audio operations use an alternative backend
-- [x] Voice pipeline audio capture and playback work without FFmpeg extensions loaded (or FFmpeg is present)
-- [x] `rex doctor` reports FFmpeg status and whether it is required for the active TTS backend
-- [x] No unhandled exception from torio/FFmpeg during voice loop operation
-- [x] Test confirms voice pipeline startup succeeds with and without FFmpeg
-- [x] Typecheck passes
-
----
-
-#### US-010: Fix voice pipeline hang states
-**Description:** As a developer, I want the voice loop to have timeouts at each stage so that it never hangs indefinitely.
-
-**Acceptance Criteria:**
-- [x] Configurable timeout (default 30s) for STT transcription
-- [x] Configurable timeout (default 60s) for LLM generation
-- [x] Configurable timeout (default 30s) for TTS synthesis
-- [x] On timeout, pipeline logs the stage, resets, and re-enters listening state
-- [x] Test simulates a timeout at each stage and confirms recovery
-- [x] Typecheck passes
-
----
-
-#### US-011: Add missing voice dependencies to requirements
-**Description:** As a developer, I want `edge-tts` and `pyttsx3` and any other missing voice deps included in the install so that all TTS backends work out of the box.
-
-**Acceptance Criteria:**
-- [x] `edge-tts` is in `requirements.txt` (or `pyproject.toml` dependencies)
-- [x] `pyttsx3` is in `requirements.txt` (or `pyproject.toml` dependencies)
-- [x] `pip install .` in a fresh venv installs both without errors
-- [x] `python -c "import edge_tts; import pyttsx3"` succeeds after install
-- [x] No other runtime `ModuleNotFoundError` for voice-related imports
-- [x] Works on Windows, macOS, Linux
-- [x] Typecheck passes
-
----
-
-#### US-012: Fix custom voice duration validation
-**Description:** As a user, I want accurate validation messaging when uploading a custom voice sample so that I know exactly what is wrong.
-
-**Acceptance Criteria:**
-- [x] Duration check in `rex/custom_voices.py` correctly calculates audio duration in seconds
-- [x] If sample is too short, message says "Sample is X.Xs, minimum is Ys"
-- [x] If sample is too long, message says "Sample is X.Xs, maximum is Ys"
-- [x] If format is unsupported, message names the format and lists accepted formats
-- [x] Unit test with known-duration audio files confirms correct validation
-- [x] Typecheck passes
-
----
-
-#### US-013: Remove mock calendar data and connect real backend
-**Description:** As a user, I want the calendar integration to return real data (or a clear "not configured" message) instead of fake events.
-
-**Acceptance Criteria:**
-- [x] No hardcoded fake calendar events remain in `rex/calendar_service.py` or `rex/calendar_backends/`
-- [x] If ICS feed URL is not configured, API returns `{"status": "not_configured", "message": "..."}`
-- [x] If ICS feed URL is configured, API returns real parsed events
-- [x] Test covers both configured and not-configured paths
-- [x] Typecheck passes
-
----
-
-#### US-014: Remove mock email data and connect real backend
-**Description:** As a user, I want the email integration to return real data (or a clear "not configured" message) instead of fake messages.
-
-**Acceptance Criteria:**
-- [x] No hardcoded fake email data remains in `rex/email_service.py` or `rex/email_backends/`
-- [x] If IMAP/SMTP credentials are absent, API returns `{"status": "not_configured", "message": "..."}`
-- [x] If credentials are present, API returns real inbox data
-- [x] Test covers both configured and not-configured paths
-- [x] Typecheck passes
-
----
-
-#### US-015: Replace "exit code 2" with meaningful error reporting
-**Description:** As a developer, I want bridge script failures to surface tracebacks, stderr, and meaningful messages instead of opaque exit codes.
-
-**Acceptance Criteria:**
-- [x] All bridge scripts wrap execution in try/except and return `{"error": "<message>", "traceback": "<tb>"}` on failure
-- [x] GUI backend captures stderr from subprocess calls and includes it in error responses
-- [x] CLI mode prints the actual error message, not just "exit code 2"
-- [x] Test confirms a deliberately broken bridge returns a readable error
-- [x] Typecheck passes
-
----
-
-#### US-016: Fix STT language handling for "auto" mode
-**Description:** As a user, I want STT to accept `"auto"` as a language setting and fall back to `"en"` without crashing.
-
-**Acceptance Criteria:**
-- [x] If `stt_language` config is `"auto"`, STT engine is called with `language=None` (auto-detect)
-- [x] If STT engine does not support auto-detect, falls back to `"en"`
-- [x] No crash or exception when `stt_language` is `"auto"`, empty string, or missing
-- [x] Unit test covers `"auto"`, `"en"`, `""`, and `None` inputs
-- [x] Typecheck passes
-
----
-
-#### US-017: Fix Whisper/STT runtime failure and error exposure
-**Description:** As a developer, I want Whisper STT failures to produce real error messages and for the correct backend (faster-whisper vs whisper) to be verified at startup.
-
-**Acceptance Criteria:**
-- [x] `rex doctor` checks which STT backend is installed and reports it
-- [x] If neither whisper nor faster-whisper is installed, `rex doctor` reports the gap
-- [x] STT runtime errors are caught and logged with full traceback (not swallowed)
-- [x] If transcription fails, the voice loop logs the error and resets (no hang)
-- [x] Test simulates STT failure and confirms error is surfaced
-- [x] Typecheck passes
-
----
-
-#### US-018: Fix wake word config mismatch and empty resolution
-**Description:** As a developer, I want the wake word config to resolve consistently so that an empty or mismatched setting does not silently break detection.
-
-**Acceptance Criteria:**
-- [x] If `wake_word` config is empty or `None`, a sensible default is used (e.g., `"hey_rex"`)
-- [x] If the configured wake word model file does not exist, startup raises a clear error
-- [x] `rex doctor` validates wake word config and reports status
-- [x] Test covers empty, None, valid, and invalid wake word configs
-- [x] Typecheck passes
-
----
-
-#### US-019: Fix XTTS/transformers compatibility issues
-**Description:** As a developer, I want XTTS and transformers to load without import errors or deprecation crashes.
-
-**Acceptance Criteria:**
-- [x] Lazy import of XTTS uses `find_spec()` before `import_module()` (per learned rules)
-- [x] Compatibility shims for transformers version differences are applied before XTTS load
-- [x] If XTTS is not installed, TTS gracefully falls back to edge-tts or pyttsx3
-- [x] No `ImportError` or `AttributeError` on `import rex.tts_utils` with or without XTTS installed
-- [x] Test covers XTTS-present and XTTS-absent scenarios
-- [x] Typecheck passes
-
----
-
-#### US-020: Fix FFmpeg/torio errors and config coercion warnings
-**Description:** As a developer, I want FFmpeg and torio-related errors to be handled cleanly and config coercion warnings to be resolved.
-
-**Acceptance Criteria:**
-- [x] If FFmpeg is not on PATH, a clear warning is logged at startup (not a crash)
-- [x] `rex doctor` checks for FFmpeg and reports its presence/version
-- [x] Config values that trigger coercion warnings are fixed to use correct types in `AppConfig`
-- [x] No `UserWarning` or `DeprecationWarning` from config loading
-- [x] Test confirms config loads without warnings
-- [x] Typecheck passes
-
----
-
-### PHASE 2 -- HOME AUTOMATION CORE
-
----
-
-#### US-021: Add Music Assistant HTTP client
-**Description:** As a developer, I need an HTTP client for Music Assistant so that Rex can send playback commands.
-
-**Acceptance Criteria:**
-- [x] New module `rex/integrations/music_assistant.py` with `MusicAssistantClient` class
-- [x] Client supports: `play(query, room=None)`, `pause(room=None)`, `resume(room=None)`, `skip(room=None)`, `set_volume(level, room=None)`
-- [x] Config fields: `music_assistant_url`, `music_assistant_token` in `AppConfig`
-- [x] If not configured, all methods raise `IntegrationNotConfiguredError`
-- [x] Unit test with mocked HTTP responses for each method
-- [x] Typecheck passes
-
----
-
-#### US-022: Wire Music Assistant commands to assistant tool routing
-**Description:** As a user, I want to say "play Shape of You" and have Rex send the command to Music Assistant.
-
-**Acceptance Criteria:**
-- [x] `Assistant.generate_reply()` recognizes music intent and routes to `MusicAssistantClient`
-- [x] Tool catalog includes music commands (play, pause, resume, skip, volume)
-- [x] Room targeting works: "play jazz in the kitchen" targets the kitchen speaker
-- [x] If Music Assistant is not configured, assistant replies "Music Assistant is not set up"
-- [x] Integration test with mocked Music Assistant confirms routing
-- [x] Typecheck passes
-
----
-
-#### US-023: Add room context system
-**Description:** As a developer, I need a room context module so that commands can be scoped to the room the user is in.
-
-**Acceptance Criteria:**
-- [x] New module `rex/context/room.py` with `RoomContext` class
-- [x] `RoomContext.current_room` is settable via: explicit parameter, speaker origin, last active UI context, config default
-- [x] Priority order: explicit > speaker origin > last active > config default
-- [x] Unit test confirms priority resolution
-- [x] Typecheck passes
-
----
-
-#### US-024: Add speaker origin detection to room context
-**Description:** As a user, I want Rex to know which room I am speaking from based on the input device or MQTT topic.
-
-**Acceptance Criteria:**
-- [x] `RoomContext` can be populated from MQTT audio topic (e.g., `rex/audio/kitchen`)
-- [x] `RoomContext` can be populated from a configured device-to-room mapping in config
-- [x] If no mapping exists, `current_room` falls back to default
-- [x] Test covers MQTT topic, device mapping, and fallback paths
-- [x] Typecheck passes
-
----
-
-#### US-025: Add device alias system with synonym and fuzzy matching
-**Description:** As a user, I want to say "turn on the bedroom light" and have Rex resolve that to the actual Home Assistant entity ID.
-
-**Acceptance Criteria:**
-- [x] New module `rex/ha/device_aliases.py` with `AliasResolver` class
-- [x] Aliases stored in `config/device_aliases.json` mapping natural names to HA entity IDs
-- [x] Fuzzy matching: "bedrom light" resolves to "bedroom light" (Levenshtein distance <= 2)
-- [x] Synonyms: "lamp" matches "light" if configured
-- [x] `resolve(query)` returns `(entity_id, confidence)` or `None`
-- [x] Unit test covers exact match, fuzzy match, synonym, and no-match cases
-- [x] Typecheck passes
-
----
-
-#### US-026: Add device discovery via Home Assistant API
-**Description:** As a user, I want Rex to scan Home Assistant for available devices so I can approve and name them.
-
-**Acceptance Criteria:**
-- [x] `rex/ha/discovery.py` calls HA `/api/states` to list all entities
-- [x] Returns list of `{entity_id, friendly_name, domain, state}`
-- [x] Results cached for 5 minutes (configurable)
-- [x] If HA is not configured, returns empty list with a log warning
-- [x] Unit test with mocked HA API response
-- [x] Typecheck passes
-
----
-
-#### US-027: Add device approval and rename workflow
-**Description:** As a user, I want to approve discovered devices and give them custom names that Rex will recognize.
-
-**Acceptance Criteria:**
-- [x] `rex/ha/discovery.py` exports `approve_device(entity_id, alias)` and `ignore_device(entity_id)`
-- [x] Approved devices are written to `config/device_aliases.json`
-- [x] Ignored devices are written to `config/device_ignore.json`
-- [x] CLI command `rex ha approve` lists pending devices and accepts approval
-- [x] Test covers approve, rename, and ignore workflows
-- [x] Typecheck passes
-
----
-
-#### US-028: Add device state awareness
-**Description:** As a developer, I need Rex to query real-time device state from HA so it can respond intelligently.
-
-**Acceptance Criteria:**
-- [x] `rex/ha/device_state.py` queries HA `/api/states/<entity_id>` for current state
-- [x] Returns structured data: `{entity_id, state, attributes: {brightness, volume, media_title, ...}}`
-- [x] If entity not found, returns `None`
-- [x] `Assistant` can answer "is the kitchen light on?" using device state
-- [x] Unit test with mocked HA state responses
-- [x] Typecheck passes
-
----
-
-#### US-029: Add command confirmation and undo support
-**Description:** As a user, I want Rex to confirm actions ("Turned off the bedroom light") and offer undo ("Say undo to turn it back on").
-
-**Acceptance Criteria:**
-- [x] After executing an HA command, Rex speaks a confirmation including device name and action
-- [x] Undo state is stored for the last 5 commands (FIFO)
-- [x] "Undo" or "undo that" within 30 seconds reverses the last command
-- [x] Undo sends the inverse HA command (on->off, off->on, volume up->volume down)
-- [x] Test covers confirmation message generation and undo reversal
-- [x] Typecheck passes
-
----
-
-#### US-030: Add clarification system for ambiguous commands
-**Description:** As a user, I want Rex to ask for clarification when a command is ambiguous instead of guessing wrong.
-
-**Acceptance Criteria:**
-- [x] If `AliasResolver.resolve()` returns multiple matches with similar confidence, Rex asks "Did you mean X or Y?"
-- [x] If a command is missing required context (e.g., "turn it on" with no recent device reference), Rex asks "Which device?"
-- [x] Clarification question is spoken via TTS and the pipeline re-enters listening for the answer
-- [x] Test covers multi-match and missing-context scenarios
-- [x] Typecheck passes
-
----
-
-#### US-031: Add error recovery with alternative suggestions
-**Description:** As a user, I want Rex to suggest alternatives when a command fails instead of just saying "error."
-
-**Acceptance Criteria:**
-- [x] If an HA command fails (device offline, unreachable), Rex says what went wrong and suggests an alternative
-- [x] Example: "The kitchen light is not responding. Would you like me to try the dining room light instead?"
-- [x] Alternatives sourced from same-room devices or recently used devices
-- [x] If no alternative exists, Rex says "I could not complete that. The device may be offline."
-- [x] Test covers device-offline and alternative-suggestion paths
-- [x] Typecheck passes
-
----
-
-### PHASE 3 -- ASSISTANT INTELLIGENCE
-
----
-
-#### US-032: Add tool auto-selection system
-**Description:** As a user, I want Rex to automatically choose the right tool (search, HA, calendar, email) without me specifying which one to use.
-
-**Acceptance Criteria:**
-- [x] `rex/tool_catalog.py` exposes a registry of available tools with intent patterns
-- [x] `Assistant.generate_reply()` uses LLM function-calling or pattern matching to select the right tool
-- [x] If multiple tools match, the highest-confidence one is chosen
-- [x] If no tool matches, Rex falls back to conversational LLM response
-- [x] Test covers weather (search), "turn on light" (HA), "what's on my calendar" (calendar) routing
-- [x] Typecheck passes
-
----
-
-#### US-033: Add perceived speed system (instant acknowledgment)
-**Description:** As a user, I want Rex to immediately acknowledge my command so I know it was heard, even if processing takes time.
-
-**Acceptance Criteria:**
-- [x] After wake word + STT, Rex plays a short acknowledgment sound or speaks "On it" before LLM processing
-- [x] Acknowledgment happens within 500ms of STT completion
-- [x] Acknowledgment is configurable (sound, phrase, or disabled)
-- [x] Config field: `acknowledgment_mode` in `AppConfig` (values: `"sound"`, `"phrase"`, `"none"`)
-- [x] Test confirms acknowledgment fires before LLM call
-- [x] Typecheck passes
-
----
-
-#### US-034: Add progressive response system
-**Description:** As a user, I want Rex to speak partial responses as they stream in for long answers.
-
-**Acceptance Criteria:**
-- [x] If LLM supports streaming, TTS begins on the first complete sentence
-- [x] Subsequent sentences are queued and spoken sequentially
-- [x] If LLM does not support streaming, behavior falls back to full-response TTS
-- [x] No audio overlap between sentence chunks
-- [x] Test confirms sentence-level streaming with a mock streaming LLM
-- [x] Typecheck passes
-
----
-
-#### US-035: Add proactive suggestion engine (pattern detection)
-**Description:** As a developer, I need a module that detects repeated user patterns and suggests automations.
-
-**Acceptance Criteria:**
-- [x] New module `rex/suggestions/pattern_detector.py`
-- [x] Tracks command history and detects patterns (e.g., "user turns on kitchen light every day at 7am")
-- [x] Pattern requires at least 3 occurrences within a time window to be considered
-- [x] `detect_patterns()` returns a list of `{pattern, frequency, suggested_automation}`
-- [x] Suggestions are never acted on automatically; always presented as questions
-- [x] Unit test with synthetic command history confirms pattern detection
-- [x] Typecheck passes
-
----
-
-#### US-036: Surface proactive suggestions to the user
-**Description:** As a user, I want Rex to occasionally suggest automations based on my habits, and let me accept or dismiss them.
-
-**Acceptance Criteria:**
-- [x] At most one suggestion per session (not spammy)
-- [x] Suggestion is spoken: "I noticed you turn on the kitchen light at 7am most days. Want me to automate that?"
-- [x] User can accept ("yes") or dismiss ("no thanks")
-- [x] Dismissed patterns are not suggested again for 30 days
-- [x] Accepted patterns create a scheduled automation entry
-- [x] Test covers suggest, accept, and dismiss flows
-- [x] Typecheck passes
-
----
-
-#### US-037: Add capability registry
-**Description:** As a developer, I need a structured registry of all Rex capabilities so the LLM, UI, and docs can query it.
-
-**Acceptance Criteria:**
-- [x] New module `rex/capabilities/registry.py` with `CapabilityRegistry` class
-- [x] Each capability has: `name`, `description`, `inputs`, `outputs`, `triggers`, `enabled`
-- [x] Registry auto-populates from installed integrations at startup
-- [x] `registry.list()` returns all capabilities; `registry.search(query)` filters by keyword
-- [x] Unit test confirms registry populates and search works
-- [x] Typecheck passes
-
----
-
-#### US-038: Add "What can you do?" dynamic response
-**Description:** As a user, I want to ask "What can you do?" and get an accurate, context-aware list of current capabilities.
-
-**Acceptance Criteria:**
-- [x] "What can you do?" intent is recognized by the assistant
-- [x] Response is generated from `CapabilityRegistry`, listing only enabled capabilities
-- [x] Response is grouped by category (Home, Communication, Productivity, etc.)
-- [x] If no capabilities are configured, Rex says "I can chat with you, but no integrations are set up yet"
-- [x] Test confirms response reflects actual enabled capabilities
-- [x] Typecheck passes
-
----
-
-### PHASE 4 -- COMMUNICATION LAYER
-
----
-
-#### US-039: Add Telegram bot integration (send messages)
-**Description:** As a developer, I need a Telegram bot client so Rex can send messages to the user.
-
-**Acceptance Criteria:**
-- [x] New module `rex/integrations/telegram/client.py` with `TelegramClient` class
-- [x] Config fields: `telegram_bot_token`, `telegram_chat_id` in `AppConfig`; token in `.env`
-- [x] `send_message(text)` sends a message to the configured chat
-- [x] If not configured, raises `IntegrationNotConfiguredError`
-- [x] Unit test with mocked Telegram API
-- [x] Typecheck passes
-
----
-
-#### US-040: Add Telegram bot integration (receive commands)
-**Description:** As a user, I want to send commands to Rex via Telegram and get responses back.
-
-**Acceptance Criteria:**
-- [x] Telegram webhook or polling handler receives incoming messages
-- [x] Incoming text is routed through `Assistant.generate_reply()`
-- [x] Response is sent back to the Telegram chat
-- [x] Unrecognized commands get a conversational LLM response
-- [x] Test covers inbound message -> assistant -> outbound response flow
-- [x] Typecheck passes
-
----
-
-#### US-041: Add local desktop notifications
-**Description:** As a user, I want Rex to show desktop notifications for important events (reminders, alerts).
-
-**Acceptance Criteria:**
-- [x] New module `rex/notifications/desktop.py`
-- [x] Uses `plyer` or platform-native API for cross-platform notifications
-- [x] `notify(title, message, urgency="normal")` shows a desktop notification
-- [x] Works on Windows (toast), macOS (notification center), Linux (libnotify)
-- [x] If notification system unavailable, logs a warning (no crash)
-- [x] Unit test confirms notification call is made (mocked)
-- [x] Typecheck passes
-
----
-
-#### US-042: Add push notification support
-**Description:** As a user, I want to receive push notifications on my phone when Rex has an alert.
-
-**Acceptance Criteria:**
-- [x] New module `rex/notifications/push.py` supporting at least one provider (ntfy.sh or Pushover)
-- [x] Config fields: `push_provider`, `push_token`, `push_topic` in `AppConfig`
-- [x] `send_push(title, message, priority="normal")` sends a push notification
-- [x] If not configured, raises `IntegrationNotConfiguredError`
-- [x] Unit test with mocked HTTP
+- [x] `rex/profile_manager.py` (or equivalent loader) checks for `profiles/default.json` at startup
+- [x] If missing, copies `profiles/default.example.json` to `profiles/default.json` (or generates a minimal valid profile from `profiles/profile.schema.json`)
+- [x] `python -m rex whoami` succeeds on a fresh clone with no manual profile setup
+- [x] `python -m rex chat` starts without profile-related crash
+- [x] `python -m rex identify --user james` does not crash if `james.json` is absent (warns and falls back to default)
+- [x] Settings > Users page loads without error when only the auto-generated default profile exists
+- [x] Existing `profiles/default.json` is never overwritten if it already exists
 - [x] Typecheck passes
+- [x] Tests pass (`pytest tests/ -q -k profile`)
 
 ---
 
-#### US-043: Add Ollama cloud usage tracking
-**Description:** As a developer, I need to track per-request token usage for Ollama so users know their consumption.
+### US-302: XTTS PyTorch 2.6 safe-globals allowlist
+**Description:** As a developer, I need all required XTTS classes allowlisted for `torch.load()` under PyTorch 2.6's `weights_only=True` default so that XTTS voice output initializes without crashing.
 
 **Acceptance Criteria:**
-- [x] `rex/llm_client.py` Ollama backend logs `{model, prompt_tokens, completion_tokens, timestamp}` per request
-- [x] Usage records stored in `data/llm_usage.json` (append-only, rotated at 10MB)
-- [x] `rex usage` CLI command prints a summary (total requests, total tokens, by model)
-- [x] Unit test confirms usage is recorded on LLM call
-- [x] Typecheck passes
+- [ ] Identify every class `torch.load()` encounters when loading an XTTS checkpoint (at minimum: `XttsConfig`, `XttsAudioConfig`, and any referenced dataclasses/namedtuples)
+- [ ] Add all identified classes to `torch.serialization.add_safe_globals()` in the XTTS init path (likely `rex/tts_utils.py` or `patch_tts_torch_load.py`)
+- [ ] The allowlist call happens BEFORE `torch.load()` is invoked (not after a failed attempt)
+- [ ] XTTS initializes successfully: `python -c "from rex.tts_utils import get_tts_engine; get_tts_engine('xtts')"` exits 0
+- [ ] If XTTS dependencies are not installed, the import fails gracefully with a clear message (no raw `ModuleNotFoundError` traceback)
+- [ ] Typecheck passes
+- [ ] Tests pass (`pytest tests/ -q -k tts`)
 
 ---
 
-#### US-044: Add smart cloud routing (prefer local)
-**Description:** As a user, I want Rex to prefer local Ollama for simple tasks and reserve cloud LLM for complex ones.
+### US-303: Centralized bridge path resolver for Electron
+**Description:** As a developer, I need a single bridge path resolver so that all Electron-to-Python bridge calls use correct, validated script paths instead of hardcoded or outdated ones.
 
 **Acceptance Criteria:**
-- [x] `rex/model_router.py` routes based on estimated complexity (message length, tool requirements)
-- [x] Simple queries (< 200 tokens, no tools) go to local Ollama if available
-- [x] Complex queries (tools required, long context) go to cloud provider if configured
-- [x] If local is unavailable, all queries go to cloud (with a log warning)
-- [x] Config: `llm_routing_mode` in `AppConfig` (values: `"local_preferred"`, `"cloud_only"`, `"local_only"`)
-- [x] Test covers routing decisions for simple and complex queries
-- [x] Typecheck passes
+- [ ] Create or update a resolver module (e.g., `gui/src/main/bridgeResolver.ts`) that maps bridge names to their Python script paths relative to repo root
+- [ ] The resolver validates that each target script exists at launch time and logs an error with the expected path if missing
+- [ ] All Electron `spawn`/`exec` calls for bridge scripts route through this resolver (no inline path strings remain)
+- [ ] The following bridges resolve correctly: `rex_tasks_bridge.py`, `rex_reminders_bridge.py`, `rex_shopping_list_bridge.py`, `rex_speaker_bridge.py`, `rex_chat_stream_bridge.py`, `rex_voices_bridge.py`, `rex_voice_enrollment_bridge.py`, `rex_voice_sample_bridge.py`, `rex_wakeword_list_bridge.py`, `rex_wakeword_train_bridge.py`, `rex_stt_bridge.py`, `rex_memories_bridge.py`
+- [ ] Typecheck passes (`npx tsc --noEmit` in `gui/`)
+- [ ] Verify changes work: launch the Electron app and confirm Tasks, Reminders, and Shopping List pages load without "bridge exited" errors
 
 ---
 
-#### US-045: Add cloud fallback when usage limit hit
-**Description:** As a user, I want Rex to automatically fall back to local when my cloud API limit is reached.
+### US-304: Fix GUI text chat streaming bridge
+**Description:** As a user, I want to type a message in the GUI chat and receive a streamed response so that text conversation works end-to-end.
 
 **Acceptance Criteria:**
-- [x] If cloud LLM returns 429 (rate limit) or 402 (quota exceeded), model router switches to local
-- [x] User is notified: "Cloud limit reached, switching to local model"
-- [x] Router retries cloud after a configurable cooldown (default 1 hour)
-- [x] Test simulates 429 response and confirms fallback
-- [x] Typecheck passes
+- [ ] `rex_chat_stream_bridge.py` is importable and runs standalone: `python rex_chat_stream_bridge.py --help` exits 0
+- [ ] The bridge uses `Assistant.generate_reply()` (not a direct LLM call)
+- [ ] The Electron chat page spawns the bridge via the centralized resolver (US-303)
+- [ ] A typed message in the GUI produces a streaming response displayed token-by-token
+- [ ] If the backend is unreachable or config is invalid, the GUI shows a user-visible error (not just "exited with code 2")
+- [ ] Typecheck passes (both Python and TS)
+- [ ] Verify changes work in Electron
 
 ---
 
-#### US-046: Add cloud usage visibility to UI
-**Description:** As a user, I want to see local vs cloud LLM usage in the dashboard.
+### US-305: OpenClaw voice backend clean disable
+**Description:** As a developer, I need `openclaw.use_voice_backend = false` in config to fully bypass `VoiceBridge` at runtime so the local voice loop is the only active path when OpenClaw is disabled.
 
 **Acceptance Criteria:**
-- [x] Dashboard API endpoint `GET /api/usage` returns `{local: {requests, tokens}, cloud: {requests, tokens}}`
-- [x] React dashboard displays usage summary (today, this week, this month)
-- [x] Percentage bar shows local vs cloud split
-- [x] Data sourced from `data/llm_usage.json`
-- [x] Typecheck passes
-- [x] Verify changes work in browser
-
----
+- [ ] When `config.use_openclaw_voice_backend` is `false`, no code path imports or instantiates `VoiceBridge`
+- [ ] `rex/voice_loop.py` -> `build_voice_loop` uses `Assistant` directly when the flag is off
+- [ ] `python rex_loop.py` with the flag off does not log any OpenClaw-related connection attempts or async errors
+- [ ] When the flag is `true` and the gateway is unreachable, startup fails with a clear error message (not a hang or cryptic traceback)
+- [ ] Typecheck passes
+- [ ] Tests pass (`pytest tests/ -q -k "voice_loop or openclaw"`)
 
-### PHASE 5 -- USER SYSTEM
-
 ---
-
-#### US-047: Add user authentication (login system)
-**Description:** As a user, I want to log in with a username and password so my data is separate from other users.
 
-**Acceptance Criteria:**
-- [x] New module `rex/auth.py` with `create_user(username, password)`, `authenticate(username, password)`, `get_current_user()`
-- [x] Passwords hashed with bcrypt
-- [x] Users stored in `data/users.db` (SQLite)
-- [x] Session tokens issued on login (JWT, 24h expiry)
-- [x] API endpoints: `POST /api/auth/login`, `POST /api/auth/register`, `POST /api/auth/logout`
-- [x] Unit test covers registration, login, bad password, and token validation
-- [x] Typecheck passes
+### Phase 2: High Priority Functionality Gaps
 
 ---
 
-#### US-048: Add per-user data isolation
-**Description:** As a user, I want my memories, preferences, and history to be separate from other users.
+### US-306: Unify wake-word config into a single section
+**Description:** As a developer, I want one canonical `wakeword` config section so that wake-word behavior is predictable and there are no conflicting keys.
 
 **Acceptance Criteria:**
-- [x] Memory profiles keyed by user ID (not just default profile)
-- [x] Conversation history keyed by user ID
-- [x] Config preferences (TTS voice, wake word) stored per user
-- [x] API requests require valid session token; data scoped to authenticated user
-- [x] Test confirms User A cannot see User B's data
-- [x] Typecheck passes
+- [ ] `config/rex_config.json` has exactly one wake-word section (canonical key: `wakeword`)
+- [ ] Any references to the old `wake_word` key in Python code are migrated to read from `wakeword`
+- [ ] Config loading detects the old `wake_word` key, copies values into `wakeword`, removes the old key, and logs a deprecation notice
+- [ ] `config/rex_config.schema.json` is updated to reflect the single key
+- [ ] Typecheck passes
+- [ ] Tests pass (`pytest tests/ -q -k "wakeword or wake"`)
 
 ---
 
-#### US-049: Add profile picture support
-**Description:** As a user, I want to upload a profile picture that appears in the dashboard.
+### US-307: Remove legacy REX_WAKEWORD_THRESHOLD env var
+**Description:** As a user, I don't want misleading deprecation warnings about `REX_WAKEWORD_THRESHOLD` on every startup.
 
 **Acceptance Criteria:**
-- [x] API endpoint `POST /api/user/avatar` accepts image upload (JPEG/PNG, max 2MB)
-- [x] Image stored in `data/avatars/<user_id>.jpg` (resized to 256x256)
-- [x] API endpoint `GET /api/user/avatar` returns the image
-- [x] Default avatar used if none uploaded
-- [x] Dashboard displays the avatar in the header
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] All references to `REX_WAKEWORD_THRESHOLD` in Python code are removed
+- [ ] The config schema and docs reference only the JSON config path for threshold
+- [ ] Startup produces no warning about `REX_WAKEWORD_THRESHOLD` even if the env var is still set
+- [ ] Typecheck passes
+- [ ] Tests pass
 
 ---
 
-#### US-050: Add personality system (backend)
-**Description:** As a developer, I need a personality system that controls the assistant's tone and style.
+### US-308: TTS voice preview in Settings
+**Description:** As a user, I want to click "Preview" next to a voice in Settings > Voice and hear a short sample so I can choose the right voice.
 
 **Acceptance Criteria:**
-- [x] New module `rex/personality.py` with `Personality` dataclass: `name`, `system_prompt`, `tone_keywords`, `greeting`
-- [x] Built-in personalities: "Professional", "Friendly", "Minimal"
-- [x] `get_personality(name)` returns the personality; `list_personalities()` returns all
-- [x] `Assistant` injects the active personality's system prompt into LLM calls
-- [x] Config field: `personality` in per-user config (default: "Friendly")
-- [x] Unit test confirms personality prompt injection
-- [x] Typecheck passes
+- [ ] The Settings > Voice page has a working "Preview" button for each listed voice
+- [ ] Clicking Preview calls `rex_voice_sample_bridge.py` (via the centralized resolver) with the selected voice ID
+- [ ] The bridge generates a short TTS clip ("Hello, I'm your Rex assistant") and plays it through system audio
+- [ ] If TTS is not configured or fails, the GUI shows an inline error (not a silent failure)
+- [ ] Typecheck passes (Python + TS)
+- [ ] Verify changes work in Electron
 
 ---
 
-#### US-051: Add personality preview and selection UI
-**Description:** As a user, I want to preview and switch personalities in the dashboard.
+### US-309: Voice enrollment guided UX
+**Description:** As a user enrolling my voice, I want to see a phrase to read, progress indication, and validation feedback so the process is usable.
 
 **Acceptance Criteria:**
-- [x] Dashboard settings page shows available personalities with preview text
-- [x] Selecting a personality updates the user's config
-- [x] Preview shows a sample greeting in the selected personality's tone
-- [x] Change takes effect on next interaction (no restart required)
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] The voice enrollment page displays a specific prompt phrase for the user to read aloud
+- [ ] During recording, a visual indicator confirms audio is being captured
+- [ ] After recording, the UI shows pass/fail feedback: sufficient audio length, acceptable volume level
+- [ ] If the sample is too short or too quiet, the user is prompted to re-record with a specific reason
+- [ ] The enrollment bridge (`rex_voice_enrollment_bridge.py`) stores the sample in the correct voice identity directory
+- [ ] Typecheck passes (Python + TS)
+- [ ] Verify changes work in Electron
 
 ---
 
-#### US-052: Add permissions system
-**Description:** As an admin, I want to restrict sensitive actions (computer control, email send) to specific users.
+### US-310: Fix wake word "Play sample" to play actual wake word audio
+**Description:** As a user, I want the "Play sample" button to play a representative clip of the selected wake word, not unrelated speech.
 
 **Acceptance Criteria:**
-- [x] New module `rex/permissions.py` with `Permission` enum and `check_permission(user, action)` function
-- [x] Permissions: `computer_control`, `email_send`, `sms_send`, `ha_control`, `admin`
-- [x] Permissions stored per user in `data/users.db`
-- [x] First registered user gets `admin` permission by default
-- [x] API actions check permissions before execution; return 403 if denied
-- [x] Unit test covers grant, revoke, and denial
-- [x] Typecheck passes
-
----
-
-### PHASE 6 -- DESKTOP / COMPUTER CONTROL
+- [ ] The Play Sample button plays a short audio clip demonstrating the selected wake word pronunciation
+- [ ] If no sample audio exists for a custom wake word, the button is disabled with a tooltip explaining why
+- [ ] Typecheck passes
+- [ ] Verify changes work in Electron
 
 ---
 
-#### US-053: Add desktop file read/write capability
-**Description:** As a user, I want Rex to read and write files on my computer when I ask.
+### US-311: Fix Settings > Audio Output page
+**Description:** As a user, I want to select my audio output device and test it from Settings > Audio Output.
 
 **Acceptance Criteria:**
-- [x] `rex/computers/file_ops.py` exports `read_file(path)`, `write_file(path, content)`, `list_dir(path)`
-- [x] Operations restricted to an allowlisted set of directories (configurable)
-- [x] Attempts to access paths outside the allowlist return a permission error
-- [x] Works on Windows, macOS, Linux (path normalization handled)
-- [x] Unit test covers read, write, list, and blocked-path scenarios
-- [x] Typecheck passes
+- [ ] The Audio Output page loads without bridge-path errors
+- [ ] `rex_speaker_bridge.py` is called via the centralized resolver and returns available output devices
+- [ ] Selecting a device updates config
+- [ ] The "Test" button plays a short test tone through the selected device
+- [ ] Typecheck passes (Python + TS)
+- [ ] Verify changes work in Electron
 
 ---
 
-#### US-054: Add desktop program launch capability
-**Description:** As a user, I want Rex to open applications when I ask ("open Notepad", "launch Chrome").
+### US-312: Surface all existing Rex settings in the GUI
+**Description:** As a user, I want the GUI Settings to expose every Rex setting, including Telegram setup, so the GUI is a complete control surface.
 
 **Acceptance Criteria:**
-- [x] `rex/computers/app_launcher.py` exports `launch_app(name)`
-- [x] App name resolved via a configurable app registry (`config/app_registry.json`)
-- [x] On Windows, uses `os.startfile()` or `subprocess`; on macOS, uses `open`; on Linux, uses `xdg-open`
-- [x] If app not found in registry, Rex says "I don't know how to open that. You can add it in settings."
-- [x] Unit test with mocked subprocess calls
-- [x] Typecheck passes
+- [ ] Audit `config/rex_config.schema.json` and `config/rex_config.json` for all user-facing keys
+- [ ] Each key has a corresponding input in the appropriate Settings tab
+- [ ] Telegram bot token and chat ID fields are present in Settings > Integrations (or a Telegram sub-page)
+- [ ] Saving any new field writes to `config/rex_config.json` correctly
+- [ ] Typecheck passes
+- [ ] Verify changes work in Electron
 
 ---
 
-#### US-055: Add safety layer for computer control
-**Description:** As a user, I want Rex to ask for confirmation before executing potentially dangerous computer actions.
+### US-313: Home Assistant device status page
+**Description:** As a user with Home Assistant configured, I want a dashboard page showing HA device states.
 
 **Acceptance Criteria:**
-- [x] Actions classified as `safe` (read file, list dir) or `dangerous` (write file, delete, execute command)
-- [x] Dangerous actions require voice or UI confirmation before execution
-- [x] Configurable: `computer_control_confirmation` in `AppConfig` (values: `"always"`, `"dangerous_only"`, `"never"`)
-- [x] Default is `"dangerous_only"`
-- [x] Test covers confirmation flow for dangerous action and bypass for safe action
-- [x] Typecheck passes
+- [ ] A "Home Assistant" page exists in the GUI sidebar
+- [ ] If HA is not configured, the page shows a message with a link to the correct Settings page (not Settings > General)
+- [ ] If HA is configured, the page fetches and displays device states (entity name, state, last updated)
+- [ ] The page has a manual refresh button
+- [ ] Typecheck passes (Python + TS)
+- [ ] Verify changes work in Electron
 
 ---
 
-#### US-056: Add file summarization and search
-**Description:** As a user, I want Rex to summarize a document or search my files for content.
+### US-314: Wire up the Integrations page
+**Description:** As a user, I want the Integrations page to show real status and link to the correct config pages.
 
 **Acceptance Criteria:**
-- [x] `rex/computers/file_ops.py` exports `summarize_file(path)` and `search_files(directory, query)`
-- [x] Summarize reads the file and passes content to LLM with a summarize prompt
-- [x] Search uses `grep`-like matching across files in the directory (text files only)
-- [x] Both respect the directory allowlist
-- [x] Test covers summarize and search with mock file content
-- [x] Typecheck passes
-
----
+- [ ] The page queries the backend for configured integrations (email, calendar, SMS, MQTT, HA, Telegram, search)
+- [ ] Each integration shows: name, status (configured/not configured), and a "Configure" link to the correct Settings sub-page
+- [ ] "No integrations found" only appears when genuinely none are configured
+- [ ] "No capabilities found" section is removed or populated from `rex/capabilities/`
+- [ ] The "Configure" link for HA goes to the HA settings page (not Settings > General)
+- [ ] Typecheck passes
+- [ ] Verify changes work in Electron
 
-### PHASE 7 -- UI / UX
-
 ---
-
-#### US-057: Audit and expose all features in the UI
-**Description:** As a user, I want every Rex feature to be visible and accessible in the dashboard (no hidden capabilities).
 
-**Acceptance Criteria:**
-- [x] Dashboard navigation includes sections for: Chat, Voice, Home, Integrations, Settings, About
-- [x] Each configured integration has a visible entry in the Integrations section
-- [x] Each tool in the capability registry has a visible entry
-- [x] No feature is only accessible via CLI without a corresponding UI element
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+### Phase 3: Medium Priority Product and UX
 
 ---
 
-#### US-058: Add guided first-run setup wizard
-**Description:** As a new user, I want a step-by-step setup wizard on first launch so I can configure Rex without guesswork.
+### US-315: Replace placeholder data in Calendar, Email, and SMS pages
+**Description:** As a user, I want these pages to show real data or a clear "not configured" state, not fake content.
 
 **Acceptance Criteria:**
-- [x] On first launch (no `data/users.db`), the dashboard shows a setup wizard
-- [x] Steps: Create account -> Choose LLM provider -> Configure TTS -> (Optional) Home Assistant -> Done
-- [x] Each step validates input before allowing next
-- [x] Wizard writes config to `config/rex_config.json` and `.env`
-- [x] After completion, wizard does not show again
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] Calendar page calls `rex/calendar_service.py` and displays real events (or "No calendar configured")
+- [ ] Email page calls `rex/email_service.py` and displays real inbox items (or empty state)
+- [ ] SMS page calls the messaging backend and displays real threads (or empty state)
+- [ ] No hardcoded fake names, dates, or messages remain in GUI source for these pages
+- [ ] Typecheck passes
+- [ ] Verify changes work in Electron
 
 ---
 
-#### US-059: Add Home Assistant setup screen in dashboard
-**Description:** As a user, I want a dedicated HA setup screen where I can enter my HA URL, token, and test the connection.
+### US-316: Review and update Beta labels on Email and SMS
+**Description:** As a product owner, I want Beta labels to accurately reflect feature maturity.
 
 **Acceptance Criteria:**
-- [x] New dashboard page: Settings -> Home Assistant
-- [x] Fields: HA URL, Long-lived access token
-- [x] "Test Connection" button that calls HA `/api/` and reports success or failure
-- [x] On success, saves to `config/rex_config.json`
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] If Email and SMS are still beta-quality, keep the label but add a tooltip explaining what "Beta" means
+- [ ] If stable, remove the Beta label
+- [ ] Decision documented in a code comment or changelog entry
+- [ ] Typecheck passes
 
 ---
 
-#### US-060: Add device control panel in dashboard
-**Description:** As a user, I want a device control panel with toggles and sliders for my HA devices.
+### US-317: Fix "Configure Home Assistant" link routing
+**Description:** As a user, I want the Home page HA link to go to the HA configuration page, not Settings > General.
 
 **Acceptance Criteria:**
-- [x] New dashboard page: Home -> Devices
-- [x] Lists approved devices from `config/device_aliases.json`
-- [x] Lights: on/off toggle + brightness slider
-- [x] Switches: on/off toggle
-- [x] Media players: play/pause, volume slider
-- [x] Controls send commands to HA in real-time
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] The link navigates to the HA configuration page (per US-314)
+- [ ] Typecheck passes
+- [ ] Verify changes work in Electron
 
 ---
 
-#### US-061: Add command history panel
-**Description:** As a user, I want to see a history of recent commands and their results.
+### US-318: Populate timezone dropdown with full IANA list
+**Description:** As a user, I want to select my timezone from a complete list, not just `America/Chicago`.
 
 **Acceptance Criteria:**
-- [x] New dashboard panel: History
-- [x] Shows last 50 commands with: timestamp, command text, result, success/failure indicator
-- [x] Commands stored in `data/command_history.db` (SQLite)
-- [x] API endpoint: `GET /api/history?limit=50`
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] The timezone dropdown is populated from a standard IANA timezone list
+- [ ] The dropdown supports type-ahead filtering
+- [ ] The currently configured timezone is pre-selected
+- [ ] Saving updates `config/rex_config.json`
+- [ ] Typecheck passes
+- [ ] Verify changes work in Electron
 
 ---
 
-#### US-062: Add status indicators to dashboard
-**Description:** As a user, I want to see Rex's current state (listening, thinking, executing, done) in the dashboard.
+### US-319: Add folder picker for Allowed File Roots
+**Description:** As a user, I want a folder picker instead of raw text input for allowed file roots.
 
 **Acceptance Criteria:**
-- [x] Dashboard header shows a status indicator with icon and label
-- [x] States: Idle, Listening, Thinking, Executing, Done, Error
-- [x] Status updates pushed via SSE (`rex/dashboard/sse.py`)
-- [x] Voice loop emits status change events at each pipeline stage
-- [x] Test confirms status events are emitted at each stage
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] An "Add Folder" button opens an Electron native folder picker dialog
+- [ ] Selected folders are added to the list and persisted to config
+- [ ] Existing raw text input is preserved as fallback
+- [ ] Each listed folder has a "Remove" button
+- [ ] Typecheck passes
+- [ ] Verify changes work in Electron
 
 ---
 
-#### US-063: Add quick actions panel
-**Description:** As a user, I want one-click buttons for common actions (e.g., "Lights off", "Play music", "Lock up").
+### US-320: Actionable notifications with instructions and links
+**Description:** As a user, when Rex shows a notification requiring action, I want it to include what to do and where to go.
 
 **Acceptance Criteria:**
-- [x] New dashboard panel: Quick Actions
-- [x] User can add/remove quick actions via settings
-- [x] Each action maps to a Rex command (text input to `Assistant.generate_reply()`)
-- [x] Quick actions stored in per-user config
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] `rex/notification.py` supports `action_url` and `action_label` fields on notifications
+- [ ] The GUI notification component renders action links when present
+- [ ] At least three existing notification types include actionable links (e.g., "TTS not configured", "Profile missing", "Integration error")
+- [ ] Typecheck passes
+- [ ] Verify changes work in Electron
 
 ---
 
-#### US-064: Overhaul settings UX
-**Description:** As a user, I want the settings page to use dropdowns, tooltips, and inline API instructions instead of raw text fields.
+### US-321: Add "Reset to defaults" option in Settings
+**Description:** As a user, I want a way to reset Rex to factory defaults when troubleshooting.
 
 **Acceptance Criteria:**
-- [x] LLM provider selection uses a dropdown (Ollama, OpenAI, Local)
-- [x] TTS engine selection uses a dropdown (XTTS, edge-tts, pyttsx3)
-- [x] API key fields have a tooltip explaining where to get the key
-- [x] Each integration section has a link to setup docs
-- [x] No raw JSON editing required for any standard setting
-- [x] Typecheck passes
-- [x] Verify changes work in browser
+- [ ] Settings > System has a "Reset to Defaults" button
+- [ ] Clicking shows a confirmation dialog explaining what will be reset
+- [ ] On confirm, replaces `config/rex_config.json` with `config/rex_config.example.json`
+- [ ] Does NOT delete user profiles, voice samples, or `.env` secrets
+- [ ] After reset, the app reloads cleanly
+- [ ] Typecheck passes
+- [ ] Verify changes work in Electron
 
 ---
 
-#### US-065: Implement branding in UI
-**Description:** As a user, I want the AskRex brand (logo, icons) to be consistent across the dashboard, system tray, and taskbar.
+### US-322: Add AskRex branding assets to GUI and desktop surfaces
+**Description:** As a user, I want consistent AskRex branding across the GUI, system tray, and window title.
 
 **Acceptance Criteria:**
-- [x] Dashboard header displays the AskRex logo
-- [x] System tray icon uses the AskRex icon (Windows, macOS, Linux)
-- [x] Taskbar/dock icon uses the AskRex icon
-- [x] Favicon is the AskRex icon
-- [x] No "Rex AI" or other banned names appear in the UI (per `docs/BRANDING.md`)
-- [x] Typecheck passes
-- [x] Verify changes work in browser
-
----
+- [ ] GUI window title uses the canonical product name from `docs/BRANDING.md`
+- [ ] System tray icon uses the official AskRex icon asset
+- [ ] The GUI sidebar or header shows the AskRex logo
+- [ ] If branding assets don't exist yet, placeholder assets are created at the correct paths with TODO comments
+- [ ] Typecheck passes
+- [ ] Verify changes work in Electron
 
-### PHASE 8 -- REPO + DOCUMENTATION
-
 ---
 
-#### US-066: Full repo capability audit
-**Description:** As a developer, I want a verified list of what Rex can and cannot do, so docs and UI do not overclaim.
+### US-323: Log rotation and session separation
+**Description:** As a developer, I want logs to separate sessions and rotate old entries so stale timestamps don't cause confusion.
 
 **Acceptance Criteria:**
-- [x] Every feature listed in README.md is verified against `docs/claude/INTEGRATIONS_STATUS.md`
-- [x] Any feature marked STUB or NOT STARTED is either removed from README or explicitly marked as "coming soon"
-- [x] No feature is claimed as working that is not at least PARTIAL status
-- [x] `docs/claude/INTEGRATIONS_STATUS.md` is updated to reflect current state
-- [x] Typecheck passes
+- [ ] Logging config uses `RotatingFileHandler` (5 MB max, 3 backups)
+- [ ] Each startup writes a session-start marker: `=== Rex session started at <ISO timestamp> ===`
+- [ ] Old entries are preserved in rotated files, not mixed with current session
+- [ ] Typecheck passes
+- [ ] Tests pass
 
 ---
 
-#### US-067: Documentation overhaul (README + INSTALL)
-**Description:** As a new user, I want simple, accurate, step-by-step docs so I can install and run Rex without confusion.
-
-**Acceptance Criteria:**
-- [x] `README.md` has: one-paragraph description, quick start (5 steps max), feature list (only verified features), link to full docs
-- [x] `INSTALL.md` has: prerequisites, step-by-step install for Windows/macOS/Linux, troubleshooting section
-- [x] No outdated commands or references to removed features
-- [x] A new user can follow INSTALL.md on a fresh machine and reach a working `rex doctor` output
-- [x] Typecheck passes
+### Phase 4: Scaffolding Completion
 
 ---
 
-#### US-068: Simplify installer to "click install, it works"
-**Description:** As a user, I want the install script to handle everything (venv, deps, config) in one command.
+### US-324: Per-user memory -- minimal viable read/write
+**Description:** As a user, I want Rex to remember facts about me across sessions so conversations feel personalized.
 
 **Acceptance Criteria:**
-- [x] `install.py` (or `install.ps1` on Windows, `install.sh` on Linux/macOS) creates venv, installs deps, creates default config
-- [x] Script is idempotent (safe to run twice)
-- [x] On failure, script prints the exact error and suggests a fix
-- [x] After install, `rex doctor` passes all checks
-- [x] Works on Windows 11, macOS, Linux
-- [x] Typecheck passes
+- [ ] Memory system supports `store(user, key, value)` and `recall(user, key) -> value`
+- [ ] Stored facts persist to disk (JSON file per user in `Memory/`)
+- [ ] `Assistant.generate_reply()` injects recalled facts into the system prompt when relevant
+- [ ] CLI test: `python -m rex remember "My dog is named Max"` then asking "What's my dog's name?" in chat returns "Max"
+- [ ] Typecheck passes
+- [ ] Tests pass (`pytest tests/ -q -k memory`)
 
 ---
 
-#### US-069: Ensure CLI/UI feature parity
-**Description:** As a user, I want every feature available in the CLI to also be accessible in the UI, and vice versa.
+### US-325: Autonomous workflows -- minimal scheduled task runner
+**Description:** As a user, I want Rex to execute simple scheduled tasks so autonomous workflows have a foundation.
 
 **Acceptance Criteria:**
-- [x] Audit of CLI commands vs dashboard pages; gaps documented
-- [x] Each CLI-only feature gets a corresponding dashboard UI element (or API endpoint)
-- [x] Each UI-only feature gets a corresponding CLI command
-- [x] Gap list is zero at completion
-- [x] Typecheck passes
-
----
-
-### PHASE 9 -- DEV + DEBUG SYSTEMS
+- [ ] `rex/workflow_runner.py` reads task definitions from config
+- [ ] Each task has: name, schedule (cron or interval), action (Rex command string)
+- [ ] The runner executes due tasks when the voice loop or daemon is running
+- [ ] At least one example task is included (daily weather briefing)
+- [ ] Tasks that fail log the error and do not block subsequent tasks
+- [ ] Typecheck passes
+- [ ] Tests pass (`pytest tests/ -q -k workflow`)
 
 ---
 
-#### US-070: Add structured logging system
-**Description:** As a developer, I want structured JSON logging so that logs are parseable and filterable.
+### US-326: Smart planning -- minimal plan-and-execute skeleton
+**Description:** As a developer, I want a basic plan-and-execute framework so multi-step user requests can be decomposed.
 
 **Acceptance Criteria:**
-- [x] `rex/logging_config.py` configures structured JSON logging (using `python-json-logger` or similar)
-- [x] Each log entry includes: `timestamp`, `level`, `module`, `message`, `extra` (dict)
-- [x] Console output remains human-readable; file output is JSON
-- [x] Log file: `logs/rex.log` (rotated at 10MB, keep 5)
-- [x] All existing `logging.info/warning/error` calls continue to work
-- [x] Unit test confirms JSON log format in file output
-- [x] Typecheck passes
+- [ ] `rex/planner.py` exposes `create_plan(goal: str) -> list[Step]` and `execute_plan(steps: list[Step]) -> Result`
+- [ ] `Step` is a dataclass with `description`, `tool` (optional), and `status`
+- [ ] `create_plan` calls the LLM to decompose a goal into steps
+- [ ] `execute_plan` iterates steps, calling tools where specified, updating status
+- [ ] At least one integration test demonstrates plan creation and execution
+- [ ] Typecheck passes
+- [ ] Tests pass (`pytest tests/ -q -k planner`)
 
 ---
 
-#### US-071: Add debug mode toggle
-**Description:** As a developer, I want a `--debug` flag that enables verbose output for troubleshooting.
-
-**Acceptance Criteria:**
-- [x] `rex --debug` sets log level to DEBUG across all modules
-- [x] Debug mode prints: config values (redacted secrets), loaded integrations, model info
-- [x] `rex doctor --debug` includes additional diagnostic info
-- [x] Config field: `debug_mode` in `AppConfig` (can also be set via env var `REX_DEBUG=1`)
-- [x] Typecheck passes
+### Phase 5: Verification
 
 ---
 
-#### US-072: Stabilize flaky tests
-**Description:** As a developer, I want all tests to pass reliably so that CI is trustworthy.
+### US-327: End-to-end smoke test -- CLI boot and chat
+**Description:** As a developer, I want a smoke test verifying Rex boots and handles a chat round-trip.
 
 **Acceptance Criteria:**
-- [x] Run `pytest -q` 5 times; all runs produce the same pass/fail result
-- [x] Any test that depends on timing uses mocked time or generous tolerances
-- [x] Any test that depends on network uses mocked HTTP
-- [x] Any test that depends on filesystem uses `tmp_path` fixture
-- [x] No test is marked `@pytest.mark.skip` without a linked issue
-- [x] Typecheck passes
+- [ ] A pytest fixture runs `python -m rex doctor` -> exit 0
+- [ ] Then runs `echo "hello" | python -m rex chat --no-tts` -> non-empty output, exit 0
+- [ ] The test is runnable in CI (no GPU, no mic required)
+- [ ] Typecheck passes
+- [ ] Tests pass
 
 ---
 
-#### US-073: Enforce CI (tests + lint must pass)
-**Description:** As a developer, I want CI to block merges if tests or lint fail.
+### US-328: End-to-end verification -- GUI launch and backend connection
+**Description:** As a developer, I want to verify the Electron GUI launches, connects to Flask, and renders without crash or login loop.
 
 **Acceptance Criteria:**
-- [x] GitHub Actions workflow runs: `pytest -q`, `ruff check`, `black --check`
-- [x] Workflow triggers on: push to `master`, pull request to `master`
-- [x] Branch protection rule on `master` requires CI to pass
-- [x] Workflow runs on Python 3.11, Ubuntu latest
-- [x] `mypy` check included (non-blocking warning for now)
-- [x] Typecheck passes
+- [ ] A manual test script documents exact steps: launch command, expected first screen, backend connection verification
+- [ ] The home page renders within 10 seconds of launch
+- [ ] No JavaScript console errors related to missing bridges or failed API calls on the home page
+- [ ] If auth is required, the login flow completes without looping
+- [ ] Typecheck passes
+- [ ] Verify changes work in Electron
 
 ---
 
 ## Non-Goals
 
-- No mobile app (Telegram covers mobile interaction for now)
-- No multi-language UI (English only for this cycle)
-- No voice assistant marketplace or third-party skill system
-- No cloud-hosted deployment (local-first only)
-- No real-time video or camera integration
-- No smart home protocols beyond Home Assistant (no direct Zigbee/Z-Wave)
-- No billing or payment system for cloud LLM usage
-- No automatic priority assignment based on ML models (pattern detection is rule-based)
-
----
+- New feature development beyond completing existing scaffolding
+- Mobile app or cloud deployment
+- Redesign of the GUI framework (Electron + React stays)
+- Migration away from Flask
+- New LLM provider integrations
+- Full-featured memory, autonomy, or planning systems (minimal viable only in this PRD)
 
 ## Technical Considerations
 
-- **Existing components to reuse:** `rex/ha_bridge.py` (HA integration base), `rex/tool_catalog.py` (tool registry), `rex/dashboard_store.py` (SQLite persistence), `rex/dashboard/sse.py` (real-time push), `rex/notifications/` (notification infrastructure), `rex/computers/` (agent server base)
-- **Config split:** Secrets in `.env`, runtime config in `config/rex_config.json` (per CLAUDE.md)
-- **Lazy imports:** All heavy ML imports (whisper, XTTS, transformers) must use `find_spec()` before `import_module()` (per learned rules)
-- **Windows compatibility:** All file paths must use `pathlib.Path`; no hardcoded `/` separators
-- **Branding:** Product name is "AskRex Assistant"; CLI is `rex`; see `docs/BRANDING.md` for banned names
-
----
-
-## Implementation Priority
-
-The recommended implementation order based on the user's priority list:
-
-1. **Bridge system** (US-001 through US-006, US-015) -- unblocks all GUI functionality
-2. **Voice loop** (US-007 through US-010, US-016 through US-020, US-074 through US-078) -- unblocks core voice experience
-3. **Dependencies** (US-011) -- unblocks TTS
-4. **Home Assistant** (US-021 through US-031, US-059) -- primary feature focus
-5. **Context + aliases** (US-023 through US-025) -- makes HA usable
-6. **Feedback + status** (US-033, US-062) -- makes Rex feel responsive
-7. **Everything else** in phase order
-
----
-
-## Issue-to-Story Mapping
-
-| Issue | Stories |
-|-------|---------|
-| ISSUE-001 | US-001, US-002, US-003 |
-| ISSUE-002 | US-004 |
-| ISSUE-003 | US-005, US-006 |
-| ISSUE-004 | US-007, US-008, US-009, US-010 |
-| ISSUE-005 | US-011 |
-| ISSUE-006 | US-012 |
-| ISSUE-007 | US-013, US-014 |
-| ISSUE-008 | US-015 |
-| ISSUE-009 | US-070 |
-| ISSUE-013 | US-047, US-048 |
-| ISSUE-015 | US-049 |
-| ISSUE-016 | US-039, US-040 |
-| ISSUE-017 | US-041 |
-| ISSUE-018 | US-042 |
-| ISSUE-019 | US-021, US-022 |
-| ISSUE-023 | US-066 |
-| ISSUE-024 | US-066 |
-| ISSUE-025 | US-023, US-024 |
-| ISSUE-026 | US-025 |
-| ISSUE-027 | US-026, US-027 |
-| ISSUE-028 | US-032 |
-| ISSUE-029 | US-033, US-034 |
-| ISSUE-030 | US-035, US-036 |
-| ISSUE-032 | US-057 |
-| ISSUE-033 | US-058 |
-| ISSUE-034 | US-065 |
-| ISSUE-035 | US-050 |
-| ISSUE-036 | US-051 |
-| ISSUE-037 | US-043 |
-| ISSUE-038 | US-044 |
-| ISSUE-039 | US-045 |
-| ISSUE-040 | US-046 |
-| ISSUE-041 | US-028 |
-| ISSUE-042 | US-029 |
-| ISSUE-043 | US-030 |
-| ISSUE-044 | US-031 |
-| ISSUE-045 | US-037 |
-| ISSUE-046 | US-038 |
-| ISSUE-047 | US-052 |
-| ISSUE-048 | US-053, US-054 |
-| ISSUE-049 | US-055 |
-| ISSUE-050 | US-056 |
-| ISSUE-051 | US-059 |
-| ISSUE-052 | US-060 |
-| ISSUE-053 | US-061 |
-| ISSUE-054 | US-062 |
-| ISSUE-055 | US-063 |
-| ISSUE-056 | US-064 |
-| ISSUE-057 | US-067 |
-| ISSUE-058 | US-068 |
-| ISSUE-059 | US-069 |
-| ISSUE-060 | US-071 |
-| ISSUE-061 | US-072 |
-| ISSUE-062 | US-073 |
-| ISSUE-063 | US-016 |
-| ISSUE-064 | US-017 |
-| ISSUE-065 | US-018 |
-| ISSUE-066 | US-019, US-020 |
-| ISSUE-067 | US-074 |
-| ISSUE-068 | US-075 |
-| ISSUE-069 | US-076 |
-| ISSUE-070 | US-077 |
-| ISSUE-071 | US-078 |
+- **US-301 (profile loading) is a dependency for nearly everything.** Must be the first story executed.
+- **US-302 (XTTS allowlist) can run in parallel with US-301** since it touches different code paths.
+- **US-303 (bridge resolver) is a dependency for US-304, US-308, US-309, US-310, US-311.** Must complete before those.
+- **US-306 and US-307 (config cleanup) should be batched** to avoid multiple schema migrations.
+- **GUI stories (US-312 through US-322) can largely run in parallel** once the bridge resolver is in place.
+- The Electron GUI uses Vite + React + TypeScript (`gui/`). Python bridges are standalone scripts at repo root (`rex_*_bridge.py`).
+- Config lives in `config/rex_config.json` with schema at `config/rex_config.schema.json`.
+- Profiles live in `profiles/` with schema at `profiles/profile.schema.json`.
+- Story IDs start at US-301 to avoid collision with the existing PRD (US-001 through US-220).

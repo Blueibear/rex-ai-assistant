@@ -56,6 +56,46 @@ def _validate_profile(profile: dict[str, Any], schema_path: Path) -> None:
     _basic_validate(profile, [str(item) for item in required])
 
 
+_MINIMAL_DEFAULT_PROFILE: dict[str, Any] = {
+    "profile_version": 1,
+    "name": "default",
+    "description": "Auto-generated default profile",
+    "capabilities": [],
+    "overrides": {},
+}
+
+
+def ensure_default_profile(profiles_dir: str = DEFAULT_PROFILES_DIR) -> bool:
+    """Ensure ``profiles/default.json`` exists, creating it if necessary.
+
+    Creation order:
+    1. Copy ``default.example.json`` if present.
+    2. Otherwise write a minimal valid profile from scratch.
+
+    An existing ``default.json`` is never overwritten.
+
+    Returns:
+        True if the file was created, False if it already existed.
+    """
+    dest = Path(profiles_dir) / "default.json"
+    if dest.exists():
+        return False
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    example = Path(profiles_dir) / "default.example.json"
+    if example.exists():
+        dest.write_text(example.read_text(encoding="utf-8"), encoding="utf-8")
+        logger.info("Created profiles/default.json from default.example.json")
+    else:
+        dest.write_text(
+            json.dumps(_MINIMAL_DEFAULT_PROFILE, indent=2), encoding="utf-8"
+        )
+        logger.info("Created profiles/default.json with minimal defaults")
+
+    return True
+
+
 def load_profile(name: str, profiles_dir: str = DEFAULT_PROFILES_DIR) -> dict[str, Any]:
     profile_path = Path(profiles_dir) / f"{name}.json"
     if not profile_path.exists():
@@ -90,6 +130,7 @@ def get_active_profile_name(config: dict[str, Any]) -> str:
 
 __all__ = [
     "DEFAULT_PROFILES_DIR",
+    "ensure_default_profile",
     "load_profile",
     "apply_profile",
     "get_active_profile_name",
