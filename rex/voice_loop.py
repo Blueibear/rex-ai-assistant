@@ -650,6 +650,9 @@ class TextToSpeech:
             return False
 
         try:
+            from rex.tts_utils import apply_xtts_safe_globals
+
+            apply_xtts_safe_globals()
             torch = import_module("torch")
             self._tts = tts_class(
                 model_name="tts_models/multilingual/multi-dataset/xtts_v2",
@@ -922,6 +925,7 @@ class VoiceLoop:
                 logger.warning(
                     "Failed to create VoiceBridge (falling back to default assistant): %s", exc
                 )
+
         self._wake_listener = wake_listener
         self._detection_source = detection_source
         self._record_phrase = record_phrase

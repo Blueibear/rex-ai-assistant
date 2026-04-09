@@ -48,13 +48,13 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a developer, I need all required XTTS classes allowlisted for `torch.load()` under PyTorch 2.6's `weights_only=True` default so that XTTS voice output initializes without crashing.
 
 **Acceptance Criteria:**
-- [ ] Identify every class `torch.load()` encounters when loading an XTTS checkpoint (at minimum: `XttsConfig`, `XttsAudioConfig`, and any referenced dataclasses/namedtuples)
-- [ ] Add all identified classes to `torch.serialization.add_safe_globals()` in the XTTS init path (likely `rex/tts_utils.py` or `patch_tts_torch_load.py`)
-- [ ] The allowlist call happens BEFORE `torch.load()` is invoked (not after a failed attempt)
-- [ ] XTTS initializes successfully: `python -c "from rex.tts_utils import get_tts_engine; get_tts_engine('xtts')"` exits 0
-- [ ] If XTTS dependencies are not installed, the import fails gracefully with a clear message (no raw `ModuleNotFoundError` traceback)
-- [ ] Typecheck passes
-- [ ] Tests pass (`pytest tests/ -q -k tts`)
+- [x] Identify every class `torch.load()` encounters when loading an XTTS checkpoint (at minimum: `XttsConfig`, `XttsAudioConfig`, and any referenced dataclasses/namedtuples)
+- [x] Add all identified classes to `torch.serialization.add_safe_globals()` in the XTTS init path (likely `rex/tts_utils.py` or `patch_tts_torch_load.py`)
+- [x] The allowlist call happens BEFORE `torch.load()` is invoked (not after a failed attempt)
+- [x] XTTS initializes successfully: `python -c "from rex.tts_utils import get_tts_engine; get_tts_engine('xtts')"` exits 0
+- [x] If XTTS dependencies are not installed, the import fails gracefully with a clear message (no raw `ModuleNotFoundError` traceback)
+- [x] Typecheck passes
+- [x] Tests pass (`pytest tests/ -q -k tts`)
 
 ---
 

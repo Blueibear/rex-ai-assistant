@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from importlib.util import find_spec
 
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
@@ -129,4 +130,56 @@ def chunk_text_for_xtts(text: str, *, max_tokens: int = 300) -> list[str]:
     return chunks
 
 
-__all__ = ["chunk_text_for_xtts"]
+def apply_xtts_safe_globals() -> bool:
+    """Register XTTS checkpoint classes with torch.serialization.add_safe_globals().
+
+    PyTorch 2.6 changed torch.load() to default weights_only=True, which
+    blocks loading XTTS checkpoints that contain custom classes. This function
+    registers the required XTTS classes so torch.load() can deserialize them
+    without disabling the weights_only safety guard entirely.
+
+    Must be called BEFORE torch.load() is invoked for XTTS checkpoints.
+
+    Returns:
+        True if safe globals were registered successfully.
+        False if TTS or torch is not installed (silently skipped).
+    """
+    try:
+        if find_spec("TTS") is None or find_spec("torch") is None:
+            return False
+        import torch
+        from TTS.tts.configs.xtts_config import XttsAudioConfig, XttsConfig
+
+        torch.serialization.add_safe_globals([XttsConfig, XttsAudioConfig])
+        return True
+    except Exception:
+        return False
+
+
+def get_tts_engine(engine: str) -> type:
+    """Return the TTS engine class for *engine*, applying safe-globals first.
+
+    Args:
+        engine: Engine name, e.g. ``"xtts"``.
+
+    Returns:
+        The engine class (e.g. ``TTS.api.TTS``).
+
+    Raises:
+        ImportError: If the requested engine's Python dependencies are missing.
+        ValueError: If *engine* is not a recognised engine name.
+    """
+    if engine == "xtts":
+        if find_spec("TTS") is None:
+            raise ImportError(
+                "Coqui TTS is not installed. "
+                "Install it with: pip install TTS"
+            )
+        apply_xtts_safe_globals()
+        from TTS.api import TTS  # type: ignore[import-untyped]
+
+        return TTS  # type: ignore[return-value]
+    raise ValueError(f"Unknown TTS engine: {engine!r}")
+
+
+__all__ = ["apply_xtts_safe_globals", "chunk_text_for_xtts", "get_tts_engine"]

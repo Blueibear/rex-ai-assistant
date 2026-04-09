@@ -9,6 +9,43 @@
 
 ---
 
+## Iteration 59 - US-302: XTTS PyTorch 2.6 safe-globals allowlist
+- Added `apply_xtts_safe_globals()` to `rex/tts_utils.py`:
+  - Registers `XttsConfig` and `XttsAudioConfig` with `torch.serialization.add_safe_globals()`
+  - Entire function wrapped in `try/except Exception → return False` (no-op if TTS/torch not installed)
+  - MUST wrap `find_spec()` calls in the try too — `find_spec("torch")` raises `ValueError` when torch is in sys.modules as a `types.ModuleType` with `__spec__ = None`
+- Added `get_tts_engine(engine: str)` to `rex/tts_utils.py`:
+  - Raises `ImportError` with clear message if TTS not installed
+  - Raises `ValueError` for unknown engine names
+  - Calls `apply_xtts_safe_globals()` before returning the TTS class
+- Moved `apply_xtts_safe_globals()` call into `_initialize_xtts()` in `rex/voice_loop.py`, BEFORE the `torch.load()`-triggering model init
+- Reverted bad uncommitted changes to `rex/voice_loop.py`:
+  - Removed module-level `import torch` / `from TTS.tts.configs.xtts_config import XttsConfig` (fails if TTS not installed)
+  - Restored `if getattr(settings, "use_openclaw_voice_backend", False):` (was incorrectly set to `if False:`)
+- 9 tests in `tests/test_us302_xtts_safe_globals.py`
+- Files changed: `rex/tts_utils.py`, `rex/voice_loop.py`, `tests/test_us302_xtts_safe_globals.py`, `PRD.md`
+- Learnings:
+  - `importlib.util.find_spec("torch")` raises `ValueError: torch.__spec__ is None` when a module is in sys.modules as `types.ModuleType()` (which has `__spec__ = None`). Wrap all `find_spec` calls in try/except in functions that must be robust to test mocking.
+  - Module-level optional imports in voice_loop fail when the optional library is absent. Always use lazy imports (inside functions) for optional dependencies like Coqui TTS.
+  - `torch.serialization.add_safe_globals()` must be called before `TTS.api.TTS(model_name=...)` not after — XTTS loads the checkpoint during construction.
+---
+
+## Iteration 58 - US-301: Graceful default profile creation on first run
+- Added `ensure_default_profile(profiles_dir)` to `rex/profile_manager.py`:
+  - Copies `default.example.json` → `default.json` if example exists
+  - Otherwise generates minimal valid profile from scratch
+  - Never overwrites an existing `default.json`
+- Updated `_merge_profile_config` in `rex/config.py`:
+  - Calls `ensure_default_profile()` before loading
+  - Catches `FileNotFoundError` for non-default profiles, logs warning, falls back to "default"
+- 9 tests in `tests/test_us301_profile_creation.py`
+- Files changed: `rex/profile_manager.py`, `rex/config.py`, `tests/test_us301_profile_creation.py`, `PRD.md`
+- Learnings:
+  - Put fallback logic in the caller (`_merge_profile_config`), NOT in `load_profile` itself — this preserves `load_profile`'s `FileNotFoundError` contract so existing tests don't break
+  - `settings = load_config()` at module level in `rex/config.py` means any import of `rex.config` triggers profile loading, so `ensure_default_profile` must run there
+  - 6 pre-existing test failures in `test_flask_proxy.py` and `test_voice_id_profile_switch.py` (unrelated to profiles: `dashboard_bp` and `_shopping_list_handler` attribute errors)
+---
+
 ## Iteration 57 - US-056: Add file summarization and search
 - Implementation was pre-done in US-053 (file_ops.py already had summarize_file and search_files)
 - Added tests in `tests/test_us056_file_summarize_search.py` with 15 tests
