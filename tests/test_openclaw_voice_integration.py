@@ -38,11 +38,16 @@ def _build_integrated_voice_loop(mock_bridge: MagicMock, transcribe_result: str)
     mock_transcribe = AsyncMock(return_value=transcribe_result)
     mock_record = AsyncMock(return_value=MagicMock())
 
+    mock_client = MagicMock()
+    mock_client.get.return_value = {"status": "ok"}
+
     with (
         patch("rex.voice_loop.settings") as mock_settings,
         patch("rex.openclaw.voice_bridge.VoiceBridge", return_value=mock_bridge),
+        patch("rex.openclaw.http_client.get_openclaw_client", return_value=mock_client),
     ):
         mock_settings.use_openclaw_voice_backend = True
+        mock_settings.openclaw_gateway_url = "http://localhost:8765"
 
         vl = VoiceLoop(
             MagicMock(),  # base assistant — replaced by flag mechanism

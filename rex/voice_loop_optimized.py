@@ -459,15 +459,29 @@ class VoiceLoop:
     ) -> None:
         self._assistant = assistant
         if getattr(settings, "use_openclaw_voice_backend", False):
-            try:
-                from rex.openclaw.voice_bridge import VoiceBridge
+            from rex.openclaw.http_client import get_openclaw_client
+            from rex.openclaw.voice_bridge import VoiceBridge
 
-                self._assistant = VoiceBridge()
-                logger.info("Voice loop using OpenClaw VoiceBridge backend")
-            except Exception as exc:
-                logger.warning(
-                    "Failed to create VoiceBridge (falling back to default assistant): %s", exc
+            client = get_openclaw_client(settings)
+            if client is None:
+                gateway_url = getattr(settings, "openclaw_gateway_url", "<not set>") or "<not set>"
+                raise RuntimeError(
+                    f"OpenClaw voice backend is enabled (use_openclaw_voice_backend=true) "
+                    f"but no gateway URL is configured (openclaw_gateway_url={gateway_url!r}). "
+                    "Set openclaw_gateway_url in your config or disable the voice backend."
                 )
+            try:
+                client.get("/health")
+            except Exception as exc:
+                gateway_url = getattr(settings, "openclaw_gateway_url", "<unknown>")
+                raise RuntimeError(
+                    f"OpenClaw voice backend is enabled but the gateway is unreachable "
+                    f"at {gateway_url!r}. Ensure the OpenClaw service is running. "
+                    f"Detail: {exc}"
+                ) from exc
+
+            self._assistant = VoiceBridge()
+            logger.info("Voice loop using OpenClaw VoiceBridge backend")
         self._wake_listener = wake_listener
         self._detection_source = detection_source
         self._record_phrase = record_phrase

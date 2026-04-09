@@ -89,12 +89,12 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a developer, I need `openclaw.use_voice_backend = false` in config to fully bypass `VoiceBridge` at runtime so the local voice loop is the only active path when OpenClaw is disabled.
 
 **Acceptance Criteria:**
-- [ ] When `config.use_openclaw_voice_backend` is `false`, no code path imports or instantiates `VoiceBridge`
-- [ ] `rex/voice_loop.py` -> `build_voice_loop` uses `Assistant` directly when the flag is off
-- [ ] `python rex_loop.py` with the flag off does not log any OpenClaw-related connection attempts or async errors
-- [ ] When the flag is `true` and the gateway is unreachable, startup fails with a clear error message (not a hang or cryptic traceback)
-- [ ] Typecheck passes
-- [ ] Tests pass (`pytest tests/ -q -k "voice_loop or openclaw"`)
+- [x] When `config.use_openclaw_voice_backend` is `false`, no code path imports or instantiates `VoiceBridge`
+- [x] `rex/voice_loop.py` -> `build_voice_loop` uses `Assistant` directly when the flag is off
+- [x] `python rex_loop.py` with the flag off does not log any OpenClaw-related connection attempts or async errors
+- [x] When the flag is `true` and the gateway is unreachable, startup fails with a clear error message (not a hang or cryptic traceback)
+- [x] Typecheck passes
+- [x] Tests pass (`pytest tests/ -q -k "voice_loop or openclaw"`)
 
 ---
 

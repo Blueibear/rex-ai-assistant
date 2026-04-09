@@ -1095,3 +1095,11 @@
 - Branch protection is a GitHub UI setting (outside code changes); documented as satisfied
 - Files changed: PRD.md only
 ---
+
+## Iteration 62 — US-305: OpenClaw voice backend fail-fast
+- Fixed `test_openclaw_voice_integration.py`: added `get_openclaw_client` mock to `_build_integrated_voice_loop`
+- Fixed `test_openclaw_rex_voice_loop_flag.py`: updated helper to mock `get_openclaw_client`; renamed fallback test to `test_flag_true_voice_bridge_failure_raises` (fail-fast per US-305)
+- Fixed `test_openclaw_voice_loop_optimized_flag.py`: same changes as above
+- Added `tests/test_us305_openclaw_fail_fast.py`: 5 tests covering flag-off, no-URL, unreachable, reachable, and URL-in-error-message cases
+- Marked US-305 complete in PRD.md
+---

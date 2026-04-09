@@ -3,7 +3,7 @@
 Acceptance criteria:
   - When use_openclaw_voice_backend=False, _assistant keeps the passed-in assistant
   - When use_openclaw_voice_backend=True, _assistant is replaced with VoiceBridge()
-  - VoiceBridge creation failure falls back gracefully (keeps previous _assistant)
+  - VoiceBridge creation failure raises RuntimeError (fail-fast per US-305)
   - Tests pass
 """
 
@@ -11,25 +11,39 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+
+def _make_mock_client() -> MagicMock:
+    """Return a mock OpenClaw client whose /health check succeeds."""
+    mock_client = MagicMock()
+    mock_client.get.return_value = {"status": "ok"}
+    return mock_client
+
 
 def _make_voice_loop(settings_override: dict, mock_assistant: MagicMock) -> object:
     """Construct a VoiceLoop with all heavy deps stubbed and settings patched."""
+    use_openclaw = settings_override.get("use_openclaw_voice_backend", False)
+    mock_client = _make_mock_client() if use_openclaw else None
+
     with patch("rex.voice_loop.settings") as mock_settings:
         for attr, value in settings_override.items():
             setattr(mock_settings, attr, value)
+        mock_settings.openclaw_gateway_url = "http://localhost:8765"
         # Ensure attribute access falls back sensibly for unset attrs
         mock_settings.__class__ = type("_Cfg", (), {})
 
-        from rex.voice_loop import VoiceLoop
+        with patch("rex.openclaw.http_client.get_openclaw_client", return_value=mock_client):
+            from rex.voice_loop import VoiceLoop
 
-        return VoiceLoop(
-            mock_assistant,
-            wake_listener=MagicMock(),
-            detection_source=MagicMock(),
-            record_phrase=MagicMock(),
-            transcribe=MagicMock(),
-            speak=MagicMock(),
-        )
+            return VoiceLoop(
+                mock_assistant,
+                wake_listener=MagicMock(),
+                detection_source=MagicMock(),
+                record_phrase=MagicMock(),
+                transcribe=MagicMock(),
+                speak=MagicMock(),
+            )
 
 
 class TestVoiceLoopFlagOff:
@@ -97,14 +111,13 @@ class TestVoiceLoopFlagOn:
 
         mock_cls.assert_called_once()
 
-    def test_flag_true_voice_bridge_failure_falls_back(self):
-        """If VoiceBridge() raises, _assistant keeps the original passed-in value."""
+    def test_flag_true_voice_bridge_failure_raises(self):
+        """If VoiceBridge() raises, RuntimeError propagates (fail-fast per US-305)."""
         mock_assistant = MagicMock()
 
         with patch(
             "rex.openclaw.voice_bridge.VoiceBridge",
             side_effect=RuntimeError("bridge unavailable"),
         ):
-            vl = _make_voice_loop({"use_openclaw_voice_backend": True}, mock_assistant)
-
-        assert vl._assistant is mock_assistant
+            with pytest.raises(RuntimeError, match="bridge unavailable"):
+                _make_voice_loop({"use_openclaw_voice_backend": True}, mock_assistant)
