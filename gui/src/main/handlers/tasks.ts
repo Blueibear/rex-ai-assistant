@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
-import { join } from 'path'
 import type { Task, TaskInput, TaskRun } from '../../types/ipc'
+import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 
 /**
  * Call rex_tasks_bridge.py with a JSON payload via stdin and resolve the
@@ -9,9 +9,9 @@ import type { Task, TaskInput, TaskRun } from '../../types/ipc'
  */
 function callTasksBridge(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
-    const scriptPath = join(__dirname, '../../../../rex_tasks_bridge.py')
+    const scriptPath = resolveBridgePath('rex_tasks_bridge.py')
 
-    const py = spawn('python', [scriptPath], {
+    const py = spawn(resolvePythonCommand(), [scriptPath], {
       stdio: ['pipe', 'pipe', 'pipe']
     })
 

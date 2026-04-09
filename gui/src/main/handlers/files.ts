@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
-import { join } from 'path'
+import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 
 const FILE_SIZE_LIMIT_BYTES = 10 * 1024 * 1024 // 10 MB
 
@@ -20,8 +20,8 @@ function callExtractBridge(
   mimeType: string
 ): Promise<{ ok: boolean; isImage: boolean; extractedText?: string; error?: string }> {
   return new Promise((resolve) => {
-    const scriptPath = join(__dirname, '../../../../rex_file_extract_bridge.py')
-    const py = spawn('python', [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+    const scriptPath = resolveBridgePath('rex_file_extract_bridge.py')
+    const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
     let stdout = ''
 
     py.stdout.on('data', (chunk: Buffer) => {

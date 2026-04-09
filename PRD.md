@@ -62,11 +62,11 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a developer, I need a single bridge path resolver so that all Electron-to-Python bridge calls use correct, validated script paths instead of hardcoded or outdated ones.
 
 **Acceptance Criteria:**
-- [ ] Create or update a resolver module (e.g., `gui/src/main/bridgeResolver.ts`) that maps bridge names to their Python script paths relative to repo root
-- [ ] The resolver validates that each target script exists at launch time and logs an error with the expected path if missing
-- [ ] All Electron `spawn`/`exec` calls for bridge scripts route through this resolver (no inline path strings remain)
-- [ ] The following bridges resolve correctly: `rex_tasks_bridge.py`, `rex_reminders_bridge.py`, `rex_shopping_list_bridge.py`, `rex_speaker_bridge.py`, `rex_chat_stream_bridge.py`, `rex_voices_bridge.py`, `rex_voice_enrollment_bridge.py`, `rex_voice_sample_bridge.py`, `rex_wakeword_list_bridge.py`, `rex_wakeword_train_bridge.py`, `rex_stt_bridge.py`, `rex_memories_bridge.py`
-- [ ] Typecheck passes (`npx tsc --noEmit` in `gui/`)
+- [x] Create or update a resolver module (e.g., `gui/src/main/bridgeResolver.ts`) that maps bridge names to their Python script paths relative to repo root
+- [x] The resolver validates that each target script exists at launch time and logs an error with the expected path if missing
+- [x] All Electron `spawn`/`exec` calls for bridge scripts route through this resolver (no inline path strings remain)
+- [x] The following bridges resolve correctly: `rex_tasks_bridge.py`, `rex_reminders_bridge.py`, `rex_shopping_list_bridge.py`, `rex_speaker_bridge.py`, `rex_chat_stream_bridge.py`, `rex_voices_bridge.py`, `rex_voice_enrollment_bridge.py`, `rex_voice_sample_bridge.py`, `rex_wakeword_list_bridge.py`, `rex_wakeword_train_bridge.py`, `rex_stt_bridge.py`, `rex_memories_bridge.py`
+- [x] Typecheck passes (`npx tsc --noEmit` in `gui/`)
 - [ ] Verify changes work: launch the Electron app and confirm Tasks, Reminders, and Shopping List pages load without "bridge exited" errors
 
 ---

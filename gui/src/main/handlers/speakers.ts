@@ -1,19 +1,13 @@
-import { ipcMain, app } from 'electron'
+import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
-import { join } from 'path'
-import { existsSync } from 'fs'
 import type { SmartSpeaker } from '../../types/ipc'
-
-function resolvePythonCommand(): string {
-  const bundledVenvPython = join(app.getAppPath(), '..', '.venv', 'Scripts', 'python.exe')
-  return existsSync(bundledVenvPython) ? bundledVenvPython : 'python'
-}
+import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 
 function callSpeakerBridge(
   payload: Record<string, unknown>
 ): Promise<{ ok: boolean; speakers: SmartSpeaker[]; error?: string }> {
   return new Promise((resolve) => {
-    const scriptPath = join(__dirname, '../../../../rex_speaker_bridge.py')
+    const scriptPath = resolveBridgePath('rex_speaker_bridge.py')
 
     const py = spawn(resolvePythonCommand(), [scriptPath], {
       stdio: ['pipe', 'pipe', 'pipe']

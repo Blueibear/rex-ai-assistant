@@ -1,20 +1,14 @@
-import { app, ipcMain } from 'electron'
+import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
-import { join } from 'path'
-import { existsSync } from 'fs'
 import type { ChildProcess } from 'child_process'
+import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 
 let voiceProcess: ChildProcess | null = null
 
 type BridgeResult<T> = T & { ok: boolean; error?: string }
 
-function resolvePythonCommand(): string {
-  const bundledVenvPython = join(app.getAppPath(), '..', '.venv', 'Scripts', 'python.exe')
-  return existsSync(bundledVenvPython) ? bundledVenvPython : 'python'
-}
-
 function resolveBridgeScript(scriptName: string): string {
-  return join(app.getAppPath(), '..', scriptName)
+  return resolveBridgePath(scriptName)
 }
 
 function killVoiceProcess(): void {

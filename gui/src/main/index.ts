@@ -19,6 +19,7 @@ import { registerFileHandlers } from './handlers/files'
 import { registerShoppingHandlers } from './handlers/shopping'
 import { registerLogsHandlers } from './handlers/logs'
 import { registerUsageHandlers } from './handlers/usage'
+import { validateBridges } from './bridgeResolver'
 
 // ---------------------------------------------------------------------------
 // Config file helpers
@@ -633,6 +634,7 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  validateBridges()
   const mainWindow = createWindow()
   registerIpcHandlers(mainWindow)
   createTray(mainWindow)

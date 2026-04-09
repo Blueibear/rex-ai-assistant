@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
-import { join } from 'path'
+import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 
 /**
  * Spawn the rex_chat_bridge.py script, pass the message via stdin,
@@ -8,10 +8,9 @@ import { join } from 'path'
  */
 function callRexBackend(message: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    // Bridge script lives at repo root (two levels up from gui/src/main/)
-    const scriptPath = join(__dirname, '../../../../rex_chat_bridge.py')
+    const scriptPath = resolveBridgePath('rex_chat_bridge.py')
 
-    const py = spawn('python', [scriptPath], {
+    const py = spawn(resolvePythonCommand(), [scriptPath], {
       stdio: ['pipe', 'pipe', 'pipe']
     })
 
@@ -85,8 +84,8 @@ function ensureSTTProcess(): Promise<void> {
 
   // Spawn a new bridge process.
   return new Promise((resolve, reject) => {
-    const scriptPath = join(__dirname, '../../../../rex_stt_bridge.py')
-    sttProcess = spawn('python', [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+    const scriptPath = resolveBridgePath('rex_stt_bridge.py')
+    sttProcess = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
     sttReady = false
     sttLineBuffer = ''
 
@@ -181,9 +180,9 @@ export function registerChatHandlers(): void {
       event,
       { message, streamId }: { message: string; streamId: string }
     ): Promise<{ ok: boolean }> => {
-      const scriptPath = join(__dirname, '../../../../rex_chat_stream_bridge.py')
+      const scriptPath = resolveBridgePath('rex_chat_stream_bridge.py')
 
-      const py = spawn('python', [scriptPath], {
+      const py = spawn(resolvePythonCommand(), [scriptPath], {
         stdio: ['pipe', 'pipe', 'pipe']
       })
 

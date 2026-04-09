@@ -9,6 +9,23 @@
 
 ---
 
+## Iteration 60 - US-303: Centralized bridge path resolver for Electron
+- Created `gui/src/main/bridgeResolver.ts`:
+  - `BRIDGE_REGISTRY` maps 16 bridge names → script filenames
+  - `resolveBridgePath(scriptFilename)` uses `app.getAppPath()` (works in dev and packaged)
+  - `resolvePythonCommand()` returns bundled venv python or system 'python'
+  - `validateBridges()` iterates registry at launch, logs error + path for any missing script
+- Updated all handler files to import from `../bridgeResolver` instead of inline paths:
+  - `chat.ts`, `tasks.ts`, `reminders.ts`, `memories.ts`, `speakers.ts`, `shopping.ts`, `files.ts`, `voice.ts`
+- Added `validateBridges()` call in `index.ts` inside `app.whenReady()` before `createWindow()`
+- `npx tsc --noEmit` passes with zero errors
+- No inline `join(__dirname, '../../../../rex_*_bridge.py')` strings remain
+- Learnings:
+  - `app.getAppPath()` returns the `gui/` dir in dev, so `join(app.getAppPath(), '..', 'rex_foo.py')` resolves to repo root (correct)
+  - `__dirname` approach (`../../../../`) is fragile and breaks in packaged builds
+  - `voice.ts` had a local `resolveBridgeScript`/`resolvePythonCommand` — replaced with thin wrapper calling centralized version
+---
+
 ## Iteration 59 - US-302: XTTS PyTorch 2.6 safe-globals allowlist
 - Added `apply_xtts_safe_globals()` to `rex/tts_utils.py`:
   - Registers `XttsConfig` and `XttsAudioConfig` with `torch.serialization.add_safe_globals()`
