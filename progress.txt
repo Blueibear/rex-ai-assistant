@@ -1132,3 +1132,13 @@
 - Added `tests/test_us308_voice_preview_bridge.py`: 6 tests all passing
 - Marked US-308 complete in PRD.md
 ---
+
+## Iteration 66 — US-309: Voice enrollment guided UX
+- Added `ENROLLMENT_PROMPT_PHRASE` constant with a specific phrase to read aloud
+- Added `ENROLLMENT_MIN_RMS = 0.02` threshold constant
+- Added `computeRms()` helper to validate sample audio level
+- Updated `handleEnroll` with while-loop: validates RMS and duration, retries with specific error messages if too quiet/short
+- Updated enrollment progress UI: shows prompt phrase box, animated REC indicator, inline validation feedback
+- Added `tests/test_us309_voice_enrollment_ux.py`: 13 tests all passing
+- Marked US-309 complete in PRD.md
+---

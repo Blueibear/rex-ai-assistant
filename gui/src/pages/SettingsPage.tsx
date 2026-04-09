@@ -410,6 +410,8 @@ const ENROLLMENT_COUNTDOWN_SECONDS = 3
 const WW_POSITIVE_TARGET = 5
 const WW_NEGATIVE_TARGET = 3
 const ENROLLMENT_SAMPLE_RATE = 16000
+const ENROLLMENT_PROMPT_PHRASE = 'Hey Rex, the quick brown fox jumps over the lazy dog.'
+const ENROLLMENT_MIN_RMS = 0.02 // below this → sample is too quiet
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -457,6 +459,12 @@ function downsampleFloat32(
   }
 
   return output
+}
+
+function computeRms(samples: number[]): number {
+  if (samples.length === 0) return 0
+  const sumOfSquares = samples.reduce((acc, s) => acc + s * s, 0)
+  return Math.sqrt(sumOfSquares / samples.length)
 }
 
 async function captureEnrollmentSample(stream: MediaStream): Promise<number[]> {
@@ -4013,12 +4021,31 @@ function UsersPanel(): React.ReactElement {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const samples: number[][] = []
-      for (let i = 0; i < ENROLLMENT_SAMPLE_TARGET; i++) {
+      let i = 0
+      while (i < ENROLLMENT_SAMPLE_TARGET) {
+        setEnrollmentMessage(
+          `Sample ${i + 1} of ${ENROLLMENT_SAMPLE_TARGET}: say the phrase below when recording starts.`
+        )
         await runEnrollmentCountdown(setEnrollmentCountdown)
         const sample = await captureEnrollmentSample(stream)
+        const rms = computeRms(sample)
+        const durationOk = sample.length >= ENROLLMENT_SAMPLE_RATE * 0.5
+        if (!durationOk) {
+          setEnrollmentError('Sample too short — please hold the microphone closer and try again.')
+          await sleep(1500)
+          setEnrollmentError(null)
+          continue
+        }
+        if (rms < ENROLLMENT_MIN_RMS) {
+          setEnrollmentError('Too quiet — please speak louder when recording starts.')
+          await sleep(1500)
+          setEnrollmentError(null)
+          continue
+        }
         samples.push(sample)
-        setCapturedSamples(i + 1)
-        setEnrollmentMessage(`Captured sample ${i + 1} of ${ENROLLMENT_SAMPLE_TARGET}.`)
+        i += 1
+        setCapturedSamples(i)
+        setEnrollmentMessage(`Sample ${i} of ${ENROLLMENT_SAMPLE_TARGET} captured.`)
         await sleep(250)
       }
       const result = await window.rex.enrollVoice(userId, samples)
@@ -4127,6 +4154,11 @@ function UsersPanel(): React.ReactElement {
           <p className="mb-3 text-sm font-medium text-text-primary">
             Enrolling: <span className="text-accent">{enrollingUserId}</span>
           </p>
+          {/* Prompt phrase for the user to read aloud */}
+          <div className="mb-3 rounded-lg bg-surface border border-accent/30 px-3 py-2">
+            <p className="text-xs text-text-secondary mb-1 uppercase tracking-wide">Say aloud:</p>
+            <p className="text-sm font-medium text-text-primary italic">"{ENROLLMENT_PROMPT_PHRASE}"</p>
+          </div>
           <div className="h-2 overflow-hidden rounded-full bg-surface mb-2">
             <div
               className="h-full rounded-full bg-accent transition-all duration-300"
@@ -4137,12 +4169,16 @@ function UsersPanel(): React.ReactElement {
             <span className="text-text-secondary">
               {enrollmentCountdown > 0 ? `Sample ${capturedSamples + 1} starts in` : 'Recording now'}
             </span>
-            <span className="text-2xl font-semibold tabular-nums text-text-primary">
-              {enrollmentCountdown > 0 ? enrollmentCountdown : 'REC'}
+            <span className={`text-2xl font-semibold tabular-nums ${enrollmentCountdown === 0 ? 'text-red-400 animate-pulse' : 'text-text-primary'}`}>
+              {enrollmentCountdown > 0 ? enrollmentCountdown : '⏺ REC'}
             </span>
           </div>
-          {enrollmentMessage && <p className="mt-2 text-sm text-success">{enrollmentMessage}</p>}
-          {enrollmentError && <p className="mt-2 text-sm text-danger">{enrollmentError}</p>}
+          {enrollmentMessage && !enrollmentError && (
+            <p className="mt-2 text-sm text-success">{enrollmentMessage}</p>
+          )}
+          {enrollmentError && (
+            <p className="mt-2 text-sm text-danger">{enrollmentError}</p>
+          )}
         </div>
       )}
 

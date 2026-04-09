@@ -144,13 +144,13 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user enrolling my voice, I want to see a phrase to read, progress indication, and validation feedback so the process is usable.
 
 **Acceptance Criteria:**
-- [ ] The voice enrollment page displays a specific prompt phrase for the user to read aloud
-- [ ] During recording, a visual indicator confirms audio is being captured
-- [ ] After recording, the UI shows pass/fail feedback: sufficient audio length, acceptable volume level
-- [ ] If the sample is too short or too quiet, the user is prompted to re-record with a specific reason
-- [ ] The enrollment bridge (`rex_voice_enrollment_bridge.py`) stores the sample in the correct voice identity directory
-- [ ] Typecheck passes (Python + TS)
-- [ ] Verify changes work in Electron
+- [x] The voice enrollment page displays a specific prompt phrase for the user to read aloud
+- [x] During recording, a visual indicator confirms audio is being captured
+- [x] After recording, the UI shows pass/fail feedback: sufficient audio length, acceptable volume level
+- [x] If the sample is too short or too quiet, the user is prompted to re-record with a specific reason
+- [x] The enrollment bridge (`rex_voice_enrollment_bridge.py`) stores the sample in the correct voice identity directory
+- [x] Typecheck passes (Python + TS)
+- [x] Verify changes work in Electron
 
 ---
 
