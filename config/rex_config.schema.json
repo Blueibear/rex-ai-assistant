@@ -38,7 +38,7 @@
       },
       "required": ["sample_rate"]
     },
-    "wake_word": {
+    "wakeword": {
       "type": "object",
       "description": "Wake word detection settings",
       "properties": {
@@ -416,5 +416,5 @@
       }
     }
   },
-  "required": ["audio", "wake_word", "models", "runtime"]
+  "required": ["audio", "wakeword", "models", "runtime"]
 }

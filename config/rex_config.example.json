@@ -4,7 +4,7 @@
     "output_device_index": null,
     "sample_rate": 16000
   },
-  "wake_word": {
+  "wakeword": {
     "backend": "openwakeword",
     "wakeword": "rex",
     "keyword": null,

@@ -106,12 +106,12 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a developer, I want one canonical `wakeword` config section so that wake-word behavior is predictable and there are no conflicting keys.
 
 **Acceptance Criteria:**
-- [ ] `config/rex_config.json` has exactly one wake-word section (canonical key: `wakeword`)
-- [ ] Any references to the old `wake_word` key in Python code are migrated to read from `wakeword`
-- [ ] Config loading detects the old `wake_word` key, copies values into `wakeword`, removes the old key, and logs a deprecation notice
-- [ ] `config/rex_config.schema.json` is updated to reflect the single key
-- [ ] Typecheck passes
-- [ ] Tests pass (`pytest tests/ -q -k "wakeword or wake"`)
+- [x] `config/rex_config.json` has exactly one wake-word section (canonical key: `wakeword`)
+- [x] Any references to the old `wake_word` key in Python code are migrated to read from `wakeword`
+- [x] Config loading detects the old `wake_word` key, copies values into `wakeword`, removes the old key, and logs a deprecation notice
+- [x] `config/rex_config.schema.json` is updated to reflect the single key
+- [x] Typecheck passes
+- [x] Tests pass (`pytest tests/ -q -k "wakeword or wake"`)
 
 ---
 

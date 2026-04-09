@@ -546,8 +546,32 @@ def _merge_profile_config(base_config: dict) -> dict:
     return merged_config
 
 
+def _migrate_wake_word_section(json_config: dict) -> dict:
+    """Migrate the legacy ``wake_word`` key to the canonical ``wakeword`` key.
+
+    If ``wake_word`` is present its values are merged into ``wakeword`` (without
+    overwriting keys already present in ``wakeword``), and ``wake_word`` is
+    removed.  A deprecation notice is logged so operators know to update their
+    config files.
+    """
+    if "wake_word" not in json_config:
+        return json_config
+    LOGGER.warning(
+        "Config key 'wake_word' is deprecated — rename it to 'wakeword' in "
+        "rex_config.json.  Values have been migrated automatically for this run."
+    )
+    legacy = json_config.pop("wake_word")
+    if isinstance(legacy, dict):
+        canonical = json_config.setdefault("wakeword", {})
+        for k, v in legacy.items():
+            canonical.setdefault(k, v)
+    return json_config
+
+
 def build_app_config(json_config: dict) -> AppConfig:
     """Build an AppConfig from a merged JSON configuration."""
+    # Migrate legacy wake_word key to canonical wakeword key
+    json_config = _migrate_wake_word_section(json_config)
     # Parse allowed origins from JSON config
     allowed_origins_value = _get_nested(json_config, "api.allowed_origins", ["*"])
     if isinstance(allowed_origins_value, str):
@@ -569,24 +593,24 @@ def build_app_config(json_config: dict) -> AppConfig:
 
     # Build config from JSON config + env secrets
     config = AppConfig(
-        # Wake word settings from JSON
-        wakeword=_get_nested(json_config, "wake_word.wakeword", "hey_rex") or "hey_rex",
-        wakeword_backend=_get_nested(json_config, "wake_word.backend", "openwakeword"),
-        wakeword_keyword=_get_nested(json_config, "wake_word.keyword"),
-        wakeword_threshold=_coerce_float(json_config, "wake_word.threshold", 0.5),
-        wakeword_window=_coerce_float(json_config, "wake_word.window", 1.0),
-        wakeword_poll_interval=_coerce_float(json_config, "wake_word.poll_interval", 0.01),
-        wake_sound_path=_get_nested(json_config, "wake_word.wake_sound_path"),
+        # Wake word settings from JSON (canonical key: wakeword)
+        wakeword=_get_nested(json_config, "wakeword.wakeword", "hey_rex") or "hey_rex",
+        wakeword_backend=_get_nested(json_config, "wakeword.backend", "openwakeword"),
+        wakeword_keyword=_get_nested(json_config, "wakeword.keyword"),
+        wakeword_threshold=_coerce_float(json_config, "wakeword.threshold", 0.5),
+        wakeword_window=_coerce_float(json_config, "wakeword.window", 1.0),
+        wakeword_poll_interval=_coerce_float(json_config, "wakeword.poll_interval", 0.01),
+        wake_sound_path=_get_nested(json_config, "wakeword.wake_sound_path"),
         acknowledgment_sound=_get_nested(json_config, "acknowledgment.sound", "chime"),
         acknowledgment_mode=_get_nested(json_config, "acknowledgment.mode", "sound"),
         response_cache_ttl=_coerce_float(json_config, "response_cache.ttl", 300.0),
-        wakeword_model_path=_get_nested(json_config, "wake_word.model_path"),
-        wakeword_embedding_path=_get_nested(json_config, "wake_word.embedding_path"),
+        wakeword_model_path=_get_nested(json_config, "wakeword.model_path"),
+        wakeword_embedding_path=_get_nested(json_config, "wakeword.embedding_path"),
         wakeword_fallback_to_builtin=bool(
-            _get_nested(json_config, "wake_word.fallback_to_builtin", True)
+            _get_nested(json_config, "wakeword.fallback_to_builtin", True)
         ),
         wakeword_fallback_keyword=_get_nested(
-            json_config, "wake_word.fallback_keyword", "hey jarvis"
+            json_config, "wakeword.fallback_keyword", "hey jarvis"
         ),
         # Runtime settings from JSON
         command_duration=_coerce_float(json_config, "runtime.command_duration", 5.0),

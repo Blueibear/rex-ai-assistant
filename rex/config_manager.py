@@ -120,14 +120,14 @@ ENV_TO_CONFIG_MAPPING: Dict[str, str] = {
     "REX_AUDIO_INPUT_DEVICE": "audio.input_device_index",
     "REX_AUDIO_OUTPUT_DEVICE": "audio.output_device_index",
     "REX_DEVICE": "audio.input_device_index",
-    # Wake word settings
-    "REX_WAKEWORD_BACKEND": "wake_word.backend",
-    "REX_WAKEWORD": "wake_word.wakeword",
-    "REX_WAKEWORD_KEYWORD": "wake_word.keyword",
-    "REX_WAKEWORD_THRESHOLD": "wake_word.threshold",
-    "REX_WAKEWORD_WINDOW": "wake_word.window",
-    "REX_WAKEWORD_POLL_INTERVAL": "wake_word.poll_interval",
-    "REX_WAKE_SOUND": "wake_word.wake_sound_path",
+    # Wake word settings (canonical key: wakeword)
+    "REX_WAKEWORD_BACKEND": "wakeword.backend",
+    "REX_WAKEWORD": "wakeword.wakeword",
+    "REX_WAKEWORD_KEYWORD": "wakeword.keyword",
+    "REX_WAKEWORD_THRESHOLD": "wakeword.threshold",
+    "REX_WAKEWORD_WINDOW": "wakeword.window",
+    "REX_WAKEWORD_POLL_INTERVAL": "wakeword.poll_interval",
+    "REX_WAKE_SOUND": "wakeword.wake_sound_path",
     # Model settings
     "REX_LLM_PROVIDER": "models.llm_provider",
     "REX_LLM_BACKEND": "models.llm_backend",

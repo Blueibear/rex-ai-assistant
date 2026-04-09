@@ -1103,3 +1103,14 @@
 - Added `tests/test_us305_openclaw_fail_fast.py`: 5 tests covering flag-off, no-URL, unreachable, reachable, and URL-in-error-message cases
 - Marked US-305 complete in PRD.md
 ---
+
+## Iteration 63 — US-306: Unify wake-word config key
+- Added `_migrate_wake_word_section()` in `rex/config.py` (auto-migrates legacy `wake_word` to `wakeword`, logs deprecation)
+- Updated `build_app_config` to read from `wakeword.*` instead of `wake_word.*`
+- Updated `config_manager.py` ENV_TO_CONFIG_MAPPING to use `wakeword.*` targets
+- Consolidated `config/rex_config.json`: removed `wake_word`, merged into single `wakeword` section
+- Updated `config/rex_config.example.json` to use `wakeword`
+- Updated `config/rex_config.schema.json`: renamed property and required entry from `wake_word` to `wakeword`
+- Added `tests/test_us306_wakeword_config_unification.py`: 10 tests all passing
+- Marked US-306 complete in PRD.md
+---
