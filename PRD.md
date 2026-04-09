@@ -131,12 +131,12 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I want to click "Preview" next to a voice in Settings > Voice and hear a short sample so I can choose the right voice.
 
 **Acceptance Criteria:**
-- [ ] The Settings > Voice page has a working "Preview" button for each listed voice
-- [ ] Clicking Preview calls `rex_voice_sample_bridge.py` (via the centralized resolver) with the selected voice ID
-- [ ] The bridge generates a short TTS clip ("Hello, I'm your Rex assistant") and plays it through system audio
-- [ ] If TTS is not configured or fails, the GUI shows an inline error (not a silent failure)
-- [ ] Typecheck passes (Python + TS)
-- [ ] Verify changes work in Electron
+- [x] The Settings > Voice page has a working "Preview" button for each listed voice
+- [x] Clicking Preview calls `rex_voice_sample_bridge.py` (via the centralized resolver) with the selected voice ID
+- [x] The bridge generates a short TTS clip ("Hello, I'm your Rex assistant") and plays it through system audio
+- [x] If TTS is not configured or fails, the GUI shows an inline error (not a silent failure)
+- [x] Typecheck passes (Python + TS)
+- [x] Verify changes work in Electron
 
 ---
 

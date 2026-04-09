@@ -1125,3 +1125,10 @@
 - Added `tests/test_us307_remove_wakeword_threshold_env.py`: 4 tests all passing
 - Marked US-307 complete in PRD.md
 ---
+
+## Iteration 65 — US-308: TTS voice preview bridge
+- Updated `rex_voice_sample_bridge.py` default text to "Hello, I'm your Rex assistant." per spec
+- Confirmed bridge, IPC handler (`rex:previewVoice`), preload, and Settings UI Preview button all in place
+- Added `tests/test_us308_voice_preview_bridge.py`: 6 tests all passing
+- Marked US-308 complete in PRD.md
+---

@@ -31,7 +31,7 @@ def main() -> None:
         payload = json.loads(sys.stdin.read())
         provider = str(payload.get("provider", "xtts"))
         voice_id = str(payload.get("voice_id", ""))
-        text = str(payload.get("text", "Hi, I'm Rex. How can I help?"))[:50]
+        text = str(payload.get("text", "Hello, I'm your Rex assistant."))[:80]
     except Exception as exc:
         print(json.dumps({"ok": False, "error": f"Bad input: {exc}"}), flush=True)
         sys.exit(1)
