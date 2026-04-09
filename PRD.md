@@ -75,12 +75,12 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I want to type a message in the GUI chat and receive a streamed response so that text conversation works end-to-end.
 
 **Acceptance Criteria:**
-- [ ] `rex_chat_stream_bridge.py` is importable and runs standalone: `python rex_chat_stream_bridge.py --help` exits 0
-- [ ] The bridge uses `Assistant.generate_reply()` (not a direct LLM call)
-- [ ] The Electron chat page spawns the bridge via the centralized resolver (US-303)
-- [ ] A typed message in the GUI produces a streaming response displayed token-by-token
-- [ ] If the backend is unreachable or config is invalid, the GUI shows a user-visible error (not just "exited with code 2")
-- [ ] Typecheck passes (both Python and TS)
+- [x] `rex_chat_stream_bridge.py` is importable and runs standalone: `python rex_chat_stream_bridge.py --help` exits 0
+- [x] The bridge uses `Assistant.generate_reply()` (not a direct LLM call)
+- [x] The Electron chat page spawns the bridge via the centralized resolver (US-303)
+- [x] A typed message in the GUI produces a streaming response displayed token-by-token
+- [x] If the backend is unreachable or config is invalid, the GUI shows a user-visible error (not just "exited with code 2")
+- [x] Typecheck passes (both Python and TS)
 - [ ] Verify changes work in Electron
 
 ---

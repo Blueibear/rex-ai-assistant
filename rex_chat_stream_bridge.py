@@ -12,6 +12,7 @@ when the backend's Assistant class does not expose generate_reply_stream.
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import sys
@@ -28,6 +29,17 @@ def emit(obj: dict) -> None:  # noqa: ANN001
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Streaming Rex chat bridge. "
+            "Reads JSON from stdin: {\"message\": \"<text>\"}. "
+            "Writes NDJSON to stdout: {\"type\": \"token\", \"token\": \"...\"} per chunk, "
+            "then {\"type\": \"done\"} when complete, "
+            "or {\"type\": \"error\", \"error\": \"...\"} on failure."
+        )
+    )
+    parser.parse_args()
+
     try:
         payload = json.loads(sys.stdin.read())
         message = str(payload.get("message", ""))

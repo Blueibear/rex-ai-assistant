@@ -9,6 +9,18 @@
 
 ---
 
+## Iteration 61 - US-304: Fix GUI text chat streaming bridge
+- Added `argparse` to `rex_chat_stream_bridge.py` so `python rex_chat_stream_bridge.py --help` exits 0
+- Bridge already correctly uses `Assistant.generate_reply()` and stream_reply fallback
+- Bridge already spawned via centralized resolver (done in US-303)
+- Error path emits `{"type": "error", ...}` JSON, which ChatPage displays inline as `` `Error: ...` ``
+- 6 tests in `tests/test_us304_chat_stream_bridge.py`
+- Files changed: `rex_chat_stream_bridge.py`, `tests/test_us304_chat_stream_bridge.py`, `PRD.md`
+- Learnings:
+  - Bridge stdout mixes config warning lines with JSON output — tests must filter for lines starting with `{`
+  - `argparse.parse_args()` with no extra args defined will still handle `--help` and exit 0
+---
+
 ## Iteration 60 - US-303: Centralized bridge path resolver for Electron
 - Created `gui/src/main/bridgeResolver.ts`:
   - `BRIDGE_REGISTRY` maps 16 bridge names → script filenames
