@@ -116,7 +116,7 @@ class TestContentPreserved:
     def test_env_vars_doc_has_wake_word_settings(self):
         content = (DOCS / "environment-variables.md").read_text(encoding="utf-8")
         assert "REX_WAKEWORD" in content
-        assert "REX_WAKEWORD_THRESHOLD" in content
+        # REX_WAKEWORD_THRESHOLD removed (US-307); use wakeword.threshold in rex_config.json
 
     def test_env_vars_doc_has_audio_settings(self):
         content = (DOCS / "environment-variables.md").read_text(encoding="utf-8")

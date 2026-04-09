@@ -121,10 +121,10 @@ ENV_TO_CONFIG_MAPPING: Dict[str, str] = {
     "REX_AUDIO_OUTPUT_DEVICE": "audio.output_device_index",
     "REX_DEVICE": "audio.input_device_index",
     # Wake word settings (canonical key: wakeword)
+    # Note: REX_WAKEWORD_THRESHOLD was removed in US-307; use wakeword.threshold in rex_config.json
     "REX_WAKEWORD_BACKEND": "wakeword.backend",
     "REX_WAKEWORD": "wakeword.wakeword",
     "REX_WAKEWORD_KEYWORD": "wakeword.keyword",
-    "REX_WAKEWORD_THRESHOLD": "wakeword.threshold",
     "REX_WAKEWORD_WINDOW": "wakeword.window",
     "REX_WAKEWORD_POLL_INTERVAL": "wakeword.poll_interval",
     "REX_WAKE_SOUND": "wakeword.wake_sound_path",

@@ -34,9 +34,6 @@ REX_WAKEWORD=rex
 # Wakeword backend: onnx, openwakeword
 REX_WAKEWORD_BACKEND=onnx
 
-# Detection threshold (0.0-1.0, higher = more strict)
-REX_WAKEWORD_THRESHOLD=0.5
-
 # ================================
 # Language Model (LLM)
 # ================================
@@ -103,10 +100,6 @@ def test_parse_env_example_descriptions(sample_env_example):
     assert wakeword is not None
     assert "Wakeword phrase" in wakeword.description
 
-    threshold = schema.get_variable("REX_WAKEWORD_THRESHOLD")
-    assert threshold is not None
-    assert "threshold" in threshold.description.lower()
-
 
 def test_parse_env_example_required_fields(sample_env_example):
     """Test detection of required fields."""
@@ -144,9 +137,9 @@ def test_control_type_detection():
     assert "tiny" in var.dropdown_options
     assert "base" in var.dropdown_options
 
-    # Spinbox - Threshold
+    # Spinbox - Threshold (uses a generic threshold key as example)
     var = EnvVariable(
-        key="REX_WAKEWORD_THRESHOLD",
+        key="REX_VOICE_THRESHOLD",
         default_value="0.5",
         description="Detection threshold",
         section="Test",

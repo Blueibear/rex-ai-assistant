@@ -29,7 +29,8 @@ All environment variables can be set in your `.env` file. Copy `.env.example` to
 |----------|-----------|---------|-------------|---------|
 | `REX_WAKEWORD` | No | `rex` | Wake word phrase | `rex`, `jarvis`, `computer` |
 | `REX_WAKEWORD_KEYWORD` | No | `hey_jarvis` | openWakeWord model keyword | `hey_jarvis` |
-| `REX_WAKEWORD_THRESHOLD` | No | `0.5` | Detection sensitivity (0.0-1.0, higher = stricter) | `0.6` |
+
+> **Note:** Detection threshold is configured via `wakeword.threshold` in `rex_config.json` (not an env var).
 
 ## Audio Configuration
 

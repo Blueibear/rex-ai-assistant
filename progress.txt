@@ -1114,3 +1114,14 @@
 - Added `tests/test_us306_wakeword_config_unification.py`: 10 tests all passing
 - Marked US-306 complete in PRD.md
 ---
+
+## Iteration 64 — US-307: Remove REX_WAKEWORD_THRESHOLD env var
+- Removed `REX_WAKEWORD_THRESHOLD` from `rex/config_manager.py` `ENV_TO_CONFIG_MAPPING`
+- Removed `REX_WAKEWORD_THRESHOLD` SettingDef from `utils/settings_schema.py`
+- Updated `tests/test_env_schema.py`: removed from sample fixture and description test
+- Updated `tests/test_us145_deep_content.py`: commented out the assertion
+- Updated `docs/environment-variables.md`: removed the row, added note about rex_config.json
+- Updated `docs/troubleshooting.md`: replaced env var tip with rex_config.json path
+- Added `tests/test_us307_remove_wakeword_threshold_env.py`: 4 tests all passing
+- Marked US-307 complete in PRD.md
+---

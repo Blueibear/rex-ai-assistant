@@ -119,11 +119,11 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I don't want misleading deprecation warnings about `REX_WAKEWORD_THRESHOLD` on every startup.
 
 **Acceptance Criteria:**
-- [ ] All references to `REX_WAKEWORD_THRESHOLD` in Python code are removed
-- [ ] The config schema and docs reference only the JSON config path for threshold
-- [ ] Startup produces no warning about `REX_WAKEWORD_THRESHOLD` even if the env var is still set
-- [ ] Typecheck passes
-- [ ] Tests pass
+- [x] All references to `REX_WAKEWORD_THRESHOLD` in Python code are removed
+- [x] The config schema and docs reference only the JSON config path for threshold
+- [x] Startup produces no warning about `REX_WAKEWORD_THRESHOLD` even if the env var is still set
+- [x] Typecheck passes
+- [x] Tests pass
 
 ---
 

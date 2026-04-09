@@ -126,18 +126,6 @@ AUTHORITATIVE_SETTINGS: list[SettingDef] = [
         active_group="wakeword_backend_selector",
     ),
     SettingDef(
-        key="REX_WAKEWORD_THRESHOLD",
-        type="float",
-        default="0.5",
-        description="Detection threshold (0.0-1.0, higher = more strict)",
-        section="Wakeword Detection",
-        min_value=0.0,
-        max_value=1.0,
-        step=0.05,
-        tooltip_low_effect="More sensitive, may trigger on noise",
-        tooltip_high_effect="Less sensitive, requires clearer signal",
-    ),
-    SettingDef(
         key="REX_WAKEWORD_WINDOW",
         type="float",
         default="1.0",
