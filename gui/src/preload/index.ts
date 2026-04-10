@@ -246,6 +246,8 @@ const rexAPI = {
     ipcRenderer.invoke('rex:getSmartSpeakers'),
   restartRex: (): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:restartRex'),
+  resetToDefaults: (): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('rex:resetToDefaults'),
   extractFileForChat: (params: {
     filename: string
     dataBase64: string

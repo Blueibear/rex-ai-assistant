@@ -298,12 +298,12 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I want a way to reset Rex to factory defaults when troubleshooting.
 
 **Acceptance Criteria:**
-- [ ] Settings > System has a "Reset to Defaults" button
-- [ ] Clicking shows a confirmation dialog explaining what will be reset
-- [ ] On confirm, replaces `config/rex_config.json` with `config/rex_config.example.json`
-- [ ] Does NOT delete user profiles, voice samples, or `.env` secrets
-- [ ] After reset, the app reloads cleanly
-- [ ] Typecheck passes
+- [x] Settings > System has a "Reset to Defaults" button
+- [x] Clicking shows a confirmation dialog explaining what will be reset
+- [x] On confirm, replaces `config/rex_config.json` with `config/rex_config.example.json`
+- [x] Does NOT delete user profiles, voice samples, or `.env` secrets
+- [x] After reset, the app reloads cleanly
+- [x] Typecheck passes
 - [ ] Verify changes work in Electron
 
 ---

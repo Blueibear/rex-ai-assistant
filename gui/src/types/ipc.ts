@@ -458,6 +458,7 @@ export interface RexAPI {
   setApiKey: (name: string, value: string) => Promise<{ ok: boolean; error?: string }>
   getSmartSpeakers: () => Promise<{ ok: boolean; speakers: SmartSpeaker[]; error?: string }>
   restartRex: () => Promise<{ ok: boolean; error?: string }>
+  resetToDefaults: () => Promise<{ ok: boolean; error?: string }>
   extractFileForChat: (params: {
     filename: string
     dataBase64: string

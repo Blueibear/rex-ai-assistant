@@ -627,6 +627,22 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }
   })
+
+  ipcMain.handle('rex:resetToDefaults', (): { ok: boolean; error?: string } => {
+    try {
+      const configDir = getConfigDir()
+      const examplePath = join(configDir, 'rex_config.example.json')
+      const targetPath = getRexConfigPath()
+      if (!existsSync(examplePath)) {
+        return { ok: false, error: `Example config not found at ${examplePath}` }
+      }
+      const exampleContent = readFileSync(examplePath, 'utf8')
+      writeFileSync(targetPath, exampleContent, 'utf8')
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
 }
 
 function createWindow(): BrowserWindow {

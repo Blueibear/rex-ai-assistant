@@ -4461,6 +4461,8 @@ function SystemPanel(): React.ReactElement {
   })
   const [saved, setSaved] = useState(false)
   const [restarting, setRestarting] = useState(false)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   useEffect(() => {
     window.rex
@@ -4497,6 +4499,27 @@ function SystemPanel(): React.ReactElement {
       .restartRex()
       .catch(() => addToast('Failed to restart Rex', 'error'))
       .finally(() => setRestarting(false))
+  }
+
+  function handleResetConfirm(): void {
+    setResetting(true)
+    window.rex
+      .resetToDefaults()
+      .then((res) => {
+        if (res.ok) {
+          addToast('Settings reset to defaults. Restarting…', 'success')
+          setTimeout(() => {
+            void window.rex.restartRex()
+          }, 1500)
+        } else {
+          addToast(res.error ?? 'Reset failed', 'error')
+        }
+      })
+      .catch(() => addToast('Reset failed', 'error'))
+      .finally(() => {
+        setResetting(false)
+        setShowResetConfirm(false)
+      })
   }
 
   return (
@@ -4716,6 +4739,51 @@ function SystemPanel(): React.ReactElement {
           )}
           Restart Rex
         </button>
+      </div>
+
+      {/* Reset to Defaults */}
+      <div className="border-t border-border pt-6 mt-6">
+        <h3 className="mb-1 text-sm font-semibold text-text-primary">Reset to Defaults</h3>
+        <p className="mb-4 text-xs text-text-secondary">
+          Replaces <code className="font-mono">config/rex_config.json</code> with the factory defaults from{' '}
+          <code className="font-mono">rex_config.example.json</code>. User profiles, voice samples, and{' '}
+          <code className="font-mono">.env</code> secrets are not affected.
+        </p>
+        {!showResetConfirm ? (
+          <button
+            type="button"
+            onClick={() => setShowResetConfirm(true)}
+            className="flex items-center gap-2 rounded-lg border border-red-400 bg-bg px-4 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 focus:outline-none"
+          >
+            Reset to Defaults
+          </button>
+        ) : (
+          <div className="rounded-xl border border-red-300 bg-red-50 p-4">
+            <p className="text-sm font-medium text-red-700 mb-1">Are you sure?</p>
+            <p className="text-xs text-red-600 mb-4">
+              This will overwrite your current runtime configuration with factory defaults and restart Rex.
+              User profiles, voice samples, and .env secrets will not be changed.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleResetConfirm}
+                disabled={resetting}
+                className="rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50 focus:outline-none"
+              >
+                {resetting ? 'Resetting…' : 'Yes, Reset'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                disabled={resetting}
+                className="rounded-lg border border-border bg-bg px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-raised disabled:opacity-50 focus:outline-none"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
