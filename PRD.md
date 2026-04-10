@@ -67,7 +67,7 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 - [x] All Electron `spawn`/`exec` calls for bridge scripts route through this resolver (no inline path strings remain)
 - [x] The following bridges resolve correctly: `rex_tasks_bridge.py`, `rex_reminders_bridge.py`, `rex_shopping_list_bridge.py`, `rex_speaker_bridge.py`, `rex_chat_stream_bridge.py`, `rex_voices_bridge.py`, `rex_voice_enrollment_bridge.py`, `rex_voice_sample_bridge.py`, `rex_wakeword_list_bridge.py`, `rex_wakeword_train_bridge.py`, `rex_stt_bridge.py`, `rex_memories_bridge.py`
 - [x] Typecheck passes (`npx tsc --noEmit` in `gui/`)
-- [ ] Verify changes work: launch the Electron app and confirm Tasks, Reminders, and Shopping List pages load without "bridge exited" errors
+- [x] Verify changes work: launch the Electron app and confirm Tasks, Reminders, and Shopping List pages load without "bridge exited" errors
 
 ---
 
