@@ -187,7 +187,7 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 - [x] Telegram bot token and chat ID fields are present in Settings > Integrations (or a Telegram sub-page)
 - [x] Saving any new field writes to `config/rex_config.json` correctly
 - [x] Typecheck passes
-- [ ] Verify changes work in Electron
+- [x] Verify changes work in Electron
 
 ---
 
