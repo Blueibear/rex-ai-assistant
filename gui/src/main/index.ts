@@ -239,6 +239,20 @@ function mirrorToRexConfig(section: string, values: Settings): void {
       writeRexConfig(rexConfig)
     }
 
+    if (section === 'integrations') {
+      if (typeof values.haUrl === 'string' && values.haUrl.trim()) {
+        const ha = ((rexConfig.home_assistant ?? {}) as Record<string, unknown>)
+        ha.base_url = values.haUrl.trim()
+        rexConfig.home_assistant = ha
+      }
+      if (typeof values.telegramChatId === 'string' && values.telegramChatId.trim()) {
+        const telegram = ((rexConfig.telegram ?? {}) as Record<string, unknown>)
+        telegram.chat_id = values.telegramChatId.trim()
+        rexConfig.telegram = telegram
+      }
+      writeRexConfig(rexConfig)
+    }
+
     if (section === 'system') {
       if (typeof values.toolTimeoutSeconds === 'number') {
         rexConfig.tool_timeout_seconds = values.toolTimeoutSeconds
@@ -321,7 +335,15 @@ const defaultSettingsMap: Record<string, Settings> = {
     smsAuthToken: '',
     smsFromNumber: '',
     haUrl: '',
-    haToken: ''
+    haToken: '',
+    phoneSid: '',
+    phoneAuthToken: '',
+    phoneNumber: '',
+    phoneTransferNumber: '',
+    voicemailNotificationsEnabled: false,
+    contactsFilePath: '',
+    telegramBotToken: '',
+    telegramChatId: ''
   } satisfies IntegrationsSettings,
   system: {
     autonomyMode: 'manual',

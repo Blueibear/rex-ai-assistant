@@ -219,6 +219,9 @@ export interface IntegrationsSettings {
   phoneTransferNumber: string
   voicemailNotificationsEnabled: boolean
   contactsFilePath: string
+  // Telegram
+  telegramBotToken: string
+  telegramChatId: string
 }
 
 export interface NotificationsSettings {

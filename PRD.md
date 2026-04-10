@@ -182,11 +182,11 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I want the GUI Settings to expose every Rex setting, including Telegram setup, so the GUI is a complete control surface.
 
 **Acceptance Criteria:**
-- [ ] Audit `config/rex_config.schema.json` and `config/rex_config.json` for all user-facing keys
-- [ ] Each key has a corresponding input in the appropriate Settings tab
-- [ ] Telegram bot token and chat ID fields are present in Settings > Integrations (or a Telegram sub-page)
-- [ ] Saving any new field writes to `config/rex_config.json` correctly
-- [ ] Typecheck passes
+- [x] Audit `config/rex_config.schema.json` and `config/rex_config.json` for all user-facing keys
+- [x] Each key has a corresponding input in the appropriate Settings tab
+- [x] Telegram bot token and chat ID fields are present in Settings > Integrations (or a Telegram sub-page)
+- [x] Saving any new field writes to `config/rex_config.json` correctly
+- [x] Typecheck passes
 - [ ] Verify changes work in Electron
 
 ---

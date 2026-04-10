@@ -2479,7 +2479,9 @@ function IntegrationsPanel(): React.ReactElement {
     phoneNumber: '',
     phoneTransferNumber: '',
     voicemailNotificationsEnabled: false,
-    contactsFilePath: ''
+    contactsFilePath: '',
+    telegramBotToken: '',
+    telegramChatId: ''
   })
   const [loading, setLoading] = useState(true)
   const [savedField, setSavedField] = useState<keyof IntegrationsSettings | null>(null)
@@ -2558,7 +2560,9 @@ function IntegrationsPanel(): React.ReactElement {
           phoneNumber: typeof settings.phoneNumber === 'string' ? settings.phoneNumber : '',
           phoneTransferNumber: typeof settings.phoneTransferNumber === 'string' ? settings.phoneTransferNumber : '',
           voicemailNotificationsEnabled: typeof settings.voicemailNotificationsEnabled === 'boolean' ? settings.voicemailNotificationsEnabled : false,
-          contactsFilePath: typeof settings.contactsFilePath === 'string' ? settings.contactsFilePath : ''
+          contactsFilePath: typeof settings.contactsFilePath === 'string' ? settings.contactsFilePath : '',
+          telegramBotToken: typeof settings.telegramBotToken === 'string' ? settings.telegramBotToken : '',
+          telegramChatId: typeof settings.telegramChatId === 'string' ? settings.telegramChatId : ''
         })
       })
       .catch(() => {
@@ -3270,6 +3274,75 @@ function IntegrationsPanel(): React.ReactElement {
         </div>
 
         <TestConnectionButton status={testStatus.phone} onTest={() => handleTest('phone')} />
+      </section>
+
+      <div className="border-t border-border mb-7" />
+
+      {/* Telegram section */}
+      <section className="mb-2">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            Telegram
+          </h3>
+          <ConnectionBadge
+            status="idle"
+            hasCredentials={form.telegramBotToken.trim() !== '' && form.telegramChatId.trim() !== ''}
+          />
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="telegramBotToken" className="text-sm font-medium text-text-primary">Bot Token</label>
+              <span
+                title="Create a bot via @BotFather on Telegram to get a token. The TELEGRAM_BOT_TOKEN env var takes precedence if set."
+                className="flex-shrink-0 w-4 h-4 rounded-full bg-surface-raised text-text-muted flex items-center justify-center text-[10px] font-bold cursor-help select-none"
+                aria-label="Where to find Bot Token"
+              >
+                ?
+              </span>
+            </div>
+            <SavedIndicator visible={savedField === 'telegramBotToken'} />
+          </div>
+          <PasswordInput
+            id="telegramBotToken"
+            value={form.telegramBotToken}
+            placeholder="123456789:ABCdef..."
+            onChange={(v) => setForm((f) => ({ ...f, telegramBotToken: v }))}
+            onBlur={() => handleFieldChange('telegramBotToken', form.telegramBotToken)}
+          />
+        </div>
+
+        <div className="mb-2">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="telegramChatId" className="text-sm font-medium text-text-primary">Chat ID</label>
+              <span
+                title="Your personal chat ID or group chat ID. Send a message to your bot and check the Telegram Bot API getUpdates response."
+                className="flex-shrink-0 w-4 h-4 rounded-full bg-surface-raised text-text-muted flex items-center justify-center text-[10px] font-bold cursor-help select-none"
+                aria-label="Where to find Chat ID"
+              >
+                ?
+              </span>
+            </div>
+            <SavedIndicator visible={savedField === 'telegramChatId'} />
+          </div>
+          <input
+            id="telegramChatId"
+            type="text"
+            value={form.telegramChatId}
+            placeholder="-1001234567890"
+            onChange={(e) => setForm((f) => ({ ...f, telegramChatId: e.target.value }))}
+            onBlur={(e) => handleFieldChange('telegramChatId', e.target.value)}
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-text-secondary">
+            Saved to config. Set <code className="font-mono bg-surface-raised px-1 rounded">TELEGRAM_BOT_TOKEN</code> in <code className="font-mono bg-surface-raised px-1 rounded">.env</code> to keep the token secret.
+          </p>
+        </div>
       </section>
     </div>
   )
