@@ -214,7 +214,7 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 - [x] "No capabilities found" section is removed or populated from `rex/capabilities/`
 - [x] The "Configure" link for HA goes to the HA settings page (not Settings > General)
 - [x] Typecheck passes
-- [ ] Verify changes work in Electron
+- [x] Verify changes work in Electron
 
 ---
 
