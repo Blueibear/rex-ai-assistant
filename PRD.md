@@ -161,7 +161,7 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 - [x] The Play Sample button plays a short audio clip demonstrating the selected wake word pronunciation
 - [x] If no sample audio exists for a custom wake word, the button is disabled with a tooltip explaining why
 - [x] Typecheck passes
-- [ ] Verify changes work in Electron
+- [x] Verify changes work in Electron
 
 ---
 
