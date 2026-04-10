@@ -156,7 +156,7 @@ const TIMEZONE_LIST: string[] = (() => {
       'Australia/Sydney',
       'Australia/Melbourne',
       'Pacific/Auckland',
-      'Pacific/Auckland'
+      'Pacific/Honolulu'
     ]
   }
 })()

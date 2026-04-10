@@ -236,6 +236,11 @@ function mirrorToRexConfig(section: string, values: Settings): void {
       const ui = ((rexConfig.ui ?? {}) as Record<string, unknown>)
       if (typeof values.startMinimized === 'boolean') ui.start_minimized = values.startMinimized
       rexConfig.ui = ui
+      if (typeof values.timezone === 'string' && values.timezone.trim()) {
+        const location = ((rexConfig.location ?? {}) as Record<string, unknown>)
+        location.default_timezone = values.timezone.trim()
+        rexConfig.location = location
+      }
       writeRexConfig(rexConfig)
     }
 

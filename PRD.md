@@ -260,11 +260,11 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I want to select my timezone from a complete list, not just `America/Chicago`.
 
 **Acceptance Criteria:**
-- [ ] The timezone dropdown is populated from a standard IANA timezone list
-- [ ] The dropdown supports type-ahead filtering
-- [ ] The currently configured timezone is pre-selected
-- [ ] Saving updates `config/rex_config.json`
-- [ ] Typecheck passes
+- [x] The timezone dropdown is populated from a standard IANA timezone list
+- [x] The dropdown supports type-ahead filtering
+- [x] The currently configured timezone is pre-selected
+- [x] Saving updates `config/rex_config.json`
+- [x] Typecheck passes
 - [ ] Verify changes work in Electron
 
 ---
@@ -313,9 +313,9 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 
 **Acceptance Criteria:**
 - [ ] GUI window title uses the canonical product name from `docs/BRANDING.md`
-- [ ] System tray icon uses the official AskRex icon asset
-- [ ] The GUI sidebar or header shows the AskRex logo
-- [ ] If branding assets don't exist yet, placeholder assets are created at the correct paths with TODO comments
+- [ ] System tray icon uses the official AskRex icon asset from `assets/brand/`
+- [ ] The GUI sidebar or header shows the AskRex logo from `assets/brand/`
+- [ ] If branding assets do not exist yet, placeholder assets are created in `assets/brand/` with clear TODO comments
 - [ ] Typecheck passes
 - [ ] Verify changes work in Electron
 
