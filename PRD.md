@@ -252,7 +252,7 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Acceptance Criteria:**
 - [x] The link navigates to the HA configuration page (per US-314)
 - [x] Typecheck passes
-- [ ] Verify changes work in Electron
+- [x] Verify changes work in Electron
 
 ---
 
