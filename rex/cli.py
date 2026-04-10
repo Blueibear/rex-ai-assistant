@@ -3693,6 +3693,12 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
         help="Start interactive chat (default)",
         description="Start an interactive text chat session with Rex.",
     )
+    chat_parser.add_argument(
+        "--no-tts",
+        action="store_true",
+        default=False,
+        help="Disable TTS output (text-only mode; useful in CI or headless environments)",
+    )
     chat_parser.set_defaults(func=cmd_chat)
 
     # version

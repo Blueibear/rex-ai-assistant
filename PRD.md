@@ -386,11 +386,11 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a developer, I want a smoke test verifying Rex boots and handles a chat round-trip.
 
 **Acceptance Criteria:**
-- [ ] A pytest fixture runs `python -m rex doctor` -> exit 0
-- [ ] Then runs `echo "hello" | python -m rex chat --no-tts` -> non-empty output, exit 0
-- [ ] The test is runnable in CI (no GPU, no mic required)
-- [ ] Typecheck passes
-- [ ] Tests pass
+- [x] A pytest fixture runs `python -m rex doctor` -> exit 0
+- [x] Then runs `echo "hello" | python -m rex chat --no-tts` -> non-empty output, exit 0
+- [x] The test is runnable in CI (no GPU, no mic required)
+- [x] Typecheck passes
+- [x] Tests pass
 
 ---
 
