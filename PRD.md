@@ -341,12 +341,12 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I want Rex to remember facts about me across sessions so conversations feel personalized.
 
 **Acceptance Criteria:**
-- [ ] Memory system supports `store(user, key, value)` and `recall(user, key) -> value`
-- [ ] Stored facts persist to disk (JSON file per user in `Memory/`)
-- [ ] `Assistant.generate_reply()` injects recalled facts into the system prompt when relevant
-- [ ] CLI test: `python -m rex remember "My dog is named Max"` then asking "What's my dog's name?" in chat returns "Max"
-- [ ] Typecheck passes
-- [ ] Tests pass (`pytest tests/ -q -k memory`)
+- [x] Memory system supports `store(user, key, value)` and `recall(user, key) -> value`
+- [x] Stored facts persist to disk (JSON file per user in `Memory/`)
+- [x] `Assistant.generate_reply()` injects recalled facts into the system prompt when relevant
+- [x] CLI test: `python -m rex remember "My dog is named Max"` then asking "What's my dog's name?" in chat returns "Max"
+- [x] Typecheck passes
+- [x] Tests pass (`pytest tests/ -q -k memory`)
 
 ---
 

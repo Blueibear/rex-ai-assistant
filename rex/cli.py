@@ -123,6 +123,41 @@ def _get_version() -> str:
         return "0.1.0"
 
 
+def cmd_remember(args: argparse.Namespace) -> int:
+    """Store or display a remembered fact for the active user."""
+    from rex.user_facts import recall_all, store
+
+    user = getattr(args, "user", None) or "default"
+    fact_text: str | None = getattr(args, "fact", None)
+
+    if fact_text:
+        # Parse free-form text like 'My dog is named Max' into a key-value pair.
+        # If --key/--value are given explicitly, use those; otherwise auto-parse.
+        key: str | None = getattr(args, "key", None)
+        value: str | None = getattr(args, "value", None)
+
+        if key and value:
+            store(user, key, value)
+            print(f"Remembered: {key} = {value} (for user '{user}')")
+        else:
+            # Auto-generate a key from a hash of the content and store full text.
+            import hashlib
+
+            key = "fact_" + hashlib.md5(fact_text.encode()).hexdigest()[:8]
+            store(user, key, fact_text)
+            print(f"Remembered: {fact_text!r} (for user '{user}')")
+    else:
+        # Display all stored facts.
+        facts = recall_all(user)
+        if not facts:
+            print(f"No remembered facts for user '{user}'.")
+        else:
+            print(f"Remembered facts for user '{user}':")
+            for k, v in facts.items():
+                print(f"  {k} = {v}")
+    return 0
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     """Run environment diagnostics."""
     from rex.doctor import run_diagnostics
@@ -3890,6 +3925,30 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     memory_stats.set_defaults(func=cmd_memory, memory_command="stats")
 
     memory_parser.set_defaults(func=cmd_memory, memory_command="stats")
+
+    # remember
+    remember_parser = subparsers.add_parser(
+        "remember",
+        help="Store a fact for the active user",
+        description=(
+            "Store a remembered fact so Rex can recall it during conversations. "
+            "Example: rex remember 'My dog is named Max'"
+        ),
+    )
+    remember_parser.add_argument(
+        "fact",
+        nargs="?",
+        default=None,
+        help="Free-form fact to remember (e.g. 'My dog is named Max')",
+    )
+    remember_parser.add_argument(
+        "--user",
+        default="default",
+        help="User identifier to store the fact for (default: 'default')",
+    )
+    remember_parser.add_argument("--key", default=None, help="Explicit key name")
+    remember_parser.add_argument("--value", default=None, help="Explicit value (requires --key)")
+    remember_parser.set_defaults(func=cmd_remember)
 
     # kb
     kb_parser = subparsers.add_parser(

@@ -857,6 +857,15 @@ class Assistant:
                 history_lines.append(user_ctx)
             else:
                 history_lines.append(f"[Active user: {active_user_id}]")
+            # Inject per-user remembered facts so the LLM can reference them.
+            try:
+                from rex.user_facts import format_facts_for_prompt
+
+                facts_ctx = format_facts_for_prompt(active_user_id)
+                if facts_ctx:
+                    history_lines.append(facts_ctx)
+            except Exception as exc:
+                logger.debug("Failed to load user facts: %s", exc)
         if tool_context:
             history_lines.append(tool_context)
         history_lines += [f"{turn.speaker}: {turn.text}" for turn in self._history[-4:]]
