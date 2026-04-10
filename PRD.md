@@ -354,13 +354,13 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I want Rex to execute simple scheduled tasks so autonomous workflows have a foundation.
 
 **Acceptance Criteria:**
-- [ ] `rex/workflow_runner.py` reads task definitions from config
-- [ ] Each task has: name, schedule (cron or interval), action (Rex command string)
-- [ ] The runner executes due tasks when the voice loop or daemon is running
-- [ ] At least one example task is included (daily weather briefing)
-- [ ] Tasks that fail log the error and do not block subsequent tasks
-- [ ] Typecheck passes
-- [ ] Tests pass (`pytest tests/ -q -k workflow`)
+- [x] `rex/workflow_runner.py` reads task definitions from config
+- [x] Each task has: name, schedule (cron or interval), action (Rex command string)
+- [x] The runner executes due tasks when the voice loop or daemon is running
+- [x] At least one example task is included (daily weather briefing)
+- [x] Tasks that fail log the error and do not block subsequent tasks
+- [x] Typecheck passes
+- [x] Tests pass (`pytest tests/ -q -k workflow`)
 
 ---
 

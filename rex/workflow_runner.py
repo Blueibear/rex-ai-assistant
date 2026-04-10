@@ -864,4 +864,231 @@ __all__ = [
     "approve_workflow",
     "deny_workflow",
     "list_pending_approvals",
+    # Scheduled task runner (US-325)
+    "ScheduledTask",
+    "ScheduledTaskRunner",
 ]
+
+
+# =============================================================================
+# Scheduled Task Runner (US-325)
+# =============================================================================
+# Reads simple name/schedule/action task definitions from config and runs
+# due tasks when the voice loop or daemon calls run_due_tasks().
+
+import json as _json
+import subprocess as _subprocess
+import sys as _sys
+from dataclasses import dataclass as _dataclass, field as _field
+from datetime import UTC as _UTC, datetime as _datetime
+from pathlib import Path as _Path
+from typing import Any as _Any
+
+_REPO_ROOT = _Path(__file__).parent.parent
+_DEFAULT_CONFIG_PATH = _REPO_ROOT / "config" / "rex_config.json"
+_DEFAULT_STATE_PATH = _REPO_ROOT / "data" / "workflow_runner_state.json"
+
+# Built-in example tasks shown when no tasks are configured. All disabled
+# by default — users opt-in by adding them to rex_config.json.
+_EXAMPLE_TASKS: list[dict[str, _Any]] = [
+    {
+        "name": "daily_weather",
+        "schedule": "interval:86400",
+        "action": "chat --no-tts --prompt \"What is the weather today?\"",
+        "enabled": False,
+    }
+]
+
+
+@_dataclass
+class ScheduledTask:
+    """A scheduled workflow task read from config.
+
+    Attributes:
+        name: Unique task identifier.
+        schedule: When to run, e.g. ``"interval:86400"`` (daily).
+        action: Rex CLI arguments to pass to ``python -m rex``.
+        enabled: Whether the task is active.
+    """
+
+    name: str
+    schedule: str
+    action: str
+    enabled: bool = True
+
+    def interval_seconds(self) -> int | None:
+        """Return interval in seconds for ``interval:<n>`` schedules."""
+        s = self.schedule.strip().lower()
+        if s.startswith("interval:"):
+            try:
+                return int(s.split(":", 1)[1])
+            except (ValueError, IndexError):
+                return None
+        return None
+
+    def is_due(self, last_run: _datetime | None) -> bool:
+        """Return True if enough time has elapsed since *last_run*."""
+        interval = self.interval_seconds()
+        if interval is None:
+            logger.warning(
+                "ScheduledTask '%s' has unsupported schedule '%s'", self.name, self.schedule
+            )
+            return False
+        if last_run is None:
+            return True
+        return (_datetime.now(_UTC) - last_run).total_seconds() >= interval
+
+
+@_dataclass
+class ScheduledTaskRunner:
+    """Reads task definitions from config and executes due tasks.
+
+    Config location: ``config/rex_config.json`` under ``workflows.tasks``.
+
+    Example config::
+
+        {
+            "workflows": {
+                "tasks": [
+                    {
+                        "name": "daily_weather",
+                        "schedule": "interval:86400",
+                        "action": "chat --no-tts --prompt \\"What is the weather today?\\"",
+                        "enabled": true
+                    }
+                ]
+            }
+        }
+
+    State (last-run timestamps) is persisted to ``data/workflow_runner_state.json``.
+    """
+
+    config_path: _Path = _field(default_factory=lambda: _DEFAULT_CONFIG_PATH)
+    state_path: _Path = _field(default_factory=lambda: _DEFAULT_STATE_PATH)
+
+    def __post_init__(self) -> None:
+        self._tasks: list[ScheduledTask] = self._load_tasks()
+        self._state: dict[str, str] = self._load_state()
+
+    # ------------------------------------------------------------------
+    # Config / state
+    # ------------------------------------------------------------------
+
+    def _load_tasks(self) -> list[ScheduledTask]:
+        raw: list[dict[str, _Any]] = []
+        if self.config_path.exists():
+            try:
+                data = _json.loads(self.config_path.read_text(encoding="utf-8"))
+                raw = data.get("workflows", {}).get("tasks", [])
+            except (_json.JSONDecodeError, OSError) as exc:
+                logger.warning("ScheduledTaskRunner: failed to read config: %s", exc)
+
+        if not raw:
+            raw = _EXAMPLE_TASKS
+
+        tasks: list[ScheduledTask] = []
+        for item in raw:
+            name = item.get("name")
+            schedule = item.get("schedule")
+            action = item.get("action")
+            if not (name and schedule and action):
+                logger.warning("ScheduledTaskRunner: skipping malformed task: %s", item)
+                continue
+            tasks.append(
+                ScheduledTask(
+                    name=str(name),
+                    schedule=str(schedule),
+                    action=str(action),
+                    enabled=bool(item.get("enabled", True)),
+                )
+            )
+        return tasks
+
+    def _load_state(self) -> dict[str, str]:
+        if self.state_path.exists():
+            try:
+                return _json.loads(self.state_path.read_text(encoding="utf-8"))
+            except (_json.JSONDecodeError, OSError) as exc:
+                logger.warning("ScheduledTaskRunner: failed to read state: %s", exc)
+        return {}
+
+    def _save_state(self) -> None:
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self.state_path.write_text(_json.dumps(self._state, indent=2), encoding="utf-8")
+        except OSError as exc:
+            logger.error("ScheduledTaskRunner: failed to save state: %s", exc)
+
+    def _last_run(self, name: str) -> _datetime | None:
+        ts = self._state.get(name)
+        if ts:
+            try:
+                return _datetime.fromisoformat(ts)
+            except ValueError:
+                pass
+        return None
+
+    # ------------------------------------------------------------------
+    # Execution
+    # ------------------------------------------------------------------
+
+    def _run_task(self, task: ScheduledTask) -> bool:
+        """Execute *task*, returning True on success.  Never raises."""
+        logger.info(
+            "ScheduledTaskRunner: executing '%s' (action: %s)", task.name, task.action
+        )
+        try:
+            cmd = [_sys.executable, "-m", "rex"] + task.action.split()
+            result = _subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=str(_REPO_ROOT),
+            )
+            if result.returncode != 0:
+                logger.error(
+                    "ScheduledTaskRunner: task '%s' exited %d: %s",
+                    task.name,
+                    result.returncode,
+                    (result.stderr or "")[:500],
+                )
+                return False
+            logger.info("ScheduledTaskRunner: task '%s' succeeded", task.name)
+            return True
+        except _subprocess.TimeoutExpired:
+            logger.error("ScheduledTaskRunner: task '%s' timed out after 120s", task.name)
+            return False
+        except Exception as exc:
+            logger.error("ScheduledTaskRunner: task '%s' raised: %s", task.name, exc)
+            return False
+
+    def run_due_tasks(self) -> list[str]:
+        """Run all enabled tasks that are due.
+
+        Failed tasks are logged but do not block subsequent tasks.
+
+        Returns:
+            Names of tasks that were triggered (regardless of outcome).
+        """
+        triggered: list[str] = []
+        for task in self._tasks:
+            if not task.enabled:
+                continue
+            if not task.is_due(self._last_run(task.name)):
+                continue
+            triggered.append(task.name)
+            # Persist last-run before executing so crashes don't cause retries.
+            self._state[task.name] = _datetime.now(_UTC).isoformat()
+            self._save_state()
+            try:
+                self._run_task(task)
+            except Exception as exc:
+                logger.error(
+                    "ScheduledTaskRunner: task '%s' raised unexpectedly: %s", task.name, exc
+                )
+        return triggered
+
+    def tasks(self) -> list[ScheduledTask]:
+        """Return all loaded tasks (enabled or not)."""
+        return list(self._tasks)

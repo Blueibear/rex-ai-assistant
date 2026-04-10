@@ -67,7 +67,9 @@
   },
   "api": {
     "rate_limit": "30/minute",
-    "allowed_origins": ["*"]
+    "allowed_origins": [
+      "*"
+    ]
   },
   "calendar": {
     "backend": "stub",
@@ -199,5 +201,15 @@
         }
       ]
     }
+  },
+  "workflows": {
+    "tasks": [
+      {
+        "name": "daily_weather",
+        "schedule": "interval:86400",
+        "action": "chat --no-tts --prompt \"What is the weather today?\"",
+        "enabled": false
+      }
+    ]
   }
 }
