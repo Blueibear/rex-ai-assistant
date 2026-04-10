@@ -398,12 +398,12 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a developer, I want to verify the Electron GUI launches, connects to Flask, and renders without crash or login loop.
 
 **Acceptance Criteria:**
-- [ ] A manual test script documents exact steps: launch command, expected first screen, backend connection verification
-- [ ] The home page renders within 10 seconds of launch
-- [ ] No JavaScript console errors related to missing bridges or failed API calls on the home page
-- [ ] If auth is required, the login flow completes without looping
-- [ ] Typecheck passes
-- [ ] Verify changes work in Electron
+- [x] A manual test script documents exact steps: launch command, expected first screen, backend connection verification
+- [x] The home page renders within 10 seconds of launch
+- [x] No JavaScript console errors related to missing bridges or failed API calls on the home page
+- [x] If auth is required, the login flow completes without looping
+- [x] Typecheck passes
+- [x] Verify changes work in Electron
 
 ---
 
