@@ -9,6 +9,60 @@
 
 ---
 
+## Iteration 70 - US-321: Reset to Defaults button in Settings > System
+- Added `rex:resetToDefaults` IPC handler in `gui/src/main/index.ts`: copies `rex_config.example.json` → `rex_config.json`, returns `{ok, error?}`
+- Added `resetToDefaults` type to `RexAPI` in `gui/src/types/ipc.ts`
+- Exposed `resetToDefaults` in `gui/src/preload/index.ts`
+- Added Reset to Defaults section to `SystemPanel` in `SettingsPage.tsx`:
+  - "Reset to Defaults" button reveals inline confirmation panel
+  - Confirmation panel explains: overwrites rex_config.json, does NOT touch profiles/voice samples/.env
+  - On confirm: calls `resetToDefaults()`, shows toast, auto-restarts after 1.5s
+  - Cancel button dismisses the confirmation
+- Files changed: `gui/src/main/index.ts`, `gui/src/types/ipc.ts`, `gui/src/preload/index.ts`, `gui/src/pages/SettingsPage.tsx`, `PRD.md`
+- TypeScript typecheck: pass. Python pytest: 73 pre-existing failures, same baseline.
+- Learnings:
+  - Pattern for IPC handler: add to `ipc.ts` type, `preload/index.ts` bridge, `main/index.ts` handler
+  - Inline confirmation (no native dialog) keeps the UX in-component, consistent with existing patterns
+---
+
+## Iteration 69 - US-320: Actionable notifications with instructions and links
+- Added `action_url` and `action_label` optional fields to `NotificationRequest` in `rex/notification.py`
+- Added same optional fields to `GuiNotification` in `gui/src/types/ipc.ts`
+- Updated `NotificationsPage.tsx`: added `useNavigate`, `onNavigate` prop to panel, primary action button rendered when fields present
+- Updated 3 stubs in `notifications.ts` to match the acceptance criteria examples (TTS, profile missing, integration error)
+- Files changed: `rex/notification.py`, `gui/src/types/ipc.ts`, `gui/src/main/handlers/notifications.ts`, `gui/src/pages/NotificationsPage.tsx`, `PRD.md`
+- Learnings:
+  - Pass `navigate` as a callback prop to child components that don't own the router context
+  - Use non-null assertion inside a `&&` guard: `notification.action_url!` is safe when guarded by `notification.action_url &&`
+---
+
+## Iteration 68 - US-319: Add folder picker for Allowed File Roots
+- Added `rex:pickFolder` IPC handler using `dialog.showOpenDialog({ properties: ['openDirectory'] })`
+- Added `pickFolder` to `RexAPI` in `ipc.ts` and exposed in `preload/index.ts`
+- Updated `SettingsPage.tsx` Allowed File Roots section:
+  - Chip list showing each parsed folder (split on comma) with ✕ Remove button
+  - "+ Add Folder" button calls `window.rex.pickFolder()`, appends path if not already present
+  - Raw text input preserved below as fallback
+- Files changed: `gui/src/types/ipc.ts`, `gui/src/main/index.ts`, `gui/src/preload/index.ts`, `gui/src/pages/SettingsPage.tsx`, `PRD.md`
+- Learnings:
+  - `dialog.showOpenDialog` with `properties: ['openDirectory']` is the correct Electron API for a folder picker
+  - Keep the comma-separated string format — Python backend splits on comma; no type change needed
+  - Pattern already exists in codebase: `rex:uploadContactsFile` uses same dialog pattern for files
+---
+
+## Iteration 67 - US-318: Populate timezone dropdown with full IANA list
+- Timezone dropdown was already implemented with `Intl.supportedValuesOf('timeZone')` and a datalist for type-ahead filtering
+- The missing piece: `mirrorToRexConfig` for section 'general' did not write timezone to rex_config.json
+- Added timezone mirroring: `values.timezone` → `location.default_timezone` in rex_config.json (Python reads from `location.default_timezone`)
+- Fixed duplicate `Pacific/Auckland` in the fallback list (changed second to `Pacific/Honolulu`)
+- Files changed: `gui/src/main/index.ts`, `gui/src/pages/SettingsPage.tsx`, `PRD.md`
+- Pre-existing failure: `test_cli_scheduler.py::test_cli_email_unread` fails due to no email configured (environment issue, not related to changes)
+- Learnings:
+  - Python reads timezone via `_get_nested(json_config, "location.default_timezone")` so the key path is `location.default_timezone`
+  - When mirrorToRexConfig handles 'general', read/update `rexConfig.location` object similar to how other sections update nested objects
+  - `Intl.supportedValuesOf('timeZone')` is already available in Electron's Chromium environment — the full IANA list was already there
+---
+
 ## Iteration 66 - US-314: Wire up the Integrations page
 - Updated `/api/integrations` in `rex/gui_app.py`: added `configure_url` to every entry, added Calendar/SMS/MQTT/Web Search integrations
 - HA configure_url = `/settings/home-assistant`; SMS checks TWILIO env vars; MQTT checks MQTT_BROKER_HOST; Search checks SERPAPI/BRAVE/GOOGLE_CSE env vars
