@@ -250,8 +250,8 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I want the Home page HA link to go to the HA configuration page, not Settings > General.
 
 **Acceptance Criteria:**
-- [ ] The link navigates to the HA configuration page (per US-314)
-- [ ] Typecheck passes
+- [x] The link navigates to the HA configuration page (per US-314)
+- [x] Typecheck passes
 - [ ] Verify changes work in Electron
 
 ---

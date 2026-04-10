@@ -1273,3 +1273,9 @@
 - TypeScript typecheck passes (tsc --noEmit clean)
 - Marked US-316 complete in PRD.md
 ---
+
+## Iteration 69 - US-317: Fix "Configure Home Assistant" link routing
+- Updated `gui/src/pages/HomePage.tsx`: changed NavLink `to="/settings"` → `to="/settings/home-assistant"` on the Device Control card; updated link text to "Configure Home Assistant"
+- TypeScript typecheck passes
+- Marked US-317 ACs complete (except manual Electron verification)
+---
