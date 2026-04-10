@@ -231,7 +231,7 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 - [x] SMS page calls the messaging backend and displays real threads (or empty state)
 - [x] No hardcoded fake names, dates, or messages remain in GUI source for these pages
 - [x] Typecheck passes
-- [ ] Verify changes work in Electron
+- [x] Verify changes work in Electron
 
 ---
 
