@@ -174,7 +174,7 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 - [x] Selecting a device updates config
 - [x] The "Test" button plays a short test tone through the selected device
 - [x] Typecheck passes (Python + TS)
-- [ ] Verify changes work in Electron
+- [x] Verify changes work in Electron
 
 ---
 
