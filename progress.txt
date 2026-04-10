@@ -9,6 +9,25 @@
 
 ---
 
+## Iteration 74 - US-325: Autonomous workflows -- minimal scheduled task runner
+- Added `ScheduledTask` dataclass and `ScheduledTaskRunner` class to existing `rex/workflow_runner.py`
+  - Did NOT create a new file — existing module already exists as OpenClaw step executor
+  - Added via `__all__` extension + new classes at end of file
+- `ScheduledTaskRunner` reads from `rex_config.json` under `workflows.tasks` key
+- Each task: `name`, `schedule` (e.g. `interval:86400`), `action` (rex CLI args), `enabled`
+- Falls back to built-in `_EXAMPLE_TASKS` (daily_weather, disabled=False) when no tasks in config
+- `run_due_tasks()` iterates tasks, checks interval elapsed, runs via `subprocess python -m rex <action>`
+- Exceptions from `_run_task` are caught per-task so failures don't block others
+- State persisted to `data/workflow_runner_state.json` (ISO timestamps per task name)
+- Added `daily_weather` example task to `config/rex_config.example.json` under `workflows.tasks`
+- Created `tests/test_us325_scheduled_task_runner.py` with 9 tests
+- Files changed: `rex/workflow_runner.py`, `config/rex_config.example.json`, `tests/test_us325_scheduled_task_runner.py`, `PRD.md`
+- Learnings:
+  - `config/` is in `.gitignore` — need `git add -f` to stage changes to example config
+  - Monkey-patching `_run_task` with a lambda works but raises bubble up through `run_due_tasks`; always wrap `_run_task` call in try-except for isolation
+  - Adding to existing `workflow_runner.py` required a `Read` before `Edit` — can't write a file without reading it first
+---
+
 ## Iteration 73 - US-324: Per-user memory -- minimal viable read/write
 - Created `rex/user_facts.py` with `store(user, key, value)`, `recall(user, key)`, `recall_all(user)`, `format_facts_for_prompt(user)` APIs
 - Facts persisted to `Memory/<user>_facts.json` (one file per user, key-value JSON)
