@@ -81,7 +81,7 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 - [x] A typed message in the GUI produces a streaming response displayed token-by-token
 - [x] If the backend is unreachable or config is invalid, the GUI shows a user-visible error (not just "exited with code 2")
 - [x] Typecheck passes (both Python and TS)
-- [ ] Verify changes work in Electron
+- [x] Verify changes work in Electron
 
 ---
 
