@@ -9,6 +9,20 @@
 
 ---
 
+## Iteration 73 - US-324: Per-user memory -- minimal viable read/write
+- Created `rex/user_facts.py` with `store(user, key, value)`, `recall(user, key)`, `recall_all(user)`, `format_facts_for_prompt(user)` APIs
+- Facts persisted to `Memory/<user>_facts.json` (one file per user, key-value JSON)
+- Wired into `_build_prompt` in `rex/assistant.py`: injects `[Remembered facts about <user>: ...]` context line when active_user_id is set and facts exist
+- Added `cmd_remember` to `rex/cli.py`: supports free-form `rex remember 'My dog is named Max'` (auto-key) and `rex remember --key dog_name --value Max` (explicit key)
+- Added `remember` subparser to CLI: `rex remember [fact] [--user USER] [--key KEY] [--value VALUE]`
+- Created `tests/test_us324_user_facts.py` with 9 tests covering store/recall/isolation/CLI
+- Files changed: `rex/user_facts.py` (new), `rex/assistant.py`, `rex/cli.py`, `tests/test_us324_user_facts.py`, `PRD.md`
+- Learnings:
+  - Monkeypatching a module-level variable requires `monkeypatch.setattr("rex.user_facts._MEMORY_ROOT", tmp_path)` — target the module attribute, not the function default
+  - The existing `Memory/` dir has UUID-named files for voice profiles; user facts use `<user>_facts.json` to avoid collisions
+  - `_build_prompt` already has `active_user_id` parameter — just add the facts injection after the profile context block
+---
+
 ## Iteration 72 - US-323: Log rotation and session separation
 - Updated `rex/logging_utils.py`: `backupCount=5` → `3` (both file_handler and error_handler)
 - Updated `rex/logging_config.py`: `MAX_BYTES = 10_000_000` → `5_000_000`, `BACKUP_COUNT = 5` → `3`
