@@ -8,6 +8,80 @@
 (Patterns discovered during implementation)
 
 ---
+## Iteration 79 - US-326: Smart planning -- minimal plan-and-execute skeleton
+- `create_plan`, `execute_plan`, `Step`, `Result` were already implemented in `rex/planner.py` from prior work
+- Only missing piece: these symbols were absent from `__all__`; added them
+- Created `tests/test_us326_planner_skeleton.py` with 20 tests covering Step/Result dataclasses, execute_plan status transitions, create_plan LLM JSON parsing (including markdown fence stripping), and a full round-trip integration test using a mocked LLM
+- Files changed: `rex/planner.py`, `tests/test_us326_planner_skeleton.py`, `PRD.md`
+- Learnings for future iterations:
+  - When US-326 is selected, `create_plan` and `execute_plan` already exist in `rex.planner`; no new implementation needed
+  - Mocking `llm.generate.return_value` is the correct pattern for testing `create_plan` without a real LLM
+  - `rex.autonomy.runner` also exports `create_plan`/`execute_plan` but those are different symbols from a different module
+---
+## Iteration 78 - US-303: Repeat-blocker guard no-op
+- Story: US-303
+- What was implemented
+- No code or validation changes; the US-303 story block in `PRD.md` is already fully complete, and the latest three US-303 progress entries show no material repo, dependency, environment, or acceptance-criteria change
+- Stopped early per the repeat-blocker guard instead of rerunning the prior narrow validation pass
+- Files changed
+- `C:\Users\james\rex-ai-test\rex-ai-assistant\progress.txt`
+- Learnings for future iterations:
+  - Patterns discovered
+  - If US-303 is selected again and the bridge resolver or Electron bridge spawn call sites have not changed, treat it as a no-op immediately
+  - Gotchas encountered
+  - The relevant no-op context is already established by Iterations 76-77, so another unchanged run should not repeat `pytest tests/test_us303_bridge_verification.py -q` or `npx tsc --noEmit`
+  - Useful context
+  - The last successful US-303 validation remains Iteration 75
+---
+
+## Iteration 77 - US-303: Repeat-blocker guard no-op
+- Story: US-303
+- What was implemented
+- No code or validation changes; US-303 remains fully complete in `PRD.md`, and the last two US-303 iterations already established this as a no-op unless bridge-related code changes
+- Confirmed the current dirty worktree only includes unrelated changes in `.secrets.baseline`, `rex/planner.py`, and `progress.txt`, so there is no material repo change to justify rerunning US-303 validation
+- Files changed
+- `C:\Users\james\rex-ai-test\rex-ai-assistant\progress.txt`
+- Learnings for future iterations:
+  - Patterns discovered
+  - Treat US-303 as closed unless files in the Electron bridge resolver path or bridge-spawn call sites materially change
+  - Gotchas encountered
+  - Repeatedly selecting a fully completed story can create wasted validation churn; use the recent-iteration guard before rerunning `pytest tests/test_us303_bridge_verification.py -q` or `npx tsc --noEmit`
+  - Useful context
+  - The latest successful US-303 validation is still Iteration 75, and Iterations 76-77 are intentional no-op records
+---
+
+## Iteration 75 - US-303: Centralized bridge path resolver revalidation
+- Story: US-303
+- What was implemented
+- No code changes were required; revalidated the centralized Electron bridge resolver after later GUI bridge additions
+- Confirmed `gui/src/main/bridgeResolver.ts` still routes the resolver-backed bridge spawn paths for the US-303 bridge set
+- Validation passed: `pytest tests/test_us303_bridge_verification.py -q` (21 passed) and `npx tsc --noEmit` in `gui/`
+- Files changed
+- `C:\Users\james\rex-ai-test\rex-ai-assistant\progress.txt`
+- Learnings for future iterations:
+  - Patterns discovered
+  - `tests/test_us303_bridge_verification.py` is the narrow regression test for bridge existence and startup behavior; use it instead of broad GUI validation when US-303 needs rechecking
+  - Gotchas encountered
+  - The repo currently has unrelated local changes in `.secrets.baseline` and `rex/planner.py`; avoid touching them during bridge-only work
+- Useful context
+- `bridgeResolver.ts` now contains a superset of the original US-303 bridge registry, but the original required bridge set still resolves and typechecks cleanly
+---
+
+## Iteration 76 - US-303: No-op after completed revalidation
+- Story: US-303
+- What was implemented
+- No code or validation changes; US-303 is already fully complete in `PRD.md`, and the latest iteration already passed the narrow regression checks for the bridge resolver
+- Stopped early per blocker guard to avoid repeating an unchanged validation pass with no material repo or acceptance-criteria change
+- Files changed
+- `C:\Users\james\rex-ai-test\rex-ai-assistant\progress.txt`
+- Learnings for future iterations:
+  - Patterns discovered
+  - If `US-303` is selected again without any new bridge-path code changes, treat it as a no-op and do not rerun `tests/test_us303_bridge_verification.py` or GUI typecheck again
+  - Gotchas encountered
+  - The story block is already fully checked off, so there is no remaining acceptance criterion to implement within the task bounds
+  - Useful context
+  - The most recent successful validation for this story is Iteration 75
+---
 
 ## Iteration 74 - US-325: Autonomous workflows -- minimal scheduled task runner
 - Added `ScheduledTask` dataclass and `ScheduledTaskRunner` class to existing `rex/workflow_runner.py`
@@ -1395,4 +1469,43 @@
 - Updated `gui/src/pages/HomePage.tsx`: changed NavLink `to="/settings"` → `to="/settings/home-assistant"` on the Device Control card; updated link text to "Configure Home Assistant"
 - TypeScript typecheck passes
 - Marked US-317 ACs complete (except manual Electron verification)
+---
+
+## Iteration 74 - US-303 review
+- Story: US-303
+- Verified the PRD block for US-303 is already fully complete and there are no unfinished acceptance criteria to implement in this iteration
+- Files changed: C:\Users\james\rex-ai-test\rex-ai-assistant\progress.txt
+- Learnings for future iterations:
+  - If a story block is already fully `[x]` in `PRD.md` and no code, dependency, environment, or acceptance criteria changed, do not rerun the same validation commands
+  - The prior US-303 verification was already recorded in Iteration 63; treat this story as complete unless a later change reopens it
+---
+## Iteration 79 - US-303: Repeat-blocker guard no-op
+- Story: US-303
+- What was implemented
+- No code or validation changes; the `US-303` block in `PRD.md` remains fully complete, and the latest three `US-303` entries already document the unchanged no-op state
+- Confirmed there were no material bridge-related repo changes to justify rerunning `pytest tests/test_us303_bridge_verification.py -q` or `npx tsc --noEmit`; current unrelated changes are limited to `.secrets.baseline`, `rex/planner.py`, `progress.txt`, and an untracked `.txt` file
+- Files changed
+- `C:\Users\james\rex-ai-test\rex-ai-assistant\progress.txt`
+- Learnings for future iterations:
+  - Patterns discovered
+  - If `US-303` is selected again, first check whether `gui/src/main/bridgeResolver.ts`, Electron bridge handler spawn sites, bridge scripts, or `tests/test_us303_bridge_verification.py` changed before considering any revalidation
+  - Gotchas encountered
+  - The repeat-blocker guard should stop another no-op validation pass immediately when the story is already complete and only unrelated files are dirty
+  - Useful context
+  - The last successful `US-303` validation is still Iteration 75
+---
+## Iteration 80 - US-303: Repeat-blocker guard no-op
+- Story: US-303
+- What was implemented
+- No code or validation changes; the `US-303` block in `PRD.md` is still fully `[x]`, including the manual Electron verification line
+- Confirmed there are still no material changes in the `US-303` surface area: `gui/src/main/bridgeResolver.ts`, bridge spawn handlers, root `rex_*_bridge.py` scripts, and `tests/test_us303_bridge_verification.py` all remain unchanged in `git status`
+- Files changed
+- `C:\Users\james\rex-ai-test\rex-ai-assistant\progress.txt`
+- Learnings for future iterations:
+  - Patterns discovered
+  - If `US-303` is selected again, treat it as blocked unless the resolver, a bridge script, a bridge spawn site, or the acceptance criteria materially change
+  - Gotchas encountered
+  - The latest three iteration entries can still include unrelated stories, so the story-specific no-op history must be checked explicitly before rerunning validation
+  - Useful context
+  - This iteration intentionally skipped `pytest tests/test_us303_bridge_verification.py -q` and `npx tsc --noEmit` to avoid another no-op validation pass
 ---
