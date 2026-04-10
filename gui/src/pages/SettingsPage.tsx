@@ -3783,15 +3783,47 @@ function AudioOutputPanel(): React.ReactElement {
 
   function handleTestDevice(deviceId: string): void {
     setTesting(deviceId)
-    window.rex
-      .testVoice({ speakerDeviceId: deviceId } as unknown as VoiceSettings)
-      .then((res) => {
-        if (!res.ok) addToast(res.error ?? 'Test failed', 'error')
-      })
-      .catch(() => {
-        addToast('Test failed', 'error')
-      })
-      .finally(() => setTesting(null))
+    if (!deviceId.startsWith('smart:')) {
+      // Play a brief 440 Hz sine tone through the selected system output device
+      const ctx = new AudioContext()
+      const doPlay = async (): Promise<void> => {
+        try {
+          const ctxExt = ctx as AudioContext & { setSinkId?: (id: string) => Promise<void> }
+          if (deviceId && typeof ctxExt.setSinkId === 'function') {
+            await ctxExt.setSinkId(deviceId)
+          }
+          const osc = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.connect(gain)
+          gain.connect(ctx.destination)
+          osc.frequency.setValueAtTime(440, ctx.currentTime)
+          gain.gain.setValueAtTime(0.3, ctx.currentTime)
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5)
+          osc.start(ctx.currentTime)
+          osc.stop(ctx.currentTime + 0.6)
+          await new Promise<void>((resolve) => {
+            osc.onended = () => resolve()
+          })
+        } catch (err) {
+          addToast(`Test failed: ${String(err)}`, 'error')
+        } finally {
+          void ctx.close()
+          setTesting(null)
+        }
+      }
+      void doPlay()
+    } else {
+      // Smart speaker: delegate to IPC
+      window.rex
+        .testVoice({ speakerDeviceId: deviceId } as unknown as VoiceSettings)
+        .then((res) => {
+          if (!res.ok) addToast(res.error ?? 'Test failed', 'error')
+        })
+        .catch(() => {
+          addToast('Test failed', 'error')
+        })
+        .finally(() => setTesting(null))
+    }
   }
 
   const displayDevices: AudioDevice[] =

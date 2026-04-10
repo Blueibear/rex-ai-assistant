@@ -169,11 +169,11 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I want to select my audio output device and test it from Settings > Audio Output.
 
 **Acceptance Criteria:**
-- [ ] The Audio Output page loads without bridge-path errors
-- [ ] `rex_speaker_bridge.py` is called via the centralized resolver and returns available output devices
-- [ ] Selecting a device updates config
-- [ ] The "Test" button plays a short test tone through the selected device
-- [ ] Typecheck passes (Python + TS)
+- [x] The Audio Output page loads without bridge-path errors
+- [x] `rex_speaker_bridge.py` is called via the centralized resolver and returns available output devices
+- [x] Selecting a device updates config
+- [x] The "Test" button plays a short test tone through the selected device
+- [x] Typecheck passes (Python + TS)
 - [ ] Verify changes work in Electron
 
 ---
