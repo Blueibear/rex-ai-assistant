@@ -226,11 +226,11 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I want these pages to show real data or a clear "not configured" state, not fake content.
 
 **Acceptance Criteria:**
-- [ ] Calendar page calls `rex/calendar_service.py` and displays real events (or "No calendar configured")
-- [ ] Email page calls `rex/email_service.py` and displays real inbox items (or empty state)
-- [ ] SMS page calls the messaging backend and displays real threads (or empty state)
-- [ ] No hardcoded fake names, dates, or messages remain in GUI source for these pages
-- [ ] Typecheck passes
+- [x] Calendar page calls `rex/calendar_service.py` and displays real events (or "No calendar configured")
+- [x] Email page calls `rex/email_service.py` and displays real inbox items (or empty state)
+- [x] SMS page calls the messaging backend and displays real threads (or empty state)
+- [x] No hardcoded fake names, dates, or messages remain in GUI source for these pages
+- [x] Typecheck passes
 - [ ] Verify changes work in Electron
 
 ---

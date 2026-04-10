@@ -159,8 +159,9 @@ class CalendarService:
         """
         if self._provider == "google":
             return self._google_get_events(start, end)
-        events = _build_stub_events()
-        return [e for e in events if e.start < end and e.end > start]
+        # provider == "none" — not configured; return empty so the GUI
+        # can show an empty-state prompt rather than fake data.
+        return []
 
     def create_event(self, event_data: EventData) -> CalendarEvent:
         """Create a new calendar event.

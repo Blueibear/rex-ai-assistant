@@ -1083,6 +1083,139 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         ]
         return jsonify({"integrations": integrations}), 200
 
+    @app.route("/api/calendar/events", methods=["GET"])
+    def _calendar_events() -> Any:
+        """Return calendar events from the configured provider.
+
+        Query params:
+            start: ISO datetime string (defaults to now)
+            end:   ISO datetime string (defaults to 30 days from now)
+
+        Returns {"ok": true, "events": [...], "configured": bool}.
+        """
+        from datetime import UTC, datetime, timedelta
+
+        from rex.config import load_config
+        from rex.integrations.calendar_service import CalendarService
+
+        try:
+            cfg = load_config()
+        except Exception:
+            return jsonify({"ok": True, "events": [], "configured": False}), 200
+
+        provider = getattr(cfg, "calendar_provider", "none") or "none"
+        svc = CalendarService(calendar_provider=provider)
+
+        try:
+            start_str = request.args.get("start", "")
+            end_str = request.args.get("end", "")
+            start = datetime.fromisoformat(start_str) if start_str else datetime.now(UTC)
+            end = datetime.fromisoformat(end_str) if end_str else start + timedelta(days=30)
+        except ValueError:
+            start = datetime.now(UTC)
+            end = start + timedelta(days=30)
+
+        events = svc.get_events(start, end)
+        configured = provider != "none"
+
+        def _event_to_dict(e: Any) -> dict:
+            return {
+                "id": e.id,
+                "title": e.title,
+                "start": e.start.isoformat(),
+                "end": e.end.isoformat(),
+                "location": e.location,
+                "description": e.description,
+                "attendees": list(e.attendees),
+                "source": e.source,
+                "is_all_day": e.is_all_day,
+            }
+
+        return jsonify({"ok": True, "events": [_event_to_dict(e) for e in events], "configured": configured}), 200
+
+    @app.route("/api/email/inbox", methods=["GET"])
+    def _email_inbox() -> Any:
+        """Return inbox messages from the configured email provider.
+
+        Returns {"ok": true, "messages": [...], "configured": bool}.
+        """
+        from rex.config import load_config
+        from rex.integrations.email_service import EmailService
+
+        try:
+            cfg = load_config()
+        except Exception:
+            return jsonify({"ok": True, "messages": [], "configured": False}), 200
+
+        provider = getattr(cfg, "email_provider", "none") or "none"
+        svc = EmailService(email_provider=provider)
+
+        try:
+            limit = int(request.args.get("limit", 50))
+        except ValueError:
+            limit = 50
+
+        messages = svc.list_inbox(limit=limit)
+        configured = provider != "none"
+
+        def _msg_to_dict(m: Any) -> dict:
+            return {
+                "id": m.id,
+                "thread_id": m.thread_id,
+                "subject": m.subject,
+                "sender": m.sender,
+                "recipients": list(m.recipients),
+                "body_text": m.body_text,
+                "received_at": m.received_at.isoformat(),
+                "labels": list(m.labels),
+                "is_read": m.is_read,
+                "priority": m.priority,
+            }
+
+        return jsonify({"ok": True, "messages": [_msg_to_dict(m) for m in messages], "configured": configured}), 200
+
+    @app.route("/api/sms/threads", methods=["GET"])
+    def _sms_threads() -> Any:
+        """Return SMS threads from the configured provider.
+
+        Returns {"ok": true, "threads": [...], "configured": bool}.
+        """
+        import os as _os
+
+        from rex.integrations.sms_service import SMSService
+
+        sid = _os.getenv("TWILIO_ACCOUNT_SID", "")
+        token = _os.getenv("TWILIO_AUTH_TOKEN", "")
+        provider = "twilio" if (sid and token) else "none"
+        svc = SMSService(sms_provider=provider)
+
+        threads = svc.list_threads()
+        configured = provider != "none"
+
+        def _msg_to_dict(m: Any) -> dict:
+            return {
+                "id": m.id,
+                "thread_id": m.thread_id,
+                "direction": m.direction,
+                "body": m.body,
+                "from_number": m.from_number,
+                "to_number": m.to_number,
+                "sent_at": m.sent_at.isoformat(),
+                "status": m.status,
+            }
+
+        def _thread_to_dict(t: Any) -> dict:
+            return {
+                "id": t.id,
+                "contact_name": t.contact_name,
+                "contact_number": t.contact_number,
+                "messages": [_msg_to_dict(m) for m in t.messages],
+                "last_message_at": t.last_message_at.isoformat(),
+                "unread_count": t.unread_count,
+            }
+
+        return jsonify({"ok": True, "threads": [_thread_to_dict(t) for t in threads], "configured": configured}), 200
+
     @app.route("/api/capabilities", methods=["GET"])
     def _list_capabilities() -> Any:
         """Return all capabilities from the capability registry (public)."""

@@ -1,55 +1,58 @@
 import { ipcMain } from 'electron'
+import { spawn } from 'child_process'
+import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import type { CalendarEvent, CalendarEventInput, FindMeetingSlotsParams, TimeSlot } from '../../types/ipc'
 
-// Stub events returned when no real calendar credentials are configured.
-function makeStubEvents(): CalendarEvent[] {
-  const now = new Date()
-  const today = now.toISOString().slice(0, 10)
-  const inTwoDays = new Date(now)
-  inTwoDays.setDate(inTwoDays.getDate() + 2)
-  const twoDaysStr = inTwoDays.toISOString().slice(0, 10)
+// In-memory store for locally-created events (created via this GUI session).
+let localEvents: CalendarEvent[] = []
 
-  return [
-    {
-      id: 'stub-ev1',
-      title: 'Team standup',
-      start: `${today}T09:00:00.000Z`,
-      end: `${today}T09:30:00.000Z`,
-      color: '#3B82F6',
-      location: 'Zoom',
-      description: 'Daily sync with the team.',
-      attendees: ['alice@example.com', 'bob@example.com'],
-      source: 'synced'
-    },
-    {
-      id: 'stub-ev2',
-      title: 'Lunch with Alex',
-      start: `${today}T12:00:00.000Z`,
-      end: `${today}T13:00:00.000Z`,
-      color: '#22C55E',
-      location: 'The Depot Café',
-      source: 'rex'
-    },
-    {
-      id: 'stub-ev3',
-      title: 'Project review',
-      start: `${twoDaysStr}T14:00:00.000Z`,
-      end: `${twoDaysStr}T15:30:00.000Z`,
-      color: '#A855F7',
-      description: 'Quarterly review of the Rex AI roadmap.',
-      attendees: ['james@example.com', 'sarah@example.com'],
-      source: 'rex'
-    }
-  ]
+function callCalendarBridge(command: string, extra: object = {}): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const scriptPath = resolveBridgePath('rex_calendar_bridge.py')
+    const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
+
+    let stdout = ''
+    let stderr = ''
+
+    py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
+    py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+
+    py.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Calendar bridge exited ${code}: ${stderr.slice(0, 300)}`))
+        return
+      }
+      try {
+        resolve(JSON.parse(stdout.trim()))
+      } catch {
+        reject(new Error(`Failed to parse calendar bridge response: ${stdout.slice(0, 200)}`))
+      }
+    })
+
+    py.on('error', (err) => {
+      reject(new Error(`Failed to spawn calendar bridge: ${err.message}`))
+    })
+
+    py.stdin.write(JSON.stringify({ command, ...extra }))
+    py.stdin.end()
+  })
 }
 
-// In-memory store for stub calendar events (resets on restart).
-let calendarStore: CalendarEvent[] = makeStubEvents()
-
-function getCalendarEvents(_start: string, _end: string): CalendarEvent[] {
-  // Stub: returns all events regardless of range.
-  // With real credentials, filter events between start and end via CalendarService.
-  return calendarStore
+async function getCalendarEvents(start: string, end: string): Promise<CalendarEvent[]> {
+  try {
+    const result = await callCalendarBridge('list', { start, end }) as {
+      ok: boolean
+      events?: CalendarEvent[]
+      error?: string
+    }
+    if (result.ok && Array.isArray(result.events)) {
+      // Merge backend events with locally-created events for the session.
+      return [...result.events, ...localEvents]
+    }
+    return [...localEvents]
+  } catch {
+    return [...localEvents]
+  }
 }
 
 function createCalendarEvent(input: CalendarEventInput): CalendarEvent {
@@ -63,23 +66,23 @@ function createCalendarEvent(input: CalendarEventInput): CalendarEvent {
     description: input.description,
     source: 'rex'
   }
-  calendarStore = [...calendarStore, event]
+  localEvents = [...localEvents, event]
   return event
 }
 
 function updateCalendarEvent(updated: CalendarEvent): CalendarEvent {
-  calendarStore = calendarStore.map((ev) => (ev.id === updated.id ? updated : ev))
+  localEvents = localEvents.map((ev) => (ev.id === updated.id ? updated : ev))
   return updated
 }
 
 function deleteCalendarEvent(id: string): void {
-  calendarStore = calendarStore.filter((ev) => ev.id !== id)
+  localEvents = localEvents.filter((ev) => ev.id !== id)
 }
 
 export function registerCalendarHandlers(): void {
   ipcMain.handle(
     'rex:getCalendarEvents',
-    (_event, start: string, end: string): CalendarEvent[] => {
+    async (_event, start: string, end: string): Promise<CalendarEvent[]> => {
       return getCalendarEvents(start, end)
     }
   )
@@ -105,8 +108,7 @@ export function registerCalendarHandlers(): void {
   ipcMain.handle(
     'rex:findMeetingSlots',
     (_event, params: FindMeetingSlotsParams): TimeSlot[] => {
-      // Stub: returns 3 future slots spaced 2 hours apart starting from earliest.
-      // With real credentials this would call SchedulingEngine.find_slots() via Python.
+      // Returns 3 future slots spaced 2 hours apart starting from earliest.
       const base = new Date(params.earliest)
       base.setMinutes(0, 0, 0)
       base.setHours(base.getHours() + 1)

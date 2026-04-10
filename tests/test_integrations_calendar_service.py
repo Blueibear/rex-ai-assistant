@@ -1,4 +1,8 @@
-"""Unit tests for rex.integrations.calendar_service — stub mode."""
+"""Unit tests for rex.integrations.calendar_service.
+
+When calendar_provider='none' (not configured), get_events() returns an empty
+list so the GUI can show an empty-state prompt instead of fake data.
+"""
 
 from __future__ import annotations
 
@@ -9,38 +13,34 @@ from rex.integrations.models import CalendarEvent
 
 
 class TestCalendarServiceStub:
-    """Tests for CalendarService running in stub mode (calendar_provider='none')."""
+    """Tests for CalendarService running in 'none' (unconfigured) mode."""
 
     def setup_method(self) -> None:
         self.service = CalendarService(calendar_provider="none")
 
     # ------------------------------------------------------------------
-    # get_events
+    # get_events — returns empty when not configured
     # ------------------------------------------------------------------
 
     def test_get_events_returns_list(self) -> None:
         now = datetime.now(timezone.utc)
         events = self.service.get_events(now, now + timedelta(days=14))
         assert isinstance(events, list)
-        assert len(events) > 0
-        assert all(isinstance(e, CalendarEvent) for e in events)
 
-    def test_get_events_count_within_two_weeks(self) -> None:
+    def test_get_events_empty_when_not_configured(self) -> None:
+        """US-315: provider='none' must return [] not stub data."""
         now = datetime.now(timezone.utc)
         events = self.service.get_events(now, now + timedelta(days=14))
-        # Stub has 8 events spanning ~12 days; most should appear in a 2-week window
-        assert len(events) >= 5
+        assert events == []
 
     def test_get_events_respects_window(self) -> None:
         now = datetime.now(timezone.utc)
-        # Request a tiny 1-hour window far in the future — no stub events should match
         far_future = now + timedelta(days=365)
         events = self.service.get_events(far_future, far_future + timedelta(hours=1))
         assert events == []
 
     def test_get_events_start_less_than_end_required(self) -> None:
         now = datetime.now(timezone.utc)
-        # start == end: no events overlap (start < end is False for all)
         events = self.service.get_events(now, now)
         assert events == []
 
@@ -103,11 +103,11 @@ class TestCalendarServiceStub:
     def test_update_event_returns_calendar_event(self) -> None:
         now = datetime.now(timezone.utc)
         event = self.service.update_event(
-            "stub-cal-001",
+            "cal-001",
             {"title": "Updated meeting", "start": now, "end": now + timedelta(hours=1)},
         )
         assert isinstance(event, CalendarEvent)
-        assert event.id == "stub-cal-001"
+        assert event.id == "cal-001"
         assert event.title == "Updated meeting"
 
     # ------------------------------------------------------------------
@@ -115,17 +115,17 @@ class TestCalendarServiceStub:
     # ------------------------------------------------------------------
 
     def test_delete_event_does_not_raise(self) -> None:
-        # Stub mode is a no-op — should not raise
-        self.service.delete_event("stub-cal-001")
+        self.service.delete_event("cal-001")
 
     # ------------------------------------------------------------------
-    # model round-trip
+    # model round-trip (using create_event to obtain an instance)
     # ------------------------------------------------------------------
 
     def test_calendar_event_model_dump_round_trip(self) -> None:
         now = datetime.now(timezone.utc)
-        events = self.service.get_events(now, now + timedelta(days=14))
-        assert events
-        dumped = events[0].model_dump()
+        event = self.service.create_event(
+            {"title": "Round trip", "start": now, "end": now + timedelta(hours=1)}
+        )
+        dumped = event.model_dump()
         restored = CalendarEvent(**dumped)
-        assert restored == events[0]
+        assert restored == event

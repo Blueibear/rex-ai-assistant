@@ -1,119 +1,95 @@
 import { ipcMain } from 'electron'
+import { spawn } from 'child_process'
+import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 import type { SMSMessage, SMSThread } from '../../types/ipc'
 
-function makeStubThreads(): SMSThread[] {
-  const now = new Date()
-  function minsAgo(m: number): string {
-    return new Date(now.getTime() - m * 60 * 1000).toISOString()
-  }
+// In-memory store for messages sent during this session.
+let sessionThreads: SMSThread[] = []
 
-  const aliceMessages: SMSMessage[] = [
-    {
-      id: 'sms-alice-001',
-      thread_id: 'thread-alice',
-      direction: 'inbound',
-      body: 'Hey, are you free for a call tomorrow?',
-      from_number: '+14155550101',
-      to_number: '+15559876543',
-      sent_at: minsAgo(30),
-      status: 'delivered'
-    },
-    {
-      id: 'sms-alice-002',
-      thread_id: 'thread-alice',
-      direction: 'outbound',
-      body: 'Sure, how about 3pm?',
-      from_number: '+15559876543',
-      to_number: '+14155550101',
-      sent_at: minsAgo(25),
-      status: 'delivered'
-    },
-    {
-      id: 'sms-alice-003',
-      thread_id: 'thread-alice',
-      direction: 'inbound',
-      body: 'Perfect, talk then!',
-      from_number: '+14155550101',
-      to_number: '+15559876543',
-      sent_at: minsAgo(20),
-      status: 'delivered'
-    }
-  ]
+function callSmsBridge(command: string, extra: object = {}): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const scriptPath = resolveBridgePath('rex_sms_bridge.py')
+    const py = spawn(resolvePythonCommand(), [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] })
 
-  const bobMessages: SMSMessage[] = [
-    {
-      id: 'sms-bob-001',
-      thread_id: 'thread-bob',
-      direction: 'inbound',
-      body: "Don't forget the team lunch at noon.",
-      from_number: '+14155550202',
-      to_number: '+15559876543',
-      sent_at: minsAgo(120),
-      status: 'delivered'
-    },
-    {
-      id: 'sms-bob-002',
-      thread_id: 'thread-bob',
-      direction: 'outbound',
-      body: 'Thanks for the reminder, see you there!',
-      from_number: '+15559876543',
-      to_number: '+14155550202',
-      sent_at: minsAgo(115),
-      status: 'delivered'
-    }
-  ]
+    let stdout = ''
+    let stderr = ''
 
-  return [
-    {
-      id: 'thread-alice',
-      contact_name: 'Alice',
-      contact_number: '+14155550101',
-      messages: aliceMessages,
-      last_message_at: aliceMessages[aliceMessages.length - 1].sent_at,
-      unread_count: 1
-    },
-    {
-      id: 'thread-bob',
-      contact_name: 'Bob',
-      contact_number: '+14155550202',
-      messages: bobMessages,
-      last_message_at: bobMessages[bobMessages.length - 1].sent_at,
-      unread_count: 0
-    }
-  ]
+    py.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString() })
+    py.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+
+    py.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`SMS bridge exited ${code}: ${stderr.slice(0, 300)}`))
+        return
+      }
+      try {
+        resolve(JSON.parse(stdout.trim()))
+      } catch {
+        reject(new Error(`Failed to parse SMS bridge response: ${stdout.slice(0, 200)}`))
+      }
+    })
+
+    py.on('error', (err) => {
+      reject(new Error(`Failed to spawn SMS bridge: ${err.message}`))
+    })
+
+    py.stdin.write(JSON.stringify({ command, ...extra }))
+    py.stdin.end()
+  })
 }
 
-// In-memory thread store (resets on restart).
-let smsThreads: SMSThread[] = makeStubThreads()
-
-export function registerSMSHandlers(): void {
-  ipcMain.handle('rex:getSMSThreads', (): SMSThread[] => {
-    return [...smsThreads].sort(
+async function getSMSThreads(): Promise<SMSThread[]> {
+  try {
+    const result = await callSmsBridge('list_threads') as {
+      ok: boolean
+      threads?: SMSThread[]
+      error?: string
+    }
+    const backendThreads = result.ok && Array.isArray(result.threads) ? result.threads : []
+    // Merge backend threads with any locally-sent messages this session.
+    const merged = [...backendThreads]
+    for (const local of sessionThreads) {
+      if (!merged.find((t) => t.id === local.id)) {
+        merged.push(local)
+      }
+    }
+    return merged.sort(
       (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
     )
+  } catch {
+    return [...sessionThreads].sort(
+      (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+    )
+  }
+}
+
+export function registerSMSHandlers(): void {
+  ipcMain.handle('rex:getSMSThreads', async (): Promise<SMSThread[]> => {
+    return getSMSThreads()
   })
 
-  ipcMain.handle('rex:getSMSThread', (_event, threadId: string): SMSThread | undefined => {
-    return smsThreads.find((t) => t.id === threadId)
+  ipcMain.handle('rex:getSMSThread', async (_event, threadId: string): Promise<SMSThread | undefined> => {
+    const threads = await getSMSThreads()
+    return threads.find((t) => t.id === threadId)
   })
 
   ipcMain.handle('rex:sendSMS', (_event, to: string, body: string): SMSMessage => {
     const now = new Date().toISOString()
     const threadId = `thread-${to.replace(/\D/g, '')}`
     const newMsg: SMSMessage = {
-      id: `stub-${Date.now()}`,
+      id: `outbound-${Date.now()}`,
       thread_id: threadId,
       direction: 'outbound',
       body,
-      from_number: '+15559876543',
+      from_number: '',
       to_number: to,
       sent_at: now,
-      status: 'stub'
+      status: 'sent'
     }
 
-    const existing = smsThreads.find((t) => t.id === threadId)
+    const existing = sessionThreads.find((t) => t.id === threadId)
     if (existing) {
-      smsThreads = smsThreads.map((t) =>
+      sessionThreads = sessionThreads.map((t) =>
         t.id === threadId
           ? { ...t, messages: [...t.messages, newMsg], last_message_at: now }
           : t
@@ -127,7 +103,7 @@ export function registerSMSHandlers(): void {
         last_message_at: now,
         unread_count: 0
       }
-      smsThreads = [...smsThreads, newThread]
+      sessionThreads = [...sessionThreads, newThread]
     }
 
     return newMsg

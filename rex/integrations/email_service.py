@@ -119,13 +119,16 @@ class EmailService:
 
         Returns:
             List of :class:`~rex.integrations.models.EmailMessage` objects,
-            newest first.
+            newest first.  Returns an empty list when no provider is
+            configured.
         """
         if self._provider == "gmail":
             return self._gmail_list_inbox(limit)
         if self._provider == "outlook":
-            logger.warning("Outlook live mode not yet implemented; falling back to stub.")
-        return _STUB_MESSAGES[:limit]
+            logger.warning("Outlook live mode not yet implemented.")
+        # provider == "none" — not configured; return empty so the GUI
+        # can show an empty-state prompt rather than fake data.
+        return []
 
     def get_thread(self, thread_id: str) -> list[EmailMessage]:
         """Return all messages in a thread.
@@ -139,8 +142,8 @@ class EmailService:
         if self._provider == "gmail":
             return self._gmail_get_thread(thread_id)
         if self._provider == "outlook":
-            logger.warning("Outlook live mode not yet implemented; falling back to stub.")
-        return [m for m in _STUB_MESSAGES if m.thread_id == thread_id]
+            logger.warning("Outlook live mode not yet implemented.")
+        return []
 
     def send_draft(self, to: str, subject: str, body: str) -> EmailMessage:
         """Create and send an email draft.

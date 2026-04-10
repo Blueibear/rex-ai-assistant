@@ -1,4 +1,8 @@
-"""Unit tests for rex.integrations.sms_service — stub mode."""
+"""Unit tests for rex.integrations.sms_service.
+
+When sms_provider='none' (not configured), list_threads() returns an empty
+list so the GUI can show an empty-state prompt instead of fake data.
+"""
 
 from __future__ import annotations
 
@@ -9,23 +13,23 @@ from rex.integrations.sms_service import SMSService
 
 
 class TestSMSServiceStub:
-    """Tests for SMSService running in stub mode (sms_provider='none')."""
+    """Tests for SMSService running in 'none' (unconfigured) mode."""
 
     def setup_method(self) -> None:
         self.service = SMSService(sms_provider="none")
 
     # ------------------------------------------------------------------
-    # list_threads
+    # list_threads — returns empty when not configured
     # ------------------------------------------------------------------
 
     def test_list_threads_returns_list(self) -> None:
         threads = self.service.list_threads()
         assert isinstance(threads, list)
-        assert len(threads) > 0
 
-    def test_list_threads_returns_two_stubs(self) -> None:
+    def test_list_threads_empty_when_not_configured(self) -> None:
+        """US-315: provider='none' must return [] not stub data."""
         threads = self.service.list_threads()
-        assert len(threads) == 2
+        assert threads == []
 
     def test_list_threads_all_sms_thread(self) -> None:
         threads = self.service.list_threads()
@@ -34,7 +38,7 @@ class TestSMSServiceStub:
     def test_list_threads_each_has_messages(self) -> None:
         threads = self.service.list_threads()
         for t in threads:
-            assert len(t.messages) > 0
+            assert len(t.messages) >= 0
 
     def test_list_threads_messages_are_sms_message(self) -> None:
         threads = self.service.list_threads()
@@ -42,14 +46,8 @@ class TestSMSServiceStub:
             assert all(isinstance(m, SMSMessage) for m in t.messages)
 
     # ------------------------------------------------------------------
-    # get_thread
+    # get_thread — raises KeyError when not configured (no threads)
     # ------------------------------------------------------------------
-
-    def test_get_thread_returns_matching_thread(self) -> None:
-        threads = self.service.list_threads()
-        first = threads[0]
-        found = self.service.get_thread(first.id)
-        assert found.id == first.id
 
     def test_get_thread_raises_for_unknown_id(self) -> None:
         with pytest.raises(KeyError):
@@ -84,10 +82,20 @@ class TestSMSServiceStub:
         assert msg.id != ""
 
     # ------------------------------------------------------------------
-    # Model round-trip
+    # Model round-trip (using send to obtain an instance)
     # ------------------------------------------------------------------
 
     def test_thread_model_dump_round_trip(self) -> None:
-        thread = self.service.list_threads()[0]
+        # Build a minimal thread to test model round-trip
+        from datetime import UTC, datetime
+
+        thread = SMSThread(
+            id="thread-test",
+            contact_name="Test",
+            contact_number="+14155559999",
+            messages=[],
+            last_message_at=datetime.now(UTC),
+            unread_count=0,
+        )
         restored = SMSThread(**thread.model_dump())
         assert restored == thread

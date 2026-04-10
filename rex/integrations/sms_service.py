@@ -161,7 +161,9 @@ class SMSService:
         """
         if self._provider == "twilio" and self._sid and self._token:
             return self._twilio_list_threads()
-        return _build_stub_threads()
+        # provider == "none" or missing credentials — return empty so the
+        # GUI can show an empty-state prompt rather than fake data.
+        return []
 
     def get_thread(self, thread_id: str) -> SMSThread:
         """Return a single thread by its identifier.
