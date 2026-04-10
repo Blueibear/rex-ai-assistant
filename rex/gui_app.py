@@ -1003,7 +1003,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
     @app.route("/api/integrations", methods=["GET"])
     def _list_integrations() -> Any:
-        """Return configured integrations with their status (public)."""
+        """Return configured integrations with status and configure_url (public)."""
         from rex.config import load_config
 
         try:
@@ -1011,46 +1011,74 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         except Exception:
             return jsonify({"integrations": []}), 200
 
+        search_configured = bool(
+            os.getenv("SERPAPI_API_KEY")
+            or os.getenv("BRAVE_API_KEY")
+            or os.getenv("GOOGLE_CSE_ID")
+        )
+
         integrations = [
             {
                 "name": "Home Assistant",
                 "key": "home_assistant",
                 "configured": bool(cfg.ha_base_url and cfg.ha_token),
-            },
-            {
-                "name": "OpenAI",
-                "key": "openai",
-                "configured": bool(cfg.openai_api_key),
-            },
-            {
-                "name": "Anthropic",
-                "key": "anthropic",
-                "configured": bool(cfg.anthropic_api_key),
-            },
-            {
-                "name": "Ollama",
-                "key": "ollama",
-                "configured": bool(cfg.ollama_base_url),
-            },
-            {
-                "name": "Telegram",
-                "key": "telegram",
-                "configured": bool(cfg.telegram_bot_token and cfg.telegram_chat_id),
-            },
-            {
-                "name": "Music Assistant",
-                "key": "music_assistant",
-                "configured": bool(cfg.music_assistant_url),
+                "configure_url": "/settings/home-assistant",
             },
             {
                 "name": "Email",
                 "key": "email",
                 "configured": cfg.email_provider not in ("none", ""),
+                "configure_url": "/settings?section=integrations",
+            },
+            {
+                "name": "Calendar",
+                "key": "calendar",
+                "configured": False,
+                "configure_url": "/settings?section=integrations",
+            },
+            {
+                "name": "SMS (Twilio)",
+                "key": "sms",
+                "configured": bool(
+                    os.getenv("TWILIO_ACCOUNT_SID") or os.getenv("TWILIO_AUTH_TOKEN")
+                ),
+                "configure_url": "/settings?section=integrations",
+            },
+            {
+                "name": "Telegram",
+                "key": "telegram",
+                "configured": bool(cfg.telegram_bot_token and cfg.telegram_chat_id),
+                "configure_url": "/settings?section=integrations",
+            },
+            {
+                "name": "Web Search",
+                "key": "search",
+                "configured": search_configured,
+                "configure_url": "/settings?section=ai",
+            },
+            {
+                "name": "MQTT",
+                "key": "mqtt",
+                "configured": bool(os.getenv("MQTT_BROKER_HOST")),
+                "configure_url": "/settings?section=integrations",
+            },
+            {
+                "name": "OpenAI",
+                "key": "openai",
+                "configured": bool(cfg.openai_api_key),
+                "configure_url": "/settings?section=ai",
+            },
+            {
+                "name": "Ollama",
+                "key": "ollama",
+                "configured": bool(cfg.ollama_base_url),
+                "configure_url": "/settings?section=ai",
             },
             {
                 "name": "Push Notifications",
                 "key": "push",
                 "configured": bool(cfg.push_provider and cfg.push_token),
+                "configure_url": "/settings?section=integrations",
             },
         ]
         return jsonify({"integrations": integrations}), 200

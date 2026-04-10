@@ -208,12 +208,12 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I want the Integrations page to show real status and link to the correct config pages.
 
 **Acceptance Criteria:**
-- [ ] The page queries the backend for configured integrations (email, calendar, SMS, MQTT, HA, Telegram, search)
-- [ ] Each integration shows: name, status (configured/not configured), and a "Configure" link to the correct Settings sub-page
-- [ ] "No integrations found" only appears when genuinely none are configured
-- [ ] "No capabilities found" section is removed or populated from `rex/capabilities/`
-- [ ] The "Configure" link for HA goes to the HA settings page (not Settings > General)
-- [ ] Typecheck passes
+- [x] The page queries the backend for configured integrations (email, calendar, SMS, MQTT, HA, Telegram, search)
+- [x] Each integration shows: name, status (configured/not configured), and a "Configure" link to the correct Settings sub-page
+- [x] "No integrations found" only appears when genuinely none are configured
+- [x] "No capabilities found" section is removed or populated from `rex/capabilities/`
+- [x] The "Configure" link for HA goes to the HA settings page (not Settings > General)
+- [x] Typecheck passes
 - [ ] Verify changes work in Electron
 
 ---
