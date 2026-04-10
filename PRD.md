@@ -195,11 +195,11 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user with Home Assistant configured, I want a dashboard page showing HA device states.
 
 **Acceptance Criteria:**
-- [ ] A "Home Assistant" page exists in the GUI sidebar
-- [ ] If HA is not configured, the page shows a message with a link to the correct Settings page (not Settings > General)
-- [ ] If HA is configured, the page fetches and displays device states (entity name, state, last updated)
-- [ ] The page has a manual refresh button
-- [ ] Typecheck passes (Python + TS)
+- [x] A "Home Assistant" page exists in the GUI sidebar
+- [x] If HA is not configured, the page shows a message with a link to the correct Settings page (not Settings > General)
+- [x] If HA is configured, the page fetches and displays device states (entity name, state, last updated)
+- [x] The page has a manual refresh button
+- [x] Typecheck passes (Python + TS)
 - [ ] Verify changes work in Electron
 
 ---

@@ -26,6 +26,7 @@ import { IntegrationsPage } from '../../pages/IntegrationsPage'
 import { AboutPage } from '../../pages/AboutPage'
 import { SetupWizardPage } from '../../pages/SetupWizardPage'
 import { HomeAssistantSettingsPage } from '../../pages/HomeAssistantSettingsPage'
+import { HomeAssistantPage } from '../../pages/HomeAssistantPage'
 import { DevicesPage } from '../../pages/DevicesPage'
 import { CommandHistoryPage } from '../../pages/CommandHistoryPage'
 import { QuickActionsPage } from '../../pages/QuickActionsPage'
@@ -124,6 +125,7 @@ function AppShell(): React.ReactElement {
           <Route path="/usage" element={<ErrorBoundary><UsagePage /></ErrorBoundary>} />
           <Route path="/integrations" element={<ErrorBoundary><IntegrationsPage /></ErrorBoundary>} />
           <Route path="/settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
+          <Route path="/home-assistant" element={<ErrorBoundary><HomeAssistantPage /></ErrorBoundary>} />
           <Route path="/settings/home-assistant" element={<ErrorBoundary><HomeAssistantSettingsPage /></ErrorBoundary>} />
           <Route path="/quick-actions" element={<ErrorBoundary><QuickActionsPage /></ErrorBoundary>} />
           <Route path="/about" element={<ErrorBoundary><AboutPage /></ErrorBoundary>} />

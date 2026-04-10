@@ -791,6 +791,71 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
         return jsonify({"ok": True}), 200
 
+    @app.route("/api/ha/states", methods=["GET"])
+    def _ha_get_states() -> Any:
+        """Return all entity states from Home Assistant.
+
+        Uses credentials from the current AppConfig (``ha_base_url`` and
+        ``ha_token``).  Returns::
+
+            {
+              "ok": true,
+              "states": [
+                {"entity_id": "light.kitchen", "state": "on",
+                 "friendly_name": "Kitchen Light", "last_updated": "2024-..."}
+              ]
+            }
+
+        Returns ``{"ok": false, "not_configured": true}`` when HA is not set up.
+        """
+        import json
+        import ssl
+        import urllib.error
+        import urllib.request
+
+        cfg = load_config()
+        base_url = (cfg.ha_base_url or "").rstrip("/")
+        token = cfg.ha_token or ""
+
+        if not base_url:
+            return jsonify({"ok": False, "not_configured": True,
+                            "error": "Home Assistant is not configured"}), 200
+
+        url = f"{base_url}/api/states"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+        req = urllib.request.Request(url, headers=headers, method="GET")
+
+        ssl_ctx: ssl.SSLContext | None = None
+        if not cfg.ha_verify_ssl:
+            ssl_ctx = ssl.create_default_context()
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = ssl.CERT_NONE
+
+        try:
+            with urllib.request.urlopen(req, timeout=cfg.ha_timeout, context=ssl_ctx) as resp:
+                raw_states: list[dict[str, Any]] = json.loads(resp.read().decode())
+        except urllib.error.HTTPError as exc:
+            return jsonify({"ok": False, "error": f"HA returned HTTP {exc.code}"}), 200
+        except Exception as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 200
+
+        states = [
+            {
+                "entity_id": s.get("entity_id", ""),
+                "state": str(s.get("state", "unknown")),
+                "friendly_name": s.get("attributes", {}).get(
+                    "friendly_name", s.get("entity_id", "")
+                ),
+                "last_updated": s.get("last_updated", ""),
+            }
+            for s in raw_states
+            if isinstance(s, dict)
+        ]
+        return jsonify({"ok": True, "states": states}), 200
+
     # ------------------------------------------------------------------
     # Quick actions API (US-063)
     # ------------------------------------------------------------------
