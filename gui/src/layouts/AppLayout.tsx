@@ -4,6 +4,8 @@ import { useNotificationsStore } from '../store/notificationsStore'
 import { useGlobalShortcuts } from '../hooks/useGlobalShortcuts'
 import { HelpOverlay } from '../components/HelpOverlay'
 import { Tooltip } from '../components/ui/Tooltip'
+import brandIcon from '../assets/brand-icon.png'
+import brandWordmark from '../assets/brand-wordmark-light.png'
 
 type RexStatusValue = 'idle' | 'listening' | 'thinking' | 'executing' | 'done' | 'error'
 
@@ -368,14 +370,17 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
       >
         {/* Logo / wordmark */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-border">
-          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-              <circle cx="9" cy="9" r="7" stroke="white" strokeWidth="2" />
-              <path d="M6 9h6M9 6v6" stroke="white" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </div>
+          <img
+            src={brandIcon}
+            alt="AskRex Assistant"
+            className="flex-shrink-0 w-8 h-8 rounded-lg object-contain"
+          />
           {!narrow && (
-            <span className="text-text-primary font-semibold text-lg tracking-tight">AskRex</span>
+            <img
+              src={brandWordmark}
+              alt="AskRex Assistant"
+              className="h-6 object-contain"
+            />
           )}
         </div>
 

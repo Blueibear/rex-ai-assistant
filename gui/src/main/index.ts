@@ -647,8 +647,8 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
 
 function createWindow(): BrowserWindow {
   const appIconPath = app.isPackaged
-    ? join(process.resourcesPath, 'assets', 'tray-icon-32.png')
-    : join(__dirname, '../../../../assets', 'tray-icon-32.png')
+    ? join(process.resourcesPath, 'assets', 'brand', 'icon-square.png')
+    : join(__dirname, '../../../../assets', 'brand', 'icon-square.png')
 
   const mainWindow = new BrowserWindow({
     width: 1200,

@@ -312,11 +312,11 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I want consistent AskRex branding across the GUI, system tray, and window title.
 
 **Acceptance Criteria:**
-- [ ] GUI window title uses the canonical product name from `docs/BRANDING.md`
-- [ ] System tray icon uses the official AskRex icon asset from `assets/brand/`
-- [ ] The GUI sidebar or header shows the AskRex logo from `assets/brand/`
-- [ ] If branding assets do not exist yet, placeholder assets are created in `assets/brand/` with clear TODO comments
-- [ ] Typecheck passes
+- [x] GUI window title uses the canonical product name from `docs/BRANDING.md`
+- [x] System tray icon uses the official AskRex icon asset from `assets/brand/`
+- [x] The GUI sidebar or header shows the AskRex logo from `assets/brand/`
+- [x] If branding assets do not exist yet, placeholder assets are created in `assets/brand/` with clear TODO comments
+- [x] Typecheck passes
 - [ ] Verify changes work in Electron
 
 ---

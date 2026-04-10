@@ -4,14 +4,14 @@ import { join } from 'path'
 let tray: Tray | null = null
 let isQuitting = false
 
-/** Resolve the path to a tray icon asset for the given pixel size. */
-function getIconPath(size: 16 | 32): string {
-  // Packed app: assets live in process.resourcesPath/assets/
-  // Dev:        assets live at gui/assets/ (four levels up from compiled main/index.js)
+/** Resolve the path to the AskRex tray icon. */
+function getIconPath(): string {
+  // Packed app: assets live in process.resourcesPath/assets/brand/
+  // Dev:        assets live at ../../assets/brand/ (four levels up from compiled main/index.js)
   const assetsBase = app.isPackaged
-    ? join(process.resourcesPath, 'assets')
-    : join(__dirname, '../../../../assets')
-  return join(assetsBase, `tray-icon-${size}.png`)
+    ? join(process.resourcesPath, 'assets', 'brand')
+    : join(__dirname, '../../../../assets', 'brand')
+  return join(assetsBase, 'icon-circle.png')
 }
 
 function buildContextMenu(mainWindow: BrowserWindow): Menu {
@@ -52,7 +52,7 @@ function buildContextMenu(mainWindow: BrowserWindow): Menu {
 }
 
 export function createTray(mainWindow: BrowserWindow): void {
-  const icon = nativeImage.createFromPath(getIconPath(32))
+  const icon = nativeImage.createFromPath(getIconPath())
 
   tray = new Tray(icon)
   tray.setToolTip('AskRex Assistant')
