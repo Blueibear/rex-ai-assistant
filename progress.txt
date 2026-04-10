@@ -9,6 +9,21 @@
 
 ---
 
+## Iteration 72 - US-323: Log rotation and session separation
+- Updated `rex/logging_utils.py`: `backupCount=5` → `3` (both file_handler and error_handler)
+- Updated `rex/logging_config.py`: `MAX_BYTES = 10_000_000` → `5_000_000`, `BACKUP_COUNT = 5` → `3`
+- Added session-start marker in both `configure_logging()` and `setup_file_logging()`:
+  - Only emits when `RotatingFileHandler`s are present (avoids polluting test stream output)
+  - Format: `=== Rex session started at <ISO-timestamp> ===` via `logger.info()`
+- Updated tests: `test_backup_count_is_5` → `test_backup_count_is_3`, `test_max_bytes_is_10mb` → `test_max_bytes_is_5mb`
+- Added 2 new tests for session-start marker in `test_us070_structured_logging.py`
+- Files changed: `rex/logging_utils.py`, `rex/logging_config.py`, `tests/test_log001_structured_logging.py`, `tests/test_us070_structured_logging.py`, `PRD.md`
+- Learnings:
+  - Session marker must only emit when file handlers are present — stream handlers in tests would fail JSON-parsing tests otherwise
+  - Use `logging.getLogger(__name__).info()` so marker goes through formatter and stays JSON-parseable
+  - `test_us017_stt_backend.py` failures are pre-existing and unrelated to logging changes
+---
+
 ## Iteration 71 - US-322: AskRex branding assets in GUI and desktop surfaces
 - Copied `assets/brand/icon-circle.png` → `gui/src/renderer/src/assets/brand-icon.png` (sidebar narrow icon)
 - Copied `assets/brand/wordmark-light.png` → `gui/src/renderer/src/assets/brand-wordmark-light.png` (sidebar wide logo)
