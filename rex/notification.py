@@ -85,6 +85,14 @@ class NotificationRequest(BaseModel):
         default=None,
         description="Optional idempotency key to prevent duplicate delivery.",
     )
+    action_url: str | None = Field(
+        default=None,
+        description="Optional URL or app route for the user to act on this notification.",
+    )
+    action_label: str | None = Field(
+        default=None,
+        description="Human-readable label for the action button (e.g. 'Configure Voice').",
+    )
     metadata: dict = Field(
         default_factory=dict,
         description="Additional metadata for the notification",

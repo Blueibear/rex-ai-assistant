@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { GuiNotification, NotificationPriority } from '../types/ipc'
 import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
 import { useNotificationsStore } from '../store/notificationsStore'
@@ -129,13 +130,15 @@ interface NotificationDetailPanelProps {
   onClose: () => void
   onMarkRead: (id: string) => void
   onDismiss: (id: string) => void
+  onNavigate: (url: string) => void
 }
 
 function NotificationDetailPanel({
   notification,
   onClose,
   onMarkRead,
-  onDismiss
+  onDismiss,
+  onNavigate
 }: NotificationDetailPanelProps): React.ReactElement {
   const panelRef = useRef<HTMLDivElement>(null)
   const isOpen = notification !== null
@@ -228,6 +231,17 @@ function NotificationDetailPanel({
               </div>
             </div>
             <div className="shrink-0 px-4 py-4 border-t border-border space-y-2">
+              {notification.action_url && notification.action_label && (
+                <button
+                  onClick={() => {
+                    onNavigate(notification.action_url!)
+                    onClose()
+                  }}
+                  className="w-full px-3 py-2 rounded text-sm font-medium bg-accent text-white hover:bg-accent/90 transition-colors"
+                >
+                  {notification.action_label}
+                </button>
+              )}
               <div className="flex gap-2">
                 <button
                   onClick={() => onMarkRead(notification.id)}
@@ -238,7 +252,7 @@ function NotificationDetailPanel({
                 </button>
                 <button
                   onClick={() => onDismiss(notification.id)}
-                  className="flex-1 px-3 py-2 rounded text-sm font-medium bg-accent text-white hover:bg-accent/90 transition-colors"
+                  className="flex-1 px-3 py-2 rounded text-sm font-medium bg-surface-raised text-text-primary hover:bg-border transition-colors"
                 >
                   Dismiss
                 </button>
@@ -252,6 +266,7 @@ function NotificationDetailPanel({
 }
 
 export function NotificationsPage(): React.ReactElement {
+  const navigate = useNavigate()
   const [notifications, setNotifications] = useState<GuiNotification[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -387,6 +402,7 @@ export function NotificationsPage(): React.ReactElement {
         onClose={() => setSelected(null)}
         onMarkRead={(id) => void handleMarkRead(id)}
         onDismiss={(id) => void handleDismiss(id)}
+        onNavigate={(url) => navigate(url)}
       />
     </div>
   )

@@ -317,6 +317,8 @@ export interface GuiNotification {
   delivered_at?: string
   read_at?: string
   escalation_due_at?: string
+  action_url?: string
+  action_label?: string
 }
 
 export interface SMSThread {

@@ -14,37 +14,43 @@ function makeStubNotifications(): GuiNotification[] {
   return [
     {
       id: 'notif-001',
-      title: 'Urgent: Server disk usage at 95%',
-      body: 'The production server disk is at 95% capacity. Immediate action required to prevent service disruption.',
+      title: 'TTS not configured',
+      body: 'Voice output is not set up. Rex cannot speak responses until a TTS engine is configured.',
       source: 'system',
       priority: 'critical',
       channel: 'desktop',
       digest_eligible: false,
       quiet_hours_exempt: true,
       created_at: minsAgo(5),
-      escalation_due_at: minsFromNow(25)
+      escalation_due_at: minsFromNow(25),
+      action_url: '/settings/voice',
+      action_label: 'Configure Voice'
     },
     {
       id: 'notif-002',
-      title: 'Meeting starting in 15 minutes',
-      body: 'Your weekly standup with the engineering team starts at 10:00 AM.',
-      source: 'calendar',
+      title: 'Profile missing',
+      body: 'The default user profile could not be found. Rex may not personalise responses correctly.',
+      source: 'system',
       priority: 'high',
       channel: 'desktop',
       digest_eligible: false,
       quiet_hours_exempt: false,
-      created_at: minsAgo(3)
+      created_at: minsAgo(3),
+      action_url: '/settings/users',
+      action_label: 'Manage Profiles'
     },
     {
       id: 'notif-003',
-      title: 'Email from Sarah Johnson',
-      body: 'Sarah replied to your proposal. She has a few questions about the timeline and budget estimates.',
-      source: 'email',
+      title: 'Integration error: Home Assistant',
+      body: 'Rex could not connect to Home Assistant. Check your HA URL and token in Settings.',
+      source: 'system',
       priority: 'medium',
       channel: 'desktop',
       digest_eligible: false,
       quiet_hours_exempt: false,
-      created_at: minsAgo(45)
+      created_at: minsAgo(45),
+      action_url: '/settings/home-assistant',
+      action_label: 'Fix Integration'
     },
     {
       id: 'notif-004',

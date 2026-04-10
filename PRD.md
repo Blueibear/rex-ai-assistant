@@ -286,10 +286,10 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, when Rex shows a notification requiring action, I want it to include what to do and where to go.
 
 **Acceptance Criteria:**
-- [ ] `rex/notification.py` supports `action_url` and `action_label` fields on notifications
-- [ ] The GUI notification component renders action links when present
-- [ ] At least three existing notification types include actionable links (e.g., "TTS not configured", "Profile missing", "Integration error")
-- [ ] Typecheck passes
+- [x] `rex/notification.py` supports `action_url` and `action_label` fields on notifications
+- [x] The GUI notification component renders action links when present
+- [x] At least three existing notification types include actionable links (e.g., "TTS not configured", "Profile missing", "Integration error")
+- [x] Typecheck passes
 - [ ] Verify changes work in Electron
 
 ---
