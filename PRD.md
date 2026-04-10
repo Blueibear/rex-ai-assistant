@@ -368,13 +368,13 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a developer, I want a basic plan-and-execute framework so multi-step user requests can be decomposed.
 
 **Acceptance Criteria:**
-- [ ] `rex/planner.py` exposes `create_plan(goal: str) -> list[Step]` and `execute_plan(steps: list[Step]) -> Result`
-- [ ] `Step` is a dataclass with `description`, `tool` (optional), and `status`
-- [ ] `create_plan` calls the LLM to decompose a goal into steps
-- [ ] `execute_plan` iterates steps, calling tools where specified, updating status
-- [ ] At least one integration test demonstrates plan creation and execution
-- [ ] Typecheck passes
-- [ ] Tests pass (`pytest tests/ -q -k planner`)
+- [x] `rex/planner.py` exposes `create_plan(goal: str) -> list[Step]` and `execute_plan(steps: list[Step]) -> Result`
+- [x] `Step` is a dataclass with `description`, `tool` (optional), and `status`
+- [x] `create_plan` calls the LLM to decompose a goal into steps
+- [x] `execute_plan` iterates steps, calling tools where specified, updating status
+- [x] At least one integration test demonstrates plan creation and execution
+- [x] Typecheck passes
+- [x] Tests pass (`pytest tests/ -q -k planner`)
 
 ---
 

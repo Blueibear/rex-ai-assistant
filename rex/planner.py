@@ -31,8 +31,11 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import logging
 import re
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import Any
 
 from rex.contracts import ToolCall
@@ -42,6 +45,135 @@ from rex.tool_catalog import EXECUTABLE_TOOLS
 from rex.workflow import Workflow, WorkflowStep, generate_step_id, generate_workflow_id
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Simple plan-and-execute API (US-326)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class Step:
+    """A single step in a decomposed plan."""
+
+    description: str
+    tool: str | None = None
+    status: str = "pending"  # pending | running | success | failed
+
+
+@dataclass
+class Result:
+    """Outcome of executing a plan."""
+
+    steps: list[Step]
+    success: bool
+    errors: list[str] = field(default_factory=list)
+
+
+_PLAN_SYSTEM_PROMPT = (
+    "You are a planning assistant. Given a goal, return a JSON array of steps. "
+    "Each step is an object with:\n"
+    '  "description": string (what to do),\n'
+    '  "tool": string or null (tool name if applicable).\n'
+    "Return ONLY the JSON array, no markdown, no extra text."
+)
+
+
+def _parse_steps_from_json(raw: str) -> list[Step]:
+    """Parse LLM output into a list of Step objects."""
+    text = raw.strip()
+    # Strip optional markdown fences
+    if text.startswith("```"):
+        lines = text.splitlines()
+        text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"LLM response is not valid JSON: {exc}") from exc
+    if not isinstance(data, list):
+        raise ValueError(f"Expected a JSON array of steps, got {type(data).__name__}")
+    steps: list[Step] = []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        desc = str(item.get("description", "")).strip() or "unnamed step"
+        tool = item.get("tool") or None
+        steps.append(Step(description=desc, tool=tool))
+    return steps
+
+
+def create_plan(goal: str, *, llm: Any | None = None) -> list[Step]:
+    """Decompose a goal into a list of Steps using the LLM.
+
+    Args:
+        goal: Natural language description of the goal.
+        llm: Optional ``LanguageModel`` instance. When *None* a default
+            instance is lazily constructed from the current config.
+
+    Returns:
+        Ordered list of :class:`Step` objects with status ``"pending"``.
+
+    Raises:
+        ValueError: If the LLM response cannot be parsed as a step list.
+    """
+    if not goal or not goal.strip():
+        raise ValueError("Goal must not be empty.")
+
+    if llm is None:
+        from rex.llm_client import LanguageModel
+
+        llm = LanguageModel()
+
+    messages = [
+        {"role": "system", "content": _PLAN_SYSTEM_PROMPT},
+        {"role": "user", "content": goal.strip()},
+    ]
+    raw = llm.generate(messages=messages)
+    steps = _parse_steps_from_json(raw)
+    if not steps:
+        raise ValueError("LLM returned an empty step list for goal: " + goal)
+    logger.info("create_plan: %d steps for goal %r", len(steps), goal)
+    return steps
+
+
+def execute_plan(
+    steps: list[Step],
+    *,
+    tool_fn: Callable[[str, str], str] | None = None,
+) -> Result:
+    """Execute a list of Steps, updating their status in-place.
+
+    For each step:
+    - Sets status to ``"running"``.
+    - If the step has a ``tool`` and *tool_fn* is provided, calls
+      ``tool_fn(tool_name, description)`` and records the result.
+    - On success sets status to ``"success"``; on exception sets ``"failed"``
+      and records the error.  Execution continues to the next step.
+
+    Args:
+        steps: Ordered list of :class:`Step` objects to execute.
+        tool_fn: Optional callable ``(tool_name, description) -> result_str``
+            invoked for steps that specify a tool.  When *None* tool steps
+            are treated as no-ops (status becomes ``"success"``).
+
+    Returns:
+        A :class:`Result` summarising overall success and any errors.
+    """
+    errors: list[str] = []
+    for step in steps:
+        step.status = "running"
+        try:
+            if step.tool and tool_fn is not None:
+                tool_fn(step.tool, step.description)
+            step.status = "success"
+        except Exception as exc:  # noqa: BLE001
+            msg = f"Step '{step.description}' failed: {exc}"
+            logger.error(msg)
+            errors.append(msg)
+            step.status = "failed"
+
+    success = all(s.status == "success" for s in steps)
+    return Result(steps=steps, success=success, errors=errors)
 
 
 class PlannerError(Exception):
@@ -638,6 +770,10 @@ class Planner:
 
 
 __all__ = [
+    "Step",
+    "Result",
+    "create_plan",
+    "execute_plan",
     "Planner",
     "PlannerError",
     "UnableToPlanError",
