@@ -262,6 +262,10 @@ const rexAPI = {
     ipcRenderer.invoke('rex:clearCheckedShoppingItems'),
   listWakeWords: (): Promise<{ ok: boolean; wake_words: WakeWordInfo[]; error?: string; warning?: string }> =>
     ipcRenderer.invoke('rex:listWakeWords'),
+  previewWakeWordSample: (
+    wakeWordId: string
+  ): Promise<{ ok: boolean; audio_base64?: string; has_sample?: boolean; error?: string }> =>
+    ipcRenderer.invoke('rex:previewWakeWordSample', wakeWordId),
   uploadCustomVoice: (
     filePath: string,
     voiceName: string

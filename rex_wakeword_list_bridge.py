@@ -55,6 +55,7 @@ def main() -> None:
                 "id": kw.replace(" ", "_"),
                 "name": kw.replace("_", " ").title(),
                 "engine": "openwakeword",
+                "has_sample": False,
             }
             for kw in keywords
         ]
@@ -65,7 +66,13 @@ def main() -> None:
 
             custom = list_custom_wake_words()
             wake_words.extend(
-                {"id": c["id"], "name": c["name"], "engine": c["engine"]} for c in custom
+                {
+                    "id": c["id"],
+                    "name": c["name"],
+                    "engine": c["engine"],
+                    "has_sample": c.get("has_sample", False),
+                }
+                for c in custom
             )
         except Exception:
             pass
@@ -78,6 +85,7 @@ def main() -> None:
                 "id": kw.replace(" ", "_"),
                 "name": kw.replace("_", " ").title(),
                 "engine": "openwakeword",
+                "has_sample": False,
             }
             for kw in _DEFAULT_KEYWORDS
         ]

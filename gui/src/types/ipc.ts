@@ -28,6 +28,7 @@ export interface WakeWordInfo {
   id: string
   name: string
   engine: string
+  has_sample?: boolean
 }
 
 export interface VoiceTranscriptEntry {
@@ -416,6 +417,9 @@ export interface RexAPI {
   getUnreadNotificationCount: () => Promise<number>
   onNewNotification: (cb: (notification: GuiNotification) => void) => void
   listWakeWords: () => Promise<{ ok: boolean; wake_words: WakeWordInfo[]; error?: string; warning?: string }>
+  previewWakeWordSample: (
+    wakeWordId: string
+  ) => Promise<{ ok: boolean; audio_base64?: string; has_sample?: boolean; error?: string }>
   trainWakeWord: (
     phrase: string,
     positiveSamples: number[][],

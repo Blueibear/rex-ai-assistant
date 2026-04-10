@@ -8,6 +8,7 @@ for use with EmbeddingWakeWordModel.
 from __future__ import annotations
 
 import re
+import wave
 from pathlib import Path
 
 import numpy as np
@@ -18,6 +19,20 @@ _CONFIG_DIR_DEFAULT = Path(__file__).resolve().parent.parent.parent / "config" /
 
 MIN_POSITIVE_SAMPLES = 3
 MIN_NEGATIVE_SAMPLES = 0  # negatives are optional for embedding approach
+
+
+_SAMPLE_RATE = 16000  # Hz — openWakeWord models expect 16 kHz audio
+
+
+def _save_sample_wav(sample: list[float], path: Path) -> None:
+    """Persist a float32 PCM sample as a mono 16-bit 16 kHz WAV file."""
+    arr = np.clip(np.array(sample, dtype=np.float32), -1.0, 1.0)
+    int16_arr = (arr * 32767).astype(np.int16)
+    with wave.open(str(path), "w") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)  # 16-bit = 2 bytes per sample
+        wf.setframerate(_SAMPLE_RATE)
+        wf.writeframes(int16_arr.tobytes())
 
 
 def _slugify(phrase: str) -> str:
@@ -76,6 +91,13 @@ def train_from_samples(
     meta_path = target_dir / "phrase.txt"
     meta_path.write_text(phrase.strip(), encoding="utf-8")
 
+    # Save the first positive sample as a WAV file so the GUI can play it back.
+    sample_path = target_dir / "sample.wav"
+    try:
+        _save_sample_wav(positive_samples[0], sample_path)
+    except Exception:
+        pass  # Non-fatal: GUI will disable Play Sample if file is absent.
+
     return {
         "ok": True,
         "model_path": str(embedding_path),
@@ -106,12 +128,14 @@ def list_custom_wake_words(config_dir: Path | None = None) -> list[dict]:
         else:
             display = subdir.name.replace("_", " ").title()
 
+        sample_file = subdir / "sample.wav"
         results.append(
             {
                 "id": subdir.name,
                 "name": display,
                 "engine": "custom_embedding",
                 "model_path": str(embedding_file),
+                "has_sample": sample_file.is_file(),
             }
         )
 

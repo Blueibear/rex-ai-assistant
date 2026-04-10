@@ -4,6 +4,7 @@ import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, 
 import { useToast } from '../components/ui/Toast'
 import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
 import { SkeletonLine } from '../components/ui/SkeletonLine'
+import { Tooltip } from '../components/ui/Tooltip'
 
 type CategoryId = 'general' | 'voice' | 'ai' | 'integrations' | 'notifications' | 'users' | 'audio' | 'system' | 'about'
 
@@ -768,34 +769,61 @@ function VoicePanel(): React.ReactElement {
       .finally(() => setPreviewing(false))
   }
 
+  function playAudioBase64(audioBase64: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const binary = atob(audioBase64)
+      const bytes = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i)
+      }
+      const ctx = new AudioContext()
+      ctx.decodeAudioData(bytes.buffer).then((buf) => {
+        const src = ctx.createBufferSource()
+        src.buffer = buf
+        src.connect(ctx.destination)
+        src.onended = () => resolve()
+        src.start()
+      }).catch(reject)
+    })
+  }
+
   function handlePreviewWakeWord(): void {
     if (!form.wakeWord) return
+    const selectedWw = wakeWords.find((w) => w.id === form.wakeWord)
     setPreviewingWakeWord(true)
-    const phrase = form.wakeWord.replace(/_/g, ' ')
-    window.rex
-      .previewVoice('pyttsx3', phrase)
-      .then((res) => {
-        if (res.ok && res.audio_base64) {
-          const binary = atob(res.audio_base64)
-          const bytes = new Uint8Array(binary.length)
-          for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i)
+
+    if (selectedWw?.engine === 'custom_embedding') {
+      // Custom wake word: play back the recorded sample WAV.
+      window.rex
+        .previewWakeWordSample(form.wakeWord)
+        .then((res) => {
+          if (res.ok && res.audio_base64) {
+            return playAudioBase64(res.audio_base64).catch(() => {
+              addToast('Could not play wake word sample', 'error')
+            })
+          } else {
+            addToast(res.error ?? 'No sample recording available', 'error')
           }
-          const ctx = new AudioContext()
-          ctx.decodeAudioData(bytes.buffer).then((buf) => {
-            const src = ctx.createBufferSource()
-            src.buffer = buf
-            src.connect(ctx.destination)
-            src.start()
-          }).catch(() => {
-            addToast('Could not play wake word sample', 'error')
-          })
-        } else {
-          addToast(res.error ?? 'Preview failed', 'error')
-        }
-      })
-      .catch(() => addToast('Preview failed', 'error'))
-      .finally(() => setPreviewingWakeWord(false))
+        })
+        .catch(() => addToast('Preview failed', 'error'))
+        .finally(() => setPreviewingWakeWord(false))
+    } else {
+      // Built-in openWakeWord: synthesize a pronunciation via TTS.
+      const phrase = form.wakeWord.replace(/_/g, ' ')
+      window.rex
+        .previewVoice('pyttsx3', phrase)
+        .then((res) => {
+          if (res.ok && res.audio_base64) {
+            return playAudioBase64(res.audio_base64).catch(() => {
+              addToast('Could not play wake word sample', 'error')
+            })
+          } else {
+            addToast(res.error ?? 'Preview failed', 'error')
+          }
+        })
+        .catch(() => addToast('Preview failed', 'error'))
+        .finally(() => setPreviewingWakeWord(false))
+    }
   }
 
   async function handleStartWwTraining(): Promise<void> {
@@ -1150,23 +1178,36 @@ function VoicePanel(): React.ReactElement {
                   </option>
                 ))}
           </select>
-          <button
-            onClick={handlePreviewWakeWord}
-            disabled={previewingWakeWord || !form.wakeWord}
-            title="Play a sample of this wake word"
-            className="flex items-center gap-1.5 bg-surface-raised hover:bg-surface border border-border disabled:opacity-40 text-text-primary text-sm font-medium px-3 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg shrink-0"
-          >
-            {previewingWakeWord ? (
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-              </svg>
-            ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-            )}
-            Sample
-          </button>
+          {(() => {
+            const selectedWw = wakeWords.find((w) => w.id === form.wakeWord)
+            const isCustom = selectedWw?.engine === 'custom_embedding'
+            const noSample = isCustom && !selectedWw?.has_sample
+            const sampleDisabled = previewingWakeWord || !form.wakeWord || noSample
+            const sampleTitle = noSample
+              ? 'No sample recorded — train this wake word to capture a sample'
+              : 'Play a sample of this wake word'
+            return (
+              <Tooltip text={noSample ? 'No sample recorded yet. Train this wake word to capture a recording.' : ''} position="top">
+                <button
+                  onClick={handlePreviewWakeWord}
+                  disabled={sampleDisabled}
+                  title={sampleTitle}
+                  className="flex items-center gap-1.5 bg-surface-raised hover:bg-surface border border-border disabled:opacity-40 text-text-primary text-sm font-medium px-3 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg shrink-0"
+                >
+                  {previewingWakeWord ? (
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                  )}
+                  Sample
+                </button>
+              </Tooltip>
+            )
+          })()}
         </div>
         <p className="mt-1 text-xs text-text-secondary">
           Uses openWakeWord. Select a model or leave disabled to start Rex manually.

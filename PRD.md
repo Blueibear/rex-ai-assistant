@@ -158,9 +158,9 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I want the "Play sample" button to play a representative clip of the selected wake word, not unrelated speech.
 
 **Acceptance Criteria:**
-- [ ] The Play Sample button plays a short audio clip demonstrating the selected wake word pronunciation
-- [ ] If no sample audio exists for a custom wake word, the button is disabled with a tooltip explaining why
-- [ ] Typecheck passes
+- [x] The Play Sample button plays a short audio clip demonstrating the selected wake word pronunciation
+- [x] If no sample audio exists for a custom wake word, the button is disabled with a tooltip explaining why
+- [x] Typecheck passes
 - [ ] Verify changes work in Electron
 
 ---

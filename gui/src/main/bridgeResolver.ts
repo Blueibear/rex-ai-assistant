@@ -29,6 +29,7 @@ const BRIDGE_REGISTRY: Record<string, string> = {
   rex_voice_upload_bridge: 'rex_voice_upload_bridge.py',
   rex_wakeword_list_bridge: 'rex_wakeword_list_bridge.py',
   rex_wakeword_train_bridge: 'rex_wakeword_train_bridge.py',
+  rex_wakeword_sample_bridge: 'rex_wakeword_sample_bridge.py',
   rex_stt_bridge: 'rex_stt_bridge.py',
   rex_memories_bridge: 'rex_memories_bridge.py',
   rex_file_extract_bridge: 'rex_file_extract_bridge.py',
