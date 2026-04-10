@@ -9,6 +9,21 @@
 
 ---
 
+## Iteration 71 - US-322: AskRex branding assets in GUI and desktop surfaces
+- Copied `assets/brand/icon-circle.png` → `gui/src/renderer/src/assets/brand-icon.png` (sidebar narrow icon)
+- Copied `assets/brand/wordmark-light.png` → `gui/src/renderer/src/assets/brand-wordmark-light.png` (sidebar wide logo)
+- Updated `AppLayout.tsx`: replaced placeholder SVG + text "AskRex" with `<img src={brandIcon}>` (narrow) / `<img src={brandWordmark}>` (wide)
+- Updated `tray.ts`: `getIconPath()` now points to `assets/brand/icon-circle.png` instead of missing `tray-icon-*.png`
+- Updated `index.ts` window icon: `tray-icon-32.png` → `assets/brand/icon-square.png`
+- Window title was already `'AskRex Assistant'` — no change needed
+- Files changed: `AppLayout.tsx`, `tray.ts`, `index.ts`, 2 new PNG assets, `PRD.md`
+- TypeScript typecheck: pass
+- Learnings:
+  - For renderer images in electron-vite: copy to `gui/src/renderer/src/assets/` and import as ES module — Vite handles the URL
+  - Tray/main-process icons use file-system paths relative to app; `assets/brand/` is the right source
+  - `assets/brand/` already existed with production-quality brand assets — no placeholder creation needed
+---
+
 ## Iteration 70 - US-321: Reset to Defaults button in Settings > System
 - Added `rex:resetToDefaults` IPC handler in `gui/src/main/index.ts`: copies `rex_config.example.json` → `rex_config.json`, returns `{ok, error?}`
 - Added `resetToDefaults` type to `RexAPI` in `gui/src/types/ipc.ts`
