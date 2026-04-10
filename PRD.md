@@ -200,7 +200,7 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 - [x] If HA is configured, the page fetches and displays device states (entity name, state, last updated)
 - [x] The page has a manual refresh button
 - [x] Typecheck passes (Python + TS)
-- [ ] Verify changes work in Electron
+- [x] Verify changes work in Electron
 
 ---
 
