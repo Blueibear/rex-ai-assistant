@@ -19,14 +19,15 @@ Usage::
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from .logging_utils import JsonFormatter
 
 LOG_FILE = Path("logs/rex.log")
-MAX_BYTES = 10_000_000  # 10 MB
-BACKUP_COUNT = 5
+MAX_BYTES = 5_000_000  # 5 MB
+BACKUP_COUNT = 3
 
 
 def setup_file_logging(
@@ -71,6 +72,11 @@ def setup_file_logging(
             return existing
 
     root.addHandler(handler)
+
+    # Write session-start marker so sessions are clearly separated in the log file.
+    ts = datetime.now(UTC).isoformat(timespec="seconds")
+    logging.getLogger(__name__).info("=== Rex session started at %s ===", ts)
+
     return handler
 
 

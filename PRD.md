@@ -325,11 +325,11 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a developer, I want logs to separate sessions and rotate old entries so stale timestamps don't cause confusion.
 
 **Acceptance Criteria:**
-- [ ] Logging config uses `RotatingFileHandler` (5 MB max, 3 backups)
-- [ ] Each startup writes a session-start marker: `=== Rex session started at <ISO timestamp> ===`
-- [ ] Old entries are preserved in rotated files, not mixed with current session
-- [ ] Typecheck passes
-- [ ] Tests pass
+- [x] Logging config uses `RotatingFileHandler` (5 MB max, 3 backups)
+- [x] Each startup writes a session-start marker: `=== Rex session started at <ISO timestamp> ===`
+- [x] Old entries are preserved in rotated files, not mixed with current session
+- [x] Typecheck passes
+- [x] Tests pass
 
 ---
 

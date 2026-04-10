@@ -105,10 +105,10 @@ def test_max_bytes_is_5mb() -> None:
     assert MAX_BYTES == 5_000_000
 
 
-def test_backup_count_is_5() -> None:
+def test_backup_count_is_3() -> None:
     from rex.logging_config import BACKUP_COUNT
 
-    assert BACKUP_COUNT == 5
+    assert BACKUP_COUNT == 3
 
 
 def test_setup_file_logging_no_duplicate_handlers(tmp_path: Path) -> None:

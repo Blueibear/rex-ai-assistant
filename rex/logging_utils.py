@@ -216,10 +216,10 @@ def configure_logging(
             error_path.parent.mkdir(parents=True, exist_ok=True)
 
             file_handler = RotatingFileHandler(
-                log_path, maxBytes=5_000_000, backupCount=5, encoding="utf-8"
+                log_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
             )
             error_handler = RotatingFileHandler(
-                error_path, maxBytes=5_000_000, backupCount=5, encoding="utf-8"
+                error_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
             )
             error_handler.setLevel(logging.ERROR)
 
@@ -238,6 +238,13 @@ def configure_logging(
 
     logging.basicConfig(level=effective_level, handlers=handler_list)
     _apply_all_module_levels(module_levels)
+
+    # Write session-start marker to file handlers so sessions are clearly
+    # separated in the log file.  Skip when only stream handlers are present
+    # (e.g. during tests) to avoid polluting captured output.
+    if any(isinstance(h, RotatingFileHandler) for h in handler_list):
+        ts = datetime.now(UTC).isoformat(timespec="seconds")
+        logging.getLogger(__name__).info("=== Rex session started at %s ===", ts)
 
 
 def _apply_all_module_levels(module_levels: Mapping[str, int | str] | None) -> None:

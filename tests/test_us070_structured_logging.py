@@ -120,11 +120,11 @@ def test_setup_file_logging_rotation_config(tmp_path):
     assert handler.backupCount == BACKUP_COUNT
 
 
-def test_max_bytes_is_10mb():
-    """MAX_BYTES must be 10 MB per AC."""
+def test_max_bytes_is_5mb():
+    """MAX_BYTES must be 5 MB per US-323 AC."""
     from rex.logging_config import MAX_BYTES
 
-    assert MAX_BYTES == 10_000_000
+    assert MAX_BYTES == 5_000_000
 
 
 def test_setup_file_logging_idempotent(tmp_path):
@@ -190,6 +190,47 @@ def test_console_handler_uses_plain_formatter(tmp_path, monkeypatch):
         output = buf.getvalue()
         # Plain formatter: not JSON
         assert not output.strip().startswith("{")
+    finally:
+        root.handlers.clear()
+        root.handlers.extend(old_handlers)
+
+
+def test_session_marker_written_to_file(tmp_path):
+    """setup_file_logging must write a session-start marker to the log file."""
+    import logging
+    from rex.logging_config import setup_file_logging
+
+    log_path = tmp_path / "rex.log"
+    root = logging.getLogger()
+    old_handlers = root.handlers[:]
+    root.handlers.clear()
+    try:
+        setup_file_logging(log_path)
+        content = log_path.read_text(encoding="utf-8")
+        assert "=== Rex session started at" in content
+    finally:
+        root.handlers.clear()
+        root.handlers.extend(old_handlers)
+
+
+def test_session_marker_written_by_configure_logging(tmp_path, monkeypatch):
+    """configure_logging must write a session-start marker when file logging is enabled."""
+    import logging
+    from unittest.mock import patch
+
+    from rex.logging_utils import configure_logging
+
+    log_path = tmp_path / "rex.log"
+    root = logging.getLogger()
+    old_handlers = root.handlers[:]
+    root.handlers.clear()
+    try:
+        from logging.handlers import RotatingFileHandler
+        fh = RotatingFileHandler(log_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8")
+        with patch("rex.logging_utils._json_logging_enabled", return_value=False):
+            configure_logging(level=logging.DEBUG, handlers=[fh])
+        content = log_path.read_text(encoding="utf-8")
+        assert "=== Rex session started at" in content
     finally:
         root.handlers.clear()
         root.handlers.extend(old_handlers)
