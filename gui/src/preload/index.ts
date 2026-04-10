@@ -181,6 +181,8 @@ const rexAPI = {
     ipcRenderer.invoke('rex:testIntegration', type),
   uploadContactsFile: (): Promise<{ ok: boolean; path?: string; error?: string }> =>
     ipcRenderer.invoke('rex:uploadContactsFile'),
+  pickFolder: (): Promise<{ ok: boolean; path?: string; error?: string }> =>
+    ipcRenderer.invoke('rex:pickFolder'),
   testEmailAccount: (id: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:testEmailAccount', id),
   getPreferenceSuggestions: (): Promise<PreferenceSuggestion[]> =>

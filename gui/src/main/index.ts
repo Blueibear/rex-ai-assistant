@@ -453,6 +453,17 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
     return { ok: false, error: 'Unknown integration type' }
   })
 
+  ipcMain.handle('rex:pickFolder', async (): Promise<{ ok: boolean; path?: string; error?: string }> => {
+    const result = await dialog.showOpenDialog({
+      title: 'Select Folder',
+      properties: ['openDirectory']
+    })
+    if (result.canceled || result.filePaths.length === 0) {
+      return { ok: false, error: 'No folder selected' }
+    }
+    return { ok: true, path: result.filePaths[0] }
+  })
+
   ipcMain.handle('rex:uploadContactsFile', async (): Promise<{ ok: boolean; path?: string; error?: string }> => {
     const result = await dialog.showOpenDialog({
       title: 'Select Contacts File',

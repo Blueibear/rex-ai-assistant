@@ -4618,8 +4618,52 @@ function SystemPanel(): React.ReactElement {
           Allowed File Roots
         </label>
         <p className="text-xs text-text-secondary mb-2">
-          Comma-separated directory paths Rex is allowed to read and write. Defaults to your home directory if left blank.
+          Directory paths Rex is allowed to read and write. Defaults to your home directory if left blank.
         </p>
+        {/* Folder list */}
+        {settings.allowedFileRoots.split(',').map((p) => p.trim()).filter(Boolean).length > 0 && (
+          <ul className="mb-2 space-y-1">
+            {settings.allowedFileRoots.split(',').map((p) => p.trim()).filter(Boolean).map((folder) => (
+              <li key={folder} className="flex items-center justify-between rounded-lg border border-border bg-surface-raised px-3 py-1.5 text-sm text-text-primary">
+                <span className="truncate mr-2">{folder}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = settings.allowedFileRoots
+                      .split(',')
+                      .map((p) => p.trim())
+                      .filter((p) => p && p !== folder)
+                      .join(', ')
+                    setSettings((s) => ({ ...s, allowedFileRoots: updated }))
+                  }}
+                  className="shrink-0 text-xs text-text-secondary hover:text-red-500 focus:outline-none"
+                  aria-label={`Remove ${folder}`}
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {/* Add folder button */}
+        <button
+          type="button"
+          onClick={() => {
+            void window.rex.pickFolder().then((res) => {
+              if (res.ok && res.path) {
+                const existing = settings.allowedFileRoots.split(',').map((p) => p.trim()).filter(Boolean)
+                if (!existing.includes(res.path)) {
+                  const updated = [...existing, res.path].join(', ')
+                  setSettings((s) => ({ ...s, allowedFileRoots: updated }))
+                }
+              }
+            })
+          }}
+          className="mb-3 rounded-lg border border-border bg-surface-raised px-3 py-1.5 text-sm text-text-primary hover:bg-surface-elevated focus:outline-none"
+        >
+          + Add Folder
+        </button>
+        {/* Fallback raw text input */}
         <input
           type="text"
           value={settings.allowedFileRoots}

@@ -273,11 +273,11 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a user, I want a folder picker instead of raw text input for allowed file roots.
 
 **Acceptance Criteria:**
-- [ ] An "Add Folder" button opens an Electron native folder picker dialog
-- [ ] Selected folders are added to the list and persisted to config
-- [ ] Existing raw text input is preserved as fallback
-- [ ] Each listed folder has a "Remove" button
-- [ ] Typecheck passes
+- [x] An "Add Folder" button opens an Electron native folder picker dialog
+- [x] Selected folders are added to the list and persisted to config
+- [x] Existing raw text input is preserved as fallback
+- [x] Each listed folder has a "Remove" button
+- [x] Typecheck passes
 - [ ] Verify changes work in Electron
 
 ---
