@@ -239,10 +239,10 @@ The goal is to take AskRex from "demo with known breakage" to "reliably boots, v
 **Description:** As a product owner, I want Beta labels to accurately reflect feature maturity.
 
 **Acceptance Criteria:**
-- [ ] If Email and SMS are still beta-quality, keep the label but add a tooltip explaining what "Beta" means
-- [ ] If stable, remove the Beta label
-- [ ] Decision documented in a code comment or changelog entry
-- [ ] Typecheck passes
+- [x] If Email and SMS are still beta-quality, keep the label but add a tooltip explaining what "Beta" means
+- [x] If stable, remove the Beta label
+- [x] Decision documented in a code comment or changelog entry
+- [x] Typecheck passes
 
 ---
 

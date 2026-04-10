@@ -1265,3 +1265,11 @@
 - All tests pass (62 relevant passing); tsc --noEmit clean
 - Marked US-315 ACs complete (except manual Electron verification)
 ---
+
+## Iteration 68 - US-316: Beta labels on Email and SMS
+- Decision: Email and SMS remain beta-quality — they require provider credentials configured in Settings > Integrations before showing live data; kept `beta: true` on both nav items
+- Updated `gui/src/layouts/AppLayout.tsx`: imported Tooltip component; wrapped the BETA badge in a Tooltip with text "Requires credentials in Settings › Integrations" (position: right)
+- Added code comment documenting the beta decision rationale
+- TypeScript typecheck passes (tsc --noEmit clean)
+- Marked US-316 complete in PRD.md
+---

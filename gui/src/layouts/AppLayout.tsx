@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useNotificationsStore } from '../store/notificationsStore'
 import { useGlobalShortcuts } from '../hooks/useGlobalShortcuts'
 import { HelpOverlay } from '../components/HelpOverlay'
+import { Tooltip } from '../components/ui/Tooltip'
 
 type RexStatusValue = 'idle' | 'listening' | 'thinking' | 'executing' | 'done' | 'error'
 
@@ -408,11 +409,18 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
                 <>
                   <span className="flex-1">{item.label}</span>
 
-                  {/* BETA badge */}
+                  {/* BETA badge — Email and SMS require credentials to be
+                      configured in Settings › Integrations before they show
+                      live data; until then the page shows an empty state. */}
                   {item.beta && (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 leading-none">
-                      BETA
-                    </span>
+                    <Tooltip
+                      text="Requires credentials in Settings › Integrations"
+                      position="right"
+                    >
+                      <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 leading-none cursor-default">
+                        BETA
+                      </span>
+                    </Tooltip>
                   )}
 
                   {/* Unread count badge for Notifications */}
