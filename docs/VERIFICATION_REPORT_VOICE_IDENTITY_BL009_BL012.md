@@ -49,7 +49,7 @@ This report verifies implementation claims against the current repository state 
 | `pytest -q` | Fail while patch was uncommitted (repo-integrity tests intentionally detect dirty tracked files during active changes) |
 | `pytest -q --ignore=tests/test_repo_integrity.py --ignore=tests/test_repository_integrity.py` | Pass (1167 passed, 29 skipped) |
 | `python -m rex --help` | Pass |
-| `python scripts/doctor.py` | Pass with expected warnings (ffmpeg/torch/speak key optional) |
+| `python -m rex doctor` | Pass with expected warnings (ffmpeg/torch/speak key optional) |
 | `python scripts/security_audit.py` | Pass (no merge markers, no exposed secrets) |
 | `python -m compileall -q rex scripts` | Pass |
 | `python -m ruff check .` | **Fail (pre-existing repo-wide lint debt, 631 findings across many unrelated files)** |

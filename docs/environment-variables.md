@@ -1,125 +1,200 @@
-# AskRex Assistant — Environment Variables
+# AskRex Assistant Environment Variables
 
-Rex uses a dual-configuration system for better security:
-- **config/rex_config.json** — Runtime settings (audio, models, wake word, etc.)
-- **.env** — Secrets only (API keys, tokens)
+AskRex uses two configuration channels:
 
-Legacy non-secret environment variables (e.g. `OPENAI_BASE_URL`) are ignored at runtime. If any are set, Rex logs a warning. To migrate them into `config/rex_config.json`, run:
+- `config/rex_config.json` for runtime settings such as models, audio devices,
+  wake word, providers, integrations, and workflow defaults.
+- `.env` for secrets and service-specific environment controls.
+
+Non-secret legacy environment variables should be migrated with:
 
 ```bash
+rex-config migrate-legacy-env --dry-run
 rex-config migrate-legacy-env
 ```
 
-See [CONFIGURATION.md](../CONFIGURATION.md) for full details including configuration precedence and the no-overwrite migration rule.
+## Core Secrets
 
-All environment variables can be set in your `.env` file. Copy `.env.example` to `.env` and customize as needed.
+| Variable | Used by |
+|---|---|
+| `OPENAI_API_KEY` | OpenAI LLM backend |
+| `ANTHROPIC_API_KEY` | Anthropic LLM backend |
+| `OLLAMA_API_KEY` | Cloud-hosted Ollama endpoint if it requires auth |
+| `HA_TOKEN` | Home Assistant API |
+| `HA_SECRET` | Home Assistant webhook/auth flows |
+| `BRAVE_API_KEY` | Brave search |
+| `SERPAPI_KEY` | SerpAPI search |
+| `GOOGLE_API_KEY` | Google Custom Search |
+| `GOOGLE_CSE_ID` | Google Custom Search engine ID |
+| `OPENWEATHERMAP_API_KEY` | Weather tool |
+| `OPENCLAW_GATEWAY_TOKEN` | OpenClaw gateway |
+| `TELEGRAM_BOT_TOKEN` | Telegram integration |
+| `PUSH_TOKEN` | Push notification provider |
 
-## Core Settings
+Provider base URLs and model choices generally belong in `config/rex_config.json`
+instead of `.env`.
 
-| Variable | Required? | Default | Description | Example |
-|----------|-----------|---------|-------------|---------|
-| `REX_ACTIVE_USER` | No | `default` | Active user profile (maps to `Memory/<user>/core.json`) | `james` |
-| `REX_LOG_LEVEL` | No | `INFO` | Logging verbosity | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
-| `REX_FILE_LOGGING_ENABLED` | No | `true` | Enable file logging (false = stdout only) | `true`, `false` |
-| `REX_DEVICE` | No | `cpu` | Device for model inference | `cpu`, `cuda` |
+## TTS API (`rex-speak-api`)
 
-## Wake Word Detection
+| Variable | Default | Description |
+|---|---:|---|
+| `REX_SPEAK_API_KEY` | none | Required for `/speak` |
+| `REX_SPEAK_PORT` | `5005` | Bind port |
+| `REX_TTS_MODEL` | XTTS v2 default | Coqui model override used by the TTS API |
+| `REX_SPEAK_MAX_CHARS` | `800` | Request text length limit |
+| `REX_SPEAK_MAX_REQUEST_BYTES` | `65536` | Body size limit |
+| `REX_SPEAK_RATE_LIMIT` | `30` | Requests per window |
+| `REX_SPEAK_RATE_WINDOW` | `60` | Window in seconds |
+| `REX_SPEAK_STORAGE_URI` | `memory://` | Limiter storage; use Redis for multi-worker |
+| `FLASK_LIMITER_STORAGE_URI` | fallback only | Fallback limiter storage if speak storage is unset |
+| `REX_ALLOWED_ORIGINS` | localhost defaults | CORS allowlist |
 
-| Variable | Required? | Default | Description | Example |
-|----------|-----------|---------|-------------|---------|
-| `REX_WAKEWORD` | No | `rex` | Wake word phrase | `rex`, `jarvis`, `computer` |
-| `REX_WAKEWORD_KEYWORD` | No | `hey_jarvis` | openWakeWord model keyword | `hey_jarvis` |
+Default address:
 
-> **Note:** Detection threshold is configured via `wakeword.threshold` in `rex_config.json` (not an env var).
-
-## Audio Configuration
-
-| Variable | Required? | Default | Description | Example |
-|----------|-----------|---------|-------------|---------|
-| `REX_INPUT_DEVICE` | No | (system default) | Microphone device index | `0`, `1`, `2` |
-| `REX_OUTPUT_DEVICE` | No | (system default) | Speaker device index | `0`, `1`, `2` |
-| `REX_SAMPLE_RATE` | No | `16000` | Audio sample rate (Hz) | `16000` |
-| `REX_COMMAND_DURATION` | No | `5.0` | Recording duration (seconds) | `5.0` |
-
-**Tip:** List available audio devices:
-```bash
-python audio_config.py --list
-python audio_config.py --set-input 1
-python audio_config.py --set-output 2
+```text
+http://127.0.0.1:5005
 ```
 
-## Speech Recognition (Whisper)
+## Tool Server (`rex-tool-server`)
 
-| Variable | Required? | Default | Description | Example |
-|----------|-----------|---------|-------------|---------|
-| `REX_WHISPER_MODEL` | No | `base` | Whisper model size | `tiny`, `base`, `small`, `medium`, `large` |
-| `REX_WHISPER_DEVICE` | No | `cpu` | Device for Whisper | `cpu`, `cuda` |
+| Variable | Default | Description |
+|---|---:|---|
+| `REX_TOOL_API_KEY` | none | Required bearer token for `/rex/tools/*` |
+| `REX_TOOL_SERVER_PORT` | `18790` | Bind port |
+| `REX_TOOL_RATE_LIMIT` | `60` | Requests per window |
+| `REX_TOOL_RATE_WINDOW` | `60` | Window in seconds |
 
-**Note:** Larger models are more accurate but slower. `tiny` is fastest, `large` is most accurate.
+Default address:
 
-## Language Model (LLM)
-
-| Variable | Required? | Default | Description | Example |
-|----------|-----------|---------|-------------|---------|
-| `REX_LLM_PROVIDER` | No | `transformers` | LLM backend | `transformers`, `openai`, `ollama` |
-| `REX_LLM_MODEL` | No | `distilgpt2` | Model name or path | `distilgpt2`, `gpt2`, `gpt-3.5-turbo` |
-| `REX_LLM_TEMPERATURE` | No | `0.7` | Generation randomness (0.0-2.0) | `0.7` |
-| `REX_LLM_MAX_TOKENS` | No | `120` | Maximum response length | `120` |
-
-## OpenAI API (Optional)
-
-| Variable | Required? | Default | Description | Example |
-|----------|-----------|---------|-------------|---------|
-| `OPENAI_API_KEY` | **Yes** (if using OpenAI) | — | OpenAI API key (secret — keep in `.env`) | `sk-...` |
-
-> **Note:** `OPENAI_MODEL` and `OPENAI_BASE_URL` are **not** active runtime environment
-> variables. They are ignored at runtime and must be set in `config/rex_config.json` under
-> the `openai` section (`openai.model` and `openai.base_url`).
-> If you have these in your `.env` from a previous installation, run:
-> ```bash
-> rex-config migrate-legacy-env
-> ```
-> to move them into `config/rex_config.json` automatically. See
-> [CONFIGURATION.md](../CONFIGURATION.md) for the full precedence and migration guide.
-
-## Text-to-Speech (TTS)
-
-| Variable | Required? | Default | Description | Example |
-|----------|-----------|---------|-------------|---------|
-| `REX_TTS_PROVIDER` | No | `xtts` | TTS backend | `xtts`, `edge`, `pyttsx3` |
-| `REX_TTS_MODEL` | No | `tts_models/multilingual/multi-dataset/xtts_v2` | Coqui TTS model name | (see Coqui docs) |
-| `REX_TTS_VOICE` | No | `en-US-AndrewNeural` | Edge TTS voice name | `en-US-JennyNeural` |
-| `REX_PIPER_MODEL` | No | `voices/en_US-lessac-medium.onnx` | Piper model path | (if using Piper) |
-| `REX_SPEAK_LANGUAGE` | No | `en` | Language code | `en`, `es`, `fr`, `de` |
-
-**Tip:** List available edge-tts voices:
-```bash
-python scripts/list_voices.py
+```text
+http://127.0.0.1:18790
 ```
 
-## Web Search Plugins
+## Python Web Dashboard (`rex-gui`)
 
-| Variable | Required? | Default | Description | Example |
-|----------|-----------|---------|-------------|---------|
-| `SERPAPI_KEY` | No | — | SerpAPI key | (from serpapi.com) |
-| `BRAVE_API_KEY` | No | — | Brave Search API key | (from brave.com/search/api) |
-| `GOOGLE_API_KEY` | No | — | Google Custom Search API key | (from console.cloud.google.com) |
-| `GOOGLE_CSE_ID` | No | — | Google Custom Search Engine ID | (from cse.google.com) |
+| Variable | Default | Description |
+|---|---:|---|
+| `REX_GUI_PORT` | `8765` | Dashboard port |
+| `REX_DATA_DIR` | `data` | Local auth/permissions/history data directory |
+| `SERPAPI_API_KEY` | none | Dashboard integration-status check only |
+| `BRAVE_API_KEY` | none | Dashboard integration-status check and search |
+| `GOOGLE_CSE_ID` | none | Dashboard integration-status check and search |
+| `TWILIO_ACCOUNT_SID` | none | SMS integration/status |
+| `TWILIO_AUTH_TOKEN` | none | SMS integration/status |
+| `MQTT_BROKER_HOST` | none | MQTT integration-status check |
 
-## Flask TTS API Security
+Default address:
 
-| Variable | Required? | Default | Description | Example |
-|----------|-----------|---------|-------------|---------|
-| `REX_SPEAK_API_KEY` | **Yes** (for API) | — | API key for `/speak` endpoint | `your-secret-key-here` |
-| `REX_SPEAK_RATE_LIMIT` | No | `30` | Requests allowed per window | `30` |
-| `REX_SPEAK_RATE_WINDOW` | No | `60` | Rate limit window (seconds) | `60` |
-| `REX_SPEAK_MAX_CHARS` | No | `800` | Maximum text length | `800` |
-| `REX_SPEAK_STORAGE_URI` | No | `memory://` | Limiter backend storage | `redis://localhost:6379/0` |
-| `REX_ALLOWED_ORIGINS` | No | `http://localhost:*` | CORS origins (comma-separated) | `http://localhost:3000,https://app.example.com` |
+```text
+http://127.0.0.1:8765/ui/
+```
 
-## Flask Proxy (Optional)
+## Legacy Flask Proxy
 
-| Variable | Required? | Default | Description | Example |
-|----------|-----------|---------|-------------|---------|
-| `REX_PROXY_TOKEN` | No | — | Shared secret for proxy auth | `shared-secret` |
-| `REX_PROXY_ALLOW_LOCAL` | No | `0` | Allow local dev without token | `1` (enable), `0` (disable) |
+`flask_proxy.py` is a compatibility surface. Prefer `rex-gui` for the current
+web dashboard.
+
+| Variable | Default | Description |
+|---|---:|---|
+| `REX_PROXY_TOKEN` | none | Bearer-token auth for non-local/proxy calls |
+| `REX_PROXY_ALLOW_LOCAL` | `0` | Allow unauthenticated local requests |
+| `REX_ALLOWED_ORIGINS` | localhost defaults | CORS allowlist |
+| `REX_TRUSTED_PROXIES` | `127.0.0.1,::1` | Trusted reverse-proxy IPs |
+| `API_RATE_LIMIT` | `60 per minute` | Flask-Limiter string |
+| `FLASK_LIMITER_STORAGE_URI` | `memory://` | Limiter storage |
+| `SKIP_MIGRATION_CHECK` | unset | Emergency bypass for legacy startup migration validation |
+| `REX_SHUTDOWN_TIMEOUT` | `5` | Graceful shutdown drain timeout |
+
+## Database/State Helpers
+
+| Variable | Default | Description |
+|---|---:|---|
+| `REX_DATA_DIR` | `data` | Auth, permissions, and command-history state |
+| `DB_POOL_MIN_SIZE` | `1` | SQLite pool minimum |
+| `DB_POOL_MAX_SIZE` | `5` | SQLite pool maximum |
+| `DB_POOL_ACQUIRE_TIMEOUT` | `5.0` | Pool acquire timeout |
+| `DB_POOL_IDLE_TIMEOUT` | `300.0` | Idle connection replacement timeout |
+| `DB_QUERY_TIMEOUT` | `10.0` | Query timeout |
+| `REX_LLM_USAGE_PATH` | `data/llm_usage.jsonl` | LLM usage log path |
+
+## Computer Agent (`rex-agent`)
+
+| Variable | Default | Description |
+|---|---:|---|
+| `REX_AGENT_HOST` | `127.0.0.1` | Bind host |
+| `REX_AGENT_PORT` | code default | Bind port |
+| `REX_AGENT_TOKEN_ENV` | `REX_AGENT_TOKEN` | Env var name containing the auth token |
+| `REX_AGENT_TOKEN` | none | Default token env value |
+| `REX_AGENT_ALLOWLIST` | `whoami` | Server-side command allowlist |
+| `REX_AGENT_RATE_LIMIT` | `60` | Requests per minute per client IP |
+| `REX_AGENT_TIMEOUT` | `30` | Command execution timeout in seconds |
+| `REX_AGENT_MAX_OUTPUT` | `65536` | Output size limit in bytes |
+
+Keep the agent localhost-only unless an explicit deployment adds a network and
+auth boundary.
+
+## Plugin and Tool Execution Controls
+
+| Variable | Default | Description |
+|---|---:|---|
+| `REX_PLUGIN_TIMEOUT` | `30` | Plugin execution timeout |
+| `REX_PLUGIN_OUTPUT_LIMIT` | `1048576` | Plugin output byte limit |
+| `REX_PLUGIN_RATE_LIMIT` | `10` | Plugin invocations per minute |
+
+## Messaging, Calendar, Email, Telephony
+
+| Variable | Used by |
+|---|---|
+| `TWILIO_ACCOUNT_SID` | SMS and telephony |
+| `TWILIO_AUTH_TOKEN` | SMS and telephony |
+| `TWILIO_FROM_NUMBER` | SMS and telephony |
+| `REX_BASE_URL` | Telephony callback base URL |
+| `GOOGLE_CALENDAR_ACCESS_TOKEN` | Google calendar integration path |
+| `GMAIL_ACCESS_TOKEN` | Gmail integration path |
+
+Connection details and account ownership belong in `config/rex_config.json`
+where supported.
+
+## Logging and Debugging
+
+| Variable | Default | Description |
+|---|---:|---|
+| `LOG_LEVEL` | `INFO` | Root log level in several scripts/services |
+| `REX_LOG_LEVEL` | `INFO` | Agent log level |
+| `REX_DEBUG` | unset | Enables debug mode for CLI/config paths |
+| `REX_JSON_LOGS` | auto | JSON logging toggle |
+| `REX_LOG_FULL_IP` | `0` | Log full client IPs instead of anonymized IPs |
+| `REX_TESTING` | unset | Testing mode for selected code paths |
+
+## Windows Service
+
+| Variable | Default | Description |
+|---|---:|---|
+| `REX_SERVICES` | `speak,proxy` | Windows service sub-services |
+| `REX_SERVICE_PORT` | `5100` | Windows service manager port |
+
+## Configured in `config/rex_config.json`, Not `.env`
+
+Keep these in JSON config:
+
+- wake word backend, keyword, threshold, and model paths
+- audio input/output devices and sample rate
+- LLM provider, model, max tokens, temperature, and routing
+- OpenAI base URL and model
+- Ollama base URL and cloud toggle
+- Home Assistant base URL and SSL behavior
+- calendar backend and ICS source
+- messaging backend/accounts
+- notification dashboard and Home Assistant TTS settings
+- WordPress/WooCommerce site definitions
+- workflow tasks
+- user-to-account mappings
+
+## Adding a New Variable
+
+When adding a new environment variable:
+
+1. Add it to `.env.example` if users should set it manually.
+2. Add it to this file.
+3. Keep secrets in `.env` and non-secrets in `config/rex_config.json` unless
+   the variable is genuinely process-level service control.

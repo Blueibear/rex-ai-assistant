@@ -504,5 +504,5 @@ Future phases may include:
 ## Support
 
 For questions or issues:
-- GitHub: https://github.com/Blueibear/rex-ai-assistant
-- Documentation: https://github.com/Blueibear/rex-ai-assistant/tree/main/docs
+- GitHub: https://github.com/Blueibear/AskRex-Assistant
+- Documentation: https://github.com/Blueibear/AskRex-Assistant/tree/master/docs

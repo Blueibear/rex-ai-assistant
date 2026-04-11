@@ -1,17 +1,47 @@
 # UI Surfaces
 
-This document is the authoritative inventory of the UI and user-facing service surfaces that ship in this repository.
+This is the active inventory of UI and user-facing service surfaces that ship in this repository.
 
-| Surface | Entry point | Status | Reason |
+| Surface | Entry point | Status | Notes |
 |---|---|---|---|
-| CLI (text chat) | `rex` | **Primary — keep** | Core text interface |
-| Voice loop | `python rex_loop.py` | **Primary — keep** | Core voice interface |
-| Web dashboard | `rex-gui` | **Primary GUI — keep** | React, modern, canonical |
-| Shopping PWA | served by `rex` or `rex-gui` | **Optional feature — keep** | Functional feature surface |
-| TTS API | `rex-speak-api` | **Service component — keep** | Required by voice loop |
-| Tkinter window (`gui.py`) | `python run_gui.py` | **Deprecated** | Superseded by web dashboard |
+| CLI text chat | `rex` or `python -m rex` | Primary | Default interactive text interface |
+| Voice loop | `python rex_loop.py` | Primary | Wake word, STT, LLM, and TTS pipeline |
+| Python web dashboard | `rex-gui` | Primary browser UI | Flask app serving the built React UI from `rex/ui/dist/` at `http://127.0.0.1:8765/ui/` |
+| Electron desktop GUI | `cd gui && npm.cmd run dev` | Primary desktop UI | Electron/React shell in `gui/`, backed by Python bridge scripts at repo root |
+| TTS API | `rex-speak-api` | Service component | Local Flask `/speak` service on `127.0.0.1:5005`; requires `REX_SPEAK_API_KEY` |
+| OpenClaw tool server | `rex-tool-server` | Service component | Tool adapter service on `127.0.0.1:18790`; requires `REX_TOOL_API_KEY` for tool calls |
+| Windows computer agent | `rex-agent` | Optional service | Remote PC control agent API |
+| Shopping PWA | registered by `rex_speak_api.py` when available | Optional feature | Served under `/shopping` by the TTS API app when the shopping blueprint imports successfully |
+| Flask proxy | `python flask_proxy.py` | Legacy API/proxy surface | Kept for compatibility with proxy/search/contracts paths; not the normal desktop GUI entry point |
+| Tkinter window | `python run_gui.py` or `python gui.py` | Deprecated | Superseded by `rex-gui` and the Electron app |
 
-## Notes
+## Electron GUI
 
-- Historical planning text may still mention `askrex`, `askrex-gui`, or `askrex-speak-api`.
-- The current packaged console scripts in `pyproject.toml` are `rex`, `rex-gui`, and `rex-speak-api`.
+Development:
+
+```powershell
+cd gui
+npm.cmd install
+npm.cmd run dev
+```
+
+Build/preview:
+
+```powershell
+cd gui
+npm.cmd run typecheck
+npm.cmd run build
+npm.cmd run preview
+```
+
+The Electron shell currently includes routes for Home, Chat, Voice, Tasks, Calendar, Reminders, Memories, Email, SMS, Notifications, Shopping List, Logs, History, Usage, Integrations, Settings, Home Assistant, Quick Actions, and About.
+
+Electron bridge scripts are resolved by `gui/src/main/bridgeResolver.ts` and include root-level scripts such as `rex_chat_stream_bridge.py`, `rex_tasks_bridge.py`, `rex_reminders_bridge.py`, `rex_shopping_list_bridge.py`, `rex_memories_bridge.py`, `rex_voice_bridge.py`, `rex_voice_enrollment_bridge.py`, `rex_wakeword_list_bridge.py`, and `rex_stt_bridge.py`.
+
+For Electron-only verification, run `npm.cmd run build` first, then use harnesses under `gui/tmp_verify_*.cjs` so `gui/dist-electron/main/index.js` matches the TypeScript sources.
+
+## Naming Notes
+
+- The canonical CLI remains `rex`; there is no `askrex` console script.
+- The package name is `askrex-assistant`.
+- Historical planning text may still mention `askrex-gui`, `askrex-speak-api`, or older `Rex AI Assistant` naming; follow [BRANDING.md](BRANDING.md) for new docs and code.

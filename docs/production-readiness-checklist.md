@@ -31,7 +31,7 @@ Items that were explicitly waived include a justification.
 ## PHASE 4 — CLI Runtime
 
 - [x] CLI entrypoints validated — `rex`, `rex-config`, `rex-speak-api`, `rex-agent` all resolve (**US-010**)
-- [x] Doctor command validated — `python scripts/doctor.py` runs to completion (**US-011**)
+- [x] Doctor command validated — `python -m rex doctor` runs to completion (**US-011**)
 - [x] Configuration loading validated — `rex_config.json` loads and validates without error (**US-012**)
 
 ## PHASE 5 — LLM Providers

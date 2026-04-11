@@ -1,737 +1,245 @@
-# AskRex Assistant — API Reference
+# AskRex Assistant HTTP API Reference
 
-This document covers all public HTTP endpoints exposed by the AskRex Assistant
-services. Two processes expose HTTP APIs:
+AskRex exposes several local HTTP surfaces. The primary desktop/user surfaces are `rex-gui`, `rex-speak-api`, and `rex-tool-server`. `flask_proxy.py` remains as a legacy proxy surface for compatibility.
 
-- **Flask proxy** (`python flask_proxy.py`) — default port 5000
-- **TTS API** (`python rex_speak_api.py`) — default port 5001
+## Service Summary
 
----
+| Service | Command | Default URL | Purpose |
+|---|---|---|---|
+| Python web dashboard | `rex-gui` | `http://127.0.0.1:8765` | Serves `/ui/` and local dashboard APIs |
+| TTS API | `rex-speak-api` | `http://127.0.0.1:5005` | Converts text to WAV audio |
+| OpenClaw tool server | `rex-tool-server` | `http://127.0.0.1:18790` | Exposes Rex tools over HTTP |
+| Legacy Flask proxy | `python flask_proxy.py` | `http://0.0.0.0:5000` | Legacy proxy/search/contracts API |
 
-## Authentication
+## Common Health Endpoints
 
-### Flask proxy
+Services that register the shared health blueprint expose:
 
-Most endpoints require a **Bearer token** in the `Authorization` header:
-
+```text
+GET /health/live
+GET /health/ready
 ```
-Authorization: Bearer <REX_PROXY_TOKEN>
+
+Typical responses:
+
+```json
+{"status":"ok"}
 ```
 
-Where `REX_PROXY_TOKEN` is set in `.env`. If not set, bearer-token auth is
-disabled and requests from `localhost` are accepted without authentication.
+```json
+{"status":"ready"}
+```
 
-### Dashboard API (`/api/*`)
+The tool server readiness response includes tool count:
 
-Dashboard endpoints use **session-based auth**. Obtain a session token via
-`POST /api/dashboard/login`, then pass it either:
+```json
+{"status":"ok","tool_count":12}
+```
 
-- As a cookie: `rex_dashboard_token=<token>` (set automatically on login), or
-- As a `Bearer` token in `Authorization: Bearer <token>`.
+## Python Web Dashboard (`rex-gui`)
 
-Health endpoints (`/health/live`, `/health/ready`) and
-`GET /api/dashboard/status` are **public** — no authentication required.
+Start:
 
-### TTS API
+```bash
+rex-gui
+```
 
-Requires `Authorization: Bearer <REX_SPEAK_API_TOKEN>` where
-`REX_SPEAK_API_TOKEN` is set in `.env`.
+Override port:
 
----
+```bash
+REX_GUI_PORT=9000 rex-gui
+```
 
-## Error Response Format
+### UI
 
-All errors use the standard envelope:
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/ui/` | Serve the built React UI |
+| `GET` | `/ui/<filename>` | Serve static UI asset |
+| `GET` | `/dashboard` | Redirect to `/ui/` |
+| `GET` | `/api/dashboard/status` | Basic status payload |
+
+### Chat
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/chat/history` | Bearer token | Load authenticated user's chat turns |
+| `POST` | `/api/chat/clear` | Bearer token | Clear authenticated user's chat turns |
+| `POST` | `/api/chat/send` | Bearer token | Stream an assistant reply with SSE framing |
+
+`POST /api/chat/send` request:
+
+```json
+{"message":"Hello Rex"}
+```
+
+The stream emits `data: ...` SSE chunks.
+
+### Auth, Setup, User
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/setup/status` | Whether first-run setup is needed |
+| `POST` | `/api/setup/complete` | Create first user and persist setup settings |
+| `POST` | `/api/auth/register` | Register a user |
+| `POST` | `/api/auth/login` | Login and receive a bearer token |
+| `POST` | `/api/auth/logout` | Logout acknowledgement |
+| `GET` | `/api/user/permissions` | Current user's permissions |
+| `POST` | `/api/admin/permissions/grant` | Grant a permission; admin required |
+| `POST` | `/api/admin/permissions/revoke` | Revoke a permission; admin required |
+| `GET` | `/api/user/preferences` | Current user's preferences |
+| `PATCH` | `/api/user/preferences` | Merge preference updates |
+| `GET` | `/api/user/avatar` | Current user's avatar |
+| `POST` | `/api/user/avatar` | Upload avatar |
+| `GET` | `/api/personalities` | List available personalities |
+
+### Home Assistant and Devices
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/devices` | List approved devices from config aliases |
+| `POST` | `/api/devices/<entity_id>/command` | Send a Home Assistant command |
+| `POST` | `/api/ha/test` | Test HA connection |
+| `POST` | `/api/ha/save` | Save HA base URL/token config |
+| `GET` | `/api/ha/states` | Fetch HA entity states |
+
+### Dashboard Utility APIs
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/logs/stream` | SSE stream of `logs/rex.log` |
+| `GET` | `/api/logs/download` | Download the current log file |
+| `GET` | `/api/usage` | LLM usage summary |
+| `GET` | `/api/status/current` | Current Rex status |
+| `GET` | `/api/status/stream` | SSE status stream |
+| `GET` | `/api/history` | Recent command history |
+| `GET` | `/api/integrations` | Configured integration summary |
+| `GET` | `/api/calendar/events` | Calendar events from configured provider |
+| `GET` | `/api/email/inbox` | Inbox messages from configured provider |
+| `GET` | `/api/sms/threads` | SMS threads from configured provider |
+| `GET` | `/api/capabilities` | Capability registry |
+| `GET` | `/api/tools` | Registered tools; bearer token required |
+| `GET` | `/api/quick-actions` | List quick actions |
+| `POST` | `/api/quick-actions` | Add quick action |
+| `DELETE` | `/api/quick-actions/<action_id>` | Delete quick action |
+| `POST` | `/api/quick-actions/<action_id>/run` | Run quick action |
+
+## TTS API (`rex-speak-api`)
+
+Start:
+
+```bash
+REX_SPEAK_API_KEY=change-me rex-speak-api
+```
+
+Default URL: `http://127.0.0.1:5005`
+
+### `POST /speak`
+
+Authentication: `X-API-Key: <REX_SPEAK_API_KEY>` or `Authorization: Bearer <REX_SPEAK_API_KEY>`.
+
+Request:
+
+```json
+{
+  "text": "Hello from AskRex",
+  "user": "default",
+  "language": "en"
+}
+```
+
+Response: binary WAV audio (`audio/wav`).
+
+Limits:
+
+- `REX_SPEAK_MAX_CHARS`, default 800
+- `REX_SPEAK_MAX_REQUEST_BYTES`, default 65536
+- `REX_SPEAK_RATE_LIMIT`, default 30
+- `REX_SPEAK_RATE_WINDOW`, default 60 seconds
+- `REX_SPEAK_PORT`, default 5005
+
+The TTS API also registers Home Assistant and shopping-list blueprints when their imports/config are available.
+
+## OpenClaw Tool Server (`rex-tool-server`)
+
+Start:
+
+```bash
+REX_TOOL_API_KEY=change-me rex-tool-server
+```
+
+Default URL: `http://127.0.0.1:18790`
+
+### `POST /rex/tools/{tool_name}`
+
+Authentication: `X-API-Key: <REX_TOOL_API_KEY>` or `Authorization: Bearer <REX_TOOL_API_KEY>`.
+
+Request:
+
+```json
+{
+  "args": {"location": "Dallas, TX"},
+  "context": {"session_key": "main"}
+}
+```
+
+Success:
+
+```json
+{
+  "status": "success",
+  "result": {}
+}
+```
+
+Tool server environment:
+
+- `REX_TOOL_SERVER_PORT`, default 18790
+- `REX_TOOL_API_KEY`, required for tool calls
+- `REX_TOOL_RATE_LIMIT`, default 60
+- `REX_TOOL_RATE_WINDOW`, default 60 seconds
+
+Tool calls are rate-limited and guarded by the policy adapter. Denied or approval-required actions return 403.
+
+## Legacy Flask Proxy (`flask_proxy.py`)
+
+`flask_proxy.py` is not the normal GUI runtime. It remains for compatibility with older proxy workflows.
+
+Routes defined directly in the file:
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/` | Redirect to `/dashboard` |
+| `GET` | `/whoami` | Return authenticated user and memory profile summary |
+| `GET` | `/search?q=...` | Search through `plugins.web_search` |
+| `GET` | `/contracts` | Contract schema metadata |
+| `GET` | `/health/live` | Liveness |
+| `GET` | `/health/ready` | Readiness |
+
+Auth is based on Cloudflare Access email, `Authorization: Bearer <REX_PROXY_TOKEN>`, `X-Rex-Proxy-Token`, or loopback when `REX_PROXY_ALLOW_LOCAL=1`.
+
+## Error Envelope
+
+Shared error helpers return a structured envelope:
 
 ```json
 {
   "error": {
     "code": "ERROR_CODE",
-    "message": "Human-readable description.",
-    "request_id": "req-abc123"  // present on 500 errors only
+    "message": "Human-readable description."
   }
 }
 ```
 
-Common HTTP status codes:
+Common status codes:
 
 | Status | Meaning |
-|--------|---------|
-| 400 | Bad request — missing or invalid input |
-| 401 | Unauthorized — missing or invalid credentials |
-| 403 | Forbidden — authenticated but not authorized |
-| 404 | Not found |
-| 429 | Too many requests — rate limit exceeded |
-| 500 | Internal server error |
-| 503 | Service unavailable — dependency not configured |
-
----
-
-## Flask Proxy Endpoints
-
-Base URL: `http://localhost:5000`
-
----
-
-### GET /
-
-Check that Rex is online.
-
-**Authentication:** Bearer token (Flask proxy auth)
-
-**Response 200:**
-
-```
-Rex is online. Ask away.
-```
-
----
-
-### GET /whoami
-
-Return the authenticated user's key and a summary of their memory profile.
-
-**Authentication:** Bearer token (required)
-
-**Response 200:**
-
-```json
-{
-  "user": "alice",
-  "profile": {
-    "name": "Alice",
-    "preferences": {}
-  }
-}
-```
-
-**Error codes:** 401 (missing token), 500 (memory file error)
-
----
-
-### GET /search
-
-Search the web using the configured search provider.
-
-**Authentication:** Bearer token (required)
-
-**Query parameters:**
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `q` | Yes | Search query string |
-
-**Response 200:**
-
-```json
-{
-  "query": "weather today",
-  "result": "Current weather: 72°F and sunny."
-}
-```
-
-**Error codes:** 400 (missing `q`), 503 (search plugin not installed), 502 (provider error)
-
----
-
-### GET /contracts
-
-Return contract schema metadata for API discoverability.
-
-**Authentication:** Bearer token (required)
-
-**Response 200:**
-
-```json
-{
-  "contract_version": "1.0",
-  "schema_docs_path": "docs/contracts/",
-  "models": ["ChatRequest", "LoginRequest"]
-}
-```
-
-**Error codes:** 503 (contracts module not available)
-
----
-
-### GET /health/live
-
-Liveness probe. Returns 200 if the process is running.
-
-**Authentication:** None (public)
-
-**Response 200:**
-
-```json
-{"status": "ok"}
-```
-
----
-
-### GET /health/ready
-
-Readiness probe. Returns 200 when all configured dependencies pass their checks.
-
-**Authentication:** None (public)
-
-**Response 200 (all healthy):**
-
-```json
-{"status": "ok", "checks": {}}
-```
-
-**Response 503 (a check failing):**
-
-```json
-{
-  "status": "degraded",
-  "checks": {
-    "config": "REX_PROXY_TOKEN not set"
-  }
-}
-```
-
----
-
-## Dashboard API Endpoints
-
-Base URL: `http://localhost:5000`
-
-All `/api/*` endpoints (except `/api/dashboard/status` and `/api/dashboard/login`)
-require a valid dashboard session token.
-
----
-
-### GET /api/dashboard/status
-
-Return server version and uptime. Public endpoint.
-
-**Authentication:** None
-
-**Response 200:**
-
-```json
-{
-  "version": "1.0.0",
-  "uptime_seconds": 3600,
-  "auth_enabled": true,
-  "server_time": "2026-03-12T10:00:00",
-  "status": "ok"
-}
-```
-
----
-
-### POST /api/dashboard/login
-
-Authenticate and obtain a session token.
-
-**Authentication:** None
-
-**Request body** (`application/json`):
-
-```json
-{"password": "mysecretpassword"}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `password` | string | Yes | Dashboard password (set via `REX_DASHBOARD_PASSWORD` env var) |
-
-**Response 200:**
-
-```json
-{
-  "token": "tok_abc123xyz",
-  "expires_at": "2026-03-13T10:00:00"
-}
-```
-
-Also sets an `HttpOnly` cookie `rex_dashboard_token`.
-
-**Error codes:** 401 (wrong password), 403 (no password configured and remote access), 429 (too many failed attempts)
-
----
-
-### POST /api/dashboard/logout
-
-Invalidate the current session.
-
-**Authentication:** Dashboard session token
-
-**Response 200:**
-
-```json
-{"message": "Logged out"}
-```
-
-Also clears the `rex_dashboard_token` cookie.
-
----
-
-### GET /api/settings
-
-Return current configuration with sensitive values redacted.
-
-**Authentication:** Dashboard session token (required)
-
-**Response 200:**
-
-```json
-{
-  "settings": {
-    "version": "1.0.0",
-    "tts": {"voice": "default"}
-  },
-  "defaults": { "...": "..." },
-  "metadata": {
-    "tts.voice": {"restart_required": true}
-  }
-}
-```
-
-**Error codes:** 401, 500
-
----
-
-### PATCH /api/settings
-
-Update one or more configuration keys.
-
-**Authentication:** Dashboard session token (required)
-
-**Request body** (`application/json`):
-
-```json
-{"tts.voice": "female_1", "search.provider": "brave"}
-```
-
-Keys use dot-notation for nested paths. Only known keys are accepted.
-
-**Response 200:**
-
-```json
-{
-  "updated": ["tts.voice", "search.provider"],
-  "restart_required": false
-}
-```
-
-**Error codes:** 400 (invalid key or value type), 401, 500
-
----
-
-### POST /api/chat
-
-Send a chat message and receive an LLM reply.
-
-**Authentication:** Dashboard session token (required)
-
-**Request body** (`application/json`):
-
-```json
-{"message": "What is the weather like today?"}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `message` | string | Yes | Non-empty message text |
-
-**Response 200:**
-
-```json
-{
-  "reply": "I don't have live weather data, but I can help you find out!",
-  "timestamp": "2026-03-12T10:05:00",
-  "elapsed_ms": 312
-}
-```
-
-**Error codes:** 400 (blank message), 401, 500 (LLM provider error)
-
----
-
-### GET /api/chat/history
-
-Return recent chat history.
-
-**Authentication:** Dashboard session token (required)
-
-**Query parameters:**
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `limit` | 50 | Max entries to return (capped at 100) |
-| `offset` | 0 | Entries to skip |
-
-**Response 200:**
-
-```json
-{
-  "history": [
-    {
-      "user_message": "Hello",
-      "assistant_reply": "Hi there!",
-      "timestamp": "2026-03-12T10:00:00",
-      "elapsed_ms": 200
-    }
-  ],
-  "total": 1,
-  "limit": 50,
-  "offset": 0
-}
-```
-
-**Error codes:** 401
-
----
-
-### GET /api/scheduler/jobs
-
-List all scheduled jobs.
-
-**Authentication:** Dashboard session token (required)
-
-**Response 200:**
-
-```json
-{
-  "jobs": [
-    {
-      "job_id": "job_abc123",
-      "name": "Daily Briefing",
-      "schedule": "at:08:00",
-      "enabled": true,
-      "next_run": "2026-03-13T08:00:00",
-      "last_run_at": "2026-03-12T08:00:00",
-      "run_count": 5,
-      "max_runs": null,
-      "callback_name": "daily_briefing",
-      "workflow_id": null,
-      "metadata": {}
-    }
-  ],
-  "total": 1,
-  "metrics": {}
-}
-```
-
-**Error codes:** 401, 500
-
----
-
-### POST /api/scheduler/jobs
-
-Create a new scheduled job.
-
-**Authentication:** Dashboard session token (required)
-
-**Request body** (`application/json`):
-
-```json
-{
-  "name": "Daily Briefing",
-  "schedule": "at:08:00",
-  "enabled": true,
-  "callback_name": "daily_briefing",
-  "workflow_id": null,
-  "metadata": {}
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | Yes | Human-readable job name |
-| `schedule` | string | Yes | `"interval:SECONDS"` or `"at:HH:MM"` |
-| `enabled` | boolean | No (default `true`) | Whether the job runs automatically |
-| `callback_name` | string | No | Name of the registered callback function |
-| `workflow_id` | string | No | ID of an associated workflow |
-| `metadata` | object | No | Arbitrary key-value metadata |
-
-**Response 201:**
-
-```json
-{
-  "job_id": "job_abc123",
-  "name": "Daily Briefing",
-  "schedule": "at:08:00",
-  "enabled": true,
-  "next_run": "2026-03-13T08:00:00"
-}
-```
-
-**Error codes:** 400 (invalid schedule format), 401, 500
-
----
-
-### GET /api/scheduler/jobs/{job_id}
-
-Get a specific job by ID.
-
-**Authentication:** Dashboard session token (required)
-
-**Path parameters:** `job_id` — job identifier returned at creation
-
-**Response 200:**
-
-```json
-{
-  "job_id": "job_abc123",
-  "name": "Daily Briefing",
-  "schedule": "at:08:00",
-  "enabled": true,
-  "next_run": "2026-03-13T08:00:00",
-  "last_run_at": "2026-03-12T08:00:00",
-  "run_count": 5,
-  "max_runs": null,
-  "callback_name": "daily_briefing",
-  "workflow_id": null,
-  "metadata": {}
-}
-```
-
-**Error codes:** 401, 404 (not found), 500
-
----
-
-### POST /api/scheduler/jobs/{job_id}/run
-
-Manually trigger a job immediately.
-
-**Authentication:** Dashboard session token (required)
-
-**Path parameters:** `job_id`
-
-**Response 200:**
-
-```json
-{
-  "job_id": "job_abc123",
-  "success": true,
-  "message": "Job executed"
-}
-```
-
-**Error codes:** 401, 404, 500
-
----
-
-### PATCH /api/scheduler/jobs/{job_id}
-
-Update a job (enable/disable, change schedule, etc.).
-
-**Authentication:** Dashboard session token (required)
-
-**Path parameters:** `job_id`
-
-**Request body** (`application/json`):
-
-```json
-{"enabled": false}
-```
-
-Accepted fields: `enabled`, `schedule`, `name`, `max_runs`, `metadata`.
-
-**Response 200:**
-
-```json
-{
-  "job_id": "job_abc123",
-  "name": "Daily Briefing",
-  "schedule": "at:08:00",
-  "enabled": false,
-  "next_run": null
-}
-```
-
-**Error codes:** 400 (no valid updates), 401, 404, 500
-
----
-
-### DELETE /api/scheduler/jobs/{job_id}
-
-Delete a scheduled job.
-
-**Authentication:** Dashboard session token (required)
-
-**Path parameters:** `job_id`
-
-**Response 200:**
-
-```json
-{"job_id": "job_abc123", "deleted": true}
-```
-
-**Error codes:** 401, 404, 500
-
----
-
-### GET /api/notifications
-
-List recent notifications.
-
-**Authentication:** Dashboard session token (required)
-
-**Query parameters:**
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `limit` | 50 | Max entries (capped at 200) |
-| `unread` | `false` | If `true`, return only unread notifications |
-| `priority` | (all) | Filter by priority level |
-
-**Response 200:**
-
-```json
-{
-  "notifications": [
-    {
-      "id": "notif_xyz",
-      "message": "Daily briefing completed",
-      "priority": "normal",
-      "read": false,
-      "created_at": "2026-03-12T08:00:01"
-    }
-  ],
-  "total": 1,
-  "unread_count": 1
-}
-```
-
-**Error codes:** 401, 403, 500
-
----
-
-### POST /api/notifications/{notification_id}/read
-
-Mark a notification as read.
-
-**Authentication:** Dashboard session token (required)
-
-**Path parameters:** `notification_id`
-
-**Response 200:**
-
-```json
-{"id": "notif_xyz", "read": true}
-```
-
-**Error codes:** 401, 404, 500
-
----
-
-### POST /api/notifications/read-all
-
-Mark all notifications as read.
-
-**Authentication:** Dashboard session token (required)
-
-**Response 200:**
-
-```json
-{"marked_read": 5}
-```
-
-**Error codes:** 401, 403, 500
-
----
-
-### GET /api/notifications/stream
-
-Stream notification events via **Server-Sent Events** (SSE).
-
-**Authentication:** Dashboard session token (required)
-
-**Response:** `text/event-stream`
-
-```
-event: init
-data: {"unread_count": 3}
-
-event: notification
-data: {"id": "notif_xyz", "message": "...", "user_id": "alice"}
-```
-
-The stream stays open until the client disconnects or a 15-second idle timeout
-is reached. Reconnect automatically to resume.
-
-**Error codes:** 401
-
----
-
-### POST /api/voice
-
-Transcribe audio and return an LLM reply.
-
-**Authentication:** Dashboard session token (required)
-
-**Request:** `multipart/form-data` with field `audio` containing the recorded
-audio blob (WAV or WebM).
-
-**Response 200:**
-
-```json
-{
-  "transcript": "What is the weather today?",
-  "reply": "I don't have live weather data...",
-  "timestamp": "2026-03-12T10:05:00"
-}
-```
-
-**Error codes:** 400 (no audio file), 401, 500 (Whisper not installed or transcription error)
-
----
-
-## TTS API Endpoints
-
-Base URL: `http://localhost:5001`
-
----
-
-### POST /speak
-
-Convert text to speech and return an audio file.
-
-**Authentication:** `Authorization: Bearer <REX_SPEAK_API_TOKEN>`
-
-**Request body** (`application/json`):
-
-```json
-{
-  "text": "Hello, how can I help you today?",
-  "voice": "default"
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `text` | string | Yes | Text to synthesize |
-| `voice` | string | No | Voice identifier (default: configured voice) |
-
-**Response 200:**
-
-Binary audio data (`audio/wav` or `audio/mpeg`).
-
-**Error codes:** 400 (missing text), 401 (invalid token), 503 (TTS model not loaded), 500
-
----
-
-## Rate Limiting
-
-All Flask proxy endpoints are subject to a default rate limit of
-**60 requests per minute** per IP address (configurable via `API_RATE_LIMIT`).
-
-Health endpoints (`/health/live`, `/health/ready`) are **exempt** from rate limiting.
-
-When the limit is exceeded, the server responds with HTTP 429:
-
-```json
-{
-  "error": {
-    "code": "TOO_MANY_REQUESTS",
-    "message": "Too many requests. Please slow down."
-  }
-}
-```
-
-The response includes a `Retry-After` header indicating how many seconds to wait.
+|---|---|
+| 400 | Invalid input |
+| 401 | Missing or invalid credentials |
+| 403 | Policy/auth denied |
+| 404 | Unknown endpoint or tool |
+| 413 | Request body too large |
+| 429 | Rate limit exceeded |
+| 500 | Internal error |
+| 503 | Dependency/config unavailable |

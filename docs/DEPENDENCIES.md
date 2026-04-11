@@ -121,7 +121,7 @@ python -c "import rex; from rex.llm_client import *; print('Imports OK')"
 ```bash
 python -m compileall .  # Check all Python files compile
 pytest                  # Run unit tests
-python gui.py           # Test GUI loads
+rex-gui                 # Test Python web dashboard loads
 ```
 
 ### Integration Test
@@ -232,7 +232,7 @@ pipenv install --dev
 pipenv shell
 
 # Run commands in pipenv environment
-pipenv run python gui.py
+pipenv run rex-gui
 ```
 
 ### Updating Dependencies with Pipenv

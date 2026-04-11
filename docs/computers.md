@@ -105,7 +105,7 @@ Both the client and the agent enforce their own allowlists independently
 
 ```powershell
 # 1. Install Rex (on the target machine)
-pip install rex-ai-assistant
+pip install askrex-assistant
 
 # 2. Set the auth token
 $env:REX_AGENT_TOKEN = "your-secret-token"

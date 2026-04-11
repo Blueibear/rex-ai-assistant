@@ -10,8 +10,8 @@ Rex uses modern Python packaging with `pyproject.toml`. To install:
 
 ```bash
 # Clone the repository
-git clone https://github.com/Blueibear/rex-ai-assistant.git
-cd rex-ai-assistant
+git clone https://github.com/Blueibear/AskRex-Assistant.git
+cd AskRex-Assistant
 
 # Install in development/editable mode
 pip install -e .

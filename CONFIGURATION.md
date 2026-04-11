@@ -24,7 +24,7 @@ Non-secret configuration including audio devices, model settings, wake word conf
     "output_device_index": null,
     "sample_rate": 16000
   },
-  "wake_word": {
+  "wakeword": {
     "wakeword": "rex",
     "threshold": 0.5
   },
@@ -126,7 +126,7 @@ python -m audio_config --show
 ### Wake Word Settings (rex_config.json)
 ```json
 {
-  "wake_word": {
+  "wakeword": {
     "backend": "openwakeword",                  // Backend: openwakeword, custom_onnx, custom_embedding
     "wakeword": "rex",                          // Legacy wake phrase (keyword is preferred)
     "keyword": null,                            // Preferred wake word keyword
@@ -152,7 +152,7 @@ Store custom models in `models/wakewords/` and point the configuration at the fi
 **Custom ONNX model (recommended)**
 ```json
 {
-  "wake_word": {
+  "wakeword": {
     "backend": "custom_onnx",
     "model_path": "models/wakewords/hey_rex.onnx",
     "fallback_to_builtin": true,
@@ -164,7 +164,7 @@ Store custom models in `models/wakewords/` and point the configuration at the fi
 **Custom embedding model**
 ```json
 {
-  "wake_word": {
+  "wakeword": {
     "backend": "custom_embedding",
     "embedding_path": "models/wakewords/hey_rex.pt",
     "fallback_to_builtin": true,
@@ -178,21 +178,21 @@ If fallback_to_builtin is false and the custom file is missing or invalid, Rex r
 #### Training workflow (OpenWakeWord)
 1. Train or export your wake word with OpenWakeWord tooling to produce an ONNX model.
 2. Place the ONNX file in `models/wakewords/`.
-3. Set `wake_word.backend` to `custom_onnx` and update `wake_word.model_path`.
+3. Set `wakeword.backend` to `custom_onnx` and update `wakeword.model_path`.
 4. Validate the file before starting Rex:
    ```bash
    python scripts/validate_wakeword_model.py --backend custom_onnx --model-path models/wakewords/hey_rex.onnx
    ```
 
 #### Custom embedding workflow (optional)
-If you have a .pt embedding file, set `wake_word.backend` to `custom_embedding` and point `embedding_path` at the file. Rex uses cosine similarity on a lightweight embedding of the audio frame.
+If you have a .pt embedding file, set `wakeword.backend` to `custom_embedding` and point `embedding_path` at the file. Rex uses cosine similarity on a lightweight embedding of the audio frame.
 Use the same validation script:
 ```bash
 python scripts/validate_wakeword_model.py --backend custom_embedding --embedding-path models/wakewords/hey_rex.pt
 ```
 
 #### Legacy wakeword alias
-`wake_word.wakeword` is treated as a legacy alias for `wake_word.keyword`. Rex will keep reading it for compatibility, but new configuration should prefer `keyword` only.
+`wake_word` is the legacy section name. Rex still migrates it to `wakeword` at runtime and logs a warning. New configuration should use `wakeword` and prefer `keyword` when selecting a built-in keyword.
 
 Legacy environment variables are ignored for wake word configuration. Always update `config/rex_config.json` instead.
 
@@ -233,11 +233,11 @@ TOOL_RESULT: {"tool":"time_now","args":{"location":"Dallas, TX"},"result":{"loca
 
 ### Supported Tools
 - time_now is implemented
-- weather_now is stubbed for future use
-- web_search is stubbed for future use
+- weather_now is implemented through OpenWeatherMap and requires `OPENWEATHERMAP_API_KEY`
+- web_search is implemented through `plugins/web_search.py` and depends on configured search providers
 
 ### Extending Tools
-To add new tools, update the tool router module to parse the new tool name and return a structured result. Add tests for the new tool and keep results in the TOOL_RESULT format.
+To add new local model-routed tools, update `rex/openclaw/tool_executor.py` and register metadata in `rex/openclaw/tool_registry.py`. For HTTP-exposed OpenClaw adapter tools, update `rex/openclaw/tool_server.py` and the relevant module under `rex/openclaw/tools/`. Add tests and keep local model feedback in the `TOOL_RESULT` format.
 
 ### Runtime Settings (rex_config.json)
 ```json
@@ -316,7 +316,7 @@ The migration command:
 
 ### What gets migrated:
 - Audio device settings (`REX_INPUT_DEVICE`, `REX_SAMPLE_RATE`, etc.)
-- Wake word settings (`REX_WAKEWORD`, `REX_WAKEWORD_THRESHOLD`, etc.)
+- Wake word settings (`REX_WAKEWORD`, `REX_WAKEWORD_KEYWORD`, `REX_WAKEWORD_WINDOW`, etc.; threshold now belongs in `wakeword.threshold`)
 - Model settings (`REX_LLM_PROVIDER`, `REX_WHISPER_MODEL`, etc.)
 - Runtime settings (`REX_LOG_LEVEL`, `REX_MEMORY_MAX_TURNS`, etc.)
 - OpenAI runtime settings (`OPENAI_BASE_URL`, `OPENAI_MODEL`)
@@ -347,7 +347,7 @@ REX_SAMPLE_RATE=16000
 Becomes in `config/rex_config.json`:
 ```json
 {
-  "wake_word": {
+  "wakeword": {
     "wakeword": "jarvis"
   },
   "models": {
@@ -451,7 +451,7 @@ See `config/rex_config.schema.json` for complete JSON Schema documentation.
 
 ## Test Coverage Gate
 
-The current coverage floor is 25 percent. This is a temporary baseline that will be raised in steps as coverage improves, for example 25, 35, 45, 55.
+The current coverage floor in `pyproject.toml` is 75 percent.
 
 Run tests locally on Windows with:
 
@@ -475,6 +475,6 @@ python -m pytest
 - [config/rex_config.example.json](config/rex_config.example.json) - Configuration example
 
 ### Support
-- GitHub Issues: https://github.com/Blueibear/rex-ai-assistant/issues
+- GitHub Issues: https://github.com/Blueibear/AskRex-Assistant/issues
 - Check logs: `logs/rex.log`
 - Enable debug logging: Set `"log_level": "DEBUG"` in rex_config.json

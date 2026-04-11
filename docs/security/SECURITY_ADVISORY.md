@@ -184,10 +184,10 @@ pip >= 25.3
 
 ### For New Installations
 
-Users installing rex-ai-assistant from PyPI or source will automatically get secure versions:
+Users installing `askrex-assistant` from PyPI or source will automatically get secure versions:
 
 ```bash
-pip install rex-ai-assistant
+pip install askrex-assistant
 # Automatically installs cryptography>=43.0.1, setuptools>=78.1.1
 ```
 

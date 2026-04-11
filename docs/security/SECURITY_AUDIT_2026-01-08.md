@@ -1,6 +1,6 @@
 # Security Audit Report - January 8, 2026
 
-**Repository:** rex-ai-assistant
+**Repository:** AskRex-Assistant
 **Branch:** security/dependabot-fix-2026-01-08
 **Audit Date:** 2026-01-08
 **Auditor:** Automated Security Scan + Manual Review
@@ -147,7 +147,7 @@ GitHub Dependabot has identified 21 vulnerabilities in dependencies:
 
 ## Conclusion
 
-**The rex-ai-assistant source code has passed all security audits.**
+**The AskRex Assistant source code passed this security audit.**
 
 ✅ No merge conflicts
 ✅ No exposed secrets

@@ -1,97 +1,54 @@
-
----
-
-## `docs/claude/INTEGRATIONS_STATUS.md`
-
-```md
 # Claude Reference: Integrations Status
 
-This file is the single source of truth for integration readiness.
-Each integration is classified as **REAL**, **PARTIAL**, **STUB**, or **NOT STARTED**.
+This file is the active readiness snapshot for repo integration claims. Use these labels in README and planning docs unless a fresh code audit proves otherwise.
 
-- **REAL** — backend is complete, tested, and usable in production with credentials.
-- **PARTIAL** — backend exists but has meaningful gaps (read-only, credential-gated fallback, or missing hardening).
-- **STUB** — scaffolding exists; no real external service connection.
-- **NOT STARTED** — feature is in the roadmap only; no code exists.
+- **REAL** - backend exists, is tested enough for normal local use, and uses real data/service calls when configured.
+- **PARTIAL** - backend exists but has meaningful gaps such as read-only support, credential-gated fallback, limited hardening, or incomplete UI coverage.
+- **STUB** - scaffold or UI exists but external service behavior is not implemented end-to-end.
+- **NOT STARTED** - roadmap only.
 
----
+## Snapshot
 
-## Integration Status Snapshot
-
-### Email
-**Status: PARTIAL**
-Evidence: Real IMAP4-SSL read and SMTP send backend exists (`rex/integrations/email/backends/imap_smtp.py`). Multi-account routing exists. Falls back to offline stub when IMAP/SMTP credentials are absent. CalDAV/Google OAuth not implemented.
-
-### Calendar
-**Status: PARTIAL**
-Evidence: ICS read-only backend exists (`rex/integrations/calendar/backends/ics_feed.py`). Supports local `.ics` files and HTTPS ICS sources. No calendar write support. CalDAV/Google OAuth not implemented.
-
-### SMS / Messaging
-**Status: PARTIAL**
-Evidence: Real SMS delivery and inbound webhook receiver via Twilio exists (`rex/integrations/messaging/backends/twilio_sms.py`). Multi-account routing and inbound message handling included. Falls back to offline stub when Twilio credentials are absent.
-
-### Notifications
-**Status: REAL**
-Evidence: Priority routing, digest logic, quiet hours, and auto-escalation are active. Dashboard channel persists to local SQLite store with real API endpoints and SSE push (`rex/notifications/`, `rex/dashboard_store.py`). Email channel uses real SMTP when configured.
-
-### Voice Identity / Speaker Recognition
-**Status: PARTIAL**
-Evidence: Embeddings store and enrollment commands exist (`rex/voice_identity/`). Calibration and recognition scaffolding present. Still alpha-only; optional dependency model used.
-
-### Windows Computer Control
-**Status: PARTIAL**
-Evidence: Windows agent server and client foundation exist (`rex/computers/`). Approval and allowlist model present. Boot-persistence and service-wrapper hardening are roadmap items.
-
-### Home Assistant TTS
-**Status: PARTIAL**
-Evidence: Optional notification channel exists (`rex/ha_bridge.py`). Disabled by default. Auth and SSRF hardening are required for production use.
-
-### Home Assistant Device Control
-**Status: PARTIAL**
-Evidence: Dashboard API endpoints for testing HA connectivity (`POST /api/ha/test`), saving HA URL/token (`POST /api/ha/save`), listing approved devices (`GET /api/devices` from `config/device_aliases.json`), and sending commands (`POST /api/devices/<entity_id>/command`). Commands proxied via `urllib.request` to the HA REST API. No autodiscovery; devices must be manually listed in `config/device_aliases.json`.
-
-### User Authentication and Data Isolation
-**Status: REAL**
-Evidence: Per-user authentication with bcrypt + JWT (`rex/auth.py`). Per-user chat history, preferences, and quick actions stored in `Memory/<user_id>/core.json`. Permission system in `rex/permissions.py`. Profile picture upload and personality system. Command history store (`rex/command_history.py`).
-
-### WordPress / WooCommerce
-**Status: PARTIAL**
-Evidence: Read-only health check via WP REST API (`rex wp health`). Orders and products list via WC REST API v3 (`rex wc orders list`, `rex wc products list`). Write actions deferred to future cycle.
-
-### Web Search
-**Status: PARTIAL**
-Evidence: Backends for SerpAPI, Brave, Google CSE, and DuckDuckGo exist (`rex/search/`). Requires API credentials; no credential = no results.
-
-### OpenClaw Gateway
-**Status: REAL**
-Evidence: HTTP integration complete (Phase 8). All calls use `rex/openclaw/http_client.py` with retries and auth. Feature flags in `config/rex_config.json` under `openclaw` control voice-backend and tool-routing paths.
-
-### Per-User Memory / Conversation History
-**Status: PARTIAL**
-Evidence: Per-user memory profiles exist (`Memory/`). Conversation history persistence is in progress and remains alpha-only.
-
-### Autonomous Workflows / Planner
-**Status: STUB**
-Evidence: Workflow runner scaffolding exists (`rex/workflow_runner.py`, `rex/autonomy/`). Still alpha-only; roadmap item for future cycle.
-
-### Identity (Session-Scoped Fallback)
-**Status: PARTIAL**
-Evidence: `rex identify` and `rex whoami` commands work for session-scoped identity. Full voice/speaker recognition is PARTIAL (see Voice Identity above).
-
----
+| Integration | Status | Evidence / notes |
+|---|---|---|
+| Text chat | REAL | `rex` / `python -m rex` routes through `rex.cli:main` and `rex.assistant.Assistant`. |
+| Voice loop | PARTIAL | `python rex_loop.py` wires wake word, Whisper STT, LLM, and TTS. Requires optional ML/audio dependencies and Python 3.11. |
+| Python web dashboard | REAL | `rex-gui` serves `rex/ui/dist/` via `rex.gui_app` at `/ui/` and exposes chat/status/setup/auth/user/integration APIs. |
+| Electron desktop GUI | PARTIAL | Electron/React shell exists under `gui/` with routes and bridge handlers. It depends on root-level Python bridge scripts and build artifacts in `gui/dist-electron`. |
+| User auth/data isolation | REAL | `rex/auth.py`, `rex/permissions.py`, per-user profile data under `Memory/<user_id>/`, user preferences/avatar APIs, and SQLite-backed chat history exist. |
+| Email | PARTIAL | Real IMAP/SMTP backend exists (`rex/integrations/email/backends/imap_smtp.py`) with stub fallback when credentials are absent. OAuth providers remain incomplete. |
+| Calendar | PARTIAL | ICS read-only backend exists (`rex/integrations/calendar/backends/ics_feed.py`) with stub fallback. Calendar write support and Google/CalDAV OAuth are not complete. |
+| SMS / messaging | PARTIAL | Twilio SMS backend and stubs exist (`rex/integrations/messaging/backends/twilio_sms.py`, `rex/integrations/sms_service.py`). Requires Twilio credentials for real delivery. |
+| Notifications | PARTIAL | `rex.notification` supports priority routing, quiet hours, digest, escalation, email/SMS/HA TTS channels, and CLI commands. Electron notification UI/IPC exists. Legacy Flask dashboard notification API routes are not the current surface. |
+| Home Assistant TTS | PARTIAL | HA TTS notification client and `rex ha tts test` exist; requires config and hardening for production use. |
+| Home Assistant device control | PARTIAL | `rex.gui_app` exposes HA test/save/state/device command endpoints. Device alias approval and command safety are still limited and credential-gated. |
+| Web search | PARTIAL | `plugins/web_search.py` implements provider selection for configured providers. The tool registry health currently treats Brave/SerpAPI credentials as readiness signals. |
+| Weather | PARTIAL | `weather_now` tool calls OpenWeatherMap through `OPENWEATHERMAP_API_KEY`; no key means no real weather results. |
+| GitHub | PARTIAL | `rex gh` commands and `rex/github_service.py` exist; requires token and has limited surface area. |
+| VS Code / code operations | PARTIAL | `rex code` commands and `rex/vscode_service.py` exist; intended as local developer tooling. |
+| Browser automation | PARTIAL | `rex browser` commands and OpenClaw browser bridge exist; Playwright dependency and session handling are environment-sensitive. |
+| OS automation / file ops | PARTIAL | `rex os` and `rex.tools.*` modules exist with confirmation/allowlist patterns; treat as high-risk and environment-specific. |
+| Windows computer control | PARTIAL | `rex-agent`, `rex.computers.*`, allowlist/approval policy, and `rex pc` commands exist. Service hardening remains limited. |
+| Shopping list | REAL | `rex shopping` CLI, `rex_shopping_list_bridge.py`, Electron page, and shopping PWA blueprint exist. |
+| Reminders | REAL | `rex reminders` CLI, reminder service, and Electron bridge/page exist. |
+| Tasks | REAL | Task bridge and Electron Tasks page exist; broader autonomous task execution remains alpha. |
+| Knowledge base | PARTIAL | `rex kb` CLI and `rex/knowledge_base.py` exist for local ingestion/search; external sync is not implied. |
+| Memory | PARTIAL | File profiles, key-value facts, working memory, long-term memory, and SQLite chat history exist, but data model boundaries are still evolving. |
+| Voice identity / speaker recognition | PARTIAL | `rex/voice_identity/`, CLI enrollment/status/calibration, and Electron bridge scripts exist. Heavy speaker libraries are optional. |
+| Planner / workflows / autonomy | PARTIAL | `rex plan`, `rex workflows`, `rex approvals`, `rex executor resume`, `rex/workflow_runner.py`, and `rex/autonomy/` exist. Treat as alpha and policy-gated, not fully autonomous production execution. |
+| Scheduler | PARTIAL | `rex scheduler` commands and scheduler model exist; production callback coverage varies by feature. |
+| WordPress | PARTIAL | `rex wp health` supports REST API health checks. It is monitoring-oriented, not a full WordPress content management client. |
+| WooCommerce | PARTIAL | Order/product listing and approval-gated order status/coupon writes exist (`rex/woocommerce/`). Product writes and webhooks remain deferred. |
+| OpenClaw gateway/client | PARTIAL | HTTP client/adapters and feature flags exist. Gateway-backed paths require an external OpenClaw gateway and `OPENCLAW_GATEWAY_TOKEN` where configured. |
+| Rex tool server | REAL | `rex-tool-server` exposes `/rex/tools/{tool_name}` with API key auth, rate limiting, policy guard, and health endpoints. |
+| TTS API | REAL | `rex-speak-api` exposes `/speak`, health endpoints, auth via `REX_SPEAK_API_KEY`, request size limits, and rate limiting. |
+| Docker | PARTIAL | Dockerfile and docs exist; validate target deployment before claiming production readiness. |
 
 ## Known Caution Areas
 
-- Autonomous tool execution and scheduler-triggered workflow claims are STUB level.
-- Docker deployment guidance may not reflect latest Dockerfile state.
-- Windows quickstart commands should be verified on target Python 3.11 environment.
-
-## When to Include This File in a Task Packet
-
-Include this file when the task touches:
-- integration docs
-- roadmap sequencing
-- feature-readiness wording
-- capability claims
-- implementation status labels
-```
+- Python 3.11 is the only supported runtime. Python 3.12+ is rejected.
+- Electron GUI claims should be verified with `npm.cmd run build` and the `gui/tmp_verify_*.cjs` harness pattern before release.
+- Legacy Tkinter launchers (`run_gui.py`, `gui.py`) are deprecated.
+- `flask_proxy.py` is a legacy proxy/API surface, not the primary GUI runtime.
+- OpenClaw docs include historical migration details; current behavior is HTTP-based and feature-flagged.
+- Archive docs and historical PRDs are not reliable as current-state sources.

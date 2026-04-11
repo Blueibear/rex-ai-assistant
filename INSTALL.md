@@ -1,402 +1,252 @@
-# AskRex Assistant - Installation Guide
+# AskRex Assistant Installation Guide
 
-This guide covers all installation methods and platform-specific setup for the AskRex Assistant.
-
-## Table of Contents
-
-- [System Requirements](#system-requirements)
-- [Quick Start](#quick-start)
-- [Startup Modes](#startup-modes)
-- [Installation Methods](#installation-methods)
-  - [CPU-Only (Recommended for Development)](#cpu-only-recommended-for-development)
-  - [GPU-Accelerated (Production)](#gpu-accelerated-production)
-  - [Docker](#docker)
-- [Feature Matrix](#feature-matrix)
-- [Platform-Specific Instructions](#platform-specific-instructions)
-- [Troubleshooting](#troubleshooting)
+This guide covers supported install paths for the current repo. AskRex is Python 3.11-only today; use a 3.11 virtual environment even if your system default `python` is newer.
 
 ## System Requirements
 
-### Minimum Requirements
-- **OS**: Linux, macOS, Windows (WSL2 recommended)
-- **Python**: 3.11
-- **RAM**: 4GB minimum, 8GB recommended
-- **Disk**: 5GB free space (for models)
-- **Audio**: Working microphone and speakers
+| Component | Requirement |
+|---|---|
+| OS | Windows 10/11, macOS, or Linux |
+| Python | 3.11 (`>=3.11,<3.12`) |
+| Disk | Several GB if installing ML/TTS models |
+| Audio | Microphone and speakers for voice mode |
+| FFmpeg | Required for parts of the audio/TTS stack |
+| Node.js/npm | Required only for the Electron GUI under `gui/` |
+| GPU | Optional NVIDIA CUDA path via the GPU requirements files |
 
-### Optional Requirements
-- **GPU**: NVIDIA GPU with CUDA 11.8+ (for GPU acceleration)
-- **VRAM**: 4GB+ for GPU-accelerated speech models
+Python 3.12, 3.13, and 3.14 are not supported by the validated ML/TTS dependency path and are rejected by the app.
 
 ## Quick Start
 
-```bash
-# Clone the repository
+Windows PowerShell:
+
+```powershell
 git clone https://github.com/Blueibear/AskRex-Assistant.git
 cd AskRex-Assistant
 
-# Create and activate virtual environment
-python3.11 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install base dependencies
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip setuptools wheel
 pip install .
 
-# Optional: install CPU-only ML + audio stack
-pip install -r requirements-cpu.txt
+Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
+Copy-Item .env.example .env -ErrorAction SilentlyContinue
 
-# Copy environment template and configure
-cp .env.example .env
-# Edit .env with your API keys and preferences
-
-# Run Rex
+python -m rex doctor
 python -m rex
-# Or: python rex_assistant.py
+```
+
+macOS / Linux:
+
+```bash
+git clone https://github.com/Blueibear/AskRex-Assistant.git
+cd AskRex-Assistant
+
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+pip install .
+
+cp -n config/rex_config.example.json config/rex_config.json
+cp -n .env.example .env
+
+python -m rex doctor
+python -m rex
+```
+
+## Install Options
+
+Base install:
+
+```bash
+pip install .
+```
+
+This installs the Flask/config/security/runtime dependencies plus lightweight TTS backends, but not the heavy ML/audio stack.
+
+CPU ML/audio stack:
+
+```bash
+pip install -r requirements-cpu.txt
+```
+
+Validated Windows CUDA 12.4 stack:
+
+```bash
+pip install -r requirements-gpu-cu124.txt
+```
+
+Alternative CUDA 11.8 stack:
+
+```bash
+pip install -r requirements-gpu.txt
+```
+
+Editable development install:
+
+```bash
+pip install -e ".[dev,test]"
+```
+
+Full extra from package metadata:
+
+```bash
+pip install -e ".[full]"
+```
+
+Use the split requirements files for GPU installs because CUDA PyTorch wheels require the PyTorch extra index URL, which cannot be expressed reliably as a normal optional extra.
+
+## Configuration Files
+
+Create these files from the checked-in examples if they do not already exist:
+
+```bash
+cp config/rex_config.example.json config/rex_config.json
+cp .env.example .env
+```
+
+On Windows:
+
+```powershell
+Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
+Copy-Item .env.example .env -ErrorAction SilentlyContinue
+```
+
+Use:
+
+- `config/rex_config.json` for non-secret runtime settings: audio, wake word, models, profiles, integrations, UI flags, tool settings.
+- `.env` for secrets: API keys, tokens, and shared service keys.
+- `profiles/*.json` for profile capabilities and runtime overrides.
+
+Useful commands:
+
+```bash
+rex-config show
+rex-config migrate-legacy-env --dry-run
+rex-config migrate-legacy-env
 ```
 
 ## Startup Modes
 
-After installing, choose the startup mode that matches your use case:
+| Mode | Command | Notes |
+|---|---|---|
+| Text chat | `rex` or `python -m rex` | Default interactive CLI |
+| Diagnostics | `rex doctor` | Environment and dependency checks |
+| Voice loop | `python rex_loop.py` | Wake word -> STT -> LLM -> TTS |
+| Python web dashboard | `rex-gui` | Opens `http://127.0.0.1:8765/ui/` |
+| Electron desktop GUI | `cd gui && npm.cmd run dev` | Requires Node/npm and Python bridges |
+| TTS API | `rex-speak-api` | Requires `REX_SPEAK_API_KEY`; default port 5005 |
+| OpenClaw tool server | `rex-tool-server` | Requires `REX_TOOL_API_KEY`; default port 18790 |
+| Windows computer agent | `rex-agent` | Optional remote PC control agent |
 
-| Mode | Command | Description |
-|------|---------|-------------|
-| **Text chat** | `rex` | Start the interactive CLI text chat interface |
-| **Voice loop** | `python rex_loop.py` | Start the full voice pipeline (wake word → STT → LLM → TTS) |
-| **Web dashboard** | `rex-gui` | Launch the React-based web dashboard (canonical GUI) |
-| **TTS API** | `rex-speak-api` | Start the Flask text-to-speech REST API with auth and rate limiting |
+`python run_gui.py` and `python gui.py` are deprecated Tkinter paths and should not be used for normal operation.
 
-> **Note:** `rex` and `rex-gui` and `rex-speak-api` are installed as console scripts by `pip install .`.
-> They are available on your `PATH` once the virtual environment is active.
->
-> `rex-gui` serves the dashboard on `http://127.0.0.1:8765/ui/` by default. To use a
-> different port, set `REX_GUI_PORT` before launching it, for example
-> `REX_GUI_PORT=9000 rex-gui` on macOS/Linux or `$env:REX_GUI_PORT=9000; rex-gui` in
-> PowerShell.
-
-You can also run the text chat mode directly without the installed script:
+Override the Python web dashboard port:
 
 ```bash
-python -m rex        # Text chat (equivalent to the rex console script)
+REX_GUI_PORT=9000 rex-gui
 ```
 
----
+PowerShell:
 
-## Installation Methods
-
-### Base (Recommended for Development)
-
-Base installation is faster, lighter, and sufficient for most development and testing scenarios.
-
-```bash
-# Install base dependencies
-pip install -e .
-
-# Optional: add CPU-only ML + audio stack
-pip install -r requirements-cpu.txt
+```powershell
+$env:REX_GUI_PORT=9000; rex-gui
 ```
 
-**Pros:**
-- Fast installation (~500MB download)
-- Lower memory usage
-- No GPU drivers required
-- Works on all platforms
+## Electron GUI Setup
 
-**Cons:**
-- Slower speech recognition and synthesis
-- Not recommended for real-time production use
-
-### GPU-Accelerated (Production)
-
-GPU acceleration provides significantly faster speech processing for production deployments.
-
-```bash
-# Install the validated Windows GPU + TTS stack (Python 3.11 only)
-pip install -r requirements-gpu-cu124.txt
-
-# For CUDA 11.8 (Linux, also Python 3.11 only)
-pip install -r requirements-gpu.txt
+```powershell
+cd gui
+npm.cmd install
+npm.cmd run dev
 ```
 
-> **Note:** PyTorch CUDA wheels require the `--extra-index-url` flag pointing at
-> `https://download.pytorch.org/whl/cuXXX`. The requirements files above already
-> include this. Do **not** use `pip install .[gpu-cu*]` — those extras have been
-> removed because pip cannot pass the extra index URL through `pyproject.toml`.
+Build and preview:
 
-**Requirements:**
-- NVIDIA GPU with CUDA support
-- CUDA Toolkit 11.8 or 12.4
-- 4GB+ VRAM
-
-**Pros:**
-- 5-10x faster speech recognition
-- Real-time TTS generation
-- Better for production workloads
-
-**Cons:**
-- Larger installation (~3GB)
-- Requires GPU drivers and CUDA
-
-### Docker
-
-Docker provides a consistent, isolated environment for running Rex.
-
-```bash
-# Build the image (CPU-only by default)
-docker build -t rex-assistant .
-
-# Run interactively
-docker run -it --rm \
-  -v $(pwd)/Memory:/app/Memory \
-  -v $(pwd)/models:/app/models \
-  --env-file .env \
-  rex-assistant
-
-# Run as daemon
-docker run -d \
-  --name rex \
-  -v rex-memory:/app/Memory \
-  -v rex-models:/app/models \
-  --env-file .env \
-  rex-assistant
+```powershell
+cd gui
+npm.cmd run typecheck
+npm.cmd run build
+npm.cmd run preview
 ```
 
-**GPU Support in Docker:**
-```bash
-# Build GPU version
-docker build -t rex-assistant:gpu \
-  --build-arg TORCH_INDEX_URL=https://download.pytorch.org/whl/cu118 \
-  .
+For Electron-only verification harnesses, build first so `gui/dist-electron/main/index.js` matches the TypeScript sources.
 
-# Run with GPU
-docker run -it --rm --gpus all \
-  -v $(pwd)/Memory:/app/Memory \
-  --env-file .env \
-  rex-assistant:gpu
-```
+## Platform Notes
 
-## Feature Matrix
-
-| Feature | CPU-Only | GPU (CUDA) | OpenAI Backend |
-|---------|----------|------------|----------------|
-| **Wake Word Detection** | ✅ Fast | ✅ Fast | ✅ Fast |
-| **Speech Recognition** | ⚠️ Slow (5-15s) | ✅ Fast (<1s) | ✅ Fast (<1s) |
-| **Language Model** | ✅ Local | ✅ Local | ✅ Cloud |
-| **Text-to-Speech** | ⚠️ Slow (5-10s) | ✅ Fast (<1s) | ✅ Fast (<1s) |
-| **Offline Mode** | ✅ Yes | ✅ Yes | ❌ No |
-| **Privacy** | ✅ Fully Local | ✅ Fully Local | ⚠️ Data sent to OpenAI |
-| **Cost** | 💰 Free | 💰 Free | 💰💰 Pay per use |
-| **Memory Usage** | ~2GB | ~4GB | ~1GB |
-| **Installation Size** | ~500MB | ~3GB | ~200MB |
-
-## Platform-Specific Instructions
-
-### Linux (Ubuntu/Debian)
+Linux:
 
 ```bash
-# Install system dependencies
 sudo apt-get update
-sudo apt-get install -y \
-    ffmpeg \
-    libsndfile1 \
-    libasound2-dev \
-    portaudio19-dev \
-    python3-dev \
-    python3-venv
-
-# Continue with Quick Start
+sudo apt-get install -y ffmpeg libsndfile1 libasound2-dev portaudio19-dev python3-dev python3-venv
 ```
 
-### macOS
+macOS:
 
 ```bash
-# Install Homebrew (if not already installed)
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Install system dependencies
 brew install ffmpeg portaudio python@3.11
-
-# Continue with Quick Start
 ```
 
-### Windows
+Windows:
 
-**Option 1: WSL2 (Recommended)**
-1. Install WSL2 and Ubuntu: https://docs.microsoft.com/en-us/windows/wsl/install
-2. Follow Linux instructions above
-
-**Option 2: Native Windows**
-1. Install Python 3.11 from https://www.python.org/downloads/
-2. Install Git from https://git-scm.com/download/win
-3. See `README.windows.md` for detailed instructions
-
-## Configuration
-
-### Environment Variables
-
-All configuration is done via environment variables. Copy `.env.example` to `.env` and customize:
-
-```bash
-cp .env.example .env
-```
-
-**Key Variables:**
-
-```bash
-# Required for API functionality
-REX_SPEAK_API_KEY=your-secret-key-here
-
-# Optional: Use OpenAI for better quality
-OPENAI_API_KEY=sk-your-openai-key
-REX_LLM_BACKEND=openai
-REX_LLM_MODEL=gpt-3.5-turbo
-
-# Audio configuration
-REX_WAKEWORD=rex
-REX_WHISPER_MODEL=base  # Options: tiny, base, small, medium, large
-REX_WHISPER_DEVICE=cpu  # Or cuda for GPU
-
-# CORS configuration (if running API)
-REX_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5000
-```
-
-See `.env.example` for the complete list of configuration options.
+- Install Python 3.11 and use `py -3.11`.
+- Install FFmpeg and ensure `ffmpeg.exe` is on `PATH`.
+- Native Windows is supported; WSL2 is also usable for CLI/server flows.
+- `simpleaudio` is optional and disabled on Windows because it has known build issues.
 
 ## Running Tests
 
 ```bash
-# Install test dependencies
-pip install -e .[dev,test]
-
-# Run all unit tests
-pytest -m unit
-
-# Run all tests (including slow/integration tests)
+pip install -e ".[dev,test]"
 pytest
-
-# Run with coverage
+pytest -m "not slow and not audio and not gpu"
 pytest --cov=rex --cov-report=html
+```
 
-# Open coverage report
-open htmlcov/index.html
+Electron checks:
+
+```powershell
+cd gui
+npm.cmd run typecheck
+npm.cmd run build
 ```
 
 ## Troubleshooting
 
-### Audio Issues
+If `python -m rex ...` rejects your interpreter, confirm the active Python:
 
-**Problem:** No audio input detected
 ```bash
-# List available audio devices
-python -c "import sounddevice; print(sounddevice.query_devices())"
-
-# Set device index in .env
-REX_INPUT_DEVICE=0  # Replace with your device index
+python --version
 ```
 
-**Problem:** Audio output not working
-```bash
-# Test audio output
-python -c "import simpleaudio; simpleaudio.WaveObject([0x00]*1000, 1, 1, 16000).play().wait_done()"
+On Windows, prefer:
+
+```powershell
+py -3.11 -m rex doctor
 ```
 
-### Memory Issues
+Run diagnostics:
 
-**Problem:** Out of memory during model loading
-
-**Solution:** Use smaller models or CPU-only mode:
-```bash
-REX_WHISPER_MODEL=tiny  # Smallest model
-REX_WHISPER_DEVICE=cpu
-REX_TTS_MODEL=tts_models/en/ljspeech/tacotron2-DDC  # Lighter TTS model
-```
-
-### Import Errors
-
-**Problem:** `ModuleNotFoundError` for torch/transformers
-
-**Solution:** Reinstall dependencies with clean cache:
-```bash
-pip cache purge
-pip uninstall torch torchvision torchaudio -y
-pip install -r requirements-cpu.txt --no-cache-dir
-```
-
-### CUDA Errors
-
-**Problem:** CUDA version mismatch
-
-**Solution:** Check CUDA version and install matching PyTorch:
-```bash
-nvidia-smi  # Check CUDA version
-# Install matching PyTorch from https://pytorch.org/get-started/locally/
-```
-
-### Doctor Script
-
-Run the built-in diagnostics:
 ```bash
 python -m rex doctor
 ```
 
-This will check:
-- Python version
-- Dependency versions
-- Audio device availability
-- Model download status
-- Environment configuration
+Common fixes:
 
-## Development Mode
+- Missing FFmpeg: install FFmpeg and reopen the terminal so `PATH` updates.
+- Missing ML dependencies: install `requirements-cpu.txt` or the matching GPU requirements file.
+- OpenAI/Ollama/model failures: check `config/rex_config.json` model settings and `.env` secrets.
+- TTS API startup failure: set `REX_SPEAK_API_KEY`.
+- Tool server 401s: set `REX_TOOL_API_KEY`.
 
-For active development with hot-reloading:
-
-```bash
-# Install in editable mode with dev dependencies
-pip install -e .[dev]
-
-# Enable debug logging
-export REX_DEBUG_LOGGING=true
-export REX_LOG_LEVEL=DEBUG
-
-# Run tests on file changes
-pytest-watch
-```
-
-## Uninstallation
+## Uninstall
 
 ```bash
-# Remove pip package
 pip uninstall askrex-assistant
-
-# Remove virtual environment
-rm -rf venv/
-
-# Remove downloaded models and state (optional)
-rm -rf models/ Memory/ transcripts/ logs/
 ```
 
-## Getting Help
+Then remove local runtime state only if you no longer need it:
 
-- **Documentation**: See `README.md` for usage guide
-- **Issues**: Report bugs at https://github.com/Blueibear/AskRex-Assistant/issues
-- **Discussions**: Ask questions in GitHub Discussions
-- **Windows Users**: See `README.windows.md` for platform-specific tips
-
-## Next Steps
-
-After installation:
-
-1. Configure your `.env` file with API keys
-2. Test audio devices: `python -c "import sounddevice; print(sounddevice.query_devices())"`
-3. Run the environment doctor: `python -m rex doctor`
-4. Start Rex: `python -m rex`
-5. Say your wake word (default: "rex") and start chatting!
-
-## Python Compatibility Policy
-
-**Python 3.11 is required. Python 3.12 and above are not supported.**
-
-- The default install path is validated on Python 3.11.
-- The full Windows GPU + TTS path is validated on Python 3.11.
-- Fresh installs on Python 3.12, 3.13, and 3.14 are known to fail in the ML/TTS dependency path and are intentionally rejected by the supported install scripts.
-
-The package metadata, installers, and `rex doctor` now fail fast on unsupported Python versions so users do not get stuck in long pip resolution failures.
+```bash
+rm -rf .venv data logs transcripts Memory
+```

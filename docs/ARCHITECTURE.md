@@ -1,487 +1,239 @@
-# AskRex Assistant - Architecture Documentation
+# AskRex Assistant Architecture
 
-## Overview
+AskRex Assistant is a Python 3.11 local-first assistant with text chat, voice
+interaction, memory, tool routing, workflow planning, integrations, and two
+modern UI surfaces: the Flask-served web dashboard (`rex-gui`) and the Electron
+desktop app under `gui/`.
 
-Rex is a voice-activated AI assistant that combines wake word detection, speech recognition, LLM processing, and text-to-speech synthesis. This document describes the architecture, design decisions, and code organization.
+The PyPI/package name is `askrex-assistant`. The user-facing product name is
+AskRex Assistant.
 
-## Directory Structure
+## Runtime Shape
 
-```
-rex-ai-assistant/
-├── rex/                    # Canonical package implementation
-│   ├── __init__.py        # Package exports
-│   ├── assistant.py       # Core Assistant class
-│   ├── config.py          # Configuration management
-│   ├── llm_client.py      # LLM integration
-│   ├── memory.py          # Working & long-term memory (see docs/memory.md)
-│   ├── memory_utils.py    # User memory & profiles
-│   ├── knowledge_base.py  # Document storage & search (see docs/knowledge_base.md)
-│   ├── voice_loop.py      # Voice loop (wrapper to optimized)
-│   ├── voice_loop_optimized.py  # CANONICAL voice loop implementation
-│   ├── assistant_errors.py # Exception hierarchy
-│   ├── logging_utils.py   # Logging configuration
-│   └── wakeword/          # Wake word detection
-│       ├── listener.py
-│       └── utils.py
-├── plugins/               # Pluggable extensions
-│   ├── __init__.py       # Plugin package marker
-│   └── web_search.py     # Web search plugin
-├── utils/                # Utilities
-│   └── env_loader.py     # Environment variable loader
-├── scripts/              # Utility scripts
-│   └── doctor.py         # Health check script
-├── tests/                # Test suite
-├── Memory/               # User profiles & conversation history
-├── *.py (root level)     # Compatibility wrappers & entry points
-└── docs/                 # Documentation
-    └── ARCHITECTURE.md   # This file
-```
+| Layer | Main modules | Notes |
+|---|---|---|
+| CLI | `rex/__main__.py`, `rex/cli.py` | `python -m rex` and console script `rex` |
+| Core assistant | `rex/assistant.py`, `rex/llm_client.py` | LLM selection, tool-aware replies, system context |
+| Voice loop | `rex_loop.py`, `rex/voice_loop.py`, `rex/voice_loop_optimized.py` | Wake word, STT, LLM, and TTS path |
+| Config | `rex/config.py`, `rex/config_manager.py`, `config/rex_config.json` | Runtime JSON config plus `.env` secrets |
+| Memory and history | `rex/memory.py`, `rex/memory_utils.py`, `rex/history_store.py`, `Memory/`, `data/` | Per-user memory plus command/chat history |
+| Tools | `rex/openclaw/tool_registry.py`, `rex/openclaw/tool_executor.py`, `rex/openclaw/tools/` | Local tool registry and executor |
+| Tool server | `rex/openclaw/tool_server.py` | `rex-tool-server` on `127.0.0.1:18790` |
+| Python web UI | `rex/gui_app.py` | `rex-gui` on `127.0.0.1:8765/ui/` |
+| Electron UI | `gui/` | React/Electron app, built to `gui/dist-electron/` |
+| TTS API | `rex_speak_api.py` | `rex-speak-api` on `127.0.0.1:5005` |
+| Computer agent | `rex/computers/agent_server.py` | `rex-agent`, local agent API for controlled OS automation |
 
-## Design Principles
+## Repository Layout
 
-### 1. Canonical Source: `rex/` Package
-
-**All core functionality lives in the `rex/` package.** This is the single source of truth for:
-- Configuration (`rex/config.py`)
-- Error handling (`rex/assistant_errors.py`)
-- LLM integration (`rex/llm_client.py`)
-- Memory management (`rex/memory_utils.py`)
-- Plugin system (`rex/plugins/`)
-- Voice loop (`rex/voice_loop_optimized.py`)
-
-### 2. Root-Level Compatibility Wrappers
-
-Root-level Python files serve as **backward compatibility wrappers** for legacy code:
-
-```python
-# Example: config.py (root level)
-"""Wrapper for backward compatibility."""
-from rex.config import *  # noqa: F401, F403
+```text
+.
+|-- rex/                     # Main Python package
+|   |-- cli.py               # CLI command tree
+|   |-- assistant.py         # Assistant orchestration
+|   |-- config.py            # AppConfig loader and rex-config CLI
+|   |-- llm_client.py        # Transformers/OpenAI/Anthropic/Ollama clients
+|   |-- voice_loop.py        # Package voice-loop exports
+|   |-- voice_loop_optimized.py
+|   |-- gui_app.py           # Flask-served web dashboard
+|   |-- openclaw/            # Tool registry, executor, bridges, tool server
+|   |-- integrations/        # Email, calendar, SMS service adapters
+|   |-- computers/           # Remote computer agent/client support
+|   |-- wakeword/            # Wake-word helpers
+|   |-- notifications/       # Newer notification package pieces
+|   `-- ...                  # Scheduler, workflows, memory, auth, etc.
+|-- gui/                     # Electron + React desktop app
+|-- plugins/                 # Optional legacy plugin modules, e.g. web_search
+|-- config/                  # Runtime JSON config examples/defaults
+|-- Memory/                  # Per-user profile and memory data
+|-- data/                    # Local SQLite/state files at runtime
+|-- tests/                   # Pytest suite
+|-- docs/                    # Current docs plus archived planning/history
+|-- rex_loop.py              # Voice loop runner
+|-- rex_speak_api.py         # TTS Flask API
+|-- flask_proxy.py           # Legacy compatibility proxy
+`-- pyproject.toml           # Package metadata and console scripts
 ```
 
-**Why this structure?**
-- **Gradual migration**: Existing code can continue importing from root
-- **Clean package**: New code imports from `rex.*`
-- **Minimal duplication**: Wrappers are tiny (1-3 lines)
-
-**Which files are wrappers?**
-- `config.py`
-- `assistant_errors.py`
-- `llm_client.py`
-- `logging_utils.py`
-- `memory_utils.py`
-
-**Which root files are standalone?**
-- `rex_assistant.py` - Main CLI entry point
-- `rex_loop.py` - Voice loop runner
-- `rex_speak_api.py` - Flask TTS API server
-- `flask_proxy.py` - User authentication proxy
-- `audio_config.py` - Audio device configuration
-- `install.py` - Interactive installer
-
-## Core Components
-
-### Configuration (`rex/config.py`)
-
-**Responsibility:** Environment variable loading, validation, and configuration management.
-
-```python
-from rex.config import AppConfig, load_config
-
-config = load_config()  # Loads from environment
-```
-
-**Key features:**
-- Pydantic-based validation
-- Type-safe configuration
-- Environment variable mapping
-- Singleton pattern for global config
-
-### Voice Loop (`rex/voice_loop_optimized.py`)
-
-**IMPORTANT:** `rex/voice_loop.py` is a **compatibility wrapper** that re-exports from `voice_loop_optimized.py`.
-
-**Canonical implementation:** `rex/voice_loop_optimized.py`
-
-**Architecture:**
-1. **AsyncMicrophone** - Audio input with VAD
-2. **WakeAcknowledgement** - Wake word feedback sound
-3. **SpeechToText** - Whisper integration
-4. **TextToSpeech** - Multi-provider TTS (XTTS, Edge, Piper, Windows)
-5. **VoiceLoop** - Main orchestrator
-
-**Why "optimized"?**
-- Voice Activity Detection (VAD) for faster recording
-- Automatic Whisper model downgrade (base → tiny for 3x speedup)
-- Better default TTS provider (Edge-TTS instead of slow XTTS)
-- Concurrent STT + LLM processing where possible
-
-### Plugin System (`rex/plugins/`)
-
-**Architecture:**
-```
-plugins/
-├── __init__.py           # PluginSpec model + load_plugins()
-├── web_search.py         # Example plugin
-└── [future_plugin].py
-
-Each plugin:
-1. Defines register() function
-2. Returns PluginSpec(name, description, execute)
-3. Loaded dynamically by rex.plugins.load_plugins()
-```
-
-**PluginSpec model:**
-```python
-from rex.plugins import PluginSpec
-
-# PluginSpec is a dataclass with: name, description, execute callable
-```
-
-**Loading:**
-```python
-from rex.plugins import load_plugins
-
-plugin_specs = load_plugins()  # Returns list[PluginSpec]
-# Build dict if needed:
-plugins = {f"plugins.{s.name}": s for s in plugin_specs}
-```
-
-> **Note:** The legacy `rex/plugin_loader.py` has been retired. Use `rex.plugins.load_plugins()` instead.
-
-### Memory System (`rex/memory_utils.py`)
-
-**Structure:**
-```
-Memory/
-├── users.json            # Email → user_key mapping
-└── <user_key>/
-    ├── core.json        # Profile (name, preferences, voice)
-    └── history.json     # Conversation history
-```
-
-**Security:**
-- Path traversal protection via `_sanitize_user_key()`
-- Validation with `_validate_path_within()`
-- User isolation
+Top-level modules such as `config.py`, `llm_client.py`, and `memory_utils.py`
+remain compatibility shims for older imports. New code should import from
+`rex.*`.
 
 ## Entry Points
 
-### 1. CLI Assistant (`python -m rex`)
-
-**Flow:**
-```
-python -m rex
-  ↓
-rex/__main__.py
-  ↓
-rex_assistant.py:main()
-  ↓
-rex.assistant.Assistant
-```
-
-**Mode:** Text-based chat (no audio)
-
-### 2. Voice Loop (`python rex_loop.py`)
-
-**Flow:**
-```
-python rex_loop.py
-  ↓
-build_voice_loop()
-  ↓
-rex.voice_loop_optimized.VoiceLoop
-  ↓
-Continuous wake word → STT → LLM → TTS loop
-```
-
-**Mode:** Full voice interaction with wake word
-
-### 3. TTS API (`python -m rex-speak-api`)
-
-**Flow:**
-```
-python rex_speak_api.py
-  ↓
-Flask app on port 5000
-  ↓
-POST /speak with API key
-  ↓
-TTS generation → audio file
-```
-
-**Mode:** HTTP API for text-to-speech
-
-## Design Decisions
-
-### Why Both `voice_loop.py` and `voice_loop_optimized.py`?
-
-**History:**
-- Original implementation: `voice_loop.py` (incomplete)
-- Optimized implementation: `voice_loop_optimized.py` (complete, faster)
-- Solution: Make `voice_loop.py` a wrapper to `voice_loop_optimized.py`
-
-**Current state:**
-```python
-# rex/voice_loop.py
-from .voice_loop_optimized import (
-    VoiceLoop,
-    build_voice_loop,
-    # ... all exports
-)
-```
-
-**Future:** Could merge into single `voice_loop.py` after deprecation period.
-
-### Why Separate `utils/env_loader.py`?
-
-**Problem:** Direct `python-dotenv` usage violates import order (PEP 8).
-
-**Solution:** Bootstrap module that auto-loads on first import.
-
-```python
-# Any module can simply:
-import utils.env_loader  # Auto-loads .env
-
-# Instead of:
-from utils.env_loader import load as _load_env
-_load_env()  # Manual call
-```
-
-**Benefits:**
-- PEP 8 compliant imports
-- Single responsibility
-- No manual initialization needed
-
-### Why `rex/` Package vs Root Files?
-
-**Evolution:**
-1. **Phase 1** (legacy): All code in root directory
-2. **Phase 2** (current): Core in `rex/`, wrappers in root
-3. **Phase 3** (future): Deprecate root wrappers, `rex/` only
-
-**Migration strategy:**
-```python
-# Old code (still works)
-from config import load_config
-
-# New code (recommended)
-from rex.config import load_config
-```
-
-**Timeline:**
-- ✅ Phase 2 complete (current state)
-- 📅 Phase 3 planned (post v1.0)
-
-## Plugin Development Guide
-
-### Creating a New Plugin
-
-1. **Create plugin file:**
-```python
-# plugins/my_plugin.py
-from rex.plugins import Plugin
-
-def register() -> Plugin:
-    """Register plugin with the system."""
-    return Plugin(
-        name="my_plugin",
-        description="Does something useful",
-        execute=my_execute_function,
-    )
-
-def my_execute_function(context: dict, **kwargs):
-    """Plugin logic here."""
-    return {"result": "success"}
-```
-
-2. **Plugin is auto-discovered** by `rex.plugins.load_plugins()`
-
-3. **Use in assistant:**
-```python
-from rex.plugins import load_plugins
-
-specs = load_plugins()
-for spec in specs:
-    if spec.name == "my_plugin":
-        result = spec.execute({}, arg1="value")
-```
-
-### Plugin Best Practices
-
-- ✅ Handle missing dependencies gracefully
-- ✅ Validate inputs
-- ✅ Return structured data (dict)
-- ✅ Log errors, don't crash
-- ✅ Document in docstrings
-- ❌ Don't modify global state
-- ❌ Don't import at module level if dependency might be missing
-
-## Testing Architecture
-
-### Test Organization
-
-```
-tests/
-├── test_config.py          # Configuration tests
-├── test_llm_client.py      # LLM integration tests
-├── test_memory_utils.py    # Memory system tests
-├── test_plugin_loader.py   # Plugin loading tests
-├── test_voice_loop.py      # Voice loop tests
-├── test_rex_speak_api.py   # API tests
-└── ...
-```
-
-### Test Markers
-
 Defined in `pyproject.toml`:
-- `@pytest.mark.unit` - Fast unit tests
-- `@pytest.mark.integration` - Tests with external services
-- `@pytest.mark.slow` - Long-running tests
-- `@pytest.mark.audio` - Requires audio hardware
-- `@pytest.mark.gpu` - Requires GPU
-- `@pytest.mark.network` - Requires network access
 
-**Run specific tests:**
+| Console script | Target |
+|---|---|
+| `rex` | `rex.cli:main` |
+| `rex-config` | `rex.config:cli` |
+| `rex-speak-api` | `rex_speak_api:main` |
+| `rex-agent` | `rex.computers.agent_server:main` |
+| `rex-gui` | `rex.gui_app:main` |
+| `rex-tool-server` | `rex.openclaw.tool_server:main` |
+
+Module/script entry points:
+
+| Command | Purpose |
+|---|---|
+| `python -m rex` | Default CLI chat |
+| `python -m rex doctor` | Environment diagnostics |
+| `python rex_loop.py` | Full local voice loop |
+| `python rex_speak_api.py` | Equivalent TTS API script form |
+| `python flask_proxy.py` | Legacy compatibility proxy/API |
+
+`python -m rex-speak-api` is not a valid module invocation; use
+`rex-speak-api` or `python rex_speak_api.py`.
+
+## CLI Command Tree
+
+`rex --help` currently exposes commands for:
+
+- diagnostics: `doctor`, `version`, `tools`, `usage`
+- chat and memory: `chat`, `memory`, `remember`, `history`, `quick-actions`
+- knowledge: `kb`
+- workflows: `plan`, `run-workflow`, `workflows`, `executor`, `approvals`
+- schedule and reminders: `scheduler`, `reminders`, `cues`
+- communications: `email`, `calendar`, `msg`, `notify`
+- automation: `browser`, `os`, `gh`, `code`, `pc`
+- integrations: `ha`, `wp`, `wc`
+- identity and shopping: `whoami`, `identify`, `voice-id`, `shopping`
+
+## Configuration Model
+
+AskRex uses a split configuration model:
+
+- `.env` stores secrets and service-specific environment controls.
+- `config/rex_config.json` stores runtime settings such as wake word, models,
+  audio devices, integrations, workflows, and UI defaults.
+
+The canonical wake-word section is `wakeword`. The legacy `wake_word` key is
+migrated at runtime with a warning.
+
+`rex-config migrate-legacy-env` migrates older non-secret environment variables
+into `config/rex_config.json` without overwriting non-default runtime values.
+
+## Tool Architecture
+
+Local tool execution is owned by `rex/openclaw/`:
+
+- `tool_registry.py` builds the local registry.
+- `tool_executor.py` enforces policy and executes tools.
+- `tools/` contains individual tool adapters.
+- `tool_server.py` exposes tools over HTTP for OpenClaw-compatible callers.
+
+The tool server listens on `127.0.0.1:18790` by default and requires
+`REX_TOOL_API_KEY` for `/rex/tools/{tool_name}` calls.
+
+The built-in tool set includes time, weather, web search, email, SMS, calendar,
+Home Assistant, Plex, WordPress, and WooCommerce paths. Optional integrations
+only become usable when their dependencies and credentials are configured.
+
+## UI Architecture
+
+### Python Web Dashboard
+
+`rex-gui` starts `rex/gui_app.py`, serves the web UI at `/ui/`, and exposes local
+JSON/SSE endpoints such as:
+
+- `/api/dashboard/status`
+- `/api/chat/send`
+- `/api/logs/stream`
+- `/api/usage`
+- `/api/devices`
+- `/api/ha/test`
+- `/api/quick-actions`
+- `/api/status/stream`
+- `/api/history`
+- `/api/integrations`
+- `/api/calendar/events`
+- `/api/email/inbox`
+- `/api/sms/threads`
+- `/api/tools`
+
+### Electron Desktop App
+
+The Electron app lives in `gui/` and uses Electron/Vite/React. Its package
+scripts are:
+
 ```bash
-pytest -m unit                    # Fast unit tests only
-pytest -m "not slow and not audio"  # Skip slow/audio tests
+npm.cmd run dev
+npm.cmd run typecheck
+npm.cmd run build
+npm.cmd run preview
+npm.cmd run lint
 ```
 
-## Security Architecture
+The current Electron routes include home, devices, chat, voice, tasks,
+calendar, reminders, memories, email, SMS, notifications, shopping, logs,
+history, usage, integrations, settings, Home Assistant, quick actions, and
+about.
 
-### API Authentication (`rex_speak_api.py`)
+For Electron-only verification harnesses, build first so
+`gui/dist-electron/main/index.js` matches TypeScript sources.
 
-**Layers:**
-1. **API Key Validation** - HMAC constant-time comparison
-2. **Rate Limiting** - Per-user or per-IP limits
-3. **Trusted Proxy Handling** - Only trust X-Forwarded-For from configured proxies
+### Legacy UI Surfaces
 
-**Environment variables:**
-```bash
-REX_SPEAK_API_KEY=your-secret-key
-REX_TRUSTED_PROXIES=127.0.0.1,::1  # Comma-separated IPs
-REX_SPEAK_RATE_LIMIT=30            # Requests per window
-REX_SPEAK_RATE_WINDOW=60           # Window in seconds
-```
+`gui.py` and `run_gui.py` are deprecated Tkinter-era entry points. `flask_proxy.py`
+is a compatibility API/proxy surface, not the primary GUI.
 
-### Memory Isolation
+## TTS API
 
-**Path traversal protection:**
-```python
-# Prevents: ../../etc/passwd
-user_key = _sanitize_user_key(raw_input)
-path = _validate_path_within(user_folder, file)
-```
+`rex-speak-api` runs `rex_speak_api.py` on `127.0.0.1:5005` by default. It
+requires `REX_SPEAK_API_KEY` and accepts the key through `X-API-Key` or
+`Authorization: Bearer ...`.
 
-### Dependency Security
+Main endpoints:
 
-**Tracked in:**
-- `docs/security/SECURITY_ADVISORY.md` - Known vulnerabilities
-- `requirements.txt` - Minimum safe versions
-- `pyproject.toml` - Security-critical dependencies
+- `GET /health/live`
+- `GET /health/ready`
+- `POST /speak`
 
-**Process:**
-1. Dependabot alerts
-2. Review CVE severity
-3. Update minimum versions
-4. Document in `docs/security/SECURITY_ADVISORY.md`
-
-## Deployment
-
-### Docker
-
-**Multi-stage build:**
-1. **Stage 1 (deps):** Install dependencies
-2. **Stage 2 (runtime):** Copy files, create non-root user
-
-**Security features:**
-- Non-root user (`rex:rex`)
-- Minimal base image (slim)
-- No unnecessary packages
-- Health checks
-
-### Environment Configuration
-
-**Required:**
-- `REX_SPEAK_API_KEY` (for API mode)
-
-**Optional:**
-- `REX_ACTIVE_USER` - Default user profile
-- `REX_WHISPER_MODEL` - Whisper model size
-- `REX_TTS_PROVIDER` - TTS backend
-- `REX_LOG_LEVEL` - Logging verbosity
-
-See `.env.example` for full list.
-
-## Migration Guide
-
-### From Root Imports to `rex/` Package
-
-**Step 1:** Update imports
-```python
-# Before
-from config import load_config
-from assistant_errors import ConfigurationError
-
-# After
-from rex.config import load_config
-from rex.assistant_errors import ConfigurationError
-```
-
-**Step 2:** No other changes needed! The API is identical.
-
-### From `voice_loop.py` to `voice_loop_optimized.py`
-
-**No changes needed!** `voice_loop.py` is already a wrapper:
-
-```python
-from rex.voice_loop import VoiceLoop  # Gets optimized version
-```
+The service can optionally register Home Assistant and shopping blueprints when
+their imports/configuration are available.
 
 ## OpenClaw Integration
 
-Rex integrates with OpenClaw over HTTP (not as a Python package). Phase 8 (HTTP integration) is complete.
+AskRex integrates with OpenClaw over HTTP rather than importing OpenClaw as a
+Python package. Gateway settings live under the `openclaw` key in
+`config/rex_config.json`; the gateway secret is `OPENCLAW_GATEWAY_TOKEN` in
+`.env`.
 
-OpenClaw adapters live in `rex/openclaw/` and include bridges for tools, events, browser automation, workflows, voice, and identity. Feature flags in `config/rex_config.json` under the `openclaw` key control which code paths use the OpenClaw gateway.
+Primary modules:
 
-**HTTP client:** `rex/openclaw/http_client.py` (`OpenClawClient`) handles auth, retries, and timeouts for all gateway calls. Config fields: `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries`; secret: `OPENCLAW_GATEWAY_TOKEN` in `.env`. <!-- pragma: allowlist secret -->
+- `rex/openclaw/http_client.py`
+- `rex/openclaw/tool_bridge.py`
+- `rex/openclaw/event_bridge.py`
+- `rex/openclaw/browser_bridge.py`
+- `rex/openclaw/voice_bridge.py`
+- `rex/openclaw/tool_server.py`
 
-All `# OPENCLAW-REPLACE` modules from earlier phases have been retired. All `find_spec("openclaw")` / `import openclaw` stubs have been replaced with HTTP client calls.
+## Testing and Quality
 
-See [docs/openclaw-migration-status.md](openclaw-migration-status.md) for the complete migration history.
+Pytest configuration is in `pyproject.toml`. Common checks:
 
-## Future Roadmap
+```bash
+pytest -q
+python -m rex --help
+python -m rex doctor
+python scripts/security_audit.py
+```
 
-### Short-term
-- ✅ Complete test coverage (>80%)
-- ✅ Enforce type checking in CI
-- ✅ Complete OpenClaw migration (Phase 8 HTTP integration complete)
-- 📅 Improve wake word accuracy
+Electron checks:
 
-### Long-term
-- 📅 Deprecate root-level wrappers
-- 📅 Switch to pure `rex/` package imports
-- 📅 Register Rex integrations as OpenClaw skills
-- 📅 Multi-language support
-- 📅 Streaming TTS for lower latency
+```powershell
+cd gui
+npm.cmd run typecheck
+npm.cmd run build
+```
 
-## References
+Coverage is configured in `pyproject.toml` with a `fail_under` threshold of 75.
 
-- **Main README:** `../README.md`
-- **Security Advisory:** `security/SECURITY_ADVISORY.md`
-- **Environment Config:** `../.env.example`
-- **Plugin Example:** `../plugins/web_search.py`
-- **Test Examples:** `../tests/`
+## Design Rules
 
-## Contributing
-
-When adding new features:
-1. ✅ Put code in `rex/` package (not root)
-2. ✅ Add comprehensive tests
-3. ✅ Update this documentation
-4. ✅ Use type hints
-5. ✅ Follow PEP 8
-6. ✅ Add docstrings
-
-**Questions?** Open an issue on GitHub.
+- Put new core code under `rex/`.
+- Keep top-level Python files as compatibility shims or explicit entry scripts.
+- Keep secrets out of `config/rex_config.json`.
+- Make optional integrations fail closed or degrade gracefully when unconfigured.
+- Bind network services to localhost unless a deployment explicitly opts out.
+- Update docs when console scripts, ports, config keys, or UI surfaces change.

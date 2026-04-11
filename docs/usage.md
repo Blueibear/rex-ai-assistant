@@ -1,264 +1,297 @@
-# AskRex Assistant — Usage Guide
+# AskRex Assistant Usage Guide
 
-## 1. Text-Based Chat Mode
+Use Python 3.11 for all Python commands. If your system default `python` is newer, activate `.venv` or use `py -3.11` on Windows.
 
-Start an interactive text-based conversation with Rex (no microphone required):
+## Text Chat
 
 ```bash
-python -m rex
+rex
 # or
-python rex_assistant.py
+python -m rex
 ```
 
-Type your messages and press Enter. Type `exit` or `quit` to stop.
+Type `exit` or `quit` to stop.
 
-**Example session:**
+Useful discovery commands:
+
+```bash
+rex --help
+rex version --verbose
+rex doctor
+rex tools -v
+rex usage
 ```
-🎤 Rex assistant ready. Type 'exit' or 'quit' to stop.
-You: What is the capital of France?
-Rex: The capital of France is Paris.
-You: exit
+
+## Voice Mode
+
+Install the ML/audio stack first:
+
+```bash
+pip install -r requirements-cpu.txt
 ```
 
-## 2. Voice Assistant Mode
-
-Start the full voice assistant with wake word detection:
+Then run:
 
 ```bash
 python rex_loop.py
+```
 
-# Override user profile
+Optional:
+
+```bash
 python rex_loop.py --user james
-
-# Enable specific plugins only
 python rex_loop.py --enable-plugin web_search
 ```
 
-**How to use:**
-1. Wait for Rex to initialize (models may take 10-30 seconds to load on first run)
-2. Say your wake word (default: "rex" or "hey jarvis")
-3. Wait for the acknowledgment sound
-4. Speak your command within 5 seconds
-5. Rex will transcribe, process, and respond with speech
-6. Press `Ctrl+C` to exit
+Voice mode uses wake word detection, Whisper STT, the configured LLM provider, and TTS. Wake-word settings live under the canonical `wakeword` key in `config/rex_config.json`.
 
-## 3. GUI Settings Editor
-
-Rex includes a user-friendly graphical settings editor that lets you configure all environment variables without manually editing `.env` files.
-
-**Launch the GUI:**
+## Python Web Dashboard
 
 ```bash
-python gui.py
+rex-gui
 ```
 
-**Features:**
+Default URL:
 
-- **Dashboard Tab**: Monitor Rex assistant status and recent conversation history
-- **Settings Tab**: Visual editor for ALL environment variables
-  - Organized by section (Core Settings, Wakeword, Audio, LLM, TTS, etc.)
-  - Smart controls: dropdowns for enums, checkboxes for booleans, spinboxes for numbers, path pickers for files
-  - Help tooltips: Hover or click the "?" icon next to any setting for detailed explanations
-  - Secret masking: API keys and tokens are hidden by default with Show/Hide toggles
-  - Restart indicators: Settings that require restart are marked with ⚠ icon
-  - Advanced section: Edit custom environment variables not in `.env.example`
-  - Add custom keys: Create new environment variables on the fly
+```text
+http://127.0.0.1:8765/ui/
+```
 
-**Backup & Restore:**
-
-The Settings editor automatically creates timestamped backups before saving. Use the Backup and Restore buttons to manage your configurations:
-
-- **Save**: Updates `.env` with new values (creates backup first)
-- **Reset to Defaults**: Restores all settings to `.env.example` defaults
-- **Backup**: Manually create a backup of current `.env`
-- **Restore**: Choose from previous backups to restore
-- **Open .env in Notepad** (Windows): Power-user option to edit `.env` directly
-
-All backups are stored in the `backups/` directory with timestamps like `.env.backup.20240615_143022`.
-
-**Model Selection:**
-
-The LLM Model field adapts based on your selected provider:
-- **Transformers**: Text entry with Browse button for local model paths
-- **OpenAI**: Dropdown with common models (gpt-3.5-turbo, gpt-4, etc.)
-- **Ollama**: Refresh button to query local Ollama instance for installed models
-
-**Ollama Integration:**
-
-If you're using Ollama as your LLM provider, click the "Refresh" button next to the model dropdown to automatically populate it with models from your local Ollama installation.
-
-## 4. Audio Device Configuration
-
-List and configure audio devices:
+Override the port:
 
 ```bash
-# List all available audio devices
+REX_GUI_PORT=9000 rex-gui
+```
+
+PowerShell:
+
+```powershell
+$env:REX_GUI_PORT=9000; rex-gui
+```
+
+## Electron Desktop GUI
+
+Development:
+
+```powershell
+cd gui
+npm.cmd install
+npm.cmd run dev
+```
+
+Build and preview:
+
+```powershell
+cd gui
+npm.cmd run typecheck
+npm.cmd run build
+npm.cmd run preview
+```
+
+Current Electron routes include Home, Chat, Voice, Tasks, Calendar, Reminders, Memories, Email, SMS, Notifications, Shopping List, Logs, History, Usage, Integrations, Settings, Home Assistant, Quick Actions, and About.
+
+The Electron app uses Python bridge scripts at the repo root. Build before running `gui/tmp_verify_*.cjs` harnesses so `gui/dist-electron/main/index.js` is current.
+
+## Configuration
+
+Show resolved config:
+
+```bash
+rex-config show
+```
+
+Migrate old non-secret env vars into `config/rex_config.json`:
+
+```bash
+rex-config migrate-legacy-env --dry-run
+rex-config migrate-legacy-env
+```
+
+Use:
+
+- `config/rex_config.json` for runtime settings.
+- `.env` for secrets.
+- `profiles/*.json` for profile capabilities and overrides.
+
+## Audio Devices
+
+```bash
 python audio_config.py --list
-
-# Set microphone (input device)
 python audio_config.py --set-input 1
-
-# Set speakers (output device)
 python audio_config.py --set-output 2
-
-# Show current configured devices
 python audio_config.py --show
 ```
 
-## 5. TTS API Server
+The GUI can also persist overlapping audio settings into `config/rex_config.json`.
 
-Run the standalone text-to-speech HTTP API:
+## TTS API
+
+Start:
 
 ```bash
-python rex_speak_api.py
+REX_SPEAK_API_KEY=change-me rex-speak-api
 ```
 
-**API endpoint:** `POST http://localhost:5000/speak`
+PowerShell:
 
-**Request:**
-```json
-{
-  "text": "Hello, world!",
-  "user": "james"
-}
+```powershell
+$env:REX_SPEAK_API_KEY="change-me"
+rex-speak-api
 ```
 
-**Headers:**
-```
-Content-Type: application/json
-X-API-Key: your-secret-key
-```
+Default URL: `http://127.0.0.1:5005`
 
-**Response:** WAV audio file
+Example:
 
-**Example using curl:**
 ```bash
-curl -X POST http://localhost:5000/speak \
+curl -X POST http://127.0.0.1:5005/speak \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: your-secret-key" \
-  -d '{"text": "Hello from Rex!", "user": "default"}' \
+  -H "X-API-Key: change-me" \
+  -d '{"text":"Hello from AskRex","user":"default","language":"en"}' \
   --output speech.wav
 ```
 
-## 5. Tool Registry & Credential Management
+The endpoint also accepts `Authorization: Bearer <key>`.
 
-View registered tools and their status:
+## Tool Registry
 
 ```bash
-# List all tools with status
 rex tools
-
-# Verbose output with credential and health details
 rex tools -v
+rex tools --all
 ```
 
-Rex includes a centralized credential vault and tool registry. See:
-- [docs/credentials.md](credentials.md) - Credential management
-- [docs/tools.md](tools.md) - Tool registry and health checks
+The local tool executor supports `time_now`, `weather_now`, and `web_search`. The OpenClaw-facing tool server exposes additional adapter tools.
 
-## 6. GitHub Integration
+See [tools.md](tools.md).
 
-Rex can interact with GitHub repositories, issues, and pull requests.
+## OpenClaw Tool Server
 
-**Requires:** Store your GitHub personal access token in the credential manager:
-```bash
-# Token is read from the credential manager under the name "github"
-# Set GITHUB_TOKEN in your .env or configure via rex credential commands
-```
-
-**List repositories:**
-```bash
-rex gh repos
-rex gh repos --type owner   # only repos you own
-```
-
-**List pull requests:**
-```bash
-rex gh prs owner/repo
-rex gh prs owner/repo --state closed
-```
-
-**Create an issue:**
-```bash
-rex gh issue-create owner/repo --title "Bug: something broke" --body "Steps to reproduce..."
-rex gh issue-create owner/repo --title "Feature request" --body "..." --labels bug,enhancement
-```
-
-**Create a pull request:**
-```bash
-rex gh pr-create owner/repo --head feature-branch --base main --title "Add feature" --body "..."
-```
-
-See [docs/github.md](github.md) for full API reference and credential setup.
-
-## 7. Health Check & Diagnostics
-
-Run the doctor script to verify your setup:
+Start:
 
 ```bash
-python scripts/doctor.py
+REX_TOOL_API_KEY=change-me rex-tool-server
 ```
 
-**Output example:**
-```
-Rex Doctor
-Platform: Darwin 22.6.0 (arm64)
+PowerShell:
 
-[PASS] Python version: 3.11 detected
-[PASS] ffmpeg: ffmpeg available at /opt/homebrew/bin/ffmpeg
-[PASS] CUDA: CUDA not detected – running in CPU mode
-[WARN] REX_SPEAK_API_KEY: not set (Required for /speak TTS endpoint)
-[PASS] OPENAI_API_KEY: set
-[PASS] Rate limiter storage: using in-memory backend
-
-Summary: 1 warning(s) detected.
+```powershell
+$env:REX_TOOL_API_KEY="change-me"
+rex-tool-server
 ```
 
-## 8. Testing Individual Components
+Example:
 
-**Test Whisper transcription:**
 ```bash
-python scripts/manual_whisper_demo.py path/to/audio.wav --model base
+curl -X POST http://127.0.0.1:18790/rex/tools/time_now \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: change-me" \
+  -d '{"args":{"location":"Dallas, TX"},"context":{}}'
 ```
 
-**Test web search:**
+## Workflows and Approvals
+
 ```bash
-python scripts/manual_search_demo.py "Python programming tutorials"
-```
-
-**Record custom wake word:**
-```bash
-python scripts/record_wakeword.py
-```
-
-## 9. Autonomous Workflows
-
-Rex can autonomously plan and execute multi-step workflows from natural language goals.
-
-**Plan a workflow:**
-```bash
-# Generate a plan
-rex plan "send monthly newsletter"
-
-# Plan and execute immediately
+rex plan "check weather in Dallas"
 rex plan "check weather in Dallas" --execute
-```
-
-**Resume blocked workflows:**
-```bash
-# View pending approvals
+rex workflows
 rex approvals
-
-# Approve a request
 rex approvals --approve <approval_id>
-
-# Resume execution
 rex executor resume <workflow_id>
 ```
 
-**Configure autonomy modes** in `config/autonomy.json`:
-- **AUTO**: Low-risk operations execute automatically (weather, time, web search)
-- **SUGGEST**: Medium-risk operations require confirmation (email, calendar, home control)
-- **OFF**: High-risk operations must be triggered manually (OS commands, file operations)
+Workflow execution is policy-gated. Medium/high-risk actions may require approval before execution.
 
-**See [docs/autonomy.md](autonomy.md) for complete documentation.**
+## Memory and Knowledge Base
+
+```bash
+rex memory recent 5
+rex memory add facts '{"city":"Dallas"}'
+rex memory search city
+rex memory stats
+
+rex kb ingest ./notes.txt --title "Notes" --tags notes
+rex kb search "query"
+rex kb list
+```
+
+Per-user profiles live under `Memory/<user_id>/`. Structured working/long-term memory lives under `data/memory/`. GUI chat history is backed by `data/history.db`.
+
+## Integrations
+
+Email:
+
+```bash
+rex email unread
+rex email unread --limit 5 -v
+rex email accounts
+rex email test-connection
+```
+
+Calendar:
+
+```bash
+rex calendar upcoming
+rex calendar upcoming --days 14 --conflicts
+```
+
+SMS:
+
+```bash
+rex msg send --to +15551234567 --body "Hello"
+rex msg receive
+```
+
+GitHub:
+
+```bash
+rex gh repos
+rex gh prs owner/repo
+rex gh issue-create owner/repo --title "Bug" --body "Details"
+rex gh pr-create owner/repo --head feature-branch --base master --title "Title" --body "Body"
+```
+
+WordPress/WooCommerce:
+
+```bash
+rex wp health --site myblog
+rex wc orders list --site myshop
+rex wc products list --site myshop --low-stock
+rex wc orders set-status --site myshop --order-id 101 --status completed
+rex wc coupons create --site myshop --code SAVE10 --amount 10 --type percent
+```
+
+Home Assistant:
+
+```bash
+rex ha tts test
+rex ha tts test --message "Hello from Rex" --entity-id media_player.living_room
+rex ha approve
+```
+
+Shopping list:
+
+```bash
+rex shopping list
+rex shopping add milk --quantity 1
+rex shopping clear
+```
+
+## Health Checks
+
+```bash
+python -m rex doctor
+curl http://127.0.0.1:5005/health/live
+curl http://127.0.0.1:18790/health/live
+```
+
+## Deprecated Paths
+
+Do not use these for normal operation:
+
+```bash
+python run_gui.py
+python gui.py
+```
+
+They launch the legacy Tkinter UI and have been superseded by `rex-gui` and the Electron app.

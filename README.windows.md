@@ -1,125 +1,130 @@
-# AskRex Assistant — Windows Quickstart
+# AskRex Assistant Windows Quickstart
 
-This guide covers Windows-specific setup for AskRex Assistant. For full project details, see [README.md](README.md).
+This guide is for native Windows 10/11 setup. AskRex currently requires Python 3.11; do not use a system `python` that points at 3.12, 3.13, or 3.14.
 
----
+## Prerequisites
 
-## Quick Setup on Windows
-
-### 1. Prerequisites
-
-- Python **3.11**
+- Python 3.11 from python.org or the Windows Store, with the `py` launcher available
 - Git
-- [FFmpeg](https://ffmpeg.org/download.html) — must be on PATH
-- Microphone + speakers (for voice mode)
-- NVIDIA GPU with CUDA 11.8+ (optional — CPU-only install also works)
+- FFmpeg on `PATH`
+- Microphone and speakers for voice mode
+- Node.js/npm if you want to run the Electron desktop GUI
+- Optional NVIDIA GPU for CUDA installs
 
-### 2. Clone and create a virtual environment
+## Install
 
 ```powershell
 git clone https://github.com/Blueibear/AskRex-Assistant.git
-cd rex-ai-assistant
+cd AskRex-Assistant
 
 py -3.11 -m venv .venv
-.venv\Scripts\Activate.ps1
-```
+.\.venv\Scripts\Activate.ps1
 
-### 3. Install dependencies
-
-**CPU only:**
-```powershell
-pip install --upgrade pip setuptools wheel
+python -m pip install --upgrade pip setuptools wheel
 pip install .
+
+Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
+Copy-Item .env.example .env -ErrorAction SilentlyContinue
 ```
 
-**GPU (CUDA 12.4 — RTX 30xx / 40xx):**
+For voice mode, install the ML/audio stack:
+
 ```powershell
-pip install --upgrade pip setuptools wheel
+pip install -r requirements-cpu.txt
+```
+
+For the validated CUDA 12.4 stack:
+
+```powershell
 pip install -r requirements-gpu-cu124.txt
-```
-
-Verify CUDA after GPU install:
-```powershell
 python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
 ```
 
-### 4. Configure Rex
+## Configure
 
-Copy the example config files and fill in your values:
+Edit:
+
+- `config\rex_config.json` for runtime settings such as LLM provider, model, wake word, audio devices, integrations, and UI options.
+- `.env` for secrets such as `OPENAI_API_KEY`, `HA_TOKEN`, `REX_SPEAK_API_KEY`, `REX_TOOL_API_KEY`, Twilio credentials, and search/weather keys.
+
+Useful checks:
 
 ```powershell
-copy config\rex_config.example.json config\rex_config.json
-copy .env.example .env
+rex-config show
+python -m rex doctor
 ```
 
-- **`config\rex_config.json`** — runtime settings (model, audio device, wake word, feature flags).
-  Edit this file to configure Rex behaviour.
-- **`.env`** — secrets only (API keys, tokens). See the inline comments in `.env.example`.
+## Run
 
----
-
-## Runtime Modes
-
-Rex has four distinct startup modes. Run the one that fits your use case:
-
-### Text chat
-
-Interactive text conversation with no audio hardware required:
+Text chat:
 
 ```powershell
 python -m rex
 ```
 
-### Voice loop
-
-Full wake word → speech-to-text → LLM → text-to-speech pipeline:
+Voice loop:
 
 ```powershell
 python rex_loop.py
 ```
 
-Say the wake word (default: **rex**) to activate voice input.
-
-### Dashboard (GUI)
-
-Desktop GUI for configuration, conversation history, and status:
+Python web dashboard:
 
 ```powershell
-python run_gui.py
+rex-gui
 ```
 
-### TTS API
-
-Local Flask API that accepts text and returns synthesised audio over HTTP:
+Electron desktop GUI:
 
 ```powershell
-python rex_speak_api.py
+cd gui
+npm.cmd install
+npm.cmd run dev
 ```
 
-The API binds to `http://localhost:5001` by default and requires an API key configured in `.env`.
-
----
-
-## Run tests
+Build/preview Electron:
 
 ```powershell
-pytest -q
+cd gui
+npm.cmd run typecheck
+npm.cmd run build
+npm.cmd run preview
 ```
 
----
-
-## Health check
+TTS API:
 
 ```powershell
-python -m rex doctor
+$env:REX_SPEAK_API_KEY="change-me"
+rex-speak-api
 ```
 
----
+The TTS API binds to `http://127.0.0.1:5005` by default and accepts either `X-API-Key` or `Authorization: Bearer <key>`.
+
+OpenClaw tool server:
+
+```powershell
+$env:REX_TOOL_API_KEY="change-me"
+rex-tool-server
+```
+
+The tool server binds to `http://127.0.0.1:18790` by default.
 
 ## Notes
 
-- Memory profiles live under `Memory/<user>/`
-- Voices can be customised by adding a WAV file to your profile
-- Web search requires a `SERPAPI_KEY` or `BRAVE_API_KEY` in `.env`; DuckDuckGo scraping is used as a fallback
-- See [CONFIGURATION.md](CONFIGURATION.md) for the full configuration reference
-- The full Windows voice stack is currently validated on Python 3.11 only. Python 3.13/3.14 installs are known to fail in the TTS/ML dependency path, so the installer now rejects them immediately.
+- `python run_gui.py` and `python gui.py` are deprecated Tkinter launchers. Use `rex-gui` or the Electron GUI.
+- Runtime memory profiles live under `Memory\<user_id>\`; structured memory uses `data\memory\`; GUI chat history uses `data\history.db`.
+- `simpleaudio` is intentionally optional on Windows because it has known build issues.
+- `speexdsp_ns` is not required.
+- Web search requires configured search credentials for Brave or SerpAPI; DuckDuckGo fallback behavior depends on the plugin path.
+- Use `py -3.11 -m rex doctor` if your default `python` points at an unsupported version.
+
+## Tests
+
+```powershell
+pip install -e ".[dev,test]"
+pytest
+
+cd gui
+npm.cmd run typecheck
+npm.cmd run build
+```

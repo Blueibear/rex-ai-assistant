@@ -439,7 +439,7 @@ If signature verification fails behind a proxy, the most common cause is a schem
 
 ### Doctor Validation
 
-Run `python scripts/doctor.py` to validate inbound webhook readiness:
+Run `python -m rex doctor` to validate inbound webhook readiness:
 
 - If inbound is disabled: reports PASS (expected default).
 - If inbound is enabled and auth token is resolved: reports PASS.

@@ -1,102 +1,99 @@
-
----
-
-## `docs/claude/CONFIG_AND_SECURITY.md`
-
-```md
 # Claude Reference: Config and Security
 
-This file is reference material.
-Use it when a task touches config loading, secrets, env vars, security controls, network exposure, or packaging.
+Use this when a task touches config loading, secrets, environment variables,
+network exposure, service auth, packaging, or security controls.
 
-## Core config split
-- Runtime settings belong in `config/rex_config.json`
-- Secrets belong in `.env` or credential storage already supported by the repo
-- Never commit secrets
-- Never move secrets into source-controlled runtime config
+## Core Config Split
 
-## Security defaults
-- Prefer least privilege
-- Treat all external inputs as untrusted
-- Prefer localhost binding unless explicitly configured otherwise
-- Anything that binds to a port must be authenticated and rate limited
-- Network-facing features must fail safely when unconfigured
+- Runtime settings belong in `config/rex_config.json`.
+- Secrets belong in `.env` or in the repo's credential lookup path.
+- Do not put secrets in source-controlled JSON config.
+- Non-secret legacy env vars should be migrated with
+  `rex-config migrate-legacy-env`.
+- The canonical wake-word section is `wakeword`; `wake_word` is legacy.
 
-## Packaging and dependency policy
-- Keep heavy ML, CUDA, or similar dependencies out of default installs unless explicitly justified
-- Heavy optional functionality belongs in optional extras
-- Runtime imports for optional packages must be guarded
-- Dependency changes that affect packaging or lockability require explicit validation
+## Security Defaults
 
-## GPU install truth
-- Supported GPU installs are requirements-file based
-- Do not reintroduce GPU extras such as `.[gpu-cu118]`, `.[gpu-cu121]`, or `.[gpu-cu124]` unless they are fully working with the required wheel index behavior
-- Keep GPU guidance aligned across docs and requirements files
+- Prefer localhost binding.
+- Anything that binds to a port must be authenticated and rate limited when it
+  accepts non-health requests.
+- Treat web content, email, SMS, tool results, plugin output, and external URLs
+  as untrusted.
+- Optional integrations must fail closed or degrade gracefully when unconfigured.
+- Do not log tokens, passwords, API keys, or credential material.
 
-## Credential rules
-- Use the repo’s credential-manager path where applicable
-- Tokens, passwords, and secrets must never be logged
-- Approval records and audit records must not persist secrets
+## Service Secrets
 
-## Identity config truths
-- Identity is session-scoped
-- `--user` flag overrides session or runtime defaults
-- Session state belongs in OS-appropriate temp storage, not in the repo
+| Secret | Used by |
+|---|---|
+| `OPENAI_API_KEY` | OpenAI LLM backend |
+| `ANTHROPIC_API_KEY` | Anthropic LLM backend |
+| `OLLAMA_API_KEY` | Cloud-hosted Ollama endpoint if auth is required |
+| `HA_TOKEN`, `HA_SECRET` | Home Assistant integration |
+| `BRAVE_API_KEY`, `SERPAPI_KEY`, `GOOGLE_API_KEY`, `GOOGLE_CSE_ID` | Search providers |
+| `OPENWEATHERMAP_API_KEY` | Weather tool |
+| `REX_SPEAK_API_KEY` | `rex-speak-api` `/speak` endpoint |
+| `REX_TOOL_API_KEY` | `rex-tool-server` `/rex/tools/*` endpoint |
+| `OPENCLAW_GATEWAY_TOKEN` | OpenClaw gateway client |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` | SMS/telephony |
+| `REX_AGENT_API_KEY` or configured `REX_AGENT_TOKEN_ENV` | Computer agent |
 
-## Email config reference
-- Runtime config lives under `email`
-- Multi-account routing uses `email.default_account_id` and `email.accounts[]`
-- Notification routing can use `email_account_id`
-- Non-secret server values stay in runtime config
-- Secrets stay in `.env` or credential storage
+## Runtime Config Areas
 
-## Calendar config reference
-- `calendar.backend` is `stub` or `ics`
-- ICS source can be a local path or HTTPS URL
-- Keep ICS guidance truthful as read-only unless code changes that reality
+- `audio`
+- `wakeword`
+- `models`
+- `runtime`
+- `search`
+- `home_assistant`
+- `ollama`
+- `openai`
+- `anthropic`
+- `calendar`
+- `messaging`
+- `notifications`
+- `voice_identity`
+- `computers`
+- `wordpress`
+- `woocommerce`
+- `openclaw`
+- `model_routing`
+- `users`
+- `workflows`
 
-## Messaging config reference
-- `messaging.backend` is `stub` or `twilio`
-- Inbound SMS webhook behavior is optional and guarded by config
-- Inbound store path and retention are runtime config, not secrets
+## Packaging and Dependencies
 
-## Notification dashboard config reference
-- Notification dashboard store is SQLite-backed
-- Retention and cleanup schedule belong in runtime config
-- SSE is in-process and should not be described as cross-worker capable unless that changes
+- Keep heavy ML/audio/CUDA dependencies optional.
+- GPU installs are requirements-file based (`requirements-gpu*.txt`).
+- Do not reintroduce GPU extras such as `.[gpu-cu118]`, `.[gpu-cu121]`, or
+  `.[gpu-cu124]` unless the required PyTorch index behavior is fully handled.
+- Guard runtime imports for optional packages.
 
-## Windows computer control config reference
-- Remote computer entries live in `computers[]`
-- Auth tokens must be resolved via credential references
-- Allowlists are enforced client-side before network calls
-- Server-side allowlists are defense in depth, not a substitute for client-side rules
+## Network Surfaces
 
-## Windows agent env vars
-- `REX_AGENT_TOKEN` required
-- `REX_AGENT_HOST`
-- `REX_AGENT_PORT`
-- `REX_AGENT_ALLOWLIST`
-- `REX_AGENT_RATE_LIMIT`
-- `REX_AGENT_TIMEOUT`
-- `REX_AGENT_MAX_OUTPUT`
+| Surface | Default | Auth |
+|---|---:|---|
+| `rex-gui` | `127.0.0.1:8765` | Local dashboard auth/session flow |
+| `rex-speak-api` | `127.0.0.1:5005` | `REX_SPEAK_API_KEY` |
+| `rex-tool-server` | `127.0.0.1:18790` | `REX_TOOL_API_KEY` |
+| `rex-agent` | `127.0.0.1` by default | token env configured by `REX_AGENT_TOKEN_ENV` |
+| legacy `flask_proxy.py` | `0.0.0.0:5000` | proxy token/local settings |
 
-Do not document public exposure as the default. Localhost first.
+Do not present public exposure as the default.
 
-## WordPress and WooCommerce config reference
-- Site entries live under `wordpress.sites[]` and `woocommerce.sites[]`
-- Base URLs must be `http(s)`
-- Base URLs must not embed credentials
-- SSRF protections apply
-- Credentials must be indirect references, not inline secrets
+## Integration Truths
 
-## Home Assistant TTS config reference
-- Channel is optional and disabled by default
-- Token must come from credential lookup
-- Do not log tokens
-- SSRF hardening and URL safety checks apply
-- `allow_http` should stay false by default in production-oriented docs
+- Email supports configured real backends and stub fallback.
+- Calendar has ICS read-only and stub paths.
+- Messaging supports Twilio when configured and stub mode otherwise.
+- WordPress is primarily health/read monitoring.
+- WooCommerce includes approval-gated write actions.
+- Home Assistant TTS notification channel is optional and disabled by default.
+- OpenClaw integration is HTTP-based, not an imported Python package.
 
-## Security audit rules
-Run:
+## Security Checks
+
 ```bash
 python scripts/security_audit.py
+python -m rex doctor
+```

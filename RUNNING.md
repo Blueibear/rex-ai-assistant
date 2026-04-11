@@ -1,243 +1,201 @@
 # How to Run AskRex Assistant
 
-This guide provides exact commands for running Rex on Windows.
+Use an activated Python 3.11 environment for every Python command in this guide.
 
-## Platform Support
-
-- **Python**: Supported on Python 3.11
-- **Windows**: Fully supported on Windows 10 and 11
-- **Audio Playback**: The `simpleaudio` library is automatically disabled on Windows due to build issues. Audio files are still generated but won't auto-play.
-- **Noise Suppression**: The `speexdsp_ns` library (used for real-time noise suppression) is not available on Windows. Noise suppression is automatically disabled on all platforms to ensure Windows compatibility. Audio quality is still excellent for most use cases.
-
-## Quick Start (Windows PowerShell)
-
-### 1. Create and Activate Virtual Environment
+Windows:
 
 ```powershell
-# Create virtual environment
 py -3.11 -m venv .venv
-
-# Activate it
 .\.venv\Scripts\Activate.ps1
-
-# If you get an execution policy error, run this first:
-# Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-### 2. Install Dependencies
+macOS / Linux:
 
-```powershell
-# Upgrade pip first
-python -m pip install --upgrade pip setuptools wheel
-
-# Install base dependencies (no ML stack)
-pip install .
-
-# Optional: CPU-only ML + audio stack
-pip install -r requirements-cpu.txt
-
-# Optional: CUDA 12.4 GPU stack (RTX 3060)
-pip install -r requirements-gpu-cu124.txt
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
 ```
 
-The current ML/TTS install path is validated on Python 3.11. Fresh installs on Python 3.13/3.14 are known to fail in the dependency path, so use 3.11 for predictable setup.
+## Core Runtime Modes
 
-### 3. Configure Environment
+| Mode | Command | Purpose |
+|---|---|---|
+| Text chat | `rex` or `python -m rex` | Interactive CLI chat |
+| Diagnostics | `rex doctor` or `python -m rex doctor` | Environment, dependency, and config checks |
+| Voice loop | `python rex_loop.py` | Wake word, STT, LLM, and TTS pipeline |
+| Python web dashboard | `rex-gui` | Browser UI at `http://127.0.0.1:8765/ui/` |
+| Electron desktop GUI | `cd gui && npm.cmd run dev` | Desktop React/Electron shell |
+| TTS API | `rex-speak-api` | Local speech synthesis service on port 5005 |
+| OpenClaw tool server | `rex-tool-server` | HTTP tool adapter service on port 18790 |
+| Windows computer agent | `rex-agent` | Optional remote PC control agent |
 
-```powershell
-# Copy the example environment file
-Copy-Item .env.example .env
+The old Tkinter launchers `python run_gui.py` and `python gui.py` are deprecated. They remain in the repo only for legacy debugging.
 
-# Edit .env with your preferred text editor
-notepad .env
+## Text Chat
+
+```bash
+rex
+# or
+python -m rex
 ```
 
-**Key settings to configure:**
-- `REX_ACTIVE_USER` - Your user profile name
-- `REX_LLM_PROVIDER` - Choose: transformers, openai, or ollama
-- `REX_LLM_MODEL` - Model to use (depends on provider)
-- `OPENAI_API_KEY` - If using OpenAI (required for OpenAI provider)
-- `REX_WHISPER_MODEL` - Choose: tiny, base, small, medium, large
+Useful related commands:
 
-### 4. Launch the GUI
-
-```powershell
-# Option A: Using the dedicated GUI entrypoint (recommended)
-python run_gui.py
-
-# Option B: Using gui.py directly
-python gui.py
+```bash
+rex --help
+rex version --verbose
+rex tools -v
+rex usage
 ```
 
-The GUI will open with two tabs:
-- **Dashboard**: Start/stop the assistant, view conversation history
-- **Settings**: Configure all environment variables with a visual editor
+## Voice Loop
 
-### 5. Launch Voice Assistant (CLI Mode)
-
-```powershell
-# Start the full voice loop with wake word detection
+```bash
 python rex_loop.py
+```
 
-# Override the active user
+Optional flags:
+
+```bash
 python rex_loop.py --user james
-
-# Enable specific plugins only
 python rex_loop.py --enable-plugin web_search
 ```
 
-## Common Issues
+Voice mode requires the ML/audio dependency stack:
 
-### Issue: Import Error
-
-**Error:** `ImportError: cannot import name 'AsyncRexAssistant'`
-
-**Solution:** Make sure you pulled the latest code. The import has been fixed in `gui.py`.
-
-### Issue: MQTT Warnings
-
-**Error:** Warnings about `asyncio-mqtt` or `aiomqtt`
-
-**Solution:** MQTT is optional. The app will work without it. To install:
-```powershell
-pip install aiomqtt
+```bash
+pip install -r requirements-cpu.txt
+# or, for validated Windows CUDA 12.4:
+pip install -r requirements-gpu-cu124.txt
 ```
 
-### Issue: FFmpeg/torio Warnings
+## Python Web Dashboard
 
-**Error:** Warnings about FFmpeg extensions not loading
-
-**Solution:** These are non-critical. FFmpeg is only needed for specific audio codec features. To reduce noise, you can set logging level to WARNING in your .env:
-```
-REX_LOG_LEVEL=WARNING
+```bash
+rex-gui
 ```
 
-### Issue: jieba pkg_resources Warning
+By default this starts a local Flask app on `127.0.0.1:8765` and opens:
 
-**Error:** `DeprecationWarning: pkg_resources is deprecated`
-
-**Solution:** This is a known issue with jieba. It's non-fatal. To suppress:
-```powershell
-# Set environment variable to hide deprecation warnings
-$env:PYTHONWARNINGS="ignore::DeprecationWarning"
-python run_gui.py
+```text
+http://127.0.0.1:8765/ui/
 ```
 
-Or add to your PowerShell profile for persistence.
+Override the port:
 
-### Issue: Home Assistant AttributeError
-
-**Error:** `AttributeError: 'AppConfig' object has no attribute 'ha_base_url'`
-
-**Solution:** This was fixed in recent commits. Home Assistant integration is now optional. Rex will work without HA configured. If you want to use Home Assistant integration, add to your .env:
-```
-HA_BASE_URL=http://homeassistant.local:8123
-HA_TOKEN=your_long_lived_access_token
+```bash
+REX_GUI_PORT=9000 rex-gui
 ```
 
-### Issue: speexdsp_ns ModuleNotFoundError
-
-**Error:** `ModuleNotFoundError: No module named 'speexdsp_ns'` when starting the GUI
-
-**Solution:** This was fixed in recent commits. The `speexdsp_ns` library is not compatible with Windows and has been disabled. Noise suppression is now automatically turned off for all platforms. The GUI will start normally without this dependency. If you see this error:
-1. Update to the latest code: `git pull`
-2. The fix ensures `enable_speex_noise_suppression=False` in all wakeword utilities
-3. No manual installation of speexdsp_ns is required or recommended
-
-## Verification Script
-
-Run the import checker to verify all modules are syntactically correct:
+PowerShell:
 
 ```powershell
-python scripts/check_imports.py
+$env:REX_GUI_PORT=9000; rex-gui
 ```
 
-## Updating Dependencies
+## Electron Desktop GUI
+
+Development:
 
 ```powershell
-# Update base packages to latest compatible versions
-pip install --upgrade -e .
+cd gui
+npm.cmd install
+npm.cmd run dev
 ```
 
-## Running Tests
+Build and preview:
 
 ```powershell
-# Run all tests
-pytest
-
-# Run specific test file
-pytest tests/test_voice_loop.py
-
-# Run with verbose output
-pytest -v
+cd gui
+npm.cmd run typecheck
+npm.cmd run build
+npm.cmd run preview
 ```
 
-## Troubleshooting
+The Electron app uses bridge scripts at the repo root, including `rex_chat_stream_bridge.py`, `rex_tasks_bridge.py`, `rex_reminders_bridge.py`, `rex_shopping_list_bridge.py`, `rex_memories_bridge.py`, `rex_voice_bridge.py`, and related voice/wake-word bridge scripts.
 
-### Virtual Environment Not Activating
+For Electron-only verification harnesses, run `npm.cmd run build` in `gui/` before using `gui/tmp_verify_*.cjs` so `gui/dist-electron/main/index.js` matches the TypeScript sources.
 
-If `.\.venv\Scripts\Activate.ps1` doesn't work:
+## TTS API
 
-1. Check execution policy:
-   ```powershell
-   Get-ExecutionPolicy
-   ```
+```bash
+set REX_SPEAK_API_KEY=change-me
+rex-speak-api
+```
 
-2. If it's "Restricted", change it:
-   ```powershell
-   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-   ```
-
-3. Try again:
-   ```powershell
-   .\.venv\Scripts\Activate.ps1
-   ```
-
-### Missing Dependencies
-
-If you see `ModuleNotFoundError` for numpy, torch, tkinter, etc.:
+PowerShell:
 
 ```powershell
-# Reinstall base requirements
-pip install --force-reinstall -e .
-
-# Optional: reinstall CPU or GPU stacks
-pip install --force-reinstall -r requirements-cpu.txt
-pip install --force-reinstall -r requirements-gpu-cu124.txt
+$env:REX_SPEAK_API_KEY="change-me"
+rex-speak-api
 ```
 
-### Performance Issues
+Default URL:
 
-For faster startup and better performance:
+```text
+http://127.0.0.1:5005
+```
 
-1. Use smaller models:
-   ```
-   REX_WHISPER_MODEL=tiny
-   REX_LLM_MODEL=distilgpt2
-   ```
+Example request:
 
-2. Use CPU-optimized PyTorch (requirements-cpu.txt)
+```bash
+curl -X POST http://127.0.0.1:5005/speak \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: change-me" \
+  -d '{"text":"Hello from AskRex","user":"default"}' \
+  --output speech.wav
+```
 
-3. Disable debug logging:
-   ```
-   REX_DEBUG_LOGGING=false
-   ```
+## OpenClaw Tool Server
 
-## Development Mode
+```bash
+set REX_TOOL_API_KEY=change-me
+rex-tool-server
+```
 
-To run Rex from source for development:
+Default URL:
+
+```text
+http://127.0.0.1:18790
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:18790/health/live
+```
+
+Example tool call:
+
+```bash
+curl -X POST http://127.0.0.1:18790/rex/tools/time_now \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: change-me" \
+  -d '{"args":{"location":"Dallas, TX"},"context":{}}'
+```
+
+## Diagnostics
+
+```bash
+python -m rex doctor
+```
+
+The doctor command checks Python version, package importability, config files, API keys, audio devices, FFmpeg, LLM service reachability, wake word config, STT/TTS dependencies, and GPU availability.
+
+## Common Problems
+
+If `python -m rex` reports unsupported Python 3.12+, activate the `.venv` or call Python 3.11 explicitly:
 
 ```powershell
-# Install in editable mode
-pip install -e .
-
-# Run from anywhere
-rex --help
+py -3.11 -m rex doctor
 ```
 
-## Additional Resources
+If wake-word or voice features fail, install the CPU/GPU ML requirements and confirm FFmpeg is available:
 
-- **README.md** - Project overview and features
-- **.env.example** - Full list of configuration options
-- **gui_settings_tab.py** - Settings editor implementation
-- **tests/** - Unit tests and examples
+```bash
+pip install -r requirements-cpu.txt
+ffmpeg -version
+python -m rex doctor
+```
+
+If `rex-gui` opens a placeholder page, build the web UI under `rex/ui/` or use the Electron GUI under `gui/`.

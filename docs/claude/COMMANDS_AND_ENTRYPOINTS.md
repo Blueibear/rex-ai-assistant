@@ -1,12 +1,110 @@
-# Claude Reference: Commands and Entrypoints
+# Claude Reference: Commands and Entry Points
 
-This file is reference material.
-Do not load it by default for every task.
-Use it when the task involves CLI behavior, entrypoints, startup flows, or documentation about commands.
+Use this reference when a task touches CLI behavior, startup flows, package
+scripts, service ports, or docs about commands.
+
+## Python Runtime
+
+- Supported Python: `>=3.11,<3.12`
+- Use `py -3.11` on Windows when multiple Python versions are installed.
+- Do not document Python 3.12+ as supported unless package metadata, tests, and
+  install docs are updated together.
 
 ## Install
-### Virtual environment
+
 Windows PowerShell:
+
 ```powershell
-python -m venv .venv
+py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip setuptools wheel
+pip install -e .
+```
+
+macOS/Linux:
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+pip install -e .
+```
+
+Optional stacks:
+
+```bash
+pip install -r requirements-cpu.txt
+pip install -r requirements-gpu-cu124.txt
+pip install -r requirements-dev.txt
+pip install -e ".[ml,audio]"
+```
+
+## Console Scripts
+
+| Script | Target | Purpose |
+|---|---|---|
+| `rex` | `rex.cli:main` | Main CLI |
+| `rex-config` | `rex.config:cli` | Config inspection and legacy env migration |
+| `rex-speak-api` | `rex_speak_api:main` | TTS HTTP API on `127.0.0.1:5005` |
+| `rex-agent` | `rex.computers.agent_server:main` | Computer agent API |
+| `rex-gui` | `rex.gui_app:main` | Flask-served web dashboard on `127.0.0.1:8765/ui/` |
+| `rex-tool-server` | `rex.openclaw.tool_server:main` | Tool server on `127.0.0.1:18790` |
+
+`python -m rex-speak-api` is invalid. Use `rex-speak-api` or
+`python rex_speak_api.py`.
+
+## Main Commands
+
+```bash
+python -m rex
+python -m rex --help
+python -m rex doctor
+python -m rex tools --all
+python rex_loop.py
+rex-gui
+rex-speak-api
+rex-tool-server
+```
+
+Representative `rex` subcommands:
+
+- `doctor`, `chat`, `version`, `tools`, `usage`
+- `memory`, `remember`, `kb`, `history`, `quick-actions`
+- `plan`, `run-workflow`, `workflows`, `executor`, `approvals`
+- `scheduler`, `reminders`, `cues`
+- `email`, `calendar`, `msg`, `notify`
+- `browser`, `os`, `gh`, `code`, `pc`
+- `wp`, `wc`, `ha`, `voice-id`, `shopping`
+
+## GUI Commands
+
+Python web dashboard:
+
+```bash
+rex-gui
+```
+
+Electron:
+
+```powershell
+cd gui
+npm.cmd install
+npm.cmd run dev
+npm.cmd run typecheck
+npm.cmd run build
+```
+
+Electron-only verification harnesses should build first, then require
+`gui/dist-electron/main/index.js` from `gui/tmp_verify_*.cjs`.
+
+## Service Ports
+
+| Service | Default |
+|---|---:|
+| `rex-gui` | `127.0.0.1:8765` |
+| `rex-speak-api` | `127.0.0.1:5005` |
+| `rex-tool-server` | `127.0.0.1:18790` |
+| legacy `flask_proxy.py` | `0.0.0.0:5000` |
+
+Prefer localhost binding in docs unless a deployment explicitly configures
+remote access and authentication.

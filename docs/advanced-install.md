@@ -1,221 +1,241 @@
 # Advanced / Developer Install
 
-This document covers installation options beyond the single-command `install.sh` / `install.ps1` scripts. Use it if you need GPU support, a custom extras selection, development tooling, or a Docker-based workflow.
+This document covers install paths beyond the shortest quick start: editable
+development installs, optional ML/audio stacks, GPU wheels, Docker, and the
+Electron desktop app.
 
 Current compatibility policy:
 
-- Supported Python version: `3.11`
-- Validated full Windows GPU + TTS path: `Python 3.11` + `requirements-gpu-cu124.txt`
-- Python 3.12 and above are not supported. Python 3.12, 3.13, and 3.14 are known to fail in the ML/TTS dependency path and are intentionally rejected by the supported install scripts
+- Supported Python version: `>=3.11,<3.12`
+- Best validated Windows path: Python 3.11 plus `requirements-gpu-cu124.txt`
+- Python 3.12+ is not currently supported by the full ML/TTS dependency stack
 
----
-
-## Manual Install (macOS / Linux)
+## Manual Install: macOS / Linux
 
 ```bash
-# Clone repository
-git clone https://github.com/Blueibear/rex-ai-assistant.git
-cd rex-ai-assistant
+git clone https://github.com/Blueibear/AskRex-Assistant.git
+cd AskRex-Assistant
 
-# Create and activate virtual environment
 python3.11 -m venv .venv
 source .venv/bin/activate
 
-# Copy environment template
+python -m pip install --upgrade pip setuptools wheel
 cp .env.example .env
-# Edit .env with your preferred editor to set API keys and options
 
-# Install base dependencies (no ML stack)
-pip install --upgrade pip setuptools wheel
-pip install .
-
-# Optional: install CPU-only ML + audio stack
+pip install -e .
 pip install -r requirements-cpu.txt
 
-# Run health check
-python scripts/doctor.py
-
-# Start text-based chat mode
+python -m rex doctor
 python -m rex
-
-# Or start full voice assistant with wake word
-python rex_loop.py
 ```
 
----
-
-## Manual Install (Windows PowerShell)
+## Manual Install: Windows PowerShell
 
 ```powershell
-# Clone repository
-git clone https://github.com/Blueibear/rex-ai-assistant.git
-cd rex-ai-assistant
+git clone https://github.com/Blueibear/AskRex-Assistant.git
+cd AskRex-Assistant
 
-# Create and activate virtual environment
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-# Copy environment template
+python -m pip install --upgrade pip setuptools wheel
 Copy-Item .env.example .env
-# Edit .env with your preferred editor to set API keys and options
 
-# Install base dependencies (no ML stack)
-pip install --upgrade pip setuptools wheel
-pip install .
-
-# Optional: install CPU-only ML + audio stack
+pip install -e .
 pip install -r requirements-cpu.txt
 
-# Run health check
-python scripts/doctor.py
-
-# Start text-based chat mode
+python -m rex doctor
 python -m rex
-
-# Or start full voice assistant with wake word
-python rex_loop.py
 ```
 
----
+If PowerShell blocks activation:
 
-## Pip Extras Reference
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
 
-Install from source or a built wheel with optional extras:
+## Optional Extras
+
+Use extras for development and optional non-CUDA dependency groups:
 
 ```bash
-pip install .                    # base only (no ML stack)
-pip install -e ".[dev]"          # dev tooling (pytest, ruff, black, mypy)
-pip install -e ".[ml,audio]"     # ML + audio stack
-pip install -e ".[full]"         # full install (ml + audio + sms)
+pip install -e ".[dev]"
+pip install -e ".[test]"
+pip install -e ".[ml,audio]"
+pip install -e ".[full]"
+pip install -e ".[voice-id]"
 ```
 
-`requirements.txt` serves as a pointer with guidance; use the split requirements files for CPU/GPU installs to avoid CUDA-only wheels in CI. The `[full]` extra is only supported on Python 3.11.
+Use the split requirements files for PyTorch GPU installs. CUDA wheels need the
+PyTorch wheel index, so GPU extras are intentionally not used.
 
----
+## CPU and GPU Requirements
 
-## Interactive Installer
-
-Rex includes a Python-based interactive installer for additional setup options:
+CPU-only:
 
 ```bash
-# Basic installation
-python install.py
-
-# Include ML models (Whisper, XTTS)
-python install.py --with-ml
-
-# Include development tools (pytest, ruff, black, mypy)
-python install.py --with-dev
-
-# Auto-install ffmpeg (Linux/macOS only)
-python install.py --auto-install-ffmpeg
-
-# Test audio devices
-python install.py --mic-test
+pip uninstall -y torch torchvision torchaudio
+pip install -r requirements-cpu.txt
 ```
 
----
-
-## Full vs. Lean Install Scripts
-
-Use these scripts for supervised deployments with the service supervisor enabled:
-
-```bash
-# Full install with optional extras (sms + devtools) and systemd service setup
-./install_full.sh
-
-# Lean node install with minimal dependencies and a trimmed service list
-./install_lean.sh
-```
-
-Optional environment overrides:
-
-```bash
-REX_SERVICE_PORT=8765 REX_SKIP_SERVICE=1 ./install_full.sh
-REX_SERVICES=event_bus,workflow_runner,memory_store,credential_manager ./install_lean.sh
-```
-
----
-
-## GPU Acceleration (Optional)
-
-### CUDA 12.4 (Recommended for Windows 11)
-
-For NVIDIA GPUs with CUDA 12.4, use the CUDA 12.4 requirements file:
+CUDA 12.4:
 
 ```bash
 pip uninstall -y torch torchvision torchaudio
 pip install -r requirements-gpu-cu124.txt
 ```
 
-This installs:
-- `torch==2.6.0+cu124`
-- `torchvision==0.21.0+cu124`
-- `torchaudio==2.6.0+cu124`
-- `TTS==0.22.0` via the `ml` extra
-
-**Verify GPU is detected:**
-```bash
-python -c "import torch; print('CUDA available:', torch.cuda.is_available())"
-```
-
-### CPU-Only Installation (no CUDA)
-
-For development, CI, or systems without GPU:
-
-```bash
-pip uninstall -y torch torchvision torchaudio
-pip install -r requirements-cpu.txt
-```
-
-### Alternative: CUDA 11.8
-
-For systems with CUDA 11.8:
+CUDA 11.8:
 
 ```bash
 pip uninstall -y torch torchvision torchaudio
 pip install -r requirements-gpu.txt
 ```
 
----
-
-## Development Setup
+Verify:
 
 ```bash
-# Activate development dependencies
-pip install -e .[dev]
+python -c "import torch; print(torch.__version__); print(torch.cuda.is_available())"
+```
 
-# Lint with Ruff
+## Interactive Installer
+
+The repo still includes `install.py` for supervised local setup:
+
+```bash
+python install.py
+python install.py --with-ml
+python install.py --with-dev
+python install.py --auto-install-ffmpeg
+python install.py --mic-test
+```
+
+Prefer the manual install commands above when you need exact dependency control.
+
+## Electron Desktop App
+
+The desktop app lives under `gui/`.
+
+```powershell
+cd gui
+npm.cmd install
+npm.cmd run dev
+```
+
+Verification/build:
+
+```powershell
+cd gui
+npm.cmd run typecheck
+npm.cmd run build
+npm.cmd run preview
+```
+
+For Electron-only verification harnesses, run `npm.cmd run build` before a
+`gui/tmp_verify_*.cjs` harness requires `gui/dist-electron/main/index.js`.
+
+## Python Web Dashboard
+
+```bash
+rex-gui
+```
+
+Open:
+
+```text
+http://127.0.0.1:8765/ui/
+```
+
+Override the port with `REX_GUI_PORT`.
+
+## Optional Local Services
+
+TTS API:
+
+```bash
+REX_SPEAK_API_KEY=replace-with-random-secret rex-speak-api
+```
+
+Default address:
+
+```text
+http://127.0.0.1:5005
+```
+
+Tool server:
+
+```bash
+REX_TOOL_API_KEY=replace-with-random-secret rex-tool-server
+```
+
+Default address:
+
+```text
+http://127.0.0.1:18790
+```
+
+Voice loop:
+
+```bash
+python rex_loop.py
+```
+
+## Docker
+
+The Dockerfile uses Python 3.11 and CPU PyTorch by default. The image default
+command is `python -m rex`.
+
+```bash
+docker build -t askrex-assistant .
+docker run --rm --env-file .env -it askrex-assistant
+```
+
+TTS API container example:
+
+```bash
+docker run --rm --env-file .env -p 5005:5005 \
+  -it askrex-assistant rex-speak-api
+```
+
+Mount runtime state when you need persistence:
+
+```bash
+docker run --rm --env-file .env \
+  -v "$(pwd)/Memory:/app/Memory" \
+  -v "$(pwd)/data:/app/data" \
+  -v "$(pwd)/models:/app/models" \
+  -v "$(pwd)/transcripts:/app/transcripts" \
+  -it askrex-assistant
+```
+
+## Development Checks
+
+```bash
+pytest -q
+python -m rex --help
+python -m rex doctor
+python scripts/security_audit.py
+```
+
+Format/lint:
+
+```bash
 ruff check .
-
-# Format with Black
-black .
-
-# Type check with Mypy
+black --check .
 mypy .
-
-# Run all linting/formatting
-ruff check . && black --check . && mypy .
 ```
 
-### Running Tests
+Electron:
 
-```bash
-# Install test dependencies
-pip install -e .[test]
-
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=rex --cov-report=html
-
-# Run only unit tests (skip slow/audio/GPU tests)
-pytest -m "not slow and not audio and not gpu"
-
-# Run specific test file
-pytest tests/test_config.py
-
-# Verbose output
-pytest -v
+```powershell
+cd gui
+npm.cmd run typecheck
+npm.cmd run build
 ```
+
+## Configuration Reminder
+
+- `.env` is for secrets and service-specific environment controls.
+- `config/rex_config.json` is for runtime settings.
+- Use `rex-config show` to inspect resolved config.
+- Use `rex-config migrate-legacy-env` for old non-secret environment variables.

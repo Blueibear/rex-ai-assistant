@@ -1,214 +1,257 @@
 # AskRex Assistant
 
 <p align="center">
-  <img src="assets/brand/primary-horizontal.png" alt="AskRex Assistant — local-first voice AI" width="400" />
+  <img src="assets/brand/primary-horizontal.png" alt="AskRex Assistant - local-first voice AI" width="400" />
 </p>
 
 <p align="center">
   <img src="https://github.com/Blueibear/AskRex-Assistant/actions/workflows/ci.yml/badge.svg" alt="CI status" />
   <img src="https://img.shields.io/badge/python-3.11-blue" alt="Python 3.11" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />
-  <a href="https://www.buymeacoffee.com/Blueibear" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 28px !important;width: 120px !important;" ></a>
 </p>
 
-AskRex Assistant is a local-first, voice-activated AI companion that runs entirely on your machine — no cloud subscription required. It combines wake word detection, offline speech recognition via OpenAI Whisper, LLM-powered responses through Transformers, OpenAI, or Ollama, and text-to-speech synthesis, making it a practical choice for hobbyists, home-automation enthusiasts, and developers who want a private, customisable assistant.
+AskRex Assistant is a local-first AI assistant for text chat, wake-word voice interaction, desktop control surfaces, and credential-gated home/productivity integrations. It runs from the Python `rex` package, with optional local ML dependencies for Whisper, openWakeWord, and XTTS, plus optional cloud/local LLM routing through OpenAI-compatible providers and Ollama.
 
-## Table of Contents
-
-- [Quick Start](#quick-start)
-- [Features](#features)
-- [Requirements](#requirements)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [Current Limitations](#current-limitations)
-- [OpenClaw Integration](#openclaw-integration)
-- [Docker](#docker)
-- [Memory & Personalization](#memory--personalization)
-- [Development](#development)
-- [Troubleshooting](#troubleshooting)
-- [Security](#security)
-- [Contributing](#contributing)
-- [License](#license)
-- [Full Documentation](docs/INDEX.md)
+AskRex is alpha software. The CLI, voice loop, configuration system, Python web dashboard, Electron GUI shell, and several integrations are implemented; integration readiness varies by backend and credentials. See [docs/claude/INTEGRATIONS_STATUS.md](docs/claude/INTEGRATIONS_STATUS.md) for the current readiness snapshot.
 
 ## Quick Start
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/Blueibear/AskRex-Assistant.git
-   cd AskRex-Assistant
-   ```
+Python 3.11 is required. Python 3.12 and newer are intentionally rejected by the current installers and runtime checks because the validated ML/TTS dependency path is Python 3.11-only.
 
-2. **Install Rex using Python 3.11**
+Windows PowerShell:
 
-   Windows (PowerShell):
-   ```powershell
-   .\install.ps1
-   .\.venv\Scripts\Activate.ps1
-   ```
+```powershell
+git clone https://github.com/Blueibear/AskRex-Assistant.git
+cd AskRex-Assistant
 
-   macOS / Linux:
-   ```bash
-   python3.11 -m venv .venv
-   source .venv/bin/activate
-   pip install --upgrade pip setuptools wheel
-   pip install ".[full]"
-   ```
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip setuptools wheel
+pip install .
 
-3. **Configure your model provider**. LM Studio remains optional. Ollama and OpenAI-compatible local servers also work. If using LM Studio, start the local server on `http://localhost:1234` and set your model in `config/rex_config.json`:
-   ```json
-   { "openai": { "base_url": "http://localhost:1234/v1", "model": "your-model-name" } }
-   ```
+Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
+Copy-Item .env.example .env -ErrorAction SilentlyContinue
 
-4. **Run Rex and verify**:
-   ```bash
-   rex
-   python -m rex doctor
-   ```
+python -m rex doctor
+python -m rex
+```
 
-For the canonical GUI, launch the web dashboard with `rex-gui`. Do not use the legacy Tkinter launcher; it is deprecated.
+macOS / Linux:
 
-> **Python 3.11 is required. Python 3.12 and above are not supported.**  
-> On Windows, `install.ps1` uses the Windows `py` launcher to find Python 3.11 and will create or reuse `.venv` automatically.  
-> Fresh installs on Python 3.12, 3.13, and 3.14 are rejected because the current ML/TTS dependency path is only validated on Python 3.11.
+```bash
+git clone https://github.com/Blueibear/AskRex-Assistant.git
+cd AskRex-Assistant
 
-> **Advanced / Developer Install** — for GPU setups, custom extras, Docker, or development workflows, see [docs/advanced-install.md](docs/advanced-install.md).
->
-> **Want one consolidated guide?** See [docs/INSTRUCTION_MANUAL.md](docs/INSTRUCTION_MANUAL.md) for a single manual that combines install, configuration, usage, operations, and troubleshooting.
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+pip install .
+
+cp -n config/rex_config.example.json config/rex_config.json
+cp -n .env.example .env
+
+python -m rex doctor
+python -m rex
+```
+
+For voice mode, add the ML/audio stack:
+
+```bash
+pip install -r requirements-cpu.txt
+# or, for validated Windows CUDA 12.4:
+pip install -r requirements-gpu-cu124.txt
+```
+
+## Main Entry Points
+
+| Surface | Command | Status |
+|---|---|---|
+| CLI text chat | `rex` or `python -m rex` | Primary |
+| Diagnostics | `rex doctor` or `python -m rex doctor` | Primary |
+| Voice loop | `python rex_loop.py` | Primary voice runtime |
+| Python web dashboard | `rex-gui` | Primary browser UI, serves `http://127.0.0.1:8765/ui/` |
+| Electron desktop app | `cd gui && npm.cmd run dev` | Primary desktop shell for local development |
+| TTS API | `rex-speak-api` | Service, default `127.0.0.1:5005` |
+| OpenClaw tool server | `rex-tool-server` | Service, default `127.0.0.1:18790` |
+| Windows computer agent | `rex-agent` | Optional remote PC control agent |
+| Runtime config CLI | `rex-config` | Config inspection and legacy env migration |
+
+The legacy Tkinter launchers `python run_gui.py` and `python gui.py` are deprecated. Use `rex-gui` for the Python-served web UI or the Electron app under `gui/`.
 
 ## Features
 
-> **Alpha software** — core voice pipeline works today; integrations and advanced features vary by maturity (see labels below).
-
-- 🔊 **Wake word detection** via openWakeWord (customizable trigger phrases) `[Works today]`
-- 🗣️ **Speech-to-text** using OpenAI Whisper (runs offline) `[Works today]`
-- 🤖 **LLM responses** via Transformers (local), OpenAI API, or Ollama `[Works today]`
-- 🔉 **Text-to-speech** with Coqui XTTS, edge-tts, or pyttsx3 (voice cloning supported) `[Works today]`
-- 🌐 **Web search plugins** for SerpAPI, Brave, Google CSE, and DuckDuckGo `[Requires configuration]`
-- 🧠 **Per-user memory** profiles with conversation history and preferences `[In progress — alpha feature]`
-- 📧 **Email and calendar** integration with triage and scheduling `[Requires configuration — IMAP/SMTP credentials needed]`
-- 📱 **Multi-channel messaging** via SMS `[Requires configuration — Twilio credentials needed]`
-- 🔔 **Smart notifications** with priority routing, digest mode, quiet hours, and auto-escalation; dashboard channel persists to local SQLite store with real API endpoints `[Works today]`
-- 🤖 **Autonomous workflows** with planner and workflow runner for multi-step task automation `[Coming soon — scaffolding only]`
-- 🎯 **Smart planning** converts natural language goals into structured workflows `[Coming soon — scaffolding only]`
-- ⚙️ **Configurable autonomy modes** (OFF/SUGGEST/AUTO) for fine-grained control `[Works today]`
-- 🔐 **Flask TTS API** with authentication and rate limiting `[Works today]`
-- ✅ **CI/CD** with GitHub Actions and Release Please automation `[Works today]`
-- 🐳 **Docker support** for containerized deployment `[Requires manual validation — see docs/advanced-install.md]`
+| Area | Current repo state |
+|---|---|
+| Text chat | CLI chat uses `rex.assistant.Assistant` and the configured LLM provider. |
+| Voice pipeline | Wake word via openWakeWord, STT via Whisper, LLM reply generation, and TTS via XTTS, edge-tts, or pyttsx3. |
+| LLM providers | Local Transformers, OpenAI-compatible API settings, and Ollama routing are supported by config. |
+| Configuration | Runtime settings live in `config/rex_config.json`; secrets live in `.env`; profiles live in `profiles/`. |
+| GUIs | Python web dashboard (`rex-gui`) and Electron/React desktop GUI (`gui/`) both exist. Electron uses Python bridge scripts such as `rex_chat_stream_bridge.py`, `rex_tasks_bridge.py`, and `rex_voice_bridge.py`. |
+| CLI integrations | `rex email`, `rex calendar`, `rex msg`, `rex notify`, `rex gh`, `rex code`, `rex pc`, `rex wp`, `rex wc`, `rex ha`, `rex shopping`, `rex usage`, and more are registered. |
+| Tool execution | Tool registry, policy checks, audit logging, and OpenClaw-facing HTTP tool server are implemented. Local tool execution currently covers time, weather, and web search; the HTTP tool server exposes a broader adapter set. |
+| Memory | Per-user profile data lives under `Memory/<user_id>/`; structured working/long-term memory lives under `data/memory/`; GUI chat history uses `data/history.db`. |
+| Notifications | Priority routing, quiet hours, digest/escalation logic, CLI commands, and Electron notification UI plumbing are present; legacy Flask dashboard notification routes are not the current surface. |
+| WordPress/WooCommerce | WordPress health checks and WooCommerce order/product reads are implemented; WooCommerce order status and coupon writes are approval-gated. |
+| OpenClaw | HTTP gateway/client adapters and a standalone Rex tool server are present; feature flags under `openclaw` control gateway-backed paths. |
 
 ## Requirements
 
 | Component | Requirement |
-|-----------|-------------|
-| **OS** | macOS 11+, Windows 10/11, or Ubuntu 20.04+ |
-| **Python** | 3.11 (Python 3.12 and above are not supported) |
-| **FFmpeg** | Must be installed and available on PATH |
-| **Hardware** | Microphone and speakers for voice mode |
-| **GPU** (optional) | NVIDIA GPU with CUDA 11.8+ for acceleration |
+|---|---|
+| Python | 3.11 only |
+| OS | Windows 10/11, macOS, or Linux |
+| FFmpeg | Required for parts of the audio/TTS stack |
+| Audio hardware | Microphone and speakers for voice mode |
+| Node.js/npm | Required only for the Electron GUI under `gui/` |
+| GPU | Optional NVIDIA CUDA path via `requirements-gpu*.txt` |
 
-> **Note for Windows users**: The `simpleaudio` package (used for audio playback) has build issues on Windows and is automatically disabled. Audio playback functionality will be limited on Windows, but all core features work correctly.
+On Windows, use `py -3.11 ...` or activate the repo `.venv` before running commands. A system default `python` that points at 3.12+ will be rejected.
 
 ## Configuration
 
-Rex uses a dual-config system:
+AskRex uses three configuration layers:
 
-- **Secrets** (API keys, tokens) → `.env`
-  Copy `.env.example` to `.env` and fill in the values you need. The file documents every supported secret with inline comments.
-- **Runtime settings** (models, audio, wake word, feature flags) → `config/rex_config.json`
-  Edit this file directly or use `rex-config` to manage it.
+1. `config/rex_config.json` for non-secret runtime settings such as audio, wake word, models, UI, integrations, and feature flags.
+2. `.env` for secrets such as `OPENAI_API_KEY`, `HA_TOKEN`, `REX_SPEAK_API_KEY`, `REX_TOOL_API_KEY`, Twilio credentials, and search/weather keys.
+3. `profiles/<name>.json` for profile-level capabilities and runtime overrides.
 
-See [CONFIGURATION.md](CONFIGURATION.md) for the full reference including configuration precedence, migration from legacy env vars, and all available fields. For a complete list of supported environment variables see [docs/environment-variables.md](docs/environment-variables.md).
+The canonical wake word config key is `wakeword`. The legacy `wake_word` key is still migrated at runtime but logs a warning.
 
-## Usage
+Useful config commands:
 
-Rex supports text chat, voice mode, GUI configuration, audio device mnb setup, TTS API, tool registry, GitHub integration, health checks, and autonomous workflows. See [docs/usage.md](docs/usage.md) for full usage instructions.
+```bash
+rex-config show
+rex-config migrate-legacy-env --dry-run
+rex-config migrate-legacy-env
+```
 
-## Current Limitations
+See [CONFIGURATION.md](CONFIGURATION.md), [docs/configuration.md](docs/configuration.md), and [docs/environment-variables.md](docs/environment-variables.md).
 
-Integration readiness varies. For a complete, up-to-date classification of every integration
-(REAL / PARTIAL / STUB / NOT STARTED) with evidence notes, see
-[docs/claude/INTEGRATIONS_STATUS.md](docs/claude/INTEGRATIONS_STATUS.md).
+## GUI Usage
 
-Summary of integrations that require credentials or have known gaps:
+Python web dashboard:
 
-- **Email** — PARTIAL: real IMAP/SMTP backend; falls back to stub without credentials.
-- **Calendar** — PARTIAL: ICS read-only; no write support; CalDAV/Google OAuth not implemented.
-- **SMS / Messaging** — PARTIAL: real Twilio backend; falls back to stub without credentials.
-- **Notifications** — REAL: priority routing, digest, SQLite dashboard, SSE push all active.
-- **Voice Identity** — PARTIAL: enrollment scaffolding present; still alpha-only and not broadly validated.
-- **Autonomous Workflows** — STUB: scaffolding only; roadmap item.
-- **WordPress / WooCommerce** — PARTIAL: read-only REST API access; write actions deferred.
+```bash
+rex-gui
+# opens http://127.0.0.1:8765/ui/
+```
 
-## OpenClaw Integration
+Electron desktop GUI:
 
-Rex can route LLM calls through the [OpenClaw](https://github.com/openclaw) gateway over HTTP, gaining access to any model provider OpenClaw supports (Ollama, OpenAI, Anthropic, etc.). Rex also exposes its tools (time, weather, email, SMS, calendar, HA, Plex, WooCommerce) as HTTP endpoints so any OpenClaw channel (WhatsApp, Telegram, Discord) can invoke them.
+```powershell
+cd gui
+npm.cmd install
+npm.cmd run dev
 
-**Current status:** Phase 8 (HTTP integration) is complete. All integration is HTTP-based with proper error handling, retries, and auth. Feature flags in `config/rex_config.json` under `openclaw` control which code paths use the gateway. See [docs/openclaw-agent-setup.md](docs/openclaw-agent-setup.md) for setup instructions.
+# Build and preview the compiled Electron app:
+npm.cmd run build
+npm.cmd run preview
+```
 
-## Docker
+The Electron app requires the Python bridge scripts at the repo root and the current `gui/dist-electron` build for built-app verification harnesses. See [docs/UI_SURFACES.md](docs/UI_SURFACES.md) and [docs/e2e-gui-launch-test.md](docs/e2e-gui-launch-test.md).
 
-Build and run Rex in a container. See [docs/docker.md](docs/docker.md) for full Docker instructions.
+## Common Commands
 
-## Memory & Personalization
+```bash
+rex --help
+rex doctor
+rex tools -v
+rex usage
+rex memory stats
+rex kb search "query"
+rex plan "check weather in Dallas"
+rex approvals
+rex wc orders list --site myshop
+rex wc coupons create --site myshop --code SAVE10 --amount 10 --type percent
+rex ha tts test --message "Hello from Rex"
+```
 
-Each user has a dedicated profile in `Memory/<username>/` with preferences, history, and voice settings. See [docs/memory.md](docs/memory.md) for the full memory system documentation.
+## Services
+
+TTS API:
+
+```bash
+set REX_SPEAK_API_KEY=change-me
+rex-speak-api
+```
+
+Request format:
+
+```bash
+curl -X POST http://127.0.0.1:5005/speak \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: change-me" \
+  -d '{"text":"Hello from AskRex","user":"default"}' \
+  --output speech.wav
+```
+
+OpenClaw/Rex tool server:
+
+```bash
+set REX_TOOL_API_KEY=change-me
+rex-tool-server
+```
+
+Health endpoints:
+
+```bash
+curl http://127.0.0.1:5005/health/live
+curl http://127.0.0.1:18790/health/live
+```
 
 ## Development
 
-For development workflows including pip extras, GPU setup, code quality tools, and running tests, see [docs/advanced-install.md](docs/advanced-install.md). The full voice stack, including Windows GPU + TTS, is currently supported on Python 3.11 only.
+```bash
+pip install -e ".[dev,test]"
+pytest
+ruff check .
+black --check .
+mypy .
+```
 
-### Available Test Markers
+Electron checks:
 
-- `unit` — Fast unit tests
-- `integration` — Tests requiring external services
-- `slow` — Tests that take significant time
-- `audio` — Tests requiring audio hardware
-- `gpu` — Tests requiring GPU acceleration
-- `network` — Tests requiring network access
+```powershell
+cd gui
+npm.cmd run typecheck
+npm.cmd run build
+```
 
-## Troubleshooting
+The current coverage threshold in `pyproject.toml` is 75 percent. Test markers include `unit`, `integration`, `slow`, `audio`, `gpu`, `network`, `asyncio`, `anyio`, and `smoke`.
 
-For help with common errors (missing API keys, FFmpeg, PyTorch, audio devices, CUDA), see [docs/troubleshooting.md](docs/troubleshooting.md).
+## Documentation
+
+Start with [docs/INDEX.md](docs/INDEX.md). High-value active docs:
+
+- [INSTALL.md](INSTALL.md) - installation guide
+- [RUNNING.md](RUNNING.md) - runtime commands
+- [docs/usage.md](docs/usage.md) - user-facing usage guide
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - architecture overview
+- [docs/UI_SURFACES.md](docs/UI_SURFACES.md) - current UI surface inventory
+- [docs/tools.md](docs/tools.md) - tool registry and execution notes
+- [docs/api.md](docs/api.md) - HTTP services reference
+- [docs/troubleshooting.md](docs/troubleshooting.md) - common failures
+
+Files under `docs/archive/` are historical development records and may intentionally describe old plans or superseded states.
 
 ## Security
 
-For security advisories, audit reports, and vulnerability scan results, see:
+- Keep secrets in `.env` or `config/credentials.json`; do not put them in `config/rex_config.json`.
+- `rex-speak-api` requires `REX_SPEAK_API_KEY`.
+- `rex-tool-server` requires `REX_TOOL_API_KEY` for tool invocation.
+- Approval-gated high-risk actions, such as WooCommerce writes and remote PC commands, require explicit confirmation flows.
 
-- [docs/security/SECURITY_ADVISORY.md](docs/security/SECURITY_ADVISORY.md) — user-facing security advisory
-- [docs/security/SECURITY_AUDIT_2026-01-08.md](docs/security/SECURITY_AUDIT_2026-01-08.md) — full security audit report
-- [docs/security/VULNERABILITY-SCAN.md](docs/security/VULNERABILITY-SCAN.md) — dependency vulnerability scan and CVE suppression rationale
+Security references:
 
-To report a vulnerability, open a GitHub issue with the `security` label.
+- [docs/security/SECURITY_ADVISORY.md](docs/security/SECURITY_ADVISORY.md)
+- [docs/security/SECURITY_AUDIT_2026-01-08.md](docs/security/SECURITY_AUDIT_2026-01-08.md)
+- [docs/security/VULNERABILITY-SCAN.md](docs/security/VULNERABILITY-SCAN.md)
+- [docs/security/SECRET-SCAN.md](docs/security/SECRET-SCAN.md)
 
 ## Contributing
 
-Contributions are welcome! Please follow these guidelines:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes and add tests
-4. Run linting and tests: `ruff check . && black . && pytest`
-5. Commit with conventional commits: `git commit -m "feat: add amazing feature"`
-6. Push to your fork: `git push origin feature/amazing-feature`
-7. Open a Pull Request
+Use short-lived branches from `master`, open PRs back to `master`, and follow Conventional Commits. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-Released under the **MIT License**.
-
-Copyright © 2025 James Ramsey
-
-See [LICENSE](LICENSE) for full details.
-
-## Acknowledgments
-
-- [OpenAI Whisper](https://github.com/openai/whisper) for speech recognition
-- [Coqui TTS](https://github.com/coqui-ai/TTS) for text-to-speech
-- [openWakeWord](https://github.com/dscripka/openWakeWord) for wake word detection
-- [Hugging Face Transformers](https://github.com/huggingface/transformers) for LLM support
-- [Flask](https://flask.palletsprojects.com/) for API framework
-- [Release Please](https://github.com/googleapis/release-please) for automated releases
-
----
-
-**Need help?** Check the [Troubleshooting](#troubleshooting) section or file an issue at https://github.com/Blueibear/AskRex-Assistant/issues
+Released under the MIT License. See [LICENSE](LICENSE).
