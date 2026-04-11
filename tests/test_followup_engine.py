@@ -9,16 +9,17 @@ from __future__ import annotations
 
 import argparse
 import inspect
-from datetime import datetime, timedelta, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable
+from typing import Any
 
 import pytest
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # =============================================================================
@@ -197,7 +198,7 @@ class TestCueStore:
             else CueStore(storage)
         )
 
-        now = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+        now = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
         cue = _add_cue_compat(
             store,
             user_id="test_user",
@@ -384,7 +385,7 @@ class TestReminderService:
         from rex.reminder_service import ReminderService
 
         service = ReminderService(storage_path=tmp_path / "reminders.json")
-        remind_at = datetime(2024, 2, 1, 9, 0, tzinfo=timezone.utc)
+        remind_at = datetime(2024, 2, 1, 9, 0, tzinfo=UTC)
 
         # Older API alias: add_reminder + fire_due + get + cancel
         reminder = service.add_reminder(

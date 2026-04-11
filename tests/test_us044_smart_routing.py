@@ -15,7 +15,6 @@ import pytest
 
 from rex.model_router import ModelRouter
 
-
 LOCAL = "llama3"
 CLOUD = "gpt-4o"
 
@@ -53,12 +52,16 @@ class TestEstimateComplexity:
 
 class TestCloudOnlyMode:
     def test_simple_query_uses_cloud(self, router):
-        result = router.route("Hello", local_model=LOCAL, cloud_model=CLOUD, routing_mode="cloud_only")
+        result = router.route(
+            "Hello", local_model=LOCAL, cloud_model=CLOUD, routing_mode="cloud_only"
+        )
         assert result == CLOUD
 
     def test_complex_query_uses_cloud(self, router):
         words = " ".join(["word"] * 160)
-        result = router.route(words, local_model=LOCAL, cloud_model=CLOUD, routing_mode="cloud_only")
+        result = router.route(
+            words, local_model=LOCAL, cloud_model=CLOUD, routing_mode="cloud_only"
+        )
         assert result == CLOUD
 
 
@@ -70,12 +73,16 @@ class TestCloudOnlyMode:
 class TestLocalOnlyMode:
     def test_local_available_returns_local(self, router):
         with patch.object(router, "_is_available", return_value=True):
-            result = router.route("Hello", local_model=LOCAL, cloud_model=CLOUD, routing_mode="local_only")
+            result = router.route(
+                "Hello", local_model=LOCAL, cloud_model=CLOUD, routing_mode="local_only"
+            )
         assert result == LOCAL
 
     def test_local_unavailable_falls_back_to_cloud(self, router):
         with patch.object(router, "_is_available", return_value=False):
-            result = router.route("Hello", local_model=LOCAL, cloud_model=CLOUD, routing_mode="local_only")
+            result = router.route(
+                "Hello", local_model=LOCAL, cloud_model=CLOUD, routing_mode="local_only"
+            )
         assert result == CLOUD
 
 
@@ -126,7 +133,9 @@ class TestLocalPreferredMode:
 class TestInvalidMode:
     def test_invalid_mode_treated_as_local_preferred(self, router):
         with patch.object(router, "_is_available", return_value=True):
-            result = router.route("Hello", local_model=LOCAL, cloud_model=CLOUD, routing_mode="bogus")
+            result = router.route(
+                "Hello", local_model=LOCAL, cloud_model=CLOUD, routing_mode="bogus"
+            )
         assert result == LOCAL
 
 

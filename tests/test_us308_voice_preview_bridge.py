@@ -36,7 +36,7 @@ class TestVoiceSampleBridgeContract:
             text=True,
             timeout=10,
         )
-        lines = [l for l in result.stdout.strip().splitlines() if l.startswith("{")]
+        lines = [line for line in result.stdout.strip().splitlines() if line.startswith("{")]
         assert lines, f"No JSON output: {result.stdout!r} stderr={result.stderr!r}"
         data = json.loads(lines[-1])
         assert data["ok"] is False
@@ -51,7 +51,7 @@ class TestVoiceSampleBridgeContract:
             text=True,
             timeout=10,
         )
-        lines = [l for l in result.stdout.strip().splitlines() if l.startswith("{")]
+        lines = [line for line in result.stdout.strip().splitlines() if line.startswith("{")]
         assert lines, f"No JSON output: {result.stdout!r}"
         data = json.loads(lines[-1])
         assert data["ok"] is False
@@ -59,9 +59,9 @@ class TestVoiceSampleBridgeContract:
     def test_default_preview_phrase_contains_rex(self):
         """Default text parameter contains 'Rex'."""
         import importlib.util
+
         spec = importlib.util.spec_from_file_location("vb", BRIDGE)
         assert spec is not None
-        mod = importlib.util.module_from_spec(spec)
         source = BRIDGE.read_text(encoding="utf-8")
         # The default phrase must include "Rex" per acceptance criteria
         assert "Rex" in source
@@ -78,13 +78,8 @@ class TestVoiceSampleBridgeContract:
 
         with patch.dict(
             "sys.modules",
-            {
-                "rex.tts_voices": MagicMock(
-                    synthesize_sample=MagicMock(return_value=mock_audio)
-                )
-            },
+            {"rex.tts_voices": MagicMock(synthesize_sample=MagicMock(return_value=mock_audio))},
         ):
-            import asyncio
             import importlib
 
             # Patch asyncio.run to call synchronously
@@ -109,7 +104,7 @@ class TestVoiceSampleBridgeContract:
                     mod.main()
 
                 output = captured.getvalue().strip()
-                lines = [l for l in output.splitlines() if l.startswith("{")]
+                lines = [line for line in output.splitlines() if line.startswith("{")]
                 assert lines
                 data = json_mod.loads(lines[-1])
                 assert data["ok"] is True
@@ -125,6 +120,6 @@ class TestBridgeInRegistry:
         if not resolver_path.exists():
             return  # GUI not present in this env
         content = resolver_path.read_text(encoding="utf-8")
-        assert "rex_voice_sample_bridge" in content, (
-            "rex_voice_sample_bridge not found in bridgeResolver.ts registry"
-        )
+        assert (
+            "rex_voice_sample_bridge" in content
+        ), "rex_voice_sample_bridge not found in bridgeResolver.ts registry"

@@ -198,6 +198,7 @@ def test_console_handler_uses_plain_formatter(tmp_path, monkeypatch):
 def test_session_marker_written_to_file(tmp_path):
     """setup_file_logging must write a session-start marker to the log file."""
     import logging
+
     from rex.logging_config import setup_file_logging
 
     log_path = tmp_path / "rex.log"
@@ -226,6 +227,7 @@ def test_session_marker_written_by_configure_logging(tmp_path, monkeypatch):
     root.handlers.clear()
     try:
         from logging.handlers import RotatingFileHandler
+
         fh = RotatingFileHandler(log_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8")
         with patch("rex.logging_utils._json_logging_enabled", return_value=False):
             configure_logging(level=logging.DEBUG, handlers=[fh])

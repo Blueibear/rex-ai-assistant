@@ -1,4 +1,5 @@
 """US-313: Home Assistant device status page verification tests."""
+
 from pathlib import Path
 
 HA_PAGE = Path(__file__).parent.parent / "gui" / "src" / "pages" / "HomeAssistantPage.tsx"
@@ -16,6 +17,7 @@ def read(path: Path) -> str:
 
 # --- Sidebar has Home Assistant nav entry ---
 
+
 def test_app_layout_has_home_assistant_nav():
     content = read(APP_LAYOUT)
     assert "/home-assistant" in content, "HomeAssistant nav path missing from AppLayout"
@@ -27,6 +29,7 @@ def test_app_layout_has_home_assistant_label():
 
 
 # --- Route is registered ---
+
 
 def test_app_tsx_has_home_assistant_route():
     content = read(APP_TSX)
@@ -40,22 +43,24 @@ def test_app_tsx_imports_home_assistant_page():
 
 # --- Not-configured state links to /settings/home-assistant (not Settings > General) ---
 
+
 def test_ha_page_not_configured_links_to_ha_settings():
     content = read(HA_PAGE)
-    assert "/settings/home-assistant" in content, (
-        "Not-configured state must link to /settings/home-assistant"
-    )
+    assert (
+        "/settings/home-assistant" in content
+    ), "Not-configured state must link to /settings/home-assistant"
 
 
 def test_ha_page_not_configured_does_not_link_to_general():
     content = read(HA_PAGE)
     # Should not route to generic /settings when HA is unconfigured
-    assert "/settings/general" not in content, (
-        "Not-configured state must not link to /settings/general"
-    )
+    assert (
+        "/settings/general" not in content
+    ), "Not-configured state must not link to /settings/general"
 
 
 # --- Device state table columns ---
+
 
 def test_ha_page_shows_entity_id():
     content = read(HA_PAGE)
@@ -74,6 +79,7 @@ def test_ha_page_shows_last_updated():
 
 # --- Manual refresh button ---
 
+
 def test_ha_page_has_refresh_button():
     content = read(HA_PAGE)
     assert "Refresh" in content, "Refresh button missing from HomeAssistantPage"
@@ -85,6 +91,7 @@ def test_ha_page_refresh_calls_fetch():
 
 
 # --- Backend /api/ha/states endpoint ---
+
 
 def test_backend_ha_states_endpoint_exists():
     content = read(GUI_APP)
@@ -98,9 +105,9 @@ def test_backend_returns_not_configured_when_no_url():
 
 def test_backend_returns_entity_id_field():
     content = read(GUI_APP)
-    assert '"entity_id"' in content or "'entity_id'" in content, (
-        "entity_id field missing from backend states response"
-    )
+    assert (
+        '"entity_id"' in content or "'entity_id'" in content
+    ), "entity_id field missing from backend states response"
 
 
 def test_backend_returns_friendly_name():

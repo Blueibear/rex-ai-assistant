@@ -34,6 +34,7 @@ class TestEnrollmentUIConstants:
         content = SETTINGS_PAGE.read_text(encoding="utf-8")
         # Find the constant value
         import re
+
         match = re.search(r"ENROLLMENT_PROMPT_PHRASE\s*=\s*'([^']+)'", content)
         if not match:
             match = re.search(r'ENROLLMENT_PROMPT_PHRASE\s*=\s*"([^"]+)"', content)
@@ -90,7 +91,7 @@ class TestEnrollmentBridgeContract:
             text=True,
             timeout=15,
         )
-        lines = [l for l in result.stdout.strip().splitlines() if l.startswith("{")]
+        lines = [line for line in result.stdout.strip().splitlines() if line.startswith("{")]
         assert lines, f"No JSON output: stdout={result.stdout!r}"
         data = json.loads(lines[-1])
         assert data["ok"] is False
@@ -105,7 +106,7 @@ class TestEnrollmentBridgeContract:
             text=True,
             timeout=15,
         )
-        lines = [l for l in result.stdout.strip().splitlines() if l.startswith("{")]
+        lines = [line for line in result.stdout.strip().splitlines() if line.startswith("{")]
         assert lines, f"No JSON output: stdout={result.stdout!r}"
         data = json.loads(lines[-1])
         assert data["ok"] is True
@@ -120,7 +121,7 @@ class TestEnrollmentBridgeContract:
             text=True,
             timeout=10,
         )
-        lines = [l for l in result.stdout.strip().splitlines() if l.startswith("{")]
+        lines = [line for line in result.stdout.strip().splitlines() if line.startswith("{")]
         assert lines
         data = json.loads(lines[-1])
         assert data["ok"] is False

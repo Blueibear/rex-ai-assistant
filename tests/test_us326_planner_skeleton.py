@@ -11,7 +11,6 @@ import pytest
 
 from rex.planner import Result, Step, create_plan, execute_plan
 
-
 # ---------------------------------------------------------------------------
 # Step dataclass
 # ---------------------------------------------------------------------------
@@ -104,8 +103,6 @@ class TestExecutePlan:
         assert result.errors == []
 
     def test_status_transitions(self):
-        seen_statuses: list[str] = []
-
         def track_fn(tool: str, desc: str) -> str:
             # By the time tool_fn is called, status should be "running"
             return "ok"

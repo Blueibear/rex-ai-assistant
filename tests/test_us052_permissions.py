@@ -16,7 +16,6 @@ from pathlib import Path
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -90,7 +89,12 @@ class TestGrantRevoke:
         assert check_permission("user-2", "ha_control") is True
 
     def test_revoke_removes_permission(self, tmp_data_dir: Path) -> None:
-        from rex.permissions import Permission, check_permission, grant_permission, revoke_permission
+        from rex.permissions import (
+            Permission,
+            check_permission,
+            grant_permission,
+            revoke_permission,
+        )
 
         grant_permission("user-3", Permission.computer_control)
         assert check_permission("user-3", Permission.computer_control) is True

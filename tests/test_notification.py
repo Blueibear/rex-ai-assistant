@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -333,7 +333,7 @@ def test_notifier_calendar_update_handler(notifier):
     """Test handling calendar.update events."""
     from datetime import timedelta
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     soon = now + timedelta(minutes=10)
 
     event = MagicMock()

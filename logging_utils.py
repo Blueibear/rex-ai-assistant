@@ -20,7 +20,7 @@ warnings.warn(
 )
 
 # Re-export logging utilities from the rex package
-from rex.logging_utils import (
+from rex.logging_utils import (  # noqa: E402
     LOG_FORMAT,
     configure_logging,
     get_logger,

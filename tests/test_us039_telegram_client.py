@@ -12,10 +12,10 @@ import pytest
 from rex.assistant_errors import IntegrationNotConfiguredError
 from rex.integrations.telegram.client import TelegramClient
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_response(payload: dict) -> MagicMock:
     """Return a mock HTTP response that yields *payload* as JSON."""
@@ -39,6 +39,7 @@ _OK_RESPONSE = {
 # ---------------------------------------------------------------------------
 # Configuration checks
 # ---------------------------------------------------------------------------
+
 
 class TestConfiguration:
     def test_raises_when_no_token(self):
@@ -65,6 +66,7 @@ class TestConfiguration:
 # ---------------------------------------------------------------------------
 # send_message happy path
 # ---------------------------------------------------------------------------
+
 
 class TestSendMessage:
     def _client(self) -> TelegramClient:
@@ -139,6 +141,7 @@ class TestSendMessage:
 # Error propagation
 # ---------------------------------------------------------------------------
 
+
 class TestErrorHandling:
     def _client(self) -> TelegramClient:
         return TelegramClient(bot_token="tok:TEST", chat_id="111")
@@ -169,6 +172,7 @@ class TestErrorHandling:
 # ---------------------------------------------------------------------------
 # Config field integration
 # ---------------------------------------------------------------------------
+
 
 class TestConfigIntegration:
     def test_appconfig_has_telegram_fields(self):

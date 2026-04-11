@@ -1138,10 +1138,11 @@ class VoiceLoop:
 
                         if llm_response and not llm_response.endswith("."):
                             llm_response = llm_response + "."
+                        spoken_response = llm_response or ""
 
                         try:
                             await asyncio.wait_for(
-                                self._speak(llm_response), timeout=self._tts_timeout
+                                self._speak(spoken_response), timeout=self._tts_timeout
                             )
                         except TimeoutError:
                             logger.error(

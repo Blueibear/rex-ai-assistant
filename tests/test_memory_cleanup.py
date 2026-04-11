@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -26,7 +26,7 @@ class TestExpiredMemoryRemoval:
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
 
-        past = datetime.now(timezone.utc) - timedelta(days=1)
+        past = datetime.now(UTC) - timedelta(days=1)
         for i in range(3):
             entry = MemoryEntry(
                 entry_id=f"expired_{i}",
@@ -120,7 +120,7 @@ class TestScheduledCleanup:
         ltm = LongTermMemory(storage_path=storage)
 
         # Add an expired entry
-        past = datetime.now(timezone.utc) - timedelta(days=1)
+        past = datetime.now(UTC) - timedelta(days=1)
         entry = MemoryEntry(
             category="old",
             content={"data": "stale"},
@@ -162,7 +162,7 @@ class TestMemoryStoreCompaction:
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
 
-        past = datetime.now(timezone.utc) - timedelta(hours=1)
+        past = datetime.now(UTC) - timedelta(hours=1)
         for i in range(4):
             e = MemoryEntry(
                 entry_id=f"stale_{i}",
@@ -185,7 +185,7 @@ class TestMemoryStoreCompaction:
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
 
-        past = datetime.now(timezone.utc) - timedelta(hours=1)
+        past = datetime.now(UTC) - timedelta(hours=1)
         e = MemoryEntry(
             entry_id="stale_one",
             category="stale",
@@ -215,7 +215,7 @@ class TestMemoryStoreCompaction:
         storage = tmp_path / "ltm.json"
         ltm = LongTermMemory(storage_path=storage)
 
-        past = datetime.now(timezone.utc) - timedelta(seconds=1)
+        past = datetime.now(UTC) - timedelta(seconds=1)
         for i in range(7):
             e = MemoryEntry(
                 entry_id=f"exp_{i}",

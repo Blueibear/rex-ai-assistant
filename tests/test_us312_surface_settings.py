@@ -1,12 +1,8 @@
 """US-312: Surface all existing Rex settings in the GUI."""
-import json
-import re
+
 from pathlib import Path
 
-
-SETTINGS_PAGE = (
-    Path(__file__).parent.parent / "gui" / "src" / "pages" / "SettingsPage.tsx"
-)
+SETTINGS_PAGE = Path(__file__).parent.parent / "gui" / "src" / "pages" / "SettingsPage.tsx"
 IPC_TYPES = Path(__file__).parent.parent / "gui" / "src" / "types" / "ipc.ts"
 MAIN_INDEX = Path(__file__).parent.parent / "gui" / "src" / "main" / "index.ts"
 REX_CONFIG_SCHEMA = Path(__file__).parent.parent / "config" / "rex_config.schema.json"
@@ -17,6 +13,7 @@ def read(path: Path) -> str:
 
 
 # --- IntegrationsSettings type has Telegram fields ---
+
 
 def test_ipc_types_has_telegram_bot_token():
     content = read(IPC_TYPES)
@@ -29,6 +26,7 @@ def test_ipc_types_has_telegram_chat_id():
 
 
 # --- SettingsPage renders Telegram section ---
+
 
 def test_settings_page_has_telegram_section_header():
     content = read(SETTINGS_PAGE)
@@ -54,6 +52,7 @@ def test_settings_page_telegram_inputs_wired_to_form():
 
 # --- main/index.ts mirrors telegram.chat_id to rex_config.json ---
 
+
 def test_main_index_mirrors_telegram_chat_id():
     content = read(MAIN_INDEX)
     assert "telegram" in content.lower(), "telegram mirroring not found in main/index.ts"
@@ -61,6 +60,7 @@ def test_main_index_mirrors_telegram_chat_id():
 
 
 # --- rex/config.py has telegram_chat_id field read from rex_config.json ---
+
 
 def test_python_config_has_telegram_chat_id_field():
     config_py = Path(__file__).parent.parent / "rex" / "config.py"
@@ -76,6 +76,7 @@ def test_python_config_reads_telegram_chat_id_from_json():
 
 
 # --- SettingsPage saves field on blur ---
+
 
 def test_settings_page_telegram_bot_token_has_onblur():
     content = read(SETTINGS_PAGE)

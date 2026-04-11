@@ -41,7 +41,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from rex.audit import AuditLogger, LogEntry, get_audit_logger
 from rex.contracts import ToolCall
@@ -876,13 +876,15 @@ __all__ = [
 # Reads simple name/schedule/action task definitions from config and runs
 # due tasks when the voice loop or daemon calls run_due_tasks().
 
-import json as _json
-import subprocess as _subprocess
-import sys as _sys
-from dataclasses import dataclass as _dataclass, field as _field
-from datetime import UTC as _UTC, datetime as _datetime
-from pathlib import Path as _Path
-from typing import Any as _Any
+import json as _json  # noqa: E402
+import subprocess as _subprocess  # noqa: E402
+import sys as _sys  # noqa: E402
+from dataclasses import dataclass as _dataclass  # noqa: E402
+from dataclasses import field as _field  # noqa: E402
+from datetime import UTC as _UTC  # noqa: E402
+from datetime import datetime as _datetime  # noqa: E402
+from pathlib import Path as _Path  # noqa: E402
+from typing import Any as _Any  # noqa: E402
 
 _REPO_ROOT = _Path(__file__).parent.parent
 _DEFAULT_CONFIG_PATH = _REPO_ROOT / "config" / "rex_config.json"
@@ -894,7 +896,7 @@ _EXAMPLE_TASKS: list[dict[str, _Any]] = [
     {
         "name": "daily_weather",
         "schedule": "interval:86400",
-        "action": "chat --no-tts --prompt \"What is the weather today?\"",
+        "action": 'chat --no-tts --prompt "What is the weather today?"',
         "enabled": False,
     }
 ]
@@ -1007,7 +1009,9 @@ class ScheduledTaskRunner:
     def _load_state(self) -> dict[str, str]:
         if self.state_path.exists():
             try:
-                return _json.loads(self.state_path.read_text(encoding="utf-8"))
+                return cast(
+                    dict[str, str], _json.loads(self.state_path.read_text(encoding="utf-8"))
+                )
             except (_json.JSONDecodeError, OSError) as exc:
                 logger.warning("ScheduledTaskRunner: failed to read state: %s", exc)
         return {}
@@ -1034,9 +1038,7 @@ class ScheduledTaskRunner:
 
     def _run_task(self, task: ScheduledTask) -> bool:
         """Execute *task*, returning True on success.  Never raises."""
-        logger.info(
-            "ScheduledTaskRunner: executing '%s' (action: %s)", task.name, task.action
-        )
+        logger.info("ScheduledTaskRunner: executing '%s' (action: %s)", task.name, task.action)
         try:
             cmd = [_sys.executable, "-m", "rex"] + task.action.split()
             result = _subprocess.run(

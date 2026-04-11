@@ -2,21 +2,19 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import threading
-from io import BytesIO
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from rex.assistant_errors import IntegrationNotConfiguredError
 from rex.integrations.telegram.receiver import TelegramReceiver
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_assistant(reply: str = "hello back") -> MagicMock:
     """Return a mock assistant whose generate_reply coroutine returns *reply*."""
@@ -169,9 +167,7 @@ def test_handle_update_tolerates_send_failure(caplog):
     assistant = _make_assistant("reply")
     receiver = TelegramReceiver(bot_token="tok", chat_id="42", assistant=assistant)
 
-    with patch.object(
-        receiver._client, "send_message", side_effect=RuntimeError("network down")
-    ):
+    with patch.object(receiver._client, "send_message", side_effect=RuntimeError("network down")):
         # Should not raise
         receiver._handle_update(_make_update(6, "hello", chat_id="42"))
 

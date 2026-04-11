@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import UTC
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from rex.tool_catalog import EXECUTABLE_TOOLS
 from rex.local_tool_executor import UnknownToolError, execute_tool
+from rex.tool_catalog import EXECUTABLE_TOOLS
 
 
 class TestUnknownToolError:
@@ -189,7 +190,9 @@ class TestSendEmail:
 
     def test_exception_degraded_gracefully(self):
         """If EmailService raises, return error string (no exception propagation)."""
-        with patch("rex.local_tool_executor.EmailService", side_effect=RuntimeError("no connection")):
+        with patch(
+            "rex.local_tool_executor.EmailService", side_effect=RuntimeError("no connection")
+        ):
             result = execute_tool("send_email", {"to": "a@b.com", "subject": "s", "body": "b"})
         assert "[send_email error:" in result
         assert isinstance(result, str)
@@ -206,12 +209,12 @@ class TestSendEmail:
 class TestCalendarCreateEvent:
     def test_returns_confirmation_with_title(self):
         """CalendarService.create_event() called; returns confirmation string."""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         fake_event = MagicMock()
         fake_event.title = "Team Meeting"
-        fake_event.start_time = datetime(2026, 4, 1, 10, 0, tzinfo=timezone.utc)
-        fake_event.end_time = datetime(2026, 4, 1, 11, 0, tzinfo=timezone.utc)
+        fake_event.start_time = datetime(2026, 4, 1, 10, 0, tzinfo=UTC)
+        fake_event.end_time = datetime(2026, 4, 1, 11, 0, tzinfo=UTC)
 
         mock_svc = MagicMock()
         mock_svc.create_event.return_value = fake_event
@@ -231,10 +234,10 @@ class TestCalendarCreateEvent:
         """Missing start/end args result in sensible defaults (no exception)."""
         fake_event = MagicMock()
         fake_event.title = "Standup"
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        fake_event.start_time = datetime(2026, 4, 1, 9, 0, tzinfo=timezone.utc)
-        fake_event.end_time = datetime(2026, 4, 1, 10, 0, tzinfo=timezone.utc)
+        fake_event.start_time = datetime(2026, 4, 1, 9, 0, tzinfo=UTC)
+        fake_event.end_time = datetime(2026, 4, 1, 10, 0, tzinfo=UTC)
 
         mock_svc = MagicMock()
         mock_svc.create_event.return_value = fake_event
@@ -255,10 +258,10 @@ class TestCalendarCreateEvent:
         """'summary' key (from planner) is accepted as the event title."""
         fake_event = MagicMock()
         fake_event.title = "Weekly Sync"
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        fake_event.start_time = datetime(2026, 4, 2, 14, 0, tzinfo=timezone.utc)
-        fake_event.end_time = datetime(2026, 4, 2, 15, 0, tzinfo=timezone.utc)
+        fake_event.start_time = datetime(2026, 4, 2, 14, 0, tzinfo=UTC)
+        fake_event.end_time = datetime(2026, 4, 2, 15, 0, tzinfo=UTC)
 
         mock_svc = MagicMock()
         mock_svc.create_event.return_value = fake_event

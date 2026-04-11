@@ -12,7 +12,6 @@ from rex.profile_manager import (
     load_profile,
 )
 
-
 # ---------------------------------------------------------------------------
 # ensure_default_profile
 # ---------------------------------------------------------------------------
@@ -27,9 +26,7 @@ def test_ensure_default_profile_creates_from_example(tmp_path: Path) -> None:
         "capabilities": ["local_commands"],
         "overrides": {},
     }
-    (tmp_path / "default.example.json").write_text(
-        json.dumps(example), encoding="utf-8"
-    )
+    (tmp_path / "default.example.json").write_text(json.dumps(example), encoding="utf-8")
 
     created = ensure_default_profile(str(tmp_path))
 
@@ -154,9 +151,7 @@ def test_merge_profile_config_falls_back_when_named_profile_missing(
         "capabilities": ["local_commands"],
         "overrides": {},
     }
-    (profiles_dir / "default.json").write_text(
-        json.dumps(default_profile), encoding="utf-8"
-    )
+    (profiles_dir / "default.json").write_text(json.dumps(default_profile), encoding="utf-8")
 
     base_config: dict = {
         "active_profile": "james",

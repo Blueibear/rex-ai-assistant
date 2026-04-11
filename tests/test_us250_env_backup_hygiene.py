@@ -3,7 +3,6 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 GITIGNORE = ROOT / ".gitignore"
 TRACKED_BACKUP_ENV_FILES = (
@@ -51,4 +50,6 @@ def test_us250_backup_env_files_are_not_tracked() -> None:
 def test_us250_only_env_example_is_tracked_at_repo_root() -> None:
     result = _git("ls-files", "--", ".env*")
     tracked = [line for line in result.stdout.splitlines() if line]
-    assert tracked == [".env.example"], f"Expected only .env.example to be tracked, found: {tracked}"
+    assert tracked == [
+        ".env.example"
+    ], f"Expected only .env.example to be tracked, found: {tracked}"

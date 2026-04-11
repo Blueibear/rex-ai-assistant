@@ -153,6 +153,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
         turns = _history_store.load_history(user["id"])
         return jsonify(turns), 200
 
@@ -161,6 +162,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
         _history_store.clear_history(user["id"])
         return jsonify({"ok": True}), 200
 
@@ -169,6 +171,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
 
         data: dict[str, Any] = request.get_json(silent=True) or {}
         user_text = (data.get("message") or "").strip()
@@ -417,6 +420,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
         from rex.permissions import get_permissions
 
         return jsonify({"permissions": get_permissions(user["id"])}), 200
@@ -427,6 +431,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
         from rex.permissions import Permission, check_permission, grant_permission
 
         if not check_permission(user["id"], Permission.admin):
@@ -452,6 +457,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
         from rex.permissions import Permission, check_permission, revoke_permission
 
         if not check_permission(user["id"], Permission.admin):
@@ -503,6 +509,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
         from rex.identity import get_user_profile
 
         profile = get_user_profile(user["id"])
@@ -515,6 +522,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
         updates: dict[str, Any] = request.get_json(silent=True) or {}
         from rex.identity import create_user_profile, get_user_profile, update_user_preferences
 
@@ -552,6 +560,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
 
         if "file" not in request.files:
             return jsonify({"error": "no file uploaded"}), 400
@@ -570,7 +579,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         except Exception:
             return jsonify({"error": "invalid image file"}), 400
 
-        img = img.resize(_AVATAR_SIZE, Image.LANCZOS)
+        img = img.resize(_AVATAR_SIZE, Image.LANCZOS)  # type: ignore[attr-defined]
 
         _AVATAR_DIR.mkdir(parents=True, exist_ok=True)
         avatar_path = _AVATAR_DIR / f"{user['id']}.jpg"
@@ -655,6 +664,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
 
         data: dict[str, Any] = request.get_json(silent=True) or {}
         command = (data.get("command") or "").strip()
@@ -759,6 +769,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
 
         data: dict[str, Any] = request.get_json(silent=True) or {}
         base_url = (data.get("ha_base_url") or "").strip()
@@ -813,13 +824,23 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         import urllib.error
         import urllib.request
 
+        from rex.config import load_config
+
         cfg = load_config()
         base_url = (cfg.ha_base_url or "").rstrip("/")
         token = cfg.ha_token or ""
 
         if not base_url:
-            return jsonify({"ok": False, "not_configured": True,
-                            "error": "Home Assistant is not configured"}), 200
+            return (
+                jsonify(
+                    {
+                        "ok": False,
+                        "not_configured": True,
+                        "error": "Home Assistant is not configured",
+                    }
+                ),
+                200,
+            )
 
         url = f"{base_url}/api/states"
         headers = {
@@ -881,6 +902,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
         return jsonify({"quick_actions": _get_quick_actions(user["id"])}), 200
 
     @app.route("/api/quick-actions", methods=["POST"])
@@ -889,6 +911,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
 
         data: dict[str, Any] = request.get_json(silent=True) or {}
         label = (data.get("label") or "").strip()
@@ -911,6 +934,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
 
         actions = _get_quick_actions(user["id"])
         new_actions = [a for a in actions if a.get("id") != action_id]
@@ -925,6 +949,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
 
         actions = _get_quick_actions(user["id"])
         action = next((a for a in actions if a.get("id") == action_id), None)
@@ -985,6 +1010,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         user, err = _require_auth()
         if err:
             return err
+        assert user is not None
 
         try:
             limit = int(request.args.get("limit", 50))
@@ -1012,9 +1038,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
             return jsonify({"integrations": []}), 200
 
         search_configured = bool(
-            os.getenv("SERPAPI_API_KEY")
-            or os.getenv("BRAVE_API_KEY")
-            or os.getenv("GOOGLE_CSE_ID")
+            os.getenv("SERPAPI_API_KEY") or os.getenv("BRAVE_API_KEY") or os.getenv("GOOGLE_CSE_ID")
         )
 
         integrations = [
@@ -1131,7 +1155,16 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
                 "is_all_day": e.is_all_day,
             }
 
-        return jsonify({"ok": True, "events": [_event_to_dict(e) for e in events], "configured": configured}), 200
+        return (
+            jsonify(
+                {
+                    "ok": True,
+                    "events": [_event_to_dict(e) for e in events],
+                    "configured": configured,
+                }
+            ),
+            200,
+        )
 
     @app.route("/api/email/inbox", methods=["GET"])
     def _email_inbox() -> Any:
@@ -1172,7 +1205,16 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
                 "priority": m.priority,
             }
 
-        return jsonify({"ok": True, "messages": [_msg_to_dict(m) for m in messages], "configured": configured}), 200
+        return (
+            jsonify(
+                {
+                    "ok": True,
+                    "messages": [_msg_to_dict(m) for m in messages],
+                    "configured": configured,
+                }
+            ),
+            200,
+        )
 
     @app.route("/api/sms/threads", methods=["GET"])
     def _sms_threads() -> Any:
@@ -1214,7 +1256,16 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
                 "unread_count": t.unread_count,
             }
 
-        return jsonify({"ok": True, "threads": [_thread_to_dict(t) for t in threads], "configured": configured}), 200
+        return (
+            jsonify(
+                {
+                    "ok": True,
+                    "threads": [_thread_to_dict(t) for t in threads],
+                    "configured": configured,
+                }
+            ),
+            200,
+        )
 
     @app.route("/api/capabilities", methods=["GET"])
     def _list_capabilities() -> Any:
