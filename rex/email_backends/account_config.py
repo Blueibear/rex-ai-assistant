@@ -27,7 +27,7 @@ Example config fragment::
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -134,7 +134,7 @@ def load_email_config(raw_config: dict[str, Any]) -> EmailConfig:
     email_section = raw_config.get("email")
     if not email_section or not isinstance(email_section, dict):
         return EmailConfig()
-    return EmailConfig.model_validate(email_section)
+    return cast(EmailConfig, EmailConfig.model_validate(email_section))
 
 
 __all__ = [

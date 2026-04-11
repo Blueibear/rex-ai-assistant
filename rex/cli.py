@@ -693,17 +693,17 @@ def cmd_memory(args: argparse.Namespace) -> int:
                 print("Use formats like: 7d, 24h, 30m, 1w, 10s")
                 return 1
 
-        entry = ltm.add_entry(  # type: ignore[assignment]
+        entry = ltm.add_entry(
             category=category,
             content=content,
             expires_in=expires_in,
             sensitive=args.sensitive,
         )
 
-        print(f"Added memory entry: {entry.entry_id}")  # type: ignore[attr-defined]
-        print(f"  Category: {entry.category}")  # type: ignore[attr-defined]
-        print(f"  Expires: {entry.expires_at or 'never'}")  # type: ignore[attr-defined]
-        print(f"  Sensitive: {entry.sensitive}")  # type: ignore[attr-defined]
+        print(f"Added memory entry: {entry.entry_id}")
+        print(f"  Category: {entry.category}")
+        print(f"  Expires: {entry.expires_at or 'never'}")
+        print(f"  Sensitive: {entry.sensitive}")
         return 0
 
     if subcommand == "search":
@@ -726,19 +726,19 @@ def cmd_memory(args: argparse.Namespace) -> int:
         print("=" * 60)
         print()
 
-        for entry in results:  # type: ignore[assignment]
-            print(f"{entry.entry_id} [{entry.category}]")  # type: ignore[attr-defined]
-            print(f"  Created: {entry.created_at}")  # type: ignore[attr-defined]
-            if entry.expires_at:  # type: ignore[attr-defined]
-                print(f"  Expires: {entry.expires_at}")  # type: ignore[attr-defined]
-            if entry.sensitive:  # type: ignore[attr-defined]
+        for entry in results:
+            print(f"{entry.entry_id} [{entry.category}]")
+            print(f"  Created: {entry.created_at}")
+            if entry.expires_at:
+                print(f"  Expires: {entry.expires_at}")
+            if entry.sensitive:
                 print("  [SENSITIVE]")
                 if show_sensitive:
-                    print(f"  Content: {json.dumps(entry.content, indent=4)}")  # type: ignore[attr-defined]
+                    print(f"  Content: {json.dumps(entry.content, indent=4)}")
                 else:
                     print("  Content: <hidden - use --show-sensitive>")
             else:
-                print(f"  Content: {json.dumps(entry.content, indent=4)}")  # type: ignore[attr-defined]
+                print(f"  Content: {json.dumps(entry.content, indent=4)}")
             print()
 
         print(f"Total: {len(results)} entries found")

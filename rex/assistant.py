@@ -11,6 +11,7 @@ from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 from .assistant_errors import IntegrationNotConfiguredError
 from .calendar_service import get_calendar_service
@@ -506,11 +507,11 @@ class Assistant:
         _sug_engine = getattr(self, "_suggestion_engine", None)
         if _sug_engine is not None and _sug_engine.has_pending:
             if _sug_engine.is_accept(transcript):
-                reply = _sug_engine.handle_yes()
+                reply = cast(str, _sug_engine.handle_yes())
                 self._record_completion(transcript, reply)
                 return reply
             elif _sug_engine.is_dismiss(transcript):
-                reply = _sug_engine.handle_dismiss()
+                reply = cast(str, _sug_engine.handle_dismiss())
                 self._record_completion(transcript, reply)
                 return reply
 
@@ -567,7 +568,7 @@ class Assistant:
             _music_response = _music_handler.handle(transcript)
             if _music_response is not None:
                 self._record_completion(transcript, _music_response)
-                return _music_response
+                return cast(str, _music_response)
 
         # Device state queries (US-028)
         _ds_handler = getattr(self, "_device_state_handler", None)
@@ -575,7 +576,7 @@ class Assistant:
             _ds_response = _ds_handler.handle(transcript)
             if _ds_response is not None:
                 self._record_completion(transcript, _ds_response)
-                return _ds_response
+                return cast(str, _ds_response)
 
         # Per-user credential/history scoping: swap self._user_id for the
         # duration of this call so history, transcripts, and tool calls use

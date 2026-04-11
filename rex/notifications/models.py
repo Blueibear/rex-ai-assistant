@@ -120,8 +120,8 @@ def _from_row(row: tuple[object, ...]) -> Notification:
         title=str(row[1]),
         body=str(row[2]),
         source=str(row[3]),
-        priority=str(row[4]),  # type: ignore[arg-type]
-        channel=str(row[5]),  # type: ignore[arg-type]
+        priority=str(row[4]),
+        channel=str(row[5]),
         digest_eligible=bool(row[6]),
         quiet_hours_exempt=bool(row[7]),
         created_at=datetime.fromisoformat(str(row[8])),

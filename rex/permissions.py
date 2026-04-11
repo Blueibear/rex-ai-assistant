@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 _DB_PATH = Path(os.getenv("REX_DATA_DIR", "data")) / "users.db"
 
 
-class Permission(str, Enum):
+class Permission(StrEnum):
     """Enumeration of all supported permissions."""
 
     computer_control = "computer_control"
@@ -74,7 +74,7 @@ def _init_schema(conn: sqlite3.Connection) -> None:
 # ---------------------------------------------------------------------------
 
 
-def grant_permission(user_id: str, permission: "Permission | str") -> None:
+def grant_permission(user_id: str, permission: Permission | str) -> None:
     """Grant *permission* to *user_id*.
 
     Silently succeeds if the permission is already granted.
@@ -96,7 +96,7 @@ def grant_permission(user_id: str, permission: "Permission | str") -> None:
     logger.info("Granted %s to user %s", perm.value, user_id)
 
 
-def revoke_permission(user_id: str, permission: "Permission | str") -> None:
+def revoke_permission(user_id: str, permission: Permission | str) -> None:
     """Revoke *permission* from *user_id*.
 
     Silently succeeds if the permission was not held.
@@ -118,7 +118,7 @@ def revoke_permission(user_id: str, permission: "Permission | str") -> None:
     logger.info("Revoked %s from user %s", perm.value, user_id)
 
 
-def check_permission(user_id: str, permission: "Permission | str") -> bool:
+def check_permission(user_id: str, permission: Permission | str) -> bool:
     """Return ``True`` if *user_id* holds *permission*, ``False`` otherwise.
 
     Args:

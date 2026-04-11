@@ -196,12 +196,12 @@ def create_app(
         if not _token:
             # Server is misconfigured — refuse all requests.
             logger.error("Agent token is not configured; refusing request")
-            return jsonify({"error": "Server misconfigured: token not set"}), 401  # type: ignore[return-value]
+            return jsonify({"error": "Server misconfigured: token not set"}), 401
         if not provided:
-            return jsonify({"error": "Missing auth token"}), 401  # type: ignore[return-value]
+            return jsonify({"error": "Missing auth token"}), 401
         if not hmac.compare_digest(provided, _token):
             logger.warning("Rejected request from %s: invalid token", request.remote_addr)
-            return jsonify({"error": "Invalid auth token"}), 401  # type: ignore[return-value]
+            return jsonify({"error": "Invalid auth token"}), 401
         return None
 
     # ------------------------------------------------------------------
@@ -213,7 +213,7 @@ def create_app(
         key = request.remote_addr or "unknown"
         if not limiter.is_allowed(key):
             logger.warning("Rate limit exceeded for %s", key)
-            return jsonify({"error": "Too many requests"}), 429  # type: ignore[return-value]
+            return jsonify({"error": "Too many requests"}), 429
         return None
 
     # ------------------------------------------------------------------

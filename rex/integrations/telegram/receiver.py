@@ -93,9 +93,7 @@ class TelegramReceiver:
                 "TelegramReceiver: not configured (set telegram_chat_id in rex_config.json)"
             )
         if self._assistant is None:
-            raise IntegrationNotConfiguredError(
-                "TelegramReceiver: no assistant provided"
-            )
+            raise IntegrationNotConfiguredError("TelegramReceiver: no assistant provided")
 
     # ------------------------------------------------------------------
     # Internal helpers

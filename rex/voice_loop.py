@@ -1139,21 +1139,22 @@ class VoiceLoop:
                         if llm_response and not llm_response.endswith("."):
                             llm_response = llm_response + "."
 
-                        try:
-                            await asyncio.wait_for(
-                                self._speak(llm_response), timeout=self._tts_timeout
-                            )
-                        except TimeoutError:
-                            logger.error(
-                                "TTS stage timed out after %.0fs — resetting pipeline",
-                                self._tts_timeout,
-                                extra={
-                                    "event": "pipeline_timeout",
-                                    "stage": "tts",
-                                    "llm_response": llm_response,
-                                },
-                            )
-                            continue
+                        if llm_response is not None:
+                            try:
+                                await asyncio.wait_for(
+                                    self._speak(llm_response), timeout=self._tts_timeout
+                                )
+                            except TimeoutError:
+                                logger.error(
+                                    "TTS stage timed out after %.0fs — resetting pipeline",
+                                    self._tts_timeout,
+                                    extra={
+                                        "event": "pipeline_timeout",
+                                        "stage": "tts",
+                                        "llm_response": llm_response,
+                                    },
+                                )
+                                continue
                     tracker.mark("tts_synthesis_end")
                     tracker.mark("playback_start")
                     tracker.log_summary()
