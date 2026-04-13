@@ -194,7 +194,7 @@ the renderer with `webContents.executeJavaScript()`.
 Set a secret and start:
 
 ```powershell
-$env:REX_SPEAK_API_KEY = "replace-with-a-random-secret"
+$env:REX_SPEAK_API_KEY = "example-secret  # pragma: allowlist secret"
 rex-speak-api
 ```
 
@@ -221,7 +221,7 @@ curl http://127.0.0.1:5005/health/ready
 Set a secret and start:
 
 ```powershell
-$env:REX_TOOL_API_KEY = "replace-with-a-random-secret"
+$env:REX_TOOL_API_KEY = "example-secret  # pragma: allowlist secret"
 rex-tool-server
 ```
 

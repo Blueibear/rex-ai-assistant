@@ -92,28 +92,28 @@ first, then boot `gui/dist-electron/main/index.js` from a
 Start the TTS API:
 
 ```bash
-set REX_SPEAK_API_KEY=replace-with-a-random-secret
+set REX_SPEAK_API_KEY=example-secret  # pragma: allowlist secret
 rex-speak-api
 ```
 
 PowerShell equivalent:
 
 ```powershell
-$env:REX_SPEAK_API_KEY = "replace-with-a-random-secret"
+$env:REX_SPEAK_API_KEY = "example-secret  # pragma: allowlist secret"
 rex-speak-api
 ```
 
 Start the Rex tool server:
 
 ```bash
-set REX_TOOL_API_KEY=replace-with-a-random-secret
+set REX_TOOL_API_KEY=example-secret  # pragma: allowlist secret
 rex-tool-server
 ```
 
 PowerShell equivalent:
 
 ```powershell
-$env:REX_TOOL_API_KEY = "replace-with-a-random-secret"
+$env:REX_TOOL_API_KEY = "example-secret  # pragma: allowlist secret"
 rex-tool-server
 ```
 

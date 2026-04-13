@@ -2741,7 +2741,7 @@ function IntegrationsPanel(): React.ReactElement {
           <PasswordInput
             id="emailClientSecret"
             value={form.emailClientSecret}
-            placeholder="Enter client secret"
+            placeholder="Enter client secret (example)" // pragma: allowlist secret
             onChange={(v) => setForm((f) => ({ ...f, emailClientSecret: v }))}
             onBlur={() => handleFieldChange('emailClientSecret', form.emailClientSecret)}
           />
@@ -2863,7 +2863,7 @@ function IntegrationsPanel(): React.ReactElement {
                         <PasswordInput
                           id={`email-secret-${account.id}`}
                           value={account.clientSecret}
-                          placeholder="OAuth Client Secret"
+                          placeholder="OAuth Client Secret (example)" // pragma: allowlist secret
                           onChange={(v) => handleUpdateEmailAccount(account.id, { clientSecret: v })}
                         />
                       </div>
@@ -2978,7 +2978,7 @@ function IntegrationsPanel(): React.ReactElement {
           <PasswordInput
             id="calendarClientSecret"
             value={form.calendarClientSecret}
-            placeholder="Enter client secret"
+            placeholder="Enter client secret (example)" // pragma: allowlist secret
             onChange={(v) => setForm((f) => ({ ...f, calendarClientSecret: v }))}
             onBlur={() => handleFieldChange('calendarClientSecret', form.calendarClientSecret)}
           />
@@ -3032,7 +3032,7 @@ function IntegrationsPanel(): React.ReactElement {
             id="smsSid"
             type="text"
             value={form.smsSid}
-            placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            placeholder="Example Account SID" // pragma: allowlist secret
             onChange={(e) => setForm((f) => ({ ...f, smsSid: e.target.value }))}
             onBlur={(e) => handleFieldChange('smsSid', e.target.value)}
             className={inputClass}
@@ -3047,7 +3047,7 @@ function IntegrationsPanel(): React.ReactElement {
           <PasswordInput
             id="smsAuthToken"
             value={form.smsAuthToken}
-            placeholder="Enter auth token"
+            placeholder="Enter auth token (example)" // pragma: allowlist secret
             onChange={(v) => setForm((f) => ({ ...f, smsAuthToken: v }))}
             onBlur={() => handleFieldChange('smsAuthToken', form.smsAuthToken)}
           />
@@ -3122,7 +3122,7 @@ function IntegrationsPanel(): React.ReactElement {
           <PasswordInput
             id="haToken"
             value={form.haToken}
-            placeholder="Enter access token"
+            placeholder="Enter access token (example)" // pragma: allowlist secret
             onChange={(v) => setForm((f) => ({ ...f, haToken: v }))}
             onBlur={() => handleFieldChange('haToken', form.haToken)}
           />
@@ -3176,7 +3176,7 @@ function IntegrationsPanel(): React.ReactElement {
             id="phoneSid"
             type="text"
             value={form.phoneSid}
-            placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            placeholder="Example Account SID" // pragma: allowlist secret
             onChange={(e) => setForm((f) => ({ ...f, phoneSid: e.target.value }))}
             onBlur={(e) => handleFieldChange('phoneSid', e.target.value)}
             className={inputClass}
@@ -3191,7 +3191,7 @@ function IntegrationsPanel(): React.ReactElement {
           <PasswordInput
             id="phoneAuthToken"
             value={form.phoneAuthToken}
-            placeholder="Enter auth token"
+            placeholder="Enter auth token (example)" // pragma: allowlist secret
             onChange={(v) => setForm((f) => ({ ...f, phoneAuthToken: v }))}
             onBlur={() => handleFieldChange('phoneAuthToken', form.phoneAuthToken)}
           />
@@ -3310,7 +3310,7 @@ function IntegrationsPanel(): React.ReactElement {
           <PasswordInput
             id="telegramBotToken"
             value={form.telegramBotToken}
-            placeholder="123456789:ABCdef..."
+            placeholder="Enter access token (example)" // pragma: allowlist secret
             onChange={(v) => setForm((f) => ({ ...f, telegramBotToken: v }))}
             onBlur={() => handleFieldChange('telegramBotToken', form.telegramBotToken)}
           />

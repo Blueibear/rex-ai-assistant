@@ -119,14 +119,14 @@ For Electron-only verification harnesses, run `npm.cmd run build` in `gui/` befo
 ## TTS API
 
 ```bash
-set REX_SPEAK_API_KEY=change-me
+set REX_SPEAK_API_KEY=example-key  # pragma: allowlist secret
 rex-speak-api
 ```
 
 PowerShell:
 
 ```powershell
-$env:REX_SPEAK_API_KEY="change-me"
+$env:REX_SPEAK_API_KEY="example-key  # pragma: allowlist secret"
 rex-speak-api
 ```
 
@@ -141,7 +141,7 @@ Example request:
 ```bash
 curl -X POST http://127.0.0.1:5005/speak \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: change-me" \
+  -H "X-API-Key: example-key  # pragma: allowlist secret" \
   -d '{"text":"Hello from AskRex","user":"default"}' \
   --output speech.wav
 ```
@@ -149,7 +149,7 @@ curl -X POST http://127.0.0.1:5005/speak \
 ## OpenClaw Tool Server
 
 ```bash
-set REX_TOOL_API_KEY=change-me
+set REX_TOOL_API_KEY=example-key  # pragma: allowlist secret
 rex-tool-server
 ```
 
@@ -170,7 +170,7 @@ Example tool call:
 ```bash
 curl -X POST http://127.0.0.1:18790/rex/tools/time_now \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: change-me" \
+  -H "X-API-Key: example-key  # pragma: allowlist secret" \
   -d '{"args":{"location":"Dallas, TX"},"context":{}}'
 ```
 
