@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def test_import():
@@ -33,8 +33,8 @@ def test_is_complete_full():
     invite = MeetingInvite(
         title="Budget review",
         attendees=["alice@example.com"],
-        start_time=datetime(2026, 3, 15, 10, 0, tzinfo=timezone.utc),
-        end_time=datetime(2026, 3, 15, 11, 0, tzinfo=timezone.utc),
+        start_time=datetime(2026, 3, 15, 10, 0, tzinfo=UTC),
+        end_time=datetime(2026, 3, 15, 11, 0, tzinfo=UTC),
     )
     assert invite.is_complete()
 
@@ -93,8 +93,8 @@ def test_format_invite_for_review():
     invite = MeetingInvite(
         title="Design review",
         attendees=["eng@company.com"],
-        start_time=datetime(2026, 3, 20, 9, 0, tzinfo=timezone.utc),
-        end_time=datetime(2026, 3, 20, 10, 0, tzinfo=timezone.utc),
+        start_time=datetime(2026, 3, 20, 9, 0, tzinfo=UTC),
+        end_time=datetime(2026, 3, 20, 10, 0, tzinfo=UTC),
         agenda="Review wireframes",
     )
     output = format_invite_for_review(invite)
@@ -143,8 +143,8 @@ def test_to_ical_basic():
     invite = MeetingInvite(
         title="Sync",
         attendees=["a@b.com"],
-        start_time=datetime(2026, 3, 20, 9, 0, tzinfo=timezone.utc),
-        end_time=datetime(2026, 3, 20, 9, 30, tzinfo=timezone.utc),
+        start_time=datetime(2026, 3, 20, 9, 0, tzinfo=UTC),
+        end_time=datetime(2026, 3, 20, 9, 30, tzinfo=UTC),
         agenda="Quick update",
     )
     ical = to_ical(invite)

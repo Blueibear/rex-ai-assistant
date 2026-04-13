@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from rex.integrations.models import CalendarEvent, EmailMessage
 
@@ -62,12 +62,12 @@ class TestEmailMessage:
         assert msg.received_at.tzinfo is not None
 
     def test_received_at_custom(self) -> None:
-        dt = datetime(2025, 1, 15, 9, 0, tzinfo=timezone.utc)
+        dt = datetime(2025, 1, 15, 9, 0, tzinfo=UTC)
         msg = self._make(received_at=dt)
         assert msg.received_at == dt
 
     def test_model_dump_round_trip(self) -> None:
-        dt = datetime(2025, 1, 15, 9, 0, tzinfo=timezone.utc)
+        dt = datetime(2025, 1, 15, 9, 0, tzinfo=UTC)
         msg = self._make(
             recipients=["bob@example.com"],
             body_text="content",
@@ -93,8 +93,8 @@ class TestEmailMessage:
 
 
 class TestCalendarEvent:
-    _start = datetime(2025, 6, 1, 10, 0, tzinfo=timezone.utc)
-    _end = datetime(2025, 6, 1, 11, 0, tzinfo=timezone.utc)
+    _start = datetime(2025, 6, 1, 10, 0, tzinfo=UTC)
+    _end = datetime(2025, 6, 1, 11, 0, tzinfo=UTC)
 
     def _make(self, **kwargs: object) -> CalendarEvent:
         defaults: dict[str, object] = {

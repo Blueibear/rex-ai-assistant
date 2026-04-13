@@ -11,7 +11,7 @@ Acceptance criteria:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, time, timezone
+from datetime import UTC, datetime, time
 
 import pytest
 
@@ -29,7 +29,7 @@ from rex.quiet_hours import QuietHoursConfig, QuietHoursGuard, SubmitResult
 
 def _dt(hour: int, minute: int = 0) -> datetime:
     """UTC datetime on a fixed date at the given hour:minute."""
-    return datetime(2026, 3, 11, hour, minute, tzinfo=timezone.utc)
+    return datetime(2026, 3, 11, hour, minute, tzinfo=UTC)
 
 
 def _notif(

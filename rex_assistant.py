@@ -8,8 +8,7 @@ This module intentionally mirrors the historical top-level script so existing
 
 import asyncio
 import logging
-from collections.abc import Iterable, Sequence
-from typing import Callable
+from collections.abc import Callable, Iterable, Sequence
 
 from utils.env_loader import load as _load_env
 

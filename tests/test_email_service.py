@@ -28,7 +28,7 @@ incompatible tests, keeping CI green while implementations converge.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -116,7 +116,7 @@ def test_email_triage_publishes_events() -> None:
         sender="billing@example.com",
         subject="Invoice ready",
         body="Details inside",
-        received_at=datetime(2024, 1, 1, 9, 0, tzinfo=timezone.utc),
+        received_at=datetime(2024, 1, 1, 9, 0, tzinfo=UTC),
     )
 
     service = EmailService(bus, mock_messages=[message])  # type: ignore[call-arg]

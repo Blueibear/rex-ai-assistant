@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -43,37 +43,37 @@ def test_escalation_manager_initialization():
 def test_is_quiet_hours_during(escalation_manager):
     """Test quiet hours detection during quiet period."""
     # During quiet hours (e.g., 23:00)
-    test_time = datetime(2024, 1, 15, 23, 0, 0, tzinfo=timezone.utc)
+    test_time = datetime(2024, 1, 15, 23, 0, 0, tzinfo=UTC)
     assert escalation_manager.is_quiet_hours(test_time) is True
 
     # Also during quiet hours (e.g., 3:00 AM)
-    test_time = datetime(2024, 1, 15, 3, 0, 0, tzinfo=timezone.utc)
+    test_time = datetime(2024, 1, 15, 3, 0, 0, tzinfo=UTC)
     assert escalation_manager.is_quiet_hours(test_time) is True
 
 
 def test_is_quiet_hours_outside(escalation_manager):
     """Test quiet hours detection outside quiet period."""
     # Outside quiet hours (e.g., 10:00 AM)
-    test_time = datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+    test_time = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
     assert escalation_manager.is_quiet_hours(test_time) is False
 
     # Also outside (e.g., 8:00 PM)
-    test_time = datetime(2024, 1, 15, 20, 0, 0, tzinfo=timezone.utc)
+    test_time = datetime(2024, 1, 15, 20, 0, 0, tzinfo=UTC)
     assert escalation_manager.is_quiet_hours(test_time) is False
 
 
 def test_is_quiet_hours_boundaries(escalation_manager):
     """Test quiet hours boundary conditions."""
     # At start of quiet hours (22:00)
-    test_time = datetime(2024, 1, 15, 22, 0, 0, tzinfo=timezone.utc)
+    test_time = datetime(2024, 1, 15, 22, 0, 0, tzinfo=UTC)
     assert escalation_manager.is_quiet_hours(test_time) is True
 
     # Just before end of quiet hours (06:59)
-    test_time = datetime(2024, 1, 15, 6, 59, 0, tzinfo=timezone.utc)
+    test_time = datetime(2024, 1, 15, 6, 59, 0, tzinfo=UTC)
     assert escalation_manager.is_quiet_hours(test_time) is True
 
     # At end of quiet hours (07:00)
-    test_time = datetime(2024, 1, 15, 7, 0, 0, tzinfo=timezone.utc)
+    test_time = datetime(2024, 1, 15, 7, 0, 0, tzinfo=UTC)
     assert escalation_manager.is_quiet_hours(test_time) is False
 
 
@@ -85,13 +85,13 @@ def test_is_quiet_hours_no_midnight_crossing():
     )
 
     # During (13:00)
-    assert manager.is_quiet_hours(datetime(2024, 1, 15, 13, 0, tzinfo=timezone.utc)) is True
+    assert manager.is_quiet_hours(datetime(2024, 1, 15, 13, 0, tzinfo=UTC)) is True
 
     # Before (11:00)
-    assert manager.is_quiet_hours(datetime(2024, 1, 15, 11, 0, tzinfo=timezone.utc)) is False
+    assert manager.is_quiet_hours(datetime(2024, 1, 15, 11, 0, tzinfo=UTC)) is False
 
     # After (15:00)
-    assert manager.is_quiet_hours(datetime(2024, 1, 15, 15, 0, tzinfo=timezone.utc)) is False
+    assert manager.is_quiet_hours(datetime(2024, 1, 15, 15, 0, tzinfo=UTC)) is False
 
 
 def test_should_suppress_urgent_never_suppressed(escalation_manager):
@@ -239,7 +239,7 @@ def test_check_escalations_due(escalation_manager):
     )
 
     # Track notification with a timestamp 10 minutes ago
-    past_time = datetime.now(timezone.utc) - timedelta(minutes=10)
+    past_time = datetime.now(UTC) - timedelta(minutes=10)
     notif.timestamp = past_time
 
     escalation_manager.track_notification(notif, next_channel="email")
@@ -259,7 +259,7 @@ def test_check_escalations_due(escalation_manager):
 
 def test_check_escalations_multiple(escalation_manager):
     """Test checking multiple escalations."""
-    past_time = datetime.now(timezone.utc) - timedelta(minutes=10)
+    past_time = datetime.now(UTC) - timedelta(minutes=10)
 
     for i in range(3):
         notif = NotificationRequest(
@@ -287,7 +287,7 @@ def test_check_escalations_only_once(escalation_manager):
         body="Test",
     )
 
-    past_time = datetime.now(timezone.utc) - timedelta(minutes=10)
+    past_time = datetime.now(UTC) - timedelta(minutes=10)
     notif.timestamp = past_time
 
     escalation_manager.track_notification(notif, next_channel="email")

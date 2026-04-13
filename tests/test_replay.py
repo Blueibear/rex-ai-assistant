@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -73,7 +73,7 @@ class TestReconstructToolCall:
 
     def test_reconstruction_timestamp_is_current(self):
         """Reconstructed ToolCall should have current timestamp."""
-        old_time = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        old_time = datetime(2020, 1, 1, tzinfo=UTC)
         entry = LogEntry(
             timestamp=old_time,
             action_id="act_004",
@@ -219,7 +219,7 @@ class TestReplay:
 
         assert isinstance(result.replayed_at, datetime)
         # Should be recent
-        assert (datetime.now(timezone.utc) - result.replayed_at).total_seconds() < 5
+        assert (datetime.now(UTC) - result.replayed_at).total_seconds() < 5
 
     def test_replay_does_not_raise(self):
         """Replay should not raise exceptions for valid entries."""

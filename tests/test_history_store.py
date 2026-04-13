@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -18,7 +18,7 @@ def store(tmp_path: Path) -> HistoryStore:
 
 def _ts(offset_hours: int = 0) -> datetime:
     """Return a UTC datetime offset by *offset_hours* from now."""
-    return datetime.now(timezone.utc) + timedelta(hours=offset_hours)
+    return datetime.now(UTC) + timedelta(hours=offset_hours)
 
 
 # ---------------------------------------------------------------------------
@@ -88,7 +88,7 @@ def test_turns_isolated_per_user(store: HistoryStore) -> None:
 
 
 def test_timestamp_stored_as_utc_iso(store: HistoryStore) -> None:
-    ts = datetime(2026, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+    ts = datetime(2026, 1, 15, 10, 0, 0, tzinfo=UTC)
     store.save_turn("alice", "user", "hello", ts)
     row = store.load_history("alice")[0]
     assert "2026-01-15" in row["timestamp"]
@@ -100,8 +100,8 @@ def test_timestamp_stored_as_utc_iso(store: HistoryStore) -> None:
 
 
 def test_prune_removes_old_turns(store: HistoryStore) -> None:
-    old_ts = datetime.now(timezone.utc) - timedelta(days=31)
-    recent_ts = datetime.now(timezone.utc) - timedelta(days=1)
+    old_ts = datetime.now(UTC) - timedelta(days=31)
+    recent_ts = datetime.now(UTC) - timedelta(days=1)
     store.save_turn("alice", "user", "old message", old_ts)
     store.save_turn("alice", "user", "recent message", recent_ts)
     deleted = store.prune("alice", keep_days=30)
@@ -119,7 +119,7 @@ def test_prune_returns_zero_when_nothing_to_delete(store: HistoryStore) -> None:
 
 
 def test_prune_is_idempotent(store: HistoryStore) -> None:
-    old_ts = datetime.now(timezone.utc) - timedelta(days=40)
+    old_ts = datetime.now(UTC) - timedelta(days=40)
     store.save_turn("alice", "user", "old", old_ts)
     first = store.prune("alice", keep_days=30)
     second = store.prune("alice", keep_days=30)
@@ -128,7 +128,7 @@ def test_prune_is_idempotent(store: HistoryStore) -> None:
 
 
 def test_prune_only_affects_specified_user(store: HistoryStore) -> None:
-    old_ts = datetime.now(timezone.utc) - timedelta(days=40)
+    old_ts = datetime.now(UTC) - timedelta(days=40)
     store.save_turn("alice", "user", "old", old_ts)
     store.save_turn("bob", "user", "old too", old_ts)
     deleted = store.prune("alice", keep_days=30)

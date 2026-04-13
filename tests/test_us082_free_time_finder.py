@@ -12,7 +12,7 @@ Acceptance criteria:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -23,11 +23,11 @@ from rex.calendar_backends.free_time_finder import TimeSlot, find_free_slots
 # Constants — stable anchor dates (from CalendarStub.DEFAULT_ANCHOR = 2026-03-09)
 # ---------------------------------------------------------------------------
 
-MONDAY = datetime(2026, 3, 9, tzinfo=timezone.utc)
-TUESDAY = datetime(2026, 3, 10, tzinfo=timezone.utc)
-WEDNESDAY = datetime(2026, 3, 11, tzinfo=timezone.utc)
-THURSDAY = datetime(2026, 3, 12, tzinfo=timezone.utc)
-FRIDAY = datetime(2026, 3, 13, tzinfo=timezone.utc)
+MONDAY = datetime(2026, 3, 9, tzinfo=UTC)
+TUESDAY = datetime(2026, 3, 10, tzinfo=UTC)
+WEDNESDAY = datetime(2026, 3, 11, tzinfo=UTC)
+THURSDAY = datetime(2026, 3, 12, tzinfo=UTC)
+FRIDAY = datetime(2026, 3, 13, tzinfo=UTC)
 
 
 def _utc(d: datetime, hour: int, minute: int = 0) -> datetime:

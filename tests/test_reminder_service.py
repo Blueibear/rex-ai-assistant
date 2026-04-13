@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 
 def _future(hours: int = 2) -> datetime:
-    return datetime.now(timezone.utc) + timedelta(hours=hours)
+    return datetime.now(UTC) + timedelta(hours=hours)
 
 
 def _past(hours: int = 1) -> datetime:
-    return datetime.now(timezone.utc) - timedelta(hours=hours)
+    return datetime.now(UTC) - timedelta(hours=hours)
 
 
 def test_import():

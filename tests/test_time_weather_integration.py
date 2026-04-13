@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import UTC
 from unittest.mock import patch
 
 from rex.openclaw.tool_executor import execute_tool
@@ -36,14 +37,13 @@ def test_time_now_dallas_texas_returns_america_chicago():
 def test_time_now_dallas_local_time_differs_from_utc():
     """Dallas local time should differ from UTC by the CDT/CST offset."""
     from datetime import datetime
-    from datetime import timezone as _utc_tz
 
     result = execute_tool({"tool": "time_now", "args": {"location": "Dallas"}}, {})
     assert "error" not in result, f"Unexpected error: {result}"
     assert result["timezone"] == "America/Chicago"
 
     # Verify the tool actually returns a different hour than UTC
-    utc_now = datetime.now(tz=_utc_tz.utc)
+    utc_now = datetime.now(tz=UTC)
     dallas_hour = int(result["local_time"].split(" ")[1].split(":")[0])
     # CDT = UTC-5, CST = UTC-6 — at least one of date or hour must differ
     assert dallas_hour != utc_now.hour or result["date"] != utc_now.strftime(
