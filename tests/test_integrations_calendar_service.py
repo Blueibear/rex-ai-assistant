@@ -29,18 +29,18 @@ class TestCalendarServiceStub:
 
     def test_get_events_empty_when_not_configured(self) -> None:
         """US-315: provider='none' must return [] not stub data."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         events = self.service.get_events(now, now + timedelta(days=14))
         assert events == []
 
     def test_get_events_respects_window(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         far_future = now + timedelta(days=365)
         events = self.service.get_events(far_future, far_future + timedelta(hours=1))
         assert events == []
 
     def test_get_events_start_less_than_end_required(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         events = self.service.get_events(now, now)
         assert events == []
 
@@ -120,7 +120,7 @@ class TestCalendarServiceStub:
     # ------------------------------------------------------------------
 
     def test_calendar_event_model_dump_round_trip(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         event = self.service.create_event(
             {"title": "Round trip", "start": now, "end": now + timedelta(hours=1)}
         )
