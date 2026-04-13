@@ -6,7 +6,7 @@ list so the GUI can show an empty-state prompt instead of fake data.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from rex.integrations.calendar_service import CalendarService
 from rex.integrations.models import CalendarEvent
