@@ -744,8 +744,11 @@ class TextToSpeech:
     async def _speak_xtts(self, text: str, speaker_wav: str | None) -> None:
         """Synthesize speech using XTTS, playing each chunk immediately."""
         if self._tts is None and not self._initialize_xtts():
-            reason = self._xtts_init_error or "unknown initialization error"
-            logger.warning("[TTS] XTTS not available (%s); falling back to edge-tts", reason)
+            reason = (
+                f"XTTS not initialized "
+                f"({self._xtts_init_error or 'unknown initialization error'})"
+            )
+            logger.error("[TTS] Failed: %s", reason)
             await self._speak_edge(text)
             return
         sf = _lazy_import_soundfile()
