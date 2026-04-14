@@ -29,7 +29,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "output_device_index": None,
         "sample_rate": 16000,
     },
-    "wake_word": {
+    "wakeword": {
         "backend": "openwakeword",
         "wakeword": "rex",
         "keyword": None,
@@ -283,6 +283,7 @@ def load_config(path: str | Path = "config/rex_config.json") -> Dict[str, Any]:
             config = json.load(f)
 
         # Merge with defaults to ensure all keys exist
+        _canonicalize_wakeword_config(config)
         merged = _deep_merge(DEFAULT_CONFIG.copy(), config)
         _normalize_wake_word_config(merged)
         logger.debug(f"Loaded config from {config_path}")
@@ -364,19 +365,34 @@ def _deep_merge(base: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[str, Any]
     return result
 
 
-def _normalize_wake_word_config(config: Dict[str, Any]) -> None:
-    wake_word = config.get("wake_word")
-    if not isinstance(wake_word, dict):
+def _canonicalize_wakeword_config(config: Dict[str, Any]) -> None:
+    legacy = config.pop("wake_word", None)
+    if not isinstance(legacy, dict):
         return
 
-    keyword = wake_word.get("keyword")
-    wakeword = wake_word.get("wakeword")
+    canonical = config.get("wakeword")
+    if isinstance(canonical, dict):
+        merged = legacy.copy()
+        merged.update(canonical)
+        config["wakeword"] = merged
+    else:
+        config["wakeword"] = legacy
+
+
+def _normalize_wake_word_config(config: Dict[str, Any]) -> None:
+    _canonicalize_wakeword_config(config)
+    wakeword_section = config.get("wakeword")
+    if not isinstance(wakeword_section, dict):
+        return
+
+    keyword = wakeword_section.get("keyword")
+    wakeword = wakeword_section.get("wakeword")
     if (
         (not isinstance(keyword, str) or not keyword.strip())
         and isinstance(wakeword, str)
         and wakeword.strip()
     ):
-        wake_word["keyword"] = wakeword.strip()
+        wakeword_section["keyword"] = wakeword.strip()
 
 
 def migrate_legacy_env_to_config(

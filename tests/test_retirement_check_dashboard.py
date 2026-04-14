@@ -1,4 +1,4 @@
-"""Permanent retirement guard for rex/dashboard_store.py and rex/dashboard/ (US-P7-014).
+"""Permanent retirement guard for retired dashboard modules (US-P7-014).
 
 These modules were retired in iter 93 after all callers were migrated:
   - rex/health.py — check_dashboard_db removed
@@ -23,10 +23,11 @@ class TestDashboardRetired:
             REX_PKG / "dashboard_store.py"
         ).exists(), "rex/dashboard_store.py was re-introduced — it is a retired module"
 
-    def test_dashboard_package_deleted(self):
-        assert not (
-            REX_PKG / "dashboard"
-        ).exists(), "rex/dashboard/ was re-introduced — it is a retired module"
+    def test_legacy_dashboard_routes_deleted(self):
+        for module_name in ("auth.py", "routes.py"):
+            assert not (
+                REX_PKG / "dashboard" / module_name
+            ).exists(), f"rex/dashboard/{module_name} was re-introduced — it is retired"
 
     def test_dashboard_contract_deleted(self):
         assert not (

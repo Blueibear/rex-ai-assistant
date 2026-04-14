@@ -186,7 +186,7 @@ class TestMissingConfigHandledSafely:
         # File should be created
         assert config_path.exists()
         # Data should contain all default top-level sections
-        for section in ("models", "runtime", "wake_word", "audio"):
+        for section in ("models", "runtime", "wakeword", "audio"):
             assert section in data, f"Missing default section: {section}"
 
     def test_missing_config_returns_dict(self, tmp_path: Path):
@@ -212,7 +212,7 @@ class TestMissingConfigHandledSafely:
         cfg = build_app_config({})
         assert isinstance(cfg, AppConfig)
         assert cfg.llm_provider == "transformers"
-        assert cfg.wakeword == "rex"
+        assert cfg.wakeword == "hey_rex"
         assert cfg.memory_max_turns == 50
         assert cfg.session_ttl_hours == 8
 
@@ -232,5 +232,5 @@ class TestMissingConfigHandledSafely:
 
     def test_default_config_has_required_keys(self):
         """DEFAULT_CONFIG contains all required top-level sections."""
-        for section in ("models", "runtime", "wake_word", "audio", "api"):
+        for section in ("models", "runtime", "wakeword", "audio", "api"):
             assert section in DEFAULT_CONFIG, f"DEFAULT_CONFIG missing section: {section}"

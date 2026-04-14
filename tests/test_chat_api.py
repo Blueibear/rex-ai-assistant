@@ -128,19 +128,19 @@ def test_chat_clear_requires_auth(flask_client: object) -> None:
     assert resp.status_code == 401
 
 
-def test_dashboard_store_add_and_clear() -> None:
-    """Unit test: dashboard_store add_message / clear_history."""
-    import rex.dashboard_store as ds
+def test_history_store_save_and_clear(tmp_path: Path) -> None:
+    """Unit test: history_store save_turn / clear_history."""
+    from datetime import UTC, datetime
 
-    ds.clear_history()
-    msg = ds.add_message("user", "hello", attachment_name="file.txt")
-    assert msg.role == "user"
-    assert msg.content == "hello"
-    assert msg.attachment_name == "file.txt"
+    from rex.history_store import HistoryStore
 
-    history = ds.get_history()
-    assert len(history) >= 1
-    assert any(m["id"] == msg.id for m in history)
+    store = HistoryStore(tmp_path / "history.db")
+    store.save_turn("user-1", "user", "hello", datetime.now(UTC))
 
-    ds.clear_history()
-    assert ds.get_history() == []
+    history = store.load_history("user-1")
+    assert len(history) == 1
+    assert history[0]["role"] == "user"
+    assert history[0]["content"] == "hello"
+
+    store.clear_history("user-1")
+    assert store.load_history("user-1") == []
