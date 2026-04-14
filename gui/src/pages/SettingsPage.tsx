@@ -2542,14 +2542,14 @@ function IntegrationsPanel(): React.ReactElement {
             settings.emailProvider === 'outlook' ? 'outlook' : 'gmail',
           emailClientId: typeof settings.emailClientId === 'string' ? settings.emailClientId : '',
           emailClientSecret:
-            typeof settings.emailClientSecret === 'string' ? settings.emailClientSecret : '',
+            typeof settings.emailClientSecret === 'string' ? settings.emailClientSecret : '', // pragma: allowlist secret
           emailAccounts,
           calendarProvider:
             settings.calendarProvider === 'outlook' ? 'outlook' : 'gmail',
           calendarClientId:
             typeof settings.calendarClientId === 'string' ? settings.calendarClientId : '',
           calendarClientSecret:
-            typeof settings.calendarClientSecret === 'string' ? settings.calendarClientSecret : '',
+            typeof settings.calendarClientSecret === 'string' ? settings.calendarClientSecret : '', // pragma: allowlist secret
           smsSid: typeof settings.smsSid === 'string' ? settings.smsSid : '',
           smsAuthToken: typeof settings.smsAuthToken === 'string' ? settings.smsAuthToken : '',
           smsFromNumber: typeof settings.smsFromNumber === 'string' ? settings.smsFromNumber : '',
