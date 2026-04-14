@@ -28,9 +28,7 @@ logger = logging.getLogger(__name__)
 _DEFAULT_REGISTRY_PATH = Path("config") / "app_registry.json"
 
 # Sentinel returned when an app is not found in the registry.
-APP_NOT_FOUND_MESSAGE = (
-    "I don't know how to open that. You can add it in settings."
-)
+APP_NOT_FOUND_MESSAGE = "I don't know how to open that. You can add it in settings."
 
 
 # ---------------------------------------------------------------------------

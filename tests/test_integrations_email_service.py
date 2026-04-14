@@ -61,9 +61,7 @@ class TestEmailServiceStub:
         self.service.mark_read("msg-001")
 
     def test_email_message_model_dump_round_trip(self) -> None:
-        msg = self.service.send_draft(
-            to="test@example.com", subject="Round trip", body="Test body"
-        )
+        msg = self.service.send_draft(to="test@example.com", subject="Round trip", body="Test body")
         dumped = msg.model_dump()
         restored = EmailMessage(**dumped)
         assert restored == msg

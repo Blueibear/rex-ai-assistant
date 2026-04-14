@@ -356,9 +356,7 @@ class OllamaStrategy:
                     prompt_eval_count = int(response.get("prompt_eval_count") or 0)
                 else:
                     eval_count = int(getattr(response, "eval_count", None) or 0)
-                    prompt_eval_count = int(
-                        getattr(response, "prompt_eval_count", None) or 0
-                    )
+                    prompt_eval_count = int(getattr(response, "prompt_eval_count", None) or 0)
                 record_usage(
                     model=self.model_name,
                     prompt_tokens=prompt_eval_count,

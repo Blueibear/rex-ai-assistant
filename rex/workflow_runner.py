@@ -894,7 +894,7 @@ _EXAMPLE_TASKS: list[dict[str, _Any]] = [
     {
         "name": "daily_weather",
         "schedule": "interval:86400",
-        "action": "chat --no-tts --prompt \"What is the weather today?\"",
+        "action": 'chat --no-tts --prompt "What is the weather today?"',
         "enabled": False,
     }
 ]
@@ -1034,9 +1034,7 @@ class ScheduledTaskRunner:
 
     def _run_task(self, task: ScheduledTask) -> bool:
         """Execute *task*, returning True on success.  Never raises."""
-        logger.info(
-            "ScheduledTaskRunner: executing '%s' (action: %s)", task.name, task.action
-        )
+        logger.info("ScheduledTaskRunner: executing '%s' (action: %s)", task.name, task.action)
         try:
             cmd = [_sys.executable, "-m", "rex"] + task.action.split()
             result = _subprocess.run(

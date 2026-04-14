@@ -81,9 +81,7 @@ def test_critical_bridge_responds_to_bad_json(script):
 
     # Output must be valid JSON (bridges communicate via JSON stdout)
     json_lines = [line for line in stdout_text.splitlines() if line.startswith("{")]
-    assert json_lines, (
-        f"{script} produced no JSON output lines. stdout: {stdout_text[:500]}"
-    )
+    assert json_lines, f"{script} produced no JSON output lines. stdout: {stdout_text[:500]}"
     last_json = json.loads(json_lines[-1])
     assert isinstance(last_json, dict), f"{script} last JSON line is not an object"
 

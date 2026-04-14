@@ -113,8 +113,7 @@ class SafetyLayer:
     def __init__(self, mode: str = "dangerous_only") -> None:
         if mode not in _VALID_MODES:
             raise ValueError(
-                f"Invalid confirmation mode: {mode!r}. "
-                f"Must be one of: {sorted(_VALID_MODES)}"
+                f"Invalid confirmation mode: {mode!r}. " f"Must be one of: {sorted(_VALID_MODES)}"
             )
         self._mode = mode
 

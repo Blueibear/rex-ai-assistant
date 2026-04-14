@@ -11,7 +11,6 @@ import pytest
 
 from rex.planner import Result, Step, create_plan, execute_plan
 
-
 # ---------------------------------------------------------------------------
 # Step dataclass
 # ---------------------------------------------------------------------------

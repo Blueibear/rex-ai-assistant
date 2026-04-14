@@ -6,7 +6,6 @@ import sys
 from types import ModuleType
 from unittest.mock import MagicMock, patch
 
-
 # ---------------------------------------------------------------------------
 # apply_xtts_safe_globals
 # ---------------------------------------------------------------------------
@@ -83,9 +82,9 @@ def test_apply_xtts_safe_globals_called_before_torch_load_in_initialize_xtts():
     from rex.voice_loop import TextToSpeech
 
     source = inspect.getsource(TextToSpeech._initialize_xtts)
-    assert "apply_xtts_safe_globals" in source, (
-        "_initialize_xtts must call apply_xtts_safe_globals() before loading the model"
-    )
+    assert (
+        "apply_xtts_safe_globals" in source
+    ), "_initialize_xtts must call apply_xtts_safe_globals() before loading the model"
 
 
 # ---------------------------------------------------------------------------
@@ -102,9 +101,9 @@ def test_get_tts_engine_raises_import_error_when_tts_not_installed():
             get_tts_engine("xtts")
             raise AssertionError("Expected ImportError was not raised")
         except ImportError as exc:
-            assert "Coqui TTS" in str(exc) or "TTS" in str(exc), (
-                f"ImportError message should mention TTS, got: {exc}"
-            )
+            assert "Coqui TTS" in str(exc) or "TTS" in str(
+                exc
+            ), f"ImportError message should mention TTS, got: {exc}"
 
 
 def test_get_tts_engine_raises_value_error_for_unknown_engine():

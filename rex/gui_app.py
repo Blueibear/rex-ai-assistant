@@ -818,8 +818,16 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         token = cfg.ha_token or ""
 
         if not base_url:
-            return jsonify({"ok": False, "not_configured": True,
-                            "error": "Home Assistant is not configured"}), 200
+            return (
+                jsonify(
+                    {
+                        "ok": False,
+                        "not_configured": True,
+                        "error": "Home Assistant is not configured",
+                    }
+                ),
+                200,
+            )
 
         url = f"{base_url}/api/states"
         headers = {
@@ -1012,9 +1020,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
             return jsonify({"integrations": []}), 200
 
         search_configured = bool(
-            os.getenv("SERPAPI_API_KEY")
-            or os.getenv("BRAVE_API_KEY")
-            or os.getenv("GOOGLE_CSE_ID")
+            os.getenv("SERPAPI_API_KEY") or os.getenv("BRAVE_API_KEY") or os.getenv("GOOGLE_CSE_ID")
         )
 
         integrations = [
@@ -1131,7 +1137,16 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
                 "is_all_day": e.is_all_day,
             }
 
-        return jsonify({"ok": True, "events": [_event_to_dict(e) for e in events], "configured": configured}), 200
+        return (
+            jsonify(
+                {
+                    "ok": True,
+                    "events": [_event_to_dict(e) for e in events],
+                    "configured": configured,
+                }
+            ),
+            200,
+        )
 
     @app.route("/api/email/inbox", methods=["GET"])
     def _email_inbox() -> Any:
@@ -1172,7 +1187,16 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
                 "priority": m.priority,
             }
 
-        return jsonify({"ok": True, "messages": [_msg_to_dict(m) for m in messages], "configured": configured}), 200
+        return (
+            jsonify(
+                {
+                    "ok": True,
+                    "messages": [_msg_to_dict(m) for m in messages],
+                    "configured": configured,
+                }
+            ),
+            200,
+        )
 
     @app.route("/api/sms/threads", methods=["GET"])
     def _sms_threads() -> Any:
@@ -1214,7 +1238,16 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
                 "unread_count": t.unread_count,
             }
 
-        return jsonify({"ok": True, "threads": [_thread_to_dict(t) for t in threads], "configured": configured}), 200
+        return (
+            jsonify(
+                {
+                    "ok": True,
+                    "threads": [_thread_to_dict(t) for t in threads],
+                    "configured": configured,
+                }
+            ),
+            200,
+        )
 
     @app.route("/api/capabilities", methods=["GET"])
     def _list_capabilities() -> Any:

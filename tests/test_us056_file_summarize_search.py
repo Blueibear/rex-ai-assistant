@@ -175,9 +175,7 @@ class TestSearchFiles:
         from rex.computers.file_ops import search_files
 
         self._populate(tmp_path)
-        results = search_files(
-            tmp_path, "Hello", allowed_roots=_roots(tmp_path), pattern="*.md"
-        )
+        results = search_files(tmp_path, "Hello", allowed_roots=_roots(tmp_path), pattern="*.md")
         assert len(results) == 1
         assert "notes.md" in results[0]["file"]
 

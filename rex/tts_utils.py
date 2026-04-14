@@ -171,10 +171,7 @@ def get_tts_engine(engine: str) -> type:
     """
     if engine == "xtts":
         if find_spec("TTS") is None:
-            raise ImportError(
-                "Coqui TTS is not installed. "
-                "Install it with: pip install TTS"
-            )
+            raise ImportError("Coqui TTS is not installed. " "Install it with: pip install TTS")
         apply_xtts_safe_globals()
         from TTS.api import TTS  # type: ignore[import-untyped]
 

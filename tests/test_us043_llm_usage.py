@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # rex.llm_usage unit tests
 # ---------------------------------------------------------------------------
@@ -142,9 +141,7 @@ def test_ollama_generate_records_usage(tmp_path):
             strategy._ollama = mock_ollama
             strategy._client_cls = mock_ollama.Client
             strategy._client = fake_client
-            strategy._retry_config = __import__(
-                "rex.retry", fromlist=["RetryConfig"]
-            ).RetryConfig()
+            strategy._retry_config = __import__("rex.retry", fromlist=["RetryConfig"]).RetryConfig()
 
             gen_config = GenerationConfig(
                 max_new_tokens=100,

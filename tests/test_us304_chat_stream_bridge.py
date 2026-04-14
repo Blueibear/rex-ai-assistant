@@ -41,9 +41,9 @@ def test_chat_stream_bridge_help_mentions_stdin():
         timeout=30,
     )
     combined = result.stdout + result.stderr
-    assert "stdin" in combined.lower() or "message" in combined.lower(), (
-        f"--help output should mention stdin or message protocol, got:\n{combined[:500]}"
-    )
+    assert (
+        "stdin" in combined.lower() or "message" in combined.lower()
+    ), f"--help output should mention stdin or message protocol, got:\n{combined[:500]}"
 
 
 # ---------------------------------------------------------------------------
@@ -55,9 +55,9 @@ def test_chat_stream_bridge_uses_assistant_generate_reply():
     """The streaming bridge must call Assistant.generate_reply() (or stream_reply)."""
     source = BRIDGE_SCRIPT.read_text(encoding="utf-8")
     assert "Assistant" in source, "Bridge must import/use the Assistant class"
-    assert "generate_reply" in source or "stream_reply" in source, (
-        "Bridge must call generate_reply or stream_reply on an Assistant instance"
-    )
+    assert (
+        "generate_reply" in source or "stream_reply" in source
+    ), "Bridge must call generate_reply or stream_reply on an Assistant instance"
 
 
 # ---------------------------------------------------------------------------
@@ -78,10 +78,7 @@ def test_chat_stream_bridge_emits_json_error_on_bad_input():
     )
     # The bridge should emit a {"type": "error", ...} line somewhere in stdout
     # (other lines may be config warnings from the logging setup)
-    json_lines = [
-        line for line in result.stdout.splitlines()
-        if line.strip().startswith("{")
-    ]
+    json_lines = [line for line in result.stdout.splitlines() if line.strip().startswith("{")]
     assert json_lines, (
         f"Expected at least one JSON line in stdout on bad input.\n"
         f"stdout: {result.stdout[:500]}\nstderr: {result.stderr[:300]}"
@@ -113,6 +110,4 @@ def test_chat_stream_bridge_no_syntax_errors():
         text=True,
         timeout=15,
     )
-    assert result.returncode == 0, (
-        f"Syntax error in {BRIDGE_SCRIPT.name}:\n{result.stderr}"
-    )
+    assert result.returncode == 0, f"Syntax error in {BRIDGE_SCRIPT.name}:\n{result.stderr}"

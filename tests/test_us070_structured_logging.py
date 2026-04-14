@@ -226,6 +226,7 @@ def test_session_marker_written_by_configure_logging(tmp_path, monkeypatch):
     root.handlers.clear()
     try:
         from logging.handlers import RotatingFileHandler
+
         fh = RotatingFileHandler(log_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8")
         with patch("rex.logging_utils._json_logging_enabled", return_value=False):
             configure_logging(level=logging.DEBUG, handlers=[fh])

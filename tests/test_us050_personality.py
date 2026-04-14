@@ -14,7 +14,6 @@ import asyncio
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-
 # ---------------------------------------------------------------------------
 # Personality module tests
 # ---------------------------------------------------------------------------

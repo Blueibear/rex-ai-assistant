@@ -96,9 +96,7 @@ def test_cli_remember_explicit_key_value(tmp_path: Path, monkeypatch: object) ->
 
     monkeypatch.setattr("rex.user_facts._MEMORY_ROOT", tmp_path)
 
-    args = types.SimpleNamespace(
-        fact="anything", user="default", key="dog_name", value="Max"
-    )
+    args = types.SimpleNamespace(fact="anything", user="default", key="dog_name", value="Max")
     cmd_remember(args)
 
     from rex.user_facts import recall

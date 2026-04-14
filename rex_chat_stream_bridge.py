@@ -32,10 +32,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
             "Streaming Rex chat bridge. "
-            "Reads JSON from stdin: {\"message\": \"<text>\"}. "
-            "Writes NDJSON to stdout: {\"type\": \"token\", \"token\": \"...\"} per chunk, "
-            "then {\"type\": \"done\"} when complete, "
-            "or {\"type\": \"error\", \"error\": \"...\"} on failure."
+            'Reads JSON from stdin: {"message": "<text>"}. '
+            'Writes NDJSON to stdout: {"type": "token", "token": "..."} per chunk, '
+            'then {"type": "done"} when complete, '
+            'or {"type": "error", "error": "..."} on failure.'
         )
     )
     parser.parse_args()

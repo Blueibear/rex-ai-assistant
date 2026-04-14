@@ -185,9 +185,7 @@ def summarize_file(
     """
     content = read_file(path, allowed_roots)
     snippet = content[:max_chars]
-    prompt = (
-        f"Please summarise the following document concisely:\n\n{snippet}"
-    )
+    prompt = f"Please summarise the following document concisely:\n\n{snippet}"
 
     try:
         from rex.config import load_config

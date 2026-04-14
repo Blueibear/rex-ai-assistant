@@ -203,6 +203,7 @@ def test_list_bridge_has_sample_field(tmp_path: Path, monkeypatch: pytest.Monkey
 
     def mock_list_custom(config_dir=None):  # type: ignore[no-untyped-def]
         from rex.wakeword.trainer import list_custom_wake_words
+
         return list_custom_wake_words(config_dir=tmp_path)
 
     monkeypatch.setattr(sys, "stdin", io.StringIO("{}"))

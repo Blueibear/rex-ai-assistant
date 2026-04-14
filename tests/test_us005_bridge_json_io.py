@@ -4,6 +4,7 @@ Verifies:
 - Each bridge accepts JSON on stdin with {"action": "list"} and returns valid JSON
 - Each bridge returns {"error": "..."} on invalid (non-JSON) input
 """
+
 from __future__ import annotations
 
 import json
@@ -44,7 +45,9 @@ class TestTasksBridgeJsonIO:
     def test_action_list_returns_valid_json(self):
         mock_scheduler = MagicMock()
         mock_scheduler.list_jobs.return_value = []
-        with patch.dict("sys.modules", {"rex.scheduler": MagicMock(get_scheduler=lambda: mock_scheduler)}):
+        with patch.dict(
+            "sys.modules", {"rex.scheduler": MagicMock(get_scheduler=lambda: mock_scheduler)}
+        ):
             result = _run_main(TASKS_MODULE, '{"action": "list"}')
         assert isinstance(result, dict)
         assert "tasks" in result or "error" in result
@@ -52,7 +55,9 @@ class TestTasksBridgeJsonIO:
     def test_command_list_returns_valid_json(self):
         mock_scheduler = MagicMock()
         mock_scheduler.list_jobs.return_value = []
-        with patch.dict("sys.modules", {"rex.scheduler": MagicMock(get_scheduler=lambda: mock_scheduler)}):
+        with patch.dict(
+            "sys.modules", {"rex.scheduler": MagicMock(get_scheduler=lambda: mock_scheduler)}
+        ):
             result = _run_main(TASKS_MODULE, '{"command": "list"}')
         assert isinstance(result, dict)
         assert "tasks" in result or "error" in result

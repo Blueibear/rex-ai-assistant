@@ -29,9 +29,7 @@ def test_speaker_discovery_importable() -> None:
     """SpeakerDiscoveryService must be importable from rex.audio.speaker_discovery."""
     from rex.audio.speaker_discovery import SpeakerDiscoveryService  # noqa: F401
 
-    svc = SpeakerDiscoveryService(
-        refresh_interval_seconds=60.0, discovery_timeout_seconds=0.1
-    )
+    svc = SpeakerDiscoveryService(refresh_interval_seconds=60.0, discovery_timeout_seconds=0.1)
     assert svc is not None
 
 
@@ -133,9 +131,9 @@ def test_discovery_exception_returns_error_not_crash() -> None:
 def test_bridge_uses_centralized_resolver() -> None:
     """Bridge must import resolveBridgePath / resolve_python from bridge_utils."""
     source = BRIDGE_SCRIPT.read_text(encoding="utf-8")
-    assert "bridge_utils" in source, (
-        "Bridge must import from rex.bridge_utils to use the centralized resolver pattern"
-    )
+    assert (
+        "bridge_utils" in source
+    ), "Bridge must import from rex.bridge_utils to use the centralized resolver pattern"
 
 
 # ---------------------------------------------------------------------------
@@ -154,12 +152,10 @@ def test_bridge_subprocess_returns_json() -> None:
     )
     # Bridge should exit 0 even when no devices are found
     json_lines = [
-        line
-        for line in result.stdout.strip().splitlines()
-        if line.strip().startswith("{")
+        line for line in result.stdout.strip().splitlines() if line.strip().startswith("{")
     ]
-    assert json_lines, (
-        f"Expected JSON on stdout.\nstdout: {result.stdout[:500]}\nstderr: {result.stderr[:500]}"
-    )
+    assert (
+        json_lines
+    ), f"Expected JSON on stdout.\nstdout: {result.stdout[:500]}\nstderr: {result.stderr[:500]}"
     data = json.loads(json_lines[-1])
     assert "speakers" in data, f"Missing 'speakers' key in response: {data}"

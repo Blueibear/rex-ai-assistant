@@ -5,6 +5,7 @@ Verifies:
 - Each bridge returns {"error": "..."} on invalid (non-JSON) input
 - Each bridge returns {"error": "..."} on unknown command
 """
+
 from __future__ import annotations
 
 import json
@@ -40,7 +41,13 @@ SHOPPING_MODULE = "rex_shopping_list_bridge"
 
 def _mock_shopping_item(name: str = "eggs") -> MagicMock:
     item = MagicMock()
-    item.to_dict.return_value = {"id": "abc", "name": name, "quantity": 1.0, "unit": "", "checked": False}
+    item.to_dict.return_value = {
+        "id": "abc",
+        "name": name,
+        "quantity": 1.0,
+        "unit": "",
+        "checked": False,
+    }
     return item
 
 

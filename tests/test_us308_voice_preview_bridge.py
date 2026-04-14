@@ -59,6 +59,7 @@ class TestVoiceSampleBridgeContract:
     def test_default_preview_phrase_contains_rex(self):
         """Default text parameter contains 'Rex'."""
         import importlib.util
+
         spec = importlib.util.spec_from_file_location("vb", BRIDGE)
         assert spec is not None
         mod = importlib.util.module_from_spec(spec)
@@ -78,11 +79,7 @@ class TestVoiceSampleBridgeContract:
 
         with patch.dict(
             "sys.modules",
-            {
-                "rex.tts_voices": MagicMock(
-                    synthesize_sample=MagicMock(return_value=mock_audio)
-                )
-            },
+            {"rex.tts_voices": MagicMock(synthesize_sample=MagicMock(return_value=mock_audio))},
         ):
             import asyncio
             import importlib
@@ -125,6 +122,6 @@ class TestBridgeInRegistry:
         if not resolver_path.exists():
             return  # GUI not present in this env
         content = resolver_path.read_text(encoding="utf-8")
-        assert "rex_voice_sample_bridge" in content, (
-            "rex_voice_sample_bridge not found in bridgeResolver.ts registry"
-        )
+        assert (
+            "rex_voice_sample_bridge" in content
+        ), "rex_voice_sample_bridge not found in bridgeResolver.ts registry"

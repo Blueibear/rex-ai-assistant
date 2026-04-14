@@ -13,7 +13,6 @@ from rex.assistant_errors import IntegrationNotConfiguredError
 from rex.notifications.push import send_push, _send_ntfy, _send_pushover
 from rex.notifications import send_push as exported_send_push
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

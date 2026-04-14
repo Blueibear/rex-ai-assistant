@@ -52,9 +52,7 @@ def test_calendar_page_no_hardcoded_fake_events() -> None:
 def test_calendar_page_has_error_or_empty_handling() -> None:
     src = read_file("gui/src/pages/CalendarPage.tsx")
     # Page should handle errors (addToast or error state)
-    assert "error" in src.lower() or "Error" in src, (
-        "CalendarPage must handle error/empty state"
-    )
+    assert "error" in src.lower() or "Error" in src, "CalendarPage must handle error/empty state"
 
 
 # ---------------------------------------------------------------------------
@@ -77,9 +75,9 @@ def test_email_page_no_hardcoded_fake_messages() -> None:
 
 def test_email_page_has_empty_or_error_state() -> None:
     src = read_file("gui/src/pages/EmailPage.tsx")
-    assert "length === 0" in src or "messages.length" in src or "No " in src, (
-        "EmailPage must handle empty inbox state"
-    )
+    assert (
+        "length === 0" in src or "messages.length" in src or "No " in src
+    ), "EmailPage must handle empty inbox state"
 
 
 # ---------------------------------------------------------------------------
@@ -102,9 +100,9 @@ def test_sms_page_no_hardcoded_fake_threads() -> None:
 
 def test_sms_page_has_empty_state() -> None:
     src = read_file("gui/src/pages/SmsPage.tsx")
-    assert "No conversations" in src or "threads.length === 0" in src, (
-        "SmsPage must show an empty state when there are no threads"
-    )
+    assert (
+        "No conversations" in src or "threads.length === 0" in src
+    ), "SmsPage must show an empty state when there are no threads"
 
 
 # ---------------------------------------------------------------------------
@@ -114,38 +112,32 @@ def test_sms_page_has_empty_state() -> None:
 
 def test_backend_calendar_events_endpoint_exists() -> None:
     src = read_file("rex/gui_app.py")
-    assert '"/api/calendar/events"' in src, (
-        "gui_app.py must define /api/calendar/events endpoint"
-    )
+    assert '"/api/calendar/events"' in src, "gui_app.py must define /api/calendar/events endpoint"
 
 
 def test_backend_email_inbox_endpoint_exists() -> None:
     src = read_file("rex/gui_app.py")
-    assert '"/api/email/inbox"' in src, (
-        "gui_app.py must define /api/email/inbox endpoint"
-    )
+    assert '"/api/email/inbox"' in src, "gui_app.py must define /api/email/inbox endpoint"
 
 
 def test_backend_sms_threads_endpoint_exists() -> None:
     src = read_file("rex/gui_app.py")
-    assert '"/api/sms/threads"' in src, (
-        "gui_app.py must define /api/sms/threads endpoint"
-    )
+    assert '"/api/sms/threads"' in src, "gui_app.py must define /api/sms/threads endpoint"
 
 
 def test_backend_calendar_returns_configured_flag() -> None:
     src = read_file("rex/gui_app.py")
     # The endpoint should return a "configured" field
-    assert '"configured"' in src or "'configured'" in src, (
-        "Calendar endpoint must return 'configured' field"
-    )
+    assert (
+        '"configured"' in src or "'configured'" in src
+    ), "Calendar endpoint must return 'configured' field"
 
 
 def test_backend_email_returns_configured_flag() -> None:
     src = read_file("rex/gui_app.py")
-    assert '"configured"' in src or "'configured'" in src, (
-        "Email endpoint must return 'configured' field"
-    )
+    assert (
+        '"configured"' in src or "'configured'" in src
+    ), "Email endpoint must return 'configured' field"
 
 
 # ---------------------------------------------------------------------------
@@ -155,35 +147,27 @@ def test_backend_email_returns_configured_flag() -> None:
 
 def test_calendar_ipc_handler_exists() -> None:
     src = read_file("gui/src/main/handlers/calendar.ts")
-    assert "getCalendarEvents" in src, (
-        "calendar.ts IPC handler must implement getCalendarEvents"
-    )
+    assert "getCalendarEvents" in src, "calendar.ts IPC handler must implement getCalendarEvents"
     # Handler uses a bridge script (not direct HTTP) — verify bridge is called
-    assert "rex_calendar_bridge" in src or "calendar_bridge" in src, (
-        "calendar.ts must call a calendar bridge script"
-    )
+    assert (
+        "rex_calendar_bridge" in src or "calendar_bridge" in src
+    ), "calendar.ts must call a calendar bridge script"
 
 
 def test_email_ipc_handler_exists() -> None:
     src = read_file("gui/src/main/handlers/email.ts")
-    assert "getEmailInbox" in src, (
-        "email.ts IPC handler must implement getEmailInbox"
-    )
+    assert "getEmailInbox" in src, "email.ts IPC handler must implement getEmailInbox"
     # Handler uses a bridge script (not direct HTTP) — verify bridge is called
-    assert "rex_email_bridge" in src or "email_bridge" in src, (
-        "email.ts must call an email bridge script"
-    )
+    assert (
+        "rex_email_bridge" in src or "email_bridge" in src
+    ), "email.ts must call an email bridge script"
 
 
 def test_sms_ipc_handler_exists() -> None:
     src = read_file("gui/src/main/handlers/sms.ts")
-    assert "getSMSThreads" in src, (
-        "sms.ts IPC handler must implement getSMSThreads"
-    )
+    assert "getSMSThreads" in src, "sms.ts IPC handler must implement getSMSThreads"
     # Handler uses a bridge script (not direct HTTP) — verify bridge is called
-    assert "rex_sms_bridge" in src or "sms_bridge" in src, (
-        "sms.ts must call an SMS bridge script"
-    )
+    assert "rex_sms_bridge" in src or "sms_bridge" in src, "sms.ts must call an SMS bridge script"
 
 
 # ---------------------------------------------------------------------------
