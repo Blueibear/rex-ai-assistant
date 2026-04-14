@@ -1,7 +1,5 @@
 """US-312: Surface all existing Rex settings in the GUI."""
 
-import json
-import re
 from pathlib import Path
 
 SETTINGS_PAGE = Path(__file__).parent.parent / "gui" / "src" / "pages" / "SettingsPage.tsx"

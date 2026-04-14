@@ -5,7 +5,7 @@ Acceptance criteria:
   - Legacy 'wake_word' key is auto-migrated to 'wakeword' with a deprecation log
   - Migration does not overwrite keys already present in 'wakeword'
   - Config with only 'wakeword' section works correctly (no migration needed)
-  - rex_config.json has no 'wake_word' key
+  - rex_config.example.json has no 'wake_word' key
   - rex_config.schema.json uses 'wakeword' as the canonical key
 """
 
@@ -110,18 +110,18 @@ class TestLegacyWakeWordMigration:
 
 
 class TestConfigFilesUseCanonicalKey:
-    def test_rex_config_json_has_no_wake_word_key(self):
-        """config/rex_config.json must not contain the legacy 'wake_word' key."""
-        config_path = REPO_ROOT / "config" / "rex_config.json"
+    def test_rex_config_example_json_has_no_wake_word_key(self):
+        """config/rex_config.example.json must not contain the legacy 'wake_word' key."""
+        config_path = REPO_ROOT / "config" / "rex_config.example.json"
         data = json.loads(config_path.read_text(encoding="utf-8"))
         assert "wake_word" not in data, (
-            "config/rex_config.json still contains the legacy 'wake_word' key — "
+            "config/rex_config.example.json still contains the legacy 'wake_word' key — "
             "rename it to 'wakeword'"
         )
 
-    def test_rex_config_json_has_wakeword_key(self):
-        """config/rex_config.json must contain the canonical 'wakeword' key."""
-        config_path = REPO_ROOT / "config" / "rex_config.json"
+    def test_rex_config_example_json_has_wakeword_key(self):
+        """config/rex_config.example.json must contain the canonical 'wakeword' key."""
+        config_path = REPO_ROOT / "config" / "rex_config.example.json"
         data = json.loads(config_path.read_text(encoding="utf-8"))
         assert "wakeword" in data
 

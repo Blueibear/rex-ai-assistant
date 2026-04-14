@@ -10,7 +10,6 @@ is the runtime condition that would produce "bridge exited" errors in Electron.
 """
 
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path

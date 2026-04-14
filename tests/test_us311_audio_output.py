@@ -9,8 +9,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 BRIDGE_SCRIPT = REPO_ROOT / "rex_speaker_bridge.py"
 

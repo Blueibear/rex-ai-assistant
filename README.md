@@ -14,52 +14,78 @@ AskRex Assistant is a local-first AI assistant for text chat, wake-word voice in
 
 AskRex is alpha software. The CLI, voice loop, configuration system, Python web dashboard, Electron GUI shell, and several integrations are implemented; integration readiness varies by backend and credentials. See [docs/claude/INTEGRATIONS_STATUS.md](docs/claude/INTEGRATIONS_STATUS.md) for the current readiness snapshot.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Main Entry Points](#main-entry-points)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Configuration](#configuration)
+
 ## Quick Start
 
 Python 3.11 is required. Python 3.12 and newer are intentionally rejected by the current installers and runtime checks because the validated ML/TTS dependency path is Python 3.11-only.
 
-Windows PowerShell:
+1. Clone the repo and create the Python 3.11 environment.
 
 ```powershell
 git clone https://github.com/Blueibear/AskRex-Assistant.git
 cd AskRex-Assistant
-
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip setuptools wheel
-pip install .
-
-Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
-Copy-Item .env.example .env -ErrorAction SilentlyContinue
-
-python -m rex doctor
-python -m rex
 ```
-
-macOS / Linux:
 
 ```bash
 git clone https://github.com/Blueibear/AskRex-Assistant.git
 cd AskRex-Assistant
-
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip setuptools wheel
-pip install .
-
-cp -n config/rex_config.example.json config/rex_config.json
-cp -n .env.example .env
-
-python -m rex doctor
-python -m rex
 ```
 
-For voice mode, add the ML/audio stack:
+2. Copy the local configuration files.
+
+```powershell
+Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
+Copy-Item .env.example .env -ErrorAction SilentlyContinue
+```
 
 ```bash
+cp -n config/rex_config.example.json config/rex_config.json
+cp -n .env.example .env
+```
+
+3. Install Rex and the optional ML/audio stack.
+
+```powershell
+pip install .
+.\install.ps1
+pip install -r requirements-cpu.txt
+```
+
+```bash
+pip install .
+bash install.sh
 pip install -r requirements-cpu.txt
 # or, for validated Windows CUDA 12.4:
 pip install -r requirements-gpu-cu124.txt
+```
+
+4. Configure LM Studio for local model access at `localhost:1234`.
+
+Download and install LM Studio, start the LM Studio server on `localhost:1234`, and load your preferred model.
+
+5. Verify the install and run Rex.
+
+```powershell
+rex doctor
+rex
+```
+
+```bash
+rex doctor
+rex
 ```
 
 ## Main Entry Points

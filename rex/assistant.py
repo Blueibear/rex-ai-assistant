@@ -506,11 +506,11 @@ class Assistant:
         _sug_engine = getattr(self, "_suggestion_engine", None)
         if _sug_engine is not None and _sug_engine.has_pending:
             if _sug_engine.is_accept(transcript):
-                reply = _sug_engine.handle_yes()
+                reply = str(_sug_engine.handle_yes())
                 self._record_completion(transcript, reply)
                 return reply
             elif _sug_engine.is_dismiss(transcript):
-                reply = _sug_engine.handle_dismiss()
+                reply = str(_sug_engine.handle_dismiss())
                 self._record_completion(transcript, reply)
                 return reply
 
@@ -558,24 +558,27 @@ class Assistant:
         if _sl_handler is not None:
             _sl_response = _sl_handler.handle(transcript, user_id=active_user_id or self._user_id)
             if _sl_response is not None:
-                self._record_completion(transcript, _sl_response)
-                return _sl_response
+                sl_response = str(_sl_response)
+                self._record_completion(transcript, sl_response)
+                return sl_response
 
         # Music Assistant voice commands (US-022)
         _music_handler = getattr(self, "_music_handler", None)
         if _music_handler is not None:
             _music_response = _music_handler.handle(transcript)
             if _music_response is not None:
-                self._record_completion(transcript, _music_response)
-                return _music_response
+                music_response = str(_music_response)
+                self._record_completion(transcript, music_response)
+                return music_response
 
         # Device state queries (US-028)
         _ds_handler = getattr(self, "_device_state_handler", None)
         if _ds_handler is not None:
             _ds_response = _ds_handler.handle(transcript)
             if _ds_response is not None:
-                self._record_completion(transcript, _ds_response)
-                return _ds_response
+                ds_response = str(_ds_response)
+                self._record_completion(transcript, ds_response)
+                return ds_response
 
         # Per-user credential/history scoping: swap self._user_id for the
         # duration of this call so history, transcripts, and tool calls use

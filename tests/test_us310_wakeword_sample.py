@@ -52,7 +52,7 @@ def test_sample_wav_is_valid_wav(tmp_path: Path) -> None:
 
 def test_sample_wav_not_fatal_on_error(tmp_path: Path) -> None:
     """Training should still succeed even if saving the WAV fails."""
-    from rex.wakeword.trainer import train_from_samples, _save_sample_wav
+    from rex.wakeword.trainer import train_from_samples
 
     samples = _make_samples()
 
@@ -69,7 +69,7 @@ def test_sample_wav_not_fatal_on_error(tmp_path: Path) -> None:
 
 
 def test_has_sample_true_when_wav_exists(tmp_path: Path) -> None:
-    from rex.wakeword.trainer import train_from_samples, list_custom_wake_words
+    from rex.wakeword.trainer import list_custom_wake_words, train_from_samples
 
     samples = _make_samples()
     train_from_samples("hey sample", samples, [], config_dir=tmp_path)
@@ -80,8 +80,8 @@ def test_has_sample_true_when_wav_exists(tmp_path: Path) -> None:
 
 
 def test_has_sample_false_when_wav_missing(tmp_path: Path) -> None:
-    from rex.wakeword.trainer import train_from_samples, list_custom_wake_words
     from rex.wakeword.embedding import save_embedding
+    from rex.wakeword.trainer import list_custom_wake_words
 
     # Manually create an embedding dir without sample.wav.
     slug_dir = tmp_path / "no_sample"
@@ -197,6 +197,7 @@ def test_list_bridge_has_sample_field(tmp_path: Path, monkeypatch: pytest.Monkey
 
     import io
     import sys
+
     import rex_wakeword_list_bridge as lb
 
     output = []

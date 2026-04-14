@@ -11,14 +11,6 @@ from __future__ import annotations
 
 import warnings
 
-warnings.warn(
-    "Importing from root-level 'memory_utils' is deprecated. "
-    "Use 'from rex.memory_utils import ...' instead. "
-    "This shim will be removed in a future release.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 # Re-export all utilities from the rex.memory_utils package
 from rex.memory_utils import (
     append_history_entry,
@@ -30,6 +22,14 @@ from rex.memory_utils import (
     load_users_map,
     resolve_user_key,
     trim_history,
+)
+
+warnings.warn(
+    "Importing from root-level 'memory_utils' is deprecated. "
+    "Use 'from rex.memory_utils import ...' instead. "
+    "This shim will be removed in a future release.",
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 __all__ = [

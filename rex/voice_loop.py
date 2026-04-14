@@ -1136,7 +1136,10 @@ class VoiceLoop:
                             continue
                         tracker.mark("llm_end")
 
-                        if llm_response and not llm_response.endswith("."):
+                        if not llm_response:
+                            continue
+
+                        if not llm_response.endswith("."):
                             llm_response = llm_response + "."
 
                         try:

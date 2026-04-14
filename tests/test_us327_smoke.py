@@ -12,8 +12,6 @@ import io
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from rex.doctor import CheckResult, Status, run_diagnostics
 
 # ---------------------------------------------------------------------------

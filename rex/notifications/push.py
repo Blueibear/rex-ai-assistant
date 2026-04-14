@@ -12,10 +12,10 @@ Usage::
 
 from __future__ import annotations
 
-import logging
-import urllib.request
-import urllib.error
 import json
+import logging
+import urllib.error
+import urllib.request
 from typing import TYPE_CHECKING
 
 from rex.assistant_errors import IntegrationNotConfiguredError
@@ -49,7 +49,7 @@ def send_push(
     message: str,
     priority: str = "normal",
     *,
-    config: "AppConfig | None" = None,
+    config: AppConfig | None = None,
 ) -> None:
     """Send a push notification via the configured provider.
 
@@ -85,7 +85,7 @@ def send_push(
         )
 
 
-def _send_ntfy(title: str, message: str, priority: str, config: "AppConfig") -> None:
+def _send_ntfy(title: str, message: str, priority: str, config: AppConfig) -> None:
     topic = (config.push_topic or "").strip()
     if not topic:
         raise IntegrationNotConfiguredError(
@@ -118,7 +118,7 @@ def _send_ntfy(title: str, message: str, priority: str, config: "AppConfig") -> 
     logger.debug("ntfy push sent to topic '%s' (HTTP %s)", topic, status)
 
 
-def _send_pushover(title: str, message: str, priority: str, config: "AppConfig") -> None:
+def _send_pushover(title: str, message: str, priority: str, config: AppConfig) -> None:
     token = (config.push_token or "").strip()
     topic = (config.push_topic or "").strip()  # topic = user key for Pushover
     if not token or not topic:

@@ -35,8 +35,8 @@ Usage example
 from __future__ import annotations
 
 import logging
-from enum import Enum
-from typing import Callable
+from collections.abc import Callable
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ _DANGEROUS_ACTIONS: frozenset[str] = frozenset(
 )
 
 
-class ActionType(str, Enum):
+class ActionType(StrEnum):
     """Classification of a computer-control action."""
 
     safe = "safe"
@@ -144,7 +144,7 @@ class SafetyLayer:
         self,
         action_name: str,
         description: str = "",
-        confirm_fn: "Callable[[str], bool] | None" = None,
+        confirm_fn: Callable[[str], bool] | None = None,
     ) -> bool:
         """Check whether *action_name* is permitted to proceed.
 
@@ -182,7 +182,7 @@ class SafetyLayer:
         return allowed
 
     @classmethod
-    def from_config(cls) -> "SafetyLayer":
+    def from_config(cls) -> SafetyLayer:
         """Create a :class:`SafetyLayer` from the active ``AppConfig``.
 
         Falls back to ``"dangerous_only"`` if config cannot be loaded.

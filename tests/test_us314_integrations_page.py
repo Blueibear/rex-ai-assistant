@@ -11,7 +11,6 @@ Verifies:
 - "No capabilities found" section is conditionally rendered (only when empty)
 """
 
-import json
 import re
 from pathlib import Path
 

@@ -46,7 +46,7 @@ def _default_registry_path() -> Path:
         return _DEFAULT_REGISTRY_PATH
 
 
-def load_app_registry(registry_path: "str | Path | None" = None) -> dict[str, str]:
+def load_app_registry(registry_path: str | Path | None = None) -> dict[str, str]:
     """Load the app registry from *registry_path*.
 
     The registry is a JSON object mapping lowercase app names to executable
@@ -88,7 +88,10 @@ def load_app_registry(registry_path: "str | Path | None" = None) -> dict[str, st
 
 def _launch_windows(executable: str) -> None:
     """Launch *executable* on Windows using os.startfile."""
-    os.startfile(executable)  # noqa: SC200
+    startfile = getattr(os, "startfile", None)
+    if startfile is None:
+        raise RuntimeError("os.startfile is only available on Windows")
+    startfile(executable)
 
 
 def _launch_macos(executable: str) -> None:
@@ -119,7 +122,7 @@ def _platform_launch(executable: str) -> None:
 
 def launch_app(
     name: str,
-    registry_path: "str | Path | None" = None,
+    registry_path: str | Path | None = None,
 ) -> str:
     """Launch a desktop application by its registry name.
 

@@ -7,8 +7,6 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 # ---------------------------------------------------------------------------
 # _is_cloud_model helper
 # ---------------------------------------------------------------------------
@@ -16,6 +14,7 @@ import pytest
 
 def _reload_llm_usage():
     import importlib
+
     import rex.llm_usage as mod
 
     importlib.reload(mod)
@@ -167,6 +166,7 @@ def _make_flask_client(tmp_path: Path):
 
     with patch.dict(os.environ, {"REX_LLM_USAGE_PATH": str(usage_file)}):
         import importlib
+
         import rex.llm_usage as mod
 
         importlib.reload(mod)
@@ -184,6 +184,7 @@ def test_api_usage_endpoint_returns_200(tmp_path):
     client, usage_file = _make_flask_client(tmp_path)
     with patch.dict(os.environ, {"REX_LLM_USAGE_PATH": str(usage_file)}):
         import importlib
+
         import rex.llm_usage as mod
 
         importlib.reload(mod)
@@ -196,6 +197,7 @@ def test_api_usage_endpoint_structure(tmp_path):
     client, usage_file = _make_flask_client(tmp_path)
     with patch.dict(os.environ, {"REX_LLM_USAGE_PATH": str(usage_file)}):
         import importlib
+
         import rex.llm_usage as mod
 
         importlib.reload(mod)
@@ -218,6 +220,7 @@ def test_api_usage_endpoint_local_cloud_counts(tmp_path):
     client, usage_file = _make_flask_client(tmp_path)
     with patch.dict(os.environ, {"REX_LLM_USAGE_PATH": str(usage_file)}):
         import importlib
+
         import rex.llm_usage as mod
 
         importlib.reload(mod)

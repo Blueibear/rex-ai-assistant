@@ -8,11 +8,8 @@ Verifies:
 from __future__ import annotations
 
 import json
-import sys
 from io import StringIO
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 
 def _run_main(module_name: str, stdin_data: str) -> dict:

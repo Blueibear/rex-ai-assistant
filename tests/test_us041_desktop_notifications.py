@@ -65,7 +65,6 @@ class TestNotifyPlyer:
 
 class TestNotifyWindows:
     def test_subprocess_called_on_windows(self) -> None:
-        import subprocess
 
         with (
             patch("sys.platform", "win32"),
