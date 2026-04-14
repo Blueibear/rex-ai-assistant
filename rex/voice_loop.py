@@ -573,9 +573,10 @@ class SpeechToText:
     ) -> str:
         """Transcribe audio to text."""
 
-        if not self._load_event.is_set():
+        load_event = getattr(self, "_load_event", None)
+        if load_event is not None and not load_event.is_set():
             logger.info("[STT] Waiting for model warm-up to complete...")
-            await asyncio.to_thread(self._load_event.wait)
+            await asyncio.to_thread(load_event.wait)
 
         if self._load_error is not None:
             raise SpeechToTextError(f"Model failed to load: {self._load_error}")
