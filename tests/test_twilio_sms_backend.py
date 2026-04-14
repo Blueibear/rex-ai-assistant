@@ -86,6 +86,12 @@ def inject_fake_twilio():
         yield
 
 
+@pytest.fixture
+def fake_twilio_client() -> FakeTwilioClient:
+    """Return a reusable fake Twilio client for send-path tests."""
+    return FakeTwilioClient()
+
+
 # ---------------------------------------------------------------------------
 # Import guard
 # ---------------------------------------------------------------------------
