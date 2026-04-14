@@ -554,7 +554,7 @@ class Assistant:
                 return skill_response
 
         # Shopping list voice commands (US-SL-002)
-        _sl_handler = self._shopping_list_handler
+        _sl_handler = getattr(self, "_shopping_list_handler", None)
         if _sl_handler is not None:
             _sl_response = _sl_handler.handle(transcript, user_id=active_user_id or self._user_id)
             if _sl_response is not None:
@@ -611,7 +611,7 @@ class Assistant:
                 _tool_context = _dispatcher.format_tool_context(_tool_results) or None
 
         # Check response cache before hitting the LLM.
-        _cache = self._response_cache
+        _cache = getattr(self, "_response_cache", None)
         _cached: str | None = _cache.get(transcript) if _cache is not None else None
         if _cached is not None:
             self._user_id = prev_user_id
