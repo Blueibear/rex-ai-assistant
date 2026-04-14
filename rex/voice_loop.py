@@ -420,6 +420,8 @@ class AsyncMicrophone:
             result = self._recorder(duration)
             if asyncio.iscoroutine(result):
                 result = await result
+            if result is None:
+                raise AudioDeviceError("Audio recorder returned no audio")
             return cast(AudioArray, np.asarray(result, dtype=np.float32).reshape(-1))
 
         sd = _require_sounddevice()
@@ -1371,14 +1373,7 @@ def build_voice_loop(
                     sample_rate=sample_rate,
                 )
                 if smart_mic.connect():
-
-                    def _smart_mic_recorder(duration: float) -> AudioArray:
-                        frame = smart_mic.read_frame(duration)
-                        if frame is None:
-                            raise AudioDeviceError("Smart speaker microphone stream disconnected")
-                        return cast(AudioArray, frame)
-
-                    smart_mic_recorder = _smart_mic_recorder
+                    smart_mic_recorder = cast(RecorderCallable, smart_mic.read_frame)
                     logger.info(
                         "[voice] Wake word input routed to %r (%s).", target.name, target.ip
                     )
