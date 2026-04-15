@@ -750,6 +750,7 @@ class TextToSpeech:
                 f"({self._xtts_init_error or 'unknown initialization error'})"
             )
             logger.error("[TTS] Failed: %s", reason)
+            logger.warning("XTTS initialization failed; falling back to edge-tts")
             await self._speak_edge(text)
             return
         sf = _lazy_import_soundfile()
