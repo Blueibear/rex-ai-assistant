@@ -119,6 +119,12 @@ def test_doctor_output_includes_whisper_language(capsys, monkeypatch) -> None:
     monkeypatch.setattr("rex.doctor.check_lm_studio_reachability", lambda: ok)
     monkeypatch.setattr("rex.doctor.check_external_dependencies", lambda: [ok])
     monkeypatch.setattr("rex.doctor.check_gpu_availability", lambda: ok)
+    monkeypatch.setattr("rex.doctor.check_config_types", lambda root: ok)
+    monkeypatch.setattr("rex.doctor.check_ffmpeg_for_tts", lambda: ok)
+    monkeypatch.setattr("rex.doctor.check_wakeword_config", lambda: ok)
+    monkeypatch.setattr("rex.doctor.check_stt_backend", lambda: ok)
+    monkeypatch.setattr("rex.doctor.check_stt_warmup", lambda: ok)
+    monkeypatch.setattr("rex.doctor.check_xtts_transformers_compat", lambda: ok)
     monkeypatch.setattr(
         "rex.config.load_config", lambda reload=True: SimpleNamespace(whisper_language="de")
     )
