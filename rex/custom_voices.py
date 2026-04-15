@@ -112,7 +112,7 @@ def save_custom_voice(
     if duration < MIN_DURATION_SECONDS:
         return {
             "ok": False,
-            "error": (f"Sample is {duration:.1f}s, minimum is {MIN_DURATION_SECONDS:.0f}s"),
+            "error": (f"Sample is too short ({duration:.1f}s); minimum is {MIN_DURATION_SECONDS:.0f}s"),
             "duration": duration,
         }
 
