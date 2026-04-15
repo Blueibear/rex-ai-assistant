@@ -483,11 +483,11 @@ class WakeAcknowledgement:
 
         if not self._sound_path.exists():
             return
-        if sa is None and _load_sounddevice() is None:
-            logger.warning("No audio playback backend available for wake acknowledgment.")
-            return
 
         def _play() -> None:
+            if sa is None and _load_sounddevice() is None:
+                logger.warning("No audio playback backend available for wake acknowledgment.")
+                return
             if sa is not None:
                 wave_obj = sa.WaveObject.from_wave_file(str(self._sound_path))
                 play_obj = wave_obj.play()
@@ -717,7 +717,8 @@ class TextToSpeech:
         can skip local playback.  Returns ``False`` if no smart speaker is
         configured or playback failed (caller should fall back to local audio).
         """
-        if not self._tts_output_device:
+        _tts_output_device = getattr(self, "_tts_output_device", None)
+        if not _tts_output_device:
             return False
         try:
             from rex.audio.smart_speaker_output import get_smart_speaker_output
@@ -725,13 +726,13 @@ class TextToSpeech:
 
             cached = get_speaker_discovery().get_cached_speakers()
             target = next(
-                (s for s in cached if s.name == self._tts_output_device),
+                (s for s in cached if s.name == _tts_output_device),
                 None,
             )
             if target is None:
                 logger.warning(
                     "[TTS] Smart speaker %r not found in cached speakers; falling back to local.",
-                    self._tts_output_device,
+                    _tts_output_device,
                 )
                 return False
             return get_smart_speaker_output().play_wav(
