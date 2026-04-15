@@ -68,9 +68,9 @@ pip install -r requirements-cpu.txt
 pip install .
 bash install.sh
 pip install -r requirements-cpu.txt
-## or, for validated Windows CUDA 12.4:
-pip install -r requirements-gpu-cu124.txt
 ```
+
+For validated Windows CUDA 12.4, use `requirements-gpu-cu124.txt` instead.
 
 4. Configure LM Studio for local model access at `localhost:1234`.
 
