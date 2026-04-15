@@ -4,12 +4,15 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GUI_DIR = REPO_ROOT / "gui"
 VERIFY_SCRIPT = GUI_DIR / "tmp_verify_chat_stream.cjs"
 ELECTRON_CMD = GUI_DIR / "node_modules" / ".bin" / "electron.cmd"
 
 
+@pytest.mark.skipif(not ELECTRON_CMD.exists(), reason="electron.cmd not found")
 def test_chat_streaming_works_in_electron() -> None:
     """Electron chat page renders a typed streamed reply incrementally."""
     assert VERIFY_SCRIPT.exists(), f"Missing Electron verification script: {VERIFY_SCRIPT}"
