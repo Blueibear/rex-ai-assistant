@@ -139,7 +139,7 @@ rex-config migrate-legacy-env
 | OpenClaw tool server | `rex-tool-server` | Requires `REX_TOOL_API_KEY`; default port 18790 |
 | Windows computer agent | `rex-agent` | Optional remote PC control agent |
 
-`python run_gui.py` and `python gui.py` are deprecated Tkinter paths and should not be used for normal operation.
+The legacy Tkinter launchers (`gui.py` and its entry point) are deprecated paths and should not be used for normal operation.
 
 Override the Python web dashboard port:
 

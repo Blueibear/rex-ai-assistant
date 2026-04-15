@@ -102,7 +102,7 @@ rex
 | Windows computer agent | `rex-agent` | Optional remote PC control agent |
 | Runtime config CLI | `rex-config` | Config inspection and legacy env migration |
 
-The legacy Tkinter launchers `python run_gui.py` and `python gui.py` are deprecated. Use `rex-gui` for the Python-served web UI or the Electron app under `gui/`.
+`rex-gui` is the canonical GUI for the Rex AI Assistant. The legacy Tkinter launchers (`gui.py` and its entry point) are deprecated. Use `rex-gui` for the Python-served web UI or the Electron app under `gui/`.
 
 ## Features
 
