@@ -159,6 +159,8 @@ See [CONFIGURATION.md](CONFIGURATION.md), [docs/configuration.md](docs/configura
 
 ## GUI Usage
 
+See [docs/usage.md](docs/usage.md) for the full usage guide including voice mode, autonomous workflows, and integrations.
+
 Python web dashboard:
 
 ```bash
@@ -228,6 +230,18 @@ Health endpoints:
 curl http://127.0.0.1:5005/health/live
 curl http://127.0.0.1:18790/health/live
 ```
+
+## Docker
+
+Run AskRex in a container. See [docs/docker.md](docs/docker.md) for build, run, and GPU options.
+
+## Memory
+
+AskRex stores per-user voice and conversation profiles under `Memory/`. See [docs/memory.md](docs/memory.md) for profile format and voice cloning notes.
+
+## Troubleshooting
+
+Common issues: missing ffmpeg, CUDA driver mismatches, wake word not triggering. See [docs/troubleshooting.md](docs/troubleshooting.md) for solutions.
 
 ## Development
 

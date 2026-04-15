@@ -13,6 +13,18 @@ rex-config migrate-legacy-env --dry-run
 rex-config migrate-legacy-env
 ```
 
+## Core Identity and Voice Settings
+
+| Variable | Default | Description |
+|---|---:|---|
+| `REX_ACTIVE_USER` | `default` | Active user profile name |
+| `REX_LOG_LEVEL` | `INFO` | Agent log level (also see Logging section) |
+| `REX_WAKEWORD` | `hey rex` | Wake word keyword override |
+| `REX_INPUT_DEVICE` | auto | Audio input device index or name |
+| `REX_SAMPLE_RATE` | `16000` | Audio sample rate in Hz |
+| `REX_LLM_PROVIDER` | `openai` | LLM backend provider (`openai`, `ollama`, `local`) |
+| `REX_TTS_PROVIDER` | `xtts` | TTS backend provider (`xtts`, `edge-tts`, `pyttsx3`) |
+
 ## Core Secrets
 
 | Variable | Used by |

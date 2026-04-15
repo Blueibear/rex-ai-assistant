@@ -6,8 +6,8 @@ is `python -m rex`.
 ## Build and Run
 
 ```bash
-docker build -t askrex-assistant .
-docker run --rm --env-file .env -it askrex-assistant
+docker build -t rex-ai-assistant .
+docker run --rm --env-file .env -it rex-ai-assistant
 ```
 
 Persist runtime state:
@@ -18,21 +18,21 @@ docker run --rm --env-file .env \
   -v "$(pwd)/data:/app/data" \
   -v "$(pwd)/models:/app/models" \
   -v "$(pwd)/transcripts:/app/transcripts" \
-  -it askrex-assistant
+  -it rex-ai-assistant
 ```
 
 Run the TTS API on its current default port:
 
 ```bash
 docker run --rm --env-file .env -p 5005:5005 \
-  -it askrex-assistant rex-speak-api
+  -it rex-ai-assistant rex-speak-api
 ```
 
 Run the tool server:
 
 ```bash
 docker run --rm --env-file .env -p 18790:18790 \
-  -it askrex-assistant rex-tool-server
+  -it rex-ai-assistant rex-tool-server
 ```
 
 The image is CPU-oriented. For GPU support, update the Dockerfile to install
