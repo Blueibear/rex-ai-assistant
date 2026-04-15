@@ -209,6 +209,32 @@ sudo systemctl start rex-tts rex-voice rex-agent
 Use `rex-gui` manually or create a dedicated service for it if the Python web
 dashboard should run under systemd.
 
+### Restart policy
+
+Each unit sets `Restart=on-failure` in the `[Service]` section so that systemd
+automatically restarts the process when it exits with a non-zero status.
+`RestartSec=5` adds a short back-off delay between attempts.
+
+### Burst / backoff limit
+
+To prevent runaway restart loops, units set:
+
+```ini
+StartLimitBurst=5
+StartLimitIntervalSec=60
+```
+
+This allows at most 5 restarts in 60 seconds before systemd stops trying.
+
+### Viewing logs
+
+Use `journalctl` to inspect service output:
+
+```bash
+journalctl -u rex-api.service -f
+journalctl -u rex-tts.service --since "1 hour ago"
+```
+
 ## Docker
 
 ```bash
@@ -243,3 +269,4 @@ docker run --rm --env-file .env -p 5005:5005 \
 | GUI unavailable | Wrong port or service not started | Start `rex-gui`; check `REX_GUI_PORT` |
 | Electron stale behavior | Built files stale | Run `npm.cmd run build` in `gui/` |
 | Legacy proxy startup fails on migrations | Compatibility DB state issue | Prefer `rex-gui`; inspect `rex/migrations.py` before maintaining proxy |
+| Migration check blocks startup in an emergency | DB migration table unavailable | Set `skip_migration_check=true` in `config/rex_config.json` to bypass the migration check; apply migrations manually before re-enabling |
