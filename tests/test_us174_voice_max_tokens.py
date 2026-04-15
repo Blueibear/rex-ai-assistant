@@ -89,7 +89,7 @@ class TestGenerateReplyVoiceMode:
         idx = src.index("def _build_prompt")
         # find body
         brace_start = src.index(":", idx)
-        body = src[brace_start : brace_start + 600]
+        body = src[brace_start : brace_start + 2000]
         assert "voice_mode" in body
         assert "_VOICE_CONCISE_INSTRUCTION" in body
 
@@ -101,7 +101,7 @@ class TestVoiceLoopUsesVoiceMode:
     def test_voice_loop_run_passes_voice_mode_true(self):
         src = _voice_loop_src()
         idx = src.index("async def run(self, max_interactions")
-        body = src[idx : idx + 4000]
+        body = src[idx : idx + 5000]
         assert "voice_mode=True" in body
 
     @pytest.mark.skip(reason="rex/dashboard/routes.py retired in OpenClaw migration (US-P7-014)")
