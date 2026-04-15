@@ -123,6 +123,7 @@ Memory/*/history.log
 
 # Local-only scratch and environments
 backups/
+backups
 source/
 /list_audio.py
 /test_mic_open.py
