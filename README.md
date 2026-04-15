@@ -68,7 +68,7 @@ pip install -r requirements-cpu.txt
 pip install .
 bash install.sh
 pip install -r requirements-cpu.txt
-# or, for validated Windows CUDA 12.4:
+## or, for validated Windows CUDA 12.4:
 pip install -r requirements-gpu-cu124.txt
 ```
 
@@ -87,6 +87,8 @@ rex
 rex doctor
 rex
 ```
+
+> **Advanced/Developer Install**: For GPU/CUDA setup, manual venv instructions, and development tooling, see [docs/advanced-install.md](docs/advanced-install.md).
 
 ## Main Entry Points
 
@@ -133,6 +135,8 @@ rex
 
 On Windows, use `py -3.11 ...` or activate the repo `.venv` before running commands. A system default `python` that points at 3.12+ will be rejected.
 
+> **Note**: On Windows, audio playback requires simpleaudio. Install it with `pip install simpleaudio` if audio output is not working.
+
 ## Configuration
 
 AskRex uses three configuration layers:
@@ -159,7 +163,7 @@ Python web dashboard:
 
 ```bash
 rex-gui
-# opens http://127.0.0.1:8765/ui/
+## opens http://127.0.0.1:8765/ui/
 ```
 
 Electron desktop GUI:
@@ -169,7 +173,7 @@ cd gui
 npm.cmd install
 npm.cmd run dev
 
-# Build and preview the compiled Electron app:
+## Build and preview the compiled Electron app:
 npm.cmd run build
 npm.cmd run preview
 ```
