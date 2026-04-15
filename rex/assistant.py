@@ -518,7 +518,9 @@ class Assistant:
         _router = getattr(self, "_router", None)
         category = _router.classify(transcript) if _router is not None else TaskCategory.default
         _routing_cfg = getattr(getattr(self, "_settings", None), "model_routing", None)
-        resolved_model = _router.resolve_model(category, _routing_cfg) if _router is not None else None
+        resolved_model = (
+            _router.resolve_model(category, _routing_cfg) if _router is not None else None
+        )
         prev_model: str | None = getattr(self._llm, "model_name", None)
         if resolved_model and resolved_model != prev_model:
             logger.debug("model_router: classified as %s, using %s", category, resolved_model)
