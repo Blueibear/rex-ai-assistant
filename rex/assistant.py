@@ -515,9 +515,10 @@ class Assistant:
                 return reply
 
         # Model routing: classify the message and resolve the target model.
-        category = self._router.classify(transcript)
-        _routing_cfg = getattr(self._settings, "model_routing", None)
-        resolved_model = self._router.resolve_model(category, _routing_cfg)
+        _router = getattr(self, "_router", None)
+        category = _router.classify(transcript) if _router is not None else TaskCategory.default
+        _routing_cfg = getattr(getattr(self, "_settings", None), "model_routing", None)
+        resolved_model = _router.resolve_model(category, _routing_cfg) if _router is not None else None
         prev_model: str | None = getattr(self._llm, "model_name", None)
         if resolved_model and resolved_model != prev_model:
             logger.debug("model_router: classified as %s, using %s", category, resolved_model)
@@ -816,7 +817,7 @@ class Assistant:
 
         # Resolve personality name: check per-user preferences first, then settings
         personality_name: str | None = None
-        uid = active_user_id or self._user_id
+        uid = active_user_id or getattr(self, "_user_id", None)
         if uid:
             try:
                 from rex.identity import get_user_profile
@@ -830,7 +831,7 @@ class Assistant:
                 pass
 
         if not personality_name:
-            personality_name = getattr(self._settings, "personality", None)
+            personality_name = getattr(getattr(self, "_settings", None), "personality", None)
 
         if not personality_name:
             from .personality import DEFAULT_PERSONALITY
