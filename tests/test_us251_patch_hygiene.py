@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 GITIGNORE = ROOT / ".gitignore"
 ARCHIVED_PATCH = ROOT / "docs" / "archive" / "housekeeping" / "ci-fixes.patch"

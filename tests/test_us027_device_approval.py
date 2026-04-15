@@ -151,9 +151,8 @@ def _run_ha_approve(
     cfg_mock.ha_token = "token" if ha_configured else ""
 
     with (
-        patch("rex.cli.load_config", return_value=cfg_mock),
+        patch("rex.config.load_config", return_value=cfg_mock),
         patch("rex.ha.discovery.discover_devices", return_value=devices),
-        patch("rex.cli.discover_devices", return_value=devices),
         patch("builtins.input", side_effect=user_inputs),
     ):
         return cmd_ha(args)

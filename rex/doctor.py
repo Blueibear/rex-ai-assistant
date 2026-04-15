@@ -873,16 +873,16 @@ def check_wakeword_config() -> CheckResult:
             message=f"Could not load config: {exc}",
         )
 
-    keyword = (config.wakeword or "").strip()
+    keyword = (getattr(config, "wakeword", "hey_rex") or "").strip()
     if not keyword:
         return CheckResult(
             name="Wake Word Config",
             status=Status.ERROR,
             message="Wake word keyword is empty",
-            details="Set wake_word.wakeword in rex_config.json (e.g. 'hey_rex').",
+            details="Set wakeword.wakeword in rex_config.json (e.g. 'hey_rex').",
         )
 
-    model_path = (config.wakeword_model_path or "").strip()
+    model_path = (getattr(config, "wakeword_model_path", None) or "").strip()
     if model_path:
         from pathlib import Path
 

@@ -28,7 +28,7 @@ try:
     dashboard_bp = importlib.import_module("rex.dashboard").dashboard_bp
 
     _DASHBOARD_AVAILABLE = True
-except ImportError:
+except (AttributeError, ImportError):
     dashboard_bp = None
     _DASHBOARD_AVAILABLE = False
 

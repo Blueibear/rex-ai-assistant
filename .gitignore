@@ -28,6 +28,7 @@ coverage.xml
 htmlcov/
 test-audit-*.txt
 *.patch
+!docs/archive/housekeeping/ci-fixes.patch
 
 # Logs & temp files
 *.log
@@ -122,6 +123,7 @@ Memory/*/history.log
 
 # Local-only scratch and environments
 backups/
+backups
 source/
 /list_audio.py
 /test_mic_open.py
@@ -165,3 +167,4 @@ data/memory/
 
 data/llm_usage.json
 gui/data/
+PRD*.md

@@ -94,7 +94,7 @@ npm.cmd run preview
 TTS API:
 
 ```powershell
-$env:REX_SPEAK_API_KEY="change-me"
+$env:REX_SPEAK_API_KEY="example-key"  # pragma: allowlist secret
 rex-speak-api
 ```
 
@@ -103,7 +103,7 @@ The TTS API binds to `http://127.0.0.1:5005` by default and accepts either `X-AP
 OpenClaw tool server:
 
 ```powershell
-$env:REX_TOOL_API_KEY="change-me"
+$env:REX_TOOL_API_KEY="example-key"  # pragma: allowlist secret
 rex-tool-server
 ```
 

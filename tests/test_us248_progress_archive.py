@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE_DIR = ROOT / "docs" / "archive" / "progress"
 ARCHIVED_PROGRESS_FILES = (

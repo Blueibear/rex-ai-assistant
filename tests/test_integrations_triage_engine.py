@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
 from rex.integrations.models import EmailMessage
@@ -34,7 +34,7 @@ def _make_message(
         sender=sender,
         recipients=["me@example.com"],
         body_text=body_text,
-        date=datetime.now(timezone.utc),
+        date=datetime.now(UTC),
         is_read=False,
         labels=["INBOX"],
     )

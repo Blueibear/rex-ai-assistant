@@ -6,7 +6,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -209,9 +208,7 @@ def test_gather_no_speech_prompts_again(app_client) -> None:
 
 
 def test_gather_voicemail_intent_redirects_to_record(app_client) -> None:
-    with (
-        patch("rex.telephony.twilio_handler._validate_twilio_signature", return_value=True),
-    ):
+    with (patch("rex.telephony.twilio_handler._validate_twilio_signature", return_value=True),):
         resp = app_client.post(
             "/telephony/inbound/gather?turn=1",
             data={"SpeechResult": "I'd like to leave a message", "From": "+15559990000"},
@@ -223,9 +220,7 @@ def test_gather_voicemail_intent_redirects_to_record(app_client) -> None:
 
 def test_gather_transfer_intent_with_transfer_number(app_client, monkeypatch) -> None:
     monkeypatch.setenv("TWILIO_TRANSFER_NUMBER", "+15550009999")
-    with (
-        patch("rex.telephony.twilio_handler._validate_twilio_signature", return_value=True),
-    ):
+    with (patch("rex.telephony.twilio_handler._validate_twilio_signature", return_value=True),):
         resp = app_client.post(
             "/telephony/inbound/gather?turn=1",
             data={"SpeechResult": "transfer me to a human", "From": "+15559990000"},
@@ -234,7 +229,9 @@ def test_gather_transfer_intent_with_transfer_number(app_client, monkeypatch) ->
     assert b"Dial" in resp.data or b"+15550009999" in resp.data
 
 
-def test_gather_transfer_intent_without_transfer_number_falls_through(app_client, monkeypatch) -> None:
+def test_gather_transfer_intent_without_transfer_number_falls_through(
+    app_client, monkeypatch
+) -> None:
     monkeypatch.delenv("TWILIO_TRANSFER_NUMBER", raising=False)
     with (
         patch("rex.telephony.twilio_handler._validate_twilio_signature", return_value=True),

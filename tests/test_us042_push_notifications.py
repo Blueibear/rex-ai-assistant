@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import json
-from io import BytesIO
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from rex.assistant_errors import IntegrationNotConfiguredError
-from rex.notifications.push import send_push, _send_ntfy, _send_pushover
 from rex.notifications import send_push as exported_send_push
-
+from rex.notifications.push import _send_ntfy, _send_pushover, send_push
 
 # ---------------------------------------------------------------------------
 # Helpers

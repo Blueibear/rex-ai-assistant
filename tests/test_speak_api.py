@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import threading
 
+import pytest
+
 
 def _make_client(app):
     """Return a test client with a fixed API key."""
@@ -131,6 +133,7 @@ def test_concurrent_speak_requests(monkeypatch):
 
 def test_generate_speech_holds_lock_during_synthesis(monkeypatch):
     """Verify _tts_lock is held during engine access in generate_speech."""
+    pytest.importorskip("soundfile")
     import rex_speak_api
 
     lock_held_during_engine_call: list[bool] = []

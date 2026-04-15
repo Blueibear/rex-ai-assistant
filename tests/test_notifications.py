@@ -7,7 +7,7 @@ and EscalationEngine working together with a shared store.
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -44,7 +44,7 @@ def _notification(
 
 
 def _past(minutes: int = 10) -> datetime:
-    return datetime.now(timezone.utc) - timedelta(minutes=minutes)
+    return datetime.now(UTC) - timedelta(minutes=minutes)
 
 
 # ---------------------------------------------------------------------------
@@ -210,7 +210,7 @@ class TestEscalationPipeline:
         engine = EscalationEngine(
             store, router, config={"notifications_escalation_delay_minutes": 30}
         )
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         with patch("rex.notifications.router._send_desktop"):
             engine.check_escalations()
 

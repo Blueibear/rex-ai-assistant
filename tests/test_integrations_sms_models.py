@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from rex.integrations.models import SMSMessage, SMSThread
 
@@ -73,7 +73,7 @@ class TestSMSMessage:
         assert restored == msg
 
     def test_explicit_sent_at(self) -> None:
-        dt = datetime(2025, 1, 15, 10, 30, tzinfo=timezone.utc)
+        dt = datetime(2025, 1, 15, 10, 30, tzinfo=UTC)
         msg = SMSMessage(
             id="x",
             thread_id="t",

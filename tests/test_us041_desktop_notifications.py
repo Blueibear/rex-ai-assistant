@@ -10,7 +10,6 @@ import pytest
 
 from rex.notifications.desktop import notify
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -66,7 +65,6 @@ class TestNotifyPlyer:
 
 class TestNotifyWindows:
     def test_subprocess_called_on_windows(self) -> None:
-        import subprocess
 
         with (
             patch("sys.platform", "win32"),
@@ -140,7 +138,7 @@ class TestNotifyMacOS:
             mock_run.return_value = MagicMock(returncode=0)
             from rex.notifications.desktop import _notify_macos
 
-            _notify_macos('Say "hello"', 'World\'s end')
+            _notify_macos('Say "hello"', "World's end")
 
         script_arg = mock_run.call_args[0][0][2]
         # Double-quotes in title must be escaped

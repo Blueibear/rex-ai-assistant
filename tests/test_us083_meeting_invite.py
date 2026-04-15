@@ -13,7 +13,7 @@ Acceptance criteria:
 from __future__ import annotations
 
 import socket
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -43,7 +43,7 @@ class TestMeetingInviteDataStructure:
         assert invite.attendees == []
 
     def test_has_start_time_field(self) -> None:
-        dt = datetime(2026, 3, 15, 10, 0, tzinfo=timezone.utc)
+        dt = datetime(2026, 3, 15, 10, 0, tzinfo=UTC)
         invite = MeetingInvite(title="x", start_time=dt)
         assert invite.start_time == dt
 
@@ -51,7 +51,7 @@ class TestMeetingInviteDataStructure:
         assert MeetingInvite(title="x").start_time is None
 
     def test_has_end_time_field(self) -> None:
-        dt = datetime(2026, 3, 15, 11, 0, tzinfo=timezone.utc)
+        dt = datetime(2026, 3, 15, 11, 0, tzinfo=UTC)
         invite = MeetingInvite(title="x", end_time=dt)
         assert invite.end_time == dt
 
@@ -69,8 +69,8 @@ class TestMeetingInviteDataStructure:
         invite = MeetingInvite(
             title="Budget Review",
             attendees=["a@b.com"],
-            start_time=datetime(2026, 3, 15, 10, tzinfo=timezone.utc),
-            end_time=datetime(2026, 3, 15, 11, tzinfo=timezone.utc),
+            start_time=datetime(2026, 3, 15, 10, tzinfo=UTC),
+            end_time=datetime(2026, 3, 15, 11, tzinfo=UTC),
             agenda="Q1",
         )
         assert invite.is_complete() is True
@@ -78,8 +78,8 @@ class TestMeetingInviteDataStructure:
     def test_is_complete_false_missing_attendees(self) -> None:
         invite = MeetingInvite(
             title="x",
-            start_time=datetime(2026, 3, 15, 10, tzinfo=timezone.utc),
-            end_time=datetime(2026, 3, 15, 11, tzinfo=timezone.utc),
+            start_time=datetime(2026, 3, 15, 10, tzinfo=UTC),
+            end_time=datetime(2026, 3, 15, 11, tzinfo=UTC),
         )
         assert invite.is_complete() is False
 
@@ -87,7 +87,7 @@ class TestMeetingInviteDataStructure:
         invite = MeetingInvite(
             title="x",
             attendees=["a@b.com"],
-            end_time=datetime(2026, 3, 15, 11, tzinfo=timezone.utc),
+            end_time=datetime(2026, 3, 15, 11, tzinfo=UTC),
         )
         assert invite.is_complete() is False
 
@@ -95,7 +95,7 @@ class TestMeetingInviteDataStructure:
         invite = MeetingInvite(
             title="x",
             attendees=["a@b.com"],
-            start_time=datetime(2026, 3, 15, 10, tzinfo=timezone.utc),
+            start_time=datetime(2026, 3, 15, 10, tzinfo=UTC),
         )
         assert invite.is_complete() is False
 
@@ -103,8 +103,8 @@ class TestMeetingInviteDataStructure:
         invite = MeetingInvite(
             title="",
             attendees=["a@b.com"],
-            start_time=datetime(2026, 3, 15, 10, tzinfo=timezone.utc),
-            end_time=datetime(2026, 3, 15, 11, tzinfo=timezone.utc),
+            start_time=datetime(2026, 3, 15, 10, tzinfo=UTC),
+            end_time=datetime(2026, 3, 15, 11, tzinfo=UTC),
         )
         assert invite.is_complete() is False
 
@@ -217,8 +217,8 @@ class TestFormatInviteForReview:
     _INVITE = MeetingInvite(
         title="Budget Review",
         attendees=["alice@example.com", "bob@example.com"],
-        start_time=datetime(2026, 3, 15, 10, 0, tzinfo=timezone.utc),
-        end_time=datetime(2026, 3, 15, 11, 0, tzinfo=timezone.utc),
+        start_time=datetime(2026, 3, 15, 10, 0, tzinfo=UTC),
+        end_time=datetime(2026, 3, 15, 11, 0, tzinfo=UTC),
         agenda="Q1 numbers",
     )
 
@@ -268,8 +268,8 @@ class TestStubSendInvite:
     _INVITE = MeetingInvite(
         title="Budget Review",
         attendees=["alice@example.com"],
-        start_time=datetime(2026, 3, 15, 10, 0, tzinfo=timezone.utc),
-        end_time=datetime(2026, 3, 15, 11, 0, tzinfo=timezone.utc),
+        start_time=datetime(2026, 3, 15, 10, 0, tzinfo=UTC),
+        end_time=datetime(2026, 3, 15, 11, 0, tzinfo=UTC),
         agenda="Q1 numbers",
     )
 

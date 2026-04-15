@@ -26,11 +26,10 @@ def _make_voice_loop(mock_settings, mock_client=None, mock_bridge=None):
             patch("rex.openclaw.http_client.get_openclaw_client", return_value=mock_client)
         )
     if mock_bridge is not None:
-        patches.append(
-            patch("rex.openclaw.voice_bridge.VoiceBridge", return_value=mock_bridge)
-        )
+        patches.append(patch("rex.openclaw.voice_bridge.VoiceBridge", return_value=mock_bridge))
 
-    ctx = [p.__enter__() for p in patches]
+    for p in patches:
+        p.__enter__()
     try:
         vl = VoiceLoop(
             MagicMock(),

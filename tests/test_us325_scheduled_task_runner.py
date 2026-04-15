@@ -41,9 +41,7 @@ def test_example_task_included_when_no_config(tmp_path: Path) -> None:
 
     config_path = tmp_path / "empty.json"
     config_path.write_text("{}", encoding="utf-8")
-    runner = ScheduledTaskRunner(
-        config_path=config_path, state_path=tmp_path / "state.json"
-    )
+    runner = ScheduledTaskRunner(config_path=config_path, state_path=tmp_path / "state.json")
     names = [t.name for t in runner.tasks()]
     assert "daily_weather" in names
 

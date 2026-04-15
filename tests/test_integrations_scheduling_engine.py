@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -34,7 +34,7 @@ def _make_calendar_backend(events: list[CalendarEvent]) -> CalendarBackend:
 
 
 def _future(hours: int = 1) -> datetime:
-    return datetime.now(timezone.utc) + timedelta(hours=hours)
+    return datetime.now(UTC) + timedelta(hours=hours)
 
 
 def _slot_json(offset_hours: int, duration: int = 60, confidence: float = 0.9) -> dict[str, Any]:
@@ -71,7 +71,7 @@ class TestStubMode:
             assert delta == pytest.approx(45)
 
     def test_slots_are_in_the_future(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         engine = SchedulingEngine()
         slots = engine.find_slots(duration_minutes=30)
         assert all(s.start > now for s in slots)
@@ -82,7 +82,7 @@ class TestStubMode:
         assert all(0.0 <= s.confidence <= 1.0 for s in slots)
 
     def test_earliest_parameter_shifts_window(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         earliest = now + timedelta(days=2)
         engine = SchedulingEngine()
         slots = engine.find_slots(duration_minutes=30, earliest=earliest)
@@ -192,12 +192,12 @@ class TestCalendarIntegration:
 
 class TestTimeSlotModel:
     def test_model_dump_round_trip(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         slot = TimeSlot(start=now, end=now + timedelta(hours=1), confidence=0.8)
         restored = TimeSlot(**slot.model_dump())
         assert restored == slot
 
     def test_default_confidence_is_1(self) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         slot = TimeSlot(start=now, end=now + timedelta(hours=1))
         assert slot.confidence == 1.0

@@ -28,7 +28,7 @@ tests. This keeps CI green while implementations converge.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -58,7 +58,7 @@ def _is_variant_a() -> bool:
     """
     try:
         # If init accepts these kwargs, this will work.
-        _ = Scheduler(storage_path=Path("dummy.json"), now_func=lambda: datetime.now(timezone.utc))  # type: ignore[call-arg]
+        _ = Scheduler(storage_path=Path("dummy.json"), now_func=lambda: datetime.now(UTC))  # type: ignore[call-arg]
         return True
     except TypeError:
         return False
@@ -92,7 +92,7 @@ def _is_variant_b() -> bool:
     reason="Legacy Scheduler(storage_path, now_func) API not available in this build.",
 )
 def test_scheduler_persistence_and_manual_run(tmp_path: Path) -> None:
-    now = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
     storage = tmp_path / "jobs.json"
     calls: list[str] = []
 
@@ -117,7 +117,7 @@ def test_scheduler_persistence_and_manual_run(tmp_path: Path) -> None:
     reason="Legacy Scheduler(storage_path, now_func) API not available in this build.",
 )
 def test_scheduler_run_due_jobs(tmp_path: Path) -> None:
-    now = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
     later = now + timedelta(minutes=5)
     storage = tmp_path / "jobs.json"
     calls: list[str] = []
@@ -365,7 +365,7 @@ def test_run_job_max_runs(scheduler: Scheduler) -> None:
     reason="Newer Scheduler(jobs_file=...) API not available in this build.",
 )
 def test_run_due_jobs_idempotent(temp_jobs_file: Path) -> None:
-    now = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
     executed: list[str] = []
 
     scheduler = Scheduler(jobs_file=temp_jobs_file, now_func=lambda: now)  # type: ignore[call-arg]

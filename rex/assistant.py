@@ -506,18 +506,21 @@ class Assistant:
         _sug_engine = getattr(self, "_suggestion_engine", None)
         if _sug_engine is not None and _sug_engine.has_pending:
             if _sug_engine.is_accept(transcript):
-                reply = _sug_engine.handle_yes()
+                reply = str(_sug_engine.handle_yes())
                 self._record_completion(transcript, reply)
                 return reply
             elif _sug_engine.is_dismiss(transcript):
-                reply = _sug_engine.handle_dismiss()
+                reply = str(_sug_engine.handle_dismiss())
                 self._record_completion(transcript, reply)
                 return reply
 
         # Model routing: classify the message and resolve the target model.
-        category = self._router.classify(transcript)
-        _routing_cfg = getattr(self._settings, "model_routing", None)
-        resolved_model = self._router.resolve_model(category, _routing_cfg)
+        _router = getattr(self, "_router", None)
+        category = _router.classify(transcript) if _router is not None else TaskCategory.default
+        _routing_cfg = getattr(getattr(self, "_settings", None), "model_routing", None)
+        resolved_model = (
+            _router.resolve_model(category, _routing_cfg) if _router is not None else None
+        )
         prev_model: str | None = getattr(self._llm, "model_name", None)
         if resolved_model and resolved_model != prev_model:
             logger.debug("model_router: classified as %s, using %s", category, resolved_model)
@@ -554,28 +557,31 @@ class Assistant:
                 return skill_response
 
         # Shopping list voice commands (US-SL-002)
-        _sl_handler = self._shopping_list_handler
+        _sl_handler = getattr(self, "_shopping_list_handler", None)
         if _sl_handler is not None:
             _sl_response = _sl_handler.handle(transcript, user_id=active_user_id or self._user_id)
             if _sl_response is not None:
-                self._record_completion(transcript, _sl_response)
-                return _sl_response
+                sl_response = str(_sl_response)
+                self._record_completion(transcript, sl_response)
+                return sl_response
 
         # Music Assistant voice commands (US-022)
         _music_handler = getattr(self, "_music_handler", None)
         if _music_handler is not None:
             _music_response = _music_handler.handle(transcript)
             if _music_response is not None:
-                self._record_completion(transcript, _music_response)
-                return _music_response
+                music_response = str(_music_response)
+                self._record_completion(transcript, music_response)
+                return music_response
 
         # Device state queries (US-028)
         _ds_handler = getattr(self, "_device_state_handler", None)
         if _ds_handler is not None:
             _ds_response = _ds_handler.handle(transcript)
             if _ds_response is not None:
-                self._record_completion(transcript, _ds_response)
-                return _ds_response
+                ds_response = str(_ds_response)
+                self._record_completion(transcript, ds_response)
+                return ds_response
 
         # Per-user credential/history scoping: swap self._user_id for the
         # duration of this call so history, transcripts, and tool calls use
@@ -608,7 +614,7 @@ class Assistant:
                 _tool_context = _dispatcher.format_tool_context(_tool_results) or None
 
         # Check response cache before hitting the LLM.
-        _cache = self._response_cache
+        _cache = getattr(self, "_response_cache", None)
         _cached: str | None = _cache.get(transcript) if _cache is not None else None
         if _cached is not None:
             self._user_id = prev_user_id
@@ -813,7 +819,7 @@ class Assistant:
 
         # Resolve personality name: check per-user preferences first, then settings
         personality_name: str | None = None
-        uid = active_user_id or self._user_id
+        uid = active_user_id or getattr(self, "_user_id", None)
         if uid:
             try:
                 from rex.identity import get_user_profile
@@ -827,7 +833,7 @@ class Assistant:
                 pass
 
         if not personality_name:
-            personality_name = getattr(self._settings, "personality", None)
+            personality_name = getattr(getattr(self, "_settings", None), "personality", None)
 
         if not personality_name:
             from .personality import DEFAULT_PERSONALITY

@@ -92,28 +92,28 @@ first, then boot `gui/dist-electron/main/index.js` from a
 Start the TTS API:
 
 ```bash
-set REX_SPEAK_API_KEY=replace-with-a-random-secret
+set REX_SPEAK_API_KEY=example-secret  # pragma: allowlist secret
 rex-speak-api
 ```
 
 PowerShell equivalent:
 
 ```powershell
-$env:REX_SPEAK_API_KEY = "replace-with-a-random-secret"
+$env:REX_SPEAK_API_KEY = "example-secret  # pragma: allowlist secret"
 rex-speak-api
 ```
 
 Start the Rex tool server:
 
 ```bash
-set REX_TOOL_API_KEY=replace-with-a-random-secret
+set REX_TOOL_API_KEY=example-secret  # pragma: allowlist secret
 rex-tool-server
 ```
 
 PowerShell equivalent:
 
 ```powershell
-$env:REX_TOOL_API_KEY = "replace-with-a-random-secret"
+$env:REX_TOOL_API_KEY = "example-secret  # pragma: allowlist secret"
 rex-tool-server
 ```
 
@@ -246,6 +246,76 @@ npm.cmd run build
 | Voice loop fails before audio capture | Audio device or optional ML stack missing | Run `python audio_config.py --list` and `python -m rex doctor` |
 | Electron harness shows stale behavior | Built Electron files are stale | Run `npm.cmd run build` in `gui/` before the harness |
 | Legacy `flask_proxy.py` exits on migrations | Compatibility surface migration check failed | Prefer `rex-gui`; if maintaining proxy, inspect `rex/migrations.py` and existing DB state |
+
+## Error Scenarios
+
+### Scenario 1: CORS Error — Browser Requests Blocked
+
+**Symptom:** Browser console shows `Access-Control-Allow-Origin` error or a CORS preflight failure when the dashboard makes API calls.
+
+**Diagnosis:** The API server is not returning the correct CORS headers. This usually happens when the client origin differs from the allowed origin configured in `rex-gui` or `rex-speak-api`.
+
+**Resolution:** Set `REX_CORS_ORIGINS` in `.env` to include the client origin, then restart `rex-gui`. If running the Electron app, ensure the Electron renderer origin is whitelisted.
+
+---
+
+### Scenario 2: Database Timeout — Queries Hang or Fail
+
+**Symptom:** Dashboard integrations show stale data; logs contain `timeout` or `db_query_timeout` errors.
+
+**Diagnosis:** The local SQLite or integration database is locked or the query is taking too long. Check whether another Rex process is holding the database open.
+
+**Resolution:** Stop all Rex processes (`Ctrl+C` or `SIGTERM`), then restart. If the problem persists, increase `db_query_timeout` in `config/rex_config.json` or run `python -m rex doctor` to identify the locked resource.
+
+---
+
+### Scenario 3: Health Check Returns 503 — Service Degraded
+
+**Symptom:** `curl http://127.0.0.1:8765/api/dashboard/status` returns HTTP 503 or `"status": "degraded"`.
+
+**Diagnosis:** One or more optional integrations (email, calendar, Home Assistant) failed initialisation. A 503 response means the service is running but not all backends are healthy.
+
+**Resolution:** Check the log output for the failing integration, then disable it in `config/rex_config.json` or supply the missing credentials in `.env`. A 503 does not mean the core voice loop or TTS API is unavailable.
+
+---
+
+### Scenario 4: High Log Volume — Adjusting log_level
+
+**Symptom:** Logs are flooding the terminal; relevant messages are hard to find.
+
+**Diagnosis:** The log_level is set too low (e.g. `DEBUG`). Filter output with `grep` or raise the threshold.
+
+**Resolution:** Set `log_level` to `WARNING` or `ERROR` in `config/rex_config.json`, or filter at the terminal:
+
+```bash
+python -m rex 2>&1 | grep -E "ERROR|WARNING"
+```
+
+Alternatively pass `--debug` flag for intentional verbose output during debugging.
+
+---
+
+### Scenario 5: Migration Error — Legacy Flask Proxy Fails to Start
+
+**Symptom:** `flask_proxy.py` exits immediately with a migration error.
+
+**Diagnosis:** The legacy compatibility surface runs migration checks on startup. If the database schema is ahead of what the proxy expects, it aborts.
+
+**Resolution:** Prefer `rex-gui` over `flask_proxy.py`. If you must use the proxy, inspect `rex/migrations.py` and run any pending migrations manually, or set `skip_migration_check=true` in the compatibility config (see `docs/deployment.md`).
+
+---
+
+### Scenario 6: TTS API Returns 401 or 429
+
+**Symptom:** `curl` to `/speak` returns `401 Unauthorized` or `429 Too Many Requests`.
+
+**Diagnosis:** For 401, the `X-API-Key` header does not match `REX_SPEAK_API_KEY`. For 429, the rate limit has been reached.
+
+**Resolution:**
+- 401: ensure the key in `.env` matches the header sent by the caller.
+- 429: increase `REX_SPEAK_RATE_LIMIT` in `.env` or reduce caller frequency. The limit resets after the configured window.
+
+---
 
 ## Post-Restart Checklist
 

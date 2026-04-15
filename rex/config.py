@@ -532,9 +532,7 @@ def _merge_profile_config(base_config: dict) -> dict:
         profile = load_profile(profile_name, profiles_dir=profiles_dir)
     except FileNotFoundError:
         if profile_name != "default":
-            LOGGER.warning(
-                "Profile '%s' not found; falling back to 'default'.", profile_name
-            )
+            LOGGER.warning("Profile '%s' not found; falling back to 'default'.", profile_name)
             profile = load_profile("default", profiles_dir=profiles_dir)
             profile_name = "default"
         else:

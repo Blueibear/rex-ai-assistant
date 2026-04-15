@@ -215,7 +215,7 @@ def _prepare_audio_for_stt(
     if prepared.size == 0:
         return prepared
     prepared = numpy.nan_to_num(prepared, nan=0.0, posinf=1.0, neginf=-1.0)
-    return numpy.clip(prepared, -1.0, 1.0)  # type: ignore[no-any-return]
+    return numpy.clip(prepared, -1.0, 1.0)  # type: ignore[no-any-return, unused-ignore]
 
 
 logger = logging.getLogger(__name__)
@@ -420,6 +420,8 @@ class AsyncMicrophone:
             result = self._recorder(duration)
             if asyncio.iscoroutine(result):
                 result = await result
+            if result is None:
+                raise AudioDeviceError("Audio recorder returned no audio")
             return cast(AudioArray, np.asarray(result, dtype=np.float32).reshape(-1))
 
         sd = _require_sounddevice()
@@ -481,11 +483,11 @@ class WakeAcknowledgement:
 
         if not self._sound_path.exists():
             return
-        if sa is None and _load_sounddevice() is None:
-            logger.warning("No audio playback backend available for wake acknowledgment.")
-            return
 
         def _play() -> None:
+            if sa is None and _load_sounddevice() is None:
+                logger.warning("No audio playback backend available for wake acknowledgment.")
+                return
             if sa is not None:
                 wave_obj = sa.WaveObject.from_wave_file(str(self._sound_path))
                 play_obj = wave_obj.play()
@@ -571,9 +573,10 @@ class SpeechToText:
     ) -> str:
         """Transcribe audio to text."""
 
-        if not self._load_event.is_set():
+        load_event = getattr(self, "_load_event", None)
+        if load_event is not None and not load_event.is_set():
             logger.info("[STT] Waiting for model warm-up to complete...")
-            await asyncio.to_thread(self._load_event.wait)
+            await asyncio.to_thread(load_event.wait)
 
         if self._load_error is not None:
             raise SpeechToTextError(f"Model failed to load: {self._load_error}")
@@ -714,7 +717,8 @@ class TextToSpeech:
         can skip local playback.  Returns ``False`` if no smart speaker is
         configured or playback failed (caller should fall back to local audio).
         """
-        if not self._tts_output_device:
+        _tts_output_device = getattr(self, "_tts_output_device", None)
+        if not _tts_output_device:
             return False
         try:
             from rex.audio.smart_speaker_output import get_smart_speaker_output
@@ -722,13 +726,13 @@ class TextToSpeech:
 
             cached = get_speaker_discovery().get_cached_speakers()
             target = next(
-                (s for s in cached if s.name == self._tts_output_device),
+                (s for s in cached if s.name == _tts_output_device),
                 None,
             )
             if target is None:
                 logger.warning(
                     "[TTS] Smart speaker %r not found in cached speakers; falling back to local.",
-                    self._tts_output_device,
+                    _tts_output_device,
                 )
                 return False
             return get_smart_speaker_output().play_wav(
@@ -741,8 +745,12 @@ class TextToSpeech:
     async def _speak_xtts(self, text: str, speaker_wav: str | None) -> None:
         """Synthesize speech using XTTS, playing each chunk immediately."""
         if self._tts is None and not self._initialize_xtts():
-            reason = self._xtts_init_error or "unknown initialization error"
-            logger.warning("[TTS] XTTS not available (%s); falling back to edge-tts", reason)
+            reason = (
+                f"XTTS not initialized "
+                f"({self._xtts_init_error or 'unknown initialization error'})"
+            )
+            logger.error("[TTS] Failed: %s", reason)
+            logger.warning("XTTS initialization failed; falling back to edge-tts")
             await self._speak_edge(text)
             return
         sf = _lazy_import_soundfile()
@@ -1136,7 +1144,10 @@ class VoiceLoop:
                             continue
                         tracker.mark("llm_end")
 
-                        if llm_response and not llm_response.endswith("."):
+                        if not llm_response:
+                            continue
+
+                        if not llm_response.endswith("."):
                             llm_response = llm_response + "."
 
                         try:
@@ -1368,14 +1379,7 @@ def build_voice_loop(
                     sample_rate=sample_rate,
                 )
                 if smart_mic.connect():
-
-                    def _smart_mic_recorder(duration: float) -> AudioArray:
-                        frame = smart_mic.read_frame(duration)
-                        if frame is None:
-                            raise AudioDeviceError("Smart speaker microphone stream disconnected")
-                        return cast(AudioArray, frame)
-
-                    smart_mic_recorder = _smart_mic_recorder
+                    smart_mic_recorder = cast(RecorderCallable, smart_mic.read_frame)
                     logger.info(
                         "[voice] Wake word input routed to %r (%s).", target.name, target.ip
                     )

@@ -11,7 +11,6 @@ Verifies:
 - "No capabilities found" section is conditionally rendered (only when empty)
 """
 
-import json
 import re
 from pathlib import Path
 
@@ -29,21 +28,15 @@ def read_gui_app() -> str:
 
 
 def read_integrations_page() -> str:
-    return (REPO / "gui" / "src" / "pages" / "IntegrationsPage.tsx").read_text(
-        encoding="utf-8"
-    )
+    return (REPO / "gui" / "src" / "pages" / "IntegrationsPage.tsx").read_text(encoding="utf-8")
 
 
 def read_app_layout() -> str:
-    return (REPO / "gui" / "src" / "layouts" / "AppLayout.tsx").read_text(
-        encoding="utf-8"
-    )
+    return (REPO / "gui" / "src" / "layouts" / "AppLayout.tsx").read_text(encoding="utf-8")
 
 
 def read_app_tsx() -> str:
-    return (REPO / "gui" / "src" / "renderer" / "src" / "App.tsx").read_text(
-        encoding="utf-8"
-    )
+    return (REPO / "gui" / "src" / "renderer" / "src" / "App.tsx").read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +45,7 @@ def read_app_tsx() -> str:
 
 
 def test_api_integrations_route_exists():
-    assert "@app.route(\"/api/integrations\"" in read_gui_app()
+    assert '@app.route("/api/integrations"' in read_gui_app()
 
 
 def test_api_integrations_returns_list():
@@ -74,9 +67,9 @@ REQUIRED_INTEGRATION_KEYS = [
 @pytest.mark.parametrize("key", REQUIRED_INTEGRATION_KEYS)
 def test_required_integration_key_present(key):
     src = read_gui_app()
-    assert f'"key": "{key}"' in src or f"'key': '{key}'" in src, (
-        f"Integration key '{key}' not found in /api/integrations handler"
-    )
+    assert (
+        f'"key": "{key}"' in src or f"'key': '{key}'" in src
+    ), f"Integration key '{key}' not found in /api/integrations handler"
 
 
 def test_home_assistant_configure_url_is_correct():
@@ -89,9 +82,9 @@ def test_home_assistant_configure_url_is_correct():
     )
     assert ha_block_match is not None, "HA configure_url not found in gui_app.py"
     url = ha_block_match.group(1)
-    assert url == "/settings/home-assistant", (
-        f"HA configure_url should be /settings/home-assistant, got: {url}"
-    )
+    assert (
+        url == "/settings/home-assistant"
+    ), f"HA configure_url should be /settings/home-assistant, got: {url}"
 
 
 def test_all_integrations_have_configure_url():
@@ -106,7 +99,7 @@ def test_all_integrations_have_configure_url():
 
 
 def test_api_capabilities_route_exists():
-    assert "@app.route(\"/api/capabilities\"" in read_gui_app()
+    assert '@app.route("/api/capabilities"' in read_gui_app()
 
 
 def test_api_capabilities_returns_capabilities_key():
@@ -181,6 +174,6 @@ def test_integrations_route_in_app_tsx():
 def test_integrations_page_imported_in_app_tsx():
     src = read_app_tsx()
     assert "IntegrationsPage" in src
-    assert "IntegrationsPage" in (REPO / "gui" / "src" / "pages" / "IntegrationsPage.tsx").read_text(
-        encoding="utf-8"
-    )
+    assert "IntegrationsPage" in (
+        REPO / "gui" / "src" / "pages" / "IntegrationsPage.tsx"
+    ).read_text(encoding="utf-8")

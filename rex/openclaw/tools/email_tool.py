@@ -72,4 +72,7 @@ def send_email(
     """
     user_id: str | None = kwargs.get("_user_id")
     service = _get_email_service()
-    return service.send(to=to, subject=subject, body=body, user_id=user_id)
+    send_kwargs: dict[str, Any] = {"to": to, "subject": subject, "body": body}
+    if user_id is not None:
+        send_kwargs["user_id"] = user_id
+    return service.send(**send_kwargs)

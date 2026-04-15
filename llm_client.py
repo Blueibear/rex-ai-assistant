@@ -13,14 +13,6 @@ from __future__ import annotations
 
 import warnings
 
-warnings.warn(
-    "Importing from root-level 'llm_client' is deprecated. "
-    "Use 'from rex.llm_client import ...' instead. "
-    "This shim will be removed in a future release.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 # Re-export all classes and functions from the rex.llm_client package
 from rex.llm_client import (
     TORCH_AVAILABLE,
@@ -28,6 +20,14 @@ from rex.llm_client import (
     GenerationConfig,
     LanguageModel,
     register_strategy,
+)
+
+warnings.warn(
+    "Importing from root-level 'llm_client' is deprecated. "
+    "Use 'from rex.llm_client import ...' instead. "
+    "This shim will be removed in a future release.",
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 __all__ = [

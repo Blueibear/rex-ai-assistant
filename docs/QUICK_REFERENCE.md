@@ -95,7 +95,7 @@ harness that requires `gui/dist-electron/main/index.js`.
 Default port: `5005`.
 
 ```powershell
-$env:REX_SPEAK_API_KEY = "replace-with-a-random-secret"
+$env:REX_SPEAK_API_KEY = "example-secret  # pragma: allowlist secret"
 rex-speak-api
 ```
 
@@ -113,7 +113,7 @@ Invoke-WebRequest -Uri http://127.0.0.1:5005/speak -Method POST -Headers $header
 Default port: `18790`.
 
 ```powershell
-$env:REX_TOOL_API_KEY = "replace-with-a-random-secret"
+$env:REX_TOOL_API_KEY = "example-secret  # pragma: allowlist secret"
 rex-tool-server
 ```
 

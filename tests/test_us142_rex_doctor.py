@@ -350,6 +350,12 @@ class TestRunDiagnosticsOutput:
             patch("rex.doctor.check_lm_studio_reachability", return_value=ok),
             patch("rex.doctor.check_external_dependencies", return_value=ok_list),
             patch("rex.doctor.check_gpu_availability", return_value=ok),
+            patch("rex.doctor.check_config_types", return_value=ok),
+            patch("rex.doctor.check_ffmpeg_for_tts", return_value=ok),
+            patch("rex.doctor.check_wakeword_config", return_value=ok),
+            patch("rex.doctor.check_stt_backend", return_value=ok),
+            patch("rex.doctor.check_stt_warmup", return_value=ok),
+            patch("rex.doctor.check_xtts_transformers_compat", return_value=ok),
         ):
             exit_code = run_diagnostics()
 

@@ -4,11 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # rex.llm_usage unit tests
@@ -41,7 +37,7 @@ def test_record_usage_appends(tmp_path):
         record_usage(model="llama3", prompt_tokens=5, completion_tokens=10)
         record_usage(model="mistral", prompt_tokens=3, completion_tokens=7)
 
-    lines = [l for l in usage_file.read_text().splitlines() if l.strip()]
+    lines = [line for line in usage_file.read_text().splitlines() if line.strip()]
     assert len(lines) == 2
     assert json.loads(lines[0])["model"] == "llama3"
     assert json.loads(lines[1])["model"] == "mistral"
@@ -142,9 +138,7 @@ def test_ollama_generate_records_usage(tmp_path):
             strategy._ollama = mock_ollama
             strategy._client_cls = mock_ollama.Client
             strategy._client = fake_client
-            strategy._retry_config = __import__(
-                "rex.retry", fromlist=["RetryConfig"]
-            ).RetryConfig()
+            strategy._retry_config = __import__("rex.retry", fromlist=["RetryConfig"]).RetryConfig()
 
             gen_config = GenerationConfig(
                 max_new_tokens=100,
@@ -157,6 +151,7 @@ def test_ollama_generate_records_usage(tmp_path):
             with patch.dict(os.environ, {"REX_LLM_USAGE_PATH": str(usage_file)}):
                 # Need to reload llm_usage with new env
                 import importlib
+
                 import rex.llm_usage as usage_mod
 
                 importlib.reload(usage_mod)
@@ -199,6 +194,7 @@ def test_cmd_usage_no_records(tmp_path, capsys):
     usage_file = tmp_path / "llm_usage.json"
     with patch.dict(os.environ, {"REX_LLM_USAGE_PATH": str(usage_file)}):
         import importlib
+
         import rex.llm_usage as usage_mod
 
         importlib.reload(usage_mod)
@@ -219,6 +215,7 @@ def test_cmd_usage_with_records(tmp_path, capsys):
     usage_file = tmp_path / "llm_usage.json"
     with patch.dict(os.environ, {"REX_LLM_USAGE_PATH": str(usage_file)}):
         import importlib
+
         import rex.llm_usage as usage_mod
 
         importlib.reload(usage_mod)

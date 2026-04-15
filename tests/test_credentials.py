@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -70,13 +70,13 @@ class TestCredential:
 
     def test_credential_not_expired_when_future(self):
         """Test that credential with future expiry is not expired."""
-        future = datetime.now(timezone.utc) + timedelta(hours=1)
+        future = datetime.now(UTC) + timedelta(hours=1)
         cred = Credential(name="test", token="secret", expires_at=future)
         assert not cred.is_expired()
 
     def test_credential_expired_when_past(self):
         """Test that credential with past expiry is expired."""
-        past = datetime.now(timezone.utc) - timedelta(hours=1)
+        past = datetime.now(UTC) - timedelta(hours=1)
         cred = Credential(name="test", token="secret", expires_at=past)
         assert cred.is_expired()
 
@@ -122,7 +122,7 @@ class TestCredentialManager:
         """Test loading credentials with full metadata from config."""
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "credentials.json"
-            future = datetime.now(timezone.utc) + timedelta(days=1)
+            future = datetime.now(UTC) + timedelta(days=1)
             config_data = {
                 "credentials": {
                     "full_service": {
@@ -167,7 +167,7 @@ class TestCredentialManager:
     def test_set_token_with_expiry(self):
         """Test setting a token with expiry."""
         manager = CredentialManager(config_path=Path("/nonexistent/path.json"))
-        future = datetime.now(timezone.utc) + timedelta(hours=1)
+        future = datetime.now(UTC) + timedelta(hours=1)
         manager.set_token("expiring_service", "expiring_token", expires_at=future)
 
         cred = manager.get_credential("expiring_service")
@@ -189,7 +189,7 @@ class TestCredentialManager:
     def test_has_token_returns_false_when_expired(self):
         """Test has_token returns False for expired token."""
         manager = CredentialManager(config_path=Path("/nonexistent/path.json"))
-        past = datetime.now(timezone.utc) - timedelta(hours=1)
+        past = datetime.now(UTC) - timedelta(hours=1)
         manager.set_token("expired_service", "expired_token", expires_at=past)
         assert not manager.has_token("expired_service")
 
@@ -267,7 +267,7 @@ class TestCredentialManager:
     def test_expired_token_triggers_auto_refresh(self):
         """Test that expired token triggers auto-refresh when handler exists."""
         manager = CredentialManager(config_path=Path("/nonexistent/path.json"))
-        past = datetime.now(timezone.utc) - timedelta(hours=1)
+        past = datetime.now(UTC) - timedelta(hours=1)
         manager.set_token("auto_refresh", "expired_token", expires_at=past)
 
         def refresh_handler(current: str) -> str:
@@ -282,7 +282,7 @@ class TestCredentialManager:
     def test_expired_token_without_handler_returns_none(self):
         """Test that expired token without handler returns None."""
         manager = CredentialManager(config_path=Path("/nonexistent/path.json"))
-        past = datetime.now(timezone.utc) - timedelta(hours=1)
+        past = datetime.now(UTC) - timedelta(hours=1)
         manager.set_token("no_handler", "expired_token", expires_at=past)
 
         # get_token with auto_refresh=True but no handler returns None

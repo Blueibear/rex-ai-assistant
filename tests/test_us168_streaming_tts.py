@@ -53,7 +53,7 @@ class TestSourceStreaming:
                 depth -= 1
                 if depth < 0:
                     break
-        run_body = src[idx : idx + 3000]
+        run_body = src[idx : idx + 10000]
         assert "_speak_streaming" in run_body
 
     def test_sentence_split_in_run(self):

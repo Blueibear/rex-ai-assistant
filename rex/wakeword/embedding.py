@@ -16,7 +16,9 @@ else:
 
 _torch: ModuleType | None = None
 try:  # pragma: no cover - optional dependency
-    import torch as _torch
+    import torch as torch_module
+
+    _torch = torch_module
 except Exception:  # pragma: no cover - optional dependency
     pass
 
@@ -46,27 +48,37 @@ def compute_embedding(audio_frame: np.ndarray, *, bins: int = DEFAULT_EMBEDDING_
 
 
 def load_embedding(path: str | Path) -> np.ndarray:
-    if _torch is None:
-        raise RuntimeError("torch is required to load embedding files")
     if np is None:
         raise RuntimeError("numpy is required to load embedding files")
 
-    data: Any = _torch.load(Path(path), map_location="cpu", weights_only=False)
-    if isinstance(data, dict) and "embedding" in data:
-        data = data["embedding"]
+    if _torch is not None:
+        try:
+            data: Any = _torch.load(Path(path), map_location="cpu", weights_only=False)
+            if isinstance(data, dict) and "embedding" in data:
+                data = data["embedding"]
 
-    if hasattr(data, "detach"):
-        data = data.detach()
+            if hasattr(data, "detach"):
+                data = data.detach()
 
-    if hasattr(data, "cpu"):
-        data = data.cpu()
+            if hasattr(data, "cpu"):
+                data = data.cpu()
 
-    if hasattr(data, "numpy"):
-        array = data.numpy()
-    else:
-        array = np.asarray(data)
+            if hasattr(data, "numpy"):
+                array = data.numpy()
+            else:
+                array = np.asarray(data)
 
-    array = np.asarray(array, dtype=np.float32).reshape(-1)
+            array = np.asarray(array, dtype=np.float32).reshape(-1)
+            norm = np.linalg.norm(array)
+            if norm > 0:
+                array = array / norm
+            return cast("np.ndarray", array)
+        except Exception:
+            pass  # fall through to numpy fallback
+
+    # numpy fallback (torch absent or torch load failed, e.g. file saved with np.save)
+    with open(path, "rb") as f:
+        array = np.load(f, allow_pickle=False).astype(np.float32).reshape(-1)
     norm = np.linalg.norm(array)
     if norm > 0:
         array = array / norm
@@ -74,8 +86,11 @@ def load_embedding(path: str | Path) -> np.ndarray:
 
 
 def save_embedding(path: str | Path, embedding: np.ndarray) -> None:
-    if _torch is None:
-        raise RuntimeError("torch is required to save embedding files")
     if np is None:
         raise RuntimeError("numpy is required to save embedding files")
-    _torch.save(embedding, Path(path))
+
+    if _torch is not None:
+        _torch.save(embedding, Path(path))
+    else:
+        with open(path, "wb") as f:
+            np.save(f, embedding)

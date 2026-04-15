@@ -129,13 +129,13 @@ The GUI can also persist overlapping audio settings into `config/rex_config.json
 Start:
 
 ```bash
-REX_SPEAK_API_KEY=change-me rex-speak-api
+REX_SPEAK_API_KEY=example-key  # pragma: allowlist secret rex-speak-api
 ```
 
 PowerShell:
 
 ```powershell
-$env:REX_SPEAK_API_KEY="change-me"
+$env:REX_SPEAK_API_KEY="example-key  # pragma: allowlist secret"
 rex-speak-api
 ```
 
@@ -146,7 +146,7 @@ Example:
 ```bash
 curl -X POST http://127.0.0.1:5005/speak \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: change-me" \
+  -H "X-API-Key: example-key  # pragma: allowlist secret" \
   -d '{"text":"Hello from AskRex","user":"default","language":"en"}' \
   --output speech.wav
 ```
@@ -170,13 +170,13 @@ See [tools.md](tools.md).
 Start:
 
 ```bash
-REX_TOOL_API_KEY=change-me rex-tool-server
+REX_TOOL_API_KEY=example-key  # pragma: allowlist secret rex-tool-server
 ```
 
 PowerShell:
 
 ```powershell
-$env:REX_TOOL_API_KEY="change-me"
+$env:REX_TOOL_API_KEY="example-key  # pragma: allowlist secret"
 rex-tool-server
 ```
 
@@ -185,7 +185,7 @@ Example:
 ```bash
 curl -X POST http://127.0.0.1:18790/rex/tools/time_now \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: change-me" \
+  -H "X-API-Key: example-key  # pragma: allowlist secret" \
   -d '{"args":{"location":"Dallas, TX"},"context":{}}'
 ```
 

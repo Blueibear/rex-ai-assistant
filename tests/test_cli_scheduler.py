@@ -57,16 +57,22 @@ def test_cli_scheduler_retention_stubs_return_false(tmp_path):
     assert setup_inbound_sms_cleanup_job(raw_config) is False
 
 
-def test_cli_email_unread(capsys):
+def test_cli_email_unread(capsys, monkeypatch):
+    from rex.email_service import EmailService
+
     reset_services()
+    monkeypatch.setattr("rex.cli.get_email_service", lambda: EmailService())
     args = Namespace(email_command="unread")
     assert cmd_email(args) == 0
     output = capsys.readouterr().out
     assert "Unread Email Summary" in output
 
 
-def test_cli_calendar_upcoming(capsys):
+def test_cli_calendar_upcoming(capsys, monkeypatch):
+    from rex.calendar_service import CalendarService
+
     reset_services()
+    monkeypatch.setattr("rex.cli.get_calendar_service", lambda: CalendarService())
     args = Namespace(calendar_command="upcoming")
     assert cmd_calendar(args) == 0
     output = capsys.readouterr().out

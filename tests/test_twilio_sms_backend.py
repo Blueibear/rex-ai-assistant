@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tests.helpers.fake_twilio import FakeTwilioClient, fake_twilio_client
+from tests.helpers.fake_twilio import FakeTwilioClient
 
 # ---------------------------------------------------------------------------
 # Helpers — fake twilio module injected into sys.modules
@@ -84,6 +84,12 @@ def inject_fake_twilio():
     fake = _fake_twilio_module()
     with patch.dict(sys.modules, {"twilio": fake, "twilio.rest": fake.rest}):
         yield
+
+
+@pytest.fixture
+def fake_twilio_client() -> FakeTwilioClient:
+    """Return a reusable fake Twilio client for send-path tests."""
+    return FakeTwilioClient()
 
 
 # ---------------------------------------------------------------------------

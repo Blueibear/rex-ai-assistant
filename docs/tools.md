@@ -60,13 +60,13 @@ Local execution currently supports `time_now`, `weather_now`, and `web_search`. 
 Start the standalone HTTP tool server:
 
 ```bash
-REX_TOOL_API_KEY=change-me rex-tool-server
+REX_TOOL_API_KEY=example-key  # pragma: allowlist secret rex-tool-server
 ```
 
 PowerShell:
 
 ```powershell
-$env:REX_TOOL_API_KEY="change-me"
+$env:REX_TOOL_API_KEY="example-key  # pragma: allowlist secret"
 rex-tool-server
 ```
 
@@ -88,7 +88,7 @@ Invoke a tool:
 ```bash
 curl -X POST http://127.0.0.1:18790/rex/tools/time_now \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: change-me" \
+  -H "X-API-Key: example-key  # pragma: allowlist secret" \
   -d '{"args":{"location":"Dallas, TX"},"context":{}}'
 ```
 

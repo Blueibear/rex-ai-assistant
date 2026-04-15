@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import fnmatch
 import logging
-import os
 from pathlib import Path
 from typing import Any
 
@@ -44,8 +43,8 @@ def _default_allowed_roots() -> list[str]:
 
 
 def _resolve_and_check(
-    path: "str | Path",
-    allowed_roots: "list[str] | None",
+    path: str | Path,
+    allowed_roots: list[str] | None,
 ) -> Path:
     """Resolve *path* to an absolute path and verify it is within *allowed_roots*.
 
@@ -82,8 +81,8 @@ def _resolve_and_check(
 
 
 def read_file(
-    path: "str | Path",
-    allowed_roots: "list[str] | None" = None,
+    path: str | Path,
+    allowed_roots: list[str] | None = None,
     encoding: str = "utf-8",
 ) -> str:
     """Read and return the text content of a file.
@@ -109,9 +108,9 @@ def read_file(
 
 
 def write_file(
-    path: "str | Path",
+    path: str | Path,
     content: str,
-    allowed_roots: "list[str] | None" = None,
+    allowed_roots: list[str] | None = None,
     encoding: str = "utf-8",
 ) -> None:
     """Write *content* to a file, creating parent directories as needed.
@@ -132,8 +131,8 @@ def write_file(
 
 
 def list_dir(
-    path: "str | Path",
-    allowed_roots: "list[str] | None" = None,
+    path: str | Path,
+    allowed_roots: list[str] | None = None,
 ) -> list[str]:
     """Return a sorted list of entry names in *path*.
 
@@ -161,8 +160,8 @@ def list_dir(
 
 
 def summarize_file(
-    path: "str | Path",
-    allowed_roots: "list[str] | None" = None,
+    path: str | Path,
+    allowed_roots: list[str] | None = None,
     max_chars: int = 8000,
 ) -> str:
     """Summarise the text content of a file using the LLM.
@@ -185,9 +184,7 @@ def summarize_file(
     """
     content = read_file(path, allowed_roots)
     snippet = content[:max_chars]
-    prompt = (
-        f"Please summarise the following document concisely:\n\n{snippet}"
-    )
+    prompt = f"Please summarise the following document concisely:\n\n{snippet}"
 
     try:
         from rex.config import load_config
@@ -205,9 +202,9 @@ def summarize_file(
 
 
 def search_files(
-    directory: "str | Path",
+    directory: str | Path,
     query: str,
-    allowed_roots: "list[str] | None" = None,
+    allowed_roots: list[str] | None = None,
     pattern: str = "*.txt",
 ) -> list[dict[str, Any]]:
     """Search text files in *directory* for lines matching *query*.

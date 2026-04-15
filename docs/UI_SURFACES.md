@@ -4,16 +4,16 @@ This is the active inventory of UI and user-facing service surfaces that ship in
 
 | Surface | Entry point | Status | Notes |
 |---|---|---|---|
-| CLI text chat | `rex` or `python -m rex` | Primary | Default interactive text interface |
-| Voice loop | `python rex_loop.py` | Primary | Wake word, STT, LLM, and TTS pipeline |
-| Python web dashboard | `rex-gui` | Primary browser UI | Flask app serving the built React UI from `rex/ui/dist/` at `http://127.0.0.1:8765/ui/` |
+| CLI (text chat) | `rex` | **Primary — keep** | Core text interface |
+| Voice loop | `python rex_loop.py` | **Primary — keep** | Core voice interface |
+| Web dashboard | `rex-gui` | **Primary GUI — keep** | React, modern, canonical |
+| Shopping PWA | served by `rex` or `rex-gui` | **Optional feature — keep** | Functional feature surface |
+| TTS API | `rex-speak-api` | **Service component — keep** | Required by voice loop |
 | Electron desktop GUI | `cd gui && npm.cmd run dev` | Primary desktop UI | Electron/React shell in `gui/`, backed by Python bridge scripts at repo root |
-| TTS API | `rex-speak-api` | Service component | Local Flask `/speak` service on `127.0.0.1:5005`; requires `REX_SPEAK_API_KEY` |
 | OpenClaw tool server | `rex-tool-server` | Service component | Tool adapter service on `127.0.0.1:18790`; requires `REX_TOOL_API_KEY` for tool calls |
 | Windows computer agent | `rex-agent` | Optional service | Remote PC control agent API |
-| Shopping PWA | registered by `rex_speak_api.py` when available | Optional feature | Served under `/shopping` by the TTS API app when the shopping blueprint imports successfully |
 | Flask proxy | `python flask_proxy.py` | Legacy API/proxy surface | Kept for compatibility with proxy/search/contracts paths; not the normal desktop GUI entry point |
-| Tkinter window | `python run_gui.py` or `python gui.py` | Deprecated | Superseded by `rex-gui` and the Electron app |
+| Tkinter window (`gui.py`) | `python run_gui.py` | **Deprecated** | Superseded by web dashboard |
 
 ## Electron GUI
 

@@ -25,7 +25,12 @@ _BINARY_SUFFIXES = (
 
 # Small UI image assets (icons, logos) are intentionally tracked — they are
 # not large ML artifacts and are needed for the app to function correctly.
-_ALLOWED_BINARY_PREFIXES = ("gui/assets/",)
+_ALLOWED_BINARY_PREFIXES = (
+    "assets/brand/",
+    "gui/assets/",
+    "gui/src/assets/",
+    "gui/src/renderer/src/assets/",
+)
 
 
 def _is_binary(path: str) -> bool:

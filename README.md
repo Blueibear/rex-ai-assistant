@@ -14,53 +14,81 @@ AskRex Assistant is a local-first AI assistant for text chat, wake-word voice in
 
 AskRex is alpha software. The CLI, voice loop, configuration system, Python web dashboard, Electron GUI shell, and several integrations are implemented; integration readiness varies by backend and credentials. See [docs/claude/INTEGRATIONS_STATUS.md](docs/claude/INTEGRATIONS_STATUS.md) for the current readiness snapshot.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Main Entry Points](#main-entry-points)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Configuration](#configuration)
+
 ## Quick Start
 
 Python 3.11 is required. Python 3.12 and newer are intentionally rejected by the current installers and runtime checks because the validated ML/TTS dependency path is Python 3.11-only.
 
-Windows PowerShell:
+1. Clone the repo and create the Python 3.11 environment.
 
 ```powershell
 git clone https://github.com/Blueibear/AskRex-Assistant.git
 cd AskRex-Assistant
-
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip setuptools wheel
-pip install .
-
-Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
-Copy-Item .env.example .env -ErrorAction SilentlyContinue
-
-python -m rex doctor
-python -m rex
 ```
-
-macOS / Linux:
 
 ```bash
 git clone https://github.com/Blueibear/AskRex-Assistant.git
 cd AskRex-Assistant
-
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip setuptools wheel
-pip install .
-
-cp -n config/rex_config.example.json config/rex_config.json
-cp -n .env.example .env
-
-python -m rex doctor
-python -m rex
 ```
 
-For voice mode, add the ML/audio stack:
+2. Copy the local configuration files.
+
+```powershell
+Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
+Copy-Item .env.example .env -ErrorAction SilentlyContinue
+```
 
 ```bash
-pip install -r requirements-cpu.txt
-# or, for validated Windows CUDA 12.4:
-pip install -r requirements-gpu-cu124.txt
+cp -n config/rex_config.example.json config/rex_config.json
+cp -n .env.example .env
 ```
+
+3. Install Rex and the optional ML/audio stack.
+
+```powershell
+pip install .
+.\install.ps1
+pip install -r requirements-cpu.txt
+```
+
+```bash
+pip install .
+bash install.sh
+pip install -r requirements-cpu.txt
+```
+
+For validated Windows CUDA 12.4, use `requirements-gpu-cu124.txt` instead.
+
+4. Configure LM Studio for local model access at `localhost:1234`.
+
+Download and install LM Studio, start the LM Studio server on `localhost:1234`, and load your preferred model.
+
+5. Verify the install and run Rex.
+
+```powershell
+rex doctor
+rex
+```
+
+```bash
+rex doctor
+rex
+```
+
+> **Advanced/Developer Install**: For GPU/CUDA setup, manual venv instructions, and development tooling, see [docs/advanced-install.md](docs/advanced-install.md).
 
 ## Main Entry Points
 
@@ -76,7 +104,7 @@ pip install -r requirements-gpu-cu124.txt
 | Windows computer agent | `rex-agent` | Optional remote PC control agent |
 | Runtime config CLI | `rex-config` | Config inspection and legacy env migration |
 
-The legacy Tkinter launchers `python run_gui.py` and `python gui.py` are deprecated. Use `rex-gui` for the Python-served web UI or the Electron app under `gui/`.
+`rex-gui` is the canonical GUI for the Rex AI Assistant. The legacy Tkinter launchers (`gui.py` and its entry point) are deprecated. Use `rex-gui` for the Python-served web UI or the Electron app under `gui/`.
 
 ## Features
 
@@ -107,6 +135,8 @@ The legacy Tkinter launchers `python run_gui.py` and `python gui.py` are depreca
 
 On Windows, use `py -3.11 ...` or activate the repo `.venv` before running commands. A system default `python` that points at 3.12+ will be rejected.
 
+> **Note**: On Windows, audio playback requires simpleaudio. Install it with `pip install simpleaudio` if audio output is not working.
+
 ## Configuration
 
 AskRex uses three configuration layers:
@@ -129,11 +159,13 @@ See [CONFIGURATION.md](CONFIGURATION.md), [docs/configuration.md](docs/configura
 
 ## GUI Usage
 
+See [docs/usage.md](docs/usage.md) for the full usage guide including voice mode, autonomous workflows, and integrations.
+
 Python web dashboard:
 
 ```bash
 rex-gui
-# opens http://127.0.0.1:8765/ui/
+## opens http://127.0.0.1:8765/ui/
 ```
 
 Electron desktop GUI:
@@ -143,7 +175,7 @@ cd gui
 npm.cmd install
 npm.cmd run dev
 
-# Build and preview the compiled Electron app:
+## Build and preview the compiled Electron app:
 npm.cmd run build
 npm.cmd run preview
 ```
@@ -198,6 +230,18 @@ Health endpoints:
 curl http://127.0.0.1:5005/health/live
 curl http://127.0.0.1:18790/health/live
 ```
+
+## Docker
+
+Run AskRex in a container. See [docs/docker.md](docs/docker.md) for build, run, and GPU options.
+
+## Memory
+
+AskRex stores per-user voice and conversation profiles under `Memory/`. See [docs/memory.md](docs/memory.md) for profile format and voice cloning notes.
+
+## Troubleshooting
+
+Common issues: missing ffmpeg, CUDA driver mismatches, wake word not triggering. See [docs/troubleshooting.md](docs/troubleshooting.md) for solutions.
 
 ## Development
 

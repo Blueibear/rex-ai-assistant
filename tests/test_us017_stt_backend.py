@@ -116,30 +116,37 @@ def test_stt_error_in_voice_loop_logs_traceback(caplog):
     from rex.assistant_errors import SpeechToTextError
     from rex.voice_loop import VoiceLoop
 
-    loop = VoiceLoop.__new__(VoiceLoop)
-    loop._stt_timeout = 30.0
-    loop._llm_timeout = 60.0
-    loop._tts_timeout = 30.0
-    loop._sample_rate = 16000
-    loop._max_interactions = 1
-
     # transcribe raises SpeechToTextError immediately
     async def _bad_transcribe(_audio):
         raise SpeechToTextError("forced test failure")
 
-    loop._transcribe = _bad_transcribe
-
     # record_phrase returns a dummy buffer
-    async def _record(_dur):
+    async def _record():
         return b"\x00" * 32
 
-    loop._record_phrase = _record
-
     # wakeword detection yields once then stops
-    async def _wakeword_gen():
-        yield None
+    class _WakeListener:
+        async def listen(self, _source):
+            yield None
 
-    loop._detect_wakeword = _wakeword_gen
+    async def _detection_source():
+        return b"\x00" * 32
+
+    async def _speak(_text):
+        return None
+
+    loop = VoiceLoop(
+        MagicMock(),
+        wake_listener=_WakeListener(),
+        detection_source=_detection_source,
+        record_phrase=_record,
+        transcribe=_bad_transcribe,
+        speak=_speak,
+        sample_rate=16000,
+        stt_timeout=30.0,
+        llm_timeout=60.0,
+        tts_timeout=30.0,
+    )
 
     with caplog.at_level(logging.ERROR, logger="rex.voice_loop"):
         asyncio.run(loop.run(max_interactions=1))

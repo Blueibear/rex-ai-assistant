@@ -14,14 +14,6 @@ from __future__ import annotations
 
 import warnings
 
-warnings.warn(
-    "Importing from root-level 'config' is deprecated. "
-    "Use 'from rex.config import ...' instead. "
-    "This shim will be removed in a future release.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 # Re-export all configuration utilities from the rex.config module
 from rex.config import (
     ENV_MAPPING,
@@ -35,6 +27,14 @@ from rex.config import (
     settings,
     show_config,
     validate_config,
+)
+
+warnings.warn(
+    "Importing from root-level 'config' is deprecated. "
+    "Use 'from rex.config import ...' instead. "
+    "This shim will be removed in a future release.",
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 __all__ = [

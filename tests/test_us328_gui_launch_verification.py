@@ -34,25 +34,25 @@ def test_manual_test_script_exists():
 def test_manual_test_script_has_launch_command():
     """The manual test script must document the launch command."""
     src = read_file("docs/e2e-gui-launch-test.md")
-    assert "rex-gui" in src or "npm run dev" in src, (
-        "Manual test doc must document the launch command"
-    )
+    assert (
+        "rex-gui" in src or "npm run dev" in src
+    ), "Manual test doc must document the launch command"
 
 
 def test_manual_test_script_has_backend_verification_steps():
     """The manual test script must document backend connection verification."""
     src = read_file("docs/e2e-gui-launch-test.md")
-    assert "/api/status" in src or "backend" in src.lower(), (
-        "Manual test doc must include backend connection verification"
-    )
+    assert (
+        "/api/status" in src or "backend" in src.lower()
+    ), "Manual test doc must include backend connection verification"
 
 
 def test_manual_test_script_has_expected_first_screen():
     """The manual test script must describe the expected first screen."""
     src = read_file("docs/e2e-gui-launch-test.md")
-    assert "Home" in src and ("first screen" in src.lower() or "expected" in src.lower()), (
-        "Manual test doc must describe the expected first screen"
-    )
+    assert "Home" in src and (
+        "first screen" in src.lower() or "expected" in src.lower()
+    ), "Manual test doc must describe the expected first screen"
 
 
 # ---------------------------------------------------------------------------
@@ -78,9 +78,9 @@ def test_main_process_calls_create_window_at_startup():
 def test_bridge_resolver_imported_in_main():
     """bridgeResolver must be imported in the main process entry point."""
     src = read_file("gui/src/main/index.ts")
-    assert "bridgeResolver" in src, (
-        "index.ts must import from bridgeResolver to call validateBridges"
-    )
+    assert (
+        "bridgeResolver" in src
+    ), "index.ts must import from bridgeResolver to call validateBridges"
 
 
 # ---------------------------------------------------------------------------
@@ -91,39 +91,39 @@ def test_bridge_resolver_imported_in_main():
 def test_app_tsx_checks_setup_status_on_load():
     """App.tsx must fetch /api/setup/status to determine if setup wizard is needed."""
     src = read_file("gui/src/renderer/src/App.tsx")
-    assert "/api/setup/status" in src, (
-        "App.tsx must call /api/setup/status on load to decide setup vs main app"
-    )
+    assert (
+        "/api/setup/status" in src
+    ), "App.tsx must call /api/setup/status on load to decide setup vs main app"
 
 
 def test_app_tsx_setup_error_falls_back_to_no_setup():
     """App.tsx must catch /api/setup/status errors and default to needs_setup=false."""
     src = read_file("gui/src/renderer/src/App.tsx")
     # The .catch handler must set needsSetup to false (prevents setup wizard loop on error)
-    assert ".catch" in src and "setNeedsSetup(false)" in src, (
-        "App.tsx must catch setup/status errors and fall back to needs_setup=false"
-    )
+    assert (
+        ".catch" in src and "setNeedsSetup(false)" in src
+    ), "App.tsx must catch setup/status errors and fall back to needs_setup=false"
 
 
 def test_app_tsx_handles_backend_unavailable_gracefully():
     """App.tsx must render an error state (not crash) when the backend is unreachable."""
     src = read_file("gui/src/renderer/src/App.tsx")
     # Must have an error branch that does NOT crash the app
-    assert "backend" in src.lower() or "unavailable" in src.lower() or "error" in src.lower(), (
-        "App.tsx must handle backend unavailability with a user-visible error state"
-    )
-    assert "EmptyState" in src or "error" in src.lower(), (
-        "App.tsx must render an error UI when the backend is unreachable"
-    )
+    assert (
+        "backend" in src.lower() or "unavailable" in src.lower() or "error" in src.lower()
+    ), "App.tsx must handle backend unavailability with a user-visible error state"
+    assert (
+        "EmptyState" in src or "error" in src.lower()
+    ), "App.tsx must render an error UI when the backend is unreachable"
 
 
 def test_app_tsx_does_not_redirect_to_login_on_error():
     """App.tsx must not redirect to a login route when the backend is unreachable."""
     src = read_file("gui/src/renderer/src/App.tsx")
     # There should be no login route reference
-    assert "/login" not in src and "LoginPage" not in src, (
-        "App.tsx must not have a login redirect — this app has no auth requirement"
-    )
+    assert (
+        "/login" not in src and "LoginPage" not in src
+    ), "App.tsx must not have a login redirect — this app has no auth requirement"
 
 
 def test_app_tsx_all_routes_wrapped_in_error_boundary():
@@ -148,26 +148,26 @@ def test_app_tsx_all_routes_wrapped_in_error_boundary():
 def test_backend_has_setup_status_endpoint():
     """gui_app.py must expose /api/setup/status."""
     src = read_file("rex/gui_app.py")
-    assert "/api/setup/status" in src, (
-        "gui_app.py must expose /api/setup/status for the setup wizard check"
-    )
+    assert (
+        "/api/setup/status" in src
+    ), "gui_app.py must expose /api/setup/status for the setup wizard check"
 
 
 def test_backend_has_status_current_endpoint():
     """gui_app.py must expose /api/status/current for the connection check."""
     src = read_file("rex/gui_app.py")
-    assert "/api/status/current" in src, (
-        "gui_app.py must expose /api/status/current for backend connection verification"
-    )
+    assert (
+        "/api/status/current" in src
+    ), "gui_app.py must expose /api/status/current for backend connection verification"
 
 
 def test_backend_status_endpoint_returns_status_field():
     """The /api/status/current handler must return a 'status' field."""
     src = read_file("rex/gui_app.py")
     # The endpoint must return status via jsonify
-    assert "status" in src and "jsonify" in src, (
-        "gui_app.py status endpoint must return a 'status' field via jsonify"
-    )
+    assert (
+        "status" in src and "jsonify" in src
+    ), "gui_app.py status endpoint must return a 'status' field via jsonify"
 
 
 # ---------------------------------------------------------------------------
@@ -178,27 +178,25 @@ def test_backend_status_endpoint_returns_status_field():
 def test_home_page_has_no_fetch_calls():
     """HomePage.tsx must not make fetch() calls (should render without a backend)."""
     src = read_file("gui/src/pages/HomePage.tsx")
-    assert "fetch(" not in src, (
-        "HomePage.tsx must not call fetch() — it must render without backend dependency"
-    )
+    assert (
+        "fetch(" not in src
+    ), "HomePage.tsx must not call fetch() — it must render without backend dependency"
 
 
 def test_home_page_has_no_useeffect_with_api_calls():
     """HomePage.tsx must not contain useEffect with API calls."""
     src = read_file("gui/src/pages/HomePage.tsx")
     # Simple check: no window.rex IPC calls either
-    assert "window.rex" not in src, (
-        "HomePage.tsx must not make IPC calls — it renders static content only"
-    )
+    assert (
+        "window.rex" not in src
+    ), "HomePage.tsx must not make IPC calls — it renders static content only"
 
 
 def test_home_page_renders_static_content():
     """HomePage.tsx must contain static content: heading and nav links."""
     src = read_file("gui/src/pages/HomePage.tsx")
     assert "Home" in src, "HomePage.tsx must contain a 'Home' heading"
-    assert "NavLink" in src or "<Link" in src, (
-        "HomePage.tsx must contain navigation links"
-    )
+    assert "NavLink" in src or "<Link" in src, "HomePage.tsx must contain navigation links"
 
 
 # ---------------------------------------------------------------------------
@@ -217,6 +215,6 @@ def test_error_boundary_is_a_class_component():
     src = read_file("gui/src/components/ErrorBoundary.tsx")
     has_class = "class ErrorBoundary" in src or "Component" in src
     has_catch = "componentDidCatch" in src or "getDerivedStateFromError" in src or "hasError" in src
-    assert has_class or has_catch, (
-        "ErrorBoundary must be a class component or use getDerivedStateFromError"
-    )
+    assert (
+        has_class or has_catch
+    ), "ErrorBoundary must be a class component or use getDerivedStateFromError"

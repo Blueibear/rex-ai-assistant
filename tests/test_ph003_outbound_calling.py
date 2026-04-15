@@ -8,8 +8,6 @@ import sys
 import tempfile
 from unittest import mock
 
-import pytest
-
 from rex.telephony.outbound import (
     detect_call_intent,
     is_phone_number,
@@ -111,17 +109,13 @@ class TestIsPhoneNumber:
 
 class TestLookupContactJson:
     def _make_contacts_file(self, contacts: list[dict]) -> str:
-        fh = tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False, encoding="utf-8"
-        )
+        fh = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8")
         json.dump({"contacts": contacts}, fh)
         fh.close()
         return fh.name
 
     def test_exact_name_match(self):
-        path = self._make_contacts_file(
-            [{"name": "Alice", "phone": "+15550001111"}]
-        )
+        path = self._make_contacts_file([{"name": "Alice", "phone": "+15550001111"}])
         try:
             result = lookup_contact("Alice", path)
             assert result == "+15550001111"
@@ -129,9 +123,7 @@ class TestLookupContactJson:
             os.unlink(path)
 
     def test_partial_name_match(self):
-        path = self._make_contacts_file(
-            [{"name": "Alice Smith", "phone": "+15550001111"}]
-        )
+        path = self._make_contacts_file([{"name": "Alice Smith", "phone": "+15550001111"}])
         try:
             result = lookup_contact("Alice", path)
             assert result == "+15550001111"
@@ -139,9 +131,7 @@ class TestLookupContactJson:
             os.unlink(path)
 
     def test_name_not_found_returns_none(self):
-        path = self._make_contacts_file(
-            [{"name": "Bob", "phone": "+15550002222"}]
-        )
+        path = self._make_contacts_file([{"name": "Bob", "phone": "+15550002222"}])
         try:
             result = lookup_contact("Alice", path)
             assert result is None
@@ -157,9 +147,7 @@ class TestLookupContactJson:
         assert result is None
 
     def test_case_insensitive(self):
-        path = self._make_contacts_file(
-            [{"name": "alice", "phone": "+15550001111"}]
-        )
+        path = self._make_contacts_file([{"name": "alice", "phone": "+15550001111"}])
         try:
             result = lookup_contact("ALICE", path)
             assert result == "+15550001111"
@@ -182,9 +170,7 @@ class TestLookupContactVcf:
     )
 
     def _make_vcf(self, content: str) -> str:
-        fh = tempfile.NamedTemporaryFile(
-            mode="w", suffix=".vcf", delete=False, encoding="utf-8"
-        )
+        fh = tempfile.NamedTemporaryFile(mode="w", suffix=".vcf", delete=False, encoding="utf-8")
         fh.write(content)
         fh.close()
         return fh.name
@@ -214,17 +200,13 @@ class TestLookupContactVcf:
 class TestLogCall:
     def test_log_creates_file(self, tmp_path, monkeypatch):
         log_file = str(tmp_path / "outbound_calls.log")
-        monkeypatch.setattr(
-            "rex.telephony.outbound._OUTBOUND_LOG_FILE", log_file
-        )
+        monkeypatch.setattr("rex.telephony.outbound._OUTBOUND_LOG_FILE", log_file)
         log_call("+15550001111", "initiated:CA123")
         assert os.path.isfile(log_file)
 
     def test_log_contains_number_and_outcome(self, tmp_path, monkeypatch):
         log_file = str(tmp_path / "outbound_calls.log")
-        monkeypatch.setattr(
-            "rex.telephony.outbound._OUTBOUND_LOG_FILE", log_file
-        )
+        monkeypatch.setattr("rex.telephony.outbound._OUTBOUND_LOG_FILE", log_file)
         log_call("+15550001111", "initiated:CA123", message="Hello")
         with open(log_file, encoding="utf-8") as fh:
             record = json.loads(fh.readline())
@@ -235,9 +217,7 @@ class TestLogCall:
 
     def test_log_appends_multiple(self, tmp_path, monkeypatch):
         log_file = str(tmp_path / "outbound_calls.log")
-        monkeypatch.setattr(
-            "rex.telephony.outbound._OUTBOUND_LOG_FILE", log_file
-        )
+        monkeypatch.setattr("rex.telephony.outbound._OUTBOUND_LOG_FILE", log_file)
         log_call("+1111", "ok")
         log_call("+2222", "failed")
         with open(log_file, encoding="utf-8") as fh:

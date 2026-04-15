@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -53,7 +53,7 @@ def test_active_hours_appended_when_not_present() -> None:
     record = _make_record()
 
     fixed_hour = 14
-    fixed_dt = datetime(2024, 1, 1, fixed_hour, 0, 0, tzinfo=timezone.utc)
+    fixed_dt = datetime(2024, 1, 1, fixed_hour, 0, 0, tzinfo=UTC)
     with patch("rex.autonomy.preference_learner.datetime") as mock_dt:
         mock_dt.now.return_value = fixed_dt
         updated = learner.update(record, profile)
@@ -67,7 +67,7 @@ def test_active_hours_not_duplicated() -> None:
     profile.active_hours = [14]
     record = _make_record()
 
-    fixed_dt = datetime(2024, 1, 1, 14, 0, 0, tzinfo=timezone.utc)
+    fixed_dt = datetime(2024, 1, 1, 14, 0, 0, tzinfo=UTC)
     with patch("rex.autonomy.preference_learner.datetime") as mock_dt:
         mock_dt.now.return_value = fixed_dt
         updated = learner.update(record, profile)
@@ -81,7 +81,7 @@ def test_active_hours_multiple_different_hours() -> None:
     record = _make_record()
 
     for hour in (9, 17):
-        fixed_dt = datetime(2024, 1, 1, hour, 0, 0, tzinfo=timezone.utc)
+        fixed_dt = datetime(2024, 1, 1, hour, 0, 0, tzinfo=UTC)
         with patch("rex.autonomy.preference_learner.datetime") as mock_dt:
             mock_dt.now.return_value = fixed_dt
             profile = learner.update(record, profile)
@@ -101,7 +101,7 @@ def test_avg_budget_initialised_from_first_record() -> None:
     record = _make_record(cost=0.10)
 
     with patch("rex.autonomy.preference_learner.datetime") as mock_dt:
-        mock_dt.now.return_value = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        mock_dt.now.return_value = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
         updated = learner.update(record, profile)
 
     assert updated.avg_budget_usd == pytest.approx(0.10)
@@ -114,7 +114,7 @@ def test_avg_budget_ema_applied_on_subsequent_records() -> None:
 
     record = _make_record(cost=0.20)
 
-    fixed_dt = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    fixed_dt = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
     with patch("rex.autonomy.preference_learner.datetime") as mock_dt:
         mock_dt.now.return_value = fixed_dt
         updated = learner.update(record, profile)
@@ -129,7 +129,7 @@ def test_avg_budget_zero_cost_record() -> None:
     record = _make_record(cost=0.0)
 
     with patch("rex.autonomy.preference_learner.datetime") as mock_dt:
-        mock_dt.now.return_value = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        mock_dt.now.return_value = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
         updated = learner.update(record, profile)
 
     assert updated.avg_budget_usd == pytest.approx(0.0)
@@ -146,7 +146,7 @@ def test_goal_pattern_added_to_empty_list() -> None:
     record = _make_record(goal="search the web")
 
     with patch("rex.autonomy.preference_learner.datetime") as mock_dt:
-        mock_dt.now.return_value = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        mock_dt.now.return_value = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
         updated = learner.update(record, profile)
 
     assert "search the web" in updated.common_goal_patterns
@@ -159,7 +159,7 @@ def test_goal_pattern_deduplicated_and_moved_to_front() -> None:
     record = _make_record(goal="search the web")
 
     with patch("rex.autonomy.preference_learner.datetime") as mock_dt:
-        mock_dt.now.return_value = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        mock_dt.now.return_value = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
         updated = learner.update(record, profile)
 
     assert updated.common_goal_patterns[0] == "search the web"
@@ -173,7 +173,7 @@ def test_goal_patterns_capped_at_20_entries() -> None:
     record = _make_record(goal="new goal")
 
     with patch("rex.autonomy.preference_learner.datetime") as mock_dt:
-        mock_dt.now.return_value = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        mock_dt.now.return_value = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
         updated = learner.update(record, profile)
 
     assert len(updated.common_goal_patterns) == 20
@@ -188,7 +188,7 @@ def test_empty_goal_not_added_to_patterns() -> None:
     record = _make_record(goal="   ")  # whitespace-only goal
 
     with patch("rex.autonomy.preference_learner.datetime") as mock_dt:
-        mock_dt.now.return_value = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        mock_dt.now.return_value = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
         updated = learner.update(record, profile)
 
     assert updated.common_goal_patterns == []
@@ -208,7 +208,7 @@ def test_update_returns_new_profile_does_not_mutate_original() -> None:
     record = _make_record(goal="new goal")
 
     with patch("rex.autonomy.preference_learner.datetime") as mock_dt:
-        mock_dt.now.return_value = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        mock_dt.now.return_value = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
         updated = learner.update(record, profile)
 
     assert profile.common_goal_patterns == original_patterns
@@ -225,7 +225,7 @@ def test_last_updated_set_to_now() -> None:
     profile = _default_profile()
     record = _make_record()
 
-    fixed_dt = datetime(2030, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
+    fixed_dt = datetime(2030, 6, 15, 12, 0, 0, tzinfo=UTC)
     with patch("rex.autonomy.preference_learner.datetime") as mock_dt:
         mock_dt.now.return_value = fixed_dt
         updated = learner.update(record, profile)

@@ -14,9 +14,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-
 # ---------------------------------------------------------------------------
 # load_app_registry
 # ---------------------------------------------------------------------------
@@ -143,7 +140,7 @@ class TestPlatformDispatch:
     def test_windows_uses_startfile(self, tmp_path: Path) -> None:
         from rex.computers import app_launcher
 
-        reg = self._make_registry(tmp_path)
+        self._make_registry(tmp_path)
         mock_startfile = MagicMock()
         with (
             patch.object(sys, "platform", "win32"),

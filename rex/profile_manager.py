@@ -88,9 +88,7 @@ def ensure_default_profile(profiles_dir: str = DEFAULT_PROFILES_DIR) -> bool:
         dest.write_text(example.read_text(encoding="utf-8"), encoding="utf-8")
         logger.info("Created profiles/default.json from default.example.json")
     else:
-        dest.write_text(
-            json.dumps(_MINIMAL_DEFAULT_PROFILE, indent=2), encoding="utf-8"
-        )
+        dest.write_text(json.dumps(_MINIMAL_DEFAULT_PROFILE, indent=2), encoding="utf-8")
         logger.info("Created profiles/default.json with minimal defaults")
 
     return True
