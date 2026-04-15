@@ -3683,6 +3683,7 @@ For more information, visit: https://github.com/Blueibear/rex-ai-assistant
     doctor_parser.add_argument(
         "--debug",
         action="store_true",
+        default=argparse.SUPPRESS,
         help="Include additional low-level diagnostic info (log level, env vars)",
     )
     doctor_parser.set_defaults(func=cmd_doctor)
