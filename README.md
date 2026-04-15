@@ -8,6 +8,7 @@
   <img src="https://github.com/Blueibear/AskRex-Assistant/actions/workflows/ci.yml/badge.svg" alt="CI status" />
   <img src="https://img.shields.io/badge/python-3.11-blue" alt="Python 3.11" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />
+  <a href="https://www.buymeacoffee.com/Blueibear" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 28px !important;width: 120px !important;" ></a>
 </p>
 
 AskRex Assistant is a local-first AI assistant for text chat, wake-word voice interaction, desktop control surfaces, and credential-gated home/productivity integrations. It runs from the Python `rex` package, with optional local ML dependencies for Whisper, openWakeWord, and XTTS, plus optional cloud/local LLM routing through OpenAI-compatible providers and Ollama.
