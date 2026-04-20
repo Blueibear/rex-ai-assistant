@@ -252,9 +252,7 @@ def _ensure_file_handlers(
     added = False
     if not _has_rotating_handler(root_logger, log_path):
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        handler = RotatingFileHandler(
-            log_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
-        )
+        handler = RotatingFileHandler(log_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8")
         handler.setFormatter(formatter)
         root_logger.addHandler(handler)
         added = True

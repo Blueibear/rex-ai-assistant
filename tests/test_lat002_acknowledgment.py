@@ -238,9 +238,7 @@ def test_tts_strips_tool_request_prefix_when_answer_follows():
     async def _run():
         with patch("builtins.print") as mock_print:
             await tts.speak(text)
-            mock_print.assert_called_once_with(
-                "Rex: The current local time in Dallas is 3:33 AM."
-            )
+            mock_print.assert_called_once_with("Rex: The current local time in Dallas is 3:33 AM.")
 
     asyncio.run(_run())
 

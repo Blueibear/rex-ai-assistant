@@ -11,7 +11,6 @@ RELATIONSHIP NOTE — two voice_loop files exist in this repo:
 
 from __future__ import annotations
 
-import time
 import asyncio
 import inspect
 import io
@@ -23,6 +22,7 @@ import shutil
 import sys
 import tempfile
 import threading
+import time
 import warnings
 import wave
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -987,7 +987,12 @@ class TextToSpeech:
 
         try:
             communicate = edge_tts.Communicate(text, self._current_edge_voice())
-            logger.warning("EDGE DEBUG: entered _speak_edge voice=%s sa=%s text=%r", self._current_edge_voice(), sa is not None, text[:120])
+            logger.warning(
+                "EDGE DEBUG: entered _speak_edge voice=%s sa=%s text=%r",
+                self._current_edge_voice(),
+                sa is not None,
+                text[:120],
+            )
             await communicate.save(output_path)
 
             if Path(output_path).exists():
@@ -1001,6 +1006,7 @@ class TextToSpeech:
                     await asyncio.to_thread(_convert)
 
                     if sa is not None:
+
                         def _play(_path=wav_path) -> None:
                             wave_obj = sa.WaveObject.from_wave_file(_path)
                             play_obj = wave_obj.play()
@@ -1012,7 +1018,7 @@ class TextToSpeech:
                     else:
                         logger.error(
                             "LOCAL PLAYBACK ERROR: simpleaudio is not available in _speak_edge"
-                        )   
+                        )
                 finally:
                     try:
                         os.unlink(wav_path)
@@ -1589,7 +1595,7 @@ def build_voice_loop(
             backend=getattr(settings, "wakeword_backend", None),
             fallback_to_builtin=getattr(settings, "wakeword_fallback_to_builtin", True),
             fallback_keyword=getattr(settings, "wakeword_fallback_keyword", "hey jarvis"),
-     )
+        )
     except Exception as exc:
         logger.error(
             "[Pipeline] Wake-word stage failed: %s",

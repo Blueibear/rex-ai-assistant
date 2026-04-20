@@ -143,13 +143,15 @@ async def _run_real_loop() -> None:
     emit({"type": "status", "status": "importing_rex"})
     import rex
     from rex import settings as rex_settings
+
     emit({"type": "status", "status": "importing_assistant"})
-    from rex.assistant import Assistant
     from rex import config as rex_config_module
+    from rex.assistant import Assistant
     from rex.config import load_config as load_runtime_config
     from rex.logging_utils import configure_logging
     from rex.plugins import load_plugins
     from rex.services import initialize_services
+
     emit({"type": "status", "status": "importing_voice_loop"})
     import rex.voice_loop as voice_loop_module
     from rex.voice_loop import (
@@ -159,6 +161,7 @@ async def _run_real_loop() -> None:
         VoiceLoop,
         WakeAcknowledgement,
     )
+
     emit({"type": "status", "status": "importing_wakeword_detector"})
     from rex.wakeword.listener import build_default_detector
 
@@ -180,9 +183,7 @@ async def _run_real_loop() -> None:
 
     # Read voice settings from config with sensible defaults
     sample_rate = int(getattr(active_settings, "sample_rate", 16000) or 16000)
-    detection_seconds = float(
-        getattr(active_settings, "detection_frame_seconds", 1.0) or 1.0
-    )
+    detection_seconds = float(getattr(active_settings, "detection_frame_seconds", 1.0) or 1.0)
     capture_seconds = float(
         getattr(active_settings, "capture_seconds", None)
         or getattr(active_settings, "command_duration", 5.0)

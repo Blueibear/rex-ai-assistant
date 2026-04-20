@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from rex.config import AppConfig, build_app_config, load_config
+from rex.config import AppConfig, _migrate_wake_word_section, build_app_config, load_config
 from rex.config_manager import DEFAULT_CONFIG
 from rex.config_manager import load_config as load_json_config
 
@@ -43,6 +43,38 @@ class TestConfigLoadsFromFile:
         }
         cfg = build_app_config(json_cfg)
         assert cfg.wakeword == "hello-rex"
+
+    def test_build_app_config_reads_canonical_wakeword(self):
+        """build_app_config picks up canonical wakeword.wakeword from JSON config."""
+        json_cfg = {
+            "wakeword": {"wakeword": "hello-modern"},
+            "models": {"llm_provider": "transformers", "llm_model": "sshleifer/tiny-gpt2"},
+        }
+        cfg = build_app_config(json_cfg)
+        assert cfg.wakeword == "hello-modern"
+
+    def test_wake_word_migration_handles_missing_key(self):
+        """Migration is a no-op when neither wake_word nor wakeword is present."""
+        json_cfg = {"models": {"llm_provider": "transformers"}}
+        migrated = _migrate_wake_word_section(json_cfg)
+        assert migrated == {"models": {"llm_provider": "transformers"}}
+
+    def test_wake_word_migration_merges_legacy_without_overwriting_canonical(self):
+        """Legacy wake_word fills missing canonical values but preserves wakeword values."""
+        json_cfg = {
+            "wakeword": {"wakeword": "modern"},
+            "wake_word": {"wakeword": "legacy", "threshold": 0.25},
+        }
+        migrated = _migrate_wake_word_section(json_cfg)
+        assert "wake_word" not in migrated
+        assert migrated["wakeword"] == {"wakeword": "modern", "threshold": 0.25}
+
+    def test_wake_word_migration_is_idempotent(self):
+        """Migration can run repeatedly without raising or changing the migrated result."""
+        json_cfg = {"wake_word": {"wakeword": "legacy", "threshold": 0.25}}
+        first = _migrate_wake_word_section(json_cfg)
+        second = _migrate_wake_word_section(first)
+        assert second == {"wakeword": {"wakeword": "legacy", "threshold": 0.25}}
 
     def test_build_app_config_reads_rate_limit(self):
         """build_app_config picks up api.rate_limit from JSON config."""

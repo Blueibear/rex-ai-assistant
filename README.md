@@ -286,7 +286,7 @@ rex ha tts test --message "Hello from Rex"
 Windows PowerShell:
 
 ```powershell
-$env:REX_SPEAK_API_KEY = "change-me"
+$env:REX_SPEAK_API_KEY = "change-me"  # pragma: allowlist secret
 rex-speak-api
 ```
 
@@ -312,7 +312,7 @@ curl -X POST http://127.0.0.1:5005/speak \
 Windows PowerShell:
 
 ```powershell
-$env:REX_TOOL_API_KEY = "change-me"
+$env:REX_TOOL_API_KEY = "change-me"  # pragma: allowlist secret
 rex-tool-server
 ```
 

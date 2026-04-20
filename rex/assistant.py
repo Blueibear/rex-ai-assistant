@@ -1041,10 +1041,7 @@ class Assistant:
                     "Do not request another tool unless the tool result is missing or invalid."
                 ),
             },
-            *[
-                {"role": turn.speaker, "content": turn.text}
-                for turn in self._history[-4:]
-            ],
+            *[{"role": turn.speaker, "content": turn.text} for turn in self._history[-4:]],
             {"role": "user", "content": transcript},
         ]
 

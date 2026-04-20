@@ -557,15 +557,19 @@ def _migrate_wake_word_section(json_config: dict) -> dict:
     removed.  A deprecation notice is logged so operators know to update their
     config files.
     """
-    if "wake_word" in json_config:
+    legacy = json_config.pop("wake_word", None)
+    if legacy is None:
         return json_config
+
     LOGGER.warning(
         "Config key 'wake_word' is deprecated — rename it to 'wakeword' in "
         "rex_config.json.  Values have been migrated automatically for this run."
     )
-    legacy = json_config.pop("wake_word")
     if isinstance(legacy, dict):
-        canonical = json_config.setdefault("wakeword", {})
+        canonical = json_config.get("wakeword")
+        if not isinstance(canonical, dict):
+            canonical = {}
+            json_config["wakeword"] = canonical
         for k, v in legacy.items():
             canonical.setdefault(k, v)
     return json_config

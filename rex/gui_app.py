@@ -250,13 +250,16 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
     def _logs_download() -> Any:
         """Download the current log file."""
         if not _LOG_FILE.exists():
-            return jsonify(
-                {
-                    "error": "Active log file not found",
-                    "active_log_path": str(_LOG_FILE),
-                    "legacy_log_path": str(_LEGACY_LOG_FILE),
-                }
-            ), 404
+            return (
+                jsonify(
+                    {
+                        "error": "Active log file not found",
+                        "active_log_path": str(_LOG_FILE),
+                        "legacy_log_path": str(_LEGACY_LOG_FILE),
+                    }
+                ),
+                404,
+            )
         return send_from_directory(
             str(_LOG_FILE.parent),
             _LOG_FILE.name,
