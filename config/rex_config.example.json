@@ -38,6 +38,8 @@
   "runtime": {
     "log_level": "INFO",
     "file_logging_enabled": false,
+    "log_path": "data/logs/rex.log",
+    "error_log_path": "data/logs/error.log",
     "transcripts_enabled": true,
     "transcripts_dir": "transcripts",
     "active_user": null,

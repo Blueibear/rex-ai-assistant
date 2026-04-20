@@ -4,6 +4,8 @@ import asyncio
 import re
 from datetime import UTC, datetime
 
+import pytest
+
 import rex.assistant as assistant_module
 
 
@@ -363,7 +365,149 @@ def test_chat_tool_request_routes_time_now(monkeypatch, tmp_path):
     monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
 
     asst = assistant_module.Assistant(transcripts_dir=tmp_path)
-    reply = asyncio.run(asst.generate_reply("What time is it in Dallas?"))
+    reply = asyncio.run(asst.generate_reply("Please check the clock for Dallas."))
 
     assert call_count == 2, "LLM should be called twice: once for tool request, once with result"
     assert "Dallas" in reply
+
+
+def test_generate_reply_direct_time_query_bypasses_llm(monkeypatch, tmp_path):
+    class BlockingLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            raise AssertionError("direct time query should not call the LLM")
+
+        def stream(self, *args, **kwargs):
+            raise AssertionError("direct time query should not stream from the LLM")
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
+
+    from rex.config import AppConfig
+
+    cfg = AppConfig(
+        llm_provider="transformers",
+        persist_history=False,
+        response_cache_ttl=0,
+        default_location="Dallas, TX",
+        default_timezone="America/Chicago",
+    )
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+
+    reply = asyncio.run(asst.generate_reply("What time is it?"))
+
+    assert reply.startswith("It's ")
+    assert "Dallas, TX" in reply
+
+
+DIRECT_DAY_DATE_QUERIES = [
+    "What day is today?",
+    "What day is it today?",
+    "What's the day today?",
+    "Whats the day today?",
+    "What day is it?",
+    "What's today's date?",
+    "What is today's date?",
+    "Whats todays date?",
+]
+
+
+@pytest.mark.parametrize("query", DIRECT_DAY_DATE_QUERIES)
+def test_generate_reply_direct_day_date_query_bypasses_llm(monkeypatch, tmp_path, query):
+    class BlockingLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            raise AssertionError("direct day/date query should not call the LLM")
+
+        def stream(self, *args, **kwargs):
+            raise AssertionError("direct day/date query should not stream from the LLM")
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
+
+    from rex.config import AppConfig
+
+    cfg = AppConfig(
+        llm_provider="transformers",
+        persist_history=False,
+        response_cache_ttl=0,
+        default_location="Dallas, TX",
+        default_timezone="America/Chicago",
+    )
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+
+    reply = asyncio.run(asst.generate_reply(query))
+
+    assert reply.startswith("Today is ")
+    assert "Dallas, TX" in reply
+
+
+def test_stream_reply_direct_time_query_bypasses_llm(monkeypatch, tmp_path):
+    class BlockingLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            raise AssertionError("direct time query should not call the LLM")
+
+        def stream(self, *args, **kwargs):
+            raise AssertionError("direct time query should not stream from the LLM")
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
+
+    from rex.config import AppConfig
+
+    cfg = AppConfig(
+        llm_provider="transformers",
+        persist_history=False,
+        response_cache_ttl=0,
+        default_location="Dallas, TX",
+        default_timezone="America/Chicago",
+    )
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+
+    async def collect():
+        return [chunk async for chunk in asst.stream_reply("What time is it?")]
+
+    chunks = asyncio.run(collect())
+
+    assert len(chunks) == 1
+    assert chunks[0].startswith("It's ")
+    assert "Dallas, TX" in chunks[0]
+
+
+@pytest.mark.parametrize("query", DIRECT_DAY_DATE_QUERIES)
+def test_stream_reply_direct_day_date_query_bypasses_llm(monkeypatch, tmp_path, query):
+    class BlockingLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            raise AssertionError("direct day/date query should not call the LLM")
+
+        def stream(self, *args, **kwargs):
+            raise AssertionError("direct day/date query should not stream from the LLM")
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
+
+    from rex.config import AppConfig
+
+    cfg = AppConfig(
+        llm_provider="transformers",
+        persist_history=False,
+        response_cache_ttl=0,
+        default_location="Dallas, TX",
+        default_timezone="America/Chicago",
+    )
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+
+    async def collect():
+        return [chunk async for chunk in asst.stream_reply(query)]
+
+    chunks = asyncio.run(collect())
+
+    assert len(chunks) == 1
+    assert chunks[0].startswith("Today is ")
+    assert "Dallas, TX" in chunks[0]

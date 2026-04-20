@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import TYPE_CHECKING
 from urllib.parse import quote_plus
 
@@ -30,6 +31,17 @@ else:
 logger = logging.getLogger(__name__)
 
 _MAX_QUERY_LENGTH = 500
+_EXPLICIT_SEARCH_RE = re.compile(
+    r"^\s*(?:"
+    r"search(?:\s+(?:the\s+web|online))?(?:\s+for)?|"
+    r"web\s+search(?:\s+for)?|"
+    r"google|"
+    r"look\s+(?:up|online\s+for|on\s+the\s+web\s+for)|"
+    r"lookup|"
+    r"find(?:\s+me)?"
+    r")\s+(.+?)\s*$",
+    re.IGNORECASE,
+)
 
 
 def _sanitize_query(query: str) -> str:
@@ -37,6 +49,14 @@ def _sanitize_query(query: str) -> str:
     sanitized = "".join(ch if ch >= " " or ch in "\t\n" else " " for ch in query)
     sanitized = " ".join(sanitized.split())
     return sanitized[:_MAX_QUERY_LENGTH]
+
+
+def _extract_explicit_search_query(text: str) -> str | None:
+    match = _EXPLICIT_SEARCH_RE.match(text)
+    if match is None:
+        return None
+    query = _sanitize_query(match.group(1))
+    return query or None
 
 
 # API Endpoints
@@ -80,7 +100,16 @@ class WebSearchPlugin:
             self._session.close()
 
     def process(self, query: str) -> str | None:
+        explicit_query = _extract_explicit_search_query(query)
+        if explicit_query is None:
+            logger.debug("Skipping web search plugin; no explicit search intent")
+            return None
+        return self.search(explicit_query)
+
+    def search(self, query: str) -> str | None:
         query = _sanitize_query(query)
+        if not query:
+            return None
         for provider in self._provider_order():
             method = getattr(self, f"_search_{provider}", None)
             if callable(method):
@@ -257,7 +286,7 @@ def _get_plugin() -> WebSearchPlugin:
 
 def search_web(query: str) -> str | None:
     """Search the web using the configured fallback order."""
-    return _get_plugin().process(query)
+    return _get_plugin().search(query)
 
 
 def search_serpapi(query: str) -> str | None:

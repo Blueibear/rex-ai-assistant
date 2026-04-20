@@ -1,6 +1,6 @@
 import { app, ipcMain } from 'electron'
-import { existsSync, readFileSync, statSync, watch } from 'fs'
-import { join } from 'path'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, watch } from 'fs'
+import { basename, dirname, join, resolve } from 'path'
 import type { FSWatcher } from 'fs'
 
 export interface LogEntry {
@@ -12,11 +12,79 @@ export interface LogEntry {
   raw?: string
 }
 
-const LOG_TAIL_LINES = 200
+interface LogReadResult {
+  ok: boolean
+  entries: LogEntry[]
+  log_path?: string
+  legacy_log_path?: string
+  log_source?: string
+  timestamp_basis?: string
+  error?: string
+}
 
-function resolveLogFile(): string {
-  // Prefer a log file relative to the app's working directory.
-  return join(app.getAppPath(), '..', 'logs', 'rex.log')
+const LOG_TAIL_LINES = 200
+const SESSION_ID = `${new Date().toISOString().replace(/[:.]/g, '-')}-${process.pid}`
+
+function resolveRepoRoot(): string {
+  const candidates = [
+    join(app.getAppPath(), '..'),
+    app.getAppPath(),
+    process.cwd(),
+    join(__dirname, '..', '..', '..')
+  ]
+
+  for (const candidate of candidates) {
+    const root = resolve(candidate)
+    if (existsSync(join(root, 'config', 'rex_config.json')) || existsSync(join(root, 'rex_chat_stream_bridge.py'))) {
+      return root
+    }
+  }
+
+  return resolve(join(app.getAppPath(), '..'))
+}
+
+export function resolveActiveLogFile(): string {
+  return join(resolveRepoRoot(), 'data', 'logs', 'rex.log')
+}
+
+export function resolveLegacyLogFile(): string {
+  return join(resolveRepoRoot(), 'logs', 'rex.log')
+}
+
+function ensureLogFile(logPath: string): void {
+  mkdirSync(dirname(logPath), { recursive: true })
+  if (!existsSync(logPath)) {
+    appendFileSync(logPath, '', 'utf-8')
+  }
+}
+
+export function appendElectronLog(level: string, message: string, extra: Record<string, unknown> = {}): void {
+  const logPath = resolveActiveLogFile()
+  const legacyPath = resolveLegacyLogFile()
+  ensureLogFile(logPath)
+  const entry = {
+    timestamp: new Date().toISOString(),
+    level,
+    logger: 'electron.main',
+    message,
+    extra: {
+      ...extra,
+      component: 'electron-gui',
+      session_id: SESSION_ID,
+      timestamp_basis: 'UTC',
+      active_log_path: logPath,
+      legacy_log_path: legacyPath
+    }
+  }
+  appendFileSync(logPath, `${JSON.stringify(entry)}\n`, 'utf-8')
+}
+
+export function writeElectronSessionStart(): void {
+  appendElectronLog(
+    'INFO',
+    '=== AskRex Electron GUI session started ===',
+    { event: 'session_start' }
+  )
 }
 
 function parseLogLine(line: string): LogEntry | null {
@@ -29,11 +97,18 @@ function parseLogLine(line: string): LogEntry | null {
       level: String(obj.level ?? 'INFO'),
       logger: String(obj.logger ?? ''),
       message: String(obj.message ?? trimmed),
-      extra: (obj.extra as Record<string, unknown>) ?? {}
+      extra: (obj.extra as Record<string, unknown>) ?? {},
+      raw: trimmed
     }
   } catch {
-    // Non-JSON line — wrap as plain message.
-    return { timestamp: '', level: 'INFO', logger: '', message: trimmed, extra: {} }
+    return {
+      timestamp: '',
+      level: 'INFO',
+      logger: 'legacy',
+      message: trimmed,
+      extra: { format: 'legacy_or_plain_text' },
+      raw: trimmed
+    }
   }
 }
 
@@ -49,34 +124,39 @@ function readLastLines(filePath: string, n: number): LogEntry[] {
   }
 }
 
-// Active watcher state — only one active at a time.
+// Active watcher state. Only one active watcher is needed for the GUI page.
 let activeWatcher: FSWatcher | null = null
 let lastSize = 0
 
 export function registerLogsHandlers(): void {
   ipcMain.handle(
     'rex:getLogs',
-    async (_event, limit: number = LOG_TAIL_LINES): Promise<{ ok: boolean; entries: LogEntry[]; log_path?: string; error?: string }> => {
-      const logPath = resolveLogFile()
+    async (_event, limit: number = LOG_TAIL_LINES): Promise<LogReadResult> => {
+      const logPath = resolveActiveLogFile()
+      const legacyPath = resolveLegacyLogFile()
+      ensureLogFile(logPath)
       const entries = readLastLines(logPath, limit)
-      return { ok: true, entries, log_path: logPath }
+      return {
+        ok: true,
+        entries,
+        log_path: logPath,
+        legacy_log_path: legacyPath,
+        log_source: 'active_current_session',
+        timestamp_basis: 'UTC'
+      }
     }
   )
 
   ipcMain.handle(
     'rex:startLogTail',
-    async (event): Promise<{ ok: boolean; error?: string }> => {
-      // Stop any existing watcher.
+    async (event): Promise<{ ok: boolean; log_path?: string; error?: string }> => {
       if (activeWatcher) {
         try { activeWatcher.close() } catch { /* ignore */ }
         activeWatcher = null
       }
 
-      const logPath = resolveLogFile()
-      if (!existsSync(logPath)) {
-        // File doesn't exist yet — watch parent dir for creation.
-        return { ok: true }
-      }
+      const logPath = resolveActiveLogFile()
+      ensureLogFile(logPath)
 
       try {
         lastSize = statSync(logPath).size
@@ -100,12 +180,14 @@ export function registerLogsHandlers(): void {
                 event.sender.send('rex:logEntry', entry)
               }
             }
-          } catch { /* file rotated or unreadable */ }
+          } catch {
+            // File may be rotated or temporarily unreadable.
+          }
         })
 
-        return { ok: true }
+        return { ok: true, log_path: logPath }
       } catch (err) {
-        return { ok: false, error: String(err) }
+        return { ok: false, log_path: logPath, error: String(err) }
       }
     }
   )
@@ -123,16 +205,14 @@ export function registerLogsHandlers(): void {
 
   ipcMain.handle(
     'rex:downloadLogs',
-    async (): Promise<{ ok: boolean; content?: string; filename?: string; error?: string }> => {
-      const logPath = resolveLogFile()
-      if (!existsSync(logPath)) {
-        return { ok: false, error: 'Log file not found.' }
-      }
+    async (): Promise<{ ok: boolean; content?: string; filename?: string; log_path?: string; error?: string }> => {
+      const logPath = resolveActiveLogFile()
+      ensureLogFile(logPath)
       try {
         const content = readFileSync(logPath, 'utf-8')
-        return { ok: true, content, filename: 'rex.log' }
+        return { ok: true, content, filename: basename(logPath), log_path: logPath }
       } catch (err) {
-        return { ok: false, error: String(err) }
+        return { ok: false, log_path: logPath, error: String(err) }
       }
     }
   )

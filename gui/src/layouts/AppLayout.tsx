@@ -4,8 +4,8 @@ import { useNotificationsStore } from '../store/notificationsStore'
 import { useGlobalShortcuts } from '../hooks/useGlobalShortcuts'
 import { HelpOverlay } from '../components/HelpOverlay'
 import { Tooltip } from '../components/ui/Tooltip'
-import brandIcon from '../assets/brand-icon.png'
-import brandWordmark from '../assets/brand-wordmark-light.png'
+import brandIcon from "../assets/icon_square.png";
+import brandWordmark from "../assets/Horizontal-UI-Wordmark.png";
 
 type RexStatusValue = 'idle' | 'listening' | 'thinking' | 'executing' | 'done' | 'error'
 
@@ -31,27 +31,37 @@ function useRexStatus(): RexStatusValue {
   const [status, setStatus] = useState<RexStatusValue>('idle')
 
   useEffect(() => {
-    // Load initial status.
-    fetch('/api/status/current')
-      .then((r) => r.json())
-      .then((d) => {
-        const s = (d as { status?: string }).status ?? 'idle'
-        setStatus(s as RexStatusValue)
-      })
-      .catch(() => {/* ignore */})
+    let cancelled = false
 
-    // Stream status changes.
-    let es: EventSource | null = null
-    try {
-      es = new EventSource('/api/status/stream')
-      es.onmessage = (event) => {
-        setStatus((event.data as string).trim() as RexStatusValue)
-      }
-    } catch {
-      // SSE not available — fall back to polling.
+    const loadStatus = (): void => {
+      void window.rex
+        .getStatus()
+        .then((d) => {
+          if (cancelled) return
+          const s = d.status ?? 'idle'
+          setStatus(s as RexStatusValue)
+        })
+        .catch(() => {
+          // Keep the last known status if the bridge is not ready yet.
+        })
     }
+
+    loadStatus()
+    const interval = window.setInterval(loadStatus, 1500)
     return () => {
-      es?.close()
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [])
+
+  useEffect(() => {
+    const cleanup = window.rex.onStatusChange?.((nextStatus) => {
+      if (nextStatus) {
+        setStatus(nextStatus.trim() as RexStatusValue)
+      }
+    })
+    return () => {
+      cleanup?.()
     }
   }, [])
 
@@ -369,18 +379,21 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
         style={{ width: narrow ? 64 : 240 }}
       >
         {/* Logo / wordmark */}
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-border">
-          <img
-            src={brandIcon}
-            alt="AskRex Assistant"
-            className="flex-shrink-0 w-8 h-8 rounded-lg object-contain"
-          />
-          {!narrow && (
+        <div className="flex items-center px-4 py-4 border-b border-border">
+          {narrow ? (
             <img
-              src={brandWordmark}
+              src={brandIcon}
               alt="AskRex Assistant"
-              className="h-6 object-contain"
+              className="w-10 h-10 object-contain"
             />
+          ) : (
+            <div className="flex items-center h-10">
+              <img
+                src={brandWordmark}
+                alt="AskRex"
+                className="h-full w-auto object-contain"
+              />
+            </div>
           )}
         </div>
 

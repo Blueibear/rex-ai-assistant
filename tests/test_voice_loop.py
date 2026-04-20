@@ -59,6 +59,17 @@ async def _transcribe(_: np.ndarray) -> str:
     return "hello world"
 
 
+async def _transcribe_time(_: np.ndarray) -> str:
+    return "what time is it"
+
+
+async def _transcribe_filler(_: np.ndarray) -> str:
+    return (
+        "Okay. Nope music. Good annably. OK. Next screen. Okay. Good. Okay. "
+        "Nowey. Thank you. Yes. Thank you. Thank you very much."
+    )
+
+
 async def _speak(_: str) -> None:
     pass
 
@@ -146,6 +157,56 @@ def test_voice_loop_handles_transcription_error():
 
     assert assistant.calls == []
     assert spoken == []
+
+
+@pytest.mark.unit
+def test_voice_loop_ignores_likely_stt_hallucination():
+    assistant = DummyAssistant()
+    listener = DummyListener()
+    spoken = []
+
+    async def speak(text: str) -> None:
+        spoken.append(text)
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=listener,
+        detection_source=_constant_frame,
+        record_phrase=_record_phrase,
+        transcribe=_transcribe_filler,
+        speak=speak,
+        acknowledge=None,
+    )
+
+    asyncio.run(loop.run(max_interactions=1))
+
+    assert assistant.calls == []
+    assert spoken == []
+
+
+@pytest.mark.unit
+def test_voice_loop_allows_actionable_transcript():
+    assistant = DummyAssistant()
+    listener = DummyListener()
+    spoken = []
+
+    async def speak(text: str) -> None:
+        spoken.append(text)
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=listener,
+        detection_source=_constant_frame,
+        record_phrase=_record_phrase,
+        transcribe=_transcribe_time,
+        speak=speak,
+        acknowledge=None,
+    )
+
+    asyncio.run(loop.run(max_interactions=1))
+
+    assert assistant.calls == ["what time is it"]
+    assert spoken == ["ok."]
 
 
 @pytest.mark.unit

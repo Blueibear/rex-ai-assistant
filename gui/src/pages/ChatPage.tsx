@@ -89,14 +89,28 @@ export function ChatPage(): React.ReactElement {
       setMessages((prev) => [...prev, rexMsg])
 
       try {
+        let receivedToken = false
         await window.rex.sendChatStream(augmentedText, (token) => {
           setMessages((prev) =>
-            prev.map((m) => (m.id === rexMsgId ? { ...m, content: m.content + token } : m))
+            prev.map((m) =>
+              m.id === rexMsgId
+                ? { ...m, content: receivedToken ? m.content + token : token }
+                : m
+            )
           )
+          receivedToken = true
         })
         // Finalize: remove streaming cursor
         setMessages((prev) =>
-          prev.map((m) => (m.id === rexMsgId ? { ...m, streaming: false } : m))
+          prev.map((m) =>
+            m.id === rexMsgId
+              ? {
+                  ...m,
+                  content: receivedToken ? m.content : 'I did not receive a reply from the model.',
+                  streaming: false
+                }
+              : m
+          )
         )
       } catch (err) {
         setMessages((prev) =>

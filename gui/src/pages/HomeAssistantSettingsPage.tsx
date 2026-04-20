@@ -13,16 +13,11 @@ export function HomeAssistantSettingsPage(): React.ReactElement {
 
   // Pre-populate from current config (best-effort).
   useEffect(() => {
-    fetch('/api/integrations')
-      .then((r) => r.json())
-      .then((d) => {
-        const intgs = (d as { integrations?: Array<{ key: string; configured: boolean }> })
-          .integrations
-        const ha = intgs?.find((i) => i.key === 'home_assistant')
-        if (ha?.configured) {
-          // We can't retrieve the actual values from the API (secrets are server-side),
-          // but we can indicate that HA is currently configured.
-        }
+    window.rex
+      .getSettings('integrations')
+      .then((settings) => {
+        if (typeof settings.haUrl === 'string') setHaBaseUrl(settings.haUrl)
+        if (typeof settings.haToken === 'string') setHaToken(settings.haToken)
       })
       .catch(() => {/* ignore */})
   }, [])
@@ -31,12 +26,7 @@ export function HomeAssistantSettingsPage(): React.ReactElement {
     setTestStatus('testing')
     setTestError('')
     try {
-      const resp = await fetch('/api/ha/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ha_base_url: haBaseUrl, ha_token: haToken })
-      })
-      const body = (await resp.json()) as { ok: boolean; error?: string }
+      const body = await window.rex.testHomeAssistant(haBaseUrl, haToken)
       if (body.ok) {
         setTestStatus('success')
       } else {
@@ -52,21 +42,12 @@ export function HomeAssistantSettingsPage(): React.ReactElement {
   const handleSave = async (): Promise<void> => {
     setSaveStatus('saving')
     setSaveError('')
-    const token = localStorage.getItem('rex_token') ?? ''
     try {
-      const resp = await fetch('/api/ha/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ ha_base_url: haBaseUrl, ha_token: haToken })
-      })
+      const resp = await window.rex.saveHomeAssistant(haBaseUrl, haToken)
       if (resp.ok) {
         setSaveStatus('saved')
       } else {
-        const body = (await resp.json()) as { error?: string }
-        setSaveError(body.error ?? 'Save failed.')
+        setSaveError(resp.error ?? 'Save failed.')
         setSaveStatus('error')
       }
     } catch {

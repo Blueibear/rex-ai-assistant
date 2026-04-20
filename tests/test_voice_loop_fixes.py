@@ -176,8 +176,9 @@ class TestVoiceLoopToolRouting:
         assert "voice_mode=True" in source, "_process_conversation should pass voice_mode=True"
 
     def test_generate_reply_routes_time_query(self):
-        """Assistant.generate_reply should route 'what time is it?' through tools."""
+        """Assistant.generate_reply should still route LLM-emitted time tool requests."""
         import asyncio
+        from pathlib import Path
 
         from rex.assistant import Assistant
 
@@ -187,12 +188,21 @@ class TestVoiceLoopToolRouting:
         assistant._history = []
         assistant._history_limit = 50
         assistant._plugins = []
-        assistant._transcripts_dir = "/tmp"
+        assistant._transcripts_dir = Path("transcripts")
         assistant._user_id = "test"
         assistant._followup_engine = None
         assistant._pending_followup = None
         assistant._followup_injected = False
         assistant._ha_bridge = None
+        assistant._suggestion_engine = None
+        assistant._router = MagicMock()
+        assistant._router.classify.return_value = "general"
+        assistant._router.resolve_model.return_value = ""
+        assistant._shopping_list_handler = None
+        assistant._music_handler = None
+        assistant._device_state_handler = None
+        assistant._tool_dispatcher = None
+        assistant._response_cache = None
 
         # Make the LLM return a tool request for time.
         assistant._llm.generate.return_value = 'TOOL_REQUEST: {"tool": "time_now", "args": {}}'
@@ -201,7 +211,7 @@ class TestVoiceLoopToolRouting:
         # Directly set the routing function (always ToolBridge after US-P7-008).
         mock_route = MagicMock(return_value="The current time is 3:45 PM CDT.")
         assistant._tool_router_fn = mock_route
-        result = asyncio.run(assistant.generate_reply("what time is it?", voice_mode=True))
+        result = asyncio.run(assistant.generate_reply("please check the clock", voice_mode=True))
 
         mock_route.assert_called_once()
         assert "3:45 PM" in result

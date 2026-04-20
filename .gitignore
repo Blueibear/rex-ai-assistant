@@ -167,4 +167,4 @@ data/memory/
 
 data/llm_usage.json
 gui/data/
-PRD*.md
+PRD-ci-fix-*.md

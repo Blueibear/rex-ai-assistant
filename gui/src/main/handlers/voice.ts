@@ -4,11 +4,18 @@ import type { ChildProcess } from 'child_process'
 import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
 
 let voiceProcess: ChildProcess | null = null
+let currentVoiceState = 'idle'
 
 type BridgeResult<T> = T & { ok: boolean; error?: string }
 
 function resolveBridgeScript(scriptName: string): string {
   return resolveBridgePath(scriptName)
+}
+
+function normalizeBridgeVoiceState(state: string): string {
+  if (state === 'thinking' || state === 'executing') return 'processing'
+  if (state === 'done') return 'idle'
+  return state
 }
 
 function killVoiceProcess(): void {
@@ -39,62 +46,116 @@ export function registerVoiceHandlers(): void {
 
     voiceProcess = py
 
-    function sendIfAlive(channel: string, data: unknown): void {
-      if (!event.sender.isDestroyed()) {
-        event.sender.send(channel, data)
+    return new Promise((resolve) => {
+      let startupSettled = false
+      let stderr = ''
+      let startupStatus = 'starting bridge process'
+
+      function settleStartup(result: { ok: boolean; error?: string }): void {
+        if (startupSettled) return
+        startupSettled = true
+        clearTimeout(startupTimer)
+        resolve(result)
       }
-    }
 
-    let lineBuffer = ''
-
-    py.stdout.on('data', (chunk: Buffer) => {
-      lineBuffer += chunk.toString()
-      const lines = lineBuffer.split('\n')
-      lineBuffer = lines.pop() ?? ''
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed) continue
-        try {
-          const obj = JSON.parse(trimmed) as {
-            type: string
-            state?: string
-            text?: string
-            role?: string
-            timestamp?: number
-            error?: string
+      function failStartup(error: string): void {
+        if (!startupSettled) {
+          if (voiceProcess === py) {
+            voiceProcess = null
           }
-          if (obj.type === 'state' && obj.state) {
-            sendIfAlive('rex:voiceState', { state: obj.state })
-          } else if (obj.type === 'transcript') {
-            sendIfAlive('rex:voiceTranscript', {
-              text: obj.text ?? '',
-              role: obj.role ?? 'rex',
-              timestamp: obj.timestamp ?? Date.now()
-            })
-          } else if (obj.type === 'error') {
-            sendIfAlive('rex:voiceError', { error: obj.error ?? 'Unknown voice error' })
+          try {
+            py.kill()
+          } catch {
+            // Process may already be gone.
           }
-        } catch {
-          // skip malformed NDJSON lines
+          settleStartup({ ok: false, error })
+        } else {
+          sendIfAlive('rex:voiceError', { error })
         }
       }
-    })
 
-    py.on('close', () => {
-      if (voiceProcess === py) {
-        voiceProcess = null
+      function sendIfAlive(channel: string, data: unknown): void {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send(channel, data)
+        }
       }
-      sendIfAlive('rex:voiceState', { state: 'idle' })
-    })
 
-    py.on('error', (err) => {
-      if (voiceProcess === py) {
-        voiceProcess = null
-      }
-      sendIfAlive('rex:voiceError', { error: `Failed to start voice bridge: ${err.message}` })
-    })
+      const startupTimer = setTimeout(() => {
+        const detail = stderr.trim() ? ` Last stderr: ${stderr.trim().slice(-500)}` : ''
+        failStartup(`Voice bridge did not become ready within 45 seconds while ${startupStatus}.${detail}`)
+      }, 45_000)
 
-    return { ok: true }
+      let lineBuffer = ''
+
+      py.stdout.on('data', (chunk: Buffer) => {
+        lineBuffer += chunk.toString()
+        const lines = lineBuffer.split('\n')
+        lineBuffer = lines.pop() ?? ''
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          try {
+            const obj = JSON.parse(trimmed) as {
+              type: string
+              state?: string
+              text?: string
+              role?: string
+              timestamp?: number
+              error?: string
+              status?: string
+              traceback?: string
+            }
+            if (obj.type === 'ready') {
+              settleStartup({ ok: true })
+            } else if (obj.type === 'status' && obj.status) {
+              startupStatus = obj.status.replace(/_/g, ' ')
+            } else if (obj.type === 'state' && obj.state) {
+              const normalizedState = normalizeBridgeVoiceState(obj.state)
+              currentVoiceState = normalizedState
+              sendIfAlive('rex:voiceState', { state: normalizedState })
+            } else if (obj.type === 'transcript') {
+              sendIfAlive('rex:voiceTranscript', {
+                text: obj.text ?? '',
+                role: obj.role ?? 'rex',
+                timestamp: obj.timestamp ?? Date.now()
+              })
+            } else if (obj.type === 'error') {
+              const error = obj.error ?? 'Unknown voice error'
+              failStartup(error)
+            }
+          } catch {
+            // skip malformed NDJSON lines
+          }
+        }
+      })
+
+      py.stderr.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString()
+      })
+
+      py.on('close', (code) => {
+        if (voiceProcess === py) {
+          voiceProcess = null
+        }
+        currentVoiceState = 'idle'
+        sendIfAlive('rex:voiceState', { state: 'idle' })
+        if (!startupSettled) {
+          const detail = stderr.trim() ? `: ${stderr.trim().slice(-500)}` : ''
+          settleStartup({
+            ok: false,
+            error: `Voice bridge exited before wake-word mode was ready (code ${code ?? 'unknown'})${detail}`
+          })
+        }
+      })
+
+      py.on('error', (err) => {
+        if (voiceProcess === py) {
+          voiceProcess = null
+        }
+        currentVoiceState = 'error'
+        failStartup(`Failed to start voice bridge: ${err.message}`)
+      })
+    })
   })
 
   ipcMain.handle('rex:stopVoice', async (): Promise<{ ok: boolean }> => {
@@ -354,6 +415,10 @@ export function registerVoiceHandlers(): void {
       return callEnrollmentBridge({ action: 'delete', user_id: userId })
     }
   )
+}
+
+export function getCurrentVoiceState(): string {
+  return currentVoiceState
 }
 
 function callEnrollmentBridge(payload: Record<string, unknown>): Promise<BridgeResult<Record<string, unknown>>> {

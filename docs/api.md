@@ -107,7 +107,7 @@ The stream emits `data: ...` SSE chunks.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/logs/stream` | SSE stream of `logs/rex.log` |
+| `GET` | `/api/logs/stream` | SSE stream of the active runtime log, normally `data/logs/rex.log` |
 | `GET` | `/api/logs/download` | Download the current log file |
 | `GET` | `/api/usage` | LLM usage summary |
 | `GET` | `/api/status/current` | Current Rex status |

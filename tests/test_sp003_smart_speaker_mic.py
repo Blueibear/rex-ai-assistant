@@ -208,6 +208,30 @@ def test_build_voice_loop_uses_smart_mic_when_configured():
     assert call_kwargs["recorder"] is mock_smart_mic.read_frame
 
 
+def test_build_voice_loop_uses_configured_capture_seconds():
+    """build_voice_loop uses runtime.capture_seconds when no override is passed."""
+
+    with (
+        patch("rex.voice_loop.settings") as mock_settings,
+        patch("rex.voice_loop._validate_input_device_index", return_value=None),
+        patch("rex.wakeword.listener.build_default_detector"),
+        patch("rex.voice_loop.SpeechToText"),
+        patch("rex.voice_loop.TextToSpeech"),
+        patch("rex.voice_loop.WakeAcknowledgement"),
+        patch("rex.voice_loop._build_voice_id_callback", return_value=None),
+        patch("rex.voice_loop.AsyncMicrophone") as mock_async_mic,
+    ):
+        _common_voice_loop_patches(mock_settings)
+        mock_settings.capture_seconds = 3.0
+
+        from rex.voice_loop import build_voice_loop
+
+        build_voice_loop(MagicMock())
+
+    call_kwargs = mock_async_mic.call_args.kwargs
+    assert call_kwargs["capture_seconds"] == 3.0
+
+
 def test_build_voice_loop_falls_back_when_speaker_not_found():
     """build_voice_loop uses recorder=None (local mic) when speaker name not in cache."""
 

@@ -32,6 +32,9 @@ function matchesLevel(entry: LogEntry, minLevel: LogLevel): boolean {
 
 export function LogsPage(): React.ReactElement {
   const [entries, setEntries] = useState<LogEntry[]>([])
+  const [logPath, setLogPath] = useState<string>('')
+  const [legacyLogPath, setLegacyLogPath] = useState<string>('')
+  const [timestampBasis, setTimestampBasis] = useState<string>('UTC')
   const [search, setSearch] = useState('')
   const [minLevel, setMinLevel] = useState<LogLevel>('DEBUG')
   const [paused, setPaused] = useState(false)
@@ -59,6 +62,9 @@ export function LogsPage(): React.ReactElement {
       .then((res) => {
         if (res.ok) {
           setEntries(res.entries)
+          setLogPath(res.log_path ?? '')
+          setLegacyLogPath(res.legacy_log_path ?? '')
+          setTimestampBasis(res.timestamp_basis ?? 'UTC')
         } else {
           setError(res.error ?? 'Failed to load logs')
         }
@@ -175,6 +181,17 @@ export function LogsPage(): React.ReactElement {
         </button>
       </div>
 
+      <div className="text-xs text-text-secondary bg-surface-raised border border-border rounded-lg px-3 py-2">
+        <div>
+          Active current-session log:{' '}
+          <span className="font-mono text-text-primary break-all">{logPath || 'not resolved yet'}</span>
+        </div>
+        <div>
+          Timestamps use {timestampBasis}. Legacy historical log:{' '}
+          <span className="font-mono break-all">{legacyLogPath || 'not resolved yet'}</span>
+        </div>
+      </div>
+
       {paused && (
         <div className="text-xs text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 rounded-lg px-3 py-1.5">
           Stream paused — new entries are not shown. Click Resume to continue.
@@ -209,7 +226,7 @@ export function LogsPage(): React.ReactElement {
       </div>
 
       <div className="text-xs text-text-secondary">
-        Showing {filtered.length} of {entries.length} entries
+        Showing {filtered.length} of {entries.length} entries from the active current-session log
       </div>
     </div>
   )

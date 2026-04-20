@@ -1,6 +1,7 @@
 {
   "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
   "include": [
+    "src/vite-env.d.ts",
     "src/renderer/src/**/*",
     "src/renderer/src/**/*.d.ts",
     "src/preload/index.d.ts",
@@ -14,10 +15,12 @@
   "compilerOptions": {
     "composite": true,
     "baseUrl": ".",
+    "ignoreDeprecations": "5.0",
+    "types": ["vite/client"],
     "paths": {
       "@renderer/*": [
         "src/renderer/src/*"
-      ]
+     ]
     }
   }
 }

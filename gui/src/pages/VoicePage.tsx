@@ -154,7 +154,7 @@ const MicIcon: React.FC = () => (
 
 interface PushToTalkButtonProps {
   selectedMicId: string
-  onTranscript: (entry: VoiceTranscriptEntry) => void
+  onTranscript: (entry: VoiceTranscriptEntry) => void | Promise<void>
   onMicDevicesUpdated: (devices: MediaDeviceInfo[]) => void
 }
 
@@ -168,6 +168,8 @@ const PushToTalkButton: React.FC<PushToTalkButtonProps> = ({
   const [busy, setBusy] = useState(false)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<BlobPart[]>([])
+  const activePointerIdRef = useRef<number | null>(null)
+  const stopRequestedRef = useRef(false)
 
   const startRecording = useCallback(async () => {
     setError(null)
@@ -190,6 +192,8 @@ const PushToTalkButton: React.FC<PushToTalkButtonProps> = ({
       }
 
       recorder.onstop = async () => {
+        recorderRef.current = null
+        stopRequestedRef.current = false
         stream.getTracks().forEach((t) => t.stop())
         setRecording(false)
         if (chunksRef.current.length === 0) {
@@ -215,7 +219,7 @@ const PushToTalkButton: React.FC<PushToTalkButtonProps> = ({
           const b64 = btoa(binary)
           const result = await window.rex.sendChatAudio(b64)
           if (result.ok && result.transcript) {
-            onTranscript({
+            await onTranscript({
               text: result.transcript,
               role: 'user',
               timestamp: Date.now(),
@@ -233,33 +237,66 @@ const PushToTalkButton: React.FC<PushToTalkButtonProps> = ({
       recorder.start()
       recorderRef.current = recorder
       setRecording(true)
+      if (stopRequestedRef.current && recorder.state !== 'inactive') {
+        recorder.stop()
+      }
     } catch (err) {
+      stopRequestedRef.current = false
       setError(err instanceof Error ? err.message : 'Microphone access denied')
     }
   }, [selectedMicId, onTranscript, onMicDevicesUpdated])
 
   const stopRecording = useCallback(() => {
-    recorderRef.current?.stop()
-    recorderRef.current = null
+    const recorder = recorderRef.current
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop()
+    } else {
+      setRecording(false)
+      recorderRef.current = null
+    }
   }, [])
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLButtonElement>) => {
-      e.currentTarget.setPointerCapture(e.pointerId)
-      if (!recording && !busy) void startRecording()
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId)
+        activePointerIdRef.current = e.pointerId
+      } catch {
+        activePointerIdRef.current = null
+      }
+      if (!recording && !busy) {
+        stopRequestedRef.current = false
+        void startRecording()
+      }
     },
     [recording, busy, startRecording],
   )
 
-  const handlePointerUp = useCallback(() => {
-    if (recording) stopRecording()
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    const pointerId = activePointerIdRef.current
+    if (pointerId !== null) {
+      try {
+        e.currentTarget.releasePointerCapture(pointerId)
+      } catch {
+        // Pointer capture may already be released by the browser.
+      }
+      activePointerIdRef.current = null
+    }
+    if (recording) {
+      stopRecording()
+    } else {
+      stopRequestedRef.current = true
+    }
   }, [recording, stopRecording])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLButtonElement>) => {
       if (e.key === ' ' && !e.repeat) {
         e.preventDefault()
-        if (!recording && !busy) void startRecording()
+        if (!recording && !busy) {
+          stopRequestedRef.current = false
+          void startRecording()
+        }
       }
     },
     [recording, busy, startRecording],
@@ -270,13 +307,15 @@ const PushToTalkButton: React.FC<PushToTalkButtonProps> = ({
       if (e.key === ' ' && recording) {
         e.preventDefault()
         stopRecording()
+      } else if (e.key === ' ' && !recording) {
+        stopRequestedRef.current = true
       }
     },
     [recording, stopRecording],
   )
 
   let label: string
-  if (busy) label = 'Transcribing…'
+  if (busy) label = 'Processing\u2026'
   else if (recording) label = 'Release to send'
   else label = 'Hold to talk'
 
@@ -409,6 +448,7 @@ const TranscriptList: React.FC<TranscriptListProps> = ({
       <div className="flex flex-col gap-2 overflow-y-auto max-h-64 px-1">
         {entries.map((entry, idx) => {
           const isUser = entry.role === 'user'
+          const isPendingRex = !isUser && entry.text.trim() === ''
           return (
             <div
               key={idx}
@@ -421,7 +461,14 @@ const TranscriptList: React.FC<TranscriptListProps> = ({
                     : 'bg-surface-raised text-text-primary rounded-bl-none'
                 }`}
               >
-                {entry.text}
+                {isPendingRex ? (
+                  <span role="status" aria-live="polite" className="inline-flex items-center gap-1 text-text-secondary">
+                    Rex is thinking
+                    <span className="inline-block w-1 h-1 rounded-full bg-accent animate-pulse" aria-hidden="true" />
+                  </span>
+                ) : (
+                  entry.text
+                )}
               </div>
               <span className="text-xs text-text-muted mt-0.5 px-1">
                 {isUser ? 'You' : 'Rex'} · {formatTime(entry.timestamp)}
@@ -466,6 +513,7 @@ const MicOffIcon: React.FC = () => (
 export function VoicePage(): React.ReactElement {
   const [voiceState, setVoiceState] = useState<VoiceState>('idle')
   const [isActive, setIsActive] = useState(false)
+  const [startingWakeMode, setStartingWakeMode] = useState(false)
   const [transcripts, setTranscripts] = useState<VoiceTranscriptEntry[]>([])
   const [error, setError] = useState<string | null>(null)
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([])
@@ -492,8 +540,44 @@ export function VoicePage(): React.ReactElement {
     setMicDevices(devices)
   }, [])
 
-  const handleTranscript = useCallback((entry: VoiceTranscriptEntry) => {
+  const handlePushToTalkTranscript = useCallback(async (entry: VoiceTranscriptEntry) => {
     setTranscripts((prev) => [...prev, entry])
+
+    const message = entry.text.trim()
+    if (!message) return
+
+    const replyTimestamp = Date.now() + 1
+    let replyText = ''
+    const updateReply = (text: string): void => {
+      setTranscripts((prev) =>
+        prev.map((item) =>
+          item.role === 'rex' && item.timestamp === replyTimestamp
+            ? { ...item, text }
+            : item,
+        ),
+      )
+    }
+
+    setVoiceState('processing')
+    setTranscripts((prev) => [
+      ...prev,
+      { role: 'rex', text: '', timestamp: replyTimestamp },
+    ])
+
+    try {
+      await window.rex.sendChatStream(message, (token) => {
+        replyText += token
+        updateReply(replyText)
+      })
+      if (!replyText.trim()) {
+        updateReply('I did not receive a reply from the model.')
+      }
+    } catch (err) {
+      const messageText = err instanceof Error ? err.message : String(err)
+      updateReply(`I could not get a reply: ${messageText}`)
+    } finally {
+      setVoiceState('idle')
+    }
   }, [])
 
   const handleClearTranscripts = useCallback(() => {
@@ -501,8 +585,10 @@ export function VoicePage(): React.ReactElement {
   }, [])
 
   const handleToggle = useCallback(async () => {
+    if (startingWakeMode) return
     if (!isActive) {
       setError(null)
+      setStartingWakeMode(true)
       try {
         await window.rex.startVoice(
           (state) => {
@@ -525,13 +611,15 @@ export function VoicePage(): React.ReactElement {
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
         setVoiceState('idle')
+      } finally {
+        setStartingWakeMode(false)
       }
     } else {
       await window.rex.stopVoice()
       setIsActive(false)
       setVoiceState('idle')
     }
-  }, [isActive])
+  }, [isActive, startingWakeMode])
 
   // Request mic permission (needed to populate device labels).
   const handleRequestMicPermission = useCallback(async () => {
@@ -582,7 +670,24 @@ export function VoicePage(): React.ReactElement {
       <WaveformVisualizer state={voiceState} width={320} height={80} />
 
       {/* Main voice loop toggle (wake-word mode) */}
-      <VoiceToggle state={voiceState} onToggle={() => void handleToggle()} />
+      <VoiceToggle
+        state={voiceState}
+        isActive={isActive || startingWakeMode}
+        busy={startingWakeMode}
+        onToggle={() => void handleToggle()}
+      />
+
+      {startingWakeMode && (
+        <p className="max-w-xs text-center text-xs text-text-muted">
+          Starting the wake-word backend. Rex will show an error here if the microphone, wake-word model, or voice dependencies cannot start.
+        </p>
+      )}
+
+      {isActive && voiceState === 'idle' && (
+        <p className="max-w-xs text-center text-xs text-text-muted">
+          Waiting for the configured wake word. If nothing happens when you say it, check the selected microphone and wake-word threshold in Settings, or use Hold to talk for immediate capture.
+        </p>
+      )}
 
       {/* Separator */}
       <div className="w-full max-w-xs border-t border-white/10 pt-4 flex flex-col items-center gap-4">
@@ -597,7 +702,7 @@ export function VoicePage(): React.ReactElement {
         {/* Push-to-talk button (one-shot STT without wake word) */}
         <PushToTalkButton
           selectedMicId={selectedMicId}
-          onTranscript={handleTranscript}
+          onTranscript={handlePushToTalkTranscript}
           onMicDevicesUpdated={handleMicDevicesUpdated}
         />
       </div>

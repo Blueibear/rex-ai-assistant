@@ -4,11 +4,13 @@ export type VoiceState = 'idle' | 'listening' | 'processing' | 'speaking'
 
 export interface VoiceToggleProps {
   state: VoiceState
+  isActive: boolean
+  busy?: boolean
   onToggle: () => void
 }
 
 const stateLabel: Record<VoiceState, string> = {
-  idle: 'Tap to speak',
+  idle: 'Start wake word',
   listening: 'Listening\u2026',
   processing: 'Thinking\u2026',
   speaking: 'Speaking\u2026',
@@ -60,7 +62,7 @@ function getButtonStyle(state: VoiceState): string {
   }
 }
 
-export const VoiceToggle: React.FC<VoiceToggleProps> = ({ state, onToggle }) => {
+export const VoiceToggle: React.FC<VoiceToggleProps> = ({ state, isActive, busy = false, onToggle }) => {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLButtonElement>) => {
       if (e.key === ' ') {
@@ -71,8 +73,7 @@ export const VoiceToggle: React.FC<VoiceToggleProps> = ({ state, onToggle }) => 
     [onToggle],
   )
 
-  const isActive = state !== 'idle'
-  const label = stateLabel[state]
+  const label = busy ? 'Starting wake word' : state === 'idle' && isActive ? 'Stop wake word' : stateLabel[state]
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -80,6 +81,7 @@ export const VoiceToggle: React.FC<VoiceToggleProps> = ({ state, onToggle }) => 
         type="button"
         aria-label={label}
         aria-pressed={isActive}
+        disabled={busy}
         className={getButtonStyle(state)}
         onClick={onToggle}
         onKeyDown={handleKeyDown}

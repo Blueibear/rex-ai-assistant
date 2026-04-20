@@ -175,7 +175,14 @@ export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
             )}
             {msg.role === 'rex' ? (
               <>
-                {renderMarkdown(msg.content, msg.id)}
+                {msg.streaming && msg.content.trim() === '' ? (
+                  <span role="status" aria-live="polite" className="inline-flex items-center gap-1 text-text-secondary">
+                    Rex is thinking
+                    <span className="inline-block w-1 h-1 rounded-full bg-accent animate-pulse" aria-hidden="true" />
+                  </span>
+                ) : (
+                  renderMarkdown(msg.content, msg.id)
+                )}
                 {msg.streaming && (
                   <span
                     className="inline-block w-0.5 h-3.5 bg-accent ml-0.5 align-middle animate-pulse"

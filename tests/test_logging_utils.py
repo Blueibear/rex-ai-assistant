@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import logging
+from io import StringIO
+from pathlib import Path
+from types import SimpleNamespace
 
 
 def test_import():
@@ -147,6 +150,58 @@ def test_set_global_level():
 
     # Restore
     set_global_level(logging.INFO)
+
+
+def test_active_runtime_log_path_defaults_to_data_logs(monkeypatch):
+    """Current session logs default to data/logs, not the legacy logs directory."""
+    from rex.log_paths import PROJECT_ROOT, active_runtime_log_path
+
+    monkeypatch.delenv("REX_LOG_PATH", raising=False)
+
+    assert active_runtime_log_path().relative_to(PROJECT_ROOT) == Path("data/logs/rex.log")
+
+
+def test_configure_logging_adds_file_handler_after_stream_configured(tmp_path, monkeypatch):
+    """File logging is added even if stdout logging was configured before settings loaded."""
+    import json
+
+    import rex.logging_utils as lu
+
+    root = logging.getLogger()
+    original_handlers = root.handlers[:]
+    original_level = root.level
+    log_path = tmp_path / "rex.log"
+    error_path = tmp_path / "error.log"
+
+    try:
+        for handler in root.handlers[:]:
+            root.removeHandler(handler)
+        root.addHandler(logging.StreamHandler(StringIO()))
+        root.setLevel(logging.INFO)
+        monkeypatch.setattr(
+            lu,
+            "settings",
+            SimpleNamespace(
+                file_logging_enabled=True,
+                log_path=log_path,
+                error_log_path=error_path,
+            ),
+        )
+        monkeypatch.setenv("REX_JSON_LOGS", "1")
+
+        lu.configure_logging()
+        logging.getLogger("test.logging_utils.current").info("current session message")
+        for handler in root.handlers:
+            handler.flush()
+
+        lines = log_path.read_text(encoding="utf-8").strip().splitlines()
+        assert any("Rex Python runtime session started" in line for line in lines)
+        parsed = json.loads(lines[-1])
+        assert parsed["message"] == "current session message"
+        assert parsed["timestamp"].endswith("+00:00")
+    finally:
+        root.handlers = original_handlers
+        root.setLevel(original_level)
 
 
 def test_json_logging_enabled_in_test(monkeypatch):

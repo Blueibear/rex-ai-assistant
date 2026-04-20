@@ -38,6 +38,7 @@ except ImportError:
 
 from rex.assistant_errors import ConfigurationError
 from rex.config_manager import get_legacy_env_warnings
+from rex.log_paths import DEFAULT_ERROR_LOG_FILE, DEFAULT_RUNTIME_LOG_FILE
 from rex.logging_utils import get_logger, set_global_level
 from rex.profile_manager import (
     DEFAULT_PROFILES_DIR,
@@ -188,6 +189,8 @@ class AppConfig:
     debug_logging: bool = False
     debug_mode: bool = False  # set via REX_DEBUG=1 or rex --debug
     file_logging_enabled: bool = False
+    log_path: Path = DEFAULT_RUNTIME_LOG_FILE
+    error_log_path: Path = DEFAULT_ERROR_LOG_FILE
     memory_max_bytes: int = 131072
     conversation_export: bool = True
 
@@ -314,6 +317,8 @@ class AppConfig:
     def to_dict(self) -> dict:
         raw = asdict(self)
         raw["transcripts_dir"] = str(self.transcripts_dir)
+        raw["log_path"] = str(self.log_path)
+        raw["error_log_path"] = str(self.error_log_path)
         return raw
 
     def __post_init__(self) -> None:
@@ -552,7 +557,7 @@ def _migrate_wake_word_section(json_config: dict) -> dict:
     removed.  A deprecation notice is logged so operators know to update their
     config files.
     """
-    if "wake_word" not in json_config:
+    if "wake_word" in json_config:
         return json_config
     LOGGER.warning(
         "Config key 'wake_word' is deprecated — rename it to 'wakeword' in "
@@ -674,6 +679,10 @@ def build_app_config(json_config: dict) -> AppConfig:
         debug_logging=_get_nested(json_config, "runtime.log_level", "INFO").upper() == "DEBUG",
         debug_mode=os.getenv("REX_DEBUG", "0").strip() not in ("0", "false", "no", ""),
         file_logging_enabled=bool(_get_nested(json_config, "runtime.file_logging_enabled", False)),
+        log_path=Path(_get_nested(json_config, "runtime.log_path", str(DEFAULT_RUNTIME_LOG_FILE))),
+        error_log_path=Path(
+            _get_nested(json_config, "runtime.error_log_path", str(DEFAULT_ERROR_LOG_FILE))
+        ),
         memory_max_bytes=_coerce_int(json_config, "runtime.memory_max_bytes", 131072),
         # Profile metadata
         active_profile=_get_nested(json_config, "active_profile", "default"),

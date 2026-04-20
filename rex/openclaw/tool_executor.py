@@ -87,6 +87,14 @@ class CredentialMissingError(Exception):
 
 def parse_tool_request(text: str) -> dict[str, Any] | None:
     """Return parsed tool request data or None if not a valid request."""
+    return _parse_tool_request(text, allow_trailing_text=False)
+
+
+def _parse_tool_request(
+    text: str,
+    *,
+    allow_trailing_text: bool,
+) -> dict[str, Any] | None:
     if not isinstance(text, str):
         return None
     if "\n" in text or "\r" in text:
@@ -102,7 +110,13 @@ def parse_tool_request(text: str) -> dict[str, Any] | None:
     try:
         data = json.loads(json_payload)
     except json.JSONDecodeError:
-        return None
+        try:
+            data, end = json.JSONDecoder().raw_decode(json_payload)
+        except json.JSONDecodeError:
+            return None
+        trailing = json_payload[end:].strip()
+        if trailing and not (allow_trailing_text or trailing in {".", "!", "?"}):
+            return None
 
     if not isinstance(data, dict):
         return None
@@ -426,7 +440,7 @@ def route_if_tool_request(
     Returns:
         The final model output or an error message.
     """
-    request = parse_tool_request(llm_text)
+    request = _parse_tool_request(llm_text, allow_trailing_text=True)
     if request is None:
         return llm_text
 

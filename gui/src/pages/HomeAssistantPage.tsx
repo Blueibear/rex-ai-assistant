@@ -50,16 +50,14 @@ export function HomeAssistantPage(): React.ReactElement {
   const fetchStates = useCallback((): void => {
     setLoading(true)
     setError(null)
-    const token = localStorage.getItem('rex_token') ?? ''
-    fetch('/api/ha/states', {
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
-    })
-      .then((r) => r.json())
+    window.rex
+      .getHomeAssistantStates()
       .then((data: HaStatesResponse) => {
         if (data.not_configured) {
           setNotConfigured(true)
           setStates([])
         } else if (!data.ok) {
+          setNotConfigured(false)
           setError(data.error ?? 'Failed to load device states')
           setStates([])
         } else {

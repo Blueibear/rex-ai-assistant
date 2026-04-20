@@ -11,9 +11,11 @@ RELATIONSHIP NOTE — two voice_loop files exist in this repo:
 
 from __future__ import annotations
 
+import time
 import asyncio
 import inspect
 import io
+import json
 import logging
 import os
 import re
@@ -283,6 +285,63 @@ _ABBREV_DOT: frozenset[str] = frozenset(["e.g", "i.e", "a.m", "p.m", "u.s", "u.k
 # Placeholder character used to protect abbreviation periods during splitting.
 _ABBREV_PLACEHOLDER = "\x00"
 
+_LOW_VALUE_TRANSCRIPT_WORDS: frozenset[str] = frozenset(
+    {
+        "ah",
+        "alright",
+        "annably",
+        "good",
+        "hm",
+        "hmm",
+        "much",
+        "nope",
+        "nowey",
+        "ok",
+        "okay",
+        "please",
+        "thanks",
+        "thank",
+        "uh",
+        "um",
+        "very",
+        "yeah",
+        "yep",
+        "yes",
+        "you",
+    }
+)
+_LOW_VALUE_TRANSCRIPT_EXACT: frozenset[str] = frozenset(
+    {
+        "alright",
+        "good",
+        "ok",
+        "okay",
+        "thank you",
+        "thank you very much",
+        "thanks",
+        "thanks a lot",
+        "you are welcome",
+        "youre welcome",
+        "you're welcome",
+    }
+)
+_LOW_VALUE_TRANSCRIPT_PHRASES: tuple[str, ...] = (
+    "thanks for watching",
+    "thank you for watching",
+    "if there is anything else",
+    "if there's anything else",
+)
+_ACTION_TRANSCRIPT_RE = re.compile(
+    r"\b(?:"
+    r"alarm|battery|brightness|calendar|close|cpu|date|disk|email|"
+    r"find|forecast|google|launch|light|lights|look|memory|message|"
+    r"open|pause|play|power|remind|resume|run|search|send|set|skip|"
+    r"sms|start|stop|temperature|text|time|timer|turn|volume|weather"
+    r")\b",
+    re.IGNORECASE,
+)
+_TRANSCRIPT_WORD_RE = re.compile(r"[a-z0-9']+")
+
 
 def _protect_abbreviations(text: str) -> str:
     """Replace trailing periods in known abbreviations with a placeholder.
@@ -310,6 +369,41 @@ def _protect_abbreviations(text: str) -> str:
             flags=re.IGNORECASE,
         )
     return protected
+
+
+def _normalize_transcript_for_guard(text: str) -> str:
+    text = text.lower().replace("’", "'").replace("`", "'")
+    text = re.sub(r"[^a-z0-9']+", " ", text)
+    return " ".join(text.split())
+
+
+def _is_low_value_transcript(transcript: str) -> bool:
+    """Return True for likely Whisper filler/hallucination with no user command."""
+    normalized = _normalize_transcript_for_guard(transcript)
+    if not normalized:
+        return True
+
+    if _ACTION_TRANSCRIPT_RE.search(normalized):
+        return False
+
+    if normalized in _LOW_VALUE_TRANSCRIPT_EXACT:
+        return True
+
+    if any(phrase in normalized for phrase in _LOW_VALUE_TRANSCRIPT_PHRASES):
+        return True
+
+    if normalized.count("thank you") >= 2:
+        return True
+
+    words = _TRANSCRIPT_WORD_RE.findall(normalized)
+    if not words:
+        return True
+
+    low_value_words = sum(1 for word in words if word in _LOW_VALUE_TRANSCRIPT_WORDS)
+    if len(words) <= 4 and low_value_words == len(words):
+        return True
+
+    return len(words) >= 8 and low_value_words / len(words) >= 0.45
 
 
 def _split_into_sentences(text: str) -> list[str]:
@@ -429,14 +523,21 @@ class AsyncMicrophone:
         frames = max(int(self.sample_rate * duration), 1)
 
         def _capture() -> np.ndarray:  # type: ignore[name-defined]
+            start = time.perf_counter()
+            logger.debug("MIC DEBUG: _record start duration=%.2f frames=%d", duration, frames)
+
             recording = sd.rec(
                 frames,
                 samplerate=self.sample_rate,
                 channels=1,
                 dtype="float32",
                 device=self._device_index,
+                blocking=True,
             )
-            sd.wait()
+
+            end = time.perf_counter()
+            logger.debug("MIC DEBUG: blocking sd.rec returned after %.3fs total", end - start)
+
             return recording.reshape(-1)
 
         try:
@@ -615,6 +716,9 @@ class TextToSpeech:
 
         # Get TTS settings from config (defaults: xtts provider, en-US-AndrewNeural voice)
         self._provider = getattr(settings, "tts_provider", "xtts").lower()
+        if self._provider == "edge-tts":
+            self._provider = "edge"
+
         self._edge_voice = getattr(settings, "tts_voice", None) or "en-US-AndrewNeural"
 
         # Smart speaker output device name (US-SP-002); None → local audio
@@ -679,6 +783,18 @@ class TextToSpeech:
         if not text:
             return
 
+        if text.lstrip().startswith("TOOL_REQUEST:"):
+            trailing_answer = self._strip_tool_request_prefix(text)
+            if trailing_answer:
+                logger.warning(
+                    "[TTS] Stripped raw TOOL_REQUEST prefix before speech: %r",
+                    text[:200],
+                )
+                text = trailing_answer
+            else:
+                logger.error("[TTS] Suppressing raw TOOL_REQUEST from speech: %r", text[:200])
+                return
+
         self._speaking.set()
         try:
             if self._provider == "xtts":
@@ -708,7 +824,24 @@ class TextToSpeech:
         text = re.sub(r"\[.*?\]", "", text)
         sentences = [s.strip() for s in text.split(".") if s.strip()]
         text = ". ".join(sentences[:2])
-        return text + "." if text and not text.endswith(".") else text
+        return text if text.endswith((".", "!", "?")) else text + "."
+
+    def _strip_tool_request_prefix(self, text: str) -> str:
+        """Return natural trailing text after a leading TOOL_REQUEST, if present."""
+        stripped = text.lstrip()
+        if not stripped.startswith("TOOL_REQUEST:"):
+            return text
+
+        payload = stripped[len("TOOL_REQUEST:") :].strip()
+        try:
+            _, end = json.JSONDecoder().raw_decode(payload)
+        except json.JSONDecodeError:
+            return ""
+
+        trailing = payload[end:].strip()
+        if trailing in {"", ".", "!", "?"}:
+            return ""
+        return trailing.lstrip(" .!?,;:-")
 
     def _try_smart_speaker(self, wav_path: str) -> bool:
         """Attempt to play *wav_path* on the configured smart speaker.
@@ -717,8 +850,8 @@ class TextToSpeech:
         can skip local playback.  Returns ``False`` if no smart speaker is
         configured or playback failed (caller should fall back to local audio).
         """
-        _tts_output_device = getattr(self, "_tts_output_device", None)
-        if not _tts_output_device:
+        tts_output_device = getattr(self, "_tts_output_device", None)
+        if not tts_output_device:
             return False
         try:
             from rex.audio.smart_speaker_output import get_smart_speaker_output
@@ -726,13 +859,13 @@ class TextToSpeech:
 
             cached = get_speaker_discovery().get_cached_speakers()
             target = next(
-                (s for s in cached if s.name == _tts_output_device),
+                (s for s in cached if s.name == tts_output_device),
                 None,
             )
             if target is None:
                 logger.warning(
                     "[TTS] Smart speaker %r not found in cached speakers; falling back to local.",
-                    _tts_output_device,
+                    tts_output_device,
                 )
                 return False
             return get_smart_speaker_output().play_wav(
@@ -844,6 +977,7 @@ class TextToSpeech:
             import edge_tts
         except ImportError:
             raise TextToSpeechError("edge-tts is not installed")
+
         sf = _lazy_import_soundfile()
         if sf is None:
             raise TextToSpeechError("soundfile is required for Edge TTS playback")
@@ -853,10 +987,10 @@ class TextToSpeech:
 
         try:
             communicate = edge_tts.Communicate(text, self._current_edge_voice())
+            logger.warning("EDGE DEBUG: entered _speak_edge voice=%s sa=%s text=%r", self._current_edge_voice(), sa is not None, text[:120])
             await communicate.save(output_path)
 
             if Path(output_path).exists():
-                # Convert mp3 to wav — blocking I/O in thread executor.
                 wav_path = output_path.replace(".mp3", ".wav")
 
                 def _convert(_src=output_path, _dst=wav_path) -> None:
@@ -865,15 +999,20 @@ class TextToSpeech:
 
                 try:
                     await asyncio.to_thread(_convert)
-                    routed = await asyncio.to_thread(self._try_smart_speaker, wav_path)
-                    if not routed and sa is not None:
 
+                    if sa is not None:
                         def _play(_path=wav_path) -> None:
                             wave_obj = sa.WaveObject.from_wave_file(_path)
                             play_obj = wave_obj.play()
                             play_obj.wait_done()
 
+                        logger.warning("EDGE DEBUG: about to play wav locally: %s", wav_path)
                         await asyncio.to_thread(_play)
+                        logger.warning("EDGE DEBUG: local playback finished")
+                    else:
+                        logger.error(
+                            "LOCAL PLAYBACK ERROR: simpleaudio is not available in _speak_edge"
+                        )   
                 finally:
                     try:
                         os.unlink(wav_path)
@@ -917,6 +1056,7 @@ class VoiceLoop:
         acknowledge: Callable[[], Awaitable[None]] | None = None,
         post_stt_acknowledge: Callable[[], Awaitable[None]] | None = None,
         identify_speaker: IdentifySpeakerCallable | None = None,
+        state_callback: Callable[[str], None] | None = None,
         sample_rate: int = 16000,
         stt_timeout: float = 30.0,
         llm_timeout: float = 60.0,
@@ -959,6 +1099,7 @@ class VoiceLoop:
         self._acknowledge = acknowledge
         self._post_stt_acknowledge = post_stt_acknowledge
         self._identify_speaker = identify_speaker
+        self._state_callback = state_callback
         self._identify_speaker_accepts_audio = self._resolve_identify_speaker_signature(
             identify_speaker
         )
@@ -1027,6 +1168,11 @@ class VoiceLoop:
                 emit_status(status)
             except Exception:
                 pass
+            if self._state_callback is not None:
+                try:
+                    self._state_callback(status)
+                except Exception:
+                    pass
 
         interactions = 0
 
@@ -1089,8 +1235,23 @@ class VoiceLoop:
                         )
                         continue
                     tracker.mark("stt_end")
+                    transcript = transcript.strip()
                     if not transcript:
                         logger.info("No speech detected")
+                        _emit("idle")
+                        continue
+
+                    logger.info(
+                        "[STT] Transcript: %r",
+                        transcript,
+                        extra={"event": "stt_transcript", "transcript": transcript},
+                    )
+                    if _is_low_value_transcript(transcript):
+                        logger.warning(
+                            "[STT] Ignoring likely filler transcript: %r",
+                            transcript,
+                            extra={"event": "stt_transcript_ignored", "transcript": transcript},
+                        )
                         _emit("idle")
                         continue
 
@@ -1147,7 +1308,7 @@ class VoiceLoop:
                         if not llm_response:
                             continue
 
-                        if not llm_response.endswith("."):
+                        if not llm_response.endswith((".", "!", "?")):
                             llm_response = llm_response + "."
 
                         try:
@@ -1169,6 +1330,7 @@ class VoiceLoop:
                     tracker.mark("playback_start")
                     tracker.log_summary()
                     _emit("done")
+                    await asyncio.sleep(2.0)
 
                 except SpeechToTextError as exc:
                     logger.error(
@@ -1324,7 +1486,7 @@ def build_voice_loop(
     *,
     sample_rate: int = 16000,
     detection_seconds: float = 1.0,
-    capture_seconds: float = 5.0,
+    capture_seconds: float | None = None,
     whisper_model: str = "base",
     device: str = "auto",
     language: str = "en",
@@ -1341,6 +1503,13 @@ def build_voice_loop(
         "[Pipeline] Initialising voice pipeline stages...",
         extra={"event": "pipeline_stage_start", "stage": "audio_device"},
     )
+    if capture_seconds is None:
+        configured_capture = getattr(settings, "capture_seconds", None)
+        if not isinstance(configured_capture, (int, float, str)) or configured_capture == "":
+            configured_capture = getattr(settings, "command_duration", 5.0)
+        if not isinstance(configured_capture, (int, float, str)) or configured_capture == "":
+            configured_capture = 5.0
+        capture_seconds = float(configured_capture)
     try:
         input_device_index = _validate_input_device_index(settings.audio_input_device)
     except AudioDeviceError as exc:
@@ -1412,7 +1581,15 @@ def build_voice_loop(
         wake_listener = build_default_detector(
             sample_rate=sample_rate,
             chunk_duration=detection_seconds,
-        )
+            threshold=getattr(settings, "wakeword_threshold", 0.1),
+            poll_interval=getattr(settings, "wakeword_poll_interval", 0.01),
+            keyword=getattr(settings, "wakeword", None),
+            model_path=getattr(settings, "wakeword_model_path", None),
+            embedding_path=getattr(settings, "wakeword_embedding_path", None),
+            backend=getattr(settings, "wakeword_backend", None),
+            fallback_to_builtin=getattr(settings, "wakeword_fallback_to_builtin", True),
+            fallback_keyword=getattr(settings, "wakeword_fallback_keyword", "hey jarvis"),
+     )
     except Exception as exc:
         logger.error(
             "[Pipeline] Wake-word stage failed: %s",

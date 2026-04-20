@@ -107,19 +107,19 @@ function Bootstrap-Config {
     if (-not (Test-Path $EnvFile)) {
         if (Test-Path $EnvExample) {
             Copy-Item $EnvExample $EnvFile
-            Write-Host "Created .env from .env.example — edit it to add your API keys."
+            Write-Host "Created .env from .env.example - edit it to add your API keys."
         } else {
             New-Item -ItemType File -Path $EnvFile | Out-Null
-            Write-Host "Created empty .env — edit it to add your API keys before running Rex."
+            Write-Host "Created empty .env - edit it to add your API keys before running Rex."
         }
     } else {
-        Write-Host ".env already exists — skipping."
+        Write-Host ".env already exists - skipping."
     }
 }
 
 function Verify-Install {
     Write-Host "Running health check ..."
-    & $RexExe doctor 2>&1
+    & $RexExe doctor
     if ($LASTEXITCODE -ne 0) {
         Write-Host ""
         Write-Host "WARNING: 'rex doctor' reported one or more issues (see above)."

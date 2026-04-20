@@ -216,6 +216,35 @@ def test_tts_is_speaking_clear_after_speak():
     assert not tts.is_speaking(), "is_speaking() should return False after TTS completes"
 
 
+def test_tts_strips_tool_request_prefix_when_answer_follows():
+    """TTS speaks the natural answer when raw tool syntax is prefixed."""
+    from rex.voice_loop import TextToSpeech
+
+    tts = TextToSpeech.__new__(TextToSpeech)
+    tts._language = "en"
+    tts._default_speaker = None
+    tts._tts_speed = 1.0
+    tts._provider = "none"
+    tts._edge_voice = "en-US-AndrewNeural"
+    tts._tts = None
+    tts._xtts_init_error = None
+    tts._speaking = threading.Event()
+
+    text = (
+        'TOOL_REQUEST: {"tool": "time_now", "args": {"location": "Dallas, TX"}}'
+        "The current local time in Dallas is 3:33 AM."
+    )
+
+    async def _run():
+        with patch("builtins.print") as mock_print:
+            await tts.speak(text)
+            mock_print.assert_called_once_with(
+                "Rex: The current local time in Dallas is 3:33 AM."
+            )
+
+    asyncio.run(_run())
+
+
 # ---------------------------------------------------------------------------
 # AppConfig – acknowledgment_sound field
 # ---------------------------------------------------------------------------

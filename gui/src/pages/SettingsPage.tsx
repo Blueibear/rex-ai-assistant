@@ -803,6 +803,7 @@ function VoicePanel(): React.ReactElement {
             })
           } else {
             addToast(res.error ?? 'No sample recording available', 'error')
+            return undefined
           }
         })
         .catch(() => addToast('Preview failed', 'error'))
@@ -819,6 +820,7 @@ function VoicePanel(): React.ReactElement {
             })
           } else {
             addToast(res.error ?? 'Preview failed', 'error')
+            return undefined
           }
         })
         .catch(() => addToast('Preview failed', 'error'))
@@ -2597,8 +2599,12 @@ function IntegrationsPanel(): React.ReactElement {
 
   function handleTest(section: IntegrationSection): void {
     setTestStatus((s) => ({ ...s, [section]: 'testing' }))
-    window.rex
-      .testIntegration(section)
+    const testRequest =
+      section === 'homeassistant'
+        ? window.rex.testHomeAssistant(form.haUrl, form.haToken)
+        : window.rex.testIntegration(section)
+
+    testRequest
       .then((res) => {
         setTestStatus((s) => ({ ...s, [section]: res.ok ? 'ok' : 'error' }))
       })
@@ -2607,10 +2613,12 @@ function IntegrationsPanel(): React.ReactElement {
       })
       .finally(() => {
         if (testTimers.current[section]) clearTimeout(testTimers.current[section])
-        testTimers.current[section] = setTimeout(
-          () => setTestStatus((s) => ({ ...s, [section]: 'idle' })),
-          5000
-        )
+        if (section !== 'homeassistant') {
+          testTimers.current[section] = setTimeout(
+            () => setTestStatus((s) => ({ ...s, [section]: 'idle' })),
+            5000
+          )
+        }
       })
   }
 
@@ -3108,7 +3116,10 @@ function IntegrationsPanel(): React.ReactElement {
             type="text"
             value={form.haUrl}
             placeholder="http://homeassistant.local:8123"
-            onChange={(e) => setForm((f) => ({ ...f, haUrl: e.target.value }))}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, haUrl: e.target.value }))
+              setTestStatus((s) => ({ ...s, homeassistant: 'idle' }))
+            }}
             onBlur={(e) => handleFieldChange('haUrl', e.target.value)}
             className={inputClass}
           />
@@ -3122,8 +3133,11 @@ function IntegrationsPanel(): React.ReactElement {
           <PasswordInput
             id="haToken"
             value={form.haToken}
-            placeholder="Enter access token (example)" // pragma: allowlist secret
-            onChange={(v) => setForm((f) => ({ ...f, haToken: v }))}
+            placeholder="Enter access token" // pragma: allowlist secret
+            onChange={(v) => {
+              setForm((f) => ({ ...f, haToken: v }))
+              setTestStatus((s) => ({ ...s, homeassistant: 'idle' }))
+            }}
             onBlur={() => handleFieldChange('haToken', form.haToken)}
           />
         </div>

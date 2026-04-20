@@ -167,6 +167,41 @@ class TestSimpleToolsViaRouteIfToolRequest:
         model_fn.assert_called_once()
         assert isinstance(reply, str)
 
+    def test_time_now_tool_request_with_trailing_period_routed(self):
+        """A punctuated TOOL_REQUEST line is still dispatched and model re-called."""
+        llm_output = 'TOOL_REQUEST: {"tool": "time_now", "args": {"location": "Dallas, TX"}}.'
+        fake_tool_result = {
+            "local_time": "2026-03-22 14:00",
+            "date": "2026-03-22",
+            "timezone": "America/Chicago",
+        }
+        model_fn = MagicMock(return_value="It is 2:00 PM in Dallas.")
+
+        with patch("rex.openclaw.tool_executor.execute_tool", return_value=fake_tool_result):
+            reply = self.bridge.route_if_tool_request(llm_output, {}, model_fn)
+
+        model_fn.assert_called_once()
+        assert "Dallas" in reply
+
+    def test_time_now_tool_request_with_trailing_answer_routed(self):
+        """A malformed TOOL_REQUEST plus final answer is still routed."""
+        llm_output = (
+            'TOOL_REQUEST: {"tool": "time_now", "args": {"location": "Dallas, TX"}}'
+            "The current local time in Dallas is 2026-04-18 03:33 CDT."
+        )
+        fake_tool_result = {
+            "local_time": "2026-04-18 03:33",
+            "date": "2026-04-18",
+            "timezone": "America/Chicago",
+        }
+        model_fn = MagicMock(return_value="The current local time in Dallas is 3:33 AM.")
+
+        with patch("rex.openclaw.tool_executor.execute_tool", return_value=fake_tool_result):
+            reply = self.bridge.route_if_tool_request(llm_output, {}, model_fn)
+
+        model_fn.assert_called_once()
+        assert reply == "The current local time in Dallas is 3:33 AM."
+
     def test_weather_now_tool_request_routed(self):
         """A TOOL_REQUEST line for weather_now is dispatched and model re-called.
 

@@ -1,7 +1,7 @@
 """Structured JSON logging configuration for Rex.
 
 Provides ``setup_file_logging()`` which adds a ``RotatingFileHandler`` writing
-valid JSON lines to ``logs/rex.log``.
+valid JSON lines to the current runtime log under ``data/logs/rex.log``.
 
 Each log line format::
 
@@ -23,9 +23,10 @@ from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+from .log_paths import DEFAULT_RUNTIME_LOG_FILE
 from .logging_utils import JsonFormatter
 
-LOG_FILE = Path("logs/rex.log")
+LOG_FILE = DEFAULT_RUNTIME_LOG_FILE
 MAX_BYTES = 5_000_000  # 5 MB
 BACKUP_COUNT = 3
 
@@ -42,7 +43,7 @@ def setup_file_logging(
     Creates the log directory if it does not exist.
 
     Args:
-        log_file: Path to the primary log file (default ``logs/rex.log``).
+        log_file: Path to the primary log file (default ``data/logs/rex.log``).
         level: Minimum log level to write to the file (default ``DEBUG`` so all
             levels captured by the root logger reach the file).
         max_bytes: Maximum file size before rotation (default 5 MB).

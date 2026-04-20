@@ -31,6 +31,15 @@ class TestParseToolRequest:
         result = self.bridge.parse_tool_request(line)
         assert result == {"tool": "time_now", "args": {}}
 
+    def test_valid_request_with_trailing_period(self):
+        line = 'TOOL_REQUEST: {"tool": "time_now", "args": {"location": "Dallas, TX"}}.'
+        result = self.bridge.parse_tool_request(line)
+        assert result == {"tool": "time_now", "args": {"location": "Dallas, TX"}}
+
+    def test_parse_rejects_request_with_trailing_text(self):
+        line = 'TOOL_REQUEST: {"tool": "time_now", "args": {}}The time is 3:33.'
+        assert self.bridge.parse_tool_request(line) is None
+
     def test_non_tool_line_returns_none(self):
         assert self.bridge.parse_tool_request("Hello world") is None
 

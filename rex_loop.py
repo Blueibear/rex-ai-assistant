@@ -20,6 +20,7 @@ import logging
 import os
 import warnings
 from collections.abc import Iterable
+from pathlib import Path
 
 # Suppress torio FFmpeg extension warnings (non-critical audio codec features)
 warnings.filterwarnings("ignore", message=".*FFmpeg extension.*")
@@ -84,6 +85,7 @@ async def _run(args) -> None:
     try:
         runtime_config = load_runtime_config(reload=True)
         rex.settings = runtime_config
+        configure_logging()
     except ConfigurationError as exc:
         logger.error("Profile configuration error: %s", exc)
         return
@@ -97,7 +99,17 @@ async def _run(args) -> None:
     assistant = Assistant(history_limit=rex.settings.max_memory_items, plugins=plugin_specs)
 
     try:
-        voice_loop = build_voice_loop(assistant)
+        wake_sound_path = getattr(rex.settings, "wake_sound_path", None)
+        voice_loop = build_voice_loop(
+            assistant,
+            sample_rate=rex.settings.sample_rate,
+            detection_seconds=rex.settings.detection_frame_seconds,
+            capture_seconds=rex.settings.capture_seconds,
+            whisper_model=rex.settings.whisper_model,
+            device=rex.settings.whisper_device,
+            language=rex.settings.whisper_language or "en",
+            wake_sound_path=Path(wake_sound_path) if wake_sound_path else None,
+        )
     except (AssistantError, WakeWordError) as exc:
         logger.error("Unable to initialise voice loop: %s", exc)
         return

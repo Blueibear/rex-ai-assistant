@@ -204,16 +204,27 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
     # Logs API
     # ------------------------------------------------------------------
 
-    _LOG_FILE = Path(__file__).resolve().parent.parent / "logs" / "rex.log"
+    from rex.log_paths import active_runtime_log_path, legacy_runtime_log_path
+
+    _LOG_FILE = active_runtime_log_path()
+    _LEGACY_LOG_FILE = legacy_runtime_log_path()
 
     @app.route("/api/logs/stream")
     def _logs_stream() -> Any:
-        """SSE endpoint that tails logs/rex.log in real time."""
+        """SSE endpoint that tails the active runtime log in real time."""
         import time
 
         def _generate() -> Any:
             if not _LOG_FILE.exists():
-                yield f"data: {json.dumps({'level': 'INFO', 'message': 'Log file not found yet.'})}\n\n"
+                payload = {
+                    "level": "INFO",
+                    "message": f"Active log file not found yet: {_LOG_FILE}",
+                    "extra": {
+                        "active_log_path": str(_LOG_FILE),
+                        "legacy_log_path": str(_LEGACY_LOG_FILE),
+                    },
+                }
+                yield f"data: {json.dumps(payload)}\n\n"
                 return
             with _LOG_FILE.open("r", encoding="utf-8", errors="replace") as fh:
                 fh.seek(0, 2)  # seek to end
@@ -239,12 +250,18 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
     def _logs_download() -> Any:
         """Download the current log file."""
         if not _LOG_FILE.exists():
-            return jsonify({"error": "Log file not found"}), 404
+            return jsonify(
+                {
+                    "error": "Active log file not found",
+                    "active_log_path": str(_LOG_FILE),
+                    "legacy_log_path": str(_LEGACY_LOG_FILE),
+                }
+            ), 404
         return send_from_directory(
             str(_LOG_FILE.parent),
             _LOG_FILE.name,
             as_attachment=True,
-            download_name="rex.log",
+            download_name=_LOG_FILE.name,
         )
 
     # ------------------------------------------------------------------
@@ -797,6 +814,14 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
                 env_path = Path(".env")
 
             _write_env_secrets(env_path, llm_provider="", llm_api_key="", ha_token=token)
+            os.environ["HA_TOKEN"] = token
+
+        try:
+            from rex.config import load_config as _reload_app_config
+
+            _reload_app_config(reload=True)
+        except Exception:
+            pass
 
         return jsonify({"ok": True}), 200
 
@@ -824,7 +849,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
         from rex.config import load_config
 
-        cfg = load_config()
+        cfg = load_config(reload=True)
         base_url = (cfg.ha_base_url or "").rstrip("/")
         token = cfg.ha_token or ""
 

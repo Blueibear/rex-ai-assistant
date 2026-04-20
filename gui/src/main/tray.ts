@@ -10,8 +10,8 @@ function getIconPath(): string {
   // Dev:        assets live at ../../assets/brand/ (four levels up from compiled main/index.js)
   const assetsBase = app.isPackaged
     ? join(process.resourcesPath, 'assets', 'brand')
-    : join(__dirname, '../../../../assets', 'brand')
-  return join(assetsBase, 'icon-circle.png')
+    : join(__dirname, '../../../assets', 'brand')
+  return join(assetsBase, 'icon-tray-24.png')
 }
 
 function buildContextMenu(mainWindow: BrowserWindow): Menu {
@@ -52,7 +52,9 @@ function buildContextMenu(mainWindow: BrowserWindow): Menu {
 }
 
 export function createTray(mainWindow: BrowserWindow): void {
-  const icon = nativeImage.createFromPath(getIconPath())
+  const icon = nativeImage
+    .createFromPath(getIconPath())
+    .resize({ width: 24, height: 24 })
 
   tray = new Tray(icon)
   tray.setToolTip('AskRex Assistant')
@@ -69,7 +71,7 @@ export function createTray(mainWindow: BrowserWindow): void {
     isQuitting = true
   })
 
-  // Intercept window close — hide to tray unless the app is quitting
+  // Intercept window close, hide to tray unless the app is quitting
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault()

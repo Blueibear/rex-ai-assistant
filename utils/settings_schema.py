@@ -73,15 +73,15 @@ AUTHORITATIVE_SETTINGS: list[SettingDef] = [
     SettingDef(
         key="REX_LOG_PATH",
         type="file_path",
-        default="logs/rex.log",
-        description="Path to log file",
+        default="data/logs/rex.log",
+        description="Path to active runtime log file",
         section="Core Settings",
     ),
     SettingDef(
         key="REX_ERROR_LOG_PATH",
         type="file_path",
-        default="logs/error.log",
-        description="Path to error log file",
+        default="data/logs/error.log",
+        description="Path to active error log file",
         section="Core Settings",
     ),
     SettingDef(

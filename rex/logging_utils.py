@@ -6,14 +6,26 @@ import json
 import logging
 import os
 import sys
+import time
+import uuid
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import Any
 
-LOG_FORMAT = "[%(asctime)s] %(levelname)s - %(message)s"
-DEFAULT_LOG_FILE = Path("logs/rex.log")
-DEFAULT_ERROR_FILE = Path("logs/error.log")
+from rex.log_paths import (
+    DEFAULT_ERROR_LOG_FILE,
+    DEFAULT_RUNTIME_LOG_FILE,
+    active_error_log_path,
+    active_runtime_log_path,
+)
+
+LOG_FORMAT = "[%(asctime)s UTC] %(levelname)s - %(name)s - %(message)s"
+DEFAULT_LOG_FILE = DEFAULT_RUNTIME_LOG_FILE
+DEFAULT_ERROR_FILE = DEFAULT_ERROR_LOG_FILE
+_SESSION_ID = f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+_SESSION_MARKED_PATHS: set[str] = set()
 
 # Mapping from string name → logging constant
 _LEVEL_NAMES: dict[str, int] = {
@@ -50,6 +62,12 @@ class JsonFormatter(logging.Formatter):
         if record.exc_info:
             entry["exception"] = self.formatException(record.exc_info)
         return json.dumps(entry)
+
+
+class UtcFormatter(logging.Formatter):
+    """Plain-text formatter with timestamps explicitly rendered in UTC."""
+
+    converter = time.gmtime
 
 
 def _json_logging_enabled() -> bool:
@@ -137,9 +155,122 @@ except Exception:  # pragma: no cover - fallback when config not initialised
     settings = None
 
 
+def _current_settings() -> Any | None:
+    """Return the latest loaded settings without importing rex.config eagerly."""
+    if settings is not None:
+        return settings
+    config_module = sys.modules.get("rex.config")
+    if config_module is None:
+        return None
+    return getattr(config_module, "settings", None) or getattr(
+        config_module, "_cached_config", None
+    )
+
+
 def _resolve_path(candidate: str | os.PathLike[str], default: Path) -> Path:
     path = Path(candidate) if candidate else default
+    if not path.is_absolute():
+        return path
     return path
+
+
+def _has_rotating_handler(root_logger: logging.Logger, path: Path) -> bool:
+    resolved = str(path.resolve())
+    for handler in root_logger.handlers:
+        if isinstance(handler, RotatingFileHandler) and handler.baseFilename == resolved:
+            return True
+    return False
+
+
+def _session_marker_extra(log_path: Path, error_path: Path) -> dict[str, object]:
+    return {
+        "event": "session_start",
+        "session_id": _SESSION_ID,
+        "component": "python-runtime",
+        "timestamp_basis": "UTC",
+        "active_log_path": str(log_path),
+        "error_log_path": str(error_path),
+    }
+
+
+def _mark_session_started(log_path: Path, error_path: Path) -> None:
+    marker_key = str(log_path.resolve())
+    if marker_key in _SESSION_MARKED_PATHS:
+        return
+    _SESSION_MARKED_PATHS.add(marker_key)
+    ts = datetime.now(UTC).isoformat(timespec="seconds")
+    logging.getLogger(__name__).info(
+        "=== Rex Python runtime session started === session_id=%s timestamp_utc=%s active_log_path=%s",
+        _SESSION_ID,
+        ts,
+        log_path,
+        extra=_session_marker_extra(log_path, error_path),
+    )
+
+
+def _make_runtime_file_handlers(
+    formatter: logging.Formatter,
+) -> tuple[list[RotatingFileHandler], Path, Path]:
+    current_settings = _current_settings()
+    log_path = active_runtime_log_path(current_settings)
+    error_path = active_error_log_path(current_settings)
+
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    error_path.parent.mkdir(parents=True, exist_ok=True)
+
+    file_handler = RotatingFileHandler(
+        log_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
+    )
+    error_handler = RotatingFileHandler(
+        error_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
+    )
+    error_handler.setLevel(logging.ERROR)
+
+    file_handler.setFormatter(formatter)
+    error_handler.setFormatter(formatter)
+    return [file_handler, error_handler], log_path, error_path
+
+
+def _file_logging_enabled() -> bool:
+    current_settings = _current_settings()
+    if current_settings is None:
+        return False
+    return bool(getattr(current_settings, "file_logging_enabled", False))
+
+
+def _ensure_file_handlers(
+    root_logger: logging.Logger,
+    formatter: logging.Formatter,
+) -> None:
+    if not _file_logging_enabled():
+        return
+
+    current_settings = _current_settings()
+    log_path = active_runtime_log_path(current_settings)
+    error_path = active_error_log_path(current_settings)
+
+    added = False
+    if not _has_rotating_handler(root_logger, log_path):
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        handler = RotatingFileHandler(
+            log_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
+        )
+        handler.setFormatter(formatter)
+        root_logger.addHandler(handler)
+        added = True
+
+    if not _has_rotating_handler(root_logger, error_path):
+        error_path.parent.mkdir(parents=True, exist_ok=True)
+        handler = RotatingFileHandler(
+            error_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
+        )
+        handler.setLevel(logging.ERROR)
+        handler.setFormatter(formatter)
+        root_logger.addHandler(handler)
+        added = True
+
+    if added:
+        _mark_session_started(log_path, error_path)
 
 
 def configure_logging(
@@ -174,9 +305,15 @@ def configure_logging(
             logger is configured.
     """
     effective_level = level if level is not None else _env_log_level()
+    if _json_logging_enabled():
+        formatter: logging.Formatter = JsonFormatter()
+    else:
+        formatter = UtcFormatter(LOG_FORMAT)
 
     root_logger = logging.getLogger()
     if root_logger.handlers:
+        root_logger.setLevel(effective_level)
+        _ensure_file_handlers(root_logger, formatter)
         # Already configured — still apply any new module-level overrides.
         _apply_all_module_levels(module_levels)
         return
@@ -193,44 +330,11 @@ def configure_logging(
 
         handlers_list = [stream_handler]
 
-        # Get file logging setting from config (defaults to False)
-        file_logging_enabled = False
-        if settings is not None:
-            file_logging_enabled = getattr(settings, "file_logging_enabled", False)
-
-        if file_logging_enabled:
-            log_path = _resolve_path(
-                getattr(settings, "log_path", DEFAULT_LOG_FILE) if settings else DEFAULT_LOG_FILE,
-                DEFAULT_LOG_FILE,
-            )
-            error_path = _resolve_path(
-                (
-                    getattr(settings, "error_log_path", DEFAULT_ERROR_FILE)
-                    if settings
-                    else DEFAULT_ERROR_FILE
-                ),
-                DEFAULT_ERROR_FILE,
-            )
-
-            log_path.parent.mkdir(parents=True, exist_ok=True)
-            error_path.parent.mkdir(parents=True, exist_ok=True)
-
-            file_handler = RotatingFileHandler(
-                log_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
-            )
-            error_handler = RotatingFileHandler(
-                error_path, maxBytes=5_000_000, backupCount=3, encoding="utf-8"
-            )
-            error_handler.setLevel(logging.ERROR)
-
-            handlers_list.extend([file_handler, error_handler])  # type: ignore[list-item]
+        if _file_logging_enabled():
+            runtime_handlers, _log_path, _error_path = _make_runtime_file_handlers(formatter)
+            handlers_list.extend(runtime_handlers)  # type: ignore[list-item]
 
         handlers = tuple(handlers_list)
-
-    if _json_logging_enabled():
-        formatter: logging.Formatter = JsonFormatter()
-    else:
-        formatter = logging.Formatter(LOG_FORMAT)
 
     handler_list = list(handlers)
     for h in handler_list:
@@ -243,8 +347,11 @@ def configure_logging(
     # separated in the log file.  Skip when only stream handlers are present
     # (e.g. during tests) to avoid polluting captured output.
     if any(isinstance(h, RotatingFileHandler) for h in handler_list):
-        ts = datetime.now(UTC).isoformat(timespec="seconds")
-        logging.getLogger(__name__).info("=== Rex session started at %s ===", ts)
+        current_settings = _current_settings()
+        _mark_session_started(
+            active_runtime_log_path(current_settings),
+            active_error_log_path(current_settings),
+        )
 
 
 def _apply_all_module_levels(module_levels: Mapping[str, int | str] | None) -> None:

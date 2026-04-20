@@ -304,6 +304,47 @@ def test_language_model_streams_echo_prompt_word_by_word():
     assert "".join(tokens) == "hello streaming world"
 
 
+def test_language_model_stream_falls_back_when_strategy_lacks_stream():
+    class GenerateOnlyStrategy:
+        name = "generate-only"
+
+        def __init__(self, model_name: str) -> None:
+            self.model_name = model_name
+
+        def generate(self, prompt: str, _config, *, messages=None) -> str:
+            return f"generated:{self.model_name}:{prompt}"
+
+    register_strategy(GenerateOnlyStrategy.name, GenerateOnlyStrategy)  # type: ignore[arg-type]
+    cfg = AppConfig(llm_provider=GenerateOnlyStrategy.name, llm_model="local-test")
+    model = LanguageModel(cfg)
+
+    assert list(model.stream("hello")) == ["generated:local-test:hello"]
+
+
+def test_language_model_stream_falls_back_when_strategy_stream_not_implemented():
+    class NotImplementedStreamStrategy:
+        name = "not-implemented-stream"
+
+        def __init__(self, model_name: str) -> None:
+            self.model_name = model_name
+
+        def generate(self, prompt: str, _config, *, messages=None) -> str:
+            return f"generated:{prompt}"
+
+        def stream(self, prompt: str, _config, *, messages=None):
+            raise NotImplementedError
+            yield prompt
+
+    register_strategy(
+        NotImplementedStreamStrategy.name,
+        NotImplementedStreamStrategy,  # type: ignore[arg-type]
+    )
+    cfg = AppConfig(llm_provider=NotImplementedStreamStrategy.name, llm_model="local-test")
+    model = LanguageModel(cfg)
+
+    assert list(model.stream("hello")) == ["generated:hello"]
+
+
 def test_ollama_connection_refused_returns_friendly_message(monkeypatch):
     """ConnectionRefusedError → connection-failed sentinel string."""
     from rex.llm_client import GenerationConfig, OllamaStrategy

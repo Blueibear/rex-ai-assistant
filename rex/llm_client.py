@@ -338,7 +338,6 @@ class OllamaStrategy:
                     model=self.model_name,
                     messages=payload,
                     options=options,
-                    api_key=self.api_key,
                 )
             else:
                 response = self._client.chat(  # type: ignore[union-attr]
@@ -417,7 +416,6 @@ class OllamaStrategy:
                     model=self.model_name,
                     messages=payload,
                     options=options,
-                    api_key=self.api_key,
                     stream=True,
                 )
             else:
@@ -832,6 +830,7 @@ class LanguageModel:
         messages: Sequence[dict[str, str]] | None = None,
         config: GenerationConfig | None = None,
     ) -> Iterator[str]:
+        generation_config = config or self.generation
         if messages is not None:
             prompt_text = self._format_messages(messages)
             normalized_messages = [
@@ -848,6 +847,14 @@ class LanguageModel:
         if not prompt_text.strip():
             raise ValueError("Prompt must not be empty.")
 
+        def _generate_once() -> Iterator[str]:
+            if messages is not None:
+                completion = self.generate(messages=normalized_messages, config=generation_config)
+            else:
+                completion = self.generate(prompt_text, config=generation_config)
+            if completion:
+                yield completion
+
         extra: dict[str, Any] = {}
         if self.provider == "openai":
             uid = getattr(self.config, "user_id", "default")
@@ -858,15 +865,32 @@ class LanguageModel:
             if self._tools:
                 extra["tools"] = self._tools
 
+        stream_fn = getattr(self.strategy, "stream", None)
+        if not callable(stream_fn):
+            return _generate_once()
+
         try:
-            return self.strategy.stream(
+            token_iterator = stream_fn(
                 prompt_text,
-                config or self.generation,
+                generation_config,
                 messages=normalized_messages,
                 **extra,
             )
         except TypeError:
-            return self.strategy.stream(prompt_text, config or self.generation)
+            try:
+                token_iterator = stream_fn(prompt_text, generation_config)
+            except NotImplementedError:
+                return _generate_once()
+        except NotImplementedError:
+            return _generate_once()
+
+        def _guarded_stream() -> Iterator[str]:
+            try:
+                yield from token_iterator
+            except NotImplementedError:
+                yield from _generate_once()
+
+        return _guarded_stream()
 
 
 __all__ = [

@@ -13,7 +13,43 @@
 
 AskRex Assistant is a local-first AI assistant for text chat, wake-word voice interaction, desktop control surfaces, and credential-gated home/productivity integrations. It runs from the Python `rex` package, with optional local ML dependencies for Whisper, openWakeWord, and XTTS, plus optional cloud/local LLM routing through OpenAI-compatible providers and Ollama.
 
-AskRex is alpha software. The CLI, voice loop, configuration system, Python web dashboard, Electron GUI shell, and several integrations are implemented; integration readiness varies by backend and credentials. See [docs/claude/INTEGRATIONS_STATUS.md](docs/claude/INTEGRATIONS_STATUS.md) for the current readiness snapshot.
+AskRex is alpha software. It is useful for local testing and development, but it should not be treated as production-ready. Recent GUI and voice-loop fixes have made several paths usable end to end; wake-word tuning, warning cleanup, and per-user data separation are still in progress. See [docs/claude/INTEGRATIONS_STATUS.md](docs/claude/INTEGRATIONS_STATUS.md) for the broader integration readiness snapshot.
+
+## Current Status
+
+This README reflects the current milestone after recent live testing and repair work. The repo has working CLI, chat, GUI, Home Assistant, and voice paths, with several areas still being stabilized.
+
+## Working now
+
+- Core CLI help and doctor paths work: `rex --help`, `rex doctor`, and `python -m rex doctor`.
+- Basic text chat works in the CLI and GUI.
+- The Electron GUI launches and the main shell is stable.
+- GUI pages load for Tasks, Reminders, Settings, Users, Integrations, Email, Calendar, and Home Assistant.
+- The Home Assistant page loads and lists entities after the recent GUI/backend consistency fixes.
+- The Home Assistant connection test now stays connected in the UI after a successful real connection test.
+- GUI Chat shows a visible pending/thinking state while Rex is preparing a reply.
+- Voice Hold to Talk records, transcribes, shows a pending state, gets a Rex reply, and can be used repeatedly.
+- Wake-word mode works end to end in live testing, but still needs reliability and latency tuning.
+- Day/date phrasing coverage in chat has improved for common variants.
+
+## Known limitations / in progress
+
+- Wake-word reliability is still inconsistent and may require threshold/device tuning.
+- Wake-word response latency is slower than desired.
+- CLI identity listing is currently polluted with test/demo users.
+- A deprecated `wake_word` config warning still appears during startup.
+- A `.env` permissions warning still appears.
+- Some pages and integrations are still in active stabilization; do not assume every registered integration is production-ready.
+
+## Planned future implementation
+
+- Per-user GUI login.
+- Personal vs shared data isolation.
+- Personal vs shared integrations.
+- Per-user chat histories with the ability to continue prior chats.
+- Per-user reminders, tasks, notifications, and memories.
+- Scoped document/context uploads with an upload-time choice for personal, shared, or universal access.
+- Small GUI polish items, including increasing the size of the top-left AskRex logo.
 
 ## Table of Contents
 
@@ -27,7 +63,13 @@ AskRex is alpha software. The CLI, voice loop, configuration system, Python web 
 
 Python 3.11 is required. Python 3.12 and newer are intentionally rejected by the current installers and runtime checks because the validated ML/TTS dependency path is Python 3.11-only.
 
-1. Clone the repo and create the Python 3.11 environment.
+### Common steps
+
+Install Python 3.11 and Git first. Then use the setup block for your platform. Commands marked Windows use PowerShell syntax; commands marked macOS/Linux use shell syntax.
+
+### Windows setup
+
+Use Windows PowerShell:
 
 ```powershell
 git clone https://github.com/Blueibear/AskRex-Assistant.git
@@ -36,6 +78,10 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip setuptools wheel
 ```
+
+### macOS setup
+
+Use Terminal:
 
 ```bash
 git clone https://github.com/Blueibear/AskRex-Assistant.git
@@ -64,11 +110,24 @@ pip install .
 .\install.ps1
 pip install -r requirements-cpu.txt
 ```
+### Linux note
+
+Linux users can usually follow the macOS shell commands after installing Python 3.11 and FFmpeg with their distro package manager.
+
+### Optional voice dependencies
+
+For voice mode, add the ML/audio stack after activating the virtual environment:
 
 ```bash
 pip install .
 bash install.sh
 pip install -r requirements-cpu.txt
+```
+
+For the validated Windows CUDA 12.4 path, use this instead of the CPU requirements file:
+
+```powershell
+pip install -r requirements-gpu-cu124.txt
 ```
 
 For validated Windows CUDA 12.4, use `requirements-gpu-cu124.txt` instead.
@@ -95,15 +154,15 @@ rex
 
 | Surface | Command | Status |
 |---|---|---|
-| CLI text chat | `rex` or `python -m rex` | Primary |
-| Diagnostics | `rex doctor` or `python -m rex doctor` | Primary |
-| Voice loop | `python rex_loop.py` | Primary voice runtime |
-| Python web dashboard | `rex-gui` | Primary browser UI, serves `http://127.0.0.1:8765/ui/` |
-| Electron desktop app | `cd gui && npm.cmd run dev` | Primary desktop shell for local development |
-| TTS API | `rex-speak-api` | Service, default `127.0.0.1:5005` |
-| OpenClaw tool server | `rex-tool-server` | Service, default `127.0.0.1:18790` |
+| CLI text chat | `rex` or `python -m rex` | Working basic chat |
+| Diagnostics | `rex doctor` or `python -m rex doctor` | Working |
+| Voice loop | `python rex_loop.py` | Working in live testing; tuning ongoing |
+| Python web dashboard | `rex-gui` | Implemented browser UI, serves `http://127.0.0.1:8765/ui/` |
+| Electron desktop app | Windows: `cd gui; npm.cmd run dev`; macOS/Linux: `cd gui && npm run dev` | Primary GUI under active stabilization |
+| TTS API | `rex-speak-api` | Implemented service, default `127.0.0.1:5005` |
+| OpenClaw tool server | `rex-tool-server` | Implemented service, default `127.0.0.1:18790` |
 | Windows computer agent | `rex-agent` | Optional remote PC control agent |
-| Runtime config CLI | `rex-config` | Config inspection and legacy env migration |
+| Runtime config CLI | `rex-config` | Config inspection and legacy env migration; warning cleanup remains |
 
 `rex-gui` is the canonical GUI for the Rex AI Assistant. The legacy Tkinter launchers (`gui.py` and its entry point) are deprecated. Use `rex-gui` for the Python-served web UI or the Electron app under `gui/`.
 
@@ -111,15 +170,16 @@ rex
 
 | Area | Current repo state |
 |---|---|
-| Text chat | CLI chat uses `rex.assistant.Assistant` and the configured LLM provider. |
-| Voice pipeline | Wake word via openWakeWord, STT via Whisper, LLM reply generation, and TTS via XTTS, edge-tts, or pyttsx3. |
-| LLM providers | Local Transformers, OpenAI-compatible API settings, and Ollama routing are supported by config. |
+| Text chat | Basic CLI and GUI chat work through `rex.assistant.Assistant` and the configured LLM provider. Common day/date phrasing coverage has improved; provider quality still depends on model/configuration. |
+| Voice pipeline | Hold to Talk works. Wake-word mode works end to end in live testing through openWakeWord, Whisper STT, LLM reply generation, and TTS, but reliability and latency are still being tuned. |
+| LLM providers | Local Transformers, OpenAI-compatible API settings, and Ollama routing are supported by config. Local model output quality varies by model and prompt path. |
 | Configuration | Runtime settings live in `config/rex_config.json`; secrets live in `.env`; profiles live in `profiles/`. |
-| GUIs | Python web dashboard (`rex-gui`) and Electron/React desktop GUI (`gui/`) both exist. Electron uses Python bridge scripts such as `rex_chat_stream_bridge.py`, `rex_tasks_bridge.py`, and `rex_voice_bridge.py`. |
-| CLI integrations | `rex email`, `rex calendar`, `rex msg`, `rex notify`, `rex gh`, `rex code`, `rex pc`, `rex wp`, `rex wc`, `rex ha`, `rex shopping`, `rex usage`, and more are registered. |
+| GUIs | Python web dashboard (`rex-gui`) and Electron/React desktop GUI (`gui/`) both exist. The Electron shell is stable in current testing; Tasks, Reminders, Settings, Users, Integrations, Email, Calendar, and Home Assistant pages load. |
+| Home Assistant | The GUI Home Assistant page loads and lists entities after recent fixes. The connection test performs a real backend connectivity check and persists success in the UI. |
+| CLI integrations | `rex email`, `rex calendar`, `rex msg`, `rex notify`, `rex gh`, `rex code`, `rex pc`, `rex wp`, `rex wc`, `rex ha`, `rex shopping`, `rex usage`, and more are registered. Readiness varies by backend credentials and test coverage. |
 | Tool execution | Tool registry, policy checks, audit logging, and OpenClaw-facing HTTP tool server are implemented. Local tool execution currently covers time, weather, and web search; the HTTP tool server exposes a broader adapter set. |
-| Memory | Per-user profile data lives under `Memory/<user_id>/`; structured working/long-term memory lives under `data/memory/`; GUI chat history uses `data/history.db`. |
-| Notifications | Priority routing, quiet hours, digest/escalation logic, CLI commands, and Electron notification UI plumbing are present; legacy Flask dashboard notification routes are not the current surface. |
+| Memory | Memory storage paths exist under `Memory/` and `data/memory/`, and GUI chat history uses `data/history.db`. Full per-user GUI history/memory isolation is planned, not complete. |
+| Notifications | Priority routing, quiet hours, digest/escalation logic, CLI commands, and Electron notification UI plumbing are present. Full per-user notification behavior is planned, not complete. |
 | WordPress/WooCommerce | WordPress health checks and WooCommerce order/product reads are implemented; WooCommerce order status and coupon writes are approval-gated. |
 | OpenClaw | HTTP gateway/client adapters and a standalone Rex tool server are present; feature flags under `openclaw` control gateway-backed paths. |
 
@@ -162,14 +222,18 @@ See [CONFIGURATION.md](CONFIGURATION.md), [docs/configuration.md](docs/configura
 
 See [docs/usage.md](docs/usage.md) for the full usage guide including voice mode, autonomous workflows, and integrations.
 
-Python web dashboard:
+### Python web dashboard
+
+Run this after activating the Python virtual environment on any platform:
 
 ```bash
 rex-gui
 ## opens http://127.0.0.1:8765/ui/
 ```
 
-Electron desktop GUI:
+### Electron desktop GUI - Windows setup
+
+Use Windows PowerShell:
 
 ```powershell
 cd gui
@@ -181,9 +245,25 @@ npm.cmd run build
 npm.cmd run preview
 ```
 
+### Electron desktop GUI - macOS setup
+
+Use Terminal:
+
+```bash
+cd gui
+npm install
+npm run dev
+
+# Build and preview the compiled Electron app:
+npm run build
+npm run preview
+```
+
 The Electron app requires the Python bridge scripts at the repo root and the current `gui/dist-electron` build for built-app verification harnesses. See [docs/UI_SURFACES.md](docs/UI_SURFACES.md) and [docs/e2e-gui-launch-test.md](docs/e2e-gui-launch-test.md).
 
 ## Common Commands
+
+After activating the virtual environment, these commands are the same on Windows, macOS, and Linux:
 
 ```bash
 rex --help
@@ -201,14 +281,23 @@ rex ha tts test --message "Hello from Rex"
 
 ## Services
 
-TTS API:
+### TTS API
 
-```bash
-set REX_SPEAK_API_KEY=change-me
+Windows PowerShell:
+
+```powershell
+$env:REX_SPEAK_API_KEY = "change-me"
 rex-speak-api
 ```
 
-Request format:
+macOS/Linux shell:
+
+```bash
+export REX_SPEAK_API_KEY=change-me
+rex-speak-api
+```
+
+Request format with curl, using macOS/Linux shell syntax or Git Bash/WSL on Windows:
 
 ```bash
 curl -X POST http://127.0.0.1:5005/speak \
@@ -218,14 +307,23 @@ curl -X POST http://127.0.0.1:5005/speak \
   --output speech.wav
 ```
 
-OpenClaw/Rex tool server:
+### OpenClaw/Rex tool server
 
-```bash
-set REX_TOOL_API_KEY=change-me
+Windows PowerShell:
+
+```powershell
+$env:REX_TOOL_API_KEY = "change-me"
 rex-tool-server
 ```
 
-Health endpoints:
+macOS/Linux shell:
+
+```bash
+export REX_TOOL_API_KEY=change-me
+rex-tool-server
+```
+
+Health endpoints with curl, using macOS/Linux shell syntax or Git Bash/WSL on Windows:
 
 ```bash
 curl http://127.0.0.1:5005/health/live
@@ -246,6 +344,8 @@ Common issues: missing ffmpeg, CUDA driver mismatches, wake word not triggering.
 
 ## Development
 
+Python checks, after activating the virtual environment on any platform:
+
 ```bash
 pip install -e ".[dev,test]"
 pytest
@@ -254,12 +354,20 @@ black --check .
 mypy .
 ```
 
-Electron checks:
+Electron checks on Windows PowerShell:
 
 ```powershell
 cd gui
 npm.cmd run typecheck
 npm.cmd run build
+```
+
+Electron checks on macOS/Linux:
+
+```bash
+cd gui
+npm run typecheck
+npm run build
 ```
 
 The current coverage threshold in `pyproject.toml` is 75 percent. Test markers include `unit`, `integration`, `slow`, `audio`, `gpu`, `network`, `asyncio`, `anyio`, and `smoke`.

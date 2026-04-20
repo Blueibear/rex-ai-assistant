@@ -140,13 +140,18 @@ async def _run_real_loop() -> None:
     wake_listener, detection_source, record_phrase, transcribe, speak) and
     wraps transcribe/speak to emit NDJSON events to stdout.
     """
+    emit({"type": "status", "status": "importing_rex"})
     import rex
     from rex import settings as rex_settings
+    emit({"type": "status", "status": "importing_assistant"})
     from rex.assistant import Assistant
+    from rex import config as rex_config_module
     from rex.config import load_config as load_runtime_config
     from rex.logging_utils import configure_logging
     from rex.plugins import load_plugins
     from rex.services import initialize_services
+    emit({"type": "status", "status": "importing_voice_loop"})
+    import rex.voice_loop as voice_loop_module
     from rex.voice_loop import (
         AsyncMicrophone,
         SpeechToText,
@@ -154,41 +159,71 @@ async def _run_real_loop() -> None:
         VoiceLoop,
         WakeAcknowledgement,
     )
+    emit({"type": "status", "status": "importing_wakeword_detector"})
     from rex.wakeword.listener import build_default_detector
 
     configure_logging()
-    initialize_services()
+    emit({"type": "status", "status": "loading_config"})
 
     try:
         runtime_config = load_runtime_config(reload=True)
-        rex.settings = runtime_config
+        active_settings = runtime_config
     except Exception:
-        pass  # use whatever settings are already loaded
+        active_settings = rex_settings
+
+    rex.settings = active_settings
+    rex_config_module.settings = active_settings
+    voice_loop_module.settings = active_settings
+    configure_logging()
+    emit({"type": "status", "status": "initializing_services"})
+    initialize_services()
 
     # Read voice settings from config with sensible defaults
-    sample_rate: int = 16000
-    detection_seconds: float = 1.0
-    capture_seconds: float = 5.0
-    whisper_model: str = getattr(rex_settings, "whisper_model", "base") or "base"
-    device: str = "cpu"
-    language: str = "en"
+    sample_rate = int(getattr(active_settings, "sample_rate", 16000) or 16000)
+    detection_seconds = float(
+        getattr(active_settings, "detection_frame_seconds", 1.0) or 1.0
+    )
+    capture_seconds = float(
+        getattr(active_settings, "capture_seconds", None)
+        or getattr(active_settings, "command_duration", 5.0)
+        or 5.0
+    )
+    whisper_model = str(getattr(active_settings, "whisper_model", "base") or "base")
+    device = str(getattr(active_settings, "whisper_device", "auto") or "auto")
+    language = str(getattr(active_settings, "whisper_language", "en") or "en")
 
+    emit({"type": "status", "status": "loading_plugins"})
     plugin_specs = load_plugins()
-    assistant = Assistant(history_limit=rex_settings.max_memory_items, plugins=plugin_specs)
+    emit({"type": "status", "status": "creating_assistant"})
+    assistant = Assistant(history_limit=active_settings.max_memory_items, plugins=plugin_specs)
 
+    emit({"type": "status", "status": "initializing_microphone"})
     mic = AsyncMicrophone(
         sample_rate=sample_rate,
         detection_seconds=detection_seconds,
         capture_seconds=capture_seconds,
     )
 
+    emit({"type": "status", "status": "loading_wakeword_detector"})
     wake_listener = build_default_detector(
         sample_rate=sample_rate,
         chunk_duration=detection_seconds,
+        threshold=getattr(active_settings, "wakeword_threshold", 0.1),
+        poll_interval=getattr(active_settings, "wakeword_poll_interval", 0.01),
+        keyword=getattr(active_settings, "wakeword_keyword", None)
+        or getattr(active_settings, "wakeword", None),
+        model_path=getattr(active_settings, "wakeword_model_path", None),
+        embedding_path=getattr(active_settings, "wakeword_embedding_path", None),
+        backend=getattr(active_settings, "wakeword_backend", None),
+        fallback_to_builtin=getattr(active_settings, "wakeword_fallback_to_builtin", True),
+        fallback_keyword=getattr(active_settings, "wakeword_fallback_keyword", "hey jarvis"),
     )
 
-    stt = SpeechToText(model_name=whisper_model, device=device)
+    emit({"type": "status", "status": "initializing_stt"})
+    stt = SpeechToText(model_name=whisper_model, device=device, async_load=True)
+    emit({"type": "status", "status": "initializing_tts"})
     tts = TextToSpeech(language=language)
+    emit({"type": "status", "status": "initializing_acknowledgement"})
     ack = WakeAcknowledgement()
 
     # Wrap transcribe: emit processing state, then emit user transcript
@@ -204,9 +239,11 @@ async def _run_real_loop() -> None:
                     "timestamp": time_ms(),
                 }
             )
+        else:
+            emit({"type": "state", "state": "idle"})
         return text
 
-    # Wrap speak: emit speaking state + rex transcript, then restore listening
+    # Wrap speak: emit speaking state + rex transcript, then restore wake-listening idle.
     async def wrapped_speak(text: str) -> None:
         emit({"type": "state", "state": "speaking"})
         emit(
@@ -218,8 +255,18 @@ async def _run_real_loop() -> None:
             }
         )
         await tts.speak(text)
-        # Signal that we're ready to listen for the next wake word
-        emit({"type": "state", "state": "listening"})
+        emit({"type": "state", "state": "idle"})
+
+    def emit_voice_loop_state(status: str) -> None:
+        if status in {"idle", "done"}:
+            emit({"type": "state", "state": "idle"})
+        elif status == "listening":
+            emit({"type": "state", "state": "listening"})
+        elif status in {"thinking", "executing"}:
+            emit({"type": "state", "state": "processing"})
+        elif status == "error":
+            emit({"type": "error", "error": "Voice pipeline error; see logs for details."})
+            emit({"type": "state", "state": "idle"})
 
     voice_loop = VoiceLoop(
         assistant,
@@ -229,10 +276,17 @@ async def _run_real_loop() -> None:
         transcribe=wrapped_transcribe,
         speak=wrapped_speak,
         acknowledge=ack.play,
+        state_callback=emit_voice_loop_state,
     )
 
-    # Announce listening state now that the pipeline is ready
-    emit({"type": "state", "state": "listening"})
+    # Announce readiness now that the real wake-word pipeline is built.
+    emit({"type": "ready", "mode": "wake_word"})
+    emit({"type": "state", "state": "idle"})
+
+    # Start stdin watcher after startup. On Windows, reading a live stdin pipe
+    # in a background thread during heavy imports can stall bridge readiness.
+    watcher = threading.Thread(target=_stdin_watcher, daemon=True)
+    watcher.start()
 
     # Run the voice loop as a cancellable task
     loop_task = asyncio.create_task(voice_loop.run())
@@ -258,23 +312,17 @@ async def _run_real_loop() -> None:
 
 
 def main() -> None:
-    # Start stdin watcher so stop commands are handled immediately.
-    watcher = threading.Thread(target=_stdin_watcher, daemon=True)
-    watcher.start()
-
-    # Announce initial idle state so the renderer knows the bridge is ready.
-    emit({"type": "state", "state": "idle"})
-
-    # Try to use the real voice loop; fall back to the stub simulation.
+    # Try to use the real voice loop. GUI wake-word mode should never silently
+    # simulate listening because that hides microphone/dependency failures.
     try:
         asyncio.run(_run_real_loop())
     except ImportError as exc:
         # Voice dependencies (whisper, sounddevice, openWakeWord, etc.) missing
         emit({"type": "error", "error": f"Voice dependencies unavailable: {exc}"})
-        _run_stub_loop()
+        sys.exit(1)
     except Exception as exc:
         emit({"type": "error", "error": str(exc), "traceback": _traceback.format_exc()})
-        _run_stub_loop()
+        sys.exit(1)
 
 
 if __name__ == "__main__":

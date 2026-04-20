@@ -476,5 +476,5 @@ python -m pytest
 
 ### Support
 - GitHub Issues: https://github.com/Blueibear/AskRex-Assistant/issues
-- Check logs: `logs/rex.log`
+- Check active runtime logs: `data/logs/rex.log`
 - Enable debug logging: Set `"log_level": "DEBUG"` in rex_config.json

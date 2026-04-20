@@ -3,6 +3,23 @@ export interface StatusResponse {
   status?: string
 }
 
+export interface HomeAssistantConnectionResponse {
+  ok: boolean
+  error?: string
+}
+
+export interface HomeAssistantState {
+  entity_id: string
+  state: string
+  friendly_name: string
+  last_updated: string
+}
+
+export interface HomeAssistantStatesResponse extends HomeAssistantConnectionResponse {
+  states?: HomeAssistantState[]
+  not_configured?: boolean
+}
+
 export interface Settings {
   [key: string]: unknown
 }
@@ -350,6 +367,17 @@ export interface LogEntry {
   logger: string
   message: string
   extra: Record<string, unknown>
+  raw?: string
+}
+
+export interface LogsResponse {
+  ok: boolean
+  entries: LogEntry[]
+  log_path?: string
+  legacy_log_path?: string
+  log_source?: string
+  timestamp_basis?: string
+  error?: string
 }
 
 export interface UsageBucket {
@@ -378,6 +406,7 @@ export interface RexAPI {
   sendChat: (message: string) => Promise<string>
   sendChatStream: (message: string, onToken: (token: string) => void) => Promise<void>
   getStatus: () => Promise<StatusResponse>
+  onStatusChange: (cb: (status: string) => void) => (() => void)
   getSettings: (section: string) => Promise<Settings>
   setSettings: (section: string, values: Settings) => Promise<SetSettingsResponse>
   startVoice: (
@@ -406,6 +435,9 @@ export interface RexAPI {
   getVersionInfo: () => Promise<VersionInfo>
   testVoice: (settings: VoiceSettings) => Promise<{ ok: boolean; error?: string }>
   testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone') => Promise<{ ok: boolean; error?: string }>
+  testHomeAssistant: (baseUrl: string, token: string) => Promise<HomeAssistantConnectionResponse>
+  saveHomeAssistant: (baseUrl: string, token: string) => Promise<HomeAssistantConnectionResponse>
+  getHomeAssistantStates: () => Promise<HomeAssistantStatesResponse>
   uploadContactsFile: () => Promise<{ ok: boolean; path?: string; error?: string }>
   pickFolder: () => Promise<{ ok: boolean; path?: string; error?: string }>
   testEmailAccount: (id: string) => Promise<{ ok: boolean; error?: string }>
@@ -470,10 +502,10 @@ export interface RexAPI {
   checkShoppingItem: (id: string) => Promise<{ ok: boolean; error?: string }>
   uncheckShoppingItem: (id: string) => Promise<{ ok: boolean; error?: string }>
   clearCheckedShoppingItems: () => Promise<{ ok: boolean; count?: number; error?: string }>
-  getLogs: (limit?: number) => Promise<{ ok: boolean; entries: LogEntry[]; log_path?: string; error?: string }>
-  startLogTail: () => Promise<{ ok: boolean; error?: string }>
+  getLogs: (limit?: number) => Promise<LogsResponse>
+  startLogTail: () => Promise<{ ok: boolean; log_path?: string; error?: string }>
   stopLogTail: () => Promise<{ ok: boolean }>
-  downloadLogs: () => Promise<{ ok: boolean; content?: string; filename?: string; error?: string }>
+  downloadLogs: () => Promise<{ ok: boolean; content?: string; filename?: string; log_path?: string; error?: string }>
   onLogEntry: (cb: (entry: LogEntry) => void) => void
   getUsage: () => Promise<UsageSummary>
 }

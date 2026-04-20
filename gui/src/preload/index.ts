@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type {
   Settings,
@@ -29,6 +30,7 @@ import type {
   ShoppingItem,
   WakeWordInfo,
   LogEntry,
+  LogsResponse,
   UsageSummary
 } from '../types/ipc'
 
@@ -139,6 +141,13 @@ const rexAPI = {
   sendChat: (message: string) => ipcRenderer.invoke('rex:sendChat', message),
   sendChatStream: makeSendChatStream,
   getStatus: () => ipcRenderer.invoke('rex:getStatus'),
+  onStatusChange: (cb: (status: string) => void): (() => void) => {
+    const handler = (_event: IpcRendererEvent, payload: { state?: string }): void => {
+      cb(payload.state ?? 'idle')
+    }
+    ipcRenderer.on('rex:voiceState', handler)
+    return () => ipcRenderer.removeListener('rex:voiceState', handler)
+  },
   getSettings: (section: string): Promise<Settings> =>
     ipcRenderer.invoke('rex:getSettings', section),
   setSettings: (section: string, values: Settings): Promise<SetSettingsResponse> =>
@@ -179,6 +188,16 @@ const rexAPI = {
     ipcRenderer.invoke('rex:testVoice', settings),
   testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:testIntegration', type),
+  testHomeAssistant: (baseUrl: string, token: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('rex:testHomeAssistant', baseUrl, token),
+  saveHomeAssistant: (baseUrl: string, token: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('rex:saveHomeAssistant', baseUrl, token),
+  getHomeAssistantStates: (): Promise<{
+    ok: boolean
+    states?: Array<{ entity_id: string; state: string; friendly_name: string; last_updated: string }>
+    not_configured?: boolean
+    error?: string
+  }> => ipcRenderer.invoke('rex:getHomeAssistantStates'),
   uploadContactsFile: (): Promise<{ ok: boolean; path?: string; error?: string }> =>
     ipcRenderer.invoke('rex:uploadContactsFile'),
   pickFolder: (): Promise<{ ok: boolean; path?: string; error?: string }> =>
@@ -281,13 +300,13 @@ const rexAPI = {
     negativeSamples: number[][]
   ): Promise<{ ok: boolean; model_path?: string; phrase?: string; error?: string }> =>
     ipcRenderer.invoke('rex:trainWakeWord', phrase, positiveSamples, negativeSamples),
-  getLogs: (limit?: number): Promise<{ ok: boolean; entries: LogEntry[]; log_path?: string; error?: string }> =>
+  getLogs: (limit?: number): Promise<LogsResponse> =>
     ipcRenderer.invoke('rex:getLogs', limit),
-  startLogTail: (): Promise<{ ok: boolean; error?: string }> =>
+  startLogTail: (): Promise<{ ok: boolean; log_path?: string; error?: string }> =>
     ipcRenderer.invoke('rex:startLogTail'),
   stopLogTail: (): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke('rex:stopLogTail'),
-  downloadLogs: (): Promise<{ ok: boolean; content?: string; filename?: string; error?: string }> =>
+  downloadLogs: (): Promise<{ ok: boolean; content?: string; filename?: string; log_path?: string; error?: string }> =>
     ipcRenderer.invoke('rex:downloadLogs'),
   onLogEntry: (cb: (entry: LogEntry) => void): void => {
     ipcRenderer.on('rex:logEntry', (_event, entry: LogEntry) => cb(entry))

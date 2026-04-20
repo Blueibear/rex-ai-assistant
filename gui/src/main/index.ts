@@ -6,7 +6,7 @@ import { createTray, destroyTray } from './tray'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import type { Settings, GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, EmailAccount, PreferenceSuggestion, SystemSettings } from '../types/ipc'
 import { registerChatHandlers } from './handlers/chat'
-import { registerVoiceHandlers } from './handlers/voice'
+import { getCurrentVoiceState, registerVoiceHandlers } from './handlers/voice'
 import { registerTaskHandlers } from './handlers/tasks'
 import { registerCalendarHandlers } from './handlers/calendar'
 import { registerRemindersHandlers } from './handlers/reminders'
@@ -17,7 +17,7 @@ import { registerNotificationHandlers } from './handlers/notifications'
 import { registerSpeakerHandlers } from './handlers/speakers'
 import { registerFileHandlers } from './handlers/files'
 import { registerShoppingHandlers } from './handlers/shopping'
-import { registerLogsHandlers } from './handlers/logs'
+import { appendElectronLog, registerLogsHandlers, writeElectronSessionStart } from './handlers/logs'
 import { registerUsageHandlers } from './handlers/usage'
 import { validateBridges } from './bridgeResolver'
 
@@ -127,6 +127,122 @@ function writeEnvKey(name: string, value: string): void {
   writeFileSync(p, lines.join('\n') + '\n', 'utf8')
 }
 
+interface HaTestResult {
+  ok: boolean
+  error?: string
+}
+
+interface HaState {
+  entity_id: string
+  state: string
+  friendly_name: string
+  last_updated: string
+}
+
+interface HaStatesResult extends HaTestResult {
+  states?: HaState[]
+  not_configured?: boolean
+}
+
+function normalizeHaUrl(value: unknown): string {
+  return typeof value === 'string' ? value.trim().replace(/\/+$/, '') : ''
+}
+
+function readSavedHomeAssistantCredentials(): { baseUrl: string; token: string } {
+  const stored = readGuiSettings()
+  const integrations = (stored['integrations'] ?? {}) as Record<string, unknown>
+  const rexConfig = readRexConfig()
+  const haConfig = ((rexConfig.home_assistant ?? {}) as Record<string, unknown>)
+  const env = readEnvFile()
+
+  return {
+    baseUrl: normalizeHaUrl(integrations.haUrl) || normalizeHaUrl(haConfig.base_url),
+    token:
+      (typeof integrations.haToken === 'string' && integrations.haToken.trim()) ||
+      (typeof env.HA_TOKEN === 'string' && env.HA_TOKEN.trim()) ||
+      ''
+  }
+}
+
+function saveHomeAssistantCredentials(baseUrl: string, token: string): void {
+  const stored = readGuiSettings()
+  const integrations = { ...((stored['integrations'] ?? {}) as Record<string, unknown>) }
+  integrations.haUrl = baseUrl
+  integrations.haToken = token
+  stored['integrations'] = integrations as Settings
+  writeGuiSettings(stored)
+  mirrorToRexConfig('integrations', integrations as Settings)
+  writeEnvKey('HA_TOKEN', token)
+}
+
+function describeHaError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.name === 'AbortError' ? 'Connection timed out.' : error.message
+  }
+  return String(error)
+}
+
+async function requestHomeAssistant(
+  baseUrl: string,
+  token: string,
+  path: string,
+  timeoutMs = 5000
+): Promise<Response> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(`${baseUrl}${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal: controller.signal
+    })
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+async function testHomeAssistantConnection(baseUrl: string, token: string): Promise<HaTestResult> {
+  const normalizedUrl = normalizeHaUrl(baseUrl)
+  if (!normalizedUrl) return { ok: false, error: 'Home Assistant URL is required.' }
+  try {
+    const resp = await requestHomeAssistant(normalizedUrl, token.trim(), '/api/')
+    if (!resp.ok) return { ok: false, error: `HA returned HTTP ${resp.status}` }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: describeHaError(err) }
+  }
+}
+
+async function getHomeAssistantStates(): Promise<HaStatesResult> {
+  const { baseUrl, token } = readSavedHomeAssistantCredentials()
+  if (!baseUrl || !token) {
+    return {
+      ok: false,
+      not_configured: true,
+      error: 'Home Assistant is not configured.'
+    }
+  }
+  try {
+    const resp = await requestHomeAssistant(baseUrl, token, '/api/states', 10000)
+    if (!resp.ok) return { ok: false, error: `HA returned HTTP ${resp.status}` }
+    const rawStates = (await resp.json()) as Array<Record<string, unknown>>
+    const states = rawStates.filter((s) => typeof s === 'object' && s !== null).map((s) => {
+      const attrs = s.attributes && typeof s.attributes === 'object'
+        ? (s.attributes as Record<string, unknown>)
+        : {}
+      const entityId = typeof s.entity_id === 'string' ? s.entity_id : ''
+      return {
+        entity_id: entityId,
+        state: typeof s.state === 'string' ? s.state : 'unknown',
+        friendly_name: typeof attrs.friendly_name === 'string' ? attrs.friendly_name : entityId,
+        last_updated: typeof s.last_updated === 'string' ? s.last_updated : ''
+      }
+    })
+    return { ok: true, states }
+  } catch (err) {
+    return { ok: false, error: describeHaError(err) }
+  }
+}
+
 function normalizeAiModelRouting(raw: unknown): AiSettings['modelRouting'] {
   const source = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
   return {
@@ -139,10 +255,27 @@ function normalizeAiModelRouting(raw: unknown): AiSettings['modelRouting'] {
   }
 }
 
+function normalizeGuiAiProvider(raw: unknown): AiSettings['provider'] {
+  if (raw === 'openai' || raw === 'ollama' || raw === 'local') {
+    return raw
+  }
+  if (raw === 'transformers') {
+    return 'local'
+  }
+  return 'openai'
+}
+
+function toRuntimeAiProvider(provider: AiSettings['provider']): string {
+  return provider === 'local' ? 'transformers' : provider
+}
+
 function buildAiSettings(raw: Settings = {}): AiSettings {
   const rexConfig = readRexConfig()
   const models = rexConfig.models && typeof rexConfig.models === 'object'
     ? (rexConfig.models as Record<string, unknown>)
+    : {}
+  const ollama = rexConfig.ollama && typeof rexConfig.ollama === 'object'
+    ? (rexConfig.ollama as Record<string, unknown>)
     : {}
   const rawModel = typeof raw.model === 'string' ? raw.model : null
   const model = rawModel === 'gpt-4o' || rawModel === 'gpt-4-turbo' || rawModel === 'claude-opus-4' || rawModel === 'claude-sonnet-4' || rawModel === 'gemini-1.5-pro'
@@ -152,11 +285,23 @@ function buildAiSettings(raw: Settings = {}): AiSettings {
     raw.modelRouting && typeof raw.modelRouting === 'object'
       ? raw.modelRouting
       : rexConfig.model_routing
-  const rawProvider = typeof raw.provider === 'string' ? raw.provider : null
-  const provider: AiSettings['provider'] =
-    rawProvider === 'openai' || rawProvider === 'ollama' || rawProvider === 'local'
-      ? rawProvider
-      : 'openai'
+  const rawProvider =
+    typeof raw.provider === 'string'
+      ? raw.provider
+      : typeof models.llm_provider === 'string'
+        ? models.llm_provider
+        : null
+  const provider = normalizeGuiAiProvider(rawProvider)
+  const rawCustomModelId = typeof raw.customModelId === 'string' ? raw.customModelId : ''
+  const runtimeModelId = typeof models.llm_model === 'string' ? models.llm_model : ''
+  const customModelId =
+    rawCustomModelId || (provider !== 'openai' ? runtimeModelId : '')
+  const ollamaBaseUrl =
+    typeof raw.ollamaBaseUrl === 'string' && raw.ollamaBaseUrl
+      ? raw.ollamaBaseUrl
+      : typeof ollama.base_url === 'string'
+        ? ollama.base_url
+        : 'http://localhost:11434'
 
   const VALID_PERSONALITIES = ['Friendly', 'Professional', 'Minimal']
   const rawPersonality = typeof raw.personality === 'string' ? raw.personality : null
@@ -169,8 +314,8 @@ function buildAiSettings(raw: Settings = {}): AiSettings {
   return {
     model,
     provider,
-    customModelId: typeof raw.customModelId === 'string' ? raw.customModelId : '',
-    ollamaBaseUrl: typeof raw.ollamaBaseUrl === 'string' ? raw.ollamaBaseUrl : 'http://localhost:11434',
+    customModelId,
+    ollamaBaseUrl,
     temperature:
       typeof raw.temperature === 'number'
         ? raw.temperature
@@ -204,9 +349,21 @@ function mirrorToRexConfig(section: string, values: Settings): void {
       const models = ((rexConfig.models ?? {}) as Record<string, unknown>)
       if (typeof values.temperature === 'number') models.llm_temperature = String(values.temperature)
       if (typeof values.maxTokens === 'number') models.llm_max_tokens = values.maxTokens
-      if (typeof values.provider === 'string') models.llm_provider = values.provider
-      if (typeof values.ollamaBaseUrl === 'string') models.ollama_base_url = values.ollamaBaseUrl
-      if (typeof values.customModelId === 'string') models.custom_model_id = values.customModelId
+      const provider = normalizeGuiAiProvider(values.provider)
+      models.llm_provider = toRuntimeAiProvider(provider)
+      if (typeof values.customModelId === 'string' && values.customModelId.trim()) {
+        models.llm_model = values.customModelId.trim()
+      }
+      if (provider === 'openai' && typeof values.model === 'string') {
+        const openai = ((rexConfig.openai ?? {}) as Record<string, unknown>)
+        openai.model = values.model
+        rexConfig.openai = openai
+      }
+      if (typeof values.ollamaBaseUrl === 'string' && values.ollamaBaseUrl.trim()) {
+        const ollama = ((rexConfig.ollama ?? {}) as Record<string, unknown>)
+        ollama.base_url = values.ollamaBaseUrl.trim()
+        rexConfig.ollama = ollama
+      }
       rexConfig.models = models
       rexConfig.model_routing = normalizeAiModelRouting(values.modelRouting)
       if (typeof values.personality === 'string' && values.personality) {
@@ -376,7 +533,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
   registerUsageHandlers()
 
   ipcMain.handle('rex:getStatus', () => {
-    return { ok: true, status: 'idle' }
+    return { ok: true, status: getCurrentVoiceState() }
   })
 
   ipcMain.handle('rex:getSettings', (_event, section: string): Settings => {
@@ -403,7 +560,32 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
     return { ok: true }
   })
 
-  ipcMain.handle('rex:testIntegration', (_event, type: string) => {
+  ipcMain.handle(
+    'rex:testHomeAssistant',
+    async (_event, baseUrl: string, token: string): Promise<HaTestResult> => {
+      return testHomeAssistantConnection(baseUrl, token)
+    }
+  )
+
+  ipcMain.handle(
+    'rex:saveHomeAssistant',
+    async (_event, baseUrl: string, token: string): Promise<HaTestResult> => {
+      const normalizedUrl = normalizeHaUrl(baseUrl)
+      if (!normalizedUrl) return { ok: false, error: 'Home Assistant URL is required.' }
+      try {
+        saveHomeAssistantCredentials(normalizedUrl, token.trim())
+        return { ok: true }
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    }
+  )
+
+  ipcMain.handle('rex:getHomeAssistantStates', async (): Promise<HaStatesResult> => {
+    return getHomeAssistantStates()
+  })
+
+  ipcMain.handle('rex:testIntegration', async (_event, type: string) => {
     // Check whether credentials for the requested integration are configured
     const stored = readGuiSettings()
     const integrations = (stored['integrations'] ?? {}) as Record<string, unknown>
@@ -434,11 +616,8 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
     }
 
     if (type === 'homeassistant') {
-      const hasCredentials =
-        typeof integrations.haUrl === 'string' && integrations.haUrl.trim() !== '' &&
-        typeof integrations.haToken === 'string' && integrations.haToken.trim() !== ''
-      if (!hasCredentials) return { ok: false, error: 'No credentials configured' }
-      return { ok: true }
+      const { baseUrl, token } = readSavedHomeAssistantCredentials()
+      return testHomeAssistantConnection(baseUrl, token)
     }
 
     if (type === 'phone') {
@@ -647,8 +826,8 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
 
 function createWindow(): BrowserWindow {
   const appIconPath = app.isPackaged
-    ? join(process.resourcesPath, 'assets', 'brand', 'icon-square.png')
-    : join(__dirname, '../../../../assets', 'brand', 'icon-square.png')
+    ? join(process.resourcesPath, 'assets', 'brand', 'icon.ico')
+    : join(__dirname, '../../../assets', 'brand', 'icon.ico')
 
   const mainWindow = new BrowserWindow({
     width: 1200,
@@ -683,15 +862,18 @@ function createWindow(): BrowserWindow {
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.rex-ai.rex-gui')
+  writeElectronSessionStart()
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
 
   validateBridges()
+  appendElectronLog('INFO', 'Electron bridge validation completed', { event: 'bridge_validation' })
   const mainWindow = createWindow()
   registerIpcHandlers(mainWindow)
   createTray(mainWindow)
+  appendElectronLog('INFO', 'Electron GUI main window created', { event: 'window_created' })
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
