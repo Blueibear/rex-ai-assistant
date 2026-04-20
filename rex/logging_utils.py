@@ -200,9 +200,10 @@ def _mark_session_started(log_path: Path, error_path: Path) -> None:
     _SESSION_MARKED_PATHS.add(marker_key)
     ts = datetime.now(UTC).isoformat(timespec="seconds")
     logging.getLogger(__name__).info(
-        "=== Rex Python runtime session started === session_id=%s timestamp_utc=%s active_log_path=%s",
-        _SESSION_ID,
+        "=== Rex session started at %s === "
+        "Rex Python runtime session started session_id=%s active_log_path=%s",
         ts,
+        _SESSION_ID,
         log_path,
         extra=_session_marker_extra(log_path, error_path),
     )
@@ -344,12 +345,12 @@ def configure_logging(
     # Write session-start marker to file handlers so sessions are clearly
     # separated in the log file.  Skip when only stream handlers are present
     # (e.g. during tests) to avoid polluting captured output.
-    if any(isinstance(h, RotatingFileHandler) for h in handler_list):
+    file_handlers = [h for h in handler_list if isinstance(h, RotatingFileHandler)]
+    if file_handlers:
         current_settings = _current_settings()
-        _mark_session_started(
-            active_runtime_log_path(current_settings),
-            active_error_log_path(current_settings),
-        )
+        error_path = active_error_log_path(current_settings)
+        for handler in file_handlers:
+            _mark_session_started(Path(handler.baseFilename), error_path)
 
 
 def _apply_all_module_levels(module_levels: Mapping[str, int | str] | None) -> None:

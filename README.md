@@ -15,45 +15,13 @@ AskRex Assistant is a local-first AI assistant for text chat, wake-word voice in
 
 AskRex is alpha software. It is useful for local testing and development, but it should not be treated as production-ready. Recent GUI and voice-loop fixes have made several paths usable end to end; wake-word tuning, warning cleanup, and per-user data separation are still in progress. See [docs/claude/INTEGRATIONS_STATUS.md](docs/claude/INTEGRATIONS_STATUS.md) for the broader integration readiness snapshot.
 
-## Current Status
-
-This README reflects the current milestone after recent live testing and repair work. The repo has working CLI, chat, GUI, Home Assistant, and voice paths, with several areas still being stabilized.
-
-## Working now
-
-- Core CLI help and doctor paths work: `rex --help`, `rex doctor`, and `python -m rex doctor`.
-- Basic text chat works in the CLI and GUI.
-- The Electron GUI launches and the main shell is stable.
-- GUI pages load for Tasks, Reminders, Settings, Users, Integrations, Email, Calendar, and Home Assistant.
-- The Home Assistant page loads and lists entities after the recent GUI/backend consistency fixes.
-- The Home Assistant connection test now stays connected in the UI after a successful real connection test.
-- GUI Chat shows a visible pending/thinking state while Rex is preparing a reply.
-- Voice Hold to Talk records, transcribes, shows a pending state, gets a Rex reply, and can be used repeatedly.
-- Wake-word mode works end to end in live testing, but still needs reliability and latency tuning.
-- Day/date phrasing coverage in chat has improved for common variants.
-
-## Known limitations / in progress
-
-- Wake-word reliability is still inconsistent and may require threshold/device tuning.
-- Wake-word response latency is slower than desired.
-- CLI identity listing is currently polluted with test/demo users.
-- A deprecated `wake_word` config warning still appears during startup.
-- A `.env` permissions warning still appears.
-- Some pages and integrations are still in active stabilization; do not assume every registered integration is production-ready.
-
-## Planned future implementation
-
-- Per-user GUI login.
-- Personal vs shared data isolation.
-- Personal vs shared integrations.
-- Per-user chat histories with the ability to continue prior chats.
-- Per-user reminders, tasks, notifications, and memories.
-- Scoped document/context uploads with an upload-time choice for personal, shared, or universal access.
-- Small GUI polish items, including increasing the size of the top-left AskRex logo.
-
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [Current Status](#current-status)
+- [Working Now](#working-now)
+- [Known Limitations / In Progress](#known-limitations--in-progress)
+- [Planned Future Implementation](#planned-future-implementation)
 - [Main Entry Points](#main-entry-points)
 - [Features](#features)
 - [Requirements](#requirements)
@@ -63,74 +31,50 @@ This README reflects the current milestone after recent live testing and repair 
 
 Python 3.11 is required. Python 3.12 and newer are intentionally rejected by the current installers and runtime checks because the validated ML/TTS dependency path is Python 3.11-only.
 
-### Common steps
+1. Clone the repository and enter the project folder.
 
-Install Python 3.11 and Git first. Then use the setup block for your platform. Commands marked Windows use PowerShell syntax; commands marked macOS/Linux use shell syntax.
-
-### Windows setup
-
-Use Windows PowerShell:
-
-```powershell
+```bash
 git clone https://github.com/Blueibear/AskRex-Assistant.git
 cd AskRex-Assistant
+```
+
+2. Create and activate a Python 3.11 virtual environment.
+
+Windows PowerShell:
+
+```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip setuptools wheel
 ```
 
-### macOS setup
-
-Use Terminal:
+macOS/Linux shell:
 
 ```bash
-git clone https://github.com/Blueibear/AskRex-Assistant.git
-cd AskRex-Assistant
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip setuptools wheel
 ```
 
-2. Copy the local configuration files.
+3. Copy local config files and run the platform install script.
+
+Windows PowerShell:
 
 ```powershell
 Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
 Copy-Item .env.example .env -ErrorAction SilentlyContinue
+pip install .
+.\install.ps1
 ```
+
+macOS/Linux shell:
 
 ```bash
 cp -n config/rex_config.example.json config/rex_config.json
 cp -n .env.example .env
-```
-
-3. Install Rex and the optional ML/audio stack.
-
-```powershell
-pip install .
-.\install.ps1
-pip install -r requirements-cpu.txt
-```
-### Linux note
-
-Linux users can usually follow the macOS shell commands after installing Python 3.11 and FFmpeg with their distro package manager.
-
-### Optional voice dependencies
-
-For voice mode, add the ML/audio stack after activating the virtual environment:
-
-```bash
 pip install .
 bash install.sh
-pip install -r requirements-cpu.txt
 ```
-
-For the validated Windows CUDA 12.4 path, use this instead of the CPU requirements file:
-
-```powershell
-pip install -r requirements-gpu-cu124.txt
-```
-
-For validated Windows CUDA 12.4, use `requirements-gpu-cu124.txt` instead.
 
 4. Configure LM Studio for local model access at `localhost:1234`.
 
@@ -149,6 +93,42 @@ rex
 ```
 
 > **Advanced/Developer Install**: For GPU/CUDA setup, manual venv instructions, and development tooling, see [docs/advanced-install.md](docs/advanced-install.md).
+
+## Current Status
+
+This README reflects the current milestone after recent live testing and repair work. The repo has working CLI, chat, GUI, Home Assistant, and voice paths, with several areas still being stabilized.
+
+## Working Now
+
+- Core CLI help and doctor paths work: `rex --help`, `rex doctor`, and `python -m rex doctor`.
+- Basic text chat works in the CLI and GUI.
+- The Electron GUI launches and the main shell is stable.
+- GUI pages load for Tasks, Reminders, Settings, Users, Integrations, Email, Calendar, and Home Assistant.
+- The Home Assistant page loads and lists entities after the recent GUI/backend consistency fixes.
+- The Home Assistant connection test now stays connected in the UI after a successful real connection test.
+- GUI Chat shows a visible pending/thinking state while Rex is preparing a reply.
+- Voice Hold to Talk records, transcribes, shows a pending state, gets a Rex reply, and can be used repeatedly.
+- Wake-word mode works end to end in live testing, but still needs reliability and latency tuning.
+- Day/date phrasing coverage in chat has improved for common variants.
+
+## Known Limitations / In Progress
+
+- Wake-word reliability is still inconsistent and may require threshold/device tuning.
+- Wake-word response latency is slower than desired.
+- CLI identity listing is currently polluted with test/demo users.
+- A deprecated `wake_word` config warning still appears during startup.
+- A `.env` permissions warning still appears.
+- Some pages and integrations are still in active stabilization; do not assume every registered integration is production-ready.
+
+## Planned Future Implementation
+
+- Per-user GUI login.
+- Personal vs shared data isolation.
+- Personal vs shared integrations.
+- Per-user chat histories with the ability to continue prior chats.
+- Per-user reminders, tasks, notifications, and memories.
+- Scoped document/context uploads with an upload-time choice for personal, shared, or universal access.
+- Small GUI polish items, including increasing the size of the top-left AskRex logo.
 
 ## Main Entry Points
 
@@ -254,7 +234,6 @@ cd gui
 npm install
 npm run dev
 
-# Build and preview the compiled Electron app:
 npm run build
 npm run preview
 ```
