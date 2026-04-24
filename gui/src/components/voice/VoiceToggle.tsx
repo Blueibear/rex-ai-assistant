@@ -1,6 +1,14 @@
 import React, { useCallback } from 'react'
 
-export type VoiceState = 'idle' | 'listening' | 'processing' | 'speaking'
+export type VoiceState =
+  | 'starting'
+  | 'idle'
+  | 'wake_listening'
+  | 'listening'
+  | 'followup_listening'
+  | 'processing'
+  | 'speaking'
+  | 'cooldown'
 
 export interface VoiceToggleProps {
   state: VoiceState
@@ -10,10 +18,14 @@ export interface VoiceToggleProps {
 }
 
 const stateLabel: Record<VoiceState, string> = {
+  starting: 'Starting wake word',
   idle: 'Start wake word',
+  wake_listening: 'Listening for wake word',
   listening: 'Listening\u2026',
+  followup_listening: 'Listening for reply',
   processing: 'Thinking\u2026',
   speaking: 'Speaking\u2026',
+  cooldown: 'Resetting mic\u2026',
 }
 
 // SVG icons as inline components to avoid external deps
@@ -51,14 +63,22 @@ function getButtonStyle(state: VoiceState): string {
     'relative flex items-center justify-center rounded-full w-24 h-24 focus:outline-none focus-visible:ring-4 focus-visible:ring-offset-2 focus-visible:ring-offset-surface transition-all duration-200 select-none'
 
   switch (state) {
+    case 'starting':
+      return `${base} bg-surface-raised text-accent focus-visible:ring-accent`
     case 'idle':
       return `${base} bg-surface-raised text-text-muted hover:bg-surface-raised/80 focus-visible:ring-text-muted`
+    case 'wake_listening':
+      return `${base} bg-red-600 text-white focus-visible:ring-red-400`
     case 'listening':
+      return `${base} bg-red-600 text-white focus-visible:ring-red-400`
+    case 'followup_listening':
       return `${base} bg-red-600 text-white focus-visible:ring-red-400`
     case 'processing':
       return `${base} bg-accent text-white focus-visible:ring-accent`
     case 'speaking':
       return `${base} bg-green-600 text-white focus-visible:ring-green-400`
+    case 'cooldown':
+      return `${base} bg-surface-raised text-accent focus-visible:ring-accent`
   }
 }
 
@@ -73,7 +93,11 @@ export const VoiceToggle: React.FC<VoiceToggleProps> = ({ state, isActive, busy 
     [onToggle],
   )
 
-  const label = busy ? 'Starting wake word' : state === 'idle' && isActive ? 'Stop wake word' : stateLabel[state]
+  const label = busy
+    ? 'Starting wake word'
+    : (state === 'wake_listening' || state === 'idle') && isActive
+      ? 'Stop wake word'
+      : stateLabel[state]
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -87,15 +111,15 @@ export const VoiceToggle: React.FC<VoiceToggleProps> = ({ state, isActive, busy 
         onKeyDown={handleKeyDown}
       >
         {/* Pulsing ring for listening state */}
-        {state === 'listening' && (
+        {(state === 'wake_listening' || state === 'listening' || state === 'followup_listening') && (
           <span
             className="absolute inset-0 rounded-full animate-ping bg-red-500 opacity-40"
             aria-hidden="true"
           />
         )}
 
-        {/* Spinning ring for processing state */}
-        {state === 'processing' && (
+        {/* Spinning ring for startup, processing, and cooldown states */}
+        {(state === 'starting' || state === 'processing' || state === 'cooldown') && (
           <span
             className="absolute inset-0 rounded-full border-4 border-transparent border-t-white animate-spin"
             aria-hidden="true"

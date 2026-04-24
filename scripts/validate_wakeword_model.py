@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from rex.wakeword.utils import load_wakeword_model
+from rex.wakeword.assets import validate_custom_wakeword_asset
 
 
 def parse_args() -> argparse.Namespace:
@@ -15,6 +15,11 @@ def parse_args() -> argparse.Namespace:
         default="custom_onnx",
         choices=["custom_onnx", "custom_embedding"],
         help="Wake word backend to validate.",
+    )
+    parser.add_argument(
+        "--phrase",
+        default="hey rex",
+        help="Wake phrase used to resolve default asset paths (default: 'hey rex').",
     )
     parser.add_argument("--model-path", help="Path to custom ONNX model.")
     parser.add_argument("--embedding-path", help="Path to custom embedding .pt file.")
@@ -41,15 +46,18 @@ def main() -> int:
         if not path.exists():
             raise SystemExit(f"Embedding file not found: {path}")
 
-    model, label = load_wakeword_model(
+    selection = validate_custom_wakeword_asset(
+        phrase=args.phrase,
         backend=args.backend,
         model_path=model_path,
         embedding_path=embedding_path,
-        fallback_to_builtin=False,
     )
 
-    _ = model  # Model is validated by loading it
-    print(f"Wake word model valid. Label: {label}")
+    path = selection.resolved_model_path or selection.resolved_embedding_path
+    print(
+        "Wake word asset valid. "
+        f"backend={selection.active_backend} label={selection.active_label} path={path}"
+    )
     return 0
 
 

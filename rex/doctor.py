@@ -864,6 +864,11 @@ def check_wakeword_config() -> CheckResult:
     """Check wake word configuration: keyword presence and model file existence."""
     try:
         from .config import load_config
+        from .wakeword.utils import (
+            load_wakeword_model_with_metadata,
+            resolve_custom_wakeword_embedding_path,
+            resolve_custom_wakeword_model_path,
+        )
 
         config = load_config(reload=True)
     except Exception as exc:
@@ -874,6 +879,8 @@ def check_wakeword_config() -> CheckResult:
         )
 
     keyword = (getattr(config, "wakeword", "hey_rex") or "").strip()
+    raw_backend = getattr(config, "wakeword_backend", "openwakeword")
+    backend = raw_backend.strip() if isinstance(raw_backend, str) else "openwakeword"
     if not keyword:
         return CheckResult(
             name="Wake Word Config",
@@ -882,31 +889,104 @@ def check_wakeword_config() -> CheckResult:
             details="Set wakeword.wakeword in rex_config.json (e.g. 'hey_rex').",
         )
 
-    model_path = (getattr(config, "wakeword_model_path", None) or "").strip()
-    if model_path:
-        from pathlib import Path
+    explicit_model_path = getattr(config, "wakeword_model_path", None)
+    if isinstance(explicit_model_path, str) and explicit_model_path.strip():
+        resolved_model = Path(explicit_model_path)
+        if not resolved_model.is_file():
+            return CheckResult(
+                name="Wake Word Config",
+                status=Status.ERROR,
+                message=f"Wake word model file not found: {resolved_model}",
+                details="Set wakeword.model_path to an existing custom ONNX file.",
+            )
+        if backend != "custom_onnx":
+            return CheckResult(
+                name="Wake Word Config",
+                status=Status.OK,
+                message=(
+                    f"backend={backend}, keyword='{keyword}', "
+                    f"model='{resolved_model.name}'"
+                ),
+            )
 
-        resolved = Path(model_path)
+    if backend == "custom_onnx":
+        resolved = resolve_custom_wakeword_model_path(
+            keyword,
+            explicit_model_path,
+        )
         if not resolved.is_file():
             return CheckResult(
                 name="Wake Word Config",
                 status=Status.ERROR,
                 message=f"Wake word model file not found: {resolved}",
                 details=(
-                    "Check wake_word.model_path in rex_config.json or remove it to use "
-                    "the built-in keyword model."
+                    "Set wakeword.model_path or place a custom ONNX file at "
+                    f"{resolved}."
                 ),
+            )
+        try:
+            _, selection = load_wakeword_model_with_metadata(
+                keyword=keyword,
+                model_path=str(resolved),
+                backend="custom_onnx",
+                fallback_to_builtin=False,
+                fallback_keyword=getattr(config, "wakeword_fallback_keyword", "hey jarvis"),
+            )
+        except Exception as exc:
+            return CheckResult(
+                name="Wake Word Config",
+                status=Status.ERROR,
+                message=f"Wake word model failed validation: {resolved}",
+                details=str(exc),
             )
         return CheckResult(
             name="Wake Word Config",
             status=Status.OK,
-            message=f"keyword='{keyword}', custom model: {resolved.name}",
+            message=f"backend=custom_onnx, phrase='{keyword}', model='{resolved.name}'",
+            details=f"Validated custom ONNX asset. Active backend: {selection.active_backend}.",
+        )
+
+    if backend == "custom_embedding":
+        resolved = resolve_custom_wakeword_embedding_path(
+            keyword,
+            getattr(config, "wakeword_embedding_path", None),
+        )
+        if not resolved.is_file():
+            return CheckResult(
+                name="Wake Word Config",
+                status=Status.ERROR,
+                message=f"Wake word embedding file not found: {resolved}",
+                details=(
+                    "Set wakeword.embedding_path or place a trained embedding at "
+                    f"{resolved}."
+                ),
+            )
+        try:
+            _, selection = load_wakeword_model_with_metadata(
+                keyword=keyword,
+                embedding_path=str(resolved),
+                backend="custom_embedding",
+                fallback_to_builtin=False,
+                fallback_keyword=getattr(config, "wakeword_fallback_keyword", "hey jarvis"),
+            )
+        except Exception as exc:
+            return CheckResult(
+                name="Wake Word Config",
+                status=Status.ERROR,
+                message=f"Wake word embedding failed validation: {resolved}",
+                details=str(exc),
+            )
+        return CheckResult(
+            name="Wake Word Config",
+            status=Status.OK,
+            message=f"backend=custom_embedding, phrase='{keyword}', embedding='{resolved.name}'",
+            details=f"Validated custom embedding asset. Active backend: {selection.active_backend}.",
         )
 
     return CheckResult(
         name="Wake Word Config",
         status=Status.OK,
-        message=f"keyword='{keyword}' (built-in model)",
+        message=f"backend=openwakeword, keyword='{keyword}'",
     )
 
 

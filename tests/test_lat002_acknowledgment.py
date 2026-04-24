@@ -243,6 +243,171 @@ def test_tts_strips_tool_request_prefix_when_answer_follows():
     asyncio.run(_run())
 
 
+def test_tts_clean_text_limits_long_spoken_response(monkeypatch):
+    """Long GUI-visible replies are shortened before spoken playback."""
+    from rex.voice_loop import TextToSpeech
+
+    monkeypatch.setattr("rex.voice_loop.settings.tts_max_spoken_chars", 80, raising=False)
+
+    tts = TextToSpeech.__new__(TextToSpeech)
+    long_text = (
+        "I was created as part of the AskRex project to help with voice and desktop tasks. "
+        "The longer details can stay visible in the transcript while speech remains concise."
+    )
+
+    spoken = tts._clean_text(long_text)
+
+    assert len(spoken) <= 81
+    assert spoken.endswith(".")
+    assert "transcript while speech remains concise" not in spoken
+
+
+def test_tts_clean_text_does_not_cut_mid_sentence(monkeypatch):
+    """Very long first sentences use an intentional handoff instead of a cut phrase."""
+    from rex.voice_loop import TextToSpeech
+
+    monkeypatch.setattr("rex.voice_loop.settings.tts_max_spoken_chars", 80, raising=False)
+
+    tts = TextToSpeech.__new__(TextToSpeech)
+    long_text = (
+        "This chocolate cake recipe starts with flour sugar cocoa powder eggs oil milk "
+        "vanilla and baking powder before moving to oven timing and frosting details."
+    )
+
+    spoken = tts._clean_text(long_text)
+
+    assert spoken == "I have a longer answer ready. Please check the transcript for the details."
+
+
+def test_gui_spoken_reply_compacts_recipe_to_transcript_handoff():
+    """GUI voice speaks an intentional recipe handoff while showing the full transcript."""
+    from rex_voice_bridge import _compact_spoken_reply_for_gui
+
+    full_reply = (
+        "Here is a chocolate cake recipe. Ingredients: flour, sugar, cocoa powder, "
+        "eggs, oil, milk, and vanilla. Step 1: mix the dry ingredients. "
+        "Step 2: bake until done."
+    )
+
+    spoken, compacted = _compact_spoken_reply_for_gui(full_reply, max_chars=120)
+
+    assert compacted is True
+    assert "full recipe" in spoken
+    assert "transcript" in spoken
+    assert "Step 1" not in spoken
+    assert spoken.endswith(".")
+
+
+def test_gui_spoken_reply_compacts_short_time_answer():
+    """Short time answers use a tighter spoken form while keeping full transcript text."""
+    from rex_voice_bridge import _compact_spoken_reply_for_gui
+
+    spoken, compacted = _compact_spoken_reply_for_gui(
+        "It's 6:49 PM in New York City.",
+        max_chars=120,
+    )
+
+    assert compacted is True
+    assert spoken == "6:49 PM in New York City."
+
+
+def test_tts_fast_short_path_uses_windows_direct(monkeypatch):
+    """Short GUI speech can bypass Edge synthesis through the fast local path."""
+    from rex.voice_loop import TextToSpeech
+
+    monkeypatch.setattr("rex.voice_loop.os.name", "nt", raising=False)
+    monkeypatch.setattr(
+        "rex.voice_loop.settings.tts_fast_short_reply_max_chars",
+        140,
+        raising=False,
+    )
+
+    tts = TextToSpeech.__new__(TextToSpeech)
+    tts._language = "en"
+    tts._default_speaker = None
+    tts._tts_speed = 1.0
+    tts._provider = "edge"
+    tts._edge_voice = "en-US-AndrewNeural"
+    tts._tts = None
+    tts._xtts_init_error = None
+    tts._speaking = threading.Event()
+    spoken: list[str] = []
+
+    async def fake_windows_direct(
+        text: str,
+        *,
+        reason: str = "windows_provider",
+        request_started_at: float | None = None,
+    ) -> dict[str, object]:
+        spoken.append(f"{reason}:{text}")
+        return {
+            "path_used": "windows_sapi",
+            "speech_start_delay_s": 0.01,
+        }
+
+    async def fail_edge(_: str) -> None:
+        raise AssertionError("Edge should not be used for fast short replies")
+
+    monkeypatch.setattr(tts, "_speak_windows_direct", fake_windows_direct)
+    monkeypatch.setattr(tts, "_speak_edge", fail_edge)
+
+    result = asyncio.run(tts.speak("hello", prefer_fast=True))
+
+    assert spoken == ["fast_short_reply:hello."]
+    assert result["path_used"] == "windows_sapi"
+    assert result["fast_short_used"] is True
+
+
+def test_tts_fast_short_path_falls_back_to_edge(monkeypatch):
+    """Short reply fast path records fallback when local SAPI is unavailable."""
+    from rex.voice_loop import TextToSpeech
+
+    monkeypatch.setattr("rex.voice_loop.os.name", "nt", raising=False)
+    monkeypatch.setattr(
+        "rex.voice_loop.settings.tts_fast_short_reply_max_chars",
+        140,
+        raising=False,
+    )
+
+    tts = TextToSpeech.__new__(TextToSpeech)
+    tts._language = "en"
+    tts._default_speaker = None
+    tts._tts_speed = 1.0
+    tts._provider = "edge"
+    tts._edge_voice = "en-US-AndrewNeural"
+    tts._tts = None
+    tts._xtts_init_error = None
+    tts._speaking = threading.Event()
+
+    async def fail_windows_direct(
+        text: str,
+        *,
+        reason: str = "windows_provider",
+        request_started_at: float | None = None,
+    ) -> dict[str, object]:
+        raise RuntimeError("sapi unavailable")
+
+    async def fake_edge(
+        text: str,
+        *,
+        request_started_at: float,
+    ) -> dict[str, object]:
+        return {
+            "path_used": "edge",
+            "speech_start_delay_s": 0.5,
+        }
+
+    monkeypatch.setattr(tts, "_speak_windows_direct", fail_windows_direct)
+    monkeypatch.setattr(tts, "_speak_edge", fake_edge)
+
+    result = asyncio.run(tts.speak("hello", prefer_fast=True))
+
+    assert result["path_used"] == "edge"
+    assert result["fallback_used"] is True
+    assert result["fast_short_candidate"] is True
+    assert result["fast_short_used"] is False
+
+
 # ---------------------------------------------------------------------------
 # AppConfig – acknowledgment_sound field
 # ---------------------------------------------------------------------------

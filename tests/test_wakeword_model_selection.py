@@ -7,6 +7,7 @@ import types
 import pytest
 
 from rex.config import AppConfig, build_app_config
+from rex.wakeword import listener as wake_listener
 from rex.wakeword import utils as wake_utils
 
 
@@ -206,3 +207,107 @@ def test_async_assistant_init_with_invalid_keyword(monkeypatch):
 
     assistant = voice_loop_module.AsyncRexAssistant(config)
     assert assistant._wake_keyword == "hey jarvis"
+
+
+@pytest.mark.unit
+def test_resolve_custom_wakeword_model_path_uses_slugged_phrase():
+    resolved = wake_utils.resolve_custom_wakeword_model_path("Hey Rex!")
+
+    assert resolved.name == "model.onnx"
+    assert resolved.parent.name == "hey_rex"
+
+
+@pytest.mark.unit
+def test_load_custom_onnx_selection_uses_default_path_when_model_exists(tmp_path, monkeypatch):
+    model_path = tmp_path / "wake_words" / "hey_rex" / "model.onnx"
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    model_path.write_bytes(b"fake-onnx")
+
+    monkeypatch.setattr(
+        wake_utils,
+        "resolve_custom_wakeword_model_path",
+        lambda phrase, model_path_arg=None: model_path,
+    )
+    monkeypatch.setattr(wake_utils, "_get_openwakeword", lambda: (object(), DummyWakeModel))
+
+    model, selection = wake_utils.load_wakeword_model_with_metadata(
+        keyword="hey rex",
+        backend="custom_onnx",
+        fallback_to_builtin=True,
+        fallback_keyword="hey jarvis",
+    )
+
+    assert isinstance(model, DummyWakeModel)
+    assert model.wakeword_models == [str(model_path)]
+    assert model.inference_framework == "onnx"
+    assert selection.requested_backend == "custom_onnx"
+    assert selection.active_backend == "custom_onnx"
+    assert selection.requested_phrase == "hey rex"
+    assert selection.resolved_model_path == str(model_path)
+    assert selection.used_fallback is False
+
+
+@pytest.mark.unit
+def test_load_custom_embedding_selection_falls_back_to_builtin_when_asset_missing(
+    tmp_path, monkeypatch
+):
+    missing_embedding = tmp_path / "wake_words" / "hey_rex" / "embedding.pt"
+
+    monkeypatch.setattr(
+        wake_utils,
+        "resolve_custom_wakeword_embedding_path",
+        lambda phrase, embedding_path_arg=None: missing_embedding,
+    )
+    monkeypatch.setattr(
+        wake_utils,
+        "_load_builtin_openwakeword_model",
+        lambda **kwargs: ("builtin-model", "hey jarvis"),
+    )
+
+    model, selection = wake_utils.load_wakeword_model_with_metadata(
+        keyword="hey rex",
+        backend="custom_embedding",
+        fallback_to_builtin=True,
+        fallback_keyword="hey jarvis",
+    )
+
+    assert model == "builtin-model"
+    assert selection.requested_backend == "custom_embedding"
+    assert selection.active_backend == "openwakeword"
+    assert selection.requested_phrase == "hey rex"
+    assert selection.resolved_embedding_path == str(missing_embedding)
+    assert selection.used_fallback is True
+    assert selection.fallback_keyword == "hey jarvis"
+
+
+@pytest.mark.unit
+def test_build_default_detector_rejects_missing_explicit_custom_onnx(monkeypatch):
+    monkeypatch.setattr(
+        wake_listener,
+        "load_wakeword_model_with_metadata",
+        lambda **kwargs: (
+            object(),
+            wake_utils.WakeWordModelSelection(
+                requested_backend="custom_onnx",
+                active_backend="openwakeword",
+                requested_phrase="hey rex",
+                active_label="hey jarvis",
+                requested_model_path="missing.onnx",
+                resolved_model_path="missing.onnx",
+                used_fallback=True,
+                fallback_keyword="hey jarvis",
+            ),
+        ),
+    )
+
+    with pytest.raises(wake_listener.WakeWordError, match="not found"):
+        wake_listener.build_default_detector(
+            sample_rate=16000,
+            chunk_duration=1.0,
+            threshold=0.2,
+            keyword="hey rex",
+            model_path="missing.onnx",
+            backend="custom_onnx",
+            fallback_to_builtin=True,
+            fallback_keyword="hey jarvis",
+        )

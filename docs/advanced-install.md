@@ -134,7 +134,7 @@ npm.cmd run preview
 For Electron-only verification harnesses, run `npm.cmd run build` before a
 `gui/tmp_verify_*.cjs` harness requires `gui/dist-electron/main/index.js`.
 
-## Python Web Dashboard
+## Python/Flask API and Experimental Web Dashboard
 
 ```bash
 rex-gui
@@ -147,6 +147,10 @@ http://127.0.0.1:8765/ui/
 ```
 
 Override the port with `REX_GUI_PORT`.
+
+`rex-gui` is useful for local Flask API routes and dashboard compatibility
+checks. The browser dashboard at `/ui/` is incomplete in current testing; use
+the Electron app as the primary GUI.
 
 ## Optional Local Services
 

@@ -475,15 +475,24 @@ def route_if_tool_request(
 
 
 def _execute_time_now(args: dict[str, Any], default_context: dict[str, Any]) -> dict[str, Any]:
-    location = args.get("location")
+    requested_location = args.get("location")
+    location = requested_location
     if not isinstance(location, str) or not location.strip():
         location = default_context.get("location")
+        requested_location = None
 
     if not isinstance(location, str) or not location.strip():
         return _error_result("Missing required location for time_now", tool="time_now", args=args)
 
     location = location.strip()
-    timezone = _resolve_timezone(location, default_context)
+    allow_default_context_fallback = requested_location is None or _same_location(
+        location, default_context.get("location")
+    )
+    timezone = _resolve_timezone(
+        location,
+        default_context,
+        allow_default_context_fallback=allow_default_context_fallback,
+    )
     if isinstance(timezone, ToolError):
         return _error_result(timezone.message, tool="time_now", args=args)
 
@@ -586,6 +595,9 @@ _CITY_TIMEZONES: dict[str, str] = {
     "jackson ms": "America/Chicago",
     "new york": "America/New_York",
     "new york city": "America/New_York",
+    "new york ny": "America/New_York",
+    "new york new york": "America/New_York",
+    "new york usa": "America/New_York",
     "nyc": "America/New_York",
     "manhattan": "America/New_York",
     "brooklyn": "America/New_York",
@@ -930,24 +942,64 @@ _CITY_TIMEZONES: dict[str, str] = {
     "nuku'alofa": "Pacific/Tongatapu",
 }
 
+_LOCATION_TRAILING_FILLERS: tuple[str, ...] = (
+    "right now",
+    "now",
+    "today",
+    "currently",
+    "please",
+    "for me",
+    "at the moment",
+)
 
-def _resolve_timezone(location: str, default_context: dict[str, Any]) -> str | ToolError:
+
+def _normalize_location_for_timezone_lookup(location: str) -> str:
     normalized = " ".join(location.strip().lower().replace(",", " ").split())
+    while True:
+        updated = normalized
+        for suffix in _LOCATION_TRAILING_FILLERS:
+            suffix_text = f" {suffix}"
+            if updated.endswith(suffix_text):
+                updated = updated[: -len(suffix_text)].strip()
+                break
+        if updated == normalized:
+            return normalized
+        normalized = updated
+
+
+def _same_location(left: str, right: object) -> bool:
+    if not isinstance(right, str) or not right.strip():
+        return False
+    return _normalize_location_for_timezone_lookup(left) == _normalize_location_for_timezone_lookup(
+        right
+    )
+
+
+def _resolve_timezone(
+    location: str,
+    default_context: dict[str, Any],
+    *,
+    allow_default_context_fallback: bool = True,
+) -> str | ToolError:
+    normalized = _normalize_location_for_timezone_lookup(location)
     alias_timezone = _CITY_TIMEZONES.get(normalized)
     if alias_timezone is not None:
         return alias_timezone
 
     # Fall back to default_timezone from config (passed via default_context)
-    fallback = default_context.get("timezone")
-    if isinstance(fallback, str) and fallback.strip():
-        return fallback.strip()
+    if allow_default_context_fallback:
+        fallback = default_context.get("timezone")
+        if isinstance(fallback, str) and fallback.strip():
+            return fallback.strip()
 
-    # Fall back to geolocation cache
-    geo_tz = get_cached_timezone()
-    if geo_tz is not None:
-        return geo_tz
+        # Fall back to geolocation cache
+        geo_tz = get_cached_timezone()
+        if geo_tz is not None:
+            return geo_tz
 
-    return "UTC"
+        return "UTC"
+
+    return ToolError(f"Unknown timezone for location: {location}")
 
 
 def _error_result(

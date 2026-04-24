@@ -286,6 +286,7 @@ export function EmailPage(): React.ReactElement {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [selected, setSelected] = useState<EmailMessage | null>(null)
+  const [loadError, setLoadError] = useState('')
 
   // Compose modal state
   const [showCompose, setShowCompose] = useState(false)
@@ -298,8 +299,9 @@ export function EmailPage(): React.ReactElement {
     try {
       const inbox = await window.rex.getEmailInbox()
       setMessages(sortMessages(inbox))
-    } catch {
-      // Keep previous state on error
+      setLoadError('')
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load inbox.')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -376,7 +378,11 @@ export function EmailPage(): React.ReactElement {
 
       {/* Message list */}
       <div className="flex-1 overflow-y-auto">
-        {messages.length === 0 ? (
+        {loadError ? (
+          <div className="flex items-center justify-center h-full px-6 text-center text-sm text-danger">
+            {loadError}
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-text-secondary text-sm">
             No messages
           </div>

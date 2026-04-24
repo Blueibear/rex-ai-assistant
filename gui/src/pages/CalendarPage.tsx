@@ -228,7 +228,7 @@ export function CalendarPage(): React.ReactElement {
       const fetched = await window.rex.getCalendarEvents(start, end)
       setEvents(fetched)
     } catch (err) {
-      addToast('Failed to load calendar events', 'error')
+      addToast(err instanceof Error ? err.message : 'Failed to load calendar events', 'error')
     } finally {
       initialized.current = true
       setLoading(false)
@@ -308,8 +308,8 @@ export function CalendarPage(): React.ReactElement {
       setEvents((prev) => [...prev, created])
       setShowCreateModal(false)
       addToast('Event created', 'success')
-    } catch {
-      setCreateError('Failed to create event.')
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create event.')
     } finally {
       setCreating(false)
     }
@@ -405,8 +405,8 @@ export function CalendarPage(): React.ReactElement {
         setShowSlotsModal(false)
         setSuggestedSlots([])
         addToast('Meeting slot added to calendar', 'success')
-      } catch {
-        addToast('Failed to add slot', 'error')
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : 'Failed to add slot', 'error')
       }
     })()
   }

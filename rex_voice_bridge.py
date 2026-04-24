@@ -3,7 +3,7 @@
 Spawned by the Electron GUI main process (src/main/handlers/voice.ts).
 
 Emits NDJSON lines to stdout:
-  {"type": "state",      "state": "idle"|"listening"|"processing"|"speaking"}
+  {"type": "state",      "state": "idle"|"wake_listening"|"listening"|"followup_listening"|"processing"|"speaking"}
   {"type": "transcript", "text": "...", "role": "user"|"rex", "timestamp": <ms>}
   {"type": "error",      "error": "..."}
 
@@ -15,24 +15,251 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import math
+import os
+import re
 import sys
 import threading
 import time
 import traceback as _traceback
+import uuid
+from collections.abc import Callable
 from contextlib import suppress
+from datetime import UTC, datetime
+from typing import Any, TypeVar
 
 from rex.bridge_utils import repo_root, resolve_python
 
 _PYTHON_EXE = resolve_python()  # venv-aware interpreter path for subprocess calls
 _REPO_ROOT = repo_root()  # absolute repo root for resolving scripts and config
+_VOICE_BRIDGE_SESSION_ID = (
+    f"voice-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{os.getpid()}-" f"{uuid.uuid4().hex[:8]}"
+)
+logger = logging.getLogger(__name__)
+_ResourceT = TypeVar("_ResourceT")
+_INTERNAL_TOOL_SYNTAX_RE = re.compile(r"\bTOOL_(?:REQUEST|RESULT)\s*:", re.IGNORECASE)
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+_DEFAULT_GUI_SPOKEN_MAX_CHARS = 120
+_GUI_LONG_ANSWER_HANDOFF = (
+    "I put the full answer on screen. Please read the transcript for the details."
+)
+_GUI_RECIPE_HANDOFF = (
+    "I put the full recipe on screen. Please read the transcript for the ingredients and steps."
+)
+_TIME_REPLY_RE = re.compile(
+    r"^(?:it is|it's)\s+(?P<clock>.+?)(?:\s+in\s+(?P<location>.+?))?(?:\s+right now)?[.!?]?$",
+    re.IGNORECASE,
+)
+
+
+def _sanitize_user_facing_voice_text(text: str) -> str:
+    if not _INTERNAL_TOOL_SYNTAX_RE.search(text):
+        return text
+    logger.error(
+        "Suppressed raw internal tool syntax before voice transcript/TTS",
+        extra={
+            "event": "voice_bridge_internal_tool_syntax_suppressed",
+            "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+        },
+    )
+    return "I could not complete that tool request."
+
+
+def _compact_spoken_reply_for_gui(
+    text: str,
+    *,
+    max_chars: int = _DEFAULT_GUI_SPOKEN_MAX_CHARS,
+) -> tuple[str, bool]:
+    """Return a short intentional spoken form while the full answer stays on screen."""
+    clean = re.sub(r"\s+", " ", text).strip()
+    if not clean:
+        return "", False
+
+    time_match = _TIME_REPLY_RE.match(clean)
+    if time_match:
+        clock = (time_match.group("clock") or "").strip()
+        location = (time_match.group("location") or "").strip()
+        if re.search(r"\b(?:\d{1,2}:\d{2}|noon|midnight)\b", clock, re.IGNORECASE):
+            spoken = f"{clock} in {location}." if location else f"{clock}."
+            if spoken != clean:
+                return spoken, True
+
+    if max_chars <= 0 or len(clean) <= max_chars:
+        return clean, False
+
+    lower = clean.lower()
+    handoff = _GUI_RECIPE_HANDOFF if "recipe" in lower else _GUI_LONG_ANSWER_HANDOFF
+    sentences = [sentence.strip() for sentence in _SENTENCE_SPLIT_RE.split(clean) if sentence.strip()]
+
+    intro = ""
+    if sentences:
+        first = sentences[0].rstrip()
+        if len(first) <= 70 and not first[:3].strip().isdigit():
+            intro = first if first.endswith((".", "!", "?")) else f"{first}."
+
+    candidate = f"{intro} {handoff}".strip() if intro else handoff
+    if len(candidate) > max_chars:
+        candidate = handoff
+    return candidate, candidate != clean
+
+
+class _VoiceBridgeSessionFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not hasattr(record, "voice_bridge_session_id"):
+            record.voice_bridge_session_id = _VOICE_BRIDGE_SESSION_ID
+        return True
+
+
+class _LazyAsyncResource:
+    def __init__(
+        self,
+        name: str,
+        factory: Callable[[], _ResourceT],
+    ) -> None:
+        self._name = name
+        self._factory = factory
+        self._task: asyncio.Task[_ResourceT] | None = None
+
+    def start(self) -> None:
+        if self._task is None:
+            self._task = asyncio.create_task(self._load())
+            self._task.add_done_callback(self._observe_completion)
+
+    async def _load(self) -> _ResourceT:
+        started_at = time.perf_counter()
+        logger.info(
+            "Starting optional %s warmup",
+            self._name,
+            extra={
+                "event": f"voice_bridge_{self._name}_warmup_start",
+                "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+            },
+        )
+        try:
+            resource = await asyncio.to_thread(self._factory)
+        except Exception:
+            logger.exception(
+                "Optional %s warmup failed",
+                self._name,
+                extra={
+                    "event": f"voice_bridge_{self._name}_warmup_failed",
+                    "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+                    "duration_s": round(time.perf_counter() - started_at, 3),
+                },
+            )
+            raise
+        logger.info(
+            "Optional %s warmup complete",
+            self._name,
+            extra={
+                "event": f"voice_bridge_{self._name}_warmup_end",
+                "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+                "duration_s": round(time.perf_counter() - started_at, 3),
+            },
+        )
+        return resource
+
+    async def get(self) -> _ResourceT:
+        self.start()
+        assert self._task is not None
+        return await asyncio.shield(self._task)
+
+    @staticmethod
+    def _observe_completion(task: asyncio.Task[object]) -> None:
+        with suppress(Exception):
+            task.result()
+
+    def peek(self) -> _ResourceT | None:
+        if self._task is None or not self._task.done() or self._task.cancelled():
+            return None
+        if self._task.exception() is not None:
+            return None
+        return self._task.result()
+
+
+class _DeferredAssistant:
+    def __init__(self, factory: Callable[[], Any]) -> None:
+        self._resource = _LazyAsyncResource("assistant", factory)
+
+    def start_warmup(self) -> None:
+        self._resource.start()
+
+    async def generate_reply(self, *args: Any, **kwargs: Any) -> str:
+        assistant = await self._resource.get()
+        return await assistant.generate_reply(*args, **kwargs)
+
+    async def stream_reply(self, *args: Any, **kwargs: Any):
+        assistant = await self._resource.get()
+        async for chunk in assistant.stream_reply(*args, **kwargs):
+            yield chunk
+
+
+class _DeferredTextToSpeech:
+    def __init__(self, factory: Callable[[], Any]) -> None:
+        self._resource = _LazyAsyncResource("tts", factory)
+
+    def start_warmup(self) -> None:
+        self._resource.start()
+
+    def is_speaking(self) -> bool:
+        tts = self._resource.peek()
+        return bool(tts and tts.is_speaking())
+
+    async def speak(self, text: str, *, prefer_fast: bool = False) -> None:
+        tts = await self._resource.get()
+        await tts.speak(text, prefer_fast=prefer_fast)
 
 
 def emit(obj: dict) -> None:  # type: ignore[type-arg]
     print(json.dumps(obj), flush=True)
 
 
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return value
+
+
+def emit_log(level: str, message: str, extra: dict[str, object] | None = None) -> None:
+    emit(
+        {
+            "type": "log",
+            "level": level,
+            "message": message,
+            "extra": _json_safe(extra or {}),
+        }
+    )
+
+
 def time_ms() -> int:
     return int(time.time() * 1000)
+
+
+def _move_stream_logging_to_stderr() -> None:
+    """Keep stdout reserved for the NDJSON bridge protocol."""
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        stream = getattr(handler, "stream", None)
+        stream_name = getattr(stream, "name", None)
+        if isinstance(handler, logging.StreamHandler) and (
+            stream is sys.stdout or stream is sys.__stdout__ or stream_name == "<stdout>"
+        ):
+            handler.setStream(sys.stderr)
+
+
+def _install_voice_bridge_log_filter() -> None:
+    root_logger = logging.getLogger()
+    log_filter = _VoiceBridgeSessionFilter()
+    if not any(isinstance(existing, _VoiceBridgeSessionFilter) for existing in root_logger.filters):
+        root_logger.addFilter(log_filter)
+    for handler in root_logger.handlers:
+        if not any(isinstance(existing, _VoiceBridgeSessionFilter) for existing in handler.filters):
+            handler.addFilter(log_filter)
 
 
 stop_event = threading.Event()
@@ -108,6 +335,7 @@ def _run_stub_loop() -> None:
                 "Voice pipeline is running in stub mode. "
                 "Install all voice dependencies and connect a microphone to enable real voice input."
             )
+        reply_text = _sanitize_user_facing_voice_text(reply_text)
 
         if stop_event.is_set():
             break
@@ -166,6 +394,8 @@ async def _run_real_loop() -> None:
     from rex.wakeword.listener import build_default_detector
 
     configure_logging()
+    _move_stream_logging_to_stderr()
+    _install_voice_bridge_log_filter()
     emit({"type": "status", "status": "loading_config"})
 
     try:
@@ -178,6 +408,15 @@ async def _run_real_loop() -> None:
     rex_config_module.settings = active_settings
     voice_loop_module.settings = active_settings
     configure_logging()
+    _move_stream_logging_to_stderr()
+    _install_voice_bridge_log_filter()
+    logger.info(
+        "GUI voice bridge session starting",
+        extra={
+            "event": "voice_bridge_session_start",
+            "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+        },
+    )
     emit({"type": "status", "status": "initializing_services"})
     initialize_services()
 
@@ -192,16 +431,79 @@ async def _run_real_loop() -> None:
     whisper_model = str(getattr(active_settings, "whisper_model", "base") or "base")
     device = str(getattr(active_settings, "whisper_device", "auto") or "auto")
     language = str(getattr(active_settings, "whisper_language", "en") or "en")
+    detection_hop_seconds = max(0.125, detection_seconds / 8)
+    wakeword_threshold = float(getattr(active_settings, "wakeword_threshold", None) or 0.1)
+
+    logger.info(
+        "GUI voice bridge runtime configuration resolved",
+        extra={
+            "event": "voice_bridge_config",
+            "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+            "sample_rate": sample_rate,
+            "detection_frame_seconds": detection_seconds,
+            "detection_hop_seconds": detection_hop_seconds,
+            "capture_seconds": capture_seconds,
+            "wakeword_backend": getattr(active_settings, "wakeword_backend", None),
+            "wakeword_threshold": wakeword_threshold,
+            "wakeword_keyword": getattr(active_settings, "wakeword_keyword", None)
+            or getattr(active_settings, "wakeword", None),
+            "wakeword_model_path": getattr(active_settings, "wakeword_model_path", None),
+            "wakeword_embedding_path": getattr(active_settings, "wakeword_embedding_path", None),
+            "wakeword_fallback_to_builtin": getattr(
+                active_settings, "wakeword_fallback_to_builtin", True
+            ),
+            "wakeword_fallback_keyword": getattr(
+                active_settings, "wakeword_fallback_keyword", "hey jarvis"
+            ),
+            "stt_model": whisper_model,
+            "stt_device": device,
+            "stt_language": language,
+            "tts_provider": getattr(active_settings, "tts_provider", None),
+            "tts_voice": getattr(active_settings, "tts_voice", None),
+        },
+    )
+    emit_log(
+        "INFO",
+        "GUI voice bridge runtime configuration resolved",
+        {
+            "event": "voice_bridge_config",
+            "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+            "sample_rate": sample_rate,
+            "detection_frame_seconds": detection_seconds,
+            "detection_hop_seconds": detection_hop_seconds,
+            "capture_seconds": capture_seconds,
+            "wakeword_backend": getattr(active_settings, "wakeword_backend", None),
+            "wakeword_threshold": wakeword_threshold,
+            "wakeword_keyword": getattr(active_settings, "wakeword_keyword", None)
+            or getattr(active_settings, "wakeword", None),
+            "wakeword_model_path": getattr(active_settings, "wakeword_model_path", None),
+            "wakeword_embedding_path": getattr(active_settings, "wakeword_embedding_path", None),
+            "wakeword_fallback_to_builtin": getattr(
+                active_settings, "wakeword_fallback_to_builtin", True
+            ),
+            "wakeword_fallback_keyword": getattr(
+                active_settings, "wakeword_fallback_keyword", "hey jarvis"
+            ),
+            "stt_model": whisper_model,
+            "stt_device": device,
+            "stt_language": language,
+            "tts_provider": getattr(active_settings, "tts_provider", None),
+            "tts_voice": getattr(active_settings, "tts_voice", None),
+        },
+    )
 
     emit({"type": "status", "status": "loading_plugins"})
     plugin_specs = load_plugins()
     emit({"type": "status", "status": "creating_assistant"})
-    assistant = Assistant(history_limit=active_settings.max_memory_items, plugins=plugin_specs)
+    assistant = _DeferredAssistant(
+        lambda: Assistant(history_limit=active_settings.max_memory_items, plugins=plugin_specs)
+    )
 
     emit({"type": "status", "status": "initializing_microphone"})
     mic = AsyncMicrophone(
         sample_rate=sample_rate,
         detection_seconds=detection_seconds,
+        detection_hop_seconds=detection_hop_seconds,
         capture_seconds=capture_seconds,
     )
 
@@ -209,7 +511,7 @@ async def _run_real_loop() -> None:
     wake_listener = build_default_detector(
         sample_rate=sample_rate,
         chunk_duration=detection_seconds,
-        threshold=getattr(active_settings, "wakeword_threshold", 0.1),
+        threshold=wakeword_threshold,
         poll_interval=getattr(active_settings, "wakeword_poll_interval", 0.01),
         keyword=getattr(active_settings, "wakeword_keyword", None)
         or getattr(active_settings, "wakeword", None),
@@ -218,19 +520,80 @@ async def _run_real_loop() -> None:
         backend=getattr(active_settings, "wakeword_backend", None),
         fallback_to_builtin=getattr(active_settings, "wakeword_fallback_to_builtin", True),
         fallback_keyword=getattr(active_settings, "wakeword_fallback_keyword", "hey jarvis"),
+        event_callback=lambda payload: emit_log(
+            str(payload.get("level", "INFO")),
+            str(payload.get("message", "Wake-word event")),
+            (
+                payload.get("extra", {})
+                if isinstance(payload.get("extra"), dict)
+                else {"event": "wakeword_event"}
+            ),
+        ),
     )
 
     emit({"type": "status", "status": "initializing_stt"})
-    stt = SpeechToText(model_name=whisper_model, device=device, async_load=True)
+    stt = SpeechToText(
+        model_name=whisper_model,
+        device=device,
+        language=language,
+        async_load=True,
+    )
     emit({"type": "status", "status": "initializing_tts"})
-    tts = TextToSpeech(language=language)
+    tts = _DeferredTextToSpeech(lambda: TextToSpeech(language=language))
     emit({"type": "status", "status": "initializing_acknowledgement"})
-    ack = WakeAcknowledgement()
+    ack = WakeAcknowledgement(is_speaking=tts.is_speaking)
+    ack_mode = str(getattr(active_settings, "acknowledgment_mode", "none") or "none").lower()
+    ack_sound = str(getattr(active_settings, "acknowledgment_sound", "") or "")
+
+    async def wrapped_post_stt_ack() -> None:
+        started_at = time.perf_counter()
+        emit({"type": "status", "status": "request_captured"})
+        emit({"type": "state", "state": "processing"})
+        logger.info(
+            "GUI voice bridge request captured acknowledgement started",
+            extra={
+                "event": "voice_bridge_request_ack_start",
+                "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+                "ack_mode": ack_mode,
+            },
+        )
+        if ack_mode == "phrase":
+            phrase = ack_sound if ack_sound and not ack_sound.lower().endswith((".wav", ".mp3")) else "Got it."
+            await tts.speak(phrase)
+        elif ack_mode == "sound":
+            await ack.play()
+        logger.info(
+            "GUI voice bridge request captured acknowledgement finished",
+            extra={
+                "event": "voice_bridge_request_ack_end",
+                "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+                "ack_mode": ack_mode,
+                "duration_s": round(time.perf_counter() - started_at, 3),
+            },
+        )
 
     # Wrap transcribe: emit processing state, then emit user transcript
     async def wrapped_transcribe(audio) -> str:  # type: ignore[type-arg]
+        started_at = time.perf_counter()
+        logger.info(
+            "GUI voice bridge STT started",
+            extra={
+                "event": "voice_bridge_stt_start",
+                "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+                "audio_samples": len(audio) if hasattr(audio, "__len__") else None,
+            },
+        )
         emit({"type": "state", "state": "processing"})
         text = await stt.transcribe(audio, sample_rate)
+        logger.info(
+            "GUI voice bridge STT finished",
+            extra={
+                "event": "voice_bridge_stt_end",
+                "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+                "duration_s": round(time.perf_counter() - started_at, 3),
+                "transcript": text,
+            },
+        )
         if text:
             emit(
                 {
@@ -240,12 +603,55 @@ async def _run_real_loop() -> None:
                     "timestamp": time_ms(),
                 }
             )
-        else:
-            emit({"type": "state", "state": "idle"})
         return text
 
-    # Wrap speak: emit speaking state + rex transcript, then restore wake-listening idle.
+    # Wrap speak: emit speaking state + rex transcript; VoiceLoop emits cooldown/idle.
     async def wrapped_speak(text: str) -> None:
+        text = _sanitize_user_facing_voice_text(text)
+        max_spoken_chars = int(getattr(active_settings, "tts_max_spoken_chars", 120) or 120)
+        spoken_text, compact_speech_used = _compact_spoken_reply_for_gui(
+            text,
+            max_chars=max_spoken_chars,
+        )
+        fast_short_enabled = bool(
+            getattr(active_settings, "tts_fast_short_reply_enabled", True)
+        )
+        fast_short_max_chars = int(
+            getattr(active_settings, "tts_fast_short_reply_max_chars", 140) or 140
+        )
+        prefer_fast_speech = fast_short_enabled and len(spoken_text) <= fast_short_max_chars
+        started_at = time.perf_counter()
+        logger.info(
+            "GUI voice bridge reply ready; starting TTS playback path",
+            extra={
+                "event": "voice_bridge_reply_ready",
+                "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+                "reply_chars": len(text),
+                "spoken_reply_chars": len(spoken_text),
+                "compact_speech_used": compact_speech_used,
+                "max_spoken_chars": max_spoken_chars,
+                "fast_short_path_selected": prefer_fast_speech,
+                "fast_short_max_chars": fast_short_max_chars,
+                "reply_preview": text[:160],
+                "spoken_reply_preview": spoken_text[:160],
+            },
+        )
+        emit_log(
+            "INFO",
+            "GUI voice bridge TTS path selected",
+            {
+                "event": "voice_bridge_tts_path_selected",
+                "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+                "configured_tts_provider": getattr(active_settings, "tts_provider", None),
+                "reply_chars": len(text),
+                "spoken_reply_chars": len(spoken_text),
+                "compact_speech_used": compact_speech_used,
+                "fast_short_eligible": prefer_fast_speech,
+                "fast_short_max_chars": fast_short_max_chars,
+                "spoken_reply_preview": spoken_text[:160],
+            },
+        )
+        emit({"type": "status", "status": "preparing_voice"})
         emit({"type": "state", "state": "speaking"})
         emit(
             {
@@ -255,15 +661,62 @@ async def _run_real_loop() -> None:
                 "timestamp": time_ms(),
             }
         )
-        await tts.speak(text)
-        emit({"type": "state", "state": "idle"})
+        tts_result = await tts.speak(spoken_text, prefer_fast=prefer_fast_speech)
+        emit_log(
+            "INFO",
+            "GUI voice bridge TTS path result",
+            {
+                "event": "voice_bridge_tts_path_result",
+                "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+                **(tts_result or {}),
+            },
+        )
+        logger.info(
+            "GUI voice bridge TTS playback path complete",
+            extra={
+                "event": "voice_bridge_tts_end",
+                "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+                "duration_s": round(time.perf_counter() - started_at, 3),
+                "compact_speech_used": compact_speech_used,
+                "fast_short_path_selected": prefer_fast_speech,
+                "spoken_reply_chars": len(spoken_text),
+                **(tts_result or {}),
+            },
+        )
+        emit({"type": "status", "status": "voice_playback_complete"})
+
+    wake_listening_event = asyncio.Event()
 
     def emit_voice_loop_state(status: str) -> None:
         if status in {"idle", "done"}:
             emit({"type": "state", "state": "idle"})
+        elif status == "wake_listening":
+            wake_listening_event.set()
+            emit_log(
+                "INFO",
+                "Wake listener armed",
+                {
+                    "event": "wake_listen_armed",
+                    "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+                },
+            )
+            emit({"type": "state", "state": "wake_listening"})
+        elif status == "cooldown":
+            emit({"type": "state", "state": "cooldown"})
         elif status == "listening":
             emit({"type": "state", "state": "listening"})
+        elif status == "followup_listening":
+            emit_log(
+                "INFO",
+                "Voice bridge waiting for immediate follow-up",
+                {
+                    "event": "voice_followup_listening",
+                    "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+                },
+            )
+            emit({"type": "state", "state": "followup_listening"})
         elif status in {"thinking", "executing"}:
+            emit({"type": "status", "status": status})
             emit({"type": "state", "state": "processing"})
         elif status == "error":
             emit({"type": "error", "error": "Voice pipeline error; see logs for details."})
@@ -277,20 +730,84 @@ async def _run_real_loop() -> None:
         transcribe=wrapped_transcribe,
         speak=wrapped_speak,
         acknowledge=ack.play,
+        post_stt_acknowledge=wrapped_post_stt_ack,
         state_callback=emit_voice_loop_state,
     )
-
-    # Announce readiness now that the real wake-word pipeline is built.
-    emit({"type": "ready", "mode": "wake_word"})
-    emit({"type": "state", "state": "idle"})
 
     # Start stdin watcher after startup. On Windows, reading a live stdin pipe
     # in a background thread during heavy imports can stall bridge readiness.
     watcher = threading.Thread(target=_stdin_watcher, daemon=True)
     watcher.start()
 
-    # Run the voice loop as a cancellable task
+    # Launch optional warmups before wake-listening is announced so the first
+    # user-visible listening window does not also trigger lazy initialization.
+    assistant.start_warmup()
+    tts.start_warmup()
+
+    # Run the voice loop as a cancellable task and only report bridge readiness
+    # after it has reached the actual wake-listening state.
+    emit({"type": "status", "status": "arming_wake_listener"})
+    emit_log(
+        "INFO",
+        "GUI voice bridge wake listen requested",
+        {
+            "event": "voice_bridge_wake_listen_requested",
+            "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+        },
+    )
+    logger.info(
+        "GUI voice bridge wake listen requested",
+        extra={
+            "event": "voice_bridge_wake_listen_requested",
+            "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+        },
+    )
     loop_task = asyncio.create_task(voice_loop.run())
+    try:
+        await asyncio.wait_for(wake_listening_event.wait(), timeout=10.0)
+    except TimeoutError:
+        logger.error(
+            "GUI voice bridge wake listener failed to arm",
+            extra={
+                "event": "voice_bridge_wake_listen_failed",
+                "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+                "timeout_s": 10.0,
+            },
+        )
+        emit(
+            {
+                "type": "error",
+                "error": "Wake-word listener did not arm within 10 seconds.",
+            }
+        )
+        loop_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await loop_task
+        return
+
+    logger.info(
+        "GUI voice bridge wake listen acknowledged",
+        extra={
+            "event": "voice_bridge_wake_listen_acknowledged",
+            "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+        },
+    )
+    emit_log(
+        "INFO",
+        "GUI voice bridge wake listen acknowledged",
+        {
+            "event": "voice_bridge_wake_listen_acknowledged",
+            "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+        },
+    )
+    emit({"type": "ready", "mode": "wake_word"})
+    logger.info(
+        "GUI voice bridge ready for wake-word mode",
+        extra={
+            "event": "voice_bridge_ready",
+            "voice_bridge_session_id": _VOICE_BRIDGE_SESSION_ID,
+        },
+    )
 
     # Cancel the voice loop task when stop_event fires
     async def _wait_for_stop() -> None:

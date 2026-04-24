@@ -27,6 +27,15 @@ logger = logging.getLogger(__name__)
 _DEFAULT_TIMEOUT = 30
 
 
+def _create_default_ssl_context() -> ssl.SSLContext:
+    try:
+        return ssl.create_default_context()
+    except NameError as exc:
+        if "enum_certificates" not in str(exc):
+            raise
+        return ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+
+
 class ImapSmtpEmailBackend(EmailBackend):
     """Production email backend using IMAP4-SSL (read) and SMTP (send).
 
@@ -68,7 +77,7 @@ class ImapSmtpEmailBackend(EmailBackend):
         self._password = password
         self._use_starttls = use_starttls
         self._timeout = timeout
-        self._ssl_ctx = ssl_context or ssl.create_default_context()
+        self._ssl_ctx = ssl_context or _create_default_ssl_context()
 
         self._imap_factory = imap_client_factory
         self._smtp_factory = smtp_client_factory

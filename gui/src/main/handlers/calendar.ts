@@ -39,33 +39,28 @@ function callCalendarBridge(command: string, extra: object = {}): Promise<unknow
 }
 
 async function getCalendarEvents(start: string, end: string): Promise<CalendarEvent[]> {
-  try {
-    const result = await callCalendarBridge('list', { start, end }) as {
-      ok: boolean
-      events?: CalendarEvent[]
-      error?: string
-    }
-    if (result.ok && Array.isArray(result.events)) {
-      // Merge backend events with locally-created events for the session.
-      return [...result.events, ...localEvents]
-    }
-    return [...localEvents]
-  } catch {
-    return [...localEvents]
+  const result = await callCalendarBridge('list', { start, end }) as {
+    ok: boolean
+    events?: CalendarEvent[]
+    error?: string
   }
+  if (result.ok && Array.isArray(result.events)) {
+    // Merge backend events with locally-created events for the session.
+    return [...result.events, ...localEvents]
+  }
+  throw new Error(result.error ?? 'Calendar bridge did not return events.')
 }
 
-function createCalendarEvent(input: CalendarEventInput): CalendarEvent {
-  const event: CalendarEvent = {
-    id: `cal-${Date.now()}`,
-    title: input.title,
-    start: input.start,
-    end: input.end,
-    color: input.color ?? '#3B82F6',
-    location: input.location,
-    description: input.description,
-    source: 'rex'
+async function createCalendarEvent(input: CalendarEventInput): Promise<CalendarEvent> {
+  const result = await callCalendarBridge('create', { event: input }) as {
+    ok: boolean
+    event?: CalendarEvent
+    error?: string
   }
+  if (!result.ok || !result.event) {
+    throw new Error(result.error ?? 'Calendar bridge did not create the event.')
+  }
+  const event: CalendarEvent = { ...result.event, color: input.color ?? result.event.color ?? '#3B82F6' }
   localEvents = [...localEvents, event]
   return event
 }
@@ -89,7 +84,7 @@ export function registerCalendarHandlers(): void {
 
   ipcMain.handle(
     'rex:createCalendarEvent',
-    (_event, input: CalendarEventInput): CalendarEvent => {
+    async (_event, input: CalendarEventInput): Promise<CalendarEvent> => {
       return createCalendarEvent(input)
     }
   )

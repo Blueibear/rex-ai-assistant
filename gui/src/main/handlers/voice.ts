@@ -1,7 +1,9 @@
-import { ipcMain } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import type { ChildProcess } from 'child_process'
+import { dirname } from 'path'
 import { resolveBridgePath, resolvePythonCommand } from '../bridgeResolver'
+import { appendElectronLog } from './logs'
 
 let voiceProcess: ChildProcess | null = null
 let currentVoiceState = 'idle'
@@ -18,10 +20,35 @@ function normalizeBridgeVoiceState(state: string): string {
   return state
 }
 
+function formatVoiceStatus(status: string): string {
+  return status
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function broadcastVoiceEvent(channel: string, data: unknown): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    const contents = window.webContents
+    if (!contents.isDestroyed()) {
+      contents.send(channel, data)
+    }
+  }
+}
+
+function setVoiceState(state: string): void {
+  currentVoiceState = state
+  broadcastVoiceEvent('rex:voiceState', { state })
+}
+
 function killVoiceProcess(): void {
   const py = voiceProcess
   voiceProcess = null
+  setVoiceState('idle')
   if (py) {
+    appendElectronLog('INFO', 'Stopping GUI voice bridge process', {
+      event: 'voice_bridge_stop_requested',
+      pid: py.pid
+    })
     try {
       py.stdin?.write(JSON.stringify({ command: 'stop' }) + '\n')
       py.stdin?.end()
@@ -33,18 +60,51 @@ function killVoiceProcess(): void {
 
 export function registerVoiceHandlers(): void {
   ipcMain.handle('rex:startVoice', async (event): Promise<{ ok: boolean; error?: string }> => {
-    // Kill any existing session first.
     if (voiceProcess) {
+      const existingState = getCurrentVoiceState()
+      if (existingState !== 'idle' && existingState !== 'error') {
+        appendElectronLog('INFO', 'GUI wake listen request reused existing voice bridge process', {
+          event: 'voice_listen_reused',
+          pid: voiceProcess.pid,
+          state: existingState
+        })
+        event.sender.send('rex:voiceState', { state: existingState })
+        return { ok: true }
+      }
+      appendElectronLog('WARNING', 'Restarting unarmed GUI voice bridge process', {
+        event: 'voice_bridge_restart_unarmed',
+        pid: voiceProcess.pid,
+        state: existingState
+      })
       killVoiceProcess()
     }
 
     const scriptPath = resolveBridgeScript('rex_voice_bridge.py')
+    const bridgeCwd = dirname(scriptPath)
+    appendElectronLog('INFO', 'Starting GUI voice bridge process', {
+      event: 'voice_bridge_start_requested',
+      script_path: scriptPath,
+      cwd: bridgeCwd
+    })
+    appendElectronLog('INFO', 'GUI wake listen requested by renderer', {
+      event: 'voice_listen_requested',
+      script_path: scriptPath,
+      cwd: bridgeCwd
+    })
 
     const py = spawn(resolvePythonCommand(), [scriptPath], {
+      cwd: bridgeCwd,
       stdio: ['pipe', 'pipe', 'pipe']
     })
 
     voiceProcess = py
+    setVoiceState('starting')
+    appendElectronLog('INFO', 'GUI voice bridge process spawned', {
+      event: 'voice_bridge_spawned',
+      pid: py.pid,
+      script_path: scriptPath,
+      cwd: bridgeCwd
+    })
 
     return new Promise((resolve) => {
       let startupSettled = false
@@ -55,35 +115,40 @@ export function registerVoiceHandlers(): void {
         if (startupSettled) return
         startupSettled = true
         clearTimeout(startupTimer)
+        appendElectronLog(result.ok ? 'INFO' : 'ERROR', 'GUI voice bridge startup settled', {
+          event: 'voice_bridge_startup_settled',
+          ok: result.ok,
+          error: result.error,
+          pid: py.pid
+        })
         resolve(result)
       }
 
       function failStartup(error: string): void {
+        broadcastVoiceEvent('rex:voiceError', { error })
         if (!startupSettled) {
+          appendElectronLog('ERROR', 'GUI voice bridge startup failed', {
+            event: 'voice_bridge_startup_failed',
+            error,
+            pid: py.pid
+          })
           if (voiceProcess === py) {
             voiceProcess = null
           }
+          setVoiceState('error')
           try {
             py.kill()
           } catch {
             // Process may already be gone.
           }
           settleStartup({ ok: false, error })
-        } else {
-          sendIfAlive('rex:voiceError', { error })
-        }
-      }
-
-      function sendIfAlive(channel: string, data: unknown): void {
-        if (!event.sender.isDestroyed()) {
-          event.sender.send(channel, data)
         }
       }
 
       const startupTimer = setTimeout(() => {
         const detail = stderr.trim() ? ` Last stderr: ${stderr.trim().slice(-500)}` : ''
-        failStartup(`Voice bridge did not become ready within 45 seconds while ${startupStatus}.${detail}`)
-      }, 45_000)
+        failStartup(`Voice bridge did not become ready within 90 seconds while ${startupStatus}.${detail}`)
+      }, 90_000)
 
       let lineBuffer = ''
 
@@ -103,24 +168,70 @@ export function registerVoiceHandlers(): void {
               timestamp?: number
               error?: string
               status?: string
+              level?: string
+              message?: string
+              extra?: Record<string, unknown>
               traceback?: string
             }
             if (obj.type === 'ready') {
+              appendElectronLog('INFO', 'GUI voice bridge reported wake listener ready', {
+                event: 'voice_bridge_ready',
+                pid: py.pid
+              })
               settleStartup({ ok: true })
             } else if (obj.type === 'status' && obj.status) {
               startupStatus = obj.status.replace(/_/g, ' ')
+              appendElectronLog('DEBUG', 'GUI voice bridge status', {
+                event: 'voice_bridge_status',
+                status: obj.status,
+                pid: py.pid
+              })
+              broadcastVoiceEvent('rex:voiceStatus', {
+                status: obj.status,
+                label: formatVoiceStatus(obj.status)
+              })
+            } else if (obj.type === 'log') {
+              appendElectronLog(obj.level ?? 'INFO', obj.message ?? 'GUI voice bridge log', {
+                ...(obj.extra ?? {}),
+                source_logger: 'rex_voice_bridge',
+                pid: py.pid
+              })
             } else if (obj.type === 'state' && obj.state) {
               const normalizedState = normalizeBridgeVoiceState(obj.state)
-              currentVoiceState = normalizedState
-              sendIfAlive('rex:voiceState', { state: normalizedState })
+              setVoiceState(normalizedState)
+              appendElectronLog('DEBUG', 'GUI voice bridge state', {
+                event: 'voice_bridge_state',
+                state: normalizedState,
+                raw_state: obj.state,
+                pid: py.pid
+              })
+              if (normalizedState === 'wake_listening') {
+                appendElectronLog('INFO', 'GUI voice bridge wake listen acknowledged', {
+                  event: 'voice_listen_acknowledged',
+                  pid: py.pid
+                })
+              }
             } else if (obj.type === 'transcript') {
-              sendIfAlive('rex:voiceTranscript', {
+              appendElectronLog('INFO', 'GUI voice bridge transcript event', {
+                event: 'voice_bridge_transcript',
+                role: obj.role ?? 'rex',
+                text: obj.text ?? '',
+                timestamp: obj.timestamp ?? Date.now(),
+                pid: py.pid
+              })
+              broadcastVoiceEvent('rex:voiceTranscript', {
                 text: obj.text ?? '',
                 role: obj.role ?? 'rex',
                 timestamp: obj.timestamp ?? Date.now()
               })
             } else if (obj.type === 'error') {
               const error = obj.error ?? 'Unknown voice error'
+              appendElectronLog('ERROR', 'GUI voice bridge error event', {
+                event: 'voice_bridge_error',
+                error,
+                traceback: obj.traceback,
+                pid: py.pid
+              })
               failStartup(error)
             }
           } catch {
@@ -134,11 +245,15 @@ export function registerVoiceHandlers(): void {
       })
 
       py.on('close', (code) => {
+        appendElectronLog('INFO', 'GUI voice bridge process closed', {
+          event: 'voice_bridge_closed',
+          code,
+          pid: py.pid
+        })
         if (voiceProcess === py) {
           voiceProcess = null
+          setVoiceState('idle')
         }
-        currentVoiceState = 'idle'
-        sendIfAlive('rex:voiceState', { state: 'idle' })
         if (!startupSettled) {
           const detail = stderr.trim() ? `: ${stderr.trim().slice(-500)}` : ''
           settleStartup({
@@ -149,10 +264,15 @@ export function registerVoiceHandlers(): void {
       })
 
       py.on('error', (err) => {
+        appendElectronLog('ERROR', 'GUI voice bridge process failed to spawn', {
+          event: 'voice_bridge_spawn_error',
+          error: err.message,
+          pid: py.pid
+        })
         if (voiceProcess === py) {
           voiceProcess = null
         }
-        currentVoiceState = 'error'
+        setVoiceState('error')
         failStartup(`Failed to start voice bridge: ${err.message}`)
       })
     })
@@ -418,6 +538,9 @@ export function registerVoiceHandlers(): void {
 }
 
 export function getCurrentVoiceState(): string {
+  if ((!voiceProcess || voiceProcess.exitCode !== null) && currentVoiceState !== 'error') {
+    return 'idle'
+  }
   return currentVoiceState
 }
 

@@ -19,6 +19,14 @@ function buildAugmentedMessage(text: string, extractions: Map<string, string>): 
   return parts.join('\n\n')
 }
 
+const internalToolSyntaxPattern = /\bTOOL_(?:REQUEST|RESULT)\s*:/i
+
+function sanitizeAssistantText(text: string): string {
+  return internalToolSyntaxPattern.test(text)
+    ? 'I could not complete that tool request.'
+    : text
+}
+
 export function ChatPage(): React.ReactElement {
   const [messages, setMessages] = useState<Message[]>([])
   const [sending, setSending] = useState(false)
@@ -90,11 +98,14 @@ export function ChatPage(): React.ReactElement {
 
       try {
         let receivedToken = false
+        let replyText = ''
         await window.rex.sendChatStream(augmentedText, (token) => {
+          replyText += token
+          const safeReplyText = sanitizeAssistantText(replyText)
           setMessages((prev) =>
             prev.map((m) =>
               m.id === rexMsgId
-                ? { ...m, content: receivedToken ? m.content + token : token }
+                ? { ...m, content: safeReplyText }
                 : m
             )
           )

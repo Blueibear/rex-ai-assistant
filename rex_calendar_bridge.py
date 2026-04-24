@@ -23,6 +23,12 @@ from typing import Any
 
 from rex.bridge_utils import bridge_error_response
 
+OUTLOOK_CALENDAR_UNSUPPORTED = (
+    "Outlook calendar sync is not implemented yet. The current Outlook settings "
+    "only store app credentials; Rex cannot read or write Outlook events until "
+    "Microsoft Graph OAuth token support is added."
+)
+
 
 def _event_to_gui(event: Any) -> dict[str, Any]:
     return {
@@ -44,6 +50,14 @@ def _handle_list(start_str: str, end_str: str) -> dict[str, Any]:
 
     cfg = load_config()
     provider = getattr(cfg, "calendar_provider", "none") or "none"
+    if str(provider).lower() == "outlook":
+        return {
+            "ok": False,
+            "error": OUTLOOK_CALENDAR_UNSUPPORTED,
+            "events": [],
+            "configured": True,
+        }
+
     svc = CalendarService(calendar_provider=provider)
 
     try:
@@ -62,6 +76,28 @@ def _handle_list(start_str: str, end_str: str) -> dict[str, Any]:
     }
 
 
+def _handle_create(event_data: dict[str, Any]) -> dict[str, Any]:
+    from rex.config import load_config
+    from rex.integrations.calendar_service import CalendarService
+
+    cfg = load_config()
+    provider = getattr(cfg, "calendar_provider", "none") or "none"
+    if str(provider).lower() == "outlook":
+        return {
+            "ok": False,
+            "error": OUTLOOK_CALENDAR_UNSUPPORTED,
+            "configured": True,
+        }
+
+    svc = CalendarService(calendar_provider=provider)
+    event = svc.create_event(event_data)
+    return {
+        "ok": True,
+        "event": _event_to_gui(event),
+        "configured": provider != "none",
+    }
+
+
 def main() -> None:
     try:
         payload: dict[str, Any] = json.loads(sys.stdin.read())
@@ -76,6 +112,12 @@ def main() -> None:
                 str(payload.get("start") or ""),
                 str(payload.get("end") or ""),
             )
+        elif command == "create":
+            raw_event = payload.get("event")
+            if not isinstance(raw_event, dict):
+                result = {"ok": False, "error": "Missing event payload."}
+            else:
+                result = _handle_create(raw_event)
         else:
             result = {"ok": False, "error": f"Unknown command: {command!r}"}
     except Exception as exc:

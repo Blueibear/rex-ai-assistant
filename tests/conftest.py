@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import socket
 import sys
 from pathlib import Path
 
@@ -46,6 +47,12 @@ try:
 except ImportError:
     _NUMPY_AVAILABLE = False
 
+try:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM):
+        _SOCKETS_AVAILABLE = True
+except OSError:
+    _SOCKETS_AVAILABLE = False
+
 # Numpy-dependent test files (ML/audio pipeline tests).
 _NUMPY_TEST_GLOBS = [
     "test_us020_full_voice_loop.py",
@@ -57,11 +64,18 @@ _NUMPY_TEST_GLOBS = [
     "test_ww002_wakeword_train.py",
 ]
 
+_SOCKET_TEST_GLOBS = [
+    "test_computers.py",
+    "test_service_supervisor.py",
+]
+
 _ignored: list[str] = []
 if not _REX_CLI_AVAILABLE:
     _ignored.extend(_find_cli_dependent_tests())
 if not _NUMPY_AVAILABLE:
     _ignored.extend(str(_TESTS_DIR / name) for name in _NUMPY_TEST_GLOBS)
+if not _SOCKETS_AVAILABLE:
+    _ignored.extend(str(_TESTS_DIR / name) for name in _SOCKET_TEST_GLOBS)
 
 collect_ignore: list[str] = _ignored
 
@@ -93,6 +107,27 @@ tests_str = str(ROOT / "tests")
 if tests_str not in sys.path:
     sys.path.insert(0, tests_str)
 
+# Ensure subprocesses spawned by tests receive the same startup compatibility
+# shims as the parent pytest process.
+startup_str = str(ROOT / "tests" / "python_startup")
+if startup_str not in sys.path:
+    sys.path.insert(0, startup_str)
+
+pythonpath_parts = [startup_str]
+existing_pythonpath = os.environ.get("PYTHONPATH")
+if existing_pythonpath:
+    pythonpath_parts.extend(
+        part for part in existing_pythonpath.split(os.pathsep) if part and part != startup_str
+    )
+os.environ["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
+
+try:
+    from tests.python_startup.sitecustomize import _install_ssl_fallback
+except Exception:
+    pass
+else:
+    _install_ssl_fallback()
+
 # Signal that tests are running (some modules might check this)
 os.environ["REX_TESTING"] = "true"
 
@@ -111,7 +146,7 @@ def _tracked_modified_files() -> set[str]:
     return {
         line[3:]
         for line in get_dirty_files(exclude_coverage=False)
-        if line[0:2].strip().startswith("M")
+        if line[0:2].strip()
     }
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -178,13 +179,17 @@ def test_configure_logging_adds_file_handler_after_stream_configured(tmp_path, m
             root.removeHandler(handler)
         root.addHandler(logging.StreamHandler(StringIO()))
         root.setLevel(logging.INFO)
-        monkeypatch.setattr(
-            lu,
-            "settings",
+        monkeypatch.setitem(
+            sys.modules,
+            "rex.config",
             SimpleNamespace(
-                file_logging_enabled=True,
-                log_path=log_path,
-                error_log_path=error_path,
+                settings=SimpleNamespace(
+                    file_logging_enabled=True,
+                    log_path=log_path,
+                    error_log_path=error_path,
+                    debug_logging=False,
+                ),
+                _cached_config=None,
             ),
         )
         monkeypatch.setenv("REX_JSON_LOGS", "1")
@@ -199,6 +204,80 @@ def test_configure_logging_adds_file_handler_after_stream_configured(tmp_path, m
         parsed = json.loads(lines[-1])
         assert parsed["message"] == "current session message"
         assert parsed["timestamp"].endswith("+00:00")
+    finally:
+        root.handlers = original_handlers
+        root.setLevel(original_level)
+
+
+def test_current_settings_prefers_live_config_module(monkeypatch):
+    import rex.logging_utils as lu
+
+    imported_settings = SimpleNamespace(name="imported")
+    live_settings = SimpleNamespace(name="live")
+    cached_settings = SimpleNamespace(name="cached")
+
+    monkeypatch.setattr(lu, "settings", imported_settings)
+    monkeypatch.setitem(
+        sys.modules,
+        "rex.config",
+        SimpleNamespace(settings=live_settings, _cached_config=cached_settings),
+    )
+
+    assert lu._current_settings() is live_settings
+
+
+def test_configure_logging_uses_debug_level_from_settings(monkeypatch):
+    import rex.logging_utils as lu
+
+    root = logging.getLogger()
+    original_handlers = root.handlers[:]
+    original_level = root.level
+
+    try:
+        for handler in root.handlers[:]:
+            root.removeHandler(handler)
+        monkeypatch.delenv("LOG_LEVEL", raising=False)
+        monkeypatch.delenv("REX_LOG_LEVEL", raising=False)
+        monkeypatch.setitem(
+            sys.modules,
+            "rex.config",
+            SimpleNamespace(
+                settings=SimpleNamespace(file_logging_enabled=False, debug_logging=True),
+                _cached_config=None,
+            ),
+        )
+
+        lu.configure_logging()
+
+        assert root.level == logging.DEBUG
+    finally:
+        root.handlers = original_handlers
+        root.setLevel(original_level)
+
+
+def test_configure_logging_prefers_runtime_settings_over_legacy_env(monkeypatch):
+    import rex.logging_utils as lu
+
+    root = logging.getLogger()
+    original_handlers = root.handlers[:]
+    original_level = root.level
+
+    try:
+        for handler in root.handlers[:]:
+            root.removeHandler(handler)
+        monkeypatch.setenv("LOG_LEVEL", "INFO")
+        monkeypatch.setitem(
+            sys.modules,
+            "rex.config",
+            SimpleNamespace(
+                settings=SimpleNamespace(file_logging_enabled=False, debug_logging=True),
+                _cached_config=None,
+            ),
+        )
+
+        lu.configure_logging()
+
+        assert root.level == logging.DEBUG
     finally:
         root.handlers = original_handlers
         root.setLevel(original_level)

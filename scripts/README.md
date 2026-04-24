@@ -13,8 +13,9 @@ not belong at the repository root.
 - `list_voices.py`: lists available Windows TTS voices
 - `manual_search_demo.py`: runs an interactive demo of the web search plugin
 - `manual_whisper_demo.py`: manually transcribes an audio file with Whisper
+- `install_wakeword_asset.py`: copies a supplied custom ONNX or embedding wake asset into `config/wake_words/<slug>/` and validates it
 - `play_test.py`: plays the wake acknowledgment WAV with `simpleaudio`
-- `record_wakeword.py`: records and saves a custom wake-word model with `openwakeword`
+- `record_wakeword.py`: records and validates a custom ONNX wake-word asset with `openwakeword`
 - `test_imports.py`: runs a broad manual import smoke check for Rex modules
 - `test_mic_open.py`: probes candidate microphone devices with `sounddevice`
 - `test_transformers_patch.py`: manually verifies the transformers BeamSearchScorer compatibility shim

@@ -144,7 +144,12 @@ class AppConfig:
     wakeword_embedding_path: Optional[str] = None
     wakeword_fallback_to_builtin: bool = True
     wakeword_fallback_keyword: str = "hey jarvis"
+    wakeword_auto_gain: bool = True
+    wakeword_target_peak: float = 0.35
+    wakeword_max_gain: float = 30.0
+    wakeword_min_rms_for_gain: float = 0.0005
     command_duration: float = 5.0
+    command_vad_rms_threshold: float = 0.003
 
     sample_rate: int = 16000
     detection_frame_seconds: float = 1.0
@@ -153,6 +158,10 @@ class AppConfig:
     whisper_model: str = "base"
     whisper_device: str = "auto"
     whisper_language: Optional[str] = "en"
+    stt_auto_gain: bool = True
+    stt_target_peak: float = 0.45
+    stt_max_gain: float = 12.0
+    stt_min_rms_for_gain: float = 0.0005
     llm_provider: str = "transformers"
     llm_model: str = "sshleifer/tiny-gpt2"
     llm_max_tokens: int = 120
@@ -164,6 +173,8 @@ class AppConfig:
     tts_provider: str = "xtts"
     tts_voice: Optional[str] = None
     tts_speed: float = 1.08
+    tts_fast_short_reply_enabled: bool = True
+    tts_fast_short_reply_max_chars: int = 140
 
     speak_api_key: Optional[str] = None
     rate_limit: str = "30/minute"
@@ -224,6 +235,7 @@ class AppConfig:
 
     # Integration credential detection
     email_provider: str = "none"  # none | gmail | outlook
+    calendar_provider: str = "none"  # none | google | outlook
 
     # Multi-account email config (US-208)
     email_accounts: List[EmailAccountConfig] = field(default_factory=list)
@@ -411,6 +423,14 @@ def _coerce_int(json_config: dict, path: str, default: int) -> int:
         raise ConfigurationError(
             f"Config field {path!r} has invalid value {raw!r}: cannot convert to int."
         ) from exc
+
+
+def _normalize_calendar_provider(value: object) -> str:
+    """Normalize GUI/provider aliases for the calendar service."""
+    provider = str(value or "none").strip().lower()
+    if provider == "gmail":
+        return "google"
+    return provider or "none"
 
 
 def _parse_email_accounts(raw: object) -> List[EmailAccountConfig]:
@@ -619,8 +639,17 @@ def build_app_config(json_config: dict) -> AppConfig:
         wakeword_fallback_keyword=_get_nested(
             json_config, "wakeword.fallback_keyword", "hey jarvis"
         ),
+        wakeword_auto_gain=bool(_get_nested(json_config, "wakeword.auto_gain", True)),
+        wakeword_target_peak=_coerce_float(json_config, "wakeword.target_peak", 0.35),
+        wakeword_max_gain=_coerce_float(json_config, "wakeword.max_gain", 30.0),
+        wakeword_min_rms_for_gain=_coerce_float(
+            json_config, "wakeword.min_rms_for_gain", 0.0005
+        ),
         # Runtime settings from JSON
         command_duration=_coerce_float(json_config, "runtime.command_duration", 5.0),
+        command_vad_rms_threshold=_coerce_float(
+            json_config, "runtime.command_vad_rms_threshold", 0.003
+        ),
         detection_frame_seconds=_coerce_float(json_config, "runtime.detection_frame_seconds", 1.0),
         capture_seconds=_coerce_float(json_config, "runtime.capture_seconds", 5.0),
         memory_max_turns=_coerce_int(json_config, "runtime.memory_max_turns", 50),
@@ -641,6 +670,10 @@ def build_app_config(json_config: dict) -> AppConfig:
         whisper_model=_get_nested(json_config, "models.stt_model", "base"),
         whisper_device=_get_nested(json_config, "models.stt_device", "auto"),
         whisper_language=_get_nested(json_config, "models.stt_language", "en"),
+        stt_auto_gain=bool(_get_nested(json_config, "models.stt_auto_gain", True)),
+        stt_target_peak=_coerce_float(json_config, "models.stt_target_peak", 0.45),
+        stt_max_gain=_coerce_float(json_config, "models.stt_max_gain", 12.0),
+        stt_min_rms_for_gain=_coerce_float(json_config, "models.stt_min_rms_for_gain", 0.0005),
         llm_provider=_get_nested(json_config, "models.llm_provider", "transformers"),
         llm_model=_get_nested(json_config, "models.llm_model", "sshleifer/tiny-gpt2"),
         llm_max_tokens=_coerce_int(json_config, "models.llm_max_tokens", 120),
@@ -651,6 +684,12 @@ def build_app_config(json_config: dict) -> AppConfig:
         tts_provider=_get_nested(json_config, "models.tts_provider", "xtts"),
         tts_voice=_get_nested(json_config, "models.tts_voice"),
         tts_speed=_coerce_float(json_config, "models.tts_speed", 1.08),
+        tts_fast_short_reply_enabled=bool(
+            _get_nested(json_config, "models.tts_fast_short_reply_enabled", True)
+        ),
+        tts_fast_short_reply_max_chars=int(
+            _coerce_float(json_config, "models.tts_fast_short_reply_max_chars", 140)
+        ),
         # API settings from JSON
         rate_limit=_get_nested(json_config, "api.rate_limit", "30/minute"),
         allowed_origins=allowed_origins,
@@ -720,6 +759,11 @@ def build_app_config(json_config: dict) -> AppConfig:
         push_provider=_get_nested(json_config, "notifications.push_provider"),
         push_token=os.getenv("PUSH_TOKEN") or _get_nested(json_config, "notifications.push_token"),
         push_topic=_get_nested(json_config, "notifications.push_topic"),
+        # Email/calendar provider selection
+        email_provider=_get_nested(json_config, "email.provider", "none"),
+        calendar_provider=_normalize_calendar_provider(
+            _get_nested(json_config, "calendar.provider", "none")
+        ),
         # Multi-account email (US-208)
         email_accounts=_parse_email_accounts(_get_nested(json_config, "email.accounts", [])),
         email_default_account_id=_get_nested(json_config, "email.default_account_id", ""),

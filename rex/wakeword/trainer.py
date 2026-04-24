@@ -7,13 +7,13 @@ for use with EmbeddingWakeWordModel.
 
 from __future__ import annotations
 
-import re
 import wave
 from pathlib import Path
 
 import numpy as np
 
 from .embedding import compute_embedding, save_embedding
+from .utils import slugify_wakeword_phrase
 
 _CONFIG_DIR_DEFAULT = Path(__file__).resolve().parent.parent.parent / "config" / "wake_words"
 
@@ -33,16 +33,6 @@ def _save_sample_wav(sample: list[float], path: Path) -> None:
         wf.setsampwidth(2)  # 16-bit = 2 bytes per sample
         wf.setframerate(_SAMPLE_RATE)
         wf.writeframes(int16_arr.tobytes())
-
-
-def _slugify(phrase: str) -> str:
-    """Convert phrase to a filesystem-safe slug."""
-    slug = phrase.strip().lower()
-    slug = re.sub(r"[^\w\s-]", "", slug)
-    slug = re.sub(r"[\s-]+", "_", slug)
-    return slug or "custom_wake_word"
-
-
 def train_from_samples(
     phrase: str,
     positive_samples: list[list[float]],
@@ -73,7 +63,9 @@ def train_from_samples(
             "error": f"Need at least {MIN_POSITIVE_SAMPLES} positive samples, got {len(positive_samples)}.",
         }
 
-    target_dir = (config_dir or _CONFIG_DIR_DEFAULT) / _slugify(phrase)
+    target_dir = (config_dir or _CONFIG_DIR_DEFAULT) / slugify_wakeword_phrase(
+        phrase, default="custom_wake_word"
+    )
     target_dir.mkdir(parents=True, exist_ok=True)
 
     embeddings: list[np.ndarray] = []

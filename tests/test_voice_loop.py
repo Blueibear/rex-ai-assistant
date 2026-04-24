@@ -7,7 +7,7 @@ import pytest
 
 import rex.voice_loop as _rvl
 from rex.assistant_errors import AudioDeviceError, AudioFormatError, SpeechToTextError
-from rex.voice_loop import TextToSpeech, VoiceLoop
+from rex.voice_loop import AsyncMicrophone, TextToSpeech, VoiceLoop
 
 np = pytest.importorskip("numpy")
 
@@ -70,12 +70,116 @@ async def _transcribe_filler(_: np.ndarray) -> str:
     )
 
 
+async def _transcribe_weak_fragment(_: np.ndarray) -> str:
+    return "What?"
+
+
 async def _speak(_: str) -> None:
     pass
 
 
 async def _ack():
     pass
+
+
+@pytest.mark.unit
+def test_prepare_audio_for_stt_boosts_quiet_audio():
+    audio = np.ones(16000, dtype=np.float32) * 0.02
+
+    prepared = _rvl._prepare_audio_for_stt(audio)
+
+    assert not isinstance(prepared, bytes)
+    assert float(np.max(np.abs(prepared))) > 0.1
+    assert float(np.max(np.abs(prepared))) <= 1.0
+
+
+@pytest.mark.unit
+def test_async_microphone_uses_overlapping_detection_frames():
+    chunks = [
+        np.array([1.0, 2.0], dtype=np.float32),
+        np.array([3.0, 4.0], dtype=np.float32),
+        np.array([5.0, 6.0], dtype=np.float32),
+    ]
+
+    def recorder(_: float):
+        return chunks.pop(0)
+
+    mic = AsyncMicrophone(
+        sample_rate=4,
+        detection_seconds=1.0,
+        detection_hop_seconds=0.5,
+        capture_seconds=1.0,
+        recorder=recorder,
+    )
+
+    first = asyncio.run(mic.detection_frame())
+    second = asyncio.run(mic.detection_frame())
+    mic.reset_detection_buffer(reason="test")
+    third = asyncio.run(mic.detection_frame())
+
+    assert first.tolist() == [0.0, 0.0, 1.0, 2.0]
+    assert second.tolist() == [1.0, 2.0, 3.0, 4.0]
+    assert third.tolist() == [0.0, 0.0, 5.0, 6.0]
+
+
+@pytest.mark.unit
+def test_async_microphone_primes_overlapping_detection_buffer():
+    chunks = [
+        np.array([1.0, 2.0], dtype=np.float32),
+        np.array([3.0, 4.0], dtype=np.float32),
+        np.array([5.0, 6.0], dtype=np.float32),
+    ]
+    requested_durations: list[float] = []
+
+    def recorder(duration: float):
+        requested_durations.append(duration)
+        return chunks.pop(0)
+
+    mic = AsyncMicrophone(
+        sample_rate=4,
+        detection_seconds=1.0,
+        detection_hop_seconds=0.5,
+        capture_seconds=1.0,
+        recorder=recorder,
+    )
+
+    asyncio.run(mic.prime_detection_buffer(reason="test"))
+    frame = asyncio.run(mic.detection_frame())
+
+    assert requested_durations == [0.5, 0.5, 0.5]
+    assert frame.tolist() == [3.0, 4.0, 5.0, 6.0]
+
+
+@pytest.mark.unit
+def test_async_microphone_adaptive_phrase_capture_extends_until_silence(monkeypatch):
+    monkeypatch.setattr(_rvl.settings, "command_min_capture_seconds", 0.5, raising=False)
+    monkeypatch.setattr(_rvl.settings, "command_max_capture_seconds", 2.0, raising=False)
+    monkeypatch.setattr(_rvl.settings, "command_end_silence_seconds", 0.5, raising=False)
+    monkeypatch.setattr(_rvl.settings, "command_vad_rms_threshold", 0.006, raising=False)
+
+    chunks = [
+        np.array([0.02], dtype=np.float32),
+        np.array([0.02], dtype=np.float32),
+        np.array([0.0], dtype=np.float32),
+        np.array([0.0], dtype=np.float32),
+    ]
+    requested_durations: list[float] = []
+
+    def recorder(duration: float):
+        requested_durations.append(duration)
+        return chunks.pop(0)
+
+    mic = AsyncMicrophone(
+        sample_rate=4,
+        detection_seconds=1.0,
+        capture_seconds=0.5,
+        recorder=recorder,
+    )
+
+    audio = asyncio.run(mic.record_phrase())
+
+    assert audio.tolist() == pytest.approx([0.02, 0.02, 0.0, 0.0])
+    assert len(requested_durations) == 4
 
 
 @pytest.mark.unit
@@ -129,6 +233,130 @@ def test_voice_loop_streams_tokens_into_sentence_buffer():
     assert assistant.stream_calls == ["hello world"]
     assert assistant.calls == []
     assert spoken == ["Hello world.", "How are you?"]
+
+
+@pytest.mark.unit
+def test_voice_loop_resets_wake_listener_after_interaction():
+    assistant = DummyAssistant()
+    listener = DummyListener()
+    reset_reasons: list[str] = []
+
+    def reset_listener(*, reason="manual"):
+        reset_reasons.append(reason)
+
+    listener.reset = reset_listener  # type: ignore[attr-defined]
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=listener,
+        detection_source=_constant_frame,
+        record_phrase=_record_phrase,
+        transcribe=_transcribe,
+        speak=_speak,
+        acknowledge=None,
+        post_interaction_cooldown=0,
+    )
+
+    asyncio.run(loop.run(max_interactions=1))
+
+    assert "post_interaction" in reset_reasons
+
+
+@pytest.mark.unit
+def test_voice_loop_emits_wake_listening_when_armed_and_rearmed():
+    assistant = DummyAssistant()
+    listener = DummyListener()
+    states: list[str] = []
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=listener,
+        detection_source=_constant_frame,
+        record_phrase=_record_phrase,
+        transcribe=_transcribe,
+        speak=_speak,
+        acknowledge=None,
+        post_interaction_cooldown=0,
+        state_callback=states.append,
+    )
+
+    asyncio.run(loop.run(max_interactions=1))
+
+    assert states[0] == "wake_listening"
+    assert "listening" in states
+    assert states[-1] == "wake_listening"
+
+
+@pytest.mark.unit
+def test_voice_loop_primes_detection_before_reporting_wake_listening():
+    assistant = DummyAssistant()
+    listener = DummyListener()
+    events: list[tuple[str, str]] = []
+
+    class SourceOwner:
+        async def prime_detection_buffer(self, *, reason: str = "manual") -> None:
+            events.append(("prime", reason))
+
+        async def frame(self):
+            events.append(("source", "frame"))
+            return np.ones(4, dtype=np.float32)
+
+    source_owner = SourceOwner()
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=listener,
+        detection_source=source_owner.frame,
+        record_phrase=_record_phrase,
+        transcribe=_transcribe,
+        speak=_speak,
+        acknowledge=None,
+        post_interaction_cooldown=0,
+        state_callback=lambda state: events.append(("state", state)),
+    )
+
+    asyncio.run(loop.run(max_interactions=1))
+
+    assert events.index(("prime", "voice_loop_start")) < events.index(
+        ("state", "wake_listening")
+    )
+    assert events.index(("prime", "post_interaction_reset")) < len(events) - 1
+    assert events[-1] == ("state", "wake_listening")
+
+
+@pytest.mark.unit
+def test_voice_loop_handles_repeated_interactions_in_one_session():
+    assistant = DummyAssistant()
+    spoken: list[str] = []
+    reset_reasons: list[str] = []
+
+    class TwoWakeListener:
+        async def listen(self, source):
+            yield await source()
+            yield await source()
+
+        def reset(self, *, reason="manual"):
+            reset_reasons.append(reason)
+
+    async def speak(text: str) -> None:
+        spoken.append(text)
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=TwoWakeListener(),
+        detection_source=_constant_frame,
+        record_phrase=_record_phrase,
+        transcribe=_transcribe,
+        speak=speak,
+        acknowledge=None,
+        post_interaction_cooldown=0,
+    )
+
+    asyncio.run(loop.run(max_interactions=2))
+
+    assert assistant.calls == ["hello world", "hello world"]
+    assert spoken == ["ok.", "ok."]
+    assert reset_reasons == ["post_interaction", "post_interaction"]
 
 
 @pytest.mark.unit
@@ -207,6 +435,205 @@ def test_voice_loop_allows_actionable_transcript():
 
     assert assistant.calls == ["what time is it"]
     assert spoken == ["ok."]
+
+
+@pytest.mark.unit
+def test_voice_loop_asks_retry_for_weak_transcript_fragment():
+    assistant = DummyAssistant()
+    listener = DummyListener()
+    spoken = []
+
+    async def speak(text: str) -> None:
+        spoken.append(text)
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=listener,
+        detection_source=_constant_frame,
+        record_phrase=_record_phrase,
+        transcribe=_transcribe_weak_fragment,
+        speak=speak,
+        acknowledge=None,
+        post_interaction_cooldown=0,
+    )
+
+    asyncio.run(loop.run(max_interactions=1))
+
+    assert assistant.calls == []
+    assert spoken == ["I only caught part of that. Please repeat the question."]
+
+
+@pytest.mark.unit
+def test_voice_loop_listens_for_followup_after_weak_transcript_fragment():
+    assistant = DummyAssistant()
+    listener = DummyListener()
+    spoken = []
+    states: list[str] = []
+    transcripts = ["What?", "what time is it"]
+
+    async def transcribe(_: np.ndarray) -> str:
+        return transcripts.pop(0)
+
+    async def speak(text: str) -> None:
+        spoken.append(text)
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=listener,
+        detection_source=_constant_frame,
+        record_phrase=_record_phrase,
+        transcribe=transcribe,
+        speak=speak,
+        acknowledge=None,
+        post_interaction_cooldown=0,
+        state_callback=states.append,
+    )
+
+    asyncio.run(loop.run(max_interactions=1))
+
+    assert assistant.calls == ["what time is it"]
+    assert spoken == ["I only caught part of that. Please repeat the question.", "ok."]
+    assert "followup_listening" in states
+
+
+@pytest.mark.unit
+def test_voice_loop_asks_followup_for_suspicious_need_transcript():
+    assistant = DummyAssistant()
+    listener = DummyListener()
+    spoken = []
+    states: list[str] = []
+    transcripts = ["neutral need a knife", "I need a chocolate cake recipe"]
+
+    async def transcribe(_: np.ndarray) -> str:
+        return transcripts.pop(0)
+
+    async def speak(text: str) -> None:
+        spoken.append(text)
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=listener,
+        detection_source=_constant_frame,
+        record_phrase=_record_phrase,
+        transcribe=transcribe,
+        speak=speak,
+        acknowledge=None,
+        post_interaction_cooldown=0,
+        state_callback=states.append,
+    )
+
+    asyncio.run(loop.run(max_interactions=1))
+
+    assert assistant.calls == ["I need a chocolate cake recipe"]
+    assert spoken == ["I may have misheard that. What did you need?", "ok."]
+    assert "followup_listening" in states
+
+
+@pytest.mark.unit
+def test_voice_loop_allows_normal_knife_request():
+    assert not _rvl._is_suspicious_voice_transcript("I need a knife")
+
+
+@pytest.mark.unit
+def test_voice_loop_flags_likely_kate_recipe_mishearing():
+    assert _rvl._is_suspicious_voice_transcript("I need a person named Kate")
+
+
+@pytest.mark.unit
+def test_voice_loop_listens_for_followup_after_assistant_clarification():
+    class ClarifyingAssistant:
+        def __init__(self):
+            self.calls = []
+
+        async def generate_reply(self, transcript, *, voice_mode: bool = False):
+            self.calls.append(transcript)
+            if transcript == "I need":
+                return "What do you need?"
+            return "Here is a chocolate cake recipe"
+
+    assistant = ClarifyingAssistant()
+    listener = DummyListener()
+    spoken = []
+    states: list[str] = []
+    transcripts = ["I need", "a chocolate cake recipe"]
+
+    async def transcribe(_: np.ndarray) -> str:
+        return transcripts.pop(0)
+
+    async def speak(text: str) -> None:
+        spoken.append(text)
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=listener,
+        detection_source=_constant_frame,
+        record_phrase=_record_phrase,
+        transcribe=transcribe,
+        speak=speak,
+        acknowledge=None,
+        post_interaction_cooldown=0,
+        state_callback=states.append,
+    )
+
+    asyncio.run(loop.run(max_interactions=1))
+
+    assert assistant.calls == ["I need", "I need a chocolate cake recipe"]
+    assert spoken == ["What do you need?", "Here is a chocolate cake recipe."]
+    assert "followup_listening" in states
+
+
+@pytest.mark.unit
+def test_voice_loop_prepends_wake_frame_preroll_before_stt():
+    assistant = DummyAssistant()
+    captured = []
+
+    class OneWakeListener:
+        async def listen(self, source):
+            yield await source()
+
+        def reset(self, *, reason="manual"):
+            pass
+
+    async def detection_source():
+        return np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32)
+
+    async def record_phrase():
+        return np.array([10.0, 11.0, 12.0], dtype=np.float32)
+
+    async def transcribe(audio: np.ndarray) -> str:
+        captured.append(audio.tolist())
+        return "hello world"
+
+    loop = VoiceLoop(
+        assistant,
+        wake_listener=OneWakeListener(),
+        detection_source=detection_source,
+        record_phrase=record_phrase,
+        transcribe=transcribe,
+        speak=_speak,
+        acknowledge=None,
+        sample_rate=4,
+        post_interaction_cooldown=0,
+        post_wake_preroll_seconds=0.5,
+    )
+
+    asyncio.run(loop.run(max_interactions=1))
+
+    assert captured == [[3.0, 4.0, 10.0, 11.0, 12.0]]
+    assert assistant.calls == ["hello world"]
+
+
+@pytest.mark.unit
+def test_edge_tts_pcm_trim_removes_leading_and_trailing_silence():
+    tts = TextToSpeech.__new__(TextToSpeech)
+    pcm = np.zeros((1000, 1), dtype=np.int16)
+    pcm[400:600, 0] = 1000
+
+    trimmed = tts._trim_pcm_silence(pcm, 1000, padding_ms=0)
+
+    assert trimmed.shape == (200, 1)
+    assert trimmed[0, 0] == 1000
+    assert trimmed[-1, 0] == 1000
 
 
 @pytest.mark.unit

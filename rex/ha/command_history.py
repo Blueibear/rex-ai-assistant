@@ -87,7 +87,7 @@ class CommandHistory:
         if entry.inverse_service is None:
             return None
         age = time.monotonic() - entry.timestamp
-        if age > self.undo_window:
+        if age >= self.undo_window:
             return None
         return entry
 

@@ -36,19 +36,15 @@ function callEmailBridge(command: string, extra: object = {}): Promise<unknown> 
 }
 
 async function getEmailInbox(): Promise<EmailMessage[]> {
-  try {
-    const result = await callEmailBridge('list', { limit: 50 }) as {
-      ok: boolean
-      messages?: EmailMessage[]
-      error?: string
-    }
-    if (result.ok && Array.isArray(result.messages)) {
-      return result.messages
-    }
-    return []
-  } catch {
-    return []
+  const result = await callEmailBridge('list', { limit: 50 }) as {
+    ok: boolean
+    messages?: EmailMessage[]
+    error?: string
   }
+  if (result.ok && Array.isArray(result.messages)) {
+    return result.messages
+  }
+  throw new Error(result.error ?? 'Email bridge did not return inbox messages.')
 }
 
 export function registerEmailHandlers(): void {

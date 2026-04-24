@@ -48,7 +48,7 @@ sa: Any | None = _sa
 
 try:
     import sounddevice as _sd
-except ImportError:
+except Exception:  # pragma: no cover - optional backend can fail during init
     _sd = None
 sd: Any | None = _sd
 

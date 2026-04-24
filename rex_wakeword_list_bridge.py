@@ -71,6 +71,7 @@ def main() -> None:
                     "name": c["name"],
                     "engine": c["engine"],
                     "has_sample": c.get("has_sample", False),
+                    "model_path": c.get("model_path"),
                 }
                 for c in custom
             )

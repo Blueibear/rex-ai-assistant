@@ -157,14 +157,43 @@ except Exception:  # pragma: no cover - fallback when config not initialised
 
 def _current_settings() -> Any | None:
     """Return the latest loaded settings without importing rex.config eagerly."""
-    if settings is not None:
-        return settings
     config_module = sys.modules.get("rex.config")
-    if config_module is None:
+    if config_module is not None:
+        current = getattr(config_module, "settings", None)
+        if current is not None:
+            return current
+        cached = getattr(config_module, "_cached_config", None)
+        if cached is not None:
+            return cached
+    return settings
+
+
+def _settings_log_level() -> int | None:
+    """Return the log level implied by loaded settings, if any."""
+    current_settings = _current_settings()
+    if current_settings is None:
         return None
-    return getattr(config_module, "settings", None) or getattr(
-        config_module, "_cached_config", None
-    )
+    if bool(getattr(current_settings, "debug_logging", False)):
+        return logging.DEBUG
+    return None
+
+
+def _effective_log_level(level: int | None, *, include_settings: bool = True) -> int:
+    """Resolve the active root log level."""
+    if level is not None:
+        return level
+
+    if include_settings:
+        settings_level = _settings_log_level()
+        if settings_level is not None:
+            return settings_level
+
+    for var in ("LOG_LEVEL", "REX_LOG_LEVEL"):
+        raw = os.environ.get(var, "").strip().upper()
+        if raw in _LEVEL_NAMES:
+            return _LEVEL_NAMES[raw]
+
+    return logging.INFO
 
 
 def _resolve_path(candidate: str | os.PathLike[str], default: Path) -> Path:
@@ -236,7 +265,19 @@ def _file_logging_enabled() -> bool:
     current_settings = _current_settings()
     if current_settings is None:
         return False
+    if _running_under_pytest() and not _explicit_test_file_logging_enabled():
+        if active_runtime_log_path(current_settings) == active_runtime_log_path(None):
+            return False
     return bool(getattr(current_settings, "file_logging_enabled", False))
+
+
+def _running_under_pytest() -> bool:
+    return "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules
+
+
+def _explicit_test_file_logging_enabled() -> bool:
+    raw = os.environ.get("REX_ENABLE_FILE_LOGGING_IN_TESTS", "")
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _ensure_file_handlers(
@@ -303,7 +344,7 @@ def configure_logging(
         module_levels: Per-module level overrides applied after the root
             logger is configured.
     """
-    effective_level = level if level is not None else _env_log_level()
+    effective_level = _effective_log_level(level, include_settings=handlers is None)
     if _json_logging_enabled():
         formatter: logging.Formatter = JsonFormatter()
     else:

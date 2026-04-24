@@ -1,15 +1,41 @@
 # AskRex Dashboard
 
-AskRex has two current GUI surfaces:
+AskRex currently has one primary GUI and one Python/Flask service surface:
 
-- Python web dashboard served by `rex-gui`
-- Electron desktop app under `gui/`
+- Electron desktop app under `gui/` - current primary GUI.
+- `rex-gui` - local Flask API/runtime surface with an incomplete, experimental browser dashboard at `/ui/`.
 
 The old Tkinter entry points (`gui.py`, `run_gui.py`) are deprecated. The legacy
 `flask_proxy.py` surface is kept for compatibility and should not be treated as
 the primary dashboard.
 
-## Python Web Dashboard
+## Electron Desktop App
+
+The Electron app lives in `gui/` and is the current user-facing GUI.
+
+```powershell
+cd gui
+npm.cmd install
+npm.cmd run dev
+```
+
+Build and verify:
+
+```powershell
+cd gui
+npm.cmd run typecheck
+npm.cmd run build
+npm.cmd run preview
+```
+
+Routes in the current app include home, devices, chat, voice, tasks, calendar,
+reminders, memories, email, SMS, notifications, shopping, logs, history, usage,
+integrations, settings, Home Assistant, quick actions, and about.
+
+For Electron-only verification, build first and run a `gui/tmp_verify_*.cjs`
+harness that requires `gui/dist-electron/main/index.js`.
+
+## Python/Flask API and Experimental Browser Dashboard
 
 Start:
 
@@ -22,6 +48,10 @@ Open:
 ```text
 http://127.0.0.1:8765/ui/
 ```
+
+The `/ui/` browser surface is incomplete in current testing and is not the
+recommended main interface. Use it for API smoke checks or dashboard
+compatibility work, not as the primary GUI.
 
 Override the port with:
 
@@ -61,32 +91,6 @@ Smoke checks:
 curl http://127.0.0.1:8765/api/dashboard/status
 curl http://127.0.0.1:8765/api/tools
 ```
-
-## Electron Desktop App
-
-The Electron app lives in `gui/`.
-
-```powershell
-cd gui
-npm.cmd install
-npm.cmd run dev
-```
-
-Build and verify:
-
-```powershell
-cd gui
-npm.cmd run typecheck
-npm.cmd run build
-npm.cmd run preview
-```
-
-Routes in the current app include home, devices, chat, voice, tasks, calendar,
-reminders, memories, email, SMS, notifications, shopping, logs, history, usage,
-integrations, settings, Home Assistant, quick actions, and about.
-
-For Electron-only verification, build first and run a `gui/tmp_verify_*.cjs`
-harness that requires `gui/dist-electron/main/index.js`.
 
 ## Security
 

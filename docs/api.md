@@ -1,12 +1,12 @@
 # AskRex Assistant HTTP API Reference
 
-AskRex exposes several local HTTP surfaces. The primary desktop/user surfaces are `rex-gui`, `rex-speak-api`, and `rex-tool-server`. `flask_proxy.py` remains as a legacy proxy surface for compatibility.
+AskRex exposes several local HTTP surfaces. The current primary GUI is the Electron app under `gui/`. `rex-gui` starts a Flask process that serves local API routes and an incomplete, experimental `/ui/` browser dashboard. `flask_proxy.py` remains as a legacy proxy surface for compatibility.
 
 ## Service Summary
 
 | Service | Command | Default URL | Purpose |
 |---|---|---|---|
-| Python web dashboard | `rex-gui` | `http://127.0.0.1:8765` | Serves `/ui/` and local dashboard APIs |
+| Python/Flask API and experimental web dashboard | `rex-gui` | `http://127.0.0.1:8765` | Serves local dashboard/API routes; `/ui/` exists but is not the primary GUI |
 | TTS API | `rex-speak-api` | `http://127.0.0.1:5005` | Converts text to WAV audio |
 | OpenClaw tool server | `rex-tool-server` | `http://127.0.0.1:18790` | Exposes Rex tools over HTTP |
 | Legacy Flask proxy | `python flask_proxy.py` | `http://0.0.0.0:5000` | Legacy proxy/search/contracts API |
@@ -36,7 +36,7 @@ The tool server readiness response includes tool count:
 {"status":"ok","tool_count":12}
 ```
 
-## Python Web Dashboard (`rex-gui`)
+## Python/Flask API and Experimental Web Dashboard (`rex-gui`)
 
 Start:
 
@@ -51,6 +51,10 @@ REX_GUI_PORT=9000 rex-gui
 ```
 
 ### UI
+
+The browser UI at `/ui/` is incomplete in current testing. Use the Electron app
+for normal GUI interaction and use these routes for API compatibility and smoke
+checks.
 
 | Method | Path | Description |
 |---|---|---|

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
-import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, EmailAccount, NotificationsSettings, Settings, VersionInfo, PreferenceSuggestion, VoiceInfo, WakeWordInfo, VoiceEnrollment, Memory, SmartSpeaker, SystemSettings } from '../types/ipc'
+import type { GeneralSettings, VoiceSettings, AiSettings, IntegrationsSettings, EmailAccount, NotificationsSettings, Settings, VersionInfo, PreferenceSuggestion, VoiceInfo, WakeWordInfo, WakeWordStatus, VoiceEnrollment, Memory, SmartSpeaker, SystemSettings, IntegrationInventoryItem } from '../types/ipc'
 import { useToast } from '../components/ui/Toast'
 import { PageLoadingFallback } from '../components/ui/PageLoadingFallback'
 import { SkeletonLine } from '../components/ui/SkeletonLine'
@@ -413,6 +413,33 @@ const WW_NEGATIVE_TARGET = 3
 const ENROLLMENT_SAMPLE_RATE = 16000
 const ENROLLMENT_PROMPT_PHRASE = 'Hey Rex, the quick brown fox jumps over the lazy dog.'
 const ENROLLMENT_MIN_RMS = 0.02 // below this → sample is too quiet
+const FALLBACK_BUILTIN_WAKE_WORDS: WakeWordInfo[] = [
+  { id: 'hey_jarvis', name: 'Hey Jarvis', engine: 'openwakeword', has_sample: false },
+  { id: 'hey_mycroft', name: 'Hey Mycroft', engine: 'openwakeword', has_sample: false },
+  { id: 'hey_rhasspy', name: 'Hey Rhasspy', engine: 'openwakeword', has_sample: false },
+  { id: 'ok_nabu', name: 'OK Nabu', engine: 'openwakeword', has_sample: false },
+  { id: 'alexa', name: 'Alexa', engine: 'openwakeword', has_sample: false }
+]
+
+function slugifyWakeWordPhrase(phrase: string): string {
+  const trimmed = phrase.trim().toLowerCase()
+  if (!trimmed) return 'hey_rex'
+  const slug = trimmed
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  return slug || 'hey_rex'
+}
+
+function defaultCustomWakeWordAssetPath(
+  backend: Extract<VoiceSettings['wakeWordBackend'], 'custom_onnx' | 'custom_embedding'>,
+  phraseOrId: string
+): string {
+  const slug = slugifyWakeWordPhrase(phraseOrId)
+  return backend === 'custom_onnx'
+    ? `config\\wake_words\\${slug}\\model.onnx`
+    : `config\\wake_words\\${slug}\\embedding.pt`
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -542,7 +569,12 @@ function VoicePanel(): React.ReactElement {
     sttModel: 'base',
     sttLanguage: 'auto',
     sttDevice: 'auto',
-    wakeWord: ''
+    wakeWord: '',
+    wakeWordBackend: 'openwakeword',
+    customWakeWordId: '',
+    wakeWordPhrase: 'hey rex',
+    wakeWordModelPath: '',
+    wakeWordEmbeddingPath: ''
   })
   const [loading, setLoading] = useState(true)
   const [mics, setMics] = useState<MediaDeviceOption[]>([])
@@ -554,6 +586,7 @@ function VoicePanel(): React.ReactElement {
   const [voicesLoading, setVoicesLoading] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [wakeWords, setWakeWords] = useState<WakeWordInfo[]>([])
+  const [wakeWordStatus, setWakeWordStatus] = useState<WakeWordStatus | null>(null)
   const [previewingWakeWord, setPreviewingWakeWord] = useState(false)
   const [showWwTrainer, setShowWwTrainer] = useState(false)
   const [wwTrainPhrase, setWwTrainPhrase] = useState('')
@@ -608,6 +641,10 @@ function VoicePanel(): React.ReactElement {
       })
       .catch(() => setWakeWords([]))
   }
+
+  const builtInWakeWords = wakeWords.filter((w) => w.engine === 'openwakeword')
+  const builtInWakeWordOptions = builtInWakeWords.length > 0 ? builtInWakeWords : FALLBACK_BUILTIN_WAKE_WORDS
+  const customWakeWords = wakeWords.filter((w) => w.engine === 'custom_embedding')
 
   function loadEnrollmentState(): void {
     window.rex
@@ -673,7 +710,21 @@ function VoicePanel(): React.ReactElement {
           sttModel: typeof settings.sttModel === 'string' ? settings.sttModel : 'base',
           sttLanguage: typeof settings.sttLanguage === 'string' ? settings.sttLanguage : 'auto',
           sttDevice,
-          wakeWord: typeof settings.wakeWord === 'string' ? settings.wakeWord : ''
+          wakeWord: typeof settings.wakeWord === 'string' ? settings.wakeWord : '',
+          wakeWordBackend:
+            settings.wakeWordBackend === 'custom_onnx' || settings.wakeWordBackend === 'custom_embedding'
+              ? settings.wakeWordBackend
+              : 'openwakeword',
+          customWakeWordId:
+            typeof settings.customWakeWordId === 'string' ? settings.customWakeWordId : '',
+          wakeWordPhrase:
+            typeof settings.wakeWordPhrase === 'string' && settings.wakeWordPhrase.trim()
+              ? settings.wakeWordPhrase
+              : 'hey rex',
+          wakeWordModelPath:
+            typeof settings.wakeWordModelPath === 'string' ? settings.wakeWordModelPath : '',
+          wakeWordEmbeddingPath:
+            typeof settings.wakeWordEmbeddingPath === 'string' ? settings.wakeWordEmbeddingPath : ''
         })
       })
       .catch(() => {
@@ -691,6 +742,26 @@ function VoicePanel(): React.ReactElement {
     }
   }, [form.ttsEngine, loading]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (loading) return
+    window.rex
+      .getWakeWordStatus(form)
+      .then((status) => {
+        setWakeWordStatus(status)
+      })
+      .catch(() => {
+        setWakeWordStatus(null)
+      })
+  }, [
+    loading,
+    form.wakeWordBackend,
+    form.wakeWord,
+    form.customWakeWordId,
+    form.wakeWordPhrase,
+    form.wakeWordModelPath,
+    form.wakeWordEmbeddingPath
+  ])
+
   function showSaved(field: keyof VoiceSettings): void {
     if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
     setSavedField(field)
@@ -703,6 +774,7 @@ function VoicePanel(): React.ReactElement {
     updatedForm?: VoiceSettings
   ): void {
     const updated: VoiceSettings = { ...(updatedForm ?? form), [field]: value }
+    setForm(updated)
     window.rex
       .setSettings('voice', updated as unknown as Settings)
       .then(() => showSaved(field))
@@ -716,7 +788,6 @@ function VoicePanel(): React.ReactElement {
     value: VoiceSettings[K]
   ): void {
     const updated = { ...form, [field]: value }
-    setForm(updated)
     saveField(field, value, updated)
   }
 
@@ -788,14 +859,13 @@ function VoicePanel(): React.ReactElement {
   }
 
   function handlePreviewWakeWord(): void {
-    if (!form.wakeWord) return
-    const selectedWw = wakeWords.find((w) => w.id === form.wakeWord)
+    const selectedBuiltInWakeWord = builtInWakeWordOptions.find((w) => w.id === form.wakeWord)
+    const selectedCustomWakeWord = customWakeWords.find((w) => w.id === form.customWakeWordId)
     setPreviewingWakeWord(true)
 
-    if (selectedWw?.engine === 'custom_embedding') {
-      // Custom wake word: play back the recorded sample WAV.
+    if (form.wakeWordBackend === 'custom_embedding' && selectedCustomWakeWord) {
       window.rex
-        .previewWakeWordSample(form.wakeWord)
+        .previewWakeWordSample(form.customWakeWordId)
         .then((res) => {
           if (res.ok && res.audio_base64) {
             return playAudioBase64(res.audio_base64).catch(() => {
@@ -809,8 +879,9 @@ function VoicePanel(): React.ReactElement {
         .catch(() => addToast('Preview failed', 'error'))
         .finally(() => setPreviewingWakeWord(false))
     } else {
-      // Built-in openWakeWord: synthesize a pronunciation via TTS.
-      const phrase = form.wakeWord.replace(/_/g, ' ')
+      const phrase = form.wakeWordBackend === 'custom_onnx'
+        ? (form.wakeWordPhrase.trim() || 'hey rex')
+        : (selectedBuiltInWakeWord?.name ?? form.wakeWord.replace(/_/g, ' '))
       window.rex
         .previewVoice('pyttsx3', phrase)
         .then((res) => {
@@ -877,6 +948,23 @@ function VoicePanel(): React.ReactElement {
 
       setWwTrainStep('done')
       setWwTrainMessage(`Wake word "${result.phrase ?? wwTrainPhrase.trim()}" trained successfully!`)
+      const trainedPhrase = (result.phrase ?? wwTrainPhrase.trim()).trim()
+      const trainedId = trainedPhrase
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s-]+/g, '_')
+      const updatedForm: VoiceSettings = {
+        ...form,
+        wakeWordBackend: 'custom_embedding',
+        customWakeWordId: trainedId,
+        wakeWordPhrase: trainedPhrase || 'hey rex',
+        wakeWordEmbeddingPath:
+          typeof result.model_path === 'string' ? result.model_path : form.wakeWordEmbeddingPath
+      }
+      setForm(updatedForm)
+      window.rex.setSettings('voice', updatedForm as unknown as Settings).catch(() => {
+        addToast('Failed to save custom wake word settings', 'error')
+      })
       addToast('Custom wake word trained', 'success')
       loadWakeWords()
     } catch (err) {
@@ -1147,54 +1235,88 @@ function VoicePanel(): React.ReactElement {
 
       {/* Wake word */}
       <div className="mb-5">
-        <div className="flex items-center justify-between mb-1.5">
-          <label htmlFor="wakeWord" className="text-sm font-medium text-text-primary">
-            Wake Word
-          </label>
-          <SavedIndicator visible={savedField === 'wakeWord'} />
-        </div>
-        <div className="flex items-center gap-2">
-          <select
-            id="wakeWord"
-            value={form.wakeWord}
-            onChange={(e) => handleFieldChange('wakeWord', e.target.value)}
-            className="flex-1 bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
-          >
-            <option value="">Disabled</option>
-            {wakeWords.length > 0
-              ? wakeWords.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name} [{w.engine}]
-                  </option>
-                ))
-              : /* fallback hardcoded list when bridge hasn't loaded yet */
-                [
-                  { id: 'hey_jarvis', name: 'Hey Jarvis' },
-                  { id: 'hey_mycroft', name: 'Hey Mycroft' },
-                  { id: 'hey_rhasspy', name: 'Hey Rhasspy' },
-                  { id: 'ok_nabu', name: 'OK Nabu' },
-                  { id: 'alexa', name: 'Alexa' },
-                ].map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-          </select>
-          {(() => {
-            const selectedWw = wakeWords.find((w) => w.id === form.wakeWord)
-            const isCustom = selectedWw?.engine === 'custom_embedding'
-            const noSample = isCustom && !selectedWw?.has_sample
-            const sampleDisabled = previewingWakeWord || !form.wakeWord || noSample
-            const sampleTitle = noSample
-              ? 'No sample recorded — train this wake word to capture a sample'
-              : 'Play a sample of this wake word'
-            return (
-              <Tooltip text={noSample ? 'No sample recorded yet. Train this wake word to capture a recording.' : ''} position="top">
+        <div className="space-y-4 rounded-lg border border-border bg-surface-raised p-4">
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="wakeWordBackend" className="text-sm font-medium text-text-primary">
+                Wake Backend
+              </label>
+              <SavedIndicator visible={savedField === 'wakeWordBackend'} />
+            </div>
+            <select
+              id="wakeWordBackend"
+              value={form.wakeWordBackend}
+              onChange={(e) => {
+                const backend = e.target.value as VoiceSettings['wakeWordBackend']
+                const selectedCustom = customWakeWords.find((w) => w.id === form.customWakeWordId)
+                const updated: VoiceSettings = {
+                  ...form,
+                  wakeWordBackend: backend,
+                  wakeWordPhrase:
+                    form.wakeWordPhrase.trim()
+                    || selectedCustom?.name
+                    || 'hey rex',
+                  wakeWordModelPath:
+                    backend === 'custom_onnx'
+                      ? (
+                          form.wakeWordModelPath.trim()
+                          || defaultCustomWakeWordAssetPath(
+                            'custom_onnx',
+                            form.wakeWordPhrase || selectedCustom?.name || 'hey rex'
+                          )
+                        )
+                      : form.wakeWordModelPath,
+                  wakeWordEmbeddingPath:
+                    backend === 'custom_embedding'
+                      ? (
+                          form.wakeWordEmbeddingPath.trim()
+                          || selectedCustom?.model_path
+                          || defaultCustomWakeWordAssetPath(
+                            'custom_embedding',
+                            form.customWakeWordId || form.wakeWordPhrase || selectedCustom?.name || 'hey rex'
+                          )
+                        )
+                      : form.wakeWordEmbeddingPath
+                }
+                saveField('wakeWordBackend', backend, updated)
+              }}
+              className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+            >
+              <option value="openwakeword">Built-in openWakeWord</option>
+              <option value="custom_onnx">Custom ONNX model</option>
+              <option value="custom_embedding">Custom embedding</option>
+            </select>
+          </div>
+
+          <WakeWordStatusPanel status={wakeWordStatus} />
+
+          {form.wakeWordBackend === 'openwakeword' && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="wakeWord" className="text-sm font-medium text-text-primary">
+                  Wake Word
+                </label>
+                <SavedIndicator visible={savedField === 'wakeWord'} />
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  id="wakeWord"
+                  value={form.wakeWord}
+                  onChange={(e) => handleFieldChange('wakeWord', e.target.value)}
+                  className="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                >
+                  <option value="">Disabled</option>
+                  {builtInWakeWordOptions.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
                 <button
                   onClick={handlePreviewWakeWord}
-                  disabled={sampleDisabled}
-                  title={sampleTitle}
-                  className="flex items-center gap-1.5 bg-surface-raised hover:bg-surface border border-border disabled:opacity-40 text-text-primary text-sm font-medium px-3 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg shrink-0"
+                  disabled={previewingWakeWord || !form.wakeWord}
+                  title="Play a sample of this wake word"
+                  className="flex items-center gap-1.5 bg-bg hover:bg-surface border border-border disabled:opacity-40 text-text-primary text-sm font-medium px-3 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg shrink-0"
                 >
                   {previewingWakeWord ? (
                     <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1207,14 +1329,213 @@ function VoicePanel(): React.ReactElement {
                   )}
                   Sample
                 </button>
-              </Tooltip>
-            )
-          })()}
+              </div>
+            </div>
+          )}
+
+          {form.wakeWordBackend === 'custom_onnx' && (
+            <>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="wakeWordPhrase" className="text-sm font-medium text-text-primary">
+                    Custom Wake Phrase
+                  </label>
+                  <SavedIndicator visible={savedField === 'wakeWordPhrase'} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="wakeWordPhrase"
+                    type="text"
+                    value={form.wakeWordPhrase}
+                    onChange={(e) => handleFieldChange('wakeWordPhrase', e.target.value)}
+                    placeholder="hey rex"
+                    className="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                  <button
+                    onClick={handlePreviewWakeWord}
+                    disabled={previewingWakeWord || !form.wakeWordPhrase.trim()}
+                    title="Play the configured custom phrase"
+                    className="flex items-center gap-1.5 bg-bg hover:bg-surface border border-border disabled:opacity-40 text-text-primary text-sm font-medium px-3 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg shrink-0"
+                  >
+                    {previewingWakeWord ? (
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                      </svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                    )}
+                    Sample
+                  </button>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="wakeWordModelPath" className="text-sm font-medium text-text-primary">
+                    Custom ONNX Model Path
+                  </label>
+                  <SavedIndicator visible={savedField === 'wakeWordModelPath'} />
+                </div>
+                <input
+                  id="wakeWordModelPath"
+                  type="text"
+                  value={form.wakeWordModelPath}
+                  onChange={(e) => handleFieldChange('wakeWordModelPath', e.target.value)}
+                  placeholder="config\\wake_words\\hey_rex\\model.onnx"
+                  className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="wakeWordFallback" className="text-sm font-medium text-text-primary">
+                    Built-in Fallback Wake Word
+                  </label>
+                  <SavedIndicator visible={savedField === 'wakeWord'} />
+                </div>
+                <select
+                  id="wakeWordFallback"
+                  value={form.wakeWord}
+                  onChange={(e) => handleFieldChange('wakeWord', e.target.value)}
+                  className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                >
+                  {builtInWakeWordOptions.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+
+          {form.wakeWordBackend === 'custom_embedding' && (
+            <>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="customWakeWordId" className="text-sm font-medium text-text-primary">
+                    Trained Custom Wake Word
+                  </label>
+                  <SavedIndicator visible={savedField === 'customWakeWordId'} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    id="customWakeWordId"
+                    value={form.customWakeWordId}
+                    onChange={(e) => {
+                      const selectedId = e.target.value
+                      const selected = customWakeWords.find((w) => w.id === selectedId)
+                      const updated: VoiceSettings = {
+                        ...form,
+                        customWakeWordId: selectedId,
+                        wakeWordBackend: 'custom_embedding',
+                        wakeWordPhrase: selected?.name ?? form.wakeWordPhrase,
+                        wakeWordEmbeddingPath: selected?.model_path ?? form.wakeWordEmbeddingPath
+                      }
+                      saveField('customWakeWordId', selectedId, updated)
+                    }}
+                    className="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                  >
+                    <option value="">Select a trained wake word</option>
+                    {customWakeWords.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Tooltip
+                    text={
+                      form.customWakeWordId && customWakeWords.find((w) => w.id === form.customWakeWordId)?.has_sample === false
+                        ? 'No sample recorded yet. Train this wake word to capture a recording.'
+                        : ''
+                    }
+                    position="top"
+                  >
+                    <button
+                      onClick={handlePreviewWakeWord}
+                      disabled={
+                        previewingWakeWord
+                        || !form.customWakeWordId
+                        || customWakeWords.find((w) => w.id === form.customWakeWordId)?.has_sample === false
+                      }
+                      title="Play the recorded custom wake word sample"
+                      className="flex items-center gap-1.5 bg-bg hover:bg-surface border border-border disabled:opacity-40 text-text-primary text-sm font-medium px-3 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg shrink-0"
+                    >
+                      {previewingWakeWord ? (
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polygon points="5 3 19 12 5 21 5 3" />
+                        </svg>
+                      )}
+                      Sample
+                    </button>
+                  </Tooltip>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="wakeWordPhrase" className="text-sm font-medium text-text-primary">
+                    Custom Wake Phrase
+                  </label>
+                  <SavedIndicator visible={savedField === 'wakeWordPhrase'} />
+                </div>
+                <input
+                  id="wakeWordPhrase"
+                  type="text"
+                  value={form.wakeWordPhrase}
+                  onChange={(e) => handleFieldChange('wakeWordPhrase', e.target.value)}
+                  placeholder="hey rex"
+                  className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="wakeWordEmbeddingPath" className="text-sm font-medium text-text-primary">
+                    Custom Embedding Path
+                  </label>
+                  <SavedIndicator visible={savedField === 'wakeWordEmbeddingPath'} />
+                </div>
+                <input
+                  id="wakeWordEmbeddingPath"
+                  type="text"
+                  value={form.wakeWordEmbeddingPath}
+                  onChange={(e) => handleFieldChange('wakeWordEmbeddingPath', e.target.value)}
+                  placeholder="config\\wake_words\\hey_rex\\embedding.pt"
+                  className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="wakeWordFallbackCustomEmbedding" className="text-sm font-medium text-text-primary">
+                    Built-in Fallback Wake Word
+                  </label>
+                  <SavedIndicator visible={savedField === 'wakeWord'} />
+                </div>
+                <select
+                  id="wakeWordFallbackCustomEmbedding"
+                  value={form.wakeWord}
+                  onChange={(e) => handleFieldChange('wakeWord', e.target.value)}
+                  className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+                >
+                  {builtInWakeWordOptions.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+
+          <p className="text-xs text-text-secondary">
+            Built-in openWakeWord remains the fallback path. For a real custom <span className="font-medium text-text-primary">Hey Rex</span> model,
+            point the ONNX backend at an exported wake model or use a trained embedding while that ONNX asset is still pending.
+            Changes take effect when the voice loop restarts.
+          </p>
         </div>
-        <p className="mt-1 text-xs text-text-secondary">
-          Uses openWakeWord. Select a model or leave disabled to start Rex manually.
-          Changes take effect when the voice loop restarts.
-        </p>
       </div>
 
       {/* Train custom wake word */}
@@ -2321,6 +2642,43 @@ function AiPanel(): React.ReactElement {
 type IntegrationSection = 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'
 type TestStatus = 'idle' | 'testing' | 'ok' | 'error'
 
+function integrationStatusToTestStatus(status: IntegrationInventoryItem['status']): TestStatus {
+  if (status === 'connected') return 'ok'
+  if (status === 'error') return 'error'
+  return 'idle'
+}
+
+function integrationKeyToSection(key: string): IntegrationSection | null {
+  if (key === 'email' || key === 'calendar' || key === 'sms' || key === 'homeassistant' || key === 'phone') {
+    return key
+  }
+  return null
+}
+
+function sectionsForIntegrationField(field: keyof IntegrationsSettings): IntegrationSection[] {
+  if (
+    field === 'emailProvider' ||
+    field === 'emailClientId' ||
+    field === 'emailClientSecret' ||
+    field === 'emailAccounts'
+  ) {
+    return ['email']
+  }
+  if (field === 'calendarProvider' || field === 'calendarClientId' || field === 'calendarClientSecret') {
+    return ['calendar']
+  }
+  if (field === 'smsSid' || field === 'smsAuthToken' || field === 'smsFromNumber') {
+    return ['sms']
+  }
+  if (field === 'haUrl' || field === 'haToken') {
+    return ['homeassistant']
+  }
+  if (field === 'phoneSid' || field === 'phoneAuthToken' || field === 'phoneNumber') {
+    return ['phone']
+  }
+  return []
+}
+
 function ConnectionBadge({
   status,
   hasCredentials
@@ -2417,46 +2775,97 @@ function PasswordInput({
 
 function TestConnectionButton({
   status,
-  onTest
+  onTest,
+  error
 }: {
   status: TestStatus
   onTest: () => void
+  error?: string
 }): React.ReactElement {
   return (
-    <div className="flex items-center gap-3 mt-3">
-      <button
-        onClick={onTest}
-        disabled={status === 'testing'}
-        className="flex items-center gap-2 bg-surface-raised hover:bg-border disabled:opacity-50 text-text-primary text-xs font-medium px-3 py-1.5 rounded-lg border border-border transition-colors focus:outline-none focus:ring-2 focus:ring-accent"
-      >
-        {status === 'testing' ? (
-          <>
-            <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+    <div className="mt-3">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onTest}
+          disabled={status === 'testing'}
+          className="flex items-center gap-2 bg-surface-raised hover:bg-border disabled:opacity-50 text-text-primary text-xs font-medium px-3 py-1.5 rounded-lg border border-border transition-colors focus:outline-none focus:ring-2 focus:ring-accent"
+        >
+          {status === 'testing' ? (
+            <>
+              <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+              </svg>
+              Testing…
+            </>
+          ) : 'Test Connection'}
+        </button>
+        {status === 'ok' && (
+          <span className="flex items-center gap-1 text-xs text-success">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <polyline points="20 6 9 17 4 12" />
             </svg>
-            Testing…
+            Connected
+          </span>
+        )}
+        {status === 'error' && (
+          <span className="flex items-center gap-1 text-xs text-danger">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            Not connected
+          </span>
+        )}
+        {status === 'idle' && (
+          <span className="text-xs text-text-secondary">Not tested</span>
+        )}
+      </div>
+      {status === 'error' && error && (
+        <p className="mt-1 text-xs text-danger">{error}</p>
+      )}
+    </div>
+  )
+}
+
+function WakeWordStatusPanel({ status }: { status: WakeWordStatus | null }): React.ReactElement | null {
+  if (!status) return null
+
+  const badgeClasses =
+    status.status === 'asset_ready'
+      ? 'bg-success/15 text-success border-success/30'
+      : status.status === 'missing_asset'
+        ? 'bg-warning/15 text-warning border-warning/30'
+        : 'bg-surface text-text-secondary border-border'
+
+  return (
+    <div className="rounded-lg border border-border bg-bg px-3 py-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="font-medium text-text-primary">Wake Asset Status</div>
+        <span className={`inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium ${badgeClasses}`}>
+          {status.statusLabel}
+        </span>
+      </div>
+      <div className="mt-2 space-y-1 text-xs text-text-secondary">
+        <div>
+          Backend: <span className="text-text-primary">{status.requestedBackend}</span>
+        </div>
+        <div>
+          Phrase: <span className="text-text-primary">{status.configuredPhrase}</span>
+        </div>
+        {status.assetKind !== 'builtin' && (
+          <>
+            <div>
+              Expected asset path: <span className="break-all text-text-primary">{status.assetPath}</span>
+            </div>
+            <div>
+              Asset file: <span className="text-text-primary">{status.assetExists ? 'present' : 'missing'}</span>
+            </div>
+            <div>
+              Built-in fallback: <span className="text-text-primary">{status.fallbackActive ? `active (${status.fallbackKeyword})` : status.fallbackEnabled ? `configured (${status.fallbackKeyword})` : 'disabled'}</span>
+            </div>
           </>
-        ) : 'Test Connection'}
-      </button>
-      {status === 'ok' && (
-        <span className="flex items-center gap-1 text-xs text-success">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          Connected
-        </span>
-      )}
-      {status === 'error' && (
-        <span className="flex items-center gap-1 text-xs text-danger">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-          Not connected
-        </span>
-      )}
-      {status === 'idle' && (
-        <span className="text-xs text-text-secondary">Not tested</span>
-      )}
+        )}
+        <div>{status.detail}</div>
+      </div>
     </div>
   )
 }
@@ -2494,8 +2903,8 @@ function IntegrationsPanel(): React.ReactElement {
     homeassistant: 'idle',
     phone: 'idle'
   })
+  const [testErrors, setTestErrors] = useState<Partial<Record<IntegrationSection, string>>>({})
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const testTimers = useRef<Partial<Record<IntegrationSection, ReturnType<typeof setTimeout>>>>({})
   const [accountTestStatus, setAccountTestStatus] = useState<Record<string, TestStatus>>({})
   const accountTestTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
@@ -2518,10 +2927,49 @@ function IntegrationsPanel(): React.ReactElement {
       })
   }
 
+  function applyIntegrationStatuses(inventory: IntegrationInventoryItem[]): void {
+    setTestStatus((current) => {
+      const next = { ...current }
+      for (const item of inventory) {
+        const section = integrationKeyToSection(item.key)
+        if (section) next[section] = integrationStatusToTestStatus(item.status)
+      }
+      return next
+    })
+    setTestErrors((current) => {
+      const next = { ...current }
+      for (const item of inventory) {
+        const section = integrationKeyToSection(item.key)
+        if (!section) continue
+        if (item.status === 'error' && item.error) {
+          next[section] = item.error
+        } else if (item.status !== 'error') {
+          delete next[section]
+        }
+      }
+      return next
+    })
+  }
+
+  function resetStatusForField(field: keyof IntegrationsSettings): void {
+    const sections = sectionsForIntegrationField(field)
+    if (sections.length === 0) return
+    setTestStatus((current) => {
+      const next = { ...current }
+      for (const section of sections) next[section] = 'idle'
+      return next
+    })
+    setTestErrors((current) => {
+      const next = { ...current }
+      for (const section of sections) delete next[section]
+      return next
+    })
+  }
+
   useEffect(() => {
     window.rex
       .getSettings('integrations')
-      .then((settings: Settings) => {
+      .then(async (settings: Settings) => {
         const rawAccounts = settings.emailAccounts
         const emailAccounts: EmailAccount[] = Array.isArray(rawAccounts)
           ? (rawAccounts as EmailAccount[])
@@ -2566,6 +3014,11 @@ function IntegrationsPanel(): React.ReactElement {
           telegramBotToken: typeof settings.telegramBotToken === 'string' ? settings.telegramBotToken : '',
           telegramChatId: typeof settings.telegramChatId === 'string' ? settings.telegramChatId : ''
         })
+
+        const inventory = await window.rex.getIntegrations().catch(() => null)
+        if (inventory?.ok) {
+          applyIntegrationStatuses(inventory.integrations)
+        }
       })
       .catch(() => {
         addToast('Failed to load integrations settings', 'error')
@@ -2594,11 +3047,17 @@ function IntegrationsPanel(): React.ReactElement {
   ): void {
     const updated = { ...form, [field]: value }
     setForm(updated)
+    resetStatusForField(field)
     saveField(field, updated)
   }
 
   function handleTest(section: IntegrationSection): void {
     setTestStatus((s) => ({ ...s, [section]: 'testing' }))
+    setTestErrors((s) => {
+      const next = { ...s }
+      delete next[section]
+      return next
+    })
     const testRequest =
       section === 'homeassistant'
         ? window.rex.testHomeAssistant(form.haUrl, form.haToken)
@@ -2607,18 +3066,22 @@ function IntegrationsPanel(): React.ReactElement {
     testRequest
       .then((res) => {
         setTestStatus((s) => ({ ...s, [section]: res.ok ? 'ok' : 'error' }))
+        setTestErrors((s) => {
+          const next = { ...s }
+          if (!res.ok && res.error) {
+            next[section] = res.error
+          } else {
+            delete next[section]
+          }
+          return next
+        })
       })
-      .catch(() => {
+      .catch((err) => {
         setTestStatus((s) => ({ ...s, [section]: 'error' }))
-      })
-      .finally(() => {
-        if (testTimers.current[section]) clearTimeout(testTimers.current[section])
-        if (section !== 'homeassistant') {
-          testTimers.current[section] = setTimeout(
-            () => setTestStatus((s) => ({ ...s, [section]: 'idle' })),
-            5000
-          )
-        }
+        setTestErrors((s) => ({
+          ...s,
+          [section]: err instanceof Error ? err.message : 'Connection test failed'
+        }))
       })
   }
 
@@ -2636,6 +3099,7 @@ function IntegrationsPanel(): React.ReactElement {
     }
     const updated = { ...form, emailAccounts: [...form.emailAccounts, newAccount] }
     setForm(updated)
+    resetStatusForField('emailAccounts')
     window.rex.setSettings('integrations', updated as unknown as Settings).catch(() => {
       addToast('Failed to save email account', 'error')
     })
@@ -2647,6 +3111,7 @@ function IntegrationsPanel(): React.ReactElement {
       emailAccounts: form.emailAccounts.map((a) => (a.id === id ? { ...a, ...patch } : a))
     }
     setForm(updated)
+    resetStatusForField('emailAccounts')
     window.rex.setSettings('integrations', updated as unknown as Settings).catch(() => {
       addToast('Failed to save email account', 'error')
     })
@@ -2658,6 +3123,7 @@ function IntegrationsPanel(): React.ReactElement {
       emailAccounts: form.emailAccounts.filter((a) => a.id !== id)
     }
     setForm(updated)
+    resetStatusForField('emailAccounts')
     window.rex.setSettings('integrations', updated as unknown as Settings).catch(() => {
       addToast('Failed to remove email account', 'error')
     })
@@ -2714,6 +3180,11 @@ function IntegrationsPanel(): React.ReactElement {
             <option value="gmail">Gmail</option>
             <option value="outlook">Outlook</option>
           </select>
+          {form.emailProvider === 'outlook' && (
+            <p className="mt-2 text-xs text-text-secondary">
+              Outlook mailbox sync is not live yet. These fields store app credentials only.
+            </p>
+          )}
         </div>
 
         <div className="mb-4">
@@ -2755,7 +3226,7 @@ function IntegrationsPanel(): React.ReactElement {
           />
         </div>
 
-        <TestConnectionButton status={testStatus.email} onTest={() => handleTest('email')} />
+        <TestConnectionButton status={testStatus.email} error={testErrors.email} onTest={() => handleTest('email')} />
 
         {/* Multi-account email list */}
         <div className="mt-5">
@@ -2951,6 +3422,11 @@ function IntegrationsPanel(): React.ReactElement {
             <option value="gmail">Google Calendar</option>
             <option value="outlook">Outlook Calendar</option>
           </select>
+          {form.calendarProvider === 'outlook' && (
+            <p className="mt-2 text-xs text-text-secondary">
+              Outlook calendar sync is not live yet. Rex cannot read or write Outlook events from these fields.
+            </p>
+          )}
         </div>
 
         <div className="mb-4">
@@ -2992,7 +3468,7 @@ function IntegrationsPanel(): React.ReactElement {
           />
         </div>
 
-        <TestConnectionButton status={testStatus.calendar} onTest={() => handleTest('calendar')} />
+        <TestConnectionButton status={testStatus.calendar} error={testErrors.calendar} onTest={() => handleTest('calendar')} />
       </section>
 
       <div className="border-t border-border mb-7" />
@@ -3077,7 +3553,7 @@ function IntegrationsPanel(): React.ReactElement {
           />
         </div>
 
-        <TestConnectionButton status={testStatus.sms} onTest={() => handleTest('sms')} />
+        <TestConnectionButton status={testStatus.sms} error={testErrors.sms} onTest={() => handleTest('sms')} />
       </section>
 
       <div className="border-t border-border mb-7" />
@@ -3142,7 +3618,7 @@ function IntegrationsPanel(): React.ReactElement {
           />
         </div>
 
-        <TestConnectionButton status={testStatus.homeassistant} onTest={() => handleTest('homeassistant')} />
+        <TestConnectionButton status={testStatus.homeassistant} error={testErrors.homeassistant} onTest={() => handleTest('homeassistant')} />
       </section>
 
       <div className="border-t border-border mb-7" />
@@ -3287,7 +3763,7 @@ function IntegrationsPanel(): React.ReactElement {
           <p className="mt-1 text-xs text-text-secondary">Accepts .json or .vcf (vCard) contact files for outbound calling.</p>
         </div>
 
-        <TestConnectionButton status={testStatus.phone} onTest={() => handleTest('phone')} />
+        <TestConnectionButton status={testStatus.phone} error={testErrors.phone} onTest={() => handleTest('phone')} />
       </section>
 
       <div className="border-t border-border mb-7" />

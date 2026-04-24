@@ -28,6 +28,15 @@ logger = logging.getLogger(__name__)
 _DEFAULT_TIMEOUT = 10  # seconds — enforced at socket level
 
 
+def _create_default_ssl_context() -> ssl.SSLContext:
+    try:
+        return ssl.create_default_context()
+    except NameError as exc:
+        if "enum_certificates" not in str(exc):
+            raise
+        return ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+
+
 class EmailAuthError(Exception):
     """Raised when IMAP or SMTP authentication fails.
 
@@ -87,7 +96,7 @@ class IMAPBackend(EmailBackend):
         if self._imap_factory is not None:
             conn = self._imap_factory()
         elif self._use_ssl:
-            ctx = ssl.create_default_context()
+            ctx = _create_default_ssl_context()
             conn = imaplib.IMAP4_SSL(
                 host=self._host,
                 port=self._port,
@@ -268,13 +277,13 @@ class IMAPSMTPBackend(IMAPBackend):
                 timeout=self._timeout,
             )
             conn.ehlo()
-            conn.starttls(context=ssl.create_default_context())
+            conn.starttls(context=_create_default_ssl_context())
             conn.ehlo()
         else:
             conn = smtplib.SMTP_SSL(
                 host=self._smtp_host,
                 port=self._smtp_port,
-                context=ssl.create_default_context(),
+                context=_create_default_ssl_context(),
                 timeout=self._timeout,
             )
         return conn

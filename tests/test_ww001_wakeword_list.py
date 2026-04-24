@@ -51,11 +51,10 @@ def test_bridge_wake_words_have_required_fields() -> None:
         assert isinstance(ww["engine"], str)
 
 
-def test_bridge_engine_is_openwakeword() -> None:
-    """All entries report engine == 'openwakeword'."""
+def test_bridge_includes_openwakeword_entries() -> None:
+    """The bridge includes built-in openWakeWord entries even with custom assets."""
     result = _run_bridge()
-    for ww in result["wake_words"]:
-        assert ww["engine"] == "openwakeword"
+    assert any(ww["engine"] == "openwakeword" for ww in result["wake_words"])
 
 
 def test_bridge_falls_back_to_defaults_when_oww_unavailable() -> None:

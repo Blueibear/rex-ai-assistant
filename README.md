@@ -11,7 +11,7 @@
   <a href="https://www.buymeacoffee.com/Blueibear" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 28px !important;width: 120px !important;" ></a>
 </p>
 
-AskRex Assistant is a local-first AI assistant for text chat, wake-word voice interaction, desktop control surfaces, and credential-gated home/productivity integrations. It runs from the Python `rex` package, with optional local ML dependencies for Whisper, openWakeWord, and XTTS, plus optional cloud/local LLM routing through OpenAI-compatible providers and Ollama.
+AskRex Assistant is a local-first AI assistant for text chat, voice interaction, desktop control surfaces, and credential-gated home/productivity integrations. It runs from the Python `rex` package, with optional local ML dependencies for Whisper, openWakeWord, and XTTS, plus optional cloud/local LLM routing through OpenAI-compatible providers and Ollama.
 
 AskRex is alpha software. It is useful for local testing and development, but it should not be treated as production-ready. Recent GUI and voice-loop fixes have made several paths usable end to end; wake-word tuning, warning cleanup, and per-user data separation are still in progress. See [docs/claude/INTEGRATIONS_STATUS.md](docs/claude/INTEGRATIONS_STATUS.md) for the broader integration readiness snapshot.
 
@@ -96,7 +96,7 @@ rex
 
 ## Current Status
 
-This README reflects the current milestone after recent live testing and repair work. The repo has working CLI, chat, GUI, Home Assistant, and voice paths, with several areas still being stabilized.
+This README reflects the current milestone after recent live testing and repair work. The Electron GUI is the current primary user-facing interface. The repo has usable CLI, chat, GUI, Home Assistant, and voice paths, with several areas still being stabilized.
 
 ## Working Now
 
@@ -108,13 +108,17 @@ This README reflects the current milestone after recent live testing and repair 
 - The Home Assistant connection test now stays connected in the UI after a successful real connection test.
 - GUI Chat shows a visible pending/thinking state while Rex is preparing a reply.
 - Voice Hold to Talk records, transcribes, shows a pending state, gets a Rex reply, and can be used repeatedly.
-- Wake-word mode works end to end in live testing, but still needs reliability and latency tuning.
+- Wake-word mode is wired and can work end to end in live testing, but reliability and latency still need work.
+- Long voice answers now use a cleaner spoken handoff that points the user to the on-screen transcript instead of reading long replies badly.
+- Custom wake backends are wired: built-in openWakeWord fallback, `custom_embedding` as an interim path, and `custom_onnx` as the long-term target when a real asset is present.
 - Day/date phrasing coverage in chat has improved for common variants.
 
 ## Known Limitations / In Progress
 
 - Wake-word reliability is still inconsistent and may require threshold/device tuning.
 - Wake-word response latency is slower than desired.
+- The repo does not ship a real `Hey Rex` custom wake asset. A valid asset is still required for `custom_onnx` or `custom_embedding` to become active.
+- Outlook integration status in the GUI should not be read as full mailbox/calendar sync readiness. Live Outlook email/calendar sync is still incomplete.
 - CLI identity listing is currently polluted with test/demo users.
 - A deprecated `wake_word` config warning still appears during startup.
 - A `.env` permissions warning still appears.
@@ -137,25 +141,27 @@ This README reflects the current milestone after recent live testing and repair 
 | CLI text chat | `rex` or `python -m rex` | Working basic chat |
 | Diagnostics | `rex doctor` or `python -m rex doctor` | Working |
 | Voice loop | `python rex_loop.py` | Working in live testing; tuning ongoing |
-| Python web dashboard | `rex-gui` | Implemented browser UI, serves `http://127.0.0.1:8765/ui/` |
-| Electron desktop app | Windows: `cd gui; npm.cmd run dev`; macOS/Linux: `cd gui && npm run dev` | Primary GUI under active stabilization |
+| Electron desktop app | Windows: `cd gui; npm.cmd run dev`; macOS/Linux: `cd gui && npm run dev` | Current primary GUI under active stabilization |
+| Python/Flask local API and experimental web dashboard | `rex-gui` | Starts Flask on `http://127.0.0.1:8765`; local API routes are still useful, but the browser dashboard UI is incomplete and not the primary interface |
 | TTS API | `rex-speak-api` | Implemented service, default `127.0.0.1:5005` |
 | OpenClaw tool server | `rex-tool-server` | Implemented service, default `127.0.0.1:18790` |
 | Windows computer agent | `rex-agent` | Optional remote PC control agent |
 | Runtime config CLI | `rex-config` | Config inspection and legacy env migration; warning cleanup remains |
 
-`rex-gui` is the canonical GUI for the Rex AI Assistant. The legacy Tkinter launchers (`gui.py` and its entry point) are deprecated. Use `rex-gui` for the Python-served web UI or the Electron app under `gui/`.
+The Electron app under `gui/` is the current primary GUI. `rex-gui` remains useful as a local Flask/API service and for compatibility testing, but its browser dashboard at `/ui/` is incomplete and should not be treated as the main user interface. The legacy Tkinter launchers (`gui.py` and its entry point) are deprecated.
 
 ## Features
 
 | Area | Current repo state |
 |---|---|
 | Text chat | Basic CLI and GUI chat work through `rex.assistant.Assistant` and the configured LLM provider. Common day/date phrasing coverage has improved; provider quality still depends on model/configuration. |
-| Voice pipeline | Hold to Talk works. Wake-word mode works end to end in live testing through openWakeWord, Whisper STT, LLM reply generation, and TTS, but reliability and latency are still being tuned. |
+| Voice pipeline | Hold to Talk works. Wake-word mode is wired and can work end to end through openWakeWord, Whisper STT, LLM reply generation, and TTS, but reliability and latency are still being tuned. Long answers now hand off to the transcript instead of reading a long reply aloud badly. |
+| Custom wake support | Built-in openWakeWord remains the safe fallback path. `custom_embedding` is usable as an interim path, and `custom_onnx` is the target path for a real `Hey Rex` wake model. The repo does not ship that custom asset by default. |
 | LLM providers | Local Transformers, OpenAI-compatible API settings, and Ollama routing are supported by config. Local model output quality varies by model and prompt path. |
 | Configuration | Runtime settings live in `config/rex_config.json`; secrets live in `.env`; profiles live in `profiles/`. |
-| GUIs | Python web dashboard (`rex-gui`) and Electron/React desktop GUI (`gui/`) both exist. The Electron shell is stable in current testing; Tasks, Reminders, Settings, Users, Integrations, Email, Calendar, and Home Assistant pages load. |
+| GUIs | The Electron/React desktop GUI (`gui/`) is the current primary interface. The Electron shell is stable in current testing; Tasks, Reminders, Settings, Users, Integrations, Email, Calendar, and Home Assistant pages load. The Python/Flask `rex-gui` surface still serves local API routes and an experimental `/ui/` browser dashboard, but that browser UI is incomplete and not recommended as the primary interface. |
 | Home Assistant | The GUI Home Assistant page loads and lists entities after recent fixes. The connection test performs a real backend connectivity check and persists success in the UI. |
+| Email and calendar integrations | GUI integration status is more honest than before, but Outlook-connected status should not be read as full live Outlook mailbox/calendar sync. Treat Outlook email/calendar paths as partial until end-to-end sync is working. |
 | CLI integrations | `rex email`, `rex calendar`, `rex msg`, `rex notify`, `rex gh`, `rex code`, `rex pc`, `rex wp`, `rex wc`, `rex ha`, `rex shopping`, `rex usage`, and more are registered. Readiness varies by backend credentials and test coverage. |
 | Tool execution | Tool registry, policy checks, audit logging, and OpenClaw-facing HTTP tool server are implemented. Local tool execution currently covers time, weather, and web search; the HTTP tool server exposes a broader adapter set. |
 | Memory | Memory storage paths exist under `Memory/` and `data/memory/`, and GUI chat history uses `data/history.db`. Full per-user GUI history/memory isolation is planned, not complete. |
@@ -188,6 +194,13 @@ AskRex uses three configuration layers:
 
 The canonical wake word config key is `wakeword`. The legacy `wake_word` key is still migrated at runtime but logs a warning.
 
+Custom wake asset defaults now follow:
+
+- `config/wake_words/hey_rex/model.onnx` for `custom_onnx`
+- `config/wake_words/hey_rex/embedding.pt` for `custom_embedding`
+
+The repo wiring is in place for a real custom `Hey Rex` wake path, but a valid asset file is still required before that path becomes active.
+
 Useful config commands:
 
 ```bash
@@ -201,15 +214,6 @@ See [CONFIGURATION.md](CONFIGURATION.md), [docs/configuration.md](docs/configura
 ## GUI Usage
 
 See [docs/usage.md](docs/usage.md) for the full usage guide including voice mode, autonomous workflows, and integrations.
-
-### Python web dashboard
-
-Run this after activating the Python virtual environment on any platform:
-
-```bash
-rex-gui
-## opens http://127.0.0.1:8765/ui/
-```
 
 ### Electron desktop GUI - Windows setup
 
@@ -238,7 +242,21 @@ npm run build
 npm run preview
 ```
 
+### Python/Flask local API and experimental web dashboard
+
+Run this after activating the Python virtual environment on any platform when you need the Flask local API routes or want to inspect the incomplete browser dashboard:
+
+```bash
+rex-gui
+## Flask listens on http://127.0.0.1:8765/
+## experimental browser UI: http://127.0.0.1:8765/ui/
+```
+
+Use the Electron app for normal GUI testing and day-to-day interaction.
+
 The Electron app requires the Python bridge scripts at the repo root and the current `gui/dist-electron` build for built-app verification harnesses. See [docs/UI_SURFACES.md](docs/UI_SURFACES.md) and [docs/e2e-gui-launch-test.md](docs/e2e-gui-launch-test.md).
+
+Use `rex-gui` as a Flask/API and compatibility surface, not as the main GUI.
 
 ## Common Commands
 

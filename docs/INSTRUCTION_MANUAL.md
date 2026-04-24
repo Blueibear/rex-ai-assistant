@@ -14,7 +14,7 @@ AskRex Assistant is a local-first AI assistant with:
 - text-to-speech backends such as XTTS, Edge TTS, Piper, and pyttsx3 paths
 - memory, knowledge base, scheduler, reminders, notifications, workflows, and tools
 - integrations for Home Assistant, email, calendar, SMS, GitHub, browser/OS automation, WordPress, WooCommerce, and remote computer control
-- Python web dashboard and Electron desktop app
+- Electron desktop app, plus a Python/Flask local API service with an incomplete experimental browser dashboard
 
 ## 2. Supported Runtime
 
@@ -107,15 +107,17 @@ python -m rex
 |---|---|---:|
 | CLI chat | `python -m rex` | none |
 | Voice loop | `python rex_loop.py` | none |
-| Python web dashboard | `rex-gui` | `http://127.0.0.1:8765/ui/` |
 | Electron desktop | `npm.cmd run dev` in `gui/` | app window |
+| Python/Flask API and experimental web dashboard | `rex-gui` | `http://127.0.0.1:8765/ui/` |
 | TTS API | `rex-speak-api` | `http://127.0.0.1:5005` |
 | Tool server | `rex-tool-server` | `http://127.0.0.1:18790` |
 | Computer agent | `rex-agent` | localhost agent API |
 | Legacy proxy | `python flask_proxy.py` | `http://127.0.0.1:5000` |
 
-Use `rex-gui` or Electron for UI work. `gui.py` and `run_gui.py` are deprecated.
-Treat `flask_proxy.py` as a compatibility surface, not the primary dashboard.
+Use Electron for normal GUI work. Use `rex-gui` when you need local Flask API
+routes or the incomplete experimental browser dashboard. `gui.py` and
+`run_gui.py` are deprecated. Treat `flask_proxy.py` as a compatibility surface,
+not the primary dashboard.
 
 ## 7. Voice Setup
 
@@ -142,32 +144,19 @@ python wakeword_listener.py
 Optional custom wake-word checks:
 
 ```bash
-python scripts/validate_wakeword_model.py --backend custom_onnx --model-path models/wakewords/hey_rex.onnx
-python scripts/validate_wakeword_model.py --backend custom_embedding --embedding-path models/wakewords/hey_rex.pt
+python scripts/validate_wakeword_model.py --backend custom_onnx --phrase "hey rex" --model-path config/wake_words/hey_rex/model.onnx
+python scripts/validate_wakeword_model.py --backend custom_embedding --phrase "hey rex" --embedding-path config/wake_words/hey_rex/embedding.pt
 ```
 
-## 8. Python Web Dashboard
+Current voice reality:
 
-```bash
-rex-gui
-```
+- Hold to Talk is usable in live testing.
+- Wake-word mode is available, but reliability and latency are still being tuned.
+- The repo now supports built-in fallback plus custom wake backends, but it does not ship a real `Hey Rex` custom asset by default.
 
-Open:
+## 8. Electron Desktop App
 
-```text
-http://127.0.0.1:8765/ui/
-```
-
-Common API checks:
-
-```bash
-curl http://127.0.0.1:8765/api/dashboard/status
-curl http://127.0.0.1:8765/api/tools
-```
-
-Override the port with `REX_GUI_PORT`.
-
-## 9. Electron Desktop App
+The Electron app is the current primary GUI.
 
 ```powershell
 cd gui
@@ -188,6 +177,30 @@ For Electron-only verification harnesses, run `npm.cmd run build` first and
 place the harness under `gui/tmp_verify_*.cjs`. The harness should require
 `gui/dist-electron/main/index.js`, wait for the main `BrowserWindow`, and drive
 the renderer with `webContents.executeJavaScript()`.
+
+## 9. Python/Flask API and Experimental Web Dashboard
+
+```bash
+rex-gui
+```
+
+Open:
+
+```text
+http://127.0.0.1:8765/ui/
+```
+
+Common API checks:
+
+```bash
+curl http://127.0.0.1:8765/api/dashboard/status
+curl http://127.0.0.1:8765/api/tools
+```
+
+Override the port with `REX_GUI_PORT`.
+
+The `/ui/` browser dashboard is incomplete in current testing. Use it for API
+smoke checks or compatibility work, not as the primary GUI.
 
 ## 10. TTS API
 

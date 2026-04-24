@@ -1082,7 +1082,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
             {
                 "name": "Calendar",
                 "key": "calendar",
-                "configured": False,
+                "configured": getattr(cfg, "calendar_provider", "none") not in ("none", ""),
                 "configure_url": "/settings?section=integrations",
             },
             {
@@ -1153,6 +1153,23 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
             return jsonify({"ok": True, "events": [], "configured": False}), 200
 
         provider = getattr(cfg, "calendar_provider", "none") or "none"
+        if str(provider).lower() == "outlook":
+            return (
+                jsonify(
+                    {
+                        "ok": False,
+                        "events": [],
+                        "configured": True,
+                        "error": (
+                            "Outlook calendar sync is not implemented yet. The current Outlook "
+                            "settings only store app credentials; Rex cannot read or write "
+                            "Outlook events until Microsoft Graph OAuth token support is added."
+                        ),
+                    }
+                ),
+                501,
+            )
+
         svc = CalendarService(calendar_provider=provider)
 
         try:
@@ -1206,6 +1223,23 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
             return jsonify({"ok": True, "messages": [], "configured": False}), 200
 
         provider = getattr(cfg, "email_provider", "none") or "none"
+        if str(provider).lower() == "outlook":
+            return (
+                jsonify(
+                    {
+                        "ok": False,
+                        "messages": [],
+                        "configured": True,
+                        "error": (
+                            "Outlook email sync is not implemented yet. The current Outlook "
+                            "settings only store app credentials; Rex cannot read Outlook mail "
+                            "until Microsoft Graph OAuth token support is added."
+                        ),
+                    }
+                ),
+                501,
+            )
+
         svc = EmailService(email_provider=provider)
 
         try:

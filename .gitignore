@@ -168,3 +168,5 @@ data/memory/
 data/llm_usage.json
 gui/data/
 PRD-ci-fix-*.md
+
+data/shopping_list.json

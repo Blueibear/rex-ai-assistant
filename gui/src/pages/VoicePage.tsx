@@ -16,6 +16,62 @@ function formatTime(ms: number): string {
   return `${h}:${m}:${s}`
 }
 
+const knownVoiceStates: VoiceState[] = [
+  'starting',
+  'idle',
+  'wake_listening',
+  'listening',
+  'followup_listening',
+  'processing',
+  'speaking',
+  'cooldown',
+]
+const internalToolSyntaxPattern = /\bTOOL_(?:REQUEST|RESULT)\s*:/i
+
+function sanitizeTranscriptEntry(entry: VoiceTranscriptEntry): VoiceTranscriptEntry | null {
+  if (!internalToolSyntaxPattern.test(entry.text)) return entry
+  if (entry.role === 'user') return null
+  return {
+    ...entry,
+    text: 'I could not complete that tool request.',
+  }
+}
+
+function sanitizeDisplayText(text: string): string {
+  return internalToolSyntaxPattern.test(text)
+    ? 'I could not complete that tool request.'
+    : text
+}
+
+function isKnownVoiceState(state: string): state is VoiceState {
+  return knownVoiceStates.includes(state as VoiceState)
+}
+
+function isWakeSessionActive(state: VoiceState): boolean {
+  return state !== 'idle'
+}
+
+function getVoiceStatusLabel(state: VoiceState): string | null {
+  switch (state) {
+    case 'starting':
+      return 'Starting voice mode'
+    case 'wake_listening':
+      return 'Ready and listening for wake word'
+    case 'listening':
+      return 'Listening to your request'
+    case 'followup_listening':
+      return 'Listening for your answer'
+    case 'processing':
+      return 'Processing request'
+    case 'speaking':
+      return 'Speaking response'
+    case 'cooldown':
+      return 'Resetting microphone'
+    case 'idle':
+      return null
+  }
+}
+
 // ── Wake word status indicator ────────────────────────────────────────────────
 
 interface WakeWordStatusBadgeProps {
@@ -25,22 +81,34 @@ interface WakeWordStatusBadgeProps {
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   inactive: { label: 'Inactive', color: 'bg-surface-raised text-text-muted' },
-  listening_wake: { label: 'Listening for wake word', color: 'bg-blue-600/20 text-blue-400' },
+  starting: { label: 'Starting voice mode', color: 'bg-accent/20 text-accent' },
+  idle: { label: 'Idle', color: 'bg-surface-raised text-text-muted' },
+  listening_wake: { label: 'Listening for wake word', color: 'bg-red-600/20 text-red-400' },
   detected: { label: 'Wake word detected', color: 'bg-red-600/20 text-red-400' },
+  followup: { label: 'Listening for your answer', color: 'bg-red-600/20 text-red-400' },
   processing: { label: 'Processing', color: 'bg-accent/20 text-accent' },
   speaking: { label: 'Speaking', color: 'bg-green-600/20 text-green-400' },
+  cooldown: { label: 'Resetting microphone', color: 'bg-accent/20 text-accent' },
 }
 
 const WakeWordStatusBadge: React.FC<WakeWordStatusBadgeProps> = ({ isActive, state }) => {
   let key: string
   if (!isActive) {
     key = 'inactive'
-  } else if (state === 'idle') {
+  } else if (state === 'starting') {
+    key = 'starting'
+  } else if (state === 'wake_listening') {
     key = 'listening_wake'
+  } else if (state === 'idle') {
+    key = 'idle'
   } else if (state === 'listening') {
     key = 'detected'
+  } else if (state === 'followup_listening') {
+    key = 'followup'
   } else if (state === 'processing') {
     key = 'processing'
+  } else if (state === 'cooldown') {
+    key = 'cooldown'
   } else {
     key = 'speaking'
   }
@@ -58,10 +126,14 @@ const WakeWordStatusBadge: React.FC<WakeWordStatusBadgeProps> = ({ isActive, sta
           className={`w-1.5 h-1.5 rounded-full ${
             key === 'detected'
               ? 'bg-red-400 animate-pulse'
-              : key === 'listening_wake'
-                ? 'bg-blue-400 animate-pulse'
+              : key === 'starting'
+                ? 'bg-accent animate-pulse'
+              : key === 'listening_wake' || key === 'followup'
+                ? 'bg-red-400 animate-pulse'
                 : key === 'processing'
                   ? 'bg-accent animate-spin'
+                  : key === 'cooldown'
+                    ? 'bg-accent animate-pulse'
                   : key === 'speaking'
                     ? 'bg-green-400 animate-pulse'
                     : 'bg-text-muted'
@@ -432,7 +504,8 @@ const TranscriptList: React.FC<TranscriptListProps> = ({
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [entries, voiceState])
 
-  const showPartial = voiceState === 'listening'
+  const showPartial = voiceState === 'listening' || voiceState === 'followup_listening'
+  const partialLabel = voiceState === 'followup_listening' ? 'Listening for your answer' : 'Listening'
 
   return (
     <div className="w-full max-w-xl mt-6 flex flex-col gap-0">
@@ -481,7 +554,7 @@ const TranscriptList: React.FC<TranscriptListProps> = ({
         {showPartial && (
           <div className="flex flex-col items-end">
             <div className="max-w-xs px-3 py-2 rounded-xl text-sm leading-relaxed bg-accent/40 text-white rounded-br-none italic opacity-80">
-              Listening
+              {partialLabel}
               <span className="inline-block w-0.5 h-3.5 ml-0.5 align-middle bg-white animate-pulse rounded-sm" />
             </div>
             <span className="text-xs text-text-muted mt-0.5 px-1">You</span>
@@ -514,6 +587,7 @@ export function VoicePage(): React.ReactElement {
   const [voiceState, setVoiceState] = useState<VoiceState>('idle')
   const [isActive, setIsActive] = useState(false)
   const [startingWakeMode, setStartingWakeMode] = useState(false)
+  const [voiceStatusLabel, setVoiceStatusLabel] = useState<string | null>(null)
   const [transcripts, setTranscripts] = useState<VoiceTranscriptEntry[]>([])
   const [error, setError] = useState<string | null>(null)
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([])
@@ -530,9 +604,12 @@ export function VoicePage(): React.ReactElement {
       }
     }
     void loadDevices()
-    navigator.mediaDevices.addEventListener('devicechange', () => void loadDevices())
+    const handleDeviceChange = (): void => {
+      void loadDevices()
+    }
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange)
     return () => {
-      navigator.mediaDevices.removeEventListener('devicechange', () => void loadDevices())
+      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange)
     }
   }, [])
 
@@ -541,18 +618,21 @@ export function VoicePage(): React.ReactElement {
   }, [])
 
   const handlePushToTalkTranscript = useCallback(async (entry: VoiceTranscriptEntry) => {
-    setTranscripts((prev) => [...prev, entry])
+    const safeEntry = sanitizeTranscriptEntry(entry)
+    if (safeEntry === null) return
+    setTranscripts((prev) => [...prev, safeEntry])
 
-    const message = entry.text.trim()
+    const message = safeEntry.text.trim()
     if (!message) return
 
     const replyTimestamp = Date.now() + 1
     let replyText = ''
     const updateReply = (text: string): void => {
+      const safeText = sanitizeDisplayText(text)
       setTranscripts((prev) =>
         prev.map((item) =>
           item.role === 'rex' && item.timestamp === replyTimestamp
-            ? { ...item, text }
+            ? { ...item, text: safeText }
             : item,
         ),
       )
@@ -584,30 +664,85 @@ export function VoicePage(): React.ReactElement {
     setTranscripts([])
   }, [])
 
+  const handleVoiceState = useCallback((state: string) => {
+    if (!isKnownVoiceState(state)) return
+
+    setVoiceState(state)
+    setIsActive(isWakeSessionActive(state))
+    setStartingWakeMode(state === 'starting')
+
+    const label = getVoiceStatusLabel(state)
+    setVoiceStatusLabel(label)
+  }, [])
+
+  const handleVoiceTranscript = useCallback((entry: VoiceTranscriptEntry) => {
+    const safeEntry = sanitizeTranscriptEntry(entry)
+    if (safeEntry === null) return
+    setTranscripts((prev) => [...prev, safeEntry])
+  }, [])
+
+  const handleVoiceError = useCallback((err: string) => {
+    setError(err)
+    setVoiceState('idle')
+    setIsActive(false)
+    setStartingWakeMode(false)
+    setVoiceStatusLabel(null)
+  }, [])
+
+  const handleVoiceStatus = useCallback((_status: string, label: string) => {
+    setVoiceStatusLabel(label)
+  }, [])
+
+  useEffect(() => {
+    const cleanup = window.rex.attachVoiceSession(
+      handleVoiceState,
+      handleVoiceTranscript,
+      handleVoiceError,
+      handleVoiceStatus
+    )
+
+    let cancelled = false
+    void window.rex
+      .getStatus()
+      .then((result) => {
+        if (cancelled) return
+        const status = result.status ?? 'idle'
+        if (isKnownVoiceState(status)) {
+          handleVoiceState(status)
+        } else {
+          handleVoiceState('idle')
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          handleVoiceState('idle')
+        }
+      })
+
+    return () => {
+      cancelled = true
+      cleanup()
+    }
+  }, [handleVoiceState, handleVoiceTranscript, handleVoiceError, handleVoiceStatus])
+
   const handleToggle = useCallback(async () => {
     if (startingWakeMode) return
     if (!isActive) {
       setError(null)
+      setTranscripts([])
       setStartingWakeMode(true)
+      setVoiceState('starting')
+      setVoiceStatusLabel('Starting bridge process')
       try {
         await window.rex.startVoice(
-          (state) => {
-            // Only accept known VoiceState values.
-            const known: VoiceState[] = ['idle', 'listening', 'processing', 'speaking']
-            if (known.includes(state as VoiceState)) {
-              setVoiceState(state as VoiceState)
-            }
-          },
-          (entry) => {
-            setTranscripts((prev) => [...prev, entry])
-          },
-          (err) => {
-            setError(err)
-            setVoiceState('idle')
-            setIsActive(false)
-          }
+          handleVoiceState,
+          handleVoiceTranscript,
+          handleVoiceError,
+          handleVoiceStatus
         )
         setIsActive(true)
+        setVoiceState('wake_listening')
+        setVoiceStatusLabel('Ready and listening for wake word')
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
         setVoiceState('idle')
@@ -618,8 +753,16 @@ export function VoicePage(): React.ReactElement {
       await window.rex.stopVoice()
       setIsActive(false)
       setVoiceState('idle')
+      setVoiceStatusLabel(null)
     }
-  }, [isActive, startingWakeMode])
+  }, [
+    isActive,
+    startingWakeMode,
+    handleVoiceState,
+    handleVoiceTranscript,
+    handleVoiceError,
+    handleVoiceStatus,
+  ])
 
   // Request mic permission (needed to populate device labels).
   const handleRequestMicPermission = useCallback(async () => {
@@ -659,7 +802,8 @@ export function VoicePage(): React.ReactElement {
     )
   }
 
-  const showTranscriptPanel = transcripts.length > 0 || voiceState === 'listening'
+  const showTranscriptPanel =
+    transcripts.length > 0 || voiceState === 'listening' || voiceState === 'followup_listening'
 
   return (
     <div className="flex flex-col items-center justify-start h-full pt-8 gap-6 overflow-y-auto pb-8">
@@ -678,14 +822,44 @@ export function VoicePage(): React.ReactElement {
       />
 
       {startingWakeMode && (
-        <p className="max-w-xs text-center text-xs text-text-muted">
-          Starting the wake-word backend. Rex will show an error here if the microphone, wake-word model, or voice dependencies cannot start.
-        </p>
+        <div className="max-w-xs text-center text-xs text-text-muted" role="status" aria-live="polite">
+          <span className="inline-flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full border-2 border-accent/30 border-t-accent animate-spin" aria-hidden="true" />
+            {voiceStatusLabel ?? 'Starting voice mode'}
+          </span>
+          <p className="mt-2">
+            Rex will show an error here if the microphone, wake-word model, or voice dependencies cannot start.
+          </p>
+        </div>
       )}
 
       {isActive && voiceState === 'idle' && (
+        <p className="max-w-xs text-center text-xs text-danger" role="status" aria-live="polite">
+          Voice bridge is idle, so wake listening is not armed. Stop and start wake word mode again.
+        </p>
+      )}
+
+      {isActive && voiceState === 'wake_listening' && (
         <p className="max-w-xs text-center text-xs text-text-muted">
           Waiting for the configured wake word. If nothing happens when you say it, check the selected microphone and wake-word threshold in Settings, or use Hold to talk for immediate capture.
+        </p>
+      )}
+
+      {isActive && voiceState === 'followup_listening' && (
+        <p className="max-w-xs text-center text-xs text-text-muted" role="status" aria-live="polite">
+          Rex is waiting for your answer. You can reply now without saying the wake word again.
+        </p>
+      )}
+
+      {isActive && voiceState === 'cooldown' && (
+        <p className="max-w-xs text-center text-xs text-text-muted" role="status" aria-live="polite">
+          Resetting the detector before listening again.
+        </p>
+      )}
+
+      {isActive && voiceState === 'speaking' && voiceStatusLabel && (
+        <p className="max-w-xs text-center text-xs text-text-muted" role="status" aria-live="polite">
+          {voiceStatusLabel}
         </p>
       )}
 

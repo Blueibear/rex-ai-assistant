@@ -3,7 +3,10 @@ import json
 
 import pytest
 
-pytest.importorskip("sounddevice")
+try:
+    pytest.importorskip("sounddevice")
+except Exception as exc:  # pragma: no cover - depends on host audio backend
+    pytest.skip(f"sounddevice unavailable: {exc}", allow_module_level=True)
 
 from utils import audio_device
 

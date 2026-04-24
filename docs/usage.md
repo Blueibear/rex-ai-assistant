@@ -45,31 +45,21 @@ python rex_loop.py --enable-plugin web_search
 
 Voice mode uses wake word detection, Whisper STT, the configured LLM provider, and TTS. Wake-word settings live under the canonical `wakeword` key in `config/rex_config.json`.
 
-## Python Web Dashboard
+Current voice state:
 
-```bash
-rex-gui
-```
+- Hold to Talk is usable in current live testing.
+- Wake-word mode is wired and can work end to end, but reliability and latency are still being improved.
+- Long answers now use a cleaner spoken handoff to the on-screen transcript.
+- Custom wake support is wired for built-in fallback, `custom_embedding`, and `custom_onnx`, but the repo does not ship a real `Hey Rex` custom asset by default.
 
-Default URL:
+Default custom wake asset locations:
 
-```text
-http://127.0.0.1:8765/ui/
-```
-
-Override the port:
-
-```bash
-REX_GUI_PORT=9000 rex-gui
-```
-
-PowerShell:
-
-```powershell
-$env:REX_GUI_PORT=9000; rex-gui
-```
+- `config/wake_words/hey_rex/model.onnx`
+- `config/wake_words/hey_rex/embedding.pt`
 
 ## Electron Desktop GUI
+
+The Electron app under `gui/` is the current primary GUI.
 
 Development:
 
@@ -91,6 +81,32 @@ npm.cmd run preview
 Current Electron routes include Home, Chat, Voice, Tasks, Calendar, Reminders, Memories, Email, SMS, Notifications, Shopping List, Logs, History, Usage, Integrations, Settings, Home Assistant, Quick Actions, and About.
 
 The Electron app uses Python bridge scripts at the repo root. Build before running `gui/tmp_verify_*.cjs` harnesses so `gui/dist-electron/main/index.js` is current.
+
+## Python/Flask API and Experimental Web Dashboard
+
+```bash
+rex-gui
+```
+
+Default URL:
+
+```text
+http://127.0.0.1:8765/ui/
+```
+
+`rex-gui` starts a local Flask service used for API routes and compatibility checks. The browser dashboard at `/ui/` is incomplete in current testing and is not the primary GUI.
+
+Override the port:
+
+```bash
+REX_GUI_PORT=9000 rex-gui
+```
+
+PowerShell:
+
+```powershell
+$env:REX_GUI_PORT=9000; rex-gui
+```
 
 ## Configuration
 
@@ -294,4 +310,4 @@ python run_gui.py
 python gui.py
 ```
 
-They launch the legacy Tkinter UI and have been superseded by `rex-gui` and the Electron app.
+They launch the legacy Tkinter UI and have been superseded by the Electron app. The `rex-gui` Flask service remains for local API and experimental browser-dashboard work.

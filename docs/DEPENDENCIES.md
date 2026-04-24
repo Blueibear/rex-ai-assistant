@@ -121,7 +121,7 @@ python -c "import rex; from rex.llm_client import *; print('Imports OK')"
 ```bash
 python -m compileall .  # Check all Python files compile
 pytest                  # Run unit tests
-rex-gui                 # Test Python web dashboard loads
+rex-gui                 # Test Flask API / experimental browser dashboard starts
 ```
 
 ### Integration Test

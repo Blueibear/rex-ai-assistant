@@ -47,7 +47,7 @@ pip install -e ".[ml,audio]"
 | `rex-config` | `rex.config:cli` | Config inspection and legacy env migration |
 | `rex-speak-api` | `rex_speak_api:main` | TTS HTTP API on `127.0.0.1:5005` |
 | `rex-agent` | `rex.computers.agent_server:main` | Computer agent API |
-| `rex-gui` | `rex.gui_app:main` | Flask-served web dashboard on `127.0.0.1:8765/ui/` |
+| `rex-gui` | `rex.gui_app:main` | Flask local API plus incomplete experimental `/ui/` browser dashboard on `127.0.0.1:8765` |
 | `rex-tool-server` | `rex.openclaw.tool_server:main` | Tool server on `127.0.0.1:18790` |
 
 `python -m rex-speak-api` is invalid. Use `rex-speak-api` or
@@ -78,13 +78,7 @@ Representative `rex` subcommands:
 
 ## GUI Commands
 
-Python web dashboard:
-
-```bash
-rex-gui
-```
-
-Electron:
+Electron primary GUI:
 
 ```powershell
 cd gui
@@ -92,6 +86,12 @@ npm.cmd install
 npm.cmd run dev
 npm.cmd run typecheck
 npm.cmd run build
+```
+
+Python/Flask API and experimental browser dashboard:
+
+```bash
+rex-gui
 ```
 
 Electron-only verification harnesses should build first, then require

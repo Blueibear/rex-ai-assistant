@@ -66,8 +66,14 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
     const barW = (width - BAR_GAP * (BAR_COUNT - 1)) / BAR_COUNT
     const cy = height / 2
 
-    // ── idle / processing: static flat line ──────────────────────────────────
-    if (state === 'idle' || state === 'processing') {
+    // ── non-audio states: static flat line ───────────────────────────────────
+    if (
+      state === 'starting' ||
+      state === 'idle' ||
+      state === 'wake_listening' ||
+      state === 'processing' ||
+      state === 'cooldown'
+    ) {
       ctx.clearRect(0, 0, width, height)
       ctx.strokeStyle = 'rgba(148,163,184,0.15)'
       ctx.lineWidth = 1.5
@@ -99,7 +105,7 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({
     }
 
     // ── listening: real mic input via Web Audio API ───────────────────────────
-    if (state === 'listening') {
+    if (state === 'listening' || state === 'followup_listening') {
       const startListening = async (): Promise<void> => {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({

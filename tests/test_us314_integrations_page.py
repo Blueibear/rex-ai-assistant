@@ -5,7 +5,7 @@ Verifies:
 - /api/integrations returns all required integrations with name, configured, configure_url
 - Home Assistant configure_url is /settings/home-assistant (not Settings > General)
 - /api/capabilities endpoint exists and returns a capabilities list
-- IntegrationsPage.tsx fetches /api/integrations and /api/capabilities
+- IntegrationsPage.tsx uses the Electron IPC integration inventory bridge
 - No "No integrations found" when integrations are present
 - Sidebar route /integrations is registered
 - "No capabilities found" section is conditionally rendered (only when empty)
@@ -112,14 +112,18 @@ def test_api_capabilities_returns_capabilities_key():
 # ---------------------------------------------------------------------------
 
 
-def test_integrations_page_fetches_api_integrations():
+def test_integrations_page_uses_ipc_integrations_inventory():
     src = read_integrations_page()
-    assert "fetch('/api/integrations')" in src or 'fetch("/api/integrations")' in src
+    assert "window.rex.getIntegrations" in src
+    assert "fetch('/api/integrations')" not in src
+    assert 'fetch("/api/integrations")' not in src
 
 
-def test_integrations_page_fetches_api_capabilities():
+def test_integrations_page_uses_ipc_capabilities_inventory():
     src = read_integrations_page()
-    assert "fetch('/api/capabilities')" in src or 'fetch("/api/capabilities")' in src
+    assert "window.rex.getCapabilities" in src
+    assert "fetch('/api/capabilities')" not in src
+    assert 'fetch("/api/capabilities")' not in src
 
 
 def test_integrations_page_renders_name_status_configure():
@@ -129,12 +133,25 @@ def test_integrations_page_renders_name_status_configure():
     assert "Configure" in src
 
 
-def test_integrations_page_no_integrations_message_is_conditional():
-    """'No integrations found' should only appear when integrations.length === 0."""
+def test_integrations_page_no_inventory_message_is_conditional():
+    """Empty inventory messaging should only appear when inventory really is empty."""
     src = read_integrations_page()
-    assert "No integrations found" in src
+    assert "No integrations found" not in src
+    assert "No integration inventory is available" in src
     # Must be inside a conditional (length check)
     assert "integrations.length === 0" in src or "integrations.length == 0" in src
+
+
+def test_integrations_page_has_error_state_for_inventory_failures():
+    src = read_integrations_page()
+    assert "Could not load integration status" in src
+    assert "loadError" in src
+
+
+def test_settings_integration_tests_do_not_reset_connected_to_idle():
+    src = (REPO / "gui" / "src" / "pages" / "SettingsPage.tsx").read_text(encoding="utf-8")
+    assert "testTimers" not in src
+    assert "setTestStatus((s) => ({ ...s, [section]: 'idle' }))" not in src
 
 
 def test_capabilities_section_is_conditional():

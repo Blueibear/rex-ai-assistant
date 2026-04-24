@@ -9,7 +9,6 @@ Add intent:
   "add milk to the shopping list"
   "add milk, eggs, and butter to my list"
   "put oat milk on the list"
-  "I need bread"
 
 Read intent:
   "what's on my shopping list?"
@@ -36,10 +35,6 @@ _ADD_PATTERNS: list[re.Pattern[str]] = [
     ),
     re.compile(
         r"^(?:please\s+)?put\s+(.+?)\s+on\s+(?:the\s+|my\s+)?(?:shopping\s+)?list$",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^(?:please\s+)?i\s+need\s+(.+?)$",
         re.IGNORECASE,
     ),
 ]

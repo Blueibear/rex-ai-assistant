@@ -13,11 +13,11 @@ This file is the active readiness snapshot for repo integration claims. Use thes
 |---|---|---|
 | Text chat | REAL | `rex` / `python -m rex` routes through `rex.cli:main` and `rex.assistant.Assistant`. |
 | Voice loop | PARTIAL | `python rex_loop.py` wires wake word, Whisper STT, LLM, and TTS. Requires optional ML/audio dependencies and Python 3.11. |
-| Python web dashboard | REAL | `rex-gui` serves `rex/ui/dist/` via `rex.gui_app` at `/ui/` and exposes chat/status/setup/auth/user/integration APIs. |
-| Electron desktop GUI | PARTIAL | Electron/React shell exists under `gui/` with routes and bridge handlers. It depends on root-level Python bridge scripts and build artifacts in `gui/dist-electron`. |
+| Python/Flask API and experimental web dashboard | PARTIAL | `rex-gui` serves local Flask APIs through `rex.gui_app`. The `/ui/` browser dashboard exists but is incomplete in live testing and should not be described as the primary GUI. |
+| Electron desktop GUI | PARTIAL | Electron/React shell exists under `gui/` with routes and bridge handlers. It is the current primary GUI and depends on root-level Python bridge scripts and build artifacts in `gui/dist-electron`. |
 | User auth/data isolation | REAL | `rex/auth.py`, `rex/permissions.py`, per-user profile data under `Memory/<user_id>/`, user preferences/avatar APIs, and SQLite-backed chat history exist. |
-| Email | PARTIAL | Real IMAP/SMTP backend exists (`rex/integrations/email/backends/imap_smtp.py`) with stub fallback when credentials are absent. OAuth providers remain incomplete. |
-| Calendar | PARTIAL | ICS read-only backend exists (`rex/integrations/calendar/backends/ics_feed.py`) with stub fallback. Calendar write support and Google/CalDAV OAuth are not complete. |
+| Email | PARTIAL | Real IMAP/SMTP backend exists (`rex/integrations/email/backends/imap_smtp.py`) with stub fallback when credentials are absent. OAuth providers remain incomplete, and current Outlook-connected GUI status should not be described as full live mailbox sync. |
+| Calendar | PARTIAL | ICS read-only backend exists (`rex/integrations/calendar/backends/ics_feed.py`) with stub fallback. Calendar write support and Google/CalDAV OAuth are not complete, and current Outlook-connected GUI status should not be described as full live calendar sync. |
 | SMS / messaging | PARTIAL | Twilio SMS backend and stubs exist (`rex/integrations/messaging/backends/twilio_sms.py`, `rex/integrations/sms_service.py`). Requires Twilio credentials for real delivery. |
 | Notifications | PARTIAL | `rex.notification` supports priority routing, quiet hours, digest, escalation, email/SMS/HA TTS channels, and CLI commands. Electron notification UI/IPC exists. Legacy Flask dashboard notification API routes are not the current surface. |
 | Home Assistant TTS | PARTIAL | HA TTS notification client and `rex ha tts test` exist; requires config and hardening for production use. |

@@ -37,10 +37,10 @@ def test_put_on_list(tmp_path):
     assert response == "Added oat milk to your shopping list."
 
 
-def test_i_need_pattern(tmp_path):
+def test_i_need_without_list_is_not_add_intent(tmp_path):
     handler = _make_handler(tmp_path)
     response = handler.handle("I need eggs")
-    assert response == "Added eggs to your shopping list."
+    assert response is None
 
 
 def test_add_with_please(tmp_path):
@@ -178,13 +178,10 @@ def test_non_matching_returns_none(tmp_path):
     assert handler.handle("what's the weather like today?") is None
 
 
-def test_unrelated_i_need_phrase_is_matched(tmp_path):
-    """'I need X' is intentionally matched as an add intent for all X."""
+def test_recipe_request_is_not_shopping_list_command(tmp_path):
     handler = _make_handler(tmp_path)
-    # "I need help" → adds "help" to shopping list
-    response = handler.handle("I need help")
-    # Should return a confirmation (not None), though arguably debatable
-    assert response is not None or response is None  # either is acceptable
+    response = handler.handle("I need a chocolate cake recipe")
+    assert response is None
 
 
 # ---------------------------------------------------------------------------

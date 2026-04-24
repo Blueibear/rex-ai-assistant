@@ -7,22 +7,46 @@ import { Tooltip } from '../components/ui/Tooltip'
 import brandIcon from "../assets/icon_square.png";
 import brandWordmark from "../assets/Horizontal-UI-Wordmark.png";
 
-type RexStatusValue = 'idle' | 'listening' | 'thinking' | 'executing' | 'done' | 'error'
+type RexStatusValue =
+  | 'starting'
+  | 'idle'
+  | 'wake_listening'
+  | 'listening'
+  | 'followup_listening'
+  | 'thinking'
+  | 'executing'
+  | 'processing'
+  | 'speaking'
+  | 'cooldown'
+  | 'done'
+  | 'error'
 
 const STATUS_LABEL: Record<RexStatusValue, string> = {
+  starting: 'Starting',
   idle: 'Idle',
+  wake_listening: 'Wake Listening',
   listening: 'Listening',
+  followup_listening: 'Follow-Up Listening',
   thinking: 'Thinking',
   executing: 'Executing',
+  processing: 'Processing',
+  speaking: 'Speaking',
+  cooldown: 'Resetting',
   done: 'Done',
   error: 'Error'
 }
 
 const STATUS_COLOR: Record<RexStatusValue, string> = {
+  starting: 'bg-accent/15 text-accent',
   idle: 'bg-surface-raised text-text-muted',
+  wake_listening: 'bg-red-500/15 text-red-400',
   listening: 'bg-blue-500/15 text-blue-400',
+  followup_listening: 'bg-red-500/15 text-red-400',
   thinking: 'bg-amber-500/15 text-amber-400',
   executing: 'bg-purple-500/15 text-purple-400',
+  processing: 'bg-amber-500/15 text-amber-400',
+  speaking: 'bg-green-500/15 text-green-400',
+  cooldown: 'bg-accent/15 text-accent',
   done: 'bg-green-500/15 text-green-400',
   error: 'bg-red-500/15 text-red-400'
 }
@@ -387,11 +411,11 @@ export function AppLayout({ children }: AppLayoutProps): React.ReactElement {
               className="w-10 h-10 object-contain"
             />
           ) : (
-            <div className="flex items-center h-10">
+            <div className="relative h-10 w-full max-w-[208px] overflow-hidden">
               <img
                 src={brandWordmark}
                 alt="AskRex"
-                className="h-full w-auto object-contain"
+                className="absolute left-1/2 top-1/2 w-[280px] max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
               />
             </div>
           )}

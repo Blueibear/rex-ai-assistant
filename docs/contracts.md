@@ -1,6 +1,6 @@
 # Rex Contracts
 
-Rex Contracts are versioned Pydantic schemas that define the internal data structures used across all Rex components: voice node, web dashboard, gateway API, tool adapters, audit log, and scheduler.
+Rex Contracts are versioned Pydantic schemas that define the internal data structures used across all Rex components: voice node, Electron GUI/bridge paths, Flask API/browser-dashboard surface, gateway API, tool adapters, audit log, and scheduler.
 
 ## Installation
 

@@ -22,6 +22,12 @@ from typing import Any
 
 from rex.bridge_utils import bridge_error_response
 
+OUTLOOK_EMAIL_UNSUPPORTED = (
+    "Outlook email sync is not implemented yet. The current Outlook settings "
+    "only store app credentials; Rex cannot read Outlook mail until Microsoft "
+    "Graph OAuth token support is added."
+)
+
 
 def _msg_to_gui(msg: Any) -> dict[str, Any]:
     return {
@@ -44,6 +50,14 @@ def _handle_list(limit: int) -> dict[str, Any]:
 
     cfg = load_config()
     provider = getattr(cfg, "email_provider", "none") or "none"
+    if str(provider).lower() == "outlook":
+        return {
+            "ok": False,
+            "error": OUTLOOK_EMAIL_UNSUPPORTED,
+            "messages": [],
+            "configured": True,
+        }
+
     svc = EmailService(email_provider=provider)
 
     messages = svc.list_inbox(limit=limit)

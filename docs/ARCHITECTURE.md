@@ -1,9 +1,10 @@
 # AskRex Assistant Architecture
 
 AskRex Assistant is a Python 3.11 local-first assistant with text chat, voice
-interaction, memory, tool routing, workflow planning, integrations, and two
-modern UI surfaces: the Flask-served web dashboard (`rex-gui`) and the Electron
-desktop app under `gui/`.
+interaction, memory, tool routing, workflow planning, integrations, and an
+Electron desktop app under `gui/` as the current primary GUI. The Flask service
+started by `rex-gui` remains a local API/runtime surface with an incomplete,
+experimental browser dashboard at `/ui/`.
 
 The PyPI/package name is `askrex-assistant`. The user-facing product name is
 AskRex Assistant.
@@ -19,8 +20,8 @@ AskRex Assistant.
 | Memory and history | `rex/memory.py`, `rex/memory_utils.py`, `rex/history_store.py`, `Memory/`, `data/` | Per-user memory plus command/chat history |
 | Tools | `rex/openclaw/tool_registry.py`, `rex/openclaw/tool_executor.py`, `rex/openclaw/tools/` | Local tool registry and executor |
 | Tool server | `rex/openclaw/tool_server.py` | `rex-tool-server` on `127.0.0.1:18790` |
-| Python web UI | `rex/gui_app.py` | `rex-gui` on `127.0.0.1:8765/ui/` |
-| Electron UI | `gui/` | React/Electron app, built to `gui/dist-electron/` |
+| Electron UI | `gui/` | Current primary React/Electron GUI, built to `gui/dist-electron/` |
+| Python/Flask API and experimental web UI | `rex/gui_app.py` | `rex-gui` on `127.0.0.1:8765`; local APIs plus incomplete `/ui/` browser dashboard |
 | TTS API | `rex_speak_api.py` | `rex-speak-api` on `127.0.0.1:5005` |
 | Computer agent | `rex/computers/agent_server.py` | `rex-agent`, local agent API for controlled OS automation |
 
@@ -35,7 +36,7 @@ AskRex Assistant.
 |   |-- llm_client.py        # Transformers/OpenAI/Anthropic/Ollama clients
 |   |-- voice_loop.py        # Package voice-loop exports
 |   |-- voice_loop_optimized.py
-|   |-- gui_app.py           # Flask-served web dashboard
+|   |-- gui_app.py           # Flask local API plus experimental browser dashboard
 |   |-- openclaw/            # Tool registry, executor, bridges, tool server
 |   |-- integrations/        # Email, calendar, SMS service adapters
 |   |-- computers/           # Remote computer agent/client support
@@ -131,30 +132,10 @@ only become usable when their dependencies and credentials are configured.
 
 ## UI Architecture
 
-### Python Web Dashboard
-
-`rex-gui` starts `rex/gui_app.py`, serves the web UI at `/ui/`, and exposes local
-JSON/SSE endpoints such as:
-
-- `/api/dashboard/status`
-- `/api/chat/send`
-- `/api/logs/stream`
-- `/api/usage`
-- `/api/devices`
-- `/api/ha/test`
-- `/api/quick-actions`
-- `/api/status/stream`
-- `/api/history`
-- `/api/integrations`
-- `/api/calendar/events`
-- `/api/email/inbox`
-- `/api/sms/threads`
-- `/api/tools`
-
 ### Electron Desktop App
 
-The Electron app lives in `gui/` and uses Electron/Vite/React. Its package
-scripts are:
+The Electron app lives in `gui/` and uses Electron/Vite/React. It is the current
+primary user-facing GUI. Its package scripts are:
 
 ```bash
 npm.cmd run dev
@@ -171,6 +152,28 @@ about.
 
 For Electron-only verification harnesses, build first so
 `gui/dist-electron/main/index.js` matches TypeScript sources.
+
+### Python/Flask API and Experimental Browser Dashboard
+
+`rex-gui` starts `rex/gui_app.py`, serves local JSON/SSE endpoints, and also
+serves an incomplete browser dashboard at `/ui/`. Treat the Flask surface as
+backend/API and compatibility infrastructure, not the current primary GUI.
+Representative endpoints include:
+
+- `/api/dashboard/status`
+- `/api/chat/send`
+- `/api/logs/stream`
+- `/api/usage`
+- `/api/devices`
+- `/api/ha/test`
+- `/api/quick-actions`
+- `/api/status/stream`
+- `/api/history`
+- `/api/integrations`
+- `/api/calendar/events`
+- `/api/email/inbox`
+- `/api/sms/threads`
+- `/api/tools`
 
 ### Legacy UI Surfaces
 

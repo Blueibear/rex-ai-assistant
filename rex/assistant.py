@@ -47,6 +47,73 @@ _DIRECT_DAY_PATTERNS = (
     re.compile(r"\bday\s+of\s+(?:the\s+)?week\b", re.IGNORECASE),
 )
 _TIME_LOCATION_PATTERN = re.compile(r"\bin\s+([^?.!]+)[?.!]*\s*$", re.IGNORECASE)
+_TIME_LOCATION_SUFFIXES = (
+    "right now",
+    "now",
+    "today",
+    "currently",
+    "please",
+    "for me",
+    "at the moment",
+)
+_DIRECT_GREETING_PATTERN = re.compile(r"^\s*(?:hello|hey)\s*[!.?]*\s*$", re.IGNORECASE)
+_DIRECT_WELLBEING_PATTERN = re.compile(
+    r"^\s*(?:how\s+are\s+you|how'?s\s+it\s+going|how\s+are\s+things)\s*[?.!]*\s*$",
+    re.IGNORECASE,
+)
+_DIRECT_CREATOR_PATTERN = re.compile(
+    r"^\s*who\s+(?:created|made|built)\s+you\s*[?.!]*\s*$",
+    re.IGNORECASE,
+)
+_RECIPE_REQUEST_PATTERN = re.compile(
+    r"\b(?:need|want|give\s+me|find\s+me|show\s+me|make|bake|cook|how\s+(?:do\s+i|to))\b"
+    r".*\b(?:recipe|make|bake|cook)\b",
+    re.IGNORECASE,
+)
+_CHOCOLATE_CAKE_PATTERN = re.compile(r"\bchocolate\s+cake\b", re.IGNORECASE)
+_SHOPPING_LIST_REFERENCE_PATTERN = re.compile(r"\b(?:shopping\s+)?list\b", re.IGNORECASE)
+_UNVERIFIED_ACTION_CLAIM_PATTERNS = (
+    re.compile(
+        r"\bi(?:'ve| have| just)?\s+"
+        r"(?:added|put|saved|sent|scheduled|set|changed|updated|deleted|removed)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:done|okay|sure)[,.\s]+(?:i(?:'ve| have| just)\s+)?"
+        r"(?:added|put|saved|sent|scheduled|set|changed|updated|deleted|removed)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:it|that|this)\s+(?:has\s+been|was)\s+"
+        r"(?:added|put|saved|sent|scheduled|set|changed|updated|deleted|removed)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:i(?:'ve| have| just)|done|okay|sure)[^.!?\n]{0,80}"
+        r"\bcreated\s+(?:an?\s+)?(?:event|task|reminder|calendar|file|note)\b",
+        re.IGNORECASE,
+    ),
+)
+_EXPLICIT_MUTATION_REQUEST_PATTERN = re.compile(
+    r"\b(?:add|put|save|send|create|schedule|set|change|update|delete|remove)\b",
+    re.IGNORECASE,
+)
+_INTERNAL_TOOL_SYNTAX_PATTERN = re.compile(r"\bTOOL_(?:REQUEST|RESULT)\s*:", re.IGNORECASE)
+_TOOL_REQUEST_PREFIX = "TOOL_REQUEST:"
+_ACTION_CLAIM_STREAM_PREFIXES = (
+    "i",
+    "i'",
+    "i have",
+    "i've",
+    "i just",
+    "i added",
+    "done",
+    "okay",
+    "sure",
+    "it",
+    "that",
+    "this",
+)
 
 
 @dataclass
@@ -337,14 +404,14 @@ class Assistant:
             self._followup_lock = lock
         return lock
 
-    async def _prepare_prompt(
+    async def _prepare_model_input(
         self,
         transcript: str,
         *,
         voice_mode: bool = False,
         active_user_id: str | None = None,
         tool_context: str | None = None,
-    ) -> str:
+    ) -> tuple[str, list[dict[str, str]]]:
         if not transcript.strip():
             raise ValueError("Transcript must not be empty")
 
@@ -354,14 +421,22 @@ class Assistant:
             active_user_id=active_user_id,
             tool_context=tool_context,
         )
+        messages = self._build_messages(
+            transcript,
+            voice_mode=voice_mode,
+            active_user_id=active_user_id,
+            tool_context=tool_context,
+        )
 
         async with self._get_followup_lock():
             if self._pending_followup:
-                followup_hint = (
-                    f'\n[Note: You may want to ask the user: "{self._pending_followup}" '
-                    "as a natural conversation starter.]"
+                followup_text = (
+                    f'You may want to ask the user: "{self._pending_followup}" '
+                    "as a natural conversation starter."
                 )
+                followup_hint = f"\n[Note: {followup_text}]"
                 prompt = prompt + followup_hint
+                messages.insert(-1, {"role": "system", "content": followup_text})
                 self._pending_followup = None
                 engine = self._followup_engine
                 if engine and hasattr(engine, "mark_current_cue_asked"):
@@ -370,7 +445,37 @@ class Assistant:
                     except Exception as exc:
                         logger.debug("mark_current_cue_asked failed: %s", exc)
 
+        return prompt, messages
+
+    async def _prepare_prompt(
+        self,
+        transcript: str,
+        *,
+        voice_mode: bool = False,
+        active_user_id: str | None = None,
+        tool_context: str | None = None,
+    ) -> str:
+        prompt, _messages = await self._prepare_model_input(
+            transcript,
+            voice_mode=voice_mode,
+            active_user_id=active_user_id,
+            tool_context=tool_context,
+        )
         return prompt
+
+    def _generate_model_reply(self, prompt: str, messages: list[dict[str, str]]) -> str:
+        try:
+            return self._llm.generate(messages=messages)
+        except TypeError:
+            return self._llm.generate(prompt)
+
+    def _stream_model_reply(
+        self, prompt: str, messages: list[dict[str, str]]
+    ) -> Iterable[str]:
+        try:
+            return self._llm.stream(messages=messages)
+        except TypeError:
+            return self._llm.stream(prompt)
 
     async def _post_process_completion(self, transcript: str, completion: str) -> str:
         loop = asyncio.get_running_loop()
@@ -394,7 +499,15 @@ class Assistant:
                 completion,
             )
 
-        return completion
+        if self._contains_internal_tool_syntax(completion):
+            completion = await loop.run_in_executor(
+                None,
+                self._sanitize_internal_tool_output,
+                transcript,
+                completion,
+            )
+
+        return self._guard_unverified_action_claim(transcript, completion)
 
     def _record_completion(self, transcript: str, completion: str) -> None:
         now = datetime.utcnow()
@@ -488,6 +601,16 @@ class Assistant:
         if not match:
             return None
         location = match.group(1).strip(" \t,")
+        while True:
+            updated = location
+            for suffix in _TIME_LOCATION_SUFFIXES:
+                suffix_text = f" {suffix}"
+                if updated.lower().endswith(suffix_text):
+                    updated = updated[: -len(suffix_text)].strip(" \t,")
+                    break
+            if updated == location:
+                break
+            location = updated
         if not location:
             return None
         if location.lower().split(maxsplit=1)[0] in {"my", "your", "the", "a", "an"}:
@@ -519,6 +642,112 @@ class Assistant:
 
         time_text = when.strftime("%I:%M %p").lstrip("0")
         return f"It's {time_text}{place}."
+
+    def _try_direct_conversation_reply(self, transcript: str) -> str | None:
+        """Handle common greetings without invoking an unstable chat model."""
+        text = transcript.strip()
+        if not text:
+            return None
+        if _DIRECT_GREETING_PATTERN.match(text):
+            return "Hello. How can I help?"
+        if _DIRECT_WELLBEING_PATTERN.match(text):
+            return "I'm here and ready to help."
+        if _DIRECT_CREATOR_PATTERN.match(text):
+            return (
+                "I'm AskRex, a local assistant running from this project. "
+                "The repo owner and project contributors configure the models and integrations I use."
+            )
+        return None
+
+    def _try_direct_recipe_reply(self, transcript: str) -> str | None:
+        """Handle common recipe requests without tool or shopping-list routing."""
+        text = transcript.strip()
+        if not text:
+            return None
+        if _SHOPPING_LIST_REFERENCE_PATTERN.search(text):
+            return None
+        if not _RECIPE_REQUEST_PATTERN.search(text):
+            return None
+        if not _CHOCOLATE_CAKE_PATTERN.search(text):
+            return None
+        return (
+            "Here is a simple chocolate cake recipe: mix 1 and 3/4 cups flour, "
+            "2 cups sugar, 3/4 cup cocoa, 1 and 1/2 teaspoons baking powder, "
+            "1 and 1/2 teaspoons baking soda, and 1 teaspoon salt. Add 2 eggs, "
+            "1 cup milk, 1/2 cup oil, and 2 teaspoons vanilla, then stir in "
+            "1 cup hot water. Bake in two greased 9-inch pans at 350 F for "
+            "30 to 35 minutes, cool, and frost."
+        )
+
+    def _guard_unverified_action_claim(self, transcript: str, completion: str) -> str:
+        """Do not let freeform model text claim side effects that were not verified."""
+        if not self._looks_like_unverified_action_claim(completion):
+            return completion
+        if _EXPLICIT_MUTATION_REQUEST_PATTERN.search(transcript):
+            return completion
+
+        recipe_reply = self._try_direct_recipe_reply(transcript)
+        if recipe_reply is not None:
+            logger.warning(
+                "Suppressed unverified action claim for recipe request",
+                extra={"event": "assistant_unverified_action_claim_suppressed"},
+            )
+            return recipe_reply
+
+        logger.warning(
+            "Suppressed unverified action claim",
+            extra={"event": "assistant_unverified_action_claim_suppressed"},
+        )
+        return (
+            "I did not change anything. Please tell me exactly what you want me to add, "
+            "send, save, or update."
+        )
+
+    def _looks_like_unverified_action_claim(self, completion: str) -> bool:
+        return any(pattern.search(completion) for pattern in _UNVERIFIED_ACTION_CLAIM_PATTERNS)
+
+    def _contains_internal_tool_syntax(self, text: str) -> bool:
+        return bool(_INTERNAL_TOOL_SYNTAX_PATTERN.search(text))
+
+    def _sanitize_internal_tool_output(self, transcript: str, completion: str) -> str:
+        """Resolve or suppress tool directives before user-facing output."""
+        rerouted = self._tool_router_fn(
+            completion.strip(),
+            self._build_tool_context(),
+            self._build_tool_model_call(transcript),
+        )
+        if not self._contains_internal_tool_syntax(rerouted):
+            logger.warning(
+                "Resolved raw internal tool syntax before user output",
+                extra={"event": "assistant_internal_tool_syntax_resolved"},
+            )
+            return rerouted
+
+        logger.error(
+            "Suppressed raw internal tool syntax before user output",
+            extra={"event": "assistant_internal_tool_syntax_suppressed"},
+        )
+        return "I could not complete that tool request."
+
+    def _stream_tool_prefix_state(self, text: str) -> str:
+        stripped = text.lstrip().upper()
+        if not stripped:
+            return "pending"
+        prefix = _TOOL_REQUEST_PREFIX
+        if prefix.startswith(stripped):
+            return "pending"
+        if stripped.startswith(prefix):
+            return "pending"
+
+        lowered = text.lstrip().lower()
+        if self._looks_like_unverified_action_claim(text):
+            return "pending"
+        if len(lowered) < 80 and any(
+            prefix.startswith(lowered) or lowered.startswith(prefix)
+            for prefix in _ACTION_CLAIM_STREAM_PREFIXES
+        ):
+            return "pending"
+        return "text"
 
     def _resolve_model(self, category: TaskCategory) -> str:
         """Resolve the LLM model identifier for the given task category.
@@ -555,6 +784,18 @@ class Assistant:
             yield direct_reply
             return
 
+        direct_reply = self._try_direct_conversation_reply(transcript)
+        if direct_reply is not None:
+            self._record_completion(transcript, direct_reply)
+            yield direct_reply
+            return
+
+        direct_reply = self._try_direct_recipe_reply(transcript)
+        if direct_reply is not None:
+            self._record_completion(transcript, direct_reply)
+            yield direct_reply
+            return
+
         if self._ha_bridge and self._ha_bridge.enabled:
             completion = await loop.run_in_executor(
                 None,
@@ -568,12 +809,14 @@ class Assistant:
             yield completion
             return
 
-        prompt = await self._prepare_prompt(transcript, voice_mode=voice_mode)
+        prompt, messages = await self._prepare_model_input(transcript, voice_mode=voice_mode)
 
         try:
-            token_iterator = self._llm.stream(prompt)
+            token_iterator = self._stream_model_reply(prompt, messages)
         except NotImplementedError:
-            completion = await loop.run_in_executor(None, self._llm.generate, prompt)
+            completion = await loop.run_in_executor(
+                None, self._generate_model_reply, prompt, messages
+            )
             completion = await self._post_process_completion(transcript, completion)
             self._record_completion(transcript, completion)
             yield completion
@@ -582,6 +825,8 @@ class Assistant:
         queue: asyncio.Queue[object] = asyncio.Queue()
         sentinel = object()
         collected_tokens: list[str] = []
+        pending_stream_text = ""
+        stream_released = False
 
         def _pump_tokens() -> None:
             try:
@@ -603,13 +848,24 @@ class Assistant:
                     raise item
                 token = str(item)
                 collected_tokens.append(token)
-                yield token
+                if stream_released:
+                    yield token
+                    continue
+
+                pending_stream_text += token
+                prefix_state = self._stream_tool_prefix_state(pending_stream_text)
+                if prefix_state == "text":
+                    stream_released = True
+                    yield pending_stream_text
+                    pending_stream_text = ""
         finally:
             await pump_task
 
         completion = "".join(collected_tokens).strip() or "(silence)"
         completion = await self._post_process_completion(transcript, completion)
         self._record_completion(transcript, completion)
+        if not stream_released:
+            yield completion
 
     async def generate_reply(
         self,
@@ -633,6 +889,17 @@ class Assistant:
             return _cap_reply
 
         direct_reply = self._try_direct_time_reply(transcript)
+        if direct_reply is not None:
+            self._record_completion(transcript, direct_reply)
+            return direct_reply
+
+        if active_user_id is None:
+            direct_reply = self._try_direct_conversation_reply(transcript)
+            if direct_reply is not None:
+                self._record_completion(transcript, direct_reply)
+                return direct_reply
+
+        direct_reply = self._try_direct_recipe_reply(transcript)
         if direct_reply is not None:
             self._record_completion(transcript, direct_reply)
             return direct_reply
@@ -798,14 +1065,16 @@ class Assistant:
                                 completion = f"{completion} {_spoken}"
 
             if completion is None:
-                prompt = await self._prepare_prompt(
+                prompt, messages = await self._prepare_model_input(
                     transcript,
                     voice_mode=voice_mode,
                     active_user_id=active_user_id,
                     tool_context=_tool_context,
                 )
 
-                completion = await loop.run_in_executor(None, self._llm.generate, prompt)
+                completion = await loop.run_in_executor(
+                    None, self._generate_model_reply, prompt, messages
+                )
                 completion = await self._post_process_completion(transcript, completion)
         finally:
             # Restore the previous model name and user ID after this call.
@@ -852,7 +1121,9 @@ class Assistant:
         'Args: {"query": "search terms"}\n'
         "\n"
         "IMPORTANT: When asked about the current time in ANY location, ALWAYS use "
-        "the time_now tool. Do NOT guess or convert times yourself."
+        "the time_now tool. Do NOT guess or convert times yourself. Never claim "
+        "you added, changed, sent, saved, or created something unless a tool result "
+        "confirms that action succeeded."
     )
 
     def _build_system_context(self) -> str:
@@ -1027,6 +1298,62 @@ class Assistant:
 
         history_lines.append("assistant:")
         return "\n".join(history_lines)
+
+    def _build_messages(
+        self,
+        transcript: str,
+        *,
+        voice_mode: bool = False,
+        active_user_id: str | None = None,
+        tool_context: str | None = None,
+    ) -> list[dict[str, str]]:
+        messages: list[dict[str, str]] = [
+            {"role": "system", "content": self._build_system_context()}
+        ]
+
+        personality_prompt = self._get_active_personality_prompt(active_user_id)
+        if personality_prompt:
+            messages.append({"role": "system", "content": personality_prompt})
+
+        if active_user_id is not None:
+            user_ctx = self._load_user_profile_context(active_user_id)
+            messages.append(
+                {
+                    "role": "system",
+                    "content": user_ctx if user_ctx else f"[Active user: {active_user_id}]",
+                }
+            )
+            try:
+                from rex.user_facts import format_facts_for_prompt
+
+                facts_ctx = format_facts_for_prompt(active_user_id)
+                if facts_ctx:
+                    messages.append({"role": "system", "content": facts_ctx})
+            except Exception as exc:
+                logger.debug("Failed to load user facts: %s", exc)
+
+        if tool_context:
+            messages.append({"role": "system", "content": tool_context})
+
+        engine = self._followup_engine
+        if engine and hasattr(engine, "format_followups"):
+            try:
+                followups = engine.format_followups()
+                if followups:
+                    messages.append({"role": "system", "content": str(followups)})
+            except Exception as exc:
+                logger.debug("format_followups failed: %s", exc)
+
+        if voice_mode:
+            messages.append({"role": "system", "content": self._VOICE_CONCISE_INSTRUCTION})
+
+        for turn in self._history[-4:]:
+            speaker = str(turn.speaker).strip().lower()
+            role = "assistant" if speaker in {"assistant", "rex"} else "user"
+            messages.append({"role": role, "content": turn.text})
+
+        messages.append({"role": "user", "content": transcript})
+        return messages
 
     def _build_tool_model_call(self, transcript: str):
         base_messages = [

@@ -1,9 +1,11 @@
 # AskRex Assistant Deployment Guide
 
 AskRex is primarily a local-first assistant. Deploy only the surfaces you need:
-CLI/voice, the Python web dashboard, Electron desktop app, TTS API, tool server,
-or computer agent. The legacy Flask proxy remains in the repo for compatibility
-but is not the recommended dashboard entry point.
+CLI/voice, the Electron desktop app, the Python/Flask local API service, TTS API,
+tool server, or computer agent. The `rex-gui` browser dashboard at `/ui/` is
+incomplete in current testing; use Electron as the primary GUI. The legacy Flask
+proxy remains in the repo for compatibility but is not the recommended
+dashboard entry point.
 
 ## Prerequisites
 
@@ -91,7 +93,15 @@ Voice loop:
 python rex_loop.py
 ```
 
-Python web dashboard:
+Electron desktop app:
+
+```powershell
+cd gui
+npm.cmd install
+npm.cmd run dev
+```
+
+Python/Flask API and experimental web dashboard:
 
 ```bash
 rex-gui
@@ -102,6 +112,9 @@ Open:
 ```text
 http://127.0.0.1:8765/ui/
 ```
+
+Use this for local API routes and compatibility checks. The browser dashboard is
+not the primary GUI.
 
 TTS API:
 
@@ -206,8 +219,8 @@ sudo systemctl enable rex-tts rex-voice rex-agent
 sudo systemctl start rex-tts rex-voice rex-agent
 ```
 
-Use `rex-gui` manually or create a dedicated service for it if the Python web
-dashboard should run under systemd.
+Use `rex-gui` manually or create a dedicated service for it if the Flask API or
+experimental browser dashboard should run under systemd.
 
 ### Restart policy
 
@@ -266,7 +279,8 @@ docker run --rm --env-file .env -p 5005:5005 \
 | `rex-speak-api` exits | Missing `REX_SPEAK_API_KEY` | Set it in `.env` or the shell |
 | TTS 401 | Missing/wrong API key | Send `X-API-Key` or bearer token |
 | Tool server 401 | Missing/wrong `REX_TOOL_API_KEY` | Set token and send bearer auth |
-| GUI unavailable | Wrong port or service not started | Start `rex-gui`; check `REX_GUI_PORT` |
+| Electron GUI unavailable | Electron dev server or built app not running | Start the Electron app from `gui/`; rebuild with `npm.cmd run build` if needed |
+| Flask API or experimental browser dashboard unavailable | Wrong port or service not started | Start `rex-gui`; check `REX_GUI_PORT` |
 | Electron stale behavior | Built files stale | Run `npm.cmd run build` in `gui/` |
 | Legacy proxy startup fails on migrations | Compatibility DB state issue | Prefer `rex-gui`; inspect `rex/migrations.py` before maintaining proxy |
 | Migration check blocks startup in an emergency | DB migration table unavailable | Set `skip_migration_check=true` in `config/rex_config.json` to bypass the migration check; apply migrations manually before re-enabling |

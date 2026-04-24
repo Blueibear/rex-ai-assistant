@@ -51,25 +51,14 @@ The supported Python line is `>=3.11,<3.12`.
 | CLI help | `python -m rex --help` |
 | Doctor | `python -m rex doctor` |
 | Voice loop | `python rex_loop.py` |
-| Python web dashboard | `rex-gui` |
+| Electron GUI | `cd gui; npm.cmd run dev` |
+| Python/Flask API and experimental web dashboard | `rex-gui` |
 | TTS API | `rex-speak-api` |
 | Tool server | `rex-tool-server` |
 | Computer agent | `rex-agent` |
 | Config helper | `rex-config show` |
 
 ## GUI
-
-Python web dashboard:
-
-```bash
-rex-gui
-```
-
-Open:
-
-```text
-http://127.0.0.1:8765/ui/
-```
 
 Electron development:
 
@@ -89,6 +78,22 @@ npm.cmd run build
 
 For Electron-only harnesses, build first, then use a `gui/tmp_verify_*.cjs`
 harness that requires `gui/dist-electron/main/index.js`.
+
+Python/Flask API and experimental web dashboard:
+
+```bash
+rex-gui
+```
+
+Open:
+
+```text
+http://127.0.0.1:8765/ui/
+```
+
+The `/ui/` browser dashboard is incomplete in current testing. Use the Electron
+app as the primary GUI; use `rex-gui` for local API routes and compatibility
+checks.
 
 ## TTS API
 

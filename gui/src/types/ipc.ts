@@ -46,6 +46,23 @@ export interface WakeWordInfo {
   name: string
   engine: string
   has_sample?: boolean
+  model_path?: string
+}
+
+export type WakeWordBackend = 'openwakeword' | 'custom_onnx' | 'custom_embedding'
+
+export interface WakeWordStatus {
+  requestedBackend: WakeWordBackend
+  configuredPhrase: string
+  fallbackEnabled: boolean
+  fallbackKeyword: string
+  assetKind: 'builtin' | 'onnx' | 'embedding'
+  assetPath: string
+  assetExists: boolean
+  fallbackActive: boolean
+  status: 'built_in' | 'asset_ready' | 'missing_asset'
+  statusLabel: string
+  detail: string
 }
 
 export interface VoiceTranscriptEntry {
@@ -160,6 +177,11 @@ export interface VoiceSettings {
   sttLanguage: string
   sttDevice: 'auto' | 'cpu' | 'cuda'
   wakeWord: string
+  wakeWordBackend: WakeWordBackend
+  customWakeWordId: string
+  wakeWordPhrase: string
+  wakeWordModelPath: string
+  wakeWordEmbeddingPath: string
 }
 
 export interface SmartSpeaker {
@@ -239,6 +261,41 @@ export interface IntegrationsSettings {
   // Telegram
   telegramBotToken: string
   telegramChatId: string
+}
+
+export type IntegrationConnectionStatus = 'untested' | 'connected' | 'error'
+
+export interface IntegrationStatus {
+  status: IntegrationConnectionStatus
+  testedAt?: string
+  error?: string
+}
+
+export interface IntegrationInventoryItem extends IntegrationStatus {
+  name: string
+  key: string
+  configured: boolean
+  configure_url?: string
+  testable?: boolean
+}
+
+export interface IntegrationInventoryResponse {
+  ok: boolean
+  integrations: IntegrationInventoryItem[]
+  error?: string
+}
+
+export interface CapabilityInfo {
+  name: string
+  description: string
+  category: string
+  enabled: boolean
+}
+
+export interface CapabilitiesResponse {
+  ok: boolean
+  capabilities: CapabilityInfo[]
+  error?: string
 }
 
 export interface NotificationsSettings {
@@ -412,8 +469,15 @@ export interface RexAPI {
   startVoice: (
     onStateChange: (state: string) => void,
     onTranscript: (entry: VoiceTranscriptEntry) => void,
-    onError: (error: string) => void
+    onError: (error: string) => void,
+    onStatus?: (status: string, label: string) => void
   ) => Promise<void>
+  attachVoiceSession: (
+    onStateChange: (state: string) => void,
+    onTranscript: (entry: VoiceTranscriptEntry) => void,
+    onError: (error: string) => void,
+    onStatus?: (status: string, label: string) => void
+  ) => (() => void)
   stopVoice: () => Promise<void>
   getTasks: () => Promise<Task[]>
   saveTask: (task: TaskInput) => Promise<Task>
@@ -435,6 +499,8 @@ export interface RexAPI {
   getVersionInfo: () => Promise<VersionInfo>
   testVoice: (settings: VoiceSettings) => Promise<{ ok: boolean; error?: string }>
   testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone') => Promise<{ ok: boolean; error?: string }>
+  getIntegrations: () => Promise<IntegrationInventoryResponse>
+  getCapabilities: () => Promise<CapabilitiesResponse>
   testHomeAssistant: (baseUrl: string, token: string) => Promise<HomeAssistantConnectionResponse>
   saveHomeAssistant: (baseUrl: string, token: string) => Promise<HomeAssistantConnectionResponse>
   getHomeAssistantStates: () => Promise<HomeAssistantStatesResponse>
@@ -455,6 +521,7 @@ export interface RexAPI {
   getUnreadNotificationCount: () => Promise<number>
   onNewNotification: (cb: (notification: GuiNotification) => void) => void
   listWakeWords: () => Promise<{ ok: boolean; wake_words: WakeWordInfo[]; error?: string; warning?: string }>
+  getWakeWordStatus: (settings?: VoiceSettings) => Promise<WakeWordStatus>
   previewWakeWordSample: (
     wakeWordId: string
   ) => Promise<{ ok: boolean; audio_base64?: string; has_sample?: boolean; error?: string }>

@@ -29,6 +29,7 @@ import type {
   FileExtractResult,
   ShoppingItem,
   WakeWordInfo,
+  WakeWordStatus,
   LogEntry,
   LogsResponse,
   UsageSummary
@@ -77,40 +78,61 @@ function makeSendChatStream(
 // Module-level cleanup reference for active voice session.
 let voiceCleanup: (() => void) | null = null
 
+function attachVoiceSession(
+  onStateChange: (state: string) => void,
+  onTranscript: (entry: VoiceTranscriptEntry) => void,
+  onError: (error: string) => void,
+  onStatus?: (status: string, label: string) => void
+): (() => void) {
+  if (voiceCleanup) {
+    voiceCleanup()
+    voiceCleanup = null
+  }
+
+  function stateHandler(_e: unknown, data: { state: string }): void {
+    onStateChange(data.state)
+  }
+  function transcriptHandler(_e: unknown, data: VoiceTranscriptEntry): void {
+    onTranscript(data)
+  }
+  function errorHandler(_e: unknown, data: { error: string }): void {
+    onError(data.error)
+  }
+  function statusHandler(_e: unknown, data: { status: string; label?: string }): void {
+    onStatus?.(data.status, data.label ?? data.status)
+  }
+
+  function cleanup(): void {
+    ipcRenderer.removeListener('rex:voiceState', stateHandler)
+    ipcRenderer.removeListener('rex:voiceTranscript', transcriptHandler)
+    ipcRenderer.removeListener('rex:voiceError', errorHandler)
+    ipcRenderer.removeListener('rex:voiceStatus', statusHandler)
+    if (voiceCleanup === cleanup) {
+      voiceCleanup = null
+    }
+  }
+
+  voiceCleanup = cleanup
+
+  ipcRenderer.on('rex:voiceState', stateHandler)
+  ipcRenderer.on('rex:voiceTranscript', transcriptHandler)
+  ipcRenderer.on('rex:voiceError', errorHandler)
+  ipcRenderer.on('rex:voiceStatus', statusHandler)
+
+  return cleanup
+}
+
 function makeStartVoice(
   onStateChange: (state: string) => void,
   onTranscript: (entry: VoiceTranscriptEntry) => void,
-  onError: (error: string) => void
+  onError: (error: string) => void,
+  onStatus?: (status: string, label: string) => void
 ): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    // Clean up any previous session listeners.
-    if (voiceCleanup) {
-      voiceCleanup()
-      voiceCleanup = null
-    }
-
-    function stateHandler(_e: unknown, data: { state: string }): void {
-      onStateChange(data.state)
-    }
-    function transcriptHandler(_e: unknown, data: VoiceTranscriptEntry): void {
-      onTranscript(data)
-    }
-    function errorHandler(_e: unknown, data: { error: string }): void {
-      onError(data.error)
-    }
-
-    function cleanup(): void {
-      ipcRenderer.removeListener('rex:voiceState', stateHandler)
-      ipcRenderer.removeListener('rex:voiceTranscript', transcriptHandler)
-      ipcRenderer.removeListener('rex:voiceError', errorHandler)
-      voiceCleanup = null
-    }
-
-    voiceCleanup = cleanup
-
-    ipcRenderer.on('rex:voiceState', stateHandler)
-    ipcRenderer.on('rex:voiceTranscript', transcriptHandler)
-    ipcRenderer.on('rex:voiceError', errorHandler)
+    const cleanup =
+      voiceCleanup === null
+        ? attachVoiceSession(onStateChange, onTranscript, onError, onStatus)
+        : null
 
     ipcRenderer
       .invoke('rex:startVoice')
@@ -118,12 +140,12 @@ function makeStartVoice(
         if (result.ok) {
           resolve()
         } else {
-          cleanup()
+          cleanup?.()
           reject(new Error(result.error ?? 'Failed to start voice'))
         }
       })
       .catch((err: unknown) => {
-        cleanup()
+        cleanup?.()
         reject(err)
       })
   })
@@ -152,6 +174,7 @@ const rexAPI = {
     ipcRenderer.invoke('rex:getSettings', section),
   setSettings: (section: string, values: Settings): Promise<SetSettingsResponse> =>
     ipcRenderer.invoke('rex:setSettings', section, values),
+  attachVoiceSession,
   startVoice: makeStartVoice,
   stopVoice,
   getTasks: (): Promise<Task[]> => ipcRenderer.invoke('rex:getTasks'),
@@ -188,6 +211,8 @@ const rexAPI = {
     ipcRenderer.invoke('rex:testVoice', settings),
   testIntegration: (type: 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:testIntegration', type),
+  getIntegrations: () => ipcRenderer.invoke('rex:getIntegrations'),
+  getCapabilities: () => ipcRenderer.invoke('rex:getCapabilities'),
   testHomeAssistant: (baseUrl: string, token: string): Promise<{ ok: boolean; error?: string }> =>
     ipcRenderer.invoke('rex:testHomeAssistant', baseUrl, token),
   saveHomeAssistant: (baseUrl: string, token: string): Promise<{ ok: boolean; error?: string }> =>
@@ -285,6 +310,8 @@ const rexAPI = {
     ipcRenderer.invoke('rex:clearCheckedShoppingItems'),
   listWakeWords: (): Promise<{ ok: boolean; wake_words: WakeWordInfo[]; error?: string; warning?: string }> =>
     ipcRenderer.invoke('rex:listWakeWords'),
+  getWakeWordStatus: (settings?: VoiceSettings): Promise<WakeWordStatus> =>
+    ipcRenderer.invoke('rex:getWakeWordStatus', settings),
   previewWakeWordSample: (
     wakeWordId: string
   ): Promise<{ ok: boolean; audio_base64?: string; has_sample?: boolean; error?: string }> =>

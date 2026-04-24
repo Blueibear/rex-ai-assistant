@@ -24,7 +24,11 @@ def _load_sounddevice():
         return sd
     if find_spec("sounddevice") is None:
         return None
-    sd = import_module("sounddevice")
+    try:
+        sd = import_module("sounddevice")
+    except Exception as exc:
+        logger.warning("sounddevice not available; skipping audio device access: %s", exc)
+        return None
     return sd
 
 

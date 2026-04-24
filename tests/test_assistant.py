@@ -163,7 +163,7 @@ def test_build_tool_context_with_settings(monkeypatch, tmp_path):
 def test_followup_injected_at_most_once_with_concurrent_calls(monkeypatch, tmp_path):
     """Two concurrent generate_reply calls must inject the followup context at most once."""
 
-    injected_prompts: list[str] = []
+    injected_inputs: list[object] = []
 
     class DummyLanguageModel:
         def __init__(self, *args, **kwargs):
@@ -171,7 +171,13 @@ def test_followup_injected_at_most_once_with_concurrent_calls(monkeypatch, tmp_p
 
         def generate(self, prompt=None, *, messages=None, config=None, max_tool_rounds=3):
             if prompt and "[Note: You may want to ask" in prompt:
-                injected_prompts.append(prompt)
+                injected_inputs.append(prompt)
+            if messages and any(
+                "You may want to ask" in str(message.get("content", ""))
+                for message in messages
+                if isinstance(message, dict)
+            ):
+                injected_inputs.append(messages)
             return "ok"
 
     monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
@@ -188,8 +194,8 @@ def test_followup_injected_at_most_once_with_concurrent_calls(monkeypatch, tmp_p
     asyncio.run(run_two_concurrent())
 
     assert (
-        len(injected_prompts) <= 1
-    ), f"Followup context was injected {len(injected_prompts)} times; expected at most once"
+        len(injected_inputs) <= 1
+    ), f"Followup context was injected {len(injected_inputs)} times; expected at most once"
 
 
 def _make_dummy_lm_class():
@@ -227,7 +233,7 @@ def test_history_store_saves_turns(monkeypatch, tmp_path):
     assert "assistant" in roles
     contents = [t["content"] for t in turns]
     assert "hello" in contents
-    assert "ok" in contents
+    assert "Hello. How can I help?" in contents
 
 
 def test_history_store_preloads_on_startup(monkeypatch, tmp_path):
@@ -371,6 +377,291 @@ def test_chat_tool_request_routes_time_now(monkeypatch, tmp_path):
     assert "Dallas" in reply
 
 
+def test_generate_reply_freeform_uses_structured_messages(monkeypatch, tmp_path):
+    captured: dict[str, object] = {}
+
+    class DummyLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, prompt=None, *, messages=None, config=None, max_tool_rounds=3):
+            captured["prompt"] = prompt
+            captured["messages"] = messages
+            return "normal reply"
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
+
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+    reply = asyncio.run(asst.generate_reply("Tell me something simple."))
+
+    assert reply == "normal reply"
+    assert captured["prompt"] is None
+    messages = captured["messages"]
+    assert isinstance(messages, list)
+    assert messages[0]["role"] == "system"
+    assert messages[-1] == {"role": "user", "content": "Tell me something simple."}
+    assert not any(
+        message.get("role") == "user" and "assistant:" in message.get("content", "")
+        for message in messages
+    )
+
+
+def test_stream_reply_freeform_uses_structured_messages(monkeypatch, tmp_path):
+    captured: dict[str, object] = {}
+
+    class DummyLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            raise AssertionError("streaming provider should not fall back to generate")
+
+        def stream(self, prompt=None, *, messages=None, config=None):
+            captured["prompt"] = prompt
+            captured["messages"] = messages
+            return iter(["normal ", "reply"])
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", DummyLanguageModel)
+
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+
+    async def collect():
+        return [chunk async for chunk in asst.stream_reply("Tell me something simple.")]
+
+    chunks = asyncio.run(collect())
+
+    assert chunks == ["normal ", "reply"]
+    assert captured["prompt"] is None
+    messages = captured["messages"]
+    assert isinstance(messages, list)
+    assert messages[0]["role"] == "system"
+    assert messages[-1] == {"role": "user", "content": "Tell me something simple."}
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("hello", "Hello. How can I help?"),
+        ("How are you?", "I'm here and ready to help."),
+    ],
+)
+def test_generate_reply_direct_conversation_bypasses_llm(
+    monkeypatch, tmp_path, query, expected
+):
+    class BlockingLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            raise AssertionError("direct conversation reply should not call the LLM")
+
+        def stream(self, *args, **kwargs):
+            raise AssertionError("direct conversation reply should not stream from the LLM")
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
+
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+
+    assert asyncio.run(asst.generate_reply(query)) == expected
+
+
+def test_stream_reply_direct_conversation_bypasses_llm(monkeypatch, tmp_path):
+    class BlockingLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            raise AssertionError("direct conversation reply should not call the LLM")
+
+        def stream(self, *args, **kwargs):
+            raise AssertionError("direct conversation reply should not stream from the LLM")
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
+
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+
+    async def collect():
+        return [chunk async for chunk in asst.stream_reply("hello")]
+
+    assert asyncio.run(collect()) == ["Hello. How can I help?"]
+
+
+def test_generate_reply_direct_recipe_bypasses_shopping_and_llm(monkeypatch, tmp_path):
+    class BlockingLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            raise AssertionError("direct recipe reply should not call the LLM")
+
+        def stream(self, *args, **kwargs):
+            raise AssertionError("direct recipe reply should not stream from the LLM")
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
+
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+
+    reply = asyncio.run(asst.generate_reply("I need a chocolate cake recipe"))
+
+    assert "chocolate cake recipe" in reply.lower()
+    assert "shopping list" not in reply.lower()
+
+
+def test_stream_reply_direct_recipe_bypasses_llm(monkeypatch, tmp_path):
+    class BlockingLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            raise AssertionError("direct recipe reply should not call the LLM")
+
+        def stream(self, *args, **kwargs):
+            raise AssertionError("direct recipe reply should not stream from the LLM")
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
+
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+
+    async def collect():
+        return [
+            chunk async for chunk in asst.stream_reply("Can you give me a chocolate cake recipe?")
+        ]
+
+    chunks = asyncio.run(collect())
+
+    assert len(chunks) == 1
+    assert "chocolate cake recipe" in chunks[0].lower()
+    assert "shopping list" not in chunks[0].lower()
+
+
+def test_generate_reply_suppresses_unverified_action_claim(monkeypatch, tmp_path):
+    class ClaimingLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            return "I added that to your shopping list."
+
+        def stream(self, *args, **kwargs):
+            return iter(["I added that to your shopping list."])
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", ClaimingLanguageModel)
+
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+
+    reply = asyncio.run(asst.generate_reply("Tell me something useful"))
+
+    assert "did not change anything" in reply
+    assert "shopping list" not in reply
+
+
+def test_generate_reply_creator_question_bypasses_action_guard(monkeypatch, tmp_path):
+    class BlockingLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            raise AssertionError("creator question should use direct reply")
+
+        def stream(self, *args, **kwargs):
+            raise AssertionError("creator question should use direct reply")
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
+
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+
+    reply = asyncio.run(asst.generate_reply("Who created you?"))
+
+    assert "AskRex" in reply
+    assert "did not change anything" not in reply
+
+
+def test_generate_reply_biographical_created_text_is_not_action_claim(monkeypatch, tmp_path):
+    class OriginLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            return "I was created to run locally from this project."
+
+        def stream(self, *args, **kwargs):
+            return iter(["I was created to run locally from this project."])
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", OriginLanguageModel)
+
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+
+    reply = asyncio.run(asst.generate_reply("Tell me about your origin."))
+
+    assert reply == "I was created to run locally from this project."
+    assert "did not change anything" not in reply
+
+
+def test_stream_reply_buffers_tool_request_until_resolved(monkeypatch, tmp_path):
+    class StreamingToolLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            return "It's 9:00 AM in New York."
+
+        def stream(self, *args, **kwargs):
+            return iter(
+                [
+                    "TOOL",
+                    '_REQUEST: {"tool": "time_now", ',
+                    '"args": {"location": "New York, NY"}}',
+                ]
+            )
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", StreamingToolLanguageModel)
+
+    def fake_execute_tool(*args, **kwargs):
+        return {
+            "local_time": "2026-04-22 09:00",
+            "date": "2026-04-22",
+            "timezone": "America/New_York",
+        }
+
+    monkeypatch.setattr("rex.openclaw.tool_executor.execute_tool", fake_execute_tool)
+
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+
+    async def collect():
+        return [chunk async for chunk in asst.stream_reply("Use the time tool for New York.")]
+
+    chunks = asyncio.run(collect())
+
+    assert chunks == ["It's 9:00 AM in New York."]
+    assert "TOOL_REQUEST" not in "".join(chunks)
+
+
+def test_stream_reply_suppresses_unverified_action_claim(monkeypatch, tmp_path):
+    class ClaimingStreamLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            return "I added that to your shopping list."
+
+        def stream(self, *args, **kwargs):
+            return iter(["I added", " that to your shopping list."])
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", ClaimingStreamLanguageModel)
+
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path)
+
+    async def collect():
+        return [chunk async for chunk in asst.stream_reply("Tell me something useful")]
+
+    chunks = asyncio.run(collect())
+
+    assert chunks == [
+        "I did not change anything. Please tell me exactly what you want me to add, "
+        "send, save, or update."
+    ]
+
+
 def test_generate_reply_direct_time_query_bypasses_llm(monkeypatch, tmp_path):
     class BlockingLanguageModel:
         def __init__(self, *args, **kwargs):
@@ -399,6 +690,50 @@ def test_generate_reply_direct_time_query_bypasses_llm(monkeypatch, tmp_path):
 
     assert reply.startswith("It's ")
     assert "Dallas, TX" in reply
+
+
+DIRECT_CITY_TIME_QUERIES = [
+    ("What time is it in New York?", "New York"),
+    ("What time is it in New York right now?", "New York"),
+    ("What time is it in New York, NY?", "New York, NY"),
+]
+
+
+@pytest.mark.parametrize(("query", "location_label"), DIRECT_CITY_TIME_QUERIES)
+def test_generate_reply_direct_time_query_uses_requested_city(
+    monkeypatch,
+    tmp_path,
+    query,
+    location_label,
+):
+    class BlockingLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            raise AssertionError("direct time query should not call the LLM")
+
+        def stream(self, *args, **kwargs):
+            raise AssertionError("direct time query should not stream from the LLM")
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
+
+    from rex.config import AppConfig
+
+    cfg = AppConfig(
+        llm_provider="transformers",
+        persist_history=False,
+        response_cache_ttl=0,
+        default_location="Dallas, TX",
+        default_timezone="America/Chicago",
+    )
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+
+    reply = asyncio.run(asst.generate_reply(query))
+
+    assert reply.startswith("It's ")
+    assert location_label in reply
+    assert "Dallas" not in reply
 
 
 DIRECT_DAY_DATE_QUERIES = [
@@ -476,6 +811,47 @@ def test_stream_reply_direct_time_query_bypasses_llm(monkeypatch, tmp_path):
     assert len(chunks) == 1
     assert chunks[0].startswith("It's ")
     assert "Dallas, TX" in chunks[0]
+
+
+@pytest.mark.parametrize(("query", "location_label"), DIRECT_CITY_TIME_QUERIES)
+def test_stream_reply_direct_time_query_uses_requested_city(
+    monkeypatch,
+    tmp_path,
+    query,
+    location_label,
+):
+    class BlockingLanguageModel:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def generate(self, *args, **kwargs):
+            raise AssertionError("direct time query should not call the LLM")
+
+        def stream(self, *args, **kwargs):
+            raise AssertionError("direct time query should not stream from the LLM")
+
+    monkeypatch.setattr(assistant_module, "LanguageModel", BlockingLanguageModel)
+
+    from rex.config import AppConfig
+
+    cfg = AppConfig(
+        llm_provider="transformers",
+        persist_history=False,
+        response_cache_ttl=0,
+        default_location="Dallas, TX",
+        default_timezone="America/Chicago",
+    )
+    asst = assistant_module.Assistant(transcripts_dir=tmp_path, settings_obj=cfg)
+
+    async def collect():
+        return [chunk async for chunk in asst.stream_reply(query)]
+
+    chunks = asyncio.run(collect())
+
+    assert len(chunks) == 1
+    assert chunks[0].startswith("It's ")
+    assert location_label in chunks[0]
+    assert "Dallas" not in chunks[0]
 
 
 @pytest.mark.parametrize("query", DIRECT_DAY_DATE_QUERIES)

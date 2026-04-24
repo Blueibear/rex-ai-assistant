@@ -82,11 +82,11 @@ Default address:
 http://127.0.0.1:18790
 ```
 
-## Python Web Dashboard (`rex-gui`)
+## Python/Flask API and Experimental Web Dashboard (`rex-gui`)
 
 | Variable | Default | Description |
 |---|---:|---|
-| `REX_GUI_PORT` | `8765` | Dashboard port |
+| `REX_GUI_PORT` | `8765` | Flask API/browser-dashboard port |
 | `REX_DATA_DIR` | `data` | Local auth/permissions/history data directory |
 | `SERPAPI_API_KEY` | none | Dashboard integration-status check only |
 | `BRAVE_API_KEY` | none | Dashboard integration-status check and search |
@@ -101,10 +101,14 @@ Default address:
 http://127.0.0.1:8765/ui/
 ```
 
+The `/ui/` browser dashboard is incomplete in current testing. The Electron app
+is the primary GUI; `rex-gui` remains useful for local API routes and
+compatibility checks.
+
 ## Legacy Flask Proxy
 
 `flask_proxy.py` is a compatibility surface. Prefer `rex-gui` for the current
-web dashboard.
+Flask API surface, and prefer the Electron app for the user-facing GUI.
 
 | Variable | Default | Description |
 |---|---:|---|

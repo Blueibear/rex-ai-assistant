@@ -61,24 +61,24 @@ python scripts/security_audit.py
 
 - [ ] Text chat: `python -m rex`
 - [ ] Voice loop: `python rex_loop.py`
-- [ ] Python web dashboard: `rex-gui`
+- [ ] Electron desktop app: `npm.cmd run dev` from `gui/`
+- [ ] Python/Flask API and experimental web dashboard: `rex-gui`
 - [ ] TTS API: `rex-speak-api`
 - [ ] Tool server: `rex-tool-server`
 - [ ] Computer agent: `rex-agent`
-- [ ] Electron desktop app: `npm.cmd run dev` from `gui/`
 
 Ports:
 
 | Surface | Default |
 |---|---:|
-| Python web dashboard | `127.0.0.1:8765` |
+| Python/Flask API and experimental web dashboard | `127.0.0.1:8765` |
 | TTS API | `127.0.0.1:5005` |
 | Tool server | `127.0.0.1:18790` |
 | Legacy Flask proxy | `127.0.0.1:5000` |
 
 ## 5. Smoke Tests
 
-Dashboard:
+Flask API:
 
 ```bash
 curl http://127.0.0.1:8765/api/dashboard/status

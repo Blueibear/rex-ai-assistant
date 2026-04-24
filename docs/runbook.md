@@ -2,8 +2,10 @@
 
 This runbook covers the current local operating surfaces for AskRex Assistant:
 starting, stopping, health checks, common recovery steps, and where each surface
-listens. It intentionally treats `flask_proxy.py` and Tkinter as legacy surfaces;
-use `rex-gui` or the Electron app for day-to-day UI work.
+listens. It intentionally treats `flask_proxy.py` and Tkinter as legacy surfaces.
+Use the Electron app for day-to-day GUI work. Use `rex-gui` for local Flask API
+routes and the incomplete experimental browser dashboard only when that surface
+is what you are testing.
 
 For installation, see `INSTALL.md` and `docs/advanced-install.md`.
 For configuration, see `CONFIGURATION.md` and `docs/environment-variables.md`.
@@ -14,8 +16,8 @@ For configuration, see `CONFIGURATION.md` and `docs/environment-variables.md`.
 |---|---|---:|---|
 | CLI chat | `python -m rex` or `rex chat` | none | Text chat and command access |
 | Voice loop | `python rex_loop.py` | none | Wake word, STT, LLM, and TTS loop |
-| Python web dashboard | `rex-gui` | `http://127.0.0.1:8765/ui/` | Browser dashboard and local API |
-| Electron desktop app | `npm.cmd run dev` or built app under `gui/` | app window | Desktop React UI with Electron bridge |
+| Electron desktop app | `npm.cmd run dev` or built app under `gui/` | app window | Current primary React UI with Electron bridge |
+| Python/Flask API and experimental web dashboard | `rex-gui` | `http://127.0.0.1:8765/ui/` | Local Flask API plus incomplete browser dashboard |
 | Rex Speak API | `rex-speak-api` | `http://127.0.0.1:5005` | Authenticated TTS `/speak` API |
 | Rex tool server | `rex-tool-server` | `http://127.0.0.1:18790` | Authenticated OpenClaw-style tool endpoint |
 | Legacy Flask proxy | `python flask_proxy.py` | `http://0.0.0.0:5000` | Compatibility API/proxy surface |
@@ -57,18 +59,6 @@ Start the voice loop:
 python rex_loop.py
 ```
 
-Start the Python web dashboard:
-
-```bash
-rex-gui
-```
-
-Open:
-
-```text
-http://127.0.0.1:8765/ui/
-```
-
 Start the Electron app:
 
 ```powershell
@@ -88,6 +78,21 @@ npm.cmd run preview
 For Electron-only verification harnesses, run `npm.cmd run build` in `gui/`
 first, then boot `gui/dist-electron/main/index.js` from a
 `gui/tmp_verify_*.cjs` harness as described in the repo instructions.
+
+Start the Python/Flask API and experimental browser dashboard:
+
+```bash
+rex-gui
+```
+
+Open:
+
+```text
+http://127.0.0.1:8765/ui/
+```
+
+The browser dashboard is incomplete in current testing. Prefer Electron unless
+you are specifically checking the Flask API/browser-dashboard surface.
 
 Start the TTS API:
 
@@ -119,7 +124,7 @@ rex-tool-server
 
 ## Health Checks
 
-Python web dashboard:
+Python/Flask API:
 
 ```bash
 curl http://127.0.0.1:8765/api/dashboard/status
@@ -214,9 +219,9 @@ is stuck and you have captured enough logs to diagnose the failure.
 
 ## Logs
 
-Most surfaces write to stdout/stderr. The Python web dashboard and services also
-use the repo logging utilities, so log format may be JSON when JSON logging is
-enabled.
+Most surfaces write to stdout/stderr. The Python/Flask `rex-gui` service and
+other services also use the repo logging utilities, so log format may be JSON
+when JSON logging is enabled.
 
 Useful local patterns:
 
@@ -321,7 +326,7 @@ Alternatively pass `--debug` flag for intentional verbose output during debuggin
 
 - `python -m rex doctor` completes with only expected optional warnings.
 - `python -m rex --help` lists commands.
-- `rex-gui` serves `http://127.0.0.1:8765/ui/` when the web dashboard is needed.
+- Electron builds with `npm.cmd run build` before Electron-only verification.
+- `rex-gui` serves local API routes on `127.0.0.1:8765` when the Flask API or experimental browser dashboard is needed.
 - `rex-speak-api` health endpoints respond on `5005` when TTS API is needed.
 - `rex-tool-server` health endpoints respond on `18790` when tool serving is needed.
-- Electron builds with `npm.cmd run build` before Electron-only verification.

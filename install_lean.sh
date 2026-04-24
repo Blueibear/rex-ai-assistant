@@ -69,10 +69,19 @@ done
 
 PYTHON_VERSION=$("$REX_PYTHON" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null) \
   || fail "Could not determine Python version."
-MAJOR="${PYTHON_VERSION%%.*}"
-MINOR="${PYTHON_VERSION#*.}"
-if [ "$MAJOR" -ne 3 ] || [ "$MINOR" -ne 11 ]; then
-  fail "Unsupported Python $PYTHON_VERSION for the Rex install path. Use Python 3.11."
+if [[ "$PYTHON_VERSION" =~ ^[0-9]+[.][0-9]+$ ]]; then
+  MAJOR="${PYTHON_VERSION%%.*}"
+  MINOR="${PYTHON_VERSION#*.}"
+else
+  MAJOR=""
+  MINOR=""
+fi
+if [ "$MAJOR" != "3" ] || [ "$MINOR" != "11" ]; then
+  if [ "$REX_DRY_RUN" = "1" ]; then
+    echo "[DRY RUN] Would reject unsupported Python $PYTHON_VERSION for a real install; Rex requires Python 3.11."
+  else
+    fail "Unsupported Python $PYTHON_VERSION for the Rex install path. Use Python 3.11."
+  fi
 fi
 
 install_cmd=("$REX_PYTHON" -m pip install "$ROOT_DIR")
