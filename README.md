@@ -15,6 +15,19 @@ AskRex Assistant is a local-first AI assistant for text chat, voice interaction,
 
 AskRex is alpha software. It is useful for local testing and development, but it should not be treated as production-ready. Recent GUI and voice-loop fixes have made several paths usable end to end; wake-word tuning, warning cleanup, and per-user data separation are still in progress. See [docs/claude/INTEGRATIONS_STATUS.md](docs/claude/INTEGRATIONS_STATUS.md) for the broader integration readiness snapshot.
 
+## Contributing
+
+AskRex Assistant is open to feedback, testing, documentation improvements, bug reports, and focused pull requests.
+
+Good places to start:
+
+- Read the [contributing guide](CONTRIBUTING.md)
+- Check issues labeled [`good first issue`](https://github.com/Blueibear/AskRex-Assistant/labels/good%20first%20issue)
+- Check issues labeled [`help wanted`](https://github.com/Blueibear/AskRex-Assistant/labels/help%20wanted)
+- Join the [GitHub Discussions](https://github.com/Blueibear/AskRex-Assistant/discussions) if you have questions or ideas
+
+If you are not sure where to begin, open a discussion and ask.
+
 ## Table of Contents
 
 - [Quick Start](#quick-start)
