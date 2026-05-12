@@ -3166,6 +3166,10 @@ function IntegrationsPanel(): React.ReactElement {
           </div>
         </div>
 
+        <p className="text-xs text-text-secondary mb-4">
+          Optional. Lets Rex read and send mail. Create OAuth credentials in the Google Console linked above.
+        </p>
+
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1.5">
             <label htmlFor="emailProvider" className="text-sm font-medium text-text-primary">Provider</label>
@@ -3408,6 +3412,10 @@ function IntegrationsPanel(): React.ReactElement {
           </div>
         </div>
 
+        <p className="text-xs text-text-secondary mb-4">
+          Optional. Lets Rex read and create events on your calendar. Use the Google Console link above for OAuth credentials.
+        </p>
+
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1.5">
             <label htmlFor="calendarProvider" className="text-sm font-medium text-text-primary">Provider</label>
@@ -3498,6 +3506,10 @@ function IntegrationsPanel(): React.ReactElement {
           </div>
         </div>
 
+        <p className="text-xs text-text-secondary mb-4">
+          Optional. Lets Rex send text messages through Twilio. Grab the SID, token, and a sender number from the Twilio Console link above.
+        </p>
+
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-1.5">
@@ -3582,6 +3594,10 @@ function IntegrationsPanel(): React.ReactElement {
           </div>
         </div>
 
+        <p className="text-xs text-text-secondary mb-4">
+          Optional. Lets Rex control your smart home. Create a long-lived access token from your Home Assistant user profile page.
+        </p>
+
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1.5">
             <label htmlFor="haUrl" className="text-sm font-medium text-text-primary">Base URL</label>
@@ -3647,6 +3663,10 @@ function IntegrationsPanel(): React.ReactElement {
             />
           </div>
         </div>
+
+        <p className="text-xs text-text-secondary mb-4">
+          Optional. Lets Rex place voice calls through Twilio. Use the same Twilio Console link above to copy your credentials.
+        </p>
 
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1.5">
@@ -3782,6 +3802,10 @@ function IntegrationsPanel(): React.ReactElement {
             hasCredentials={form.telegramBotToken.trim() !== '' && form.telegramChatId.trim() !== ''}
           />
         </div>
+
+        <p className="text-xs text-text-secondary mb-4">
+          Optional. Lets Rex send messages to a Telegram chat. Create a bot through @BotFather to get a token, then message it to find your chat ID.
+        </p>
 
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1.5">
