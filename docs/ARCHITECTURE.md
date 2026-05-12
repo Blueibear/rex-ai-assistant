@@ -1,3 +1,24 @@
+## Beginner's Overview
+
+New to AskRex? Here's a simple explanation of how the major 
+pieces connect before diving into the full details below.
+
+**Flow:**
+Microphone → Voice Loop → Speech-to-Text → LLM → Text-to-Speech → Speaker
+
+| Component | What it does | Key file |
+|-----------|-------------|----------|
+| Voice Loop | Listens for wake word and records your command | `rex_loop.py` |
+| Speech-to-Text | Converts your voice to text using Whisper | `rex_stt_bridge.py` |
+| LLM Handling | Sends text to AI model and gets a reply | `rex/llm_client.py` |
+| Text-to-Speech | Converts reply to audio and plays it | `rex_speak_api.py` |
+| Home Assistant | Controls your smart home devices | `rex_voice_bridge.py` |
+| Desktop GUI | Electron app for visual interaction | `gui/` |
+| Plugin/Tool System | Adds tools like weather and web search | `rex/openclaw/` |
+| Configuration | Runtime settings and secrets | `config/rex_config.json`, `.env` |
+
+---
+
 # AskRex Assistant Architecture
 
 AskRex Assistant is a Python 3.11 local-first assistant with text chat, voice
