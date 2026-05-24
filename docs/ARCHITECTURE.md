@@ -9,6 +9,84 @@ experimental browser dashboard at `/ui/`.
 The PyPI/package name is `askrex-assistant`. The user-facing product name is
 AskRex Assistant.
 
+## Subsystems at a Glance
+
+This section is the quickest way for a new contributor to orient. Each
+subsystem gets a short summary and pointers to the most relevant files or
+folders.
+
+### Voice loop
+
+The voice loop ties wake-word detection, speech-to-text, the LLM reply, and
+text-to-speech into one runnable pipeline. The runnable entry script is
+`rex_loop.py`, which imports `build_voice_loop` from the canonical package
+implementation at `rex/voice_loop.py` (with an optimized variant in
+`rex/voice_loop_optimized.py`).
+
+### Speech-to-text (STT)
+
+STT uses OpenAI Whisper, loaded lazily inside the voice loop so the heavy
+model only initializes when voice mode is actually used. The transcription
+helpers and Whisper integration live in `rex/voice_loop.py`; device
+selection (`cuda` vs `cpu`) is resolved at model-load time from
+`AppConfig.whisper_device`.
+
+### LLM response handling
+
+The `Assistant` class in `rex/assistant.py` is the single entry point for
+generating replies. It injects system context, routes through the tool
+layer, and delegates raw model calls to the providers in
+`rex/llm_client.py` (local Transformers, OpenAI-compatible, Anthropic, or
+Ollama). The voice loop must always call `Assistant.generate_reply()`
+rather than the LLM client directly so tool routing is preserved.
+
+### Text-to-speech (TTS)
+
+TTS is served by a small Flask service in `rex_speak_api.py`, exposed as the
+`rex-speak-api` console script on `127.0.0.1:5005`. It supports Coqui XTTS
+voice cloning and optional `edge-tts` / `pyttsx3` fallbacks, and requires
+`REX_SPEAK_API_KEY` for authenticated `POST /speak` requests.
+
+### Wake word
+
+Wake-word detection is owned by the `rex/wakeword/` package, with
+`rex/wakeword/listener.py` as the listener and `rex/wakeword/utils.py` as
+the shared helpers. The default backend is openWakeWord; `custom_embedding`
+and `custom_onnx` paths look for assets under `config/wake_words/hey_rex/`.
+
+### Home Assistant integration
+
+The high-level Home Assistant client and helpers live in
+`rex/ha_bridge.py`, with the supporting device/discovery/state code under
+`rex/ha/`. The Electron Home Assistant page and `/api/ha/test` endpoint use
+this layer to list entities and verify connectivity, and `rex ha ...` CLI
+commands are wired through `rex/cli.py`.
+
+### Desktop GUI
+
+The current primary GUI is the Electron + React app in `gui/`, built with
+Vite and packaged from `gui/dist-electron/`. The Python/Flask local API and
+the experimental browser dashboard at `/ui/` live in `rex/gui_app.py`
+(launched via the `rex-gui` console script); the legacy Tkinter
+`gui.py` / `run_gui.py` entry points are deprecated.
+
+### Plugin / tool system
+
+Built-in tools are registered and executed by the OpenClaw-facing layer at
+`rex/openclaw/`: `tool_registry.py` builds the registry, `tool_executor.py`
+enforces policy and runs the tools, individual adapters live under
+`rex/openclaw/tools/`, and `tool_server.py` (`rex-tool-server`) exposes them
+over HTTP. Optional legacy plugins (for example `web_search`) and example
+skills sit under `plugins/` and `plugins/skills/`.
+
+### Configuration files
+
+Runtime, non-secret settings live in `config/rex_config.json`, loaded and
+validated by `rex/config.py` (`AppConfig`). Secrets such as
+`OPENAI_API_KEY`, `HA_TOKEN`, `REX_SPEAK_API_KEY`, `REX_TOOL_API_KEY`, and
+`OPENCLAW_GATEWAY_TOKEN` live in `.env`, and per-user profile overrides live
+in `profiles/<name>.json`.
+
 ## Runtime Shape
 
 | Layer | Main modules | Notes |

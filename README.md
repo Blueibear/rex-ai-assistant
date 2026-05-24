@@ -22,6 +22,7 @@ AskRex Assistant is open to feedback, testing, documentation improvements, bug r
 Good places to start:
 
 - Read the [contributing guide](CONTRIBUTING.md)
+- Skim the [architecture overview](docs/ARCHITECTURE.md) for a tour of the major subsystems and where they live
 - Check issues labeled [`good first issue`](https://github.com/Blueibear/AskRex-Assistant/labels/good%20first%20issue)
 - Check issues labeled [`help wanted`](https://github.com/Blueibear/AskRex-Assistant/labels/help%20wanted)
 - Join the [GitHub Discussions](https://github.com/Blueibear/AskRex-Assistant/discussions) if you have questions or ideas
