@@ -114,11 +114,11 @@ Identify the 15–20 most-imported flat `AppConfig` fields (grep `config\.<field
 **Description:** As a developer, I want the canonical reference docs to document the nested config structure so new contributors learn the right pattern from day one.
 
 **Acceptance Criteria:**
-- [ ] `CLAUDE.md` config section updated to show nested structure (`config.audio.*`, `config.voice.*`, etc.) as the preferred access pattern
-- [ ] `CONFIGURATION.md` updated with the new grouped field reference
-- [ ] A short migration note explains that flat fields still work but emit deprecation warnings
-- [ ] No code changes in this story
-- [ ] `pytest -q` passes
+- [x] `CLAUDE.md` config section updated to show nested structure (`config.audio.*`, `config.voice.*`, etc.) as the preferred access pattern
+- [x] `CONFIGURATION.md` updated with the new grouped field reference
+- [x] A short migration note explains that flat fields still work but emit deprecation warnings
+- [x] No code changes in this story
+- [x] `pytest -q` passes
 
 ---
 

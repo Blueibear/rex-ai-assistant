@@ -254,8 +254,26 @@ Do not invent filenames or APIs that do not exist.
 
 ### Respect the config split
 
-Secrets → .env  
+Secrets → .env
 Runtime configuration → config/rex_config.json
+
+### AppConfig sub-config access pattern
+
+`AppConfig` exposes seven typed sub-config objects. **Always use the nested path** in new code:
+
+| Sub-config | Example field access |
+|------------|----------------------|
+| `config.audio` | `config.audio.sample_rate`, `config.audio.input_device` |
+| `config.voice` | `config.voice.tts_engine`, `config.voice.whisper_device`, `config.voice.wakeword_model` |
+| `config.llm` | `config.llm.llm_provider`, `config.llm.model_name`, `config.llm.ollama_url` |
+| `config.tools` | `config.tools.tool_timeout`, `config.tools.enabled_tools` |
+| `config.integrations` | `config.integrations.home_assistant_base_url`, `config.integrations.openclaw_gateway_url` |
+| `config.ui` | `config.ui.gui_port`, `config.ui.gui_host` |
+| `config.security` | `config.security.api_key_env`, `config.security.rate_limit_per_minute` |
+
+Flat top-level fields (e.g. `config.llm_provider`, `config.tts_voice`) still work but emit
+`DeprecationWarning: Use config.<group>.<field> instead`. Migrate call sites to the nested path
+when you touch them. Do not add new flat field reads.
 
 ### Windows compatibility matters
 

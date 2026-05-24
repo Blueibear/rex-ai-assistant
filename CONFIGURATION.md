@@ -229,6 +229,98 @@ Legacy environment variables are ignored for wake word configuration. Always upd
 }
 ```
 
+## AppConfig Sub-Config Structure
+
+`AppConfig` (the Python config object) groups its fields into seven typed sub-config objects.
+New code should always read settings via the nested path.
+
+### Sub-config groups
+
+#### `config.audio` — `AudioConfig`
+| Field | Description | Default |
+|-------|-------------|---------|
+| `sample_rate` | Audio sample rate in Hz | `16000` |
+| `channels` | Audio channel count | `1` |
+| `chunk_size` | Audio chunk size (frames) | `1024` |
+| `input_device` | Input device index or name | `None` |
+| `output_device` | Output device index or name | `None` |
+| `vad_sensitivity` | Voice activity detection sensitivity | `3` |
+
+#### `config.voice` — `VoiceConfig`
+| Field | Description | Default |
+|-------|-------------|---------|
+| `tts_engine` | TTS backend (`xtts`, `edge`, `piper`, `pyttsx3`) | `"xtts"` |
+| `tts_voice` | TTS voice name or path | `None` |
+| `stt_model` | Whisper model size (`tiny`…`large`) | `"base"` |
+| `whisper_device` | Whisper inference device (`auto`, `cpu`, `cuda`) | `"auto"` |
+| `wakeword_model` | Wake word model / keyword | `"hey jarvis"` |
+| `wakeword_sensitivity` | Wake word detection threshold | `0.5` |
+| `wakeword_fallback_keyword` | Fallback built-in keyword | `"hey jarvis"` |
+
+#### `config.llm` — `LLMConfig`
+| Field | Description | Default |
+|-------|-------------|---------|
+| `llm_provider` | LLM backend (`transformers`, `openai`, `ollama`) | `"transformers"` |
+| `model_name` | Model name or path | `"sshleifer/tiny-gpt2"` |
+| `openai_api_key_env` | Env var holding OpenAI API key | `"OPENAI_API_KEY"` |
+| `ollama_url` | Ollama server URL | `"http://localhost:11434"` |
+| `context_length` | Max context tokens | `2048` |
+| `temperature` | Sampling temperature | `0.7` |
+
+#### `config.tools` — `ToolsConfig`
+| Field | Description | Default |
+|-------|-------------|---------|
+| `tool_timeout` | Per-tool execution timeout (seconds) | `10.0` |
+| `tool_max_retries` | Max retries on tool failure | `2` |
+| `enabled_tools` | List of enabled tool names | `[]` |
+| `tool_permissions` | Dict of per-tool permission flags | `{}` |
+
+#### `config.integrations` — `IntegrationsConfig`
+| Field | Description | Default |
+|-------|-------------|---------|
+| `home_assistant_base_url` | Home Assistant base URL | `"http://homeassistant.local:8123"` |
+| `ha_token_env` | Env var holding HA long-lived token | `"HA_TOKEN"` |
+| `openclaw_gateway_url` | OpenClaw HTTP gateway URL | `"http://localhost:8080"` |
+| `openclaw_gateway_timeout` | Gateway request timeout (seconds) | `10.0` |
+| `openclaw_gateway_max_retries` | Gateway max retries | `3` |
+
+#### `config.ui` — `UIConfig`
+| Field | Description | Default |
+|-------|-------------|---------|
+| `gui_port` | GUI server port | `5000` |
+| `gui_host` | GUI server host | `"127.0.0.1"` |
+| `theme` | UI theme name | `"default"` |
+
+#### `config.security` — `SecurityConfig`
+| Field | Description | Default |
+|-------|-------------|---------|
+| `api_key_env` | Env var holding the API key for the Flask API | `"REX_SPEAK_API_KEY"` |
+| `rate_limit_per_minute` | Max API requests per minute | `60` |
+| `allowed_origins` | CORS allowed origins | `[]` |
+
+### Migrating from flat fields
+
+Flat `AppConfig` fields (e.g. `config.llm_provider`, `config.tts_voice`) still work but now emit
+`DeprecationWarning` pointing to the nested path. When you touch a call site, replace it:
+
+| Old flat access | New nested access |
+|-----------------|-------------------|
+| `config.llm_provider` | `config.llm.llm_provider` |
+| `config.model_name` | `config.llm.model_name` |
+| `config.tts_engine` | `config.voice.tts_engine` |
+| `config.tts_voice` | `config.voice.tts_voice` |
+| `config.whisper_device` | `config.voice.whisper_device` |
+| `config.wakeword_model` | `config.voice.wakeword_model` |
+| `config.home_assistant_base_url` | `config.integrations.home_assistant_base_url` |
+| `config.openclaw_gateway_url` | `config.integrations.openclaw_gateway_url` |
+| `config.tool_timeout` | `config.tools.tool_timeout` |
+| `config.gui_port` | `config.ui.gui_port` |
+| `config.api_key_env` | `config.security.api_key_env` |
+| `config.rate_limit_per_minute` | `config.security.rate_limit_per_minute` |
+
+All flat fields that have a nested equivalent will be removed in a future major version once all
+call sites have been migrated.
+
 ## Tool Requests and Results
 Rex supports a minimal tool routing flow for local tools. The model can emit a single line tool request:
 
