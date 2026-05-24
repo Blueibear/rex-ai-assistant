@@ -84,12 +84,12 @@ The objective is not fewer features. It is fewer duplicate, overlapping, or lega
 Adds nested fields to `AppConfig` populated from existing flat fields. Flat fields remain on `AppConfig` unchanged so all existing code continues to work.
 
 **Acceptance Criteria:**
-- [ ] `AppConfig` gains seven new fields: `audio: AudioConfig`, `voice: VoiceConfig`, `llm: LLMConfig`, `tools: ToolsConfig`, `integrations: IntegrationsConfig`, `ui: UIConfig`, `security: SecurityConfig`
-- [ ] Each sub-config is instantiated in `AppConfig.model_post_init()` or a `@model_validator(mode="after")` by reading from the flat fields already on `AppConfig`
-- [ ] Instantiating `AppConfig` from the existing `config/rex_config.json` format still works with no JSON changes required
-- [ ] `config.audio.sample_rate` and `config.sample_rate` both resolve to the same value
-- [ ] `rex doctor` still passes
-- [ ] `pytest -q` passes
+- [x] `AppConfig` gains seven new fields: `audio: AudioConfig`, `voice: VoiceConfig`, `llm: LLMConfig`, `tools: ToolsConfig`, `integrations: IntegrationsConfig`, `ui: UIConfig`, `security: SecurityConfig`
+- [x] Each sub-config is instantiated in `AppConfig.model_post_init()` or a `@model_validator(mode="after")` by reading from the flat fields already on `AppConfig`
+- [x] Instantiating `AppConfig` from the existing `config/rex_config.json` format still works with no JSON changes required
+- [x] `config.audio.sample_rate` and `config.sample_rate` both resolve to the same value
+- [x] `rex doctor` still passes
+- [x] `pytest -q` passes
 
 ---
 

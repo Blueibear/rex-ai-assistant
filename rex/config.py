@@ -175,7 +175,9 @@ class LLMConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     llm_provider: str = "transformers"
-    model_name: str = "sshleifer/tiny-gpt2"  # maps to llm_model
+    model_name: Optional[str] = (
+        "sshleifer/tiny-gpt2"  # maps to llm_model; None when openai_model is used
+    )
     openai_api_key_env: str = "OPENAI_API_KEY"  # env var name (not the value)
     ollama_url: str = "http://localhost:11434"  # maps to ollama_base_url
     context_length: int = 120  # maps to llm_max_tokens
@@ -427,8 +429,20 @@ class AppConfig:
     user_id: str = "default"
     wakeword_keyword: Optional[str] = None
 
+    # Nested sub-configs (US-002) — derived views over flat fields; populated in __post_init__
+    audio: Optional[AudioConfig] = field(default=None, repr=False, compare=False)
+    voice: Optional[VoiceConfig] = field(default=None, repr=False, compare=False)
+    llm: Optional[LLMConfig] = field(default=None, repr=False, compare=False)
+    tools: Optional[ToolsConfig] = field(default=None, repr=False, compare=False)
+    integrations: Optional[IntegrationsConfig] = field(default=None, repr=False, compare=False)
+    ui: Optional[UIConfig] = field(default=None, repr=False, compare=False)
+    security: Optional[SecurityConfig] = field(default=None, repr=False, compare=False)
+
     def to_dict(self) -> dict:
         raw = asdict(self)
+        # Remove nested sub-config objects (US-002) — derived views; not part of serialised output
+        for _key in ("audio", "voice", "llm", "tools", "integrations", "ui", "security"):
+            raw.pop(_key, None)
         raw["transcripts_dir"] = str(self.transcripts_dir)
         raw["log_path"] = str(self.log_path)
         raw["error_log_path"] = str(self.error_log_path)
@@ -452,6 +466,61 @@ class AppConfig:
         if self.max_memory_items is None:
             self.max_memory_items = self.memory_max_turns
         self.wakeword_keyword = resolve_wakeword_keyword(self.wakeword_keyword, self.wakeword)
+
+        # Build nested sub-configs from flat fields (US-002)
+        self.audio = AudioConfig(
+            sample_rate=self.sample_rate,
+            input_device=self.audio_input_device,
+            output_device=(
+                self.audio_output_device if isinstance(self.audio_output_device, int) else None
+            ),
+            vad_sensitivity=self.command_vad_rms_threshold,
+        )
+        self.voice = VoiceConfig(
+            tts_engine=self.tts_provider,
+            tts_voice=self.tts_voice,
+            tts_speed=self.tts_speed,
+            stt_model=self.whisper_model,
+            whisper_device=self.whisper_device,
+            wakeword_model=self.wakeword,
+            wakeword_sensitivity=self.wakeword_threshold,
+            wakeword_fallback_keyword=self.wakeword_fallback_keyword,
+            wakeword_backend=self.wakeword_backend,
+        )
+        self.llm = LLMConfig(
+            llm_provider=self.llm_provider,
+            model_name=self.llm_model,
+            ollama_url=self.ollama_base_url,
+            context_length=self.llm_max_tokens,
+            temperature=self.llm_temperature,
+            llm_routing_mode=self.llm_routing_mode,
+        )
+        self.tools = ToolsConfig(
+            tool_timeout=self.tool_timeout_seconds,
+        )
+        _rate_limit_per_min = 30
+        if isinstance(self.rate_limit, str) and "/" in self.rate_limit:
+            try:
+                _rate_limit_per_min = int(self.rate_limit.split("/")[0])
+            except (ValueError, IndexError):
+                pass
+        self.integrations = IntegrationsConfig(
+            home_assistant_base_url=self.ha_base_url,
+            email_provider=self.email_provider,
+            calendar_provider=self.calendar_provider,
+            music_assistant_url=self.music_assistant_url,
+            shopping_pwa_pin=self.shopping_pwa_pin,
+            openclaw_gateway_url=self.openclaw_gateway_url,
+            openclaw_gateway_timeout=self.openclaw_gateway_timeout,
+            openclaw_gateway_max_retries=self.openclaw_gateway_max_retries,
+        )
+        self.ui = UIConfig(
+            ui_enabled=self.ui_enabled,
+        )
+        self.security = SecurityConfig(
+            rate_limit_per_minute=_rate_limit_per_min,
+            allowed_origins=list(self.allowed_origins),
+        )
 
 
 _cached_config: Optional[AppConfig] = None
