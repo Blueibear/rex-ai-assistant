@@ -41,6 +41,26 @@ deprecated with a header comment; this story completes the removal by moving the
 Use `cd gui && npm.cmd run dev` for the Electron desktop GUI, or `rex-gui` for the Flask web
 dashboard.
 
+### Shopping PWA (`archived/shopping_pwa/`)
+
+**Archived in:** US-007 (2026-05-24)
+
+**Files:**
+- `archived/shopping_pwa/shopping_pwa.py` — Flask Blueprint providing the mobile shopping-list
+  PWA at `/shopping`, including PIN-auth, manifest, and REST API endpoints
+- `archived/shopping_pwa/test_sl004_shopping_pwa.py` — test suite for the PWA surface
+
+**Why archived:**
+The shopping PWA was a standalone browser/PWA surface served by `rex_speak_api.py`. The core
+shopping list functionality (`rex/shopping_list.py`, `rex/shopping_list_handler.py`) is retained
+and still used by the assistant. Only the PWA surface layer is archived. The import in
+`rex_speak_api.py` is already guarded by a `try/except` that logs a warning when the module is
+absent.
+
+**Replacement:**
+Shopping list management is available through the assistant (`"add milk to shopping list"`) and
+via the Electron GUI shopping routes.
+
 ---
 
 ## Restoring an archived component

@@ -26,7 +26,7 @@ def test_ui_surfaces_doc_exists_with_expected_rows() -> None:
         in text
     )
     assert (
-        "| Shopping PWA | served by `rex` or `rex-gui` | **Optional feature — keep** | Functional feature surface |"
+        "| Shopping PWA | served by `rex` or `rex-gui` | **Archived** | Surface archived to `/archived/shopping_pwa/`; shopping list logic (`rex/shopping_list.py`) remains |"
         in text
     )
     assert (

@@ -175,11 +175,11 @@ Files to archive: `gui.py`, `gui_settings_tab.py`, `run_gui.py` (all root-level)
 `rex/shopping_pwa.py` is the standalone shopping PWA surface. The shopping list logic (`rex/shopping_list.py`, `rex/shopping_list_handler.py`) is used by the assistant and must stay. Only the PWA surface layer moves.
 
 **Acceptance Criteria:**
-- [ ] `rex/shopping_pwa.py` moved to `/archived/shopping_pwa/shopping_pwa.py`
-- [ ] Any Flask route or entry point that serves the shopping PWA as a standalone app is removed or guarded with a deprecation log at startup
-- [ ] `rex/shopping_list.py` and `rex/shopping_list_handler.py` are untouched
-- [ ] `/archived/ARCHIVED.md` updated with shopping PWA section
-- [ ] `pytest -q` passes
+- [x] `rex/shopping_pwa.py` moved to `/archived/shopping_pwa/shopping_pwa.py`
+- [x] Any Flask route or entry point that serves the shopping PWA as a standalone app is removed or guarded with a deprecation log at startup
+- [x] `rex/shopping_list.py` and `rex/shopping_list_handler.py` are untouched
+- [x] `/archived/ARCHIVED.md` updated with shopping PWA section
+- [x] `pytest -q` passes
 
 ---
 
