@@ -101,11 +101,11 @@ Adds nested fields to `AppConfig` populated from existing flat fields. Flat fiel
 Identify the 15–20 most-imported flat `AppConfig` fields (grep `config\.<field>` across `rex/`). Convert them to `@property` on `AppConfig` that emit `DeprecationWarning` and return the value from the nested sub-config. This story does not change any call sites — it only installs the warning mechanism.
 
 **Acceptance Criteria:**
-- [ ] At least these fields are converted to deprecated properties: `llm_provider`, `model_name`, `tts_engine`, `tts_voice`, `whisper_device`, `wakeword_model`, `home_assistant_base_url`, `openclaw_gateway_url`, `tool_timeout`, `gui_port`, `api_key_env`, `rate_limit_per_minute`
-- [ ] Accessing a deprecated flat field emits `DeprecationWarning: Use config.<group>.<field> instead`
-- [ ] The value returned is identical to the nested path value
-- [ ] Existing code that reads flat fields still works (no `AttributeError`)
-- [ ] `pytest -q` passes (warnings are acceptable; failures are not)
+- [x] At least these fields are converted to deprecated properties: `llm_provider`, `model_name`, `tts_engine`, `tts_voice`, `whisper_device`, `wakeword_model`, `home_assistant_base_url`, `openclaw_gateway_url`, `tool_timeout`, `gui_port`, `api_key_env`, `rate_limit_per_minute`
+- [x] Accessing a deprecated flat field emits `DeprecationWarning: Use config.<group>.<field> instead`
+- [x] The value returned is identical to the nested path value
+- [x] Existing code that reads flat fields still works (no `AttributeError`)
+- [x] `pytest -q` passes (warnings are acceptable; failures are not)
 
 ---
 

@@ -15,7 +15,9 @@ from dataclasses import asdict, dataclass, field
 
 from rex.exception_handler import wrap_entrypoint
 from pathlib import Path
-from typing import Dict, List, Optional
+import warnings
+
+from typing import ClassVar, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -438,8 +440,145 @@ class AppConfig:
     ui: Optional[UIConfig] = field(default=None, repr=False, compare=False)
     security: Optional[SecurityConfig] = field(default=None, repr=False, compare=False)
 
+    # ---------------------------------------------------------------------------
+    # US-003 — Deprecated flat-field access map (ClassVar, not a dataclass field)
+    # Maps flat field name → sub-config group name; used by __getattribute__
+    # ---------------------------------------------------------------------------
+    _DEPRECATED_FIELDS: ClassVar[Dict[str, str]] = {
+        "llm_provider": "llm",
+        "tts_voice": "voice",
+        "whisper_device": "voice",
+        "openclaw_gateway_url": "integrations",
+    }
+
+    def __getattribute__(self, name: str):  # type: ignore[override]
+        """Emit DeprecationWarning for high-traffic flat fields that now have nested equivalents."""
+        _deprecated = type(self).__dict__.get("_DEPRECATED_FIELDS", {})
+        if name in _deprecated:
+            d = object.__getattribute__(self, "__dict__")
+            # Only warn after sub-configs are built; guards against noise during __post_init__
+            if d.get("_deprecated_warnings_active"):
+                group = _deprecated[name]
+                warnings.warn(
+                    f"AppConfig.{name} is deprecated. Use config.{group}.{name} instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+        return object.__getattribute__(self, name)
+
+    # -- Deprecated property aliases (US-003) — sub-config field names as deprecated AppConfig attrs
+
+    @property
+    def model_name(self) -> Optional[str]:
+        """Deprecated. Use config.llm.model_name instead."""
+        warnings.warn(
+            "AppConfig.model_name is deprecated. Use config.llm.model_name instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _llm = object.__getattribute__(self, "llm")
+        return _llm.model_name if _llm is not None else object.__getattribute__(self, "llm_model")
+
+    @property
+    def tts_engine(self) -> str:
+        """Deprecated. Use config.voice.tts_engine instead."""
+        warnings.warn(
+            "AppConfig.tts_engine is deprecated. Use config.voice.tts_engine instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _voice = object.__getattribute__(self, "voice")
+        return (
+            _voice.tts_engine
+            if _voice is not None
+            else object.__getattribute__(self, "tts_provider")
+        )
+
+    @property
+    def wakeword_model(self) -> str:
+        """Deprecated. Use config.voice.wakeword_model instead."""
+        warnings.warn(
+            "AppConfig.wakeword_model is deprecated. Use config.voice.wakeword_model instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _voice = object.__getattribute__(self, "voice")
+        return (
+            _voice.wakeword_model
+            if _voice is not None
+            else object.__getattribute__(self, "wakeword")
+        )
+
+    @property
+    def home_assistant_base_url(self) -> Optional[str]:
+        """Deprecated. Use config.integrations.home_assistant_base_url instead."""
+        warnings.warn(
+            "AppConfig.home_assistant_base_url is deprecated. "
+            "Use config.integrations.home_assistant_base_url instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _intg = object.__getattribute__(self, "integrations")
+        return (
+            _intg.home_assistant_base_url
+            if _intg is not None
+            else object.__getattribute__(self, "ha_base_url")
+        )
+
+    @property
+    def tool_timeout(self) -> float:
+        """Deprecated. Use config.tools.tool_timeout instead."""
+        warnings.warn(
+            "AppConfig.tool_timeout is deprecated. Use config.tools.tool_timeout instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _tools = object.__getattribute__(self, "tools")
+        return (
+            _tools.tool_timeout
+            if _tools is not None
+            else object.__getattribute__(self, "tool_timeout_seconds")
+        )
+
+    @property
+    def gui_port(self) -> int:
+        """Deprecated. Use config.ui.gui_port instead."""
+        warnings.warn(
+            "AppConfig.gui_port is deprecated. Use config.ui.gui_port instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _ui = object.__getattribute__(self, "ui")
+        return _ui.gui_port if _ui is not None else 5000
+
+    @property
+    def api_key_env(self) -> str:
+        """Deprecated. Use config.security.api_key_env instead."""
+        warnings.warn(
+            "AppConfig.api_key_env is deprecated. Use config.security.api_key_env instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _sec = object.__getattribute__(self, "security")
+        return _sec.api_key_env if _sec is not None else "REX_SPEAK_API_KEY"
+
+    @property
+    def rate_limit_per_minute(self) -> int:
+        """Deprecated. Use config.security.rate_limit_per_minute instead."""
+        warnings.warn(
+            "AppConfig.rate_limit_per_minute is deprecated. "
+            "Use config.security.rate_limit_per_minute instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _sec = object.__getattribute__(self, "security")
+        return _sec.rate_limit_per_minute if _sec is not None else 30
+
     def to_dict(self) -> dict:
-        raw = asdict(self)
+        # Suppress deprecation warnings from flat-field access during asdict() iteration
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            raw = asdict(self)
         # Remove nested sub-config objects (US-002) — derived views; not part of serialised output
         for _key in ("audio", "voice", "llm", "tools", "integrations", "ui", "security"):
             raw.pop(_key, None)
@@ -521,6 +660,9 @@ class AppConfig:
             rate_limit_per_minute=_rate_limit_per_min,
             allowed_origins=list(self.allowed_origins),
         )
+        # Enable deprecation warnings for flat field access (US-003)
+        # Must be set LAST so flat field reads during sub-config construction are silent
+        self._deprecated_warnings_active = True
 
 
 _cached_config: Optional[AppConfig] = None
