@@ -233,13 +233,13 @@ Current entry points: `rex`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-gu
 **Description:** As a developer, I want a typed Protocol that defines what a tool registry and dispatcher must implement, so I can depend on the interface rather than the implementation.
 
 **Acceptance Criteria:**
-- [ ] Create `rex/tools/protocol.py` with:
+- [x] Create `rex/tools/protocol.py` with:
   - `class ToolRegistryProtocol(Protocol)` — methods: `register(name, fn, schema)`, `lookup(name) -> Callable | None`, `list_tools() -> list[ToolDescriptor]`
   - `class ToolDispatcherProtocol(Protocol)` — methods: `dispatch(name, args, context) -> ToolResult`
   - `ToolDescriptor` dataclass: `name: str`, `description: str`, `schema: dict`, `source: str` (e.g. `"local"` or `"openclaw"`)
   - `ToolResult` dataclass: `success: bool`, `output: Any`, `error: str | None`
-- [ ] `rex/tools/registry.py` and `rex/tools/dispatcher.py` include a comment confirming they satisfy these protocols (no structural changes yet)
-- [ ] `pytest -q` passes
+- [x] `rex/tools/registry.py` and `rex/tools/dispatcher.py` include a comment confirming they satisfy these protocols (no structural changes yet)
+- [x] `pytest -q` passes
 
 ---
 

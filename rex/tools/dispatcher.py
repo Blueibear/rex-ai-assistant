@@ -4,6 +4,11 @@
 registered tools via keyword/intent matching.  ``execute_tools()`` invokes
 each selected tool with a configurable timeout and a single retry on
 transient network errors.
+
+Canonical implementation of ``ToolDispatcherProtocol`` (see
+``rex.tools.protocol``).  The ``dispatch(name, args, context)`` signature
+defined in the protocol will be added to this class in a follow-up story;
+the current ``execute_tools()`` API is preserved for backward compatibility.
 """
 
 from __future__ import annotations

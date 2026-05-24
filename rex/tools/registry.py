@@ -3,6 +3,11 @@
 Catalogs every tool Rex can invoke with metadata for automatic selection.
 ``available_tools()`` filters by which AppConfig fields are satisfied so
 only truly callable tools are offered to the dispatcher.
+
+Canonical implementation of ``ToolRegistryProtocol`` (see
+``rex.tools.protocol``).  Current method names (``get``, ``all_tools``)
+differ slightly from the protocol (``lookup``, ``list_tools``); they will be
+aligned in a follow-up story without breaking existing callers.
 """
 
 from __future__ import annotations
