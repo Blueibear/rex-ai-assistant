@@ -211,6 +211,21 @@ class TestVoiceLoopToolRouting:
         # Directly set the routing function (always ToolBridge after US-P7-008).
         mock_route = MagicMock(return_value="The current time is 3:45 PM CDT.")
         assistant._tool_router_fn = mock_route
+
+        # US-014: context builder required; US-013: result handler required
+        from rex.context.builder import ContextBuilder
+        from rex.tools.result_handler import ToolResultHandler
+
+        assistant._context_builder = ContextBuilder(
+            settings=assistant._settings,
+            history=assistant._history,
+            user_id="test",
+            followup_engine=None,
+        )
+        assistant._result_handler = ToolResultHandler(
+            tool_router_fn=mock_route,
+            ha_bridge=None,
+        )
         result = asyncio.run(assistant.generate_reply("please check the clock", voice_mode=True))
 
         mock_route.assert_called_once()

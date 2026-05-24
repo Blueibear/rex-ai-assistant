@@ -1,0 +1,357 @@
+"""LLM context assembly for assistant requests (US-014).
+
+Extracted from ``rex.assistant.Assistant._build_prompt``,
+``_build_messages``, ``_build_system_context``,
+``_get_active_personality_prompt``, and ``_load_user_profile_context``.
+"""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Constants (previously class-level on Assistant)
+# ---------------------------------------------------------------------------
+
+VOICE_CONCISE_INSTRUCTION = (
+    "[Respond in 1-3 sentences. Keep your reply short and conversational for voice output.]"
+)
+# Legacy alias kept for backward compatibility with tests/code that reference
+# the underscore-prefixed name.
+_VOICE_CONCISE_INSTRUCTION = VOICE_CONCISE_INSTRUCTION
+
+_TOOL_INSTRUCTIONS = (
+    "You have access to the following tools. When you need live data (current time, "
+    "weather, or web search results), you MUST respond with ONLY a single-line tool "
+    "request in this exact format — no other text on that line:\n"
+    'TOOL_REQUEST: {"tool": "<name>", "args": {<arguments>}}\n'
+    "\n"
+    "Available tools:\n"
+    "- time_now: Get the current local time for a location. "
+    'Args: {"location": "City, Region"}\n'
+    "- weather_now: Get current weather for a location. "
+    'Args: {"location": "City, Region"}\n'
+    "- web_search: Search the web. "
+    'Args: {"query": "search terms"}\n'
+    "\n"
+    "IMPORTANT: When asked about the current time in ANY location, ALWAYS use "
+    "the time_now tool. Do NOT guess or convert times yourself. Never claim "
+    "you added, changed, sent, saved, or created something unless a tool result "
+    "confirms that action succeeded."
+)
+
+
+# ---------------------------------------------------------------------------
+# ContextPackage
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ContextPackage:
+    """Ready-to-use LLM input produced by ContextBuilder.build()."""
+
+    messages: list[dict] = field(default_factory=list)
+    system_prompt: str = ""
+    session_id: str = "default"
+    user_facts: dict = field(default_factory=dict)
+    prompt: str = ""  # text-format prompt for non-chat LLMs
+
+
+# ---------------------------------------------------------------------------
+# ContextBuilder
+# ---------------------------------------------------------------------------
+
+
+class ContextBuilder:
+    """Assembles LLM context from history, user profile, and personality.
+
+    Args:
+        settings:        App config/settings object (``AppConfig`` or ``Settings``).
+        history:         Mutable reference to the in-memory conversation history list.
+        user_id:         Default user/session identifier.
+        followup_engine: Optional follow-up engine for ``format_followups()``.
+    """
+
+    def __init__(
+        self,
+        settings: Any,
+        history: list,
+        user_id: str,
+        *,
+        followup_engine: Any = None,
+    ) -> None:
+        self._settings = settings
+        self._history = history
+        self._user_id = user_id
+        self._followup_engine = followup_engine
+
+    # ------------------------------------------------------------------
+    # Primary entry point
+    # ------------------------------------------------------------------
+
+    def build(
+        self,
+        user_message: str,
+        *,
+        voice_mode: bool = False,
+        active_user_id: str | None = None,
+        tool_context: str | None = None,
+    ) -> ContextPackage:
+        """Build and return a :class:`ContextPackage` for LLM input.
+
+        Args:
+            user_message:   The user's transcript/message.
+            voice_mode:     When ``True`` appends the concise-voice instruction.
+            active_user_id: Per-request user override for multi-user scenarios.
+            tool_context:   Optional pre-formatted tool context string.
+
+        Returns:
+            A populated :class:`ContextPackage`.
+        """
+        system_prompt = self.build_system_context()
+        session_id = active_user_id or self._user_id
+        user_facts = self._get_user_facts(active_user_id)
+
+        messages = self._build_messages(
+            user_message,
+            system_prompt=system_prompt,
+            voice_mode=voice_mode,
+            active_user_id=active_user_id,
+            tool_context=tool_context,
+        )
+        prompt = self._build_prompt(
+            user_message,
+            system_prompt=system_prompt,
+            voice_mode=voice_mode,
+            active_user_id=active_user_id,
+            tool_context=tool_context,
+        )
+
+        return ContextPackage(
+            messages=messages,
+            system_prompt=system_prompt,
+            session_id=session_id,
+            user_facts=user_facts,
+            prompt=prompt,
+        )
+
+    # ------------------------------------------------------------------
+    # Public helpers
+    # ------------------------------------------------------------------
+
+    def build_system_context(self) -> str:
+        """Return a system context string with current date/time and user location."""
+        _settings = self._settings
+        tz_name: str | None = getattr(_settings, "default_timezone", None)
+        if not tz_name:
+            from rex.geolocation import get_cached_timezone
+
+            tz_name = get_cached_timezone()
+
+        try:
+            if tz_name:
+                from zoneinfo import ZoneInfo
+
+                now = datetime.now(tz=ZoneInfo(tz_name))
+            else:
+                now = datetime.now(tz=UTC)
+                tz_name = "UTC"
+        except Exception:
+            now = datetime.now(tz=UTC)
+            if not tz_name:
+                tz_name = "UTC"
+
+        lines = [f"Current date and time: {now.strftime('%Y-%m-%d %H:%M')} {tz_name}"]
+
+        location: str | None = getattr(_settings, "default_location", None)
+        if not location:
+            from rex.geolocation import get_cached_city
+
+            location = get_cached_city()
+        if location:
+            lines.append(f"User location: {location}")
+
+        lines.append("")
+        lines.append(_TOOL_INSTRUCTIONS)
+
+        return "\n".join(lines)
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    def _get_user_facts(self, user_id: str | None) -> dict:
+        """Return raw user facts dict for the given user_id."""
+        uid = user_id or self._user_id
+        try:
+            from rex.user_facts import recall_all
+
+            return recall_all(uid)
+        except Exception:
+            return {}
+
+    def _load_user_profile_context(self, user_id: str) -> str | None:
+        """Load a user's memory profile and format it as a context string."""
+        try:
+            from rex.memory_utils import MEMORY_ROOT, load_memory_profile
+
+            profile = load_memory_profile(user_id, MEMORY_ROOT)
+        except Exception:
+            return None
+
+        parts: list[str] = []
+        name = profile.get("name")
+        if name:
+            parts.append(f"name={name}")
+
+        prefs = profile.get("preferences")
+        if isinstance(prefs, dict):
+            tone = prefs.get("tone")
+            if tone:
+                parts.append(f"tone={tone}")
+            topics = prefs.get("topics")
+            if isinstance(topics, list) and topics:
+                parts.append(f"interests={', '.join(str(t) for t in topics[:5])}")
+
+        if not parts:
+            return f"[Active user: {user_id}]"
+        return f"[Active user: {user_id} — {'; '.join(parts)}]"
+
+    def _get_active_personality_prompt(self, active_user_id: str | None) -> str | None:
+        """Return the system prompt for the user's configured personality, or None."""
+        from rex.personality import get_personality
+
+        personality_name: str | None = None
+        uid = active_user_id or self._user_id
+        if uid:
+            try:
+                from rex.identity import get_user_profile
+
+                profile = get_user_profile(uid)
+                if profile:
+                    prefs = profile.get("preferences", {})
+                    if isinstance(prefs, dict):
+                        personality_name = prefs.get("personality")
+            except Exception:
+                pass
+
+        if not personality_name:
+            personality_name = getattr(self._settings, "personality", None)
+
+        if not personality_name:
+            from rex.personality import DEFAULT_PERSONALITY
+
+            personality_name = DEFAULT_PERSONALITY
+
+        return get_personality(personality_name).system_prompt
+
+    def _build_messages(
+        self,
+        user_message: str,
+        *,
+        system_prompt: str,
+        voice_mode: bool = False,
+        active_user_id: str | None = None,
+        tool_context: str | None = None,
+    ) -> list[dict]:
+        messages: list[dict] = [{"role": "system", "content": system_prompt}]
+
+        personality_prompt = self._get_active_personality_prompt(active_user_id)
+        if personality_prompt:
+            messages.append({"role": "system", "content": personality_prompt})
+
+        if active_user_id is not None:
+            user_ctx = self._load_user_profile_context(active_user_id)
+            messages.append(
+                {
+                    "role": "system",
+                    "content": user_ctx if user_ctx else f"[Active user: {active_user_id}]",
+                }
+            )
+            try:
+                from rex.user_facts import format_facts_for_prompt
+
+                facts_ctx = format_facts_for_prompt(active_user_id)
+                if facts_ctx:
+                    messages.append({"role": "system", "content": facts_ctx})
+            except Exception as exc:
+                logger.debug("Failed to load user facts: %s", exc)
+
+        if tool_context:
+            messages.append({"role": "system", "content": tool_context})
+
+        engine = self._followup_engine
+        if engine and hasattr(engine, "format_followups"):
+            try:
+                followups = engine.format_followups()
+                if followups:
+                    messages.append({"role": "system", "content": str(followups)})
+            except Exception as exc:
+                logger.debug("format_followups failed: %s", exc)
+
+        if voice_mode:
+            messages.append({"role": "system", "content": _VOICE_CONCISE_INSTRUCTION})
+
+        for turn in self._history[-4:]:
+            speaker = str(turn.speaker).strip().lower()
+            role = "assistant" if speaker in {"assistant", "rex"} else "user"
+            messages.append({"role": role, "content": turn.text})
+
+        messages.append({"role": "user", "content": user_message})
+        return messages
+
+    def _build_prompt(
+        self,
+        user_message: str,
+        *,
+        system_prompt: str,
+        voice_mode: bool = False,
+        active_user_id: str | None = None,
+        tool_context: str | None = None,
+    ) -> str:
+        history_lines = [system_prompt]
+
+        personality_prompt = self._get_active_personality_prompt(active_user_id)
+        if personality_prompt:
+            history_lines.append(personality_prompt)
+
+        if active_user_id is not None:
+            user_ctx = self._load_user_profile_context(active_user_id)
+            if user_ctx:
+                history_lines.append(user_ctx)
+            else:
+                history_lines.append(f"[Active user: {active_user_id}]")
+            try:
+                from rex.user_facts import format_facts_for_prompt
+
+                facts_ctx = format_facts_for_prompt(active_user_id)
+                if facts_ctx:
+                    history_lines.append(facts_ctx)
+            except Exception as exc:
+                logger.debug("Failed to load user facts: %s", exc)
+
+        if tool_context:
+            history_lines.append(tool_context)
+
+        history_lines += [f"{turn.speaker}: {turn.text}" for turn in self._history[-4:]]
+        history_lines.append(f"user: {user_message}")
+
+        if voice_mode:
+            history_lines.append(_VOICE_CONCISE_INSTRUCTION)
+
+        engine = self._followup_engine
+        if engine and hasattr(engine, "format_followups"):
+            try:
+                followups = engine.format_followups()
+                if followups:
+                    history_lines.append(str(followups))
+            except Exception as exc:
+                logger.debug("format_followups failed: %s", exc)
+
+        history_lines.append("assistant:")
+        return "\n".join(history_lines)

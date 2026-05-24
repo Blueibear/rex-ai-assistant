@@ -6,6 +6,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).parent.parent
 ASSISTANT_SRC = REPO_ROOT / "rex" / "assistant.py"
+BUILDER_SRC = REPO_ROOT / "rex" / "context" / "builder.py"
 CONFIG_SRC = REPO_ROOT / "rex" / "config.py"
 VOICE_LOOP_SRC = REPO_ROOT / "rex" / "voice_loop.py"
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
@@ -13,6 +14,10 @@ ENV_EXAMPLE = REPO_ROOT / ".env.example"
 
 def _assistant_src() -> str:
     return ASSISTANT_SRC.read_text(encoding="utf-8")
+
+
+def _builder_src() -> str:
+    return BUILDER_SRC.read_text(encoding="utf-8")
 
 
 def _config_src() -> str:
@@ -64,18 +69,20 @@ class TestGenerateReplyVoiceMode:
         assert "voice_mode" in snippet
 
     def test_build_prompt_accepts_voice_mode(self):
+        # US-014: _build_prompt is now a thin delegate; check signature has voice_mode
         src = _assistant_src()
         idx = src.index("def _build_prompt")
         snippet = src[idx : idx + 200]
         assert "voice_mode" in snippet
 
     def test_voice_concise_instruction_constant_exists(self):
-        assert "_VOICE_CONCISE_INSTRUCTION" in _assistant_src()
+        # US-014: constant now lives in rex/context/builder.py
+        assert "_VOICE_CONCISE_INSTRUCTION" in _builder_src()
 
     def test_voice_concise_instruction_has_concise_language(self):
-        src = _assistant_src()
+        # US-014: constant now lives in rex/context/builder.py
+        src = _builder_src()
         idx = src.index("_VOICE_CONCISE_INSTRUCTION")
-        # Get the constant value
         end = src.index("\n", idx + len("_VOICE_CONCISE_INSTRUCTION"))
         snippet = src[idx : end + 200]
         assert (
@@ -85,9 +92,9 @@ class TestGenerateReplyVoiceMode:
         )
 
     def test_build_prompt_injects_concise_instruction_in_voice_mode(self):
-        src = _assistant_src()
+        # US-014: implementation now lives in ContextBuilder._build_prompt in builder.py
+        src = _builder_src()
         idx = src.index("def _build_prompt")
-        # find body
         brace_start = src.index(":", idx)
         body = src[brace_start : brace_start + 2000]
         assert "voice_mode" in body
@@ -129,13 +136,28 @@ class TestEnvExampleDocumentation:
 
 class TestBuildPromptVoiceModeFunctional:
     def _make_assistant(self):
+        from unittest.mock import MagicMock
+
         from rex.assistant import Assistant
+        from rex.context.builder import ContextBuilder
 
         assistant = Assistant.__new__(Assistant)
         assistant._history = []
         assistant._pending_followup = None
         assistant._followup_injected = False
         assistant._followup_engine = None
+        # US-014: _build_prompt delegates to _context_builder
+        mock_settings = MagicMock()
+        mock_settings.default_timezone = None
+        mock_settings.default_location = None
+        mock_settings.personality = None
+        assistant._settings = mock_settings
+        assistant._context_builder = ContextBuilder(
+            settings=mock_settings,
+            history=assistant._history,
+            user_id="default",
+            followup_engine=None,
+        )
         return assistant
 
     def test_voice_mode_adds_concise_instruction_to_prompt(self):

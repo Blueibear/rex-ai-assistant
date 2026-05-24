@@ -303,13 +303,13 @@ For tools that execute locally (not over the OpenClaw gateway), `tool_executor.p
 **Description:** As a developer, I want history retrieval, system prompt construction, and persona injection in a dedicated class so I can modify context assembly without touching LLM routing or tool dispatch.
 
 **Acceptance Criteria:**
-- [ ] Create `rex/context/builder.py` with `class ContextBuilder`
-- [ ] `ContextBuilder.__init__` accepts `config: AppConfig`, `history_store: HistoryStore`, `identity` (or equivalent)
-- [ ] `ContextBuilder.build(user_message: str) -> ContextPackage` returns a dataclass with: `messages: list[dict]` (LLM-formatted), `system_prompt: str`, `session_id: str`, `user_facts: dict`
-- [ ] Logic moved from `assistant.py`: history retrieval, system prompt template rendering, user-facts injection, persona/personality injection
-- [ ] `assistant.py` replaces that logic with `context = self._context_builder.build(user_message)`
-- [ ] `Assistant.generate_reply()` produces identical output for a text input before and after the change
-- [ ] `pytest -q` passes
+- [x] Create `rex/context/builder.py` with `class ContextBuilder`
+- [x] `ContextBuilder.__init__` accepts `config: AppConfig`, `history_store: HistoryStore`, `identity` (or equivalent)
+- [x] `ContextBuilder.build(user_message: str) -> ContextPackage` returns a dataclass with: `messages: list[dict]` (LLM-formatted), `system_prompt: str`, `session_id: str`, `user_facts: dict`
+- [x] Logic moved from `assistant.py`: history retrieval, system prompt template rendering, user-facts injection, persona/personality injection
+- [x] `assistant.py` replaces that logic with `context = self._context_builder.build(user_message)`
+- [x] `Assistant.generate_reply()` produces identical output for a text input before and after the change
+- [x] `pytest -q` passes
 
 ---
 

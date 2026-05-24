@@ -88,6 +88,7 @@ def _make_assistant(personality: str = "Professional"):
     """Construct a minimal Assistant with a mocked LLM and given personality."""
     from rex.assistant import Assistant
     from rex.config import AppConfig
+    from rex.context.builder import ContextBuilder
 
     cfg = AppConfig()
     cfg.personality = personality
@@ -105,16 +106,24 @@ def _make_assistant(personality: str = "Professional"):
     assistant._pending_followup = None
     assistant._ha_bridge = None
     assistant._response_cache = None
+    # US-014: context builder is now required
+    assistant._context_builder = ContextBuilder(
+        settings=cfg,
+        history=assistant._history,
+        user_id="test_user",
+        followup_engine=None,
+    )
     return assistant
 
 
 def test_personality_prompt_injected_into_build_prompt():
-    """Assistant._build_prompt() must include the personality system prompt."""
+    """ContextBuilder.build() must include the personality system prompt."""
+    from rex.context.builder import ContextBuilder
     from rex.personality import get_personality
 
     assistant = _make_assistant("Professional")
 
-    with patch("rex.assistant.Assistant._build_system_context", return_value="[sys]"):
+    with patch.object(ContextBuilder, "build_system_context", return_value="[sys]"):
         prompt = assistant._build_prompt("hello", voice_mode=False, active_user_id=None)
 
     expected_snippet = get_personality("Professional").system_prompt
@@ -122,22 +131,24 @@ def test_personality_prompt_injected_into_build_prompt():
 
 
 def test_friendly_personality_prompt_injected():
+    from rex.context.builder import ContextBuilder
     from rex.personality import get_personality
 
     assistant = _make_assistant("Friendly")
 
-    with patch("rex.assistant.Assistant._build_system_context", return_value="[sys]"):
+    with patch.object(ContextBuilder, "build_system_context", return_value="[sys]"):
         prompt = assistant._build_prompt("hello")
 
     assert get_personality("Friendly").system_prompt in prompt
 
 
 def test_minimal_personality_prompt_injected():
+    from rex.context.builder import ContextBuilder
     from rex.personality import get_personality
 
     assistant = _make_assistant("Minimal")
 
-    with patch("rex.assistant.Assistant._build_system_context", return_value="[sys]"):
+    with patch.object(ContextBuilder, "build_system_context", return_value="[sys]"):
         prompt = assistant._build_prompt("hi")
 
     assert get_personality("Minimal").system_prompt in prompt
@@ -147,6 +158,7 @@ def test_per_user_personality_overrides_config(tmp_path: Path):
     """Personality stored in user preferences takes precedence over AppConfig."""
     import json
 
+    from rex.context.builder import ContextBuilder
     from rex.personality import get_personality
 
     # Create a fake Memory profile with personality = "Minimal"
@@ -160,9 +172,10 @@ def test_per_user_personality_overrides_config(tmp_path: Path):
 
     assistant = _make_assistant("Professional")  # config says Professional
     assistant._user_id = user_id
+    assistant._context_builder._user_id = user_id
 
     with (
-        patch("rex.assistant.Assistant._build_system_context", return_value="[sys]"),
+        patch.object(ContextBuilder, "build_system_context", return_value="[sys]"),
         patch("rex.identity.get_user_profile") as mock_profile,
     ):
         mock_profile.return_value = {"preferences": {"personality": "Minimal"}}

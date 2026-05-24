@@ -59,9 +59,25 @@ def _make_assistant(memory_dir: Path) -> object:
     assistant._ha_bridge = None
     assistant._tool_router_fn = lambda completion, ctx, model_call: completion
 
+    from rex.context.builder import ContextBuilder
     from rex.model_router import ModelRouter
+    from rex.tools.result_handler import ToolResultHandler
 
     assistant._router = ModelRouter()
+
+    # US-014: context builder required
+    assistant._context_builder = ContextBuilder(
+        settings=assistant._settings,
+        history=assistant._history,
+        user_id="default",
+        followup_engine=None,
+    )
+
+    # US-013: result handler required
+    assistant._result_handler = ToolResultHandler(
+        tool_router_fn=assistant._tool_router_fn,
+        ha_bridge=None,
+    )
 
     return assistant
 
@@ -95,38 +111,41 @@ def test_active_user_profile_injected_in_prompt(tmp_path):
 
 def test_second_user_gets_different_profile(tmp_path):
     """Two users must each see their own profile context."""
+
     _write_profile(tmp_path, "alice", "Alice", "formal")
     _write_profile(tmp_path, "bob", "Bob", "casual")
     assistant = _make_assistant(tmp_path)
 
-    prompts: dict[str, str] = {}
+    captured: dict[str, str] = {}
 
     def fake_generate(prompt: str) -> str:
         return "reply"
 
     assistant._llm.generate.side_effect = fake_generate
 
+    # US-014: _prepare_model_input delegates to ContextBuilder.build(); wrap that.
     with patch("rex.memory_utils.MEMORY_ROOT", tmp_path):
-        # Capture the built prompt for Alice.
-        with patch.object(
-            type(assistant),
-            "_build_prompt",
-            wraps=assistant._build_prompt,
-        ) as mock_build:
-            asyncio.run(assistant.generate_reply("hello", active_user_id="alice"))
-            prompts["alice"] = mock_build.call_args[0][0]
+        original_build = assistant._context_builder.build
 
-        with patch.object(
-            type(assistant),
-            "_build_prompt",
-            wraps=assistant._build_prompt,
-        ) as mock_build:
-            asyncio.run(assistant.generate_reply("hello", active_user_id="bob"))
-            prompts["bob"] = mock_build.call_args[0][0]
+        def capturing_build_alice(user_message, **kwargs):
+            captured["alice"] = user_message
+            return original_build(user_message, **kwargs)
 
-    # Each call passed the correct active_user_id keyword.
-    assert prompts["alice"] == "hello"
-    assert prompts["bob"] == "hello"
+        assistant._context_builder.build = capturing_build_alice
+        asyncio.run(assistant.generate_reply("hello", active_user_id="alice"))
+        assistant._context_builder.build = original_build
+
+        def capturing_build_bob(user_message, **kwargs):
+            captured["bob"] = user_message
+            return original_build(user_message, **kwargs)
+
+        assistant._context_builder.build = capturing_build_bob
+        asyncio.run(assistant.generate_reply("hello", active_user_id="bob"))
+        assistant._context_builder.build = original_build
+
+    # Each call forwarded the correct transcript.
+    assert captured["alice"] == "hello"
+    assert captured["bob"] == "hello"
 
 
 def test_user_id_restored_after_call(tmp_path):
