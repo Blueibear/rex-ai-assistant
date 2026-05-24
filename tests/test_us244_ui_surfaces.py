@@ -34,7 +34,7 @@ def test_ui_surfaces_doc_exists_with_expected_rows() -> None:
         in text
     )
     assert (
-        "| Tkinter window (`gui.py`) | `python run_gui.py` | **Deprecated** | Superseded by the Electron desktop GUI |"
+        "| Tkinter window (`gui.py`) | `python archived/tkinter_gui/run_gui.py` | **Archived** | Superseded by the Electron desktop GUI; moved to `/archived/tkinter_gui/` |"
         in text
     )
 
@@ -48,8 +48,8 @@ def test_readme_points_to_web_dashboard_as_canonical_gui() -> None:
     assert "run_gui.py" not in text
 
 
-def test_legacy_tkinter_launchers_are_marked_deprecated() -> None:
-    for relative_path in ("run_gui.py", "gui.py"):
+def test_legacy_tkinter_launchers_are_archived_with_deprecation_header() -> None:
+    for relative_path in ("archived/tkinter_gui/run_gui.py", "archived/tkinter_gui/gui.py"):
         text = (ROOT / relative_path).read_text(encoding="utf-8")
         assert text.startswith(DEPRECATION_HEADER)
 

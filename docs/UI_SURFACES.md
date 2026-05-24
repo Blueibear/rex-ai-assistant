@@ -13,7 +13,7 @@ This is the active inventory of UI and user-facing service surfaces that ship in
 | OpenClaw tool server | `rex-tool-server` | Service component | Tool adapter service on `127.0.0.1:18790`; requires `REX_TOOL_API_KEY` for tool calls |
 | Windows computer agent | `rex-agent` | Optional service | Remote PC control agent API |
 | Flask proxy | `python flask_proxy.py` | Legacy API/proxy surface | Kept for compatibility with proxy/search/contracts paths; not the normal desktop GUI entry point |
-| Tkinter window (`gui.py`) | `python run_gui.py` | **Deprecated** | Superseded by the Electron desktop GUI |
+| Tkinter window (`gui.py`) | `python archived/tkinter_gui/run_gui.py` | **Archived** | Superseded by the Electron desktop GUI; moved to `/archived/tkinter_gui/` |
 
 ## Electron GUI
 

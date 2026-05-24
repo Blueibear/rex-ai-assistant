@@ -158,12 +158,12 @@ Identify the 15–20 most-imported flat `AppConfig` fields (grep `config\.<field
 Files to archive: `gui.py`, `gui_settings_tab.py`, `run_gui.py` (all root-level). CLAUDE.md already calls `gui.py` deprecated.
 
 **Acceptance Criteria:**
-- [ ] `gui.py`, `gui_settings_tab.py`, `run_gui.py` moved to `/archived/tkinter_gui/`
-- [ ] `setup.py` `py_modules` list (if present) no longer includes these files
-- [ ] No `pyproject.toml` entry points reference these files
-- [ ] `/archived/ARCHIVED.md` updated with a Tkinter GUI section
-- [ ] `rex-gui` still launches the React/Flask GUI (`rex.gui_app:main`) correctly
-- [ ] `pytest -q` passes
+- [x] `gui.py`, `gui_settings_tab.py`, `run_gui.py` moved to `/archived/tkinter_gui/`
+- [x] `setup.py` `py_modules` list (if present) no longer includes these files
+- [x] No `pyproject.toml` entry points reference these files
+- [x] `/archived/ARCHIVED.md` updated with a Tkinter GUI section
+- [x] `rex-gui` still launches the React/Flask GUI (`rex.gui_app:main`) correctly
+- [x] `pytest -q` passes
 
 ---
 

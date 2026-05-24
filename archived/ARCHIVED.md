@@ -22,9 +22,24 @@ but are preserved here for reference and for anyone who needs to recover them.
 Items are listed in the order they were archived.  Each entry explains what the component was,
 why it was archived, and what (if anything) replaced it.
 
-### (empty — no items archived yet)
+### Tkinter GUI (`archived/tkinter_gui/`)
 
-Items will be added here as US-006, US-007, and later stories move code into this directory.
+**Archived in:** US-006 (2026-05-24)
+
+**Files:**
+- `archived/tkinter_gui/gui.py` — Tkinter desktop window (`AssistantGUI`)
+- `archived/tkinter_gui/gui_settings_tab.py` — settings panel widget used by `gui.py`
+- `archived/tkinter_gui/run_gui.py` — entry-point script that launched the Tkinter window
+
+**Why archived:**
+The Tkinter GUI was superseded by the React + Electron desktop GUI (`cd gui && npm run dev`) and
+the Flask web dashboard (`rex-gui`). Tkinter is a legacy desktop toolkit that added a third UI
+path with no corresponding maintenance. The entry point (`python run_gui.py`) was already
+deprecated with a header comment; this story completes the removal by moving the files here.
+
+**Replacement:**
+Use `cd gui && npm.cmd run dev` for the Electron desktop GUI, or `rex-gui` for the Flask web
+dashboard.
 
 ---
 
