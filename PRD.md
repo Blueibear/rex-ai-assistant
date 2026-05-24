@@ -144,9 +144,9 @@ Identify the 15–20 most-imported flat `AppConfig` fields (grep `config\.<field
 **Description:** As a developer, I want a clearly marked holding area for deprecated surfaces so their provenance and future are obvious to anyone who finds them.
 
 **Acceptance Criteria:**
-- [ ] `/archived/` directory created at repo root
-- [ ] `/archived/ARCHIVED.md` created explaining: what "archived" means (not deleted, not maintained, entry points removed), why each item was archived, and that items may be deleted in a future major version
-- [ ] `pytest -q` passes
+- [x] `/archived/` directory created at repo root
+- [x] `/archived/ARCHIVED.md` created explaining: what "archived" means (not deleted, not maintained, entry points removed), why each item was archived, and that items may be deleted in a future major version
+- [x] `pytest -q` passes
 
 ---
 
