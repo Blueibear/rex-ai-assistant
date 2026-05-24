@@ -251,11 +251,11 @@ Current entry points: `rex`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-gu
 `rex/openclaw/tool_registry.py` currently maintains its own registration logic. After this story it calls through to `rex/tools/registry.py` for registration and lookup, adding only OpenClaw-specific metadata (remote endpoint, auth, channel) on top.
 
 **Acceptance Criteria:**
-- [ ] `rex/openclaw/tool_registry.py` imports and uses `rex.tools.registry` as its backing store for `register()` and `lookup()`
-- [ ] OpenClaw-specific metadata (remote endpoint URL, auth) is stored in a separate `_openclaw_meta: dict[str, OpenClawToolMeta]` dict — not mixed into the canonical registry
-- [ ] Tools registered via OpenClaw are visible in `rex/tools/registry.py`'s `list_tools()` with `source="openclaw"`
-- [ ] Existing OpenClaw tool invocation paths still work end-to-end
-- [ ] `pytest -q` passes
+- [x] `rex/openclaw/tool_registry.py` imports and uses `rex.tools.registry` as its backing store for `register()` and `lookup()`
+- [x] OpenClaw-specific metadata (remote endpoint URL, auth) is stored in a separate `_openclaw_meta: dict[str, OpenClawToolMeta]` dict — not mixed into the canonical registry
+- [x] Tools registered via OpenClaw are visible in `rex/tools/registry.py`'s `list_tools()` with `source="openclaw"`
+- [x] Existing OpenClaw tool invocation paths still work end-to-end
+- [x] `pytest -q` passes
 
 ---
 

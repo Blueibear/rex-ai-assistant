@@ -1,15 +1,13 @@
 """Tool registry for managing tool metadata and health checks.
 
 Relocated from rex/tool_registry.py as part of US-P7-006 (OpenClaw migration).
-This is the canonical home for ToolRegistry going forward.
 
-This module provides a centralized registry for tools that:
-- Stores metadata about available tools (name, description, capabilities)
-- Tracks required credentials for each tool
-- Provides health check functionality to verify tool availability
-- Allows tools to self-register without modifying core code
-
-Tools query the CredentialManager when invoked, not at registration time.
+US-011: This registry now delegates to ``rex.tools.registry.ToolRegistry`` (the
+canonical backing store) for name-indexed registration and lookup.
+OpenClaw-specific metadata (remote endpoint URL, auth, health checks, credentials)
+is stored separately in ``_openclaw_meta``.  This makes all tools registered here
+visible in the canonical registry with ``source="openclaw"`` so that
+``rex.tools.registry.ToolRegistry.list_tools()`` returns a unified view.
 """
 
 from __future__ import annotations
@@ -62,6 +60,16 @@ class ToolMeta:
             raise ValueError("Tool description cannot be empty")
 
 
+def _openclaw_noop_handler(**kwargs: Any) -> dict[str, Any]:
+    """Stub handler for OpenClaw tools in the canonical registry.
+
+    OpenClaw tools are dispatched via the gateway HTTP client, not by calling
+    this handler.  It exists only so the canonical ``ToolRegistry`` can hold
+    a valid ``Tool`` entry (which requires a handler).
+    """
+    return {}
+
+
 class ToolNotFoundError(Exception):
     """Raised when a requested tool is not found in the registry."""
 
@@ -82,15 +90,43 @@ class MissingCredentialError(Exception):
         )
 
 
+@dataclass
+class OpenClawToolMeta:
+    """OpenClaw-specific metadata stored alongside the canonical registry entry.
+
+    This dataclass is kept separate from the canonical ``ToolDescriptor`` /
+    ``Tool`` so that gateway-only concerns (remote URL, auth token, channel)
+    do not pollute the shared tool interface.
+
+    Attributes:
+        name:           Tool name (matches the key in ``_openclaw_meta``).
+        endpoint_url:   Full URL of the OpenClaw gateway endpoint for this tool,
+                        or ``None`` when dispatched via the default route.
+        auth_required:  Whether the gateway call requires an auth token header.
+        channel:        Logical channel tag (e.g. ``"voice"``, ``"chat"``)
+                        used by the OpenClaw router; ``None`` means any channel.
+    """
+
+    name: str
+    endpoint_url: str | None = None
+    auth_required: bool = False
+    channel: str | None = None
+
+
 class ToolRegistry:
     """Central registry for tool metadata and health checks.
 
     The ToolRegistry maintains a collection of registered tools and provides
     methods to:
-    - Register new tools with their metadata
-    - Look up tools by name
+    - Register new tools with their metadata (delegating to canonical registry)
+    - Look up tools by name (via canonical registry)
     - Check if tools have required credentials available
     - Run health checks on individual tools or all tools
+
+    US-011: ``register_tool()`` now mirrors each entry into the canonical
+    ``rex.tools.registry.ToolRegistry`` (the global default registry) with
+    ``source="openclaw"``.  OpenClaw-specific metadata is kept in
+    ``self._openclaw_meta``.
 
     Example:
         >>> registry = ToolRegistry()
@@ -116,6 +152,7 @@ class ToolRegistry:
                 If not provided, uses the global instance.
         """
         self._tools: dict[str, ToolMeta] = {}
+        self._openclaw_meta: dict[str, OpenClawToolMeta] = {}
         self._credential_manager = credential_manager
 
     @property
@@ -125,16 +162,68 @@ class ToolRegistry:
             self._credential_manager = get_credential_manager()
         return self._credential_manager
 
-    def register_tool(self, tool: ToolMeta) -> None:
+    def register_tool(
+        self,
+        tool: ToolMeta,
+        *,
+        openclaw_meta: OpenClawToolMeta | None = None,
+    ) -> None:
         """Register a tool with the registry.
 
         If a tool with the same name already exists, it will be overwritten.
+        Also registers a stub entry in the canonical ``rex.tools.registry``
+        with ``source="openclaw"`` so that ``list_tools()`` on the canonical
+        registry surfaces OpenClaw tools alongside local ones.
 
         Args:
-            tool: ToolMeta instance containing tool metadata.
+            tool:          ToolMeta instance containing tool metadata.
+            openclaw_meta: Optional OpenClaw-specific metadata.  A default
+                           ``OpenClawToolMeta`` is created automatically when
+                           not provided.
         """
         self._tools[tool.name] = tool
+        # Keep OpenClaw-specific metadata separate from the canonical entry.
+        self._openclaw_meta[tool.name] = openclaw_meta or OpenClawToolMeta(name=tool.name)
+
+        # Mirror into the canonical tool registry so list_tools() shows it.
+        try:
+            from rex.tools.registry import Tool, get_default_registry
+
+            _canonical = get_default_registry()
+            _canonical.register(
+                Tool(
+                    name=tool.name,
+                    description=tool.description,
+                    capability_tags=list(tool.capabilities),
+                    requires_config=[],
+                    handler=_openclaw_noop_handler,
+                    source="openclaw",
+                )
+            )
+        except Exception:
+            # Never let canonical-registry mirroring break OpenClaw registration.
+            logger.debug("tool_registry: failed to mirror %r into canonical registry", tool.name)
+
         logger.debug("Registered tool: %s", tool.name)
+
+    def lookup(self, name: str) -> Callable[..., Any] | None:
+        """Delegate to the canonical registry to look up a tool handler.
+
+        Implements the ``ToolRegistryProtocol.lookup()`` interface.
+
+        Args:
+            name: Tool name to look up.
+
+        Returns:
+            The tool handler callable, or ``None`` if not found.
+        """
+        try:
+            from rex.tools.registry import get_default_registry
+
+            canonical_tool = get_default_registry().get(name)
+            return canonical_tool.handler if canonical_tool is not None else None
+        except Exception:
+            return None
 
     def unregister_tool(self, name: str) -> bool:
         """Unregister a tool from the registry.
@@ -451,6 +540,7 @@ def register_tool(tool: ToolMeta) -> None:
 
 __all__ = [
     "ToolMeta",
+    "OpenClawToolMeta",
     "ToolRegistry",
     "ToolNotFoundError",
     "MissingCredentialError",

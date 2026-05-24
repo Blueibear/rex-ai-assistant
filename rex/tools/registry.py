@@ -34,6 +34,10 @@ class Tool:
             available.
         handler: Callable invoked when the tool is dispatched.  Signature
             is tool-specific; the dispatcher passes keyword arguments.
+        source: Where the tool executes — ``"local"`` for tools implemented
+            in this repo, ``"openclaw"`` for tools dispatched through the
+            OpenClaw gateway.  Added in US-011 to support cross-registry
+            visibility.
     """
 
     name: str
@@ -41,6 +45,7 @@ class Tool:
     capability_tags: list[str]
     requires_config: list[str]
     handler: Callable[..., Any]
+    source: str = "local"
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -84,6 +89,25 @@ class ToolRegistry:
     def all_tools(self) -> list[Tool]:
         """Return all registered tools regardless of availability."""
         return list(self._tools.values())
+
+    def list_tools(self) -> list[Any]:
+        """Return ``ToolDescriptor`` objects for all registered tools.
+
+        Implements the ``ToolRegistryProtocol.list_tools()`` interface.
+        Returns descriptors (lazy import to avoid circular dependency with
+        ``rex.tools.protocol``).
+        """
+        from rex.tools.protocol import ToolDescriptor  # local import to avoid cycles
+
+        return [
+            ToolDescriptor(
+                name=t.name,
+                description=t.description,
+                schema={},
+                source=t.source,
+            )
+            for t in self._tools.values()
+        ]
 
     def available_tools(self, config: Any) -> list[Tool]:
         """Return tools whose ``requires_config`` fields are satisfied.
