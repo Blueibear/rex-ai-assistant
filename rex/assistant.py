@@ -252,6 +252,14 @@ class Assistant:
                 logger.warning("Failed to initialize Home Assistant bridge: %s", exc)
                 self._ha_bridge = None
 
+        # Tool result post-processing handler (US-013)
+        from .tools.result_handler import ToolResultHandler
+
+        self._result_handler = ToolResultHandler(
+            tool_router_fn=self._tool_router_fn,
+            ha_bridge=self._ha_bridge,
+        )
+
         # Proactive suggestion engine (US-036)
         from .suggestions.engine import SuggestionEngine
         from .suggestions.pattern_detector import PatternEntry
@@ -469,45 +477,21 @@ class Assistant:
         except TypeError:
             return self._llm.generate(prompt)
 
-    def _stream_model_reply(
-        self, prompt: str, messages: list[dict[str, str]]
-    ) -> Iterable[str]:
+    def _stream_model_reply(self, prompt: str, messages: list[dict[str, str]]) -> Iterable[str]:
         try:
             return self._llm.stream(messages=messages)
         except TypeError:
             return self._llm.stream(prompt)
 
     async def _post_process_completion(self, transcript: str, completion: str) -> str:
-        loop = asyncio.get_running_loop()
-
-        completion = await loop.run_in_executor(
-            None,
-            self._tool_router_fn,
-            completion,
-            self._build_tool_context(),
-            self._build_tool_model_call(transcript),
-        )
-
         plugin_enrichments = await self._run_plugins(transcript)
-        if plugin_enrichments:
-            completion = f"{completion}\n\nAdditional info:\n" + "\n".join(plugin_enrichments)
-
-        if self._ha_bridge and self._ha_bridge.enabled:
-            completion = await loop.run_in_executor(
-                None,
-                self._ha_bridge.post_process_response,
-                completion,
-            )
-
-        if self._contains_internal_tool_syntax(completion):
-            completion = await loop.run_in_executor(
-                None,
-                self._sanitize_internal_tool_output,
-                transcript,
-                completion,
-            )
-
-        return self._guard_unverified_action_claim(transcript, completion)
+        return await self._result_handler.process(
+            transcript,
+            completion,
+            tool_context=self._build_tool_context(),
+            model_call_fn=self._build_tool_model_call(transcript),
+            plugin_enrichments=plugin_enrichments,
+        )
 
     def _record_completion(self, transcript: str, completion: str) -> None:
         now = datetime.utcnow()
@@ -679,55 +663,8 @@ class Assistant:
             "30 to 35 minutes, cool, and frost."
         )
 
-    def _guard_unverified_action_claim(self, transcript: str, completion: str) -> str:
-        """Do not let freeform model text claim side effects that were not verified."""
-        if not self._looks_like_unverified_action_claim(completion):
-            return completion
-        if _EXPLICIT_MUTATION_REQUEST_PATTERN.search(transcript):
-            return completion
-
-        recipe_reply = self._try_direct_recipe_reply(transcript)
-        if recipe_reply is not None:
-            logger.warning(
-                "Suppressed unverified action claim for recipe request",
-                extra={"event": "assistant_unverified_action_claim_suppressed"},
-            )
-            return recipe_reply
-
-        logger.warning(
-            "Suppressed unverified action claim",
-            extra={"event": "assistant_unverified_action_claim_suppressed"},
-        )
-        return (
-            "I did not change anything. Please tell me exactly what you want me to add, "
-            "send, save, or update."
-        )
-
     def _looks_like_unverified_action_claim(self, completion: str) -> bool:
         return any(pattern.search(completion) for pattern in _UNVERIFIED_ACTION_CLAIM_PATTERNS)
-
-    def _contains_internal_tool_syntax(self, text: str) -> bool:
-        return bool(_INTERNAL_TOOL_SYNTAX_PATTERN.search(text))
-
-    def _sanitize_internal_tool_output(self, transcript: str, completion: str) -> str:
-        """Resolve or suppress tool directives before user-facing output."""
-        rerouted = self._tool_router_fn(
-            completion.strip(),
-            self._build_tool_context(),
-            self._build_tool_model_call(transcript),
-        )
-        if not self._contains_internal_tool_syntax(rerouted):
-            logger.warning(
-                "Resolved raw internal tool syntax before user output",
-                extra={"event": "assistant_internal_tool_syntax_resolved"},
-            )
-            return rerouted
-
-        logger.error(
-            "Suppressed raw internal tool syntax before user output",
-            extra={"event": "assistant_internal_tool_syntax_suppressed"},
-        )
-        return "I could not complete that tool request."
 
     def _stream_tool_prefix_state(self, text: str) -> str:
         stripped = text.lstrip().upper()

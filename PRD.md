@@ -283,10 +283,10 @@ For tools that execute locally (not over the OpenClaw gateway), `tool_executor.p
 `rex/assistant.py` currently contains inline tool post-processing (result formatting, error wrapping, retry logic) inside `generate_reply()`. This story moves that logic into a `ToolResultHandler` in `rex/tools/` and replaces the inline code with a single call.
 
 **Acceptance Criteria:**
-- [ ] Tool result post-processing extracted to `rex/tools/result_handler.py`
-- [ ] `rex/assistant.py` inline tool result handling replaced with a call to `ToolResultHandler`
-- [ ] Voice loop tool responses (e.g., Home Assistant confirmations) produce identical output before and after the change
-- [ ] `pytest -q` passes
+- [x] Tool result post-processing extracted to `rex/tools/result_handler.py`
+- [x] `rex/assistant.py` inline tool result handling replaced with a call to `ToolResultHandler`
+- [x] Voice loop tool responses (e.g., Home Assistant confirmations) produce identical output before and after the change
+- [x] `pytest -q` passes
 
 ---
 
