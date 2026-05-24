@@ -224,6 +224,8 @@ rex-config migrate-legacy-env
 
 See [CONFIGURATION.md](CONFIGURATION.md), [docs/configuration.md](docs/configuration.md), and [docs/environment-variables.md](docs/environment-variables.md).
 
+For Home Assistant, see [Home Assistant setup](docs/home-assistant-setup.md).
+
 ## GUI Usage
 
 See [docs/usage.md](docs/usage.md) for the full usage guide including voice mode, autonomous workflows, and integrations.
