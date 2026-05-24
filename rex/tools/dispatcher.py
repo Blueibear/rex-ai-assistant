@@ -247,6 +247,51 @@ class ToolDispatcher:
             results[tool.name] = value
         return results
 
+    def dispatch(
+        self,
+        name: str,
+        args: dict[str, Any],
+        context: dict[str, Any] | None = None,
+    ) -> Any:
+        """Implements ``ToolDispatcherProtocol.dispatch()``.
+
+        Looks up *name* in the registry and invokes its handler with *args*
+        as keyword arguments.  Returns a ``ToolResult`` (from
+        :mod:`rex.tools.protocol`).
+
+        Args:
+            name:    Tool name to invoke.
+            args:    Keyword arguments forwarded to the handler.
+            context: Optional execution context (not forwarded to handler;
+                     reserved for future middleware use).
+
+        Returns:
+            ``ToolResult(success=True, output=...)`` on success or
+            ``ToolResult(success=False, error=...)`` on failure / timeout.
+        """
+        from rex.tools.protocol import ToolResult  # local import — avoids circular dependency
+
+        tool = self._registry.get(name)
+        if tool is None:
+            return ToolResult(success=False, error=f"Unknown tool: {name!r}")
+
+        timeout = self._timeout_seconds
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(tool.handler, **args)
+            try:
+                output = future.result(timeout=timeout)
+                logger.debug("tool_dispatcher: dispatch %r ok", name)
+                return ToolResult(success=True, output=output)
+            except concurrent.futures.TimeoutError:
+                future.cancel()
+                logger.warning(
+                    "tool_dispatcher: dispatch %r timed out after %.1fs", name, timeout
+                )
+                return ToolResult(success=False, error=f"Tool {name!r} timed out")
+            except Exception as exc:
+                logger.warning("tool_dispatcher: dispatch %r failed: %s", name, exc)
+                return ToolResult(success=False, error=str(exc))
+
     @staticmethod
     def format_tool_context(results: dict[str, Any]) -> str:
         """Format *results* dict as a context block for the LLM prompt.

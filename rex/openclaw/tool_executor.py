@@ -245,22 +245,33 @@ def execute_tool(
 
         logger.debug("Policy allowed tool=%s: %s", tool, decision.reason)
 
-    supported_tools = {"time_now", "weather_now", "web_search"}
-    if tool not in supported_tools:
-        result = _error_result(f"Unknown tool {tool}", tool=tool, args=args)
-        if not skip_audit_log:
-            _log_audit_entry(
-                action_id=action_id,
-                task_id=task_id,
-                tool=tool,
-                args=args,
-                policy_decision=policy_decision,
-                result=result,
-                error=f"Unknown tool {tool}",
-                start_time=start_time,
-                requested_by=requested_by,
-            )
-        return result
+    # For tools outside the built-in set, check the canonical registry before
+    # declaring "Unknown tool".  Tools registered via register_tool() or the
+    # default registry are dispatched through ToolDispatcher further below.
+    _BUILTIN_TOOLS = {"time_now", "weather_now", "web_search"}
+    if tool not in _BUILTIN_TOOLS:
+        try:
+            from rex.tools.registry import get_default_registry as _get_default_registry
+
+            _canonical_tool = _get_default_registry().get(tool)
+        except Exception:
+            _canonical_tool = None
+
+        if _canonical_tool is None:
+            result = _error_result(f"Unknown tool {tool}", tool=tool, args=args)
+            if not skip_audit_log:
+                _log_audit_entry(
+                    action_id=action_id,
+                    task_id=task_id,
+                    tool=tool,
+                    args=args,
+                    policy_decision=policy_decision,
+                    result=result,
+                    error=f"Unknown tool {tool}",
+                    start_time=start_time,
+                    requested_by=requested_by,
+                )
+            return result
 
     # Check credentials before execution
     if not skip_credential_check:
@@ -296,8 +307,20 @@ def execute_tool(
         elif tool == "web_search":
             result = _execute_web_search(args, default_context)
         else:
-            result = _error_result(f"Unknown tool {tool}", tool=tool, args=args)
-            error = f"Unknown tool {tool}"
+            # Delegate to canonical dispatcher for tools registered outside the
+            # built-in set.  Built-ins are handled above to avoid the circular
+            # path: canonical handler → time_tool.time_now → execute_tool().
+            from rex.tools.dispatcher import ToolDispatcher
+            from rex.tools.registry import get_default_registry as _get_default_registry
+
+            _tool_result = ToolDispatcher(_get_default_registry()).dispatch(tool, args)
+            if _tool_result.success:
+                _out = _tool_result.output
+                result = _out if isinstance(_out, dict) else {"result": _out}
+            else:
+                _err_msg = _tool_result.error or "dispatch failed"
+                result = _error_result(_err_msg, tool=tool, args=args)
+                error = _err_msg
     except Exception as e:
         result = _error_result(str(e), tool=tool, args=args)
         error = str(e)

@@ -267,11 +267,11 @@ Current entry points: `rex`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-gu
 For tools that execute locally (not over the OpenClaw gateway), `tool_executor.py` should call `rex/tools/dispatcher.py` rather than reimplementing dispatch. Gateway HTTP execution stays in `tool_executor.py` — that is its genuine responsibility.
 
 **Acceptance Criteria:**
-- [ ] `rex/openclaw/tool_executor.py` checks if a tool is local via `rex.tools.registry.lookup(name)`; if found locally, delegates to `rex.tools.dispatcher.dispatch()`
-- [ ] Remote OpenClaw execution (gateway HTTP call) remains in `tool_executor.py`
-- [ ] The `use_openclaw_tools` feature flag behavior is preserved: gateway tried first, 404 falls back to local dispatch
-- [ ] Existing tests in `tests/test_retirement_check_*.py` still pass
-- [ ] `pytest -q` passes
+- [x] `rex/openclaw/tool_executor.py` checks if a tool is local via `rex.tools.registry.lookup(name)`; if found locally, delegates to `rex.tools.dispatcher.dispatch()`
+- [x] Remote OpenClaw execution (gateway HTTP call) remains in `tool_executor.py`
+- [x] The `use_openclaw_tools` feature flag behavior is preserved: gateway tried first, 404 falls back to local dispatch
+- [x] Existing tests in `tests/test_retirement_check_*.py` still pass
+- [x] `pytest -q` passes
 
 ---
 
