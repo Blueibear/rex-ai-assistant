@@ -17,6 +17,8 @@ from rex.exception_handler import wrap_entrypoint
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from pydantic import BaseModel, ConfigDict
+
 try:
     from dotenv import load_dotenv, set_key
 except ImportError:
@@ -129,6 +131,105 @@ class UserEmailAccount:
     display_name: str = ""
     backend: str = "imap"  # "imap" | "gmail" | "outlook"
     credentials_key: str = ""  # e.g. "EMAIL_ALICE_WORK" in .env
+
+
+# ---------------------------------------------------------------------------
+# Sub-config Pydantic v2 models (US-001)
+# These are additive — AppConfig is unchanged.  Nested fields will be wired
+# in US-002.  `extra="ignore"` lets unknown JSON keys pass through silently.
+# ---------------------------------------------------------------------------
+
+
+class AudioConfig(BaseModel):
+    """Audio hardware settings."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    sample_rate: int = 16000
+    channels: int = 1
+    chunk_size: int = 1024
+    input_device: Optional[int] = None
+    output_device: Optional[int] = None
+    vad_sensitivity: float = 0.003  # matches command_vad_rms_threshold default
+
+
+class VoiceConfig(BaseModel):
+    """Voice-pipeline settings (TTS, STT, wake word)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    tts_engine: str = "xtts"  # maps to tts_provider
+    tts_voice: Optional[str] = None
+    tts_speed: float = 1.08
+    stt_model: str = "base"  # maps to whisper_model
+    whisper_device: str = "auto"
+    wakeword_model: str = "hey_rex"  # maps to wakeword
+    wakeword_sensitivity: float = 0.5  # maps to wakeword_threshold
+    wakeword_fallback_keyword: str = "hey jarvis"
+    wakeword_backend: str = "openwakeword"
+
+
+class LLMConfig(BaseModel):
+    """Language model settings."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    llm_provider: str = "transformers"
+    model_name: str = "sshleifer/tiny-gpt2"  # maps to llm_model
+    openai_api_key_env: str = "OPENAI_API_KEY"  # env var name (not the value)
+    ollama_url: str = "http://localhost:11434"  # maps to ollama_base_url
+    context_length: int = 120  # maps to llm_max_tokens
+    temperature: float = 0.7  # maps to llm_temperature
+    llm_routing_mode: str = "local_preferred"
+
+
+class ToolsConfig(BaseModel):
+    """Tool dispatch settings."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    tool_timeout: float = 10.0  # maps to tool_timeout_seconds
+    tool_max_retries: int = 3
+    enabled_tools: List[str] = []
+    tool_permissions: Dict[str, List[str]] = {}
+
+
+class IntegrationsConfig(BaseModel):
+    """External integration settings."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    home_assistant_base_url: Optional[str] = None  # maps to ha_base_url
+    ha_token_env: str = "HA_TOKEN"  # env var name holding the HA token
+    email_provider: str = "none"
+    calendar_provider: str = "none"
+    music_assistant_url: Optional[str] = None
+    music_assistant_token_env: str = "MUSIC_ASSISTANT_TOKEN"
+    shopping_pwa_pin: Optional[str] = None
+    openclaw_gateway_url: str = ""
+    openclaw_gateway_timeout: int = 30
+    openclaw_gateway_max_retries: int = 3
+
+
+class UIConfig(BaseModel):
+    """GUI and dashboard settings."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    gui_port: int = 5000
+    gui_host: str = "127.0.0.1"
+    ui_enabled: bool = True
+    theme: str = "system"
+
+
+class SecurityConfig(BaseModel):
+    """API security settings."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    api_key_env: str = "REX_SPEAK_API_KEY"  # env var name for the speak API key
+    rate_limit_per_minute: int = 30  # maps to rate_limit
+    allowed_origins: List[str] = ["*"]
 
 
 @dataclass
@@ -642,9 +743,7 @@ def build_app_config(json_config: dict) -> AppConfig:
         wakeword_auto_gain=bool(_get_nested(json_config, "wakeword.auto_gain", True)),
         wakeword_target_peak=_coerce_float(json_config, "wakeword.target_peak", 0.35),
         wakeword_max_gain=_coerce_float(json_config, "wakeword.max_gain", 30.0),
-        wakeword_min_rms_for_gain=_coerce_float(
-            json_config, "wakeword.min_rms_for_gain", 0.0005
-        ),
+        wakeword_min_rms_for_gain=_coerce_float(json_config, "wakeword.min_rms_for_gain", 0.0005),
         # Runtime settings from JSON
         command_duration=_coerce_float(json_config, "runtime.command_duration", 5.0),
         command_vad_rms_threshold=_coerce_float(

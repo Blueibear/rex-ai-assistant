@@ -1,429 +1,491 @@
-# PRD: AskRex Stability and Completeness
+# PRD: AskRex Architectural Simplification
 
-> **Codex/Ralph task selection rule**
-> A "task" means one full User Story (US-###), not an individual checkbox line.
-> Choose the first US-### that contains any unchecked acceptance criteria `[ ]`.
+**Version:** 1.0  
+**Date:** 2026-05-24  
+**Status:** Ready for implementation
+
+---
 
 ## Introduction
 
-AskRex Assistant has accumulated 44 tracked issues spanning critical runtime blockers, broken GUI features, incomplete setup flows, and missing control surfaces. This PRD converts those issues into dependency-ordered, single-context-window user stories so they can be executed sequentially by an AI implementation loop (Ralph) or a human developer.
+The AskRex codebase has grown into a capable system, but five architectural problems are now slowing development and threatening production-readiness: too many active UI surfaces, a god-object `Assistant` class, overlapping tool layers, a monolithic config object, and a cluttered root directory. None of these are conceptual mistakes — they are growth scars. This PRD defines an incremental plan to resolve them without breaking the system.
 
-The goal is to take AskRex from "demo with known breakage" to "reliably boots, voice works, GUI is a complete control surface for all configured integrations."
+The objective is not fewer features. It is fewer duplicate, overlapping, or legacy layers. The layered architecture the build spec calls for (input, identity, intent, context, model, planning, tool, verification, response, memory, monitoring, security, evaluation) is still the target. This work clears the path to get there cleanly.
+
+**Scope of decisions already made:**
+- Non-first-class surfaces → move to `/archived/`, remove entry points (not deleted outright)
+- `Assistant` refactor → extract one subsystem per story, keeping `Assistant` functional throughout
+- Tool canon → `rex/tools/` is authoritative; OpenClaw adapts into it
+- Structure → one PRD, five epics, ordered by dependency
+
+---
 
 ## Goals
 
-- Every CLI entry point (`rex whoami`, `rex chat`, `rex identify`) runs without crash on a clean install
-- XTTS voice output initializes successfully under PyTorch 2.6
-- All Electron bridge scripts resolve to real, working Python scripts
-- GUI text chat produces streaming responses end-to-end
-- Voice config has a single source of truth with no duplicate/conflicting sections
-- Every GUI settings page is wired to real backend state (no placeholder data, no dead links)
-- Scaffolding features (memory, autonomy, planning) have minimal viable implementations
+- Reduce cognitive overhead for new contributors by eliminating "which layer owns this?" ambiguity
+- Make `rex/assistant.py` safe to edit without understanding the entire system
+- Establish a single canonical tool interface that all dispatch paths flow through
+- Decompose `AppConfig` (128 fields, 1045 lines) into navigable sub-configs without breaking existing behavior
+- Reduce root-level `.py` files from 46 to a legible handful
+- All first-class entry points (`rex`, `rex-gui`, voice loop, backend services) remain fully functional after each story
+
+---
+
+## Epics Overview
+
+| Epic | Area | Dependency |
+|------|------|-----------|
+| 1 | Config Decomposition | None — foundational |
+| 2 | Surface Consolidation | None — can run in parallel with Epic 1 |
+| 3 | Tool Layer Unification | Epic 1 preferred first |
+| 4 | Assistant Refactor | Epics 1 and 3 first |
+| 5 | Root Directory Cleanup | Epics 1 and 2 first |
+
+---
 
 ## User Stories
 
 ---
 
-### Phase 1: Critical Blockers
+### EPIC 1 — Config Decomposition
+
+> **Goal:** Break `AppConfig`'s 128 fields into typed sub-config groups without changing existing behavior. New nested paths (`config.audio.sample_rate`) are the target; flat paths remain valid during the transition via backward-compat properties.
 
 ---
 
-### US-301: Graceful default profile creation on first run
-**Description:** As a user running Rex for the first time, I want the app to create a usable default profile automatically so that CLI commands and GUI flows don't crash on missing `profiles/default.json`.
+### US-001: Define sub-config Pydantic models
+
+**Description:** As a developer, I want domain-specific config classes so I can understand and modify one subsystem's config without reading 1045 lines.
+
+**Context:**  
+`rex/config.py` contains `class AppConfig` at line 135 with ~128 fields spanning every subsystem. This story adds new sub-config classes above `AppConfig` — no behavior changes yet.
 
 **Acceptance Criteria:**
-- [x] `rex/profile_manager.py` (or equivalent loader) checks for `profiles/default.json` at startup
-- [x] If missing, copies `profiles/default.example.json` to `profiles/default.json` (or generates a minimal valid profile from `profiles/profile.schema.json`)
-- [x] `python -m rex whoami` succeeds on a fresh clone with no manual profile setup
-- [x] `python -m rex chat` starts without profile-related crash
-- [x] `python -m rex identify --user james` does not crash if `james.json` is absent (warns and falls back to default)
-- [x] Settings > Users page loads without error when only the auto-generated default profile exists
-- [x] Existing `profiles/default.json` is never overwritten if it already exists
-- [x] Typecheck passes
-- [x] Tests pass (`pytest tests/ -q -k profile`)
+- [x] Add the following Pydantic v2 model classes to `rex/config.py` above `AppConfig`:
+  - `AudioConfig` — fields: `sample_rate`, `channels`, `chunk_size`, `input_device`, `output_device`, `vad_sensitivity`, and any other audio-hardware fields
+  - `VoiceConfig` — fields: `tts_engine`, `tts_voice`, `stt_model`, `whisper_device`, `wakeword_model`, `wakeword_sensitivity`, `wakeword_fallback_keyword`, and related voice-pipeline fields
+  - `LLMConfig` — fields: `llm_provider`, `model_name`, `openai_api_key_env`, `ollama_url`, `context_length`, `temperature`, model-routing fields
+  - `ToolsConfig` — fields: `tool_timeout`, `tool_max_retries`, `enabled_tools`, `tool_permissions`
+  - `IntegrationsConfig` — fields: `home_assistant_base_url`, `ha_token_env`, `email_*`, `calendar_*`, `music_*`, `shopping_*`, `openclaw_gateway_url`, `openclaw_gateway_timeout`, `openclaw_gateway_max_retries`
+  - `UIConfig` — fields: `gui_port`, `gui_host`, `dashboard_*`, `theme`
+  - `SecurityConfig` — fields: `api_key_env`, `rate_limit_*`, `allowed_origins`, `auth_*`
+- [x] Each class uses `model_config = ConfigDict(extra="ignore")` so unknown fields do not raise
+- [x] Each class has sensible defaults matching current `AppConfig` defaults
+- [x] `AppConfig` is unchanged in this story
+- [x] `pytest -q` passes
 
 ---
 
-### US-302: XTTS PyTorch 2.6 safe-globals allowlist
-**Description:** As a developer, I need all required XTTS classes allowlisted for `torch.load()` under PyTorch 2.6's `weights_only=True` default so that XTTS voice output initializes without crashing.
+### US-002: Add nested sub-config fields to AppConfig
+
+**Description:** As a developer, I want `AppConfig` to expose sub-config objects so I can access settings via `config.audio.sample_rate` rather than flat attribute lookup.
+
+**Context:**  
+Adds nested fields to `AppConfig` populated from existing flat fields. Flat fields remain on `AppConfig` unchanged so all existing code continues to work.
 
 **Acceptance Criteria:**
-- [x] Identify every class `torch.load()` encounters when loading an XTTS checkpoint (at minimum: `XttsConfig`, `XttsAudioConfig`, and any referenced dataclasses/namedtuples)
-- [x] Add all identified classes to `torch.serialization.add_safe_globals()` in the XTTS init path (likely `rex/tts_utils.py` or `patch_tts_torch_load.py`)
-- [x] The allowlist call happens BEFORE `torch.load()` is invoked (not after a failed attempt)
-- [x] XTTS initializes successfully: `python -c "from rex.tts_utils import get_tts_engine; get_tts_engine('xtts')"` exits 0
-- [x] If XTTS dependencies are not installed, the import fails gracefully with a clear message (no raw `ModuleNotFoundError` traceback)
-- [x] Typecheck passes
-- [x] Tests pass (`pytest tests/ -q -k tts`)
+- [ ] `AppConfig` gains seven new fields: `audio: AudioConfig`, `voice: VoiceConfig`, `llm: LLMConfig`, `tools: ToolsConfig`, `integrations: IntegrationsConfig`, `ui: UIConfig`, `security: SecurityConfig`
+- [ ] Each sub-config is instantiated in `AppConfig.model_post_init()` or a `@model_validator(mode="after")` by reading from the flat fields already on `AppConfig`
+- [ ] Instantiating `AppConfig` from the existing `config/rex_config.json` format still works with no JSON changes required
+- [ ] `config.audio.sample_rate` and `config.sample_rate` both resolve to the same value
+- [ ] `rex doctor` still passes
+- [ ] `pytest -q` passes
 
 ---
 
-### US-303: Centralized bridge path resolver for Electron
-**Description:** As a developer, I need a single bridge path resolver so that all Electron-to-Python bridge calls use correct, validated script paths instead of hardcoded or outdated ones.
+### US-003: Add deprecation warnings to high-traffic flat config fields
+
+**Description:** As a developer, I want to be notified when I use a flat config field that now has a nested equivalent, so I know to migrate my call site.
+
+**Context:**  
+Identify the 15–20 most-imported flat `AppConfig` fields (grep `config\.<field>` across `rex/`). Convert them to `@property` on `AppConfig` that emit `DeprecationWarning` and return the value from the nested sub-config. This story does not change any call sites — it only installs the warning mechanism.
 
 **Acceptance Criteria:**
-- [x] Create or update a resolver module (e.g., `gui/src/main/bridgeResolver.ts`) that maps bridge names to their Python script paths relative to repo root
-- [x] The resolver validates that each target script exists at launch time and logs an error with the expected path if missing
-- [x] All Electron `spawn`/`exec` calls for bridge scripts route through this resolver (no inline path strings remain)
-- [x] The following bridges resolve correctly: `rex_tasks_bridge.py`, `rex_reminders_bridge.py`, `rex_shopping_list_bridge.py`, `rex_speaker_bridge.py`, `rex_chat_stream_bridge.py`, `rex_voices_bridge.py`, `rex_voice_enrollment_bridge.py`, `rex_voice_sample_bridge.py`, `rex_wakeword_list_bridge.py`, `rex_wakeword_train_bridge.py`, `rex_stt_bridge.py`, `rex_memories_bridge.py`
-- [x] Typecheck passes (`npx tsc --noEmit` in `gui/`)
-- [x] Verify changes work: launch the Electron app and confirm Tasks, Reminders, and Shopping List pages load without "bridge exited" errors
+- [ ] At least these fields are converted to deprecated properties: `llm_provider`, `model_name`, `tts_engine`, `tts_voice`, `whisper_device`, `wakeword_model`, `home_assistant_base_url`, `openclaw_gateway_url`, `tool_timeout`, `gui_port`, `api_key_env`, `rate_limit_per_minute`
+- [ ] Accessing a deprecated flat field emits `DeprecationWarning: Use config.<group>.<field> instead`
+- [ ] The value returned is identical to the nested path value
+- [ ] Existing code that reads flat fields still works (no `AttributeError`)
+- [ ] `pytest -q` passes (warnings are acceptable; failures are not)
 
 ---
 
-### US-304: Fix GUI text chat streaming bridge
-**Description:** As a user, I want to type a message in the GUI chat and receive a streamed response so that text conversation works end-to-end.
+### US-004: Update CLAUDE.md and docs for new config structure
+
+**Description:** As a developer, I want the canonical reference docs to document the nested config structure so new contributors learn the right pattern from day one.
 
 **Acceptance Criteria:**
-- [x] `rex_chat_stream_bridge.py` is importable and runs standalone: `python rex_chat_stream_bridge.py --help` exits 0
-- [x] The bridge uses `Assistant.generate_reply()` (not a direct LLM call)
-- [x] The Electron chat page spawns the bridge via the centralized resolver (US-303)
-- [x] A typed message in the GUI produces a streaming response displayed token-by-token
-- [x] If the backend is unreachable or config is invalid, the GUI shows a user-visible error (not just "exited with code 2")
-- [x] Typecheck passes (both Python and TS)
-- [x] Verify changes work in Electron
+- [ ] `CLAUDE.md` config section updated to show nested structure (`config.audio.*`, `config.voice.*`, etc.) as the preferred access pattern
+- [ ] `CONFIGURATION.md` updated with the new grouped field reference
+- [ ] A short migration note explains that flat fields still work but emit deprecation warnings
+- [ ] No code changes in this story
+- [ ] `pytest -q` passes
 
 ---
 
-### US-305: OpenClaw voice backend clean disable
-**Description:** As a developer, I need `openclaw.use_voice_backend = false` in config to fully bypass `VoiceBridge` at runtime so the local voice loop is the only active path when OpenClaw is disabled.
+### EPIC 2 — Surface Consolidation
+
+> **Goal:** Reduce active UI surfaces to Electron GUI, voice loop, and CLI. Archive legacy surfaces with entry points removed. Backend services (API, tool server, TTS API) remain as services, not user-facing surfaces.
+
+**First-class surfaces after this epic:**
+
+| Surface | Entry point | Status |
+|---------|------------|--------|
+| Electron GUI | `rex-gui` | First-class |
+| Voice loop | `python rex_loop.py` | First-class |
+| CLI | `rex` | First-class |
+| Flask API (backend) | internal | Backend service |
+| Tool server | `rex-tool-server` | Backend service |
+| TTS API | `rex-speak-api` | Backend service |
+
+---
+
+### US-005: Create /archived directory with policy document
+
+**Description:** As a developer, I want a clearly marked holding area for deprecated surfaces so their provenance and future are obvious to anyone who finds them.
 
 **Acceptance Criteria:**
-- [x] When `config.use_openclaw_voice_backend` is `false`, no code path imports or instantiates `VoiceBridge`
-- [x] `rex/voice_loop.py` -> `build_voice_loop` uses `Assistant` directly when the flag is off
-- [x] `python rex_loop.py` with the flag off does not log any OpenClaw-related connection attempts or async errors
-- [x] When the flag is `true` and the gateway is unreachable, startup fails with a clear error message (not a hang or cryptic traceback)
-- [x] Typecheck passes
-- [x] Tests pass (`pytest tests/ -q -k "voice_loop or openclaw"`)
+- [ ] `/archived/` directory created at repo root
+- [ ] `/archived/ARCHIVED.md` created explaining: what "archived" means (not deleted, not maintained, entry points removed), why each item was archived, and that items may be deleted in a future major version
+- [ ] `pytest -q` passes
 
 ---
 
-### Phase 2: High Priority Functionality Gaps
+### US-006: Archive Tkinter legacy GUI
 
----
+**Description:** As a developer, I want the Tkinter GUI files removed from the active codebase so the repo's front door does not imply Tkinter is a supported interface.
 
-### US-306: Unify wake-word config into a single section
-**Description:** As a developer, I want one canonical `wakeword` config section so that wake-word behavior is predictable and there are no conflicting keys.
+**Context:**  
+Files to archive: `gui.py`, `gui_settings_tab.py`, `run_gui.py` (all root-level). CLAUDE.md already calls `gui.py` deprecated.
 
 **Acceptance Criteria:**
-- [x] `config/rex_config.json` has exactly one wake-word section (canonical key: `wakeword`)
-- [x] Any references to the old `wake_word` key in Python code are migrated to read from `wakeword`
-- [x] Config loading detects the old `wake_word` key, copies values into `wakeword`, removes the old key, and logs a deprecation notice
-- [x] `config/rex_config.schema.json` is updated to reflect the single key
-- [x] Typecheck passes
-- [x] Tests pass (`pytest tests/ -q -k "wakeword or wake"`)
+- [ ] `gui.py`, `gui_settings_tab.py`, `run_gui.py` moved to `/archived/tkinter_gui/`
+- [ ] `setup.py` `py_modules` list (if present) no longer includes these files
+- [ ] No `pyproject.toml` entry points reference these files
+- [ ] `/archived/ARCHIVED.md` updated with a Tkinter GUI section
+- [ ] `rex-gui` still launches the React/Flask GUI (`rex.gui_app:main`) correctly
+- [ ] `pytest -q` passes
 
 ---
 
-### US-307: Remove legacy REX_WAKEWORD_THRESHOLD env var
-**Description:** As a user, I don't want misleading deprecation warnings about `REX_WAKEWORD_THRESHOLD` on every startup.
+### US-007: Archive shopping PWA
+
+**Description:** As a developer, I want the shopping PWA surface archived so it is not mistaken for a maintained UI path.
+
+**Context:**  
+`rex/shopping_pwa.py` is the standalone shopping PWA surface. The shopping list logic (`rex/shopping_list.py`, `rex/shopping_list_handler.py`) is used by the assistant and must stay. Only the PWA surface layer moves.
 
 **Acceptance Criteria:**
-- [x] All references to `REX_WAKEWORD_THRESHOLD` in Python code are removed
-- [x] The config schema and docs reference only the JSON config path for threshold
-- [x] Startup produces no warning about `REX_WAKEWORD_THRESHOLD` even if the env var is still set
-- [x] Typecheck passes
-- [x] Tests pass
+- [ ] `rex/shopping_pwa.py` moved to `/archived/shopping_pwa/shopping_pwa.py`
+- [ ] Any Flask route or entry point that serves the shopping PWA as a standalone app is removed or guarded with a deprecation log at startup
+- [ ] `rex/shopping_list.py` and `rex/shopping_list_handler.py` are untouched
+- [ ] `/archived/ARCHIVED.md` updated with shopping PWA section
+- [ ] `pytest -q` passes
 
 ---
 
-### US-308: TTS voice preview in Settings
-**Description:** As a user, I want to click "Preview" next to a voice in Settings > Voice and hear a short sample so I can choose the right voice.
+### US-008: Mark Flask GUI as backend-only
+
+**Description:** As a developer, I want `rex/gui_app.py` to be clearly scoped as a backend API for Electron, not a standalone browser UI, so no one adds new standalone Flask UI features.
+
+**Context:**  
+`rex/gui_app.py` is already the correct backend for the Electron GUI. The issue is that it can be run directly as a browser app, creating two "GUI" paths. This story adds a startup warning when accessed without the Electron shell, and updates the docs.
 
 **Acceptance Criteria:**
-- [x] The Settings > Voice page has a working "Preview" button for each listed voice
-- [x] Clicking Preview calls `rex_voice_sample_bridge.py` (via the centralized resolver) with the selected voice ID
-- [x] The bridge generates a short TTS clip ("Hello, I'm your Rex assistant") and plays it through system audio
-- [x] If TTS is not configured or fails, the GUI shows an inline error (not a silent failure)
-- [x] Typecheck passes (Python + TS)
-- [x] Verify changes work in Electron
+- [ ] `rex/gui_app.py` startup logs `WARNING: Rex GUI is designed to run inside the Electron shell. Running standalone may produce an incomplete experience.` when `ELECTRON_RUN_AS_NODE` env var is not set
+- [ ] `CLAUDE.md` updated: `rex-gui` entry point description changed to "Electron-backed GUI server; not a standalone browser app"
+- [ ] `README.md` GUI section updated to show only the Electron path as the supported interface
+- [ ] `pytest -q` passes
 
 ---
 
-### US-309: Voice enrollment guided UX
-**Description:** As a user enrolling my voice, I want to see a phrase to read, progress indication, and validation feedback so the process is usable.
+### US-009: Audit and finalize pyproject.toml entry points
+
+**Description:** As a developer, I want `pyproject.toml` to only list entry points that correspond to first-class or intentional backend-service surfaces.
+
+**Context:**  
+Current entry points: `rex`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-gui`, `rex-tool-server`. Review each; document its role; remove any that point to archived files.
 
 **Acceptance Criteria:**
-- [x] The voice enrollment page displays a specific prompt phrase for the user to read aloud
-- [x] During recording, a visual indicator confirms audio is being captured
-- [x] After recording, the UI shows pass/fail feedback: sufficient audio length, acceptable volume level
-- [x] If the sample is too short or too quiet, the user is prompted to re-record with a specific reason
-- [x] The enrollment bridge (`rex_voice_enrollment_bridge.py`) stores the sample in the correct voice identity directory
-- [x] Typecheck passes (Python + TS)
-- [x] Verify changes work in Electron
+- [ ] Each entry point in `[project.scripts]` has a one-line role comment in `CLAUDE.md` (first-class / backend service / utility)
+- [ ] Any entry point pointing to an archived file is removed from `pyproject.toml`
+- [ ] `pip install -e .` succeeds cleanly
+- [ ] All remaining entry points (`rex`, `rex-gui`, `rex-speak-api`, `rex-agent`, `rex-tool-server`) launch without import errors
+- [ ] `pytest -q` passes
 
 ---
 
-### US-310: Fix wake word "Play sample" to play actual wake word audio
-**Description:** As a user, I want the "Play sample" button to play a representative clip of the selected wake word, not unrelated speech.
+### EPIC 3 — Tool Layer Unification
+
+> **Goal:** `rex/tools/` (`dispatcher.py` + `registry.py`) is the single canonical tool interface. OpenClaw's tool layers (`tool_executor.py`, `tool_registry.py`) become thin adapters that delegate to it. Post-processing tool handling in `assistant.py` routes through the dispatcher.
+
+**Current state:**
+- `rex/tools/registry.py` — local tool registry
+- `rex/tools/dispatcher.py` — local tool dispatch
+- `rex/openclaw/tool_executor.py` — OpenClaw execution (partially overlaps with above)
+- `rex/openclaw/tool_registry.py` — OpenClaw registry (partially overlaps with above)
+- `rex/openclaw/tool_bridge.py` — bridge between assistant and OpenClaw tools
+- Tool post-processing logic also lives inline in `rex/assistant.py`
+
+---
+
+### US-010: Define canonical ToolInterface Protocol in rex/tools/
+
+**Description:** As a developer, I want a typed Protocol that defines what a tool registry and dispatcher must implement, so I can depend on the interface rather than the implementation.
 
 **Acceptance Criteria:**
-- [x] The Play Sample button plays a short audio clip demonstrating the selected wake word pronunciation
-- [x] If no sample audio exists for a custom wake word, the button is disabled with a tooltip explaining why
-- [x] Typecheck passes
-- [x] Verify changes work in Electron
+- [ ] Create `rex/tools/protocol.py` with:
+  - `class ToolRegistryProtocol(Protocol)` — methods: `register(name, fn, schema)`, `lookup(name) -> Callable | None`, `list_tools() -> list[ToolDescriptor]`
+  - `class ToolDispatcherProtocol(Protocol)` — methods: `dispatch(name, args, context) -> ToolResult`
+  - `ToolDescriptor` dataclass: `name: str`, `description: str`, `schema: dict`, `source: str` (e.g. `"local"` or `"openclaw"`)
+  - `ToolResult` dataclass: `success: bool`, `output: Any`, `error: str | None`
+- [ ] `rex/tools/registry.py` and `rex/tools/dispatcher.py` include a comment confirming they satisfy these protocols (no structural changes yet)
+- [ ] `pytest -q` passes
 
 ---
 
-### US-311: Fix Settings > Audio Output page
-**Description:** As a user, I want to select my audio output device and test it from Settings > Audio Output.
+### US-011: Refactor rex/openclaw/tool_registry.py to delegate to rex/tools/registry.py
+
+**Description:** As a developer, I want OpenClaw's tool registry to be a thin adapter over the canonical registry rather than a parallel implementation.
+
+**Context:**  
+`rex/openclaw/tool_registry.py` currently maintains its own registration logic. After this story it calls through to `rex/tools/registry.py` for registration and lookup, adding only OpenClaw-specific metadata (remote endpoint, auth, channel) on top.
 
 **Acceptance Criteria:**
-- [x] The Audio Output page loads without bridge-path errors
-- [x] `rex_speaker_bridge.py` is called via the centralized resolver and returns available output devices
-- [x] Selecting a device updates config
-- [x] The "Test" button plays a short test tone through the selected device
-- [x] Typecheck passes (Python + TS)
-- [x] Verify changes work in Electron
+- [ ] `rex/openclaw/tool_registry.py` imports and uses `rex.tools.registry` as its backing store for `register()` and `lookup()`
+- [ ] OpenClaw-specific metadata (remote endpoint URL, auth) is stored in a separate `_openclaw_meta: dict[str, OpenClawToolMeta]` dict — not mixed into the canonical registry
+- [ ] Tools registered via OpenClaw are visible in `rex/tools/registry.py`'s `list_tools()` with `source="openclaw"`
+- [ ] Existing OpenClaw tool invocation paths still work end-to-end
+- [ ] `pytest -q` passes
 
 ---
 
-### US-312: Surface all existing Rex settings in the GUI
-**Description:** As a user, I want the GUI Settings to expose every Rex setting, including Telegram setup, so the GUI is a complete control surface.
+### US-012: Refactor rex/openclaw/tool_executor.py to delegate to rex/tools/dispatcher.py
+
+**Description:** As a developer, I want OpenClaw's tool executor to route local tool calls through the canonical dispatcher so there is one code path for local execution.
+
+**Context:**  
+For tools that execute locally (not over the OpenClaw gateway), `tool_executor.py` should call `rex/tools/dispatcher.py` rather than reimplementing dispatch. Gateway HTTP execution stays in `tool_executor.py` — that is its genuine responsibility.
 
 **Acceptance Criteria:**
-- [x] Audit `config/rex_config.schema.json` and `config/rex_config.json` for all user-facing keys
-- [x] Each key has a corresponding input in the appropriate Settings tab
-- [x] Telegram bot token and chat ID fields are present in Settings > Integrations (or a Telegram sub-page)
-- [x] Saving any new field writes to `config/rex_config.json` correctly
-- [x] Typecheck passes
-- [x] Verify changes work in Electron
+- [ ] `rex/openclaw/tool_executor.py` checks if a tool is local via `rex.tools.registry.lookup(name)`; if found locally, delegates to `rex.tools.dispatcher.dispatch()`
+- [ ] Remote OpenClaw execution (gateway HTTP call) remains in `tool_executor.py`
+- [ ] The `use_openclaw_tools` feature flag behavior is preserved: gateway tried first, 404 falls back to local dispatch
+- [ ] Existing tests in `tests/test_retirement_check_*.py` still pass
+- [ ] `pytest -q` passes
 
 ---
 
-### US-313: Home Assistant device status page
-**Description:** As a user with Home Assistant configured, I want a dashboard page showing HA device states.
+### US-013: Remove duplicate tool post-processing from assistant.py
+
+**Description:** As a developer, I want all tool result handling to flow through `rex/tools/dispatcher.py` so there is one place to add logging, retries, or result transformation.
+
+**Context:**  
+`rex/assistant.py` currently contains inline tool post-processing (result formatting, error wrapping, retry logic) inside `generate_reply()`. This story moves that logic into a `ToolResultHandler` in `rex/tools/` and replaces the inline code with a single call.
 
 **Acceptance Criteria:**
-- [x] A "Home Assistant" page exists in the GUI sidebar
-- [x] If HA is not configured, the page shows a message with a link to the correct Settings page (not Settings > General)
-- [x] If HA is configured, the page fetches and displays device states (entity name, state, last updated)
-- [x] The page has a manual refresh button
-- [x] Typecheck passes (Python + TS)
-- [x] Verify changes work in Electron
+- [ ] Tool result post-processing extracted to `rex/tools/result_handler.py`
+- [ ] `rex/assistant.py` inline tool result handling replaced with a call to `ToolResultHandler`
+- [ ] Voice loop tool responses (e.g., Home Assistant confirmations) produce identical output before and after the change
+- [ ] `pytest -q` passes
 
 ---
 
-### US-314: Wire up the Integrations page
-**Description:** As a user, I want the Integrations page to show real status and link to the correct config pages.
+### EPIC 4 — Assistant Refactor
+
+> **Goal:** `rex/assistant.py` (1795 lines) becomes a thin orchestrator. Responsibilities are extracted one subsystem at a time into dedicated modules. `Assistant.generate_reply()` calls through four components: `ContextBuilder` → `IntentRouter` → `ActionDispatcher` → `ResponseBuilder`. `Assistant` remains functional after every individual story.
+
+**Extraction order:** ContextBuilder first (most self-contained), then IntentRouter, then ActionDispatcher (depends on Epic 3 tool canon), then ResponseBuilder, then final slim-down.
+
+---
+
+### US-014: Extract ContextBuilder
+
+**Description:** As a developer, I want history retrieval, system prompt construction, and persona injection in a dedicated class so I can modify context assembly without touching LLM routing or tool dispatch.
 
 **Acceptance Criteria:**
-- [x] The page queries the backend for configured integrations (email, calendar, SMS, MQTT, HA, Telegram, search)
-- [x] Each integration shows: name, status (configured/not configured), and a "Configure" link to the correct Settings sub-page
-- [x] "No integrations found" only appears when genuinely none are configured
-- [x] "No capabilities found" section is removed or populated from `rex/capabilities/`
-- [x] The "Configure" link for HA goes to the HA settings page (not Settings > General)
-- [x] Typecheck passes
-- [x] Verify changes work in Electron
+- [ ] Create `rex/context/builder.py` with `class ContextBuilder`
+- [ ] `ContextBuilder.__init__` accepts `config: AppConfig`, `history_store: HistoryStore`, `identity` (or equivalent)
+- [ ] `ContextBuilder.build(user_message: str) -> ContextPackage` returns a dataclass with: `messages: list[dict]` (LLM-formatted), `system_prompt: str`, `session_id: str`, `user_facts: dict`
+- [ ] Logic moved from `assistant.py`: history retrieval, system prompt template rendering, user-facts injection, persona/personality injection
+- [ ] `assistant.py` replaces that logic with `context = self._context_builder.build(user_message)`
+- [ ] `Assistant.generate_reply()` produces identical output for a text input before and after the change
+- [ ] `pytest -q` passes
 
 ---
 
-### Phase 3: Medium Priority Product and UX
+### US-015: Extract IntentRouter
 
----
+**Description:** As a developer, I want shortcut handling (time, date, greetings, recipe queries) in a dedicated router so I can add or remove shortcuts without reading the full assistant orchestration.
 
-### US-315: Replace placeholder data in Calendar, Email, and SMS pages
-**Description:** As a user, I want these pages to show real data or a clear "not configured" state, not fake content.
+**Context:**  
+`assistant.py` currently short-circuits `generate_reply()` for several intent types before hitting the LLM. These shortcuts move to a router that returns early with a `DirectResponse` when the intent is recognized.
 
 **Acceptance Criteria:**
-- [x] Calendar page calls `rex/calendar_service.py` and displays real events (or "No calendar configured")
-- [x] Email page calls `rex/email_service.py` and displays real inbox items (or empty state)
-- [x] SMS page calls the messaging backend and displays real threads (or empty state)
-- [x] No hardcoded fake names, dates, or messages remain in GUI source for these pages
-- [x] Typecheck passes
-- [x] Verify changes work in Electron
+- [ ] Create `rex/intent/router.py` with `class IntentRouter`
+- [ ] `IntentRouter.route(user_message: str, context: ContextPackage) -> IntentResult`
+- [ ] `IntentResult` dataclass: `handled: bool`, `response: str | None`, `intent_type: str | None`
+- [ ] The following shortcuts moved from `assistant.py` to `IntentRouter`: time/date queries, greeting detection, recipe shortcut, and any other direct-return patterns currently in `generate_reply()`
+- [ ] `assistant.py` replaces inline shortcuts with `intent = self._intent_router.route(message, context); if intent.handled: return intent.response`
+- [ ] Shortcut responses (e.g., "What time is it?") produce identical output
+- [ ] `pytest -q` passes
 
 ---
 
-### US-316: Review and update Beta labels on Email and SMS
-**Description:** As a product owner, I want Beta labels to accurately reflect feature maturity.
+### US-016: Extract ActionDispatcher
+
+**Description:** As a developer, I want tool dispatch, skill dispatch, and Home Assistant command routing in a single `ActionDispatcher` so the path from intent to action is traceable in one file.
+
+**Context:**  
+`assistant.py` currently routes tool calls, skill invocations, HA commands, and OpenClaw actions inline. This story extracts that routing. Should follow Epic 3 since `ActionDispatcher` delegates to `rex/tools/dispatcher.py`.
 
 **Acceptance Criteria:**
-- [x] If Email and SMS are still beta-quality, keep the label but add a tooltip explaining what "Beta" means
-- [x] If stable, remove the Beta label
-- [x] Decision documented in a code comment or changelog entry
-- [x] Typecheck passes
+- [ ] Create `rex/actions/dispatcher.py` with `class ActionDispatcher`
+- [ ] `ActionDispatcher.dispatch(intent: IntentResult, context: ContextPackage, llm_response: str) -> ActionResult`
+- [ ] `ActionResult` dataclass: `success: bool`, `response: str`, `actions_taken: list[str]`, `error: str | None`
+- [ ] Routing moved from `assistant.py`: tool invocation (via `rex.tools.dispatcher`), skill invocation, HA command routing (via `rex.ha_bridge`), OpenClaw tool bridge calls
+- [ ] `assistant.py` replaces inline dispatch with `result = self._action_dispatcher.dispatch(intent, context, llm_response)`
+- [ ] HA commands, tool calls, and skill invocations produce identical outputs
+- [ ] `pytest -q` passes
 
 ---
 
-### US-317: Fix "Configure Home Assistant" link routing
-**Description:** As a user, I want the Home page HA link to go to the HA configuration page, not Settings > General.
+### US-017: Extract ResponseBuilder
+
+**Description:** As a developer, I want response cache checking, suggestion generation, follow-up injection, and response post-processing in a single `ResponseBuilder` so I can tune response shaping without touching dispatch logic.
 
 **Acceptance Criteria:**
-- [x] The link navigates to the HA configuration page (per US-314)
-- [x] Typecheck passes
-- [x] Verify changes work in Electron
+- [ ] Create `rex/response/builder.py` with `class ResponseBuilder`
+- [ ] `ResponseBuilder.build(action_result: ActionResult, context: ContextPackage) -> FinalResponse`
+- [ ] `FinalResponse` dataclass: `text: str`, `tts_text: str`, `suggestions: list[str]`, `followups: list[str]`, `cache_hit: bool`
+- [ ] Logic moved from `assistant.py`: response cache lookup/write (via `rex.response_cache`), suggestion generation (via `rex.suggestions`), follow-up injection (via `rex.followup_engine`), TTS text cleaning/normalization
+- [ ] `assistant.py` replaces inline post-processing with `final = self._response_builder.build(action_result, context)`
+- [ ] Response suggestions and follow-ups appear correctly in GUI and voice output after the change
+- [ ] `pytest -q` passes
 
 ---
 
-### US-318: Populate timezone dropdown with full IANA list
-**Description:** As a user, I want to select my timezone from a complete list, not just `America/Chicago`.
+### US-018: Slim Assistant.generate_reply() and update docs
+
+**Description:** As a developer, I want `assistant.py` to read like an orchestration spec rather than an implementation, so the flow of a request through the system is obvious at a glance.
+
+**Context:**  
+After US-014–017, `generate_reply()` should already be much smaller. This story verifies the final shape, removes any remaining inline logic that belongs in a component, and documents the new architecture.
 
 **Acceptance Criteria:**
-- [x] The timezone dropdown is populated from a standard IANA timezone list
-- [x] The dropdown supports type-ahead filtering
-- [x] The currently configured timezone is pre-selected
-- [x] Saving updates `config/rex_config.json`
-- [x] Typecheck passes
-- [ ] Verify changes work in Electron
+- [ ] `rex/assistant.py` is under 400 lines
+- [ ] `Assistant.generate_reply()` method body reads as: build context → route intent → dispatch action → build response → return; no inline business logic
+- [ ] `CLAUDE.md` updated with the new `Assistant` architecture section documenting `Assistant -> ContextBuilder -> IntentRouter -> ActionDispatcher -> ResponseBuilder`
+- [ ] `docs/claude/` reference docs updated to reflect new module locations
+- [ ] `pytest -q` passes
 
 ---
 
-### US-319: Add folder picker for Allowed File Roots
-**Description:** As a user, I want a folder picker instead of raw text input for allowed file roots.
+### EPIC 5 — Root Directory Cleanup
+
+> **Goal:** Reduce root-level `.py` files from 46 to ~10. The 21 `rex_*_bridge.py` files move to `/bridge/`. Legacy wrappers, patch scripts, and compatibility shims move to `/archived/` or `/scripts/`.
+
+---
+
+### US-019: Move root-level bridge files to /bridge/
+
+**Description:** As a developer, I want the 21 `rex_*_bridge.py` files in a named directory so the root directory communicates "these are Electron IPC bridges" rather than "these are 21 unrelated scripts."
+
+**Context:**  
+Files: `rex_calendar_bridge.py`, `rex_chat_bridge.py`, `rex_chat_stream_bridge.py`, `rex_email_bridge.py`, `rex_file_extract_bridge.py`, `rex_memories_bridge.py`, `rex_reminders_bridge.py`, `rex_shopping_list_bridge.py`, `rex_sms_bridge.py`, `rex_speaker_bridge.py`, `rex_stt_bridge.py`, `rex_tasks_bridge.py`, `rex_tts_bridge.py`, `rex_voice_bridge.py`, `rex_voice_enrollment_bridge.py`, `rex_voice_sample_bridge.py`, `rex_voice_upload_bridge.py`, `rex_voices_bridge.py`, `rex_wakeword_list_bridge.py`, `rex_wakeword_sample_bridge.py`, `rex_wakeword_train_bridge.py`.
+
+The Electron main process spawns these as child processes by path. Electron `main.js` (or equivalent) spawn paths must be updated together with the file moves.
 
 **Acceptance Criteria:**
-- [x] An "Add Folder" button opens an Electron native folder picker dialog
-- [x] Selected folders are added to the list and persisted to config
-- [x] Existing raw text input is preserved as fallback
-- [x] Each listed folder has a "Remove" button
-- [x] Typecheck passes
-- [ ] Verify changes work in Electron
+- [ ] All 21 `rex_*_bridge.py` files moved to `/bridge/`
+- [ ] `/bridge/README.md` added explaining: "These are Electron IPC bridge processes. Each is spawned by the Electron main process and communicates over stdin/stdout JSON."
+- [ ] Electron `main.js` (or equivalent) updated so all `spawn()` calls reference the new `/bridge/` paths
+- [ ] Voice bridge, chat bridge, and STT bridge verified working end-to-end from the Electron GUI
+- [ ] `pytest -q` passes
 
 ---
 
-### US-320: Actionable notifications with instructions and links
-**Description:** As a user, when Rex shows a notification requiring action, I want it to include what to do and where to go.
+### US-020: Move root-level shims and patch files to /archived/
+
+**Description:** As a developer, I want root-level compatibility shims and patch files in `/archived/` so they do not imply they are part of the normal startup path.
+
+**Context:**  
+Files to evaluate: `patch_tts_torch_load.py`, `patch_tts_transformers.py`, `python_compat.py`, `sitecustomize.py`, `placeholder_voice.py`, `flask_proxy.py`. Check each for live imports before moving. Files with live imports move to `rex/compat/` instead of `/archived/`.
 
 **Acceptance Criteria:**
-- [x] `rex/notification.py` supports `action_url` and `action_label` fields on notifications
-- [x] The GUI notification component renders action links when present
-- [x] At least three existing notification types include actionable links (e.g., "TTS not configured", "Profile missing", "Integration error")
-- [x] Typecheck passes
-- [ ] Verify changes work in Electron
+- [ ] Each file in scope is grepped for live imports across the codebase before any move is made
+- [ ] Files with no live imports moved to `/archived/compat_shims/`
+- [ ] Files with live imports moved to `rex/compat/` with import paths updated everywhere
+- [ ] `/archived/ARCHIVED.md` updated with compat shims section
+- [ ] `rex doctor` still passes
+- [ ] `pytest -q` passes
 
 ---
 
-### US-321: Add "Reset to defaults" option in Settings
-**Description:** As a user, I want a way to reset Rex to factory defaults when troubleshooting.
+### US-021: Move root-level legacy wrappers to /archived/
+
+**Description:** As a developer, I want root-level re-export shims that are no longer primary entry points replaced with one-liners that emit deprecation warnings, and eventually moved to `/archived/`.
+
+**Context:**  
+Files to evaluate: `voice_loop.py` (root — per CLAUDE.md, kept only for `AsyncRexAssistant` re-exports), `rex_assistant.py`, `conversation_memory.py`, `memory_utils.py`, `audio_config.py`, `logging_utils.py`, `llm_client.py`, `config.py` (root-level duplicate), `assistant_errors.py`, `plugin_loader.py`.
+
+For each: if it is a re-export shim, replace it with a one-liner that re-exports with `DeprecationWarning`. `rex_loop.py` (voice loop entry point) is NOT moved — it is first-class.
 
 **Acceptance Criteria:**
-- [x] Settings > System has a "Reset to Defaults" button
-- [x] Clicking shows a confirmation dialog explaining what will be reset
-- [x] On confirm, replaces `config/rex_config.json` with `config/rex_config.example.json`
-- [x] Does NOT delete user profiles, voice samples, or `.env` secrets
-- [x] After reset, the app reloads cleanly
-- [x] Typecheck passes
-- [ ] Verify changes work in Electron
+- [ ] `voice_loop.py` (root) replaced with a one-liner re-export + `DeprecationWarning` pointing to `rex.voice_loop`
+- [ ] Other identified root-level re-export shims treated the same way or moved to `/archived/`
+- [ ] `rex_loop.py` is NOT touched
+- [ ] Root directory contains 12 or fewer `.py` files after this story (verify with `ls *.py | wc -l`)
+- [ ] `pytest -q` passes
 
 ---
 
-### US-322: Add AskRex branding assets to GUI and desktop surfaces
-**Description:** As a user, I want consistent AskRex branding across the GUI, system tray, and window title.
+### US-022: Consolidate install scripts and update docs
+
+**Description:** As a developer, I want install-related scripts in `/scripts/` rather than the root so the installation surface is obvious to a first-time contributor.
+
+**Context:**  
+Root install scripts: `install.py`, `install.ps1`, `install.sh`, `install_full.sh`, `install_lean.sh`, `setup.sh`. Keep the one(s) the README and INSTALL.md point to as primary; move or archive the rest.
 
 **Acceptance Criteria:**
-- [x] GUI window title uses the canonical product name from `docs/BRANDING.md`
-- [x] System tray icon uses the official AskRex icon asset from `assets/brand/`
-- [x] The GUI sidebar or header shows the AskRex logo from `assets/brand/`
-- [x] If branding assets do not exist yet, placeholder assets are created in `assets/brand/` with clear TODO comments
-- [x] Typecheck passes
-- [ ] Verify changes work in Electron
+- [ ] Primary install path per OS identified from `README.md` and `INSTALL.md` and preserved (or moved to `/scripts/` with a root-level note)
+- [ ] Non-primary install scripts moved to `/scripts/install/`
+- [ ] `README.md` install section updated to point to one install path per OS (Windows, macOS/Linux)
+- [ ] `INSTALL.md` updated consistently
+- [ ] `pytest -q` passes
 
 ---
 
-### US-323: Log rotation and session separation
-**Description:** As a developer, I want logs to separate sessions and rotate old entries so stale timestamps don't cause confusion.
+### US-023: Final root audit and CLAUDE.md structure update
+
+**Description:** As a developer, I want the CLAUDE.md repository structure section to accurately reflect the cleaned-up root so onboarding documents stay truthful.
 
 **Acceptance Criteria:**
-- [x] Logging config uses `RotatingFileHandler` (5 MB max, 3 backups)
-- [x] Each startup writes a session-start marker: `=== Rex session started at <ISO timestamp> ===`
-- [x] Old entries are preserved in rotated files, not mixed with current session
-- [x] Typecheck passes
-- [x] Tests pass
-
----
-
-### Phase 4: Scaffolding Completion
-
----
-
-### US-324: Per-user memory -- minimal viable read/write
-**Description:** As a user, I want Rex to remember facts about me across sessions so conversations feel personalized.
-
-**Acceptance Criteria:**
-- [x] Memory system supports `store(user, key, value)` and `recall(user, key) -> value`
-- [x] Stored facts persist to disk (JSON file per user in `Memory/`)
-- [x] `Assistant.generate_reply()` injects recalled facts into the system prompt when relevant
-- [x] CLI test: `python -m rex remember "My dog is named Max"` then asking "What's my dog's name?" in chat returns "Max"
-- [x] Typecheck passes
-- [x] Tests pass (`pytest tests/ -q -k memory`)
-
----
-
-### US-325: Autonomous workflows -- minimal scheduled task runner
-**Description:** As a user, I want Rex to execute simple scheduled tasks so autonomous workflows have a foundation.
-
-**Acceptance Criteria:**
-- [x] `rex/workflow_runner.py` reads task definitions from config
-- [x] Each task has: name, schedule (cron or interval), action (Rex command string)
-- [x] The runner executes due tasks when the voice loop or daemon is running
-- [x] At least one example task is included (daily weather briefing)
-- [x] Tasks that fail log the error and do not block subsequent tasks
-- [x] Typecheck passes
-- [x] Tests pass (`pytest tests/ -q -k workflow`)
-
----
-
-### US-326: Smart planning -- minimal plan-and-execute skeleton
-**Description:** As a developer, I want a basic plan-and-execute framework so multi-step user requests can be decomposed.
-
-**Acceptance Criteria:**
-- [x] `rex/planner.py` exposes `create_plan(goal: str) -> list[Step]` and `execute_plan(steps: list[Step]) -> Result`
-- [x] `Step` is a dataclass with `description`, `tool` (optional), and `status`
-- [x] `create_plan` calls the LLM to decompose a goal into steps
-- [x] `execute_plan` iterates steps, calling tools where specified, updating status
-- [x] At least one integration test demonstrates plan creation and execution
-- [x] Typecheck passes
-- [x] Tests pass (`pytest tests/ -q -k planner`)
-
----
-
-### Phase 5: Verification
-
----
-
-### US-327: End-to-end smoke test -- CLI boot and chat
-**Description:** As a developer, I want a smoke test verifying Rex boots and handles a chat round-trip.
-
-**Acceptance Criteria:**
-- [x] A pytest fixture runs `python -m rex doctor` -> exit 0
-- [x] Then runs `echo "hello" | python -m rex chat --no-tts` -> non-empty output, exit 0
-- [x] The test is runnable in CI (no GPU, no mic required)
-- [x] Typecheck passes
-- [x] Tests pass
-
----
-
-### US-328: End-to-end verification -- GUI launch and backend connection
-**Description:** As a developer, I want to verify the Electron GUI launches, connects to Flask, and renders without crash or login loop.
-
-**Acceptance Criteria:**
-- [x] A manual test script documents exact steps: launch command, expected first screen, backend connection verification
-- [x] The home page renders within 10 seconds of launch
-- [x] No JavaScript console errors related to missing bridges or failed API calls on the home page
-- [x] If auth is required, the login flow completes without looping
-- [x] Typecheck passes
-- [x] Verify changes work in Electron
+- [ ] Root `.py` file count is 10 or fewer (verified with `ls *.py | wc -l`)
+- [ ] `CLAUDE.md` repository structure section updated to list what each root-level item is and why it is there
+- [ ] `/bridge/`, `/archived/`, and any other new directories added to the repo structure section
+- [ ] `rex doctor` passes
+- [ ] `pytest -q` passes
 
 ---
 
 ## Non-Goals
 
-- New feature development beyond completing existing scaffolding
-- Mobile app or cloud deployment
-- Redesign of the GUI framework (Electron + React stays)
-- Migration away from Flask
-- New LLM provider integrations
-- Full-featured memory, autonomy, or planning systems (minimal viable only in this PRD)
+- This PRD does not add any new features, integrations, or UI components.
+- This PRD does not remove the OpenClaw integration. OpenClaw remains a first-class external tool ecosystem — it becomes a consumer of `rex/tools/` rather than a parallel implementation.
+- This PRD does not delete archived files. Moving to `/archived/` is the end state for this release cycle. Deletion is a separate decision.
+- This PRD does not change the voice pipeline architecture. Wake word, STT, and TTS subsystems are not restructured here.
+- This PRD does not migrate all `AppConfig` flat-field call sites. The deprecation warning mechanism handles that incrementally over time.
+- This PRD does not change the Electron application structure beyond updating bridge spawn paths in US-019.
+- This PRD does not convert the Flask GUI to a different framework.
+
+---
 
 ## Technical Considerations
 
-- **US-301 (profile loading) is a dependency for nearly everything.** Must be the first story executed.
-- **US-302 (XTTS allowlist) can run in parallel with US-301** since it touches different code paths.
-- **US-303 (bridge resolver) is a dependency for US-304, US-308, US-309, US-310, US-311.** Must complete before those.
-- **US-306 and US-307 (config cleanup) should be batched** to avoid multiple schema migrations.
-- **GUI stories (US-312 through US-322) can largely run in parallel** once the bridge resolver is in place.
-- The Electron GUI uses Vite + React + TypeScript (`gui/`). Python bridges are standalone scripts at repo root (`rex_*_bridge.py`).
-- Config lives in `config/rex_config.json` with schema at `config/rex_config.schema.json`.
-- Profiles live in `profiles/` with schema at `profiles/profile.schema.json`.
-- Story IDs start at US-301 to avoid collision with the existing PRD (US-001 through US-220).
+- **Backward compatibility during transition:** The deprecation-warning approach (US-003, US-021) means no code breaks — it just becomes noisy. Treat warnings as a migration queue, not an emergency.
+- **Story independence:** Epics 1 and 2 are independent and can run in parallel. Epic 3 stories can start after Epic 1. Epic 4 stories should follow Epics 1 and 3. Epic 5 stories can start after Epics 1 and 2.
+- **Test gate:** `pytest -q` must pass after every story. Any story touching import paths must verify the full suite, not just the targeted module.
+- **Lint gate:** Per CLAUDE.md, run `ruff check --fix` and `black` on all changed `.py` files before committing each story. Both must pass.
+- **Commit messages:** Per CLAUDE.md, use Conventional Commits. Use `refactor:` for structural extraction stories and `chore:` for file-move and doc-update stories.
+- **`rex doctor`:** Must pass after every Epic 2 and Epic 5 story, since those touch entry points and file paths.
+- **Existing PRD:** The repo's existing `outputs/PRD.md` addresses production-readiness milestones. This document is complementary — it addresses the KISS structural issues that block sustainable development toward those milestones.
