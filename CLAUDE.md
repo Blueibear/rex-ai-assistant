@@ -55,11 +55,12 @@ Current install/runtime compatibility policy:
 
 Entry points:
 
-- rex -> rex.cli:main
-- rex-gui -> rex.gui_app:main  # Electron-backed GUI server; not a standalone browser app
-- rex-config -> rex.config:cli
-- rex-speak-api -> rex_speak_api:main
-- rex-agent -> rex.computers.agent_server:main
+- rex -> rex.cli:main  # first-class: primary CLI
+- rex-gui -> rex.gui_app:main  # backend service: Electron-backed GUI server; not a standalone browser app
+- rex-config -> rex.config:cli  # utility: config inspection and migration
+- rex-speak-api -> rex_speak_api:main  # backend service: TTS API with auth and rate limiting
+- rex-agent -> rex.computers.agent_server:main  # backend service: optional remote PC control API
+- rex-tool-server -> rex.openclaw.tool_server:main  # backend service: OpenClaw tool adapter at /rex/tools/{tool_name}
 
 ### Core components
 

@@ -206,11 +206,11 @@ Files to archive: `gui.py`, `gui_settings_tab.py`, `run_gui.py` (all root-level)
 Current entry points: `rex`, `rex-config`, `rex-speak-api`, `rex-agent`, `rex-gui`, `rex-tool-server`. Review each; document its role; remove any that point to archived files.
 
 **Acceptance Criteria:**
-- [ ] Each entry point in `[project.scripts]` has a one-line role comment in `CLAUDE.md` (first-class / backend service / utility)
-- [ ] Any entry point pointing to an archived file is removed from `pyproject.toml`
-- [ ] `pip install -e .` succeeds cleanly
-- [ ] All remaining entry points (`rex`, `rex-gui`, `rex-speak-api`, `rex-agent`, `rex-tool-server`) launch without import errors
-- [ ] `pytest -q` passes
+- [x] Each entry point in `[project.scripts]` has a one-line role comment in `CLAUDE.md` (first-class / backend service / utility)
+- [x] Any entry point pointing to an archived file is removed from `pyproject.toml`
+- [x] `pip install -e .` succeeds cleanly
+- [x] All remaining entry points (`rex`, `rex-gui`, `rex-speak-api`, `rex-agent`, `rex-tool-server`) launch without import errors
+- [x] `pytest -q` passes
 
 ---
 
