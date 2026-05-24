@@ -1403,6 +1403,12 @@ def main() -> None:
 
     logging.basicConfig(level=logging.WARNING)
 
+    if not os.getenv("ELECTRON_RUN_AS_NODE"):
+        logging.warning(
+            "Rex GUI is designed to run inside the Electron shell. "
+            "Running standalone may produce an incomplete experience."
+        )
+
     host = _DEFAULT_HOST
     port = _resolve_server_port()
 

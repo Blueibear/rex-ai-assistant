@@ -56,7 +56,7 @@ Current install/runtime compatibility policy:
 Entry points:
 
 - rex -> rex.cli:main
-- rex-gui -> rex.gui_app:main
+- rex-gui -> rex.gui_app:main  # Electron-backed GUI server; not a standalone browser app
 - rex-config -> rex.config:cli
 - rex-speak-api -> rex_speak_api:main
 - rex-agent -> rex.computers.agent_server:main

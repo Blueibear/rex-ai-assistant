@@ -191,10 +191,10 @@ Files to archive: `gui.py`, `gui_settings_tab.py`, `run_gui.py` (all root-level)
 `rex/gui_app.py` is already the correct backend for the Electron GUI. The issue is that it can be run directly as a browser app, creating two "GUI" paths. This story adds a startup warning when accessed without the Electron shell, and updates the docs.
 
 **Acceptance Criteria:**
-- [ ] `rex/gui_app.py` startup logs `WARNING: Rex GUI is designed to run inside the Electron shell. Running standalone may produce an incomplete experience.` when `ELECTRON_RUN_AS_NODE` env var is not set
-- [ ] `CLAUDE.md` updated: `rex-gui` entry point description changed to "Electron-backed GUI server; not a standalone browser app"
-- [ ] `README.md` GUI section updated to show only the Electron path as the supported interface
-- [ ] `pytest -q` passes
+- [x] `rex/gui_app.py` startup logs `WARNING: Rex GUI is designed to run inside the Electron shell. Running standalone may produce an incomplete experience.` when `ELECTRON_RUN_AS_NODE` env var is not set
+- [x] `CLAUDE.md` updated: `rex-gui` entry point description changed to "Electron-backed GUI server; not a standalone browser app"
+- [x] `README.md` GUI section updated to show only the Electron path as the supported interface
+- [x] `pytest -q` passes
 
 ---
 
