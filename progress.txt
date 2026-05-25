@@ -15,6 +15,19 @@
 
 ## Story Completion Log
 
+## Iteration N+6 - US-019: Move root-level bridge files to /bridge/
+- Created bridge/ directory at repo root
+- git mv all 20 rex_*_bridge.py files from root → bridge/ (rex_tts_bridge.py did not exist)
+- Updated gui/src/main/bridgeResolver.ts: resolveBridgePath() now prepends 'bridge/' subdirectory; registry filenames remain bare (handlers need no changes)
+- Updated gui/src/main/handlers/logs.ts: repo-root detection now checks bridge/rex_chat_stream_bridge.py
+- Added bridge/README.md explaining bridge processes
+- Files changed: bridge/ (new dir with 20 .py files + README.md), gui/src/main/bridgeResolver.ts, gui/src/main/handlers/logs.ts, PRD.md
+- Tests: test_assistant.py (48/48 pass); test_repository_integrity pre-existing failure (PRD-ci-fix.md deleted but not staged — unrelated to US-019)
+- Learnings for future iterations:
+  - Centralizing all path resolution in resolveBridgePath() means bridge moves only require a 1-line change (no handler edits)
+  - logs.ts root detection used a bridge filename as a repo-root probe — must update it when bridges move
+---
+
 ## Iteration N+5 - US-018: Slim Assistant.generate_reply() and update docs
 - generate_reply() rewritten as clean orchestration: route intent → check cache → begin request → build context → dispatch → build response → end request → record → return (~52 lines, no inline business logic)
 - Extracted _begin_request() and _end_request() helpers for model routing + user ID scoping

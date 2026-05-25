@@ -35,7 +35,7 @@ function resolveRepoRoot(): string {
 
   for (const candidate of candidates) {
     const root = resolve(candidate)
-    if (existsSync(join(root, 'config', 'rex_config.json')) || existsSync(join(root, 'rex_chat_stream_bridge.py'))) {
+    if (existsSync(join(root, 'config', 'rex_config.json')) || existsSync(join(root, 'bridge', 'rex_chat_stream_bridge.py'))) {
       return root
     }
   }

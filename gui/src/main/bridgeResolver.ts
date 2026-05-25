@@ -43,9 +43,15 @@ const BRIDGE_REGISTRY: Record<string, string> = {
 // Path resolution
 // ---------------------------------------------------------------------------
 
-/** Return the absolute path to a bridge script given its filename (e.g. `"rex_tasks_bridge.py"`). */
+/**
+ * Return the absolute path to a bridge script given its filename
+ * (e.g. `"rex_tasks_bridge.py"`).
+ *
+ * Bridge scripts live under the `bridge/` subdirectory of the repo root
+ * (moved from the root in US-019).
+ */
 export function resolveBridgePath(scriptFilename: string): string {
-  return join(app.getAppPath(), '..', scriptFilename)
+  return join(app.getAppPath(), '..', 'bridge', scriptFilename)
 }
 
 // ---------------------------------------------------------------------------
