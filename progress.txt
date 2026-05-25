@@ -15,6 +15,15 @@
 
 ## Story Completion Log
 
+## Iteration N+9 - US-022: Consolidate install scripts and update docs
+- Identified primary install scripts: install.ps1 (Windows) and install.sh (macOS/Linux) — kept at root
+- Moved non-primary scripts to scripts/install/: install.py, install_full.sh, install_lean.sh, setup.sh
+- README.md: added note about scripts/install/ in the advanced install hint
+- INSTALL.md: added "Platform Install Scripts" section documenting primary vs variant scripts
+- Tests: 82 passed
+- Learnings: install.py was not imported by tests; shell scripts safe to move without test impact
+---
+
 ## Iteration N+8 - US-021: Move root-level legacy wrappers to /archived/
 - Evaluated all 10 files in scope: conversation_memory, plugin_loader, audio_config, rex_assistant, memory_utils, voice_loop, assistant_errors, config, llm_client, logging_utils
 - Moved to rex/: conversation_memory.py, plugin_loader.py, audio_config.py (with import fixes)
