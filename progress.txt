@@ -15,6 +15,23 @@
 
 ## Story Completion Log
 
+## Iteration N+8 - US-021: Move root-level legacy wrappers to /archived/
+- Evaluated all 10 files in scope: conversation_memory, plugin_loader, audio_config, rex_assistant, memory_utils, voice_loop, assistant_errors, config, llm_client, logging_utils
+- Moved to rex/: conversation_memory.py, plugin_loader.py, audio_config.py (with import fixes)
+- Archived to archived/: rex_assistant.py (no importers), conversation_memory.py, plugin_loader.py, audio_config.py, memory_utils.py
+- Updated importers: install.py (rex.assistant_errors, rex.audio_config, rex.logging_utils)
+- Updated tests: test_conversation_memory.py, test_plugin_loader.py, test_audio_config.py, test_memory_utils.py
+- Added DeprecationWarning to assistant_errors.py and voice_loop.py
+- Root .py file count: 17 → 12 (≤12 target met)
+- voice_loop.py kept with full implementation (AsyncRexAssistant not in rex.voice_loop; 30+ tests depend on it)
+- Tests: 34 targeted tests pass; no new failures introduced
+- Learnings:
+  - voice_loop.py cannot become a simple shim because AsyncRexAssistant/WakeWordListener only exist there
+  - Tests patch "voice_loop.XYZ" so moving to rex/ would require updating 30+ test patch targets
+  - memory_utils.py test used `import config` module-level for monkeypatching; must replace with `import rex.config as config`
+  - audio_config.py imports from root-level assistant_errors and logging_utils; must update when moving to rex/
+---
+
 ## Iteration N+7 - US-020: Move root-level shims and patch files to /archived/
 - Grepped all 6 scope files for live imports before moving
 - Moved to archived/compat_shims/: patch_tts_torch_load.py, patch_tts_transformers.py, flask_proxy.py
