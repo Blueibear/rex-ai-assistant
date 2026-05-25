@@ -27,51 +27,6 @@ logger = logging.getLogger(__name__)
 
 # Matches bare "undo" or "undo that" utterances for HA command reversal
 _UNDO_PATTERN = re.compile(r"^\s*undo\s*(?:that)?\s*$", re.IGNORECASE)
-_DIRECT_TIME_PATTERNS = (
-    re.compile(r"\bwhat\s+time\s+is\s+it\b", re.IGNORECASE),
-    re.compile(r"\bwhat(?:'s| is)\s+(?:the\s+)?time\b", re.IGNORECASE),
-    re.compile(r"\bcurrent\s+(?:local\s+)?time\b", re.IGNORECASE),
-    re.compile(r"\btime\s+(?:is\s+it\s+)?(?:now|currently)\b", re.IGNORECASE),
-)
-_DIRECT_DATE_PATTERNS = (
-    re.compile(r"\bwhat(?:'s|s| is)\s+(?:today'?s\s+|todays\s+|the\s+)?date\b", re.IGNORECASE),
-    re.compile(r"\bwhat\s+date\s+is\s+(?:it\s+)?(?:today)?\b", re.IGNORECASE),
-    re.compile(r"\bcurrent\s+date\b", re.IGNORECASE),
-    re.compile(r"\bdate\s+today\b", re.IGNORECASE),
-    re.compile(r"\b(?:today'?s|todays)\s+date\b", re.IGNORECASE),
-)
-_DIRECT_DAY_PATTERNS = (
-    re.compile(r"\bwhat\s+day\s+is\s+it(?:\s+today)?\b", re.IGNORECASE),
-    re.compile(r"\bwhat\s+day\s+is\s+today\b", re.IGNORECASE),
-    re.compile(r"\bwhat(?:'s|s| is)\s+(?:the\s+)?day(?:\s+today)?\b", re.IGNORECASE),
-    re.compile(r"\bday\s+of\s+(?:the\s+)?week\b", re.IGNORECASE),
-)
-_TIME_LOCATION_PATTERN = re.compile(r"\bin\s+([^?.!]+)[?.!]*\s*$", re.IGNORECASE)
-_TIME_LOCATION_SUFFIXES = (
-    "right now",
-    "now",
-    "today",
-    "currently",
-    "please",
-    "for me",
-    "at the moment",
-)
-_DIRECT_GREETING_PATTERN = re.compile(r"^\s*(?:hello|hey)\s*[!.?]*\s*$", re.IGNORECASE)
-_DIRECT_WELLBEING_PATTERN = re.compile(
-    r"^\s*(?:how\s+are\s+you|how'?s\s+it\s+going|how\s+are\s+things)\s*[?.!]*\s*$",
-    re.IGNORECASE,
-)
-_DIRECT_CREATOR_PATTERN = re.compile(
-    r"^\s*who\s+(?:created|made|built)\s+you\s*[?.!]*\s*$",
-    re.IGNORECASE,
-)
-_RECIPE_REQUEST_PATTERN = re.compile(
-    r"\b(?:need|want|give\s+me|find\s+me|show\s+me|make|bake|cook|how\s+(?:do\s+i|to))\b"
-    r".*\b(?:recipe|make|bake|cook)\b",
-    re.IGNORECASE,
-)
-_CHOCOLATE_CAKE_PATTERN = re.compile(r"\bchocolate\s+cake\b", re.IGNORECASE)
-_SHOPPING_LIST_REFERENCE_PATTERN = re.compile(r"\b(?:shopping\s+)?list\b", re.IGNORECASE)
 _UNVERIFIED_ACTION_CLAIM_PATTERNS = (
     re.compile(
         r"\bi(?:'ve| have| just)?\s+"
@@ -94,11 +49,6 @@ _UNVERIFIED_ACTION_CLAIM_PATTERNS = (
         re.IGNORECASE,
     ),
 )
-_EXPLICIT_MUTATION_REQUEST_PATTERN = re.compile(
-    r"\b(?:add|put|save|send|create|schedule|set|change|update|delete|remove)\b",
-    re.IGNORECASE,
-)
-_INTERNAL_TOOL_SYNTAX_PATTERN = re.compile(r"\bTOOL_(?:REQUEST|RESULT)\s*:", re.IGNORECASE)
 _TOOL_REQUEST_PREFIX = "TOOL_REQUEST:"
 _ACTION_CLAIM_STREAM_PREFIXES = (
     "i",
@@ -269,6 +219,11 @@ class Assistant:
             user_id=self._user_id,
             followup_engine=self._followup_engine,
         )
+
+        # Intent router: handles direct-reply shortcuts without LLM (US-015)
+        from .intent.router import IntentRouter
+
+        self._intent_router = IntentRouter(tool_context_fn=self._build_tool_context)
 
         # Proactive suggestion engine (US-036)
         from .suggestions.engine import SuggestionEngine
@@ -518,157 +473,6 @@ class Assistant:
 
         self._log_turn(transcript, completion)
 
-    def _try_direct_time_reply(self, transcript: str) -> str | None:
-        """Answer simple clock/date queries without an LLM round trip."""
-        text = transcript.strip()
-        if not text:
-            return None
-
-        wants_time = any(pattern.search(text) for pattern in _DIRECT_TIME_PATTERNS)
-        wants_date = any(pattern.search(text) for pattern in _DIRECT_DATE_PATTERNS)
-        wants_day = any(pattern.search(text) for pattern in _DIRECT_DAY_PATTERNS)
-        if not wants_time and not wants_date and not wants_day:
-            return None
-
-        context = self._build_tool_context()
-        location = self._extract_direct_time_location(text) or context.get("location")
-        args = {"location": location} if location else {}
-
-        try:
-            from .openclaw.tool_executor import execute_tool
-
-            result = execute_tool(
-                {"tool": "time_now", "args": args},
-                context,
-                skip_policy_check=True,
-                skip_credential_check=True,
-                skip_audit_log=True,
-            )
-        except Exception as exc:
-            logger.debug("direct time reply failed: %s", exc)
-            return None
-
-        if "error" in result:
-            fallback = self._fallback_local_time_result(location, context)
-            if fallback is None:
-                logger.debug("direct time reply returned error: %s", result["error"])
-                return None
-            result = fallback
-
-        return self._format_direct_time_reply(
-            result,
-            location=location,
-            wants_date=wants_date and not wants_time,
-            wants_day=wants_day and not wants_time,
-        )
-
-    def _fallback_local_time_result(
-        self,
-        location: str | None,
-        context: dict[str, str],
-    ) -> dict[str, object] | None:
-        configured_location = context.get("location")
-        if location and configured_location:
-            same_location = location.strip().casefold() == configured_location.strip().casefold()
-            if not same_location:
-                return None
-
-        try:
-            now = datetime.now().astimezone()
-        except Exception as exc:
-            logger.debug("local clock fallback failed: %s", exc)
-            return None
-
-        timezone = str(now.tzinfo) if now.tzinfo is not None else context.get("timezone", "local")
-        return {
-            "local_time": now.strftime("%Y-%m-%d %H:%M"),
-            "date": now.strftime("%Y-%m-%d"),
-            "timezone": timezone,
-        }
-
-    def _extract_direct_time_location(self, transcript: str) -> str | None:
-        match = _TIME_LOCATION_PATTERN.search(transcript)
-        if not match:
-            return None
-        location = match.group(1).strip(" \t,")
-        while True:
-            updated = location
-            for suffix in _TIME_LOCATION_SUFFIXES:
-                suffix_text = f" {suffix}"
-                if updated.lower().endswith(suffix_text):
-                    updated = updated[: -len(suffix_text)].strip(" \t,")
-                    break
-            if updated == location:
-                break
-            location = updated
-        if not location:
-            return None
-        if location.lower().split(maxsplit=1)[0] in {"my", "your", "the", "a", "an"}:
-            return None
-        return location
-
-    def _format_direct_time_reply(
-        self,
-        result: dict[str, object],
-        *,
-        location: str | None,
-        wants_date: bool,
-        wants_day: bool,
-    ) -> str:
-        local_time = str(result.get("local_time") or "")
-        try:
-            when = datetime.strptime(local_time, "%Y-%m-%d %H:%M")
-        except ValueError:
-            return str(result.get("local_time") or result.get("date") or "")
-
-        place = f" in {location}" if location else ""
-        if wants_day:
-            date_text = f"{when.strftime('%B')} {when.day}, {when.year}"
-            return f"Today is {when.strftime('%A')}, {date_text}{place}."
-
-        if wants_date:
-            date_text = f"{when.strftime('%B')} {when.day}, {when.year}"
-            return f"Today is {date_text}{place}."
-
-        time_text = when.strftime("%I:%M %p").lstrip("0")
-        return f"It's {time_text}{place}."
-
-    def _try_direct_conversation_reply(self, transcript: str) -> str | None:
-        """Handle common greetings without invoking an unstable chat model."""
-        text = transcript.strip()
-        if not text:
-            return None
-        if _DIRECT_GREETING_PATTERN.match(text):
-            return "Hello. How can I help?"
-        if _DIRECT_WELLBEING_PATTERN.match(text):
-            return "I'm here and ready to help."
-        if _DIRECT_CREATOR_PATTERN.match(text):
-            return (
-                "I'm AskRex, a local assistant running from this project. "
-                "The repo owner and project contributors configure the models and integrations I use."
-            )
-        return None
-
-    def _try_direct_recipe_reply(self, transcript: str) -> str | None:
-        """Handle common recipe requests without tool or shopping-list routing."""
-        text = transcript.strip()
-        if not text:
-            return None
-        if _SHOPPING_LIST_REFERENCE_PATTERN.search(text):
-            return None
-        if not _RECIPE_REQUEST_PATTERN.search(text):
-            return None
-        if not _CHOCOLATE_CAKE_PATTERN.search(text):
-            return None
-        return (
-            "Here is a simple chocolate cake recipe: mix 1 and 3/4 cups flour, "
-            "2 cups sugar, 3/4 cup cocoa, 1 and 1/2 teaspoons baking powder, "
-            "1 and 1/2 teaspoons baking soda, and 1 teaspoon salt. Add 2 eggs, "
-            "1 cup milk, 1/2 cup oil, and 2 teaspoons vanilla, then stir in "
-            "1 cup hot water. Bake in two greased 9-inch pans at 350 F for "
-            "30 to 35 minutes, cool, and frost."
-        )
-
     def _looks_like_unverified_action_claim(self, completion: str) -> bool:
         return any(pattern.search(completion) for pattern in _UNVERIFIED_ACTION_CLAIM_PATTERNS)
 
@@ -721,22 +525,11 @@ class Assistant:
         loop = asyncio.get_running_loop()
         completion: str | None = None
 
-        direct_reply = self._try_direct_time_reply(transcript)
-        if direct_reply is not None:
-            self._record_completion(transcript, direct_reply)
-            yield direct_reply
-            return
-
-        direct_reply = self._try_direct_conversation_reply(transcript)
-        if direct_reply is not None:
-            self._record_completion(transcript, direct_reply)
-            yield direct_reply
-            return
-
-        direct_reply = self._try_direct_recipe_reply(transcript)
-        if direct_reply is not None:
-            self._record_completion(transcript, direct_reply)
-            yield direct_reply
+        # Intent routing: time/date, greetings, recipes (US-015)
+        _intent = self._get_or_create_intent_router().route(transcript)
+        if _intent.handled:
+            self._record_completion(transcript, _intent.response)
+            yield _intent.response
             return
 
         if self._ha_bridge and self._ha_bridge.enabled:
@@ -831,21 +624,13 @@ class Assistant:
             self._record_completion(transcript, _cap_reply)
             return _cap_reply
 
-        direct_reply = self._try_direct_time_reply(transcript)
-        if direct_reply is not None:
-            self._record_completion(transcript, direct_reply)
-            return direct_reply
-
-        if active_user_id is None:
-            direct_reply = self._try_direct_conversation_reply(transcript)
-            if direct_reply is not None:
-                self._record_completion(transcript, direct_reply)
-                return direct_reply
-
-        direct_reply = self._try_direct_recipe_reply(transcript)
-        if direct_reply is not None:
-            self._record_completion(transcript, direct_reply)
-            return direct_reply
+        # Intent routing: time/date, greetings, recipes (US-015)
+        _intent = self._get_or_create_intent_router().route(transcript)
+        if _intent.handled:
+            # Skip greeting shortcuts when handling a specific user's request
+            if not (_intent.intent_type == "greeting" and active_user_id is not None):
+                self._record_completion(transcript, _intent.response)
+                return _intent.response
 
         # Proactive suggestion response handling (US-036): intercept yes/no
         # answers while a suggestion is pending, before any other processing.
@@ -1054,6 +839,16 @@ class Assistant:
         from .context.builder import _VOICE_CONCISE_INSTRUCTION
 
         return _VOICE_CONCISE_INSTRUCTION
+
+    def _get_or_create_intent_router(self):
+        """Return self._intent_router, creating one lazily for __new__-based tests."""
+        ir = getattr(self, "_intent_router", None)
+        if ir is None:
+            from .intent.router import IntentRouter
+
+            ir = IntentRouter(tool_context_fn=self._build_tool_context)
+            self._intent_router = ir
+        return ir
 
     def _get_or_create_context_builder(self):
         """Return self._context_builder, creating one lazily for __new__-based tests."""

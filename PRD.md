@@ -321,13 +321,13 @@ For tools that execute locally (not over the OpenClaw gateway), `tool_executor.p
 `assistant.py` currently short-circuits `generate_reply()` for several intent types before hitting the LLM. These shortcuts move to a router that returns early with a `DirectResponse` when the intent is recognized.
 
 **Acceptance Criteria:**
-- [ ] Create `rex/intent/router.py` with `class IntentRouter`
-- [ ] `IntentRouter.route(user_message: str, context: ContextPackage) -> IntentResult`
-- [ ] `IntentResult` dataclass: `handled: bool`, `response: str | None`, `intent_type: str | None`
-- [ ] The following shortcuts moved from `assistant.py` to `IntentRouter`: time/date queries, greeting detection, recipe shortcut, and any other direct-return patterns currently in `generate_reply()`
-- [ ] `assistant.py` replaces inline shortcuts with `intent = self._intent_router.route(message, context); if intent.handled: return intent.response`
-- [ ] Shortcut responses (e.g., "What time is it?") produce identical output
-- [ ] `pytest -q` passes
+- [x] Create `rex/intent/router.py` with `class IntentRouter`
+- [x] `IntentRouter.route(user_message: str, context: ContextPackage) -> IntentResult`
+- [x] `IntentResult` dataclass: `handled: bool`, `response: str | None`, `intent_type: str | None`
+- [x] The following shortcuts moved from `assistant.py` to `IntentRouter`: time/date queries, greeting detection, recipe shortcut, and any other direct-return patterns currently in `generate_reply()`
+- [x] `assistant.py` replaces inline shortcuts with `intent = self._intent_router.route(message, context); if intent.handled: return intent.response`
+- [x] Shortcut responses (e.g., "What time is it?") produce identical output
+- [x] `pytest -q` passes
 
 ---
 
