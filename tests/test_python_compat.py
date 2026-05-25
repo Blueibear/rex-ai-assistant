@@ -1,4 +1,4 @@
-from python_compat import (
+from rex.compat.python_compat import (
     DEFAULT_INSTALL_LABEL,
     SUPPORTED_VERSION_LABEL,
     is_supported_python,

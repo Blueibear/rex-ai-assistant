@@ -15,6 +15,21 @@
 
 ## Story Completion Log
 
+## Iteration N+7 - US-020: Move root-level shims and patch files to /archived/
+- Grepped all 6 scope files for live imports before moving
+- Moved to archived/compat_shims/: patch_tts_torch_load.py, patch_tts_transformers.py, flask_proxy.py
+- Moved to rex/compat/: python_compat.py, placeholder_voice.py
+- sitecustomize.py kept at root (Python-special file, cannot move)
+- Updated live imports: install.py, rex/cli.py, rex/doctor.py -> from rex.compat.python_compat import
+- Updated tests: tests/test_python_compat.py, tests/test_us043_llm_usage.py, tests/test_placeholder_voice.py
+- Updated assets/voices/README.md reference to new placeholder_voice path
+- Updated deploy/systemd/rex-api.service: new flask_proxy path + Environment=PYTHONPATH
+- Removed python_compat and flask_proxy from setup.py py_modules list
+- Updated archived/ARCHIVED.md with compat shims section
+- Tests: 53 targeted tests pass; rex doctor passes
+- Learnings: git grep finds all import sites; setup.py py_modules must be updated; sitecustomize.py is Python-special
+---
+
 ## Iteration N+6 - US-019: Move root-level bridge files to /bridge/
 - Created bridge/ directory at repo root
 - git mv all 20 rex_*_bridge.py files from root → bridge/ (rex_tts_bridge.py did not exist)

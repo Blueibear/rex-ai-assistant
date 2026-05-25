@@ -412,12 +412,13 @@ The Electron main process spawns these as child processes by path. Electron `mai
 Files to evaluate: `patch_tts_torch_load.py`, `patch_tts_transformers.py`, `python_compat.py`, `sitecustomize.py`, `placeholder_voice.py`, `flask_proxy.py`. Check each for live imports before moving. Files with live imports move to `rex/compat/` instead of `/archived/`.
 
 **Acceptance Criteria:**
-- [ ] Each file in scope is grepped for live imports across the codebase before any move is made
-- [ ] Files with no live imports moved to `/archived/compat_shims/`
-- [ ] Files with live imports moved to `rex/compat/` with import paths updated everywhere
-- [ ] `/archived/ARCHIVED.md` updated with compat shims section
-- [ ] `rex doctor` still passes
-- [ ] `pytest -q` passes
+- [x] Each file in scope is grepped for live imports across the codebase before any move is made
+- [x] Files with no live imports moved to `/archived/compat_shims/` — `patch_tts_torch_load.py`, `patch_tts_transformers.py`, `flask_proxy.py`
+- [x] Files with live imports moved to `rex/compat/` with import paths updated everywhere — `python_compat.py` (install.py, rex/cli.py, rex/doctor.py, tests/), `placeholder_voice.py` (tests/)
+- [x] `sitecustomize.py` kept at root (Python-special file; auto-executed at interpreter startup)
+- [x] `/archived/ARCHIVED.md` updated with compat shims section
+- [x] `rex doctor` still passes
+- [x] `pytest -q` passes
 
 ---
 

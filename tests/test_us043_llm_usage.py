@@ -179,7 +179,7 @@ def _import_cmd_usage():
     import sys
     from unittest.mock import patch as _patch
 
-    with _patch("python_compat.is_supported_python", return_value=True):
+    with _patch("rex.compat.python_compat.is_supported_python", return_value=True):
         # Remove cached module so the guarded import runs cleanly
         sys.modules.pop("rex.cli", None)
         import rex.cli  # noqa: PLC0415

@@ -24,7 +24,7 @@ from enum import Enum
 from importlib.util import find_spec
 from pathlib import Path
 
-from python_compat import (
+from rex.compat.python_compat import (
     SUPPORTED_VERSION_LABEL,
     WINDOWS_GPU_INSTALL_LABEL,
     is_supported_python,

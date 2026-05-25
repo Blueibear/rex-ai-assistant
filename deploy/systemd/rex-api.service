@@ -10,7 +10,8 @@ User=rex
 Group=rex
 WorkingDirectory=/opt/rex-ai-assistant
 EnvironmentFile=/opt/rex-ai-assistant/.env
-ExecStart=/opt/rex-ai-assistant/.venv/bin/python flask_proxy.py
+Environment=PYTHONPATH=/opt/rex-ai-assistant
+ExecStart=/opt/rex-ai-assistant/.venv/bin/python archived/compat_shims/flask_proxy.py
 
 # Restart policy – restart on any non-zero exit, but back off after 5 quick
 # failures within 120 seconds (prevents tight restart loops).

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from placeholder_voice import ensure_placeholder_voice
+from rex.compat.placeholder_voice import ensure_placeholder_voice
 
 
 def test_ensure_placeholder_voice_creates_file(tmp_path):

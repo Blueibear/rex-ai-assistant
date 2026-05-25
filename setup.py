@@ -11,12 +11,11 @@ WHY THIS FILE STILL EXISTS (US-259 evaluation, 2026-04-05):
     config.py       — gui.py, tests/test_llm_client.py, tests/test_memory_utils.py,
                       tests/test_us013-016_*.py
     llm_client.py   — tests/test_llm_client.py, tests/test_us013-016_*.py
-    memory_utils.py — flask_proxy.py, gui.py, tests/test_memory_utils.py
+    memory_utils.py — archived/compat_shims/flask_proxy.py, gui.py, tests/test_memory_utils.py
     logging_utils.py— audio_config.py, gui.py, gui_settings_tab.py, install.py
 
-  The following shims have no known callers but are kept for safety until the
-  next cleanup cycle: audio_config.py, conversation_memory.py, flask_proxy.py,
-  python_compat.py, rex_assistant.py.
+  Moved to rex.compat (US-020): python_compat.py, placeholder_voice.py
+  Archived (US-020): flask_proxy.py
 """
 
 from setuptools import setup
@@ -29,10 +28,8 @@ setup(
         "rex_speak_api",
         "llm_client",
         "memory_utils",
-        "python_compat",
         "config",
         "audio_config",
         "conversation_memory",
-        "flask_proxy",
     ],
 )

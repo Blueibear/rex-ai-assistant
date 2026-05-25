@@ -61,6 +61,24 @@ absent.
 Shopping list management is available through the assistant (`"add milk to shopping list"`) and
 via the Electron GUI shopping routes.
 
+### Compatibility Shims (`archived/compat_shims/`)
+
+**Archived in:** US-020 (2026-05-25)
+
+**Files:**
+- `archived/compat_shims/patch_tts_torch_load.py` — one-shot script to patch Coqui TTS `io.py` for PyTorch 2.6 `torch.load()` compatibility
+- `archived/compat_shims/patch_tts_transformers.py` — one-shot script to patch Coqui TTS `stream_generator.py` for Transformers 4.38+ import changes
+- `archived/compat_shims/flask_proxy.py` — legacy Flask API / dashboard proxy application
+
+**Why archived:**
+The TTS patch scripts were one-shot compatibility fixes for PyTorch 2.6 and Transformers 4.38+. They are no longer needed because the current dependency pins avoid the problematic versions, and `rex/compat/transformers_shims.py` handles the Transformers compatibility at runtime.
+
+`flask_proxy.py` is documented as a "Legacy compatibility proxy" in `docs/ARCHITECTURE.md`. The canonical Flask/API surface is `rex.gui_app`. The legacy service definition (`deploy/systemd/rex-api.service`) has been updated to reference the new archived path with `PYTHONPATH=/opt/rex-ai-assistant`.
+
+**Replacement:**
+- TTS patches: not needed; managed by `rex/compat/transformers_shims.py`
+- Flask proxy: use `rex-gui` (entry point `rex.gui_app:main`)
+
 ---
 
 ## Restoring an archived component
