@@ -189,7 +189,7 @@ def test_assistant_has_intent_router():
 @pytest.mark.asyncio
 async def test_generate_reply_uses_intent_router_for_greeting():
     """generate_reply() must return greeting via IntentRouter without hitting LLM."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     from rex.assistant import Assistant
     from rex.intent.router import IntentResult
@@ -227,20 +227,11 @@ async def test_generate_reply_uses_intent_router_for_greeting():
     )
     a._intent_router = mock_router
 
-    # Capability query check must not intercept
-    with (
-        patch(
-            "rex.assistant.is_capability_query",
-            return_value=False,
-        ),
-        patch(
-            "rex.assistant.get_capability_registry",
-        ),
-        patch(
-            "rex.assistant.build_capability_response",
-        ),
-    ):
-        result = await a.generate_reply("hello")
+    result = await a.generate_reply("hello")
 
     assert result == "Hello. How can I help?"
-    mock_router.route.assert_called_once_with("hello")
+    mock_router.route.assert_called_once_with(
+        "hello",
+        settings=a._settings,
+        suggestion_engine=None,
+    )

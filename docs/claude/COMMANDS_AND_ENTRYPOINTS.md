@@ -108,3 +108,18 @@ Electron-only verification harnesses should build first, then require
 
 Prefer localhost binding in docs unless a deployment explicitly configures
 remote access and authentication.
+
+## Assistant Pipeline Module Locations
+
+`Assistant.generate_reply()` delegates to four component modules:
+
+| Component | Module path |
+|---|---|
+| `ContextBuilder` | `rex/context/builder.py` |
+| `IntentRouter` | `rex/intent/router.py` |
+| `ActionDispatcher` | `rex/actions/dispatcher.py` |
+| `ResponseBuilder` | `rex/response/builder.py` |
+
+Helper extracted from `Assistant.__init__`:
+
+- `rex.followup_engine.init_followup_engine(settings, user_id)` — returns `(engine, pending_prompt)`.

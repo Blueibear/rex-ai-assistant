@@ -11,15 +11,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from .assistant_errors import IntegrationNotConfiguredError
-from .calendar_service import get_calendar_service
 from .config import Settings, settings
-from .followup_engine import FollowupEngine
 from .ha_bridge import HABridge
 from .history_store import HistoryStore
 from .llm_client import LanguageModel
 from .memory import trim_history
-from .model_router import ModelRouter, TaskCategory
+from .model_router import ModelRouter
 from .plugins import PluginSpec
 
 logger = logging.getLogger(__name__)
@@ -113,12 +110,11 @@ class Assistant:
                 logger.warning("Failed to initialize HistoryStore: %s", exc)
                 self._history_store = None
 
-        # Follow-up engine for natural conversation cues
-        self._followup_engine: object | None = None
-        self._pending_followup: str | None = None
-        # Lock protects the one-shot followup injection across concurrent generate_reply calls
+        # Follow-up engine for natural conversation cues (US-018: init extracted to followup_engine)
+        from .followup_engine import init_followup_engine as _init_fe
+
         self._followup_lock = asyncio.Lock()
-        self._init_followup_engine()
+        self._followup_engine, self._pending_followup = _init_fe(self._settings, self._user_id)
 
         # Model router for task-category-based model selection.
         # Pass routing config so the router can probe Ollama availability at init.
@@ -293,96 +289,6 @@ class Assistant:
         timer.start()
         self._prune_timer = timer
 
-    def _followups_enabled(self) -> bool:
-        """
-        Best-effort check for whether follow-ups are enabled.
-
-        Supports multiple possible Settings layouts without hard dependency:
-        - settings.followups_enabled (legacy)
-        - settings.conversation.followups.enabled (newer config-backed)
-        """
-        # Legacy direct flag
-        legacy = getattr(self._settings, "followups_enabled", None)
-        if isinstance(legacy, bool):
-            return legacy
-
-        # Common nested config patterns
-        conv = getattr(self._settings, "conversation", None)
-        if isinstance(conv, dict):
-            followups = conv.get("followups")
-            if isinstance(followups, dict):
-                enabled = followups.get("enabled")
-                if isinstance(enabled, bool):
-                    return enabled
-
-        # Some Settings objects may expose followups as dict directly
-        fu = getattr(self._settings, "followups", None)
-        if isinstance(fu, dict):
-            enabled = fu.get("enabled")
-            if isinstance(enabled, bool):
-                return enabled
-
-        # Safe default for v1
-        return False
-
-    def _init_followup_engine(self) -> None:
-        """Initialize the follow-up engine for natural cue injection."""
-        if not self._followups_enabled():
-            self._followup_engine = None
-            self._pending_followup = None
-            return
-
-        # Preferred path: singleton/getter engine API
-        try:
-            from .followup_engine import get_followup_engine
-
-            engine = get_followup_engine()
-            self._followup_engine = engine
-
-            # Start session if supported
-            if hasattr(engine, "start_session"):
-                engine.start_session(self._user_id)
-
-            # Fetch a single pending follow-up prompt if supported
-            if hasattr(engine, "get_followup_prompt"):
-                self._pending_followup = engine.get_followup_prompt(self._user_id)
-
-            if self._pending_followup:
-                logger.debug("Pending followup for session: %s", self._pending_followup)
-            return
-        except Exception as exc:
-            logger.debug("Follow-up engine getter not available: %s", exc)
-
-        # Fallback path: construct engine directly from settings (older API)
-        try:
-            try:
-                calendar_service = get_calendar_service()
-            except IntegrationNotConfiguredError:
-                logger.info("Calendar: not configured")
-                calendar_service = None
-            except Exception as exc:  # pragma: no cover - defensive guard
-                logger.warning("Failed to initialize calendar service: %s", exc)
-                calendar_service = None
-
-            engine = FollowupEngine.from_settings(
-                self._settings,
-                calendar_service=calendar_service,
-            )
-            self._followup_engine = engine
-
-            # If the fallback engine supports session and single prompt, use it
-            if hasattr(engine, "start_session"):
-                engine.start_session(self._user_id)
-            if hasattr(engine, "get_followup_prompt"):
-                self._pending_followup = engine.get_followup_prompt(self._user_id)
-
-            if self._pending_followup:
-                logger.debug("Pending followup for session: %s", self._pending_followup)
-        except Exception as exc:
-            logger.debug("Follow-up engine not available: %s", exc)
-            self._followup_engine = None
-            self._pending_followup = None
-
     @property
     def user_id(self) -> str:
         """Get the user ID for this assistant session."""
@@ -525,29 +431,6 @@ class Assistant:
             return "pending"
         return "text"
 
-    def _resolve_model(self, category: TaskCategory) -> str:
-        """Resolve the LLM model identifier for the given task category.
-
-        Looks up *category* in ``settings.model_routing``.  If the category
-        has no configured model, falls back to ``model_routing.default``.
-        Returns an empty string when no routing overrides are configured,
-        meaning the global ``llm_model`` is used unchanged.
-        """
-        routing = getattr(self._settings, "model_routing", None)
-        if routing is None:
-            return ""
-        model: str = getattr(routing, str(category), "") or ""
-        if model:
-            return model
-        default: str = getattr(routing, "default", "") or ""
-        if default:
-            logger.warning(
-                "model_router: no model configured for category %r, falling back to default %r",
-                str(category),
-                default,
-            )
-        return default
-
     async def stream_reply(
         self, transcript: str, *, voice_mode: bool = False
     ) -> AsyncIterator[str]:
@@ -639,83 +522,33 @@ class Assistant:
         voice_mode: bool = False,
         active_user_id: str | None = None,
     ) -> str:
+        """Orchestrate a full reply: intent → cache → context → dispatch → response."""
         loop = asyncio.get_running_loop()
 
-        # Capability query: "What can you do?" (US-038) — intercept before any
-        # model routing or tool dispatch so the answer is always fast and accurate.
-        from .capabilities.registry import get_capability_registry
-        from .capabilities.responder import build_capability_response, is_capability_query
-
-        if is_capability_query(transcript):
-            _registry = get_capability_registry(config=self._settings)
-            _cap_reply = build_capability_response(_registry)
-            self._record_completion(transcript, _cap_reply)
-            return _cap_reply
-
-        # Intent routing: time/date, greetings, recipes (US-015)
-        _intent = self._get_or_create_intent_router().route(transcript)
+        # Route intent: capability queries, pending suggestions, time/date, greetings, recipes
+        _intent = self._get_or_create_intent_router().route(
+            transcript,
+            settings=self._settings,
+            suggestion_engine=getattr(self, "_suggestion_engine", None),
+        )
         if _intent.handled:
-            # Skip greeting shortcuts when handling a specific user's request
+            # Greeting shortcuts are suppressed in multi-user voice sessions
             if not (_intent.intent_type == "greeting" and active_user_id is not None):
                 self._record_completion(transcript, _intent.response)
                 return _intent.response
 
-        # Proactive suggestion response handling (US-036): intercept yes/no
-        # answers while a suggestion is pending, before any other processing.
-        _sug_engine = getattr(self, "_suggestion_engine", None)
-        if _sug_engine is not None and _sug_engine.has_pending:
-            if _sug_engine.is_accept(transcript):
-                reply = str(_sug_engine.handle_yes())
-                self._record_completion(transcript, reply)
-                return reply
-            elif _sug_engine.is_dismiss(transcript):
-                reply = str(_sug_engine.handle_dismiss())
-                self._record_completion(transcript, reply)
-                return reply
-
-        # Model routing: classify the message and resolve the target model.
-        _router = getattr(self, "_router", None)
-        category = _router.classify(transcript) if _router is not None else TaskCategory.default
-        _routing_cfg = getattr(getattr(self, "_settings", None), "model_routing", None)
-        resolved_model = (
-            _router.resolve_model(category, _routing_cfg) if _router is not None else None
-        )
-        prev_model: str | None = getattr(self._llm, "model_name", None)
-        if resolved_model and resolved_model != prev_model:
-            logger.debug("model_router: classified as %s, using %s", category, resolved_model)
-            if hasattr(self._llm, "model_name"):
-                self._llm.model_name = resolved_model
-        else:
-            logger.debug(
-                "model_router: classified as %s, using %s",
-                category,
-                prev_model or "default",
-            )
-
-        # Per-user credential/history scoping: swap self._user_id for the
-        # duration of this call so history, transcripts, and tool calls use
-        # the identified user's context.  Restore unconditionally in finally.
-        prev_user_id = self._user_id
-        if active_user_id is not None:
-            self._user_id = active_user_id
-            logger.debug("voice_identity: switching active user to %r", active_user_id)
-
-        # Check response cache before hitting the LLM (via ResponseBuilder).
+        # Fast path: return cached response without hitting the LLM
         _cached = self._get_or_create_response_builder().check_cache(transcript)
         if _cached is not None:
-            self._user_id = prev_user_id
             self._record_completion(transcript, _cached)
             return _cached
 
+        # Apply per-request model routing and user ID scoping; restore in finally
+        prev_model, prev_user_id = self._begin_request(transcript, active_user_id)
         try:
-            # Build initial context package; ActionDispatcher rebuilds with tool_context if needed.
             _ctx = self._get_or_create_context_builder().build(
-                transcript,
-                voice_mode=voice_mode,
-                active_user_id=active_user_id,
+                transcript, voice_mode=voice_mode, active_user_id=active_user_id
             )
-
-            # Action dispatch: skill invocation, HA routing, tool dispatch, LLM, post-process (US-016)
             result = await self._get_or_create_action_dispatcher().dispatch(
                 _intent,
                 _ctx,
@@ -725,20 +558,53 @@ class Assistant:
                 user_id=self._user_id,
                 loop=loop,
             )
-
-            # Build final response: cache PUT, TTS cleaning, suggestions, followups (US-017)
             final = self._get_or_create_response_builder().build(
                 result, _ctx, transcript=transcript
             )
             completion = final.text
         finally:
-            # Restore the previous model name and user ID after this call.
-            if prev_model is not None and hasattr(self._llm, "model_name"):
-                self._llm.model_name = prev_model
-            self._user_id = prev_user_id
+            self._end_request(prev_model, prev_user_id)
 
         self._record_completion(transcript, completion)
         return completion
+
+    def _begin_request(self, transcript: str, active_user_id: str | None) -> tuple[str | None, str]:
+        """Apply model routing and user ID scoping for the duration of a request.
+
+        Returns ``(prev_model, prev_user_id)`` for restoration in
+        :meth:`_end_request`.
+        """
+        # Model routing: classify the transcript and switch to the best model
+        _router = getattr(self, "_router", None)
+        prev_model: str | None = getattr(self._llm, "model_name", None)
+        if _router is not None:
+            category = _router.classify(transcript)
+            _routing_cfg = getattr(self._settings, "model_routing", None)
+            resolved = _router.resolve_model(category, _routing_cfg)
+            if resolved and resolved != prev_model:
+                logger.debug("model_router: classified as %s, using %s", category, resolved)
+                if hasattr(self._llm, "model_name"):
+                    self._llm.model_name = resolved
+            else:
+                logger.debug(
+                    "model_router: classified as %s, using %s",
+                    category,
+                    prev_model or "default",
+                )
+
+        # User ID scoping: swap to identified user for history / credentials
+        prev_user_id = self._user_id
+        if active_user_id is not None:
+            self._user_id = active_user_id
+            logger.debug("voice_identity: switching active user to %r", active_user_id)
+
+        return prev_model, prev_user_id
+
+    def _end_request(self, prev_model: str | None, prev_user_id: str) -> None:
+        """Restore model name and user ID after a request completes."""
+        if prev_model is not None and hasattr(self._llm, "model_name"):
+            self._llm.model_name = prev_model
+        self._user_id = prev_user_id
 
     async def _run_plugins(self, transcript: str) -> list[str]:
         loop = asyncio.get_running_loop()

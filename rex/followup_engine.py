@@ -455,10 +455,92 @@ def set_followup_engine(engine: FollowupEngine | None) -> None:
     _followup_engine = engine
 
 
+# ---------------------------------------------------------------------------
+# Session-level initialization helper (US-018)
+# ---------------------------------------------------------------------------
+
+_logger = logging.getLogger(__name__)
+
+
+def _followups_enabled(settings: object) -> bool:
+    """Return ``True`` when follow-ups are enabled in *settings*."""
+    legacy = getattr(settings, "followups_enabled", None)
+    if isinstance(legacy, bool):
+        return legacy
+    conv = getattr(settings, "conversation", None)
+    if isinstance(conv, dict):
+        followups = conv.get("followups")
+        if isinstance(followups, dict):
+            enabled = followups.get("enabled")
+            if isinstance(enabled, bool):
+                return enabled
+    fu = getattr(settings, "followups", None)
+    if isinstance(fu, dict):
+        enabled = fu.get("enabled")
+        if isinstance(enabled, bool):
+            return enabled
+    return False
+
+
+def init_followup_engine(settings: object, user_id: str) -> tuple[object | None, str | None]:
+    """Initialize the follow-up engine for a session.
+
+    Returns ``(engine, pending_followup)`` where *engine* is the
+    :class:`FollowupEngine` instance (or ``None`` when disabled/unavailable)
+    and *pending_followup* is a pre-fetched cue string or ``None``.
+
+    Extracted from ``rex.assistant.Assistant._init_followup_engine`` (US-018).
+    """
+    if not _followups_enabled(settings):
+        return None, None
+
+    # Preferred path: singleton/getter engine API
+    try:
+        engine = get_followup_engine()
+        if hasattr(engine, "start_session"):
+            engine.start_session(user_id)
+        pending: str | None = None
+        if hasattr(engine, "get_followup_prompt"):
+            pending = engine.get_followup_prompt(user_id)
+        if pending:
+            _logger.debug("Pending followup for session: %s", pending)
+        return engine, pending
+    except Exception as exc:
+        _logger.debug("Follow-up engine getter not available: %s", exc)
+
+    # Fallback path: construct engine directly from settings (older API)
+    try:
+        from rex.assistant_errors import IntegrationNotConfiguredError
+        from rex.calendar_service import get_calendar_service
+
+        try:
+            calendar_service = get_calendar_service()
+        except IntegrationNotConfiguredError:
+            _logger.info("Calendar: not configured")
+            calendar_service = None
+        except Exception as exc:
+            _logger.warning("Failed to initialize calendar service: %s", exc)
+            calendar_service = None
+
+        engine = FollowupEngine.from_settings(settings, calendar_service=calendar_service)
+        if hasattr(engine, "start_session"):
+            engine.start_session(user_id)
+        pending = None
+        if hasattr(engine, "get_followup_prompt"):
+            pending = engine.get_followup_prompt(user_id)
+        if pending:
+            _logger.debug("Pending followup for session: %s", pending)
+        return engine, pending
+    except Exception as exc:
+        _logger.debug("Follow-up engine not available: %s", exc)
+        return None, None
+
+
 __all__ = [
     "FollowupConfig",
     "FollowupEngine",
     "get_followup_engine",
+    "init_followup_engine",
     "set_followup_engine",
     "load_config",
 ]

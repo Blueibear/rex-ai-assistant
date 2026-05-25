@@ -15,6 +15,23 @@
 
 ## Story Completion Log
 
+## Iteration N+5 - US-018: Slim Assistant.generate_reply() and update docs
+- generate_reply() rewritten as clean orchestration: route intent → check cache → begin request → build context → dispatch → build response → end request → record → return (~52 lines, no inline business logic)
+- Extracted _begin_request() and _end_request() helpers for model routing + user ID scoping
+- Deleted _followups_enabled() and _init_followup_engine() methods from assistant.py; extracted to rex.followup_engine.init_followup_engine() returning (engine, pending_prompt)
+- Deleted dead _resolve_model() method from assistant.py (was never called)
+- Capability query check and pending suggestion yes/no intercept moved from generate_reply() into IntentRouter.route() with new optional kwargs: settings, suggestion_engine
+- CLAUDE.md updated with "Assistant architecture" section documenting the pipeline table and helper function
+- docs/claude/COMMANDS_AND_ENTRYPOINTS.md updated with "Assistant Pipeline Module Locations" reference table
+- tests/test_us015_intent_router.py: updated test_generate_reply_uses_intent_router_for_greeting to remove obsolete rex.assistant patches and match new route() call signature with settings/suggestion_engine kwargs
+- Files changed: rex/assistant.py, rex/followup_engine.py, rex/intent/router.py, CLAUDE.md, docs/claude/COMMANDS_AND_ENTRYPOINTS.md, tests/test_us015_intent_router.py, PRD.md
+- Tests: 164 targeted tests pass (test_assistant, test_us015_intent_router, test_us017_response_builder, test_followup_engine, test_capabilities, test_capability_registry, test_skill_trainer)
+- Learnings for future iterations:
+  - 400-line target for assistant.py is not achievable without breaking tests: stream_reply() (83 lines) is tested directly; backward-compat delegates (94 lines) are tested; __init__ (194 lines) initializes all components eagerly. Net reduction 973→838 lines.
+  - Capability query and suggestion intercepts belong in IntentRouter.route() not in generate_reply() — they are "intent-like" shortcuts that bypass LLM
+  - Lazy-getter pattern (_get_or_create_*) must be kept in sync when route() call signature changes — tests inject mocks and assert exact call signatures
+---
+
 ## Iteration N+4 - US-017: Extract ResponseBuilder
 - Created rex/response/__init__.py and rex/response/builder.py with ResponseBuilder and FinalResponse dataclass
 - ResponseBuilder.build() encapsulates: TTS text normalization (_clean_for_tts), cache PUT (via response_cache.put), suggestion surfacing (engine._pending), follow-up extraction (engine.format_followups)

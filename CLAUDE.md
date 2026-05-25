@@ -154,6 +154,26 @@ Top-level directories:
 - rex/voice_identity/
 - rex/computers/
 
+### Assistant architecture
+
+`Assistant.generate_reply()` is a thin orchestrator. The pipeline is:
+
+```
+Assistant → ContextBuilder → IntentRouter → ActionDispatcher → ResponseBuilder
+```
+
+| Component | Module | Responsibility |
+|---|---|---|
+| `Assistant` | `rex/assistant.py` | Orchestration, lazy-getter init, session state |
+| `ContextBuilder` | `rex/context/builder.py` | Assembles system prompt, chat history, user facts |
+| `IntentRouter` | `rex/intent/router.py` | Pre-LLM shortcuts: time/date, greetings, capability queries, pending suggestions |
+| `ActionDispatcher` | `rex/actions/dispatcher.py` | Skill invocation, HA routing, tool dispatch, LLM call |
+| `ResponseBuilder` | `rex/response/builder.py` | Cache lookup/write, TTS cleaning, followup prompts |
+
+Helper functions extracted from `Assistant`:
+
+- `rex.followup_engine.init_followup_engine(settings, user_id)` — initialises the followup engine and returns `(engine, pending_prompt)`.
+
 ## Commands
 
 ### Install

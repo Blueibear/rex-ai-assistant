@@ -111,7 +111,14 @@ class IntentRouter:
     ) -> None:
         self._tool_context_fn = tool_context_fn
 
-    def route(self, user_message: str, context: Any = None) -> IntentResult:
+    def route(
+        self,
+        user_message: str,
+        context: Any = None,
+        *,
+        settings: Any = None,
+        suggestion_engine: Any = None,
+    ) -> IntentResult:
         """Check *user_message* for recognized shortcut intents.
 
         Returns an :class:`IntentResult` with ``handled=True`` and the
@@ -119,13 +126,60 @@ class IntentRouter:
         ``handled=False`` when the message should proceed to the LLM.
 
         Args:
-            user_message: The user's raw message.
-            context:      Optional :class:`~rex.context.builder.ContextPackage`
-                          (reserved for future use; not currently consumed).
+            user_message:      The user's raw message.
+            context:           Optional :class:`~rex.context.builder.ContextPackage`
+                               (reserved for future use; not currently consumed).
+            settings:          Optional app-config object; enables capability-query
+                               shortcuts (US-018).
+            suggestion_engine: Optional proactive suggestion engine; intercepts
+                               yes/no responses while a suggestion is pending
+                               (US-018).
         """
         text = user_message.strip()
         if not text:
             return IntentResult(handled=False, response=None, intent_type=None)
+
+        # Capability query: "What can you do?" — bypass LLM for accuracy
+        if settings is not None:
+            try:
+                from rex.capabilities.registry import get_capability_registry
+                from rex.capabilities.responder import (
+                    build_capability_response,
+                    is_capability_query,
+                )
+
+                if is_capability_query(text):
+                    registry = get_capability_registry(config=settings)
+                    return IntentResult(
+                        handled=True,
+                        response=build_capability_response(registry),
+                        intent_type="capability_query",
+                    )
+            except Exception as exc:
+                logger.debug("Capability query check failed: %s", exc)
+
+        # Pending suggestion yes/no intercept
+        if suggestion_engine is not None and getattr(suggestion_engine, "has_pending", False):
+            if getattr(suggestion_engine, "is_accept", None) and suggestion_engine.is_accept(text):
+                try:
+                    return IntentResult(
+                        handled=True,
+                        response=str(suggestion_engine.handle_yes()),
+                        intent_type="suggestion_accept",
+                    )
+                except Exception as exc:
+                    logger.debug("suggestion handle_yes failed: %s", exc)
+            elif getattr(suggestion_engine, "is_dismiss", None) and suggestion_engine.is_dismiss(
+                text
+            ):
+                try:
+                    return IntentResult(
+                        handled=True,
+                        response=str(suggestion_engine.handle_dismiss()),
+                        intent_type="suggestion_dismiss",
+                    )
+                except Exception as exc:
+                    logger.debug("suggestion handle_dismiss failed: %s", exc)
 
         resp = self._try_time(text)
         if resp is not None:
