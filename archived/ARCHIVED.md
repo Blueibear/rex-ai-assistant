@@ -102,6 +102,21 @@ root-level `.py` file count to ≤12 while keeping all importers updated.
 - `audio_config.py` → `rex.audio_config`
 - `memory_utils.py` → `rex.memory_utils`
 
+### Root-level Deprecation Shims (`archived/`)
+
+**Archived in:** US-023 (2026-05-25)
+
+**Files:**
+- `archived/logging_utils.py` — re-export shim for `rex.logging_utils`; all active callers already import from `rex.logging_utils` directly
+- `archived/assistant_errors.py` — re-export shim for `rex.assistant_errors`; all active callers already import from `rex.assistant_errors` directly
+
+**Why archived:**
+Both files were pure re-export shims with `DeprecationWarning` added in US-020/US-021. After archiving `audio_config.py`, `conversation_memory.py`, `plugin_loader.py`, and `memory_utils.py` in earlier stories, no active code imported from either shim — only archived files referenced them. Archiving them reduces the root-level `.py` file count to 9 (≤10 target).
+
+**Replacement:**
+- `logging_utils.py` → `rex.logging_utils`
+- `assistant_errors.py` → `rex.assistant_errors`
+
 ---
 
 ## Restoring an archived component

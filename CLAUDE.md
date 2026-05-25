@@ -128,20 +128,27 @@ External inputs include:
 Top-level directories:
 
 - rex/ — main package (CLI, services, workflows, integrations)
-- scripts/ — operational scripts
+- bridge/ — HTTP bridge modules for STT, TTS, calendar, and other external services
+- archived/ — retired files kept for reference; not maintained (see `archived/ARCHIVED.md`)
+- scripts/ — operational and install scripts (platform scripts in `scripts/install/`)
 - plugins/ — optional plugins
 - config/ — application configuration (not secrets)
 - Memory/ — per-user memory profiles
 - tests/ — pytest suite
 - docs/ — documentation
+- gui/ — React + Electron desktop GUI source
 
-### Important top-level modules
+### Active root-level `.py` files (9 total)
 
-- rex_loop.py — full voice loop (wake word → STT → LLM → TTS)
-- voice_loop.py — core voice loop helpers
-- wakeword_listener.py — wake word listener utilities
-- rex/gui_app.py — canonical React + Flask web dashboard entry point
+- rex_loop.py — full voice loop entry point (wake word → STT → LLM → TTS)
 - rex_speak_api.py — Flask TTS API with auth and rate limiting
+- voice_loop.py — legacy voice loop helpers (DeprecationWarning; canonical: `rex/voice_loop.py`)
+- config.py — config shim (re-exports from `rex.config`)
+- llm_client.py — LLM client shim (re-exports from `rex.llm_client`)
+- wsgi.py — WSGI entry point for `rex-gui`
+- setup.py — legacy setuptools stub (packaging via `pyproject.toml`)
+- sitecustomize.py — Windows UTF-8 encoding fix applied at interpreter start
+- conftest.py — pytest root conftest (shared fixtures)
 
 ### Important subpackages
 

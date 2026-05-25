@@ -99,10 +99,17 @@ def _install_stubs(monkeypatch):
 
 @pytest.fixture
 def assistant_module(monkeypatch):
+    import importlib.util
+    import pathlib
+
     _install_stubs(monkeypatch)
     monkeypatch.setenv("REX_LLM_MODEL", "sshleifer/tiny-gpt2")
     sys.modules.pop("rex_assistant", None)
-    module = importlib.import_module("rex_assistant")
+    archived_path = pathlib.Path(__file__).parent.parent / "archived" / "rex_assistant.py"
+    spec = importlib.util.spec_from_file_location("rex_assistant", archived_path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["rex_assistant"] = module
+    spec.loader.exec_module(module)
     monkeypatch.setattr(module, "LLM", types.SimpleNamespace(generate=lambda **_: "hi"))
     return module
 

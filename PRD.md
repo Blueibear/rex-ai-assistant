@@ -461,11 +461,11 @@ Root install scripts: `install.py`, `install.ps1`, `install.sh`, `install_full.s
 **Description:** As a developer, I want the CLAUDE.md repository structure section to accurately reflect the cleaned-up root so onboarding documents stay truthful.
 
 **Acceptance Criteria:**
-- [ ] Root `.py` file count is 10 or fewer (verified with `ls *.py | wc -l`)
-- [ ] `CLAUDE.md` repository structure section updated to list what each root-level item is and why it is there
-- [ ] `/bridge/`, `/archived/`, and any other new directories added to the repo structure section
-- [ ] `rex doctor` passes
-- [ ] `pytest -q` passes
+- [x] Root `.py` file count is 10 or fewer (verified with `ls *.py | wc -l`)
+- [x] `CLAUDE.md` repository structure section updated to list what each root-level item is and why it is there
+- [x] `/bridge/`, `/archived/`, and any other new directories added to the repo structure section
+- [x] `rex doctor` passes
+- [x] `pytest -q` passes
 
 ---
 

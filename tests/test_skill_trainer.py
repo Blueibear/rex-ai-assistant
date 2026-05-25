@@ -186,9 +186,25 @@ def _make_assistant(tmp_path: Path) -> object:
     assistant._ha_bridge = None
     assistant._tool_router_fn = lambda completion, ctx, model_call: completion
 
+    from rex.context.builder import ContextBuilder
     from rex.model_router import ModelRouter
+    from rex.tools.result_handler import ToolResultHandler
 
     assistant._router = ModelRouter()
+
+    # US-014: context builder required
+    assistant._context_builder = ContextBuilder(
+        settings=assistant._settings,
+        history=assistant._history,
+        user_id="default",
+        followup_engine=None,
+    )
+
+    # US-013: result handler required
+    assistant._result_handler = ToolResultHandler(
+        tool_router_fn=assistant._tool_router_fn,
+        ha_bridge=None,
+    )
 
     skills_dir = tmp_path / "skills"
     assistant._skill_registry = SkillRegistry(skills_path=tmp_path / "skills.json")
