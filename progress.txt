@@ -15,6 +15,18 @@
 
 ## Story Completion Log
 
+## Iteration N+10 - US-023: Final root audit and CLAUDE.md structure update
+- Archived logging_utils.py and assistant_errors.py (both had only archived importers after US-021)
+- Committed all pending root deletions from US-021/022: audio_config.py, conversation_memory.py, install.py, install_full.sh, install_lean.sh, memory_utils.py, plugin_loader.py, rex_assistant.py, setup.sh
+- Root .py count: 9 (target ≤10 met)
+- CLAUDE.md: updated Repository Structure section to list bridge/, archived/, scripts/, gui/ directories; documented all 9 remaining root .py files
+- Updated archived/ARCHIVED.md with US-023 entries for logging_utils.py and assistant_errors.py
+- Fixed tests/test_rex_assistant.py: loads module from archived/ path via importlib.util.spec_from_file_location
+- Fixed tests/test_skill_trainer.py: added required _context_builder and _result_handler to _make_assistant helper
+- Tests: 6243 passed (same 121 pre-existing failures: outlook, stt_bridge, ww/vc bridges, doctor Python version)
+- Commit: 72a665e chore(cleanup): final root audit and update CLAUDE.md structure (US-023)
+---
+
 ## Iteration N+9 - US-022: Consolidate install scripts and update docs
 - Identified primary install scripts: install.ps1 (Windows) and install.sh (macOS/Linux) — kept at root
 - Moved non-primary scripts to scripts/install/: install.py, install_full.sh, install_lean.sh, setup.sh
