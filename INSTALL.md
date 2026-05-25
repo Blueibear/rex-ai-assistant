@@ -54,6 +54,21 @@ python -m rex doctor
 python -m rex
 ```
 
+## Platform Install Scripts
+
+The root directory contains two install scripts for the primary paths:
+
+| OS | Script | Purpose |
+|---|---|---|
+| Windows | `install.ps1` | PowerShell post-pip setup (FFmpeg check, config copy) |
+| macOS/Linux | `install.sh` | Bash post-pip setup (FFmpeg check, config copy) |
+
+Additional install variants are in `scripts/install/`:
+- `install_full.sh` — full-stack install including all optional dependencies
+- `install_lean.sh` — minimal install for lightweight deployments
+- `setup.sh` — system-level dependency setup (apt-get, espeak, ffmpeg)
+- `install.py` — Python-based interactive installer
+
 ## Install Options
 
 Base install:

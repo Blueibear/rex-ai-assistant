@@ -106,7 +106,7 @@ rex doctor
 rex
 ```
 
-> **Advanced/Developer Install**: For GPU/CUDA setup, manual venv instructions, and development tooling, see [docs/advanced-install.md](docs/advanced-install.md).
+> **Advanced/Developer Install**: For GPU/CUDA setup, manual venv instructions, and development tooling, see [docs/advanced-install.md](docs/advanced-install.md). Additional install variants (`install_full.sh`, `install_lean.sh`, `setup.sh`) are in `scripts/install/`.
 
 ## Current Status
 

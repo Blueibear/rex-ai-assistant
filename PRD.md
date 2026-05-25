@@ -448,11 +448,11 @@ For each: if it is a re-export shim, replace it with a one-liner that re-exports
 Root install scripts: `install.py`, `install.ps1`, `install.sh`, `install_full.sh`, `install_lean.sh`, `setup.sh`. Keep the one(s) the README and INSTALL.md point to as primary; move or archive the rest.
 
 **Acceptance Criteria:**
-- [ ] Primary install path per OS identified from `README.md` and `INSTALL.md` and preserved (or moved to `/scripts/` with a root-level note)
-- [ ] Non-primary install scripts moved to `/scripts/install/`
-- [ ] `README.md` install section updated to point to one install path per OS (Windows, macOS/Linux)
-- [ ] `INSTALL.md` updated consistently
-- [ ] `pytest -q` passes
+- [x] Primary install path per OS identified from `README.md` and `INSTALL.md` and preserved (or moved to `/scripts/` with a root-level note)
+- [x] Non-primary install scripts moved to `/scripts/install/`
+- [x] `README.md` install section updated to point to one install path per OS (Windows, macOS/Linux)
+- [x] `INSTALL.md` updated consistently
+- [x] `pytest -q` passes
 
 ---
 
