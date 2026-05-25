@@ -6,7 +6,6 @@ import asyncio
 import logging
 import re
 import threading
-import time
 from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from datetime import datetime
@@ -25,8 +24,6 @@ from .plugins import PluginSpec
 
 logger = logging.getLogger(__name__)
 
-# Matches bare "undo" or "undo that" utterances for HA command reversal
-_UNDO_PATTERN = re.compile(r"^\s*undo\s*(?:that)?\s*$", re.IGNORECASE)
 _UNVERIFIED_ACTION_CLAIM_PATTERNS = (
     re.compile(
         r"\bi(?:'ve| have| just)?\s+"
@@ -237,6 +234,28 @@ class Assistant:
         )
         # In-memory command log for pattern detection (wall-clock timestamps)
         self._pattern_entries: list[PatternEntry] = []
+
+        # Action dispatcher: skill invocation, HA routing, tool dispatch, LLM, post-process (US-016)
+        from .actions.dispatcher import ActionDispatcher
+
+        self._action_dispatcher = ActionDispatcher(
+            context_builder=self._context_builder,
+            llm=self._llm,
+            result_handler=self._result_handler,
+            ha_bridge=self._ha_bridge,
+            tool_dispatcher=self._tool_dispatcher,
+            skill_trainer=self._skill_trainer,
+            skill_registry=self._skill_registry,
+            skill_router=self._skill_router,
+            shopping_list_handler=self._shopping_list_handler,
+            music_handler=self._music_handler,
+            device_state_handler=self._device_state_handler,
+            suggestion_engine=self._suggestion_engine,
+            pattern_entries=self._pattern_entries,
+            build_tool_context_fn=self._build_tool_context,
+            model_call_fn_builder=self._build_tool_model_call,
+            run_plugins_fn=self._run_plugins,
+        )
 
     def _schedule_daily_prune(self) -> None:
         """Prune old history turns and schedule the next prune in 24 hours.
@@ -611,7 +630,6 @@ class Assistant:
         active_user_id: str | None = None,
     ) -> str:
         loop = asyncio.get_running_loop()
-        completion: str | None = None
 
         # Capability query: "What can you do?" (US-038) — intercept before any
         # model routing or tool dispatch so the answer is always fast and accurate.
@@ -664,56 +682,6 @@ class Assistant:
                 prev_model or "default",
             )
 
-        # Skill training: intercept natural language skill creation requests
-        # before routing to the LLM (US-SK-003).
-        _skill_trainer = getattr(self, "_skill_trainer", None)
-        _skill_registry = getattr(self, "_skill_registry", None)
-        if _skill_trainer is not None and _skill_registry is not None:
-            training_response = _skill_trainer.handle_if_training_request(
-                transcript, _skill_registry
-            )
-            if training_response is not None:
-                self._record_completion(transcript, training_response)
-                return str(training_response)
-
-        # Skill invocation: check registered skill triggers before the LLM
-        # (US-SK-004).  On a match the skill handler is executed and the
-        # result returned directly; on no match normal routing proceeds.
-        _skill_router = getattr(self, "_skill_router", None)
-        if _skill_router is not None:
-            matched_skill = _skill_router.match(transcript)
-            if matched_skill is not None:
-                skill_response = str(_skill_router.execute(matched_skill, transcript))
-                self._record_completion(transcript, skill_response)
-                return skill_response
-
-        # Shopping list voice commands (US-SL-002)
-        _sl_handler = getattr(self, "_shopping_list_handler", None)
-        if _sl_handler is not None:
-            _sl_response = _sl_handler.handle(transcript, user_id=active_user_id or self._user_id)
-            if _sl_response is not None:
-                sl_response = str(_sl_response)
-                self._record_completion(transcript, sl_response)
-                return sl_response
-
-        # Music Assistant voice commands (US-022)
-        _music_handler = getattr(self, "_music_handler", None)
-        if _music_handler is not None:
-            _music_response = _music_handler.handle(transcript)
-            if _music_response is not None:
-                music_response = str(_music_response)
-                self._record_completion(transcript, music_response)
-                return music_response
-
-        # Device state queries (US-028)
-        _ds_handler = getattr(self, "_device_state_handler", None)
-        if _ds_handler is not None:
-            _ds_response = _ds_handler.handle(transcript)
-            if _ds_response is not None:
-                ds_response = str(_ds_response)
-                self._record_completion(transcript, ds_response)
-                return ds_response
-
         # Per-user credential/history scoping: swap self._user_id for the
         # duration of this call so history, transcripts, and tool calls use
         # the identified user's context.  Restore unconditionally in finally.
@@ -721,28 +689,6 @@ class Assistant:
         if active_user_id is not None:
             self._user_id = active_user_id
             logger.debug("voice_identity: switching active user to %r", active_user_id)
-
-        # Auto tool dispatch: select tools by intent, execute, aggregate context
-        # (US-TD-002).  Uses getattr guard so __new__-constructed test instances
-        # without _tool_dispatcher still work.
-        _tool_context: str | None = None
-        _dispatcher = getattr(self, "_tool_dispatcher", None)
-        if _dispatcher is not None:
-            _selected_tools = _dispatcher.select_tools(transcript)
-            if _selected_tools:
-                _effective_user = active_user_id or self._user_id
-                import functools
-
-                _tool_results = await loop.run_in_executor(
-                    None,
-                    functools.partial(
-                        _dispatcher.execute_tools,
-                        _selected_tools,
-                        transcript,
-                        user_id=_effective_user,
-                    ),
-                )
-                _tool_context = _dispatcher.format_tool_context(_tool_results) or None
 
         # Check response cache before hitting the LLM.
         _cache = getattr(self, "_response_cache", None)
@@ -753,57 +699,24 @@ class Assistant:
             return _cached
 
         try:
-            if self._ha_bridge and self._ha_bridge.enabled:
-                # Check for undo intent before other HA processing
-                if _UNDO_PATTERN.match(transcript):
-                    completion = await loop.run_in_executor(
-                        None,
-                        self._ha_bridge.undo_last,
-                    )
-                else:
-                    _hist_len_before = len(getattr(self._ha_bridge, "_command_history", None) or [])
-                    completion = await loop.run_in_executor(
-                        None,
-                        self._ha_bridge.process_transcript,
-                        transcript,
-                    )
-                    # If a new HA command succeeded, record it for pattern detection
-                    if completion is not None:
-                        _cmd_hist = getattr(self._ha_bridge, "_command_history", None)
-                        if _cmd_hist is not None and len(_cmd_hist) > _hist_len_before:
-                            _last = _cmd_hist._entries[-1]
-                            from .suggestions.pattern_detector import PatternEntry
+            # Build initial context package; ActionDispatcher rebuilds with tool_context if needed.
+            _ctx = self._get_or_create_context_builder().build(
+                transcript,
+                voice_mode=voice_mode,
+                active_user_id=active_user_id,
+            )
 
-                            self._pattern_entries.append(
-                                PatternEntry(
-                                    entity_id=_last.entity_id,
-                                    service=_last.service,
-                                    timestamp=time.time(),
-                                )
-                            )
-                        # Check if a proactive suggestion is due (US-036)
-                        _sug_engine2 = getattr(self, "_suggestion_engine", None)
-                        if _sug_engine2 is not None:
-                            from .suggestions.pattern_detector import detect_patterns
-
-                            _patterns = detect_patterns(self._pattern_entries)
-                            _sug = _sug_engine2.get_suggestion(_patterns)
-                            if _sug is not None:
-                                _, _spoken = _sug
-                                completion = f"{completion} {_spoken}"
-
-            if completion is None:
-                prompt, messages = await self._prepare_model_input(
-                    transcript,
-                    voice_mode=voice_mode,
-                    active_user_id=active_user_id,
-                    tool_context=_tool_context,
-                )
-
-                completion = await loop.run_in_executor(
-                    None, self._generate_model_reply, prompt, messages
-                )
-                completion = await self._post_process_completion(transcript, completion)
+            # Action dispatch: skill invocation, HA routing, tool dispatch, LLM, post-process (US-016)
+            result = await self._get_or_create_action_dispatcher().dispatch(
+                _intent,
+                _ctx,
+                transcript,
+                voice_mode=voice_mode,
+                active_user_id=active_user_id,
+                user_id=self._user_id,
+                loop=loop,
+            )
+            completion = result.response
         finally:
             # Restore the previous model name and user ID after this call.
             if prev_model is not None and hasattr(self._llm, "model_name"):
@@ -839,6 +752,33 @@ class Assistant:
         from .context.builder import _VOICE_CONCISE_INSTRUCTION
 
         return _VOICE_CONCISE_INSTRUCTION
+
+    def _get_or_create_action_dispatcher(self):
+        """Return self._action_dispatcher, creating one lazily for __new__-based tests."""
+        ad = getattr(self, "_action_dispatcher", None)
+        if ad is None:
+            from .actions.dispatcher import ActionDispatcher
+
+            ad = ActionDispatcher(
+                context_builder=self._get_or_create_context_builder(),
+                llm=getattr(self, "_llm", None),
+                result_handler=getattr(self, "_result_handler", None),
+                ha_bridge=getattr(self, "_ha_bridge", None),
+                tool_dispatcher=getattr(self, "_tool_dispatcher", None),
+                skill_trainer=getattr(self, "_skill_trainer", None),
+                skill_registry=getattr(self, "_skill_registry", None),
+                skill_router=getattr(self, "_skill_router", None),
+                shopping_list_handler=getattr(self, "_shopping_list_handler", None),
+                music_handler=getattr(self, "_music_handler", None),
+                device_state_handler=getattr(self, "_device_state_handler", None),
+                suggestion_engine=getattr(self, "_suggestion_engine", None),
+                pattern_entries=getattr(self, "_pattern_entries", None),
+                build_tool_context_fn=self._build_tool_context,
+                model_call_fn_builder=self._build_tool_model_call,
+                run_plugins_fn=self._run_plugins,
+            )
+            self._action_dispatcher = ad
+        return ad
 
     def _get_or_create_intent_router(self):
         """Return self._intent_router, creating one lazily for __new__-based tests."""

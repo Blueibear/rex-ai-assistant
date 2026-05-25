@@ -339,13 +339,13 @@ For tools that execute locally (not over the OpenClaw gateway), `tool_executor.p
 `assistant.py` currently routes tool calls, skill invocations, HA commands, and OpenClaw actions inline. This story extracts that routing. Should follow Epic 3 since `ActionDispatcher` delegates to `rex/tools/dispatcher.py`.
 
 **Acceptance Criteria:**
-- [ ] Create `rex/actions/dispatcher.py` with `class ActionDispatcher`
-- [ ] `ActionDispatcher.dispatch(intent: IntentResult, context: ContextPackage, llm_response: str) -> ActionResult`
-- [ ] `ActionResult` dataclass: `success: bool`, `response: str`, `actions_taken: list[str]`, `error: str | None`
-- [ ] Routing moved from `assistant.py`: tool invocation (via `rex.tools.dispatcher`), skill invocation, HA command routing (via `rex.ha_bridge`), OpenClaw tool bridge calls
-- [ ] `assistant.py` replaces inline dispatch with `result = self._action_dispatcher.dispatch(intent, context, llm_response)`
-- [ ] HA commands, tool calls, and skill invocations produce identical outputs
-- [ ] `pytest -q` passes
+- [x] Create `rex/actions/dispatcher.py` with `class ActionDispatcher`
+- [x] `ActionDispatcher.dispatch(intent: IntentResult, context: ContextPackage, llm_response: str) -> ActionResult`
+- [x] `ActionResult` dataclass: `success: bool`, `response: str`, `actions_taken: list[str]`, `error: str | None`
+- [x] Routing moved from `assistant.py`: tool invocation (via `rex.tools.dispatcher`), skill invocation, HA command routing (via `rex.ha_bridge`), OpenClaw tool bridge calls
+- [x] `assistant.py` replaces inline dispatch with `result = self._action_dispatcher.dispatch(intent, context, llm_response)`
+- [x] HA commands, tool calls, and skill invocations produce identical outputs
+- [x] `pytest -q` passes
 
 ---
 
