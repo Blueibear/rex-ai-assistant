@@ -15,6 +15,22 @@
 
 ## Story Completion Log
 
+## Iteration N+2 - US-015: Extract IntentRouter
+- Created rex/intent/__init__.py and rex/intent/router.py with IntentRouter and IntentResult dataclass
+- IntentRouter.route() handles: time/date queries (via tool executor + local clock fallback), greeting detection (hello/hey/wellbeing/creator), and chocolate cake recipe shortcut
+- assistant.py: removed _try_direct_time_reply, _fallback_local_time_result, _extract_direct_time_location, _format_direct_time_reply, _try_direct_conversation_reply, _try_direct_recipe_reply
+- assistant.py: removed unused module-level constants (_DIRECT_TIME_PATTERNS, etc.; _EXPLICIT_MUTATION_REQUEST_PATTERN; _INTERNAL_TOOL_SYNTAX_PATTERN)
+- assistant.py: added _intent_router initialization in __init__ and _get_or_create_intent_router() lazy getter
+- generate_reply() and stream_reply() now call _get_or_create_intent_router().route(); generate_reply() preserves the active_user_id guard for greeting shortcuts
+- Added 16 passing tests in tests/test_us015_intent_router.py
+- Files changed: rex/intent/__init__.py (new), rex/intent/router.py (new), rex/assistant.py, tests/test_us015_intent_router.py (new), PRD.md
+- Learnings for future iterations:
+  - Tests using Assistant.__new__() must manually set _intent_router or use _get_or_create_intent_router() lazy getter (same pattern as _context_builder and _result_handler)
+  - ToolBridge and other lazy imports in __init__ cannot be patched at rex.assistant module level (they don't exist there); must patch at source module
+  - _get_or_create_intent_router() is the canonical lazy getter for __new__-based tests
+  - The router.py file existed in rex/intent/ as untracked (previous partial work) — check untracked files at start of each iteration
+---
+
 ## Iteration N+1 - US-014: Extract ContextBuilder
 - Created rex/context/builder.py with ContextBuilder and ContextPackage dataclass
 - ContextBuilder.build() encapsulates: system prompt (date/time/location/tools), personality injection, user profile context, user facts, history, voice-mode instruction
