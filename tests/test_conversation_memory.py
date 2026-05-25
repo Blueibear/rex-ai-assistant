@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from conversation_memory import ConversationMemory
+from rex.conversation_memory import ConversationMemory
 
 
 def test_memory_summarises_when_over_capacity():

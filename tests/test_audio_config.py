@@ -1,6 +1,6 @@
 import pytest
 
-import audio_config
+import rex.audio_config as audio_config
 
 
 class _DummyStream:

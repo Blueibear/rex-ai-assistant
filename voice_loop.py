@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Async event loop orchestrating Rex's wake-word, STT, LLM and TTS pipeline.
 
+.. deprecated::
+    This root-level file is kept only for ``AsyncRexAssistant`` backward-compat.
+    New code should use ``rex.voice_loop`` instead.
+
 RELATIONSHIP NOTE — two voice_loop files exist in this repo:
 - ``voice_loop.py`` (this file, repo root): legacy implementation containing
   ``AsyncRexAssistant``. Kept for backward compatibility with external code
@@ -13,6 +17,16 @@ RELATIONSHIP NOTE — two voice_loop files exist in this repo:
 # ruff: noqa: E402, I001
 
 from __future__ import annotations
+
+import warnings as _warnings
+
+_warnings.warn(
+    "Importing from root-level 'voice_loop' is deprecated. "
+    "Use 'from rex.voice_loop import ...' instead. "
+    "This file will be removed in a future release.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 import asyncio
 import contextlib

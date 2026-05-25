@@ -5,7 +5,7 @@ import textwrap
 import pytest
 
 # Master-style plugin loader test (dict-based plugin discovery)
-from plugin_loader import load_plugins as load_dict_plugins
+from rex.plugin_loader import load_plugins as load_dict_plugins
 
 # Codex-style plugin test (class-based with lifecycle methods)
 from rex.plugins import load_plugins as load_rex_plugins

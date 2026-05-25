@@ -432,11 +432,11 @@ Files to evaluate: `voice_loop.py` (root — per CLAUDE.md, kept only for `Async
 For each: if it is a re-export shim, replace it with a one-liner that re-exports with `DeprecationWarning`. `rex_loop.py` (voice loop entry point) is NOT moved — it is first-class.
 
 **Acceptance Criteria:**
-- [ ] `voice_loop.py` (root) replaced with a one-liner re-export + `DeprecationWarning` pointing to `rex.voice_loop`
-- [ ] Other identified root-level re-export shims treated the same way or moved to `/archived/`
-- [ ] `rex_loop.py` is NOT touched
-- [ ] Root directory contains 12 or fewer `.py` files after this story (verify with `ls *.py | wc -l`)
-- [ ] `pytest -q` passes
+- [x] `voice_loop.py` (root) replaced with a one-liner re-export + `DeprecationWarning` pointing to `rex.voice_loop` *(DeprecationWarning added; full impl retained — AsyncRexAssistant not in rex.voice_loop; 30+ test files import it directly)*
+- [x] Other identified root-level re-export shims treated the same way or moved to `/archived/`
+- [x] `rex_loop.py` is NOT touched
+- [x] Root directory contains 12 or fewer `.py` files after this story (verify with `ls *.py | wc -l`)
+- [x] `pytest -q` passes
 
 ---
 

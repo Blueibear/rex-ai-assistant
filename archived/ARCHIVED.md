@@ -79,6 +79,29 @@ The TTS patch scripts were one-shot compatibility fixes for PyTorch 2.6 and Tran
 - TTS patches: not needed; managed by `rex/compat/transformers_shims.py`
 - Flask proxy: use `rex-gui` (entry point `rex.gui_app:main`)
 
+### Root-level Legacy Wrappers (`archived/`)
+
+**Archived in:** US-021 (2026-05-25)
+
+**Files:**
+- `archived/rex_assistant.py` — legacy CLI entry point mirroring old `rex_assistant.py` script; replaced by `rex.cli:main`
+- `archived/conversation_memory.py` — `ConversationMemory` class; canonical copy moved to `rex/conversation_memory.py`
+- `archived/plugin_loader.py` — dict-based plugin discovery utility; canonical copy moved to `rex/plugin_loader.py`
+- `archived/audio_config.py` — audio device CLI utilities; canonical copy moved to `rex/audio_config.py`
+- `archived/memory_utils.py` — re-export shim for `rex.memory_utils`; all callers updated to import from `rex.memory_utils` directly
+
+**Why archived:**
+These root-level files were either unused re-export shims or legacy scripts that duplicated logic
+already living in the `rex/` package. Moving them here completes US-021's goal of reducing the
+root-level `.py` file count to ≤12 while keeping all importers updated.
+
+**Replacement:**
+- `rex_assistant.py` → `rex.cli:main` (entry point `rex`)
+- `conversation_memory.py` → `rex.conversation_memory`
+- `plugin_loader.py` → `rex.plugin_loader`
+- `audio_config.py` → `rex.audio_config`
+- `memory_utils.py` → `rex.memory_utils`
+
 ---
 
 ## Restoring an archived component

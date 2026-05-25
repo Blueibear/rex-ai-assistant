@@ -15,10 +15,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-from assistant_errors import AssistantError, AudioDeviceError
-from audio_config import list_devices
-from logging_utils import get_logger
-from rex.compat.python_compat import DEFAULT_INSTALL_LABEL, is_supported_python, unsupported_python_message
+from rex.assistant_errors import AssistantError, AudioDeviceError
+from rex.audio_config import list_devices
+from rex.compat.python_compat import (
+    DEFAULT_INSTALL_LABEL,
+    is_supported_python,
+    unsupported_python_message,
+)
+from rex.logging_utils import get_logger
 
 logger = get_logger(__name__)
 

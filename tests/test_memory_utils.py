@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-import config
-from memory_utils import (
+import rex.config as config
+from rex.memory_utils import (
     append_history_entry,
     export_transcript,
     extract_voice_reference,
