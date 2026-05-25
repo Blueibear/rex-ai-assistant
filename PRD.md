@@ -354,13 +354,13 @@ For tools that execute locally (not over the OpenClaw gateway), `tool_executor.p
 **Description:** As a developer, I want response cache checking, suggestion generation, follow-up injection, and response post-processing in a single `ResponseBuilder` so I can tune response shaping without touching dispatch logic.
 
 **Acceptance Criteria:**
-- [ ] Create `rex/response/builder.py` with `class ResponseBuilder`
-- [ ] `ResponseBuilder.build(action_result: ActionResult, context: ContextPackage) -> FinalResponse`
-- [ ] `FinalResponse` dataclass: `text: str`, `tts_text: str`, `suggestions: list[str]`, `followups: list[str]`, `cache_hit: bool`
-- [ ] Logic moved from `assistant.py`: response cache lookup/write (via `rex.response_cache`), suggestion generation (via `rex.suggestions`), follow-up injection (via `rex.followup_engine`), TTS text cleaning/normalization
-- [ ] `assistant.py` replaces inline post-processing with `final = self._response_builder.build(action_result, context)`
-- [ ] Response suggestions and follow-ups appear correctly in GUI and voice output after the change
-- [ ] `pytest -q` passes
+- [x] Create `rex/response/builder.py` with `class ResponseBuilder`
+- [x] `ResponseBuilder.build(action_result: ActionResult, context: ContextPackage) -> FinalResponse`
+- [x] `FinalResponse` dataclass: `text: str`, `tts_text: str`, `suggestions: list[str]`, `followups: list[str]`, `cache_hit: bool`
+- [x] Logic moved from `assistant.py`: response cache lookup/write (via `rex.response_cache`), suggestion generation (via `rex.suggestions`), follow-up injection (via `rex.followup_engine`), TTS text cleaning/normalization
+- [x] `assistant.py` replaces inline post-processing with `final = self._response_builder.build(action_result, context)`
+- [x] Response suggestions and follow-ups appear correctly in GUI and voice output after the change
+- [x] `pytest -q` passes
 
 ---
 

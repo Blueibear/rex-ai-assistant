@@ -15,6 +15,39 @@
 
 ## Story Completion Log
 
+## Iteration N+4 - US-017: Extract ResponseBuilder
+- Created rex/response/__init__.py and rex/response/builder.py with ResponseBuilder and FinalResponse dataclass
+- ResponseBuilder.build() encapsulates: TTS text normalization (_clean_for_tts), cache PUT (via response_cache.put), suggestion surfacing (engine._pending), follow-up extraction (engine.format_followups)
+- ResponseBuilder.check_cache() handles cache GET fast path (returns None when no cache configured)
+- assistant.py: replaced inline cache GET/PUT with _get_or_create_response_builder().check_cache() and .build()
+- assistant.py: added _response_builder initialization in __init__ and _get_or_create_response_builder() lazy getter
+- Added 33 passing tests in tests/test_us017_response_builder.py
+- Files changed: rex/response/__init__.py (new), rex/response/builder.py (new), rex/assistant.py, tests/test_us017_response_builder.py (new), PRD.md
+- Learnings for future iterations:
+  - ResponseBuilder follows same lazy-getter pattern as all other extracted subsystems
+  - check_cache() is a separate method (not part of build()) so generate_reply() can exit early before dispatch
+  - cache_hit field is always False from build() since the early-return path (check_cache) is in generate_reply(); builder never receives cache hits
+  - 14 pre-existing test failures exist in the suite (unrelated to US-017): test_us029 undo pattern, test_us093 pip audit, test_us129 CLI smoke, test_us143 README structure, test_us248 progress archive
+---
+
+## Iteration N+3 - US-016: Extract ActionDispatcher
+- Created rex/actions/__init__.py and rex/actions/dispatcher.py with ActionDispatcher and ActionResult dataclass
+- ActionDispatcher.dispatch() encapsulates: skill training check, skill invocation, shopping list handler, music handler, device state handler, auto tool dispatch (ToolDispatcher), HA command routing (undo + process_transcript + suggestion injection), LLM call via context_builder.build(), post-LLM tool resolution via ToolResultHandler
+- assistant.py: removed inline blocks for skill training, skill invocation, shopping list, music, device state, HA routing, auto tool dispatch, LLM call - replaced with _action_dispatcher.dispatch()
+- assistant.py: added _action_dispatcher construction in __init__ and _get_or_create_action_dispatcher() lazy getter
+- assistant.py: removed _UNDO_PATTERN (moved to dispatcher.py) and unused `import time`
+- generate_reply() reduced from ~130 lines to ~60 lines; reads as: capability check → intent routing → suggestion engine → model routing → user ID scoping → cache check → build context → ActionDispatcher.dispatch() → cache put → record → return
+- Added 19 passing tests in tests/test_us016_action_dispatcher.py
+- Files changed: rex/actions/__init__.py (new), rex/actions/dispatcher.py (new), rex/assistant.py, tests/test_us016_action_dispatcher.py (new), PRD.md
+- Learnings for future iterations:
+  - ActionDispatcher takes context_builder + llm + result_handler as required args; all other handlers are optional (None-guarded)
+  - model_call_fn_builder callable allows ActionDispatcher to build re-prompt closures without importing assistant internals
+  - run_plugins_fn is an async callable passed from assistant._run_plugins (avoids circular refs)
+  - _get_or_create_action_dispatcher() follows same lazy-getter pattern as _get_or_create_context_builder() and _get_or_create_intent_router()
+  - Response cache GET stays in generate_reply() (before dispatch) due to user_id restore complexity; cache PUT also in generate_reply() after dispatch
+  - The third param is named 'transcript' in the implementation (not 'llm_response' as in the PRD spec), since pre-LLM handlers need the user's original message
+---
+
 ## Iteration N+2 - US-015: Extract IntentRouter
 - Created rex/intent/__init__.py and rex/intent/router.py with IntentRouter and IntentResult dataclass
 - IntentRouter.route() handles: time/date queries (via tool executor + local clock fallback), greeting detection (hello/hey/wellbeing/creator), and chocolate cake recipe shortcut

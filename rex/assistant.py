@@ -235,6 +235,16 @@ class Assistant:
         # In-memory command log for pattern detection (wall-clock timestamps)
         self._pattern_entries: list[PatternEntry] = []
 
+        # Response builder: cache, TTS cleaning, suggestions, followups (US-017)
+        from .response.builder import ResponseBuilder
+
+        self._response_builder = ResponseBuilder(
+            settings=self._settings,
+            response_cache=self._response_cache,
+            suggestion_engine=self._suggestion_engine,
+            followup_engine=self._followup_engine,
+        )
+
         # Action dispatcher: skill invocation, HA routing, tool dispatch, LLM, post-process (US-016)
         from .actions.dispatcher import ActionDispatcher
 
@@ -690,9 +700,8 @@ class Assistant:
             self._user_id = active_user_id
             logger.debug("voice_identity: switching active user to %r", active_user_id)
 
-        # Check response cache before hitting the LLM.
-        _cache = getattr(self, "_response_cache", None)
-        _cached: str | None = _cache.get(transcript) if _cache is not None else None
+        # Check response cache before hitting the LLM (via ResponseBuilder).
+        _cached = self._get_or_create_response_builder().check_cache(transcript)
         if _cached is not None:
             self._user_id = prev_user_id
             self._record_completion(transcript, _cached)
@@ -716,16 +725,17 @@ class Assistant:
                 user_id=self._user_id,
                 loop=loop,
             )
-            completion = result.response
+
+            # Build final response: cache PUT, TTS cleaning, suggestions, followups (US-017)
+            final = self._get_or_create_response_builder().build(
+                result, _ctx, transcript=transcript
+            )
+            completion = final.text
         finally:
             # Restore the previous model name and user ID after this call.
             if prev_model is not None and hasattr(self._llm, "model_name"):
                 self._llm.model_name = prev_model
             self._user_id = prev_user_id
-
-        # Store result in cache for future identical queries.
-        if _cache is not None:
-            _cache.put(transcript, completion)
 
         self._record_completion(transcript, completion)
         return completion
@@ -752,6 +762,21 @@ class Assistant:
         from .context.builder import _VOICE_CONCISE_INSTRUCTION
 
         return _VOICE_CONCISE_INSTRUCTION
+
+    def _get_or_create_response_builder(self):
+        """Return self._response_builder, creating one lazily for __new__-based tests."""
+        rb = getattr(self, "_response_builder", None)
+        if rb is None:
+            from .response.builder import ResponseBuilder
+
+            rb = ResponseBuilder(
+                settings=getattr(self, "_settings", None),
+                response_cache=getattr(self, "_response_cache", None),
+                suggestion_engine=getattr(self, "_suggestion_engine", None),
+                followup_engine=getattr(self, "_followup_engine", None),
+            )
+            self._response_builder = rb
+        return rb
 
     def _get_or_create_action_dispatcher(self):
         """Return self._action_dispatcher, creating one lazily for __new__-based tests."""
