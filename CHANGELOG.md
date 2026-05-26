@@ -7,6 +7,18 @@
   - All documentation, badges, and clone URLs updated to `https://github.com/Blueibear/AskRex-Assistant`.
   - See `docs/BRANDING.md` for the full canonical naming ruleset.
 
+## [1.2.0](https://github.com/Blueibear/AskRex-Assistant/compare/v1.1.0...v1.2.0) (2026-05-26)
+
+
+### Features
+
+* **archived:** archive shopping PWA surface (US-007) ([9852ed4](https://github.com/Blueibear/AskRex-Assistant/commit/9852ed4efabfa1a353a106f59f1b9eca5ece374b))
+* **archived:** archive Tkinter legacy GUI (US-006) ([38df6de](https://github.com/Blueibear/AskRex-Assistant/commit/38df6ded1296999e20dc0388fed63fd58236d8ce))
+* **archived:** create /archived directory with policy document (US-005) ([5f763b5](https://github.com/Blueibear/AskRex-Assistant/commit/5f763b57b363a9560f4fb5c6b33cbb3def4772cc))
+* **gui:** add integration settings helper text ([127c865](https://github.com/Blueibear/AskRex-Assistant/commit/127c865832e7a51ffb97a51d965a48b23cccbdd7))
+* **gui:** mark Flask GUI as Electron backend-only (US-008) ([7eefa7a](https://github.com/Blueibear/AskRex-Assistant/commit/7eefa7a44e58fd25ed89e6a77303108d032779ab))
+* **tools:** define canonical ToolInterface Protocol in rex/tools/ (US-010) ([d29d964](https://github.com/Blueibear/AskRex-Assistant/commit/d29d96430a437c80dc5ae3519289fbeb4ea03474))
+
 ## [1.1.0](https://github.com/Blueibear/AskRex-Assistant/compare/v1.0.0...v1.1.0) (2026-04-24)
 
 
