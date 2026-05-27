@@ -210,3 +210,28 @@ class TestLogoutEndpoint:
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["ok"] is True
+
+
+# ---------------------------------------------------------------------------
+# JWT secret hardening (US-RR-006)
+# ---------------------------------------------------------------------------
+
+
+class TestGetJWTSecret:
+    def test_raises_runtime_error_when_secret_missing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """No hardcoded fallback — missing REX_JWT_SECRET must raise RuntimeError."""
+        monkeypatch.delenv("REX_JWT_SECRET", raising=False)
+        from rex.auth import get_jwt_secret
+
+        with pytest.raises(RuntimeError, match="REX_JWT_SECRET is not set"):
+            get_jwt_secret()
+
+    def test_returns_secret_when_env_var_set(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("REX_JWT_SECRET", "my-strong-test-secret")
+        from rex.auth import get_jwt_secret
+
+        assert get_jwt_secret() == "my-strong-test-secret"

@@ -27,15 +27,22 @@ _JWT_ALGORITHM = "HS256"
 _TOKEN_EXPIRY_HOURS = 24
 
 
-def _get_jwt_secret() -> str:
-    """Return the JWT signing secret from the environment or a default."""
+def get_jwt_secret() -> str:
+    """Return the JWT signing secret from the environment.
+
+    Raises:
+        RuntimeError: If ``REX_JWT_SECRET`` is not set.  A missing secret is a
+            configuration error — there is no hardcoded fallback.  Generate a
+            value with: ``python -c "import secrets; print(secrets.token_hex(32))"``
+    """
     secret = os.getenv("REX_JWT_SECRET")
     if not secret:
-        logger.warning(
-            "REX_JWT_SECRET is not set — using insecure default. "
-            "Set this variable in .env for production use."
+        raise RuntimeError(
+            "REX_JWT_SECRET is not set. "
+            "Add it to your .env file. "
+            "Generate a value with: "
+            'python -c "import secrets; print(secrets.token_hex(32))"'
         )
-        secret = "rex-insecure-default-secret"
     return secret
 
 
@@ -142,7 +149,7 @@ def authenticate(username: str, password: str) -> str:
         "iat": datetime.now(UTC),
         "exp": datetime.now(UTC) + timedelta(hours=_TOKEN_EXPIRY_HOURS),
     }
-    token = jwt.encode(payload, _get_jwt_secret(), algorithm=_JWT_ALGORITHM)
+    token = jwt.encode(payload, get_jwt_secret(), algorithm=_JWT_ALGORITHM)
     logger.info("Authenticated user: %s", username)
     return token
 
@@ -163,7 +170,7 @@ def get_current_user(token: str) -> dict[str, Any]:
         raise ValueError("no token provided")
 
     try:
-        payload = jwt.decode(token, _get_jwt_secret(), algorithms=[_JWT_ALGORITHM])
+        payload = jwt.decode(token, get_jwt_secret(), algorithms=[_JWT_ALGORITHM])
     except jwt.ExpiredSignatureError as exc:
         raise ValueError("token has expired") from exc
     except jwt.InvalidTokenError as exc:
@@ -176,4 +183,5 @@ __all__ = [
     "authenticate",
     "create_user",
     "get_current_user",
+    "get_jwt_secret",
 ]
