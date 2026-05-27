@@ -10,7 +10,7 @@ Implementation: Not started
 
 ### Phase 0 — Baseline Confirmation
 - [x] US-RR-001: Verify clean repo state and map active surfaces
-- [ ] US-RR-002: Confirm CI pipeline baseline
+- [x] US-RR-002: Confirm CI pipeline baseline
 
 ### Phase 1 — Test Collection and Test-Suite Trust
 - [ ] US-RR-003: Fix pytest collection failure (rex_calendar_bridge import)
@@ -83,6 +83,64 @@ Implementation: Not started
 - Story status checkboxes are in progress.txt (Story Status section), NOT in PRD.md.
 - PRD.md uses `### US-RR-NNN:` section headers for stories (no checkboxes in PRD).
 - BASELINE.md is a working note file (not committed) created in repo root for US-RR-001.
+
+---
+
+## Iteration 2 - US-RR-002: Confirm CI pipeline baseline
+
+- Read all 3 workflow files: `.github/workflows/ci.yml`, `commitlint.yml`, `release-please.yml`
+- Recorded mypy ignore list from `pyproject.toml`
+- Recorded pip-audit suppression count
+- Documented gap list (no code modified)
+
+Files changed:
+- progress.txt only (no CI files modified per story requirement)
+
+### CI Jobs Present (ci.yml)
+
+| Job | What it does |
+|-----|-------------|
+| `lint` | Ruff + Black on **changed Python files only** (not full repo); `compileall` on rex/ and scripts/ |
+| `typecheck` | `mypy rex --ignore-missing-imports` |
+| `tests` | pytest -m "not slow and not audio and not gpu" with `--cov-fail-under=75`; integration tests; CLI entrypoint smoke checks |
+| `security-scan` | `pip-audit` with 85 `--ignore-vuln` suppressions |
+| `pre-commit` | `pre-commit run --all-files` |
+| `secret-scan` | `detect-secrets scan --baseline .secrets.baseline` |
+
+**commitlint.yml:** Conventional Commits validation on PRs (wagoid/commitlint-github-action@v6)
+**release-please.yml:** Automated release management on push to master
+
+### mypy Ignore List (pyproject.toml)
+
+`ignore_missing_imports = true` overrides for optional deps:
+aiomqtt, edge_tts, pyttsx3, whisper, nltk, nltk.*, openwakeword.*, simpleaudio, sounddevice, speechbrain, speechbrain.*, resemblyzer, transformers, transformers.*, servicemanager, win32event, win32service, win32serviceutil, plyer, twilio.*, playwright.*, TTS.*, psutil, icalendar, bs4, bs4.*, torch, torch.*, _pytest, _pytest.*, flask_cors, flask_limiter, flask_limiter.*, playsound, pytest, setuptools, soundfile, tomli
+
+`ignore_errors = true` for pre-existing non-strict-compliant modules (12 total):
+rex, rex.config, rex.logging_utils, rex.llm_client, rex.scheduler, rex.event_bus, rex.http_errors, rex.notification, rex.calendar_service, rex.calendar_backends.ics_parser, rex.dashboard.auth, rex.dashboard.routes
+
+### pip-audit Suppression Count
+
+- **ci.yml**: 85 `--ignore-vuln` entries
+- **docs/security/VULNERABILITY-SCAN.md**: 27 lines matching suppress/ignore/accept
+
+### Gap List — Absent from CI
+
+| Gate | Status |
+|------|--------|
+| Full-repo Python lint (all .py, not just changed) | ABSENT |
+| GUI TypeScript typecheck (`tsc` for gui/ or rex/ui/) | ABSENT |
+| GUI build gate (`npm run build`) | ABSENT |
+| npm audit gate for gui/ | ABSENT |
+| npm audit gate for rex/ui/ | ABSENT |
+| Electron package smoke test | ABSENT |
+| pip-audit without broad suppression list | ABSENT (85 suppressions) |
+
+Learnings for future iterations:
+- ci.yml has 6 jobs: lint, typecheck, tests, security-scan, pre-commit, secret-scan
+- Lint job only runs on changed files — full-repo lint is a gap (US-RR-026)
+- pip-audit has 85 suppressions in ci.yml; VULNERABILITY-SCAN.md has 27 matching lines
+- mypy has 12 modules with `ignore_errors = true` (not just missing-import stubs)
+- No GUI-related CI gates exist at all (US-RR-022, 023, 024, 025)
 
 ---
 
