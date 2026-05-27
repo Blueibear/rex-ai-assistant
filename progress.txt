@@ -14,7 +14,7 @@ Implementation: Not started
 
 ### Phase 1 — Test Collection and Test-Suite Trust
 - [x] US-RR-003: Fix pytest collection failure (rex_calendar_bridge import)
-- [ ] US-RR-004: Invert Twilio fail-open test
+- [x] US-RR-004: Invert Twilio fail-open test
 - [ ] US-RR-005: Confirm full test suite collects and passes
 
 ### Phase 2 — Security Hardening
@@ -85,6 +85,23 @@ Implementation: Not started
 - BASELINE.md is a working note file (not committed) created in repo root for US-RR-001.
 - `bridge/` modules are imported as bare module names (e.g., `import rex_calendar_bridge`). Adding `pythonpath = [".", "bridge"]` to `[tool.pytest.ini_options]` in `pyproject.toml` is the correct least-invasive fix.
 
+---
+
+## Iteration 4 - US-RR-004: Invert Twilio fail-open test
+
+- Renamed `test_validate_signature_returns_true_when_twilio_missing` → `test_validate_signature_returns_false_when_twilio_missing`
+- Changed assertion from `assert result is True` to `assert result is False`
+- Added docstring explaining fail-closed contract
+- Marked test `@pytest.mark.xfail(strict=True)` referencing US-RR-011 (implementation fix not yet landed)
+- 14 passed, 1 xfailed — CI green
+
+Files changed:
+- `tests/test_ph001_twilio_handler.py` (test renamed, assertion inverted, xfail added)
+- `progress.txt` (US-RR-004 marked [x], iteration notes added)
+
+Learnings for future iterations:
+- `_validate_twilio_signature` does lazy `from twilio.request_validator import ...` inside the function body, so `patch.dict("sys.modules", {"twilio": None, ...})` correctly triggers the ImportError branch at call time even when the module is already cached.
+- `xfail(strict=True)` is the right marker here: test expects False but current impl returns True (fail-open), so it xfails now and will need the mark removed after US-RR-011 changes the impl to return False.
 ---
 
 ## Iteration 3 - US-RR-003: Fix pytest collection failure (rex_calendar_bridge import)
