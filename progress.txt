@@ -18,7 +18,7 @@ Implementation: Not started
 - [x] US-RR-005: Confirm full test suite collects and passes
 
 ### Phase 2 — Security Hardening
-- [ ] US-RR-006: Remove hardcoded JWT fallback secret
+- [x] US-RR-006: Remove hardcoded JWT fallback secret
 - [ ] US-RR-007: Protect /setup and /register routes
 - [ ] US-RR-008: Protect log streaming/download routes
 - [ ] US-RR-009: Protect HA connection-test route
@@ -78,6 +78,26 @@ Implementation: Not started
 
 ## Learnings
 (Patterns discovered during implementation -- add notes here as work progresses)
+
+---
+
+## Iteration 6 - US-RR-006: Remove hardcoded JWT fallback secret
+
+- Renamed `_get_jwt_secret()` → `get_jwt_secret()` (now public, added to `__all__`)
+- Removed hardcoded `"rex-insecure-default-secret"` fallback; now raises `RuntimeError` if `REX_JWT_SECRET` env var is unset
+- Updated internal callers in `authenticate()` and `get_current_user()`
+- Added `TestGetJWTSecret` class in `tests/test_us047_user_auth.py` with 2 new tests (negative + positive)
+- Added `REX_JWT_SECRET` to `.env.example` in new "JWT Authentication" section with generation command
+
+Files changed:
+- `rex/auth.py` (removed fallback, renamed function, updated callers, updated `__all__`)
+- `tests/test_us047_user_auth.py` (added `TestGetJWTSecret` class)
+- `.env.example` (added `REX_JWT_SECRET` section)
+
+Learnings for future iterations:
+- Existing `tmp_data_dir` fixture already sets `REX_JWT_SECRET=test-secret-key` so all pre-existing tests continued to pass without modification
+- `grep` on full repo runs slowly on Windows — use the `Grep` tool scoped to specific dirs for fast checks
+- The 2 failures in `pytest tests/ -k "jwt or auth"` are pre-existing `flask_proxy` missing-module failures (KNOWN_FAILURES.md category)
 
 - `pip-audit` is not in PATH; use `python -m pip_audit` instead.
 - Story status checkboxes are in progress.txt (Story Status section), NOT in PRD.md.
