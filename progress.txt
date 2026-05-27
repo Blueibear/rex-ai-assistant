@@ -13,7 +13,7 @@ Implementation: Not started
 - [x] US-RR-002: Confirm CI pipeline baseline
 
 ### Phase 1 — Test Collection and Test-Suite Trust
-- [ ] US-RR-003: Fix pytest collection failure (rex_calendar_bridge import)
+- [x] US-RR-003: Fix pytest collection failure (rex_calendar_bridge import)
 - [ ] US-RR-004: Invert Twilio fail-open test
 - [ ] US-RR-005: Confirm full test suite collects and passes
 
@@ -83,7 +83,23 @@ Implementation: Not started
 - Story status checkboxes are in progress.txt (Story Status section), NOT in PRD.md.
 - PRD.md uses `### US-RR-NNN:` section headers for stories (no checkboxes in PRD).
 - BASELINE.md is a working note file (not committed) created in repo root for US-RR-001.
+- `bridge/` modules are imported as bare module names (e.g., `import rex_calendar_bridge`). Adding `pythonpath = [".", "bridge"]` to `[tool.pytest.ini_options]` in `pyproject.toml` is the correct least-invasive fix.
 
+---
+
+## Iteration 3 - US-RR-003: Fix pytest collection failure (rex_calendar_bridge import)
+
+- Added `pythonpath = [".", "bridge"]` to `[tool.pytest.ini_options]` in `pyproject.toml`
+- `pytest --collect-only -q` now collects 6564 tests with 0 errors (was fatal ModuleNotFoundError)
+- `pytest tests/test_outlook_integration_honesty.py -q` passes all 6 tests
+
+Files changed:
+- `pyproject.toml` (added `pythonpath` to `[tool.pytest.ini_options]`)
+- `progress.txt` (US-RR-003 marked [x], learnings added)
+
+Learnings for future iterations:
+- `bridge/` modules use bare import names; `pythonpath` setting is the cleanest fix
+- `pytest --collect-only -q 2>&1 | grep -i "error"` returns test function names — not reliable for detecting collection errors. Use `tail -5` to check the summary line instead.
 ---
 
 ## Iteration 2 - US-RR-002: Confirm CI pipeline baseline
