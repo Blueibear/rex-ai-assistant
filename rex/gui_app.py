@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import signal
 import sys
 import threading
@@ -108,6 +109,29 @@ def _require_auth() -> tuple[dict[str, Any], None] | tuple[None, Any]:
         return None, (jsonify({"error": str(exc)}), 401)
 
 
+def _require_setup_token() -> tuple[None, None] | tuple[None, Any]:
+    """Validate the X-Setup-Token header for pre-setup routes.
+
+    The setup token is generated once per app start and stored in
+    ``app.config["SETUP_TOKEN"]``.  It is cleared after first-run setup
+    completes, so subsequent calls always return 403.
+
+    Returns:
+        ``(None, None)`` when the token is valid.
+        ``(None, flask_response)`` when the token is missing, wrong, or already
+        consumed — caller should return the response immediately.
+    """
+    from flask import current_app, jsonify, request
+
+    expected: str | None = current_app.config.get("SETUP_TOKEN")
+    if not expected:
+        return None, (jsonify({"error": "setup already completed"}), 403)
+    provided = request.headers.get("X-Setup-Token", "")
+    if not provided or provided != expected:
+        return None, (jsonify({"error": "forbidden"}), 403)
+    return None, None
+
+
 def _create_flask_app(ui_enabled: bool = True) -> Any:
     """Create a Flask application serving the Rex web UI and API stubs."""
 
@@ -115,6 +139,11 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
     app = Flask(__name__, static_folder=None)
     app.secret_key = "rex-gui-local"  # local-only; not security-sensitive
+
+    # Single-use token guarding the first-run setup routes.  Consumed on
+    # successful setup completion.  Pass to the Electron renderer via IPC
+    # before opening the setup wizard — never embed it in page source.
+    app.config["SETUP_TOKEN"] = secrets.token_urlsafe(32)
 
     data_dir = Path(os.getenv("REX_DATA_DIR", "data"))
     from rex.history_store import HistoryStore
@@ -302,6 +331,10 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
     def _setup_complete() -> Any:
         """Complete the first-run wizard.
 
+        Requires the ``X-Setup-Token`` header containing the single-use token
+        generated at app start (see ``app.config["SETUP_TOKEN"]``).  The token
+        is consumed on the first successful call; subsequent calls return 403.
+
         Accepts JSON body::
 
             {
@@ -317,6 +350,10 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         Registers the user, writes non-secret settings to
         ``config/rex_config.json``, and writes secrets to ``.env``.
         """
+        _, token_err = _require_setup_token()
+        if token_err is not None:
+            return token_err
+
         from rex.auth import create_user
 
         data: dict[str, Any] = request.get_json(silent=True) or {}
@@ -330,20 +367,6 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
         if not username or not password:
             return jsonify({"error": "username and password are required"}), 400
-
-        # Check that setup hasn't already been completed.
-        try:
-            from rex.auth import _open_db  # noqa: PLC2701
-
-            with _open_db() as conn:
-                row = conn.execute("SELECT COUNT(*) FROM users").fetchone()
-                if row and row[0] > 0:
-                    return (
-                        jsonify({"error": "setup already completed"}),
-                        409,
-                    )
-        except Exception:
-            pass
 
         # Create the admin user.
         try:
@@ -389,6 +412,9 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
             ha_token=ha_token,
         )
 
+        # Consume the setup token so the wizard cannot be re-run.
+        app.config["SETUP_TOKEN"] = None
+
         return jsonify({"ok": True, "user_id": user["id"]}), 201
 
     # ------------------------------------------------------------------
@@ -397,8 +423,27 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
     @app.route("/api/auth/register", methods=["POST"])
     def _auth_register() -> Any:
-        """Register a new user. Body: {username, password}."""
-        from rex.auth import create_user
+        """Register a new user. Body: {username, password}.
+
+        When no users exist yet, requires the ``X-Setup-Token`` header to
+        prevent a malicious local page from racing the first-run setup flow.
+        After the first user is created the token check no longer applies.
+        """
+        from rex.auth import _open_db, create_user  # noqa: PLC2701
+
+        # Require the setup token only during the initial setup window
+        # (i.e., before any user has been registered).
+        try:
+            with _open_db() as conn:
+                row = conn.execute("SELECT COUNT(*) FROM users").fetchone()
+                user_count = row[0] if row else 0
+        except Exception:
+            user_count = 0
+
+        if user_count == 0:
+            _, token_err = _require_setup_token()
+            if token_err is not None:
+                return token_err
 
         data: dict[str, Any] = request.get_json(silent=True) or {}
         username = (data.get("username") or "").strip()

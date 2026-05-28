@@ -29,9 +29,11 @@ def flask_client(tmp_data_dir: Path):  # type: ignore[override]
 @pytest.fixture()
 def auth_header(flask_client: object) -> dict[str, str]:
     """Register + login a test user and return the Authorization header."""
+    setup_token = flask_client.application.config.get("SETUP_TOKEN") or ""  # type: ignore[attr-defined]
     flask_client.post(  # type: ignore[attr-defined]
         "/api/auth/register",
         json={"username": "testuser", "password": "s3cr3t"},
+        headers={"X-Setup-Token": setup_token},
     )
     resp = flask_client.post(  # type: ignore[attr-defined]
         "/api/auth/login",

@@ -34,9 +34,11 @@ def auth_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     app = _create_flask_app(ui_enabled=False)
     app.config["TESTING"] = True
     with app.test_client() as c:
+        setup_token = app.config.get("SETUP_TOKEN") or ""
         c.post(
             "/api/auth/register",
             json={"username": "testuser", "password": "Password1!"},
+            headers={"X-Setup-Token": setup_token},
         )
         login = c.post(
             "/api/auth/login",

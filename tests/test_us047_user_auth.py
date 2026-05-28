@@ -141,11 +141,17 @@ class TestGetCurrentUser:
 # ---------------------------------------------------------------------------
 
 
+def _get_setup_token(client: object) -> str:
+    """Return the single-use setup token from the Flask app config."""
+    return client.application.config.get("SETUP_TOKEN") or ""  # type: ignore[attr-defined]
+
+
 class TestRegisterEndpoint:
     def test_register_returns_201_with_user(self, flask_client: object) -> None:
         resp = flask_client.post(  # type: ignore[attr-defined]
             "/api/auth/register",
             json={"username": "henry", "password": "passw0rd"},
+            headers={"X-Setup-Token": _get_setup_token(flask_client)},
         )
         assert resp.status_code == 201
         data = resp.get_json()
@@ -153,10 +159,13 @@ class TestRegisterEndpoint:
         assert "id" in data
 
     def test_register_duplicate_returns_409(self, flask_client: object) -> None:
+        # First user requires the setup token.
         flask_client.post(  # type: ignore[attr-defined]
             "/api/auth/register",
             json={"username": "ivan", "password": "pass"},
+            headers={"X-Setup-Token": _get_setup_token(flask_client)},
         )
+        # Second registration of the same username: user_count>0, no token needed.
         resp = flask_client.post(  # type: ignore[attr-defined]
             "/api/auth/register",
             json={"username": "ivan", "password": "pass"},
@@ -164,9 +173,11 @@ class TestRegisterEndpoint:
         assert resp.status_code == 409
 
     def test_register_missing_fields_returns_400(self, flask_client: object) -> None:
+        # Pass a valid token so the field-validation path is reached.
         resp = flask_client.post(  # type: ignore[attr-defined]
             "/api/auth/register",
             json={"username": "judy"},
+            headers={"X-Setup-Token": _get_setup_token(flask_client)},
         )
         assert resp.status_code == 400
 
@@ -176,6 +187,7 @@ class TestLoginEndpoint:
         flask_client.post(  # type: ignore[attr-defined]
             "/api/auth/register",
             json={"username": "kate", "password": "secret"},
+            headers={"X-Setup-Token": _get_setup_token(flask_client)},
         )
         resp = flask_client.post(  # type: ignore[attr-defined]
             "/api/auth/login",
@@ -189,6 +201,7 @@ class TestLoginEndpoint:
         flask_client.post(  # type: ignore[attr-defined]
             "/api/auth/register",
             json={"username": "leo", "password": "correct"},
+            headers={"X-Setup-Token": _get_setup_token(flask_client)},
         )
         resp = flask_client.post(  # type: ignore[attr-defined]
             "/api/auth/login",
@@ -228,9 +241,7 @@ class TestGetJWTSecret:
         with pytest.raises(RuntimeError, match="REX_JWT_SECRET is not set"):
             get_jwt_secret()
 
-    def test_returns_secret_when_env_var_set(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_returns_secret_when_env_var_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("REX_JWT_SECRET", "my-strong-test-secret")
         from rex.auth import get_jwt_secret
 

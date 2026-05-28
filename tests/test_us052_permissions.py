@@ -41,8 +41,13 @@ def flask_client(tmp_data_dir: Path):  # type: ignore[override]
 
 
 def _register_and_login(client, username: str, password: str = "pass1234") -> str:
-    """Register a user and return their JWT token."""
-    client.post("/api/auth/register", json={"username": username, "password": password})
+    """Register the first user and return their JWT token."""
+    setup_token = client.application.config.get("SETUP_TOKEN") or ""
+    client.post(
+        "/api/auth/register",
+        json={"username": username, "password": password},
+        headers={"X-Setup-Token": setup_token},
+    )
     resp = client.post("/api/auth/login", json={"username": username, "password": password})
     return resp.get_json()["token"]
 

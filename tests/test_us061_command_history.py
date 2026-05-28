@@ -124,7 +124,12 @@ def flask_client(tmp_data_dir: Path):  # type: ignore[override]
 
 
 def _register_and_login(client, username: str = "admin", password: str = "pass1234x!") -> str:
-    client.post("/api/auth/register", json={"username": username, "password": password})
+    setup_token = client.application.config.get("SETUP_TOKEN") or ""
+    client.post(
+        "/api/auth/register",
+        json={"username": username, "password": password},
+        headers={"X-Setup-Token": setup_token},
+    )
     resp = client.post("/api/auth/login", json={"username": username, "password": password})
     return resp.get_json()["token"]  # type: ignore[index]
 

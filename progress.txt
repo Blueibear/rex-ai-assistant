@@ -19,7 +19,7 @@ Implementation: Not started
 
 ### Phase 2 — Security Hardening
 - [x] US-RR-006: Remove hardcoded JWT fallback secret
-- [ ] US-RR-007: Protect /setup and /register routes
+- [x] US-RR-007: Protect /setup and /register routes
 - [ ] US-RR-008: Protect log streaming/download routes
 - [ ] US-RR-009: Protect HA connection-test route
 - [ ] US-RR-010: Require HA_SECRET for HA blueprint
@@ -78,6 +78,34 @@ Implementation: Not started
 
 ## Learnings
 (Patterns discovered during implementation -- add notes here as work progresses)
+
+---
+
+## Iteration 7 - US-RR-007: Protect /setup and /register routes
+
+- Added `secrets.token_urlsafe(32)` setup token generated at `_create_flask_app()` time; stored in `app.config["SETUP_TOKEN"]`
+- Added `_require_setup_token()` module-level helper (mirrors `_require_auth()` style) using `current_app.config`
+- `POST /api/setup/complete`: requires `X-Setup-Token` header; token consumed (set to None) on first success; subsequent calls return 403
+- `POST /api/auth/register`: requires `X-Setup-Token` when `user_count == 0` (pre-setup race protection); no change when users already exist
+- Created `tests/test_rr007_setup_register_protection.py` with 9 security tests (all pass)
+- Updated 11 existing test files to pass the setup token when registering the first user
+- `test_duplicate_setup_returns_409` renamed to `test_second_setup_attempt_returns_403` (token consumed → 403 not 409)
+- 147 tests passing for `-k "setup or register"`, 132 for directly modified test files
+
+Files changed:
+- `rex/gui_app.py` (added `import secrets`, `_require_setup_token()`, `app.config["SETUP_TOKEN"]`, updated `_setup_complete` and `_auth_register`)
+- `tests/test_rr007_setup_register_protection.py` (new — 9 security tests)
+- `tests/test_us058_setup_wizard.py` (updated all setup calls with token; renamed duplicate test)
+- `tests/test_us047_user_auth.py` (updated all first-user register calls)
+- `tests/test_us048_data_isolation.py` (updated `_register_and_login` and direct first-user calls)
+- `tests/test_us049_avatar.py`, `test_us051_personality_ui.py`, `test_us052_permissions.py`, `test_us059_ha_setup.py`, `test_us060_devices.py`, `test_us061_command_history.py`, `test_us063_quick_actions.py`, `test_chat_api.py` (updated `_register_and_login` / first-user register)
+
+Learnings for future iterations:
+- `_require_setup_token()` uses `current_app.config` (Flask thread-local) just like `_require_auth()` uses `request` — consistent pattern
+- Token check must be BEFORE field validation so attackers cannot probe validation errors without the token
+- Second-user registrations (user_count > 0) need NO token — only the first user is vulnerable to the race attack
+- `client.application.config.get("SETUP_TOKEN")` is how Flask test clients read app config in tests
+- Ruff auto-fixed one unused import in a test file; Black reformatted `test_us047_user_auth.py`
 
 ---
 

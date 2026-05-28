@@ -39,6 +39,11 @@ def flask_client(tmp_data_dir: Path):  # type: ignore[override]
         yield client
 
 
+def _setup_token(client: object) -> str:
+    """Return the single-use setup token from the Flask app config."""
+    return client.application.config.get("SETUP_TOKEN") or ""  # type: ignore[attr-defined]
+
+
 # ---------------------------------------------------------------------------
 # GET /api/setup/status
 # ---------------------------------------------------------------------------
@@ -52,7 +57,11 @@ class TestSetupStatus:
         assert data["needs_setup"] is True
 
     def test_needs_setup_false_after_registration(self, flask_client) -> None:  # type: ignore[override]
-        flask_client.post("/api/auth/register", json={"username": "alice", "password": "pass1234"})
+        flask_client.post(
+            "/api/auth/register",
+            json={"username": "alice", "password": "pass1234"},
+            headers={"X-Setup-Token": _setup_token(flask_client)},
+        )
         resp = flask_client.get("/api/setup/status")
         assert resp.status_code == 200
         data = resp.get_json()
@@ -80,6 +89,7 @@ class TestSetupComplete:
                 "llm_provider": "local",
                 "tts_provider": "none",
             },
+            headers={"X-Setup-Token": _setup_token(flask_client)},
         )
         assert resp.status_code == 201
         data = resp.get_json()
@@ -90,6 +100,7 @@ class TestSetupComplete:
         resp = flask_client.post(
             "/api/setup/complete",
             json={"password": "securepass1"},
+            headers={"X-Setup-Token": _setup_token(flask_client)},
         )
         assert resp.status_code == 400
 
@@ -97,19 +108,25 @@ class TestSetupComplete:
         resp = flask_client.post(
             "/api/setup/complete",
             json={"username": "bob"},
+            headers={"X-Setup-Token": _setup_token(flask_client)},
         )
         assert resp.status_code == 400
 
-    def test_duplicate_setup_returns_409(self, flask_client) -> None:  # type: ignore[override]
+    def test_second_setup_attempt_returns_403(self, flask_client) -> None:  # type: ignore[override]
+        """After setup completes the token is consumed; re-running returns 403."""
         payload = {
             "username": "carol",
             "password": "securepass1",
             "llm_provider": "local",
             "tts_provider": "none",
         }
-        flask_client.post("/api/setup/complete", json=payload)
+        flask_client.post(
+            "/api/setup/complete",
+            json=payload,
+            headers={"X-Setup-Token": _setup_token(flask_client)},
+        )
         resp = flask_client.post("/api/setup/complete", json=payload)
-        assert resp.status_code == 409
+        assert resp.status_code == 403
 
     def test_sets_needs_setup_to_false(self, flask_client) -> None:  # type: ignore[override]
         flask_client.post(
@@ -120,6 +137,7 @@ class TestSetupComplete:
                 "llm_provider": "local",
                 "tts_provider": "none",
             },
+            headers={"X-Setup-Token": _setup_token(flask_client)},
         )
         status_resp = flask_client.get("/api/setup/status")
         assert status_resp.get_json()["needs_setup"] is False
@@ -152,6 +170,7 @@ class TestSetupComplete:
                 "llm_api_key": "sk-test-key",
                 "tts_provider": "none",
             },
+            headers={"X-Setup-Token": _setup_token(flask_client)},
         )
 
         assert captured.get("llm_api_key") == "sk-test-key"
