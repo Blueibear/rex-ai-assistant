@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import signal
 import sys
@@ -86,6 +87,19 @@ def _write_env_secrets(
 
     env_path.parent.mkdir(parents=True, exist_ok=True)
     env_path.write_text("\n".join(updated) + "\n", encoding="utf-8")
+
+
+# Compiled once at import time so stream/download routes share the same object.
+_HOME_DIR_RE = re.compile(re.escape(str(Path.home())), re.IGNORECASE)
+
+
+def _redact_log_line(line: str) -> str:
+    """Replace home-directory paths in a log line with ``~``.
+
+    Prevents full filesystem paths (e.g. ``/home/alice/.rex/...`` or
+    ``C:\\Users\\alice\\...``) from leaking out of log API endpoints.
+    """
+    return _HOME_DIR_RE.sub("~", line)
 
 
 def _require_auth() -> tuple[dict[str, Any], None] | tuple[None, Any]:
@@ -240,18 +254,22 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
     @app.route("/api/logs/stream")
     def _logs_stream() -> Any:
-        """SSE endpoint that tails the active runtime log in real time."""
+        """SSE endpoint that tails the active runtime log in real time.
+
+        Requires a valid Bearer token. Home-directory paths are redacted
+        from every streamed line before it is sent to the client.
+        """
+        user, err = _require_auth()
+        if err:
+            return err
+
         import time
 
         def _generate() -> Any:
             if not _LOG_FILE.exists():
                 payload = {
                     "level": "INFO",
-                    "message": f"Active log file not found yet: {_LOG_FILE}",
-                    "extra": {
-                        "active_log_path": str(_LOG_FILE),
-                        "legacy_log_path": str(_LEGACY_LOG_FILE),
-                    },
+                    "message": "Active log file not found yet.",
                 }
                 yield f"data: {json.dumps(payload)}\n\n"
                 return
@@ -260,7 +278,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
                 while True:
                     line = fh.readline()
                     if line:
-                        line = line.strip()
+                        line = _redact_log_line(line.strip())
                         if line:
                             yield f"data: {line}\n\n"
                     else:
@@ -277,23 +295,31 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
     @app.route("/api/logs/download")
     def _logs_download() -> Any:
-        """Download the current log file."""
+        """Download the current log file with home-directory paths redacted.
+
+        Requires a valid Bearer token.  The file is streamed line-by-line so
+        that home-directory paths are replaced with ``~`` before delivery;
+        the raw filesystem path is never disclosed to the client.
+        """
+        user, err = _require_auth()
+        if err:
+            return err
+
         if not _LOG_FILE.exists():
-            return (
-                jsonify(
-                    {
-                        "error": "Active log file not found",
-                        "active_log_path": str(_LOG_FILE),
-                        "legacy_log_path": str(_LEGACY_LOG_FILE),
-                    }
-                ),
-                404,
-            )
-        return send_from_directory(
-            str(_LOG_FILE.parent),
-            _LOG_FILE.name,
-            as_attachment=True,
-            download_name=_LOG_FILE.name,
+            return jsonify({"error": "Active log file not found"}), 404
+
+        def _redacted_stream() -> Any:
+            with _LOG_FILE.open("r", encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    yield _redact_log_line(line)
+
+        return Response(
+            stream_with_context(_redacted_stream()),
+            content_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f"attachment; filename={_LOG_FILE.name}",
+                "Cache-Control": "no-cache",
+            },
         )
 
     # ------------------------------------------------------------------

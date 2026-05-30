@@ -20,7 +20,7 @@ Implementation: Not started
 ### Phase 2 — Security Hardening
 - [x] US-RR-006: Remove hardcoded JWT fallback secret
 - [x] US-RR-007: Protect /setup and /register routes
-- [ ] US-RR-008: Protect log streaming/download routes
+- [x] US-RR-008: Protect log streaming/download routes
 - [ ] US-RR-009: Protect HA connection-test route
 - [ ] US-RR-010: Require HA_SECRET for HA blueprint
 - [ ] US-RR-011: Twilio fail closed when package missing
@@ -78,6 +78,28 @@ Implementation: Not started
 
 ## Learnings
 (Patterns discovered during implementation -- add notes here as work progresses)
+
+---
+
+## Iteration 8 - US-RR-008: Protect log streaming/download routes
+
+- Added `_require_auth()` guard to both `/api/logs/stream` and `/api/logs/download` routes — unauthenticated requests now receive HTTP 401
+- Added module-level `_HOME_DIR_RE` compiled regex and `_redact_log_line(line)` helper that replaces occurrences of the user's home directory path with `~`
+- Applied `_redact_log_line` in `_logs_stream` (per-line before yielding) and `_logs_download` (streaming generator replacing `send_from_directory`)
+- Removed full filesystem path disclosure from error responses (`active_log_path`, `legacy_log_path` fields removed from 404 JSON)
+- Created `tests/test_rr008_log_auth.py` with 8 security tests (4 unauthenticated rejection, 4 authenticated access including redaction)
+- Updated `tests/test_log002_log_viewer.py` — added `tmp_data_dir` and `auth_header` fixtures; all 5 existing functional tests updated to pass the auth header
+- 13 tests pass; 2 pre-existing failures in `-k "log"` run are unrelated (`flask_proxy.py` missing, `FollowupEngine` attribute, both pre-existing)
+
+Files changed:
+- `rex/gui_app.py` (added `import re`, `_HOME_DIR_RE`, `_redact_log_line`; added auth + redaction to `_logs_stream` and `_logs_download`; removed path disclosure from error responses)
+- `tests/test_rr008_log_auth.py` (new — 8 security tests)
+- `tests/test_log002_log_viewer.py` (updated fixtures + tests to pass auth header)
+
+Learnings for future iterations:
+- `_redact_log_line` is defined at module level (outside `_create_flask_app`) since it's a pure function; `_HOME_DIR_RE` is compiled once at import time
+- Switching from `send_from_directory` to a `stream_with_context` generator allows per-line redaction while keeping streaming behavior
+- The two pre-existing failures (`test_us076` and `test_us127`) appear in `-k "log"` because their test names contain the word "log" — they are in KNOWN_FAILURES categories (missing `flask_proxy.py`, missing `FollowupEngine` attribute)
 
 ---
 
