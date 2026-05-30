@@ -470,12 +470,12 @@ pytest tests/ -k "log" -q -v
 - `rex/gui_app.py` (line 748, HA connection-test handler)
 
 **Acceptance Criteria:**
-- [ ] The HA connection-test route requires a valid authenticated session or JWT.
-- [ ] The target URL is validated: only `http://` and `https://` schemes are allowed; private IP ranges (RFC 1918, loopback, link-local) may optionally be allowed since HA is typically local, but the scheme validation must be strict and documented.
-- [ ] Raw exception text from failed HA connections is not returned to the client; a generic error message with an error code is returned instead.
-- [ ] An unauthenticated request to this route receives HTTP 401 or 403.
-- [ ] A test confirms unauthenticated access is rejected.
-- [ ] A test confirms that an invalid scheme (e.g., `file://`, `ftp://`) is rejected with a 400 error.
+- [x] The HA connection-test route requires a valid authenticated session or JWT. *(Verified: `_require_auth()` guard added to `POST /api/ha/test` in `rex/gui_app.py`; unauthenticated requests receive HTTP 401.)*
+- [x] The target URL is validated: only `http://` and `https://` schemes are allowed; private IP ranges (RFC 1918, loopback, link-local) may optionally be allowed since HA is typically local, but the scheme validation must be strict and documented. *(Verified: `urllib.parse.urlparse` scheme check added; allowed schemes documented in route docstring; `file://`, `ftp://`, `data:` etc. return 400.)*
+- [x] Raw exception text from failed HA connections is not returned to the client; a generic error message with an error code is returned instead. *(Verified: `except Exception` block replaced `str(exc)` with `"connection failed"`; actual exception logged at DEBUG level only.)*
+- [x] An unauthenticated request to this route receives HTTP 401 or 403. *(Verified: `_require_auth()` returns 401 for missing or invalid tokens.)*
+- [x] A test confirms unauthenticated access is rejected. *(Verified: `tests/test_rr009_ha_test_auth.py` — `test_unauthenticated_no_header_returns_401` and `test_unauthenticated_invalid_token_returns_401` both assert HTTP 401.)*
+- [x] A test confirms that an invalid scheme (e.g., `file://`, `ftp://`) is rejected with a 400 error. *(Verified: `tests/test_rr009_ha_test_auth.py` — `test_file_scheme_rejected_with_400`, `test_ftp_scheme_rejected_with_400`, and `test_data_scheme_rejected_with_400` all assert HTTP 400 with `ok=False`.)*
 
 **Validation commands:**
 ```bash
