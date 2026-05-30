@@ -21,7 +21,7 @@ Implementation: Not started
 - [x] US-RR-006: Remove hardcoded JWT fallback secret
 - [x] US-RR-007: Protect /setup and /register routes
 - [x] US-RR-008: Protect log streaming/download routes
-- [ ] US-RR-009: Protect HA connection-test route
+- [x] US-RR-009: Protect HA connection-test route
 - [ ] US-RR-010: Require HA_SECRET for HA blueprint
 - [ ] US-RR-011: Twilio fail closed when package missing
 - [ ] US-RR-012: Add Twilio signature validation to voicemail route
@@ -78,6 +78,28 @@ Implementation: Not started
 
 ## Learnings
 (Patterns discovered during implementation -- add notes here as work progresses)
+
+---
+
+## Iteration 9 - US-RR-009: Protect HA connection-test route and validate the target URL
+
+- Added `_require_auth()` guard to `POST /api/ha/test` — unauthenticated requests now receive HTTP 401
+- Added URL scheme validation using `urllib.parse.urlparse`: only `http` and `https` are allowed; `file://`, `ftp://`, `data:` etc. return 400 with `ok=False`
+- Replaced raw `str(exc)` in exception handler with generic `"connection failed"` message to prevent internal detail leakage; actual exception is logged at DEBUG level
+- Updated docstring to document allowed schemes, permitted private IP ranges, and auth requirement
+- Updated `tests/test_us059_ha_setup.py`: renamed `test_no_auth_required` → `test_unauthenticated_returns_401` (now expects 401); added auth header to all `/api/ha/test` calls
+- Created `tests/test_rr009_ha_test_auth.py` with 8 security tests (2 unauthenticated rejection, 3 invalid scheme, 2 valid scheme, 1 error redaction)
+- 18 tests pass; all 10 failures in `-k "ha"` run are pre-existing (bridge scripts, FollowupEngine attribute, progress.txt in root)
+
+Files changed:
+- `rex/gui_app.py` (added `import urllib.parse`, `_require_auth()` call, scheme validation, replaced raw exception with generic message, updated docstring)
+- `tests/test_rr009_ha_test_auth.py` (new — 8 security tests)
+- `tests/test_us059_ha_setup.py` (updated to require auth header for all `/api/ha/test` calls)
+
+Learnings for future iterations:
+- `urllib.parse.urlparse(url).scheme` is the correct lightweight check before passing URLs to `urllib.request.urlopen`; no extra dependency needed
+- The docstring's "does not require auth" note was the authoritative comment on the SSRF intent — always check docstrings for security rationale when auditing routes
+- Ruff auto-removed the unused `MagicMock` import from the new test file
 
 ---
 

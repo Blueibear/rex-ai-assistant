@@ -820,12 +820,23 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
     def _ha_test_connection() -> Any:
         """Test a Home Assistant connection using the supplied URL and token.
 
+        Requires a valid authenticated session (Bearer JWT).
+
         Body: ``{ha_base_url: str, ha_token: str}``
 
-        Returns ``{ok: bool, error?: str}``; does **not** require auth so the
-        setup wizard can call it before the first user is created.
+        Returns ``{ok: bool, error?: str}``
+
+        Allowed URL schemes: ``http`` and ``https`` only.  Private IP ranges
+        (RFC 1918, loopback, link-local) are permitted because Home Assistant
+        is typically installed on the local network.  Schemes such as
+        ``file://`` or ``ftp://`` are explicitly rejected to prevent SSRF.
         """
+        import urllib.parse
         import urllib.request
+
+        user, err = _require_auth()
+        if err:
+            return err
 
         data: dict[str, Any] = request.get_json(silent=True) or {}
         base_url = (data.get("ha_base_url") or "").rstrip("/")
@@ -833,6 +844,13 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
         if not base_url:
             return jsonify({"ok": False, "error": "ha_base_url is required"}), 400
+
+        parsed = urllib.parse.urlparse(base_url)
+        if parsed.scheme not in ("http", "https"):
+            return (
+                jsonify({"ok": False, "error": "ha_base_url must use http or https scheme"}),
+                400,
+            )
 
         api_url = f"{base_url}/api/"
         req = urllib.request.Request(api_url)
@@ -842,8 +860,9 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         try:
             with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
                 ok = resp.status == 200
-        except Exception as exc:
-            return jsonify({"ok": False, "error": str(exc)}), 200
+        except Exception:
+            app.logger.debug("HA connection test failed", exc_info=True)
+            return jsonify({"ok": False, "error": "connection failed"}), 200
 
         return jsonify({"ok": ok}), 200
 

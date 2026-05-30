@@ -4,7 +4,7 @@ Covers:
 - POST /api/ha/test: missing ha_base_url returns 400
 - POST /api/ha/test: successful HA response returns ok=True
 - POST /api/ha/test: failed HA connection returns ok=False with error
-- POST /api/ha/test: no auth required
+- POST /api/ha/test: unauthenticated request returns 401 (US-RR-009)
 - POST /api/ha/save: requires authentication
 - POST /api/ha/save: missing ha_base_url returns 400
 - POST /api/ha/save: valid request writes ha_base_url to config
@@ -58,16 +58,22 @@ def _register_and_login(client, username: str = "admin", password: str = "pass12
 
 class TestHaTest:
     def test_missing_base_url_returns_400(self, flask_client) -> None:  # type: ignore[override]
-        resp = flask_client.post("/api/ha/test", json={"ha_token": "tok"})
+        token = _register_and_login(flask_client)
+        resp = flask_client.post(
+            "/api/ha/test",
+            json={"ha_token": "tok"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
         assert resp.status_code == 400
 
-    def test_no_auth_required(self, flask_client) -> None:  # type: ignore[override]
-        """Test endpoint is public — callable without a token."""
+    def test_unauthenticated_returns_401(self, flask_client) -> None:  # type: ignore[override]
+        """Route now requires auth — unauthenticated request must be rejected."""
         with patch("urllib.request.urlopen", side_effect=OSError("no host")):
             resp = flask_client.post("/api/ha/test", json={"ha_base_url": "http://ha.local:8123"})
-        assert resp.status_code == 200
+        assert resp.status_code == 401
 
     def test_successful_connection_returns_ok_true(self, flask_client) -> None:  # type: ignore[override]
+        token = _register_and_login(flask_client)
         mock_resp = MagicMock()
         mock_resp.status = 200
         mock_resp.__enter__ = lambda s: s
@@ -77,26 +83,37 @@ class TestHaTest:
             resp = flask_client.post(
                 "/api/ha/test",
                 json={"ha_base_url": "http://ha.local:8123", "ha_token": "good-token"},
+                headers={"Authorization": f"Bearer {token}"},
             )
         data = resp.get_json()
         assert data["ok"] is True
 
     def test_failed_connection_returns_ok_false(self, flask_client) -> None:  # type: ignore[override]
+        token = _register_and_login(flask_client)
         with patch("urllib.request.urlopen", side_effect=OSError("connection refused")):
-            resp = flask_client.post("/api/ha/test", json={"ha_base_url": "http://ha.local:8123"})
+            resp = flask_client.post(
+                "/api/ha/test",
+                json={"ha_base_url": "http://ha.local:8123"},
+                headers={"Authorization": f"Bearer {token}"},
+            )
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["ok"] is False
         assert "error" in data
 
     def test_non_200_response_returns_ok_false(self, flask_client) -> None:  # type: ignore[override]
+        token = _register_and_login(flask_client)
         mock_resp = MagicMock()
         mock_resp.status = 401
         mock_resp.__enter__ = lambda s: s
         mock_resp.__exit__ = MagicMock(return_value=False)
 
         with patch("urllib.request.urlopen", return_value=mock_resp):
-            resp = flask_client.post("/api/ha/test", json={"ha_base_url": "http://ha.local:8123"})
+            resp = flask_client.post(
+                "/api/ha/test",
+                json={"ha_base_url": "http://ha.local:8123"},
+                headers={"Authorization": f"Bearer {token}"},
+            )
         data = resp.get_json()
         assert data["ok"] is False
 
