@@ -123,11 +123,11 @@ pytest -q 2>&1 | tail -10
 - `docs/security/VULNERABILITY-SCAN.md`
 
 **Acceptance Criteria:**
-- [ ] A suppression entry for `transformers` CVE-2026-1839 and PYSEC-2025-217 exists in the CI audit config with: owner name, date added, risk classification (`optional-ML-dependency`), rationale (stable fix not yet released), and expiry date no more than 90 days from story closure.
-- [ ] The suppression entry for `transformers` is in a separate, labeled section from runtime and dev suppressions.
-- [ ] A comment in `docs/security/VULNERABILITY-SCAN.md` explains the torch CUDA audit gap: why `pip-audit` cannot see CUDA wheel identities, and whether any upstream torch security advisories were consulted.
-- [ ] `python -m pip_audit 2>&1 | grep transformers` shows the known finding; the CI suppression is applied only in the audit CI step.
-- [ ] A GitHub issue or calendar reminder is created (or referenced in the comment) to revisit the `transformers` suppression when `transformers >= 5.0.0` stable ships.
+- [x] A suppression entry for `transformers` CVE-2026-1839 and PYSEC-2025-217 exists in the CI audit config with: owner name, date added, risk classification (`optional-ML-dependency`), rationale (stable fix not yet released), and expiry date no more than 90 days from story closure.
+- [x] The suppression entry for `transformers` is in a separate, labeled section from runtime and dev suppressions.
+- [x] A comment in `docs/security/VULNERABILITY-SCAN.md` explains the torch CUDA audit gap: why `pip-audit` cannot see CUDA wheel identities, and whether any upstream torch security advisories were consulted.
+- [x] `python -m pip_audit 2>&1 | grep transformers` shows the known finding; the CI suppression is applied only in the audit CI step.
+- [x] A GitHub issue or calendar reminder is created (or referenced in the comment) to revisit the `transformers` suppression when `transformers >= 5.0.0` stable ships.
 
 **Validation commands:**
 ```bash
