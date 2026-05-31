@@ -272,27 +272,29 @@ Examples:
 
 If every acceptance criterion for the current User Story is truthfully satisfied:
 
-- Edit ${PrdPath} immediately: mark every satisfied acceptance criterion for this User Story as [x].
-  If the whole User Story is complete, leave no unchecked boxes in that User Story.
-  ${PrdPath} is the authoritative task tracker. Updating it is not optional.
+1. Update ${PrdPath} first.
+   - Mark every satisfied acceptance criterion for the current User Story as [x].
+   - If the story is complete, leave no unchecked boxes in that User Story.
+   - ${PrdPath} is the authoritative task tracker.
 
-- Before running git commit, run:
-    git diff --name-only
+2. Update ${progressFile} second.
+   - Add the iteration summary, files changed, commands run, validation results, and learnings.
 
-- If ${PrdPath} does NOT appear in the output of git diff --name-only, stop.
-  Update ${PrdPath} now before committing. Do not commit implementation work
-  while leaving that User Story unchecked in ${PrdPath}.
+3. Stage all completed-story files together:
+   git add ${PrdPath} ${progressFile} <all code/test/doc files changed for this story>
 
-- If ${PrdPath} cannot be updated for any reason, output exactly:
-    <promise>BLOCKED</promise>
+4. Before committing, run:
+   git diff --cached --name-only
 
-- The commit for a completed User Story MUST include all of the following together
-  in a single commit: ${PrdPath}, ${progressFile}, all code changes, and all tests.
-  Do not split these across separate commits.
+5. If ${PrdPath} is not listed in git diff --cached --name-only, do not commit.
+   Output exactly:
+   <promise>BLOCKED</promise>
 
-- Write your commit message, verify it matches the COMMIT FORMAT above, then commit.
-- Append what worked to ${progressFile}. Note: updating ${progressFile} alone is not
-  sufficient. ${PrdPath} is the authoritative task tracker and must be updated first.
+6. Commit only after ${PrdPath}, ${progressFile}, implementation files, and test files are staged together.
+   Write your commit message, verify it matches the COMMIT FORMAT above, then commit.
+
+7. Do not commit implementation work while leaving the completed User Story unchecked in ${PrdPath}.
+
 - End normally unless the whole PRD is complete.
 
 If any acceptance criterion is not satisfied:
