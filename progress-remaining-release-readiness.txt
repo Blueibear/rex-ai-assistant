@@ -253,6 +253,25 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - `.env` must never be in `extraResources`; it contains secrets. The packaged app must read `.env` from the
     user's home or app-data directory, not from the resources bundle.
 
+### Iteration 7 — US-REM-007: Fix `gui/package.json` `extraResources` to include bridge scripts
+
+- Story: US-REM-007
+- What changed: Added `{ "from": "../bridge", "to": "bridge" }` and `{ "from": "../config", "to": "config" }` entries to the `extraResources` array in `gui/package.json`. This closes GAP 1 (all 20 bridge scripts absent from packaged output) and GAP 3 (config/ absent from packaged output) identified in US-REM-006. GAP 4 (data/) was not bundled because `handlers/usage.ts` handles a missing `llm_usage.json` gracefully (returns empty array) and the data/ directory contains runtime SQLite databases that must not be packaged.
+- Files changed: gui/package.json, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `npm run build` in gui/ → 3 vite bundles compiled without error (exit 0)
+  - `npx electron-builder --publish never --dir` → packaged to `gui/dist/win-unpacked/` (exit 0)
+  - `find gui/dist -name "*.py" | head -30` → all 20 bridge scripts present at `resources/bridge/*.py`
+  - `find gui/dist -name "*.py" | wc -l` → 20 (matches 20 BRIDGE_REGISTRY entries in bridgeResolver.ts)
+  - `ls gui/dist/win-unpacked/resources/config/` → config directory present with rex_config.json and other runtime config files
+- Validation result: All 4 acceptance criteria satisfied. All 20 bridge .py scripts present in packaged output. config/ directory present. npm run build exits 0. electron-builder --dir exits 0.
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - `electron-builder --dir` (without `--publish never`) produces an unpacked directory at `dist/win-unpacked/` that includes `extraResources`. This is the fastest way to verify extraResources configuration without building a full installer.
+  - `data/` was excluded from extraResources because: (1) `handlers/usage.ts` gracefully handles missing `llm_usage.json`; (2) `data/` contains runtime SQLite DBs (users.db, history.db, etc.) that are user-specific runtime state and must not be bundled in a packaged app.
+  - `config/` was added because `index.ts` resolves config via `join(app.getAppPath(), '..', 'config')`, and config files (rex_config.json, schema files) are needed for the Python backend to start. The isPackaged path fix (US-REM-008) will still be needed to use resourcesPath correctly in packaged mode.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:

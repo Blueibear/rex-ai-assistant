@@ -271,10 +271,10 @@ ls bridge/*.py | wc -l
 - `gui/electron-builder.config.js` or `gui/electron-builder.yml` if present
 
 **Acceptance Criteria:**
-- [ ] `gui/package.json` `extraResources` includes a glob or explicit list covering all bridge scripts identified in US-REM-006.
-- [ ] `npm run build` in `gui/` completes without error.
-- [ ] The packaged output directory (e.g., `gui/dist` or `gui/release`) contains `bridge/*.py` at the expected `extraResources` path — verified with `find gui/dist -name "*.py"` or equivalent.
-- [ ] No required bridge file is absent from the packaged output.
+- [x] `gui/package.json` `extraResources` includes a glob or explicit list covering all bridge scripts identified in US-REM-006.
+- [x] `npm run build` in `gui/` completes without error.
+- [x] The packaged output directory (e.g., `gui/dist` or `gui/release`) contains `bridge/*.py` at the expected `extraResources` path — verified with `find gui/dist -name "*.py"` or equivalent.
+- [x] No required bridge file is absent from the packaged output.
 
 **Validation commands:**
 ```bash
