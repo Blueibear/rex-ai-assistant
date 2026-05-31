@@ -21,7 +21,7 @@ This file is the active readiness snapshot for repo integration claims. Use thes
 | SMS / messaging | PARTIAL | Twilio SMS backend and stubs exist (`rex/integrations/messaging/backends/twilio_sms.py`, `rex/integrations/sms_service.py`). Requires Twilio credentials for real delivery. |
 | Notifications | PARTIAL | `rex.notification` supports priority routing, quiet hours, digest, escalation, email/SMS/HA TTS channels, and CLI commands. Electron notification UI/IPC exists. Legacy Flask dashboard notification API routes are not the current surface. |
 | Home Assistant TTS | PARTIAL | HA TTS notification client and `rex ha tts test` exist; requires config and hardening for production use. |
-| Home Assistant device control | PARTIAL | `rex.gui_app` exposes HA test/save/state/device command endpoints. Device alias approval and command safety are still limited and credential-gated. |
+| Home Assistant device control | PARTIAL | `rex.gui_app` exposes HA test/save/state/device command endpoints. Device alias approval and command safety are still limited and credential-gated. The `rex.ha_bridge` Flask blueprint (`/ha/entities`, `/ha/script`) requires `HA_SECRET` to be set; routes will not mount without it (US-RR-010). |
 | Web search | PARTIAL | `plugins/web_search.py` implements provider selection for configured providers. The tool registry health currently treats Brave/SerpAPI credentials as readiness signals. |
 | Weather | PARTIAL | `weather_now` tool calls OpenWeatherMap through `OPENWEATHERMAP_API_KEY`; no key means no real weather results. |
 | GitHub | PARTIAL | `rex gh` commands and `rex/github_service.py` exist; requires token and has limited surface area. |

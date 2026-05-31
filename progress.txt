@@ -22,7 +22,7 @@ Implementation: Not started
 - [x] US-RR-007: Protect /setup and /register routes
 - [x] US-RR-008: Protect log streaming/download routes
 - [x] US-RR-009: Protect HA connection-test route
-- [ ] US-RR-010: Require HA_SECRET for HA blueprint
+- [x] US-RR-010: Require HA_SECRET for HA blueprint
 - [ ] US-RR-011: Twilio fail closed when package missing
 - [ ] US-RR-012: Add Twilio signature validation to voicemail route
 
@@ -78,6 +78,30 @@ Implementation: Not started
 
 ## Learnings
 (Patterns discovered during implementation -- add notes here as work progresses)
+
+---
+
+## Iteration 10 - US-RR-010: Require HA_SECRET for HA blueprint routes; refuse to mount without it
+
+- `create_blueprint()` in `rex/ha_bridge.py` now raises `RuntimeError` if `bridge.secret` is empty; no routes mount without a configured secret
+- `_validate_secret()` `@bp.before_request` hook is now unconditional — removed the `if secret and` guard so the check fires on every request regardless of secret value
+- `rex_speak_api.py` wraps the `app.register_blueprint(create_ha_blueprint())` call in try/except; a WARNING is logged when no secret is set so operators see a clear startup message
+- Created `tests/test_rr010_ha_secret_required.py` with 9 security tests: 2 RuntimeError checks (empty/None secret), 2 404-without-blueprint checks, 5 secret-enforcement checks (200 pass + 403 for wrong/absent header on both `/ha/entities` and `/ha/script`)
+- Updated `tests/test_us042_ha_api_connection.py::test_blueprint_entities_endpoint` to set `bridge._secret` and pass `HASS_SECRET` header
+- Updated `docs/claude/INTEGRATIONS_STATUS.md` with HA_SECRET requirement note
+- All 9 new tests pass; 902 tests pass in `-k "ha"` run; 10 failures are all pre-existing
+
+Files changed:
+- `rex/ha_bridge.py` (added secret guard to `create_blueprint()`, removed `if secret and` from `_validate_secret()`)
+- `rex_speak_api.py` (wrapped blueprint registration in try/except with warning log; ruff I001 auto-fixed in same edit)
+- `tests/test_rr010_ha_secret_required.py` (new — 9 security tests)
+- `tests/test_us042_ha_api_connection.py` (updated `test_blueprint_entities_endpoint` to use secret + header)
+- `docs/claude/INTEGRATIONS_STATUS.md` (added HA_SECRET requirement note)
+
+Learnings for future iterations:
+- `create_blueprint()` raising `RuntimeError` when misconfigured is the right pattern — it lets callers decide whether to log-and-skip (rex_speak_api.py) or propagate the error, rather than silently mounting unauthenticated routes
+- The `if secret and` pattern is a common fail-open bug in before_request hooks — always audit for it in security reviews
+- Removing the conditional makes the grep criterion (`grep -n "HASS_SECRET\|HA_SECRET"`) easy to verify: a single unconditional reference at the check site
 
 ---
 

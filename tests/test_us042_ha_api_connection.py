@@ -226,6 +226,7 @@ class TestEntitiesRetrieved:
 
     def test_blueprint_entities_endpoint(self) -> None:
         bridge = _make_bridge(entity_map={"tv": "media_player.tv"})
+        bridge._secret = "test-secret"
         _stub_response(
             bridge,
             [
@@ -246,7 +247,7 @@ class TestEntitiesRetrieved:
         app.register_blueprint(bp)
         client = app.test_client()
 
-        resp = client.get("/ha/entities")
+        resp = client.get("/ha/entities", headers={"HASS_SECRET": "test-secret"})
         assert resp.status_code == 200
         data = resp.get_json()
         assert "entities" in data
