@@ -24,7 +24,7 @@ Implementation: Not started
 - [x] US-RR-009: Protect HA connection-test route
 - [x] US-RR-010: Require HA_SECRET for HA blueprint
 - [x] US-RR-011: Twilio fail closed when package missing
-- [ ] US-RR-012: Add Twilio signature validation to voicemail route
+- [x] US-RR-012: Add Twilio signature validation to voicemail route
 
 ### Phase 3 — Dependency Audit Remediation
 - [ ] US-RR-013: Remediate Python audit: idna, pip, urllib3
@@ -78,6 +78,31 @@ Implementation: Not started
 
 ## Learnings
 (Patterns discovered during implementation -- add notes here as work progresses)
+
+---
+
+## Iteration 12 - US-RR-012: Add Twilio signature validation to voicemail route
+
+- Added `_require_signature(auth_token)` guard to `inbound_voicemail` route — unsigned requests now receive HTTP 403
+- Route previously accepted any POST to `/telephony/inbound/voicemail` without verifying the Twilio signature, allowing forged voicemail callbacks to inject arbitrary content
+- After fix, all 4 Twilio routes (`inbound_call`, `inbound_gather`, `inbound_voicemail`, `inbound_sms`) enforce signature validation identically
+- Added `test_inbound_voicemail_rejects_bad_signature` — confirms 403 when `_validate_twilio_signature` returns False
+- Added `test_inbound_voicemail_saves_with_valid_signature` — confirms 200 and `_save_voicemail` called with correct args when signature is valid
+- All 17 tests in `test_ph001_twilio_handler.py` pass
+
+Files changed:
+- `rex/telephony/twilio_handler.py` (added `_, auth_token, _ = creds` + `_require_signature` call to `inbound_voicemail`)
+- `tests/test_ph001_twilio_handler.py` (added 2 voicemail signature tests)
+
+Route audit — all Twilio routes now signed:
+- `inbound_call` — `_require_signature` present (pre-existing)
+- `inbound_gather` — `_require_signature` present (pre-existing)
+- `inbound_voicemail` — `_require_signature` added (this story)
+- `inbound_sms` — `_require_signature` present (pre-existing)
+
+Learnings for future iterations:
+- The voicemail route is called both as a direct action (user records) and as an async transcription callback — both paths are Twilio-originated so signature validation applies to both
+- Pattern for adding the guard: unpack `_, auth_token, _ = creds` then call `_require_signature(auth_token)` before any form data access
 
 ---
 

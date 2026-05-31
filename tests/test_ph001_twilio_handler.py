@@ -206,6 +206,33 @@ def test_inbound_sms_503_when_not_configured(monkeypatch: pytest.MonkeyPatch) ->
 
 
 # ---------------------------------------------------------------------------
+# Inbound voicemail route
+# ---------------------------------------------------------------------------
+
+
+def test_inbound_voicemail_rejects_bad_signature(app_client) -> None:
+    with patch("rex.telephony.twilio_handler._validate_twilio_signature", return_value=False):
+        resp = app_client.post(
+            "/telephony/inbound/voicemail",
+            data={"TranscriptionText": "Call me back", "From": "+15559990000"},
+        )
+    assert resp.status_code == 403
+
+
+def test_inbound_voicemail_saves_with_valid_signature(app_client) -> None:
+    with (
+        patch("rex.telephony.twilio_handler._validate_twilio_signature", return_value=True),
+        patch("rex.telephony.twilio_handler._save_voicemail") as mock_save,
+    ):
+        resp = app_client.post(
+            "/telephony/inbound/voicemail",
+            data={"TranscriptionText": "Call me back", "From": "+15559990000"},
+        )
+    assert resp.status_code == 200
+    mock_save.assert_called_once_with("+15559990000", "Call me back")
+
+
+# ---------------------------------------------------------------------------
 # _validate_twilio_signature
 # ---------------------------------------------------------------------------
 

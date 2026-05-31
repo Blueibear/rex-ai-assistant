@@ -330,6 +330,11 @@ def create_blueprint() -> Blueprint:
         if not creds:
             return _not_configured()
 
+        _, auth_token, _ = creds
+        sig_error = _require_signature(auth_token)
+        if sig_error:
+            return sig_error
+
         # Accept either TranscriptionText (async callback) or SpeechResult
         transcription = (
             request.form.get("TranscriptionText")
