@@ -181,10 +181,10 @@ cd gui && npm run build
 - `rex/ui/package-lock.json`
 
 **Acceptance Criteria:**
-- [ ] `npm audit --audit-level=moderate` in `rex/ui/` returns 0 unmitigated vulnerabilities.
-- [ ] Vite, esbuild, and PostCSS are upgraded to patched versions if available.
-- [ ] If `rex/ui/` is to be deprecated (Phase 7 classification), a clear comment is added to `rex/ui/package.json`: "Developer-only surface. Not included in packaged Electron app."
-- [ ] `npm ci && npm run build` in `rex/ui/` still succeeds after upgrades.
+- [x] `npm audit --audit-level=moderate` in `rex/ui/` returns 0 unmitigated vulnerabilities.
+- [x] Vite, esbuild, and PostCSS are upgraded to patched versions if available.
+- [x] If `rex/ui/` is to be deprecated (Phase 7 classification), a clear comment is added to `rex/ui/package.json`: "Developer-only surface. Not included in packaged Electron app."
+- [x] `npm ci && npm run build` in `rex/ui/` still succeeds after upgrades.
 
 **Validation commands:**
 ```bash

@@ -134,6 +134,24 @@ bare imports of bridge modules in tests.
   - Electron 42.x is compatible with @electron-toolkit/* (peerDep: >=13.0.0), electron-vite 3.x, and electron-builder 26.x — no IPC or preload breaking changes observed in typecheck or build.
   - brace-expansion@5.0.5 and ip-address@10.1.0 were transitive deps also via electron-builder; `npm audit fix` updated them cleanly without --force after electron was upgraded.
 
+### Iteration 4 — US-REM-004: Remediate Node audit failures in `rex/ui/`
+
+- Story: US-REM-004
+- What changed: Upgraded `vite` from `^5.1.0` to `^6.4.2` in `rex/ui/package.json`. Vite 6.4.2 bundles esbuild `^0.25.0` (patched; GHSA-67mh-4wv8-2f99 affected <=0.24.2). Ran `npm audit fix` to upgrade postcss from 8.5.8 to 8.5.15 (patched; GHSA-qx2v-qp2m-jg93 affected <8.5.10). Added `"description": "Developer-only surface. Not included in packaged Electron app."` to `rex/ui/package.json`. Regenerated `rex/ui/package-lock.json`.
+- Files changed: rex/ui/package.json, rex/ui/package-lock.json, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `npm audit --audit-level=moderate` → 0 vulnerabilities (after upgrade)
+  - `npm ci` → 123 packages, 0 vulnerabilities
+  - `npm run build` → vite v6.4.2, built in 893ms, 0 errors
+- Validation result: All 4 acceptance criteria satisfied. esbuild upgraded to 0.25.12 (patched). postcss upgraded to 8.5.15 (patched). Developer-only description added. Build passes.
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (pending)
+- Learnings:
+  - vite@6.4.2 bundles esbuild@^0.25.0 (patched). Upgrading vite from 5.x to 6.4.2 in package.json + `npm install` resolves the esbuild GHSA finding without `--force`.
+  - postcss was a transitive dep of vite. After upgrading vite, a plain `npm audit fix` updated postcss from 8.5.8 to 8.5.15.
+  - @vitejs/plugin-react@4.7.0 peerDeps support `^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0` — no plugin upgrade needed when moving from vite 5 to 6.
+  - JSON does not support comments; the `"description"` field is the correct npm-standard way to document package intent.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:
