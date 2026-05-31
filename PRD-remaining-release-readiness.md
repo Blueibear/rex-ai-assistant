@@ -93,13 +93,13 @@ not included here.
 - `docs/security/VULNERABILITY-SCAN.md`
 
 **Acceptance Criteria:**
-- [ ] `idna` is pinned to `>=3.15` in `pyproject.toml` and all requirements files that pin it.
-- [ ] `urllib3` is pinned to `>=2.7.0` in `pyproject.toml` and all requirements files that pin it.
-- [ ] `pip` is upgraded in CI install steps to `>=26.1`; if `pip` is a declared project dependency it is moved to a dev-only constraint.
-- [ ] Any suppression entries for `idna`, `pip`, and `urllib3` CVEs are removed from the CI audit suppression list in `.github/workflows/ci.yml`.
-- [ ] `python -m pip_audit 2>&1 | grep -E "idna|urllib3|pip.*CVE"` returns no matches.
-- [ ] `docs/security/VULNERABILITY-SCAN.md` is updated to reflect the reduced suppression count.
-- [ ] `pytest -q 2>&1 | tail -5` shows no new failures introduced by the version bumps.
+- [x] `idna` is pinned to `>=3.15` in `pyproject.toml` and all requirements files that pin it.
+- [x] `urllib3` is pinned to `>=2.7.0` in `pyproject.toml` and all requirements files that pin it.
+- [x] `pip` is upgraded in CI install steps to `>=26.1`; if `pip` is a declared project dependency it is moved to a dev-only constraint.
+- [x] Any suppression entries for `idna`, `pip`, and `urllib3` CVEs are removed from the CI audit suppression list in `.github/workflows/ci.yml`.
+- [x] `python -m pip_audit 2>&1 | grep -E "idna|urllib3|pip.*CVE"` returns no matches.
+- [x] `docs/security/VULNERABILITY-SCAN.md` is updated to reflect the reduced suppression count.
+- [x] `pytest -q 2>&1 | tail -5` shows no new failures introduced by the version bumps.
 
 **Validation commands:**
 ```bash

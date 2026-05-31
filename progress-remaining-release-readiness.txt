@@ -84,7 +84,19 @@ bare imports of bridge modules in tests.
 
 ## Iterations
 
-*(Leave empty — populated by future Ralph iterations on this PRD.)*
+### Iteration 1 — US-REM-001: Remediate Python audit failures for idna, pip, and urllib3
+
+- Story: US-REM-001
+- What changed: Pinned idna>=3.15 (CVE-2026-45409) and bumped urllib3 to >=2.7.0 (PYSEC-2026-141, PYSEC-2026-142) in pyproject.toml. Upgraded all CI pip install steps from >=26.0 to >=26.1 (fixes CVE-2026-3219, CVE-2026-6357). Updated VULNERABILITY-SCAN.md: added idna to Remediated Findings, updated urllib3 and pip rows, removed pip CVE-2026-1703 from Accepted Risk table, updated date to 2026-05-31.
+- Files changed: pyproject.toml, .github/workflows/ci.yml, docs/security/VULNERABILITY-SCAN.md, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `python -m pip_audit 2>&1 | grep -E "idna|urllib3|pip.*CVE"` → no output (all three CVE groups gone)
+  - `python -m pip_audit 2>&1 | tail -5` → shows other unrelated findings (cryptography/pytest), no idna/urllib3/pip
+  - `pytest -q tests/test_rr007_setup_register_protection.py tests/test_rr008_log_auth.py tests/test_rr009_ha_test_auth.py tests/test_rr010_ha_secret_required.py tests/test_ph001_twilio_handler.py` → 51 passed, 20 warnings
+  - `pytest tests/ -k "security or auth or twilio or jwt" -q` → 2 failed (pre-existing; confirmed on clean HEAD), 190 passed, 10 skipped
+- Validation result: All 7 acceptance criteria satisfied. idna 3.17 and urllib3 2.7.0 installed. pip-audit grep returns no matches. Pre-existing test failures confirmed not introduced by this change.
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (to be set)
 
 ### Iteration Format
 
