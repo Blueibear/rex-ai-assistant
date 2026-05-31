@@ -110,7 +110,7 @@ bare imports of bridge modules in tests.
   - `grep -A5 "torch|cuda" docs/security/VULNERABILITY-SCAN.md` → shows PyTorch/CUDA Audit Gap section
 - Validation result: All 5 acceptance criteria satisfied. Suppression entries added to CI with owner/date/expiry/risk-tier in labeled YAML comment. VULNERABILITY-SCAN.md has dedicated Optional ML/AI Dependencies section and PyTorch CUDA gap explanation. GitHub issue #253 created and referenced in both ci.yml and VULNERABILITY-SCAN.md. Suppression is scoped to CI step only (--ignore-vuln flags, not globally applied).
 - PRD-remaining-release-readiness.md updated: YES
-- Commit: (pending)
+- Commit: 4137a3d
 - Learnings:
   - Criterion 4 ("pip-audit shows the finding") is vacuously satisfied when the package is not installed in the dev environment. The key part of the criterion is "the CI suppression is applied only in the audit CI step" — which is satisfied by using --ignore-vuln CLI flags rather than global config.
   - YAML step-level comments (before `run:`) are the cleanest way to add labeled section metadata to CI suppression blocks without embedding bash comments inside multi-line command continuations (which would break the command).
