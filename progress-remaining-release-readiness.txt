@@ -115,6 +115,25 @@ bare imports of bridge modules in tests.
   - Criterion 4 ("pip-audit shows the finding") is vacuously satisfied when the package is not installed in the dev environment. The key part of the criterion is "the CI suppression is applied only in the audit CI step" — which is satisfied by using --ignore-vuln CLI flags rather than global config.
   - YAML step-level comments (before `run:`) are the cleanest way to add labeled section metadata to CI suppression blocks without embedding bash comments inside multi-line command continuations (which would break the command).
 
+### Iteration 3 — US-REM-003: Remediate Node audit failures in `gui/`
+
+- Story: US-REM-003
+- What changed: Upgraded `electron` from `^35.0.0` to `^42.3.0` in `gui/package.json` to resolve 2 high-severity Electron CVEs (multiple UAF, injection, and logic bugs in <=39.8.4). Upgraded `postcss` from `^8.5.3` to `^8.5.10` (direct dep, XSS fix). Added `overrides: { "tmp": "^0.2.6" }` to force the transitive `tmp` dependency (via electron-builder → app-builder-lib → @malept/flatpak-bundler → tmp-promise → tmp@0.2.5) to >=0.2.6 (path traversal fix). Ran `npm install` to regenerate lockfile, then `npm audit fix` to resolve remaining moderate transitive vulnerabilities (brace-expansion, ip-address). All 5 vulnerabilities cleared.
+- Files changed: gui/package.json, gui/package-lock.json, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `npm audit --audit-level=high` → found 0 vulnerabilities (exit 0)
+  - `npm audit --audit-level=moderate` → found 0 vulnerabilities (exit 0)
+  - `npm ci` → 567 packages installed, found 0 vulnerabilities
+  - `npm run typecheck` → passed (no output, exit 0)
+  - `npm run build` → all 3 vite bundles built successfully
+- Validation result: All 6 acceptance criteria satisfied. Electron upgraded to 42.3.0 (latest stable). tmp@0.2.5→0.2.6 via overrides. No high or moderate vulnerabilities. Typecheck and build pass.
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (pending)
+- Learnings:
+  - `tmp` was a transitive dep via electron-builder → app-builder-lib → @malept/flatpak-bundler → tmp-promise → tmp. npm `overrides` field is the correct way to force a minimum version without changing the requiring package.
+  - Electron 42.x is compatible with @electron-toolkit/* (peerDep: >=13.0.0), electron-vite 3.x, and electron-builder 26.x — no IPC or preload breaking changes observed in typecheck or build.
+  - brace-expansion@5.0.5 and ip-address@10.1.0 were transitive deps also via electron-builder; `npm audit fix` updated them cleanly without --force after electron was upgraded.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:

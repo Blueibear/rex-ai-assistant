@@ -151,12 +151,12 @@ grep -A5 "torch\|cuda" docs/security/VULNERABILITY-SCAN.md
 - `gui/package-lock.json`
 
 **Acceptance Criteria:**
-- [ ] `npm audit --audit-level=high` in `gui/` returns 0 high-severity vulnerabilities.
-- [ ] `npm audit --audit-level=moderate` in `gui/` returns 0 unmitigated moderate vulnerabilities; any accepted-risk moderates have documented entries in `.nsprc` or an npm audit allowlist with rationale and expiry.
-- [ ] Electron is upgraded to the latest stable LTS version that resolves the reported high-severity CVEs, unless a dependency incompatibility prevents this (document the blocker if so).
-- [ ] `tmp` is upgraded or replaced.
-- [ ] `npm ci && npm run typecheck` passes after the upgrade.
-- [ ] `npm run build` passes after the upgrade.
+- [x] `npm audit --audit-level=high` in `gui/` returns 0 high-severity vulnerabilities.
+- [x] `npm audit --audit-level=moderate` in `gui/` returns 0 unmitigated moderate vulnerabilities; any accepted-risk moderates have documented entries in `.nsprc` or an npm audit allowlist with rationale and expiry.
+- [x] Electron is upgraded to the latest stable LTS version that resolves the reported high-severity CVEs, unless a dependency incompatibility prevents this (document the blocker if so).
+- [x] `tmp` is upgraded or replaced.
+- [x] `npm ci && npm run typecheck` passes after the upgrade.
+- [x] `npm run build` passes after the upgrade.
 
 **Validation commands:**
 ```bash
