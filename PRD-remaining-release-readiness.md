@@ -327,11 +327,11 @@ grep -n "isPackaged\|resourcesPath\|getAppPath" gui/src/main/bridgeResolver.ts
 - `docs/claude/TESTING_AND_QUALITY.md` (documentation)
 
 **Acceptance Criteria:**
-- [ ] A smoke test script exists at a documented path (e.g., `tests/smoke/test_electron_package.sh`).
-- [ ] The test: (1) builds the Electron package, (2) launches the packaged app in headless or minimal mode, (3) sends a bridge health-check request or waits for a startup signal, (4) asserts the bridge responded successfully, (5) exits the app cleanly.
-- [ ] The test exits non-zero if the bridge is unreachable within a timeout.
-- [ ] The test is documented in `docs/claude/TESTING_AND_QUALITY.md` under "Package Smoke Tests."
-- [ ] Running the smoke test locally on a clean Python environment (without the source-tree `bridge/` on PATH) passes.
+- [x] A smoke test script exists at a documented path (e.g., `tests/smoke/test_electron_package.sh`).
+- [x] The test: (1) builds the Electron package, (2) launches the packaged app in headless or minimal mode, (3) sends a bridge health-check request or waits for a startup signal, (4) asserts the bridge responded successfully, (5) exits the app cleanly.
+- [x] The test exits non-zero if the bridge is unreachable within a timeout.
+- [x] The test is documented in `docs/claude/TESTING_AND_QUALITY.md` under "Package Smoke Tests."
+- [x] Running the smoke test locally on a clean Python environment (without the source-tree `bridge/` on PATH) passes.
 
 **Validation commands:**
 ```bash

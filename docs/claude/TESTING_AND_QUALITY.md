@@ -49,6 +49,75 @@ mypy .
 When only a small Python file set changed, prefer targeted checks on those
 files first, then broaden if the change touched shared contracts.
 
+## Package Smoke Tests
+
+The Electron package smoke test builds the packaged app and verifies the Python
+bridge is reachable from the packaged output — not from the source tree.
+
+**Script:** `tests/smoke/test_electron_package.sh`
+
+### What the test verifies
+
+1. Electron package builds without error (`electron-builder --dir`).
+2. All 20 bridge scripts registered in `bridgeResolver.ts` are present in
+   `resources/bridge/` inside the packaged output.
+3. Python can execute a bridge script directly from the packaged path
+   (`process.resourcesPath/bridge/`) with `PYTHONPATH=""` (no source-tree
+   `bridge/` on the search path). A valid JSON response proves the bridge is
+   reachable.
+4. The packaged Electron app launches and emits the bridge validation startup
+   signal: `[bridgeResolver] All bridge scripts validated successfully.`
+   (best-effort; primary gate is step 3).
+
+### Running locally
+
+```bash
+# Full run (builds first):
+bash tests/smoke/test_electron_package.sh
+
+# Skip rebuild (reuse existing gui/dist/ output):
+SKIP_BUILD=1 bash tests/smoke/test_electron_package.sh
+```
+
+Prerequisites: Node.js, npm, Python venv activated or `.venv` in repo root,
+`rex` package installed (`pip install .`).
+
+### Running in CI (Linux)
+
+On Linux CI, Electron requires a virtual display for the launch check:
+
+```bash
+REQUIRE_ELECTRON_SIGNAL=1 xvfb-run bash tests/smoke/test_electron_package.sh
+```
+
+`REQUIRE_ELECTRON_SIGNAL=1` causes the test to fail if the Electron startup
+signal is not received within `SMOKE_TIMEOUT` seconds (default: 30).
+
+### Platform behaviour
+
+| Platform | Python bridge check | Electron launch signal |
+|----------|--------------------|-----------------------|
+| Windows  | Always works       | Appears on terminal but bash cannot capture it from GUI-subsystem binary stderr; best-effort only |
+| Linux CI | Always works       | Requires `xvfb-run`; use `REQUIRE_ELECTRON_SIGNAL=1` |
+| macOS    | Always works       | Should work without virtual display |
+
+### Environment variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `SKIP_BUILD` | `0` | Skip npm ci / build / electron-builder |
+| `REQUIRE_ELECTRON_SIGNAL` | `0` | Fail if Electron startup signal not received |
+| `SMOKE_TIMEOUT` | `30` | Seconds to wait for Electron startup signal |
+
+### What "bridge unreachable" means
+
+The test exits non-zero if the packaged bridge script produces no output or
+non-JSON output when executed by Python. This detects:
+
+- Bridge scripts missing from `extraResources` (step 2).
+- `rex` package not installed in the Python environment (step 3).
+- `resolveBridgePath()` returning a wrong path in packaged mode (step 3).
+
 ## Git Hygiene
 
 - Do not revert unrelated user changes.
