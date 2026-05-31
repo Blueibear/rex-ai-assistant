@@ -210,10 +210,6 @@ def test_inbound_sms_503_when_not_configured(monkeypatch: pytest.MonkeyPatch) ->
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason="US-RR-011 not yet implemented: _validate_twilio_signature still fails open when twilio is absent",
-    strict=True,
-)
 def test_validate_signature_returns_false_when_twilio_missing(twilio_env) -> None:
     """When the Twilio package is absent, signature validation must fail closed to prevent unsigned request acceptance."""
     from flask import Flask

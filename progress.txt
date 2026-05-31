@@ -23,7 +23,7 @@ Implementation: Not started
 - [x] US-RR-008: Protect log streaming/download routes
 - [x] US-RR-009: Protect HA connection-test route
 - [x] US-RR-010: Require HA_SECRET for HA blueprint
-- [ ] US-RR-011: Twilio fail closed when package missing
+- [x] US-RR-011: Twilio fail closed when package missing
 - [ ] US-RR-012: Add Twilio signature validation to voicemail route
 
 ### Phase 3 — Dependency Audit Remediation
@@ -78,6 +78,24 @@ Implementation: Not started
 
 ## Learnings
 (Patterns discovered during implementation -- add notes here as work progresses)
+
+---
+
+## Iteration 11 - US-RR-011: Twilio signature validation fail closed when package missing
+
+- Changed `_validate_twilio_signature` `ImportError` branch from `return True` (fail-open) to `return False` (fail-closed)
+- Updated warning message to: "Twilio package not installed — rejecting request as unsigned."
+- Updated docstring to document the fail-closed contract and the rationale
+- Removed `@pytest.mark.xfail` from `test_validate_signature_returns_false_when_twilio_missing` in `tests/test_ph001_twilio_handler.py`
+- All 15 tests in `test_ph001_twilio_handler.py` pass; `grep -n "return True"` shows no path returning True without a real `validator.validate()` call
+
+Files changed:
+- `rex/telephony/twilio_handler.py` (ImportError branch: `return True` → `return False`; updated docstring and warning message)
+- `tests/test_ph001_twilio_handler.py` (removed `xfail` marker from `test_validate_signature_returns_false_when_twilio_missing`)
+
+Learnings for future iterations:
+- The `except ImportError: return True` pattern is a classic fail-open bug — always grep for it in security reviews of optional-dependency integrations
+- `patch.dict("sys.modules", {"twilio": None, "twilio.request_validator": None})` correctly forces the ImportError branch even when twilio is installed in the test environment
 
 ---
 

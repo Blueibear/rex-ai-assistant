@@ -75,7 +75,9 @@ def _get_transfer_number() -> str | None:
 def _validate_twilio_signature(auth_token: str) -> bool:
     """Return True if the current Flask request has a valid Twilio signature.
 
-    Skips validation (returns True) when the twilio package is not installed.
+    Returns False (fail closed) when the twilio package is not installed.
+    An operator who has Twilio env vars set but the package missing is
+    misconfigured — accepting all requests as signed would be unsafe.
     """
     try:
         from flask import request
@@ -87,8 +89,8 @@ def _validate_twilio_signature(auth_token: str) -> bool:
         signature = request.headers.get("X-Twilio-Signature", "")
         return bool(validator.validate(url, post_data, signature))
     except ImportError:
-        logger.warning("twilio package not installed; skipping signature validation")
-        return True
+        logger.warning("Twilio package not installed — rejecting request as unsigned.")
+        return False
     except Exception as exc:
         logger.warning("Signature validation error: %s", exc)
         return False
