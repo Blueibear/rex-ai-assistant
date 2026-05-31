@@ -207,12 +207,12 @@ cd rex/ui && npm ci && npm run build
 - `.github/workflows/ci.yml` (audit step configuration)
 
 **Acceptance Criteria:**
-- [ ] The suppression documentation in `docs/security/VULNERABILITY-SCAN.md` is restructured into clearly labeled sections: `## Runtime dependencies`, `## Dev-only dependencies`, `## Optional ML/AI dependencies`.
-- [ ] Each documented suppression entry includes: CVE/PYSEC ID, package name and version range, owner (GitHub handle), date added, expiry date, rationale (one sentence), and risk tier.
-- [ ] Suppressions older than 12 months with no expiry date are reviewed; those still valid get an explicit expiry date, those no longer needed are removed from the CI suppression list.
-- [ ] A comment at the top of the suppression section warns: "If your suppression has no expiry date it will be removed at next review."
-- [ ] The total suppression count is documented as a number in `VULNERABILITY-SCAN.md`.
-- [ ] `pip-audit 2>&1 | tail -5` still exits 0 after restructuring (no functional change to CI behavior, only documentation and cleanup).
+- [x] The suppression documentation in `docs/security/VULNERABILITY-SCAN.md` is restructured into clearly labeled sections: `## Runtime dependencies`, `## Dev-only dependencies`, `## Optional ML/AI dependencies`.
+- [x] Each documented suppression entry includes: CVE/PYSEC ID, package name and version range, owner (GitHub handle), date added, expiry date, rationale (one sentence), and risk tier.
+- [x] Suppressions older than 12 months with no expiry date are reviewed; those still valid get an explicit expiry date, those no longer needed are removed from the CI suppression list.
+- [x] A comment at the top of the suppression section warns: "If your suppression has no expiry date it will be removed at next review."
+- [x] The total suppression count is documented as a number in `VULNERABILITY-SCAN.md`.
+- [x] `pip-audit 2>&1 | tail -5` still exits 0 after restructuring (no functional change to CI behavior, only documentation and cleanup).
 
 **Validation commands:**
 ```bash

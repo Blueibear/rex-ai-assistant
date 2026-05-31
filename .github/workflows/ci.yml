@@ -218,11 +218,14 @@ jobs:
           pip install pip-audit
 
       - name: 🔒 Run dependency vulnerability scan
-        # Accepted-risk CVEs for transitive/optional dependencies are listed in
-        # docs/security/VULNERABILITY-SCAN.md with per-item justifications.
+        # Accepted-risk CVEs are documented in docs/security/VULNERABILITY-SCAN.md
+        # in three labeled sections with per-entry owner, expiry, and risk tier:
+        #   - Runtime Dependencies
+        #   - Dev-only Dependencies
+        #   - Optional ML/AI Dependencies
         # New findings NOT in this ignore list will fail the build.
         #
-        # --- OPTIONAL ML/AI DEPENDENCIES (separate section) ---
+        # --- OPTIONAL ML/AI DEPENDENCIES ---
         # transformers CVE-2026-1839, PYSEC-2025-217
         # Owner: @Blueibear | Added: 2026-05-31 | Expiry: 2026-08-29
         # Risk-tier: optional-ML-dependency
@@ -289,7 +292,6 @@ jobs:
             --ignore-vuln CVE-2025-68480 \
             --ignore-vuln CVE-2025-14009 \
             --ignore-vuln CVE-2025-67221 \
-            --ignore-vuln CVE-2026-1703 \
             --ignore-vuln CVE-2025-4565 \
             --ignore-vuln CVE-2026-0994 \
             --ignore-vuln CVE-2026-23490 \
