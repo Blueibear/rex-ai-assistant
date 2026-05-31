@@ -1,0 +1,104 @@
+# Progress Log
+
+This log supports `PRD-remaining-release-readiness.md`. The PRD is the authoritative task tracker.
+
+Do not mark work complete here unless the matching User Story acceptance criteria are also checked
+in `PRD-remaining-release-readiness.md`.
+
+---
+
+## Completed-Before-This-PRD Summary (US-RR-001 through US-RR-012)
+
+All twelve original release-readiness stories are confirmed complete by git commit, code inspection,
+and test verification as of HEAD `a2ca126` (branch: verify-rr-001-006-cleanup).
+
+| Story | Summary | Commit |
+|-------|---------|--------|
+| US-RR-001 | Verified clean repo state; documented HEAD SHA, audit failures, and surface map | `0240da5` |
+| US-RR-002 | Documented all CI jobs, mypy ignore list (12 modules), and gap list (7 missing gates) | `5f41d61` |
+| US-RR-003 | Added `pythonpath = [".", "bridge"]` to pyproject.toml; fixed pytest collection error | `83fb664` |
+| US-RR-004 | Renamed and inverted Twilio fail-open test; added `@pytest.mark.xfail(strict=True)` referencing US-RR-011 | `2ecf967` |
+| US-RR-005 | Confirmed suite runs to completion: 6564 collected, 6291 passed, 78 pre-existing failures, 0 new regressions | `75b9503` |
+| US-RR-006 | Removed hardcoded `rex-insecure-default-secret` fallback from `rex/auth.py`; raises `RuntimeError` when env var unset; added TestGetJWTSecret tests; added REX_JWT_SECRET to .env.example and docs/configuration.md | `970a380` |
+| US-RR-007 | Added single-use setup token via `secrets.token_urlsafe(32)`; protected `/api/setup/complete` and `/api/auth/register`; 9 security tests added; 11 existing test files updated | `7e89d8c` |
+| US-RR-008 | Added `_require_auth()` guard to `/api/logs/stream` and `/api/logs/download`; added `_redact_log_line()` regex helper; 8 security tests added; existing log viewer tests updated | `e56c28f` |
+| US-RR-009 | Added `_require_auth()` guard and URL scheme validation to `POST /api/ha/test`; replaced raw exception text with generic message; 8 security tests added | `f8640fd` |
+| US-RR-010 | `create_blueprint()` raises `RuntimeError` when `HA_SECRET` is blank; `rex_speak_api.py` catches and logs warning; 9 security tests added | `90e39d7` |
+| US-RR-011 | `_validate_twilio_signature` ImportError branch changed from `return True` to `return False`; xfail marker removed from US-RR-004 test; all 15 tests pass | `e008340` |
+| US-RR-012 | `_require_signature(auth_token)` guard added to `inbound_voicemail` route; 2 voicemail signature tests added; all 4 Twilio routes now signed | `a2ca126` |
+
+**Additionally confirmed complete (not originally tracked in US-RR numbering):**
+
+| Story | Summary | Evidence |
+|-------|---------|----------|
+| US-RR-028 | Fix dead shopping_pwa import | The import in `rex_speak_api.py` lines 147-154 is already wrapped in `try/except Exception` with graceful warning log. Acceptance criteria are satisfied. No commit needed. |
+| US-RR-034 | Add negative security tests | All 8 criteria satisfied by tests from US-RR-006 through US-RR-012: `test_us047_user_auth.py` (JWT), `test_rr007_setup_register_protection.py` (setup/register), `test_rr008_log_auth.py` (logs), `test_rr009_ha_test_auth.py` (HA connection), `test_rr010_ha_secret_required.py` (HA secret), `test_ph001_twilio_handler.py` (Twilio). No additional work needed. |
+
+---
+
+## Learnings from the Prior Ralph Loop
+
+These lessons were learned during US-RR-001 through US-RR-012 and must inform future Ralph iterations.
+
+**1. PRD checkbox updates can drift from progress.txt.**
+The original PRD.md required two reconciliation passes because story completion was recorded in
+`progress.txt` before PRD checkboxes were consistently updated. The root cause was a label-casing
+bug that prevented checkbox ticking in early iterations. The lesson: the commit containing the
+implementation must also contain the PRD checkbox update. The Ralph execution rule at the top of the
+PRD enforces this — enforce it strictly.
+
+**2. progress.txt is evidence, not the source of truth.**
+When `progress.txt` says a story is complete but PRD checkboxes are unchecked, the rule is: verify
+both. Check the actual files and git commits. If the code and tests satisfy all acceptance criteria,
+the story is complete regardless of checkbox state. If the code does not satisfy all criteria, the
+story is not complete regardless of what `progress.txt` says.
+
+**3. Future PRDs must avoid deferred unchecked criteria in earlier stories.**
+The original PRD had a criterion in US-RR-004 that said "remove xfail mark after US-RR-011 is
+implemented." This caused Ralph to re-select US-RR-004 as incomplete. The fix: deferred criteria
+belong in the story that owns them, not in an earlier story. US-RR-004's xfail removal criterion was
+moved to US-RR-011 where it was properly completed.
+
+**4. Story completion should be proven by commits, tests, and file inspection — not by self-report.**
+The cleaning of this PRD required verifying each story against current file content and git history.
+Progress notes that say "completed" without a commit hash or file evidence are insufficient. Every
+Ralph iteration summary must include: commit hash, files changed, commands run, and validation result.
+
+**5. grep criteria need to be scoped to source files.**
+`grep -r "rex-insecure-default-secret" .` matches `PRD.md` and `progress.txt` where the string
+appears as documentation. Future criteria must scope grep to `--include="*.py"` or similar to avoid
+false positives from documentation files.
+
+**6. `pytest --collect-only -q 2>&1 | grep -i "error"` is unreliable.**
+It returns test function names containing the word "error" (e.g., `test_handle_error`). Use
+`grep -E "(ERROR|ImportError|ModuleNotFoundError)"` or check the summary line with `tail -5`.
+
+**7. `python -m pip_audit` not `pip-audit`.**
+The `pip-audit` CLI alias was not in PATH in the project's Python environment. Use `python -m pip_audit` in all commands.
+
+**8. `bridge/` modules use bare import names.**
+`pythonpath = [".", "bridge"]` in `[tool.pytest.ini_options]` is the correct least-invasive fix for
+bare imports of bridge modules in tests.
+
+---
+
+## Iterations
+
+*(Leave empty — populated by future Ralph iterations on this PRD.)*
+
+### Iteration Format
+
+Use this format for each Ralph iteration:
+
+```
+### Iteration [N] — US-REM-###: [Story Title]
+
+- Story:
+- What changed:
+- Files changed:
+- Commands run:
+- Validation result:
+- PRD-remaining-release-readiness.md updated: YES/NO
+- Commit:
+- Learnings:
+```
