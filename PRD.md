@@ -501,11 +501,11 @@ pytest tests/ -k "ha_test or ha_connection" -q -v
 - `rex/gui_app.py` (where the HA blueprint is registered)
 
 **Acceptance Criteria:**
-- [ ] If `HA_SECRET` (or `HASS_SECRET`) is unset or empty at startup, the HA blueprint is not registered and the routes return 404 (or the server refuses to start HA integration).
-- [ ] A startup log message clearly warns if HA integration is configured but `HA_SECRET` is missing.
-- [ ] A negative test confirms that `/ha/entities` and `/ha/script` return 403 or 404 when `HA_SECRET` is not set.
-- [ ] A positive test confirms that `/ha/entities` returns the expected response when a valid `HA_SECRET` is set and authentication passes.
-- [ ] `grep -n "HASS_SECRET\|HA_SECRET" rex/ha_bridge.py` shows the secret is checked unconditionally, not only when present.
+- [x] If `HA_SECRET` (or `HASS_SECRET`) is unset or empty at startup, the HA blueprint is not registered and the routes return 404 (or the server refuses to start HA integration). *(Verified: `create_blueprint()` raises `RuntimeError` when `bridge.secret` is empty or None; `rex_speak_api.py` catches the error and skips registration so routes return 404. Committed in 90e39d7.)*
+- [x] A startup log message clearly warns if HA integration is configured but `HA_SECRET` is missing. *(Verified: `rex_speak_api.py` calls `logger.warning("Home Assistant bridge not registered: %s", _ha_err)` in the except block. Committed in 90e39d7.)*
+- [x] A negative test confirms that `/ha/entities` and `/ha/script` return 403 or 404 when `HA_SECRET` is not set. *(Verified: `TestNoSecretRaisesOnBlueprint` tests that `create_blueprint()` raises `RuntimeError`; `TestRoutesReturn404WhenBlueprintNotMounted` tests that `/ha/entities` and `/ha/script` return 404 when blueprint is not registered. Committed in 90e39d7.)*
+- [x] A positive test confirms that `/ha/entities` returns the expected response when a valid `HA_SECRET` is set and authentication passes. *(Verified: `TestSecretSetAllowsRegistrationAndEnforces::test_entities_returns_200_with_valid_secret` confirms 200 with correct `HASS_SECRET` header. Committed in 90e39d7.)*
+- [x] `grep -n "HASS_SECRET\|HA_SECRET" rex/ha_bridge.py` shows the secret is checked unconditionally, not only when present. *(Verified: `_validate_secret()` uses `if request.headers.get("HASS_SECRET") != bridge.secret:` with no `if secret and` guard — fires on every request. Committed in 90e39d7.)*
 
 **Validation commands:**
 ```bash
