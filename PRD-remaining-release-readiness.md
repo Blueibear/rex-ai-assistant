@@ -298,12 +298,12 @@ find gui/release -name "*.py" 2>/dev/null | head -30
 - `gui/src/main/index.ts` (any other bridge path construction)
 
 **Acceptance Criteria:**
-- [ ] `resolveBridgePath` checks `app.isPackaged` and uses `process.resourcesPath` for the bridge path in packaged mode.
-- [ ] In dev mode (not packaged), the resolver continues to use a path relative to the source tree (e.g., `app.getAppPath()/../bridge/`).
-- [ ] A comment explains both branches of the path resolution logic.
-- [ ] `npm run typecheck` in `gui/` returns no errors after the change.
-- [ ] The resolved path is logged at bridge startup so it can be inspected in packaged app logs.
-- [ ] `grep -n "isPackaged\|resourcesPath" gui/src/main/bridgeResolver.ts` returns matches for both.
+- [x] `resolveBridgePath` checks `app.isPackaged` and uses `process.resourcesPath` for the bridge path in packaged mode.
+- [x] In dev mode (not packaged), the resolver continues to use a path relative to the source tree (e.g., `app.getAppPath()/../bridge/`).
+- [x] A comment explains both branches of the path resolution logic.
+- [x] `npm run typecheck` in `gui/` returns no errors after the change.
+- [x] The resolved path is logged at bridge startup so it can be inspected in packaged app logs.
+- [x] `grep -n "isPackaged\|resourcesPath" gui/src/main/bridgeResolver.ts` returns matches for both.
 
 **Validation commands:**
 ```bash

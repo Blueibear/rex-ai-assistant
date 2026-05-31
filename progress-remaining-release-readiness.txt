@@ -272,6 +272,22 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - `data/` was excluded from extraResources because: (1) `handlers/usage.ts` gracefully handles missing `llm_usage.json`; (2) `data/` contains runtime SQLite DBs (users.db, history.db, etc.) that are user-specific runtime state and must not be bundled in a packaged app.
   - `config/` was added because `index.ts` resolves config via `join(app.getAppPath(), '..', 'config')`, and config files (rex_config.json, schema files) are needed for the Python backend to start. The isPackaged path fix (US-REM-008) will still be needed to use resourcesPath correctly in packaged mode.
 
+### Iteration 8 — US-REM-008: Fix `bridgeResolver.ts` path resolution for packaged app context
+
+- Story: US-REM-008
+- What changed: Updated `resolveBridgePath()` in `gui/src/main/bridgeResolver.ts` to check `app.isPackaged`. When packaged, returns `join(process.resourcesPath, 'bridge', scriptFilename)` — pointing outside the .asar archive where electron-builder extraResources places bridge scripts. In dev mode, continues to use `join(app.getAppPath(), '..', 'bridge', scriptFilename)` as before. Added a detailed JSDoc comment explaining both branches. Updated `validateBridges()` to log the bridge base path and `isPackaged` flag at startup so the resolved path can be inspected in packaged app logs.
+- Files changed: gui/src/main/bridgeResolver.ts, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `cd gui && npm run typecheck` → exit 0, no errors
+  - `grep -n "isPackaged\|resourcesPath" gui/src/main/bridgeResolver.ts` → 8 matches for both keywords (lines 54, 56, 57, 60, 65, 67, 95, 96, 98)
+- Validation result: All 6 acceptance criteria satisfied. `resolveBridgePath` has `app.isPackaged` branch using `process.resourcesPath`. Dev mode path unchanged. Comment explains both branches. Typecheck passes. Base path logged at startup. grep returns matches for both `isPackaged` and `resourcesPath`.
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - `process.resourcesPath` is typed as `string` in Electron's node process types — no import or cast needed; TypeScript accepts it directly.
+  - The `validateBridges()` function is the right place to log the resolved base path since it is called once at app launch via `app.whenReady()`.
+  - Logging `isPackaged` alongside the path makes it easy to distinguish dev vs packaged in bug reports.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:
