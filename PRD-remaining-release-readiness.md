@@ -243,11 +243,11 @@ python -m pip_audit 2>&1 | tail -5
 - `gui/src/main/index.ts` (any other bridge spawn calls)
 
 **Acceptance Criteria:**
-- [ ] `gui/src/main/bridgeResolver.ts` is read in full; every bridge script name in `BRIDGE_REGISTRY` is listed.
-- [ ] `gui/package.json` `extraResources` section is read; the list of files/directories currently included is documented.
-- [ ] The gap (bridges resolved but not packaged) is listed explicitly as a note or comment in this commit.
-- [ ] Whether a Python runtime (interpreter) is expected on the user's PATH or is bundled is documented.
-- [ ] No files are changed in this story — output is a gap list that US-REM-007 will act on.
+- [x] `gui/src/main/bridgeResolver.ts` is read in full; every bridge script name in `BRIDGE_REGISTRY` is listed.
+- [x] `gui/package.json` `extraResources` section is read; the list of files/directories currently included is documented.
+- [x] The gap (bridges resolved but not packaged) is listed explicitly as a note or comment in this commit.
+- [x] Whether a Python runtime (interpreter) is expected on the user's PATH or is bundled is documented.
+- [x] No files are changed in this story — output is a gap list that US-REM-007 will act on.
 
 **Validation commands:**
 ```bash

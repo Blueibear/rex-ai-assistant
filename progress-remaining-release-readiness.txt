@@ -168,6 +168,91 @@ bare imports of bridge modules in tests.
   - grep -c with lowercase pattern won't match capitalized Markdown field names like `**Owner:**` or `**Expiry:**`. Use lowercase keys (`**owner:**`, `**expiry:**`) in per-entry metadata so validation greps work correctly.
   - When removing a legacy `--ignore-vuln` entry that was already remediated, verify with `pip-audit | grep CVE-ID` to confirm the CVE is not reported before removing it.
 
+### Iteration 6 — US-REM-006: Audit Electron package config against required bridge/runtime files
+
+- Story: US-REM-006
+- What changed: Documentation/audit only — no source files changed. Gap list recorded here and in commit.
+- Files changed: PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `ls bridge/*.py | wc -l` → 20 (all 20 BRIDGE_REGISTRY scripts present on disk)
+  - `grep extraResources gui/package.json` → only `../assets/brand` entry (bridge/ directory absent)
+  - `grep -n "BRIDGE_REGISTRY\|resolveBridgePath\|getAppPath\|resourcesPath" gui/src/main/bridgeResolver.ts` → 20 registry entries, `resolveBridgePath` uses `app.getAppPath()/../bridge/` (no `isPackaged` check)
+- Validation result: All 5 acceptance criteria satisfied (documentation story — audit complete).
+
+**Gap list (for US-REM-007 and US-REM-008 to act on):**
+
+BRIDGE_REGISTRY entries in `gui/src/main/bridgeResolver.ts` (20 scripts):
+  1. rex_tasks_bridge.py
+  2. rex_reminders_bridge.py
+  3. rex_shopping_list_bridge.py
+  4. rex_speaker_bridge.py
+  5. rex_chat_bridge.py
+  6. rex_chat_stream_bridge.py
+  7. rex_voices_bridge.py
+  8. rex_voice_enrollment_bridge.py
+  9. rex_voice_sample_bridge.py
+  10. rex_voice_upload_bridge.py
+  11. rex_wakeword_list_bridge.py
+  12. rex_wakeword_train_bridge.py
+  13. rex_wakeword_sample_bridge.py
+  14. rex_stt_bridge.py
+  15. rex_memories_bridge.py
+  16. rex_file_extract_bridge.py
+  17. rex_voice_bridge.py
+  18. rex_calendar_bridge.py
+  19. rex_email_bridge.py
+  20. rex_sms_bridge.py
+
+All 20 scripts exist in `bridge/` on disk. None are in `extraResources`.
+
+`gui/package.json` `extraResources` currently includes:
+  - `{ "from": "../assets/brand", "to": "assets/brand" }` — ONLY entry
+
+GAP 1 — Bridge scripts absent from packaged output:
+  All 20 `bridge/*.py` scripts are resolved at runtime but not included in `extraResources`.
+  Fix: add `{ "from": "../bridge", "to": "bridge" }` to `extraResources` (US-REM-007).
+
+GAP 2 — `resolveBridgePath()` uses wrong base in packaged mode:
+  Current: `join(app.getAppPath(), '..', 'bridge', scriptFilename)`.
+  In a packaged `.asar`, `app.getAppPath()` resolves inside the archive; `../bridge/` does not exist there.
+  The correct packaged path uses `process.resourcesPath`.
+  Fix: add `app.isPackaged` branch to `resolveBridgePath()` (US-REM-008).
+
+GAP 3 — `config/rex_config.json` absent from packaged output:
+  `index.ts` resolves config dir as `join(app.getAppPath(), '..', 'config')`.
+  `config/` is not in `extraResources`. Fix: add `{ "from": "../config", "to": "config" }` (US-REM-007).
+
+GAP 4 — `data/` directory absent from packaged output:
+  `handlers/usage.ts` resolves `join(app.getAppPath(), '..', 'data', 'llm_usage.json')`.
+  `data/` is not in `extraResources`. Fix: add `{ "from": "../data", "to": "data" }` (US-REM-007).
+
+Python runtime strategy (documented):
+  `resolvePythonCommand()` checks for `join(app.getAppPath(), '..', '.venv', 'Scripts', 'python.exe')`.
+  If absent, falls back to system `python`. NO bundled Python runtime. Python is expected on the user's
+  PATH (or the user must have a `.venv` in the repo root). This is the expected install model.
+  `.venv/` must NOT be added to `extraResources` — too large, platform-specific.
+  The installer README must document the Python PATH requirement.
+
+Additional path issues in `index.ts` (same root cause as GAP 2):
+  - Config dir: `join(app.getAppPath(), '..', 'config')` — needs `isPackaged` branch pointing to `resourcesPath`.
+  - `.env` path: `join(app.getAppPath(), '..', '.env')` — `.env` must NOT be packaged (secrets).
+  - `data/` path: `join(app.getAppPath(), '..', 'data')` — needs `isPackaged` branch.
+  - `logs.ts` sentinel: checks for `bridge/rex_chat_stream_bridge.py` to detect repo root — will work
+    in packaged mode only if bridge/ is in `extraResources` (which US-REM-007 will add).
+
+All spawn calls in handler files route through `resolveBridgePath()` / `resolvePythonCommand()`.
+No hardcoded bridge paths found outside bridgeResolver.ts.
+
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - The `gui/src/main/handlers/logs.ts` repo-root detection sentinel (`bridge/rex_chat_stream_bridge.py`) will
+    correctly detect the packaged resource path once US-REM-007 adds `bridge/` to `extraResources`, because
+    `existsSync(join(root, 'bridge', 'rex_chat_stream_bridge.py'))` will find the file in `resourcesPath/bridge/`.
+  - All handler spawn calls go through `resolveBridgePath()` — no stray hardcoded paths found.
+  - `.env` must never be in `extraResources`; it contains secrets. The packaged app must read `.env` from the
+    user's home or app-data directory, not from the resources bundle.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:
