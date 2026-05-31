@@ -96,7 +96,7 @@ bare imports of bridge modules in tests.
   - `pytest tests/ -k "security or auth or twilio or jwt" -q` → 2 failed (pre-existing; confirmed on clean HEAD), 190 passed, 10 skipped
 - Validation result: All 7 acceptance criteria satisfied. idna 3.17 and urllib3 2.7.0 installed. pip-audit grep returns no matches. Pre-existing test failures confirmed not introduced by this change.
 - PRD-remaining-release-readiness.md updated: YES
-- Commit: (to be set)
+- Commit: 1c2e8b2
 
 ### Iteration Format
 
