@@ -163,7 +163,7 @@ bare imports of bridge modules in tests.
   - `python -m pip_audit 2>&1 | grep -E "CVE-2026-1703|pip.*CVE"` → no output (confirmed safe to remove suppression)
 - Validation result: All 6 acceptance criteria satisfied. Sections exist with labeled headers (Runtime/Dev-only/Optional ML/AI). All 25 packages have owner, date, expiry, and risk-tier metadata. WARNING comment at top of section. Total count documented as 86. Removing CVE-2026-1703 suppression is a no-op (pip 26.1 already installed). No functional CI change.
 - PRD-remaining-release-readiness.md updated: YES
-- Commit: (pending)
+- Commit: 8ad2ac6
 - Learnings:
   - grep -c with lowercase pattern won't match capitalized Markdown field names like `**Owner:**` or `**Expiry:**`. Use lowercase keys (`**owner:**`, `**expiry:**`) in per-entry metadata so validation greps work correctly.
   - When removing a legacy `--ignore-vuln` entry that was already remediated, verify with `pip-audit | grep CVE-ID` to confirm the CVE is not reported before removing it.
