@@ -145,7 +145,7 @@ bare imports of bridge modules in tests.
   - `npm run build` → vite v6.4.2, built in 893ms, 0 errors
 - Validation result: All 4 acceptance criteria satisfied. esbuild upgraded to 0.25.12 (patched). postcss upgraded to 8.5.15 (patched). Developer-only description added. Build passes.
 - PRD-remaining-release-readiness.md updated: YES
-- Commit: (pending)
+- Commit: 384db04
 - Learnings:
   - vite@6.4.2 bundles esbuild@^0.25.0 (patched). Upgrading vite from 5.x to 6.4.2 in package.json + `npm install` resolves the esbuild GHSA finding without `--force`.
   - postcss was a transitive dep of vite. After upgrading vite, a plain `npm audit fix` updated postcss from 8.5.8 to 8.5.15.
