@@ -128,7 +128,7 @@ bare imports of bridge modules in tests.
   - `npm run build` → all 3 vite bundles built successfully
 - Validation result: All 6 acceptance criteria satisfied. Electron upgraded to 42.3.0 (latest stable). tmp@0.2.5→0.2.6 via overrides. No high or moderate vulnerabilities. Typecheck and build pass.
 - PRD-remaining-release-readiness.md updated: YES
-- Commit: (pending)
+- Commit: cecc5df
 - Learnings:
   - `tmp` was a transitive dep via electron-builder → app-builder-lib → @malept/flatpak-bundler → tmp-promise → tmp. npm `overrides` field is the correct way to force a minimum version without changing the requiring package.
   - Electron 42.x is compatible with @electron-toolkit/* (peerDep: >=13.0.0), electron-vite 3.x, and electron-builder 26.x — no IPC or preload breaking changes observed in typecheck or build.
