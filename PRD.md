@@ -531,11 +531,11 @@ pytest tests/ -k "ha" -q -v
 - `tests/test_ph001_twilio_handler.py` (line 213, test updated in US-RR-004)
 
 **Acceptance Criteria:**
-- [ ] When the `twilio` package is not importable, `validate_signature()` (or equivalent) returns `False`.
-- [ ] A log warning is emitted when validation is attempted without the `twilio` package, stating: "Twilio package not installed — rejecting request as unsigned."
-- [ ] The test updated in US-RR-004 (`test_validate_signature_returns_false_when_twilio_missing`) passes without `xfail`.
-- [ ] A test for the positive path (valid signature with `twilio` installed) is not broken.
-- [ ] `grep -n "return True" rex/telephony/twilio_handler.py` does not show any path that returns `True` without first validating a real signature.
+- [x] When the `twilio` package is not importable, `validate_signature()` (or equivalent) returns `False`. *(Verified: `except ImportError` branch at line 91–93 of `rex/telephony/twilio_handler.py` now returns `False`. Committed in e008340.)*
+- [x] A log warning is emitted when validation is attempted without the `twilio` package, stating: "Twilio package not installed — rejecting request as unsigned." *(Verified: exact warning string present at line 92. Committed in e008340.)*
+- [x] The test updated in US-RR-004 (`test_validate_signature_returns_false_when_twilio_missing`) passes without `xfail`. *(Verified: `@pytest.mark.xfail` decorator removed in e008340; commit message confirms all 15 tests pass.)*
+- [x] A test for the positive path (valid signature with `twilio` installed) is not broken. *(Verified: all 15 tests in `test_ph001_twilio_handler.py` pass per commit message and progress.txt iteration 11 notes.)*
+- [x] `grep -n "return True" rex/telephony/twilio_handler.py` does not show any path that returns `True` without first validating a real signature. *(Verified: `grep -n "return True" rex/telephony/twilio_handler.py` returns empty — no bare `return True` exists in the file.)*
 
 **Validation commands:**
 ```bash
