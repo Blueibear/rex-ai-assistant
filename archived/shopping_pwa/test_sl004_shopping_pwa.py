@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 
 import pytest
+from rex.shopping_pwa import create_blueprint
 
 from rex.shopping_list import ShoppingList
-from rex.shopping_pwa import create_blueprint
 
 # ---------------------------------------------------------------------------
 # Fixtures

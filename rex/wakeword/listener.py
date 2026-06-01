@@ -447,7 +447,9 @@ def build_default_detector(
     except Exception as exc:  # pragma: no cover - dependency/setup dependent
         raise WakeWordError(f"Failed to load wake-word model: {exc}") from exc
 
-    active_backend = selection.active_backend if selection is not None else (backend or "openwakeword")
+    active_backend = (
+        selection.active_backend if selection is not None else (backend or "openwakeword")
+    )
 
     if poll_interval is None:
         poll_interval = min(0.05, max(0.0, chunk_duration / 2))
@@ -464,7 +466,9 @@ def build_default_detector(
             "requested_backend": selection.requested_backend if selection else backend,
             "requested_phrase": selection.requested_phrase if selection else keyword,
             "requested_model_path": selection.requested_model_path if selection else model_path,
-            "requested_embedding_path": selection.requested_embedding_path if selection else embedding_path,
+            "requested_embedding_path": (
+                selection.requested_embedding_path if selection else embedding_path
+            ),
             "resolved_model_path": selection.resolved_model_path if selection else None,
             "resolved_embedding_path": selection.resolved_embedding_path if selection else None,
             "used_fallback": selection.used_fallback if selection else False,
@@ -483,7 +487,9 @@ def build_default_detector(
             "requested_backend": selection.requested_backend if selection else backend,
             "requested_phrase": selection.requested_phrase if selection else keyword,
             "requested_model_path": selection.requested_model_path if selection else model_path,
-            "requested_embedding_path": selection.requested_embedding_path if selection else embedding_path,
+            "requested_embedding_path": (
+                selection.requested_embedding_path if selection else embedding_path
+            ),
             "resolved_model_path": selection.resolved_model_path if selection else None,
             "resolved_embedding_path": selection.resolved_embedding_path if selection else None,
             "used_fallback": selection.used_fallback if selection else False,

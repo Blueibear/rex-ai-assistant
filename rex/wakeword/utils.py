@@ -273,11 +273,7 @@ def _prepare_float_audio_for_detection(
     )
 
     gain = 1.0
-    if (
-        auto_gain
-        and audio_rms >= min_rms_for_gain
-        and 0.0 < audio_peak < target_peak
-    ):
+    if auto_gain and audio_rms >= min_rms_for_gain and 0.0 < audio_peak < target_peak:
         gain = min(max_gain, target_peak / audio_peak)
         frame = np.clip(frame * gain, -1.0, 1.0)
 
@@ -446,7 +442,9 @@ def load_wakeword_model_with_metadata(
         if resolved_path.is_file() and resolved_path.stat().st_size > 0:
             try:
                 embedding = load_embedding(resolved_path)
-                return EmbeddingWakeWordModel(embedding, label=resolved_path.stem), WakeWordModelSelection(
+                return EmbeddingWakeWordModel(
+                    embedding, label=resolved_path.stem
+                ), WakeWordModelSelection(
                     requested_backend=resolved_backend,
                     active_backend="custom_embedding",
                     requested_phrase=keyword,

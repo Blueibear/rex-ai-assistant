@@ -221,12 +221,16 @@ exclude = '''
   | build
   | dist
   | __pycache__
+  | archived
 )/
 '''
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+exclude = [
+    "archived",  # retired files; not maintained
+]
 
 [tool.ruff.lint]
 select = [
@@ -389,22 +393,11 @@ module = [
 ]
 ignore_missing_imports = true
 
-# Pre-existing modules that are not yet strict-mode compliant.
-# These overrides silence errors in those files when running
-# `mypy --strict` against new, strict-clean modules (e.g. rex.autonomy.*).
-[[tool.mypy.overrides]]
-module = [
-  "rex",
-  "rex.config",
-  "rex.logging_utils",
-  "rex.llm_client",
-  "rex.scheduler",
-  "rex.event_bus",
-  "rex.http_errors",
-  "rex.notification",
-  "rex.calendar_service",
-  "rex.calendar_backends.ics_parser",
-  "rex.dashboard.auth",
-  "rex.dashboard.routes",
-]
-ignore_errors = true
+# US-REM-014: ignore_errors = true block removed.
+# All 12 previously-suppressed modules were verified to pass mypy with no errors.
+# rex.cli, rex.voice_loop, and rex.gui_app were never in this block and remain
+# included in full mypy checking.
+# Pre-existing mypy errors exist in: rex/assistant.py, rex/audio_config.py,
+# rex/compat/transformers_shims.py, rex/mqtt_client.py, rex/plugin_loader.py,
+# rex/response/builder.py, rex/voice_loop.py, rex/wakeword/listener.py.
+# These are tracked as technical debt; fixing them is out of scope for US-REM-014.

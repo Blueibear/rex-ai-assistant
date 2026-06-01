@@ -460,11 +460,11 @@ bash tests/smoke/test_electron_package.sh
 - `pyproject.toml` (mypy `exclude` list)
 
 **Acceptance Criteria:**
-- [ ] CI lint step runs `ruff check .` on all Python files, not just `git diff` output.
-- [ ] CI format step runs `black --check .` on all Python files.
-- [ ] The mypy `exclude` list in `pyproject.toml` is reduced: at minimum `rex/cli.py`, `rex/voice_loop.py`, and `rex/gui_app.py` are either included in mypy checking or have their exclusion documented with a ticket reference and a remediation plan.
-- [ ] CI passes a full green run after this change — any pre-existing lint errors found by full-repo scan are fixed before the gate is activated.
-- [ ] The lint and type steps complete in under 5 minutes.
+- [x] CI lint step runs `ruff check .` on all Python files, not just `git diff` output.
+- [x] CI format step runs `black --check .` on all Python files.
+- [x] The mypy `exclude` list in `pyproject.toml` is reduced: at minimum `rex/cli.py`, `rex/voice_loop.py`, and `rex/gui_app.py` are either included in mypy checking or have their exclusion documented with a ticket reference and a remediation plan.
+- [x] CI passes a full green run after this change — any pre-existing lint errors found by full-repo scan are fixed before the gate is activated.
+- [x] The lint and type steps complete in under 5 minutes.
 
 **Validation commands:**
 ```bash

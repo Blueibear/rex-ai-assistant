@@ -284,9 +284,7 @@ class ToolDispatcher:
                 return ToolResult(success=True, output=output)
             except concurrent.futures.TimeoutError:
                 future.cancel()
-                logger.warning(
-                    "tool_dispatcher: dispatch %r timed out after %.1fs", name, timeout
-                )
+                logger.warning("tool_dispatcher: dispatch %r timed out after %.1fs", name, timeout)
                 return ToolResult(success=False, error=f"Tool {name!r} timed out")
             except Exception as exc:
                 logger.warning("tool_dispatcher: dispatch %r failed: %s", name, exc)

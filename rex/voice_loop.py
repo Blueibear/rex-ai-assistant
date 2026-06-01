@@ -1322,8 +1322,7 @@ class TextToSpeech:
             prefer_fast
             and self._provider == "edge"
             and os.name == "nt"
-            and len(text)
-            <= self._settings_int("tts_fast_short_reply_max_chars", 140)
+            and len(text) <= self._settings_int("tts_fast_short_reply_max_chars", 140)
         )
         logger.info(
             "[TTS] Spoken text prepared",
@@ -1396,9 +1395,7 @@ class TextToSpeech:
             elif self._provider == "edge":
                 run_metrics.update(await self._speak_edge(text, request_started_at=started_at))
             elif self._provider == "windows":
-                run_metrics.update(
-                    await self._speak_windows(text, request_started_at=started_at)
-                )
+                run_metrics.update(await self._speak_windows(text, request_started_at=started_at))
             else:
                 run_metrics["path_used"] = "stdout"
                 run_metrics["speech_start_delay_s"] = 0.0
@@ -2077,7 +2074,9 @@ class VoiceLoop:
 
         return False
 
-    async def _safe_acknowledge(self, *, interaction_id: int = 0, requested_at: float | None = None) -> None:
+    async def _safe_acknowledge(
+        self, *, interaction_id: int = 0, requested_at: float | None = None
+    ) -> None:
         try:
             ack = self._acknowledge
             if ack is not None:
@@ -2352,7 +2351,7 @@ class VoiceLoop:
             _emit("wake_listening")
 
         interactions = 0
-        voice_mode_kwargs = dict(voice_mode=True)
+        voice_mode_kwargs = {"voice_mode": True}
         _speak_streaming = self._speak_streaming
 
         logger.info(

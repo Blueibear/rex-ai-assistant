@@ -34,12 +34,14 @@ def _db_with_all_applied(tmp_path: Path) -> Path:
     """Create a DB where all known migrations are recorded as applied."""
     db_path = tmp_path / "test.db"
     conn = sqlite3.connect(str(db_path))
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS schema_migrations (
             name TEXT PRIMARY KEY,
             applied_at TEXT NOT NULL
         )
-        """)
+        """
+    )
     for name, _ in MIGRATIONS:
         conn.execute(
             "INSERT OR IGNORE INTO schema_migrations (name, applied_at) VALUES (?, ?)",
@@ -54,12 +56,14 @@ def _db_with_none_applied(tmp_path: Path) -> Path:
     """Create a DB where schema_migrations exists but no migrations applied."""
     db_path = tmp_path / "test_empty.db"
     conn = sqlite3.connect(str(db_path))
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS schema_migrations (
             name TEXT PRIMARY KEY,
             applied_at TEXT NOT NULL
         )
-        """)
+        """
+    )
     conn.commit()
     conn.close()
     return db_path
@@ -89,12 +93,14 @@ class TestGetPendingMigrations:
     def test_partial_returns_missing(self, tmp_path: Path) -> None:
         db_path = tmp_path / "partial.db"
         conn = sqlite3.connect(str(db_path))
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS schema_migrations (
                 name TEXT PRIMARY KEY,
                 applied_at TEXT NOT NULL
             )
-            """)
+            """
+        )
         # Apply only the first migration
         first_name = MIGRATIONS[0][0]
         conn.execute(
@@ -227,12 +233,14 @@ class TestValidateMigrationState:
         """Even one unapplied migration triggers exit."""
         db_path = tmp_path / "partial.db"
         conn = sqlite3.connect(str(db_path))
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS schema_migrations (
                 name TEXT PRIMARY KEY,
                 applied_at TEXT NOT NULL
             )
-            """)
+            """
+        )
         # Apply all but the last migration
         for name, _ in MIGRATIONS[:-1]:
             conn.execute(
