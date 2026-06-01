@@ -6,11 +6,64 @@ network exposure, service auth, packaging, or security controls.
 ## Core Config Split
 
 - Runtime settings belong in `config/rex_config.json`.
-- Secrets belong in `.env` or in the repo's credential lookup path.
+- Secrets belong in `.env` only — never in `rex_config.json` or GUI settings files.
 - Do not put secrets in source-controlled JSON config.
 - Non-secret legacy env vars should be migrated with
   `rex-config migrate-legacy-env`.
 - The canonical wake-word section is `wakeword`; `wake_word` is legacy.
+
+## Canonical Secret-Loading Path
+
+**Secrets must come from `.env` only.** Never from `rex_config.json` or
+`config/gui_settings.json`.
+
+### Python backend
+- All secrets are loaded via `os.getenv("KEY_NAME")` at import/init time.
+- `ha_token` → `os.getenv("HA_TOKEN")`; `ha_secret` → `os.getenv("HA_SECRET")`
+- `REX_JWT_SECRET` → loaded by `rex/auth.py:get_jwt_secret()`, raises
+  `RuntimeError` if unset — there is no fallback.
+- `rex_config.json` must never contain token or credential values; it may
+  contain credential *reference names* (e.g. `"token_ref": "ha:tts_token"`)
+  that the credential lookup layer resolves against the environment.
+
+### Electron GUI (`gui/src/main/index.ts`)
+- HA token save path: `saveHomeAssistantCredentials` → `writeEnvKey('HA_TOKEN', token)`
+- HA token read path: `readSavedHomeAssistantCredentials` → `readEnvFile().HA_TOKEN`
+- Integration settings save path: `rex:setSettings('integrations', ...)` strips
+  `haToken` before writing to `gui_settings.json`; if non-empty, writes to `.env`.
+- `config/gui_settings.json` stores non-secret UI state only (URLs, providers,
+  display preferences). It must not contain credential values.
+
+### Known residual secrets in gui_settings.json (migration backlog)
+The following fields are currently written to `gui_settings.json` and should
+be migrated to `.env` in a follow-up story:
+- `telegramBotToken` → target env var: `TELEGRAM_BOT_TOKEN`
+- `emailClientSecret` / `calendarClientSecret` — OAuth app credentials;
+  lower risk (app-identity, not user-token), but should move to `.env`
+  long-term.
+
+## Migration Path for Existing Users
+
+If you have secrets stored in `rex_config.json` or `gui_settings.json`:
+
+1. **HA token in `rex_config.json` (`home_assistant.token`):**
+   Remove the `"token"` key from the `home_assistant` section.
+   Add `HA_TOKEN=<your-token>` to `.env`.
+   Rex reads the token exclusively from `os.getenv("HA_TOKEN")`.
+
+2. **HA token in `gui_settings.json` (`integrations.haToken`):**
+   The GUI no longer reads or writes `haToken` to `gui_settings.json`.
+   Ensure `HA_TOKEN` is set in `.env`. Remove the `haToken` field from
+   `gui_settings.json` if present.
+
+3. **JWT secret anywhere other than `.env`:**
+   Add `REX_JWT_SECRET=<your-secret>` to `.env`.
+   Generate a new value with:
+   `python -c "import secrets; print(secrets.token_hex(32))"`
+
+4. **Twilio credentials:**
+   Move `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`
+   to `.env`. Remove from any JSON config file.
 
 ## Security Defaults
 

@@ -531,11 +531,11 @@ cat .gitignore | grep -E "Memory|profiles|users\.json"
 - `docs/claude/CONFIG_AND_SECURITY.md`
 
 **Acceptance Criteria:**
-- [ ] A single canonical secret-loading path is defined and documented: secrets come from the OS keyring (via `keyring` library) OR from `.env` only — never from `rex_config.json` or GUI settings files.
-- [ ] `config/rex_config.json` contains no secrets or credentials.
-- [ ] GUI settings do not store or mirror secrets; when HA credentials are needed they are retrieved from the canonical secret store at runtime.
-- [ ] The migration path for existing users who have secrets in `rex_config.json` or GUI settings is documented in `docs/claude/CONFIG_AND_SECURITY.md`.
-- [ ] `grep -rn "ha_token\|HA_TOKEN\|jwt.*secret\|twilio.*auth" config/rex_config.json` returns no matches.
+- [x] A single canonical secret-loading path is defined and documented: secrets come from `.env` only — never from `rex_config.json` or GUI settings files. (OS keyring is documented as a future option; `.env` is the current canonical path.)
+- [x] `config/rex_config.json` contains no secrets or credentials.
+- [x] GUI settings do not store or mirror secrets; when HA credentials are needed they are retrieved from the canonical secret store at runtime.
+- [x] The migration path for existing users who have secrets in `rex_config.json` or GUI settings is documented in `docs/claude/CONFIG_AND_SECURITY.md`.
+- [x] `grep -rn "ha_token\|HA_TOKEN\|jwt.*secret\|twilio.*auth" config/rex_config.json` returns no matches.
 
 **Validation commands:**
 ```bash

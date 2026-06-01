@@ -172,10 +172,8 @@ function readSavedHomeAssistantCredentials(): { baseUrl: string; token: string }
 
   return {
     baseUrl: normalizeHaUrl(integrations.haUrl) || normalizeHaUrl(haConfig.base_url),
-    token:
-      (typeof integrations.haToken === 'string' && integrations.haToken.trim()) ||
-      (typeof env.HA_TOKEN === 'string' && env.HA_TOKEN.trim()) ||
-      ''
+    // HA token is stored in .env only — never in gui_settings (canonical secret store)
+    token: (typeof env.HA_TOKEN === 'string' && env.HA_TOKEN.trim()) || ''
   }
 }
 
@@ -183,11 +181,13 @@ function saveHomeAssistantCredentials(baseUrl: string, token: string): void {
   const stored = readGuiSettings()
   const integrations = { ...((stored['integrations'] ?? {}) as Record<string, unknown>) }
   integrations.haUrl = baseUrl
-  integrations.haToken = token
+  // haToken is NOT stored in gui_settings — canonical secret store is .env only
   stored['integrations'] = integrations as Settings
   writeGuiSettings(stored)
   mirrorToRexConfig('integrations', integrations as Settings)
-  writeEnvKey('HA_TOKEN', token)
+  if (token) {
+    writeEnvKey('HA_TOKEN', token)
+  }
 }
 
 function describeHaError(error: unknown): string {
@@ -1172,12 +1172,21 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
 
   ipcMain.handle('rex:setSettings', (_event, section: string, values: Settings) => {
     const stored = readGuiSettings()
-    const normalizedValues =
+    let normalizedValues =
       section === 'ai'
         ? (buildAiSettings(values) as unknown as Settings)
         : section === 'voice'
           ? (buildVoiceSettings(values) as unknown as Settings)
           : values
+    // Secrets must not be stored in gui_settings — redirect HA token to .env
+    if (section === 'integrations') {
+      const raw = normalizedValues as unknown as Record<string, unknown>
+      const haToken = raw['haToken']
+      if (typeof haToken === 'string' && haToken.trim()) {
+        writeEnvKey('HA_TOKEN', haToken.trim())
+      }
+      normalizedValues = { ...raw, haToken: '' } as unknown as Settings
+    }
     stored[section] = normalizedValues
     writeGuiSettings(stored)
     // Mirror relevant fields to rex_config.json so the Python backend picks them up
