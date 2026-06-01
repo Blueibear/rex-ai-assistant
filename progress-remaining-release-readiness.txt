@@ -334,6 +334,21 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - The workflow-level `on:` block covers all required triggers; no per-job `on:` override is needed.
   - Build artifacts intentionally not uploaded in ci.yml — artifact upload belongs in a release workflow gated on a tag push, not in the PR/merge CI loop.
 
+### Iteration 12 — US-REM-012: Add Node dependency audit gates to CI for `gui/` and `rex/ui/`
+
+- Story: US-REM-012
+- What changed: Added `node-audit` job to `.github/workflows/ci.yml`. The job uses `actions/setup-node@v4` with Node 20 LTS; it runs `npm audit --audit-level=high` in `gui/` and `rex/ui/` as separate steps with separate Node setup steps (each keyed to their own lockfile). The job inherits the existing workflow triggers (push to master/claude/**, PR targeting master). Both audits were verified to return 0 high-severity vulnerabilities before the gate was added (US-REM-003 and US-REM-004 had already remediated all findings).
+- Files changed: .github/workflows/ci.yml, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `cd gui && npm audit --audit-level=high` → found 0 vulnerabilities (exit 0)
+  - `cd rex/ui && npm audit --audit-level=high` → found 0 vulnerabilities (exit 0)
+- Validation result: All 3 acceptance criteria satisfied. `node-audit` job added to ci.yml with separate steps for gui/ and rex/ui/. Both steps use `--audit-level=high`. Both directories have 0 high-severity vulnerabilities (US-REM-003 and US-REM-004 already remediated). CI starts green.
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - `actions/setup-node@v4` can be called multiple times in the same job with different `cache-dependency-path` values to handle multiple Node subdirectories. Each call configures the npm cache for that lockfile.
+  - No `npm ci` step is needed for `npm audit` — audit reads the lockfile directly and does not require node_modules to be installed.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:

@@ -409,9 +409,9 @@ cd gui && npm ci && npm run build
 - `.github/workflows/ci.yml`
 
 **Acceptance Criteria:**
-- [ ] CI runs `cd gui && npm audit --audit-level=high` and fails if any high-severity vulnerabilities are present.
-- [ ] CI runs `cd rex/ui && npm audit --audit-level=high` and fails if any high-severity vulnerabilities are present.
-- [ ] The audit steps run after US-REM-003 and US-REM-004 remediation, so CI starts green for this gate.
+- [x] CI runs `cd gui && npm audit --audit-level=high` and fails if any high-severity vulnerabilities are present.
+- [x] CI runs `cd rex/ui && npm audit --audit-level=high` and fails if any high-severity vulnerabilities are present.
+- [x] The audit steps run after US-REM-003 and US-REM-004 remediation, so CI starts green for this gate.
 
 **Validation commands:**
 ```bash

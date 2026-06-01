@@ -154,6 +154,35 @@ jobs:
       - name: 🏗️ Build GUI
         run: cd gui && npm run build
 
+  node-audit:
+    name: Node Dependency Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 🧾 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟩 Set up Node.js (gui/)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: gui/package-lock.json
+
+      - name: 🔒 Audit gui/ dependencies
+        run: cd gui && npm audit --audit-level=high
+
+      - name: 🟩 Set up Node.js (rex/ui/)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: rex/ui/package-lock.json
+
+      - name: 🔒 Audit rex/ui/ dependencies
+        run: cd rex/ui && npm audit --audit-level=high
+
   tests:
     name: Python 3.11 Tests & Coverage
     runs-on: ubuntu-latest
