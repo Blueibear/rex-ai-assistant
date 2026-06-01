@@ -319,6 +319,21 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - `cache-dependency-path: gui/package-lock.json` scopes the npm cache key to the gui lockfile so cache invalidation is correctly triggered by gui dependency changes only.
   - The job runs two separate `run:` steps (`npm ci` and `npm run typecheck`) rather than one chained command for cleaner CI log separation.
 
+### Iteration 11 — US-REM-011: Add GUI build gate to CI
+
+- Story: US-REM-011
+- What changed: Added `gui-build` job to `.github/workflows/ci.yml`. The job uses `actions/setup-node@v4` with Node 20 LTS and npm cache keyed on `gui/package-lock.json`, then runs `cd gui && npm ci` and `cd gui && npm run build` as separate steps. It inherits the existing workflow triggers (push to master/claude/**, PR targeting master). No artifact upload step — build artifacts are not uploaded in CI (only in a release workflow). Pre-existing build verified to pass (3 vite bundles, exit 0) before adding the gate.
+- Files changed: .github/workflows/ci.yml, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `cd gui && npm ci && npm run build` → exit 0, 3 bundles built (preload 10.34 kB, renderer 893.66 kB + assets, SSR 10.34 kB)
+- Validation result: All 4 acceptance criteria satisfied. Job named `gui-build` exists in ci.yml. Triggers inherited from workflow `on:` block (push to master/claude/**, PR to master). No artifact upload step (satisfies "not uploaded unless on a release tag"). Non-zero exit on failure is automatic (vite exits non-zero on build error). Codebase passes gate with no pre-existing errors.
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - Separating `npm ci` and `npm run build` into two `run:` steps (matching the gui-typecheck pattern) gives cleaner CI log separation without any functional difference.
+  - The workflow-level `on:` block covers all required triggers; no per-job `on:` override is needed.
+  - Build artifacts intentionally not uploaded in ci.yml — artifact upload belongs in a release workflow gated on a tag push, not in the PR/merge CI loop.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:

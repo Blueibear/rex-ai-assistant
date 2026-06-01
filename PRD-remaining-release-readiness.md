@@ -385,10 +385,10 @@ cd gui && npm ci && npm run typecheck
 - `gui/package.json` (build script)
 
 **Acceptance Criteria:**
-- [ ] `.github/workflows/ci.yml` has a step that runs `cd gui && npm ci && npm run build`.
-- [ ] The step runs on every push to `master` and on every pull request.
-- [ ] Build artifacts are not uploaded unless on a release tag.
-- [ ] A failing build returns a non-zero exit code and fails the CI run.
+- [x] `.github/workflows/ci.yml` has a step that runs `cd gui && npm ci && npm run build`.
+- [x] The step runs on every push to `master` and on every pull request.
+- [x] Build artifacts are not uploaded unless on a release tag.
+- [x] A failing build returns a non-zero exit code and fails the CI run.
 
 **Validation commands:**
 ```bash
