@@ -359,11 +359,11 @@ bash tests/smoke/test_electron_package.sh
 - `gui/package.json` (typecheck script)
 
 **Acceptance Criteria:**
-- [ ] `.github/workflows/ci.yml` has a job or step that runs `cd gui && npm ci && npm run typecheck`.
-- [ ] The step runs on every push to `master` and on every pull request targeting `master`.
-- [ ] A failing typecheck returns a non-zero exit code and fails the CI run.
-- [ ] The job is clearly named (e.g., `gui-typecheck`).
-- [ ] The current codebase passes this gate — no pre-existing type errors are hidden by adding it.
+- [x] `.github/workflows/ci.yml` has a job or step that runs `cd gui && npm ci && npm run typecheck`.
+- [x] The step runs on every push to `master` and on every pull request targeting `master`.
+- [x] A failing typecheck returns a non-zero exit code and fails the CI run.
+- [x] The job is clearly named (e.g., `gui-typecheck`).
+- [x] The current codebase passes this gate — no pre-existing type errors are hidden by adding it.
 
 **Validation commands:**
 ```bash

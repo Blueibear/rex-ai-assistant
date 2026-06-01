@@ -304,6 +304,21 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - `REQUIRE_ELECTRON_SIGNAL=1` + `xvfb-run` is the correct CI setup for Linux where stderr capture works and a virtual display is available.
   - `SKIP_BUILD=1` allows fast re-runs against an existing `gui/dist/` artifact without rebuilding.
 
+### Iteration 10 — US-REM-010: Add GUI TypeScript typecheck gate to CI
+
+- Story: US-REM-010
+- What changed: Added `gui-typecheck` job to `.github/workflows/ci.yml`. The job uses `actions/setup-node@v4` with Node 20 LTS and npm cache keyed on `gui/package-lock.json`, then runs `cd gui && npm ci` and `cd gui && npm run typecheck`. It inherits the existing workflow triggers (push to master/claude/**, PR targeting master). Pre-existing typecheck verified to pass with 0 errors before adding the gate.
+- Files changed: .github/workflows/ci.yml, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `cd gui && npm ci && npm run typecheck` → exit 0, no type errors
+- Validation result: All 5 acceptance criteria satisfied. Job named `gui-typecheck` exists. Triggers inherited from workflow `on:` block (push to master, PR to master). Non-zero exit on failure is automatic (tsc --noEmit). Codebase passes gate with no pre-existing errors.
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - Node 20 LTS is sufficient for `npm ci` + `tsc --noEmit` on an Electron 42.x project with electron-vite 3.x. No engine version constraint is set in gui/package.json.
+  - `cache-dependency-path: gui/package-lock.json` scopes the npm cache key to the gui lockfile so cache invalidation is correctly triggered by gui dependency changes only.
+  - The job runs two separate `run:` steps (`npm ci` and `npm run typecheck`) rather than one chained command for cleaner CI log separation.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:
