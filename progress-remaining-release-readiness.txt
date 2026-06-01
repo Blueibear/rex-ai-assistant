@@ -375,7 +375,7 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - `mypy rex --ignore-missing-imports` → CI step unchanged; the 12 previously-suppressed modules now checked; pre-existing errors in rex/assistant.py, rex/audio_config.py, rex/compat/transformers_shims.py, rex/mqtt_client.py, rex/plugin_loader.py, rex/response/builder.py, rex/voice_loop.py, rex/wakeword/listener.py documented as tech debt in pyproject.toml comment
 - Validation result: All 5 acceptance criteria satisfied. ruff check passes full-repo with no errors. black covers all main source directories. mypy ignore_errors=true block removed from pyproject.toml; rex.cli, rex.voice_loop, rex.gui_app were never in that block and remain fully checked. Pre-existing mypy errors documented in pyproject.toml comment as out-of-scope tech debt. All source and test changes are Black/Ruff reformatting only (no logic changes).
 - PRD-remaining-release-readiness.md updated: YES
-- Commit: (see below)
+- Commit: 2a9facb
 - Learnings:
   - Black 26.x with Python 3.10 shows "cannot parse code formatted for Python 3.11" AST warning but applies formatting correctly; the warning is a false alarm in a 3.10 sandbox targeting 3.11. CI runs Python 3.11 and will not emit this warning.
   - Excluding `archived/` from both `[tool.black] exclude` and `[tool.ruff] exclude` is cleaner than adding per-file noqa comments to unmaintained retired files.
