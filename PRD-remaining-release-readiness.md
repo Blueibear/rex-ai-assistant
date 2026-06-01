@@ -497,12 +497,12 @@ mypy rex/ --ignore-missing-imports 2>&1 | tail -20
 - `.gitignore` (must be updated to exclude runtime data)
 
 **Acceptance Criteria:**
-- [ ] `users.json`, `Memory/james/*`, `Memory/cole/*`, and `profiles/james.json` are removed from the repo (both from disk and from `git ls-files`).
-- [ ] `profiles/default.json` is inspected; if it contains personal content it is replaced with a sanitized example using clearly fictional data.
-- [ ] `.gitignore` is updated to exclude `users.json`, `Memory/james/`, `Memory/cole/`, and `profiles/*.json` except `profiles/*.example.json` and `profiles/profile.schema.json`.
-- [ ] `Memory/README.md` is updated (or created) to explain that memory profile files are generated at runtime and should not be committed.
-- [ ] `git ls-files Memory/ profiles/james.json users.json` returns only `Memory/README.md` and `profiles/*.example.json` and `profiles/profile.schema.json` — no personal data.
-- [ ] The commit message explicitly states: "Remove tracked personal/demo runtime data."
+- [x] `users.json`, `Memory/james/*`, `Memory/cole/*`, and `profiles/james.json` are removed from the repo (both from disk and from `git ls-files`).
+- [x] `profiles/default.json` is inspected; if it contains personal content it is replaced with a sanitized example using clearly fictional data.
+- [x] `.gitignore` is updated to exclude `users.json`, `Memory/james/`, `Memory/cole/`, and `profiles/*.json` except `profiles/*.example.json` and `profiles/profile.schema.json`.
+- [x] `Memory/README.md` is updated (or created) to explain that memory profile files are generated at runtime and should not be committed.
+- [x] `git ls-files Memory/ profiles/james.json users.json` returns only `Memory/README.md` and `profiles/*.example.json` and `profiles/profile.schema.json` — no personal data.
+- [x] The commit message explicitly states: "Remove tracked personal/demo runtime data."
 
 **Validation commands:**
 ```bash
@@ -984,8 +984,8 @@ The following checklist must be fully satisfied before any public release is cut
 - [x] CI runs the Electron package smoke test on PRs touching `gui/` or `bridge/`.
 
 ### Data and Secrets
-- [ ] `git ls-files Memory/james/ Memory/cole/ profiles/james.json users.json` returns no results.
-- [ ] `.gitignore` excludes `users.json`, `Memory/james/`, `Memory/cole/`, and non-example profiles.
+- [x] `git ls-files Memory/james/ Memory/cole/ profiles/james.json users.json` returns no results.
+- [x] `.gitignore` excludes `users.json`, `Memory/james/`, `Memory/cole/`, and non-example profiles.
 - [ ] `grep -rn "change-me\|CHANGE_ME\|changeme" README.md INSTALL.md .env.example docs/` returns no matches in user-facing install instructions.
 - [ ] `config/rex_config.json` contains no secrets or credentials.
 

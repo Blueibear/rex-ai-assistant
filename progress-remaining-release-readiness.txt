@@ -382,6 +382,24 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - The `[[tool.mypy.overrides]] ignore_errors = true` block removal is purely a pyproject.toml change; the CI mypy job (`mypy rex --ignore-missing-imports`) was already in place and unchanged. Removing the block expands its effective scope to include the previously-suppressed modules.
   - Using specific paths (`rex/ tests/ bridge/ *.py`) for black rather than `.` keeps the check fast and avoids scanning the large `gui/` Node tree for Python files (there are none, but globbing is slower).
 
+### Iteration 15 — US-REM-015: Remove tracked personal and demo runtime data from the repo
+
+- Story: US-REM-015
+- What changed: Removed `Memory/james/core.json`, `Memory/james/history.log`, `Memory/james/notes.md`, `Memory/cole/core.json`, `Memory/cole/history.log`, `Memory/cole/notes.md`, `profiles/james.json`, `profiles/default.json`, and `users.json` from git tracking and from disk. Inspected `profiles/default.json` — no personal content (just a capability/TTS config with no names or credentials). Inspected Memory/* files — all contained clearly synthetic/fictional data (names Alex/Morgan), but directory paths named after real users (james/cole). Both removed regardless. Updated `.gitignore` with explicit `Memory/james/`, `Memory/cole/`, `users.json`, and `profiles/*.json` (with negations for `*.example.json` and `profile.schema.json`) rules. Rewrote `Memory/README.md` to clearly state that memory files are generated at runtime and must never be committed. Updated PRD acceptance criteria checkboxes and Definition of Done checklist.
+- Files changed: Memory/james/core.json (deleted), Memory/james/history.log (deleted), Memory/james/notes.md (deleted), Memory/cole/core.json (deleted), Memory/cole/history.log (deleted), Memory/cole/notes.md (deleted), profiles/james.json (deleted), profiles/default.json (untracked, kept on disk), users.json (deleted), .gitignore, Memory/README.md, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `git ls-files Memory/ profiles/james.json users.json` → only `Memory/README.md` (✓)
+  - `grep -r "james\|cole" Memory/ profiles/ | grep -v ".example." | grep -v "README.md"` → no output (✓)
+  - `cat .gitignore | grep -E "Memory|profiles|users\.json"` → shows all required rules (✓)
+  - `git ls-files profiles/` → only `profiles/default.example.json`, `profiles/james.example.json`, `profiles/profile.schema.json` (✓)
+- Validation result: All 6 acceptance criteria satisfied. Personal data files removed from git and disk. profiles/default.json inspected (no personal content). .gitignore updated with all required rules. Memory/README.md updated. git ls-files returns only README.md for Memory/. Commit message includes "Remove tracked personal/demo runtime data."
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - When `Memory/` is already in .gitignore but subdirectories were committed before the rule was added, you must run `git rm --cached` explicitly — `.gitignore` only prevents untracked files from being added, it does not untrack already-tracked files.
+  - `profiles/default.json` was untracked (not deleted from disk) because it has no personal content and serves as a useful runtime template. Only adding it to `.gitignore` via `profiles/*.json` pattern is sufficient; the file remains available for runtime use.
+  - Adding explicit `Memory/james/` and `Memory/cole/` rules to `.gitignore` is belt-and-suspenders when the broader `Memory/` rule is already present. It makes the intent explicit and prevents accidental re-tracking if someone ever removes or changes the broader rule.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:
