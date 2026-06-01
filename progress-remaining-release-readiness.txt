@@ -411,7 +411,7 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - `python -c "from rex.config import AppConfig; c = AppConfig(); print('ok')"` → ok (legacy env var warning only)
 - Validation result: All 5 acceptance criteria satisfied. Canonical secret path defined and documented in CONFIG_AND_SECURITY.md. config/rex_config.json contains no secrets (validated by grep + file inspection). GUI no longer stores haToken in gui_settings.json (all three write paths fixed). Migration path documented. grep returns no matches.
 - PRD-remaining-release-readiness.md updated: YES
-- Commit:
+- Commit: 0214541
 - Learnings:
   - The SettingsPage.tsx integration settings `onBlur` path calls `rex:setSettings('integrations', ...)`, NOT `rex:saveHomeAssistant`. This was a pre-existing bug: HA token changes via SettingsPage never reached `.env`. The `rex:setSettings` fix in this story also corrects that bug.
   - `saveHomeAssistantCredentials` guarding `writeEnvKey` on `if (token)` prevents a regression where the UI's empty token field (shown after we stopped pre-populating it) would have overwritten the real `.env` value with an empty string.
