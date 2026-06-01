@@ -448,7 +448,7 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - `grep "SURFACE-CLASSIFICATION" CLAUDE.md` → confirms reference present
 - Validation result: All 7 acceptance criteria satisfied. SURFACE-CLASSIFICATION.md created with 32 entries covering every entry point and UI surface. Each surface has exactly one classification. gui/ = shippable. rex/ui/ = developer-only (confirmed by package.json). archived/ = archived. Root shims = deprecated. CLAUDE.md updated with reference.
 - PRD-remaining-release-readiness.md updated: YES
-- Commit: (see below)
+- Commit: 20be294
 - Learnings:
   - `rex/ui/package.json` has `"description": "Developer-only surface. Not included in packaged Electron app."` — this was added in US-REM-004 as the standard way to document package intent in JSON (JSON doesn't support comments). This is the definitive evidence for the `developer-only` classification.
   - `rex-gui` (`rex.gui_app:main`) is classified as `shippable` because CLAUDE.md describes it as "backend service: Electron-backed GUI server" — the Electron renderer depends on its Flask REST endpoints. US-REM-019 will audit whether rex-gui is actually spawned by the packaged app and confirm or correct this classification.
