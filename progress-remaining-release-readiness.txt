@@ -418,6 +418,22 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - `config/rex_config.json` was not tracked by git (`.gitignore` has `config/` with selective negations). The runtime file had a real HA token in `home_assistant.token` which the Python code never read (it uses `os.getenv("HA_TOKEN")`). That token was removed by a prior process before this iteration.
   - `telegramBotToken`, `emailClientSecret`, `calendarClientSecret` remain in `gui_settings.json`. These are documented as a migration backlog in CONFIG_AND_SECURITY.md. Lower risk than HA token (app credentials vs. server API tokens), but should be migrated in a follow-up story.
 
+### Iteration 17 — US-REM-017: Audit and document the complete config authority chain
+
+- Story: US-REM-017
+- What changed: Added "AppConfig Field Reference" section to `docs/claude/CONFIG_AND_SECURITY.md`. The new section contains: (1) Source priority rule (env > rex_config.json > dataclass default); (2) Sub-config access pattern table for all seven sub-configs (audio, voice, llm, tools, integrations, ui, security) with their source fields; (3) Warning against adding new flat top-level AppConfig fields; (4) Per-section field reference tables covering all AppConfig fields, each with JSON key, env var, source type (json-only/env-only/env>json/env-flag), field type (secret/runtime/feature-flag), and default value; (5) Precedence rules summary documenting the push_token mixed-source exception and the REX_DEBUG/debug_logging distinction.
+- Files changed: docs/claude/CONFIG_AND_SECURITY.md, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `python -c "from rex.config import AppConfig; import json; c = AppConfig(); print(len([f for f in dir(c) if not f.startswith('_')]))"` → count of public fields confirmed
+  - `grep -c "config\." docs/claude/CONFIG_AND_SECURITY.md` → 30+ matches (sub-config access paths documented)
+- Validation result: All 4 acceptance criteria satisfied. Field reference tables cover all AppConfig fields with source priority, type, and default. push_token mixed-source case documented as the only exception. Sub-config access pattern table present for all 7 sub-configs. Warning against flat fields is in the Sub-config Access Pattern section.
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - `push_token` is the only AppConfig field that reads from both env (`PUSH_TOKEN`) and JSON (`notifications.push_token`). All other secrets are strictly env-only. Do not add more mixed-source fields.
+  - Fields not explicitly set in `build_app_config()` use their dataclass default and cannot be changed via `rex_config.json`. Document these as "dataclass default only" to make the gap visible.
+  - `debug_logging` (set from JSON `runtime.log_level == "DEBUG"`) and `debug_mode` (set from env `REX_DEBUG=1`) are two distinct booleans — separate concerns, separate sources.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:

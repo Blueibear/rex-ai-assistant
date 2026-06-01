@@ -560,10 +560,10 @@ python -c "from rex.config import AppConfig; c = AppConfig(); print('ok')"
 - `.env.example`
 
 **Acceptance Criteria:**
-- [ ] `docs/claude/CONFIG_AND_SECURITY.md` contains a table listing every `AppConfig` field, its source priority (env > config JSON > default), and whether it is a secret, a runtime setting, or an optional feature flag.
-- [ ] Any config key that currently has conflicting sources is resolved to one winner with documented precedence.
-- [ ] The `AppConfig` sub-config access pattern from `CLAUDE.md` is reflected in the doc (all seven sub-config objects: `audio`, `voice`, `llm`, `tools`, `integrations`, `ui`, `security`).
-- [ ] The doc warns against adding new flat top-level `AppConfig` fields (per `CLAUDE.md`).
+- [x] `docs/claude/CONFIG_AND_SECURITY.md` contains a table listing every `AppConfig` field, its source priority (env > config JSON > default), and whether it is a secret, a runtime setting, or an optional feature flag.
+- [x] Any config key that currently has conflicting sources is resolved to one winner with documented precedence.
+- [x] The `AppConfig` sub-config access pattern from `CLAUDE.md` is reflected in the doc (all seven sub-config objects: `audio`, `voice`, `llm`, `tools`, `integrations`, `ui`, `security`).
+- [x] The doc warns against adding new flat top-level `AppConfig` fields (per `CLAUDE.md`).
 
 **Validation commands:**
 ```bash
