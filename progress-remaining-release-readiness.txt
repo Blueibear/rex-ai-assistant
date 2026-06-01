@@ -394,7 +394,7 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - `git ls-files profiles/` → only `profiles/default.example.json`, `profiles/james.example.json`, `profiles/profile.schema.json` (✓)
 - Validation result: All 6 acceptance criteria satisfied. Personal data files removed from git and disk. profiles/default.json inspected (no personal content). .gitignore updated with all required rules. Memory/README.md updated. git ls-files returns only README.md for Memory/. Commit message includes "Remove tracked personal/demo runtime data."
 - PRD-remaining-release-readiness.md updated: YES
-- Commit: (see below)
+- Commit: 8b00ca6
 - Learnings:
   - When `Memory/` is already in .gitignore but subdirectories were committed before the rule was added, you must run `git rm --cached` explicitly — `.gitignore` only prevents untracked files from being added, it does not untrack already-tracked files.
   - `profiles/default.json` was untracked (not deleted from disk) because it has no personal content and serves as a useful runtime template. Only adding it to `.gitignore` via `profiles/*.json` pattern is sufficient; the file remains available for runtime use.
