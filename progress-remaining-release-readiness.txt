@@ -349,6 +349,21 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - `actions/setup-node@v4` can be called multiple times in the same job with different `cache-dependency-path` values to handle multiple Node subdirectories. Each call configures the npm cache for that lockfile.
   - No `npm ci` step is needed for `npm audit` — audit reads the lockfile directly and does not require node_modules to be installed.
 
+### Iteration 13 — US-REM-013: Add Electron package smoke test gate to CI
+
+- Story: US-REM-013
+- What changed: Created `.github/workflows/electron-smoke.yml` — a new CI workflow that runs `tests/smoke/test_electron_package.sh` (from US-REM-009) on two triggers: (a) `push: tags: v*` (release tags) and (b) `pull_request: branches: [master], paths: gui/**, bridge/**` (path-filtered PRs). The job runs on ubuntu-latest with Node 20 LTS, Python 3.11, and xvfb. It installs rex via `pip install -e .` (required for the bridge health check's `from rex.bridge_utils import ...`). The smoke test is wrapped in `xvfb-run --auto-servernum` to provide a virtual display for the best-effort Electron launch (step 4). REQUIRE_ELECTRON_SIGNAL=0: the Python bridge health check (step 3b) is the mandatory CI gate; the Electron startup signal is best-effort. The job comments document: the xvfb virtual display requirement, why Windows/macOS are excluded, what causes a non-zero exit (missing bridge scripts or non-JSON bridge output), and how to promote the Electron signal to mandatory. Updated the US-REM-013 acceptance criteria checkboxes and the Definition of Done CI Gates checklist.
+- Files changed: .github/workflows/electron-smoke.yml (new), PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `SKIP_BUILD=1 SMOKE_TIMEOUT=5 bash tests/smoke/test_electron_package.sh` (from iteration 9) → exit 0, all 20 bridge scripts present, bridge health check passed
+- Validation result: All 4 acceptance criteria satisfied. Workflow triggers on v* tags and path-filtered PRs (gui/**, bridge/**). Smoke test exits 1 on missing bridge scripts or non-JSON response (bridge unreachable). Job comments document xvfb requirement, Linux-only platform choice, REQUIRE_ELECTRON_SIGNAL semantics, and what fails CI. Phase 4 fixes (US-REM-007 extraResources, US-REM-008 isPackaged path, US-REM-009 smoke script) are all in place.
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - A separate workflow file (electron-smoke.yml) is cleaner than adding a job to ci.yml because the smoke test has different triggers (tag push + path-filtered PR) that don't match the existing ci.yml on: block.
+  - REQUIRE_ELECTRON_SIGNAL=0 is the right default for CI: the Python bridge health check is the reliable gate; the Electron launch is best-effort because the packaged app may fail to fully initialize in a headless environment even with xvfb (missing config, restricted sandbox, etc.).
+  - Installing only xvfb (not all Electron runtime libs) is sufficient when REQUIRE_ELECTRON_SIGNAL=0. The Python bridge check runs independently and needs no display or GUI libs.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:

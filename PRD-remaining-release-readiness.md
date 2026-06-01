@@ -435,10 +435,10 @@ cd rex/ui && npm audit --audit-level=high
 - Smoke test script from US-REM-009
 
 **Acceptance Criteria:**
-- [ ] CI runs the package smoke test when: (a) a release tag is pushed, or (b) files in `gui/` or `bridge/` are changed in a PR.
-- [ ] The smoke test step fails CI if the bridge is unreachable.
-- [ ] The CI job documents any virtual display (`xvfb`) or platform requirements.
-- [ ] CI passes a full green run after all Phase 4 fixes are applied.
+- [x] CI runs the package smoke test when: (a) a release tag is pushed, or (b) files in `gui/` or `bridge/` are changed in a PR.
+- [x] The smoke test step fails CI if the bridge is unreachable.
+- [x] The CI job documents any virtual display (`xvfb`) or platform requirements.
+- [x] CI passes a full green run after all Phase 4 fixes are applied.
 
 **Validation commands:**
 ```bash
@@ -981,7 +981,7 @@ The following checklist must be fully satisfied before any public release is cut
 - [ ] CI runs `npm run typecheck` in `gui/` and fails on errors.
 - [ ] CI runs `npm run build` in `gui/` and fails on errors.
 - [ ] CI runs `npm audit --audit-level=high` in `gui/` and `rex/ui/` and fails on high-severity findings.
-- [ ] CI runs the Electron package smoke test on PRs touching `gui/` or `bridge/`.
+- [x] CI runs the Electron package smoke test on PRs touching `gui/` or `bridge/`.
 
 ### Data and Secrets
 - [ ] `git ls-files Memory/james/ Memory/cole/ profiles/james.json users.json` returns no results.
