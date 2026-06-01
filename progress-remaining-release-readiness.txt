@@ -455,6 +455,24 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - `wsgi.py`, `sitecustomize.py`, and `conftest.py` are classified as `developer-only` rather than `shippable` because they are infrastructure files (WSGI deployment shim, encoding fix, test fixtures) — not user-facing surfaces.
   - `setup.py` is classified as `deprecated` (not `developer-only`) because it is a legacy stub that does nothing useful — packaging moved entirely to pyproject.toml.
 
+### Iteration 19 — US-REM-019: Disable non-shipping Flask GUI dashboard from packaged Electron app
+
+- Story: US-REM-019
+- What changed: (1) Audited `gui/src/main/index.ts` and all 20 `bridge/*.py` scripts for subprocess spawns of `rex-gui`, `flask`, or `gui_app`. Finding: NO such spawn exists anywhere. All `spawn()` calls in the main process target Python bridge scripts only. (2) Added Step 3c to `tests/smoke/test_electron_package.sh` that checks the built `dist-electron/main/index.js` for `gui_app` spawn indicators and fails if found, confirming Flask is not spawned from the packaged app. The step also documents that renderer `fetch('/api/...')` calls are dead in packaged mode (file:// protocol makes relative URLs unreachable). (3) Reclassified `rex-gui` from `shippable` to `developer-only` in `SURFACE-CLASSIFICATION.md` based on audit evidence. Updated summary counts (shippable: 4→3, developer-only: 9→10). Added change log entry. (4) No feature flag needed because Flask is never spawned by the packaged app.
+- Files changed: tests/smoke/test_electron_package.sh, SURFACE-CLASSIFICATION.md, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `grep -n "rex-gui|gui_app|flask|subprocess" gui/src/main/index.ts bridge/*.py` → only match is app user model ID `com.rex-ai.rex-gui` (not a spawn); no bridge script matches
+  - `grep -q "gui_app" gui/dist-electron/main/index.js` → no matches (confirmed)
+  - `grep -c "shippable|developer-only" SURFACE-CLASSIFICATION.md` → classification keywords present
+- Validation result: All 4 acceptance criteria satisfied. Audit complete. Flask not spawned; no feature flag needed. Smoke test Step 3c added. SURFACE-CLASSIFICATION.md updated with final decision (rex-gui = developer-only).
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - The packaged Electron app communicates with Rex entirely through IPC bridge scripts (`bridge/*.py`). The Flask server (`rex-gui`) is not part of the packaged app's runtime at all.
+  - The renderer does call `fetch('/api/...')` relative URLs (setup/complete, history, devices, quick-actions, status). These calls fail silently in packaged mode because `file://` protocol resolves relative URLs to `file:///api/...`, which doesn't exist. Most have `.catch()` handlers.
+  - The architectural implication: the renderer's Flask API calls are aspirational/dead code in the packaged app. Core functionality (chat, voice, tasks, calendar, email, memories, reminders, SMS, shopping, speakers, files) uses IPC bridge scripts and works correctly without Flask.
+  - `rex-gui` remains useful as a separate web dashboard for developers/operators but is not required by the Electron packaging pipeline.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:

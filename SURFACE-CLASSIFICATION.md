@@ -25,7 +25,7 @@ here first, then propagated to docs, packaging config, and CI.
 | Entry Point | Module | Classification | Notes |
 |-------------|--------|----------------|-------|
 | `rex` | `rex.cli:main` | `shippable` | Primary CLI; first-class user-facing command. Text mode. |
-| `rex-gui` | `rex.gui_app:main` | `shippable` | Flask API backend for the Electron desktop GUI. Required for GUI to function. Not a standalone browser app. |
+| `rex-gui` | `rex.gui_app:main` | `developer-only` | Flask web dashboard / API server. NOT spawned by the packaged Electron app (US-REM-019 audit). All core Electron GUI functionality uses IPC bridge scripts. Renderer fetch('/api/...') calls are dead in packaged mode (file:// protocol). Run separately for developer/operator web dashboard access. |
 | `rex-config` | `rex.config:cli` | `developer-only` | Config inspection and migration utility. Operator/developer use only. |
 | `rex-speak-api` | `rex_speak_api:main` | `developer-only` | Standalone TTS API with auth and rate limiting. Backend service; not user-facing. |
 | `rex-agent` | `rex.computers.agent_server:main` | `developer-only` | Optional remote PC control API. Not enabled by default; requires explicit configuration. |
@@ -87,8 +87,8 @@ any entry point, import, or startup path in the active codebase.
 
 | Classification | Count |
 |----------------|-------|
-| `shippable` | 4 |
-| `developer-only` | 9 |
+| `shippable` | 3 |
+| `developer-only` | 10 |
 | `deprecated` | 4 |
 | `archived` | 15 |
 | `removed` | 0 |
@@ -101,3 +101,4 @@ any entry point, import, or startup path in the active codebase.
 | Date | Story | Change |
 |------|-------|--------|
 | 2026-06-01 | US-REM-018 | Initial classification of all surfaces |
+| 2026-06-01 | US-REM-019 | rex-gui reclassified shippable → developer-only. Audit confirmed: packaged Electron app does not spawn rex-gui; IPC uses bridge scripts only; renderer /api/... calls are dead in packaged mode (file:// protocol). |

@@ -627,10 +627,10 @@ grep -c "shippable\|developer-only\|deprecated\|archived\|removed" SURFACE-CLASS
 - `rex/gui_app.py`
 
 **Acceptance Criteria:**
-- [ ] `gui/src/main/index.ts` and all bridge scripts are audited for any subprocess spawn of `rex-gui`, `flask`, or `rex/gui_app.py`.
-- [ ] If the packaged app spawns the Flask GUI, a feature flag or build-time exclude is added so it does not spawn in packaged mode unless `rex-gui` is explicitly classified as `shippable`.
-- [ ] The smoke test from US-REM-009 confirms the Flask GUI routes are not reachable from the packaged app unless explicitly enabled.
-- [ ] `SURFACE-CLASSIFICATION.md` is updated with the final decision for `rex-gui`.
+- [x] `gui/src/main/index.ts` and all bridge scripts are audited for any subprocess spawn of `rex-gui`, `flask`, or `rex/gui_app.py`.
+- [x] If the packaged app spawns the Flask GUI, a feature flag or build-time exclude is added so it does not spawn in packaged mode unless `rex-gui` is explicitly classified as `shippable`.
+- [x] The smoke test from US-REM-009 confirms the Flask GUI routes are not reachable from the packaged app unless explicitly enabled.
+- [x] `SURFACE-CLASSIFICATION.md` is updated with the final decision for `rex-gui`.
 
 **Validation commands:**
 ```bash

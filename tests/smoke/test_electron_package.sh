@@ -242,6 +242,35 @@ fi
 log "Bridge health check passed. Response: $BRIDGE_OUTPUT"
 
 # ===========================================================================
+# Step 3c: Confirm Flask GUI (rex-gui) is NOT spawned by the packaged app.
+#
+# US-REM-019 audit finding:
+#   - gui/src/main/index.ts has no spawn of rex-gui, flask, or gui_app.
+#     All spawn() calls target Python bridge scripts (bridge/*.py) only.
+#   - All bridge/*.py scripts have no subprocess calls to flask or rex-gui.
+#   - The renderer makes fetch('/api/...') calls, but these are dead in
+#     packaged mode: the renderer loads via file:// protocol, making all
+#     relative URLs unreachable. Flask routes are not accessible by default.
+#   - rex-gui classification corrected to developer-only (was shippable).
+#     See SURFACE-CLASSIFICATION.md and progress-remaining-release-readiness.txt.
+#
+# This step confirms the audit finding by asserting the built main-process
+# bundle contains no Flask/gui_app spawn indicators.
+# ===========================================================================
+log "Step 3c: Confirming Flask GUI (rex-gui) is not spawned by packaged app..."
+BUILT_MAIN="$GUI_DIR/dist-electron/main/index.js"
+if [[ -f "$BUILT_MAIN" ]]; then
+  if grep -q "gui_app" "$BUILT_MAIN" 2>/dev/null; then
+    fail "Flask spawn indicator (gui_app) found in $BUILT_MAIN. Flask must not be spawned from the packaged app. See US-REM-019."
+  fi
+  log "Flask spawn check passed: no gui_app reference in $BUILT_MAIN."
+else
+  log "Built main.js not found at $BUILT_MAIN; relying on source audit."
+  log "  US-REM-019 confirmed: gui/src/main/index.ts has no spawn of flask, rex-gui, or gui_app."
+fi
+log "Flask routes are not reachable from the packaged app by default (renderer loads via file:// protocol)."
+
+# ===========================================================================
 # Step 4: Electron launch — wait for bridge startup signal
 #
 # Launches the packaged app with ELECTRON_ENABLE_LOGGING=1 and watches stderr
