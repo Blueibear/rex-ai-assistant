@@ -597,13 +597,13 @@ grep -c "config\." docs/claude/CONFIG_AND_SECURITY.md
 - `CLAUDE.md` (must be updated to reference classification)
 
 **Acceptance Criteria:**
-- [ ] A `SURFACE-CLASSIFICATION.md` is created at the repo root with a table covering every entry point and UI surface.
-- [ ] Each surface is assigned exactly one of: `shippable`, `developer-only`, `deprecated`, `archived`, or `removed`.
-- [ ] The Electron app (`gui/`) is classified as `shippable`.
-- [ ] `rex/ui/` is classified (based on code inspection — do not decide without reading the code).
-- [ ] `archived/` content is classified as `archived`.
-- [ ] Root-level compatibility shims are classified as `developer-only` or `deprecated`.
-- [ ] `CLAUDE.md` is updated to reference `SURFACE-CLASSIFICATION.md`.
+- [x] A `SURFACE-CLASSIFICATION.md` is created at the repo root with a table covering every entry point and UI surface.
+- [x] Each surface is assigned exactly one of: `shippable`, `developer-only`, `deprecated`, `archived`, or `removed`.
+- [x] The Electron app (`gui/`) is classified as `shippable`.
+- [x] `rex/ui/` is classified (based on code inspection — do not decide without reading the code).
+- [x] `archived/` content is classified as `archived`.
+- [x] Root-level compatibility shims are classified as `developer-only` or `deprecated`.
+- [x] `CLAUDE.md` is updated to reference `SURFACE-CLASSIFICATION.md`.
 
 **Validation commands:**
 ```bash

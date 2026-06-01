@@ -434,6 +434,27 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - Fields not explicitly set in `build_app_config()` use their dataclass default and cannot be changed via `rex_config.json`. Document these as "dataclass default only" to make the gap visible.
   - `debug_logging` (set from JSON `runtime.log_level == "DEBUG"`) and `debug_mode` (set from env `REX_DEBUG=1`) are two distinct booleans — separate concerns, separate sources.
 
+### Iteration 18 — US-REM-018: Classify every runtime/UI surface
+
+- Story: US-REM-018
+- What changed: Created `SURFACE-CLASSIFICATION.md` at the repo root. Classifies all 32 surfaces (6 entry points, 2 UI surfaces, 8 root-level scripts, 15 archived items, 1 removed placeholder). Classification based on direct code inspection: read `rex/ui/package.json` (confirms developer-only), `archived/ARCHIVED.md` (confirms archived), root shims `voice_loop.py`/`llm_client.py`/`config.py` (confirms deprecated — all emit DeprecationWarning). Updated `CLAUDE.md` Project Overview to reference `SURFACE-CLASSIFICATION.md`.
+- Files changed: SURFACE-CLASSIFICATION.md (new), CLAUDE.md, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `cat SURFACE-CLASSIFICATION.md | head -5` → first 5 lines of file (confirmed exists)
+  - `grep -c "shippable|developer-only|deprecated|archived|removed" SURFACE-CLASSIFICATION.md` → 44 (confirmed classification keywords present throughout)
+  - `grep "gui/" SURFACE-CLASSIFICATION.md` → shows `gui/` classified as `shippable`
+  - `grep "rex/ui/" SURFACE-CLASSIFICATION.md` → shows `rex/ui/` classified as `developer-only`
+  - `grep "voice_loop.py|llm_client.py|config.py" SURFACE-CLASSIFICATION.md` → all three classified as `deprecated`
+  - `grep "SURFACE-CLASSIFICATION" CLAUDE.md` → confirms reference present
+- Validation result: All 7 acceptance criteria satisfied. SURFACE-CLASSIFICATION.md created with 32 entries covering every entry point and UI surface. Each surface has exactly one classification. gui/ = shippable. rex/ui/ = developer-only (confirmed by package.json). archived/ = archived. Root shims = deprecated. CLAUDE.md updated with reference.
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - `rex/ui/package.json` has `"description": "Developer-only surface. Not included in packaged Electron app."` — this was added in US-REM-004 as the standard way to document package intent in JSON (JSON doesn't support comments). This is the definitive evidence for the `developer-only` classification.
+  - `rex-gui` (`rex.gui_app:main`) is classified as `shippable` because CLAUDE.md describes it as "backend service: Electron-backed GUI server" — the Electron renderer depends on its Flask REST endpoints. US-REM-019 will audit whether rex-gui is actually spawned by the packaged app and confirm or correct this classification.
+  - `wsgi.py`, `sitecustomize.py`, and `conftest.py` are classified as `developer-only` rather than `shippable` because they are infrastructure files (WSGI deployment shim, encoding fix, test fixtures) — not user-facing surfaces.
+  - `setup.py` is classified as `deprecated` (not `developer-only`) because it is a legacy stub that does nothing useful — packaging moved entirely to pyproject.toml.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:
