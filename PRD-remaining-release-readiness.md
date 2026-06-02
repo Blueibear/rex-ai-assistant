@@ -687,14 +687,14 @@ grep -n "Compatibility shim\|Scheduled for removal" voice_loop.py llm_client.py 
 - `rex/auth.py` (JWT handling)
 
 **Acceptance Criteria:**
-- [ ] `tests/test_first_run.py` exists.
-- [ ] Test: On a clean state (no users in the data store, `REX_JWT_SECRET` set via monkeypatch), the first-run setup endpoint completes successfully and creates a user.
-- [ ] Test: After setup, the created user can authenticate and receive a valid JWT.
-- [ ] Test: A second attempt to call the setup endpoint after a user exists returns 403 (token consumed).
-- [ ] Test: Attempting to call setup with an invalid or missing setup token from a clean state returns 401 or 403.
-- [ ] All tests use `tmp_path` or equivalent fixtures — no test writes to real `users.json` or `config/` paths.
-- [ ] `pytest tests/test_first_run.py -q` passes.
-- [ ] `pytest --collect-only -q 2>&1 | grep first_run` shows tests collected.
+- [x] `tests/test_first_run.py` exists.
+- [x] Test: On a clean state (no users in the data store, `REX_JWT_SECRET` set via monkeypatch), the first-run setup endpoint completes successfully and creates a user.
+- [x] Test: After setup, the created user can authenticate and receive a valid JWT.
+- [x] Test: A second attempt to call the setup endpoint after a user exists returns 403 (token consumed).
+- [x] Test: Attempting to call setup with an invalid or missing setup token from a clean state returns 401 or 403.
+- [x] All tests use `tmp_path` or equivalent fixtures — no test writes to real `users.json` or `config/` paths.
+- [x] `pytest tests/test_first_run.py -q` passes.
+- [x] `pytest --collect-only -q 2>&1 | grep first_run` shows tests collected.
 
 **Validation commands:**
 ```bash

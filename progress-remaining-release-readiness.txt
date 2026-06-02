@@ -489,6 +489,22 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - CLAUDE.md lines 148-150 accurately describe the shim files. The criterion "update CLAUDE.md if stale" does not require adding SURFACE-CLASSIFICATION.md references; it only applies if the descriptions are wrong or misleading.
   - The module-level `#` comment (not docstring) is the correct form for "module-level comment" per the acceptance criteria validation command (`grep -n "Compatibility shim"`). Adding it after the closing `"""` of the module docstring satisfies both readability and grep-based validation.
 
+### Iteration 21 — US-REM-021: Add first-run setup flow test file
+
+- Story: US-REM-021
+- What changed: Created `tests/test_first_run.py` — 8 tests covering the end-to-end first-run scenario in a clean state. Three test classes: `TestFirstRunSetup` (clean-state setup with valid/invalid/missing token), `TestPostSetupAuthentication` (login after setup returns JWT, JWT is decodable, wrong password returns 401), `TestSetupTokenConsumed` (second setup attempt returns 403, SETUP_TOKEN cleared to None). All tests use `monkeypatch` for `REX_DATA_DIR` (redirects SQLite users.db to tmp_path) and `REX_JWT_SECRET` (avoids RuntimeError). JWT test key is 38 bytes (above 32-byte HS256 minimum to avoid InsecureKeyLengthWarning).
+- Files changed: tests/test_first_run.py (new), PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `pytest tests/test_first_run.py -q -v` → 8 passed, 0 warnings (exit 0)
+  - `pytest --collect-only -q tests/test_first_run.py` → 8 tests collected (exit 0)
+- Validation result: All 8 acceptance criteria satisfied. tests/test_first_run.py exists. Clean-state setup creates user (201). User logs in and receives a valid JWT (200). Second setup attempt rejected (403). Missing/invalid token rejected (403). All tests use tmp_path via REX_DATA_DIR monkeypatch — no real data/ writes. pytest passes. Collection confirmed.
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - The existing `test_rr007_setup_register_protection.py` tests the same routes but focuses on protection boundaries only. `test_first_run.py` adds end-to-end flow coverage: setup → login → JWT validation. Both test files coexist without fixture collision because each fixture recreates a fresh Flask app against a fresh tmp_path DB.
+  - JWT HS256 requires a key ≥32 bytes; shorter test secrets cause `InsecureKeyLengthWarning`. Use a 38+ character test key to keep the output warning-free.
+  - The `_setup_token(client)` helper (`client.application.config.get("SETUP_TOKEN")`) is the correct way to extract the single-use token in Flask test clients — no need to hit a separate endpoint.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:
