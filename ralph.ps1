@@ -138,7 +138,7 @@ function Invoke-Agent {
         }
 
         'codex' {
-            $output = (& codex --full-auto -q $Prompt 2>&1 | Out-String)
+            $output = ($Prompt | & codex exec --full-auto - 2>&1 | Out-String)
             $exitCode = $LASTEXITCODE
         }
     }
