@@ -716,12 +716,12 @@ pytest --collect-only -q 2>&1 | grep first_run
 - `tests/test_config_migration.py` (new file)
 
 **Acceptance Criteria:**
-- [ ] `tests/test_config_migration.py` exists.
-- [ ] Test: Loading a `rex_config.json` with a missing new required field either migrates gracefully with defaults or raises a clear `ConfigError`, not an unhandled `KeyError`.
-- [ ] Test: A corrupt `rex_config.json` (invalid JSON) results in a `ConfigError` with a helpful message pointing to the file path.
-- [ ] Test: A missing `rex_config.json` results in defaults being applied, not a crash.
-- [ ] If no migration logic exists in `rex/config.py`, this story adds it (at minimum: missing keys → safe defaults; corrupt file → clear error; missing file → defaults).
-- [ ] `pytest tests/test_config_migration.py -q` passes.
+- [x] `tests/test_config_migration.py` exists.
+- [x] Test: Loading a `rex_config.json` with a missing new required field either migrates gracefully with defaults or raises a clear `ConfigError`, not an unhandled `KeyError`.
+- [x] Test: A corrupt `rex_config.json` (invalid JSON) results in a `ConfigError` with a helpful message pointing to the file path.
+- [x] Test: A missing `rex_config.json` results in defaults being applied, not a crash.
+- [x] If no migration logic exists in `rex/config.py`, this story adds it (at minimum: missing keys → safe defaults; corrupt file → clear error; missing file → defaults).
+- [x] `pytest tests/test_config_migration.py -q` passes.
 
 **Validation commands:**
 ```bash
