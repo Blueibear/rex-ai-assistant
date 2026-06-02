@@ -473,6 +473,22 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - The architectural implication: the renderer's Flask API calls are aspirational/dead code in the packaged app. Core functionality (chat, voice, tasks, calendar, email, memories, reminders, SMS, shopping, speakers, files) uses IPC bridge scripts and works correctly without Flask.
   - `rex-gui` remains useful as a separate web dashboard for developers/operators but is not required by the Electron packaging pipeline.
 
+### Iteration 20 — US-REM-020: Add shim comments to root-level compatibility files and clean Tkinter references from docs
+
+- Story: US-REM-020
+- What changed: Added `# Compatibility shim. Canonical implementation: rex.<module>. Scheduled for removal — see SURFACE-CLASSIFICATION.md.` as a module-level comment to each of the three root-level shim files (`voice_loop.py`, `llm_client.py`, `config.py`). Each comment was placed immediately after the module docstring. All Tkinter references in docs were audited and confirmed to already be in deprecation/legacy context — no doc changes required. CLAUDE.md shim descriptions (lines 148-150) are accurate and not stale — no update required.
+- Files changed: voice_loop.py, llm_client.py, config.py, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `grep -n "Compatibility shim\|Scheduled for removal" voice_loop.py llm_client.py config.py` → all 3 files show matching comment lines (voice_loop.py:16, llm_client.py:11, config.py:12)
+  - `grep -rn "tkinter\|Tkinter" docs/ README.md --include="*.md"` → 8 matches; all in deprecation/legacy context (e.g. "deprecated Tkinter-era entry points", "Legacy Tkinter launchers...are deprecated", "legacy Tkinter UI...superseded")
+- Validation result: All 4 acceptance criteria satisfied. Shim comments present in all 3 files. Tkinter grep shows only deprecation-context results. CLAUDE.md shim docs are accurate (not stale).
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - All Tkinter references across docs/ and README.md were already in deprecation context from prior iterations. The acceptance criterion was vacuously satisfied for criterion 2 and 3.
+  - CLAUDE.md lines 148-150 accurately describe the shim files. The criterion "update CLAUDE.md if stale" does not require adding SURFACE-CLASSIFICATION.md references; it only applies if the descriptions are wrong or misleading.
+  - The module-level `#` comment (not docstring) is the correct form for "module-level comment" per the acceptance criteria validation command (`grep -n "Compatibility shim"`). Adding it after the closing `"""` of the module docstring satisfies both readability and grep-based validation.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:

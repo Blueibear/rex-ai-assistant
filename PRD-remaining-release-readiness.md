@@ -652,10 +652,10 @@ grep -n "rex-gui\|gui_app\|flask\|subprocess" gui/src/main/index.ts bridge/*.py
 - `README.md`, `docs/ARCHITECTURE.md`, `docs/INSTRUCTION_MANUAL.md`, `docs/dashboard.md`
 
 **Acceptance Criteria:**
-- [ ] Each root-level shim file (`voice_loop.py`, `llm_client.py`, `config.py`) has a module-level comment: "Compatibility shim. Canonical implementation: rex.<module>. Scheduled for removal — see SURFACE-CLASSIFICATION.md."
-- [ ] All references to Tkinter UI that are not already marked deprecated in the text are updated to deprecation notices or removed.
-- [ ] `grep -rn "tkinter\|Tkinter" docs/ README.md --include="*.md"` returns results only in the context of explicit deprecation notices, not as active instructions.
-- [ ] `CLAUDE.md` is updated if the shim documentation there is stale.
+- [x] Each root-level shim file (`voice_loop.py`, `llm_client.py`, `config.py`) has a module-level comment: "Compatibility shim. Canonical implementation: rex.<module>. Scheduled for removal — see SURFACE-CLASSIFICATION.md."
+- [x] All references to Tkinter UI that are not already marked deprecated in the text are updated to deprecation notices or removed.
+- [x] `grep -rn "tkinter\|Tkinter" docs/ README.md --include="*.md"` returns results only in the context of explicit deprecation notices, not as active instructions.
+- [x] `CLAUDE.md` is updated if the shim documentation there is stale.
 
 **Validation commands:**
 ```bash

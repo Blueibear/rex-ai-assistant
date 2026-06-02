@@ -8,6 +8,7 @@ New code should import directly from rex.llm_client.
     tests/test_us013_openai_provider.py, tests/test_us014_anthropic_provider.py,
     tests/test_us015_local_llm_provider.py, tests/test_us016_provider_routing.py
 """
+# Compatibility shim. Canonical implementation: rex.llm_client. Scheduled for removal — see SURFACE-CLASSIFICATION.md.
 
 from __future__ import annotations
 
