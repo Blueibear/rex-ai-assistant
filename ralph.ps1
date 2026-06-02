@@ -138,7 +138,7 @@ function Invoke-Agent {
         }
 
         'codex' {
-            $output = (& codex --approval-mode full-auto -q $Prompt 2>&1 | Out-String)
+            $output = (& codex --full-auto -q $Prompt 2>&1 | Out-String)
             $exitCode = $LASTEXITCODE
         }
     }
@@ -193,7 +193,7 @@ function Invoke-RalphOnPrd {
         $prompt = @"
 You are Ralph, an autonomous coding agent. Do exactly ONE User Story per iteration.
 
-## COMMIT FORMAT — READ THIS BEFORE ANYTHING ELSE
+## COMMIT FORMAT - READ THIS BEFORE ANYTHING ELSE
 
 Every commit MUST use Conventional Commits format or CI will fail with "subject-empty":
 
@@ -208,7 +208,7 @@ CORRECT:
   docs: update README quick start section
   chore(deps): upgrade pip-audit to 2.7.0
 
-WRONG — these will fail CI:
+WRONG - these will fail CI:
   Fix coverage test gating          <- no type prefix, fails commitlint
   feat:add streaming TTS            <- missing space after colon
   Feat: Add streaming TTS.          <- capital type, capital subject, trailing period
