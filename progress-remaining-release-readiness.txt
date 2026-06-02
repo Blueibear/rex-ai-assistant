@@ -522,6 +522,22 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - The "ConfigError" language in the corrupt-JSON criterion is satisfied by verifying the backup file is created; this proves the error was detected and handled (the file path appears in both the backup filename and the log message). No ConfigurationError exception is raised — graceful recovery is the chosen behavior.
   - `AppConfig.llm_provider` is a deprecated flat field (DeprecationWarning). In new tests, use `cfg.llm.llm_provider` to avoid the warning, or suppress it with `warnings.catch_warnings()` if the flat field is what is being tested.
 
+### Iteration 23 — US-REM-023: Update README to declare one supported install/run path and demote others
+
+- Story: US-REM-023
+- What changed: (1) Rewrote `README.md`: renamed `## Quick Start` to `## Getting Started`; made the section Electron-focused (Python env setup → `cd gui && npm run dev`); moved CLI text mode, voice loop, TTS API, OpenClaw tool server, and Common Commands into a new clearly separated `## Advanced / Developer` section; updated ToC to list `Getting Started` and `Advanced / Developer`; replaced all five `change-me` placeholder values (README.md lines 305, 312, 321, 331, 338) with `<YOUR_API_KEY>` and added `python -c "import secrets; print(secrets.token_urlsafe(32))"` generation commands; preserved alpha warning and all Known Limitations. (2) Rewrote `INSTALL.md`: updated `## Quick Start` section to show Electron as the primary path (ends with `npm run dev`); added `## Advanced / Developer: CLI and Python Direct Mode` section for `python -m rex` steps; updated `## Startup Modes` table to list Electron first and mark it as "Primary user-facing interface".
+- Files changed: README.md, INSTALL.md, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `grep -n "change-me\|CHANGE_ME\|your-secret-here" README.md INSTALL.md` → no output (zero matches)
+  - `grep -n "Getting Started\|Quick Start" README.md | head -5` → line 34 (ToC), line 49 (section header), line 292 (cross-reference in Advanced section)
+- Validation result: All 6 acceptance criteria satisfied. README has prominent `## Getting Started` at line 49 describing only the Electron app install path. All other runtime paths (CLI, voice loop, Flask dashboard, TTS API, Windows agent, OpenClaw tool server) are in the clearly separated `## Advanced / Developer` section. All five `change-me` values replaced with `<YOUR_API_KEY>` — grep confirms zero matches. Alpha warning preserved. Known Limitations section preserved (wake-word latency, Outlook partial, per-user isolation). INSTALL.md Quick Start updated to Electron path with CLI demoted to Advanced subsection.
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - The Services section (TTS API, OpenClaw) was the only source of `change-me` values in README.md. Moving both services to the `## Advanced / Developer` section simultaneously satisfies both the path-demotion criterion and the placeholder-replacement criterion.
+  - The INSTALL.md "Quick Start" previously ended with `python -m rex` (CLI). The clear fix is to end it with `npm run dev` (Electron) and keep the CLI steps in a separate `## Advanced / Developer` subsection. No content is deleted — just reorganized.
+  - Adding Node.js/npm to the INSTALL.md requirements table (it was missing) is a necessary fix since the primary path now requires it.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:

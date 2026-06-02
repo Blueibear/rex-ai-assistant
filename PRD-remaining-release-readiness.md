@@ -750,12 +750,12 @@ python -m rex config --help 2>&1
 - `INSTALL.md`
 
 **Acceptance Criteria:**
-- [ ] The README has a prominent "Getting Started" section describing only the Electron app install path.
-- [ ] All other runtime paths (CLI, voice loop, Flask dashboard, TTS API, Windows agent, OpenClaw tool server) are in a collapsible or clearly separated "Advanced / Developer" section.
-- [ ] The `change-me` placeholder values in README.md (lines 305, 312, 321, 331, 338) are replaced with generation commands or bracketed placeholders (`<YOUR-API-KEY>`).
-- [ ] The alpha warning is preserved.
-- [ ] Known limitations (wake-word latency, Outlook partial, per-user isolation incomplete) are preserved.
-- [ ] If `INSTALL.md` describes a different primary path, it is updated to match the README.
+- [x] The README has a prominent "Getting Started" section describing only the Electron app install path.
+- [x] All other runtime paths (CLI, voice loop, Flask dashboard, TTS API, Windows agent, OpenClaw tool server) are in a collapsible or clearly separated "Advanced / Developer" section.
+- [x] The `change-me` placeholder values in README.md (lines 305, 312, 321, 331, 338) are replaced with generation commands or bracketed placeholders (`<YOUR-API-KEY>`).
+- [x] The alpha warning is preserved.
+- [x] Known limitations (wake-word latency, Outlook partial, per-user isolation incomplete) are preserved.
+- [x] If `INSTALL.md` describes a different primary path, it is updated to match the README.
 
 **Validation commands:**
 ```bash
