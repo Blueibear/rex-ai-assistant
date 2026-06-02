@@ -780,10 +780,10 @@ grep -n "Getting Started\|Quick Start" README.md | head -5
 - `config/rex_config.json` (check for any example secrets)
 
 **Acceptance Criteria:**
-- [ ] Every user-facing doc that shows a secret value either: (a) shows a generation command, or (b) uses a clearly bracketed placeholder (`<YOUR_STRONG_SECRET_HERE>`), not `change-me` or `changeme`.
-- [ ] `.env.example` has generation commands for `REX_JWT_SECRET` and any other required secrets.
-- [ ] `grep -rn "change-me\|CHANGE_ME\|changeme" docs/ .env.example` returns no matches in user-facing install instructions (developer-only docs may retain `change-me` with an explicit developer scope warning).
-- [ ] `grep -n "REX_JWT_SECRET" .env.example` returns a match with a generation command.
+- [x] Every user-facing doc that shows a secret value either: (a) shows a generation command, or (b) uses a clearly bracketed placeholder (`<YOUR_STRONG_SECRET_HERE>`), not `change-me` or `changeme`.
+- [x] `.env.example` has generation commands for `REX_JWT_SECRET` and any other required secrets.
+- [x] `grep -rn "change-me\|CHANGE_ME\|changeme" docs/ .env.example` returns no matches in user-facing install instructions (developer-only docs may retain `change-me` with an explicit developer scope warning).
+- [x] `grep -n "REX_JWT_SECRET" .env.example` returns a match with a generation command.
 
 **Validation commands:**
 ```bash

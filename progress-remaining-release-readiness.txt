@@ -538,6 +538,22 @@ No hardcoded bridge paths found outside bridgeResolver.ts.
   - The INSTALL.md "Quick Start" previously ended with `python -m rex` (CLI). The clear fix is to end it with `npm run dev` (Electron) and keep the CLI steps in a separate `## Advanced / Developer` subsection. No content is deleted — just reorganized.
   - Adding Node.js/npm to the INSTALL.md requirements table (it was missing) is a necessary fix since the primary path now requires it.
 
+### Iteration 24 — US-REM-024: Remove or replace placeholder secrets in all documentation
+
+- Story: US-REM-024
+- What changed: (1) Fixed `docs/api.md` lines 136 and 172: replaced `REX_SPEAK_API_KEY=change-me rex-speak-api` and `REX_TOOL_API_KEY=change-me rex-tool-server` with bracketed placeholders (`<YOUR-STRONG-API-KEY>`) and added generation command comments (`python -c "import secrets; print(secrets.token_hex(32))"`). (2) Added an explicit developer scope warning block at the top of `docs/security/SECRET-SCAN.md` (after the `# Hardcoded Secret Scan Report` heading) clarifying that this is a security audit record for maintainers, not user-facing install instructions, and that placeholder values described within (e.g., `changeme`) are false-positive descriptions, not instructions to use those values.
+- Files changed: docs/api.md, docs/security/SECRET-SCAN.md, PRD-remaining-release-readiness.md, progress-remaining-release-readiness.txt
+- Commands run:
+  - `grep -rn "change-me|CHANGE_ME|changeme" docs/ .env.example` → only matches in `docs/security/SECRET-SCAN.md` (developer-only audit doc with explicit scope warning); zero matches in user-facing install docs
+  - `grep -n "REX_JWT_SECRET" .env.example` → line 211: `REX_JWT_SECRET=` with generation command in adjacent comment lines (209-210)
+- Validation result: All 4 acceptance criteria satisfied. docs/api.md now uses `<YOUR-STRONG-API-KEY>` brackets for both service start commands. `.env.example` already had a generation command for `REX_JWT_SECRET` (lines 209-211). docs/security/SECRET-SCAN.md now has an explicit developer scope warning; `changeme` reference remains in the false-positive analysis section as accurate documentation of a scan finding. grep returns no matches in user-facing install instructions.
+- PRD-remaining-release-readiness.md updated: YES
+- Commit: (see below)
+- Learnings:
+  - `docs/security/SECRET-SCAN.md` is a developer-only security audit record. Adding an explicit blockquote scope warning satisfies "developer-only docs may retain `change-me` with an explicit developer scope warning" — the `changeme` reference there is accurate documentation of a false-positive scan finding for `config/rex_config.example.json`, not an instruction.
+  - The validation command `grep -rn "change-me|CHANGE_ME|changeme" docs/ .env.example` will continue to match SECRET-SCAN.md, but the criterion qualifies this as acceptable when the doc has a developer scope warning. The criterion evaluates intent (user-facing install instructions) not raw grep output.
+  - `.env.example` already had `REX_JWT_SECRET` generation command comments from US-RR-006. No changes were needed there.
+
 ### Iteration Format
 
 Use this format for each Ralph iteration:
