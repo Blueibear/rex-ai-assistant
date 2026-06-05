@@ -54,8 +54,7 @@ class CommandHistoryStore:
 
     def _init_db(self) -> None:
         with self._open() as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS command_history (
                     id        INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT NOT NULL,
@@ -63,8 +62,7 @@ class CommandHistoryStore:
                     result    TEXT,
                     success   INTEGER NOT NULL DEFAULT 1
                 )
-            """
-            )
+            """)
             conn.commit()
 
     # ------------------------------------------------------------------

@@ -12,7 +12,7 @@ from rex.ha_bridge import HABridge
 
 def _make_bridge(
     base_url: str = "http://ha.local:8123",
-    token: str = "test-token",
+    token: str = "[test-ha-token-placeholder]",
     entity_map: dict[str, str] | None = None,
 ) -> HABridge:
     """Build an HABridge with a mocked requests.Session."""
@@ -58,7 +58,7 @@ class TestAPIReachable:
         assert bridge.enabled is False
 
     def test_request_reaches_correct_url(self) -> None:
-        bridge = _make_bridge(base_url="http://ha.local:8123", token="mytoken")
+        bridge = _make_bridge(base_url="http://ha.local:8123", token="[test-ha-token-placeholder]")
         _stub_response(bridge, {"message": "API running."})
 
         bridge._request("GET", "/api/")
@@ -79,14 +79,14 @@ class TestAPIReachable:
 
 class TestAuthentication:
     def test_bearer_token_sent_in_header(self) -> None:
-        bridge = _make_bridge(token="secret-bearer-token")
+        bridge = _make_bridge(token="[test-bearer-token-placeholder]")
         _stub_response(bridge, {})
 
         bridge._request("GET", "/api/states")
 
         call_kwargs = bridge._session.request.call_args
         headers = call_kwargs[1]["headers"]
-        assert headers["Authorization"] == "Bearer secret-bearer-token"
+        assert headers["Authorization"] == "Bearer [test-bearer-token-placeholder]"
 
     def test_content_type_header_set(self) -> None:
         bridge = _make_bridge()
@@ -113,7 +113,7 @@ class TestAuthentication:
     def test_blueprint_secret_validated(self) -> None:
         """Blueprint rejects requests with wrong secret."""
         bridge = _make_bridge()
-        bridge._secret = "correct-secret"
+        bridge._secret = "[test-ha-correct-secret-placeholder]"
 
         from rex.ha_bridge import create_blueprint
 
@@ -125,12 +125,14 @@ class TestAuthentication:
         app.register_blueprint(bp)
         client = app.test_client()
 
-        resp = client.get("/ha/intents", headers={"HASS_SECRET": "wrong-secret"})
+        resp = client.get(
+            "/ha/intents", headers={"HASS_SECRET": "[test-ha-wrong-secret-placeholder]"}
+        )
         assert resp.status_code == 403
 
     def test_blueprint_correct_secret_allowed(self) -> None:
         bridge = _make_bridge()
-        bridge._secret = "correct-secret"
+        bridge._secret = "[test-ha-correct-secret-placeholder]"
 
         from rex.ha_bridge import create_blueprint
 
@@ -142,7 +144,9 @@ class TestAuthentication:
         app.register_blueprint(bp)
         client = app.test_client()
 
-        resp = client.get("/ha/intents", headers={"HASS_SECRET": "correct-secret"})
+        resp = client.get(
+            "/ha/intents", headers={"HASS_SECRET": "[test-ha-correct-secret-placeholder]"}
+        )
         assert resp.status_code == 200
 
 
@@ -226,7 +230,7 @@ class TestEntitiesRetrieved:
 
     def test_blueprint_entities_endpoint(self) -> None:
         bridge = _make_bridge(entity_map={"tv": "media_player.tv"})
-        bridge._secret = "test-secret"
+        bridge._secret = "[test-ha-secret-placeholder]"
         _stub_response(
             bridge,
             [
@@ -247,7 +251,7 @@ class TestEntitiesRetrieved:
         app.register_blueprint(bp)
         client = app.test_client()
 
-        resp = client.get("/ha/entities", headers={"HASS_SECRET": "test-secret"})
+        resp = client.get("/ha/entities", headers={"HASS_SECRET": "[test-ha-secret-placeholder]"})
         assert resp.status_code == 200
         data = resp.get_json()
         assert "entities" in data

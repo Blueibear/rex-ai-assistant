@@ -25,7 +25,7 @@ import pytest
 @pytest.fixture()
 def tmp_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("REX_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("REX_JWT_SECRET", "test-rr007-secret")
+    monkeypatch.setenv("REX_JWT_SECRET", "[test-rr007-jwt-placeholder]")
     return tmp_path
 
 
@@ -45,7 +45,7 @@ def _setup_token(client: object) -> str:
 
 _SETUP_PAYLOAD = {
     "username": "admin",
-    "password": "securepass1",
+    "password": "[test-log-auth-password-placeholder]",
     "llm_provider": "local",
     "tts_provider": "none",
 }
@@ -65,7 +65,7 @@ class TestSetupCompleteProtection:
         resp = flask_client.post(
             "/api/setup/complete",
             json=_SETUP_PAYLOAD,
-            headers={"X-Setup-Token": "not-the-real-token"},
+            headers={"X-Setup-Token": "[invalid-setup-token-placeholder]"},
         )
         assert resp.status_code == 403
 
@@ -112,22 +112,22 @@ class TestRegisterProtection:
     def test_no_token_when_no_users_returns_403(self, flask_client) -> None:
         resp = flask_client.post(
             "/api/auth/register",
-            json={"username": "alice", "password": "pass1234"},
+            json={"username": "alice", "password": "[test-register-password-placeholder]"},
         )
         assert resp.status_code == 403
 
     def test_wrong_token_when_no_users_returns_403(self, flask_client) -> None:
         resp = flask_client.post(
             "/api/auth/register",
-            json={"username": "alice", "password": "pass1234"},
-            headers={"X-Setup-Token": "invalid-token"},
+            json={"username": "alice", "password": "[test-register-password-placeholder]"},
+            headers={"X-Setup-Token": "[invalid-setup-token-placeholder]"},
         )
         assert resp.status_code == 403
 
     def test_valid_token_when_no_users_returns_201(self, flask_client) -> None:
         resp = flask_client.post(
             "/api/auth/register",
-            json={"username": "alice", "password": "pass1234"},
+            json={"username": "alice", "password": "[test-register-password-placeholder]"},
             headers={"X-Setup-Token": _setup_token(flask_client)},
         )
         assert resp.status_code == 201
@@ -139,13 +139,13 @@ class TestRegisterProtection:
         # Create first user with the setup token.
         flask_client.post(
             "/api/auth/register",
-            json={"username": "alice", "password": "pass1234"},
+            json={"username": "alice", "password": "[test-register-password-placeholder]"},
             headers={"X-Setup-Token": _setup_token(flask_client)},
         )
         # Second user does not require a setup token.
         resp = flask_client.post(
             "/api/auth/register",
-            json={"username": "bob", "password": "pass1234"},
+            json={"username": "bob", "password": "[test-register-password-placeholder]"},
         )
         assert resp.status_code == 201
         assert resp.get_json()["username"] == "bob"

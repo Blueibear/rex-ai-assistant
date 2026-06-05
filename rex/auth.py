@@ -66,16 +66,14 @@ def _open_db() -> sqlite3.Connection:
 
 def _init_schema(conn: sqlite3.Connection) -> None:
     """Create the users table if it does not already exist."""
-    conn.execute(
-        """
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id       TEXT PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             created  TEXT NOT NULL
         )
-        """
-    )
+        """)
     conn.commit()
 
 

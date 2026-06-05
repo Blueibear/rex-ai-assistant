@@ -55,7 +55,7 @@ def _ensure_aware_utc(dt: datetime) -> datetime:
     return dt.astimezone(UTC)
 
 
-@dataclass(slots=True, init=False)  # type: ignore[call-overload]
+@dataclass(slots=True, init=False)
 class CalendarEvent:
     event_id: str
     title: str

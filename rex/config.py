@@ -451,7 +451,7 @@ class AppConfig:
         "openclaw_gateway_url": "integrations",
     }
 
-    def __getattribute__(self, name: str):  # type: ignore[override]
+    def __getattribute__(self, name: str):
         """Emit DeprecationWarning for high-traffic flat fields that now have nested equivalents."""
         _deprecated = type(self).__dict__.get("_DEPRECATED_FIELDS", {})
         if name in _deprecated:
@@ -477,7 +477,7 @@ class AppConfig:
             stacklevel=2,
         )
         _llm = object.__getattribute__(self, "llm")
-        return _llm.model_name if _llm is not None else object.__getattribute__(self, "llm_model")
+        return _llm.model_name if _llm is not None else object.__getattribute__(self, "llm_model")  # type: ignore[no-any-return]
 
     @property
     def tts_engine(self) -> str:
@@ -488,7 +488,7 @@ class AppConfig:
             stacklevel=2,
         )
         _voice = object.__getattribute__(self, "voice")
-        return (
+        return (  # type: ignore[no-any-return]
             _voice.tts_engine
             if _voice is not None
             else object.__getattribute__(self, "tts_provider")
@@ -503,7 +503,7 @@ class AppConfig:
             stacklevel=2,
         )
         _voice = object.__getattribute__(self, "voice")
-        return (
+        return (  # type: ignore[no-any-return]
             _voice.wakeword_model
             if _voice is not None
             else object.__getattribute__(self, "wakeword")
@@ -519,7 +519,7 @@ class AppConfig:
             stacklevel=2,
         )
         _intg = object.__getattribute__(self, "integrations")
-        return (
+        return (  # type: ignore[no-any-return]
             _intg.home_assistant_base_url
             if _intg is not None
             else object.__getattribute__(self, "ha_base_url")
@@ -534,7 +534,7 @@ class AppConfig:
             stacklevel=2,
         )
         _tools = object.__getattribute__(self, "tools")
-        return (
+        return (  # type: ignore[no-any-return]
             _tools.tool_timeout
             if _tools is not None
             else object.__getattribute__(self, "tool_timeout_seconds")

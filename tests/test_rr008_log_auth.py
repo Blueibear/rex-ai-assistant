@@ -23,7 +23,7 @@ import pytest
 @pytest.fixture()
 def tmp_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("REX_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("REX_JWT_SECRET", "test-rr008-secret")
+    monkeypatch.setenv("REX_JWT_SECRET", "[test-rr008-jwt-placeholder-32-bytes-min]")
     return tmp_path
 
 
@@ -57,12 +57,12 @@ def auth_header(flask_client):
     setup_token = client.application.config.get("SETUP_TOKEN") or ""
     client.post(
         "/api/auth/register",
-        json={"username": "logadmin", "password": "securepass1"},
+        json={"username": "logadmin", "password": "[test-log-auth-password-placeholder]"},
         headers={"X-Setup-Token": setup_token},
     )
     resp = client.post(
         "/api/auth/login",
-        json={"username": "logadmin", "password": "securepass1"},
+        json={"username": "logadmin", "password": "[test-log-auth-password-placeholder]"},
     )
     token = resp.get_json()["token"]
     return {"Authorization": f"Bearer {token}"}

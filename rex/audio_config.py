@@ -49,7 +49,7 @@ def _require_sounddevice():
 def list_devices() -> list[dict]:
     sounddevice = _require_sounddevice()
     try:
-        return sounddevice.query_devices()
+        return sounddevice.query_devices()  # type: ignore[no-any-return]
     except Exception as exc:
         raise AudioDeviceError(f"Failed to query audio devices: {exc}") from exc
 
@@ -63,7 +63,7 @@ def get_selected_input_device_index(config: dict) -> int | None:
     Returns:
         Device index or None
     """
-    return config.get("audio", {}).get("input_device_index")
+    return config.get("audio", {}).get("input_device_index")  # type: ignore[no-any-return]
 
 
 def set_selected_input_device_index(config: dict, index: int | None) -> dict:
@@ -91,7 +91,7 @@ def get_selected_output_device_index(config: dict) -> int | None:
     Returns:
         Device index or None
     """
-    return config.get("audio", {}).get("output_device_index")
+    return config.get("audio", {}).get("output_device_index")  # type: ignore[no-any-return]
 
 
 def set_selected_output_device_index(config: dict, index: int | None) -> dict:

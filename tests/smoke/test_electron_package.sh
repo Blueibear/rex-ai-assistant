@@ -28,6 +28,8 @@
 #                              Default: 0 (best-effort; Python bridge check is gate).
 #   SMOKE_TIMEOUT              Seconds to wait for Electron startup signal.
 #                              Default: 30.
+#   PYTHON                     Explicit Python executable for bridge checks.
+#                              Overrides venv and system Python fallback.
 #
 # Exit codes:
 #   0  All required checks passed (steps 1-3 must pass; step 4 best-effort).
@@ -192,9 +194,14 @@ log "All ${#REQUIRED_BRIDGES[@]} bridge scripts present."
 # ===========================================================================
 log "Step 3b: Bridge health check — Python executes packaged bridge (no source-tree PYTHONPATH)..."
 
-# Resolve Python executable: prefer the repo venv, fallback to system python.
-PYTHON_EXE=""
-if [[ -n "${VIRTUAL_ENV:-}" ]]; then
+# Resolve Python executable: honor explicit PYTHON override first, then prefer
+# the active/repo venv, then fall back to the platform launcher on PATH.
+PYTHON_EXE="${PYTHON:-}"
+if [[ -n "$PYTHON_EXE" ]]; then
+  if ! command -v "$PYTHON_EXE" >/dev/null 2>&1 && [[ ! -x "$PYTHON_EXE" ]]; then
+    fail "PYTHON override is not executable or on PATH: $PYTHON_EXE"
+  fi
+elif [[ -n "${VIRTUAL_ENV:-}" ]]; then
   if [[ "$OS" == "windows" ]]; then
     PYTHON_EXE="$VIRTUAL_ENV/Scripts/python.exe"
   else

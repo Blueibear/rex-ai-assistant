@@ -175,16 +175,14 @@ class TestHistoryStoreCostPersistence:
         # Create old-schema DB manually.
         async def _create_old() -> None:
             conn = await aiosqlite.connect(str(db))
-            await conn.execute(
-                """
+            await conn.execute("""
                 CREATE TABLE execution_records (
                     id TEXT PRIMARY KEY, goal TEXT NOT NULL,
                     plan_json TEXT NOT NULL, outcome TEXT NOT NULL,
                     duration_s REAL NOT NULL, replan_count INTEGER NOT NULL,
                     error_summary TEXT, timestamp TEXT NOT NULL
                 )
-                """
-            )
+                """)
             await conn.commit()
             await conn.close()
 

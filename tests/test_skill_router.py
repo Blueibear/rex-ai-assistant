@@ -105,16 +105,12 @@ class TestSkillRouterMatch:
 class TestSkillRouterExecute:
     def test_script_handler_invoked(self, tmp_path: Path) -> None:
         script = tmp_path / "my_skill.py"
-        script.write_text(
-            textwrap.dedent(
-                """
+        script.write_text(textwrap.dedent("""
                 SKILL_METADATA = {"name": "my_skill", "description": "x", "triggers": []}
 
                 def run(transcript):
                     return "skill executed: " + transcript
-                """
-            )
-        )
+                """))
         skill = _make_skill("my_skill", [r"run skill"], handler=str(script))
         registry = _make_registry([skill], tmp_path)
         router = SkillRouter(registry)
@@ -123,14 +119,10 @@ class TestSkillRouterExecute:
 
     def test_execution_error_returned_as_string(self, tmp_path: Path) -> None:
         script = tmp_path / "broken.py"
-        script.write_text(
-            textwrap.dedent(
-                """
+        script.write_text(textwrap.dedent("""
                 def run(transcript):
                     raise RuntimeError("skill failed")
-                """
-            )
-        )
+                """))
         skill = _make_skill("broken", [r"break"], handler=str(script))
         registry = _make_registry([skill], tmp_path)
         router = SkillRouter(registry)
