@@ -741,7 +741,7 @@ class AsyncMicrophone:
             frame = combined[-window_samples:]
 
         zero_pad_samples = max(window_samples - filled_samples, 0)
-        chunk_rms, chunk_peak = _audio_level(cast(AudioArray, chunk))  # type: ignore[redundant-cast]
+        chunk_rms, chunk_peak = _audio_level(chunk)
         frame_rms, frame_peak = _audio_level(cast(AudioArray, frame))
         logger.debug(
             (

@@ -126,9 +126,9 @@ class HABridge:
         entity_map: dict[str, str] | None = None,
     ) -> None:
         cfg = settings
-        cfg_base_url = getattr(cfg, "ha_base_url", "")
-        cfg_token = getattr(cfg, "ha_token", "")
-        cfg_secret = getattr(cfg, "ha_secret", "")
+        cfg_base_url = getattr(cfg, "ha_base_url", "") or ""
+        cfg_token = getattr(cfg, "ha_token", "") or ""
+        cfg_secret = getattr(cfg, "ha_secret", "") or ""
         self._base_url = (cfg_base_url if base_url is None else base_url or "").rstrip("/")
         self._token = cfg_token if token is None else token or ""
         self._secret = cfg_secret if secret is None else secret or ""
