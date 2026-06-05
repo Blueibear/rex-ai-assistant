@@ -97,7 +97,7 @@ class ResponseBuilder:
         """
         if self._cache is None:
             return None
-        return self._cache.get(transcript)
+        return self._cache.get(transcript)  # type: ignore[no-any-return]
 
     # ------------------------------------------------------------------
     # Primary entry point

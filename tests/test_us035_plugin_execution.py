@@ -180,29 +180,25 @@ def test_second_plugin_unaffected_by_first_failure(tmp_path):
     plugin_dir = tmp_path / "plugins"
     plugin_dir.mkdir()
     (plugin_dir / "bad.py").write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             class BadPlugin:
                 name = "bad"
                 def initialize(self): pass
                 def process(self, *a, **kw): raise RuntimeError("fail")
                 def shutdown(self): pass
             def register(): return BadPlugin()
-            """
-        ),
+            """),
         encoding="utf-8",
     )
     (plugin_dir / "good.py").write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             class GoodPlugin:
                 name = "good"
                 def initialize(self): pass
                 def process(self, *a, **kw): return "success"
                 def shutdown(self): pass
             def register(): return GoodPlugin()
-            """
-        ),
+            """),
         encoding="utf-8",
     )
 
@@ -226,16 +222,14 @@ def test_plugin_rate_limit_raises_after_exhaustion(tmp_path, monkeypatch):
     plugin_dir = tmp_path / "plugins"
     plugin_dir.mkdir()
     (plugin_dir / "ratelimited.py").write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             class RatelimitedPlugin:
                 name = "ratelimited"
                 def initialize(self): pass
                 def process(self, *a, **kw): return "ok"
                 def shutdown(self): pass
             def register(): return RatelimitedPlugin()
-            """
-        ),
+            """),
         encoding="utf-8",
     )
 
@@ -259,16 +253,14 @@ def test_plugin_output_truncated_when_oversized(tmp_path, monkeypatch):
     plugin_dir = tmp_path / "plugins"
     plugin_dir.mkdir()
     (plugin_dir / "bigout.py").write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             class BigoutPlugin:
                 name = "bigout"
                 def initialize(self): pass
                 def process(self, *a, **kw): return "A" * 1000
                 def shutdown(self): pass
             def register(): return BigoutPlugin()
-            """
-        ),
+            """),
         encoding="utf-8",
     )
 
@@ -289,16 +281,14 @@ def test_shutdown_plugins_does_not_raise(tmp_path):
     plugin_dir = tmp_path / "plugins"
     plugin_dir.mkdir()
     (plugin_dir / "clean.py").write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             class CleanPlugin:
                 name = "clean"
                 def initialize(self): pass
                 def process(self, *a, **kw): return "ok"
                 def shutdown(self): pass
             def register(): return CleanPlugin()
-            """
-        ),
+            """),
         encoding="utf-8",
     )
 
@@ -312,16 +302,14 @@ def test_shutdown_plugins_handles_crashing_shutdown(tmp_path, caplog):
     plugin_dir = tmp_path / "plugins"
     plugin_dir.mkdir()
     (plugin_dir / "crashshut.py").write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             class CrashShutPlugin:
                 name = "crashshut"
                 def initialize(self): pass
                 def process(self, *a, **kw): return "ok"
                 def shutdown(self): raise RuntimeError("shutdown exploded")
             def register(): return CrashShutPlugin()
-            """
-        ),
+            """),
         encoding="utf-8",
     )
 
@@ -344,16 +332,14 @@ def test_plugin_unloads_and_caller_still_operational(tmp_path):
     plugin_dir = tmp_path / "plugins"
     plugin_dir.mkdir()
     (plugin_dir / "lifecycle.py").write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             class LifecyclePlugin:
                 name = "lifecycle"
                 def initialize(self): pass
                 def process(self, *a, **kw): return "alive"
                 def shutdown(self): pass
             def register(): return LifecyclePlugin()
-            """
-        ),
+            """),
         encoding="utf-8",
     )
 

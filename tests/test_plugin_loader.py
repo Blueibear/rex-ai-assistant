@@ -16,9 +16,7 @@ from rex.plugins import shutdown_plugins
 def test_class_based_plugin_loads_and_runs(tmp_path, monkeypatch):
     plugin_file = tmp_path / "plugins" / "demo.py"
     plugin_file.parent.mkdir(parents=True)
-    plugin_file.write_text(
-        textwrap.dedent(
-            """
+    plugin_file.write_text(textwrap.dedent("""
             from rex.plugins import Plugin
 
             class DemoPlugin:
@@ -39,9 +37,7 @@ def test_class_based_plugin_loads_and_runs(tmp_path, monkeypatch):
 
             def register() -> Plugin:
                 return DemoPlugin()
-            """
-        )
-    )
+            """))
 
     monkeypatch.syspath_prepend(str(tmp_path))
     specs = load_rex_plugins(str(plugin_file.parent))
@@ -63,34 +59,28 @@ def test_dict_based_plugin_loader(tmp_path, monkeypatch):
 
     # Valid plugin
     (plugin_dir / "example.py").write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             def register():
                 return {"capability": "ok"}
-            """
-        ),
+            """),
         encoding="utf-8",
     )
 
     # Second valid plugin
     (plugin_dir / "second.py").write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             def register():
                 return {"feature": "active"}
-            """
-        ),
+            """),
         encoding="utf-8",
     )
 
     # Invalid plugin (no register function)
     (plugin_dir / "broken.py").write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             def init():
                 return {"invalid": True}
-            """
-        ),
+            """),
         encoding="utf-8",
     )
 

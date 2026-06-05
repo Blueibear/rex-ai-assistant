@@ -18,7 +18,6 @@ from pathlib import Path
 import jwt
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -28,7 +27,7 @@ import pytest
 def tmp_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Redirect the user DB and JWT secret to a safe test environment."""
     monkeypatch.setenv("REX_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("REX_JWT_SECRET", "test-first-run-secret-rem021-xxxxxxxxxx")
+    monkeypatch.setenv("REX_JWT_SECRET", "[test-first-run-jwt-placeholder]")
     return tmp_path
 
 
@@ -49,7 +48,7 @@ def _setup_token(client: object) -> str:
 
 _SETUP_PAYLOAD = {
     "username": "admin",
-    "password": "strongpass99",
+    "password": "[test-setup-password-placeholder]",
     "llm_provider": "local",
     "tts_provider": "none",
 }
@@ -83,7 +82,7 @@ class TestFirstRunSetup:
         resp = flask_client.post(
             "/api/setup/complete",
             json=_SETUP_PAYLOAD,
-            headers={"X-Setup-Token": "not-the-real-token"},
+            headers={"X-Setup-Token": "[invalid-setup-token-placeholder]"},
         )
         assert resp.status_code == 403
 
@@ -127,7 +126,7 @@ class TestPostSetupAuthentication:
         )
         token = login_resp.get_json()["token"]
 
-        payload = jwt.decode(token, "test-first-run-secret-rem021-xxxxxxxxxx", algorithms=["HS256"])
+        payload = jwt.decode(token, "[test-first-run-jwt-placeholder]", algorithms=["HS256"])
         assert payload["username"] == _SETUP_PAYLOAD["username"]
 
     def test_wrong_password_returns_401(self, flask_client) -> None:
@@ -140,7 +139,10 @@ class TestPostSetupAuthentication:
 
         resp = flask_client.post(
             "/api/auth/login",
-            json={"username": _SETUP_PAYLOAD["username"], "password": "wrongpassword"},
+            json={
+                "username": _SETUP_PAYLOAD["username"],
+                "password": "[wrong-password-placeholder]",
+            },
         )
         assert resp.status_code == 401
 

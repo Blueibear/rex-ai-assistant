@@ -13,7 +13,7 @@ from rex.ha_bridge import HABridge, create_blueprint
 
 def _make_bridge(
     base_url: str = "http://ha.local:8123",
-    token: str = "test-token",
+    token: str = "[test-ha-token-placeholder]",
     secret: str = "",
 ) -> HABridge:
     with patch("rex.ha_bridge.requests") as mock_requests:
@@ -91,36 +91,38 @@ class TestSecretSetAllowsRegistrationAndEnforces:
 
     def test_entities_returns_200_with_valid_secret(self) -> None:
         """/ha/entities returns 200 when HA_SECRET is set and header matches."""
-        client = self._app_with_ha_blueprint("my-ha-secret").test_client()
-        resp = client.get("/ha/entities", headers={"HASS_SECRET": "my-ha-secret"})
+        client = self._app_with_ha_blueprint("[test-ha-secret-placeholder]").test_client()
+        resp = client.get("/ha/entities", headers={"HASS_SECRET": "[test-ha-secret-placeholder]"})
         assert resp.status_code == 200
         data = resp.get_json()
         assert "entities" in data
 
     def test_entities_returns_403_with_wrong_secret(self) -> None:
         """/ha/entities returns 403 when HASS_SECRET header is wrong."""
-        client = self._app_with_ha_blueprint("my-ha-secret").test_client()
-        resp = client.get("/ha/entities", headers={"HASS_SECRET": "wrong-secret"})
+        client = self._app_with_ha_blueprint("[test-ha-secret-placeholder]").test_client()
+        resp = client.get(
+            "/ha/entities", headers={"HASS_SECRET": "[test-ha-wrong-secret-placeholder]"}
+        )
         assert resp.status_code == 403
 
     def test_entities_returns_403_with_no_secret_header(self) -> None:
         """/ha/entities returns 403 when HASS_SECRET header is absent."""
-        client = self._app_with_ha_blueprint("my-ha-secret").test_client()
+        client = self._app_with_ha_blueprint("[test-ha-secret-placeholder]").test_client()
         resp = client.get("/ha/entities")
         assert resp.status_code == 403
 
     def test_script_returns_403_with_wrong_secret(self) -> None:
         """/ha/script returns 403 when HASS_SECRET header is wrong."""
-        client = self._app_with_ha_blueprint("my-ha-secret").test_client()
+        client = self._app_with_ha_blueprint("[test-ha-secret-placeholder]").test_client()
         resp = client.post(
             "/ha/script",
             json={"script": "script.test"},
-            headers={"HASS_SECRET": "wrong-secret"},
+            headers={"HASS_SECRET": "[test-ha-wrong-secret-placeholder]"},
         )
         assert resp.status_code == 403
 
     def test_script_returns_403_with_no_secret_header(self) -> None:
         """/ha/script returns 403 when HASS_SECRET header is absent."""
-        client = self._app_with_ha_blueprint("my-ha-secret").test_client()
+        client = self._app_with_ha_blueprint("[test-ha-secret-placeholder]").test_client()
         resp = client.post("/ha/script", json={"script": "script.test"})
         assert resp.status_code == 403

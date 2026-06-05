@@ -741,7 +741,7 @@ class AsyncMicrophone:
             frame = combined[-window_samples:]
 
         zero_pad_samples = max(window_samples - filled_samples, 0)
-        chunk_rms, chunk_peak = _audio_level(cast(AudioArray, chunk))
+        chunk_rms, chunk_peak = _audio_level(cast(AudioArray, chunk))  # type: ignore[redundant-cast]
         frame_rms, frame_peak = _audio_level(cast(AudioArray, frame))
         logger.debug(
             (
@@ -1816,7 +1816,17 @@ class TextToSpeech:
 
         if sa is None:
             logger.error("LOCAL PLAYBACK ERROR: simpleaudio is not available in _speak_edge")
-            return
+            return {
+                "path_used": "edge",
+                "voice": voice,
+                "first_audio_chunk_s": first_audio_chunk_s,
+                "synthesis_ready_s": synthesis_ready_s,
+                "speech_start_delay_s": None,
+                "playback_duration_s": 0.0,
+                "audio_duration_s": audio_duration_s,
+                "used_streaming": used_streaming,
+                "playback_available": False,
+            }
 
         def _play(_pcm=pcm_data, _sample_rate=sample_rate, _channels=channel_count) -> None:
             play_obj = sa.play_buffer(
@@ -3118,13 +3128,22 @@ def build_voice_loop(
             extra={"event": "ffmpeg_missing", "tts_provider": tts._provider},
         )
 
+    async def _speak_for_callback(text: str) -> None:
+        await tts.speak(text, speaker_wav=speaker_wav)
+
+    async def _speak_default_for_callback(text: str) -> None:
+        await tts.speak(text)
+
+    async def _post_stt_phrase_callback() -> None:
+        await tts.speak("On it")
+
     ack_sound = getattr(settings, "acknowledgment_sound", "chime")
     if ack_sound and ack_sound != "chime" and not ack_sound.lower().endswith((".wav", ".mp3")):
         # Spoken filler phrase (e.g. "mm-hmm", "one moment")
         ack = WakeAcknowledgement(
             filler_phrase=ack_sound,
             is_speaking=tts.is_speaking,
-            filler_speak=lambda text: tts.speak(text),
+            filler_speak=_speak_default_for_callback,
         )
     elif ack_sound and ack_sound != "chime":
         # Custom audio file path
@@ -3147,8 +3166,7 @@ def build_voice_loop(
     ack_mode = getattr(settings, "acknowledgment_mode", "sound")
     post_stt_ack: Callable[[], Awaitable[None]] | None
     if ack_mode == "phrase":
-        _phrase = "On it"
-        post_stt_ack = lambda: tts.speak(_phrase)  # noqa: E731
+        post_stt_ack = _post_stt_phrase_callback
     elif ack_mode == "sound":
         post_stt_ack = ack.play
     else:
@@ -3165,7 +3183,7 @@ def build_voice_loop(
         detection_source=mic.detection_frame,
         record_phrase=mic.record_phrase,
         transcribe=lambda audio: stt.transcribe(audio, sample_rate),
-        speak=lambda text: tts.speak(text, speaker_wav=speaker_wav),
+        speak=_speak_for_callback,
         speak_streaming=lambda sentences: tts.speak_streaming(sentences, speaker_wav=speaker_wav),
         warmup=lambda: tts.warmup(speaker_wav=speaker_wav),
         acknowledge=ack.play,

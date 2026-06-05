@@ -65,7 +65,7 @@ class WakeWordListener:
         self._attempt_count = 0
         self._listening_cycle += 1
         self._listening_started_at = time.monotonic()
-        extra = {
+        extra: dict[str, object] = {
             "event": "wakeword_listening_cycle_started",
             "reason": reason,
             "threshold": self._threshold,
@@ -110,7 +110,7 @@ class WakeWordListener:
         self._running = True
         if self._listening_started_at is None:
             self.mark_listening_started(reason="listener_loop_entered")
-        enter_extra = {
+        enter_extra: dict[str, object] = {
             "event": "wakeword_listener_loop_entered",
             "threshold": self._threshold,
             "keyword": self._keyword,
@@ -222,7 +222,7 @@ class WakeWordListener:
                 await asyncio.sleep(self._poll_interval)
         finally:
             self._running = False
-            exit_extra = {
+            exit_extra: dict[str, object] = {
                 "event": "wakeword_listener_loop_exited",
                 "threshold": self._threshold,
                 "keyword": self._keyword,
