@@ -17,20 +17,6 @@ AskRex is alpha software. It is useful for local testing and development, but it
 
 > **Advanced / Developer**: For CLI text mode, voice loop, GPU/CUDA setup, and backend service configuration, see the [Advanced / Developer](#advanced--developer) section below. For GPU/CUDA setup and additional install variants, see [docs/advanced-install.md](docs/advanced-install.md).
 
-## Contributing
-
-AskRex Assistant is open to feedback, testing, documentation improvements, bug reports, and focused pull requests.
-
-Good places to start:
-
-- Read the [contributing guide](CONTRIBUTING.md)
-- Skim the [architecture overview](docs/ARCHITECTURE.md) for a tour of the major subsystems and where they live
-- Check issues labeled [`good first issue`](https://github.com/Blueibear/AskRex-Assistant/labels/good%20first%20issue)
-- Check issues labeled [`help wanted`](https://github.com/Blueibear/AskRex-Assistant/labels/help%20wanted)
-- Join the [GitHub Discussions](https://github.com/Blueibear/AskRex-Assistant/discussions) if you have questions or ideas
-
-If you are not sure where to begin, open a discussion and ask.
-
 ## Table of Contents
 
 - [Quick Start](#quick-start)
@@ -54,64 +40,68 @@ The supported user-facing interface is the **Electron desktop app**. Python 3.11
 
 Python 3.12 and newer are intentionally rejected by the current installers and runtime checks because the validated ML/TTS dependency path is Python 3.11-only.
 
-### 1. Clone the repository
+1. Clone the repository.
 
-```bash
-git clone https://github.com/Blueibear/AskRex-Assistant.git
-cd AskRex-Assistant
-```
+   ```bash
+   git clone https://github.com/Blueibear/AskRex-Assistant.git
+   cd AskRex-Assistant
+   ```
 
-### 2. Set up the Python environment and install
+2. Run the install script for your platform.
 
-Windows PowerShell:
+   Windows PowerShell:
 
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip setuptools wheel
-Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
-Copy-Item .env.example .env -ErrorAction SilentlyContinue
-pip install .
-.\install.ps1
-```
+   ```powershell
+   py -3.11 -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   python -m pip install --upgrade pip setuptools wheel
+   Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
+   Copy-Item .env.example .env -ErrorAction SilentlyContinue
+   .\install.ps1
+   ```
 
-macOS/Linux shell:
+   macOS/Linux shell:
 
-```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-cp -n config/rex_config.example.json config/rex_config.json
-cp -n .env.example .env
-pip install .
-bash install.sh
-```
+   ```bash
+   python3.11 -m venv .venv
+   source .venv/bin/activate
+   python -m pip install --upgrade pip setuptools wheel
+   cp -n config/rex_config.example.json config/rex_config.json
+   cp -n .env.example .env
+   bash install.sh
+   ```
 
-### 3. Launch the Electron desktop app
+3. Configure LM Studio for local chat completions.
 
-Windows PowerShell:
+   In LM Studio, load a chat model, start the local OpenAI-compatible server, and confirm the server URL is `http://localhost:1234/v1`. AskRex expects the LM Studio server to be reachable on `localhost:1234` when you choose that local provider path.
 
-```powershell
-cd gui
-npm.cmd install
-npm.cmd run dev
-```
+4. Run Rex in the Electron desktop app.
 
-macOS/Linux shell:
+   Windows PowerShell:
 
-```bash
-cd gui
-npm install
-npm run dev
-```
+   ```powershell
+   cd gui
+   npm.cmd install
+   npm.cmd run dev
+   ```
 
-The Electron app communicates with the Python Flask backend automatically. See [docs/usage.md](docs/usage.md) for the full usage guide including voice mode, settings, and integrations.
+   macOS/Linux shell:
 
-### 4. Verify the Python install (optional)
+   ```bash
+   cd gui
+   npm install
+   npm run dev
+   ```
 
-```bash
-rex doctor
-```
+   The Electron app communicates with the Python Flask backend automatically.
+
+5. Verify it works.
+
+   ```bash
+   rex doctor
+   ```
+
+   Then send a short chat message in the Electron app and confirm Rex replies.
 
 ## Current Status
 
