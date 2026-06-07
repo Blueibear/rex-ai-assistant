@@ -7,6 +7,13 @@
   - All documentation, badges, and clone URLs updated to `https://github.com/Blueibear/AskRex-Assistant`.
   - See `docs/BRANDING.md` for the full canonical naming ruleset.
 
+## [1.2.1](https://github.com/Blueibear/AskRex-Assistant/compare/v1.2.0...v1.2.1) (2026-06-07)
+
+
+### Bug Fixes
+
+* **ci:** complete release readiness cleanup ([#254](https://github.com/Blueibear/AskRex-Assistant/issues/254)) ([37623ad](https://github.com/Blueibear/AskRex-Assistant/commit/37623ad51ad33437006de914b531f7f82c52b547))
+
 ## [1.1.0](https://github.com/Blueibear/AskRex-Assistant/compare/v1.0.0...v1.1.0) (2026-04-24)
 
 
