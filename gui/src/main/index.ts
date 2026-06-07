@@ -765,11 +765,11 @@ const defaultSettingsMap: Record<string, Settings> = {
   integrations: {
     emailProvider: 'gmail',
     emailClientId: '',
-    emailClientSecret: '',
+    emailClientSecret: '', // pragma: allowlist secret
     emailAccounts: [] as EmailAccount[],
     calendarProvider: 'gmail',
     calendarClientId: '',
-    calendarClientSecret: '',
+    calendarClientSecret: '', // pragma: allowlist secret
     smsSid: '',
     smsAuthToken: '',
     smsFromNumber: '',
@@ -823,7 +823,7 @@ function hasConfiguredOutlookEmail(integrations: Record<string, unknown>): boole
   if (
     integrations.emailProvider === 'outlook' &&
     hasText(integrations.emailClientId) &&
-    hasText(integrations.emailClientSecret)
+    hasText(integrations.emailClientSecret) // pragma: allowlist secret
   ) {
     return true
   }
@@ -831,7 +831,7 @@ function hasConfiguredOutlookEmail(integrations: Record<string, unknown>): boole
   return accounts.some((raw) => {
     if (!raw || typeof raw !== 'object') return false
     const account = raw as Record<string, unknown>
-    return account.backend === 'outlook' && hasText(account.clientId) && hasText(account.clientSecret)
+    return account.backend === 'outlook' && hasText(account.clientId) && hasText(account.clientSecret) // pragma: allowlist secret
   })
 }
 
@@ -839,7 +839,7 @@ function hasConfiguredOutlookCalendar(integrations: Record<string, unknown>): bo
   return (
     integrations.calendarProvider === 'outlook' &&
     hasText(integrations.calendarClientId) &&
-    hasText(integrations.calendarClientSecret)
+    hasText(integrations.calendarClientSecret) // pragma: allowlist secret
   )
 }
 
@@ -889,12 +889,12 @@ function integrationFingerprint(
   if (type === 'email') {
     payload.emailProvider = integrations.emailProvider
     payload.emailClientId = integrations.emailClientId
-    payload.emailClientSecret = integrations.emailClientSecret
+    payload.emailClientSecret = integrations.emailClientSecret // pragma: allowlist secret
     payload.emailAccounts = integrations.emailAccounts
   } else if (type === 'calendar') {
     payload.calendarProvider = integrations.calendarProvider
     payload.calendarClientId = integrations.calendarClientId
-    payload.calendarClientSecret = integrations.calendarClientSecret
+    payload.calendarClientSecret = integrations.calendarClientSecret // pragma: allowlist secret
   } else if (type === 'sms') {
     payload.smsSid = integrations.smsSid
     payload.smsAuthToken = integrations.smsAuthToken
@@ -925,7 +925,7 @@ function integrationFingerprint(
     const openai = rexConfig.openai && typeof rexConfig.openai === 'object'
       ? (rexConfig.openai as Record<string, unknown>)
       : {}
-    payload.openai = env.OPENAI_API_KEY || openai.api_key
+    payload.openai = env.OPENAI_API_KEY || openai.api_key // pragma: allowlist secret
   } else if (type === 'ollama') {
     const ollama = rexConfig.ollama && typeof rexConfig.ollama === 'object'
       ? (rexConfig.ollama as Record<string, unknown>)
@@ -999,15 +999,15 @@ function reconcileIntegrationStatuses(): void {
 }
 
 function hasConfiguredEmail(integrations: Record<string, unknown>): boolean {
-  if (hasText(integrations.emailClientId) && hasText(integrations.emailClientSecret)) return true
+  if (hasText(integrations.emailClientId) && hasText(integrations.emailClientSecret)) return true // pragma: allowlist secret
   const accounts = Array.isArray(integrations.emailAccounts) ? integrations.emailAccounts : []
   return accounts.some((raw) => {
     if (!raw || typeof raw !== 'object') return false
     const account = raw as Record<string, unknown>
     if (account.backend === 'imap') {
-      return hasText(account.host) && hasText(account.username) && hasText(account.password)
+      return hasText(account.host) && hasText(account.username) && hasText(account.password) // pragma: allowlist secret
     }
-    return hasText(account.clientId) && hasText(account.clientSecret)
+    return hasText(account.clientId) && hasText(account.clientSecret) // pragma: allowlist secret
   })
 }
 
@@ -1054,7 +1054,7 @@ function buildIntegrationInventory(): IntegrationInventoryItem[] {
     make({
       name: 'Calendar',
       key: 'calendar',
-      configured: hasText(integrations.calendarClientId) && hasText(integrations.calendarClientSecret),
+      configured: hasText(integrations.calendarClientId) && hasText(integrations.calendarClientSecret), // pragma: allowlist secret
       configure_url: '/settings?section=integrations',
       testable: true
     }),
@@ -1097,7 +1097,7 @@ function buildIntegrationInventory(): IntegrationInventoryItem[] {
     make({
       name: 'OpenAI',
       key: 'openai',
-      configured: hasText(env.OPENAI_API_KEY) || hasText(openai.api_key),
+      configured: hasText(env.OPENAI_API_KEY) || hasText(openai.api_key), // pragma: allowlist secret
       configure_url: '/settings?section=ai'
     }),
     make({
@@ -1274,7 +1274,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
       }
       const hasCredentials =
         typeof integrations.emailClientId === 'string' && integrations.emailClientId.trim() !== '' &&
-        typeof integrations.emailClientSecret === 'string' && integrations.emailClientSecret.trim() !== ''
+        typeof integrations.emailClientSecret === 'string' && integrations.emailClientSecret.trim() !== '' // pragma: allowlist secret
       result = hasCredentials || hasConfiguredEmail(integrations)
         ? { ok: true }
         : { ok: false, error: 'No credentials configured' }
@@ -1290,7 +1290,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
       }
       const hasCredentials =
         typeof integrations.calendarClientId === 'string' && integrations.calendarClientId.trim() !== '' &&
-        typeof integrations.calendarClientSecret === 'string' && integrations.calendarClientSecret.trim() !== ''
+        typeof integrations.calendarClientSecret === 'string' && integrations.calendarClientSecret.trim() !== '' // pragma: allowlist secret
       result = hasCredentials ? { ok: true } : { ok: false, error: 'No credentials configured' }
       writeIntegrationStatus('calendar', result)
       return result
@@ -1378,7 +1378,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
       const ok =
         typeof account.host === 'string' && account.host.trim() !== '' &&
         typeof account.username === 'string' && account.username.trim() !== '' &&
-        typeof account.password === 'string' && account.password.trim() !== ''
+        typeof account.password === 'string' && account.password.trim() !== '' // pragma: allowlist secret
       return ok ? { ok: true } : { ok: false, error: 'IMAP host, username, and password are required' }
     }
     // gmail / outlook OAuth
@@ -1387,7 +1387,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
     }
     const ok =
       typeof account.clientId === 'string' && account.clientId.trim() !== '' &&
-      typeof account.clientSecret === 'string' && account.clientSecret.trim() !== ''
+      typeof account.clientSecret === 'string' && account.clientSecret.trim() !== '' // pragma: allowlist secret
     return ok ? { ok: true } : { ok: false, error: 'OAuth Client ID and Secret are required' }
   })
 
@@ -1465,7 +1465,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
   ipcMain.handle('rex:getApiKeys', () => {
     const env = readEnvFile()
     return {
-      openai_key_set: typeof env['OPENAI_API_KEY'] === 'string' && env['OPENAI_API_KEY'].trim() !== ''
+      openai_key_set: typeof env['OPENAI_API_KEY'] === 'string' && env['OPENAI_API_KEY'].trim() !== '' // pragma: allowlist secret
     }
   })
 
@@ -1474,7 +1474,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
     (_event, name: string, value: string): { ok: boolean; error?: string } => {
       try {
         // Validate key name to prevent arbitrary env writes
-        const allowedKeys = ['OPENAI_API_KEY', 'ELEVENLABS_API_KEY', 'SERPAPI_KEY', 'BRAVE_API_KEY']
+        const allowedKeys = ['OPENAI_API_KEY', 'ELEVENLABS_API_KEY', 'SERPAPI_KEY', 'BRAVE_API_KEY'] // pragma: allowlist secret
         if (!allowedKeys.includes(name)) {
           return { ok: false, error: `Key "${name}" is not allowed` }
         }
