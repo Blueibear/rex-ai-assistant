@@ -2361,7 +2361,7 @@ class VoiceLoop:
             _emit("wake_listening")
 
         interactions = 0
-        voice_mode_kwargs = {"voice_mode": True}
+        # Assistant calls below pass voice_mode=True for concise spoken replies.
         _speak_streaming = self._speak_streaming
 
         logger.info(
@@ -2641,7 +2641,7 @@ class VoiceLoop:
                                 await asyncio.wait_for(
                                     _speak_streaming(
                                         _sentence_buffer_stream(
-                                            stream_reply(transcript, **voice_mode_kwargs)
+                                            stream_reply(transcript, voice_mode=True)
                                         )
                                     ),
                                     timeout=self._llm_timeout + self._tts_timeout,
@@ -2663,7 +2663,7 @@ class VoiceLoop:
                     else:
                         try:
                             llm_response = await asyncio.wait_for(
-                                self._assistant.generate_reply(transcript, **voice_mode_kwargs),
+                                self._assistant.generate_reply(transcript, voice_mode=True),
                                 timeout=self._llm_timeout,
                             )
                         except TimeoutError:

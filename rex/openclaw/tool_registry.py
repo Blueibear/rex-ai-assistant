@@ -190,12 +190,14 @@ class ToolRegistry:
             from rex.tools.registry import Tool, get_default_registry
 
             _canonical = get_default_registry()
+            existing = _canonical.get(tool.name)
+            requires_config = list(existing.requires_config) if existing is not None else []
             _canonical.register(
                 Tool(
                     name=tool.name,
                     description=tool.description,
                     capability_tags=list(tool.capabilities),
-                    requires_config=[],
+                    requires_config=requires_config,
                     handler=_openclaw_noop_handler,
                     source="openclaw",
                 )
