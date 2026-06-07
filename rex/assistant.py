@@ -11,7 +11,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from .actions.dispatcher import _UNDO_PATTERN
+from .calendar_service import get_calendar_service
 from .config import Settings, settings
+from .followup_engine import FollowupEngine
 from .ha_bridge import HABridge
 from .history_store import HistoryStore
 from .llm_client import LanguageModel
@@ -20,6 +23,14 @@ from .model_router import ModelRouter
 from .plugins import PluginSpec
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "Assistant",
+    "ConversationTurn",
+    "FollowupEngine",
+    "_UNDO_PATTERN",
+    "get_calendar_service",
+]
 
 _UNVERIFIED_ACTION_CLAIM_PATTERNS = (
     re.compile(
