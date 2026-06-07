@@ -41,7 +41,8 @@ dependencies = [
     "werkzeug>=3.1.6",       # CVE-2024-34069, CVE-2024-49766, CVE-2024-49767, CVE-2025-66221, CVE-2026-21860, CVE-2026-27199 fixed in 3.1.x
     "jinja2>=3.1.6",         # CVE-2024-56201, CVE-2024-56326, CVE-2025-27516 fixed in 3.1.6
     "pillow>=12.1.1",        # CVE-2026-25990 fixed in 12.1.1
-    "urllib3>=2.6.3",        # CVE-2025-50181, CVE-2025-50182, CVE-2025-66418, CVE-2025-66471, CVE-2026-21441 fixed in 2.6.x
+    "idna>=3.15",            # CVE-2026-45409 fixed in 3.15
+    "urllib3>=2.7.0",        # CVE-2025-50181, CVE-2025-50182, CVE-2025-66418, CVE-2025-66471, CVE-2026-21441 fixed in 2.6.x; PYSEC-2026-141, PYSEC-2026-142 fixed in 2.7.0
     "certifi>=2024.2.2",     # Certificate validation fixes
     "aiosqlite>=0.20.0",
 
@@ -165,6 +166,7 @@ rex = ["py.typed"]
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
+pythonpath = [".", "bridge"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -219,12 +221,16 @@ exclude = '''
   | build
   | dist
   | __pycache__
+  | archived
 )/
 '''
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+exclude = [
+    "archived",  # retired files; not maintained
+]
 
 [tool.ruff.lint]
 select = [
@@ -387,22 +393,11 @@ module = [
 ]
 ignore_missing_imports = true
 
-# Pre-existing modules that are not yet strict-mode compliant.
-# These overrides silence errors in those files when running
-# `mypy --strict` against new, strict-clean modules (e.g. rex.autonomy.*).
-[[tool.mypy.overrides]]
-module = [
-  "rex",
-  "rex.config",
-  "rex.logging_utils",
-  "rex.llm_client",
-  "rex.scheduler",
-  "rex.event_bus",
-  "rex.http_errors",
-  "rex.notification",
-  "rex.calendar_service",
-  "rex.calendar_backends.ics_parser",
-  "rex.dashboard.auth",
-  "rex.dashboard.routes",
-]
-ignore_errors = true
+# US-REM-014: ignore_errors = true block removed.
+# All 12 previously-suppressed modules were verified to pass mypy with no errors.
+# rex.cli, rex.voice_loop, and rex.gui_app were never in this block and remain
+# included in full mypy checking.
+# Pre-existing mypy errors exist in: rex/assistant.py, rex/audio_config.py,
+# rex/compat/transformers_shims.py, rex/mqtt_client.py, rex/plugin_loader.py,
+# rex/response/builder.py, rex/voice_loop.py, rex/wakeword/listener.py.
+# These are tracked as technical debt; fixing them is out of scope for US-REM-014.

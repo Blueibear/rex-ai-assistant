@@ -10,6 +10,8 @@ New code should import directly from rex.config or use 'from rex import settings
     tests/test_us016_provider_routing.py
 """
 
+# Compatibility shim. Canonical implementation: rex.config. Scheduled for removal — see SURFACE-CLASSIFICATION.md.
+
 from __future__ import annotations
 
 import warnings

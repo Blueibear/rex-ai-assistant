@@ -30,9 +30,11 @@ def flask_client(tmp_data_dir: Path):  # type: ignore[override]
 
 
 def _register_and_login(client: object, username: str, password: str = "pass123") -> str:
+    setup_token = client.application.config.get("SETUP_TOKEN") or ""  # type: ignore[attr-defined]
     client.post(  # type: ignore[attr-defined]
         "/api/auth/register",
         json={"username": username, "password": password},
+        headers={"X-Setup-Token": setup_token},
     )
     resp = client.post(  # type: ignore[attr-defined]
         "/api/auth/login",

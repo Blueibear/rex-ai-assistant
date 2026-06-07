@@ -43,7 +43,11 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from rex.compat.python_compat import DEFAULT_INSTALL_LABEL, is_supported_python, unsupported_python_message
+from rex.compat.python_compat import (
+    DEFAULT_INSTALL_LABEL,
+    is_supported_python,
+    unsupported_python_message,
+)
 from rex.exception_handler import wrap_entrypoint
 from rex.startup_validation import check_startup_env
 

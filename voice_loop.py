@@ -14,6 +14,8 @@ RELATIONSHIP NOTE — two voice_loop files exist in this repo:
   authoritative voice loop executed when Rex starts.
 """
 
+# Compatibility shim. Canonical implementation: rex.voice_loop. Scheduled for removal — see SURFACE-CLASSIFICATION.md.
+
 # ruff: noqa: E402, I001
 
 from __future__ import annotations

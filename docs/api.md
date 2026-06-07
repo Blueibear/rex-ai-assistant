@@ -133,7 +133,9 @@ The stream emits `data: ...` SSE chunks.
 Start:
 
 ```bash
-REX_SPEAK_API_KEY=change-me rex-speak-api
+# Generate a strong API key first:
+#   python -c "import secrets; print(secrets.token_hex(32))"
+REX_SPEAK_API_KEY=<YOUR-STRONG-API-KEY> rex-speak-api
 ```
 
 Default URL: `http://127.0.0.1:5005`
@@ -169,7 +171,9 @@ The TTS API also registers Home Assistant and shopping-list blueprints when thei
 Start:
 
 ```bash
-REX_TOOL_API_KEY=change-me rex-tool-server
+# Generate a strong API key first:
+#   python -c "import secrets; print(secrets.token_hex(32))"
+REX_TOOL_API_KEY=<YOUR-STRONG-API-KEY> rex-tool-server
 ```
 
 Default URL: `http://127.0.0.1:18790`

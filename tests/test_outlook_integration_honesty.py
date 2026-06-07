@@ -3,9 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
-import rex.config
 import rex_calendar_bridge
 import rex_email_bridge
+
+import rex.config
 from rex.config import build_app_config
 
 REPO = Path(__file__).parent.parent
@@ -84,9 +85,9 @@ def test_email_and_calendar_handlers_surface_bridge_errors() -> None:
     email_src = (REPO / "gui" / "src" / "main" / "handlers" / "email.ts").read_text(
         encoding="utf-8"
     )
-    calendar_src = (
-        REPO / "gui" / "src" / "main" / "handlers" / "calendar.ts"
-    ).read_text(encoding="utf-8")
+    calendar_src = (REPO / "gui" / "src" / "main" / "handlers" / "calendar.ts").read_text(
+        encoding="utf-8"
+    )
 
     assert "throw new Error(result.error" in email_src
     assert "throw new Error(result.error" in calendar_src

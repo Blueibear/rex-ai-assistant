@@ -1,4 +1,4 @@
-"""Tests for US-LOG-002: Log viewer — SSE endpoint and download."""
+"""Tests for US-LOG-002 and US-RR-008: Log viewer — SSE endpoint, download, and auth gate."""
 
 from __future__ import annotations
 
@@ -9,12 +9,19 @@ import pytest
 
 
 @pytest.fixture()
-def app_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def tmp_data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setenv("REX_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("REX_JWT_SECRET", "[test-log002-jwt-placeholder-32-bytes-min]")
+    return tmp_path
+
+
+@pytest.fixture()
+def app_client(tmp_data_dir: Path, monkeypatch: pytest.MonkeyPatch):
     """Create a Flask test client with a temp log file."""
     from rex.gui_app import _create_flask_app
 
     # Override the log file path used inside gui_app.
-    log_file = tmp_path / "rex.log"
+    log_file = tmp_data_dir / "rex.log"
 
     # Patch _LOG_FILE inside the returned app by monkeypatching at module level.
     # gui_app creates _LOG_FILE as a local variable inside _create_flask_app,
@@ -35,24 +42,42 @@ def app_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     return flask_app.test_client(), log_file
 
 
-def test_logs_download_not_found(app_client):
+@pytest.fixture()
+def auth_header(app_client):
+    """Register + login a test user and return the Authorization header."""
     client, _ = app_client
-    resp = client.get("/api/logs/download")
+    setup_token = client.application.config.get("SETUP_TOKEN") or ""
+    client.post(
+        "/api/auth/register",
+        json={"username": "logviewer", "password": "[non-secret-test-value]"},
+        headers={"X-Setup-Token": setup_token},
+    )
+    resp = client.post(
+        "/api/auth/login",
+        json={"username": "logviewer", "password": "[non-secret-test-value]"},
+    )
+    token = resp.get_json()["token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_logs_download_not_found(app_client, auth_header):
+    client, _ = app_client
+    resp = client.get("/api/logs/download", headers=auth_header)
     assert resp.status_code == 404
 
 
-def test_logs_download_returns_file(app_client):
+def test_logs_download_returns_file(app_client, auth_header):
     client, log_file = app_client
     log_file.write_text('{"level":"INFO","message":"hello"}\n', encoding="utf-8")
-    resp = client.get("/api/logs/download")
+    resp = client.get("/api/logs/download", headers=auth_header)
     assert resp.status_code == 200
     assert b"hello" in resp.data
 
 
-def test_logs_download_content_type(app_client):
+def test_logs_download_content_type(app_client, auth_header):
     client, log_file = app_client
     log_file.write_text("line1\nline2\n", encoding="utf-8")
-    resp = client.get("/api/logs/download")
+    resp = client.get("/api/logs/download", headers=auth_header)
     assert resp.status_code == 200
 
 
@@ -85,11 +110,11 @@ def test_log_file_contains_json_lines(tmp_path: Path) -> None:
         root.setLevel(original_level)
 
 
-def test_logs_stream_route_exists(app_client):
+def test_logs_stream_route_exists(app_client, auth_header):
     """SSE route /api/logs/stream must exist and return streaming response."""
     client, _ = app_client
     # Use a short get that doesn't block — just confirm status 200 / Content-Type.
     # Flask test client buffers, so we read with buffered=False where possible.
-    resp = client.get("/api/logs/stream")
+    resp = client.get("/api/logs/stream", headers=auth_header)
     assert resp.status_code == 200
     assert "text/event-stream" in resp.content_type

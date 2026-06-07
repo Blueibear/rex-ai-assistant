@@ -9,12 +9,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-
 from rex.config import load_config
 from rex.config_manager import load_config as load_json_config
 from rex.voice_identity.embeddings_store import EmbeddingsStore
-from rex.voice_identity.enrollment import enroll_user
 from rex.voice_identity.optional_deps import get_embedding_backend
 
 _DEFAULT_MEMORY_DIR = Path(__file__).resolve().parents[2] / "Memory"
@@ -54,6 +51,10 @@ def enroll_from_samples(
     base_dir: Path | str | None = None,
 ) -> dict[str, Any]:
     """Enroll *user_id* from JSON-serialisable float sample arrays."""
+    import numpy as np
+
+    from rex.voice_identity.enrollment import enroll_user
+
     samples = [np.asarray(sample, dtype=np.float32) for sample in audio_samples]
     if any(sample.size == 0 for sample in samples):
         raise ValueError("Enrollment samples must not be empty")

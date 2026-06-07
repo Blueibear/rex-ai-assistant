@@ -741,7 +741,7 @@ class AsyncMicrophone:
             frame = combined[-window_samples:]
 
         zero_pad_samples = max(window_samples - filled_samples, 0)
-        chunk_rms, chunk_peak = _audio_level(cast(AudioArray, chunk))
+        chunk_rms, chunk_peak = _audio_level(chunk)
         frame_rms, frame_peak = _audio_level(cast(AudioArray, frame))
         logger.debug(
             (
@@ -1322,8 +1322,7 @@ class TextToSpeech:
             prefer_fast
             and self._provider == "edge"
             and os.name == "nt"
-            and len(text)
-            <= self._settings_int("tts_fast_short_reply_max_chars", 140)
+            and len(text) <= self._settings_int("tts_fast_short_reply_max_chars", 140)
         )
         logger.info(
             "[TTS] Spoken text prepared",
@@ -1396,9 +1395,7 @@ class TextToSpeech:
             elif self._provider == "edge":
                 run_metrics.update(await self._speak_edge(text, request_started_at=started_at))
             elif self._provider == "windows":
-                run_metrics.update(
-                    await self._speak_windows(text, request_started_at=started_at)
-                )
+                run_metrics.update(await self._speak_windows(text, request_started_at=started_at))
             else:
                 run_metrics["path_used"] = "stdout"
                 run_metrics["speech_start_delay_s"] = 0.0
@@ -1819,7 +1816,17 @@ class TextToSpeech:
 
         if sa is None:
             logger.error("LOCAL PLAYBACK ERROR: simpleaudio is not available in _speak_edge")
-            return
+            return {
+                "path_used": "edge",
+                "voice": voice,
+                "first_audio_chunk_s": first_audio_chunk_s,
+                "synthesis_ready_s": synthesis_ready_s,
+                "speech_start_delay_s": None,
+                "playback_duration_s": 0.0,
+                "audio_duration_s": audio_duration_s,
+                "used_streaming": used_streaming,
+                "playback_available": False,
+            }
 
         def _play(_pcm=pcm_data, _sample_rate=sample_rate, _channels=channel_count) -> None:
             play_obj = sa.play_buffer(
@@ -2077,7 +2084,9 @@ class VoiceLoop:
 
         return False
 
-    async def _safe_acknowledge(self, *, interaction_id: int = 0, requested_at: float | None = None) -> None:
+    async def _safe_acknowledge(
+        self, *, interaction_id: int = 0, requested_at: float | None = None
+    ) -> None:
         try:
             ack = self._acknowledge
             if ack is not None:
@@ -2352,7 +2361,7 @@ class VoiceLoop:
             _emit("wake_listening")
 
         interactions = 0
-        voice_mode_kwargs = dict(voice_mode=True)
+        # Assistant calls below pass voice_mode=True for concise spoken replies.
         _speak_streaming = self._speak_streaming
 
         logger.info(
@@ -2632,7 +2641,7 @@ class VoiceLoop:
                                 await asyncio.wait_for(
                                     _speak_streaming(
                                         _sentence_buffer_stream(
-                                            stream_reply(transcript, **voice_mode_kwargs)
+                                            stream_reply(transcript, voice_mode=True)
                                         )
                                     ),
                                     timeout=self._llm_timeout + self._tts_timeout,
@@ -2654,7 +2663,7 @@ class VoiceLoop:
                     else:
                         try:
                             llm_response = await asyncio.wait_for(
-                                self._assistant.generate_reply(transcript, **voice_mode_kwargs),
+                                self._assistant.generate_reply(transcript, voice_mode=True),
                                 timeout=self._llm_timeout,
                             )
                         except TimeoutError:
@@ -3119,13 +3128,22 @@ def build_voice_loop(
             extra={"event": "ffmpeg_missing", "tts_provider": tts._provider},
         )
 
+    async def _speak_for_callback(text: str) -> None:
+        await tts.speak(text, speaker_wav=speaker_wav)
+
+    async def _speak_default_for_callback(text: str) -> None:
+        await tts.speak(text)
+
+    async def _post_stt_phrase_callback() -> None:
+        await tts.speak("On it")
+
     ack_sound = getattr(settings, "acknowledgment_sound", "chime")
     if ack_sound and ack_sound != "chime" and not ack_sound.lower().endswith((".wav", ".mp3")):
         # Spoken filler phrase (e.g. "mm-hmm", "one moment")
         ack = WakeAcknowledgement(
             filler_phrase=ack_sound,
             is_speaking=tts.is_speaking,
-            filler_speak=lambda text: tts.speak(text),
+            filler_speak=_speak_default_for_callback,
         )
     elif ack_sound and ack_sound != "chime":
         # Custom audio file path
@@ -3148,8 +3166,7 @@ def build_voice_loop(
     ack_mode = getattr(settings, "acknowledgment_mode", "sound")
     post_stt_ack: Callable[[], Awaitable[None]] | None
     if ack_mode == "phrase":
-        _phrase = "On it"
-        post_stt_ack = lambda: tts.speak(_phrase)  # noqa: E731
+        post_stt_ack = _post_stt_phrase_callback
     elif ack_mode == "sound":
         post_stt_ack = ack.play
     else:
@@ -3166,7 +3183,7 @@ def build_voice_loop(
         detection_source=mic.detection_frame,
         record_phrase=mic.record_phrase,
         transcribe=lambda audio: stt.transcribe(audio, sample_rate),
-        speak=lambda text: tts.speak(text, speaker_wav=speaker_wav),
+        speak=_speak_for_callback,
         speak_streaming=lambda sentences: tts.speak_streaming(sentences, speaker_wav=speaker_wav),
         warmup=lambda: tts.warmup(speaker_wav=speaker_wav),
         acknowledge=ack.play,

@@ -15,19 +15,7 @@ AskRex Assistant is a local-first AI assistant for text chat, voice interaction,
 
 AskRex is alpha software. It is useful for local testing and development, but it should not be treated as production-ready. Recent GUI and voice-loop fixes have made several paths usable end to end; wake-word tuning, warning cleanup, and per-user data separation are still in progress. See [docs/claude/INTEGRATIONS_STATUS.md](docs/claude/INTEGRATIONS_STATUS.md) for the broader integration readiness snapshot.
 
-## Contributing
-
-AskRex Assistant is open to feedback, testing, documentation improvements, bug reports, and focused pull requests.
-
-Good places to start:
-
-- Read the [contributing guide](CONTRIBUTING.md)
-- Skim the [architecture overview](docs/ARCHITECTURE.md) for a tour of the major subsystems and where they live
-- Check issues labeled [`good first issue`](https://github.com/Blueibear/AskRex-Assistant/labels/good%20first%20issue)
-- Check issues labeled [`help wanted`](https://github.com/Blueibear/AskRex-Assistant/labels/help%20wanted)
-- Join the [GitHub Discussions](https://github.com/Blueibear/AskRex-Assistant/discussions) if you have questions or ideas
-
-If you are not sure where to begin, open a discussion and ask.
+> **Advanced / Developer**: For CLI text mode, voice loop, GPU/CUDA setup, and backend service configuration, see the [Advanced / Developer](#advanced--developer) section below. For GPU/CUDA setup and additional install variants, see [docs/advanced-install.md](docs/advanced-install.md).
 
 ## Table of Contents
 
@@ -40,73 +28,80 @@ If you are not sure where to begin, open a discussion and ask.
 - [Features](#features)
 - [Requirements](#requirements)
 - [Configuration](#configuration)
+- [GUI Usage](#gui-usage)
+- [Advanced / Developer](#advanced--developer)
+- [Development](#development)
+- [Documentation](#documentation)
+- [Security](#security)
 
 ## Quick Start
 
-Python 3.11 is required. Python 3.12 and newer are intentionally rejected by the current installers and runtime checks because the validated ML/TTS dependency path is Python 3.11-only.
+The supported user-facing interface is the **Electron desktop app**. Python 3.11 and Node.js/npm are required.
 
-1. Clone the repository and enter the project folder.
+Python 3.12 and newer are intentionally rejected by the current installers and runtime checks because the validated ML/TTS dependency path is Python 3.11-only.
 
-```bash
-git clone https://github.com/Blueibear/AskRex-Assistant.git
-cd AskRex-Assistant
-```
+1. Clone the repository.
 
-2. Create and activate a Python 3.11 virtual environment.
+   ```bash
+   git clone https://github.com/Blueibear/AskRex-Assistant.git
+   cd AskRex-Assistant
+   ```
 
-Windows PowerShell:
+2. Run the install script for your platform.
 
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip setuptools wheel
-```
+   Windows PowerShell:
 
-macOS/Linux shell:
+   ```powershell
+   py -3.11 -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   python -m pip install --upgrade pip setuptools wheel
+   Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
+   Copy-Item .env.example .env -ErrorAction SilentlyContinue
+   .\install.ps1
+   ```
 
-```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-```
+   macOS/Linux shell:
 
-3. Copy local config files and run the platform install script.
+   ```bash
+   python3.11 -m venv .venv
+   source .venv/bin/activate
+   python -m pip install --upgrade pip setuptools wheel
+   cp -n config/rex_config.example.json config/rex_config.json
+   cp -n .env.example .env
+   bash install.sh
+   ```
 
-Windows PowerShell:
+3. Configure LM Studio for local chat completions.
 
-```powershell
-Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
-Copy-Item .env.example .env -ErrorAction SilentlyContinue
-pip install .
-.\install.ps1
-```
+   In LM Studio, load a chat model, start the local OpenAI-compatible server, and confirm the server URL is `http://localhost:1234/v1`. AskRex expects the LM Studio server to be reachable on `localhost:1234` when you choose that local provider path.
 
-macOS/Linux shell:
+4. Run Rex in the Electron desktop app.
 
-```bash
-cp -n config/rex_config.example.json config/rex_config.json
-cp -n .env.example .env
-pip install .
-bash install.sh
-```
+   Windows PowerShell:
 
-4. Configure LM Studio for local model access at `localhost:1234`.
+   ```powershell
+   cd gui
+   npm.cmd install
+   npm.cmd run dev
+   ```
 
-Download and install LM Studio, start the LM Studio server on `localhost:1234`, and load your preferred model.
+   macOS/Linux shell:
 
-5. Verify the install and run Rex.
+   ```bash
+   cd gui
+   npm install
+   npm run dev
+   ```
 
-```powershell
-rex doctor
-rex
-```
+   The Electron app communicates with the Python Flask backend automatically.
 
-```bash
-rex doctor
-rex
-```
+5. Verify it works.
 
-> **Advanced/Developer Install**: For GPU/CUDA setup, manual venv instructions, and development tooling, see [docs/advanced-install.md](docs/advanced-install.md). Additional install variants (`install_full.sh`, `install_lean.sh`, `setup.sh`) are in `scripts/install/`.
+   ```bash
+   rex doctor
+   ```
+
+   Then send a short chat message in the Electron app and confirm Rex replies.
 
 ## Current Status
 
@@ -137,6 +132,7 @@ This README reflects the current milestone after recent live testing and repair 
 - A deprecated `wake_word` config warning still appears during startup.
 - A `.env` permissions warning still appears.
 - Some pages and integrations are still in active stabilization; do not assume every registered integration is production-ready.
+- Per-user data isolation is planned but not yet complete.
 
 ## Planned Future Implementation
 
@@ -152,15 +148,15 @@ This README reflects the current milestone after recent live testing and repair 
 
 | Surface | Command | Status |
 |---|---|---|
-| CLI text chat | `rex` or `python -m rex` | Working basic chat |
+| **Electron desktop app** | Windows: `cd gui; npm.cmd run dev`; macOS/Linux: `cd gui && npm run dev` | **Primary user-facing interface** — current primary GUI under active stabilization |
+| CLI text chat | `rex` or `python -m rex` | Working basic chat (developer / advanced) |
 | Diagnostics | `rex doctor` or `python -m rex doctor` | Working |
-| Voice loop | `python rex_loop.py` | Working in live testing; tuning ongoing |
-| Electron desktop app | Windows: `cd gui; npm.cmd run dev`; macOS/Linux: `cd gui && npm run dev` | Current primary GUI under active stabilization |
-| Python/Flask local API and experimental web dashboard | `rex-gui` | Starts Flask on `http://127.0.0.1:8765`; local API routes are still useful, but the browser dashboard UI is incomplete and not the primary interface |
-| TTS API | `rex-speak-api` | Implemented service, default `127.0.0.1:5005` |
-| OpenClaw tool server | `rex-tool-server` | Implemented service, default `127.0.0.1:18790` |
-| Windows computer agent | `rex-agent` | Optional remote PC control agent |
-| Runtime config CLI | `rex-config` | Config inspection and legacy env migration; warning cleanup remains |
+| Voice loop | `python rex_loop.py` | Working in live testing; tuning ongoing (developer / advanced) |
+| Python/Flask local API | `rex-gui` | Starts Flask on `http://127.0.0.1:8765`; backend service for Electron — not a standalone browser app (developer-only) |
+| TTS API | `rex-speak-api` | Implemented service, default `127.0.0.1:5005` (developer / advanced) |
+| OpenClaw tool server | `rex-tool-server` | Implemented service, default `127.0.0.1:18790` (developer / advanced) |
+| Windows computer agent | `rex-agent` | Optional remote PC control agent (developer / advanced) |
+| Runtime config CLI | `rex-config` | Config inspection and legacy env migration (developer / advanced) |
 
 The Electron app under `gui/` is the current primary GUI. `rex-gui` remains useful as a local Flask/API service and for compatibility testing, but its browser dashboard at `/ui/` is incomplete and should not be treated as the main user interface. The legacy Tkinter launchers (`gui.py` and its entry point) are deprecated.
 
@@ -277,9 +273,34 @@ The Electron app requires the Python bridge scripts at the repo root and the cur
 The supported GUI interface is the **Electron desktop app**. Use `rex-gui` only as a backend API
 server or for local API route testing.
 
-## Common Commands
+## Advanced / Developer
 
-After activating the virtual environment, these commands are the same on Windows, macOS, and Linux:
+The following runtime paths are for developers, advanced users, and contributors. They are not the primary user-facing path.
+
+### CLI Text Mode
+
+After setting up the Python environment (see [Quick Start](#quick-start) step 2), run:
+
+```bash
+rex doctor
+rex
+```
+
+Configure LM Studio for local model access at `localhost:1234`, or configure an OpenAI-compatible provider in `config/rex_config.json`.
+
+For GPU/CUDA setup and additional install variants, see [docs/advanced-install.md](docs/advanced-install.md). Additional install scripts (`install_full.sh`, `install_lean.sh`, `setup.sh`) are in `scripts/install/`.
+
+### Voice Loop
+
+```bash
+python rex_loop.py
+```
+
+Wake word → STT → LLM → TTS. Wake-word reliability still requires tuning.
+
+### Common Commands
+
+After activating the virtual environment:
 
 ```bash
 rex --help
@@ -295,21 +316,25 @@ rex wc coupons create --site myshop --code SAVE10 --amount 10 --type percent
 rex ha tts test --message "Hello from Rex"
 ```
 
-## Services
-
 ### TTS API
+
+The TTS API (`rex-speak-api`) requires an API key. Generate one with:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
 
 Windows PowerShell:
 
 ```powershell
-$env:REX_SPEAK_API_KEY = "change-me"  # pragma: allowlist secret
+$env:REX_SPEAK_API_KEY = "<YOUR_API_KEY>"
 rex-speak-api
 ```
 
 macOS/Linux shell:
 
 ```bash
-export REX_SPEAK_API_KEY=change-me
+export REX_SPEAK_API_KEY=<YOUR_API_KEY>
 rex-speak-api
 ```
 
@@ -318,24 +343,30 @@ Request format with curl, using macOS/Linux shell syntax or Git Bash/WSL on Wind
 ```bash
 curl -X POST http://127.0.0.1:5005/speak \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: change-me" \
+  -H "X-API-Key: <YOUR_API_KEY>" \
   -d '{"text":"Hello from AskRex","user":"default"}' \
   --output speech.wav
 ```
 
-### OpenClaw/Rex tool server
+### OpenClaw / Rex Tool Server
+
+The OpenClaw tool server (`rex-tool-server`) requires an API key. Generate one with:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
 
 Windows PowerShell:
 
 ```powershell
-$env:REX_TOOL_API_KEY = "change-me"  # pragma: allowlist secret
+$env:REX_TOOL_API_KEY = "<YOUR_API_KEY>"
 rex-tool-server
 ```
 
 macOS/Linux shell:
 
 ```bash
-export REX_TOOL_API_KEY=change-me
+export REX_TOOL_API_KEY=<YOUR_API_KEY>
 rex-tool-server
 ```
 

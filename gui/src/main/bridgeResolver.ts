@@ -49,8 +49,24 @@ const BRIDGE_REGISTRY: Record<string, string> = {
  *
  * Bridge scripts live under the `bridge/` subdirectory of the repo root
  * (moved from the root in US-019).
+ *
+ * Path strategy:
+ *   - Packaged mode (`app.isPackaged === true`): electron-builder copies bridge
+ *     scripts into `extraResources`, placing them at
+ *     `process.resourcesPath/bridge/<script>` — outside the .asar archive.
+ *     Using `process.resourcesPath` as the base is required because
+ *     `app.getAppPath()` resolves inside the archive in packaged mode, and
+ *     `../bridge/` does not exist there.
+ *   - Dev mode (`app.isPackaged === false`): bridge scripts are in the source
+ *     tree. `app.getAppPath()` is the compiled app directory; `../bridge/`
+ *     reaches the repo root where scripts live during development.
  */
 export function resolveBridgePath(scriptFilename: string): string {
+  if (app.isPackaged) {
+    // Packaged: bridge scripts are in extraResources, outside the .asar archive.
+    return join(process.resourcesPath, 'bridge', scriptFilename)
+  }
+  // Dev: bridge scripts are in the source tree relative to the repo root.
   return join(app.getAppPath(), '..', 'bridge', scriptFilename)
 }
 
@@ -75,6 +91,12 @@ export function resolvePythonCommand(): string {
  * which bridge is absent and where it should be.
  */
 export function validateBridges(): void {
+  // Log the bridge base directory so it can be inspected in packaged app logs.
+  const bridgeBase = app.isPackaged
+    ? join(process.resourcesPath, 'bridge')
+    : join(app.getAppPath(), '..', 'bridge')
+  console.log(`[bridgeResolver] Bridge base path: ${bridgeBase} (isPackaged=${app.isPackaged})`)
+
   let allPresent = true
   for (const [name, filename] of Object.entries(BRIDGE_REGISTRY)) {
     const resolvedPath = resolveBridgePath(filename)

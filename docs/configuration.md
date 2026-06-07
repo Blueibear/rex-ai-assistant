@@ -109,6 +109,16 @@ See `.env.example` for a copy-paste template.
 | `REX_LOGIN_MAX_ATTEMPTS` | `5` | No | Maximum failed login attempts before lockout |
 | `REX_LOGIN_LOCKOUT_SECONDS` | `300` | No | Lockout duration in seconds after excessive failed logins |
 
+### JWT Authentication
+
+| Variable | Default | Required | Description |
+|----------|---------|----------|-------------|
+| `REX_JWT_SECRET` | (none) | **Yes (production)** | Secret key used to sign and verify JWT tokens issued by the GUI and API. Must be a cryptographically random string of at least 32 bytes. If unset, the application raises `RuntimeError` at startup — there is no insecure fallback. Generate with: `python -c "import secrets; print(secrets.token_hex(32))"` |
+
+> **Security note:** Never use a guessable or hardcoded value for `REX_JWT_SECRET`. A compromised secret allows an attacker to forge arbitrary JWT tokens and bypass all authentication. Treat this value with the same care as a private key.
+
+---
+
 ### Agent Server
 
 | Variable | Default | Required | Description |

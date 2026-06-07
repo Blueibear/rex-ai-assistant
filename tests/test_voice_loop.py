@@ -317,9 +317,7 @@ def test_voice_loop_primes_detection_before_reporting_wake_listening():
 
     asyncio.run(loop.run(max_interactions=1))
 
-    assert events.index(("prime", "voice_loop_start")) < events.index(
-        ("state", "wake_listening")
-    )
+    assert events.index(("prime", "voice_loop_start")) < events.index(("state", "wake_listening"))
     assert events.index(("prime", "post_interaction_reset")) < len(events) - 1
     assert events[-1] == ("state", "wake_listening")
 

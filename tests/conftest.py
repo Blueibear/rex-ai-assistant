@@ -143,11 +143,7 @@ FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
 def _tracked_modified_files() -> set[str]:
     from tests.git_helpers import get_dirty_files  # noqa: PLC0415
 
-    return {
-        line[3:]
-        for line in get_dirty_files(exclude_coverage=False)
-        if line[0:2].strip()
-    }
+    return {line[3:] for line in get_dirty_files(exclude_coverage=False) if line[0:2].strip()}
 
 
 @pytest.fixture(scope="session")

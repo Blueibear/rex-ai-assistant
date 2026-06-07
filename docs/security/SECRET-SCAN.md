@@ -1,5 +1,11 @@
 # Hardcoded Secret Scan Report
 
+> **Developer reference:** This document is a security audit record for maintainers
+> and contributors. It is not part of user-facing install instructions. Placeholder
+> values referenced here (e.g., `changeme`, `YOUR-SECRET-HERE`) describe false
+> positives found in config templates and test fixtures — they are not instructions
+> to use those values in real deployments.
+
 **Tool:** detect-secrets 1.5.0
 **Date:** 2026-03-11
 **Scope:** Full repository (source, tests, docs, config examples)

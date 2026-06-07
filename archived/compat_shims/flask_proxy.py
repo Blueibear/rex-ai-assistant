@@ -8,9 +8,9 @@ from typing import Any
 from flask import Flask, abort, jsonify, redirect, request
 from flask import g as flask_g
 from flask_cors import CORS
+from memory_utils import load_memory_profile, load_users_map, resolve_user_key
 
 import utils.env_loader  # noqa: F401  # Auto-loads .env on import
-from memory_utils import load_memory_profile, load_users_map, resolve_user_key
 from rex.health import check_config, create_health_blueprint
 from rex.http_errors import (
     BAD_REQUEST,
