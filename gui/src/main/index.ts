@@ -172,7 +172,7 @@ function readSavedHomeAssistantCredentials(): { baseUrl: string; token: string }
 
   return {
     baseUrl: normalizeHaUrl(integrations.haUrl) || normalizeHaUrl(haConfig.base_url),
-    // HA token is stored in .env only — never in gui_settings (canonical secret store)
+    // HA token is stored in .env only - never in gui_settings (canonical secret store)
     token: (typeof env.HA_TOKEN === 'string' && env.HA_TOKEN.trim()) || ''
   }
 }
@@ -181,7 +181,7 @@ function saveHomeAssistantCredentials(baseUrl: string, token: string): void {
   const stored = readGuiSettings()
   const integrations = { ...((stored['integrations'] ?? {}) as Record<string, unknown>) }
   integrations.haUrl = baseUrl
-  // haToken is NOT stored in gui_settings — canonical secret store is .env only
+  // haToken is NOT stored in gui_settings - canonical secret store is .env only
   stored['integrations'] = integrations as Settings
   writeGuiSettings(stored)
   mirrorToRexConfig('integrations', integrations as Settings)
@@ -1178,7 +1178,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
         : section === 'voice'
           ? (buildVoiceSettings(values) as unknown as Settings)
           : values
-    // Secrets must not be stored in gui_settings — redirect HA token to .env
+    // Secrets must not be stored in gui_settings - redirect HA token to .env
     if (section === 'integrations') {
       const raw = normalizedValues as unknown as Record<string, unknown>
       const haToken = raw['haToken']
@@ -1407,7 +1407,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
 
     const suggestions: PreferenceSuggestion[] = []
 
-    // Autonomy mode â€” highest impact
+    // Autonomy mode - highest impact
     const preferredMode =
       typeof profile.preferred_autonomy_mode === 'string' ? profile.preferred_autonomy_mode : null
     if (preferredMode && preferredMode !== aiSettings.autonomyMode) {
@@ -1433,7 +1433,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
       })
     }
 
-    // Budget â€” suggest 2Ã— avg if no budget is set
+    // Budget - suggest 2x avg if no budget is set
     const avgBudget =
       typeof profile.avg_budget_usd === 'number' ? profile.avg_budget_usd : 0
     if (avgBudget > 0 && aiSettings.budgetPerPlan === 0) {
@@ -1442,7 +1442,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
         field: 'budgetPerPlan',
         current_value: aiSettings.budgetPerPlan,
         suggested_value: suggested,
-        reason: `Your average plan cost is $${avgBudget.toFixed(2)} â€” a $${suggested.toFixed(2)} budget would prevent overruns`
+        reason: `Your average plan cost is $${avgBudget.toFixed(2)} - a $${suggested.toFixed(2)} budget would prevent overruns`
       })
     }
 

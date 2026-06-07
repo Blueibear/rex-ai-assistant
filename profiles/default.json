@@ -1,0 +1,14 @@
+{
+  "profile_version": 1,
+  "name": "default",
+  "description": "Paid stable profile",
+  "capabilities": ["local_commands", "ha_router"],
+  "overrides": {
+    "runtime": {
+      "log_level": "INFO"
+    },
+    "models": {
+      "tts_provider": "xtts"
+    }
+  }
+}
