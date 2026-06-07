@@ -136,12 +136,17 @@ _RATE_CACHE: dict[str, deque] | None = (
     defaultdict(deque) if _LIMITER_STORAGE_URI.startswith("memory") else None
 )
 
-app.register_blueprint(create_ha_blueprint())
+try:
+    app.register_blueprint(create_ha_blueprint())
+    logger.info("Home Assistant bridge registered at /ha/*")
+except RuntimeError as _ha_err:
+    logger.warning("Home Assistant bridge not registered: %s", _ha_err)
 
 # Shopping list PWA (US-SL-004)
 try:
-    from rex.shopping_list import ShoppingList as _ShoppingList
     from rex.shopping_pwa import create_blueprint as _create_shopping_blueprint
+
+    from rex.shopping_list import ShoppingList as _ShoppingList
 
     _shopping_pwa_pin = os.getenv("REX_SHOPPING_PIN") or None
     app.register_blueprint(_create_shopping_blueprint(_ShoppingList(), pin=_shopping_pwa_pin))

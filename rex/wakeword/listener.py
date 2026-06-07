@@ -65,7 +65,7 @@ class WakeWordListener:
         self._attempt_count = 0
         self._listening_cycle += 1
         self._listening_started_at = time.monotonic()
-        extra = {
+        extra: dict[str, object] = {
             "event": "wakeword_listening_cycle_started",
             "reason": reason,
             "threshold": self._threshold,
@@ -110,7 +110,7 @@ class WakeWordListener:
         self._running = True
         if self._listening_started_at is None:
             self.mark_listening_started(reason="listener_loop_entered")
-        enter_extra = {
+        enter_extra: dict[str, object] = {
             "event": "wakeword_listener_loop_entered",
             "threshold": self._threshold,
             "keyword": self._keyword,
@@ -222,7 +222,7 @@ class WakeWordListener:
                 await asyncio.sleep(self._poll_interval)
         finally:
             self._running = False
-            exit_extra = {
+            exit_extra: dict[str, object] = {
                 "event": "wakeword_listener_loop_exited",
                 "threshold": self._threshold,
                 "keyword": self._keyword,
@@ -447,7 +447,9 @@ def build_default_detector(
     except Exception as exc:  # pragma: no cover - dependency/setup dependent
         raise WakeWordError(f"Failed to load wake-word model: {exc}") from exc
 
-    active_backend = selection.active_backend if selection is not None else (backend or "openwakeword")
+    active_backend = (
+        selection.active_backend if selection is not None else (backend or "openwakeword")
+    )
 
     if poll_interval is None:
         poll_interval = min(0.05, max(0.0, chunk_duration / 2))
@@ -464,7 +466,9 @@ def build_default_detector(
             "requested_backend": selection.requested_backend if selection else backend,
             "requested_phrase": selection.requested_phrase if selection else keyword,
             "requested_model_path": selection.requested_model_path if selection else model_path,
-            "requested_embedding_path": selection.requested_embedding_path if selection else embedding_path,
+            "requested_embedding_path": (
+                selection.requested_embedding_path if selection else embedding_path
+            ),
             "resolved_model_path": selection.resolved_model_path if selection else None,
             "resolved_embedding_path": selection.resolved_embedding_path if selection else None,
             "used_fallback": selection.used_fallback if selection else False,
@@ -483,7 +487,9 @@ def build_default_detector(
             "requested_backend": selection.requested_backend if selection else backend,
             "requested_phrase": selection.requested_phrase if selection else keyword,
             "requested_model_path": selection.requested_model_path if selection else model_path,
-            "requested_embedding_path": selection.requested_embedding_path if selection else embedding_path,
+            "requested_embedding_path": (
+                selection.requested_embedding_path if selection else embedding_path
+            ),
             "resolved_model_path": selection.resolved_model_path if selection else None,
             "resolved_embedding_path": selection.resolved_embedding_path if selection else None,
             "used_fallback": selection.used_fallback if selection else False,

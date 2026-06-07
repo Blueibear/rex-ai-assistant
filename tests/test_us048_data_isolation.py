@@ -38,10 +38,15 @@ def flask_client(tmp_data_dir: Path):  # type: ignore[override]
 
 
 def _register_and_login(client: object, username: str, password: str = "pass123") -> str:
-    """Register a user, log in, and return the Bearer token."""
+    """Register a user, log in, and return the Bearer token.
+
+    Passes the setup token because this helper always creates the first user.
+    """
+    setup_token = client.application.config.get("SETUP_TOKEN") or ""  # type: ignore[attr-defined]
     client.post(  # type: ignore[attr-defined]
         "/api/auth/register",
         json={"username": username, "password": password},
+        headers={"X-Setup-Token": setup_token},
     )
     resp = client.post(  # type: ignore[attr-defined]
         "/api/auth/login",
@@ -64,9 +69,11 @@ class TestMemoryProfilesKeyedByUser:
         self, flask_client: object, tmp_data_dir: Path
     ) -> None:
         """Registering a user creates a Memory profile under the user's ID."""
+        setup_token = flask_client.application.config.get("SETUP_TOKEN") or ""  # type: ignore[attr-defined]
         resp = flask_client.post(  # type: ignore[attr-defined]
             "/api/auth/register",
             json={"username": "alice", "password": "secret"},
+            headers={"X-Setup-Token": setup_token},
         )
         assert resp.status_code == 201
         user_id = resp.get_json()["id"]
@@ -82,10 +89,13 @@ class TestMemoryProfilesKeyedByUser:
         self, flask_client: object, tmp_data_dir: Path
     ) -> None:
         """Two different users get separate Memory profiles."""
+        setup_token = flask_client.application.config.get("SETUP_TOKEN") or ""  # type: ignore[attr-defined]
         resp_a = flask_client.post(  # type: ignore[attr-defined]
             "/api/auth/register",
             json={"username": "alice", "password": "pass"},
+            headers={"X-Setup-Token": setup_token},
         )
+        # Second user: user_count > 0, no token required.
         resp_b = flask_client.post(  # type: ignore[attr-defined]
             "/api/auth/register",
             json={"username": "bob", "password": "pass"},

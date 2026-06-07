@@ -12,6 +12,7 @@ from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from time import struct_time
 from typing import Any
 
 from rex.log_paths import (
@@ -67,7 +68,9 @@ class JsonFormatter(logging.Formatter):
 class UtcFormatter(logging.Formatter):
     """Plain-text formatter with timestamps explicitly rendered in UTC."""
 
-    converter = time.gmtime
+    @staticmethod
+    def converter(timestamp: float | None = None) -> struct_time:
+        return time.gmtime(timestamp)
 
 
 def _json_logging_enabled() -> bool:
@@ -368,11 +371,11 @@ def configure_logging(
             except (AttributeError, ValueError):
                 pass  # Continue without forcing encoding
 
-        handlers_list = [stream_handler]
+        handlers_list: list[logging.Handler] = [stream_handler]
 
         if _file_logging_enabled():
             runtime_handlers, _log_path, _error_path = _make_runtime_file_handlers(formatter)
-            handlers_list.extend(runtime_handlers)  # type: ignore[list-item]
+            handlers_list.extend(runtime_handlers)
 
         handlers = tuple(handlers_list)
 

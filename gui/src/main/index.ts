@@ -172,10 +172,8 @@ function readSavedHomeAssistantCredentials(): { baseUrl: string; token: string }
 
   return {
     baseUrl: normalizeHaUrl(integrations.haUrl) || normalizeHaUrl(haConfig.base_url),
-    token:
-      (typeof integrations.haToken === 'string' && integrations.haToken.trim()) ||
-      (typeof env.HA_TOKEN === 'string' && env.HA_TOKEN.trim()) ||
-      ''
+    // HA token is stored in .env only - never in gui_settings (canonical secret store)
+    token: (typeof env.HA_TOKEN === 'string' && env.HA_TOKEN.trim()) || ''
   }
 }
 
@@ -183,11 +181,13 @@ function saveHomeAssistantCredentials(baseUrl: string, token: string): void {
   const stored = readGuiSettings()
   const integrations = { ...((stored['integrations'] ?? {}) as Record<string, unknown>) }
   integrations.haUrl = baseUrl
-  integrations.haToken = token
+  // haToken is NOT stored in gui_settings - canonical secret store is .env only
   stored['integrations'] = integrations as Settings
   writeGuiSettings(stored)
   mirrorToRexConfig('integrations', integrations as Settings)
-  writeEnvKey('HA_TOKEN', token)
+  if (token) {
+    writeEnvKey('HA_TOKEN', token)
+  }
 }
 
 function describeHaError(error: unknown): string {
@@ -765,11 +765,11 @@ const defaultSettingsMap: Record<string, Settings> = {
   integrations: {
     emailProvider: 'gmail',
     emailClientId: '',
-    emailClientSecret: '',
+    emailClientSecret: '', // pragma: allowlist secret
     emailAccounts: [] as EmailAccount[],
     calendarProvider: 'gmail',
     calendarClientId: '',
-    calendarClientSecret: '',
+    calendarClientSecret: '', // pragma: allowlist secret
     smsSid: '',
     smsAuthToken: '',
     smsFromNumber: '',
@@ -794,6 +794,8 @@ const defaultSettingsMap: Record<string, Settings> = {
 }
 
 type TestableIntegration = 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'
+
+type IntegrationTestResult = { ok: boolean; error?: string }
 
 interface StoredIntegrationStatus {
   status: IntegrationConnectionStatus
@@ -823,7 +825,7 @@ function hasConfiguredOutlookEmail(integrations: Record<string, unknown>): boole
   if (
     integrations.emailProvider === 'outlook' &&
     hasText(integrations.emailClientId) &&
-    hasText(integrations.emailClientSecret)
+    hasText(integrations.emailClientSecret) // pragma: allowlist secret
   ) {
     return true
   }
@@ -831,7 +833,7 @@ function hasConfiguredOutlookEmail(integrations: Record<string, unknown>): boole
   return accounts.some((raw) => {
     if (!raw || typeof raw !== 'object') return false
     const account = raw as Record<string, unknown>
-    return account.backend === 'outlook' && hasText(account.clientId) && hasText(account.clientSecret)
+    return account.backend === 'outlook' && hasText(account.clientId) && hasText(account.clientSecret) // pragma: allowlist secret
   })
 }
 
@@ -839,7 +841,7 @@ function hasConfiguredOutlookCalendar(integrations: Record<string, unknown>): bo
   return (
     integrations.calendarProvider === 'outlook' &&
     hasText(integrations.calendarClientId) &&
-    hasText(integrations.calendarClientSecret)
+    hasText(integrations.calendarClientSecret) // pragma: allowlist secret
   )
 }
 
@@ -889,12 +891,12 @@ function integrationFingerprint(
   if (type === 'email') {
     payload.emailProvider = integrations.emailProvider
     payload.emailClientId = integrations.emailClientId
-    payload.emailClientSecret = integrations.emailClientSecret
+    payload.emailClientSecret = integrations.emailClientSecret // pragma: allowlist secret
     payload.emailAccounts = integrations.emailAccounts
   } else if (type === 'calendar') {
     payload.calendarProvider = integrations.calendarProvider
     payload.calendarClientId = integrations.calendarClientId
-    payload.calendarClientSecret = integrations.calendarClientSecret
+    payload.calendarClientSecret = integrations.calendarClientSecret // pragma: allowlist secret
   } else if (type === 'sms') {
     payload.smsSid = integrations.smsSid
     payload.smsAuthToken = integrations.smsAuthToken
@@ -925,7 +927,7 @@ function integrationFingerprint(
     const openai = rexConfig.openai && typeof rexConfig.openai === 'object'
       ? (rexConfig.openai as Record<string, unknown>)
       : {}
-    payload.openai = env.OPENAI_API_KEY || openai.api_key
+    payload.openai = env.OPENAI_API_KEY || openai.api_key // pragma: allowlist secret
   } else if (type === 'ollama') {
     const ollama = rexConfig.ollama && typeof rexConfig.ollama === 'object'
       ? (rexConfig.ollama as Record<string, unknown>)
@@ -999,16 +1001,95 @@ function reconcileIntegrationStatuses(): void {
 }
 
 function hasConfiguredEmail(integrations: Record<string, unknown>): boolean {
-  if (hasText(integrations.emailClientId) && hasText(integrations.emailClientSecret)) return true
+  if (hasText(integrations.emailClientId) && hasText(integrations.emailClientSecret)) return true // pragma: allowlist secret
   const accounts = Array.isArray(integrations.emailAccounts) ? integrations.emailAccounts : []
   return accounts.some((raw) => {
     if (!raw || typeof raw !== 'object') return false
     const account = raw as Record<string, unknown>
     if (account.backend === 'imap') {
-      return hasText(account.host) && hasText(account.username) && hasText(account.password)
+      return hasText(account.host) && hasText(account.username) && hasText(account.password) // pragma: allowlist secret
     }
-    return hasText(account.clientId) && hasText(account.clientSecret)
+    return hasText(account.clientId) && hasText(account.clientSecret) // pragma: allowlist secret
   })
+}
+
+function hasDirectEmailCredentials(integrations: Record<string, unknown>): boolean {
+  return hasText(integrations.emailClientId) && hasText(integrations.emailClientSecret) // pragma: allowlist secret
+}
+
+function hasDirectCalendarCredentials(integrations: Record<string, unknown>): boolean {
+  return hasText(integrations.calendarClientId) && hasText(integrations.calendarClientSecret) // pragma: allowlist secret
+}
+
+function hasGuiSmsCredentials(integrations: Record<string, unknown>): boolean {
+  return (
+    hasText(integrations.smsSid) &&
+    hasText(integrations.smsAuthToken) &&
+    hasText(integrations.smsFromNumber)
+  )
+}
+
+function hasEnvSmsCredentials(env: Record<string, string>): boolean {
+  return hasText(env.TWILIO_ACCOUNT_SID) && hasText(env.TWILIO_AUTH_TOKEN)
+}
+
+function hasGuiPhoneCredentials(integrations: Record<string, unknown>): boolean {
+  return (
+    hasText(integrations.phoneSid) &&
+    hasText(integrations.phoneAuthToken) &&
+    hasText(integrations.phoneNumber)
+  )
+}
+
+function hasEnvPhoneCredentials(env: Record<string, string>): boolean {
+  return (
+    hasText(env.TWILIO_ACCOUNT_SID) &&
+    hasText(env.TWILIO_AUTH_TOKEN) &&
+    hasText(env.TWILIO_PHONE_NUMBER)
+  )
+}
+
+function integrationConfiguredResult(configured: boolean): IntegrationTestResult {
+  return configured ? { ok: true } : { ok: false, error: 'No credentials configured' }
+}
+
+function testEmailIntegration(integrations: Record<string, unknown>): IntegrationTestResult {
+  if (hasConfiguredOutlookEmail(integrations)) {
+    return { ok: false, error: OUTLOOK_EMAIL_UNSUPPORTED }
+  }
+  return integrationConfiguredResult(hasDirectEmailCredentials(integrations) || hasConfiguredEmail(integrations))
+}
+
+function testCalendarIntegration(integrations: Record<string, unknown>): IntegrationTestResult {
+  if (hasConfiguredOutlookCalendar(integrations)) {
+    return { ok: false, error: OUTLOOK_CALENDAR_UNSUPPORTED }
+  }
+  return integrationConfiguredResult(hasDirectCalendarCredentials(integrations))
+}
+
+function testSmsIntegration(integrations: Record<string, unknown>): IntegrationTestResult {
+  const env = readEnvFile()
+  return integrationConfiguredResult(hasGuiSmsCredentials(integrations) || hasEnvSmsCredentials(env))
+}
+
+function testPhoneIntegration(integrations: Record<string, unknown>): IntegrationTestResult {
+  const env = readEnvFile()
+  return integrationConfiguredResult(hasGuiPhoneCredentials(integrations) || hasEnvPhoneCredentials(env))
+}
+
+async function testIntegrationByType(
+  type: string,
+  integrations: Record<string, unknown>
+): Promise<{ type?: TestableIntegration; result: IntegrationTestResult }> {
+  if (type === 'email') return { type, result: testEmailIntegration(integrations) }
+  if (type === 'calendar') return { type, result: testCalendarIntegration(integrations) }
+  if (type === 'sms') return { type, result: testSmsIntegration(integrations) }
+  if (type === 'phone') return { type, result: testPhoneIntegration(integrations) }
+  if (type === 'homeassistant') {
+    const { baseUrl, token } = readSavedHomeAssistantCredentials()
+    return { type, result: await testHomeAssistantConnection(baseUrl, token) }
+  }
+  return { result: { ok: false, error: 'Unknown integration type' } }
 }
 
 function buildIntegrationInventory(): IntegrationInventoryItem[] {
@@ -1054,7 +1135,7 @@ function buildIntegrationInventory(): IntegrationInventoryItem[] {
     make({
       name: 'Calendar',
       key: 'calendar',
-      configured: hasText(integrations.calendarClientId) && hasText(integrations.calendarClientSecret),
+      configured: hasText(integrations.calendarClientId) && hasText(integrations.calendarClientSecret), // pragma: allowlist secret
       configure_url: '/settings?section=integrations',
       testable: true
     }),
@@ -1097,7 +1178,7 @@ function buildIntegrationInventory(): IntegrationInventoryItem[] {
     make({
       name: 'OpenAI',
       key: 'openai',
-      configured: hasText(env.OPENAI_API_KEY) || hasText(openai.api_key),
+      configured: hasText(env.OPENAI_API_KEY) || hasText(openai.api_key), // pragma: allowlist secret
       configure_url: '/settings?section=ai'
     }),
     make({
@@ -1172,12 +1253,21 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
 
   ipcMain.handle('rex:setSettings', (_event, section: string, values: Settings) => {
     const stored = readGuiSettings()
-    const normalizedValues =
+    let normalizedValues =
       section === 'ai'
         ? (buildAiSettings(values) as unknown as Settings)
         : section === 'voice'
           ? (buildVoiceSettings(values) as unknown as Settings)
           : values
+    // Secrets must not be stored in gui_settings - redirect HA token to .env
+    if (section === 'integrations') {
+      const raw = normalizedValues as unknown as Record<string, unknown>
+      const haToken = raw['haToken']
+      if (typeof haToken === 'string' && haToken.trim()) {
+        writeEnvKey('HA_TOKEN', haToken.trim())
+      }
+      normalizedValues = { ...raw, haToken: '' } as unknown as Settings
+    }
     stored[section] = normalizedValues
     writeGuiSettings(stored)
     // Mirror relevant fields to rex_config.json so the Python backend picks them up
@@ -1255,74 +1345,13 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
     // Check whether credentials for the requested integration are configured
     const stored = readGuiSettings()
     const integrations = (stored['integrations'] ?? {}) as Record<string, unknown>
-    let result: { ok: boolean; error?: string }
+    const testResult = await testIntegrationByType(type, integrations)
 
-    if (type === 'email') {
-      if (hasConfiguredOutlookEmail(integrations)) {
-        result = { ok: false, error: OUTLOOK_EMAIL_UNSUPPORTED }
-        writeIntegrationStatus('email', result)
-        return result
-      }
-      const hasCredentials =
-        typeof integrations.emailClientId === 'string' && integrations.emailClientId.trim() !== '' &&
-        typeof integrations.emailClientSecret === 'string' && integrations.emailClientSecret.trim() !== ''
-      result = hasCredentials || hasConfiguredEmail(integrations)
-        ? { ok: true }
-        : { ok: false, error: 'No credentials configured' }
-      writeIntegrationStatus('email', result)
-      return result
+    if (testResult.type) {
+      writeIntegrationStatus(testResult.type, testResult.result)
     }
 
-    if (type === 'calendar') {
-      if (hasConfiguredOutlookCalendar(integrations)) {
-        result = { ok: false, error: OUTLOOK_CALENDAR_UNSUPPORTED }
-        writeIntegrationStatus('calendar', result)
-        return result
-      }
-      const hasCredentials =
-        typeof integrations.calendarClientId === 'string' && integrations.calendarClientId.trim() !== '' &&
-        typeof integrations.calendarClientSecret === 'string' && integrations.calendarClientSecret.trim() !== ''
-      result = hasCredentials ? { ok: true } : { ok: false, error: 'No credentials configured' }
-      writeIntegrationStatus('calendar', result)
-      return result
-    }
-
-    if (type === 'sms') {
-      const env = readEnvFile()
-      const hasCredentials =
-        (
-          typeof integrations.smsSid === 'string' && integrations.smsSid.trim() !== '' &&
-          typeof integrations.smsAuthToken === 'string' && integrations.smsAuthToken.trim() !== '' &&
-          typeof integrations.smsFromNumber === 'string' && integrations.smsFromNumber.trim() !== ''
-        ) ||
-        (hasText(env.TWILIO_ACCOUNT_SID) && hasText(env.TWILIO_AUTH_TOKEN))
-      result = hasCredentials ? { ok: true } : { ok: false, error: 'No credentials configured' }
-      writeIntegrationStatus('sms', result)
-      return result
-    }
-
-    if (type === 'homeassistant') {
-      const { baseUrl, token } = readSavedHomeAssistantCredentials()
-      result = await testHomeAssistantConnection(baseUrl, token)
-      writeIntegrationStatus('homeassistant', result)
-      return result
-    }
-
-    if (type === 'phone') {
-      const env = readEnvFile()
-      const hasCredentials =
-        (
-          typeof integrations.phoneSid === 'string' && integrations.phoneSid.trim() !== '' &&
-          typeof integrations.phoneAuthToken === 'string' && integrations.phoneAuthToken.trim() !== '' &&
-          typeof integrations.phoneNumber === 'string' && integrations.phoneNumber.trim() !== ''
-        ) ||
-        (hasText(env.TWILIO_ACCOUNT_SID) && hasText(env.TWILIO_AUTH_TOKEN) && hasText(env.TWILIO_PHONE_NUMBER))
-      result = hasCredentials ? { ok: true } : { ok: false, error: 'No credentials configured' }
-      writeIntegrationStatus('phone', result)
-      return result
-    }
-
-    return { ok: false, error: 'Unknown integration type' }
+    return testResult.result
   })
 
   ipcMain.handle('rex:pickFolder', async (): Promise<{ ok: boolean; path?: string; error?: string }> => {
@@ -1369,7 +1398,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
       const ok =
         typeof account.host === 'string' && account.host.trim() !== '' &&
         typeof account.username === 'string' && account.username.trim() !== '' &&
-        typeof account.password === 'string' && account.password.trim() !== ''
+        typeof account.password === 'string' && account.password.trim() !== '' // pragma: allowlist secret
       return ok ? { ok: true } : { ok: false, error: 'IMAP host, username, and password are required' }
     }
     // gmail / outlook OAuth
@@ -1378,7 +1407,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
     }
     const ok =
       typeof account.clientId === 'string' && account.clientId.trim() !== '' &&
-      typeof account.clientSecret === 'string' && account.clientSecret.trim() !== ''
+      typeof account.clientSecret === 'string' && account.clientSecret.trim() !== '' // pragma: allowlist secret
     return ok ? { ok: true } : { ok: false, error: 'OAuth Client ID and Secret are required' }
   })
 
@@ -1398,7 +1427,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
 
     const suggestions: PreferenceSuggestion[] = []
 
-    // Autonomy mode — highest impact
+    // Autonomy mode - highest impact
     const preferredMode =
       typeof profile.preferred_autonomy_mode === 'string' ? profile.preferred_autonomy_mode : null
     if (preferredMode && preferredMode !== aiSettings.autonomyMode) {
@@ -1424,7 +1453,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
       })
     }
 
-    // Budget — suggest 2× avg if no budget is set
+    // Budget - suggest 2x avg if no budget is set
     const avgBudget =
       typeof profile.avg_budget_usd === 'number' ? profile.avg_budget_usd : 0
     if (avgBudget > 0 && aiSettings.budgetPerPlan === 0) {
@@ -1433,7 +1462,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
         field: 'budgetPerPlan',
         current_value: aiSettings.budgetPerPlan,
         suggested_value: suggested,
-        reason: `Your average plan cost is $${avgBudget.toFixed(2)} — a $${suggested.toFixed(2)} budget would prevent overruns`
+        reason: `Your average plan cost is $${avgBudget.toFixed(2)} - a $${suggested.toFixed(2)} budget would prevent overruns`
       })
     }
 
@@ -1456,7 +1485,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
   ipcMain.handle('rex:getApiKeys', () => {
     const env = readEnvFile()
     return {
-      openai_key_set: typeof env['OPENAI_API_KEY'] === 'string' && env['OPENAI_API_KEY'].trim() !== ''
+      openai_key_set: typeof env['OPENAI_API_KEY'] === 'string' && env['OPENAI_API_KEY'].trim() !== '' // pragma: allowlist secret
     }
   })
 
@@ -1465,7 +1494,7 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
     (_event, name: string, value: string): { ok: boolean; error?: string } => {
       try {
         // Validate key name to prevent arbitrary env writes
-        const allowedKeys = ['OPENAI_API_KEY', 'ELEVENLABS_API_KEY', 'SERPAPI_KEY', 'BRAVE_API_KEY']
+        const allowedKeys = ['OPENAI_API_KEY', 'ELEVENLABS_API_KEY', 'SERPAPI_KEY', 'BRAVE_API_KEY'] // pragma: allowlist secret
         if (!allowedKeys.includes(name)) {
           return { ok: false, error: `Key "${name}" is not allowed` }
         }

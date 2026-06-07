@@ -445,9 +445,7 @@ def test_stream_reply_freeform_uses_structured_messages(monkeypatch, tmp_path):
         ("How are you?", "I'm here and ready to help."),
     ],
 )
-def test_generate_reply_direct_conversation_bypasses_llm(
-    monkeypatch, tmp_path, query, expected
-):
+def test_generate_reply_direct_conversation_bypasses_llm(monkeypatch, tmp_path, query, expected):
     class BlockingLanguageModel:
         def __init__(self, *args, **kwargs):
             pass

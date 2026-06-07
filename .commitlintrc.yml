@@ -8,3 +8,7 @@ rules:
     - 0
   header-max-length:
     - 0
+  # Existing PR history includes long explanatory body lines.
+  # Keep header checks, but do not fail old commit bodies on line wrapping.
+  body-max-line-length:
+    - 0

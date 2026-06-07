@@ -90,7 +90,9 @@ def _compact_spoken_reply_for_gui(
 
     lower = clean.lower()
     handoff = _GUI_RECIPE_HANDOFF if "recipe" in lower else _GUI_LONG_ANSWER_HANDOFF
-    sentences = [sentence.strip() for sentence in _SENTENCE_SPLIT_RE.split(clean) if sentence.strip()]
+    sentences = [
+        sentence.strip() for sentence in _SENTENCE_SPLIT_RE.split(clean) if sentence.strip()
+    ]
 
     intro = ""
     if sentences:
@@ -558,7 +560,11 @@ async def _run_real_loop() -> None:
             },
         )
         if ack_mode == "phrase":
-            phrase = ack_sound if ack_sound and not ack_sound.lower().endswith((".wav", ".mp3")) else "Got it."
+            phrase = (
+                ack_sound
+                if ack_sound and not ack_sound.lower().endswith((".wav", ".mp3"))
+                else "Got it."
+            )
             await tts.speak(phrase)
         elif ack_mode == "sound":
             await ack.play()
@@ -613,9 +619,7 @@ async def _run_real_loop() -> None:
             text,
             max_chars=max_spoken_chars,
         )
-        fast_short_enabled = bool(
-            getattr(active_settings, "tts_fast_short_reply_enabled", True)
-        )
+        fast_short_enabled = bool(getattr(active_settings, "tts_fast_short_reply_enabled", True))
         fast_short_max_chars = int(
             getattr(active_settings, "tts_fast_short_reply_max_chars", 140) or 140
         )

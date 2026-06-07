@@ -10,7 +10,7 @@ from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from importlib import import_module
 from importlib.util import find_spec
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from rex.assistant_errors import ConfigurationError
 from rex.config import AppConfig, load_config
@@ -50,7 +50,8 @@ class LLMStrategy(Protocol):
         prompt: str,
         config: GenerationConfig,
         *,
-        messages: list[dict[str, str]] | None = None,
+        messages: list[dict[str, Any]] | None = None,
+        **kwargs: Any,
     ) -> str: ...
 
     def stream(
@@ -58,7 +59,7 @@ class LLMStrategy(Protocol):
         prompt: str,
         config: GenerationConfig,
         *,
-        messages: list[dict[str, str]] | None = None,
+        messages: list[dict[str, Any]] | None = None,
         **kwargs: Any,
     ) -> Iterator[str]:
         raise NotImplementedError
@@ -70,7 +71,14 @@ class EchoStrategy:
     def __init__(self, model_name: str) -> None:
         self.model_name = model_name
 
-    def generate(self, prompt: str, _config: GenerationConfig, *, messages=None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        _config: GenerationConfig,
+        *,
+        messages: list[dict[str, Any]] | None = None,
+        **_kwargs: Any,
+    ) -> str:
         text = prompt.strip()
         if not text and messages:
             text = "\n".join(m.get("content", "").strip() for m in messages).strip()
@@ -81,7 +89,7 @@ class EchoStrategy:
         prompt: str,
         _config: GenerationConfig,
         *,
-        messages: list[dict[str, str]] | None = None,
+        messages: list[dict[str, Any]] | None = None,
         **_kwargs: Any,
     ) -> Iterator[str]:
         text = prompt.strip()
@@ -100,11 +108,28 @@ class OfflineTransformersStrategy:
     def __init__(self, model_name: str) -> None:
         self.model_name = model_name
 
-    def generate(self, prompt: str, _config: GenerationConfig, *, messages=None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        _config: GenerationConfig,
+        *,
+        messages: list[dict[str, Any]] | None = None,
+        **_kwargs: Any,
+    ) -> str:
         text = prompt.strip()
         if not text and messages:
             text = "\n".join(m.get("content", "").strip() for m in messages).strip()
         return f"(offline) {text or ''}".strip() or "(offline)"
+
+    def stream(
+        self,
+        prompt: str,
+        config: GenerationConfig,
+        *,
+        messages: list[dict[str, Any]] | None = None,
+        **_kwargs: Any,
+    ) -> Iterator[str]:
+        yield self.generate(prompt, config, messages=messages)
 
 
 class TransformersStrategy:
@@ -136,7 +161,14 @@ class TransformersStrategy:
         if tokenizer.pad_token_id is None:
             tokenizer.pad_token_id = tokenizer.eos_token_id
 
-    def generate(self, prompt: str, config: GenerationConfig, *, messages=None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        config: GenerationConfig,
+        *,
+        messages: list[dict[str, Any]] | None = None,
+        **kwargs: Any,
+    ) -> str:
         torch = self._torch
         torch.manual_seed(config.seed)
         if torch.cuda.is_available():
@@ -323,7 +355,14 @@ class OllamaStrategy:
         except Exception as exc:
             raise ConfigurationError(f"Failed to initialize Ollama client: {exc}") from exc
 
-    def generate(self, prompt: str, config: GenerationConfig, *, messages=None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        config: GenerationConfig,
+        *,
+        messages: list[dict[str, Any]] | None = None,
+        **kwargs: Any,
+    ) -> str:
         payload = messages or [{"role": "user", "content": prompt}]
         options = {
             "temperature": config.temperature,
@@ -460,7 +499,14 @@ class AnthropicStrategy:
             self._cached_client = self._client_factory()
         return self._cached_client
 
-    def generate(self, prompt: str, config: GenerationConfig, *, messages=None) -> str:
+    def generate(
+        self,
+        prompt: str,
+        config: GenerationConfig,
+        *,
+        messages: list[dict[str, Any]] | None = None,
+        **kwargs: Any,
+    ) -> str:
         payload = messages or [{"role": "user", "content": prompt}]
         # Anthropic requires alternating user/assistant turns; filter system messages
         system_parts = [m["content"] for m in payload if m.get("role") == "system"]
@@ -514,13 +560,13 @@ class AnthropicStrategy:
             return
 
 
-_STRATEGIES: dict[str, type[LLMStrategy]] = {
+_STRATEGIES: dict[str, type[Any]] = {
     EchoStrategy.name: EchoStrategy,
     TransformersStrategy.name: TransformersStrategy,
 }
 
 
-def register_strategy(name: str, strategy: type[LLMStrategy]) -> None:
+def register_strategy(name: str, strategy: type[Any]) -> None:
     _STRATEGIES[name] = strategy
 
 
@@ -579,23 +625,28 @@ class LanguageModel:
 
     def _init_strategy(self) -> LLMStrategy:
         if self.provider == "openai":
-            return OpenAIStrategy(self.model_name, self._ensure_openai_client)
+            return cast(LLMStrategy, OpenAIStrategy(self.model_name, self._ensure_openai_client))
 
         if self.provider == "anthropic":
-            return AnthropicStrategy(self.model_name, self._ensure_anthropic_client)
+            return cast(
+                LLMStrategy, AnthropicStrategy(self.model_name, self._ensure_anthropic_client)
+            )
 
         if self.provider == "ollama":
-            return OllamaStrategy(
-                self.model_name,
-                api_key=self.config.ollama_api_key,
-                base_url=self.config.ollama_base_url,
-                use_cloud=self.config.ollama_use_cloud,
+            return cast(
+                LLMStrategy,
+                OllamaStrategy(
+                    self.model_name,
+                    api_key=self.config.ollama_api_key,
+                    base_url=self.config.ollama_base_url,
+                    use_cloud=self.config.ollama_use_cloud,
+                ),
             )
 
         strategy_cls = _STRATEGIES.get(self.provider)
         if strategy_cls is None:
             logger.warning("Unknown LLM provider '%s'. Falling back to echo mode.", self.provider)
-            return EchoStrategy(self.model_name)
+            return cast(LLMStrategy, EchoStrategy(self.model_name))
 
         if strategy_cls is TransformersStrategy and not (
             TORCH_AVAILABLE and TRANSFORMERS_AVAILABLE
@@ -603,15 +654,15 @@ class LanguageModel:
             logger.warning(
                 "Transformers missing; using offline fallback for model '%s'.", self.model_name
             )
-            return OfflineTransformersStrategy(self.model_name)
+            return cast(LLMStrategy, OfflineTransformersStrategy(self.model_name))
 
         try:
-            return strategy_cls(self.model_name)  # type: ignore[call-arg]
+            return cast(LLMStrategy, strategy_cls(self.model_name))
         except Exception as exc:
             logger.warning(
                 "LLM backend init failed (%s). Falling back to echo. (%s)", self.provider, exc
             )
-            return EchoStrategy(self.model_name)
+            return cast(LLMStrategy, EchoStrategy(self.model_name))
 
     def _ensure_openai_client(self):
         if self._openai_client is not None:
@@ -691,13 +742,13 @@ class LanguageModel:
         self,
         prompt: str | None = None,
         *,
-        messages: Sequence[dict[str, str]] | None = None,
+        messages: Sequence[dict[str, Any]] | None = None,
         config: GenerationConfig | None = None,
         max_tool_rounds: int = 3,
     ) -> str:
         if messages is not None:
             prompt_text = self._format_messages(messages)
-            normalized_messages = [
+            normalized_messages: list[dict[str, Any]] = [
                 {"role": str(m.get("role", "")), "content": str(m.get("content", ""))}
                 for m in messages
                 if isinstance(m, dict)
@@ -727,7 +778,7 @@ class LanguageModel:
                     _tool_extra: dict[str, Any] = {}
                     if _user_key is not None:
                         _tool_extra["user"] = _user_key
-                    result = self.strategy.generate(  # type: ignore[call-arg]
+                    result = self.strategy.generate(
                         prompt_text,
                         config or self.generation,
                         messages=current_messages,
@@ -757,7 +808,7 @@ class LanguageModel:
                     )
 
                     # Add assistant message to conversation
-                    current_messages.append(  # type: ignore[arg-type]
+                    current_messages.append(
                         {
                             "role": "assistant",
                             "content": "",
@@ -799,7 +850,7 @@ class LanguageModel:
                 extra: dict[str, Any] = {}
                 if _user_key is not None:
                     extra["user"] = _user_key
-                result = self.strategy.generate(  # type: ignore[call-arg]
+                result = self.strategy.generate(
                     prompt_text,
                     config or self.generation,
                     messages=normalized_messages,
@@ -827,7 +878,7 @@ class LanguageModel:
         self,
         prompt: str | None = None,
         *,
-        messages: Sequence[dict[str, str]] | None = None,
+        messages: Sequence[dict[str, Any]] | None = None,
         config: GenerationConfig | None = None,
     ) -> Iterator[str]:
         generation_config = config or self.generation

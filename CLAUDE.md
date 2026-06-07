@@ -12,6 +12,9 @@ Primary goals:
 For canonical product name, package name, CLI alias policy, and banned names see:
 **docs/BRANDING.md**
 
+For the authoritative classification of every entry point and UI surface (shippable, developer-only, deprecated, archived, removed) see:
+**SURFACE-CLASSIFICATION.md**
+
 ## Claude Reference Docs
 
 Some detailed reference material has been moved to separate files to keep this document readable and reduce context size when Claude Code runs.

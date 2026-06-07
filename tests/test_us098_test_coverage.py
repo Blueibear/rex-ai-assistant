@@ -131,7 +131,6 @@ def test_known_low_coverage_modules_visible() -> None:
     # These modules are known to have low coverage due to optional heavy deps
     known_low = [
         "wakeword",  # optional audio/ML dependency
-        "plugin_loader",  # dynamic plugin loading
     ]
     for fragment in known_low:
         assert (
@@ -144,12 +143,12 @@ def test_below_50_modules_list() -> None:
     rows = _parse_coverage_txt()
     below_50 = sorted([(mod, pct) for mod, pct in rows if pct < 50])
 
-    # We expect at least these well-known low-coverage modules
+    # We expect at least one of these well-known low-coverage modules.
     expected_low = {
-        "rex\\wakeword\\embedding.py",
-        "rex/wakeword/embedding.py",
-        "rex\\plugin_loader.py",
-        "rex/plugin_loader.py",
+        "rex\\tools\\windows_diagnostics.py",
+        "rex/tools/windows_diagnostics.py",
+        "rex\\windows_service.py",
+        "rex/windows_service.py",
     }
     found_low_names = {mod for mod, _ in below_50}
     # At least one of the expected low-coverage modules must appear

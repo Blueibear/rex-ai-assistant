@@ -126,9 +126,9 @@ class HABridge:
         entity_map: dict[str, str] | None = None,
     ) -> None:
         cfg = settings
-        cfg_base_url = getattr(cfg, "ha_base_url", "")
-        cfg_token = getattr(cfg, "ha_token", "")
-        cfg_secret = getattr(cfg, "ha_secret", "")
+        cfg_base_url = getattr(cfg, "ha_base_url", "") or ""
+        cfg_token = getattr(cfg, "ha_token", "") or ""
+        cfg_secret = getattr(cfg, "ha_secret", "") or ""
         self._base_url = (cfg_base_url if base_url is None else base_url or "").rstrip("/")
         self._token = cfg_token if token is None else token or ""
         self._secret = cfg_secret if secret is None else secret or ""
@@ -581,9 +581,20 @@ class HABridge:
 
 
 def create_blueprint(bridge: HABridge | None = None) -> Blueprint:
-    """Create a Flask blueprint exposing HA bridge helpers."""
+    """Create a Flask blueprint exposing HA bridge helpers.
+
+    Requires ``HA_SECRET`` (env var) or ``bridge.secret`` to be non-empty.
+    Raises ``RuntimeError`` if the secret is unset so the caller can log a
+    warning and skip blueprint registration rather than mounting unauthenticated
+    HA routes.
+    """
     Blueprint, jsonify, request = _require_flask()
     bridge = bridge or HABridge()
+    if not bridge.secret:
+        raise RuntimeError(
+            "HA blueprint requires HA_SECRET to be set; "
+            "routes will not be mounted without a shared secret."
+        )
     bp = Blueprint("ha_bridge", __name__)
 
     from rex.http_errors import (  # noqa: PLC0415
@@ -596,8 +607,7 @@ def create_blueprint(bridge: HABridge | None = None) -> Blueprint:
 
     @bp.before_request
     def _validate_secret() -> Any:
-        secret = bridge.secret
-        if secret and request.headers.get("HASS_SECRET") != secret:
+        if request.headers.get("HASS_SECRET") != bridge.secret:
             return error_response(FORBIDDEN, "Forbidden", 403)
         return None
 

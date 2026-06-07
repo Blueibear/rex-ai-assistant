@@ -24,13 +24,13 @@ from enum import Enum
 from importlib.util import find_spec
 from pathlib import Path
 
+from rex.audio.speaker_discovery import get_speaker_discovery
 from rex.compat.python_compat import (
     SUPPORTED_VERSION_LABEL,
     WINDOWS_GPU_INSTALL_LABEL,
     is_supported_python,
     unsupported_python_message,
 )
-from rex.audio.speaker_discovery import get_speaker_discovery
 
 
 class Status(Enum):
@@ -904,8 +904,7 @@ def check_wakeword_config() -> CheckResult:
                 name="Wake Word Config",
                 status=Status.OK,
                 message=(
-                    f"backend={backend}, keyword='{keyword}', "
-                    f"model='{resolved_model.name}'"
+                    f"backend={backend}, keyword='{keyword}', " f"model='{resolved_model.name}'"
                 ),
             )
 
@@ -919,10 +918,7 @@ def check_wakeword_config() -> CheckResult:
                 name="Wake Word Config",
                 status=Status.ERROR,
                 message=f"Wake word model file not found: {resolved}",
-                details=(
-                    "Set wakeword.model_path or place a custom ONNX file at "
-                    f"{resolved}."
-                ),
+                details=("Set wakeword.model_path or place a custom ONNX file at " f"{resolved}."),
             )
         try:
             _, selection = load_wakeword_model_with_metadata(
@@ -957,8 +953,7 @@ def check_wakeword_config() -> CheckResult:
                 status=Status.ERROR,
                 message=f"Wake word embedding file not found: {resolved}",
                 details=(
-                    "Set wakeword.embedding_path or place a trained embedding at "
-                    f"{resolved}."
+                    "Set wakeword.embedding_path or place a trained embedding at " f"{resolved}."
                 ),
             )
         try:

@@ -77,6 +77,11 @@ config/
 !config/*.schema.json
 !config/triage_rules.json
 
+# Runtime user profiles — only example and schema files are tracked
+profiles/*.json
+!profiles/*.example.json
+!profiles/profile.schema.json
+
 # OS-generated files
 .DS_Store
 Thumbs.db
@@ -111,6 +116,12 @@ Memory/
 !Memory/.gitkeep
 !Memory/README.md
 Memory/*/history.log
+# Explicit per-user rules (belt-and-suspenders, in case Memory/ rule was added after tracking)
+Memory/james/
+Memory/cole/
+
+# Runtime user database — never commit
+users.json
 
 # Test Fixtures
 !tests/fixtures/

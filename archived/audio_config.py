@@ -20,6 +20,7 @@ sd = _SOUNDDEVICE_UNSET
 
 from assistant_errors import AudioDeviceError  # noqa: E402
 from logging_utils import get_logger  # noqa: E402
+
 from rex.config_manager import load_config, save_config  # noqa: E402
 
 logger = get_logger(__name__)

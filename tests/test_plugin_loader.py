@@ -4,10 +4,6 @@ import textwrap
 
 import pytest
 
-# Master-style plugin loader test (dict-based plugin discovery)
-from rex.plugin_loader import load_plugins as load_dict_plugins
-
-# Codex-style plugin test (class-based with lifecycle methods)
 from rex.plugins import load_plugins as load_rex_plugins
 from rex.plugins import shutdown_plugins
 
@@ -52,46 +48,8 @@ def test_class_based_plugin_loads_and_runs(tmp_path, monkeypatch):
 
 
 @pytest.mark.unit
-def test_dict_based_plugin_loader(tmp_path, monkeypatch):
-    plugin_dir = tmp_path / "test_plugins"
-    plugin_dir.mkdir()
-    (plugin_dir / "__init__.py").write_text("# marker")
+def test_retired_dict_plugin_loader_not_imported():
+    """The legacy dict-based rex.plugin_loader module has been retired."""
+    import importlib.util
 
-    # Valid plugin
-    (plugin_dir / "example.py").write_text(
-        textwrap.dedent("""
-            def register():
-                return {"capability": "ok"}
-            """),
-        encoding="utf-8",
-    )
-
-    # Second valid plugin
-    (plugin_dir / "second.py").write_text(
-        textwrap.dedent("""
-            def register():
-                return {"feature": "active"}
-            """),
-        encoding="utf-8",
-    )
-
-    # Invalid plugin (no register function)
-    (plugin_dir / "broken.py").write_text(
-        textwrap.dedent("""
-            def init():
-                return {"invalid": True}
-            """),
-        encoding="utf-8",
-    )
-
-    monkeypatch.syspath_prepend(str(tmp_path))
-    results = load_dict_plugins(str(plugin_dir))
-
-    assert isinstance(results, dict)
-    assert f"{plugin_dir.name}.example" in results
-    assert results[f"{plugin_dir.name}.example"]["capability"] == "ok"
-
-    assert f"{plugin_dir.name}.second" in results
-    assert results[f"{plugin_dir.name}.second"]["feature"] == "active"
-
-    assert f"{plugin_dir.name}.broken" not in results
+    assert importlib.util.find_spec("rex.plugin_loader") is None

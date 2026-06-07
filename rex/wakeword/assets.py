@@ -142,4 +142,3 @@ def validate_custom_wakeword_asset(
         fallback_to_builtin=False,
     )
     return selection
-

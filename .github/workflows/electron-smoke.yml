@@ -1,0 +1,104 @@
+name: Electron Package Smoke Test
+
+# Runs when:
+#   (a) a release tag is pushed — gate before a release is published
+#   (b) a PR touches gui/ or bridge/ — catches packaging regressions early
+#
+# Path filtering keeps unrelated Python-only PRs from triggering the job,
+# which would add ~15 minutes of build time for no benefit.
+on:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+    branches: [master]
+    paths:
+      - "gui/**"
+      - "bridge/**"
+
+permissions:
+  contents: read
+
+jobs:
+  electron-smoke:
+    name: Electron Package Smoke Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Platform notes:
+    #   - Linux (ubuntu-latest): xvfb provides a virtual display for the
+    #     best-effort Electron launch check (step 4 of the smoke script).
+    #     The Python bridge health check (step 3b) does not need a display.
+    #   - Windows: not used here — Electron is a GUI-subsystem binary on
+    #     Windows and bash stderr capture from the launch is unreliable.
+    #   - macOS: not used here — macOS runners cost more; Linux is sufficient
+    #     to validate packaging and bridge reachability.
+    #
+    # To require the Electron startup signal (step 4), set
+    # REQUIRE_ELECTRON_SIGNAL=1 in the smoke test step and ensure the
+    # Electron runtime system libraries are installed:
+    #   libnss3, libatk-bridge2.0-0, libxss1, libgbm1, libxkbcommon0,
+    #   libgtk-3-0, libasound2-dev
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: gui/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-smoke-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-smoke-
+
+      - name: Install rex package
+        # Required by the bridge health check (step 3b of the smoke script).
+        # The smoke test executes a bridge script with PYTHONPATH="" so the
+        # source-tree bridge/ is absent from the path — rex must be installed
+        # in the environment for `from rex.bridge_utils import ...` to resolve.
+        run: |
+          python -m pip install --upgrade "pip>=26.1"
+          pip install -e .
+
+      - name: Install xvfb (virtual display for Electron launch)
+        # xvfb is needed so the packaged Electron binary has a display when
+        # launched during step 4 of the smoke test (best-effort Electron check).
+        # It is NOT required for the primary gate: the Python bridge health check
+        # (step 3b) runs Python directly and needs no display.
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
+
+      - name: Run Electron package smoke test
+        # Wraps the smoke script in xvfb-run so Electron has a virtual X display.
+        #
+        # The smoke test exits 1 (fails CI) if any of the following is true:
+        #   - electron-builder fails to produce the packaged output
+        #   - any of the 20 bridge scripts registered in bridgeResolver.ts is
+        #     missing from resources/bridge/ in the packaged output
+        #   - the bridge health check returns no output or non-JSON output
+        #     (proves the bridge is unreachable from the packaged path)
+        #
+        # REQUIRE_ELECTRON_SIGNAL=0: the Electron startup signal (step 4) is
+        # best-effort. If Electron fails to start in the headless environment
+        # (missing runtime libs, restricted sandbox, etc.), the smoke test warns
+        # and continues — the Python bridge check is the mandatory gate.
+        # Set REQUIRE_ELECTRON_SIGNAL=1 to make the Electron launch mandatory
+        # (requires additional system lib installation; see job-level comment).
+        #
+        # See tests/smoke/test_electron_package.sh for full documentation.
+        run: xvfb-run --auto-servernum bash tests/smoke/test_electron_package.sh
+        env:
+          REQUIRE_ELECTRON_SIGNAL: "0"
+          SMOKE_TIMEOUT: "30"

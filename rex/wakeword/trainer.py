@@ -33,6 +33,8 @@ def _save_sample_wav(sample: list[float], path: Path) -> None:
         wf.setsampwidth(2)  # 16-bit = 2 bytes per sample
         wf.setframerate(_SAMPLE_RATE)
         wf.writeframes(int16_arr.tobytes())
+
+
 def train_from_samples(
     phrase: str,
     positive_samples: list[list[float]],

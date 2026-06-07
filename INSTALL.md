@@ -8,15 +8,17 @@ This guide covers supported install paths for the current repo. AskRex is Python
 |---|---|
 | OS | Windows 10/11, macOS, or Linux |
 | Python | 3.11 (`>=3.11,<3.12`) |
+| Node.js/npm | Required for the Electron desktop app under `gui/` |
 | Disk | Several GB if installing ML/TTS models |
 | Audio | Microphone and speakers for voice mode |
 | FFmpeg | Required for parts of the audio/TTS stack |
-| Node.js/npm | Required only for the Electron GUI under `gui/` |
 | GPU | Optional NVIDIA CUDA path via the GPU requirements files |
 
 Python 3.12, 3.13, and 3.14 are not supported by the validated ML/TTS dependency path and are rejected by the app.
 
-## Quick Start
+## Quick Start (Electron Desktop App)
+
+The primary user-facing interface is the **Electron desktop app**. These steps set up the full stack.
 
 Windows PowerShell:
 
@@ -32,8 +34,9 @@ pip install .
 Copy-Item config\rex_config.example.json config\rex_config.json -ErrorAction SilentlyContinue
 Copy-Item .env.example .env -ErrorAction SilentlyContinue
 
-python -m rex doctor
-python -m rex
+cd gui
+npm.cmd install
+npm.cmd run dev
 ```
 
 macOS / Linux:
@@ -50,9 +53,36 @@ pip install .
 cp -n config/rex_config.example.json config/rex_config.json
 cp -n .env.example .env
 
+cd gui
+npm install
+npm run dev
+```
+
+To verify the Python install separately:
+
+```bash
+python -m rex doctor
+```
+
+## Advanced / Developer: CLI and Python Direct Mode
+
+For developers who want the CLI or direct Python access without the Electron app:
+
+Windows PowerShell:
+
+```powershell
 python -m rex doctor
 python -m rex
 ```
+
+macOS / Linux:
+
+```bash
+python -m rex doctor
+python -m rex
+```
+
+This starts the interactive CLI text chat. Activate the `.venv` first (see Quick Start steps above).
 
 ## Platform Install Scripts
 
@@ -145,14 +175,14 @@ rex-config migrate-legacy-env
 
 | Mode | Command | Notes |
 |---|---|---|
-| Text chat | `rex` or `python -m rex` | Default interactive CLI |
+| **Electron desktop app** | Windows: `cd gui; npm.cmd run dev`; macOS/Linux: `cd gui && npm run dev` | **Primary user-facing interface** — requires Node/npm and Python bridges |
+| Text chat (CLI) | `rex` or `python -m rex` | Developer / advanced — default interactive CLI |
 | Diagnostics | `rex doctor` | Environment and dependency checks |
-| Voice loop | `python rex_loop.py` | Wake word -> STT -> LLM -> TTS |
-| Python web dashboard | `rex-gui` | Opens `http://127.0.0.1:8765/ui/` |
-| Electron desktop GUI | `cd gui && npm.cmd run dev` | Requires Node/npm and Python bridges |
-| TTS API | `rex-speak-api` | Requires `REX_SPEAK_API_KEY`; default port 5005 |
-| OpenClaw tool server | `rex-tool-server` | Requires `REX_TOOL_API_KEY`; default port 18790 |
-| Windows computer agent | `rex-agent` | Optional remote PC control agent |
+| Voice loop | `python rex_loop.py` | Developer / advanced — wake word -> STT -> LLM -> TTS |
+| Flask API backend | `rex-gui` | Developer-only — backend service for Electron; browser dashboard UI is incomplete |
+| TTS API | `rex-speak-api` | Developer / advanced — requires `REX_SPEAK_API_KEY`; default port 5005 |
+| OpenClaw tool server | `rex-tool-server` | Developer / advanced — requires `REX_TOOL_API_KEY`; default port 18790 |
+| Windows computer agent | `rex-agent` | Developer / advanced — optional remote PC control agent |
 
 The legacy Tkinter launchers (`gui.py` and its entry point) are deprecated paths and should not be used for normal operation.
 

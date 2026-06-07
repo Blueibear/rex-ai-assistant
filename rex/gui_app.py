@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import secrets
 import signal
 import sys
 import threading
@@ -87,6 +89,19 @@ def _write_env_secrets(
     env_path.write_text("\n".join(updated) + "\n", encoding="utf-8")
 
 
+# Compiled once at import time so stream/download routes share the same object.
+_HOME_DIR_RE = re.compile(re.escape(str(Path.home())), re.IGNORECASE)
+
+
+def _redact_log_line(line: str) -> str:
+    """Replace home-directory paths in a log line with ``~``.
+
+    Prevents full filesystem paths (e.g. ``/home/alice/.rex/...`` or
+    ``C:\\Users\\alice\\...``) from leaking out of log API endpoints.
+    """
+    return _HOME_DIR_RE.sub("~", line)
+
+
 def _require_auth() -> tuple[dict[str, Any], None] | tuple[None, Any]:
     """Extract and validate the Bearer token from the current request.
 
@@ -108,6 +123,29 @@ def _require_auth() -> tuple[dict[str, Any], None] | tuple[None, Any]:
         return None, (jsonify({"error": str(exc)}), 401)
 
 
+def _require_setup_token() -> tuple[None, None] | tuple[None, Any]:
+    """Validate the X-Setup-Token header for pre-setup routes.
+
+    The setup token is generated once per app start and stored in
+    ``app.config["SETUP_TOKEN"]``.  It is cleared after first-run setup
+    completes, so subsequent calls always return 403.
+
+    Returns:
+        ``(None, None)`` when the token is valid.
+        ``(None, flask_response)`` when the token is missing, wrong, or already
+        consumed — caller should return the response immediately.
+    """
+    from flask import current_app, jsonify, request
+
+    expected: str | None = current_app.config.get("SETUP_TOKEN")
+    if not expected:
+        return None, (jsonify({"error": "setup already completed"}), 403)
+    provided = request.headers.get("X-Setup-Token", "")
+    if not provided or provided != expected:
+        return None, (jsonify({"error": "forbidden"}), 403)
+    return None, None
+
+
 def _create_flask_app(ui_enabled: bool = True) -> Any:
     """Create a Flask application serving the Rex web UI and API stubs."""
 
@@ -115,6 +153,11 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
     app = Flask(__name__, static_folder=None)
     app.secret_key = "rex-gui-local"  # local-only; not security-sensitive
+
+    # Single-use token guarding the first-run setup routes.  Consumed on
+    # successful setup completion.  Pass to the Electron renderer via IPC
+    # before opening the setup wizard — never embed it in page source.
+    app.config["SETUP_TOKEN"] = secrets.token_urlsafe(32)
 
     data_dir = Path(os.getenv("REX_DATA_DIR", "data"))
     from rex.history_store import HistoryStore
@@ -211,18 +254,22 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
     @app.route("/api/logs/stream")
     def _logs_stream() -> Any:
-        """SSE endpoint that tails the active runtime log in real time."""
+        """SSE endpoint that tails the active runtime log in real time.
+
+        Requires a valid Bearer token. Home-directory paths are redacted
+        from every streamed line before it is sent to the client.
+        """
+        user, err = _require_auth()
+        if err:
+            return err
+
         import time
 
         def _generate() -> Any:
             if not _LOG_FILE.exists():
                 payload = {
                     "level": "INFO",
-                    "message": f"Active log file not found yet: {_LOG_FILE}",
-                    "extra": {
-                        "active_log_path": str(_LOG_FILE),
-                        "legacy_log_path": str(_LEGACY_LOG_FILE),
-                    },
+                    "message": "Active log file not found yet.",
                 }
                 yield f"data: {json.dumps(payload)}\n\n"
                 return
@@ -231,7 +278,7 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
                 while True:
                     line = fh.readline()
                     if line:
-                        line = line.strip()
+                        line = _redact_log_line(line.strip())
                         if line:
                             yield f"data: {line}\n\n"
                     else:
@@ -248,23 +295,31 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
     @app.route("/api/logs/download")
     def _logs_download() -> Any:
-        """Download the current log file."""
+        """Download the current log file with home-directory paths redacted.
+
+        Requires a valid Bearer token.  The file is streamed line-by-line so
+        that home-directory paths are replaced with ``~`` before delivery;
+        the raw filesystem path is never disclosed to the client.
+        """
+        user, err = _require_auth()
+        if err:
+            return err
+
         if not _LOG_FILE.exists():
-            return (
-                jsonify(
-                    {
-                        "error": "Active log file not found",
-                        "active_log_path": str(_LOG_FILE),
-                        "legacy_log_path": str(_LEGACY_LOG_FILE),
-                    }
-                ),
-                404,
-            )
-        return send_from_directory(
-            str(_LOG_FILE.parent),
-            _LOG_FILE.name,
-            as_attachment=True,
-            download_name=_LOG_FILE.name,
+            return jsonify({"error": "Active log file not found"}), 404
+
+        def _redacted_stream() -> Any:
+            with _LOG_FILE.open("r", encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    yield _redact_log_line(line)
+
+        return Response(
+            stream_with_context(_redacted_stream()),
+            content_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f"attachment; filename={_LOG_FILE.name}",
+                "Cache-Control": "no-cache",
+            },
         )
 
     # ------------------------------------------------------------------
@@ -302,6 +357,10 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
     def _setup_complete() -> Any:
         """Complete the first-run wizard.
 
+        Requires the ``X-Setup-Token`` header containing the single-use token
+        generated at app start (see ``app.config["SETUP_TOKEN"]``).  The token
+        is consumed on the first successful call; subsequent calls return 403.
+
         Accepts JSON body::
 
             {
@@ -317,6 +376,10 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         Registers the user, writes non-secret settings to
         ``config/rex_config.json``, and writes secrets to ``.env``.
         """
+        _, token_err = _require_setup_token()
+        if token_err is not None:
+            return token_err
+
         from rex.auth import create_user
 
         data: dict[str, Any] = request.get_json(silent=True) or {}
@@ -330,20 +393,6 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
         if not username or not password:
             return jsonify({"error": "username and password are required"}), 400
-
-        # Check that setup hasn't already been completed.
-        try:
-            from rex.auth import _open_db  # noqa: PLC2701
-
-            with _open_db() as conn:
-                row = conn.execute("SELECT COUNT(*) FROM users").fetchone()
-                if row and row[0] > 0:
-                    return (
-                        jsonify({"error": "setup already completed"}),
-                        409,
-                    )
-        except Exception:
-            pass
 
         # Create the admin user.
         try:
@@ -389,6 +438,9 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
             ha_token=ha_token,
         )
 
+        # Consume the setup token so the wizard cannot be re-run.
+        app.config["SETUP_TOKEN"] = None
+
         return jsonify({"ok": True, "user_id": user["id"]}), 201
 
     # ------------------------------------------------------------------
@@ -397,8 +449,27 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
     @app.route("/api/auth/register", methods=["POST"])
     def _auth_register() -> Any:
-        """Register a new user. Body: {username, password}."""
-        from rex.auth import create_user
+        """Register a new user. Body: {username, password}.
+
+        When no users exist yet, requires the ``X-Setup-Token`` header to
+        prevent a malicious local page from racing the first-run setup flow.
+        After the first user is created the token check no longer applies.
+        """
+        from rex.auth import _open_db, create_user  # noqa: PLC2701
+
+        # Require the setup token only during the initial setup window
+        # (i.e., before any user has been registered).
+        try:
+            with _open_db() as conn:
+                row = conn.execute("SELECT COUNT(*) FROM users").fetchone()
+                user_count = row[0] if row else 0
+        except Exception:
+            user_count = 0
+
+        if user_count == 0:
+            _, token_err = _require_setup_token()
+            if token_err is not None:
+                return token_err
 
         data: dict[str, Any] = request.get_json(silent=True) or {}
         username = (data.get("username") or "").strip()
@@ -749,12 +820,23 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
     def _ha_test_connection() -> Any:
         """Test a Home Assistant connection using the supplied URL and token.
 
+        Requires a valid authenticated session (Bearer JWT).
+
         Body: ``{ha_base_url: str, ha_token: str}``
 
-        Returns ``{ok: bool, error?: str}``; does **not** require auth so the
-        setup wizard can call it before the first user is created.
+        Returns ``{ok: bool, error?: str}``
+
+        Allowed URL schemes: ``http`` and ``https`` only.  Private IP ranges
+        (RFC 1918, loopback, link-local) are permitted because Home Assistant
+        is typically installed on the local network.  Schemes such as
+        ``file://`` or ``ftp://`` are explicitly rejected to prevent SSRF.
         """
+        import urllib.parse
         import urllib.request
+
+        user, err = _require_auth()
+        if err:
+            return err
 
         data: dict[str, Any] = request.get_json(silent=True) or {}
         base_url = (data.get("ha_base_url") or "").rstrip("/")
@@ -762,6 +844,13 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
 
         if not base_url:
             return jsonify({"ok": False, "error": "ha_base_url is required"}), 400
+
+        parsed = urllib.parse.urlparse(base_url)
+        if parsed.scheme not in ("http", "https"):
+            return (
+                jsonify({"ok": False, "error": "ha_base_url must use http or https scheme"}),
+                400,
+            )
 
         api_url = f"{base_url}/api/"
         req = urllib.request.Request(api_url)
@@ -771,8 +860,9 @@ def _create_flask_app(ui_enabled: bool = True) -> Any:
         try:
             with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
                 ok = resp.status == 200
-        except Exception as exc:
-            return jsonify({"ok": False, "error": str(exc)}), 200
+        except Exception:
+            app.logger.debug("HA connection test failed", exc_info=True)
+            return jsonify({"ok": False, "error": "connection failed"}), 200
 
         return jsonify({"ok": ok}), 200
 

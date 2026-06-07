@@ -11,7 +11,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from .actions.dispatcher import _UNDO_PATTERN
+from .calendar_service import get_calendar_service
 from .config import Settings, settings
+from .followup_engine import FollowupEngine
 from .ha_bridge import HABridge
 from .history_store import HistoryStore
 from .llm_client import LanguageModel
@@ -20,6 +23,14 @@ from .model_router import ModelRouter
 from .plugins import PluginSpec
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "Assistant",
+    "ConversationTurn",
+    "FollowupEngine",
+    "_UNDO_PATTERN",
+    "get_calendar_service",
+]
 
 _UNVERIFIED_ACTION_CLAIM_PATTERNS = (
     re.compile(
@@ -535,13 +546,13 @@ class Assistant:
             # Greeting shortcuts are suppressed in multi-user voice sessions
             if not (_intent.intent_type == "greeting" and active_user_id is not None):
                 self._record_completion(transcript, _intent.response)
-                return _intent.response
+                return _intent.response  # type: ignore[no-any-return]
 
         # Fast path: return cached response without hitting the LLM
         _cached = self._get_or_create_response_builder().check_cache(transcript)
         if _cached is not None:
             self._record_completion(transcript, _cached)
-            return _cached
+            return _cached  # type: ignore[no-any-return]
 
         # Apply per-request model routing and user ID scoping; restore in finally
         prev_model, prev_user_id = self._begin_request(transcript, active_user_id)
@@ -566,7 +577,7 @@ class Assistant:
             self._end_request(prev_model, prev_user_id)
 
         self._record_completion(transcript, completion)
-        return completion
+        return completion  # type: ignore[no-any-return]
 
     def _begin_request(self, transcript: str, active_user_id: str | None) -> tuple[str | None, str]:
         """Apply model routing and user ID scoping for the duration of a request.
@@ -698,7 +709,7 @@ class Assistant:
 
     def _build_system_context(self) -> str:
         """Delegate to ContextBuilder.build_system_context() (US-014)."""
-        return self._get_or_create_context_builder().build_system_context()
+        return self._get_or_create_context_builder().build_system_context()  # type: ignore[no-any-return]
 
     def _build_prompt(
         self,
@@ -709,7 +720,7 @@ class Assistant:
         tool_context: str | None = None,
     ) -> str:
         """Delegate to ContextBuilder.build() (US-014)."""
-        return (
+        return (  # type: ignore[no-any-return]
             self._get_or_create_context_builder()
             .build(
                 transcript,
@@ -729,7 +740,7 @@ class Assistant:
         tool_context: str | None = None,
     ) -> list[dict[str, str]]:
         """Delegate to ContextBuilder.build() (US-014)."""
-        return (
+        return (  # type: ignore[no-any-return]
             self._get_or_create_context_builder()
             .build(
                 transcript,
