@@ -15,6 +15,8 @@ AskRex Assistant is a local-first AI assistant for text chat, voice interaction,
 
 AskRex is alpha software. It is useful for local testing and development, but it should not be treated as production-ready. Recent GUI and voice-loop fixes have made several paths usable end to end; wake-word tuning, warning cleanup, and per-user data separation are still in progress. See [docs/claude/INTEGRATIONS_STATUS.md](docs/claude/INTEGRATIONS_STATUS.md) for the broader integration readiness snapshot.
 
+> **Advanced / Developer**: For CLI text mode, voice loop, GPU/CUDA setup, and backend service configuration, see the [Advanced / Developer](#advanced--developer) section below. For GPU/CUDA setup and additional install variants, see [docs/advanced-install.md](docs/advanced-install.md).
+
 ## Contributing
 
 AskRex Assistant is open to feedback, testing, documentation improvements, bug reports, and focused pull requests.
@@ -31,7 +33,7 @@ If you are not sure where to begin, open a discussion and ask.
 
 ## Table of Contents
 
-- [Getting Started](#getting-started)
+- [Quick Start](#quick-start)
 - [Current Status](#current-status)
 - [Working Now](#working-now)
 - [Known Limitations / In Progress](#known-limitations--in-progress)
@@ -46,7 +48,7 @@ If you are not sure where to begin, open a discussion and ask.
 - [Documentation](#documentation)
 - [Security](#security)
 
-## Getting Started
+## Quick Start
 
 The supported user-facing interface is the **Electron desktop app**. Python 3.11 and Node.js/npm are required.
 
@@ -110,8 +112,6 @@ The Electron app communicates with the Python Flask backend automatically. See [
 ```bash
 rex doctor
 ```
-
-> **Advanced / Developer**: For CLI text mode, voice loop, GPU/CUDA setup, and backend service configuration, see the [Advanced / Developer](#advanced--developer) section below. For GPU/CUDA setup and additional install variants, see [docs/advanced-install.md](docs/advanced-install.md).
 
 ## Current Status
 
@@ -289,7 +289,7 @@ The following runtime paths are for developers, advanced users, and contributors
 
 ### CLI Text Mode
 
-After setting up the Python environment (see [Getting Started](#getting-started) step 2), run:
+After setting up the Python environment (see [Quick Start](#quick-start) step 2), run:
 
 ```bash
 rex doctor

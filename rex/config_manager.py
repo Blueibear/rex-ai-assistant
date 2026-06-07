@@ -8,6 +8,7 @@ from __future__ import annotations
 
 # ruff: noqa: I001, UP006, UP015, UP035, UP045
 
+import copy
 import json
 import os
 import shutil
@@ -274,8 +275,8 @@ def load_config(path: str | Path = "config/rex_config.json") -> Dict[str, Any]:
     # If file doesn't exist, create it with defaults
     if not config_path.exists():
         logger.info(f"Config file not found, creating default: {config_path}")
-        save_config(DEFAULT_CONFIG.copy(), path)
-        return DEFAULT_CONFIG.copy()
+        save_config(copy.deepcopy(DEFAULT_CONFIG), path)
+        return copy.deepcopy(DEFAULT_CONFIG)
 
     # Try to load existing config
     try:
@@ -284,7 +285,7 @@ def load_config(path: str | Path = "config/rex_config.json") -> Dict[str, Any]:
 
         # Merge with defaults to ensure all keys exist
         _canonicalize_wakeword_config(config)
-        merged = _deep_merge(DEFAULT_CONFIG.copy(), config)
+        merged = _deep_merge(copy.deepcopy(DEFAULT_CONFIG), config)
         _normalize_wake_word_config(merged)
         logger.debug(f"Loaded config from {config_path}")
         return merged
@@ -299,13 +300,13 @@ def load_config(path: str | Path = "config/rex_config.json") -> Dict[str, Any]:
             f"Backed up to {backup_path} and recreating with defaults."
         )
 
-        save_config(DEFAULT_CONFIG.copy(), path)
-        return DEFAULT_CONFIG.copy()
+        save_config(copy.deepcopy(DEFAULT_CONFIG), path)
+        return copy.deepcopy(DEFAULT_CONFIG)
 
     except Exception as exc:
         logger.error(f"Failed to load config from {config_path}: {exc}")
         logger.info("Using default configuration")
-        return DEFAULT_CONFIG.copy()
+        return copy.deepcopy(DEFAULT_CONFIG)
 
 
 def save_config(config: Dict[str, Any], path: str | Path = "config/rex_config.json") -> None:
@@ -432,7 +433,7 @@ def migrate_legacy_env_to_config(
     # does not exist, so we short-circuit to DEFAULT_CONFIG in that case.
     cfg_path = Path(config_path)
     if dry_run and not cfg_path.exists():
-        config = _deep_merge(DEFAULT_CONFIG.copy(), {})
+        config = _deep_merge(copy.deepcopy(DEFAULT_CONFIG), {})
     else:
         config = load_config(config_path)
 

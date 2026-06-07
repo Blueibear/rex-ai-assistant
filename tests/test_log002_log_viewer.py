@@ -49,12 +49,12 @@ def auth_header(app_client):
     setup_token = client.application.config.get("SETUP_TOKEN") or ""
     client.post(
         "/api/auth/register",
-        json={"username": "logviewer", "password": "[test-log-password-placeholder]"},
+        json={"username": "logviewer", "password": "[non-secret-test-value]"},
         headers={"X-Setup-Token": setup_token},
     )
     resp = client.post(
         "/api/auth/login",
-        json={"username": "logviewer", "password": "[test-log-password-placeholder]"},
+        json={"username": "logviewer", "password": "[non-secret-test-value]"},
     )
     token = resp.get_json()["token"]
     return {"Authorization": f"Bearer {token}"}
