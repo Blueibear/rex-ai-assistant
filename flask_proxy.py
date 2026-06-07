@@ -178,58 +178,76 @@ _DASHBOARD_PREFIXES = (
 _WEBHOOK_PREFIXES = ("/webhooks/",)
 
 
+def _is_memory_exempt_path(path: str) -> bool:
+    return (
+        path in _PUBLIC_PATHS
+        or any(path.startswith(prefix) for prefix in _DASHBOARD_PREFIXES)
+        or any(path.startswith(prefix) for prefix in _WEBHOOK_PREFIXES)
+    )
+
+
+def _resolve_cf_user_key(email: str) -> str:
+    resolved_user_key = resolve_user_key(email, USERS_MAP)
+    if not resolved_user_key:
+        abort(403, "Access denied for this user.")
+    return resolved_user_key
+
+
+def _resolve_token_user_key(token: str) -> str:
+    if not PROXY_TOKEN or token != PROXY_TOKEN:
+        abort(403, "Invalid or missing proxy token.")
+    resolved_user_key = resolve_user_key(os.getenv("REX_ACTIVE_USER"), USERS_MAP)
+    if not resolved_user_key:
+        abort(403, "REX_ACTIVE_USER is not configured or invalid.")
+    return resolved_user_key
+
+
+def _resolve_local_user_key() -> str:
+    active_user = os.getenv("REX_ACTIVE_USER")
+    resolved_user_key = resolve_user_key(active_user, USERS_MAP)
+    if not resolved_user_key and _TESTING_MODE and active_user:
+        resolved_user_key = active_user.strip().lower()
+    if not resolved_user_key:
+        abort(403, "Local access not permitted: REX_ACTIVE_USER missing.")
+    return resolved_user_key
+
+
+def _resolve_request_user_key() -> str:
+    email = request.headers.get("Cf-Access-Authenticated-User-Email")
+    token = _extract_shared_secret()
+
+    if email:
+        return _resolve_cf_user_key(email)
+    if token:
+        return _resolve_token_user_key(token)
+    if ALLOW_LOCAL and _is_loopback_address(request.remote_addr):
+        return _resolve_local_user_key()
+
+    abort(403, "No authenticated identity provided.")
+
+
+def _load_request_memory_profile(user_key: str) -> dict[str, Any]:
+    try:
+        return load_memory_profile(user_key)
+    except FileNotFoundError:
+        if _TESTING_MODE:
+            return _testing_memory_profile(user_key)
+        abort(500, f"Memory file not found for user '{user_key}'.")
+    except json.JSONDecodeError:
+        abort(500, f"Memory file for user '{user_key}' is invalid JSON.")
+
+
 @app.before_request
 def load_user_memory() -> None:
-    if request.path in _PUBLIC_PATHS:
-        return
-
-    if any(request.path.startswith(prefix) for prefix in _DASHBOARD_PREFIXES):
-        return
-
-    if any(request.path.startswith(prefix) for prefix in _WEBHOOK_PREFIXES):
+    if _is_memory_exempt_path(request.path):
         return
 
     if _TESTING_MODE:
         g.__dict__.clear()
 
-    email = request.headers.get("Cf-Access-Authenticated-User-Email")
-    token = _extract_shared_secret()
-    remote_addr = request.remote_addr
-
-    resolved_user_key = None
-
-    if email:
-        resolved_user_key = resolve_user_key(email, USERS_MAP)
-        if not resolved_user_key:
-            abort(403, "Access denied for this user.")
-    elif token:
-        if not PROXY_TOKEN or token != PROXY_TOKEN:
-            abort(403, "Invalid or missing proxy token.")
-        resolved_user_key = resolve_user_key(os.getenv("REX_ACTIVE_USER"), USERS_MAP)
-        if not resolved_user_key:
-            abort(403, "REX_ACTIVE_USER is not configured or invalid.")
-    elif ALLOW_LOCAL and _is_loopback_address(remote_addr):
-        active_user = os.getenv("REX_ACTIVE_USER")
-        resolved_user_key = resolve_user_key(active_user, USERS_MAP)
-        if not resolved_user_key and _TESTING_MODE and active_user:
-            resolved_user_key = active_user.strip().lower()
-        if not resolved_user_key:
-            abort(403, "Local access not permitted: REX_ACTIVE_USER missing.")
-    else:
-        abort(403, "No authenticated identity provided.")
-
-    g.user_key = resolved_user_key
+    g.user_key = _resolve_request_user_key()
     g.user_folder = os.path.join("Memory", g.user_key)
-
-    try:
-        g.memory = load_memory_profile(g.user_key)
-    except FileNotFoundError:
-        if _TESTING_MODE:
-            g.memory = _testing_memory_profile(g.user_key)
-            return
-        abort(500, f"Memory file not found for user '{g.user_key}'.")
-    except json.JSONDecodeError:
-        abort(500, f"Memory file for user '{g.user_key}' is invalid JSON.")
+    g.memory = _load_request_memory_profile(g.user_key)
 
 
 @app.route("/")
@@ -282,4 +300,4 @@ def contracts():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host=os.getenv("REX_FLASK_PROXY_HOST", "127.0.0.1"), port=5000)

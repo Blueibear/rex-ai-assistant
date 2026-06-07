@@ -795,6 +795,8 @@ const defaultSettingsMap: Record<string, Settings> = {
 
 type TestableIntegration = 'email' | 'calendar' | 'sms' | 'homeassistant' | 'phone'
 
+type IntegrationTestResult = { ok: boolean; error?: string }
+
 interface StoredIntegrationStatus {
   status: IntegrationConnectionStatus
   testedAt?: string
@@ -1009,6 +1011,85 @@ function hasConfiguredEmail(integrations: Record<string, unknown>): boolean {
     }
     return hasText(account.clientId) && hasText(account.clientSecret) // pragma: allowlist secret
   })
+}
+
+function hasDirectEmailCredentials(integrations: Record<string, unknown>): boolean {
+  return hasText(integrations.emailClientId) && hasText(integrations.emailClientSecret) // pragma: allowlist secret
+}
+
+function hasDirectCalendarCredentials(integrations: Record<string, unknown>): boolean {
+  return hasText(integrations.calendarClientId) && hasText(integrations.calendarClientSecret) // pragma: allowlist secret
+}
+
+function hasGuiSmsCredentials(integrations: Record<string, unknown>): boolean {
+  return (
+    hasText(integrations.smsSid) &&
+    hasText(integrations.smsAuthToken) &&
+    hasText(integrations.smsFromNumber)
+  )
+}
+
+function hasEnvSmsCredentials(env: Record<string, string>): boolean {
+  return hasText(env.TWILIO_ACCOUNT_SID) && hasText(env.TWILIO_AUTH_TOKEN)
+}
+
+function hasGuiPhoneCredentials(integrations: Record<string, unknown>): boolean {
+  return (
+    hasText(integrations.phoneSid) &&
+    hasText(integrations.phoneAuthToken) &&
+    hasText(integrations.phoneNumber)
+  )
+}
+
+function hasEnvPhoneCredentials(env: Record<string, string>): boolean {
+  return (
+    hasText(env.TWILIO_ACCOUNT_SID) &&
+    hasText(env.TWILIO_AUTH_TOKEN) &&
+    hasText(env.TWILIO_PHONE_NUMBER)
+  )
+}
+
+function integrationConfiguredResult(configured: boolean): IntegrationTestResult {
+  return configured ? { ok: true } : { ok: false, error: 'No credentials configured' }
+}
+
+function testEmailIntegration(integrations: Record<string, unknown>): IntegrationTestResult {
+  if (hasConfiguredOutlookEmail(integrations)) {
+    return { ok: false, error: OUTLOOK_EMAIL_UNSUPPORTED }
+  }
+  return integrationConfiguredResult(hasDirectEmailCredentials(integrations) || hasConfiguredEmail(integrations))
+}
+
+function testCalendarIntegration(integrations: Record<string, unknown>): IntegrationTestResult {
+  if (hasConfiguredOutlookCalendar(integrations)) {
+    return { ok: false, error: OUTLOOK_CALENDAR_UNSUPPORTED }
+  }
+  return integrationConfiguredResult(hasDirectCalendarCredentials(integrations))
+}
+
+function testSmsIntegration(integrations: Record<string, unknown>): IntegrationTestResult {
+  const env = readEnvFile()
+  return integrationConfiguredResult(hasGuiSmsCredentials(integrations) || hasEnvSmsCredentials(env))
+}
+
+function testPhoneIntegration(integrations: Record<string, unknown>): IntegrationTestResult {
+  const env = readEnvFile()
+  return integrationConfiguredResult(hasGuiPhoneCredentials(integrations) || hasEnvPhoneCredentials(env))
+}
+
+async function testIntegrationByType(
+  type: string,
+  integrations: Record<string, unknown>
+): Promise<{ type?: TestableIntegration; result: IntegrationTestResult }> {
+  if (type === 'email') return { type, result: testEmailIntegration(integrations) }
+  if (type === 'calendar') return { type, result: testCalendarIntegration(integrations) }
+  if (type === 'sms') return { type, result: testSmsIntegration(integrations) }
+  if (type === 'phone') return { type, result: testPhoneIntegration(integrations) }
+  if (type === 'homeassistant') {
+    const { baseUrl, token } = readSavedHomeAssistantCredentials()
+    return { type, result: await testHomeAssistantConnection(baseUrl, token) }
+  }
+  return { result: { ok: false, error: 'Unknown integration type' } }
 }
 
 function buildIntegrationInventory(): IntegrationInventoryItem[] {
@@ -1264,74 +1345,13 @@ function registerIpcHandlers(mainWindow: BrowserWindow | null = null): void {
     // Check whether credentials for the requested integration are configured
     const stored = readGuiSettings()
     const integrations = (stored['integrations'] ?? {}) as Record<string, unknown>
-    let result: { ok: boolean; error?: string }
+    const testResult = await testIntegrationByType(type, integrations)
 
-    if (type === 'email') {
-      if (hasConfiguredOutlookEmail(integrations)) {
-        result = { ok: false, error: OUTLOOK_EMAIL_UNSUPPORTED }
-        writeIntegrationStatus('email', result)
-        return result
-      }
-      const hasCredentials =
-        typeof integrations.emailClientId === 'string' && integrations.emailClientId.trim() !== '' &&
-        typeof integrations.emailClientSecret === 'string' && integrations.emailClientSecret.trim() !== '' // pragma: allowlist secret
-      result = hasCredentials || hasConfiguredEmail(integrations)
-        ? { ok: true }
-        : { ok: false, error: 'No credentials configured' }
-      writeIntegrationStatus('email', result)
-      return result
+    if (testResult.type) {
+      writeIntegrationStatus(testResult.type, testResult.result)
     }
 
-    if (type === 'calendar') {
-      if (hasConfiguredOutlookCalendar(integrations)) {
-        result = { ok: false, error: OUTLOOK_CALENDAR_UNSUPPORTED }
-        writeIntegrationStatus('calendar', result)
-        return result
-      }
-      const hasCredentials =
-        typeof integrations.calendarClientId === 'string' && integrations.calendarClientId.trim() !== '' &&
-        typeof integrations.calendarClientSecret === 'string' && integrations.calendarClientSecret.trim() !== '' // pragma: allowlist secret
-      result = hasCredentials ? { ok: true } : { ok: false, error: 'No credentials configured' }
-      writeIntegrationStatus('calendar', result)
-      return result
-    }
-
-    if (type === 'sms') {
-      const env = readEnvFile()
-      const hasCredentials =
-        (
-          typeof integrations.smsSid === 'string' && integrations.smsSid.trim() !== '' &&
-          typeof integrations.smsAuthToken === 'string' && integrations.smsAuthToken.trim() !== '' &&
-          typeof integrations.smsFromNumber === 'string' && integrations.smsFromNumber.trim() !== ''
-        ) ||
-        (hasText(env.TWILIO_ACCOUNT_SID) && hasText(env.TWILIO_AUTH_TOKEN))
-      result = hasCredentials ? { ok: true } : { ok: false, error: 'No credentials configured' }
-      writeIntegrationStatus('sms', result)
-      return result
-    }
-
-    if (type === 'homeassistant') {
-      const { baseUrl, token } = readSavedHomeAssistantCredentials()
-      result = await testHomeAssistantConnection(baseUrl, token)
-      writeIntegrationStatus('homeassistant', result)
-      return result
-    }
-
-    if (type === 'phone') {
-      const env = readEnvFile()
-      const hasCredentials =
-        (
-          typeof integrations.phoneSid === 'string' && integrations.phoneSid.trim() !== '' &&
-          typeof integrations.phoneAuthToken === 'string' && integrations.phoneAuthToken.trim() !== '' &&
-          typeof integrations.phoneNumber === 'string' && integrations.phoneNumber.trim() !== ''
-        ) ||
-        (hasText(env.TWILIO_ACCOUNT_SID) && hasText(env.TWILIO_AUTH_TOKEN) && hasText(env.TWILIO_PHONE_NUMBER))
-      result = hasCredentials ? { ok: true } : { ok: false, error: 'No credentials configured' }
-      writeIntegrationStatus('phone', result)
-      return result
-    }
-
-    return { ok: false, error: 'Unknown integration type' }
+    return testResult.result
   })
 
   ipcMain.handle('rex:pickFolder', async (): Promise<{ ok: boolean; path?: string; error?: string }> => {
