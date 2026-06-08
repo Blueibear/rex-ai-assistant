@@ -7,12 +7,12 @@ This is the active inventory of UI and user-facing service surfaces that ship in
 | CLI (text chat) | `rex` | **Primary — keep** | Core text interface |
 | Voice loop | `python rex_loop.py` | **Primary — keep** | Core voice interface |
 | Electron desktop GUI | `cd gui && npm.cmd run dev` | **Primary GUI — keep** | Current user-facing React/Electron GUI, backed by Python bridge scripts at repo root |
-| Python/Flask local API and experimental web dashboard | `rex-gui` | Compatibility/API surface — keep | Starts Flask on `127.0.0.1:8765`, serves local `/api/...` routes and an incomplete `/ui/` browser dashboard; not the primary GUI |
+| Python/Flask local API and experimental web dashboard | `rex-gui` | **Developer-only** | Starts Flask on `127.0.0.1:8765`, serves local `/api/...` routes and an incomplete `/ui/` browser dashboard; not the primary GUI |
 | Shopping PWA | served by `rex` or `rex-gui` | **Archived** | Surface archived to `/archived/shopping_pwa/`; shopping list logic (`rex/shopping_list.py`) remains |
 | TTS API | `rex-speak-api` | **Service component — keep** | Required by voice loop |
 | OpenClaw tool server | `rex-tool-server` | Service component | Tool adapter service on `127.0.0.1:18790`; requires `REX_TOOL_API_KEY` for tool calls |
 | Windows computer agent | `rex-agent` | Optional service | Remote PC control agent API |
-| Flask proxy | `python flask_proxy.py` | Legacy API/proxy surface | Kept for compatibility with proxy/search/contracts paths; not the normal desktop GUI entry point |
+| Flask proxy | `python flask_proxy.py` | **Deprecated** | Root-level legacy API/proxy; scheduled for removal. Use `rex-gui` instead. See SURFACE-CLASSIFICATION.md. |
 | Tkinter window (`gui.py`) | `python archived/tkinter_gui/run_gui.py` | **Archived** | Superseded by the Electron desktop GUI; moved to `/archived/tkinter_gui/` |
 
 ## Electron GUI

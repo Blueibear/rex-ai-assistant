@@ -808,11 +808,11 @@ grep -n "REX_JWT_SECRET" .env.example
 - `SURFACE-CLASSIFICATION.md` (created in US-REM-018)
 
 **Acceptance Criteria:**
-- [ ] Every surface classified as `deprecated` in `SURFACE-CLASSIFICATION.md` has a deprecation notice in any doc that references it.
-- [ ] Every surface classified as `developer-only` is in a Developer section of the relevant doc, not in user-facing Getting Started.
-- [ ] Every surface classified as `archived` is mentioned only in `archived/ARCHIVED.md`, not in primary docs.
-- [ ] `CLAUDE.md` Tech Stack section matches the final surface classification.
-- [ ] Docs do not contradict each other on which path is primary.
+- [x] Every surface classified as `deprecated` in `SURFACE-CLASSIFICATION.md` has a deprecation notice in any doc that references it.
+- [x] Every surface classified as `developer-only` is in a Developer section of the relevant doc, not in user-facing Getting Started.
+- [x] Every surface classified as `archived` is mentioned only in `archived/ARCHIVED.md`, not in primary docs.
+- [x] `CLAUDE.md` Tech Stack section matches the final surface classification.
+- [x] Docs do not contradict each other on which path is primary.
 
 **Validation commands:**
 ```bash

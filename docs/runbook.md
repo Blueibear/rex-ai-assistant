@@ -2,7 +2,7 @@
 
 This runbook covers the current local operating surfaces for AskRex Assistant:
 starting, stopping, health checks, common recovery steps, and where each surface
-listens. It intentionally treats `flask_proxy.py` and Tkinter as legacy surfaces.
+listens. It intentionally treats `flask_proxy.py` as a **deprecated** surface and Tkinter GUI entry points as **archived**.
 Use the Electron app for day-to-day GUI work. Use `rex-gui` for local Flask API
 routes and the incomplete experimental browser dashboard only when that surface
 is what you are testing.
@@ -20,7 +20,7 @@ For configuration, see `CONFIGURATION.md` and `docs/environment-variables.md`.
 | Python/Flask API and experimental web dashboard | `rex-gui` | `http://127.0.0.1:8765/ui/` | Local Flask API plus incomplete browser dashboard |
 | Rex Speak API | `rex-speak-api` | `http://127.0.0.1:5005` | Authenticated TTS `/speak` API |
 | Rex tool server | `rex-tool-server` | `http://127.0.0.1:18790` | Authenticated OpenClaw-style tool endpoint |
-| Legacy Flask proxy | `python flask_proxy.py` | `http://0.0.0.0:5000` | Compatibility API/proxy surface |
+| Legacy Flask proxy *(deprecated)* | `python flask_proxy.py` | `http://0.0.0.0:5000` | **Deprecated** — compatibility API/proxy surface; use `rex-gui` |
 
 Only start the processes needed for the workflow you are running.
 

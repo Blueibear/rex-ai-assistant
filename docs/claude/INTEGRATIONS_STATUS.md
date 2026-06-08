@@ -48,7 +48,7 @@ This file is the active readiness snapshot for repo integration claims. Use thes
 
 - Python 3.11 is the only supported runtime. Python 3.12+ is rejected.
 - Electron GUI claims should be verified with `npm.cmd run build` and the `gui/tmp_verify_*.cjs` harness pattern before release.
-- Legacy Tkinter launchers (`run_gui.py`, `gui.py`) are deprecated.
-- `flask_proxy.py` is a legacy proxy/API surface, not the primary GUI runtime.
+- Legacy Tkinter launchers (`run_gui.py`, `gui.py`) are **archived** (moved to `archived/tkinter_gui/`).
+- `flask_proxy.py` is a **deprecated** legacy proxy/API surface — use `rex-gui` instead.
 - OpenClaw docs include historical migration details; current behavior is HTTP-based and feature-flagged.
 - Archive docs and historical PRDs are not reliable as current-state sources.

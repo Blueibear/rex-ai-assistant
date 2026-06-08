@@ -146,7 +146,7 @@ Computer agent:
 REX_AGENT_API_KEY=replace-with-random-secret rex-agent
 ```
 
-Legacy proxy, only when maintaining compatibility paths:
+Legacy proxy (**deprecated** — use `rex-gui` for new work):
 
 ```bash
 python flask_proxy.py

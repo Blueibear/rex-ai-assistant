@@ -385,7 +385,7 @@ data is lost.
 
 ### Hosting
 
-The inbound SMS webhook is hosted by `flask_proxy.py` (the main dashboard/proxy Flask app). At startup, the app calls `register_inbound_sms_webhook()` which:
+The inbound SMS webhook is hosted by `flask_proxy.py` (**deprecated** legacy proxy — use `rex-gui` for new deployments). At startup, the app calls `register_inbound_sms_webhook()` which:
 
 1. Reads `messaging.inbound` from `config/rex_config.json`
 2. If `enabled` is `true`, resolves the Twilio auth token via `CredentialManager`
@@ -475,7 +475,7 @@ To test inbound SMS locally without a real Twilio account:
    export REX_TWILIO_INBOUND="test_token_for_dev"
    ```
 
-3. Start the Flask proxy app:
+3. Start the Flask proxy app (**deprecated** — prefer `rex-gui` for new work):
    ```bash
    python flask_proxy.py
    ```

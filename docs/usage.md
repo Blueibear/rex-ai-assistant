@@ -310,4 +310,4 @@ python run_gui.py
 python gui.py
 ```
 
-They launch the legacy Tkinter UI and have been superseded by the Electron app. The `rex-gui` Flask service remains for local API and experimental browser-dashboard work.
+They launch the legacy Tkinter UI and are **archived** (moved to `archived/tkinter_gui/`). The Electron app (`cd gui && npm run dev`) is the current primary GUI. The `rex-gui` Flask service (developer-only) remains for local API and experimental browser-dashboard work.

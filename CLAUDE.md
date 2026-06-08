@@ -69,7 +69,7 @@ Entry points:
 
 API: Flask (Flask-CORS, Flask-Limiter)
 
-GUI: Web dashboard via `rex.gui_app` (React + Flask). `gui.py` is deprecated.
+GUI: Web dashboard via `rex.gui_app` (React + Flask). `gui.py` is **archived** (moved to `archived/tkinter_gui/` — see SURFACE-CLASSIFICATION.md).
 
 Config: Pydantic v2, python-dotenv
 
